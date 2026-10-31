@@ -53,7 +53,7 @@ export const BallotBoxEntry: React.FC<BallotBoxEntryProps> = ({
         void keys.refetch().catch(() => undefined)
     }
     const contextMatches =
-        proof?.ballot_id === ballotId &&
+        (proof?.tracking_id ?? proof?.ballot_id) === ballotId &&
         trust?.election_id === electionId &&
         trust?.election_event_id === electionEventId
     const loadError = entry.error || keys.error || !proof || !trust || !contextMatches

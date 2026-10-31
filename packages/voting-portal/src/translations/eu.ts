@@ -560,7 +560,7 @@ const basqueTranslation: TranslationType = {
                 "Ez da aurkitu. Egiaztatu zure jarraipen IDa zuzena dela eta erabiltzaile honi dagokiola.",
             filterByBallotId: "Filtratu jarraipen IDaren arabera",
             totalBallots: "Bozketa kopurua: {{total}}",
-            idHelp: "Jarraipen ID laburra, 30ff d314 bezalakoa, edo osoa",
+            idHelp: "Jarraipen ID laburra, FTBE-MHRX bezalakoa, edo osoa",
             foundShort:
                 "ID laburraren bidez aurkitu da. Zurea dela ziur egoteko, alderatu jarraipen ID osoa zure hartu-agiriarekin.",
             search: {
@@ -569,7 +569,7 @@ const basqueTranslation: TranslationType = {
                 find: "Bilatu",
                 invalid: "Jarraipen IDak digituak eta a-tik f-ra bitarteko letrak baino ez ditu.",
                 chips: {
-                    short: "<b>Laburra</b> 30ff d314",
+                    short: "<b>Laburra</b> FTBE-MHRX",
                     full: "<b>Osoa</b> lauko 16 talde",
                     spaces: "Zuriuneak aukerakoak",
                 },

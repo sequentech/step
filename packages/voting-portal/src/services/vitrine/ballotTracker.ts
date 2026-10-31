@@ -10,7 +10,7 @@
 import type {IAuditableMultiBallot, IAuditableSingleBallot} from "@sequentech/ui-core"
 import type {ChainResult, Policy, TierName, TierResult} from "@vitrine/verify"
 import {
-    ballotIdHex,
+    ballotIdChars,
     ballotIdInput,
     EBallotIdInput,
     SHORT_BALLOT_ID_LENGTH,
@@ -21,7 +21,7 @@ import {EReceiptNotice, IReceiptView} from "./castReceipt"
 
 /** Telephone voters read out the first four characters of their Tracking ID. */
 export const TELEPHONE_BALLOT_ID_LENGTH = 4
-const HEX = /^[0-9a-f]+$/
+const ALPHABET = /^[0-9A-HJKMNP-TV-Z]+$/
 const SECONDS = 60
 
 export interface IBallotLookup {
@@ -33,13 +33,14 @@ const isShortLength = (length: number, telephone: boolean): boolean =>
     length === SHORT_BALLOT_ID_LENGTH || (telephone && length === TELEPHONE_BALLOT_ID_LENGTH)
 
 /** How the ID in the address is looked up: a short ID by its prefix, any
- * other ID as it is. Nothing for what isn't hex. */
+ * other ID as it is. Nothing for what isn't a Tracking ID: a voter pseudonym
+ * (`FTBE:MHRX`) among it. */
 export const ballotLookupOf = (
     value: string | undefined,
     telephone: boolean
 ): IBallotLookup | null => {
-    const hex = ballotIdHex(value ?? "")
-    if (!HEX.test(hex)) return null
+    const hex = ballotIdChars(value ?? "")
+    if (!ALPHABET.test(hex)) return null
     return isShortLength(hex.length, telephone) ? {ballotIdPrefix: hex} : {ballotId: hex}
 }
 
@@ -47,12 +48,12 @@ export const ballotLookupOf = (
  * with telephone voting also take the first four characters. */
 export const trackerInput = (value: string, telephone: boolean): EBallotIdInput => {
     const input = ballotIdInput(value)
-    const hex = ballotIdHex(value)
+    const hex = ballotIdChars(value)
     if (
         input === EBallotIdInput.INVALID &&
         telephone &&
         hex.length === TELEPHONE_BALLOT_ID_LENGTH &&
-        HEX.test(hex)
+        ALPHABET.test(hex)
     ) {
         return EBallotIdInput.SHORT
     }
@@ -62,7 +63,7 @@ export const trackerInput = (value: string, telephone: boolean): EBallotIdInput 
 /** Whether the voter typed or pasted characters that can't be part of a
  * Tracking ID, or more than a full one. The field leaves them out. */
 export const rejectedBallotId = (value: string): boolean =>
-    ballotIdHex(value) !== typedBallotId(value).replace(/ /g, "")
+    ballotIdChars(value) !== typedBallotId(value).replace(/[\s-]/g, "")
 
 /** The `accepted_at` of the log's entry for a cast vote, in POSIX seconds,
  * from the vote's `created_at`: the ballot box's time as RFC 3339, in
@@ -137,9 +138,9 @@ export const classifyRecord = (content: string | null | undefined): TRecord => {
 }
 
 /** A file name for the ballot's record, from the short Tracking ID:
- * `ballot-30ffd314.json`. */
+ * `ballot-FTBEMHRX.json`. */
 export const recordFileName = (ballotId: string): string => {
-    const short = ballotIdHex(ballotId).slice(0, SHORT_BALLOT_ID_LENGTH)
+    const short = ballotIdChars(ballotId).slice(0, SHORT_BALLOT_ID_LENGTH)
     return `ballot${short ? `-${short}` : ""}.json`
 }
 

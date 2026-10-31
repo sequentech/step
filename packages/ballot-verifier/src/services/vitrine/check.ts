@@ -12,7 +12,7 @@
 // file holds.
 
 import type {ChainResult, Expect, PolicyHistory, ReceiptReference} from "@vitrine/verify"
-import {ballotIdHex} from "./ballotId"
+import {trackingIdDigestHex, trackingIdOfDigestHex} from "./ballotId"
 import {FetchLike, sdkFetch} from "./http"
 import type {IPolicyView} from "./policies"
 import type {IVitrineSdk} from "./sdk"
@@ -139,7 +139,9 @@ export interface IBallotForm {
 export const expectFromForm = (sdk: IVitrineSdk, form: IBallotForm): Expect | undefined => {
     const eventId = form.eventId.trim()
     const electionId = form.electionId.trim()
-    const ballotId = ballotIdHex(form.ballotId)
+    // The entry holds the Tracking ID as its digest: the whole ID, not a short one.
+    const ballotId = trackingIdDigestHex(form.ballotId)
+    if (!ballotId) return undefined
     try {
         sdk.verify.buildElectionEntry({eventId, electionId, ballotId, acceptedAt: 0})
     } catch {
@@ -148,15 +150,15 @@ export const expectFromForm = (sdk: IVitrineSdk, form: IBallotForm): Expect | un
     return {fields: {event_id: eventId, election_id: electionId, ballot_id: ballotId}}
 }
 
-/** The tracking ID an expectation names, in hex, to show the user. */
+/** The Tracking ID an expectation names, to show the user. */
 export const expectedBallotId = (sdk: IVitrineSdk, expect: Expect): string | undefined => {
-    if ("fields" in expect) return expect.fields.ballot_id
+    if ("fields" in expect) return trackingIdOfDigestHex(expect.fields.ballot_id)
     try {
         const id = sdk.pure.entries.fieldValue(
             sdk.pure.entries.parseEntry(expect.entry),
             "ballot_id"
         )
-        return id && sdk.pure.encoding.hexEncode(id)
+        return id && trackingIdOfDigestHex(sdk.pure.encoding.hexEncode(id))
     } catch {
         return undefined
     }

@@ -39,8 +39,8 @@ const focusSx = {
 const fullIdParts = (ballotId: string): {lead: string; rest: string} => {
     const groups = ballotIdGroups(ballotId)
     return {
-        lead: groups.slice(0, 2).join(" "),
-        rest: groups.length > 2 ? ` ${groups.slice(2).join(" ")}` : "",
+        lead: groups.slice(0, 2).join("-"),
+        rest: groups.length > 2 ? `-${groups.slice(2).join("-")}` : "",
     }
 }
 

@@ -5,12 +5,13 @@ import {Box, ButtonBase, Chip, Stack, Typography} from "@mui/material"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {faUserSecret} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
+import {pseudonymDisplay} from "@/lib/pseudonymDisplay"
 import {COUNTRIES} from "@/lib/countries"
 
 export const ForensicPseudonym: React.FC<{code: string}> = ({code}) => (
     <Chip
         icon={<FontAwesomeIcon icon={faUserSecret} />}
-        label={code}
+        label={pseudonymDisplay(code)}
         size="small"
         variant="outlined"
         sx={{

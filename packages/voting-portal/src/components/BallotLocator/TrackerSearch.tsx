@@ -20,7 +20,7 @@ const FIELD_ID = "tracker-search-id"
 const TITLE_ID = "tracker-search-title"
 const HELP_ID = "ballot-id-help"
 const ERROR_ID = "ballot-id-error"
-const SHORT_ID_EXAMPLE = "30ff d314"
+const SHORT_ID_EXAMPLE = "FTBE-MHRX"
 const BORDER = "#CBD5E1"
 const BORDER_HOVER = "#94A3B8"
 

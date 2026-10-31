@@ -20,7 +20,12 @@ import {
     theme,
     Dialog,
 } from "@sequentech/ui-essentials"
-import {IAuditableBallot, IAuditableMultiBallot, IAuditableSingleBallot} from "@sequentech/ui-core"
+import {
+    IAuditableBallot,
+    IAuditableMultiBallot,
+    IAuditableSingleBallot,
+    trackingId,
+} from "@sequentech/ui-core"
 import {useNavigate} from "react-router-dom"
 import {Box} from "@mui/material"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
@@ -150,6 +155,15 @@ const parseAuditableBallotFile = async (
     } catch (e) {
         console.log(e)
         return null
+    }
+}
+
+/** The Tracking ID of a ballot, or nothing when it can't be made. */
+const trackingIdOf = (ballotHash: string, voterSigningPk?: string | null): string => {
+    try {
+        return trackingId(ballotHash, voterSigningPk)
+    } catch {
+        return ""
     }
 }
 
@@ -310,6 +324,7 @@ export const HomeScreen: React.FC<IProps> = ({
 
         setConfirmationBallot({
             ballot_hash: ballotHash,
+            tracking_id: trackingIdOf(ballotHash, file.voter_signing_pk),
             election_config: ballotStyle,
             decoded_questions: decodedBallot,
         })
@@ -364,7 +379,7 @@ export const HomeScreen: React.FC<IProps> = ({
             false
         )
         let ballotHash = ballotService.hashBallot512(auditableBallot)
-        setBallotId(groupBallotId(ballotHash))
+        setBallotId(groupBallotId(trackingIdOf(ballotHash, auditableBallot.voter_signing_pk)))
     }
 
     return (

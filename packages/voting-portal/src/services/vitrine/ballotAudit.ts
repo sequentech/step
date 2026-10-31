@@ -17,7 +17,7 @@ import type {
     IDecodedVoteContest,
 } from "@sequentech/ui-core"
 import {IBallotService, provideBallotService} from "../BallotService"
-import {ballotIdHex} from "./ballotId"
+import {ballotIdChars} from "./ballotId"
 import {ERecordEncoding, ERecordKind, TRecord} from "./ballotTracker"
 
 export enum EAuditOutcome {
@@ -83,8 +83,8 @@ export const auditBallot = (
     trackingId: string
 ): TAudit => {
     try {
-        const expected = ballotIdHex(trackingId)
-        const hash = ballotIdHex(hashOf(service, record))
+        const expected = ballotIdChars(trackingId)
+        const hash = ballotIdChars(hashOf(service, record))
         if (!expected || !hash) return {outcome: EAuditOutcome.NOT_VERIFIABLE}
         if (hash !== expected || !reproduces(service, record)) {
             return {outcome: EAuditOutcome.MISMATCH}

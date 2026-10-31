@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {pseudonymDisplay} from "@/lib/pseudonymDisplay"
 import React, {useId} from "react"
 import {Box, Chip, Divider, Typography, styled} from "@mui/material"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
@@ -76,7 +77,7 @@ const PseudonymChip: React.FC<{code: string}> = ({code}) => (
         size="small"
         variant="outlined"
         icon={<FontAwesomeIcon icon={faUserSecret} />}
-        label={code}
+        label={pseudonymDisplay(code)}
         sx={{
             height: 24,
             borderRadius: "4px",

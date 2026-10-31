@@ -559,7 +559,7 @@ const tagalogTranslation: TranslationType = {
                 "Hindi natagpuan. Tiyaking tama ang iyong Tracking ID at nabibilang ito sa gumagamit na ito.",
             filterByBallotId: "I-filter ayon sa Tracking ID",
             totalBallots: "Kumulang mga balota: {{total}}",
-            idHelp: "Ang maikling Tracking ID, tulad ng 30ff d314, o ang buo",
+            idHelp: "Ang maikling Tracking ID, tulad ng FTBE-MHRX, o ang buo",
             foundShort:
                 "Natagpuan sa pamamagitan ng maikling ID nito. Para matiyak na iyo ito, ihambing ang buong Tracking ID sa iyong resibo.",
             search: {
@@ -568,7 +568,7 @@ const tagalogTranslation: TranslationType = {
                 find: "Hanapin",
                 invalid: "Ang Tracking ID ay may mga digit at mga letrang a hanggang f lamang.",
                 chips: {
-                    short: "<b>Maikli</b> 30ff d314",
+                    short: "<b>Maikli</b> FTBE-MHRX",
                     full: "<b>Buo</b> 16 na grupo ng apat",
                     spaces: "Opsyonal ang mga espasyo",
                 },

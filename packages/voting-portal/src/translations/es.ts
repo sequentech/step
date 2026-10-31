@@ -561,7 +561,7 @@ const spanishTranslation: TranslationType = {
                 "No encontrado, compruebe que el ID de seguimiento sea correcto y pertenezca a este usuario.",
             filterByBallotId: "Filtrar por ID de seguimiento",
             totalBallots: "Papeletas: {{total}}",
-            idHelp: "El ID de seguimiento corto, como 30ff d314, o el completo",
+            idHelp: "El ID de seguimiento corto, como FTBE-MHRX, o el completo",
             foundShort:
                 "Encontrada por su ID corto. Para estar seguro de que es la suya, compare el ID de seguimiento completo con su recibo.",
             search: {
@@ -570,7 +570,7 @@ const spanishTranslation: TranslationType = {
                 find: "Buscar",
                 invalid: "Un ID de seguimiento solo tiene dígitos y las letras de la a a la f.",
                 chips: {
-                    short: "<b>Corto</b> 30ff d314",
+                    short: "<b>Corto</b> FTBE-MHRX",
                     full: "<b>Completo</b> 16 grupos de cuatro",
                     spaces: "Espacios opcionales",
                 },

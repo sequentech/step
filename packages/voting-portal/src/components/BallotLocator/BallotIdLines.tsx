@@ -12,20 +12,19 @@ export interface IBallotIdLinesProps {
 }
 
 /** A full Tracking ID in lines, its first two groups, the short ID, in bold.
- * A space ends each line, so that the ID reads and copies as one. */
+ * A hyphen ends each line, so that the ID reads and copies as one. */
 export const BallotIdLines: React.FC<IBallotIdLinesProps> = ({ballotId, perLine}) => (
     <>
         {ballotIdLines(ballotId, perLine).map((groups, n, lines) => (
             <React.Fragment key={n}>
                 {n === 0 ? (
-                    <b className="ballot-id-short-groups">{groups.slice(0, 2).join(" ")}</b>
+                    <b className="ballot-id-short-groups">{groups.slice(0, 2).join("-")}</b>
                 ) : null}
-                {n === 0 ? " " : null}
-                {groups.slice(n === 0 ? 2 : 0).join(" ")}
+                {n === 0 && groups.length > 2 ? "-" : null}
+                {groups.slice(n === 0 ? 2 : 0).join("-")}
                 {n < lines.length - 1 ? (
                     <>
-                        {" "}
-                        <br className="ballot-id-line-break" />
+                        -<br className="ballot-id-line-break" />
                     </>
                 ) : null}
             </React.Fragment>

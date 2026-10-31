@@ -138,7 +138,7 @@ const BallotIdHelp: React.FC<IBallotIdHelpProps> = ({title, ok, content}) => {
 
 const BallotIdSection: React.FC<BallotIdSectionProps> = ({confirmationBallot, ballotId}) => {
     const {t} = useTranslation()
-    const decodedBallotId = confirmationBallot?.ballot_hash
+    const decodedBallotId = confirmationBallot?.tracking_id
     const matches = ballotIdsMatch(decodedBallotId, ballotId)
 
     return (
@@ -388,7 +388,7 @@ export const ConfirmationScreen: React.FC<IProps> = ({confirmationBallot, ballot
                 />
             </Box>
             <BallotIdSection confirmationBallot={confirmationBallot} ballotId={ballotId} />
-            {ballotIdsMatch(confirmationBallot?.ballot_hash, ballotId) ? (
+            {ballotIdsMatch(confirmationBallot?.tracking_id, ballotId) ? (
                 <VerifySelectionsSection
                     confirmationBallot={confirmationBallot}
                     isLoading={isLoading}

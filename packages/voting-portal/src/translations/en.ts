@@ -705,7 +705,7 @@ const englishTranslation = {
                 "Not found, check that your Tracking ID is correct and belongs to this user.",
             filterByBallotId: "Filter by Tracking ID",
             totalBallots: "Total Ballots: {{total}}",
-            idHelp: "The short Tracking ID, like 30ff d314, or the full one",
+            idHelp: "The short Tracking ID, like FTBE-MHRX, or the full one",
             foundShort:
                 "Found by its short ID. To be certain it is yours, compare the full Tracking ID with your receipt.",
             search: {
@@ -714,7 +714,7 @@ const englishTranslation = {
                 find: "Find",
                 invalid: "A Tracking ID has only digits and the letters a to f.",
                 chips: {
-                    short: "<b>Short</b> 30ff d314",
+                    short: "<b>Short</b> FTBE-MHRX",
                     full: "<b>Full</b> 16 groups of four",
                     spaces: "Spaces optional",
                 },

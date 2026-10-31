@@ -73,7 +73,7 @@ export const BallotEntryEvidence: React.FC<{
         const url = URL.createObjectURL(blob)
         const link = document.createElement("a")
         link.href = url
-        link.download = `ballot-${proof.ballot_id.replace(/[^A-Z0-9-]/gi, "")}-signed-entries.json`
+        link.download = `ballot-${(proof.tracking_id ?? proof.ballot_id).replace(/[^A-Z0-9-]/gi, "")}-signed-entries.json`
         link.click()
         setTimeout(() => URL.revokeObjectURL(url), 0)
     }
@@ -223,7 +223,7 @@ export const BallotEntryEvidence: React.FC<{
                                         sx={{m: 0, lineHeight: 1.5, overflowWrap: "anywhere"}}
                                     >
                                         {t(`ballotPrivacy.admin.${label}Title`, {
-                                            ballotId: proof.ballot_id,
+                                            ballotId: proof.tracking_id ?? proof.ballot_id,
                                         })}
                                         {kind === "CastVote" && proof.voting_channel
                                             ? `, ${t(`ballotPrivacy.channels.${proof.voting_channel.toLowerCase()}`, {defaultValue: proof.voting_channel})}`

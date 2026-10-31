@@ -560,7 +560,7 @@ const dutchTranslation: TranslationType = {
                 "Niet gevonden, controleer of uw Tracking-ID correct is en tot deze gebruiker behoort.",
             filterByBallotId: "Filteren op Tracking-ID",
             totalBallots: "Aantal stembiljet: {{total}}",
-            idHelp: "De korte Tracking-ID, zoals 30ff d314, of de volledige",
+            idHelp: "De korte Tracking-ID, zoals FTBE-MHRX, of de volledige",
             foundShort:
                 "Gevonden via de korte ID. Vergelijk de volledige Tracking-ID met uw ontvangstbewijs om zeker te weten dat het uw stembiljet is.",
             search: {
@@ -569,7 +569,7 @@ const dutchTranslation: TranslationType = {
                 find: "Zoeken",
                 invalid: "Een Tracking-ID bestaat alleen uit cijfers en de letters a tot en met f.",
                 chips: {
-                    short: "<b>Kort</b> 30ff d314",
+                    short: "<b>Kort</b> FTBE-MHRX",
                     full: "<b>Volledig</b> 16 groepen van vier",
                     spaces: "Spaties optioneel",
                 },

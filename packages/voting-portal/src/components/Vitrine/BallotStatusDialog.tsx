@@ -349,12 +349,12 @@ const IdBox: React.FC<{ballotId: string; tag: EBallotTag; phone: boolean}> = ({
                             {n === 0 ? (
                                 <>
                                     <b className="ballot-status-full-lead">
-                                        {line.slice(0, 2).join(" ")}
+                                        {line.slice(0, 2).join("-")}
                                     </b>
-                                    {line.length > 2 ? ` ${line.slice(2).join(" ")}` : ""}
+                                    {line.length > 2 ? `-${line.slice(2).join("-")}` : ""}
                                 </>
                             ) : (
-                                line.join(" ")
+                                line.join("-")
                             )}
                         </div>
                     ))}

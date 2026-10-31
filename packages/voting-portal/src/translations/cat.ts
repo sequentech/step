@@ -562,7 +562,7 @@ const catalanTranslation: TranslationType = {
                 "No trobat, comproveu que l'ID de seguiment sigui correcte i pertanyi a l'usuari actual.",
             filterByBallotId: "Filtra per ID de seguiment",
             totalBallots: "Paperetes: {{total}}",
-            idHelp: "L'ID de seguiment curt, com 30ff d314, o el complet",
+            idHelp: "L'ID de seguiment curt, com FTBE-MHRX, o el complet",
             foundShort:
                 "Trobada pel seu ID curt. Per estar-ne segur que és la vostra, compareu l'ID de seguiment complet amb el vostre rebut.",
             search: {
@@ -571,7 +571,7 @@ const catalanTranslation: TranslationType = {
                 find: "Cerca",
                 invalid: "Un ID de seguiment només té dígits i les lletres de la a a la f.",
                 chips: {
-                    short: "<b>Curt</b> 30ff d314",
+                    short: "<b>Curt</b> FTBE-MHRX",
                     full: "<b>Complet</b> 16 grups de quatre",
                     spaces: "Espais opcionals",
                 },

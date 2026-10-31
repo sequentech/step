@@ -606,7 +606,7 @@ const KEY_SX = {
 
 /** A hash as the receipt names it: its first three groups and its last. */
 const abbreviated = (hex: string): string => {
-    const groups = ballotIdGroups(hex)
+    const groups = hex.replace(/\s+/g, "").toLowerCase().match(/.{1,4}/g) ?? []
     return groups.length > 4
         ? `${groups.slice(0, 3).join(" ")} ··· ${groups.at(-1)}`
         : groups.join(" ")

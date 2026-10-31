@@ -62,7 +62,7 @@ export const GroupedBallotId: React.FC<IGroupedBallotIdProps> = ({
                 return (
                     <React.Fragment key={k}>
                         {k < SHORT_BALLOT_ID_GROUPS ? <b>{shown}</b> : shown}
-                        {k < groups.length - 1 ? " " : null}
+                        {k < groups.length - 1 ? "-" : null}
                     </React.Fragment>
                 )
             })}

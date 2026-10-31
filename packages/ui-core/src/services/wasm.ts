@@ -52,7 +52,8 @@ import {
     sign_ballot_cast_js,
     forget_voter_signing_key_js,
     verify_cast_receipt_js,
-    normalize_ballot_id_js,
+    normalize_tracking_id_js,
+    tracking_id_js,
     get_default_duplicated_rank_policy_js,
     get_default_preference_gaps_policy_js,
 } from "sequent-core"
@@ -474,14 +475,27 @@ export const verifyCastReceipt = (
     }
 }
 
-// Reads a typed Ballot ID the way the ballot box writes it; null when the text
-// cannot be one.
-export const normalizeBallotId = (typed: string): string | null => {
+// Reads a typed Tracking ID, or the first 4 or 8 characters of one, in groups
+// of four (`FTBE-MHRX`); null when the text cannot be one. A voter pseudonym
+// (`FTBE:MHRX`) is not a Tracking ID.
+export const normalizeTrackingId = (typed: string): string | null => {
     try {
-        return normalize_ballot_id_js(typed) ?? null
+        return normalize_tracking_id_js(typed) ?? null
     } catch (error) {
         console.log(error)
         return null
+    }
+}
+
+// The full Tracking ID of a ballot (52 characters in groups of four): a digest
+// of its hash and of the voter's public key, with nothing the ballot box
+// returns in it, so the booth shows it before it sends the ballot.
+export const trackingId = (ballotHash: string, voterSigningPk?: string | null): string => {
+    try {
+        return tracking_id_js(ballotHash, voterSigningPk ?? null)
+    } catch (error) {
+        console.log(error)
+        throw error
     }
 }
 
@@ -685,7 +699,10 @@ export interface BallotPrivacyTrust {
 }
 
 export interface BallotPrivacyProof {
+    /** The key the signed statements carry: what the proof is checked against. */
     ballot_id: string
+    /** The Tracking ID a person is shown for the same ballot. */
+    tracking_id?: string | null
     pseudonym: string
     voting_channel: string
     received_entry: string | null

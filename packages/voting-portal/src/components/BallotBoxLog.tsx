@@ -43,7 +43,7 @@ import {
     faUserSecret,
 } from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
-import {stringToHtml, type IBallotLogPage, type IBallotLogRow} from "@sequentech/ui-core"
+import {pseudonymDisplay, stringToHtml, type IBallotLogPage, type IBallotLogRow} from "@sequentech/ui-core"
 import {PseudonymChip} from "@sequentech/ui-essentials"
 import {BALLOT_BOX_LOG, BALLOT_BOX_OWN} from "../queries/BallotBoxLog"
 import {normalizeBallotLogPrefix} from "../services/BallotLogSearch"
@@ -107,7 +107,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
         }
     }
     const code = (value: string) => {
-        if (!prefix || !value.replace(/-/g, "").startsWith(prefix)) return value
+        if (!prefix || !value.replace(/[-:]/g, "").startsWith(prefix)) return value
         const length = prefix.length + (prefix.length > 4 ? 1 : 0)
         return (
             <>
@@ -361,7 +361,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                     {t("ballotPrivacy.listedAs")}
                                 </Typography>
                                 <PseudonymChip className="ballot-box-log-own-pseudonym">
-                                    {ballot.pseudonym}
+                                    {pseudonymDisplay(ballot.pseudonym)}
                                 </PseudonymChip>
                             </Stack>
                         </Stack>
@@ -606,7 +606,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                                 </TableCell>
                                                 <TableCell className="ballot-box-log-pseudonym-cell">
                                                     <PseudonymChip className="ballot-box-log-pseudonym">
-                                                        {code(ballot.pseudonym)}
+                                                        {code(pseudonymDisplay(ballot.pseudonym))}
                                                     </PseudonymChip>
                                                 </TableCell>
                                                 <TableCell
@@ -719,7 +719,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                                                 sx={{mt: 0.75}}
                                             >
                                                 <PseudonymChip className="ballot-box-log-mobile-pseudonym">
-                                                    {code(ballot.pseudonym)}
+                                                    {code(pseudonymDisplay(ballot.pseudonym))}
                                                 </PseudonymChip>
                                                 <Typography
                                                     className="ballot-box-log-mobile-time-channel"

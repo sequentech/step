@@ -26,6 +26,10 @@ import {useTranslation} from "react-i18next"
 import {verifyBallotLogProof} from "@sequentech/ui-core"
 import {PseudonymChip} from "../PseudonymChip"
 
+/** A voter pseudonym is shown with a colon (FTBE:MHRX), never as a Tracking ID. */
+const shownPseudonym = (code: string): string =>
+    /^[0-9A-Za-z]{4}-[0-9A-Za-z]{4}$/.test(code) ? `${code.slice(0, 4)}:${code.slice(5)}` : code
+
 export type BallotLogTrust = Parameters<typeof verifyBallotLogProof>[0]
 export type BallotLogEvidence = Parameters<typeof verifyBallotLogProof>[1]
 
@@ -60,7 +64,7 @@ export const BallotLogProof: React.FC<BallotLogProofProps> = ({trust, proof, onR
         const url = URL.createObjectURL(blob)
         const link = document.createElement("a")
         link.href = url
-        link.download = `ballot-${proof.ballot_id.replace(/[^A-Z0-9-]/gi, "")}-signed-entries.json`
+        link.download = `ballot-${(proof.tracking_id ?? proof.ballot_id).replace(/[^A-Z0-9-]/gi, "")}-signed-entries.json`
         link.click()
         setTimeout(() => URL.revokeObjectURL(url), 0)
     }
@@ -88,7 +92,7 @@ export const BallotLogProof: React.FC<BallotLogProofProps> = ({trust, proof, onR
                 <Typography variant="body2" color="text.secondary" sx={{m: 0}}>
                     {t("ballotPrivacy.pseudonym")}
                 </Typography>
-                <PseudonymChip>{proof.pseudonym}</PseudonymChip>
+                <PseudonymChip>{shownPseudonym(proof.pseudonym)}</PseudonymChip>
             </Stack>
             <Box component="ol" sx={{listStyle: "none", p: 0, m: 0}}>
                 {steps.map((key, index) => {

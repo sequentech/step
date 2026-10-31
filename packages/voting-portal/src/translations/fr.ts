@@ -558,7 +558,7 @@ const frenchTranslation: TranslationType = {
                 "Non trouvé, veuillez vérifier que votre identifiant de suivi est correct et qu'il appartient à cet utilisateur.",
             filterByBallotId: "Filtrez par identifiant de suivi",
             totalBallots: "Total: {{total}}",
-            idHelp: "L'identifiant de suivi court, comme 30ff d314, ou l'identifiant complet",
+            idHelp: "L'identifiant de suivi court, comme FTBE-MHRX, ou l'identifiant complet",
             foundShort:
                 "Trouvé grâce à son identifiant court. Pour être certain que c'est le vôtre, comparez l'identifiant de suivi complet avec votre reçu.",
             search: {
@@ -568,7 +568,7 @@ const frenchTranslation: TranslationType = {
                 invalid:
                     "Un identifiant de suivi ne contient que des chiffres et les lettres de a à f.",
                 chips: {
-                    short: "<b>Court</b> 30ff d314",
+                    short: "<b>Court</b> FTBE-MHRX",
                     full: "<b>Complet</b> 16 groupes de quatre",
                     spaces: "Espaces facultatifs",
                 },

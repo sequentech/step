@@ -41,7 +41,7 @@ import {TrackerSearch} from "../components/BallotLocator/TrackerSearch"
 import {PHONE} from "../components/BallotLocator/trackerStyle"
 import {useTrackedReceipt} from "../hooks/useTrackedReceipt"
 import {
-    ballotIdHex,
+    ballotIdChars,
     EBallotIdInput,
     shortBallotId,
     typedBallotId,
@@ -797,7 +797,7 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
         variables: {
             electionEventId: eventId,
             electionId,
-            ballotId: ballotId?.toLowerCase() ?? "",
+            ballotId: ballotId ?? "",
         },
         // The event's checks period decides whether the ballot is looked up at all.
         skip:
@@ -881,7 +881,7 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
         }
 
         navigate(
-            `${locatorPath}/${withBallotId ? ballotIdHex(inputBallotId) : ""}${location.search}`
+            `${locatorPath}/${withBallotId ? ballotIdChars(inputBallotId) : ""}${location.search}`
         )
     }
 

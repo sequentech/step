@@ -559,7 +559,7 @@ const galegoTranslation: TranslationType = {
                 "Non atopado, comproba que o ID de seguimento sexa correcto e pertenza a este usuario.",
             filterByBallotId: "Filtrar por ID de seguimento",
             totalBallots: "Papeletas: {{total}}",
-            idHelp: "O ID de seguimento curto, como 30ff d314, ou o completo",
+            idHelp: "O ID de seguimento curto, como FTBE-MHRX, ou o completo",
             foundShort:
                 "Atopada polo seu ID curto. Para estares seguro de que é a túa, compara o ID de seguimento completo co teu recibo.",
             search: {
@@ -568,7 +568,7 @@ const galegoTranslation: TranslationType = {
                 find: "Buscar",
                 invalid: "Un ID de seguimento só ten díxitos e as letras da a á f.",
                 chips: {
-                    short: "<b>Curto</b> 30ff d314",
+                    short: "<b>Curto</b> FTBE-MHRX",
                     full: "<b>Completo</b> 16 grupos de catro",
                     spaces: "Espazos opcionais",
                 },
