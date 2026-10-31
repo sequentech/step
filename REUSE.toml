@@ -147,9 +147,12 @@ precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Sequent Tech Inc <legal@sequentech.io>"
 SPDX-License-Identifier = "AGPL-3.0-only"
 
-# Vitrine's profile and styles vectors, copied from its repository.
+# Vitrine's profile, styles and Tracking ID vectors, copied from its repository.
 [[annotations]]
-path = "packages/electoral-log/tests/vitrine-vectors/**"
+path = [
+	"packages/electoral-log/tests/vitrine-vectors/**",
+	"packages/sequent-core/tests/vitrine-vectors/**"
+]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Sequent Tech Inc <legal@sequentech.io>"
 SPDX-License-Identifier = "Apache-2.0"

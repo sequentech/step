@@ -6,7 +6,8 @@
 //! `profiles/election/ballots/v1/vectors`, `profiles/election/events/v1/vectors` and
 //! `testdata/styles`.
 //!
-//! All of them are Vitrine's own, unchanged (fc03a78), `testdata/tracking-id` included.
+//! All of them are Vitrine's own, unchanged (fc03a78). Its `testdata/tracking-id`
+//! vectors are in `sequent-core`'s tests, where the Tracking ID is computed.
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use electoral_log::vitrine::note::split_note;
