@@ -23,6 +23,7 @@ import {DELETE_ELECTION_EVENT} from "@/queries/DeleteElectionEvent"
 import {IPermissions} from "@/types/keycloak"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
+import {getMenuActionConfirmMessage} from "./menuActionConfirmMessage"
 
 const mapRemoveResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "sideMenu.menuActions.remove.electionEvent",
@@ -454,9 +455,11 @@ export default function MenuAction({
                     setOpenArchiveModal(false)
                 }}
             >
-                {selectedActionModal?.action === Action.Archive
-                    ? t("sideMenu.menuActions.messages.confirm.archive")
-                    : t("sideMenu.menuActions.messages.confirm.unarchive")}
+                {getMenuActionConfirmMessage(
+                    t,
+                    selectedActionModal?.action === Action.Archive ? "archive" : "unarchive",
+                    selectedActionModal?.payload.name
+                )}
             </Dialog>
 
             <Dialog
@@ -472,7 +475,7 @@ export default function MenuAction({
                     setOpenDeleteModal(false)
                 }}
             >
-                {t("sideMenu.menuActions.messages.confirm.delete")}
+                {getMenuActionConfirmMessage(t, "delete", selectedActionModal?.payload.name)}
             </Dialog>
         </>
     )

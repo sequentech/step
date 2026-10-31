@@ -5,6 +5,8 @@
 import {translateFromPresentation} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
 
+export const MISSING_ALIAS = "-"
+
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
     typeof value === "object" && value !== null && !Array.isArray(value)
 
@@ -21,26 +23,26 @@ export function useAliasRenderer() {
                 : undefined) ||
             translateFromPresentation(x, "alias", "en") ||
             translateFromPresentation(x, "name", "en") ||
-            "-"
+            MISSING_ALIAS
 
-        if (item == null) return "-"
+        if (item == null) return MISSING_ALIAS
 
         if (isPlainObject(item)) {
             return t(item)
         }
 
         const s = String(item).trim()
-        if (!s) return "-"
+        if (!s) return MISSING_ALIAS
 
         if (s.startsWith("{")) {
             try {
                 return t(JSON.parse(s))
             } catch {
-                return "-"
+                return MISSING_ALIAS
             }
         }
 
-        return "-"
+        return MISSING_ALIAS
     }
 
     return aliasRenderer
