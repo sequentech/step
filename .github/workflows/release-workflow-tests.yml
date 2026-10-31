@@ -1,0 +1,40 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Release workflow tests
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/release.yml'
+      - '.github/workflows/release-workflow-tests.yml'
+      - '.github/scripts/*release_explicit_version.py'
+      - '.release-it.json'
+  push:
+    branches: [main, ovcs, release/10.0, release/10.1]
+    paths:
+      - '.github/workflows/release.yml'
+      - '.github/workflows/release-workflow-tests.yml'
+      - '.github/scripts/*release_explicit_version.py'
+      - '.release-it.json'
+permissions:
+  contents: read
+jobs:
+  explicit-version:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the release workflow's pinned tool
+        run: |
+          npm install --prefix "$RUNNER_TEMP/release-tools" --ignore-scripts --no-audit --no-fund release-it@16.2.1
+          echo "$RUNNER_TEMP/release-tools/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: Test tags against local Git remotes
+        run: python3 .github/scripts/test_release_explicit_version.py
