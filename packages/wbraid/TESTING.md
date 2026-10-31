@@ -37,6 +37,27 @@ cargo test -p braid --release
   - `test_protocol_memory_union_batches` — one DKG reused by several tallies, each
     on its own child board (the union-as-batch mechanism).
 
+### Whole workspace — what CI runs
+
+```sh
+# From the repo root (wbraid/). The features are not optional — see below.
+cargo test --release --features sqlite,postgres
+```
+
+This is the command CI's test job runs (`.github/workflows/wbraid.yml`) and the
+one to use before calling a change green: it covers all five crates. The
+features matter because `b4`'s server dependencies (`tokio`, `axum`, `sqlx`,
+the AWS SDK) sit behind its `native` feature, which has **no default** — so a
+plain `cargo test`, or `cargo test -p b4`, fails to compile b4's tests with
+"unresolved import `b4::app`" / "cannot find crate `tokio`". That is an
+invocation error, not a regression; `sqlite` and `postgres` each imply
+`native`. To test b4 on its own: `cargo test -p b4 --release --features sqlite`.
+
+CI's other gates, runnable the same way: `cargo fmt -- --check`;
+`cargo clippy --workspace --exclude vsc --features sqlite,postgres --all-targets --no-deps -- -D warnings`;
+`cargo clippy -p vsc --no-deps`; and the wasm-core build (Wasm, below). The
+Verificatum interop suite is opt-in and documented in `crates/v2v/TESTING.md`.
+
 ### Live-b4 tests (opt-in)
 
 Two harnesses talk to a real `b4` over HTTP and are `#[ignore]`d so the default
@@ -149,21 +170,29 @@ In the devcontainer, the presigned S3 URLs that b4 hands the browser point at
 
 Then open <http://127.0.0.1:8085/emulator.html> and:
 
-1. **Create setup** — generates a committee, creates the DKG board on b4, posts
-   the configuration.
-2. **Step to fixpoint** — runs the DKG.
-3. **New tally** → **Step to fixpoint** → **Verify** — mixes and threshold-decrypts
-   a fresh ciphertext set on a child board unioned with the DKG; Verify confirms
-   the plaintexts match the encrypted inputs.
-4. **New tally** again — reuses the same DKG (the batch mechanism, §8.2).
-5. **Export / Import** — export the setup to a paste string, refresh the page,
-   paste it back, and Import to reconnect the same boards + IndexedDB stores
-   (the bridge for testing persistence across a refresh).
+1. **Create new board** — set trustees, threshold and width, then create: generates
+   the committee, creates the DKG board on b4, posts the configuration.
+2. **Step to fixpoint** — runs the DKG. (**Step once**, and the per-trustee **Step**
+   buttons, advance one round or one trustee at a time instead.)
+3. **New tally** → **Step to fixpoint** → **Verify plaintexts** — mixes and
+   threshold-decrypts a fresh ciphertext set on a child board unioned with the DKG;
+   Verify confirms the plaintexts match the encrypted inputs.
+4. **New tally** again — reuses the same DKG (the batch mechanism, §8.2). The
+   Tallies panel lists every tally started; **Open** on an earlier one reconnects to
+   its board and stores.
+5. **Refresh the page** — nothing to export or paste: the setup (keys and
+   `Configuration`) is kept in `localStorage`, and on load the page reconnects by
+   itself, reloading the board contents, the committed sets and the DKG public key
+   from b4 and IndexedDB and resuming an in-progress tally. This is the
+   persistence-across-refresh test — the committed set surviving the reload is what
+   the anti-rewrite guarantee (§6.2) rests on. (Moving a setup to a *different*
+   browser is a separate, API-only path — `Emulator::export`/`import` — not exposed
+   on the page.)
 
 Validates the full DKG → mix → threshold-decrypt under wasm; live b4 + S3;
 per-trustee IndexedDB persistence; the DKG/tally board union and multiple tallies
-over one DKG; and the export/import Setup bridge. Manual by design (see the note
-above).
+over one DKG; and automatic reconnect across a page refresh. Manual by design (see
+the note above).
 
 ### Prerequisites
 

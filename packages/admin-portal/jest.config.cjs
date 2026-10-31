@@ -4,8 +4,17 @@
 
 /** @type {import('jest').Config} */
 module.exports = {
+    collectCoverageFrom: [
+        "src/**/*.{ts,tsx}",
+        "!src/**/*.d.ts",
+        "!src/**/*.test.{ts,tsx}",
+        "!src/**/*.stories.{ts,tsx}",
+        "!src/**/__stories__/**",
+    ],
+    coverageProvider: "babel",
+    coverageReporters: ["text", "html", "lcov", "json", "json-summary"],
     testEnvironment: "node",
-    testMatch: ["<rootDir>/src/**/*.test.ts", "<rootDir>/src/**/*.test.tsx"],
+    testMatch: ["<rootDir>/src/**/*.test.{ts,tsx}"],
     setupFiles: ["<rootDir>/src/test/polyfills.cjs"],
     // @vitrine/ui exports its elements only under the "import" condition,
     // which Jest's CommonJS resolver doesn't match.

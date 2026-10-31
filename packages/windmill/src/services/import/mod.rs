@@ -2,6 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod configuration_package;
+pub mod configuration_package_apply;
+pub mod configuration_package_sections;
+pub mod configuration_package_target;
 pub mod import_bulletin_boards;
 pub mod import_election_event;
 pub mod import_publications;
@@ -10,3 +14,7 @@ pub mod import_tally;
 pub mod import_tenant;
 pub mod import_tenant_config;
 pub mod import_users;
+pub mod rejection;
+
+mod realm_identity_providers;
+mod realm_user_credentials;

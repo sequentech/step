@@ -128,7 +128,7 @@ it("names the language menu when its responsive text is hidden", () => {
     )
     const label = screen.getByText("language")
     label.style.display = "none"
-    expect(screen.getByRole("button")).toHaveAccessibleName("language")
+    expect(screen.getByRole("button")).toHaveAccessibleName("a11y.languageSelector")
 })
 
 it("excludes the language menu background from focus and restores it on dismissal", async () => {
@@ -138,7 +138,7 @@ it("excludes the language menu background from focus and restores it on dismissa
             <button>Background action</button>
         </ThemeProvider>
     )
-    const trigger = screen.getByRole("button", {name: "language"})
+    const trigger = screen.getByRole("button", {name: "a11y.languageSelector"})
     // MUI requires an on-screen anchor; JSDOM has no layout.
     trigger.getBoundingClientRect = () => new DOMRect(0, 0, 100, 30)
     for (const key of ["Escape", "Tab", "Shift+Tab"]) {
@@ -153,7 +153,7 @@ it("excludes the language menu background from focus and restores it on dismissa
         for (const guard of Array.from(region.querySelectorAll('[data-testid^="sentinel"]'))) {
             expect(getComputedStyle(guard).display).toBe("none")
         }
-        const options = screen.getAllByRole("menuitem")
+        const options = screen.getAllByRole("menuitemradio")
         expect(options[0]).toHaveFocus()
         fireEvent.keyDown(options[0], {key: "ArrowDown"})
         expect(options[1]).toHaveFocus()

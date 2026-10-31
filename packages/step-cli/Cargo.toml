@@ -9,12 +9,15 @@ edition = "2021"
 default-run = "step-cli"
 
 [dependencies]
+protocol-board = { path = "../protocol-board" }
+voting-crypto = { path = "../voting-crypto" }
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
 rusqlite = { version = "0.32", features = ["bundled"] }
+# also reads a base export straight out of an export archive
 zip = { version = "2.2", default-features = false, features = ["deflate"] }
 libc = "0.2"
 native-tls = "0.2"
@@ -24,9 +27,8 @@ strum_macros = "0.27"
 reqwest = { version = "0.12", features = ["blocking", "json"] }
 graphql_client = "0.14"
 rayon = "1.5"
-sequent-core = { path="../sequent-core", features = ["keycloak", "probe", "reports","default_features"] }
+sequent-core = { path="../sequent-core", features = ["keycloak", "probe", "reports", "default_features", "election_config_xlsx", "election_config_archive", "election_config_signing"] }
 windmill = { path="../windmill" }
-strand = { path="../strand" }
 electoral-log = { path="../electoral-log" }
 
 uuid = { version = "1.5", features = ["v4", "fast-rng"] }
@@ -44,6 +46,7 @@ sha2 = "0.10"
 base64 = "0.22"
 
 colored = "3.0"
+tempfile = "3.15"
 
 url = "2"
 
@@ -53,3 +56,5 @@ path = "src/main.rs"
 
 [dev-dependencies]
 tempfile = "3"
+# builds the test certificates of the verify-package tests
+rcgen = { version = "0.14", default-features = false, features = ["crypto", "ring", "pem", "x509-parser"] }

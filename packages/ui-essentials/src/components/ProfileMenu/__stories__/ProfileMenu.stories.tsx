@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {Meta, StoryFn, StoryObj} from "@storybook/react"
-import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
+import {Meta, StoryFn, StoryObj} from "@storybook/react-vite"
+import {INITIAL_VIEWPORTS} from "storybook/viewport"
 import {ProfileMenu, StyledButtonTooltipText} from "../ProfileMenu"
 import {StyledButtonTooltip} from "../../../components/Header/Header"
 import theme from "../../../services/theme"

@@ -5,8 +5,8 @@
 services:
   devcontainer:
     profiles: ["full", "base"]
-    image: ghcr.io/cachix/devenv/devcontainer:v1.10
-    container_name: devcontainer
+    image: ${DEVCONTAINER_IMAGE:-ghcr.io/cachix/devenv/devcontainer:v1.10}
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}devcontainer
     volumes:
     - type: bind
       source: ../..
@@ -14,6 +14,25 @@ services:
       bind:
         create_host_path: true
         selinux: z
+    # The same directory again at its host path, so that host paths resolve
+    # inside the container too: the gitdir links of git worktrees, and the
+    # bind mount sources of Compose commands run from here. initialize-command.sh
+    # picks another target when the host path would hide a container directory.
+    - type: bind
+      source: ../..
+      target: ${DEVCONTAINER_HOST_PARENT:-/mnt/checkout-parent}
+      bind:
+        create_host_path: true
+        selinux: z
+    # Dependency caches shared by the devcontainers of every checkout, so that
+    # recreating the container or switching modes keeps them.
+    - devcontainer-nix:/nix
+    - devcontainer-cache:/home/vscode/.cache
+    - devcontainer-cargo:/home/vscode/.cargo
+    # Each container sharing the Nix store runs its own nix-daemon; a shared
+    # socket directory would hand every client to the last daemon started.
+    tmpfs:
+    - /nix/var/nix/daemon-socket:mode=0755
     # support ptrace-based debuggers like C++, Go, and Rust
     cap_add:
      - SYS_PTRACE
@@ -30,7 +49,7 @@ services:
   simplesamlphp:
     profiles: ["full"]
     image: sequentech.local/simplesamlphp
-    container_name: simplesamlphp
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}simplesamlphp
     build:
       context: ./simplesamlphp
       dockerfile: Dockerfile
@@ -63,23 +82,22 @@ services:
   postgres-volume-init:
     profiles: ["full", "base"]
     image: alpine
-    container_name: postgres-volume-init
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}postgres-volume-init
     volumes:
       - db_logs:/logs
       - keycloak_db_logs:/keycloak_logs
-      - b4_db_logs:/b4_logs
       - b4v6_db_logs:/b4v6_logs
     user: root
     group_add:
       - '999'
-    command: chown -R 999:999 /logs /keycloak_logs /b4_logs /b4v6_logs
+    command: chown -R 999:999 /logs /keycloak_logs /b4v6_logs
 
   postgres:
     profiles: ["full", "base"]
     # Required by VACUUM ANALYZE to work properly
     shm_size: 256m
     image: sequentech.local/postgresql
-    container_name: postgres
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}postgres
     build:
       context: ./postgresql
       dockerfile: Dockerfile
@@ -125,7 +143,7 @@ services:
 
   minio:
     profiles: ["full", "base"]
-    container_name: minio
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}minio
     image: docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z@sha256:635197cb9f36d01bee221d34d1c7d7960f6a95c48b0b6c01d99cd13bdae51a46
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -157,7 +175,7 @@ services:
   # used to add headers to minio
   minio-proxy:
     profiles: ["full", "base"]
-    container_name: minio-proxy
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}minio-proxy
     image: nginx:latest
     ports:
       - "9002:9002"
@@ -168,7 +186,7 @@ services:
 
   configure-minio:
     profiles: ["full", "base"]
-    container_name: configure-minio
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}configure-minio
     build:
       context: ./minio
       dockerfile: Dockerfile
@@ -196,11 +214,17 @@ services:
   # The image is pinned to the 4.x line: from the 2026 calendar releases on,
   # localstack/localstack:latest exits at startup without an auth token.
   localstack:
-    profiles: [ "wbraid" ]
-    container_name: localstack
+    profiles: ["full", "base", "wbraid"]
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}localstack
     image: "localstack/localstack:4@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a"
     ports:
       - "4566:4566"
+    networks:
+      default:
+        aliases:
+          # The same signed hostname reaches the forwarded port in a browser
+          # and this service inside Compose, without host-file changes.
+          - localhost.localstack.cloud
     environment:
       - HOSTNAME_EXTERNAL=localhost
       - S3_HOSTNAME=localhost:4566
@@ -214,8 +238,8 @@ services:
   # Creates the wbraid-messages bucket and applies its CORS rules — the twin of
   # what localstack.ps1 does inline on Windows.
   configure-localstack:
-    profiles: [ "wbraid" ]
-    container_name: configure-localstack
+    profiles: ["full", "base", "wbraid"]
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}configure-localstack
     image: amazon/aws-cli
     volumes:
       - "${LOCAL_WORKSPACE_FOLDER:-..}/packages/wbraid/s3-cors.json:/aws/s3-cors.json:ro,z"
@@ -233,7 +257,7 @@ services:
       --bucket wbraid-messages --cors-configuration file:///aws/s3-cors.json"
 
   postgres-b4v6:
-    profiles: [ "wbraid" ]
+    profiles: ["full", "base", "wbraid"]
     image: sequentech.local/postgresql-b4v6
     build:
       context: ./postgresql-b4v6
@@ -256,19 +280,12 @@ services:
     depends_on:
       - postgres-volume-init
 
-  # wbraid's bulletin board (packages/wbraid/crates/b4, binary b4v6), built and
-  # run from the mounted checkout like the other Rust services: cargo-watch
-  # rebuilds it when crates/b4 changes. Same opt-in `wbraid` profile as
-  # localstack; packages/wbraid/b4.sh brings it up by name. Reachable as
-  # http://b4v6:3005 on the project network (WBRAID_B4_URL for the live tests)
-  # and, forwarded by devcontainer.json, as http://127.0.0.1:3005 on the host
-  # for emulator.html.
-  # b4 only presigns S3 URLs, it never calls S3 itself, so AWS_ENDPOINT_URL is
-  # the address the *clients* fetch bodies from: the localstack service name,
-  # which the host browser resolves through a hosts-file entry (TESTING.md).
-  # The SQLite file lives in a named volume, b4.sh --reset clears it.
+  # The supplied wbraid board server stores protocol rows in PostgreSQL.
+  # AWS_ENDPOINT_URL is embedded in presigned URLs fetched by workers and
+  # trustees, so it must be reachable from those clients. LocalStack's loopback
+  # DNS hostname has a Compose alias above for container clients.
   b4v6:
-    profiles: [ "wbraid" ]
+    profiles: ["full", "base", "wbraid"]
     image: sequentech.local/cargo-packages
     build:
       context: ../packages/
@@ -276,7 +293,7 @@ services:
     restart: unless-stopped
     ports:
       - "3005:3005"
-    working_dir: /workspaces/step/packages/wbraid
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/wbraid
     entrypoint: [
       "cargo",
       "watch",
@@ -285,7 +302,7 @@ services:
       "--watch", "Cargo.toml",
       "--watch", "Cargo.lock",
       "-x",
-      "run --bin b4v6 --features postgres --release"
+      "run --locked --bin b4v6 --features postgres --release"
     ]
     volumes:
       - b4v6_data:/var/lib/b4v6
@@ -307,6 +324,7 @@ services:
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       RUST_LOG: b4=info,b4v6=info
+      CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
       WBRAID_B4_BIND: 0.0.0.0:3005
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DATABASE_URL: postgres://postgres@postgres-b4v6:5432/b4
@@ -353,14 +371,14 @@ services:
     profiles: ["full"]
     stdin_open: true
     image: sequentech.local/loadtest
-    container_name: loadtest
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}loadtest
     restart: always
     build:
       context: ../
       dockerfile: ./packages/loadtesting/Dockerfile
     volumes_from:
       - devcontainer
-    working_dir: /workspaces/step/
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/
     entrypoint: [
       "tail",
       "-f",
@@ -370,7 +388,7 @@ services:
   graphql-engine:
     profiles: ["full", "base"]
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
-    container_name: hasura
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}hasura
     ports:
       - "8080:8080"
     restart: always
@@ -379,8 +397,8 @@ services:
     environment:
       # applies migrations on start
       HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT: 60
-      HASURA_GRAPHQL_MIGRATIONS_DIR: /workspaces/step/hasura/migrations
-      HASURA_GRAPHQL_METADATA_DIR: /workspaces/step/hasura/metadata
+      HASURA_GRAPHQL_MIGRATIONS_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/hasura/migrations
+      HASURA_GRAPHQL_METADATA_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/hasura/metadata
       ## postgres database to store Hasura metadata
       HASURA_GRAPHQL_METADATA_DATABASE_URL: ${HASURA_GRAPHQL_METADATA_DATABASE_URL}
       ## this env var can be used to add the above postgres database to Hasura as a data source. this can be removed/updated based on your needs
@@ -402,6 +420,7 @@ services:
       HASURA_GRAPHQL_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       ACTIONS_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+      HARVEST_BALLOT_LOG_DOMAIN: ${HARVEST_BALLOT_LOG_DOMAIN:-harvest-edge:8080}
     depends_on:
       devcontainer:
         condition: service_started
@@ -416,7 +435,7 @@ services:
 
   data-connector-agent:
     profiles: ["full", "base"]
-    container_name: data-connector-agent
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}data-connector-agent
     image: hasura/graphql-data-connector:v2.31.0
     restart: always
     ports:
@@ -438,7 +457,7 @@ services:
     # Required by VACUUM ANALYZE to work properly
     shm_size: 256m
     image: sequentech.local/postgresql
-    container_name: postgres-keycloak
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}postgres-keycloak
     restart: unless-stopped
     volumes:
       - keycloak_db_data:/var/lib/postgresql
@@ -504,12 +523,12 @@ services:
     profiles: ["full"]
     stdin_open: true
     image: sequentech.local/cargo-packages
-    container_name: mock_server
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}mock_server
     volumes_from:
       - devcontainer
     depends_on:
       - devcontainer
-    working_dir: /workspaces/step/packages/e2e/src/mock_server
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/e2e/src/mock_server
     entrypoint: [
       "cargo",
       "watch",
@@ -530,7 +549,7 @@ services:
 
   janitor:
     profiles: ["full"]
-    container_name: janitor
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}janitor
     build:
       context: ../packages/windmill/external-bin/janitor/scripts
       dockerfile: Dockerfile.janitor
@@ -541,12 +560,95 @@ services:
     entrypoint: ["/bin/bash"]
     environment:
       - PYTHONUNBUFFERED=1
-  
+
+  # Scanovate on-premise services (opt-in `scanovate` profile): Liveness Plus
+  # with its presentation attack detection server, the Face Match service, used
+  # for 1:1 comparisons, and the OCR service, which reads the identity documents. The images come from our private ECR mirror of
+  # Scanovate's images: pulling them needs an ECR login. See
+  # docs/docusaurus/docs/integrations/scanovate_on_premise_guide.md.
+  # Service names use hyphens: Java HTTP clients (Keycloak) reject host names
+  # with underscores.
+  scanovate-presentation-detection:
+    profiles: ["scanovate"]
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-presentation-detection
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-presentation-detection-service:release_1.52.0
+    restart: unless-stopped
+    environment:
+      SERVER_ALLOW_CORS: "true"
+      # Must match the pipelines of the Liveness Plus service_config.json.
+      IDFACE_SERVER_AVAILABLE_PIPELINES: pad-r-2,dfd-3
+
+  # Serves the Liveness Plus API to Keycloak's capture page, so it's the only
+  # liveness service published on the host.
+  scanovate-liveness:
+    profiles: ["scanovate"]
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-liveness
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-plus-service:version_3.9.0_e0dc72e_115
+    restart: unless-stopped
+    environment:
+      MODE: onprem
+      # Our capture page sends plain JPEG frames: injection attack detection
+      # needs frames encrypted by Scanovate's own client, which we don't use.
+      LIVENESS_MODE: PRESENTATION
+      JWT_SECRET_KEY: ${SCANOVATE_LIVENESS_JWT_SECRET_KEY}
+      PRESENTATION_DETECTION_SERVER_URL: http://scanovate-presentation-detection:8080
+      # The capture page calls the API on Keycloak's origin, under
+      # /biometric/liveness/, through keycloak-nginx. The service serves it
+      # under that prefix, so the proxy passes the path unchanged. The host port
+      # is only for direct checks such as /alive.
+      CLIENT_BASE_URL_PREFIX: biometric/
+    ports:
+      - ${SCANOVATE_LIVENESS_PORT}:5050
+    # Keycloak's token verification and result callback, which carry a secret
+    # the voter's browser never sees. The other configuration files are the
+    # image's own.
+    volumes:
+      - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/liveness/service_config.json:/app/config/service_config.json:ro,z
+    depends_on:
+      - scanovate-presentation-detection
+
+  # Keycloak calls its 1:1 API (/facematch11/) on the compose network. The host
+  # port is only for direct checks.
+  scanovate-face-match:
+    profiles: ["scanovate"]
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-face-match
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ngfacematch:version_3.9.0_ba58397_79
+    restart: unless-stopped
+    environment:
+      MODE: onprem
+    ports:
+      - ${SCANOVATE_FACE_MATCH_PORT}:3000
+
+  # Keycloak calls its single image API (/single_image_ocr) on the compose
+  # network. The host port is only for direct checks.
+  scanovate-ocr:
+    profiles: ["scanovate"]
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-ocr
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ocr:version_3.9.0_aefa131_285
+    restart: unless-stopped
+    environment:
+      MODE: onprem
+      JWT_SECRET_KEY: ${SCANOVATE_OCR_JWT_SECRET_KEY}
+    ports:
+      - ${SCANOVATE_OCR_PORT}:5040
+
+  harvest-edge:
+    profiles: ["full", "base"]
+    image: nginx:latest
+    restart: always
+    environment:
+      HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+    volumes:
+      - ./harvest-edge/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    depends_on:
+      harvest:
+        condition: service_started
+
   harvest:
     profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
-    container_name: harvest
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}harvest
     build:
       context: ../packages/
       dockerfile: ./Dockerfile.cargo-packages
@@ -557,7 +659,7 @@ services:
         condition: service_started
       task-queues-setup:
         condition: service_started
-    working_dir: /workspaces/step/packages/harvest
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/harvest
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: [
       "cargo",
@@ -571,13 +673,26 @@ services:
       "run"
     ]
     environment:
+      CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
+      # The OVCS's identity, as the ER transmission packages it re-seals name it.
+      MIRU_DEVICE_ID: ${MIRU_DEVICE_ID:-}
+      MIRU_SERIAL_NUMBER: ${MIRU_SERIAL_NUMBER:-}
+      MIRU_IP_ADDRESS: ${MIRU_IP_ADDRESS:-}
+      MIRU_MAC_ADDRESS: ${MIRU_MAC_ADDRESS:-}
       WINDMILL_SECRET_EXPORT_GRANT_TTL_SECONDS: ${WINDMILL_SECRET_EXPORT_GRANT_TTL_SECONDS:-86400}
       LOG_LEVEL: ${LOG_LEVEL}
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
       ROCKET_PORT: ${HARVEST_PORT}
       RUSTFLAGS: ${RUSTFLAGS}
+      # Keep linker settings compatible for units sharing rust-local-target/docker-dev.
+      # The wrapper preserves debug flags and uses cc when bundled LLD is absent.
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/.devcontainer/scripts/rust-lld-cc.sh
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       ELECTORAL_LOG_PG_HOST: ${ELECTORAL_LOG_PG_HOST}
       ELECTORAL_LOG_PG_PORT: ${ELECTORAL_LOG_PG_PORT}
@@ -626,9 +741,9 @@ services:
       QUEUE_DB_READER_PASSWORD: ${QUEUE_DB_READER_PASSWORD}
       QUEUE_DB__MANAGER__RECYCLING_METHOD: ${QUEUE_DB__MANAGER__RECYCLING_METHOD}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KIOSK_KEYCLOAK_URL: ${KIOSK_KEYCLOAK_URL:-}
+      HARVEST_JWT_ISSUER_URLS: ${HARVEST_JWT_ISSUER_URLS:-}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
-      AWS_S3_JWKS_FETCH_TIMEOUT_SECS: ${AWS_S3_JWKS_FETCH_TIMEOUT_SECS:-5}
-      AWS_S3_JWKS_MIN_REFRESH_SECS: ${AWS_S3_JWKS_MIN_REFRESH_SECS:-10}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
@@ -677,14 +792,40 @@ services:
       CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
-      B4_PG_HOST: ${B4_PG_HOST}
-      B4_PG_PORT: ${B4_PG_PORT}
-      B4_PG_USER: ${B4_PG_USER}
-      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
-      B4_PG_DATABASE: ${B4_PG_DATABASE}
+      WBRAID_B4_URL: http://b4v6:3005
+      # Other origins whose pages may read boards (`*` or a comma-separated list); empty: the admin portal only.
+      HARVEST_B4_READ_ORIGINS: ${HARVEST_B4_READ_ORIGINS:-}
+      WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/b4
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       ENV_SLUG: ${ENV_SLUG}
       APP_VERSION: ${APP_VERSION}
+      # The monitoring renderer (packages/monitoring-renderer), reached on
+      # the internal monitoring-renderer network only.
+      HARVEST_MONITORING_RENDERER_URL: ${HARVEST_MONITORING_RENDERER_URL:-http://monitoring-renderer:8080}
+      HARVEST_MONITORING_RENDERER_TOKEN: ${MONITORING_RENDERER_TOKEN}
+      HARVEST_MONITORING_RENDERER_TIMEOUT_MS: ${HARVEST_MONITORING_RENDERER_TIMEOUT_MS:-5000}
+      # Provider callbacks arrive only through messaging-webhooks, signed
+      # with the relay secret; harvest builds callback URLs on its address.
+      MESSAGING_RELAY_SECRET: ${MESSAGING_RELAY_SECRET}
+      # Development only: the committed relay secret is accepted here and
+      # nowhere else (any other deployment generates its own).
+      MESSAGING_RELAY_SECRET_POLICY: ALLOW_DEV_SECRET
+      MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
+      MESSAGING_WEBHOOKS_MAX_BODY_BYTES: ${MESSAGING_WEBHOOKS_MAX_BODY_BYTES:-262144}
+      MESSAGING_CALLBACK_CONNECTIONS: ${MESSAGING_CALLBACK_CONNECTIONS:-4}
+      # Development only (this file is included by docker-compose.yml alone;
+      # the remote and air-gap compose files never set it): mounts harvest's
+      # internal /fake-provider/* routes. Unset or blank means DISABLED.
+      MESSAGING_FAKE_PROVIDER_ROUTES: ${MESSAGING_FAKE_PROVIDER_ROUTES:-}
+      # Provider API addresses; the development .env points them at the
+      # fake provider routes. Unset or blank leaves each account's own.
+      MESSAGING_META_GRAPH_URL: ${MESSAGING_META_GRAPH_URL:-}
+      MESSAGING_INFOBIP_URL: ${MESSAGING_INFOBIP_URL:-}
+      MESSAGING_AWS_ENDPOINT_URL: ${MESSAGING_AWS_ENDPOINT_URL:-}
+    networks:
+      - default
+      - monitoring-renderer
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -697,80 +838,194 @@ services:
       retries: 25
       start_period: 30s
 
-  trustee1:
-    profiles: ["full"]
+  # The one public entrypoint for messaging provider callbacks: no database,
+  # no secrets but the relay's, no verification. It relays each callback,
+  # signed, to harvest's internal /messaging/callbacks.
+  messaging-webhooks:
+    profiles: ["full", "base"]
     stdin_open: true
-    container_name: trustee1
-    image: sequentech.local/braid
-    volumes:
-      - trustee1_data:/opt/braid
-    # TODO: be able to reuse the `sequentech.local/cargo-packages` image
-    build:
-      context: ../packages/
-      dockerfile: ./braid/Dockerfile
-    environment:
-        TRUSTEE_NAME: trustee1
-        TRUSTEE_CONFIG_PATH: ${TRUSTEE1_CONFIG}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
-        SECRETS_BACKEND: ${SECRETS_BACKEND}
-        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-        VAULT_TOKEN: ${VAULT_TOKEN}
-        B4_URL: ${B4_URL}
+    image: sequentech.local/cargo-packages
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}messaging-webhooks
+    # Depends on `harvest`, which builds the shared
+    # `sequentech.local/cargo-packages` image this one reuses.
+    volumes_from:
+      - devcontainer
     depends_on:
-      - b4
+      devcontainer:
+        condition: service_started
+      harvest:
+        condition: service_started
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/messaging-webhooks
+    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+    command: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      "-x",
+      "run -p messaging-webhooks"
+    ]
+    environment:
+      RUST_BACKTRACE: ${RUST_BACKTRACE}
+      LOG_LEVEL: ${LOG_LEVEL}
+      ROCKET_ADDRESS: ${ROCKET_ADDRESS}
+      ROCKET_PORT: ${MESSAGING_WEBHOOKS_PORT}
+      RUSTFLAGS: ${RUSTFLAGS}
+      # Keep linker settings compatible for units sharing packages/target.
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/.devcontainer/scripts/rust-lld-cc.sh
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+      MESSAGING_RELAY_SECRET: ${MESSAGING_RELAY_SECRET}
+      MESSAGING_RELAY_SECRET_POLICY: ALLOW_DEV_SECRET
+      MESSAGING_WEBHOOKS_MAX_BODY_BYTES: ${MESSAGING_WEBHOOKS_MAX_BODY_BYTES:-262144}
+      MESSAGING_WEBHOOKS_MAX_IN_FLIGHT: ${MESSAGING_WEBHOOKS_MAX_IN_FLIGHT:-16}
+    ports:
+     - ${MESSAGING_WEBHOOKS_PORT}:${MESSAGING_WEBHOOKS_PORT}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${MESSAGING_WEBHOOKS_PORT}/healthz || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 30s
+
+  # Draws monitoring widgets with dbt Charts. Internal only: no published
+  # ports, on a network with no route out, shared with harvest alone.
+  monitoring-renderer:
+    profiles: ["full", "base"]
+    image: sequentech.local/monitoring-renderer
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}monitoring-renderer
+    build:
+      context: ../packages/monitoring-renderer
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      RENDERER_TOKEN: ${MONITORING_RENDERER_TOKEN}
+      RENDERER_CONCURRENCY: ${MONITORING_RENDERER_CONCURRENCY:-2}
+    networks:
+      - monitoring-renderer
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/ready', timeout=4).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # Native trustees discover their assigned boards through Harvest.
+  trustee1:
+    profiles: ["full", "base", "wbraid"]
+    stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}trustee1
+    # make sure to depend on the `harvest` container to ensure
+    # that the `sequentech.local/cargo-packages` image is locally build, so
+    # that we can reuse it:
+    depends_on:
+      harvest:
+        condition: service_started
+      b4v6:
+        condition: service_healthy
+    volumes_from:
+      - devcontainer
+    volumes:
+      - trustee1_data:${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/trustee/message_store
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/trustee
+    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+    command: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      # the session stores are written every cycle
+      "--ignore",
+      "message_store/",
+      "-x",
+      "run --locked --release -- start"
+    ]
+    environment:
+      RUSTFLAGS: ${RUSTFLAGS}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      LOG_LEVEL: ${LOG_LEVEL}
+      TRUSTEE_NAME: trustee1
+      CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
+      B4_URL: http://${HARVEST_DOMAIN}/b4
+      TRUSTEE_CONFIG_PATH: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/trustee/dev/trustee1.toml
+      TRUSTEE_PASSWORD: ${TRUSTEE1_PASSWORD}
+      TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
+      TRUSTEE_KEYCLOAK_URL: ${KEYCLOAK_URL}
+      TRUSTEE_KEYCLOAK_REALM: tenant-${TENANT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_ID: ${TRUSTEE_KEYCLOAK_CLIENT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
 
   trustee2:
-    profiles: ["full"]
+    profiles: ["full", "base", "wbraid"]
     stdin_open: true
-    image: sequentech.local/braid
-    container_name: trustee2
-    volumes:
-      - trustee2_data:/opt/braid
-    # depending on the `trustee1` container to ensure that the
-    # `sequentech.local/braid` image is locally build, so that we can reuse
-    # it:
+    image: sequentech.local/cargo-packages
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}trustee2
+    # make sure to depend on the `harvest` container to ensure
+    # that the `sequentech.local/cargo-packages` image is locally build, so
+    # that we can reuse it:
     depends_on:
-      - trustee1
+      harvest:
+        condition: service_started
+      b4v6:
+        condition: service_healthy
+    volumes_from:
+      - devcontainer
+    volumes:
+      - trustee2_data:${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/trustee/message_store
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/trustee
+    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+    command: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      # the session stores are written every cycle
+      "--ignore",
+      "message_store/",
+      "-x",
+      "run --locked --release -- start"
+    ]
     environment:
-        TRUSTEE_NAME: trustee2
-        TRUSTEE_CONFIG_PATH: ${TRUSTEE2_CONFIG}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
-        SECRETS_BACKEND: ${SECRETS_BACKEND}
-        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-        VAULT_TOKEN: ${VAULT_TOKEN}
-        B4_URL: ${B4_URL}
-
-  # trustee3:
-  #   profiles: ["full"]
-  #   stdin_open: true
-  #   image: sequentech.local/braid
-  #   container_name: trustee3
-  #   volumes:
-  #     - trustee3_data:/opt/braid
-  #   # depending on the `trustee1` container to ensure that the
-  #   # `sequentech.local/braid` image is locally build, so that we can reuse
-  #   # it:
-  #   depends_on:
-  #     - trustee1
-  #   environment:
-  #       TRUSTEE_NAME: trustee3
-  #       TRUSTEE_CONFIG_PATH: ${TRUSTEE3_CONFIG}
-  #       IGNORE_BOARDS: ${IGNORE_BOARDS}
-  #       SECRETS_BACKEND: ${SECRETS_BACKEND}
-  #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-  #       VAULT_TOKEN: ${VAULT_TOKEN}
-  #       B4_URL: ${B4_URL}
+      RUSTFLAGS: ${RUSTFLAGS}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      LOG_LEVEL: ${LOG_LEVEL}
+      TRUSTEE_NAME: trustee2
+      CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
+      B4_URL: http://${HARVEST_DOMAIN}/b4
+      TRUSTEE_CONFIG_PATH: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/trustee/dev/trustee2.toml
+      TRUSTEE_PASSWORD: ${TRUSTEE2_PASSWORD}
+      TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
+      TRUSTEE_KEYCLOAK_URL: ${KEYCLOAK_URL}
+      TRUSTEE_KEYCLOAK_REALM: tenant-${TENANT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_ID: ${TRUSTEE_KEYCLOAK_CLIENT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
 
 
   registry:
     profiles: ["full", "lambdas"]
-    container_name: registry
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}registry
     image: registry:2
     network_mode: host
 
   openwhisk:
     profiles: ["full", "lambdas"]
-    container_name: openwhisk
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}openwhisk
     image: openwhisk/standalone:nightly
     volumes:
     - type: bind
@@ -780,7 +1035,7 @@ services:
 
   doc_renderer_lambda_build:
     profiles: ["full", "lambdas"]
-    container_name: doc_renderer_lambda_build
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}doc_renderer_lambda_build
     image: ${REGISTRY}/doc_renderer:latest
     build:
       context: ./../packages
@@ -789,6 +1044,9 @@ services:
       args:
         - BASE_IMAGE=alpine:3.17@sha256:8fc3dacfb6d69da8d44e42390de777e48577085db99aa4e4af35f483eb08b989
         - FEATURES=openwhisk
+        - AWS_S3_PRIVATE_URI=${AWS_S3_PRIVATE_URI}
+        - AWS_S3_PUBLIC_URI=${AWS_S3_PUBLIC_URI}
+        - AWS_S3_PUBLIC_BUCKET=${AWS_S3_PUBLIC_BUCKET}
     # This is not meant to be a running container, but rather a
     # trigger to build the lambda to a container image that will later
     # on be pulled by OpenWhisk
@@ -811,7 +1069,7 @@ services:
 
   doc_renderer:
     profiles: ["full", "lambdas"]
-    container_name: doc_renderer
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}doc_renderer
     image: openwhisk/standalone:nightly
     network_mode: host
     entrypoint: /bin/deploy-doc_renderer.sh
@@ -832,7 +1090,7 @@ services:
   task-queues-setup:
     profiles: ["full", "base"]
     image: sequentech.local/cargo-packages
-    container_name: task-queues-setup
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}task-queues-setup
     volumes_from:
       - devcontainer
     depends_on:
@@ -840,11 +1098,13 @@ services:
         condition: service_started
       postgres:
         condition: service_healthy
-    working_dir: /workspaces/step/packages/windmill
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/windmill
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: ["cargo", "run", "--bin", "main", "--", "setup-queue-database"]
     environment:
+      CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
       RUSTFLAGS: ${RUSTFLAGS}
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/.devcontainer/scripts/rust-lld-cc.sh
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       ENV_SLUG: ${ENV_SLUG}
@@ -861,12 +1121,12 @@ services:
     profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
-    container_name: windmill
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}windmill
     # make sure to depend on the `harvest` container to ensure
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     restart: always
-    working_dir: /workspaces/step/packages/windmill
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/windmill
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: [
       "cargo",
@@ -880,7 +1140,7 @@ services:
       "windmill/core",
       # Build first, so a compile error waits for the next change instead of the restart loop.
       "-x", "build --bin main",
-      "-s", "sh ../../.devcontainer/restart-worker.sh ../target/debug/main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue --prefetch-count 1"
+      "-s", "sh ../../.devcontainer/restart-worker.sh ../rust-local-target/docker-dev/debug/main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue monitoring_queue --prefetch-count 1"
     ]
     volumes_from:
       - devcontainer
@@ -896,14 +1156,19 @@ services:
       #- postgres
       #- postgres-keycloak
     environment:
+      CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       RUSTFLAGS: ${RUSTFLAGS}
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/.devcontainer/scripts/rust-lld-cc.sh
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
-      AWS_S3_JWKS_FETCH_TIMEOUT_SECS: ${AWS_S3_JWKS_FETCH_TIMEOUT_SECS:-5}
       ELECTORAL_LOG_PG_HOST: ${ELECTORAL_LOG_PG_HOST}
       ELECTORAL_LOG_PG_PORT: ${ELECTORAL_LOG_PG_PORT}
       ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
@@ -951,6 +1216,14 @@ services:
       SECRETS_BACKEND: ${SECRETS_BACKEND}
       MASTER_SECRET: ${MASTER_SECRET}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
+      # Account callback URLs point at the messaging-webhooks component.
+      MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
+      # Provider API addresses, the same as harvest's: the development .env
+      # points them at harvest's fake provider routes. Unset or blank leaves
+      # each account's own.
+      MESSAGING_META_GRAPH_URL: ${MESSAGING_META_GRAPH_URL:-}
+      MESSAGING_INFOBIP_URL: ${MESSAGING_INFOBIP_URL:-}
+      MESSAGING_AWS_ENDPOINT_URL: ${MESSAGING_AWS_ENDPOINT_URL:-}
 
       KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
       KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY}
@@ -963,7 +1236,14 @@ services:
       KEYCLOAK_IVR_VOTING_CLIENT_SECRET: ${KEYCLOAK_IVR_VOTING_CLIENT_SECRET}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+      ADMIN_PORTAL_URL: ${ADMIN_PORTAL_URL}
+      KIOSK_VOTING_PORTAL_URL: ${KIOSK_VOTING_PORTAL_URL:-}
       RESULTS_PORTAL_URL: ${RESULTS_PORTAL_URL}
+      # The OVCS's identity, as its ER transmission packages name it.
+      MIRU_DEVICE_ID: ${MIRU_DEVICE_ID:-}
+      MIRU_SERIAL_NUMBER: ${MIRU_SERIAL_NUMBER:-}
+      MIRU_IP_ADDRESS: ${MIRU_IP_ADDRESS:-}
+      MIRU_MAC_ADDRESS: ${MIRU_MAC_ADDRESS:-}
       KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
       AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
@@ -1007,11 +1287,9 @@ services:
       PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
-      B4_PG_HOST: ${B4_PG_HOST}
-      B4_PG_PORT: ${B4_PG_PORT}
-      B4_PG_USER: ${B4_PG_USER}
-      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
-      B4_PG_DATABASE: ${B4_PG_DATABASE}
+      WBRAID_B4_URL: http://b4v6:3005
+      WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/b4
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
       ENV_SLUG: ${ENV_SLUG}
@@ -1020,7 +1298,7 @@ services:
     profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
-    container_name: beat
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}beat
     restart: unless-stopped
     volumes_from:
       - devcontainer
@@ -1034,7 +1312,7 @@ services:
         condition: service_started
       task-queues-setup:
         condition: service_started
-    working_dir: /workspaces/step/packages/windmill
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/windmill
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: [
       "cargo",
@@ -1045,9 +1323,14 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x", "build --bin beat",
-      "-s", "sh ../../.devcontainer/restart-worker.sh ../target/debug/beat"
+      "-s", "sh ../../.devcontainer/restart-worker.sh ../rust-local-target/docker-dev/debug/beat"
     ]
     environment:
+      CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       QUEUE_DB__HOST: ${QUEUE_DB__HOST}
       QUEUE_DB__PORT: ${QUEUE_DB__PORT}
       QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
@@ -1055,6 +1338,7 @@ services:
       QUEUE_DB__PASSWORD: ${QUEUE_DB_WORKER_PASSWORD}
       QUEUE_DB__MANAGER__RECYCLING_METHOD: ${QUEUE_DB__MANAGER__RECYCLING_METHOD}
       RUSTFLAGS: ${RUSTFLAGS}
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/.devcontainer/scripts/rust-lld-cc.sh
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
@@ -1062,76 +1346,24 @@ services:
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
       ENV_SLUG: ${ENV_SLUG}
+      # The readiness probe initializes the task registry, including S3 plugins.
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
+      AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
+      AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
       ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS: ${ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS:-300}
       QUEUE_ARCHIVE_PURGE_INTERVAL_SECS: ${QUEUE_ARCHIVE_PURGE_INTERVAL_SECS:-3600}
+      # Messaging, the same values as harvest and windmill.
+      MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
+      MESSAGING_META_GRAPH_URL: ${MESSAGING_META_GRAPH_URL:-}
+      MESSAGING_INFOBIP_URL: ${MESSAGING_INFOBIP_URL:-}
+      MESSAGING_AWS_ENDPOINT_URL: ${MESSAGING_AWS_ENDPOINT_URL:-}
 
-  postgres-b4:
-    profiles: ["full", "base"]
-    image: sequentech.local/postgresql-b4
-    container_name: postgres-b4
-    build:
-      context: ./postgresql-b4
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    volumes:
-      - b4_db_data:/var/lib/postgresql
-      - b4_db_logs:/logs
-    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
-    environment:
-      POSTGRES_PASSWORD: ${B4_PG_PASSWORD}
-    user: "999:999"  # This ensures that the postgres user inside the container is used
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready  -U postgres"]
-      interval: 5s
-      timeout: 10s
-      retries: 15
-      start_period: 5s
-    depends_on:
-      - postgres-volume-init
-
-  b4:
-    profiles: ["full", "base"]
-    stdin_open: true
-    image: sequentech.local/cargo-packages
-    container_name: b4
-    restart: always
-    ports:
-      - "50051:50051"
-    build:
-      context: ../packages/
-      dockerfile: ./Dockerfile.cargo-packages
-    volumes_from:
-      - devcontainer
-    depends_on:
-      #- devcontainer
-      - postgres-b4
-    working_dir: /workspaces/step/packages/b4
-    entrypoint: [
-      "cargo",
-      "watch",
-      "--why",
-      # ignoring rust-local-target/ since it's used for local builds and
-      # otherwise triggers a rebuild all the time (probably rust analyzer)
-      "--ignore",
-      "rust-local-target/",
-      "--features",
-      "\"native monitor\"",
-      "-x",
-      "run --bin b4 --release -- --host $B4_PG_HOST --port $B4_PG_PORT --username $B4_PG_USER --password $B4_PG_PASSWORD --database $B4_PG_DATABASE --bind $B4_BIND",
-    ]
-    environment:
-      RUSTFLAGS: ${RUSTFLAGS}
-      RUST_BACKTRACE: ${RUST_BACKTRACE}
-      LOG_LEVEL: ${LOG_LEVEL}
-      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      B4_PG_HOST: ${B4_PG_HOST}
-      B4_PG_PORT: ${B4_PG_PORT}
-      B4_PG_USER: ${B4_PG_USER}
-      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
-      B4_PG_DATABASE: ${B4_PG_DATABASE}
-      B4_BIND: ${B4_BIND}
-      AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
-      AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
+networks:
+  # Harvest and the monitoring renderer only; no route out.
+  monitoring-renderer:
+    internal: true
 
   # Vitrine, the transparency logs of transparent election events
   # (docs/docusaurus/docs/07-developers/14-vitrine.md): the vitrine-log sidecar
@@ -1264,12 +1496,20 @@ volumes:
   minio_storage:
   trustee1_data:
   trustee2_data:
-  trustee3_data:
   protocol_manager_data:
-  b4_db_logs:
-  b4_db_data:
   b4v6_data:
   b4v6_db_data:
   b4v6_db_logs:
   vitrine_state:
   vitrine_data:
+  # Created by initialize-command.sh and never removed by Compose, not even by
+  # `down --volumes`.
+  devcontainer-nix:
+    name: ${DEVCONTAINER_NIX_VOLUME:?run .devcontainer/scripts/initialize-command.sh}
+    external: true
+  devcontainer-cache:
+    name: ${DEVCONTAINER_CACHE_VOLUME:?run .devcontainer/scripts/initialize-command.sh}
+    external: true
+  devcontainer-cargo:
+    name: ${DEVCONTAINER_CARGO_VOLUME:?run .devcontainer/scripts/initialize-command.sh}
+    external: true

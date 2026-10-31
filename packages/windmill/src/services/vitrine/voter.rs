@@ -14,7 +14,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::vitrine::{
     get_vitrine_event, get_vitrine_log, get_vitrine_statement, VitrineStatement,
 };
-use crate::services::protocol_manager::get_event_store;
+use crate::services::electoral_log_board::get_event_store;
 use crate::types::vitrine::{
     VitrineForwardOutput, VitrineVoterContext, VitrineVoterForwardInput, VoterRoute,
 };

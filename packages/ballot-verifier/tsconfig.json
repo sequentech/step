@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "es5",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -22,7 +26,13 @@
         "../node_modules/@vitrine/verify/dist/*/index.d.ts",
         "../node_modules/@vitrine/verify/dist/*.d.ts"
       ]
-    },
+    }
   },
-  "include": ["src"]
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "src/**/*.stories.tsx",
+    "src/**/__stories__/**"
+  ]
 }

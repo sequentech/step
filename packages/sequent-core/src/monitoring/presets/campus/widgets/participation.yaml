@@ -1,0 +1,41 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Who has voted, out of the electorate, and how many of those who verified
+# their email have voted, out of them.
+id: participation
+title: Participation
+description: Percentages use each figure's own electorate.
+source: voter_turnout
+queries:
+  share: {template: summary, ratio: [voted, registered]}
+  verified: {template: summary, ratio: [voted_pre_enrolled, pre_enrolled]}
+  progress:
+    template: by_measure
+    measures: [registered, voted]
+    labels: {registered: Electors, voted: Ballots cast}
+height: 260
+chart:
+  charts:
+    share:
+      type: kpi
+      query: share
+      value: numerator
+      label: Ballots cast
+      style: {value: {format: integer}}
+      support: {value: pct_label, label: of the electorate}
+    verified:
+      type: kpi
+      query: verified
+      value: pct_label
+      label: Of verified electors
+      support: {value: denominator, label: verified, format: integer}
+    progress:
+      type: spark_bar
+      query: progress
+      x: value
+      y: label
+  rows:
+    - {cols: [share, verified]}
+    - progress

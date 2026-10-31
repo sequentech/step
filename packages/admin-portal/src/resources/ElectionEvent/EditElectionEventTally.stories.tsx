@@ -1,0 +1,169 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import React, {useContext} from "react"
+import type {StoryObj} from "@storybook/react-vite"
+import {expect, waitFor, within} from "storybook/test"
+import {RecordContextProvider} from "react-admin"
+import {AdminStoryProvider, EVENT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
+import {STORY_IDS, eventRecord} from "@/__stories__/fixtures"
+import type {WidgetMeta} from "@/__stories__/widgetStory"
+import {ElectionEventTallyContext} from "@/providers/ElectionEventTallyProvider"
+import {miruPackage} from "@/components/__stories__/MiruFixture"
+import {STORY_TRUSTEE} from "@/__stories__/storyAuth"
+import {ITallyTrusteeStatus} from "@/types/ceremonies"
+import {executionStatus, tallyExecution, tallySession} from "../Tally/__stories__/TallyFixture"
+import {fakeApi, makePanel} from "@/components/signing/__stories__/fixtures"
+import {EditElectionEventTally} from "./EditElectionEventTally"
+import {
+    answerOrPending,
+    paramsOf,
+    readsOf,
+    recordsOrPending,
+} from "./__stories__/ElectionEventFixture"
+import {
+    EStoryPermissions,
+    EStoryWorkflow,
+    useStoryGlobals,
+} from "../../../../ui-essentials/.storybook/globals"
+
+/** Which tally screen the tally store selects. */
+type View = "list" | "ceremony" | "trustee" | "transmission"
+
+interface Scenario {
+    view: View
+}
+
+let graphql: ReturnType<typeof graphqlBoundary>
+let data: ReturnType<typeof recordsOrPending>
+// The portal's root SigningProvider: the transmission wizard opens signing
+// requests from it. No request is opened here.
+let signingApi: ReturnType<typeof fakeApi>
+
+function Fixture({view}: Scenario) {
+    const {permissions, tenant} = useStoryGlobals()
+    const tally = useContext(ElectionEventTallyContext)
+    return (
+        <AdminStoryProvider
+            boundary={graphql}
+            dataProvider={data.provider}
+            role={permissions}
+            tenant={tenant}
+            signingApi={signingApi}
+        >
+            <ElectionEventTallyContext.Provider
+                value={{
+                    ...tally,
+                    tallyId: view === "list" ? null : STORY_IDS.tallySession,
+                    isTrustee: view === "trustee",
+                    selectedTallySessionData: view === "transmission" ? miruPackage() : null,
+                }}
+            >
+                <RecordContextProvider value={eventRecord()}>
+                    <EditElectionEventTally />
+                </RecordContextProvider>
+            </ElectionEventTallyContext.Provider>
+        </AdminStoryProvider>
+    )
+}
+
+// The tally list, ceremonies and transmission wizard have their own sections;
+// their reads stay loading here, except the session and latest execution that
+// the trustee's ceremony waits for: the signed-in trustee still has to restore
+// their key.
+const meta = {
+    title: "Admin/Election event/EditElectionEventTally",
+    component: EditElectionEventTally,
+    args: {view: "list"},
+    argTypes: {
+        view: {control: "inline-radio", options: ["list", "ceremony", "trustee", "transmission"]},
+    },
+    beforeEach: async ({args}) => {
+        data = recordsOrPending(
+            args.view === "trustee"
+                ? {
+                      sequent_backend_tally_session: [tallySession(EStoryWorkflow.TALLY)],
+                      sequent_backend_tally_session_execution: [
+                          tallyExecution(EStoryWorkflow.TALLY, {
+                              status: {
+                                  ...executionStatus(EStoryWorkflow.TALLY),
+                                  trustees: [
+                                      {name: STORY_TRUSTEE, status: ITallyTrusteeStatus.WAITING},
+                                  ],
+                              },
+                          }),
+                      ],
+                  }
+                : {}
+        )
+        graphql = graphqlBoundary(answerOrPending(), {schema: true})
+        signingApi = fakeApi(await makePanel())
+        await graphql.ready
+    },
+    render: (args, {globals}) => <Fixture key={JSON.stringify(globals)} {...args} />,
+} satisfies WidgetMeta<Scenario>
+export default meta
+type Story = StoryObj<Scenario>
+
+const listHeader = "Election Event Tally"
+
+export const Populated: Story = {
+    play: async ({canvasElement}) => {
+        await expect(await within(canvasElement).findByText(listHeader)).toBeVisible()
+        await waitFor(() =>
+            expect(paramsOf(data, "getList", "sequent_backend_tally_session")).toMatchObject({
+                filter: {election_event_id: EVENT_ID},
+            })
+        )
+        expect(readsOf(data)).not.toContain("getList sequent_backend_contest")
+    },
+}
+
+export const CeremonyOfTheSelectedTally: Story = {
+    args: {view: "ceremony"},
+    globals: {permissions: EStoryPermissions.ADMIN},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("Start")).toBeVisible()
+        await expect(canvas.getByText("Results")).toBeVisible()
+        expect(canvas.queryByText(listHeader)).toBeNull()
+        await waitFor(() =>
+            expect(paramsOf(data, "getOne", "sequent_backend_tally_session")).toMatchObject({
+                id: STORY_IDS.tallySession,
+            })
+        )
+        expect(readsOf(data)).toContain("getList sequent_backend_contest")
+    },
+}
+
+export const TrusteeCeremony: Story = {
+    args: {view: "trustee"},
+    globals: {permissions: EStoryPermissions.TRUSTEE},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("Trustees process")).toBeVisible()
+        expect(canvas.queryByText(listHeader)).toBeNull()
+        // The trustee's ceremony is that of the selected tally session.
+        await waitFor(() =>
+            expect(paramsOf(data, "getOne", "sequent_backend_tally_session")).toMatchObject({
+                id: STORY_IDS.tallySession,
+            })
+        )
+    },
+}
+
+export const TransmissionPackage: Story = {
+    args: {view: "transmission"},
+    globals: {permissions: EStoryPermissions.ADMIN},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(
+            await canvas.findByText(
+                "Allows you to export a Transmission Package to Destination Servers or download it."
+            )
+        ).toBeVisible()
+        expect(canvas.queryByText(listHeader)).toBeNull()
+        expect(canvas.queryByText("Trustees process")).toBeNull()
+        expect(readsOf(data)).not.toContain("getList sequent_backend_tally_session")
+    },
+}

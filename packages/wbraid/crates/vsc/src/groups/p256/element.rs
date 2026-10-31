@@ -137,7 +137,11 @@ impl Serializable for P256Element {
     }
 }
 
+/// P-256 elements encode as 33 bytes (SEC1 compressed; the identity uses the
+/// reserved all-zero encoding of the same width).
 impl Deserializable for P256Element {
+    const FIXED_WIDTH: Option<usize> = Some(33);
+
     fn read(input: &mut &[u8]) -> Result<Self, CryptographyError> {
         let bytes = take(input, 33)?;
         let array: [u8; 33] = bytes.try_into().expect("take returns exactly 33 bytes");

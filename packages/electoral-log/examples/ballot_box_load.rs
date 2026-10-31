@@ -40,9 +40,9 @@ use std::future::Future;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use strand::signature::StrandSignatureSk;
 use tokio::task::JoinSet;
 use uuid::Uuid;
+use voting_crypto::signing::SigningKey;
 
 /// Different contents each client cycles through.
 const CONTENTS_PER_CLIENT: usize = 16;
@@ -453,7 +453,7 @@ async fn accept(store: PostgresStore, args: AcceptArgs) -> Result<()> {
 fn ballot_record(
     event: &str,
     ballot: &PendingBallot,
-    signing_key: &StrandSignatureSk,
+    signing_key: &SigningKey,
 ) -> Result<LogEntry> {
     let signing_data = SigningData::new(signing_key.clone(), &ballot.voter_id, signing_key.clone());
     let pseudonym: [u8; 64] = ballot.pseudonym_hash.as_slice().try_into()?;
@@ -490,7 +490,7 @@ async fn sequence(
 ) -> Result<()> {
     let board = board.unwrap_or_else(|| format!("loadtest{}", event.replace('-', "")));
     store.create_board(&board).await?;
-    let signing_key = StrandSignatureSk::generate()?;
+    let signing_key = SigningKey::generate()?;
     let started = Instant::now();
     let deadline = started + Duration::from_secs(seconds);
     let mut idle_since: Option<Instant> = None;
@@ -671,11 +671,11 @@ async fn reads(store: PostgresStore, args: ReadsArgs) -> Result<()> {
     .await?;
     let repeat_scans = args.repeat.min(5);
     timed("participation of the event", repeat_scans, |_| {
-        store.participation(event, None)
+        store.participation(event, None, None)
     })
     .await?;
     timed("participation of an election", repeat_scans, |_| {
-        store.participation(event, Some(&election))
+        store.participation(event, Some(&election), None)
     })
     .await?;
     timed("voters by channel", repeat_scans, |_| {

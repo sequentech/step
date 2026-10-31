@@ -72,18 +72,23 @@ SPDX-License-Identifier: AGPL-3.0-only
         <div id="kc-header-wrapper"
              class="${properties.kcHeaderWrapperClass!}">
             <div class="logo"></div>
+            <#-- theme.properties defaults these to empty when the environment has no value. -->
+            <#if (properties.systemVersion!"")?has_content>
             <div class="version version-version">
                 <span class="title">
                     ${msg("system.version")}
                 </span>
                 <span class="value">${properties.systemVersion}</span>
             </div>
+            </#if>
+            <#if (properties.systemHash!"")?has_content>
             <div class="version version-hash">
                 <span class="title">
                     ${msg("system.hash")}
                 </span>
                 <span class="value">${properties.systemHash}</span>
             </div>
+            </#if>
             <#if realm.internationalizationEnabled  && locale.supported?size gt 1>
                 <div class="${properties.kcLocaleMainClass!}" id="kc-locale">
                     <div id="kc-locale-wrapper" class="${properties.kcLocaleWrapperClass!}">

@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: req-0257
+title: Posts opened
+description: Posts where online voting opened, with where each Post stands.
+section: Voting
+requirements: [SW-F-0257, SW-F-0369]
+order: 7
+selectors: [region, post]
+layout:
+  - {widget: poll-status, width: 12}
+  - {widget: status-by-post, width: 12}

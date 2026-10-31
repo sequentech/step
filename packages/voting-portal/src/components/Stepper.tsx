@@ -2,32 +2,30 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect} from "react"
-import {BreadCrumbSteps} from "@sequentech/ui-essentials"
+import React from "react"
+import {BallotSteps} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {selectBypassChooser} from "../store/extra/extraSlice"
-import {useAppDispatch, useAppSelector} from "../store/hooks"
+import {useAppSelector} from "../store/hooks"
 
+/**
+ * The voter's breadcrumb, wired to this application's store.
+ *
+ * The steps themselves — their wording, their order, and what happens to the
+ * numbering when an event bypasses the chooser — are `BallotSteps` in
+ * `ui-essentials`, because the Election Architect's Ballot Preview has to draw the
+ * same breadcrumb and was keeping a second list of labels to do it. All that is left
+ * here is the one thing only this application can answer: whether the chooser is
+ * bypassed.
+ */
 export default function Stepper({selected, warning}: {selected: number; warning?: boolean}) {
     const {t} = useTranslation()
-    const dispatch = useAppDispatch()
     const bypassElectionChooser = useAppSelector(selectBypassChooser())
 
-    const computedSelected = bypassElectionChooser ? (selected === 0 ? 0 : selected - 1) : selected
-    const list = [
-        "breadcrumbSteps.ballot",
-        "breadcrumbSteps.review",
-        "breadcrumbSteps.confirmation",
-    ]
-
-    if (!bypassElectionChooser) {
-        list.unshift("breadcrumbSteps.electionList")
-    }
-
     return (
-        <BreadCrumbSteps
-            labels={list}
-            selected={computedSelected}
+        <BallotSteps
+            selected={selected}
+            withElectionList={!bypassElectionChooser}
             warning={warning}
             ariaLabel={t("a11y.votingProgress")}
         />

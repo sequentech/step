@@ -5,19 +5,25 @@ use crate::postgres::area::{get_areas_by_ids, get_event_areas};
 use crate::postgres::area_contest::{export_area_contests, get_area_contests_by_area_contest_ids};
 use crate::postgres::candidate::export_candidate_csv;
 use crate::postgres::contest::{export_contests, get_contest_by_election_ids};
-use crate::postgres::election::{export_elections, get_elections, get_elections_by_ids};
+use crate::postgres::election::{
+    export_elections, get_display_voting_closes, get_elections, get_elections_by_ids,
+    DisplayVotingClose,
+};
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{get_report_copies, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::consolidation::acm_json::get_acm_key_pair;
 use crate::services::database::get_hasura_pool;
-use crate::services::election_dates::get_election_dates;
+use crate::services::election_dates::{apply_display_voting_close, get_election_dates};
 use crate::services::reports::ballot_images::BallotImagesTemplate;
-use crate::services::reports::report_variables::{get_app_hash, get_app_version, get_report_hash};
+use crate::services::reports::report_variables::{
+    configuration_annotations, configuration_stamp, get_app_hash, get_app_version, get_report_hash,
+};
 use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
+use crate::services::reports::template_time::load_i18n_defaults;
 use crate::services::tally_sheets::tally::create_tally_sheets_map;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
@@ -27,8 +33,10 @@ use sequent_core::ballot::{
     BallotStyle, Contest, ContestEncryptionPolicy, DecodedBallotsInclusionPolicy,
 };
 use sequent_core::ballot_codec::PlaintextCodec;
+use sequent_core::election_config::manifest::ConfigurationStamp;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
+use sequent_core::services::reports::template_time_variables;
 use sequent_core::services::s3;
 use sequent_core::services::translations::{Alias, Name};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
@@ -39,6 +47,7 @@ use sequent_core::sqlite::candidate::{create_candidate_sqlite, import_candidate_
 use sequent_core::sqlite::contests::create_contest_sqlite;
 use sequent_core::sqlite::election::create_election_sqlite;
 use sequent_core::sqlite::election_event::create_election_event_sqlite;
+use sequent_core::time_zones::effective_time_zone;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::ceremonies::{TallySessionResolution, TallySessionResolutionData};
 use sequent_core::types::hasura::core::{
@@ -54,7 +63,6 @@ use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 use tempfile::{NamedTempFile, TempPath};
 use tokio::runtime::Handle;
 use tokio::task;
@@ -73,7 +81,7 @@ use velvet::pipes::pipe_name::PipeName;
 
 #[derive(Debug, Clone)]
 pub struct AreaContestDataType {
-    pub plaintexts: Vec<<RistrettoCtx as Ctx>::P>,
+    pub plaintexts: Vec<[u8; 30]>,
     pub contest: Contest,
     pub ballot_style: BallotStyle,
     pub eligible_voters: u64,
@@ -83,40 +91,31 @@ pub struct AreaContestDataType {
 }
 
 #[instrument(skip_all)]
-fn decode_plaintexts_to_biguints(
-    plaintexts: &Vec<<RistrettoCtx as Ctx>::P>,
-    contest: &Contest,
-) -> Vec<String> {
-    plaintexts
+fn decode_plaintexts_to_biguints(plaintexts: &[[u8; 30]], contest: &Contest) -> Vec<String> {
+    use velvet::pipes::pipe_inputs::MALFORMED_PLAINTEXT_LINE;
+
+    let mut malformed_count = 0usize;
+    let lines = plaintexts
         .iter()
-        .filter_map(|plaintext| {
-            let plaintext_format = plaintext
-                .iter()
-                .map(|b| format!("{:02X}", b))
-                .collect::<Vec<String>>()
-                .join(" ");
-            let biguint = contest.decode_plaintext_contest_to_biguint(plaintext);
-
-            match biguint {
-                Ok(v) => {
-                    let biguit_str = v.to_str_radix(10);
-                    event!(
-                        Level::INFO,
-                        "Decoding plaintext {plaintext_format} into string '{biguit_str}'"
-                    );
-
-                    Some(biguit_str)
+        .map(
+            |plaintext| match contest.decode_plaintext_contest_to_biguint(plaintext) {
+                Ok(biguint) => biguint.to_str_radix(10),
+                Err(_) => {
+                    malformed_count += 1;
+                    MALFORMED_PLAINTEXT_LINE.to_string()
                 }
-                Err(e) => {
-                    event!(
-                        Level::WARN,
-                        "Decoding plaintext {plaintext_format} has failed: {e}"
-                    );
-                    None
-                }
-            }
-        })
-        .collect::<Vec<_>>()
+            },
+        )
+        .collect();
+
+    if malformed_count > 0 {
+        warn!(
+            "{malformed_count} plaintexts of contest {} do not decode and are counted as invalid ballots",
+            contest.id
+        );
+    }
+
+    lines
 }
 
 #[instrument(skip_all, err)]
@@ -271,6 +270,7 @@ pub fn create_election_configs_blocking(
     cast_votes_count: &Vec<ElectionCastVotes>,
     scheduled_events: &Vec<ScheduledEvent>,
     elections_single_map: HashMap<String, Election>,
+    authoritative_closes: HashMap<String, DisplayVotingClose>,
     areas: Vec<TreeNodeArea>,
     default_lang: String,
     election_event: ElectionEvent,
@@ -315,10 +315,10 @@ pub fn create_election_configs_blocking(
             .find(|data| data.election_id == election_id);
 
         let election_dates = if let Some(election) = election_opt {
-            Some(
-                get_election_dates(&election, scheduled_events.clone())
-                    .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?,
-            )
+            let mut dates = get_election_dates(&election, scheduled_events.clone())
+                .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
+            apply_display_voting_close(&mut dates, authoritative_closes.get(&election.id));
+            Some(dates)
         } else {
             None
         };
@@ -442,6 +442,17 @@ pub async fn create_election_configs(
     .await
     .map_err(|e| anyhow!("Error getting scheduled event by election event_id: {e:?}"))?;
 
+    let authoritative_closes = get_display_voting_closes(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &elections
+            .iter()
+            .map(|election| election.id.clone())
+            .collect::<Vec<_>>(),
+    )
+    .await?;
+
     let event = election_event.clone();
 
     // Spawn the task
@@ -452,6 +463,7 @@ pub async fn create_election_configs(
             &cast_votes_count_r,
             &scheduled_events,
             elections_single_map.clone(),
+            authoritative_closes.clone(),
             areas_clone.clone(),
             default_language.clone(),
             event.clone(),
@@ -519,6 +531,22 @@ pub async fn call_velvet(base_tally_path: PathBuf, pipe_id: &str) -> Result<Stat
     state_opt.ok_or_else(|| anyhow!("State unexpectedly None at the end of processing"))
 }
 
+/// The report a tally of `tally_type` draws.
+fn tally_report_type(tally_type: &TallyType) -> ReportType {
+    match tally_type {
+        TallyType::ELECTORAL_RESULTS => ReportType::ELECTORAL_RESULTS,
+        TallyType::INITIALIZATION_REPORT => ReportType::INITIALIZATION_REPORT,
+    }
+}
+
+/// The stamp as Velvet's execution annotations carry it.
+fn stamp_annotations(stamp: &ConfigurationStamp) -> HashMap<String, String> {
+    configuration_annotations(stamp)
+        .into_iter()
+        .map(|(name, value)| (name.to_string(), value))
+        .collect()
+}
+
 #[derive(Debug, Serialize, Clone)]
 struct VelvetTemplateData {
     pub title: String,
@@ -551,6 +579,14 @@ pub async fn build_ballot_images_pipe_config(
         .user_tpl_and_extra_cfg_provider(hasura_transaction)
         .await
         .map_err(|e| anyhow!("Error providing the user template and extra config: {e:?}"))?;
+    let stamp = configuration_stamp(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &ReportType::BALLOT_IMAGES,
+        &user_tpl_document,
+    )
+    .await?;
 
     let ballot_imagest_system_template = ballot_images_renderer
         .get_system_template()
@@ -571,17 +607,64 @@ pub async fn build_ballot_images_pipe_config(
 
     let acm_key = get_acm_key_pair(hasura_transaction, &tenant_id, &election_event_id).await?;
 
+    // The date helpers print in the event's zone with its timezone texts.
+    let mut extra_data = serde_json::to_value(ballot_images_extra_data)?;
+    if let serde_json::Value::Object(ref mut extra) = extra_data {
+        let event =
+            get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+        let elections = get_elections(hasura_transaction, tenant_id, election_event_id).await?;
+        let (variables, election_zones) =
+            report_time_zones(&event, &elections, &*load_i18n_defaults().await);
+        extra.extend(variables);
+        extra.insert(
+            velvet::pipes::ballot_images::ELECTION_TIME_ZONES_VAR.to_string(),
+            serde_json::to_value(election_zones)?,
+        );
+    }
+
     let ballot_images_pipe_config = PipeConfigBallotImages {
         template: user_tpl_document,
         system_template: ballot_imagest_system_template,
-        extra_data: serde_json::to_value(ballot_images_extra_data)?,
+        extra_data,
         enable_pdfs: true,
         pdf_options: Some(ext_cfg.pdf_options),
         report_options: Some(ext_cfg.report_options),
-        execution_annotations: None,
+        execution_annotations: stamp.as_ref().map(stamp_annotations),
         acm_key: Some(acm_key),
+        configuration: stamp,
     };
     Ok(ballot_images_pipe_config)
+}
+
+/// The zones a run's reports print in (VOTE-LIFECYCLE): the event's
+/// primary (`electionEventTimezone`, the run's variable) and each
+/// election's own zone (its reports' `electionTimezone`).
+pub fn report_time_zones(
+    election_event: &ElectionEvent,
+    elections: &[Election],
+    i18n_defaults: &serde_json::Value,
+) -> (
+    serde_json::Map<String, serde_json::Value>,
+    HashMap<String, String>,
+) {
+    let event_presentation = election_event.get_presentation().unwrap_or_else(|error| {
+        warn!("Unreadable event presentation, reports print in UTC: {error:?}");
+        None
+    });
+    let variables = template_time_variables(event_presentation.as_ref(), None, i18n_defaults);
+    let election_zones = elections
+        .iter()
+        .map(|election| {
+            (
+                election.id.clone(),
+                effective_time_zone(
+                    event_presentation.as_ref(),
+                    election.get_presentation().as_ref(),
+                ),
+            )
+        })
+        .collect();
+    (variables, election_zones)
 }
 
 async fn build_reports_pipe_config(
@@ -592,6 +675,12 @@ async fn build_reports_pipe_config(
     report_system_template: String,
     pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_type: TallyType,
+    stamp: Option<&ConfigurationStamp>,
+    copies: Option<u32>,
+    time_zones: (
+        serde_json::Map<String, serde_json::Value>,
+        HashMap<String, String>,
+    ),
 ) -> Result<PipeConfigGenerateReports> {
     let extra_data = VelvetTemplateData {
         title: String::new(),
@@ -620,13 +709,16 @@ async fn build_reports_pipe_config(
 
     let report_hash = get_report_hash(&tally_type.to_string()).await?;
 
-    let execution_annotations = HashMap::from([
+    let mut execution_annotations = HashMap::from([
         ("date_printed".to_string(), get_date_and_time()),
         ("app_hash".to_string(), get_app_hash()),
         ("app_version".to_string(), get_app_version()),
         ("report_hash".to_string(), report_hash),
         ("executer_username".to_string(), tally_executer_username),
     ]);
+    if let Some(stamp) = stamp {
+        execution_annotations.extend(stamp_annotations(stamp));
+    }
 
     Ok(PipeConfigGenerateReports {
         enable_pdfs: false,
@@ -637,6 +729,10 @@ async fn build_reports_pipe_config(
         extra_data: serde_json::to_value(extra_data)?,
         tally_type: tally_type.clone(),
         tally_session_configuration: tally_session.configuration.clone(),
+        template_variables: time_zones.0,
+        election_time_zones: time_zones.1,
+        copies,
+        configuration: stamp.cloned(),
     })
 }
 
@@ -648,6 +744,12 @@ pub async fn create_config_file(
     pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_session: &TallySession,
     tally_type: TallyType,
+    stamp: Option<&ConfigurationStamp>,
+    copies: Option<u32>,
+    time_zones: (
+        serde_json::Map<String, serde_json::Value>,
+        HashMap<String, String>,
+    ),
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -671,6 +773,9 @@ pub async fn create_config_file(
         report_system_template,
         pdf_options,
         tally_type,
+        stamp,
+        copies,
+        time_zones,
     )
     .await?;
 
@@ -900,6 +1005,27 @@ pub async fn run_velvet_tally(
     tally_type: TallyType,
     tie_resolutions: HashMap<String, Vec<TallySessionResolutionData>>,
 ) -> Result<State> {
+    // Before anything is tallied: an event imported from a signed
+    // configuration reports its results only with the template that
+    // configuration approved.
+    let stamp = configuration_stamp(
+        hasura_transaction,
+        &election_event.tenant_id,
+        &election_event.id,
+        &tally_report_type(&tally_type),
+        report_content_template.as_deref().unwrap_or_default(),
+    )
+    .await?;
+    // The copies its reports are printed in are the report's: the Reports
+    // step set them.
+    let copies = get_report_copies(
+        hasura_transaction,
+        &election_event.tenant_id,
+        &election_event.id,
+        &tally_report_type(&tally_type),
+    )
+    .await?;
+
     let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
     let tally_sheet_map = create_tally_sheets_map(tally_sheets);
@@ -928,6 +1054,12 @@ pub async fn run_velvet_tally(
     )
     .await?;
 
+    let elections = export_elections(
+        hasura_transaction,
+        &election_event.tenant_id,
+        &election_event.id,
+    )
+    .await?;
     create_config_file(
         base_tally_path.clone(),
         report_content_template,
@@ -935,7 +1067,32 @@ pub async fn run_velvet_tally(
         pdf_options,
         tally_session,
         tally_type,
+        stamp.as_ref(),
+        copies,
+        report_time_zones(election_event, &elections, &*load_i18n_defaults().await),
     )
     .await?;
     call_velvet(base_tally_path.clone(), "decode-ballots").await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::ballot_codec::vec::encode_vec_to_array;
+    use velvet::pipes::pipe_inputs::MALFORMED_PLAINTEXT_LINE;
+
+    /// A plaintext that does not decode still takes its place in the ballots
+    /// file, so the file keeps one line per decrypted plaintext.
+    #[test]
+    fn decode_plaintexts_to_biguints_keeps_one_line_per_plaintext() {
+        let valid = encode_vec_to_array(&vec![5]).expect("plaintext should encode");
+        let oversized_length = [0xFF; 30];
+
+        let lines = decode_plaintexts_to_biguints(&[valid, oversized_length], &Contest::default());
+
+        assert_eq!(
+            lines,
+            vec!["5".to_string(), MALFORMED_PLAINTEXT_LINE.to_string()]
+        );
+    }
 }

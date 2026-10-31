@@ -16,6 +16,7 @@ import {
     TextInput,
     useRefresh,
     useNotify,
+    required,
 } from "react-admin"
 
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -33,6 +34,7 @@ interface CreateProps {
 export const SettingsTrusteesCreate: React.FC<CreateProps> = (props) => {
     const {close} = props
     const refresh = useRefresh()
+    const notify = useNotify()
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
 
@@ -43,7 +45,8 @@ export const SettingsTrusteesCreate: React.FC<CreateProps> = (props) => {
         }
     }
 
-    const onError = async (res: any) => {
+    const onError = (error: Error) => {
+        notify(error.message, {type: "error"})
         refresh()
         if (close) {
             close()
@@ -56,15 +59,24 @@ export const SettingsTrusteesCreate: React.FC<CreateProps> = (props) => {
                 onSuccess: close ? onSuccess : undefined,
                 onError: close ? onError : undefined,
             }}
-            redirect={close ? false : (resource: any, id: any, data: any): string => "settings"}
+            redirect={close ? false : "settings"}
             resource="sequent_backend_trustee"
         >
             <SimpleForm>
                 <PageHeaderStyles.Title>
                     {t("trusteesSettingsScreen.create.title")}
                 </PageHeaderStyles.Title>
-                <TextInput source="name" />
-                <TextInput source="public_key" />
+                <TextInput source="name" validate={required()} />
+                <TextInput
+                    source="public_key"
+                    validate={required()}
+                    helperText="Signing public key from trustee public-keys"
+                />
+                <TextInput
+                    source="share_encryption_public_key"
+                    validate={required()}
+                    helperText="Share encryption public key from trustee public-keys"
+                />
 
                 <Hidden>
                     <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">

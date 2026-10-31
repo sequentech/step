@@ -97,6 +97,21 @@ describe("getBallotErrorOptions", () => {
             })
         ).toEqual({count: 2})
     })
+
+    it("keeps numbers, drops arrays that are not entry tuples and keeps other values as text", () => {
+        expect(getBallotErrorOptions(undefined, {numSelected: 3})).toEqual({numSelected: 3})
+        expect(getBallotErrorOptions(undefined, [["numSelected"], "max"])).toEqual({})
+        expect(getBallotErrorOptions(undefined, {type: "", valid: true})).toEqual({
+            type: "",
+            valid: "true",
+        })
+    })
+
+    it("falls back to the number selected when the maximum is missing", () => {
+        expect(
+            getBallotErrorOptions("errors.implicit.overVoteDisabled", {numSelected: "4"}).count
+        ).toBe(4)
+    })
 })
 
 /**
@@ -140,7 +155,7 @@ describe("i18next plural selection", () => {
 
     it("skips plural handling when count is a string", () => {
         expect(t.t("selected", {count: 2})).toBe("2 candidates selected")
-        expect(t.t("selected", {count: "2"})).not.toBe("2 candidates selected")
+        expect(t.t("selected", {count: "2" as unknown as number})).not.toBe("2 candidates selected")
     })
 
     it("uses the plural rules of the language, which are not always count === 1", async () => {

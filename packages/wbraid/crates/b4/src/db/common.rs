@@ -21,6 +21,25 @@ pub enum BoardDb {
 }
 
 impl BoardDb {
+    /// Access the supplied PostgreSQL pool for derived application indexes.
+    /// Opaque board messages remain the source of truth for these indexes.
+    #[cfg(feature = "postgres")]
+    pub fn postgres_pool(&self) -> Option<&sqlx::PgPool> {
+        match self {
+            Self::Postgres(backend) => Some(&backend.pool),
+            #[cfg(feature = "sqlite")]
+            Self::Sqlite(_) => None,
+        }
+    }
+
+    /// Open PostgreSQL storage with an explicitly configured application pool.
+    #[cfg(feature = "postgres")]
+    pub async fn from_postgres_pool(pool: sqlx::PgPool) -> Result<Self> {
+        Ok(Self::Postgres(
+            super::postgres::PostgresBackend::from_pool(pool).await?,
+        ))
+    }
+
     /// Open the matching board db, init'ed and ready to use.
     pub async fn open_url(url: &str) -> Result<Self> {
         let scheme = url

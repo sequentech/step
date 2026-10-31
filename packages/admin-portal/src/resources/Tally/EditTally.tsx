@@ -16,6 +16,7 @@ import {
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {usePresentationName} from "@/hooks/usePresentationName"
 
 interface EditTallyProps {
     id?: Identifier | undefined
@@ -30,6 +31,7 @@ export const EditTally: React.FC<EditTallyProps> = (props) => {
     const notify = useNotify()
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
+    const presentationName = usePresentationName()
 
     const [renderUI, setRenderUI] = useState(false)
 
@@ -152,7 +154,7 @@ export const EditTally: React.FC<EditTallyProps> = (props) => {
                                                 )}
                                                 source="election_ids"
                                                 choices={elections}
-                                                optionText="name"
+                                                optionText={presentationName}
                                                 optionValue="id"
                                                 row={false}
                                             />

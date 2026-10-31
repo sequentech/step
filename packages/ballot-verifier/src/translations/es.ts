@@ -37,6 +37,15 @@ const spanishTranslation: TranslationType = {
             ciphertextErrorTitle: "La verificación del voto ha fallado",
             ciphertextErrorDescription:
                 "El texto cifrado de este voto auditable no es el cifrado del texto en claro y la aleatoriedad que contiene. No se puede confiar en el voto.",
+            verificationErrorTitle: "La verificación del voto ha fallado",
+            unpublishedStyleErrorDescription:
+                "Este voto auditable no corresponde a ninguna papeleta publicada para este evento electoral, por lo que no se puede verificar.",
+            unavailableStyleErrorDescription:
+                "No se pudieron cargar las papeletas publicadas para este evento electoral, por lo que este voto auditable aún no se puede verificar. Por favor, inténtelo de nuevo.",
+            styleErrorDescription:
+                "El estilo de voto de este voto auditable no es el publicado para la elección: su clave pública o sus contiendas y candidaturas difieren, o no está publicado. No se puede confiar en el voto.",
+            legacyBallotWarning:
+                "Este voto auditable usa un formato anterior cuyo ID de voto no cubre el estilo de voto. Su ID de voto no puede confirmar que se cifró con la clave publicada de la elección.",
             useSampleLink: "Use voto de ejemplo",
             nextButton: "Continuar",
             fileUploaded: "Cargado",

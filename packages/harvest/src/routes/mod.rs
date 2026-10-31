@@ -3,9 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pub mod api_datafix;
 pub mod applications;
+pub mod apply_configuration_package;
+pub mod approval_matrix;
 pub mod areas;
+pub mod b4;
+pub mod ballot_checks;
 pub mod ballot_publication;
 pub mod ballot_publication_prepare_preview;
+pub mod cast_ballot;
 pub mod create_ballot_receipt;
 pub mod custom_urls;
 pub mod delete_certificate_authority;
@@ -27,7 +32,9 @@ pub mod export_tally_results;
 pub mod export_tasks_execution;
 pub mod export_template;
 pub mod export_tenant_config;
+pub mod export_tenant_logs;
 pub mod external_reconciliation;
+pub mod fake_provider;
 pub mod fetch_document;
 pub mod generate_preview_url;
 pub mod get_certificate_authorities_pem;
@@ -43,12 +50,20 @@ pub mod insert_election_event;
 pub mod insert_tenant;
 pub mod keys_ceremony;
 pub mod limit_access_by_countries;
+pub mod manual_verification_pdf;
+pub mod messaging;
+pub mod messaging_insights;
 pub mod miru_plugin;
+pub mod monitoring;
+pub mod monitoring_config;
+pub mod monitoring_export;
 pub mod permissions;
 pub mod phone_blacklist;
 pub mod plugins;
+pub mod readiness;
 pub mod realm_attributes;
 pub mod realm_password_policy;
+pub mod receive_ballot;
 pub mod reports;
 pub mod results_publication;
 pub mod roles;
@@ -58,6 +73,8 @@ pub mod support_materials;
 pub mod tally_ceremony;
 pub mod tally_sheets;
 pub mod templates;
+pub mod trustee_boards;
+pub mod trustee_updates;
 pub mod trustees;
 pub mod upload_document;
 pub mod users;
@@ -68,8 +85,20 @@ pub mod voter_information_letter;
 pub mod voting_status;
 
 pub mod ballot_files;
-
 pub mod electoral_log_audit;
 pub mod electoral_log_console;
 pub mod electoral_log_proofs;
+pub mod plugin_platform;
+pub mod schedule_import;
+pub mod scheduled_outcomes;
+pub mod signing;
+pub mod signing_certificates;
 pub mod task_queues;
+
+pub mod ballot_privacy;
+
+pub mod privacy_signin;
+
+pub mod receipt_document;
+
+pub mod audit_ballot;

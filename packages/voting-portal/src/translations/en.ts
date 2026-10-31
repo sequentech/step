@@ -3,10 +3,195 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
     translations: {
+        ballotPrivacy: {
+            title: "Ballot box log",
+            subtitle:
+                "Every ballot cast in this election, listed under a pseudonym instead of the voter's name.",
+            private: "Voters appear only as pseudonyms",
+            signed: "Signed by the election authority and the ballot box",
+            device: "Checked on your device",
+            own: "Your ballot is in the ballot box",
+            listedAs: "Listed as",
+            check: "Check my ballot",
+            copy: "Copy Ballot ID",
+            ballotIdHelp: "About your Ballot ID",
+            castTime: "Cast {{time}}",
+            timesIn: "Times in {{zone}}",
+            signedEntries: "Signed log entries ({{count}})",
+            noMatchHelp:
+                "Check for typing mistakes. The codes use the digits 0 to 9 and capital letters, without I, L, O and U.",
+            helpSections: {
+                pseudonyms: {
+                    title: "Pseudonyms",
+                    text: "Each voter is listed under a pseudonym, a code such as 7QKM-2HXD. The log never says who the voter is.",
+                },
+                signatures: {
+                    title: "Signatures",
+                    text: "The election authority signs which voter key each pseudonym uses. The ballot box signs each ballot it receives and each cast.",
+                },
+                checks: {
+                    title: "Checks on your device",
+                    text: "Open a ballot to check its signatures in this browser. Anyone can download its signed entries and check them again.",
+                },
+            },
+            copied: "Ballot ID copied",
+            copyFailed: "Could not copy the Ballot ID. Select the code to copy it.",
+            search: "Find a Ballot ID or pseudonym",
+            placeholder: "Ballot ID or pseudonym",
+            clear: "Clear search",
+            ballots: "{{count}} ballots",
+            matches: "{{count}} of {{total}} ballots match",
+            capped: "More than {{count}} of {{total}} ballots match; type more of the code",
+            ballotId: "Ballot ID",
+            pseudonym: "Pseudonym",
+            castAt: "Cast",
+            channel: "Channel",
+            yours: "Yours",
+            channels: {
+                online: "Online",
+                kiosk: "Kiosk",
+                telephone: "Telephone",
+            },
+            previous: "Previous",
+            next: "Next",
+            rows: "Rows per page",
+            noMatch: "No Ballot ID or pseudonym starts with {{prefix}}",
+            noBallots: "No ballots have been cast yet.",
+            invalidPrefix:
+                "The codes use the digits 0 to 9 and capital letters, without I, L, O and U. Enter up to eight characters.",
+            loadError: "The ballot box log could not be loaded. Please try again.",
+            retry: "Try again",
+            help: "About the ballot box log",
+            helpText:
+                "Each voter is listed under a pseudonym, a code such as 7QKM-2HXD. The log never says who the voter is. The election authority signs which voter key each pseudonym uses. Open a ballot to check its signatures in this browser.",
+            detailTitle: "Ballot {{ballotId}}",
+            checking: "Checking the signatures…",
+            passed: "All four checks passed",
+            verified: "Checked on this device with the published keys.",
+            failed: "A check failed",
+            failedHelp: "Do not rely on this entry.",
+            pending: "Still being added to the log",
+            pendingHelp: "The signed entries may appear after a ballot is cast. Check again later.",
+            proofError: "The signed entries or published keys could not be loaded. Try again.",
+            checkLabels: {
+                binding: "Voter key registered",
+                received: "Ballot received",
+                ballotId: "Ballot ID",
+                cast: "Ballot cast",
+            },
+            checkDescriptions: {
+                binding: "The election authority signed which voter key this pseudonym uses.",
+                received: "The ballot box received a ballot signed with that voter key.",
+                ballotId: "The Ballot ID is computed from that signed ballot.",
+                cast: "The same key cast the ballot, and the ballot box confirmed the cast.",
+            },
+            states: {
+                passed: "Passed",
+                failed: "Does not match.",
+                pending: "Not in the log yet.",
+            },
+            neverPublished:
+                "Never published: the voter's name, username, IP address, country or device.",
+            download: "Download signed log entries",
+            downloadAction: "Download",
+            close: "Close",
+            systemKey: "Election event log key",
+            boxKey: "Ballot box key",
+            userLogs:
+                "A voter's own entries: sign-ins and messages. Their ballots are in the log under a pseudonym, so they never appear here; only a logged resolution links the two.",
+            ballotSection: "Ballot and pseudonym",
+            resolution: "Pseudonym resolution",
+            resolutionHelp:
+                "The answer went only to the person who asked. The voter is never named in this log.",
+            reason: "Reason given",
+            settings: {
+                authority:
+                    "The election event log key {{fingerprint}} signs which voter key each pseudonym uses.",
+                loading: "Loading privacy permissions",
+                loadError: "The current privacy permissions could not be loaded.",
+                noRoles: "No role yet",
+                title: "Privacy",
+                identity: "Voter pseudonyms",
+                on: "On: ballots, the log and its exports name a pseudonym for each voter, never the voter.",
+                legacy: "This event uses the historical voter identity mode.",
+                immutable:
+                    "The identity mode is set when the event is created and cannot be changed.",
+                network: "Network data",
+                description:
+                    "The IP address, country and browser of each ballot sent. They are never kept with ballots, voter records or log entries.",
+                forensic: "Keep for forensic review",
+                forensicHelp:
+                    "Kept apart in the forensic store. Only people with Forensic Read see it, and every view is logged.",
+                none: "Do not store",
+                noneHelp:
+                    "Nothing new is kept, and the dashboard's IP Addresses list is not shown. Previously retained forensic data follows its retention policy.",
+                permissions: "Who can see or link it",
+                permissionHelp:
+                    "No preset role holds these permissions. Give them in Users and Roles to the few people who need them.",
+                forensicPermission: "Forensic Read",
+                forensicPermissionHelp: "Sees the network data in the forensic store",
+                resolvePermission: "Resolve a pseudonym",
+                resolvePermissionHelp:
+                    "Links one pseudonym to its voter, with a reason. Each use is logged.",
+                roles: "Manage in Users and Roles",
+            },
+            forensic: {
+                allElections: "All permitted elections",
+                exportError: "The forensic records could not be exported.",
+                subtitle:
+                    "Where ballots were sent from, by pseudonym. Only people with Forensic Read see this list, and each view is logged.",
+                store: "Forensic store",
+                pseudonyms: "Pseudonyms",
+                first: "First ballot",
+                last: "Last ballot",
+                shared: "Shared",
+                sharedHelp:
+                    "Ballots of several pseudonyms came from this address, as from a hotel or office network.",
+                more: "+{{count}} more",
+                view: "View ballots",
+                copy: "Copy IP address",
+                detailTitle: "IP address {{ip}}",
+                detailHelp:
+                    "Opening this address was written to the election event’s log. Nobody is named here: each ballot is listed by its pseudonym.",
+                error: "The forensic records could not be loaded.",
+                empty: "No forensic ballot records for this address.",
+            },
+        },
+        startup: {
+            error: "The voting portal could not start. Please try again.",
+            retry: "Try again",
+        },
+        contactChannel: {
+            change: "Contact method",
+            updated: "Your contact was changed. Codes and notices now go there.",
+            cancelled: "Your contact was not changed.",
+            failed: "We couldn't change how we contact you. Try again later or contact support.",
+            close: "Close",
+        },
         common: {
             goBack: "Back",
             showMore: "Show more",
             showLess: "Show less",
+        },
+        audioInstructions: {
+            screens: {
+                "election-chooser":
+                    "This page lists the elections you can vote in. Use the Tab key to move from one election to the next. Each election has a button to start voting. Press Enter on that button to open its ballot.",
+                "start":
+                    "This page explains how to vote. First you choose your options, then you review them, and then you cast your ballot. Use the Tab key to reach the button that starts voting and press Enter. If a declaration is shown, tick its checkbox with the Space bar first.",
+                "ballot":
+                    "This is your ballot. Each question is a group of options, and the question says how many options you can choose. Use the Tab key to move between options and the Space bar to select or clear one. When you have finished, go to the button to continue, at the end of the page, and press Enter to review your choices. There is also a button to clear all your choices. Nothing is cast until you confirm on the review page.",
+                "review":
+                    "This page shows the choices you made. Check them carefully. To change something, use the button to edit your ballot. To cast your vote, go to the button to cast your ballot and press Enter. Your ballot ID is at the top of the page. You can copy it to find your ballot later.",
+                "confirmation":
+                    "Your vote has been cast. This page shows your ballot ID, which you can use to check that your ballot was recorded. You can copy it or print this page. When you are done, use the button at the end of the page to finish.",
+                "audit":
+                    "This page lets you audit your ballot instead of casting it. It shows the information that you can check with the ballot verifier. An audited ballot is not cast, so go back to your ballot afterwards to vote.",
+                "ballot-locator":
+                    "This page lets you check that a ballot was recorded. Type or paste a ballot ID in the text field and press Enter. The result appears below the field.",
+                "support-materials":
+                    "This page lists documents that help you vote. Use the Tab key to move between them and press Enter on a document's button to open it. Use the button to go back to return to the list of elections.",
+            },
         },
         a11y: {
             skipToContent: "Skip to main content",
@@ -110,6 +295,11 @@ const englishTranslation = {
                 "When you’re ready, cast your ballot so it’s officially recorded. Or choose to audit first to confirm it was correctly captured and encrypted",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "The cast result has not been confirmed. You can retry the same request or check your Ballot ID before starting again.",
+                checkBallot: "Check ballot",
+            },
             acclamation: {
                 title: "Decided by acclamation",
                 helpDialog: {
@@ -164,6 +354,15 @@ const englishTranslation = {
                     "You have not selected any candidates. After you confirm, your ballot will be cast as blank.",
                 ok: "Yes, cast my blank ballot",
                 cancel: "Cancel",
+            },
+            unfilledContestsDialog: {
+                title: "Some selections are unfilled",
+                content:
+                    "You may leave a selection blank or choose fewer options than allowed. Check the following before continuing.",
+                selected: "{{selected}} of {{max}} selected",
+                nothingSelected: "Nothing selected",
+                ok: "Continue with these selections",
+                cancel: "Review selections",
             },
             error: {
                 NETWORK_ERROR:
@@ -316,6 +515,9 @@ const englishTranslation = {
             demoQRText: "Ballot tracker is disabled in demo mode",
         },
         auditScreen: {
+            confirmingAudit: "Confirming that this ballot cannot be cast…",
+            auditUnavailable:
+                "The ballot could not be audited. Its contents have not been revealed. Please try again.",
             printButton: "Print",
             restartButton: "Start Voting",
             title: "Check your ballot",
@@ -383,6 +585,8 @@ const englishTranslation = {
                 instructions:
                     "You must read the <MaterialsLink>{{materialsTitle}}</MaterialsLink> before you can vote.",
             },
+            votingClosedAt: "Voting closed on {{close}} ({{localClose}}).",
+            votingClosedOn: "Voting closed on {{close}}.",
         },
         errors: {
             encoding: {
@@ -421,6 +625,67 @@ const englishTranslation = {
                 checkboxLabel: "I have read the Support Materials",
                 continueButton: "Continue",
                 error: "There was a problem recording your acknowledgment. Please try again.",
+            },
+        },
+        slates: {
+            title: "Slates",
+            description:
+                "A slate is a group of candidates running together. Each candidate shows the slate they belong to.",
+            independent: "Independent",
+            contestMembers: "{{slate}} candidates for {{contest}}",
+            noCandidate: "No candidate",
+            coverage: {
+                full: "Full slate",
+                singleContest: "{{contest}} only",
+                partial: "Partial slate",
+                candidates_one: "{{count}} candidate",
+                candidates_other: "{{count}} candidates",
+                offices_one: "{{count}} office",
+                offices_other: "{{count}} offices",
+            },
+            candidateList: {
+                show: "Show candidates",
+                hide: "Hide candidates",
+            },
+            tabs: {
+                label: "Ways to fill in your ballot",
+                slates: "Choose a slate",
+                candidates: "Individual candidates",
+            },
+            review: {
+                title: "Your selections",
+                total: "Candidates selected: {{selected}} of {{seats}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Independent candidates selected: {{count}}",
+                note: "Your vote is recorded for each selected candidate. A slate is not a vote of its own.",
+                contestCount: "{{selected}} of {{max}} selected",
+                edit: "Edit",
+                editLabel: "Edit {{contest}}",
+            },
+            selection: {
+                all: "All {{total}} selected",
+                mixed: "Mixed · {{selected}} of {{total}} selected",
+                partly: "Partly selected · {{selected}} of {{total}}",
+                selected: "Selected",
+                edit: "Edit selections",
+            },
+            apply: {
+                button: "Choose this slate",
+                buttonLabel: "Choose slate {{slate}}",
+                chosen: "{{slate}} chosen. Candidates selected: {{candidates}}. Contests: {{contests}}.",
+                overMaximum:
+                    "{{slate}} cannot be chosen: it has {{candidates}} candidates for {{contest}}, which allows {{max}}. You can still choose candidates individually.",
+                unavailable:
+                    "{{slate}} cannot be chosen on this ballot. You can still choose candidates individually.",
+                replaceDialog: {
+                    title: "Replace your current choices?",
+                    content:
+                        "Choosing {{slate}} replaces your choices in the contests below. Your other choices stay as they are.",
+                    removed: "Removed:",
+                    added: "Selected instead:",
+                    ok: "Replace choices",
+                    cancel: "Keep my choices",
+                },
             },
         },
         ballotLocator: {
@@ -589,6 +854,9 @@ const englishTranslation = {
                     failedTime: "Problem",
                 },
             },
+            checksAvailableUntil: "You can check your ballot until {{date}}.",
+            checksEnded: "Checks ended on {{date}}.",
+            castAt: "Cast on {{date}}",
             steps: {
                 lookup: "Find your Ballot",
                 result: "Result",

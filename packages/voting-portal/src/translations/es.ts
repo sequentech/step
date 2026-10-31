@@ -1,14 +1,46 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        startup: {
+            error: "No se pudo iniciar el portal de votación. Inténtelo de nuevo.",
+            retry: "Intentar de nuevo",
+        },
+        contactChannel: {
+            change: "Método de contacto",
+            updated: "Se cambió su contacto. Los códigos y avisos ahora se envían allí.",
+            cancelled: "Su contacto no se cambió.",
+            failed: "No pudimos cambiar cómo le contactamos. Inténtelo más tarde o contacte con soporte.",
+            close: "Cerrar",
+        },
         common: {
             goBack: "Regresar",
             showMore: "Mostrar más",
             showLess: "Mostrar menos",
+        },
+        audioInstructions: {
+            screens: {
+                "election-chooser":
+                    "Esta página muestra las elecciones en las que puede votar. Use la tecla Tabulador para pasar de una elección a la siguiente. Cada elección tiene un botón para empezar a votar. Pulse Intro en ese botón para abrir su papeleta.",
+                "start":
+                    "Esta página explica cómo votar. Primero elige sus opciones, después las revisa y por último emite su voto. Use la tecla Tabulador para llegar al botón que inicia la votación y pulse Intro. Si se muestra una declaración, marque antes su casilla con la barra espaciadora.",
+                "ballot":
+                    "Esta es su papeleta. Cada pregunta es un grupo de opciones, y la pregunta indica cuántas puede elegir. Use la tecla Tabulador para moverse entre las opciones y la barra espaciadora para marcar o desmarcar una. Cuando termine, vaya al botón para continuar, al final de la página, y pulse Intro para revisar sus opciones. También hay un botón para borrar todas sus opciones. No se emite nada hasta que lo confirme en la página de revisión.",
+                "review":
+                    "Esta página muestra las opciones que ha elegido. Compruébelas con atención. Para cambiar algo, use el botón para editar su papeleta. Para emitir su voto, vaya al botón para emitir la papeleta y pulse Intro. El identificador de su papeleta está al principio de la página. Puede copiarlo para localizar su papeleta más adelante.",
+                "confirmation":
+                    "Su voto se ha emitido. Esta página muestra el identificador de su papeleta, con el que puede comprobar que se ha registrado. Puede copiarlo o imprimir esta página. Cuando termine, use el botón del final de la página para finalizar.",
+                "audit":
+                    "Esta página le permite auditar su papeleta en lugar de emitirla. Muestra la información que puede comprobar con el verificador de papeletas. Una papeleta auditada no se emite, así que vuelva después a su papeleta para votar.",
+                "ballot-locator":
+                    "Esta página le permite comprobar que una papeleta se ha registrado. Escriba o pegue un identificador de papeleta en el campo de texto y pulse Intro. El resultado aparece debajo del campo.",
+                "support-materials":
+                    "Esta página muestra documentos que le ayudan a votar. Use la tecla Tabulador para moverse entre ellos y pulse Intro en el botón de un documento para abrirlo. Use el botón para volver a la lista de elecciones.",
+            },
         },
         a11y: {
             skipToContent: "Saltar al contenido principal",
@@ -110,6 +142,11 @@ const spanishTranslation: TranslationType = {
                 "Cuando esté listo, emita su papeleta para que quede registrada oficialmente. O elija auditar primero para confirmar que fue correctamente capturada y cifrada",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "No se ha confirmado el resultado del envío. Puede reintentar la misma solicitud o comprobar el identificador de la papeleta antes de empezar de nuevo.",
+                checkBallot: "Comprobar papeleta",
+            },
             acclamation: {
                 title: "Resuelto por aclamación",
                 helpDialog: {
@@ -164,6 +201,15 @@ const spanishTranslation: TranslationType = {
                     "No ha seleccionado ningún candidato. Una vez confirme, su papeleta se emitirá en blanco.",
                 ok: "Sí, quiero emitir mi papeleta en blanco",
                 cancel: "Cancelar",
+            },
+            unfilledContestsDialog: {
+                title: "Hay selecciones sin completar",
+                content:
+                    "Puede dejar selecciones en blanco o elegir menos opciones de las permitidas. Revise lo siguiente antes de continuar.",
+                selected: "{{selected}} de {{max}} seleccionadas",
+                nothingSelected: "Sin selección",
+                ok: "Continuar con estas selecciones",
+                cancel: "Revisar selecciones",
             },
             error: {
                 NETWORK_ERROR:
@@ -324,6 +370,9 @@ const spanishTranslation: TranslationType = {
             demoQRText: "El rastreador de papeletas está deshabilitado en modo de demostración",
         },
         auditScreen: {
+            confirmingAudit: "Confirmando que esta papeleta ya no se puede emitir…",
+            auditUnavailable:
+                "No se ha podido auditar la papeleta. Su contenido no se ha revelado. Inténtelo de nuevo.",
             printButton: "Imprimir",
             restartButton: "Iniciar votación",
             title: "Compruebe su papeleta",
@@ -391,6 +440,8 @@ const spanishTranslation: TranslationType = {
                 instructions:
                     "Debe leer <MaterialsLink>{{materialsTitle}}</MaterialsLink> antes de poder votar.",
             },
+            votingClosedAt: "La votación se cerró el {{close}} ({{localClose}}).",
+            votingClosedOn: "La votación se cerró el {{close}}.",
         },
         errors: {
             encoding: {
@@ -430,6 +481,67 @@ const spanishTranslation: TranslationType = {
                 checkboxLabel: "He leído los Materiales de Soporte",
                 continueButton: "Continuar",
                 error: "Hubo un problema al registrar su confirmación. Por favor, inténtelo de nuevo.",
+            },
+        },
+        slates: {
+            title: "Candidaturas conjuntas",
+            description:
+                "Una candidatura conjunta es un grupo de candidatos que se presentan juntos. Cada candidato muestra la candidatura a la que pertenece.",
+            independent: "Independiente",
+            contestMembers: "Candidatos de {{slate}} para {{contest}}",
+            noCandidate: "Sin candidato",
+            coverage: {
+                full: "Candidatura completa",
+                singleContest: "Solo {{contest}}",
+                partial: "Candidatura parcial",
+                candidates_one: "{{count}} candidato",
+                candidates_other: "{{count}} candidatos",
+                offices_one: "{{count}} cargo",
+                offices_other: "{{count}} cargos",
+            },
+            candidateList: {
+                show: "Mostrar candidaturas",
+                hide: "Ocultar candidaturas",
+            },
+            tabs: {
+                label: "Formas de rellenar su papeleta",
+                slates: "Elegir una lista",
+                candidates: "Candidaturas individuales",
+            },
+            review: {
+                title: "Tus selecciones",
+                total: "Candidaturas seleccionadas: {{selected}} de {{seats}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Candidaturas independientes seleccionadas: {{count}}",
+                note: "Tu voto se registra para cada candidatura seleccionada. Una lista no es un voto por sí misma.",
+                contestCount: "{{selected}} de {{max}} seleccionadas",
+                edit: "Editar",
+                editLabel: "Editar {{contest}}",
+            },
+            selection: {
+                all: "Las {{total}} seleccionadas",
+                mixed: "Mixta · {{selected}} de {{total}} seleccionadas",
+                partly: "Seleccionada en parte · {{selected}} de {{total}}",
+                selected: "Seleccionada",
+                edit: "Editar la selección",
+            },
+            apply: {
+                button: "Elegir esta candidatura",
+                buttonLabel: "Elegir la candidatura {{slate}}",
+                chosen: "{{slate}} elegida. Candidatos seleccionados: {{candidates}}. Contiendas: {{contests}}.",
+                overMaximum:
+                    "{{slate}} no se puede elegir: tiene {{candidates}} candidaturas para {{contest}}, que permite {{max}}. Puede seguir eligiendo candidaturas individualmente.",
+                unavailable:
+                    "{{slate}} no se puede elegir en esta papeleta. Puede seguir eligiendo candidaturas individualmente.",
+                replaceDialog: {
+                    title: "¿Reemplazar tus opciones actuales?",
+                    content:
+                        "Elegir {{slate}} reemplaza tus opciones en las contiendas siguientes. El resto de tus opciones no cambia.",
+                    removed: "Se quita:",
+                    added: "Se selecciona en su lugar:",
+                    ok: "Reemplazar opciones",
+                    cancel: "Mantener mis opciones",
+                },
             },
         },
         ballotLocator: {
@@ -601,6 +713,9 @@ const spanishTranslation: TranslationType = {
                     failedTime: "Problema",
                 },
             },
+            checksAvailableUntil: "Puedes comprobar tu papeleta hasta el {{date}}.",
+            checksEnded: "Las comprobaciones finalizaron el {{date}}.",
+            castAt: "Emitido el {{date}}",
             steps: {
                 lookup: "Encuentre su papeleta",
                 result: "Resultado",

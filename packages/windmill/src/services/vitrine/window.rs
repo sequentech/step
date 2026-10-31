@@ -129,6 +129,8 @@ mod tests {
             cron_config: Some(CronConfig {
                 cron: None,
                 scheduled_date: Some(date.into()),
+                local: None,
+                timezone: None,
             }),
             event_payload: Some(json!({ "election_id": election })),
             task_id: Some(generate_manage_date_task_name(

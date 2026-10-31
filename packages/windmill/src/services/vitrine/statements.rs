@@ -31,7 +31,7 @@ use crate::postgres::vitrine::{
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_status::get_election_status;
-use crate::services::protocol_manager::get_event_store;
+use crate::services::electoral_log_board::get_event_store;
 use crate::tasks::vitrine_statements::log_vitrine_statements;
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use base64::engine::general_purpose::{STANDARD, STANDARD_NO_PAD};

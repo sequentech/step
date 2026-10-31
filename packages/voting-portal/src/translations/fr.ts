@@ -1,14 +1,46 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        startup: {
+            error: "Le portail de vote n’a pas pu démarrer. Veuillez réessayer.",
+            retry: "Réessayer",
+        },
+        contactChannel: {
+            change: "Mode de contact",
+            updated: "Votre contact a été modifié. Les codes et les avis y sont désormais envoyés.",
+            cancelled: "Votre contact n’a pas été modifié.",
+            failed: "Nous n’avons pas pu modifier la façon dont nous vous contactons. Réessayez plus tard ou contactez l’assistance.",
+            close: "Fermer",
+        },
         common: {
             goBack: "Retour",
             showMore: "Afficher plus",
             showLess: "Afficher moins",
+        },
+        audioInstructions: {
+            screens: {
+                "election-chooser":
+                    "Cette page présente les élections auxquelles vous pouvez voter. Utilisez la touche Tabulation pour passer d'une élection à la suivante. Chaque élection a un bouton pour commencer à voter. Appuyez sur Entrée sur ce bouton pour ouvrir son bulletin.",
+                "start":
+                    "Cette page explique comment voter. Vous choisissez d'abord vos options, puis vous les vérifiez, et enfin vous déposez votre bulletin. Utilisez la touche Tabulation pour atteindre le bouton qui lance le vote et appuyez sur Entrée. Si une déclaration est affichée, cochez d'abord sa case avec la barre d'espace.",
+                "ballot":
+                    "Voici votre bulletin. Chaque question est un groupe d'options, et la question indique combien vous pouvez en choisir. Utilisez la touche Tabulation pour passer d'une option à l'autre et la barre d'espace pour en cocher ou décocher une. Quand vous avez terminé, allez au bouton pour continuer, à la fin de la page, et appuyez sur Entrée pour vérifier vos choix. Il y a aussi un bouton pour effacer tous vos choix. Rien n'est déposé tant que vous n'avez pas confirmé sur la page de vérification.",
+                "review":
+                    "Cette page montre les choix que vous avez faits. Vérifiez-les attentivement. Pour modifier quelque chose, utilisez le bouton pour modifier votre bulletin. Pour voter, allez au bouton pour déposer votre bulletin et appuyez sur Entrée. L'identifiant de votre bulletin se trouve en haut de la page. Vous pouvez le copier pour retrouver votre bulletin plus tard.",
+                "confirmation":
+                    "Votre vote a été déposé. Cette page affiche l'identifiant de votre bulletin, qui vous permet de vérifier qu'il a été enregistré. Vous pouvez le copier ou imprimer cette page. Quand vous avez terminé, utilisez le bouton à la fin de la page pour terminer.",
+                "audit":
+                    "Cette page vous permet d'auditer votre bulletin au lieu de le déposer. Elle affiche les informations que vous pouvez contrôler avec le vérificateur de bulletins. Un bulletin audité n'est pas déposé : revenez ensuite à votre bulletin pour voter.",
+                "ballot-locator":
+                    "Cette page vous permet de vérifier qu'un bulletin a été enregistré. Saisissez ou collez un identifiant de bulletin dans le champ de texte et appuyez sur Entrée. Le résultat s'affiche sous le champ.",
+                "support-materials":
+                    "Cette page présente des documents qui vous aident à voter. Utilisez la touche Tabulation pour passer de l'un à l'autre et appuyez sur Entrée sur le bouton d'un document pour l'ouvrir. Utilisez le bouton de retour pour revenir à la liste des élections.",
+            },
         },
         a11y: {
             skipToContent: "Aller au contenu principal",
@@ -110,6 +142,11 @@ const frenchTranslation: TranslationType = {
                 "Soumettez votre bulletin pour qu'il soit enregistré, ou lancez un audit afin de vérifier qu'il a été correctement chiffré.",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "Le résultat du vote n’a pas été confirmé. Vous pouvez réessayer la même demande ou vérifier votre identifiant de bulletin avant de recommencer.",
+                checkBallot: "Vérifier le bulletin",
+            },
             acclamation: {
                 title: "Acquis par acclamation",
                 helpDialog: {
@@ -164,6 +201,15 @@ const frenchTranslation: TranslationType = {
                     "Vous n'avez sélectionné aucun candidat. Après confirmation, votre bulletin sera déposé blanc.",
                 ok: "Oui, je veux déposer mon bulletin blanc",
                 cancel: "Annuler",
+            },
+            unfilledContestsDialog: {
+                title: "Certaines sélections sont incomplètes",
+                content:
+                    "Vous pouvez laisser une sélection vide ou choisir moins d'options que le maximum autorisé. Vérifiez les éléments suivants avant de continuer.",
+                selected: "{{selected}} sur {{max}} sélectionnées",
+                nothingSelected: "Aucune sélection",
+                ok: "Continuer avec ces sélections",
+                cancel: "Revoir les sélections",
             },
             error: {
                 NETWORK_ERROR:
@@ -322,6 +368,9 @@ const frenchTranslation: TranslationType = {
             demoQRText: "Le suivi des bulletins est désactivé en mode démo",
         },
         auditScreen: {
+            confirmingAudit: "Confirmation que ce bulletin ne peut plus être déposé…",
+            auditUnavailable:
+                "Le bulletin n’a pas pu être audité. Son contenu n’a pas été révélé. Veuillez réessayer.",
             printButton: "Imprimer",
             restartButton: "Démarrer le vote",
             title: "Vérifiez votre Bulletin",
@@ -389,6 +438,8 @@ const frenchTranslation: TranslationType = {
                 instructions:
                     "Vous devez lire <MaterialsLink>{{materialsTitle}}</MaterialsLink> avant de pouvoir voter.",
             },
+            votingClosedAt: "Le vote a été clôturé le {{close}} ({{localClose}}).",
+            votingClosedOn: "Le vote a été clôturé le {{close}}.",
         },
         errors: {
             encoding: {
@@ -427,6 +478,67 @@ const frenchTranslation: TranslationType = {
                 checkboxLabel: "J'ai lu la documentation et le support",
                 continueButton: "Continuer",
                 error: "Un problème est survenu lors de l'enregistrement de votre confirmation. Veuillez réessayer.",
+            },
+        },
+        slates: {
+            title: "Listes",
+            description:
+                "Une liste est un groupe de candidats qui se présentent ensemble. Chaque candidat indique la liste à laquelle il appartient.",
+            independent: "Indépendant",
+            contestMembers: "Candidats de {{slate}} pour {{contest}}",
+            noCandidate: "Aucun candidat",
+            coverage: {
+                full: "Liste complète",
+                singleContest: "{{contest}} uniquement",
+                partial: "Liste partielle",
+                candidates_one: "{{count}} candidat",
+                candidates_other: "{{count}} candidats",
+                offices_one: "{{count}} poste",
+                offices_other: "{{count}} postes",
+            },
+            candidateList: {
+                show: "Afficher les candidatures",
+                hide: "Masquer les candidatures",
+            },
+            tabs: {
+                label: "Façons de remplir votre bulletin",
+                slates: "Choisir une liste",
+                candidates: "Candidatures individuelles",
+            },
+            review: {
+                title: "Vos sélections",
+                total: "Candidatures sélectionnées : {{selected}} sur {{seats}}",
+                slate: "{{slate}} : {{status}}",
+                independent: "Candidatures indépendantes sélectionnées : {{count}}",
+                note: "Votre vote est enregistré pour chaque candidature sélectionnée. Une liste n'est pas un vote en soi.",
+                contestCount: "{{selected}} sur {{max}} sélectionnées",
+                edit: "Modifier",
+                editLabel: "Modifier {{contest}}",
+            },
+            selection: {
+                all: "Les {{total}} sélectionnées",
+                mixed: "Mixte · {{selected}} sur {{total}} sélectionnées",
+                partly: "Sélection partielle · {{selected}} sur {{total}}",
+                selected: "Sélectionnée",
+                edit: "Modifier la sélection",
+            },
+            apply: {
+                button: "Choisir cette liste",
+                buttonLabel: "Choisir la liste {{slate}}",
+                chosen: "{{slate}} choisie. Candidats sélectionnés : {{candidates}}. Scrutins : {{contests}}.",
+                overMaximum:
+                    "{{slate}} ne peut pas être choisie : elle compte {{candidates}} candidats pour {{contest}}, qui en autorise {{max}}. Vous pouvez toujours choisir des candidats individuellement.",
+                unavailable:
+                    "{{slate}} ne peut pas être choisie sur ce bulletin. Vous pouvez toujours choisir des candidats individuellement.",
+                replaceDialog: {
+                    title: "Remplacer vos choix actuels ?",
+                    content:
+                        "Choisir {{slate}} remplace vos choix dans les scrutins ci-dessous. Vos autres choix ne changent pas.",
+                    removed: "Retiré :",
+                    added: "Sélectionné à la place :",
+                    ok: "Remplacer les choix",
+                    cancel: "Conserver mes choix",
+                },
             },
         },
         ballotLocator: {
@@ -599,6 +711,9 @@ const frenchTranslation: TranslationType = {
                     failedTime: "Problème",
                 },
             },
+            checksAvailableUntil: "Vous pouvez vérifier votre bulletin jusqu'au {{date}}.",
+            checksEnded: "Les vérifications ont pris fin le {{date}}.",
+            castAt: "Déposé le {{date}}",
             steps: {
                 lookup: "Trouvez votre bulletin de vote",
                 result: "Résultat",

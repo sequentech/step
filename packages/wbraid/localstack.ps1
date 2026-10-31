@@ -3,19 +3,20 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # Stop and remove existing LocalStack containers (if any)
-docker ps -q --filter ancestor=localstack/localstack | ForEach-Object { docker stop $_ }
-docker ps -aq --filter ancestor=localstack/localstack | ForEach-Object { docker rm $_ }
+docker ps -q --filter ancestor=localstack/localstack:4 | ForEach-Object { docker stop $_ }
+docker ps -aq --filter ancestor=localstack/localstack:4 | ForEach-Object { docker rm $_ }
 
 # Set dummy AWS credentials for LocalStack
 $env:AWS_ACCESS_KEY_ID = "test"
 $env:AWS_SECRET_ACCESS_KEY = "test"
 $env:AWS_DEFAULT_REGION = "us-east-1"
 
-# Start with new configuration
+# Start with new configuration. Pinned to the 4.x line: from the 2026 releases
+# on, `latest` exits at startup without an auth token (see TESTING.md).
 docker run -d -p 4566:4566 -p 4510-4559:4510-4559 `
   -e HOSTNAME_EXTERNAL=localhost `
   -e S3_HOSTNAME=localhost:4566 `
-  localstack/localstack
+  localstack/localstack:4
 
 Start-Sleep -Seconds 3.0
 

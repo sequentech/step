@@ -16,7 +16,7 @@ use windmill::types::results_publication::{
 
 const CONFIGURE_RESULTS_WEBSITE_MUTATION: &str = r#"
 mutation ConfigureResultsWebsite(
-  $election_event_id: String!
+  $election_event_id: uuid!
   $status: ResultsWebsiteStatus!
   $access: ResultsWebsiteAccess!
   $visibility_scope: ResultsWebsiteVisibilityScope!
@@ -37,7 +37,7 @@ mutation ConfigureResultsWebsite(
 
 const PUBLISH_RESULTS_WEBSITE_MUTATION: &str = r#"
 mutation PublishResultsWebsite(
-  $election_event_id: String!
+  $election_event_id: uuid!
   $tally_session_id: String!
   $tally_session_execution_id: String!
   $results_event_id: String!
@@ -69,7 +69,7 @@ mutation PublishResultsWebsite(
 "#;
 
 const REVOKE_RESULTS_PUBLICATION_MUTATION: &str = r#"
-mutation RevokeResultsPublication($election_event_id: String!, $publication_id: String!) {
+mutation RevokeResultsPublication($election_event_id: uuid!, $publication_id: String!) {
   revokeResultsPublication(
     election_event_id: $election_event_id
     publication_id: $publication_id

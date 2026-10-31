@@ -4,6 +4,7 @@
 
 import React, {useContext, useEffect, useMemo, useState, useRef} from "react"
 import {useTranslation} from "react-i18next"
+import {isBallotIdInput} from "../services/BallotIdLookup"
 import {
     BreadCrumbSteps,
     PageLimit,
@@ -16,10 +17,15 @@ import {
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
+    zoneName,
     EShowCastVoteLogsPolicy,
+    EBallotIdentity,
     formatVotingPortalDateTime,
     translateHtml,
     stringToText,
+    getChecksPeriod,
+    EChecksPeriodStatus,
+    IElectionEventPresentation,
 } from "@sequentech/ui-core"
 import {Box, TextField, Typography, Button, Stack, TypographyProps} from "@mui/material"
 import {styled} from "@mui/material/styles"
@@ -27,7 +33,6 @@ import {visuallyHidden} from "@mui/utils"
 import Tabs from "@mui/material/Tabs"
 import Tab from "@mui/material/Tab"
 import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
-import {GET_CAST_VOTE} from "../queries/GetCastVote"
 import {BallotIdField} from "../components/BallotLocator/BallotIdField"
 import {BallotMatches, EMatchesLook, IBallotMatch} from "../components/BallotLocator/BallotMatches"
 import {TrackerAudit} from "../components/BallotLocator/TrackerAudit"
@@ -52,11 +57,12 @@ import {
 import {vitrineLanguage} from "../services/vitrine/language"
 import {ITransparency, readTransparency} from "../services/vitrine/presentation"
 import {ETransparencyMode} from "../services/vitrine/types"
+import {ELocateBallotStatus, LOCATE_BALLOT} from "../queries/LocateBallot"
 import {useQuery} from "@apollo/client/react"
 import {
-    GetCastVoteQuery,
-    GetElectionsQuery,
+    LocateBallotQuery,
     GetElectionEventQuery,
+    GetElectionsQuery,
     ListCastVoteMessagesQuery,
 } from "../gql/graphql"
 import {faAngleLeft, faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
@@ -75,14 +81,17 @@ import TablePagination from "@mui/material/TablePagination"
 import TableHead from "@mui/material/TableHead"
 import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
+import {BallotBoxLog} from "../components/BallotBoxLog"
 import {ICastVoteEntry} from "../types/castVoteLogEntry"
+import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+import {ballotTimeZones, formatBallotTime} from "../services/ElectionTimeZones"
 
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
     flex-direction: row;
     gap: 16px;
-    font-size: 24px;
+    font-size: 1.5rem;
     font-weight: 500;
     line-height: 27px;
     margin-top: 20px;
@@ -206,12 +215,19 @@ const BallotLocator: React.FC = () => {
     const [page, setPage] = React.useState(0)
     const [rowsPerPage, setRowsPerPage] = React.useState(5)
     const lastCVRequestTimestamp = useRef<number | undefined>(undefined) // Timestamp of last LIST_CAST_VOTE_MESSAGES request
-    const {data: dataElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
-        variables: {
-            electionEventId: eventId,
-            tenantId,
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
+    const {data: dataElectionEvent, loading: electionEventLoading} =
+        useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
+            variables: {
+                electionEventId: eventId,
+                tenantId,
+            },
+            skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
+        })
+
+    // The same (cached) query as the lookup panel: the election's zone.
+    const {data: dataElections} = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
+        variables: {electionIds: electionId ? [electionId] : []},
+        skip: globalSettings.DISABLE_AUTH || !electionId,
     })
     const electionEventPresentation =
         dataElectionEvent?.sequent_backend_election_event[0]?.presentation
@@ -221,6 +237,27 @@ const BallotLocator: React.FC = () => {
     )
     const showTracker = transparency.mode !== ETransparencyMode.DISABLED
     const backTo = `/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(electionId ?? ""))
+    const logsElectionEvent = dataElectionEvent?.sequent_backend_election_event[0] as
+        | IElectionEvent
+        | undefined
+    // Log times show in the Post's zone, named in words (as before for an
+    // event without timezones).
+    const zones = ballotTimeZones(
+        logsElectionEvent?.presentation,
+        dataElections?.sequent_backend_election.find((item) => item.id === electionId)
+            ?.presentation,
+        ballotStyle?.ballot_eml
+    )
+    const pseudonymous =
+        logsElectionEvent?.presentation?.ballot_identity === EBallotIdentity.PSEUDONYM
+    const formatLogTime = (timestamp: number) =>
+        formatBallotTime(new Date(timestamp), {
+            event: logsElectionEvent,
+            zones,
+            t,
+            lang: i18n.resolvedLanguage || i18n.language,
+        })
 
     useEffect(() => {
         const electionEvent = dataElectionEvent?.sequent_backend_election_event[0]
@@ -242,6 +279,7 @@ const BallotLocator: React.FC = () => {
     let fetchTimeout: any = useRef(undefined)
 
     const requestCVMsgs = async (headerName?: string, newOrder?: string) => {
+        if (pseudonymous) return
         let duration = lastCVRequestTimestamp.current
             ? Date.now() - lastCVRequestTimestamp.current
             : undefined
@@ -292,11 +330,20 @@ const BallotLocator: React.FC = () => {
         if (validatedBallotId) {
             setBallotIdNotFoundErr(false)
         }
-        const showLogs = dataElectionEvent?.sequent_backend_election_event[0]?.presentation
-            ?.show_cast_vote_logs as EShowCastVoteLogsPolicy
-        setShowCVLogsPolicy(showLogs === EShowCastVoteLogsPolicy.SHOW_LOGS_TAB)
+        const presentation = dataElectionEvent?.sequent_backend_election_event[0]?.presentation as
+            | IElectionEventPresentation
+            | undefined
+        const showLogs = presentation?.show_cast_vote_logs
+        const checksEnded =
+            getChecksPeriod(presentation, new Date()).status === EChecksPeriodStatus.ENDED
+        setShowCVLogsPolicy(showLogs === EShowCastVoteLogsPolicy.SHOW_LOGS_TAB && !checksEnded)
         // the length must be an even number of characters
-        if (showLogs && allowSendRequest.current) {
+        if (
+            showLogs === EShowCastVoteLogsPolicy.SHOW_LOGS_TAB &&
+            !pseudonymous &&
+            !checksEnded &&
+            allowSendRequest.current
+        ) {
             allowSendRequest.current = false
             requestCVMsgs()
         }
@@ -375,37 +422,49 @@ const BallotLocator: React.FC = () => {
                         }
                         transparency={transparency}
                         backTo={backTo}
+                        electionEventLoading={electionEventLoading}
                     />
                 </CustomTabPanel>
                 <CustomTabPanel className="cast-vote-logs-panel" value={value} index={1}>
-                    <Box className="cast-vote-logs-filter" marginTop="48px">
-                        <BallotIdInput
-                            inputBallotId={inputBallotId}
-                            setInputBallotId={setInputBallotId}
-                            validatedBallotId={validatedBallotId}
-                            ballotIdNotFoundErr={ballotIdNotFoundErr}
-                            captureEnter={captureEnter}
-                            placeholderLabel="ballotLocator.filterByBallotId"
+                    {pseudonymous && showCVLogsPolicy && eventId ? (
+                        <BallotBoxLog
+                            electionEventId={eventId}
+                            electionId={electionId}
+                            timeZoneLabel={
+                                zones
+                                    ? zoneName(zones.timeZone, {
+                                          t,
+                                          lang: i18n.resolvedLanguage || i18n.language,
+                                      })
+                                    : undefined
+                            }
+                            formatTime={(timestamp) => formatLogTime(new Date(timestamp).getTime())}
                         />
-                    </Box>
-                    <LogsTable
-                        rows={rows}
-                        total={total}
-                        onOrderBy={onClickHeader}
-                        rowsPerPage={rowsPerPage}
-                        handleChangeRowsPerPage={handleChangeRowsPerPage}
-                        page={page}
-                        handleChangePage={handleChangePage}
-                        somethingWentWrongErr={somethingWentWrongErr}
-                        formatDateTime={(timestamp) =>
-                            formatVotingPortalDateTime(
-                                timestamp,
-                                dataElectionEvent
-                                    ?.sequent_backend_election_event[0] as IElectionEvent,
-                                i18n.resolvedLanguage || i18n.language
-                            )
-                        }
-                    />
+                    ) : (
+                        <>
+                            <Box className="cast-vote-logs-filter" marginTop="48px">
+                                <BallotIdInput
+                                    inputBallotId={inputBallotId}
+                                    setInputBallotId={setInputBallotId}
+                                    validatedBallotId={validatedBallotId}
+                                    ballotIdNotFoundErr={ballotIdNotFoundErr}
+                                    captureEnter={captureEnter}
+                                    placeholderLabel="ballotLocator.filterByBallotId"
+                                />
+                            </Box>
+                            <LogsTable
+                                rows={rows}
+                                total={total}
+                                onOrderBy={onClickHeader}
+                                rowsPerPage={rowsPerPage}
+                                handleChangeRowsPerPage={handleChangeRowsPerPage}
+                                page={page}
+                                handleChangePage={handleChangePage}
+                                somethingWentWrongErr={somethingWentWrongErr}
+                                formatDateTime={formatLogTime}
+                            />
+                        </>
+                    )}
                 </CustomTabPanel>
                 {showTracker && value === 0 ? null : (
                     <Box
@@ -690,6 +749,7 @@ const BallotIdInput: React.FC<BallotIdInputProps> = ({
 
 interface IBallotLocatorLogicProps {
     electionEvent?: IElectionEvent
+    electionEventLoading: boolean
     transparency: ITransparency
     /** Where Back goes. */
     backTo: string
@@ -697,6 +757,7 @@ interface IBallotLocatorLogicProps {
 
 const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
     electionEvent,
+    electionEventLoading,
     transparency,
     backTo,
 }) => {
@@ -709,6 +770,11 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
     const {globalSettings} = useContext(SettingsContext)
 
     const hasBallotId = !!ballotId
+    const checksPeriod = getChecksPeriod(
+        electionEvent?.presentation as IElectionEventPresentation | undefined,
+        new Date()
+    )
+
     const {data: dataElections, loading: loadingElections} = useQuery<GetElectionsQuery>(
         GET_ELECTIONS,
         {
@@ -723,26 +789,54 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
     const telephoneVotingEnabled = election?.voting_channels?.telephone === true
     const ballotLookup = ballotLookupOf(ballotId, telephoneVotingEnabled)
 
-    const {data, loading} = useQuery<GetCastVoteQuery>(GET_CAST_VOTE, {
+    const {
+        data,
+        loading: locating,
+        error: lookupError,
+    } = useQuery<LocateBallotQuery>(LOCATE_BALLOT, {
         variables: {
-            electionEventId: eventId ?? "",
-            electionId: electionId ?? "",
-            ...ballotLookup,
+            electionEventId: eventId,
+            electionId,
+            ballotId: ballotId?.toLowerCase() ?? "",
         },
+        // The event's checks period decides whether the ballot is looked up at all.
         skip:
             globalSettings.DISABLE_AUTH ||
             !hasBallotId ||
-            !eventId ||
-            !electionId ||
-            !ballotLookup ||
-            loadingElections,
+            electionEventLoading ||
+            loadingElections ||
+            checksPeriod.status === EChecksPeriodStatus.ENDED,
     })
 
-    const matchingBallots = data?.["cast_votes"] ?? []
-    const lookupLoading = loadingElections || loading
-    const lookupDone = hasBallotId && !lookupLoading
-    const ambiguousBallotId = lookupDone && matchingBallots.length > 1
-    const foundBallot = matchingBallots.length === 1 ? matchingBallots[0] : undefined
+    const lookupLoading = loadingElections || locating
+    const lookupDone = hasBallotId && !lookupLoading && !electionEventLoading
+    const validatedBallotId = isBallotIdInput(inputBallotId ?? "")
+
+    const located = data?.locate_ballot
+    const checksEnded =
+        checksPeriod.status === EChecksPeriodStatus.ENDED ||
+        located?.status === ELocateBallotStatus.CHECKS_ENDED
+    const checksUntil = located?.checks_available_until
+        ? new Date(located.checks_available_until)
+        : "until" in checksPeriod
+          ? checksPeriod.until
+          : null
+    const checksUntilText = checksUntil
+        ? formatVotingPortalDateTime(
+              checksUntil,
+              electionEvent,
+              i18n.resolvedLanguage || i18n.language
+          )
+        : ""
+    const ambiguousBallotId = located?.status === ELocateBallotStatus.AMBIGUOUS
+    const foundBallot =
+        located?.status === ELocateBallotStatus.FOUND && located.ballot_id
+            ? {
+                  ballot_id: located.ballot_id,
+                  content: located.content ?? null,
+                  created_at: located.cast_at ?? null,
+              }
+            : undefined
     const ballotContent = foundBallot?.content ?? null
     const searching = !hasBallotId || ambiguousBallotId
     const showTracker = transparency.mode !== ETransparencyMode.DISABLED
@@ -785,6 +879,7 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
         if (!withBallotId) {
             setInputBallotId("")
         }
+
         navigate(
             `${locatorPath}/${withBallotId ? ballotIdHex(inputBallotId) : ""}${location.search}`
         )
@@ -922,8 +1017,20 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
             {/* The live region is always mounted so that the lookup result is
                 announced when the text appears inside it. */}
             <Box className="ballot-lookup-status" role="status">
-                {lookupDone && !ambiguousBallotId ? (
-                    ballotContent ? (
+                {checksEnded ? (
+                    <Typography className="ballot-checks-ended" component="div">
+                        {t("ballotLocator.checksEnded", {date: checksUntilText})}
+                    </Typography>
+                ) : lookupDone ? (
+                    lookupError ? (
+                        <MessageFailed className="ballot-locator-failure">
+                            {stringToHtml(t("errors.page.somethingWrong"))}
+                        </MessageFailed>
+                    ) : ambiguousBallotId ? (
+                        <MessageFailed className="ballot-locator-failure">
+                            {translateHtml(t, "ballotLocator.ambiguous", {ballotId})}
+                        </MessageFailed>
+                    ) : ballotContent ? (
                         showTracker ? (
                             <Box
                                 className="ballot-found-status-text"
@@ -964,6 +1071,7 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
                 </Typography>
             )}
             {searching &&
+                !checksEnded &&
                 (showTracker ? (
                     <TrackerSearch
                         value={inputBallotId}
@@ -973,7 +1081,7 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
                     >
                         <BallotMatches
                             look={EMatchesLook.CARDS}
-                            matches={ambiguousBallotId ? matchingBallots.flatMap(matchOf) : []}
+                            matches={[]}
                             lookedFor={ballotId ?? ""}
                             hrefOf={(id) => `${locatorPath}/${id}${location.search}`}
                             formatTime={formatTime}
@@ -987,7 +1095,7 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
                             onSubmit={() => locate(true)}
                         />
                         <BallotMatches
-                            matches={ambiguousBallotId ? matchingBallots.flatMap(matchOf) : []}
+                            matches={[]}
                             lookedFor={ballotId ?? ""}
                             hrefOf={(id) => `${locatorPath}/${id}${location.search}`}
                             formatTime={formatTime}
@@ -1015,8 +1123,19 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
                     ) : null}
                 </>
             )}
-            {!searching && ballotContent && !showTrackerResult && (
+            {!searching && !checksEnded && ballotContent && !showTrackerResult && (
                 <>
+                    {located?.cast_at && (
+                        <Typography className="ballot-cast-at" component="div">
+                            {t("ballotLocator.castAt", {
+                                date: formatVotingPortalDateTime(
+                                    located.cast_at,
+                                    electionEvent,
+                                    i18n.resolvedLanguage || i18n.language
+                                ),
+                            })}
+                        </Typography>
+                    )}
                     <Typography className="ballot-content-description" component="div">
                         {stringToHtml(t("ballotLocator.contentDesc"))}
                     </Typography>
@@ -1024,7 +1143,7 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
                 </>
             )}
 
-            {showTracker ? null : searching ? (
+            {showTracker || checksEnded ? null : searching ? (
                 <Button
                     sx={{marginTop: "10px", width: "fit-content"}}
                     disabled={!canLocate}

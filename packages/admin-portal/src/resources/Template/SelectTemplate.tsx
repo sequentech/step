@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useMemo} from "react"
+import React, {useMemo} from "react"
 import {SxProps, Theme} from "@mui/material"
-import {AutocompleteInput, useDataProvider, useGetList, required} from "react-admin"
+import {AutocompleteInput, useGetList, useNotify, required} from "react-admin"
 import {ETemplateType} from "@/types/templates"
 
 interface SelectTemplateProps {
@@ -29,16 +29,23 @@ const SelectTemplate = ({
     value,
     isRequired,
 }: SelectTemplateProps) => {
-    const dataProvider = useDataProvider()
+    const notify = useNotify()
 
-    const {data: templates, isLoading} = useGetList("sequent_backend_template", {
-        filter: {
-            tenant_id: tenantId,
-            type: templateType,
+    const {data: templates, isLoading} = useGetList(
+        "sequent_backend_template",
+        {
+            filter: {
+                tenant_id: tenantId,
+                type: templateType,
+            },
+            sort: {field: "template.name", order: "ASC"},
+            pagination: {page: 1, perPage: 100},
         },
-        sort: {field: "template.name", order: "ASC"},
-        pagination: {page: 1, perPage: 100},
-    })
+        {
+            onError: (error: Error) =>
+                notify(error?.message || "ra.notification.http_error", {type: "error"}),
+        }
+    )
 
     const handleTemplateChange = (alias: string) => {
         if (onSelectTemplate) {
@@ -54,8 +61,10 @@ const SelectTemplate = ({
         // Create a shallow copy and sort it
         return [...items]
             .sort((a, b) => {
-                if (!a?.name || !b?.name) return 0
-                return a.name.localeCompare(b.name)
+                const left = a?.template?.name
+                const right = b?.template?.name
+                if (!left || !right) return 0
+                return left.localeCompare(right)
             })
             .map((template) => ({
                 id: template.alias,

@@ -14,6 +14,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 </div>
 <div>
   <h2>Election Event Activity Logs</h2>
+  {{#if execution_annotations.configuration_revision}}
+  <p>Configuration revision {{sanitize_html execution_annotations.configuration_revision}}, manifest SHA-256 {{sanitize_html execution_annotations.configuration_manifest_sha256}}</p>
+  {{/if}}
+  {{#if execution_annotations.copy_total}}
+  <p>Copy {{sanitize_html execution_annotations.copy_number}} of {{sanitize_html execution_annotations.copy_total}}</p>
+  {{/if}}
 </div>
 <div>
   <!-- TABLE section -->
@@ -134,7 +140,8 @@ SPDX-License-Identifier: AGPL-3.0-only
                   border: 1px solid black;
                 "
               >
-                {{datetime from_rfc3339=created output_format="%B %d, %Y %H:%M GMT %:z"}}
+                {{created_label}}<br />
+                <small>{{created_utc}}<br />{{time_zone}}</small>
               </td>
               <td
                 style="
@@ -143,7 +150,8 @@ SPDX-License-Identifier: AGPL-3.0-only
                   border: 1px solid black;
                 "
               >
-                {{datetime from_rfc3339=statement_timestamp output_format="%B %d, %Y %H:%M GMT %:z"}}
+                {{statement_timestamp_label}}<br />
+                <small>{{statement_timestamp_utc}}<br />{{time_zone}}</small>
               </td>
               <td
                 style="

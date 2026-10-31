@@ -17,9 +17,13 @@ import {TenantContext} from "@/providers/TenantContextProvider"
 import {Sequent_Backend_Tenant} from "@/gql/graphql"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
+import {useMatch} from "react-router-dom"
+import {WaitingForMySignature} from "@/resources/ElectionEvent/Signatures/WaitingForMySignature"
 
 export const CustomAppBar: React.FC = () => {
     const authContext = useContext(AuthContext)
+    const eventRoute = useMatch("/sequent_backend_election_event/:eventId/*")
+    const eventId = eventRoute?.params.eventId
     const {globalSettings} = useContext(SettingsContext)
     const {tenantId, tenant, setTenant} = useContext(TenantContext)
     const {data: tenantData} = useGetOne<Sequent_Backend_Tenant>("sequent_backend_tenant", {
@@ -77,6 +81,11 @@ export const CustomAppBar: React.FC = () => {
                 "& .MuiContainer-root.MuiContainer-maxWidthLg": {
                     maxWidth: "unset",
                 },
+                "& .header-class": {flex: 1, minWidth: 0},
+                "& .header-logo-link": {minWidth: 0},
+                "& .header-logo": {maxWidth: "100%"},
+                "& .header-logo img": {objectFit: "contain !important"},
+                "& .header-actions": {gap: {xs: 1, lg: "31px"}},
                 "boxShadow": "unset",
             }}
         >
@@ -93,6 +102,15 @@ export const CustomAppBar: React.FC = () => {
                 languagesList={langList}
                 logoUrl={logoImg}
                 onChangeLanguage={onChangeLanguage}
+                actions={
+                    eventId && eventId !== "create" ? (
+                        <WaitingForMySignature
+                            key={eventId}
+                            electionEventId={eventId}
+                            presentation="header"
+                        />
+                    ) : undefined
+                }
             />
         </AppBar>
     )

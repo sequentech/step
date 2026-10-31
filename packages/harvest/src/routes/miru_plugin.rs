@@ -2,6 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
+use crate::services::signing_gate::Guarded;
+use crate::services::signing_http::{
+    SigningError as SigningFailure, SigningErrorCode,
+};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -11,12 +15,20 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
+use windmill::services::consolidation::download_log::{
+    record_transmission_download as windmill_record_download, DownloadRefusal,
+    Downloader, RecordedDownload, TransmissionDownload,
+};
+use windmill::services::consolidation::send_transmission_package_service::SendRefusal;
+use windmill::services::signing::actions::transmission::TransmissionRefusal;
+use windmill::services::signing::SigningCaller;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::miru_plugin_tasks::upload_signature_task;
 use windmill::types::tasks::ETasksExecution;
 use windmill::{
     services::{
         celery_app::get_celery_app,
+        consolidation::send_transmission_package_service::signed_transmission_refusal,
         consolidation::upload_signature_service::upload_transmission_package_signature_service,
     },
     tasks::miru_plugin_tasks::{
@@ -83,6 +95,7 @@ pub async fn create_transmission_package(
             body.tally_session_id.clone(),
             body.force,
             task_execution.clone(),
+            Some(SigningCaller::from_claims(&claims)),
         ))
         .await
     {
@@ -125,7 +138,7 @@ pub struct SendTransmissionPackageOutput {}
 pub async fn send_transmission_package(
     claims: jwt::JwtClaims,
     input: Json<SendTransmissionPackageInput>,
-) -> Result<Json<SendTransmissionPackageOutput>, (Status, String)> {
+) -> Result<Json<SendTransmissionPackageOutput>, Guarded<(Status, String)>> {
     let body = input.into_inner();
     authorize(
         &claims,
@@ -133,6 +146,19 @@ pub async fn send_transmission_package(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::MIRU_SEND],
     )?;
+    // A package that needs signatures is sent once its signing request ran;
+    // the person sending sees why not.
+    if let Some(refusal) = signed_transmission_refusal(
+        &claims.hasura_claims.tenant_id,
+        &body.election_id,
+        &body.area_id,
+        &body.tally_session_id,
+    )
+    .await
+    .map_err(SigningFailure::internal)?
+    {
+        return Err(send_refusal(&refusal).into());
+    }
     let celery_app = get_celery_app().await;
     let task = celery_app
         .send_task(send_transmission_package_task::new(
@@ -165,12 +191,12 @@ pub struct UploadSignatureInput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UploadSignatureOutput {}
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, input))]
 #[post("/miru/upload-signature", format = "json", data = "<input>")]
 pub async fn upload_signature(
     claims: jwt::JwtClaims,
     input: Json<UploadSignatureInput>,
-) -> Result<Json<UploadSignatureOutput>, (Status, String)> {
+) -> Result<Json<UploadSignatureOutput>, Guarded<(Status, String)>> {
     let body = input.into_inner();
     authorize(
         &claims,
@@ -182,8 +208,9 @@ pub async fn upload_signature(
     let Some(username) = claims.preferred_username.clone() else {
         return Err((
             Status::InternalServerError,
-            "missing username in claims".into(),
-        ));
+            "missing username in claims".to_string(),
+        )
+            .into());
     };
 
     upload_signature_task(
@@ -196,12 +223,135 @@ pub async fn upload_signature(
         body.password.clone(),
     )
     .await
-    .map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error creating signature {}", err),
-        )
+    .map_err(|err| -> Guarded<(Status, String)> {
+        // A package signed through its signing request takes no upload.
+        match err.downcast_ref::<TransmissionRefusal>() {
+            Some(refusal) => transmission_failure(refusal).into(),
+            None => (
+                Status::InternalServerError,
+                format!("Error creating signature {}", err),
+            )
+                .into(),
+        }
     })?;
 
     Ok(Json(UploadSignatureOutput {}))
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RecordTransmissionDownloadInput {
+    election_event_id: String,
+    election_id: String,
+    area_id: String,
+    tally_session_id: String,
+    document_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RecordTransmissionDownloadOutput {
+    pub(crate) file_name: String,
+    pub(crate) sha256: String,
+}
+
+/// Records a download of a transmission package's file before the browser
+/// fetches it: the package's log line and the election event log's entry.
+#[instrument(skip(claims))]
+#[post("/miru/record-download", format = "json", data = "<input>")]
+pub async fn record_transmission_download(
+    claims: jwt::JwtClaims,
+    input: Json<RecordTransmissionDownloadInput>,
+) -> Result<Json<RecordTransmissionDownloadOutput>, (Status, String)> {
+    let body = input.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::MIRU_DOWNLOAD],
+    )?;
+    let user_id = claims.hasura_claims.user_id.clone();
+    let downloader = Downloader {
+        name: claims
+            .name
+            .clone()
+            .or_else(|| claims.preferred_username.clone())
+            .unwrap_or_else(|| user_id.clone()),
+        username: claims.preferred_username.clone(),
+        user_id,
+    };
+    let download = TransmissionDownload {
+        tenant_id: claims.hasura_claims.tenant_id.clone(),
+        election_event_id: body.election_event_id,
+        election_id: body.election_id,
+        area_id: body.area_id,
+        tally_session_id: body.tally_session_id,
+        document_id: body.document_id,
+    };
+    recorded_download_reply(
+        windmill_record_download(&download, &downloader).await,
+    )
+}
+
+/// The route's answer to a download's record: the file's name and SHA-256,
+/// 404 when it is not a file of the package, 500 when it can't be recorded.
+pub(crate) fn recorded_download_reply(
+    recorded: anyhow::Result<
+        std::result::Result<RecordedDownload, DownloadRefusal>,
+    >,
+) -> Result<Json<RecordTransmissionDownloadOutput>, (Status, String)> {
+    match recorded {
+        Ok(Ok(recorded)) => Ok(Json(RecordTransmissionDownloadOutput {
+            file_name: recorded.file_name,
+            sha256: recorded.sha256,
+        })),
+        Ok(Err(refusal)) => Err((Status::NotFound, refusal.to_string())),
+        Err(error) => Err((
+            Status::InternalServerError,
+            format!("Error recording the download: {error:?}"),
+        )),
+    }
+}
+
+/// A transmission refusal in the signing contract's error shape.
+pub(crate) fn transmission_failure(
+    refusal: &TransmissionRefusal,
+) -> SigningFailure {
+    match refusal {
+        TransmissionRefusal::NotSigned { status, .. } => {
+            let failure = SigningFailure::new(
+                Status::Conflict,
+                SigningErrorCode::SigningRequired,
+                refusal.to_string(),
+            );
+            match status {
+                Some(status) => failure.with("status", status.to_string()),
+                None => failure,
+            }
+        }
+        TransmissionRefusal::NotTheSignedPackage { .. } => {
+            SigningFailure::conflict(refusal.to_string())
+        }
+        TransmissionRefusal::SignaturesShort(_) => SigningFailure::new(
+            Status::Conflict,
+            SigningErrorCode::SignaturesShort,
+            refusal.to_string(),
+        ),
+        TransmissionRefusal::SignedByRequest => SigningFailure::new(
+            Status::Conflict,
+            SigningErrorCode::SigningRequired,
+            refusal.to_string(),
+        ),
+    }
+}
+
+/// Why a send is not queued, in the signing contract's error shape.
+pub(crate) fn send_refusal(refusal: &SendRefusal) -> SigningFailure {
+    match refusal {
+        SendRefusal::NoTallySession => {
+            SigningFailure::not_found("There is no such tally session.")
+        }
+        SendRefusal::ManualReceiptOnly => SigningFailure::conflict(
+            "Every destination of this package receives it by hand: download it and hand it over.",
+        ),
+        SendRefusal::Refused(refusal) => transmission_failure(refusal),
+    }
 }

@@ -192,6 +192,8 @@ jobs:
       env:
         REQUESTED_VERSION: ${{ github.event.inputs.version }}
       run: |
+        test "$GITHUB_REF_TYPE" = branch
+        test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
         tag="v${REQUESTED_VERSION#v}"
         if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
           echo "Error: tag $tag already exists. Latest tags:"
@@ -199,7 +201,7 @@ jobs:
           exit 1
         fi
         # release-it silently skips a version older than the latest tag on the branch
-        latestTag=$(git describe --tags --abbrev=0)
+        latestTag=$(git describe --tags --abbrev=0 2>/dev/null || true)
         if ! python3 - "${tag#v}" "${latestTag#v}" <<'EOF'
         import re, sys
         def key(version):
@@ -221,6 +223,7 @@ jobs:
         sudo npm install --global release-it@16.2.1
 
     - name: Determine Release Increment
+      if: github.event.inputs.version == ''
       id: CheckLatestRelease
       run: |
         # Only check for a pre-release if we are NOT creating a new release branch
@@ -260,6 +263,13 @@ jobs:
         if [ -n "$requestedVersion" ]; then
           # Release exactly the requested version (validated in create-release-branch)
           release-it --ci "$requestedVersion" --verbose
+          # Do not publish a version to downstream jobs without its remote tag.
+          tag="v$requestedVersion"
+          commit=$(git rev-parse HEAD)
+          test "$(git rev-parse "$tag^{commit}")" = "$commit"
+          remote=$(git ls-remote --exit-code origin "refs/tags/$tag" "refs/tags/$tag^{}")
+          remote_commit=$(printf '%s\n' "$remote" | awk '/\^\{\}$/ {peeled=$1} {direct=$1} END {print peeled ? peeled : direct}')
+          test "$remote_commit" = "$commit"
         # If the new release branch is not created, then increment the patch version
         elif [ "${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH }}" == "" ]; then
           if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
@@ -326,7 +336,11 @@ jobs:
     if: ${{ github.event.inputs.infra_only == 'false' }}
     uses: ./.github/workflows/reusable_build_push.yml
     needs: release
-    secrets: inherit
+    secrets:
+      PAT: ${{ secrets.PAT }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      AWS_ACCESS_KEY_ID_GLOBALDOT: ${{ secrets.AWS_ACCESS_KEY_ID_GLOBALDOT }}
+      AWS_SECRET_ACCESS_KEY_GLOBALDOT: ${{ secrets.AWS_SECRET_ACCESS_KEY_GLOBALDOT }}
     with:
       tag: ${{ needs.release.outputs.VERSION }}
       push: true
@@ -336,7 +350,11 @@ jobs:
     if: ${{ github.event.inputs.infra_only == 'false' }}
     uses: ./.github/workflows/reusable_build_push_root.yml
     needs: release
-    secrets: inherit
+    secrets:
+      PAT: ${{ secrets.PAT }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     with:
       tag: ${{ needs.release.outputs.VERSION }}
       push: true
@@ -345,6 +363,7 @@ jobs:
     needs: [release]
     if: ${{ always() && needs.release.result == 'success' }}
     runs-on: ubuntu-24.04
+    environment: release
     steps:
     - name: Trigger Beyond Release Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -365,6 +384,7 @@ jobs:
           (needs.build-and-push.result == 'success' ||
            (inputs.infra_only && needs.build-and-push.result == 'skipped')) }}
     runs-on: ubuntu-24.04
+    environment: release
     steps:
     - name: Trigger Deployer Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch

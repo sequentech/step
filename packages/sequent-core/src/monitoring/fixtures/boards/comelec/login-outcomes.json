@@ -1,0 +1,441 @@
+{
+  "charts": {
+    "outcomes": {
+      "layers": [
+        {
+          "label": "Failed, valid user",
+          "type": "line",
+          "y": "login_failures_valid_user"
+        },
+        {
+          "label": "Failed, unregistered user",
+          "type": "line",
+          "y": "login_failures_unregistered"
+        }
+      ],
+      "query": "data",
+      "style": {
+        "axis_y": {
+          "title": {
+            "visible": false
+          }
+        },
+        "number_format": "number"
+      },
+      "type": "line",
+      "x": "bucket_label",
+      "y": "logins",
+      "y_label": "Successful"
+    }
+  },
+  "queries": {
+    "data": {
+      "columns": [
+        "bucket_start",
+        "bucket_label",
+        "bucket_utc",
+        "logins",
+        "logins_cumulative",
+        "login_failures_valid_user",
+        "login_failures_valid_user_cumulative",
+        "login_failures_unregistered",
+        "login_failures_unregistered_cumulative"
+      ],
+      "values": [
+        [
+          "2026-05-05T00:00:00",
+          "00:00",
+          "2026-05-05T00:00:00Z",
+          0,
+          1601,
+          0,
+          74,
+          0,
+          47
+        ],
+        [
+          "2026-05-05T01:00:00",
+          "01:00",
+          "2026-05-05T01:00:00Z",
+          0,
+          1601,
+          0,
+          74,
+          0,
+          47
+        ],
+        [
+          "2026-05-05T02:00:00",
+          "02:00",
+          "2026-05-05T02:00:00Z",
+          0,
+          1601,
+          0,
+          74,
+          0,
+          47
+        ],
+        [
+          "2026-05-05T03:00:00",
+          "03:00",
+          "2026-05-05T03:00:00Z",
+          0,
+          1601,
+          0,
+          74,
+          0,
+          47
+        ],
+        [
+          "2026-05-05T04:00:00",
+          "04:00",
+          "2026-05-05T04:00:00Z",
+          0,
+          1601,
+          0,
+          74,
+          0,
+          47
+        ],
+        [
+          "2026-05-05T05:00:00",
+          "05:00",
+          "2026-05-05T05:00:00Z",
+          8,
+          1609,
+          0,
+          74,
+          0,
+          47
+        ],
+        [
+          "2026-05-05T06:00:00",
+          "06:00",
+          "2026-05-05T06:00:00Z",
+          15,
+          1624,
+          1,
+          75,
+          0,
+          47
+        ],
+        [
+          "2026-05-05T07:00:00",
+          "07:00",
+          "2026-05-05T07:00:00Z",
+          30,
+          1654,
+          1,
+          76,
+          1,
+          48
+        ],
+        [
+          "2026-05-05T08:00:00",
+          "08:00",
+          "2026-05-05T08:00:00Z",
+          45,
+          1699,
+          2,
+          78,
+          1,
+          49
+        ],
+        [
+          "2026-05-05T09:00:00",
+          "09:00",
+          "2026-05-05T09:00:00Z",
+          60,
+          1759,
+          3,
+          81,
+          2,
+          51
+        ],
+        [
+          "2026-05-05T10:00:00",
+          "10:00",
+          "2026-05-05T10:00:00Z",
+          68,
+          1827,
+          3,
+          84,
+          2,
+          53
+        ],
+        [
+          "2026-05-05T11:00:00",
+          "11:00",
+          "2026-05-05T11:00:00Z",
+          68,
+          1895,
+          3,
+          87,
+          2,
+          55
+        ],
+        [
+          "2026-05-05T12:00:00",
+          "12:00",
+          "2026-05-05T12:00:00Z",
+          60,
+          1955,
+          3,
+          90,
+          2,
+          57
+        ],
+        [
+          "2026-05-05T13:00:00",
+          "13:00",
+          "2026-05-05T13:00:00Z",
+          60,
+          2015,
+          3,
+          93,
+          2,
+          59
+        ],
+        [
+          "2026-05-05T14:00:00",
+          "14:00",
+          "2026-05-05T14:00:00Z",
+          68,
+          2083,
+          3,
+          96,
+          2,
+          61
+        ],
+        [
+          "2026-05-05T15:00:00",
+          "15:00",
+          "2026-05-05T15:00:00Z",
+          68,
+          2151,
+          3,
+          99,
+          2,
+          63
+        ],
+        [
+          "2026-05-05T16:00:00",
+          "16:00",
+          "2026-05-05T16:00:00Z",
+          60,
+          2211,
+          3,
+          102,
+          2,
+          65
+        ],
+        [
+          "2026-05-05T17:00:00",
+          "17:00",
+          "2026-05-05T17:00:00Z",
+          53,
+          2264,
+          2,
+          104,
+          2,
+          67
+        ],
+        [
+          "2026-05-05T18:00:00",
+          "18:00",
+          "2026-05-05T18:00:00Z",
+          45,
+          2309,
+          2,
+          106,
+          1,
+          68
+        ],
+        [
+          "2026-05-05T19:00:00",
+          "19:00",
+          "2026-05-05T19:00:00Z",
+          38,
+          2347,
+          2,
+          108,
+          1,
+          69
+        ],
+        [
+          "2026-05-05T20:00:00",
+          "20:00",
+          "2026-05-05T20:00:00Z",
+          30,
+          2377,
+          1,
+          109,
+          1,
+          70
+        ],
+        [
+          "2026-05-05T21:00:00",
+          "21:00",
+          "2026-05-05T21:00:00Z",
+          15,
+          2392,
+          1,
+          110,
+          0,
+          70
+        ],
+        [
+          "2026-05-05T22:00:00",
+          "22:00",
+          "2026-05-05T22:00:00Z",
+          8,
+          2400,
+          0,
+          110,
+          0,
+          70
+        ],
+        [
+          "2026-05-05T23:00:00",
+          "23:00",
+          "2026-05-05T23:00:00Z",
+          0,
+          2400,
+          0,
+          110,
+          0,
+          70
+        ]
+      ]
+    }
+  },
+  "rows": [
+    "outcomes"
+  ],
+  "style": {
+    "accent": "#0F054C",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "axis_quantitative": {
+        "labels": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "color": {
+        "categorical": {
+          "palette": [
+            "#0F054C",
+            "#43E3A1",
+            "#7C6FE0",
+            "#F59E0B",
+            "#0EA5E9",
+            "#DC2626"
+          ],
+          "single_series_palette": [
+            "#0F054C"
+          ]
+        }
+      },
+      "kpi": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        },
+        "value": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "visible": false
+        }
+      },
+      "pie": {
+        "total": {
+          "value": {
+            "font": {
+              "family": "'Inter Variable', Inter, system-ui, sans-serif"
+            }
+          }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 220
+        }
+      },
+      "support_table": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "font": {
+      "family": "'Inter Variable', Inter, system-ui, sans-serif"
+    },
+    "footer": {
+      "visible": false
+    },
+    "text": {
+      "font": {
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none",
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    }
+  },
+  "theme": "clarity"
+}

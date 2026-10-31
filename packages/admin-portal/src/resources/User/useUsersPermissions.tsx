@@ -7,7 +7,7 @@ import {useContext} from "react"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 
-export function useUsersPermissions() {
+export function useUsersPermissions(electionEventId?: string) {
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
 
@@ -15,10 +15,23 @@ export function useUsersPermissions() {
      * Permissions
      */
     const canImportUsers = authContext.isAuthorized(true, tenantId, IPermissions.USER_IMPORT)
+    const canWritePermissionLabels = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.PERMISSION_LABEL_WRITE
+    )
 
     const canExportVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_EXPORT)
-    const canCreateVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_CREATE)
-    const canEditVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
+    const canCreateVoters = authContext.isAuthorized(
+        true,
+        tenantId,
+        electionEventId ? IPermissions.VOTER_CREATE : IPermissions.USER_CREATE
+    )
+    const canEditVoters = authContext.isAuthorized(
+        true,
+        tenantId,
+        electionEventId ? IPermissions.VOTER_WRITE : IPermissions.USER_WRITE
+    )
     const canReadVoterSecretAttributes = authContext.isAuthorized(
         true,
         tenantId,
@@ -34,12 +47,14 @@ export function useUsersPermissions() {
         tenantId,
         IPermissions.VOTER_VOTED_EDIT
     )
-    const canEditVotersEmailTlf = authContext.isAuthorized(
+    const canEditVotersEmailTlf =
+        Boolean(electionEventId) &&
+        authContext.isAuthorized(true, tenantId, IPermissions.VOTER_EMAIL_TLF_EDIT)
+    const canDeleteVoters = authContext.isAuthorized(
         true,
         tenantId,
-        IPermissions.VOTER_EMAIL_TLF_EDIT
+        electionEventId ? IPermissions.VOTER_DELETE : IPermissions.USER_WRITE
     )
-    const canDeleteVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_DELETE)
     const canImportVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_IMPORT)
     const canManuallyVerify = authContext.isAuthorized(
         true,
@@ -82,6 +97,7 @@ export function useUsersPermissions() {
 
     return {
         canImportUsers,
+        canWritePermissionLabels,
         canCreateVoters,
         canEditVoters,
         canReadVoterSecretAttributes,

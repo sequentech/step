@@ -310,6 +310,134 @@ fn early_voting_area_does_not_overwrite_transport_channels() {
 mod database;
 
 #[test]
+fn jwt_auth_time_is_seconds_since_the_unix_epoch() {
+    let parsed = parse_voter_auth_time(Some(1_767_268_800)).unwrap();
+    assert_eq!(parsed, ISO8601::to_date("2026-01-01T12:00:00Z").unwrap());
+}
+
+#[test]
+fn jwt_auth_time_keeps_only_pre_close_sessions_eligible_during_grace() {
+    let close = ISO8601::to_date("2026-01-01T12:00:00Z").unwrap();
+    let status = ElectionStatus {
+        voting_status: VotingStatus::CLOSED,
+        ..Default::default()
+    };
+    let presentation = ElectionPresentation {
+        grace_period_policy: Some(EGracePeriodPolicy::GRACE_PERIOD_WITHOUT_ALERT),
+        grace_period_secs: Some(120),
+        ..Default::default()
+    };
+    for (claim, allowed) in [(1_767_268_799, true), (1_767_268_801, false)] {
+        let result = check_status_with_loaded_election(
+            close + Duration::seconds(30),
+            parse_voter_auth_time(Some(claim)).unwrap(),
+            VotingStatusChannel::ONLINE,
+            false,
+            VotingPeriodDates {
+                start_date: None,
+                end_date: Some("2026-01-01T12:00:00Z".into()),
+            },
+            &status,
+            &presentation,
+            "election",
+        );
+        if allowed {
+            assert!(matches!(result, Ok(VotingStatusChannel::ONLINE)));
+        } else {
+            assert!(
+                matches!(result, Err(CastVoteError::CheckStatusFailed(message))
+                if message == "Cannot vote outside grace period")
+            );
+        }
+    }
+}
+
+#[test]
+fn jwt_auth_time_preserves_invalid_and_missing_claim_errors() {
+    assert!(
+        matches!(parse_voter_auth_time(None), Err(CastVoteError::CheckStatusFailed(message))
+        if message == "auth_time is not a valid integer")
+    );
+    for claim in [i64::MIN, i64::MAX] {
+        assert!(
+            matches!(parse_voter_auth_time(Some(claim)), Err(CastVoteError::CheckStatusFailed(message))
+            if message == "Invalid auth_time timestamp")
+        );
+    }
+}
+
+#[test]
+fn jwt_auth_time_keeps_only_pre_close_sessions_eligible_after_manual_close() {
+    let close = ISO8601::to_date("2026-01-01T12:00:00Z").unwrap();
+    let mut status = ElectionStatus {
+        voting_status: VotingStatus::CLOSED,
+        ..Default::default()
+    };
+    status.voting_period_dates.last_stopped_at = Some(close.with_timezone(&chrono::Utc));
+    let presentation = ElectionPresentation {
+        grace_period_policy: Some(EGracePeriodPolicy::GRACE_PERIOD_WITHOUT_ALERT),
+        grace_period_secs: Some(120),
+        ..Default::default()
+    };
+    for (claim, allowed) in [
+        (1_767_268_799, true),
+        (1_767_268_800, false),
+        (1_767_268_801, false),
+    ] {
+        let result = check_status_with_loaded_election(
+            close + Duration::seconds(30),
+            parse_voter_auth_time(Some(claim)).unwrap(),
+            VotingStatusChannel::ONLINE,
+            false,
+            VotingPeriodDates {
+                start_date: None,
+                end_date: None,
+            },
+            &status,
+            &presentation,
+            "election",
+        );
+        if allowed {
+            assert!(matches!(result, Ok(VotingStatusChannel::ONLINE)));
+        } else {
+            assert!(
+                matches!(result, Err(CastVoteError::CheckStatusFailed(message))
+                if message == "Voting Status for voting_channel=ONLINE is CLOSED")
+            );
+        }
+    }
+}
+
+#[test]
+fn signed_channel_deadlines_do_not_wait_for_the_scheduler() {
+    let due = "2026-10-03T12:00:00+00:00";
+    let at = ISO8601::to_date(due).unwrap();
+    for channel in [
+        VotingStatusChannel::KIOSK,
+        VotingStatusChannel::EARLY_VOTING,
+        VotingStatusChannel::TELEPHONE,
+    ] {
+        assert!(
+            check_signed_channel_deadline(at - Duration::seconds(1), channel, Some(due)).is_ok()
+        );
+        assert!(matches!(
+            check_signed_channel_deadline(at, channel, Some(due)),
+            Err(CastVoteError::CheckStatusFailed(_))
+        ));
+        assert!(
+            check_signed_channel_deadline(at + Duration::seconds(1), channel, Some(due)).is_err()
+        );
+        assert!(check_signed_channel_deadline(at, channel, None).is_ok());
+    }
+    // ONLINE keeps its existing date/grace checker with the merged signed bound.
+    assert!(check_signed_channel_deadline(at, VotingStatusChannel::ONLINE, Some(due)).is_ok());
+    assert!(matches!(
+        check_signed_channel_deadline(at, VotingStatusChannel::KIOSK, Some("invalid")),
+        Err(CastVoteError::CheckStatusInternalFailed(_))
+    ));
+}
+
+#[test]
 fn kiosk_and_telephone_use_their_own_status_and_ignore_online_schedule() {
     let now = ISO8601::to_date("2026-01-01T12:01:00Z").unwrap();
     for channel in [VotingStatusChannel::KIOSK, VotingStatusChannel::TELEPHONE] {
@@ -476,45 +604,240 @@ fn grace_cannot_override_pause_disabled_policy_or_other_channels() {
     }
 }
 
-#[test]
-fn jwt_authentication_seconds_preserve_grace_eligibility() {
-    let close = ISO8601::to_date("2026-01-01T12:00:00Z").unwrap();
-    let presentation = ElectionPresentation {
-        grace_period_policy: Some(EGracePeriodPolicy::GRACE_PERIOD_WITHOUT_ALERT),
-        grace_period_secs: Some(120),
-        ..Default::default()
+mod ballot_style_binding {
+    use super::*;
+    use base64::Engine;
+    use cryptography::context::Context;
+    use cryptography::utils::serialization::Serializable;
+    use sequent_core::ballot::{AuditableBallot, PublicKeyConfig};
+    use sequent_core::encrypt::{encrypt_decoded_contest, encrypt_decoded_multi_contest};
+    use sequent_core::fixtures::ballot_codec::{
+        get_test_contest, get_test_decoded_vote_contest, get_writein_ballot_style,
     };
-    let mut status = ElectionStatus {
-        voting_status: VotingStatus::CLOSED,
-        ..Default::default()
-    };
-    status.voting_period_dates.last_stopped_at = Some(close.into());
-    for offset in [-1, 1] {
-        let authenticated = close + Duration::seconds(offset);
-        let parsed = voter_authentication_time(Some(authenticated.timestamp())).unwrap();
-        assert_eq!(parsed, authenticated);
-        for scheduled in [false, true] {
-            let result = check_status_with_loaded_election(
-                close + Duration::seconds(30),
-                parsed,
-                VotingStatusChannel::ONLINE,
-                false,
-                VotingPeriodDates {
-                    start_date: None,
-                    end_date: scheduled.then(|| "2026-01-01T12:00:00Z".into()),
-                },
-                &status,
-                &presentation,
-                "election",
-            );
-            assert_eq!(
-                result.is_ok(),
-                offset < 0,
-                "scheduled={scheduled}, auth offset={offset}"
-            );
+    use sequent_core::multi_ballot::AuditableMultiBallot;
+    use sequent_core::serialization::base64::Base64Serialize;
+
+    const VOTER_ID: &str = "voter";
+
+    fn ballot_style() -> BallotStyle {
+        BallotStyle {
+            contests: vec![get_test_contest()],
+            ..get_writein_ballot_style()
         }
     }
-    for invalid in [None, Some(i64::MAX), Some(i64::MIN)] {
-        assert!(voter_authentication_time(invalid).is_err());
+
+    fn style_with_other_public_key() -> BallotStyle {
+        let public_key = RistrettoCtx::random_element();
+        BallotStyle {
+            public_key: Some(PublicKeyConfig {
+                public_key: base64::engine::general_purpose::STANDARD_NO_PAD
+                    .encode(public_key.ser()),
+                is_demo: false,
+                keys_ceremony_id: Some("10000000-0000-4000-8000-000000000001".into()),
+                configuration_id: None,
+            }),
+            ..ballot_style()
+        }
+    }
+
+    fn style_with_reordered_candidates() -> BallotStyle {
+        let mut ballot_style = ballot_style();
+        ballot_style.contests[0].candidates.reverse();
+        ballot_style
+    }
+
+    fn published_style(ballot_style: &BallotStyle) -> PublishedBallotStyleHash {
+        PublishedBallotStyleHash::from_ballot_eml(&serde_json::to_string(ballot_style).unwrap())
+            .unwrap()
+    }
+
+    fn published_styles(ballot_style: &BallotStyle) -> Vec<PublishedBallotStyleHash> {
+        vec![published_style(ballot_style)]
+    }
+
+    fn single_ballot(ballot_style: &BallotStyle) -> AuditableBallot {
+        encrypt_decoded_contest(
+            &RistrettoCtx,
+            &vec![get_test_decoded_vote_contest()],
+            ballot_style,
+        )
+        .unwrap()
+    }
+
+    fn multi_ballot(ballot_style: &BallotStyle) -> AuditableMultiBallot {
+        encrypt_decoded_multi_contest(
+            &RistrettoCtx,
+            &vec![get_test_decoded_vote_contest()],
+            ballot_style,
+        )
+        .unwrap()
+    }
+
+    fn single_input(ballot: &AuditableBallot) -> InsertCastVoteInput {
+        let signed = SignedHashableBallot::try_from(ballot).unwrap();
+        let hashable = HashableBallot::try_from(&signed).unwrap();
+        InsertCastVoteInput {
+            ballot_id: hash_ballot(&hashable).unwrap(),
+            election_id: Uuid::new_v4(),
+            content: serde_json::to_string(&signed).unwrap(),
+        }
+    }
+
+    fn multi_input(ballot: &AuditableMultiBallot) -> InsertCastVoteInput {
+        let signed = SignedHashableMultiBallot::try_from(ballot).unwrap();
+        let hashable = HashableMultiBallot::try_from(&signed).unwrap();
+        InsertCastVoteInput {
+            ballot_id: hash_multi_ballot(&hashable).unwrap(),
+            election_id: Uuid::new_v4(),
+            content: serde_json::to_string(&signed).unwrap(),
+        }
+    }
+
+    fn legacy_single_input() -> InsertCastVoteInput {
+        let mut ballot = single_ballot(&ballot_style());
+        ballot.version = LEGACY_TYPES_VERSION;
+        single_input(&ballot)
+    }
+
+    fn check_single(
+        input: &InsertCastVoteInput,
+        policy: &BallotTrackerPolicy,
+        published_ballot_styles: &[PublishedBallotStyleHash],
+    ) -> Result<(), CastVoteError> {
+        deserialize_and_check_ballot(input, VOTER_ID, policy, published_ballot_styles).map(|_| ())
+    }
+
+    fn check_multi(
+        input: &InsertCastVoteInput,
+        published_ballot_styles: &[PublishedBallotStyleHash],
+    ) -> Result<(), CastVoteError> {
+        deserialize_and_check_multi_ballot(
+            input,
+            VOTER_ID,
+            &BallotTrackerPolicy::default(),
+            published_ballot_styles,
+        )
+        .map(|_| ())
+    }
+
+    fn assert_style_mismatch(result: Result<(), CastVoteError>) {
+        assert!(
+            matches!(result, Err(CastVoteError::BallotStyleMismatch(_))),
+            "expected a ballot style mismatch, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn ballot_tracker_policy_defaults_to_style_bound() {
+        assert_eq!(
+            BallotTrackerPolicy::default(),
+            BallotTrackerPolicy::STYLE_BOUND
+        );
+    }
+
+    #[test]
+    fn ballot_encrypted_with_the_published_style_is_accepted() {
+        let ballot_style = ballot_style();
+        let published = published_styles(&ballot_style);
+
+        assert!(check_single(
+            &single_input(&single_ballot(&ballot_style)),
+            &BallotTrackerPolicy::default(),
+            &published,
+        )
+        .is_ok());
+        assert!(check_multi(&multi_input(&multi_ballot(&ballot_style)), &published).is_ok());
+    }
+
+    #[test]
+    fn ballot_matching_any_published_style_is_accepted() {
+        let ballot_style = ballot_style();
+        let published = vec![
+            published_style(&style_with_other_public_key()),
+            published_style(&ballot_style),
+        ];
+
+        assert!(check_single(
+            &single_input(&single_ballot(&ballot_style)),
+            &BallotTrackerPolicy::default(),
+            &published,
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn ballot_encrypted_with_another_public_key_is_rejected() {
+        let published = published_styles(&ballot_style());
+        let other_style = style_with_other_public_key();
+
+        assert_style_mismatch(check_single(
+            &single_input(&single_ballot(&other_style)),
+            &BallotTrackerPolicy::default(),
+            &published,
+        ));
+        assert_style_mismatch(check_multi(
+            &multi_input(&multi_ballot(&other_style)),
+            &published,
+        ));
+    }
+
+    #[test]
+    fn ballot_encrypted_with_reordered_candidates_is_rejected() {
+        let published = published_styles(&ballot_style());
+        let other_style = style_with_reordered_candidates();
+
+        assert_style_mismatch(check_single(
+            &single_input(&single_ballot(&other_style)),
+            &BallotTrackerPolicy::default(),
+            &published,
+        ));
+        assert_style_mismatch(check_multi(
+            &multi_input(&multi_ballot(&other_style)),
+            &published,
+        ));
+    }
+
+    #[test]
+    fn ballot_without_a_published_style_is_rejected() {
+        let ballot_style = ballot_style();
+
+        assert_style_mismatch(check_single(
+            &single_input(&single_ballot(&ballot_style)),
+            &BallotTrackerPolicy::default(),
+            &[],
+        ));
+        assert_style_mismatch(check_multi(&multi_input(&multi_ballot(&ballot_style)), &[]));
+    }
+
+    #[test]
+    fn legacy_ballot_is_rejected_by_default() {
+        let published = published_styles(&ballot_style());
+
+        assert_style_mismatch(check_single(
+            &legacy_single_input(),
+            &BallotTrackerPolicy::default(),
+            &published,
+        ));
+    }
+
+    #[test]
+    fn legacy_ballot_is_accepted_when_the_policy_allows_it() {
+        assert!(check_single(
+            &legacy_single_input(),
+            &BallotTrackerPolicy::ALLOW_LEGACY,
+            &[],
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn current_ballot_is_checked_when_the_policy_allows_legacy() {
+        let published = published_styles(&ballot_style());
+
+        assert_style_mismatch(check_single(
+            &single_input(&single_ballot(&style_with_other_public_key())),
+            &BallotTrackerPolicy::ALLOW_LEGACY,
+            &published,
+        ));
     }
 }
