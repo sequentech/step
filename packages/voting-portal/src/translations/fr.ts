@@ -270,6 +270,7 @@ const frenchTranslation: TranslationType = {
                     "Aucun bulletin de vote vérifiable n'est disponible. Veuillez contacter le support.",
                 INCONSISTENT_HASH:
                     "Une erreur est survenue lors du calcul du hachage du bulletin. L'identifiant de suivi ({{ballotId}}) ne correspond pas au hachage du bulletin vérifiable ({{auditableBallotHash}}). Veuillez signaler ce problème au service d'aide.",
+                NOT_RECEIVED: "Le registre public ne contient pas encore votre bulletin, il n'a donc pas été envoyé. Revenez à votre bulletin et réessayez.",
                 ELECTION_EVENT_NOT_OPEN:
                     "L'événement électoral est fermé. Veuillez contacter le support.",
                 PARSE_ERROR:
@@ -554,6 +555,8 @@ const frenchTranslation: TranslationType = {
             notFound: "Votre identifiant de suivi {{ballotId}} n'a pas été trouvé",
             contentDesc: "Voici le contenu de votre bulletin : ",
             wrongFormatBallotId: "Format incorrect pour l'identifiant de suivi",
+            ambiguous: "Plusieurs de vos bulletins commencent par {{ballotId}}. Choisissez-en un :",
+            ambiguousMany: "Plusieurs de vos bulletins commencent par {{ballotId}}. Saisissez davantage de l'identifiant de suivi.",
             ballotIdNotFoundAtFilter:
                 "Non trouvé, veuillez vérifier que votre identifiant de suivi est correct et qu'il appartient à cet utilisateur.",
             filterByBallotId: "Filtrez par identifiant de suivi",
@@ -758,6 +761,7 @@ const frenchTranslation: TranslationType = {
                     cast: "Émis",
                     notCast: "Non émis",
                     auditable: "Auditable",
+                    audited: "Auditée",
                 },
                 state: {
                     notcast: "Pas encore émis",

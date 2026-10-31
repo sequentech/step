@@ -7,6 +7,8 @@ import type {IAuditableBallot, IReceivedBallot} from "@sequentech/ui-core"
 import type {IBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import type {RootState} from "../store/store"
 import {setReceivedBallot} from "../store/receivedBallots/receivedBallotsSlice"
+import {EStageCheck} from "../services/vitrine/castReceipt"
+import type {ITransparency} from "../services/vitrine/presentation"
 import {EReceiveBallotStatus, useReceiveBallot} from "./useReceiveBallot"
 
 jest.mock("react-i18next", () => ({
@@ -21,6 +23,7 @@ jest.mock("../store/hooks", () => ({
 }))
 jest.mock("@apollo/client/react", () => ({
     useMutation: () => [mockReceiveBallot],
+    useApolloClient: () => ({}),
 }))
 jest.mock("../services/BallotService", () => ({
     provideBallotService: () => ({
@@ -30,6 +33,16 @@ jest.mock("../services/BallotService", () => ({
     }),
 }))
 
+jest.mock("../services/vitrine/castReceipt", () => ({
+    ...jest.requireActual("../services/vitrine/castReceipt"),
+    runCastReceipt: (options: unknown) => mockRunCastReceipt(options),
+}))
+jest.mock("../services/vitrine/trackingId", () => ({
+    trackingIdOf: () => "FTBE-MHRX-0123-4567",
+    trackingDigestHex: async () => "ab".repeat(32),
+}))
+
+const mockRunCastReceipt = jest.fn()
 const mockDispatch = jest.fn()
 const mockReceiveBallot = jest.fn()
 const mockVerifyReceivedBallot = jest.fn()
@@ -104,14 +117,14 @@ it.each([
 ])("sends nothing at review when %s", (_, policy, skip) => {
     const {result} = receive({skip}, policy)
 
-    expect(result.current).toEqual({status: EReceiveBallotStatus.NOT_REQUIRED})
+    expect(result.current).toMatchObject({status: EReceiveBallotStatus.NOT_REQUIRED})
     expect(mockReceiveBallot).not.toHaveBeenCalled()
 })
 
 it("sends the voter-signed ballot and stores the receipt this device has checked", async () => {
     const {result} = receive()
 
-    expect(result.current).toEqual({status: EReceiveBallotStatus.PENDING})
+    expect(result.current).toMatchObject({status: EReceiveBallotStatus.PENDING})
     await waitFor(() =>
         expect(mockDispatch).toHaveBeenCalledWith(
             setReceivedBallot({electionId: "election-1", receivedBallot: RECEIVED})
@@ -158,7 +171,7 @@ it("shows the Ballot ID of a ballot already received without sending it again", 
     mockState = {receivedBallots: {"election-1": RECEIVED}} as unknown as RootState
     const {result} = receive()
 
-    expect(result.current).toEqual({
+    expect(result.current).toMatchObject({
         status: EReceiveBallotStatus.RECEIVED,
         ballotId: "FTBE-MHRX",
     })
@@ -171,7 +184,7 @@ it("sends an edited ballot, whose earlier receipt names another ballot", async (
     } as unknown as RootState
     const {result} = receive()
 
-    expect(result.current).toEqual({status: EReceiveBallotStatus.PENDING})
+    expect(result.current).toMatchObject({status: EReceiveBallotStatus.PENDING})
     await waitFor(() => expect(mockReceiveBallot).toHaveBeenCalledTimes(1))
 })
 
@@ -191,7 +204,7 @@ it("reports a network failure with the review screen's network text", async () =
     const {result} = receive()
 
     await waitFor(() =>
-        expect(result.current).toEqual({
+        expect(result.current).toMatchObject({
             status: EReceiveBallotStatus.FAILED,
             errorMsg: "reviewScreen.error.NETWORK_ERROR",
         })
@@ -228,7 +241,7 @@ it("refuses a receipt the published ballot box key did not sign", async () => {
     const {result} = receive()
 
     await waitFor(() =>
-        expect(result.current).toEqual({
+        expect(result.current).toMatchObject({
             status: EReceiveBallotStatus.FAILED,
             errorMsg: `reviewScreen.error.INCONSISTENT_HASH FTBE-MHRX ${BALLOT_HASH}`,
         })
@@ -246,7 +259,7 @@ it.each([
     const {result} = receive(overrides)
 
     await waitFor(() =>
-        expect(result.current).toEqual({
+        expect(result.current).toMatchObject({
             status: EReceiveBallotStatus.FAILED,
             errorMsg: "reviewScreen.error.CAST_VOTE",
         })
@@ -257,6 +270,73 @@ it.each([
 it("waits for the ballot before sending anything", () => {
     const {result} = receive({auditableBallot: undefined, ballotHash: undefined})
 
-    expect(result.current).toEqual({status: EReceiveBallotStatus.PENDING})
+    expect(result.current).toMatchObject({status: EReceiveBallotStatus.PENDING})
     expect(mockReceiveBallot).not.toHaveBeenCalled()
+})
+
+describe("with transparency on", () => {
+    const transparency = {mode: "public"} as ITransparency
+    const VITRINE = {kind: "receipt", text: "tlog-proof", reason: null}
+    const checked = (check: EStageCheck) =>
+        mockRunCastReceipt.mockImplementation(
+            async (o: {onChecked: (check: EStageCheck) => void}) => o.onChecked(check)
+        )
+    const received = () =>
+        expect(mockDispatch).toHaveBeenCalledWith(
+            setReceivedBallot({electionId: "election-1", receivedBallot: RECEIVED})
+        )
+
+    beforeEach(() => {
+        mockReceiveBallot.mockResolvedValue({
+            data: {receive_ballot: {...ANSWER, vitrine: VITRINE}},
+        })
+    })
+
+    it("checks the log's receipt for the received stage before the ballot can be cast", async () => {
+        checked(EStageCheck.CHECKED)
+        const {result} = receive({transparency})
+
+        await waitFor(received)
+        expect(mockRunCastReceipt).toHaveBeenCalledTimes(1)
+        expect(mockRunCastReceipt.mock.calls[0][0]).toMatchObject({
+            cast: VITRINE,
+            target: {
+                eventId: "event-1",
+                electionId: "election-1",
+                stage: "received",
+                ballotId: "ab".repeat(32),
+            },
+            transparency,
+            checkOnly: true,
+        })
+        expect(result.current.trackingId).toBe("FTBE-MHRX-0123-4567")
+    })
+
+    it("falls back to the ballot box's signature while the log has only queued the entry", async () => {
+        checked(EStageCheck.WAITING)
+        receive({transparency})
+
+        await waitFor(received)
+    })
+
+    it("does not store a ballot whose receipt does not check", async () => {
+        checked(EStageCheck.FAILED)
+        const {result} = receive({transparency})
+
+        await waitFor(() =>
+            expect(result.current).toMatchObject({
+                status: EReceiveBallotStatus.FAILED,
+                errorMsg: "reviewScreen.error.NOT_RECEIVED",
+            })
+        )
+        expect(mockDispatch).not.toHaveBeenCalled()
+    })
+
+    it("asks nothing of the log when the event keeps no transparency log", async () => {
+        const {result} = receive({transparency: {mode: "disabled"} as ITransparency})
+
+        await waitFor(received)
+        expect(mockRunCastReceipt).not.toHaveBeenCalled()
+        expect(result.current.status).toBe(EReceiveBallotStatus.PENDING)
+    })
 })

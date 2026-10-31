@@ -270,6 +270,7 @@ const galegoTranslation: TranslationType = {
                 NO_AUDITABLE_BALLOT: "Non hai papeleta auditable dispoñible. Contacta co soporte.",
                 INCONSISTENT_HASH:
                     "Houbo un erro relacionado co proceso de hash da papeleta. O ID de seguimento: {{ballotId}} non é consistente co hash da Papeleta Auditable: {{auditableBallotHash}}. Informa deste problema ao soporte.",
+                NOT_RECEIVED: "O rexistro público aínda non contén a túa papeleta, polo que non se enviou. Volve á túa papeleta e téntao de novo.",
                 ELECTION_EVENT_NOT_OPEN: "O evento de eleccións está pechado. Contacta co soporte.",
                 PARSE_ERROR:
                     "Houbo un erro ao analizar a papeleta. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
@@ -555,6 +556,8 @@ const galegoTranslation: TranslationType = {
             notFound: "O teu ID de seguimento {{ballotId}} non foi atopado",
             contentDesc: "Este é o contido da túa Papeleta:",
             wrongFormatBallotId: "Formato incorrecto para o ID de seguimento",
+            ambiguous: "Varias das túas papeletas comezan por {{ballotId}}. Escolle unha:",
+            ambiguousMany: "Varias das túas papeletas comezan por {{ballotId}}. Escribe máis do ID de seguimento.",
             ballotIdNotFoundAtFilter:
                 "Non atopado, comproba que o ID de seguimento sexa correcto e pertenza a este usuario.",
             filterByBallotId: "Filtrar por ID de seguimento",
@@ -758,6 +761,7 @@ const galegoTranslation: TranslationType = {
                     cast: "Emitida",
                     notCast: "Non emitida",
                     auditable: "Auditable",
+                    audited: "Auditada",
                 },
                 state: {
                     notcast: "Aínda sen emitir",

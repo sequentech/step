@@ -9,6 +9,7 @@ import {EReceiveBallotStatus, useReceiveBallot} from "../hooks/useReceiveBallot"
 import {
     IReceivedCast,
     signReceivedCast,
+    receivedBallotTrackingId,
     useCastReceivedBallot,
 } from "../hooks/useCastReceivedBallot"
 import {selectReceivedBallot} from "../store/receivedBallots/receivedBallotsSlice"
@@ -220,10 +221,6 @@ const confirmationVitrine = (
     transparency && transparency.mode !== ETransparencyMode.DISABLED
         ? {cast: vitrine, transparency}
         : undefined
-
-/** What the cast of a received ballot reports, in the shape of the other cast. */
-const receivedCastOutcome = (cast: boolean): TCastOutcome =>
-    cast ? {ok: true, vitrine: null} : {ok: false}
 
 const useTryInsertCastVote = () => {
     const {t} = useTranslation()
@@ -576,7 +573,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         }
 
         const cast = receivedCast
-            ? receivedCastOutcome(await tryCastReceivedBallot(receivedCast, setErrorMsg))
+            ? await tryCastReceivedBallot(receivedCast, setErrorMsg, undefined, transparency)
             : await tryInsertCastVote(
                   ballotStyle.election_id,
                   ballotId,
@@ -722,11 +719,11 @@ export const ReviewScreen: React.FC = () => {
     const electionFromRedux = useAppSelector(selectElectionById(String(electionId)))
     const electionName = useElectionName(electionId)
     const events = useAppSelector((state) => state.electionEvent)
-    const keepsTransparencyLog =
-        eventTransparency(
-            events[ballotStyle?.election_event_id ?? ""]?.presentation,
-            ballotStyle?.ballot_eml?.election_event_presentation
-        ).mode !== ETransparencyMode.DISABLED
+    const eventTransparencySettings = eventTransparency(
+        events[ballotStyle?.election_event_id ?? ""]?.presentation,
+        ballotStyle?.ballot_eml?.election_event_presentation
+    )
+    const keepsTransparencyLog = eventTransparencySettings.mode !== ETransparencyMode.DISABLED
     const isDeclineToVote = useAppSelector(isDeclineToVoteByElectionId(String(electionId)))
     const {data: dataElections, error: errorElections} = useQuery<GetElectionsQuery>(
         GET_ELECTIONS,
@@ -860,6 +857,7 @@ export const ReviewScreen: React.FC = () => {
         auditableBallot,
         ballotHash: ballotId,
         isMultiContest,
+        transparency: eventTransparencySettings,
         skip:
             !!ballotStyle?.ballot_eml?.public_key?.is_demo ||
             globalSettings.DISABLE_AUTH ||
@@ -868,9 +866,9 @@ export const ReviewScreen: React.FC = () => {
     })
     const isReceiptRequired = receipt.status !== EReceiveBallotStatus.NOT_REQUIRED
     const isAwaitingReceipt = isReceiptRequired && receipt.status !== EReceiveBallotStatus.RECEIVED
-    // With receipts on, the Ballot ID is the ballot box's: there is none to
-    // show until the ballot box has stored and signed the ballot.
-    const shownBallotId = isReceiptRequired ? receipt.ballotId : ballotId || ""
+    // The voter reads the ballot's Tracking ID, which the booth knows before the
+    // ballot is sent. The ballot box's key for it is only what the cast names.
+    const shownBallotId = isReceiptRequired ? receipt.trackingId : ballotId || ""
     const displayedErrorMsg = hashErrorMsg ?? receipt.errorMsg ?? errorMsg
 
     const handleCloseDialogAuditHelp = (value: boolean) => {
@@ -996,8 +994,11 @@ export const ReviewScreen: React.FC = () => {
         const cast: TCastOutcome = ballotData.isDemo
             ? {ok: true, vitrine: null}
             : ballotData.receivedCast
-              ? receivedCastOutcome(
-                    await tryCastReceivedBallot(ballotData.receivedCast, setCurrentError, isCurrent)
+              ? await tryCastReceivedBallot(
+                    ballotData.receivedCast,
+                    setCurrentError,
+                    isCurrent,
+                    savedTransparency
                 )
               : await tryInsertCastVote(
                     ballotData.electionId,
@@ -1024,8 +1025,9 @@ export const ReviewScreen: React.FC = () => {
             setConfirmationScreenData({
                 electionId: ballotData.electionId,
                 confirmationScreenData: {
-                    ballotId:
-                        ballotData.receivedCast?.receivedBallot.ballot_id ?? ballotData.ballotId,
+                    ballotId: ballotData.receivedCast
+                        ? receivedBallotTrackingId(ballotData.receivedCast.receivedBallot)
+                        : ballotData.ballotId,
                     isDemo: ballotData.isDemo,
                     auditButtonCfg: ballotData.auditButtonCfg,
                     ...(recoveredVitrine ? {vitrine: recoveredVitrine} : {}),
@@ -1191,6 +1193,7 @@ export const ReviewScreen: React.FC = () => {
                         ? (
                               <ReviewBallotId
                                   ballotId={shownBallotId}
+                                  view={receipt.view}
                                   electionName={electionName}
                                   helpLabel={t("reviewScreen.ballotIdHelpDialog.title")}
                                   onHelpClick={() => setOpenBallotIdHelp(true)}

@@ -13,14 +13,13 @@ import {
     ballotIdChars,
     ballotIdInput,
     EBallotIdInput,
+    FULL_BALLOT_ID_LENGTH,
     SHORT_BALLOT_ID_LENGTH,
     typedBallotId,
 } from "./ballotId"
 import {EBallotStatus, ballotStatusOf, EStepState, tiersState} from "./ballotStatus"
 import {EReceiptNotice, IReceiptView} from "./castReceipt"
 
-/** Telephone voters read out the first four characters of their Tracking ID. */
-export const TELEPHONE_BALLOT_ID_LENGTH = 4
 const ALPHABET = /^[0-9A-HJKMNP-TV-Z]+$/
 const SECONDS = 60
 
@@ -29,36 +28,18 @@ export interface IBallotLookup {
     ballotIdPrefix?: string
 }
 
-const isShortLength = (length: number, telephone: boolean): boolean =>
-    length === SHORT_BALLOT_ID_LENGTH || (telephone && length === TELEPHONE_BALLOT_ID_LENGTH)
-
-/** How the ID in the address is looked up: a short ID by its prefix, any
- * other ID as it is. Nothing for what isn't a Tracking ID: a voter pseudonym
- * (`FTBE:MHRX`) among it. */
-export const ballotLookupOf = (
-    value: string | undefined,
-    telephone: boolean
-): IBallotLookup | null => {
+/** How the ID in the address is looked up: the start of an ID (8 characters
+ * or more) by its prefix, a full one as it is. Nothing for what isn't a
+ * Tracking ID: a voter pseudonym (`FTBE:MHRX`) among it. */
+export const ballotLookupOf = (value: string | undefined): IBallotLookup | null => {
     const hex = ballotIdChars(value ?? "")
-    if (!ALPHABET.test(hex)) return null
-    return isShortLength(hex.length, telephone) ? {ballotIdPrefix: hex} : {ballotId: hex}
+    if (!ALPHABET.test(hex) || hex.length < SHORT_BALLOT_ID_LENGTH) return null
+    return hex.length < FULL_BALLOT_ID_LENGTH ? {ballotIdPrefix: hex} : {ballotId: hex}
 }
 
-/** What the search field holds: a short ID, a full one, or neither. Events
- * with telephone voting also take the first four characters. */
-export const trackerInput = (value: string, telephone: boolean): EBallotIdInput => {
-    const input = ballotIdInput(value)
-    const hex = ballotIdChars(value)
-    if (
-        input === EBallotIdInput.INVALID &&
-        telephone &&
-        hex.length === TELEPHONE_BALLOT_ID_LENGTH &&
-        ALPHABET.test(hex)
-    ) {
-        return EBallotIdInput.SHORT
-    }
-    return input
-}
+/** What the search field holds: a short ID, the start of one, a full one, or
+ * neither. */
+export const trackerInput = (value: string): EBallotIdInput => ballotIdInput(value)
 
 /** Whether the voter typed or pasted characters that can't be part of a
  * Tracking ID, or more than a full one. The field leaves them out. */

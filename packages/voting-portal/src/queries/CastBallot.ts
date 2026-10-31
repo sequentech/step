@@ -14,6 +14,11 @@ export const CAST_BALLOT = gql`
             cast_at
             key_id
             cast_receipt_signature
+            vitrine {
+                kind
+                text
+                reason
+            }
         }
     }
 `

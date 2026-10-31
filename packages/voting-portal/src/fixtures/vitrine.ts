@@ -8,6 +8,7 @@
 // @vitrine/verify's own formatters, so the portal checks real objects.
 
 import {Buffer} from "buffer"
+import type {BallotStage} from "@vitrine/verify/pure"
 import {createPrivateKey, createPublicKey, sign as signEd25519} from "crypto"
 import {
     bytes,
@@ -29,9 +30,9 @@ import {
 
 const PKCS8_ED25519_PREFIX = "302e020100300506032b657004220420"
 const EVENTS_TAG = "vitrine/election/events/v1"
-const MEANING_HASH = "sha256:03a5a99d740d19741de6491ee2fb77bd1680d8d934f6dc5ca90bb25c841bdba7"
+const MEANING_HASH = "sha256:b77e087d44cf4621cb2ca2cdf982abb5c46f3b964ce79f9ff2b04ef645624ab1"
 const EVENTS_MEANING_HASH =
-    "sha256:819b9a9da4755aaf78b18ea35390f7908d1a21a824e7c7c6874702bf7152bc4f"
+    "sha256:a76f20437d3846a9cb930a379fe545c218e9e80f35c186fff6dd79e870b5ba51"
 
 export const NOW = 1_800_000_000
 export const EVENT_ID = "0b6c4f53-8c0b-4cbb-9b7a-6c8a3a5c2f10"
@@ -347,10 +348,15 @@ export const eventsEntry = (
         {kind: entries.FIELD_COMMITMENT, value: hashes.sha256(`details ${kind} ${time}`)},
     ])
 
-export const ballotEntry = (ballotId: string = BALLOT_ID, acceptedAt: number = ACCEPTED_AT) =>
+export const ballotEntry = (
+    ballotId: string = BALLOT_ID,
+    acceptedAt: number = ACCEPTED_AT,
+    stage: BallotStage = "cast"
+) =>
     entries.buildElectionEntry({
         eventId: EVENT_ID,
         electionId: ELECTION_ID,
+        stage,
         ballotId,
         acceptedAt,
     })

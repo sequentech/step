@@ -104,7 +104,7 @@ const cast = async (
     const views: IReceiptView[] = []
     await runCastReceipt({
         cast: answer,
-        target: {eventId: EVENT_ID, electionId: ELECTION_ID, ballotId},
+        target: {eventId: EVENT_ID, electionId: ELECTION_ID, stage: "cast", ballotId},
         transparency: readTransparency(s.presentation),
         context: async () => s.context,
         fetch: net.fetch as unknown as typeof fetch,
@@ -407,7 +407,7 @@ describe("runKeptReceipt", () => {
         const views: IReceiptView[] = []
         await runKeptReceipt({
             acceptedAt: ACCEPTED_AT,
-            target: {eventId: EVENT_ID, electionId: ELECTION_ID, ballotId},
+            target: {eventId: EVENT_ID, electionId: ELECTION_ID, stage: "cast", ballotId},
             transparency: readTransparency(s.presentation),
             fetch: net.fetch as unknown as typeof fetch,
             now: () => NOW * 1000,

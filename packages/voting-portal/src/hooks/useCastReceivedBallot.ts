@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {useMutation} from "@apollo/client/react"
+import {useApolloClient, useMutation} from "@apollo/client/react"
 import {useTranslation} from "react-i18next"
 import {useStore} from "react-redux"
 import type {RootState} from "../store/store"
@@ -21,6 +21,21 @@ import {addCastVotes} from "../store/castVotes/castVotesSlice"
 import {useAppDispatch} from "../store/hooks"
 import {clearAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDataSlice"
+import {EStageCheck, runCastReceipt} from "../services/vitrine/castReceipt"
+import type {ITransparency} from "../services/vitrine/presentation"
+import {trackingDigestHex, trackingIdOf} from "../services/vitrine/trackingId"
+import {ETransparencyMode, IVitrineCast} from "../services/vitrine/types"
+import {voterContextFor} from "../services/vitrine/voterContext"
+import {voterForward} from "../services/vitrine/forward"
+
+/** What the voter reads as the ballot's ID: its Tracking ID, else the ballot
+ * box's key when the Tracking ID cannot be computed. */
+export const receivedBallotTrackingId = (receivedBallot: IReceivedBallot): string =>
+    trackingIdOf(receivedBallot.ballot_hash, receivedBallot.voter_signing_pk) ??
+    receivedBallot.ballot_id
+
+/** What the cast came to. The vitrine answer is data for the confirmation. */
+export type TReceivedCastResult = {ok: false} | {ok: true; vitrine: IVitrineCast | null}
 
 // A ballot the ballot box received at review, with the voter's signed request
 // to cast it. It holds no key, so it can wait in the session for a fresh
@@ -54,14 +69,16 @@ export const useCastReceivedBallot = () => {
     const {t} = useTranslation()
     const dispatch = useAppDispatch()
     const store = useStore<RootState>()
+    const client = useApolloClient()
     const [castBallot] = useMutation<CastBallotMutation>(CAST_BALLOT)
     const {verifyCastReceipt, forgetVoterSigningKey} = provideBallotService()
 
     return async (
         {receivedBallot, ballotBoxKey, castSignature}: IReceivedCast,
         reportError: (msg: string) => void,
-        isCurrent: () => boolean = () => true
-    ): Promise<boolean> => {
+        isCurrent: () => boolean = () => true,
+        transparency?: ITransparency
+    ): Promise<TReceivedCastResult> => {
         const setErrorMsg = (message: string) => {
             if (isCurrent()) reportError(message)
         }
@@ -78,13 +95,13 @@ export const useCastReceivedBallot = () => {
             if (result.error || !cast) {
                 console.log(result.error?.message)
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
-                return false
+                return {ok: false}
             }
             answer = cast
         } catch (error) {
             console.log(error)
             setErrorMsg(castVoteErrorMessage(error, t))
-            return false
+            return {ok: false}
         }
 
         // The signature must cover the ballot this device asked to cast, so
@@ -112,10 +129,47 @@ export const useCastReceivedBallot = () => {
                     })
                 )
             )
-            return false
+            return {ok: false}
         }
 
-        if (!isCurrent()) return false
+        // With transparency on, the cast counts as done when the log's receipt
+        // (or an acceptable promise) for the `cast` entry checks. A queued entry
+        // leaves the ballot box's own signature, checked above, to the
+        // confirmation screen, which keeps asking the log.
+        const vitrine: IVitrineCast | null = answer.vitrine ?? null
+        if (transparency && transparency.mode !== ETransparencyMode.DISABLED) {
+            const trackingId = trackingIdOf(
+                receivedBallot.ballot_hash,
+                receivedBallot.voter_signing_pk
+            )
+            const digest = trackingId && (await trackingDigestHex(trackingId))
+            const controller = new AbortController()
+            const eventId = receivedBallot.election_event_id
+            const electionId = receivedBallot.election_id
+            const check = digest
+                ? await new Promise<EStageCheck>((resolve) => {
+                      void runCastReceipt({
+                          cast: vitrine,
+                          target: {eventId, electionId, stage: "cast", ballotId: digest},
+                          transparency,
+                          context: () => voterContextFor(client, eventId, electionId),
+                          forward: voterForward(client, eventId),
+                          signal: controller.signal,
+                          checkOnly: true,
+                          onChecked: resolve,
+                          onView: () => undefined,
+                      }).then(() => resolve(EStageCheck.FAILED))
+                  })
+                : EStageCheck.FAILED
+            // The confirmation screen checks and upgrades again from the answer.
+            controller.abort()
+            if (check === EStageCheck.FAILED) {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NOT_RECEIVED}`))
+                return {ok: false}
+            }
+        }
+
+        if (!isCurrent()) return {ok: false}
 
         const currentBallot =
             store.getState().auditableBallots[receivedBallot.election_id]?.auditableBallot
@@ -126,7 +180,13 @@ export const useCastReceivedBallot = () => {
         dispatch(
             setConfirmationScreenData({
                 electionId: receivedBallot.election_id,
-                confirmationScreenData: {ballotId: receivedBallot.ballot_id, isDemo: false},
+                confirmationScreenData: {
+                    ballotId: receivedBallotTrackingId(receivedBallot),
+                    isDemo: false,
+                    ...(transparency && transparency.mode !== ETransparencyMode.DISABLED
+                        ? {vitrine: {cast: vitrine, transparency}}
+                        : {}),
+                },
             })
         )
         dispatch(
@@ -140,6 +200,6 @@ export const useCastReceivedBallot = () => {
                 },
             ])
         )
-        return true
+        return {ok: true, vitrine}
     }
 }

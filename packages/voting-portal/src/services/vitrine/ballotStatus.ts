@@ -33,6 +33,8 @@ export enum EBallotTag {
     NOT_CAST = "notCast",
     CAST = "cast",
     AUDITABLE = "auditable",
+    /** The ballot box and the log both hold the audit of this ballot. */
+    AUDITED = "audited",
 }
 
 export const ballotTagOf = (status: EBallotStatus): EBallotTag => {

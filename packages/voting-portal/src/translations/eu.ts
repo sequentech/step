@@ -271,6 +271,7 @@ const basqueTranslation: TranslationType = {
                     "Ez dago auditatu daitekeen bozketarik eskuragarri. Mesedez, jarri harremanetan laguntzarekin.",
                 INCONSISTENT_HASH:
                     "Errorea izan da bozketa hash prozesuan. Jarraipen IDa: {{ballotId}} ez da koherentea auditatu daitekeen Bozketa Hash-arekin: {{auditableBallotHash}}. Mesedez, eman arazo honen berri laguntzari.",
+                NOT_RECEIVED: "Erregistro publikoak ez du oraindik zure boto-papera jaso, beraz ez da bidali. Itzuli zure boto-paperera eta saiatu berriro.",
                 ELECTION_EVENT_NOT_OPEN:
                     "Hauteskunde gertaera itxita dago. Mesedez, jarri harremanetan laguntzarekin.",
                 PARSE_ERROR:
@@ -556,6 +557,8 @@ const basqueTranslation: TranslationType = {
             notFound: "Zure jarraipen IDa {{ballotId}} ez da aurkitu",
             contentDesc: "Hau da zure Bozketa edukia: ",
             wrongFormatBallotId: "Jarraipen IDaren formatu okerra",
+            ambiguous: "Zure boto-paper batzuk {{ballotId}}(r)ekin hasten dira. Aukeratu bat:",
+            ambiguousMany: "Zure boto-paper batzuk {{ballotId}}(r)ekin hasten dira. Idatzi jarraipen IDaren zati gehiago.",
             ballotIdNotFoundAtFilter:
                 "Ez da aurkitu. Egiaztatu zure jarraipen IDa zuzena dela eta erabiltzaile honi dagokiola.",
             filterByBallotId: "Filtratu jarraipen IDaren arabera",
@@ -758,6 +761,7 @@ const basqueTranslation: TranslationType = {
                     cast: "Emana",
                     notCast: "Eman gabe",
                     auditable: "Auditagarria",
+                    audited: "Auditatua",
                 },
                 state: {
                     notcast: "Oraindik ez da eman",

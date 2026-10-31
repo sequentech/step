@@ -37,6 +37,12 @@ import {Typography} from "@mui/material"
 import {useAppSelector} from "../store/hooks"
 import {selectBallotForAudit} from "../store/auditableBallots/auditableBallotsSlice"
 import {useAuditBallot} from "../hooks/useAuditBallot"
+import {BallotTag} from "../components/Vitrine/BallotTag"
+import {EBallotTag} from "../services/vitrine/ballotStatus"
+import {eventTransparency} from "../services/vitrine/presentation"
+import {shortBallotId} from "../services/vitrine/ballotId"
+import {trackingIdOf} from "../services/vitrine/trackingId"
+import {ETransparencyMode} from "../services/vitrine/types"
 import {provideBallotService} from "../services/BallotService"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {useRootBackLink} from "../hooks/root-back-link"
@@ -115,12 +121,18 @@ const AuditScreen: React.FC = () => {
     }>()
     const {globalSettings} = useContext(SettingsContext)
     const auditableBallot = useAppSelector(selectBallotForAudit(String(electionId)))
+    const events = useAppSelector((state) => state.electionEvent)
+    const transparency = eventTransparency(
+        events[eventId ?? ""]?.presentation,
+        auditableBallot?.config.election_event_presentation
+    )
     const audit = useAuditBallot(
         String(electionId),
         !globalSettings.DISABLE_AUTH &&
             !auditableBallot?.config.public_key?.is_demo &&
             auditableBallot?.config.election_event_presentation?.receipts?.policy ===
-                EReceiptsPolicy.SIGNED_BY_BALLOT_BOX
+                EReceiptsPolicy.SIGNED_BY_BALLOT_BOX,
+        transparency
     )
     const {t, i18n} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
@@ -168,6 +180,12 @@ const AuditScreen: React.FC = () => {
         downloadBlob(file, fileName)
     }
 
+    // The audited ballot's Tracking ID and its tag, once the log holds the audit.
+    const auditedTrackingId =
+        audit.ready && transparency.mode !== ETransparencyMode.DISABLED
+            ? trackingIdOf(ballotHash, auditableBallot?.voter_signing_pk)
+            : undefined
+
     if (!audit.ready)
         return (
             <PageLimit maxWidth="lg" className="audit-screen screen">
@@ -199,6 +217,14 @@ const AuditScreen: React.FC = () => {
     return (
         <PageLimit maxWidth="lg" className="audit-screen screen">
             <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
+            {auditedTrackingId ? (
+                <Box className="audit-tracking-id" sx={{mt: "12px", display: "flex", gap: "10px"}}>
+                    <Box component="span" className="audit-tracking-id-short">
+                        {shortBallotId(auditedTrackingId)}
+                    </Box>
+                    <BallotTag tag={EBallotTag.AUDITED} />
+                </Box>
+            ) : null}
             <Box className="stepper-box" marginTop="24px">
                 <Dialog
                     className="audit-ballot-id-help-dialog"

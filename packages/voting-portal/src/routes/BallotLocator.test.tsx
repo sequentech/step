@@ -326,6 +326,10 @@ describe("the search of an event without transparency", () => {
         await userEvent.type(field(), "4")
         expect(findButton()).toBeEnabled()
         await userEvent.type(field(), "4238")
+        // The start of an ID takes 8 characters or more.
+        expect(findButton()).toBeEnabled()
+        await userEvent.clear(field())
+        await userEvent.type(field(), "FTBE")
         expect(findButton()).toBeDisabled()
         await userEvent.clear(field())
         await userEvent.paste(GROUPED)
@@ -360,11 +364,11 @@ describe("the search of an event without transparency", () => {
         expect(router.state.location.pathname).toBe(`${PATH}/${SHORT}`)
     })
 
-    it("takes the first four characters for events with telephone voting", async () => {
+    it("takes no fewer than eight characters, telephone voting or not", async () => {
         mockTelephone = true
         renderAt()
         await userEvent.type(field(), "FTBE")
-        expect(findButton()).toBeEnabled()
+        expect(findButton()).toBeDisabled()
     })
 
     it("keeps the classic locator: the field, a button to find, and Back below them", () => {
@@ -430,6 +434,10 @@ describe("the search of an event with transparency", () => {
         await userEvent.type(field(), "4")
         expect(find()).toBeEnabled()
         await userEvent.type(field(), "4238")
+        // The start of an ID takes 8 characters or more.
+        expect(find()).toBeEnabled()
+        await userEvent.clear(field())
+        await userEvent.type(field(), "FTBE")
         expect(find()).toBeDisabled()
         await userEvent.clear(field())
         await userEvent.paste(GROUPED)
@@ -475,11 +483,11 @@ describe("the search of an event with transparency", () => {
         expect(router.state.location.pathname).toBe(`${PATH}/${SHORT}`)
     })
 
-    it("takes the first four characters for events with telephone voting", async () => {
+    it("takes no fewer than eight characters, telephone voting or not", async () => {
         mockTelephone = true
         renderAt()
         await userEvent.type(field(), "FTBE")
-        expect(find()).toBeEnabled()
+        expect(find()).toBeDisabled()
     })
 
     it("names its tab after the tracking, and keeps Back below the logs, which have no title row", async () => {
@@ -582,6 +590,7 @@ describe("the result for an event with transparency", () => {
             eventId: "event",
             electionId: "election",
             ballotId: FULL,
+            stage: "cast",
             acceptedAt: Date.UTC(2026, 9, 29, 10, 42, 8) / 1000,
         })
     })

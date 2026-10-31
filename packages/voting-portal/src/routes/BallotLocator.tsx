@@ -43,6 +43,7 @@ import {useTrackedReceipt} from "../hooks/useTrackedReceipt"
 import {
     ballotIdChars,
     EBallotIdInput,
+    groupBallotId,
     shortBallotId,
     typedBallotId,
 } from "../services/vitrine/ballotId"
@@ -786,8 +787,7 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
     )
 
     const election = dataElections?.sequent_backend_election.find((item) => item.id === electionId)
-    const telephoneVotingEnabled = election?.voting_channels?.telephone === true
-    const ballotLookup = ballotLookupOf(ballotId, telephoneVotingEnabled)
+    const ballotLookup = ballotLookupOf(ballotId)
 
     const {
         data,
@@ -829,6 +829,7 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
           )
         : ""
     const ambiguousBallotId = located?.status === ELocateBallotStatus.AMBIGUOUS
+    const ambiguousMatches = ambiguousBallotId ? (located?.matches ?? []) : []
     const foundBallot =
         located?.status === ELocateBallotStatus.FOUND && located.ballot_id
             ? {
@@ -858,6 +859,7 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
                   eventId,
                   electionId,
                   ballotId: foundBallot.ballot_id,
+                  stage: record.kind === ERecordKind.AUDITED ? "audited" : "cast",
                   acceptedAt: acceptedAtOf(foundBallot.created_at),
               }
             : undefined,
@@ -868,8 +870,8 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
     const formatTime = (time: number | string) =>
         formatVotingPortalDateTime(time, electionEvent, language)
     const locatorPath = `/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator`
-    const canLocate = [EBallotIdInput.SHORT, EBallotIdInput.FULL].includes(
-        trackerInput(inputBallotId, telephoneVotingEnabled)
+    const canLocate = [EBallotIdInput.SHORT, EBallotIdInput.PARTIAL, EBallotIdInput.FULL].includes(
+        trackerInput(inputBallotId)
     )
 
     const locate = (withBallotId = false) => {
@@ -1028,7 +1030,32 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
                         </MessageFailed>
                     ) : ambiguousBallotId ? (
                         <MessageFailed className="ballot-locator-failure">
-                            {translateHtml(t, "ballotLocator.ambiguous", {ballotId})}
+                            {translateHtml(
+                                t,
+                                ambiguousMatches.length
+                                    ? "ballotLocator.ambiguous"
+                                    : "ballotLocator.ambiguousMany",
+                                {ballotId: groupBallotId(ballotId ?? "")}
+                            )}
+                            {ambiguousMatches.length > 0 && (
+                                <Box component="ul" className="ballot-locator-matches">
+                                    {ambiguousMatches.map((match) => (
+                                        <li key={match} className="ballot-locator-match-item">
+                                            <Button
+                                                variant="text"
+                                                className="ballot-locator-match"
+                                                onClick={() =>
+                                                    navigate(
+                                                        `${locatorPath}/${ballotIdChars(match)}${location.search}`
+                                                    )
+                                                }
+                                            >
+                                                {groupBallotId(match)}
+                                            </Button>
+                                        </li>
+                                    ))}
+                                </Box>
+                            )}
                         </MessageFailed>
                     ) : ballotContent ? (
                         showTracker ? (

@@ -7,6 +7,9 @@ import {Provider} from "react-redux"
 import type {IReceivedBallot} from "@sequentech/ui-core"
 import {addCastVotes} from "../store/castVotes/castVotesSlice"
 import {IReceivedCast, signReceivedCast, useCastReceivedBallot} from "./useCastReceivedBallot"
+import {EStageCheck} from "../services/vitrine/castReceipt"
+import type {ITransparency} from "../services/vitrine/presentation"
+import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDataSlice"
 import {clearVoterSession, store} from "../store/store"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import type {IAuditableBallot} from "@sequentech/ui-core"
@@ -22,6 +25,7 @@ jest.mock("../store/hooks", () => ({
 }))
 jest.mock("@apollo/client/react", () => ({
     useMutation: () => [mockCastBallot],
+    useApolloClient: () => ({}),
 }))
 jest.mock("../services/BallotService", () => ({
     provideBallotService: () => ({
@@ -31,6 +35,16 @@ jest.mock("../services/BallotService", () => ({
     }),
 }))
 
+jest.mock("../services/vitrine/castReceipt", () => ({
+    ...jest.requireActual("../services/vitrine/castReceipt"),
+    runCastReceipt: (options: unknown) => mockRunCastReceipt(options),
+}))
+jest.mock("../services/vitrine/trackingId", () => ({
+    trackingIdOf: () => "FTBE-MHRX-0123-4567",
+    trackingDigestHex: async () => "ab".repeat(32),
+}))
+
+const mockRunCastReceipt = jest.fn()
 const mockDispatch = jest.fn()
 const mockCastBallot = jest.fn()
 const mockSignBallotCast = jest.fn()
@@ -96,7 +110,7 @@ it("does not make up a cast when the key that signed the ballot is gone", () => 
 })
 
 it("casts by the Ballot ID and the signature, without sending the ballot again", async () => {
-    expect(await cast()).toBe(true)
+    expect(await cast()).toEqual({ok: true, vitrine: null})
 
     expect(mockCastBallot).toHaveBeenCalledTimes(1)
     expect(mockCastBallot).toHaveBeenCalledWith({
@@ -122,7 +136,7 @@ it("checks the receipt against what this device asked to cast, not what the answ
         },
     })
 
-    expect(await cast()).toBe(true)
+    expect(await cast()).toEqual({ok: true, vitrine: null})
     expect(mockVerifyCastReceipt).toHaveBeenCalledWith(BALLOT_BOX_KEY, {
         election_event_id: "event-1",
         election_id: "election-1",
@@ -136,7 +150,7 @@ it("checks the receipt against what this device asked to cast, not what the answ
 })
 
 it("records the cast vote and drops the voter's key once the receipt verifies", async () => {
-    expect(await cast()).toBe(true)
+    expect(await cast()).toEqual({ok: true, vitrine: null})
 
     expect(mockDispatch).toHaveBeenCalledWith(
         addCastVotes([
@@ -163,9 +177,9 @@ it("disposes audit plaintext after a verified cast while preserving the confirma
     )
     mockDispatch.mockImplementation(store.dispatch)
     try {
-        expect(await cast()).toBe(true)
+        expect(await cast()).toEqual({ok: true, vitrine: null})
         expect(store.getState().auditableBallots["election-1"]?.auditableBallot).toBeUndefined()
-        expect(store.getState().confirmationScreenData["election-1"]?.ballotId).toBe("FTBE-MHRX")
+        expect(store.getState().confirmationScreenData["election-1"]?.ballotId).toBe("FTBE-MHRX-0123-4567")
     } finally {
         mockDispatch.mockImplementation(() => undefined)
     }
@@ -189,7 +203,7 @@ it("preserves a new ballot prepared while an earlier cast was pending", async ()
             })
         )
         finishCast({data: {cast_ballot: ANSWER}})
-        expect(await pending).toBe(true)
+        expect(await pending).toEqual({ok: true, vitrine: null})
         expect(store.getState().auditableBallots["election-1"]?.auditableBallot?.ballot_hash).toBe(
             "a-new-ballot"
         )
@@ -204,7 +218,7 @@ it("does not confirm a cast whose receipt the ballot box did not sign", async ()
         throw new Error("The ballot box signature does not verify")
     })
 
-    expect(await cast()).toBe(false)
+    expect(await cast()).toEqual({ok: false})
     expect(setErrorMsg).toHaveBeenCalledWith(
         `reviewScreen.error.INCONSISTENT_HASH FTBE-MHRX ${BALLOT_HASH}`
     )
@@ -219,7 +233,7 @@ it.each([
 ])("shows the fetch error and confirms nothing for %s", async (_, result) => {
     mockCastBallot.mockResolvedValue(result)
 
-    expect(await cast()).toBe(false)
+    expect(await cast()).toEqual({ok: false})
     expect(setErrorMsg).toHaveBeenCalledWith("reviewScreen.error.UNABLE_TO_FETCH_DATA")
     expect(mockVerifyCastReceipt).not.toHaveBeenCalled()
     expect(mockDispatch).not.toHaveBeenCalled()
@@ -231,7 +245,7 @@ it("shows the ballot box's refusal with the cast error texts", async () => {
         graphQLErrors: [{extensions: {code: "PokValidationFailed"}}],
     })
 
-    expect(await cast()).toBe(false)
+    expect(await cast()).toEqual({ok: false})
     expect(setErrorMsg).toHaveBeenCalledWith("reviewScreen.error.CAST_VOTE_PokValidationFailed")
     expect(mockDispatch).not.toHaveBeenCalled()
 })
@@ -239,7 +253,7 @@ it("shows the ballot box's refusal with the cast error texts", async () => {
 it("shows the generic cast error when the request fails without a reason", async () => {
     mockCastBallot.mockRejectedValue(new Error("boom"))
 
-    expect(await cast()).toBe(false)
+    expect(await cast()).toEqual({ok: false})
     expect(setErrorMsg).toHaveBeenCalledWith("reviewScreen.error.CAST_VOTE")
 })
 
@@ -247,9 +261,67 @@ it("does not mutate voter state when a verified response belongs to an abandoned
     const hook = renderHook(() => useCastReceivedBallot(), {
         wrapper: ({children}) => <Provider store={store}>{children}</Provider>,
     })
-    expect(await hook.result.current(CAST, setErrorMsg, () => false)).toBe(false)
+    expect(await hook.result.current(CAST, setErrorMsg, () => false)).toEqual({ok: false})
     expect(mockVerifyCastReceipt).toHaveBeenCalled()
     expect(mockDispatch).not.toHaveBeenCalled()
     expect(mockForgetVoterSigningKey).not.toHaveBeenCalled()
     expect(setErrorMsg).not.toHaveBeenCalled()
+})
+
+describe("with transparency on", () => {
+    const transparency = {mode: "public"} as ITransparency
+    const VITRINE = {kind: "receipt", text: "tlog-proof", reason: null}
+    const castWithLog = () =>
+        renderHook(() => useCastReceivedBallot(), {
+            wrapper: ({children}) => <Provider store={store}>{children}</Provider>,
+        }).result.current(CAST, setErrorMsg, () => true, transparency)
+    const checked = (check: EStageCheck) =>
+        mockRunCastReceipt.mockImplementation(
+            async (o: {onChecked: (check: EStageCheck) => void}) => o.onChecked(check)
+        )
+
+    beforeEach(() => {
+        mockCastBallot.mockResolvedValue({data: {cast_ballot: {...ANSWER, vitrine: VITRINE}}})
+    })
+
+    it("checks the cast entry's receipt before the confirmation opens, and hands it on", async () => {
+        checked(EStageCheck.CHECKED)
+
+        expect(await castWithLog()).toEqual({ok: true, vitrine: VITRINE})
+        expect(mockRunCastReceipt.mock.calls[0][0]).toMatchObject({
+            cast: VITRINE,
+            target: {
+                eventId: "event-1",
+                electionId: "election-1",
+                stage: "cast",
+                ballotId: "ab".repeat(32),
+            },
+            checkOnly: true,
+        })
+        expect(mockDispatch).toHaveBeenCalledWith(
+            setConfirmationScreenData({
+                electionId: "election-1",
+                confirmationScreenData: {
+                    ballotId: "FTBE-MHRX-0123-4567",
+                    isDemo: false,
+                    vitrine: {cast: VITRINE, transparency},
+                },
+            })
+        )
+    })
+
+    it("confirms a queued entry on the ballot box's signature", async () => {
+        checked(EStageCheck.WAITING)
+
+        expect(await castWithLog()).toMatchObject({ok: true})
+    })
+
+    it("stays on review, with the not received problem, when the receipt does not check", async () => {
+        checked(EStageCheck.FAILED)
+
+        expect(await castWithLog()).toEqual({ok: false})
+        expect(setErrorMsg).toHaveBeenCalledWith("reviewScreen.error.NOT_RECEIVED")
+        expect(mockDispatch).not.toHaveBeenCalled()
+        expect(mockForgetVoterSigningKey).not.toHaveBeenCalled()
+    })
 })

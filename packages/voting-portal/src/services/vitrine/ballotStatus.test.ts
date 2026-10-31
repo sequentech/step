@@ -218,6 +218,6 @@ describe("ballotTagOf", () => {
     })
 
     it("uses the keys of the tag's words as its values", () => {
-        expect(Object.values(EBallotTag)).toEqual(["notCast", "cast", "auditable"])
+        expect(Object.values(EBallotTag)).toEqual(["notCast", "cast", "auditable", "audited"])
     })
 })

@@ -269,6 +269,7 @@ const tagalogTranslation: TranslationType = {
                 NO_AUDITABLE_BALLOT: "Walang balota na maaring suriin. Pakikontak ang helpdesk.",
                 INCONSISTENT_HASH:
                     "Nagkaroon ng error kaugnay sa proseso ng pag-hash ng balota. Ang Tracking ID: {{ballotId}} ay hindi tugma sa sinusuring Hash ng Balota: {{auditableBallotHash}}. Pakireport itong isyu sa helpdesk.",
+                NOT_RECEIVED: "Wala pa ang iyong balota sa pampublikong talaan, kaya hindi ito naipadala. Bumalik sa iyong balota at subukan muli.",
                 ELECTION_EVENT_NOT_OPEN:
                     "Ang kaganapan ng halalan ay sarado na. Pakikontak ang helpdesk.",
                 PARSE_ERROR:
@@ -555,6 +556,8 @@ const tagalogTranslation: TranslationType = {
             notFound: "Ang iyong Tracking ID {{ballotId}} ay hindi natagpuan",
             contentDesc: "Ito ang nilalaman ng iyong balota: ",
             wrongFormatBallotId: "Mali ang format para sa Tracking ID",
+            ambiguous: "Maraming balota mo ang nagsisimula sa {{ballotId}}. Pumili ng isa:",
+            ambiguousMany: "Maraming balota mo ang nagsisimula sa {{ballotId}}. I-type ang mas marami pa sa Tracking ID.",
             ballotIdNotFoundAtFilter:
                 "Hindi natagpuan. Tiyaking tama ang iyong Tracking ID at nabibilang ito sa gumagamit na ito.",
             filterByBallotId: "I-filter ayon sa Tracking ID",
@@ -759,6 +762,7 @@ const tagalogTranslation: TranslationType = {
                     cast: "Naiboto",
                     notCast: "Hindi naiboto",
                     auditable: "Maaaring i-audit",
+                    audited: "Na-audit",
                 },
                 state: {
                     notcast: "Hindi pa naiboto",

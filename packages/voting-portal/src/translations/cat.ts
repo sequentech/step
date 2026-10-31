@@ -271,6 +271,7 @@ const catalanTranslation: TranslationType = {
                     "No hi ha cap papereta auditable disponible. Si us plau, contacteu amb el servei d'assistència.",
                 INCONSISTENT_HASH:
                     "Hi ha hagut un error relacionat amb el procés de hashing de la papereta. L'ID de seguiment: {{ballotId}} no és consistent amb el Hash de la Papereta Auditable: {{auditableBallotHash}}. Si us plau, informeu d'aquest problema al servei d'assistència.",
+                NOT_RECEIVED: "El registre públic encara no conté la teva papereta, de manera que no s'ha enviat. Torna a la teva papereta i torna-ho a provar.",
                 ELECTION_EVENT_NOT_OPEN:
                     "L'esdeveniment electoral està tancat. Si us plau, contacteu amb el servei d'assistència.",
                 PARSE_ERROR:
@@ -558,6 +559,8 @@ const catalanTranslation: TranslationType = {
             notFound: "El vostre ID de seguiment {{ballotId}} no ha estat trobat",
             contentDesc: "Aquest és el contingut de la vostra papereta: ",
             wrongFormatBallotId: "Format incorrecte per l'ID de seguiment",
+            ambiguous: "Diverses de les teves paperetes comencen per {{ballotId}}. Tria'n una:",
+            ambiguousMany: "Diverses de les teves paperetes comencen per {{ballotId}}. Escriu més de l'ID de seguiment.",
             ballotIdNotFoundAtFilter:
                 "No trobat, comproveu que l'ID de seguiment sigui correcte i pertanyi a l'usuari actual.",
             filterByBallotId: "Filtra per ID de seguiment",
@@ -761,6 +764,7 @@ const catalanTranslation: TranslationType = {
                     cast: "Emesa",
                     notCast: "No emesa",
                     auditable: "Auditable",
+                    audited: "Auditada",
                 },
                 state: {
                     notcast: "Encara no emesa",

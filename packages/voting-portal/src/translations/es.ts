@@ -270,6 +270,7 @@ const spanishTranslation: TranslationType = {
                     "No hay una papeleta verificable disponible. Por favor, contacte con el soporte.",
                 INCONSISTENT_HASH:
                     "Hubo un error relacionado con el proceso de hash de la papeleta. El ID de seguimiento: {{ballotId}} no es coherente con el Hash de la Papeleta Verificable: {{auditableBallotHash}}. Por favor, informe de este problema al soporte.",
+                NOT_RECEIVED: "El registro público aún no contiene tu papeleta, por lo que no se ha enviado. Vuelve a tu papeleta e inténtalo de nuevo.",
                 ELECTION_EVENT_NOT_OPEN:
                     "El evento electoral está cerrado. Por favor, contacte con el soporte.",
                 PARSE_ERROR:
@@ -557,6 +558,8 @@ const spanishTranslation: TranslationType = {
             notFound: "Su ID de seguimiento {{ballotId}} no fue encontrado",
             contentDesc: "Este es el contenido de su papeleta: ",
             wrongFormatBallotId: "Formato incorrecto para el ID de seguimiento",
+            ambiguous: "Varias de tus papeletas empiezan por {{ballotId}}. Elige una:",
+            ambiguousMany: "Varias de tus papeletas empiezan por {{ballotId}}. Escribe más del ID de seguimiento.",
             ballotIdNotFoundAtFilter:
                 "No encontrado, compruebe que el ID de seguimiento sea correcto y pertenezca a este usuario.",
             filterByBallotId: "Filtrar por ID de seguimiento",
@@ -760,6 +763,7 @@ const spanishTranslation: TranslationType = {
                     cast: "Emitida",
                     notCast: "No emitida",
                     auditable: "Auditable",
+                    audited: "Auditada",
                 },
                 state: {
                     notcast: "Aún no emitida",

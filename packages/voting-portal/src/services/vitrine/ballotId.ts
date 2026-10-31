@@ -18,6 +18,8 @@ export const NARROW_GROUPS_PER_LINE = 4
 export enum EBallotIdInput {
     EMPTY = "empty",
     SHORT = "short",
+    /** More than the short ID, less than the full one: the start of an ID. */
+    PARTIAL = "partial",
     FULL = "full",
     INVALID = "invalid",
 }
@@ -58,13 +60,16 @@ export const ballotIdLines = (value: string, perLine: number): string[][] => {
     return lines
 }
 
-/** Whether the input is a short ID, a full one, or neither. */
+/** Whether the input is a short ID, the start of one, a full one, or none. */
 export const ballotIdInput = (value: string): EBallotIdInput => {
     const chars = ballotIdChars(value)
     if (!chars) return EBallotIdInput.EMPTY
     if (!ALPHABET.test(chars)) return EBallotIdInput.INVALID
     if (chars.length === SHORT_BALLOT_ID_LENGTH) return EBallotIdInput.SHORT
     if (chars.length === FULL_BALLOT_ID_LENGTH) return EBallotIdInput.FULL
+    if (chars.length > SHORT_BALLOT_ID_LENGTH && chars.length < FULL_BALLOT_ID_LENGTH) {
+        return EBallotIdInput.PARTIAL
+    }
     return EBallotIdInput.INVALID
 }
 

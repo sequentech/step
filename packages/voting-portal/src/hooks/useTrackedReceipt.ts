@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {useEffect, useState} from "react"
+import type {BallotStage} from "@vitrine/verify"
+import {ballotIdChars} from "../services/vitrine/ballotId"
+import {trackingDigestHex} from "../services/vitrine/trackingId"
 import {IReceiptView, runKeptReceipt} from "../services/vitrine/castReceipt"
 import type {ITrackerReceipt} from "../services/vitrine/ballotTracker"
 import type {ITransparency} from "../services/vitrine/presentation"
@@ -18,7 +21,10 @@ interface IFetchedReceipt {
 export interface ITrackedBallot {
     eventId: string
     electionId: string
+    /** The ballot's Tracking ID. */
     ballotId: string
+    /** The stage of the entry to check: `cast` unless the ballot was audited. */
+    stage?: BallotStage
     /** The entry's `accepted_at`, in POSIX seconds, when the portal knows it. */
     acceptedAt?: number
 }
@@ -35,11 +41,15 @@ export const useTrackedReceipt = (
     const [fetched, setFetched] = useState<IFetchedReceipt>()
     const eventId = ballot?.eventId
     const electionId = ballot?.electionId
-    const ballotId = ballot?.ballotId.toLowerCase()
+    const ballotId = ballot ? ballotIdChars(ballot.ballotId) : undefined
+    const stage = ballot?.stage ?? "cast"
     const acceptedAt = ballot?.acceptedAt
-    const key = `${eventId}/${electionId}/${ballotId}`
+    const key = `${eventId}/${electionId}/${stage}/${ballotId}`
     const keptEntry = receipts.find(
-        (r) => r.kept.electionId === electionId && r.kept.ballotId.toLowerCase() === ballotId
+        (r) =>
+            stage === "cast" &&
+            r.kept.electionId === electionId &&
+            ballotIdChars(r.kept.ballotId) === ballotId
     )
     const asking =
         !keptEntry &&
@@ -53,22 +63,27 @@ export const useTrackedReceipt = (
         if (!asking || !eventId || !electionId || !ballotId || acceptedAt === undefined) return
         const controller = new AbortController()
         setFetched({key, done: false})
-        void runKeptReceipt({
-            acceptedAt,
-            target: {eventId, electionId, ballotId},
-            transparency,
-            signal: controller.signal,
-            onView: (view) => setFetched({key, view, done: false}),
-        }).then(() => {
+        const run = async () => {
+            const digest = await trackingDigestHex(ballotId)
+            if (digest) {
+                await runKeptReceipt({
+                    acceptedAt,
+                    target: {eventId, electionId, stage, ballotId: digest},
+                    transparency,
+                    signal: controller.signal,
+                    onView: (view) => setFetched({key, view, done: false}),
+                })
+            }
             if (controller.signal.aborted) return
             setFetched((current) => ({
                 key,
                 ...(current?.key === key && current.view ? {view: current.view} : {}),
                 done: true,
             }))
-        })
+        }
+        void run()
         return () => controller.abort()
-    }, [asking, key, eventId, electionId, ballotId, acceptedAt, transparency])
+    }, [asking, key, eventId, electionId, ballotId, stage, acceptedAt, transparency])
 
     if (keptEntry) return {view: keptEntry.view, kept: true, settled: keptEntry.view !== undefined}
     const mine = fetched?.key === key ? fetched : undefined

@@ -7,6 +7,11 @@ export const AUDIT_BALLOT = gql`
         audit_ballot(election_id: $electionId, ballot_id: $ballotId) {
             ballot_id
             status
+            vitrine {
+                kind
+                text
+                reason
+            }
         }
     }
 `

@@ -20,7 +20,10 @@ jest.mock("react-i18next", () => ({
     useTranslation: () => ({t: (key: string) => key, i18n: {language: "en"}}),
     Trans: () => null,
 }))
-jest.mock("@apollo/client/react", () => ({useMutation: () => [mockAudit]}))
+jest.mock("@apollo/client/react", () => ({
+    useMutation: () => [mockAudit],
+    useApolloClient: () => ({}),
+}))
 jest.mock("../providers/SettingsContextProvider", () => ({
     SettingsContext: require("react").createContext({
         globalSettings: {BALLOT_VERIFIER_URL: "https://verifier.test/", DISABLE_AUTH: false},

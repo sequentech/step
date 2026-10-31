@@ -270,6 +270,7 @@ const dutchTranslation: TranslationType = {
                     "Er is geen auditeerbaar stembiljet beschikbaar. Neem contact op met ondersteuning.",
                 INCONSISTENT_HASH:
                     "Er was een fout met het hash-proces van het stembiljet. Tracking-ID: {{ballotId}} is niet consistent met de auditeerbare Ballot Hash: {{auditableBallotHash}}. Meld dit probleem bij de ondersteuning.",
+                NOT_RECEIVED: "Het openbare register bevat uw stembiljet nog niet, dus het is niet verzonden. Ga terug naar uw stembiljet en probeer het opnieuw.",
                 ELECTION_EVENT_NOT_OPEN:
                     "De kiesgebeurtenis is gesloten. Neem contact op met ondersteuning.",
                 PARSE_ERROR:
@@ -556,6 +557,8 @@ const dutchTranslation: TranslationType = {
             notFound: "Uw Tracking-ID {{ballotId}} is niet gevonden",
             contentDesc: "Dit is de inhoud van uw stembiljet: ",
             wrongFormatBallotId: "Verkeerd formaat voor Tracking-ID",
+            ambiguous: "Meerdere van uw stembiljetten beginnen met {{ballotId}}. Kies er een:",
+            ambiguousMany: "Meerdere van uw stembiljetten beginnen met {{ballotId}}. Typ meer van de Tracking-ID.",
             ballotIdNotFoundAtFilter:
                 "Niet gevonden, controleer of uw Tracking-ID correct is en tot deze gebruiker behoort.",
             filterByBallotId: "Filteren op Tracking-ID",
@@ -758,6 +761,7 @@ const dutchTranslation: TranslationType = {
                     cast: "Uitgebracht",
                     notCast: "Niet uitgebracht",
                     auditable: "Auditeerbaar",
+                    audited: "Gecontroleerd",
                 },
                 state: {
                     notcast: "Nog niet uitgebracht",

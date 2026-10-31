@@ -73,6 +73,7 @@ jest.mock("../components/Stepper", () => ({
 }))
 jest.mock("@apollo/client/react", () => ({
     useMutation: () => [jest.fn()],
+    useApolloClient: () => ({}),
     useQuery: () => ({data: undefined, startPolling: jest.fn(), stopPolling: jest.fn()}),
 }))
 

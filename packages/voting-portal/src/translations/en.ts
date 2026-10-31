@@ -421,6 +421,7 @@ const englishTranslation = {
                     "There is no ballot available for audit. Please contact support",
                 INCONSISTENT_HASH:
                     "There was an error related to the ballot hashing process. Tracking ID: {{ballotId}} is not consistent with auditable Ballot Hash: {{auditableBallotHash}}. Please report this issue to support.",
+                NOT_RECEIVED: "The public record does not hold your ballot yet, so it was not sent. Go back to your ballot and try again.",
                 ELECTION_EVENT_NOT_OPEN: "This election is closed. You can no longer vote",
                 PARSE_ERROR:
                     "There was an error parsing the ballot. Please try again later or contact support for assistance.",
@@ -701,6 +702,8 @@ const englishTranslation = {
             notFound: "Your tracking ID {{ballotId}} was not found",
             contentDesc: "This is your Ballot content: ",
             wrongFormatBallotId: "Invalid Tracking ID format",
+            ambiguous: "Several of your ballots start with {{ballotId}}. Choose one:",
+            ambiguousMany: "Several of your ballots start with {{ballotId}}. Type more of the Tracking ID.",
             ballotIdNotFoundAtFilter:
                 "Not found, check that your Tracking ID is correct and belongs to this user.",
             filterByBallotId: "Filter by Tracking ID",
@@ -901,6 +904,7 @@ const englishTranslation = {
                     cast: "Cast",
                     notCast: "Not cast",
                     auditable: "Auditable",
+                    audited: "Audited",
                 },
                 state: {
                     notcast: "Not cast yet",

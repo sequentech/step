@@ -7,7 +7,7 @@ import {isBallotIdInput, typedBallotId} from "./BallotIdLookup"
 jest.mock("@sequentech/ui-core", () => ({
     normalizeTrackingId: (typed: string) => {
         const characters = typed.replace(/[-\s]/g, "").toUpperCase()
-        return /^[0-9A-HJKMNP-TV-Z]+$/.test(characters) && [4, 8, 52].includes(characters.length)
+        return /^[0-9A-HJKMNP-TV-Z]+$/.test(characters) && characters.length >= 8 && characters.length <= 52
             ? (characters.match(/.{1,4}/g) ?? []).join("-")
             : null
     },
@@ -16,12 +16,12 @@ jest.mock("@sequentech/ui-core", () => ({
 const HASH = "0123456789abcdef".repeat(4)
 
 describe("what a voter may type to find a ballot", () => {
-    it.each(["", "  ", HASH, HASH.toUpperCase(), "FTBE", "FTBE-MHRX", "ftbemhrx", "ftbe mhrx"])(
+    it.each(["", "  ", HASH, HASH.toUpperCase(), "FTBE-MHRX", "ftbemhrx", "ftbe mhrx", "ftbe-mhrx-1"])(
         "accepts %p",
         (input) => expect(isBallotIdInput(input)).toBe(true)
     )
 
-    it.each(["0", "01a", "xyz", "FTBE-MHR", "FTBE-MHRXX", "FTBE_MHRX", "FTBE-MHRU", "FTBE:MHRX"])(
+    it.each(["0", "01a", "xyz", "FTBE", "FTBE-MHR", "FTBE_MHRX", "FTBE-MHRU", "FTBE:MHRX"])(
         "refuses %p",
         (input) => expect(isBallotIdInput(input)).toBe(false)
     )

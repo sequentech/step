@@ -40,6 +40,7 @@ describe("Tracking IDs", () => {
         expect(ballotIdInput("ftbe mhrx")).toBe(EBallotIdInput.SHORT)
         expect(ballotIdInput(groupBallotId(FULL))).toBe(EBallotIdInput.FULL)
         expect(ballotIdInput("FTBE-MHR")).toBe(EBallotIdInput.INVALID)
+        expect(ballotIdInput("FTBE-MHRX-1")).toBe(EBallotIdInput.PARTIAL)
         expect(ballotIdInput("FTBE-MHRU")).toBe(EBallotIdInput.INVALID)
         expect(ballotIdInput(`${FULL}0`)).toBe(EBallotIdInput.INVALID)
     })

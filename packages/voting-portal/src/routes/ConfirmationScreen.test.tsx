@@ -182,8 +182,10 @@ const casting = (answer: (s: ReturnType<typeof scenario>, ballotId: string) => I
     const s = scenario()
     const ballotId = nextBallotId()
     const cast = answer(s, ballotId)
-    mockState = confirm(ballotId, {cast, transparency: readTransparency(s.presentation)})
-    return {s, ballotId, cast}
+    // The screen reads the ballot's Tracking ID, whose digest the entries name.
+    const tracking = pure.trackingId(ballotId)
+    mockState = confirm(tracking, {cast, transparency: readTransparency(s.presentation)})
+    return {s, ballotId: tracking, cast}
 }
 
 const receiptOf = (s: ReturnType<typeof scenario>, ballotId: string): IVitrineCast => {
@@ -211,7 +213,7 @@ const statusButton = (container: HTMLElement): HTMLButtonElement | null =>
 const stateOf = async (container: HTMLElement, expected: string): Promise<void> =>
     waitFor(() => expect(statusButton(container)?.getAttribute("data-status")).toBe(expected))
 
-const GROUPED_PATTERN = /^([0-9A-Z]{4}-){15}[0-9A-Z]{4}$/
+const GROUPED_PATTERN = /^([0-9A-Z]{4}-){12}[0-9A-Z]{4}$/
 
 /** Whether a rule of the page's styles, in any media query, hides the element.
  * jsdom applies no media query, so this is how a hiding at one width shows. */
@@ -259,7 +261,7 @@ describe("the Tracking ID on the confirmation screen", () => {
         expect(writeText).toHaveBeenCalledTimes(1)
         const copied = writeText.mock.calls[0][0]
         expect(copied).toMatch(GROUPED_PATTERN)
-        expect(copied.replace(/-/g, "")).toBe(ballotId.toUpperCase())
+        expect(copied).toBe(ballotId)
     })
 
     it("links the ID to the ballot tracker", async () => {

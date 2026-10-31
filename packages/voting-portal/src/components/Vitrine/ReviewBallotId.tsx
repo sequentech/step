@@ -15,6 +15,7 @@ import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {BallotHashCopyButton, IconButton, theme} from "@sequentech/ui-essentials"
 import {ballotIdGroups, groupBallotId, shortBallotId} from "../../services/vitrine/ballotId"
 import {EBallotStatus, EBallotTag} from "../../services/vitrine/ballotStatus"
+import type {IReceiptView} from "../../services/vitrine/castReceipt"
 import {BallotStatus, EBallotStatusTrigger} from "./BallotStatus"
 import {HEAVY_DOTS} from "./BallotStatusIcon"
 import {BallotTag} from "./BallotTag"
@@ -46,6 +47,8 @@ const fullIdParts = (ballotId: string): {lead: string; rest: string} => {
 
 export interface IReviewBallotIdProps {
     ballotId: string
+    /** The check of the ballot's `received` entry, once the log answered. */
+    view?: IReceiptView
     electionName?: string
     helpLabel: string
     onHelpClick: () => void
@@ -53,6 +56,7 @@ export interface IReviewBallotIdProps {
 
 export const ReviewBallotId: React.FC<IReviewBallotIdProps> = ({
     ballotId,
+    view,
     electionName,
     helpLabel,
     onHelpClick,
@@ -112,7 +116,7 @@ export const ReviewBallotId: React.FC<IReviewBallotIdProps> = ({
                 >
                     <BallotStatus
                         trigger={EBallotStatusTrigger.ICON}
-                        status={EBallotStatus.NOT_CAST}
+                        {...(view ? {view} : {status: EBallotStatus.NOT_CAST})}
                         ballotId={ballotId}
                         electionName={electionName}
                         strokeWidth={HEAVY_DOTS}

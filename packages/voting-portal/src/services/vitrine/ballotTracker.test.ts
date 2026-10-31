@@ -103,44 +103,45 @@ const states = (view: IReceiptView | undefined) => trackerSteps(view).map((s) =>
 
 describe("looking a ballot up from its address", () => {
     it("looks a short ID up by prefix, in any spacing and case", () => {
-        expect(ballotLookupOf("FTBEMHRX", false)).toEqual({ballotIdPrefix: "FTBEMHRX"})
-        expect(ballotLookupOf("ftbe-mhrx", false)).toEqual({ballotIdPrefix: "FTBEMHRX"})
+        expect(ballotLookupOf("FTBEMHRX")).toEqual({ballotIdPrefix: "FTBEMHRX"})
+        expect(ballotLookupOf("ftbe-mhrx")).toEqual({ballotIdPrefix: "FTBEMHRX"})
     })
 
     it("looks a full ID up as it is", () => {
-        expect(ballotLookupOf(FULL, false)).toEqual({ballotId: FULL})
+        expect(ballotLookupOf(FULL)).toEqual({ballotId: FULL})
     })
 
-    it("takes the first four characters only for telephone voting", () => {
-        expect(ballotLookupOf("FTBE", true)).toEqual({ballotIdPrefix: "FTBE"})
-        expect(ballotLookupOf("FTBE", false)).toEqual({ballotId: "FTBE"})
+    it("looks the start of an ID up by prefix from 8 characters, and nothing shorter", () => {
+        expect(ballotLookupOf("FTBE-MHRX-1")).toEqual({ballotIdPrefix: "FTBEMHRX1"})
+        expect(ballotLookupOf("FTBE")).toBeNull()
+        expect(ballotLookupOf("FTBE-MHR")).toBeNull()
     })
 
     it("looks nothing up for what isn't a Tracking ID, a voter pseudonym among it", () => {
-        expect(ballotLookupOf("FTBEMHRU", false)).toBeNull()
-        expect(ballotLookupOf("FTBE:MHRX", false)).toBeNull()
-        expect(ballotLookupOf("", false)).toBeNull()
-        expect(ballotLookupOf(undefined, false)).toBeNull()
+        expect(ballotLookupOf("FTBEMHRU")).toBeNull()
+        expect(ballotLookupOf("FTBE:MHRX")).toBeNull()
+        expect(ballotLookupOf("")).toBeNull()
+        expect(ballotLookupOf(undefined)).toBeNull()
     })
 })
 
 describe("what the search field holds", () => {
     it("takes the short ID and the full one, with or without hyphens", () => {
-        expect(trackerInput("FTBE-MHRX", false)).toBe(EBallotIdInput.SHORT)
-        expect(trackerInput("ftbemhrx", false)).toBe(EBallotIdInput.SHORT)
-        expect(trackerInput(FULL, false)).toBe(EBallotIdInput.FULL)
+        expect(trackerInput("FTBE-MHRX")).toBe(EBallotIdInput.SHORT)
+        expect(trackerInput("ftbemhrx")).toBe(EBallotIdInput.SHORT)
+        expect(trackerInput(FULL)).toBe(EBallotIdInput.FULL)
     })
 
-    it("refuses anything between, but telephone events take four characters", () => {
-        expect(trackerInput("FTBE", false)).toBe(EBallotIdInput.INVALID)
-        expect(trackerInput("FTBE", true)).toBe(EBallotIdInput.SHORT)
-        expect(trackerInput("FTBE-MH", true)).toBe(EBallotIdInput.INVALID)
-        expect(trackerInput("", true)).toBe(EBallotIdInput.EMPTY)
+    it("takes the start of an ID from 8 characters and refuses less", () => {
+        expect(trackerInput("FTBE-MHRX-1")).toBe(EBallotIdInput.PARTIAL)
+        expect(trackerInput("FTBE")).toBe(EBallotIdInput.INVALID)
+        expect(trackerInput("FTBE-MH")).toBe(EBallotIdInput.INVALID)
+        expect(trackerInput("")).toBe(EBallotIdInput.EMPTY)
     })
 
     it("does not take a voter pseudonym for a Tracking ID", () => {
-        expect(trackerInput("FTBE:MHRX", false)).toBe(EBallotIdInput.INVALID)
-        expect(trackerInput("FTBE:MHRX", true)).toBe(EBallotIdInput.INVALID)
+        expect(trackerInput("FTBE:MHRX")).toBe(EBallotIdInput.INVALID)
+        expect(trackerInput("FTBE:MHRX")).toBe(EBallotIdInput.INVALID)
     })
 
     it("notices characters the field leaves out", () => {

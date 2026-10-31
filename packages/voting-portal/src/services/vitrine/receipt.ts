@@ -8,7 +8,7 @@
 // entry the log answered for: the receipt's, or the one whose leaf hash a
 // promise names.
 
-import type {ChainResult, Expect, TierName, TierStatus} from "@vitrine/verify"
+import type {BallotStage, ChainResult, Expect, TierName, TierStatus} from "@vitrine/verify"
 import type {blocks} from "@vitrine/verify/pure"
 import type {IVitrineSdk} from "./sdk"
 import {EVitrineLog} from "./types"
@@ -17,7 +17,11 @@ import {EVitrineLog} from "./types"
 export interface IReceiptTarget {
     eventId: string
     electionId: string
-    /** The portal's own ballot ID: the hex of the ballot hash. */
+    /** The stage of the ballot's entry: `received` at review, `cast` when it
+     * is cast, `audited` when the voter audits it instead. */
+    stage: BallotStage
+    /** The ballot's Tracking ID digest as 64 lowercase hex digits: what the
+     * Tracking ID the voter reads is made of, and the entry's `ballot_id`. */
     ballotId: string
 }
 
@@ -52,14 +56,18 @@ const BROKEN: readonly TierStatus[] = ["invalid", "failed"]
 
 /** What the entry must be, from the portal's own IDs and, once known, the
  * entry's `accepted_at` (specs/receipt.md, section 1.1). */
-export const receiptExpect = (target: IReceiptTarget, acceptedAt?: number): Expect => ({
-    fields: {
-        event_id: target.eventId,
-        election_id: target.electionId,
-        ballot_id: target.ballotId.toLowerCase(),
-        ...(acceptedAt === undefined ? {} : {accepted_at: String(acceptedAt)}),
-    },
-})
+export const receiptExpect = (
+    sdk: IVitrineSdk,
+    target: IReceiptTarget,
+    acceptedAt?: number
+): Expect =>
+    sdk.verify.ballotExpect({
+        eventId: target.eventId,
+        electionId: target.electionId,
+        stage: target.stage,
+        ballotId: target.ballotId.toLowerCase(),
+        ...(acceptedAt === undefined ? {} : {acceptedAt}),
+    })
 
 /** The voter's entry as the ballot box accepted it at `acceptedAt`. */
 export const ownEntry = (
@@ -71,6 +79,7 @@ export const ownEntry = (
         return sdk.verify.buildElectionEntry({
             eventId: target.eventId,
             electionId: target.electionId,
+            stage: target.stage,
             ballotId: target.ballotId.toLowerCase(),
             acceptedAt,
         })

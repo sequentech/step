@@ -357,7 +357,10 @@ const ConfirmationBallotStatus: React.FC<ConfirmationBallotStatusProps> = ({
     trackerUrl,
 }) => {
     const {i18n} = useTranslation()
-    const target = useMemo(() => ({eventId, electionId, ballotId}), [eventId, electionId, ballotId])
+    const target = useMemo(
+        () => ({eventId, electionId, trackingId: ballotId}),
+        [eventId, electionId, ballotId]
+    )
     const {view, kept} = useCastReceipt(target, vitrine)
     const electionName = useElectionName(electionId)
     const electionEvent = useAppSelector(selectElectionEventById(eventId))

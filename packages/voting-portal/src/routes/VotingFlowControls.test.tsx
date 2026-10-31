@@ -193,6 +193,7 @@ jest.mock("../hooks/useReceiveBallot", () => ({
 }))
 jest.mock("../hooks/useCastReceivedBallot", () => ({
     signReceivedCast: (...args: unknown[]) => mockSignReceivedCast(...args),
+    receivedBallotTrackingId: (received: {ballot_id: string}) => received.ballot_id,
     useCastReceivedBallot: () => mockCastReceivedBallot,
 }))
 jest.mock("../hooks/root-back-link", () => ({
@@ -212,6 +213,7 @@ jest.mock("../components/SupportMaterial/SupportMaterial", () => ({SupportMateri
 jest.mock("../hooks/useVoterContext", () => ({useVoterContext: () => mockVoterContext}))
 jest.mock("@apollo/client/react", () => ({
     useMutation: () => [mockInsertCastVote],
+    useApolloClient: () => ({}),
     useQuery: (_query: unknown, options?: {variables?: Record<string, unknown>}) => ({
         data:
             options?.variables && "documentId" in options.variables
@@ -806,6 +808,7 @@ describe("ballot received by the ballot box at review", () => {
     const received = (): IReceiveBallotState => ({
         status: EReceiveBallotStatus.RECEIVED,
         ballotId: RECEIVED_BALLOT_ID,
+        trackingId: RECEIVED_BALLOT_ID,
     })
     const receivedBallot = {
         tenant_id: "tenant-1",
@@ -830,7 +833,7 @@ describe("ballot received by the ballot box at review", () => {
     }
     beforeEach(() => {
         mockSignReceivedCast.mockReturnValue(receivedCast)
-        mockCastReceivedBallot.mockResolvedValue(true)
+        mockCastReceivedBallot.mockResolvedValue({ok: true, vitrine: null})
     })
     const requireGoldLevel = () => {
         const election = mockState.elections["election-1"]!
@@ -861,7 +864,7 @@ describe("ballot received by the ballot box at review", () => {
         let fail!: (value: boolean) => void
         mockCastReceivedBallot.mockImplementationOnce(
             () =>
-                new Promise<boolean>((resolve) => {
+                new Promise<{ok: boolean; vitrine: null}>((resolve) => {
                     fail = resolve
                 })
         )
@@ -1043,8 +1046,8 @@ describe("ballot received by the ballot box at review", () => {
         let finish!: (success: boolean) => void
         mockCastReceivedBallot.mockImplementationOnce(
             () =>
-                new Promise<boolean>((resolve) => {
-                    finish = resolve
+                new Promise<{ok: boolean; vitrine: null}>((resolve) => {
+                    finish = (success: boolean) => resolve({ok: success, vitrine: null})
                 })
         )
         renderRoute(<ReviewScreen />, "review")
@@ -1064,8 +1067,8 @@ describe("ballot received by the ballot box at review", () => {
         let finish!: (success: boolean) => void
         mockCastReceivedBallot.mockImplementationOnce(
             () =>
-                new Promise<boolean>((resolve) => {
-                    finish = resolve
+                new Promise<{ok: boolean; vitrine: null}>((resolve) => {
+                    finish = (success: boolean) => resolve({ok: success, vitrine: null})
                 })
         )
         const view = renderRoute(<ReviewScreen />, "review")
@@ -1086,8 +1089,8 @@ describe("ballot received by the ballot box at review", () => {
         let finish!: (success: boolean) => void
         mockCastReceivedBallot.mockImplementationOnce(
             () =>
-                new Promise<boolean>((resolve) => {
-                    finish = resolve
+                new Promise<{ok: boolean; vitrine: null}>((resolve) => {
+                    finish = (success: boolean) => resolve({ok: success, vitrine: null})
                 })
         )
         const view = renderRoute(<ReviewScreen />, "review")
@@ -1125,14 +1128,19 @@ describe("ballot received by the ballot box at review", () => {
         await userEvent.setup().click(cast)
         await waitFor(() => expect(routeAction).toHaveBeenCalledTimes(1))
         expect(mockSignReceivedCast).toHaveBeenCalledWith(receivedBallot, ballotBoxKey)
-        expect(mockCastReceivedBallot).toHaveBeenCalledWith(receivedCast, expect.any(Function))
+        expect(mockCastReceivedBallot).toHaveBeenCalledWith(
+            receivedCast,
+            expect.any(Function),
+            undefined,
+            expect.anything()
+        )
         // The ballot is not sent again: the ballot box casts the one it has.
         expect(mockInsertCastVote).not.toHaveBeenCalled()
     })
 
     it("stays on the review screen when the ballot box's cast receipt is not accepted", async () => {
         receiveAtReview()
-        mockCastReceivedBallot.mockResolvedValue(false)
+        mockCastReceivedBallot.mockResolvedValue({ok: false})
         renderRoute(<ReviewScreen />, "review")
 
         const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
@@ -1229,6 +1237,7 @@ describe("ballot received by the ballot box at review", () => {
             auditableBallot: mockState.auditableBallots["election-1"]!.auditableBallot,
             ballotHash: BALLOT_ID,
             isMultiContest: false,
+            transparency: expect.anything(),
             skip: false,
         })
     })
@@ -1291,7 +1300,8 @@ describe("ballot received by the ballot box at review", () => {
         expect(mockCastReceivedBallot).toHaveBeenCalledWith(
             receivedCast,
             expect.any(Function),
-            expect.any(Function)
+            expect.any(Function),
+            undefined
         )
         expect(mockInsertCastVote).not.toHaveBeenCalled()
     })

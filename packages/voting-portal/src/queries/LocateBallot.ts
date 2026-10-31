@@ -22,6 +22,7 @@ export const LOCATE_BALLOT = gql`
             content
             cast_at
             checks_available_until
+            matches
         }
     }
 `
