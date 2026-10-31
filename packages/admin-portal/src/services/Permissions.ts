@@ -36,12 +36,6 @@ const AdminOperationMap: Record<string, IPermissions> = {
     // ballot_style
     sequent_backend_ballot_style: IPermissions.PUBLISH_READ,
     sequent_backend_ballot_styles: IPermissions.PUBLISH_READ,
-    insert_sequent_backend_ballot_style: IPermissions.PUBLISH_WRITE,
-    insert_sequent_backend_ballot_styles: IPermissions.PUBLISH_WRITE,
-    update_sequent_backend_ballot_style: IPermissions.PUBLISH_WRITE,
-    update_sequent_backend_ballot_styles: IPermissions.PUBLISH_WRITE,
-    delete_sequent_backend_ballot_style: IPermissions.PUBLISH_WRITE,
-    delete_sequent_backend_ballot_styles: IPermissions.PUBLISH_WRITE,
     // candidate
     sequent_backend_candidate: IPermissions.CANDIDATE_READ,
     sequent_backend_candidates: IPermissions.CANDIDATE_READ,
