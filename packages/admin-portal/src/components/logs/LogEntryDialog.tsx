@@ -356,8 +356,7 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
                     configurationPackageDescription(t, view.statementKind, message) ??
                     (ballot
                         ? t(
-                              `ballotPrivacy.admin.${entry.statement_kind === "BallotReceived" ? "received" : "cast"}Title`,
-                              {ballotId: ballot.ballotId}
+                              `ballotPrivacy.admin.${entry.statement_kind === "BallotReceived" ? "received" : "cast"}Summary`
                           )
                         : view.description || "-")}
             </Typography>
@@ -456,7 +455,10 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
                         <Fact label={String(t("ballotPrivacy.pseudonym"))}>
                             <PseudonymChip code={ballot.pseudonym} />
                         </Fact>
-                        <Fact label={String(t("ballotPrivacy.ballotId"))}>
+                        <Fact
+                            label={String(t("ballotPrivacy.admin.receiptKey"))}
+                            detail={t("ballotPrivacy.admin.receiptKeyHelp")}
+                        >
                             <Box component="span" sx={{fontFamily: "monospace", fontWeight: 600}}>
                                 {ballot.ballotId}
                             </Box>

@@ -89,15 +89,26 @@ export const BallotEntryEvidence: React.FC<{
                 }}
             >
                 {[
-                    {label: t("ballotPrivacy.admin.voterKey"), value: voterKey},
-                    {label: t("ballotPrivacy.boxKey"), value: trust.ballot_box_key.public_key},
-                ].map(({label, value}) => (
+                    {
+                        label: t("ballotPrivacy.trackingId"),
+                        value: proof.tracking_id ?? null,
+                        full: true,
+                        help: t("ballotPrivacy.trackingIdHelp"),
+                    },
+                    {label: t("ballotPrivacy.admin.voterKey"), value: voterKey, full: false},
+                    {
+                        label: t("ballotPrivacy.boxKey"),
+                        value: trust.ballot_box_key.public_key,
+                        full: false,
+                    },
+                ].map(({label, value, full, help}) => (
                     <Box
                         key={label}
                         sx={{
                             display: "grid",
                             gridTemplateColumns: {xs: "1fr", sm: "8rem minmax(0, 1fr)"},
                             columnGap: 2,
+                            gridColumn: full ? "1 / -1" : undefined,
                             minWidth: 0,
                         }}
                     >
@@ -115,7 +126,17 @@ export const BallotEntryEvidence: React.FC<{
                                 overflowWrap: "anywhere",
                             }}
                         >
-                            {value ? shortened(value, 16, 4) : "—"}
+                            {value ? (full ? value : shortened(value, 16, 4)) : "—"}
+                            {help ? (
+                                <Typography
+                                    component="span"
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{display: "block", fontFamily: "inherit"}}
+                                >
+                                    {help}
+                                </Typography>
+                            ) : null}
                         </Typography>
                     </Box>
                 ))}
@@ -223,7 +244,9 @@ export const BallotEntryEvidence: React.FC<{
                                         sx={{m: 0, lineHeight: 1.5, overflowWrap: "anywhere"}}
                                     >
                                         {t(`ballotPrivacy.admin.${label}Title`, {
-                                            ballotId: proof.tracking_id ?? proof.ballot_id,
+                                            ballotId: proof.tracking_id
+                                                ? proof.tracking_id.slice(0, 9)
+                                                : proof.ballot_id,
                                         })}
                                         {kind === "CastVote" && proof.voting_channel
                                             ? `, ${t(`ballotPrivacy.channels.${proof.voting_channel.toLowerCase()}`, {defaultValue: proof.voting_channel})}`
