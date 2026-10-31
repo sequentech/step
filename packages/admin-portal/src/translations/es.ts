@@ -1807,6 +1807,9 @@ const spanishTranslation: TranslationType = {
                         archive: "¿Está seguro de que desea archivar este elemento?",
                         unarchive: "¿Está seguro de que desea desarchivar este elemento?",
                         delete: "¿Está seguro de que desea eliminar este elemento?",
+                        archiveNamed: '¿Está seguro de que desea archivar "{{name}}"?',
+                        unarchiveNamed: '¿Está seguro de que desea desarchivar "{{name}}"?',
+                        deleteNamed: '¿Está seguro de que desea eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {
