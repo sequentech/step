@@ -330,9 +330,13 @@ const catalanTranslation: TranslationType = {
             common: {
                 gapiKey: "Clau de Compte de Servei de Google Calendar",
                 gapiEmail: "Correu d'Autenticació de Google Calendar",
+                gapiKeyHelper:
+                    "La clau desada no es mostra. Enganxeu una clau nova per substituir-la.",
+                gapiKeySaved: "Clau de Compte de Servei de Google Calendar desada",
             },
             errors: {
                 invalidGapiKey: "Format de Clau de Compte de Servei de Google Calendar invàlid",
+                saveGapiKey: "No s'ha pogut desar la Clau de Compte de Servei de Google Calendar",
             },
         },
         lookAndFeelScreen: {
