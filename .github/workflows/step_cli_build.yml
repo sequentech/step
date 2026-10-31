@@ -42,7 +42,7 @@ jobs:
         run: |
           selection=$(GITHUB_OUTPUT=/dev/null python3 -m scripts.dev.ci plan --base "$BASE" --validation "$VALIDATION")
           if jq -e 'any(.rust[]; .service == "step-cli")' <<<"$selection" >/dev/null \
-            || ! git diff --quiet "$BASE" HEAD -- .github/workflows/step_cli_build.yml; then
+            || ! git diff --quiet "$(git merge-base "$BASE" HEAD)" HEAD -- .github/workflows/step_cli_build.yml; then
             echo "build=true" >> "$GITHUB_OUTPUT"
           else
             echo "build=false" >> "$GITHUB_OUTPUT"

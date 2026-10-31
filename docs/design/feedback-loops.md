@@ -448,7 +448,7 @@ received Lite reviews after runner timeouts. CodeRabbit reviewed phases 2 and 3;
   coverage fixtures pass in hosted CI at `1d25f2b73e`. The verifier catalog has its own Vite configuration,
   preserving shared Storybook settings and excluding the application HTML plugin;
   its actual 14-story static build, config typecheck and formatting pass.
-- **Rust compiler caching**: CI restores bounded sccache units separately from
+- **Rust compiler caching (historical)**: CI restored bounded sccache units separately from
   downloaded dependencies. On wrap-map-err, fresh output directories with an
   edited source compiled and passed all 18 tests in 3.42 s median, 3.42–3.52
   (n=10) without compiler reuse, versus 2.02 s, 1.97–2.07 (n=10) with it.
@@ -456,9 +456,9 @@ received Lite reviews after runner timeouts. CodeRabbit reviewed phases 2 and 3;
   (n=1, 18 tests). These small-crate results do not establish hosted full-workspace
   speedups. The hosted `1d25f2b73e` run restores no Rust compiler snapshots:
   all ten jobs have cache misses, with 4,063 Rust misses and no Rust hits. Its
-  411 C/C++/assembler hits occur within the sequent-core job. Successful normal PR runs now save snapshots within GitHub's isolated merge-ref
-  cache scope; trusted pushes seed shared snapshots, and other events remain
-  restore-only. Compiler keys add run/attempt generations under the complete
+  411 C/C++/assembler hits occur within the sequent-core job. Successful normal PR runs saved snapshots within GitHub's isolated merge-ref
+  cache scope; trusted pushes seeded shared snapshots, and other events remained
+  restore-only. Compiler keys added run/attempt generations under the complete
   compiler-and-lock identity so source edits can refresh stored units. Cargo
   downloads keep fixed lockfile keys. Twenty modeled runs verify refresh, retry,
   success-only saves, incompatible identities and branch/PR isolation; seven

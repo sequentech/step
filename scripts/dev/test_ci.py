@@ -180,6 +180,7 @@ class PlanTests(unittest.TestCase):
             ("packages/sequent-core/src/lib.rs", True),
             ("packages/admin-portal/public/roboto/Roboto_latin_400.woff2", True),
             (".devcontainer/minio/public-assets/activity_logs_user.hbs", True),
+            ("packages/voting-load/Dockerfile", True),
         ):
             with self.subTest(path=path):
                 services = [row["service"] for row in self.plan(path)["rust"]]
