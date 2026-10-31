@@ -220,3 +220,8 @@
 /preview-scheduled-outcome-change
 /save-lifecycle-policies
 /readiness-check
+/vitrine/enable-transparency
+/vitrine/transparency
+/vitrine/upload-transparency-policy
+/vitrine/voter-context
+/vitrine/voter-forward

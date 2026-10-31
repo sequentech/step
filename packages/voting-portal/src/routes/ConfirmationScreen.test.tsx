@@ -211,7 +211,7 @@ const statusButton = (container: HTMLElement): HTMLButtonElement | null =>
 const stateOf = async (container: HTMLElement, expected: string): Promise<void> =>
     waitFor(() => expect(statusButton(container)?.getAttribute("data-status")).toBe(expected))
 
-const GROUPED_PATTERN = /^([0-9a-f]{4} ){15}[0-9a-f]{4}$/
+const GROUPED_PATTERN = /^([0-9A-Z]{4}-){15}[0-9A-Z]{4}$/
 
 /** Whether a rule of the page's styles, in any media query, hides the element.
  * jsdom applies no media query, so this is how a hiding at one width shows. */
@@ -250,7 +250,7 @@ describe("the Tracking ID on the confirmation screen", () => {
         const {container, findAllByTestId} = renderScreen()
         const links = await findAllByTestId("ballot-id")
         expect(links).toHaveLength(1)
-        expect(links[0].textContent).toBe("0000 0000")
+        expect(links[0].textContent).toBe("0000-0000")
         expect(container.querySelector(".ballot-id-value-mobile")).toBeNull()
         expect(container.querySelector(".ballot-id-prefix")).toBeNull()
         await act(async () => {
@@ -259,7 +259,7 @@ describe("the Tracking ID on the confirmation screen", () => {
         expect(writeText).toHaveBeenCalledTimes(1)
         const copied = writeText.mock.calls[0][0]
         expect(copied).toMatch(GROUPED_PATTERN)
-        expect(copied.replace(/ /g, "")).toBe(ballotId)
+        expect(copied.replace(/-/g, "")).toBe(ballotId.toUpperCase())
     })
 
     it("links the ID to the ballot tracker", async () => {

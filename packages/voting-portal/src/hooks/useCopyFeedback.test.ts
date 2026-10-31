@@ -24,8 +24,8 @@ describe("copying with feedback", () => {
         const {result} = renderHook(() => useCopyFeedback())
         expect(result.current.copied).toBe(false)
 
-        act(() => result.current.copy("30ff d314"))
-        expect(writeText).toHaveBeenCalledWith("30ff d314")
+        act(() => result.current.copy("FTBE-MHRX"))
+        expect(writeText).toHaveBeenCalledWith("FTBE-MHRX")
         expect(result.current.copied).toBe(true)
 
         act(() => jest.advanceTimersByTime(COPIED_MS - 1))

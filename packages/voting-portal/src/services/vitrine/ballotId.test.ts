@@ -11,26 +11,25 @@ import {
     typedBallotId,
 } from "./ballotId"
 
-const FULL = "30ffd31442386472fd6dbdb4df3695590f7a414d02ab24995befc5a940b89da1"
+const FULL = "FTBEMHRX0123456789ABCDEFGHJKMNPQRSTVWXYZ0123456789AB"
 
 describe("Tracking IDs", () => {
-    it("groups an ID in fours, whatever its spacing and case", () => {
-        expect(groupBallotId(FULL)).toBe(
-            "30ff d314 4238 6472 fd6d bdb4 df36 9559 0f7a 414d 02ab 2499 5bef c5a9 40b8 9da1"
-        )
-        expect(groupBallotId(" 30FF d3 14 ")).toBe("30ff d314")
+    it("groups an ID in fours with hyphens, whatever its spacing and case", () => {
+        expect(groupBallotId(FULL)).toBe("FTBE-MHRX-0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ-0123-4567-89AB")
+        expect(groupBallotId(" ftbe mh rx ")).toBe("FTBE-MHRX")
+        expect(groupBallotId("ftbo-mhrl")).toBe("FTB0-MHR1")
         expect(groupBallotId("")).toBe("")
     })
 
     it("takes the first two groups as the short ID", () => {
-        expect(shortBallotId(FULL)).toBe("30ff d314")
-        expect(shortBallotId("30ff")).toBe("30ff")
+        expect(shortBallotId(FULL)).toBe("FTBE-MHRX")
+        expect(shortBallotId("ftbe")).toBe("FTBE")
     })
 
     it("splits the full ID into lines", () => {
         const wide = ballotIdLines(FULL, 8)
         expect(wide).toHaveLength(2)
-        expect(wide[0]).toEqual(["30ff", "d314", "4238", "6472", "fd6d", "bdb4", "df36", "9559"])
+        expect(wide[0]).toEqual(["FTBE", "MHRX", "0123", "4567", "89AB", "CDEF", "GHJK", "MNPQ"])
         expect(ballotIdLines(FULL, 4)).toHaveLength(4)
         expect(ballotIdLines("", 4)).toEqual([])
     })
@@ -38,15 +37,21 @@ describe("Tracking IDs", () => {
     it("tells a short ID from a full one", () => {
         expect(ballotIdInput("")).toBe(EBallotIdInput.EMPTY)
         expect(ballotIdInput("   ")).toBe(EBallotIdInput.EMPTY)
-        expect(ballotIdInput("30FF D314")).toBe(EBallotIdInput.SHORT)
+        expect(ballotIdInput("ftbe mhrx")).toBe(EBallotIdInput.SHORT)
         expect(ballotIdInput(groupBallotId(FULL))).toBe(EBallotIdInput.FULL)
-        expect(ballotIdInput("30ff d31")).toBe(EBallotIdInput.INVALID)
-        expect(ballotIdInput("30ff d31g")).toBe(EBallotIdInput.INVALID)
-        expect(ballotIdInput(`${FULL}00`)).toBe(EBallotIdInput.INVALID)
+        expect(ballotIdInput("FTBE-MHR")).toBe(EBallotIdInput.INVALID)
+        expect(ballotIdInput("FTBE-MHRU")).toBe(EBallotIdInput.INVALID)
+        expect(ballotIdInput(`${FULL}0`)).toBe(EBallotIdInput.INVALID)
     })
 
-    it("keeps only hex digits as the voter types, up to a full ID", () => {
-        expect(typedBallotId("30-ff:D3 1x4")).toBe("30ff d314")
-        expect(typedBallotId(`${FULL}ffff`)).toBe(groupBallotId(FULL))
+    it("never takes a voter pseudonym for a Tracking ID", () => {
+        expect(ballotIdInput("FTBE:MHRX")).toBe(EBallotIdInput.INVALID)
+        expect(ballotIdInput("ftbe:mhrx")).toBe(EBallotIdInput.INVALID)
+    })
+
+    it("keeps only Tracking ID characters as the voter types, up to a full ID", () => {
+        expect(typedBallotId("ft-be:mh rx")).toBe("FTBE-:MHR-X")
+        expect(typedBallotId("ftbe mhrx u")).toBe("FTBE-MHRX")
+        expect(typedBallotId(`${FULL}FFFF`)).toBe(groupBallotId(FULL))
     })
 })

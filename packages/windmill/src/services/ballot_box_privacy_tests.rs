@@ -119,7 +119,8 @@ async fn privacy_sequencer_orders_bindings_and_deduplicates_recovery_on_runtime(
                     content: encrypted,
                     voter_signing_pk: &voter_pk,
                     voter_ballot_signature: &voter_signature,
-                },
+            vitrine: None,
+        },
                 now,
                 |_| {
                     Ok(ReceivedSignature {

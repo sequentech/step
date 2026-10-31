@@ -16,7 +16,7 @@ import {EAuditOutcome, auditBallot, TAuditedRecord, TAuditService} from "./ballo
 import {ERecordEncoding, ERecordKind} from "./ballotTracker"
 
 const TRACKING_ID = "9020e3849a0ad24eb0f322e1cd400b60618ecd1830dda699448a968cfc9ca5f7"
-const OTHER_ID = "30ffd31442386472fd6dbdb4df3695590f7a414d02ab24995befc5a940b89da1"
+const OTHER_ID = "FTBEMHRX0123456789ABCDEFGHJKMNPQRSTVWXYZ0123456789AB"
 
 const SELECTIONS: IDecodedVoteContest[] = [
     {

@@ -12,8 +12,8 @@
     "closes": 1793044800
   },
   "entries": [
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBCAAAJbXVuaS0yMDI2AAAFbWF5b3IAACAfwkSvK5bQFpoXfiVZryngSEdE5LhQHRBE12yfezzzBwAACAAAAABq3wi8",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBEAAAJbXVuaS0yMDI2AAAHY291bmNpbAAAII7zsNfER24sCpHMxYZ3QKBUkxO1hTRcHRJYfKLtBOn1AAAIAAAAAGrfCME="
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBJAAAJbXVuaS0yMDI2AAAFbWF5b3IAAARjYXN0AAAgH8JEryuW0BaaF34lWa8p4EhHROS4UB0QRNdsn3s88wcAAAgAAAAAat8IvA==",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBLAAAJbXVuaS0yMDI2AAAHY291bmNpbAAABGNhc3QAACCO87DXxEduLAqRzMWGd0CgVJMTtYU0XB0SWHyi7QTp9QAACAAAAABq3wjB"
   ],
   "sequenced": [
     1793001661,
@@ -36,6 +36,10 @@
         "value": "mayor"
       },
       {
+        "name": "stage",
+        "value": "cast"
+      },
+      {
         "name": "ballot_id",
         "value": "1fc244af2b96d0169a177e2559af29e0484744e4b8501d1044d76c9f7b3cf307"
       },
@@ -52,6 +56,10 @@
       {
         "name": "election_id",
         "value": "council"
+      },
+      {
+        "name": "stage",
+        "value": "cast"
       },
       {
         "name": "ballot_id",

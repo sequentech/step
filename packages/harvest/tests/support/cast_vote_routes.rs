@@ -110,6 +110,7 @@ async fn a_valid_vote_is_inserted_for_the_voter_and_needs_no_follow_up() {
             "ballot_id": "ballot-id",
             "cast_ballot_signature": null,
             "status": "valid",
+            "vitrine": null,
         })
     );
     assert_eq!(services.cast_votes.attempts(), vec![attempt()]);

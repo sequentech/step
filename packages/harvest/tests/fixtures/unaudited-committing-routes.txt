@@ -13,3 +13,4 @@ messaging_insights.rs: read-only statistics; a recount only queues bookkeeping f
 monitoring.rs: read-only dashboards and widgets; the commit only ends a read
 support_materials.rs: voting portal routes where voters acknowledge support materials in their own account
 voter_cast_votes.rs: voting portal route that reads a voter's own cast votes
+vitrine.rs: transparency status reads the event's state and the commit only ends the read; enabling and policy upload act through the Windmill tasks, which sign their own entries

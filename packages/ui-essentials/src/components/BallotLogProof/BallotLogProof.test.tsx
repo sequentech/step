@@ -46,7 +46,7 @@ test("all four checks must pass before verification succeeds; signed evidence re
     expect(
         within(screen.getByRole("list")).getAllByText("ballotPrivacy.states.passed")
     ).toHaveLength(4)
-    expect(screen.getByText(proof.pseudonym)).toBeVisible()
+    expect(screen.getByText("7QKM:2HXD")).toBeVisible()
     expect(screen.getByText(trust.system_public_key)).toBeVisible()
     expect(screen.getByText(trust.ballot_box_key.key_id)).toBeVisible()
     fireEvent.click(screen.getByRole("button", {name: "ballotPrivacy.signedEntries:2"}))

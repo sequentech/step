@@ -43,6 +43,9 @@ jest.mock(
         ),
         Icon: () => null,
         IconButton: () => null,
+        checkIsInvalidVote: () => false,
+        checkIsExplicitBlankVote: () => false,
+        getImageUrl: () => undefined,
         Dialog: () => null,
         ExpandableText: () => null,
         Candidate: ({title, description}: {title: string; description?: React.ReactNode}) => (
@@ -97,6 +100,24 @@ let mockTelephone = false
 let mockVotes: ICastVote[] = []
 const mockQueries: {name: string; variables: Record<string, unknown>}[] = []
 
+/** What the ballot box answers to a lookup, from the voter's ballots it would match. */
+const located = () =>
+    mockVotes.length === 1
+        ? {
+              status: "found",
+              ballot_id: mockVotes[0].ballot_id,
+              content: mockVotes[0].content,
+              cast_at: mockVotes[0].created_at,
+              checks_available_until: null,
+          }
+        : {
+              status: mockVotes.length ? "ambiguous" : "not-found",
+              ballot_id: null,
+              content: null,
+              cast_at: null,
+              checks_available_until: null,
+          }
+
 jest.mock("@apollo/client/react", () => ({
     useQuery: (
         query: {definitions: {kind: string; name?: {value: string}}[]},
@@ -113,17 +134,17 @@ jest.mock("@apollo/client/react", () => ({
                             {id: "election", voting_channels: {telephone: mockTelephone}},
                         ],
                     }
-                  : name === "GetCastVote"
-                    ? {cast_votes: mockVotes}
+                  : name === "LocateBallot"
+                    ? {locate_ballot: located()}
                     : undefined
         return {data, loading: false, refetch: jest.fn()}
     },
 }))
 
-const FULL = "30ffd31442386472fd6dbdb4df3695590f7a414d02ab24995befc5a940b89da1"
-const OTHER = "30ffd3149c071be27a50e3d946b108fcd25e6f13b7a4c9013e885d27a0c6f41b"
-const SHORT = "30ffd314"
-const GROUPED = "30ff d314 4238 6472 fd6d bdb4 df36 9559 0f7a 414d 02ab 2499 5bef c5a9 40b8 9da1"
+const FULL = "FTBEMHRX0123456789ABCDEFGHJKMNPQRSTVWXYZ0123456789AB"
+const OTHER = "FTBEMHRX9C071BE27A50E3D946B108FCD25E6F13B7A4C9013E88"
+const SHORT = "FTBEMHRX"
+const GROUPED = "FTBE-MHRX-0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ-0123-4567-89AB"
 const NOW = 1_793_270_528
 const TRACKER = {transparency: "public"}
 const PATH = "/tenant/tenant/event/event/election/election/ballot-locator"
@@ -293,14 +314,14 @@ beforeEach(() => {
 describe("the search of an event without transparency", () => {
     it("groups the ID in fours as the voter types", async () => {
         renderAt()
-        await userEvent.type(field(), "30FFd3144238")
-        expect(field().value).toBe("30ff d314 4238")
+        await userEvent.type(field(), "FTBEMHRX0123")
+        expect(field().value).toBe("FTBE-MHRX-0123")
     })
 
     it("takes the short ID and the full one, with or without spaces", async () => {
         renderAt()
         expect(findButton()).toBeDisabled()
-        await userEvent.type(field(), "30ff d31")
+        await userEvent.type(field(), "FTBE MHR")
         expect(findButton()).toBeDisabled()
         await userEvent.type(field(), "4")
         expect(findButton()).toBeEnabled()
@@ -316,8 +337,8 @@ describe("the search of an event without transparency", () => {
         renderAt()
         expect(screen.getByText("ballotLocator.idHelp")).toBeVisible()
         expect(screen.getByRole("alert")).toBeEmptyDOMElement()
-        await userEvent.type(field(), "30ffg")
-        expect(field().value).toBe("30ff")
+        await userEvent.type(field(), "FTBEU")
+        expect(field().value).toBe("FTBE")
         expect(screen.getByRole("alert")).toHaveTextContent("ballotLocator.wrongFormatBallotId")
         expect(screen.queryByText("ballotLocator.idHelp")).toBeNull()
         await userEvent.type(field(), "d")
@@ -326,23 +347,23 @@ describe("the search of an event without transparency", () => {
 
     it("finds the ballot by the ID without its spaces", async () => {
         renderAt()
-        await userEvent.type(field(), "30ff d314")
+        await userEvent.type(field(), "FTBE-MHRX")
         await userEvent.click(findButton())
         expect(router.state.location.pathname).toBe(`${PATH}/${SHORT}`)
     })
 
     it("finds the ballot when the voter presses Enter, but only for an ID", async () => {
         renderAt()
-        await userEvent.type(field(), "30ff{Enter}")
+        await userEvent.type(field(), "FTBE{Enter}")
         expect(router.state.location.pathname).toBe(PATH)
-        await userEvent.type(field(), "d314{Enter}")
+        await userEvent.type(field(), "MHRX{Enter}")
         expect(router.state.location.pathname).toBe(`${PATH}/${SHORT}`)
     })
 
     it("takes the first four characters for events with telephone voting", async () => {
         mockTelephone = true
         renderAt()
-        await userEvent.type(field(), "30ff")
+        await userEvent.type(field(), "FTBE")
         expect(findButton()).toBeEnabled()
     })
 
@@ -396,15 +417,15 @@ describe("the search of an event with transparency", () => {
 
     it("labels the field with the Tracking ID, and groups the ID in fours as the voter types", async () => {
         renderAt()
-        expect(field()).toHaveAttribute("placeholder", "30ff d314")
-        await userEvent.type(field(), "30FFd3144238")
-        expect(field().value).toBe("30ff d314 4238")
+        expect(field()).toHaveAttribute("placeholder", "FTBE-MHRX")
+        await userEvent.type(field(), "FTBEMHRX0123")
+        expect(field().value).toBe("FTBE-MHRX-0123")
     })
 
     it("takes the short ID and the full one, with or without spaces", async () => {
         renderAt()
         expect(find()).toBeDisabled()
-        await userEvent.type(field(), "30ff d31")
+        await userEvent.type(field(), "FTBE MHR")
         expect(find()).toBeDisabled()
         await userEvent.type(field(), "4")
         expect(find()).toBeEnabled()
@@ -425,8 +446,8 @@ describe("the search of an event with transparency", () => {
         }
         expect(screen.getByRole("alert")).toBeEmptyDOMElement()
 
-        await userEvent.type(field(), "30ffg")
-        expect(field().value).toBe("30ff")
+        await userEvent.type(field(), "FTBEU")
+        expect(field().value).toBe("FTBE")
         expect(field()).toHaveAttribute("aria-invalid", "true")
         const error = screen.getByRole("alert")
         expect(error).toHaveTextContent("ballotLocator.search.invalid")
@@ -441,15 +462,15 @@ describe("the search of an event with transparency", () => {
 
     it("finds the ballot with the button, or when the voter presses Enter, but only for an ID", async () => {
         renderAt()
-        await userEvent.type(field(), "30ff{Enter}")
+        await userEvent.type(field(), "FTBE{Enter}")
         expect(router.state.location.pathname).toBe(PATH)
-        await userEvent.type(field(), "d314{Enter}")
+        await userEvent.type(field(), "MHRX{Enter}")
         expect(router.state.location.pathname).toBe(`${PATH}/${SHORT}`)
     })
 
     it("finds the ballot with the button", async () => {
         renderAt()
-        await userEvent.type(field(), "30ff d314")
+        await userEvent.type(field(), "FTBE-MHRX")
         await userEvent.click(find())
         expect(router.state.location.pathname).toBe(`${PATH}/${SHORT}`)
     })
@@ -457,7 +478,7 @@ describe("the search of an event with transparency", () => {
     it("takes the first four characters for events with telephone voting", async () => {
         mockTelephone = true
         renderAt()
-        await userEvent.type(field(), "30ff")
+        await userEvent.type(field(), "FTBE")
         expect(find()).toBeEnabled()
     })
 
@@ -473,76 +494,13 @@ describe("the search of an event with transparency", () => {
     })
 })
 
-describe("ballots that share a short ID", () => {
-    beforeEach(() => {
-        mockVotes = [
-            vote(FULL, "2026-10-29T10:42:08.000000+00:00"),
-            vote(OTHER, "2026-10-28T18:05:00.000000+00:00"),
-        ]
-    })
-
-    it("lists each with its full ID and when it was cast, and asks for the prefix", () => {
-        renderAt(`/${SHORT}`)
-        expect(mockQueries.find((q) => q.name === "GetCastVote")?.variables).toEqual({
-            electionEventId: "event",
-            electionId: "election",
-            ballotIdPrefix: SHORT,
-        })
-        expect(screen.getByText(/ballotLocator\.matches\.title/)).toHaveTextContent(
-            '{"total":2,"shortId":"30ff d314"}'
-        )
-        const links = matchLinks()
-        expect(links).toHaveLength(2)
-        expect(links[0]).toHaveAttribute("href", `${PATH}/${FULL}`)
-        expect(links[0]).toHaveTextContent(GROUPED)
-        expect(links[0]).toHaveTextContent("ballotLocator.matches.cast")
-        expect(links[0]).toHaveTextContent("at 2026-10-29T10:42:08.000000+00:00")
-        expect(links[1]).toHaveAttribute("href", `${PATH}/${OTHER}`)
-    })
-
-    it("keeps the search step with the short ID in the field", () => {
-        renderAt(`/${SHORT}`)
-        expect(screen.getByTestId("steps")).toHaveTextContent("0")
-        expect(field().value).toBe("30ff d314")
-        expect(findButton()).toBeEnabled()
-        expect(screen.queryByRole("button", {name: "ballotLocator.locateAgain"})).toBeNull()
-    })
-
-    it("opens the ballot that the voter chooses", async () => {
-        renderAt(`/${SHORT}`)
-        await userEvent.click(matchLinks()[1])
-        expect(router.state.location.pathname).toBe(`${PATH}/${OTHER}`)
-    })
-
-    it("says whether each was cast or audited, as its record says", () => {
-        mockVotes = [
-            vote(FULL, "2026-10-29T10:42:08.000000+00:00", CAST_CONTENT),
-            vote(OTHER, "2026-10-28T18:05:00.000000+00:00", auditedContent(OTHER)),
-        ]
-        renderAt(`/${SHORT}`)
-        const links = matchLinks()
-        expect(links[0]).toHaveTextContent("ballotLocator.matches.cast")
-        expect(links[0]).not.toHaveTextContent("ballotLocator.matches.audited")
-        expect(links[1]).toHaveTextContent("ballotLocator.matches.audited")
-        expect(links[1]).not.toHaveTextContent("ballotLocator.matches.cast")
-    })
-
-    it("calls what it can't read cast, as the portal lists it", () => {
-        mockVotes = [vote(FULL, undefined, "{not JSON"), vote(OTHER, undefined, "{}")]
-        renderAt(`/${SHORT}`)
-        matchLinks().forEach((link) => {
-            expect(link).toHaveTextContent("ballotLocator.matches.cast")
-        })
-    })
-
-    it("lists them in the search card of an event with transparency", () => {
+describe("ballots that the ID does not tell apart", () => {
+    it("asks for more of the Tracking ID instead of choosing one", () => {
         mockPresentation = TRACKER
+        mockVotes = [vote(FULL), vote(OTHER)]
         renderAt(`/${SHORT}`)
-        const card = screen.getByRole("region", {name: "ballotLocator.search.title"})
-        expect(within(card).getByText(/ballotLocator\.matches\.title/)).toBeVisible()
-        expect(
-            within(card).getAllByRole("link", {name: /ballotLocator\.matches\.cast/})
-        ).toHaveLength(2)
+        expect(screen.getByText(/ballotLocator\.ambiguous/)).toBeVisible()
+        expect(screen.queryByText(/ballotLocator\.found /)).toBeNull()
         expect(screen.getByRole("button", {name: "ballotLocator.search.find"})).toBeEnabled()
     })
 })
@@ -565,17 +523,17 @@ describe("the result for an event with transparency", () => {
         renderAt(`/${FULL}`)
         expect(screen.getByTestId("steps")).toHaveTextContent("1")
         const found = screen.getByText(/ballotLocator\.found /)
-        expect(found).toHaveTextContent('"ballotId":"30ff d314"')
+        expect(found).toHaveTextContent('"ballotId":"FTBE-MHRX"')
         expect(found.closest("[role=status]")).not.toBeNull()
         expect(document.querySelector(".ballot-locator-success")).toBeNull()
         expect(screen.queryByText("ballotLocator.foundShort")).toBeNull()
         const ids = within(section())
         expect(ids.getByText("a11y.ballotIdLabel")).toBeVisible()
-        expect(ids.getByText("30ff d314", {selector: ".tracker-short-id"})).toBeVisible()
+        expect(ids.getByText("FTBE-MHRX", {selector: ".tracker-short-id"})).toBeVisible()
         expect(ids.getByText("ballotLocator.result.idComment")).toBeVisible()
         const full = section().querySelector(".tracker-full-id")
         expect(full?.textContent).toBe(GROUPED)
-        expect(full?.querySelector("b")?.textContent).toBe("30ff d314")
+        expect(full?.querySelector("b")?.textContent).toBe("FTBE-MHRX")
         expect(ids.getByText("b1d8 c475 6132 ··· 5a0d")).toBeVisible()
         expect(ids.getByRole("button", {name: "ballotLocator.result.save"})).toBeVisible()
     })
@@ -719,7 +677,7 @@ describe("the result for an event with transparency", () => {
         expect(screen.queryByRole("img", {name: /sealLabel/})).toBeNull()
         expect(screen.queryByText(/ballotLocator\.result\.status\./)).toBeNull()
         expect(section().querySelectorAll(".tracker-step")).toHaveLength(0)
-        expect(screen.getByText("30ff d314", {selector: ".tracker-short-id"})).toBeVisible()
+        expect(screen.getByText("FTBE-MHRX", {selector: ".tracker-short-id"})).toBeVisible()
         expect(screen.getByText(/ballotLocator\.found /)).toBeVisible()
         expect(
             within(section()).getByRole("region", {name: "ballotLocator.result.record.title"})
@@ -771,7 +729,7 @@ describe("the record in the result for an event with transparency", () => {
         renderAt(`/${FULL}`)
         expect(
             within(viewer()).getByRole("button", {
-                name: 'vitrine.record.download {"file":"ballot-30ffd314.json"}',
+                name: 'vitrine.record.download {"file":"ballot-FTBEMHRX.json"}',
             })
         ).toBeVisible()
     })
@@ -911,7 +869,7 @@ describe("the result for an event without transparency", () => {
         mockVotes = [vote(FULL)]
         renderAt(`/${FULL}`)
         expect(screen.getByText(/ballotLocator\.found /)).toHaveTextContent(`"ballotId":"${FULL}"`)
-        expect(screen.getByText("content of 30ffd314")).toBeVisible()
+        expect(screen.getByText("content of FTBEMHRX")).toBeVisible()
         expect(screen.queryByRole("region", {name: "ballotLocator.result.receipt"})).toBeNull()
         expect(screen.queryByText("ballotLocator.foundShort")).toBeNull()
         expect(screen.queryByRole("region", {name: "ballotLocator.result.record.title"})).toBeNull()

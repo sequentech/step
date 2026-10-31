@@ -186,13 +186,23 @@ impl Event {
                     area: &area,
                     voter_id,
                     ballot_id,
-                    content: &format!("ciphertext of {ballot_id}"),
+                    content: &envelope(),
                 },
             )
             .await;
         }
         area
     }
+}
+
+/// What a stored ballot says of its voter's key and ballot style: these are unsigned.
+fn envelope() -> String {
+    json!({"config": "config", "ballot_style_hash": "hash"}).to_string()
+}
+
+/// The Tracking ID of an unsigned ballot with this hash.
+fn tracking_id_of(hash: &str) -> String {
+    sequent_core::ballot_receipt::tracking_id(hash, None).unwrap()
 }
 
 #[tokio::test]
@@ -420,8 +430,12 @@ async fn a_ballot_the_voter_did_not_cast_is_not_found_and_nothing_is_looked_up_a
         "0abc12",
         now(),
     )
-    .await;
-    assert!(unknown_election.is_err());
+    .await
+    .unwrap();
+    // No telephone rule needs the election now: an election with no cast ballot of the
+    // voter's is a ballot that is not found, as any other.
+    assert_eq!(unknown_election.status, LocateBallotStatus::NotFound);
+    assert_eq!(unknown_election.ballot_id, None);
 }
 
 #[tokio::test]
@@ -440,50 +454,55 @@ async fn a_voter_finds_their_own_cast_ballot_and_never_another_voters() {
     .await;
     let area = f.cast(&tx, "voter", &["0abc12", "0abc34", "ffff00"]).await;
 
-    let found = f.locate_as(&tx, &area, "voter", " FFFF00 ").await;
+    let found = f
+        .locate_as(&tx, &area, "voter", &tracking_id_of("ffff00").to_lowercase())
+        .await;
     assert_eq!(found.status, LocateBallotStatus::Found);
-    assert_eq!(found.ballot_id.as_deref(), Some("ffff00"));
-    assert_eq!(found.content.as_deref(), Some("ciphertext of ffff00"));
+    assert_eq!(found.ballot_id, Some(tracking_id_of("ffff00")));
+    assert_eq!(found.content.as_deref(), Some(envelope().as_str()));
     assert!(found.cast_at.is_some());
     assert_eq!(
         found.checks_available_until.as_deref(),
         Some("2028-04-09T00:00:00+00:00")
     );
 
-    // By telephone the first four characters are read out: two ballots share
-    // these, so neither is shown.
-    let ambiguous = f.locate_as(&tx, &area, "voter", "0abc").await;
-    assert_eq!(ambiguous.status, LocateBallotStatus::Ambiguous);
-    assert_eq!(ambiguous.content, None);
-    let by_prefix = f.locate_as(&tx, &area, "voter", "ffff").await;
-    assert_eq!(by_prefix.ballot_id.as_deref(), Some("ffff00"));
+    // By telephone the first four characters are read out.
+    let by_prefix = f
+        .locate_as(&tx, &area, "voter", &tracking_id_of("ffff00")[..4])
+        .await;
+    assert_eq!(by_prefix.ballot_id, Some(tracking_id_of("ffff00")));
+    // The hash still finds it.
+    let by_hash = f.locate_as(&tx, &area, "voter", " FFFF00 ").await;
+    assert_eq!(by_hash.ballot_id, Some(tracking_id_of("ffff00")));
+    // A voter pseudonym is not a Tracking ID.
+    let pseudonym = tracking_id_of("ffff00").replace('-', ":");
+    let none = f.locate_as(&tx, &area, "voter", &pseudonym).await;
+    assert_eq!(none.status, LocateBallotStatus::NotFound);
 
     for (area, voter) in [(area, "another-voter"), (Uuid::new_v4(), "voter")] {
-        let hidden = f.locate_as(&tx, &area, voter, "ffff00").await;
+        let hidden = f
+            .locate_as(&tx, &area, voter, &tracking_id_of("ffff00"))
+            .await;
         assert_eq!(hidden.status, LocateBallotStatus::NotFound);
         assert_eq!(hidden.content, None);
     }
 }
 
 #[test]
-fn a_typed_ballot_id_becomes_an_exact_match_or_a_telephone_prefix() {
+fn a_typed_ballot_id_becomes_a_hash_or_a_tracking_id() {
     assert_eq!(
-        ballot_id_match(" 0ABC12 ", false),
+        ballot_id_match(" 0ABC12 "),
         Some(BallotIdMatch::Exact("0abc12".to_string()))
     );
     assert_eq!(
-        ballot_id_match("0ABC", true),
-        Some(BallotIdMatch::Prefix("0abc".to_string()))
+        ballot_id_match("ftbe mhrx"),
+        Some(BallotIdMatch::Tracking("FTBE-MHRX".to_string()))
     );
     assert_eq!(
-        ballot_id_match("0abc", false),
-        Some(BallotIdMatch::Exact("0abc".to_string()))
+        ballot_id_match("0abc"),
+        Some(BallotIdMatch::Tracking("0ABC".to_string()))
     );
-    assert_eq!(
-        ballot_id_match("ftbe mhrx", true),
-        Some(BallotIdMatch::Received("FTBE-MHRX".to_string()))
-    );
-    for text in ["", "50%", "not hex"] {
-        assert_eq!(ballot_id_match(text, true), None);
+    for text in ["", "50%", "not hex", "FTBE:MHRX"] {
+        assert_eq!(ballot_id_match(text), None);
     }
 }

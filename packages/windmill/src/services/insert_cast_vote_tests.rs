@@ -191,14 +191,16 @@ fn casts_in_transparent_events_carry_their_entry() {
         sidecar_name: "tenant/event/ballots".into(),
     };
     assert_eq!(
-        log.queue(1_793_520_123),
+        log.queue(1_793_520_123, Some([5; 32])),
         Some(VitrineQueue {
             log_id: 7,
             accepted_at: 1_793_520_123,
+            tracking_id: [5; 32],
         })
     );
-    assert_eq!(VitrineTarget::Off.queue(1), None);
-    assert_eq!(VitrineTarget::NoLog.queue(1), None);
+    assert_eq!(log.queue(1, None), None);
+    assert_eq!(VitrineTarget::Off.queue(1, Some([5; 32])), None);
+    assert_eq!(VitrineTarget::NoLog.queue(1, Some([5; 32])), None);
     let entry = VitrineEntry {
         entry: vec![1, 2, 3],
         leaf_hash: [9; 32],

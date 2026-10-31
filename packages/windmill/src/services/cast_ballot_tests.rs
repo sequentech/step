@@ -61,6 +61,7 @@ impl Fixture {
                 cast_at: None,
                 cast_signature: None,
                 cast_receipt_signature: None,
+                vitrine: None,
             },
         }
     }

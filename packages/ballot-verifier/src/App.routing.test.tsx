@@ -163,7 +163,7 @@ async function importAndContinue() {
         new File([JSON.stringify(single.ballot)], "audited-ballot.json", {type: "application/json"})
     )
     expect(await screen.findByText("Uploaded", {exact: true})).toBeVisible()
-    userEvent.type(screen.getByRole("textbox", {name: "Ballot ID"}), single.ballotId)
+    userEvent.type(screen.getByRole("textbox", {name: "Tracking ID"}), single.trackingId)
     userEvent.click(screen.getByRole("button", {name: "Next"}))
     return single
 }
@@ -220,11 +220,20 @@ describe("event routes", () => {
         services = serve()
         launch(`${voterEvent}/start`)
 
-        const {ballotId} = await importAndContinue()
+        const {trackingId} = await importAndContinue()
 
         await expectLocation(`${voterEvent}/confirmation`)
         expect(await screen.findByText("Alice Example", {exact: true})).toBeVisible()
-        expect(screen.getAllByText(ballotId)).toHaveLength(2)
+        expect(
+            screen.getAllByText(
+                (_, element) =>
+                    element?.tagName === "SPAN" &&
+                    element.textContent === trackingId &&
+                    !Array.from(element.children).some(
+                        (child) => child.textContent === trackingId
+                    )
+            )
+        ).toHaveLength(2)
         expect(screen.queryByText("Bob Example", {exact: true})).not.toBeInTheDocument()
     })
 

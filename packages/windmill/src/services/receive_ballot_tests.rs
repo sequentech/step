@@ -151,6 +151,7 @@ fn a_stored_ballot_reads_back_as_the_receipt_the_ballot_box_signed() {
         cast_at: None,
         cast_signature: None,
         cast_receipt_signature: None,
+        vitrine: None,
     };
 
     let read_back = stored_receipt(&tenant, stored);

@@ -181,6 +181,9 @@ impl Election {
     }
 }
 
+/// A stored ballot that names no voter key and no ballot style that matters here.
+const ENVELOPE: &str = r#"{"config":"config","ballot_style_hash":"hash"}"#;
+
 #[tokio::test]
 async fn only_the_style_published_for_the_voters_area_and_election_is_found() {
     let mut client = connect().await;
@@ -275,10 +278,11 @@ impl SignedBallot {
                     area_id: &area,
                     voter_id,
                     ballot_hash: hash,
-                    content: "ciphertext",
+                    content: ENVELOPE,
                     voter_signing_pk: &statement.voter_signing_pk,
                     voter_ballot_signature: &statement.voter_ballot_signature,
-                },
+            vitrine: None,
+        },
                 received_at(),
                 |_| {
                     Ok(ReceivedSignature {
@@ -351,7 +355,7 @@ async fn cast(
                 voter_id,
                 ballot_id: &received.statement.ballot_hash,
                 format: &format,
-                content: "ciphertext",
+                content: ENVELOPE,
                 voter_signature: None,
                 pseudonym_hash: &[0; 64],
                 ballot_hash: &[0; 64],
@@ -397,7 +401,7 @@ async fn a_signed_cast_is_stored_with_a_receipt_and_a_retry_returns_the_same_rec
     .unwrap();
     assert_eq!(input.ballot_id, "0abc12");
     assert_eq!(input.election_id, f.election);
-    assert_eq!(input.content, "ciphertext");
+    assert_eq!(input.content, ENVELOPE);
 
     let (cast_at, receipt) = sign_receipt(&received).unwrap();
     verify_cast_receipt(&published_key(&ballot.ballot_box_sk).unwrap(), &receipt).unwrap();
@@ -440,7 +444,9 @@ async fn a_signed_cast_is_stored_with_a_receipt_and_a_retry_returns_the_same_rec
         AcceptOutcome::DuplicateBallotId
     );
 
-    // The voter finds the cast ballot by the Ballot ID of its receipt.
+    // The voter finds the cast ballot by its Tracking ID, which the ballot hash and the
+    // key in the stored ballot give, not by the key of its receipt.
+    let tracking_id = sequent_core::ballot_receipt::tracking_id("0abc12", None).unwrap();
     let located = locate_ballot(
         &tx,
         &f.tenant.to_string(),
@@ -448,14 +454,14 @@ async fn a_signed_cast_is_stored_with_a_receipt_and_a_retry_returns_the_same_rec
         &f.election.to_string(),
         &f.area.to_string(),
         "voter",
-        &ballot.received.ballot_id.to_lowercase(),
+        &tracking_id.to_lowercase(),
         Utc::now(),
     )
     .await
     .unwrap();
     assert_eq!(located.status, LocateBallotStatus::Found);
-    assert_eq!(located.ballot_id, Some(ballot.received.ballot_id.clone()));
-    assert_eq!(located.content.as_deref(), Some("ciphertext"));
+    assert_eq!(located.ballot_id, Some(tracking_id));
+    assert_eq!(located.content.as_deref(), Some(ENVELOPE));
     assert_eq!(
         located
             .cast_at

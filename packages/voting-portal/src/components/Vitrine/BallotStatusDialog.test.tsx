@@ -30,7 +30,7 @@ jest.mock("../../services/vitrine/file", () => ({
     saveTextFile: (...args: unknown[]) => mockSaveTextFile(...args),
 }))
 
-const GROUPED = "30ff d314 4238 6472 fd6d bdb4 df36 9559 0f7a 414d 02ab 2499 5bef c5a9 40b8 9da1"
+const GROUPED = "FTBE-MHRX-0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ-0123-4567-89AB"
 const BALLOT_ID = GROUPED.replace(/ /g, "")
 const DEADLINE = 1_800_000_600
 
@@ -302,13 +302,13 @@ describe("the Tracking ID in the ballot status dialog", () => {
 
     it("shows the short ID, and the full ID in two lines of eight groups", () => {
         renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED)})
-        expect(dialog().querySelector(".ballot-status-short-id")?.textContent).toBe("30ff d314")
+        expect(dialog().querySelector(".ballot-status-short-id")?.textContent).toBe("FTBE-MHRX")
         const lines = Array.from(dialog().querySelectorAll(".ballot-status-full-id > div"))
         expect(lines.map((l) => l.textContent)).toEqual([
-            GROUPED.split(" ").slice(0, 8).join(" "),
-            GROUPED.split(" ").slice(8).join(" "),
+            GROUPED.split("-").slice(0, 8).join("-"),
+            GROUPED.split("-").slice(8).join("-"),
         ])
-        expect(lines[0].querySelector("b")?.textContent).toBe("30ff d314")
+        expect(lines[0].querySelector("b")?.textContent).toBe("FTBE-MHRX")
     })
 
     it("breaks the full ID into lines of four groups on a phone", () => {
@@ -321,7 +321,7 @@ describe("the Tracking ID in the ballot status dialog", () => {
         renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED)})
         const lines = Array.from(dialog().querySelectorAll(".ballot-status-full-id > div"))
         expect(lines).toHaveLength(4)
-        expect(lines[3].textContent).toBe("5bef c5a9 40b8 9da1")
+        expect(lines[3].textContent).toBe("89AB")
     })
 
     it("copies the full ID in groups of four, and says so", async () => {
@@ -496,7 +496,7 @@ describe("what the ballot status dialog offers", () => {
         renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED)})
         fireEvent.click(screen.getByRole("button", {name: "vitrine.status.save"}))
         expect(mockSaveTextFile).toHaveBeenCalledWith(
-            "ballot-30ff-d314.vitrine-receipt",
+            "ballot-FTBE-MHRX.vitrine-receipt",
             "the chain",
             "application/vnd.vitrine.receipt-chain"
         )

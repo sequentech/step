@@ -83,7 +83,7 @@ fn attempt() -> Attempt {
 #[rocket::async_test]
 async fn a_received_ballot_is_answered_with_the_ballot_boxs_receipt() {
     let services = Services::without_database()
-        .with_cast_votes(ScriptedCastVotes::receiving([Ok(received())]));
+        .with_cast_votes(ScriptedCastVotes::receiving([Ok((received(), None))]));
     let client = services.client().await;
 
     let (status, body) = json(receive(&client, &voter()).await).await;
@@ -101,6 +101,7 @@ async fn a_received_ballot_is_answered_with_the_ballot_boxs_receipt() {
             "key_id": "fd110d301d2f077d",
             "received_signature": "ballot-box-signature",
             "ballot_id": "FTBE-MHRX",
+            "vitrine": null,
         })
     );
     assert_eq!(services.cast_votes.receive_attempts(), vec![attempt()]);
@@ -199,7 +200,7 @@ async fn receive_success_and_refusal_do_not_trace_private_attribution_at_any_lev
 ) {
     let services = Services::without_database().with_cast_votes(
         ScriptedCastVotes::receiving([
-            Ok(received()),
+            Ok((received(), None)),
             Err(CastVoteError::AreaNotFound),
         ]),
     );

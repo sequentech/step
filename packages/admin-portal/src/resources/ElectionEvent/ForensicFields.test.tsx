@@ -21,7 +21,7 @@ test("forensic review shows a pseudonym, a country and the scoped ballot count",
             <ForensicBallotCount count={12} shared />
         </>
     )
-    expect(screen.getByText("7QKM-2HXD")).toBeVisible()
+    expect(screen.getByText("7QKM:2HXD")).toBeVisible()
     expect(screen.getByText("ES")).toBeVisible()
     expect(screen.getByText("Spain")).toBeVisible()
     expect(screen.getByText("12")).toBeVisible()

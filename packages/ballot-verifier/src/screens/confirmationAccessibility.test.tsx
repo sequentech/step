@@ -64,13 +64,14 @@ afterEach(cleanup)
 
 const renderConfirmation = (description = "") => {
     const ballot = {
-        ballot_hash: "test-ballot-id",
+        ballot_hash: "test-ballot-hash",
+        tracking_id: "test-ballot-id",
         election_config: {description, contests: []},
         decoded_questions: [],
     } as unknown as IConfirmationBallot
     return render(
         <TenantEventContext.Provider value={{tenantId: "tenant-1", eventId: "event-1"}}>
-            <ConfirmationScreen confirmationBallot={ballot} ballotId={ballot.ballot_hash} />
+            <ConfirmationScreen confirmationBallot={ballot} ballotId={ballot.tracking_id} />
         </TenantEventContext.Provider>
     )
 }

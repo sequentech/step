@@ -147,7 +147,8 @@ impl Fixture {
             Some(("198.51.100.8", Some("ZZ"), Some("synthetic-device"))),
         )
         .await
-        .map_err(|e| anyhow::anyhow!("receive: {e:?}"))?;
+        .map_err(|e| anyhow::anyhow!("receive: {e:?}"))?
+        .0;
         let receive_ms = start.elapsed().as_secs_f64() * 1000.0;
         verify_received_ballot(self.style.ballot_box_key.as_ref().unwrap(), &received)?;
         let cast = cast_ballot::CastBallotInput {
@@ -176,7 +177,7 @@ impl Fixture {
         let queries = statements
             .map(|counter| counter.finish())
             .unwrap_or_default();
-        let cast_ballot::CastBallotResult::Cast(casted) =
+        let cast_ballot::CastBallotResult::Cast(casted, _) =
             casted.map_err(|e| anyhow::anyhow!("cast: {e:?}"))?
         else {
             anyhow::bail!("expected a stored cast")

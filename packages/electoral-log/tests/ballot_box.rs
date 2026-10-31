@@ -25,7 +25,7 @@ use electoral_log::adapters::ballot_box_seal::{
 use electoral_log::adapters::ballot_box_status::{BallotToReview, VoterBallotState};
 use electoral_log::adapters::postgres::{append_in, PostgresStore};
 use electoral_log::ports::ElectoralLogStore;
-use electoral_log::vitrine::{leaf_hash, ElectionEntry};
+use electoral_log::vitrine::{leaf_hash, ElectionEntry, Stage};
 use electoral_log::{ElectoralLogMessage, LogEntry, StoredRecord};
 use std::time::Duration;
 use uuid::Uuid;
@@ -91,6 +91,8 @@ impl Vote {
         self.vitrine = Some(VitrineQueue {
             log_id,
             accepted_at,
+            // The Tracking ID digest the voter's client computed: here the ballot's own bytes.
+            tracking_id: hex::decode(&self.ballot).unwrap().try_into().unwrap(),
         });
         self
     }
@@ -1441,6 +1443,7 @@ impl Received {
             content: "received ciphertext",
             voter_signing_pk: "voter key",
             voter_ballot_signature: "voter signature",
+            vitrine: None,
         }
     }
 
@@ -1947,6 +1950,11 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 GRANT SELECT, INSERT, UPDATE ON ballot_box_ballot, ballot_box_voter, ballot_box_pending
     TO vitrine_contract_app;
+GRANT SELECT ON ballot_box_seal TO vitrine_contract_app;
+GRANT SELECT, INSERT, UPDATE ON ballot_box_received TO vitrine_contract_app;
+GRANT USAGE ON SCHEMA sequent_backend TO vitrine_contract_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA sequent_backend TO vitrine_contract_app;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA sequent_backend TO vitrine_contract_app;
 GRANT USAGE ON SEQUENCE ballot_box_seq TO vitrine_contract_app;
 "#;
 
@@ -2042,17 +2050,27 @@ async fn an_accepted_ballot_queues_its_entry_with_it() -> Result<()> {
     };
     assert_eq!(acceptance, Acceptance::New);
     assert_eq!(vitrine.queue, QueueState::Queued);
-    let expected = ElectionEntry {
-        event_id: event.clone(),
-        election_id: election.clone(),
-        ballot_id: hex::decode(&vote.ballot)?.try_into().unwrap(),
-        accepted_at: ACCEPTED_AT as u64,
+    // With no receipts there is no separate send: the ballot box logs `received` and `cast`
+    // together, in the one transaction, and answers with the `cast` entry.
+    let entry = |stage| {
+        ElectionEntry {
+            event_id: event.clone(),
+            election_id: election.clone(),
+            stage,
+            ballot_id: hex::decode(&vote.ballot).unwrap().try_into().unwrap(),
+            accepted_at: ACCEPTED_AT as u64,
+        }
+        .encode()
+        .unwrap()
     };
-    assert_eq!(vitrine.entry, expected.encode()?);
+    assert_eq!(vitrine.entry, entry(Stage::Cast));
     assert_eq!(vitrine.leaf_hash, leaf_hash(&vitrine.entry));
     assert_eq!(
         queued(&admin, log_id).await?,
-        vec![(vitrine.entry.clone(), vitrine.leaf_hash.to_vec())]
+        vec![
+            (entry(Stage::Received), leaf_hash(&entry(Stage::Received)).to_vec()),
+            (vitrine.entry.clone(), vitrine.leaf_hash.to_vec()),
+        ]
     );
     assert_eq!(
         stored_accepted_at(&admin, &event, &vote.ballot).await?,
@@ -2091,7 +2109,8 @@ async fn a_refused_vote_queues_nothing() -> Result<()> {
         app.accept_ballot(&clash.request()).await?,
         AcceptOutcome::DuplicateBallotId
     );
-    assert_eq!(queued(&admin, log_id).await?.len(), 1);
+    // Each accepted ballot queued `received` and `cast` together.
+    assert_eq!(queued(&admin, log_id).await?.len(), 2);
     drop_ballot_box(&admin, &event).await
 }
 
@@ -2140,7 +2159,7 @@ async fn a_retried_cast_returns_the_original_acceptance() -> Result<()> {
             1
         );
     }
-    assert_eq!(queued(&admin, log_id).await?.len(), 2);
+    assert_eq!(queued(&admin, log_id).await?.len(), 4);
 
     // A ballot rejected since isn't replayed.
     let vote = Vote::new(&event, &election, &area, "rejected", 1).queued_in(log_id, ACCEPTED_AT);
@@ -2207,6 +2226,6 @@ async fn a_queue_that_refuses_the_insert_never_refuses_the_ballot() -> Result<()
         anyhow::bail!("refused");
     };
     assert_eq!(vitrine.queue, QueueState::NotQueued);
-    assert_eq!(queued(&admin, log_id).await?.len(), 1);
+    assert_eq!(queued(&admin, log_id).await?.len(), 2);
     drop_ballot_box(&admin, &event).await
 }

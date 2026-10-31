@@ -421,7 +421,7 @@ describe("the ballot cast label", () => {
         try {
             fireEvent.click(await screen.findByRole("button", {name: "vitrine.status.ariaCast"}))
             const dialog = await screen.findByRole("dialog", {name: "vitrine.status.title"})
-            expect(dialog.querySelector(".ballot-status-short-id")?.textContent).toBe("abab abab")
+            expect(dialog.querySelector(".ballot-status-short-id")?.textContent).toBe("ABAB-ABAB")
             expect(dialog.querySelector(".ballot-status-meta")?.textContent).toContain("Election")
             expect(
                 within(dialog)

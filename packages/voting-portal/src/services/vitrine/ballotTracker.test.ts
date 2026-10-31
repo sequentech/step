@@ -26,7 +26,7 @@ import {
 } from "./ballotTracker"
 import {EReceiptNotice, IReceiptView} from "./castReceipt"
 
-const FULL = "30ffd31442386472fd6dbdb4df3695590f7a414d02ab24995befc5a940b89da1"
+const FULL = "FTBEMHRX0123456789ABCDEFGHJKMNPQRSTVWXYZ0123456789AB"
 const NOW = 1_793_270_528
 const WITNESS_NAMES = ["a", "b", "c", "d", "e"]
 
@@ -103,8 +103,8 @@ const states = (view: IReceiptView | undefined) => trackerSteps(view).map((s) =>
 
 describe("looking a ballot up from its address", () => {
     it("looks a short ID up by prefix, in any spacing and case", () => {
-        expect(ballotLookupOf("30ffd314", false)).toEqual({ballotIdPrefix: "30ffd314"})
-        expect(ballotLookupOf("30FF d314", false)).toEqual({ballotIdPrefix: "30ffd314"})
+        expect(ballotLookupOf("FTBEMHRX", false)).toEqual({ballotIdPrefix: "FTBEMHRX"})
+        expect(ballotLookupOf("ftbe-mhrx", false)).toEqual({ballotIdPrefix: "FTBEMHRX"})
     })
 
     it("looks a full ID up as it is", () => {
@@ -112,35 +112,41 @@ describe("looking a ballot up from its address", () => {
     })
 
     it("takes the first four characters only for telephone voting", () => {
-        expect(ballotLookupOf("abcd", true)).toEqual({ballotIdPrefix: "abcd"})
-        expect(ballotLookupOf("abcd", false)).toEqual({ballotId: "abcd"})
+        expect(ballotLookupOf("FTBE", true)).toEqual({ballotIdPrefix: "FTBE"})
+        expect(ballotLookupOf("FTBE", false)).toEqual({ballotId: "FTBE"})
     })
 
-    it("looks nothing up for what isn't hex", () => {
-        expect(ballotLookupOf("30ffd31g", false)).toBeNull()
+    it("looks nothing up for what isn't a Tracking ID, a voter pseudonym among it", () => {
+        expect(ballotLookupOf("FTBEMHRU", false)).toBeNull()
+        expect(ballotLookupOf("FTBE:MHRX", false)).toBeNull()
         expect(ballotLookupOf("", false)).toBeNull()
         expect(ballotLookupOf(undefined, false)).toBeNull()
     })
 })
 
 describe("what the search field holds", () => {
-    it("takes the short ID and the full one, with or without spaces", () => {
-        expect(trackerInput("30ff d314", false)).toBe(EBallotIdInput.SHORT)
-        expect(trackerInput("30ffd314", false)).toBe(EBallotIdInput.SHORT)
+    it("takes the short ID and the full one, with or without hyphens", () => {
+        expect(trackerInput("FTBE-MHRX", false)).toBe(EBallotIdInput.SHORT)
+        expect(trackerInput("ftbemhrx", false)).toBe(EBallotIdInput.SHORT)
         expect(trackerInput(FULL, false)).toBe(EBallotIdInput.FULL)
     })
 
     it("refuses anything between, but telephone events take four characters", () => {
-        expect(trackerInput("30ff", false)).toBe(EBallotIdInput.INVALID)
-        expect(trackerInput("30ff", true)).toBe(EBallotIdInput.SHORT)
-        expect(trackerInput("30ff d3", true)).toBe(EBallotIdInput.INVALID)
+        expect(trackerInput("FTBE", false)).toBe(EBallotIdInput.INVALID)
+        expect(trackerInput("FTBE", true)).toBe(EBallotIdInput.SHORT)
+        expect(trackerInput("FTBE-MH", true)).toBe(EBallotIdInput.INVALID)
         expect(trackerInput("", true)).toBe(EBallotIdInput.EMPTY)
     })
 
+    it("does not take a voter pseudonym for a Tracking ID", () => {
+        expect(trackerInput("FTBE:MHRX", false)).toBe(EBallotIdInput.INVALID)
+        expect(trackerInput("FTBE:MHRX", true)).toBe(EBallotIdInput.INVALID)
+    })
+
     it("notices characters the field leaves out", () => {
-        expect(rejectedBallotId("30ff d314")).toBe(false)
+        expect(rejectedBallotId("FTBE-MHRX")).toBe(false)
         expect(rejectedBallotId("")).toBe(false)
-        expect(rejectedBallotId("30ff d31g")).toBe(true)
+        expect(rejectedBallotId("FTBE-MHRU")).toBe(true)
         expect(rejectedBallotId(`${FULL}0`)).toBe(true)
     })
 })
@@ -404,8 +410,8 @@ describe("what a record holds", () => {
 
 describe("the file a record is saved as", () => {
     it("is named from the short Tracking ID", () => {
-        expect(recordFileName(FULL)).toBe("ballot-30ffd314.json")
-        expect(recordFileName("30FF d314 4238")).toBe("ballot-30ffd314.json")
+        expect(recordFileName(FULL)).toBe("ballot-FTBEMHRX.json")
+        expect(recordFileName("ftbe mhrx 0123")).toBe("ballot-FTBEMHRX.json")
     })
 
     it("has no ID in its name when there is none", () => {

@@ -42,6 +42,7 @@ const defaults = {
         "verify_auditable_multi_ballot_ciphertext_js"
     ),
     generate_sample_auditable_ballot_js: noAnswer("generate_sample_auditable_ballot_js"),
+    tracking_id_js: noAnswer("tracking_id_js"),
 } satisfies Record<string, Binding>
 
 type Name = keyof typeof defaults
@@ -80,4 +81,5 @@ export const {
     verify_auditable_ballot_ciphertext_js,
     verify_auditable_multi_ballot_ciphertext_js,
     generate_sample_auditable_ballot_js,
+    tracking_id_js,
 } = sequentCore

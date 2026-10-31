@@ -47,7 +47,7 @@ jest.mock("../../providers/AuthContextProvider", () => ({
 
 let mockKiosk = false
 
-const GROUPED = "30ff d314 4238 6472 fd6d bdb4 df36 9559 0f7a 414d 02ab 2499 5bef c5a9 40b8 9da1"
+const GROUPED = "FTBE-MHRX-0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ-0123-4567-89AB"
 const BALLOT_ID = GROUPED.replace(/ /g, "")
 const TRACKER = "/tenant/t/event/e/election/el/ballot-locator/abc"
 
@@ -289,7 +289,7 @@ describe("the Tracking ID box of the review screen", () => {
         expect(container.querySelector(".vitrine-tracking-id-prefix")?.textContent).toBe(
             "vitrine.ballotId.yours "
         )
-        expect(shortId(container).textContent).toBe("30ff d314")
+        expect(shortId(container).textContent).toBe("FTBE-MHRX")
         expect(container.querySelector(".vitrine-tracking-id-label")?.textContent).toBe(
             "vitrine.ballotId.label"
         )
@@ -313,7 +313,7 @@ describe("the Tracking ID box of the review screen", () => {
         ]) {
             expect(screen.getAllByRole("button", {name})).toHaveLength(1)
         }
-        expect(screen.getAllByRole("button", {name: /^30ff d314$/})).toHaveLength(1)
+        expect(screen.getAllByRole("button", {name: /^FTBE-MHRX$/})).toHaveLength(1)
     })
 
     it("shows the check mark of a ballot not cast yet, and opens its dialog", () => {
@@ -342,7 +342,7 @@ describe("the Tracking ID box of the review screen", () => {
                 "vitrine.ballotId.full"
             )
             expect(full.querySelector(".vitrine-tracking-id-full-value")?.textContent).toBe(GROUPED)
-            expect(full.querySelector("b")?.textContent).toBe("30ff d314")
+            expect(full.querySelector("b")?.textContent).toBe("FTBE-MHRX")
             const row = container.querySelector(".vitrine-tracking-id-row")!
             expect(row.contains(full)).toBe(false)
             expect(row.nextElementSibling).toBe(full)

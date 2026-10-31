@@ -110,7 +110,7 @@ function renderImportStep(
     return {reported, lastReported: () => reported.mock.lastCall?.[0]}
 }
 
-const ballotIdField = () => screen.getByRole("textbox", {name: "Ballot ID"})
+const ballotIdField = () => screen.getByRole("textbox", {name: "Tracking ID"})
 const nextButton = () => screen.getByRole("button", {name: "Next"})
 const importError = () => screen.queryByRole("alert")
 
@@ -150,8 +150,9 @@ const expectCiphertextRejected = async () => {
     expect(screen.queryByText("Uploaded", {exact: true})).not.toBeInTheDocument()
 }
 
-const confirmationOf = ({ballot, ballotId, decoded}: RecordedBallot) => ({
+const confirmationOf = ({ballot, ballotId, trackingId, decoded}: RecordedBallot) => ({
     ballot_hash: ballotId,
+    tracking_id: trackingId,
     election_config: ballot.config,
     decoded_questions: decoded,
 })
@@ -233,7 +234,7 @@ describe("importing an audited ballot", () => {
         expect(lastReported()).toEqual(confirmationOf(single))
         // A verified file alone is not enough: the voter must supply the ballot ID.
         expect(nextButton()).toBeDisabled()
-        userEvent.type(ballotIdField(), single.ballotId)
+        userEvent.type(ballotIdField(), single.trackingId)
         expect(nextButton()).toBeEnabled()
         userEvent.click(nextButton())
         expect(await screen.findByText("Confirmation step")).toBeVisible()
@@ -248,7 +249,7 @@ describe("importing an audited ballot", () => {
 
         await expectAccepted("audited-ballot.json")
         expect(lastReported()).toEqual(confirmationOf(multi))
-        userEvent.type(ballotIdField(), multi.ballotId)
+        userEvent.type(ballotIdField(), multi.trackingId)
         expect(nextButton()).toBeEnabled()
     })
 
@@ -283,7 +284,7 @@ describe("importing an audited ballot", () => {
             const {lastReported} = renderImportStep(valid)
             await importFile(JSON.stringify(valid.ballot))
             await expectAccepted("audited-ballot.json")
-            userEvent.type(ballotIdField(), valid.ballotId)
+            userEvent.type(ballotIdField(), valid.trackingId)
 
             await importFile(JSON.stringify(withModifiedSignature(valid.ballot)), "broken.json")
 
@@ -310,7 +311,7 @@ describe("importing an audited ballot", () => {
         const {lastReported} = renderImportStep(single)
         await importFile(JSON.stringify(single.ballot))
         await expectAccepted("audited-ballot.json")
-        userEvent.type(ballotIdField(), single.ballotId)
+        userEvent.type(ballotIdField(), single.trackingId)
 
         await importFile(contents, "broken.json")
 
@@ -547,7 +548,7 @@ describe("the sample ballot", () => {
         userEvent.click(screen.getByRole("button", {name: "Use a sample ballot"}))
 
         await expectAccepted("sample.json")
-        expect(ballotIdField()).toHaveValue(sample.ballotId)
+        expect(ballotIdField()).toHaveValue(sample.trackingId)
         expect(lastReported()).toEqual(confirmationOf(sample))
         expect(nextButton()).toBeEnabled()
         userEvent.clear(ballotIdField())
@@ -574,7 +575,7 @@ it("explains each step in a help dialog", async () => {
     renderImportStep()
     for (const [step, title] of [
         ["Step 1: Import your ballot", "Information: Import your ballot"],
-        ["Step 2: Insert your ballot ID", "Information: Your ballot ID"],
+        ["Step 2: Insert your tracking ID", "Information: Your tracking ID"],
     ]) {
         userEvent.click(
             within(screen.getByRole("heading", {name: new RegExp(step)})).getByRole("button")

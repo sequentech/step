@@ -12,9 +12,9 @@
     "closes": 1793044800
   },
   "entries": [
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBCAAAJbXVuaS0yMDI2AAAFbWF5b3IAACCnkRzf3CjmoYZ+NZukJggarPppL96z6XjSpo3ZJPqMPgAACAAAAABq3wi8",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBCAAAJbXVuaS0yMDI2AAAFbWF5b3IAACAhVIxmtENH2HfntAWiUBIc2ofNSUsSLwMk9987bNdfhgAACAAAAABq3wja",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBEAAAJbXVuaS0yMDI2AAAHY291bmNpbAAAILwtndyYV+U1mGd9vqgqJYOHnonObAMsd9glGHvz8alDAAAIAAAAAGrfsUA="
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBJAAAJbXVuaS0yMDI2AAAFbWF5b3IAAARjYXN0AAAgp5Ec39wo5qGGfjWbpCYIGqz6aS/es+l40qaN2ST6jD4AAAgAAAAAat8IvA==",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBJAAAJbXVuaS0yMDI2AAAFbWF5b3IAAARjYXN0AAAgIVSMZrRDR9h357QFolASHNqHzUlLEi8DJPffO2zXX4YAAAgAAAAAat8I2g==",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBLAAAJbXVuaS0yMDI2AAAHY291bmNpbAAABGNhc3QAACC8LZ3cmFflNZhnfb6oKiWDh56JzmwDLHfYJRh78/GpQwAACAAAAABq37FA"
   ],
   "sequenced": [
     1793001661,
@@ -60,6 +60,10 @@
         "value": "mayor"
       },
       {
+        "name": "stage",
+        "value": "cast"
+      },
+      {
         "name": "ballot_id",
         "value": "a7911cdfdc28e6a1867e359ba426081aacfa692fdeb3e978d2a68dd924fa8c3e"
       },
@@ -78,6 +82,10 @@
         "value": "mayor"
       },
       {
+        "name": "stage",
+        "value": "cast"
+      },
+      {
         "name": "ballot_id",
         "value": "21548c66b44347d877e7b405a250121cda87cd494b122f0324f7df3b6cd75f86"
       },
@@ -94,6 +102,10 @@
       {
         "name": "election_id",
         "value": "council"
+      },
+      {
+        "name": "stage",
+        "value": "cast"
       },
       {
         "name": "ballot_id",

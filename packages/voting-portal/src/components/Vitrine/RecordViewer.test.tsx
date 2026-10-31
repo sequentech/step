@@ -43,7 +43,7 @@ jest.mock("../../services/vitrine/file", () => ({saveTextFile: jest.fn()}))
 
 const JSON_CONTENT = '{"example":true,"items":[1,2,3],"note":"Pass any JSON as data"}'
 const PRETTY = JSON.stringify(JSON.parse(JSON_CONTENT), null, 2)
-const FILE = "ballot-30ffd314.json"
+const FILE = "ballot-FTBEMHRX.json"
 
 const renderViewer = (
     content = JSON_CONTENT,

@@ -1217,7 +1217,8 @@ async fn signed_private_ballot(
                     content: encrypted,
                     voter_signing_pk: &voter_pk,
                     voter_ballot_signature: &voter_signature,
-                },
+            vitrine: None,
+        },
                 now,
                 |_| {
                     Ok(ReceivedSignature {

@@ -109,7 +109,7 @@ fn attempt() -> Attempt {
 #[rocket::async_test]
 async fn a_cast_is_answered_with_the_ballot_boxs_receipt() {
     let services = Services::without_database().with_cast_votes(
-        ScriptedCastVotes::casting([Ok(CastBallotResult::Cast(receipt()))]),
+        ScriptedCastVotes::casting([Ok(CastBallotResult::Cast(receipt(), None))]),
     );
     let client = services.client().await;
 
@@ -127,6 +127,7 @@ async fn a_cast_is_answered_with_the_ballot_boxs_receipt() {
             "cast_signature": "cast-signature",
             "cast_receipt_signature": "ballot-box-signature",
             "cast_vote_id": CAST_VOTE_ID,
+            "vitrine": null,
         })
     );
     assert_eq!(services.cast_votes.cast_attempts(), vec![attempt()]);
@@ -140,6 +141,7 @@ async fn a_cast_pending_datafix_is_sent_for_processing_with_its_receipt() {
         ScriptedCastVotes::casting([Ok(CastBallotResult::PendingDatafix(
             receipt(),
             pending_cast_vote(),
+            None,
         ))]),
     );
     let client = services.client().await;
@@ -217,7 +219,7 @@ async fn a_failed_cast_is_retried_and_answers_with_the_receipt() {
     let services = Services::without_database().with_cast_votes(
         ScriptedCastVotes::casting([
             Err(CastVoteError::CommitFailed("connection reset".into())),
-            Ok(CastBallotResult::Cast(receipt())),
+            Ok(CastBallotResult::Cast(receipt(), None)),
         ]),
     );
     let client = services.client().await;
@@ -258,7 +260,7 @@ async fn cast_success_and_refusal_do_not_trace_private_attribution_at_any_level(
 ) {
     let services = Services::without_database().with_cast_votes(
         ScriptedCastVotes::casting([
-            Ok(CastBallotResult::Cast(receipt())),
+            Ok(CastBallotResult::Cast(receipt(), None)),
             Ok(CastBallotResult::SkipRetryFailure(
                 CastVoteError::AreaNotFound,
             )),

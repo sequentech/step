@@ -182,7 +182,7 @@ describe("an event that keeps a transparency log", () => {
         expect(container.querySelector(".status-tag")?.textContent).toBe(
             "vitrine.status.tag.notCast"
         )
-        expect(container.querySelector(".vitrine-short-ballot-id")?.textContent).toBe("0123 4567")
+        expect(container.querySelector(".vitrine-short-ballot-id")?.textContent).toBe("0123-4567")
     })
 
     it("opens the help about the Tracking ID from the box", () => {

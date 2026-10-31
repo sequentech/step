@@ -77,7 +77,8 @@ fn audit_route_uses_token_owner_and_acknowledges_only_audited_receipts() {
                     content: "encrypted",
                     voter_signing_pk: "public",
                     voter_ballot_signature: "signature",
-                },
+            vitrine: None,
+        },
                 chrono::Utc::now(),
                 |_| {
                     Ok(ReceivedSignature {

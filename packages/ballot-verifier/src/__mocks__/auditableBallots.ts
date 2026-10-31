@@ -69,6 +69,8 @@ type AuditableBallot = IAuditableSingleBallot | IAuditableMultiBallot
 export interface RecordedBallot<Ballot extends AuditableBallot = AuditableBallot> {
     ballot: Ballot
     ballotId: string
+    /** What the core derives from the hash and the voter key: 52 Crockford characters. */
+    trackingId: string
     decoded: IDecodedVoteContest[]
 }
 
@@ -87,6 +89,7 @@ export const singleContestBallot = (): RecordedBallot<IAuditableSingleBallot> =>
             voter_ballot_signature: signature,
         },
         ballotId: "5c".repeat(32),
+        trackingId: "FTBE-MHRX-7QKM-2HXD-9PWA-3ZVC-8NRB-6YTG-1JDS-4EFX-0CHM-5KQW-VA20",
         decoded: firstCandidateChosen(config),
     }
 }
@@ -104,6 +107,7 @@ export const multiContestBallot = (): RecordedBallot<IAuditableMultiBallot> => {
             voter_ballot_signature: signature,
         },
         ballotId: "3e".repeat(32),
+        trackingId: "K3M7-Q9RT-2VWX-8ZBD-5HNF-1GJC-6PYA-0SEM-4TQK-7DWR-9XBV-3LHN-ZC40",
         decoded: firstCandidateChosen(config),
     }
 }
@@ -120,6 +124,7 @@ export const sampleBallot = (): RecordedBallot<IAuditableSingleBallot> => {
             ballot_hash: "a7".repeat(32),
         },
         ballotId: "a7".repeat(32),
+        trackingId: "B8C2-D5F9-G1H6-J3K7-M0N4-P8Q2-R5S9-T1V6-W3X7-Y0Z4-A8B2-C5D9-EF10",
         decoded: firstCandidateChosen(config),
     }
 }
@@ -176,6 +181,11 @@ export function recordSequentCore(...records: RecordedBallot[]) {
         sequentCore[`decode_auditable_${format}_js`].mockImplementation(
             (ballot: AuditableBallot) => recordOf(ballot, multiple).decoded
         )
+        sequentCore.tracking_id_js.mockImplementation((hash: string) => {
+            const record = records.find((candidate) => candidate.ballotId === hash)
+            if (!record) throw "Error computing the Tracking ID"
+            return record.trackingId
+        })
         sequentCore[`hash_auditable_${format}_js`].mockImplementation(
             (ballot: AuditableBallot) => recordOf(ballot, multiple).ballotId
         )

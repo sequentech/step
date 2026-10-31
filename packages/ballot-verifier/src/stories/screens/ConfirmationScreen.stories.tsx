@@ -33,6 +33,7 @@ const decoded = (id: string): IDecodedVoteContest => ({
 })
 const confirmation = (): IConfirmationBallot => ({
     ballot_hash: hash,
+    tracking_id: "FTBE-MHRX-0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ-0123-4567-89AB",
     election_config: {
         ...scope,
         id: "style",

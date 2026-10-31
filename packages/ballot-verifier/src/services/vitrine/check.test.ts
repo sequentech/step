@@ -7,6 +7,7 @@ import * as pure from "@vitrine/verify/pure"
 import type {ChainResult} from "@vitrine/verify"
 import {
     BALLOT_ID,
+    TRACKING_ID,
     ballotEntry,
     ELECTION_ID,
     EVENT_ID,
@@ -104,7 +105,7 @@ describe("expectFromForm", () => {
             expectFromForm(sdk, {
                 eventId: ` ${EVENT_ID} `,
                 electionId: ELECTION_ID,
-                ballotId: ` ${BALLOT_ID.toUpperCase()}\n`,
+                ballotId: ` ${TRACKING_ID.toLowerCase()}\n`,
             })
         ).toEqual({fields: {event_id: EVENT_ID, election_id: ELECTION_ID, ballot_id: BALLOT_ID}})
     })
@@ -114,19 +115,19 @@ describe("expectFromForm", () => {
             expectFromForm(sdk, {
                 eventId: EVENT_ID,
                 electionId: ELECTION_ID,
-                ballotId: groupBallotId(BALLOT_ID),
+                ballotId: groupBallotId(TRACKING_ID),
             })
         ).toEqual({fields: {event_id: EVENT_ID, election_id: ELECTION_ID, ballot_id: BALLOT_ID}})
     })
 
     it.each([
-        ["a short tracking ID", {ballotId: "c0ffee"}],
-        ["a short tracking ID in a group of four", {ballotId: "c0ff eec0"}],
-        ["a tracking ID that isn't hex", {ballotId: "<script>alert(1)</script>"}],
+        ["a short tracking ID", {ballotId: "FTBE-MHRX"}],
+        ["a voter pseudonym", {ballotId: "FTBE:MHRX"}],
+        ["a tracking ID that isn't Crockford base32", {ballotId: "<script>alert(1)</script>"}],
         ["no election", {electionId: ""}],
         ["no event", {eventId: ""}],
     ])("refuses %s", (_what, change) => {
-        const form = {eventId: EVENT_ID, electionId: ELECTION_ID, ballotId: BALLOT_ID, ...change}
+        const form = {eventId: EVENT_ID, electionId: ELECTION_ID, ballotId: TRACKING_ID, ...change}
         expect(expectFromForm(sdk, form)).toBeUndefined()
     })
 })
@@ -136,10 +137,10 @@ describe("expectedBallotId", () => {
         const expect_ = expectFromForm(sdk, {
             eventId: EVENT_ID,
             electionId: ELECTION_ID,
-            ballotId: BALLOT_ID,
+            ballotId: TRACKING_ID,
         })
-        expect(expect_ && expectedBallotId(sdk, expect_)).toBe(BALLOT_ID)
-        expect(expectedBallotId(sdk, {entry: ballotEntry()})).toBe(BALLOT_ID)
+        expect(expect_ && expectedBallotId(sdk, expect_)).toBe(TRACKING_ID)
+        expect(expectedBallotId(sdk, {entry: ballotEntry()})).toBe(TRACKING_ID)
         expect(expectedBallotId(sdk, {entry: Uint8Array.of(1, 2, 3)})).toBeUndefined()
     })
 })

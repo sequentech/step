@@ -60,6 +60,7 @@ impl Fixture {
             content: "encrypted",
             voter_signing_pk: "synthetic-public-key",
             voter_ballot_signature: "synthetic-signature",
+            vitrine: None,
         }
     }
     async fn cleanup(self) -> Result<()> {

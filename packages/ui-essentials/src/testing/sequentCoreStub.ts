@@ -135,7 +135,20 @@ export const verify_received_ballot_js = outOfScope("verify_received_ballot_js")
 export const sign_ballot_cast_js = outOfScope("sign_ballot_cast_js")
 export const forget_voter_signing_key_js = outOfScope("forget_voter_signing_key_js")
 export const verify_cast_receipt_js = outOfScope("verify_cast_receipt_js")
-export const normalize_ballot_id_js = outOfScope("normalize_ballot_id_js")
+// Pure, so the real rules: the core's own tests cover them. Any case, with or without
+// hyphens, O as 0, I and L as 1; 4, 8 or 52 characters, in groups of four. A voter
+// pseudonym (`FTBE:MHRX`) is not one.
+export const normalize_tracking_id_js = (typed: string): string | null => {
+    const characters = Array.from(typed.replace(/[\s-]+/g, ""), (character) => {
+        const upper = character.toUpperCase()
+        return upper === "O" ? "0" : upper === "I" || upper === "L" ? "1" : upper
+    }).join("")
+    if (!/^[0-9A-HJKMNP-TV-Z]+$/.test(characters) || ![4, 8, 52].includes(characters.length)) {
+        return null
+    }
+    return (characters.match(/.{4}/g) ?? []).join("-")
+}
+export const tracking_id_js = outOfScope("tracking_id_js")
 export const verify_auditable_ballot_ciphertext_js = outOfScope(
     "verify_auditable_ballot_ciphertext_js"
 )

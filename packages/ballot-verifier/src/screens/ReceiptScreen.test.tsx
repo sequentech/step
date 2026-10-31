@@ -12,6 +12,8 @@ import {wordsFor} from "@vitrine/ui"
 import {
     ballotEntry,
     BALLOT_ID,
+    TRACKING_ID,
+    OTHER_TRACKING_ID,
     chainLink,
     draftPolicyText,
     ELECTION_ID,
@@ -31,7 +33,6 @@ import {
     referenceReceiptUrl,
     WITNESSES,
 } from "../fixtures/vitrine"
-import {groupBallotId} from "../services/vitrine/ballotId"
 import {MAX_FULL_ROUND_DELAY_MS, MIN_FULL_ROUND_DELAY_MS} from "../services/vitrine/check"
 import {CHAIN_MEDIA_TYPE} from "../services/vitrine/input"
 import {EPolicyRefusal, examinePolicy, PINNED_POLICIES_KEY} from "../services/vitrine/policies"
@@ -235,7 +236,7 @@ describe("the receipt screen", () => {
         expect(rowOf("anchors")).toHaveTextContent("receiptScreen.status.rows.anchorsActive")
         expect(screen.getByTestId("receipt-file-card")).toBeInTheDocument()
         // The link names the entry: no tracking ID to type or change.
-        expect(screen.getByTestId("ballot-looked-for")).toHaveTextContent(groupBallotId(BALLOT_ID))
+        expect(screen.getByTestId("ballot-looked-for")).toHaveTextContent(TRACKING_ID)
         expect(screen.queryByTestId("ballot-form")).toBeNull()
         expect(screen.queryByTestId("ballot-change")).toBeNull()
 
@@ -363,15 +364,15 @@ describe("the receipt screen", () => {
         expect(await screen.findByTestId("ballot-invalid")).toBeInTheDocument()
         expect(screen.queryByTestId("receipt-result")).toBeNull()
 
-        type("ballot-id", BALLOT_ID.toUpperCase())
+        type("ballot-id", TRACKING_ID.toLowerCase())
         expect((screen.getByTestId("ballot-id") as HTMLInputElement).value).toBe(
-            groupBallotId(BALLOT_ID)
+            TRACKING_ID
         )
         fireEvent.submit(form)
         expect(await statusOf()).toHaveAttribute("data-status", "witnessed")
         expect(screen.getByTestId("receipt-file-name")).toHaveTextContent("receipt.vitrine-receipt")
-        expect(screen.getByTestId("ballot-looked-for")).toHaveTextContent(groupBallotId(BALLOT_ID))
-        expect(screen.getByTestId("short-ballot-id")).toHaveTextContent("c0ff eec0")
+        expect(screen.getByTestId("ballot-looked-for")).toHaveTextContent(TRACKING_ID)
+        expect(screen.getByTestId("short-ballot-id")).toHaveTextContent("R3ZY-XG7Z")
 
         fireEvent.click(screen.getByTestId("ballot-change"))
         expect(await screen.findByTestId("ballot-form")).toBeInTheDocument()
@@ -388,7 +389,7 @@ describe("the receipt screen", () => {
         const election = (await screen.findByTestId("ballot-election")) as HTMLInputElement
         expect(election.value).toBe(ELECTION_ID)
         expect(election.readOnly).toBe(true)
-        type("ballot-id", OTHER_BALLOT_ID)
+        type("ballot-id", OTHER_TRACKING_ID)
         fireEvent.submit(screen.getByTestId("ballot-form"))
         expect(await statusOf()).toHaveAttribute("data-status", "problem")
         expect(screen.getByTestId("status-headline")).toHaveTextContent(
@@ -427,7 +428,7 @@ describe("the receipt screen", () => {
         net.serve(referenceReceiptUrl(s), s.receipt)
         fireEvent.click(within(problem).getByRole("button"))
         await statusOf()
-        expect(screen.getByTestId("ballot-looked-for")).toHaveTextContent(groupBallotId(BALLOT_ID))
+        expect(screen.getByTestId("ballot-looked-for")).toHaveTextContent(TRACKING_ID)
         expect(screen.queryByTestId("ballot-form")).toBeNull()
         expect(screen.queryByTestId("check-problem")).toBeNull()
         expect(net.calls.filter((c) => !underLogs(c.url))).toEqual([])

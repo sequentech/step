@@ -47,7 +47,8 @@ jest.mock("sequent-core", () => {
         "forget_voter_signing_key_js",
         "verify_cast_receipt_js",
         "verify_ballot_log_proof_js",
-        "normalize_ballot_id_js",
+        "normalize_tracking_id_js",
+        "tracking_id_js",
         "check_voting_not_allowed_next",
         "check_voting_error_dialog",
         "get_layout_properties_from_contest_js",
@@ -354,12 +355,19 @@ const cases: AdapterCase[] = [
         result: true,
     },
     {
-        name: "typed ballot id",
-        run: () => adapter.normalizeBallotId("ftbemhrx"),
-        backend: backend.normalize_ballot_id_js,
+        name: "typed tracking id",
+        run: () => adapter.normalizeTrackingId("ftbemhrx"),
+        backend: backend.normalize_tracking_id_js,
         args: ["ftbemhrx"],
         result: "FTBE-MHRX",
         failure: "null",
+    },
+    {
+        name: "tracking id",
+        run: () => adapter.trackingId("0b1f", "pk"),
+        backend: backend.tracking_id_js,
+        args: ["0b1f", "pk"],
+        result: "BJHF-GCZX",
     },
     {
         name: "continue permission",
@@ -601,7 +609,7 @@ it("preserves zero points while using null for an unavailable result", () => {
     expect(adapter.getLayoutProperties(question)).toBeNull()
 })
 
-it("uses null for a typed text that cannot be a Ballot ID", () => {
-    jest.mocked(backend.normalize_ballot_id_js).mockReturnValue(undefined)
-    expect(adapter.normalizeBallotId("not-a-ballot-id")).toBeNull()
+it("uses null for a typed text that cannot be a Tracking ID", () => {
+    jest.mocked(backend.normalize_tracking_id_js).mockReturnValue(undefined)
+    expect(adapter.normalizeTrackingId("FTBE:MHRX")).toBeNull()
 })

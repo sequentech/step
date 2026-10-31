@@ -73,7 +73,8 @@ async fn privacy_storage_keeps_identity_private_and_cast_effects_atomic() -> Res
         content: "encrypted-ballot",
         voter_signing_pk: "test-public-key",
         voter_ballot_signature: "test-voter-signature",
-    };
+            vitrine: None,
+        };
     let now = Utc::now();
     let mut attempts = 0;
     let stored = match store

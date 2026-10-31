@@ -23,16 +23,17 @@ import {resetSequentCore, sequentCore} from "../__mocks__/sequentCore"
 import {ballotStyle, firstCandidateChosen, IDS} from "../__mocks__/auditableBallots"
 
 const eventPath = `/tenant/${IDS.tenant}/event/${IDS.event}`
-const ballotId = "5c".repeat(32)
+const ballotId = "FTBE-MHRX-0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ-0123-4567-89A0"
 // Changes the first character only, as the journeys do.
 const otherBallotId = `0${ballotId.slice(1)}`
-const mismatchError = "Does’t match the decoded ballot ID"
+const mismatchError = "Doesn’t match the decoded Tracking ID"
 
 const verified = (
     style: IBallotStyle = ballotStyle(),
     decoded: IDecodedVoteContest[] = firstCandidateChosen(style)
 ): IConfirmationBallot => ({
-    ballot_hash: ballotId,
+    ballot_hash: "5c".repeat(32),
+    tracking_id: ballotId,
     election_config: style,
     decoded_questions: decoded,
 })
@@ -79,11 +80,22 @@ beforeEach(() => {
 })
 afterEach(() => jest.restoreAllMocks())
 
+/** An ID is shown in groups, the first two in bold, so no single text node holds it. */
+const shownIds = (id: string) =>
+    screen.queryAllByText((_, element) => {
+        const text = (element?.textContent ?? "").replace(/\s+/g, "")
+        return (
+            element?.tagName === "SPAN" &&
+            text === id &&
+            !Array.from(element.children).some((child) => child.textContent === element.textContent)
+        )
+    })
+
 describe("comparing ballot IDs", () => {
     it("shows the decoded selections when the provided ballot ID matches", () => {
         renderConfirmation(verified(), ballotId)
 
-        expect(screen.getAllByText(ballotId)).toHaveLength(2)
+        expect(shownIds(ballotId)).toHaveLength(2)
         expect(screen.queryByText(mismatchError)).not.toBeInTheDocument()
         expect(selectionsHeading()).toBeVisible()
         expect(screen.getByText("Council representative")).toBeVisible()
@@ -94,8 +106,8 @@ describe("comparing ballot IDs", () => {
     it("flags a provided ballot ID that differs and withholds the selections", () => {
         renderConfirmation(verified(), otherBallotId)
 
-        expect(screen.getByText(ballotId)).toBeVisible()
-        expect(screen.getByText(otherBallotId)).toBeVisible()
+        expect(shownIds(ballotId)).toHaveLength(1)
+        expect(shownIds(otherBallotId)).toHaveLength(1)
         expect(screen.getByText(mismatchError)).toBeVisible()
         expect(selectionsHeading()).not.toBeInTheDocument()
         expect(screen.queryByText("Alice Example", {exact: true})).not.toBeInTheDocument()
@@ -214,8 +226,8 @@ describe("leaving the confirmation step", () => {
 it("explains both ballot IDs and the selections in help dialogs", async () => {
     renderConfirmation(verified(), ballotId)
     for (const [label, title] of [
-        ["Decoded Ballot Id", "Information: Decoded Ballot Id"],
-        ["The Ballot Id you provided", "Information: The Ballot Id you provided"],
+        ["Decoded Tracking ID", "Information: Decoded Tracking ID"],
+        ["The Tracking ID you provided", "Information: The Tracking ID you provided"],
         ["Verify your ballot selections", "Information: Verify your ballot selections"],
     ]) {
         // Each help button sits at the end of the row it explains.

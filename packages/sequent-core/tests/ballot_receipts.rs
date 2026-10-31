@@ -14,7 +14,9 @@ use sequent_core::ballot::{
 };
 use sequent_core::ballot_receipt::{
     ballot_box_key, ballot_id, forget_voter_signing_key, format_ballot_id,
-    keep_voter_signing_key, normalize_ballot_id, sign_cast_receipt,
+    keep_voter_signing_key, normalize_ballot_id, normalize_tracking_id,
+    short_tracking_id, sign_cast_receipt, tracking_id, tracking_id_digest,
+    tracking_id_starts_with,
     sign_cast_statement, sign_cast_statement_with_kept_key,
     sign_received_ballot, verify_cast_receipt, verify_cast_signature,
     verify_received_ballot, BallotReceiptError, CastReceipt,
@@ -655,4 +657,88 @@ fn a_cast_receipt_reads_back_from_its_published_form() {
     assert_eq!(json["cast_receipt_signature"], CAST_RECEIPT_SIGNATURE);
     let read: CastReceipt = serde_json::from_value(json).unwrap();
     assert_eq!(read, receipt);
+}
+
+const TRACKING_BALLOT_HASH: &str =
+    "0b1f6a5c2d7e4f809a1b2c3d4e5f60718293a4b5c6d7e8f9000102030405060";
+const TRACKING_VOTER_PK: &str = "gTl3Dqh9F19Wo1Rmw0x+zMuNipG07jeiXfYPW4/Js5Q=";
+
+#[test]
+fn the_tracking_id_is_a_digest_of_the_ballot_hash_and_the_voter_key() {
+    // Computed apart from this crate: SHA-512 over the length-prefixed domain
+    // `step/ballot-id/v2`, the ballot hash and the key as DER (or nothing),
+    // cut to 32 bytes and written in Crockford base32.
+    assert_eq!(
+        tracking_id(TRACKING_BALLOT_HASH, Some(TRACKING_VOTER_PK)).unwrap(),
+        "BJHF-GCZX-A25K-VT2F-4DSV-GTX1-VAHA-6NDF-6M0R-NQ8B-BAP3-GCJJ-4A9G"
+    );
+    assert_eq!(
+        tracking_id(TRACKING_BALLOT_HASH, None).unwrap(),
+        "KQCN-K5ZA-A41X-XW33-2G8Z-ZVPE-7SY9-SJE7-1HQF-XE7X-ZK8E-306D-MMC0"
+    );
+    assert_eq!(
+        tracking_id_digest(TRACKING_BALLOT_HASH, None).unwrap().len(),
+        32
+    );
+}
+
+#[test]
+fn the_short_tracking_id_is_the_start_of_the_full_one() {
+    let full = tracking_id(TRACKING_BALLOT_HASH, Some(TRACKING_VOTER_PK)).unwrap();
+    assert_eq!(short_tracking_id(&full), "BJHF-GCZX");
+    assert_eq!(short_tracking_id("BJHF-GCZX"), "BJHF-GCZX");
+}
+
+#[test]
+fn the_tracking_id_follows_neither_the_box_signature_nor_the_time() {
+    let statement = statement();
+    let key = statement.voter_signing_pk.clone();
+    let first = tracking_id(&statement.ballot_hash, Some(&key)).unwrap();
+    let mut later = statement;
+    later.received_at = LATER.into();
+    later.voter_ballot_signature = voter_sk()
+        .sign(b"another")
+        .unwrap()
+        .to_b64_string()
+        .unwrap();
+    assert_eq!(
+        tracking_id(&later.ballot_hash, Some(&key)).unwrap(),
+        first
+    );
+    assert_ne!(tracking_id(&later.ballot_hash, None).unwrap(), first);
+    assert_ne!(tracking_id("00", Some(&key)).unwrap(), first);
+}
+
+#[test]
+fn a_voter_key_that_cannot_be_read_is_refused() {
+    let error = tracking_id(TRACKING_BALLOT_HASH, Some("not base64"))
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("voter_signing_pk"), "{error}");
+}
+
+#[test]
+fn typed_tracking_ids_are_the_start_of_one_in_groups_of_four() {
+    for typed in ["bjhf-gczx", "BJHFGCZX", " bjhf gczx "] {
+        assert_eq!(normalize_tracking_id(typed).as_deref(), Some("BJHF-GCZX"));
+    }
+    assert_eq!(normalize_tracking_id("bjhf").as_deref(), Some("BJHF"));
+    let full = tracking_id(TRACKING_BALLOT_HASH, Some(TRACKING_VOTER_PK)).unwrap();
+    assert_eq!(
+        normalize_tracking_id(&full.to_lowercase().replace('-', " ")).as_deref(),
+        Some(full.as_str())
+    );
+    assert!(tracking_id_starts_with(&full, "BJHF-GCZX"));
+    assert!(tracking_id_starts_with(&full, "BJHF"));
+    assert!(!tracking_id_starts_with(&full, "BJHF-GCZY"));
+}
+
+#[test]
+fn a_voter_pseudonym_is_not_a_tracking_id() {
+    for typed in ["BJHF:GCZX", "bjhf:gczx", "BJHF:", "BJHF-GCZX:"] {
+        assert_eq!(normalize_tracking_id(typed), None, "{typed}");
+    }
+    for malformed in ["", "BJH", "BJHF-GCZ", "BJHF-GCZXX", "BJHF-GCZU"] {
+        assert_eq!(normalize_tracking_id(malformed), None, "{malformed}");
+    }
 }

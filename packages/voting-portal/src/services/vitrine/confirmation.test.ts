@@ -6,12 +6,12 @@ import {receiptFileName} from "./confirmation"
 
 describe("receiptFileName", () => {
     it("names the receipt after the groups of the short Tracking ID", () => {
-        const id = "30ffd3144238".padEnd(64, "0")
-        expect(receiptFileName(id)).toBe("ballot-30ff-d314.vitrine-receipt")
+        const id = "FTBEMHRX4238".padEnd(64, "0")
+        expect(receiptFileName(id)).toBe("ballot-FTBE-MHRX.vitrine-receipt")
     })
 
     it("reads a grouped, upper-case ID the same way", () => {
-        expect(receiptFileName("30FF D314 4238 6472")).toBe("ballot-30ff-d314.vitrine-receipt")
+        expect(receiptFileName("ftbe mhrx 0123 4567")).toBe("ballot-FTBE-MHRX.vitrine-receipt")
     })
 
     it("still names a file when there is no ID", () => {

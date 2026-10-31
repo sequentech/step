@@ -23,6 +23,7 @@ import {
     type ReceiptChain,
 } from "@vitrine/verify/pure"
 import type {THttpInit} from "../services/vitrine/http"
+import {trackingIdOfDigestHex} from "../services/vitrine/ballotId"
 import {ETransparencyMode} from "../services/vitrine/presentation"
 
 const PKCS8_ED25519_PREFIX = "302e020100300506032b657004220420"
@@ -37,6 +38,9 @@ export const ELECTION_ID = "4f1d2e3c-5b6a-4789-8a9b-0c1d2e3f4a5b"
 export const OTHER_ELECTION_ID = "9a8b7c6d-5e4f-4a3b-9c2d-1e0f9a8b7c6d"
 export const BALLOT_ID = "c0ffee".repeat(10) + "abcd"
 export const OTHER_BALLOT_ID = "0dd".repeat(21) + "0"
+/** The Tracking IDs the digests above write. */
+export const TRACKING_ID = trackingIdOfDigestHex(BALLOT_ID) as string
+export const OTHER_TRACKING_ID = trackingIdOfDigestHex(OTHER_BALLOT_ID) as string
 export const ACCEPTED_AT = NOW - 5
 export const VERIFIER_URL = "https://verifier.example/receipt/"
 

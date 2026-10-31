@@ -12,12 +12,12 @@
     "closes": 1793044800
   },
   "entries": [
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBCAAAJbXVuaS0yMDI2AAAFbWF5b3IAACDghKEFp7fVmbg0bTy6WsUbdW1+Kcfvd/2e/zH96uMTiQAACAAAAABq3wi8",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBEAAAJbXVuaS0yMDI1AAAHY291bmNpbAAAIDkLNqCVArBdT4wnrqJjbGt/0Fsn10LtMgdP/qH4iOvkAAAIAAAAAGrfCOQ=",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBHAAAJbXVuaS0yMDI2AAAKZG9nY2F0Y2hlcgAAIMIs7uZrirEESDyDBTFzsz+ZLdT8tFcoTGDvnWmaHHBZAAAIAAAAAGrfCQI=",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBCAAAJbXVuaS0yMDI2AAAFbWF5b3IAACDghKEFp7fVmbg0bTy6WsUbdW1+Kcfvd/2e/zH96uMTiQAACAAAAABq3wlI",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBCAAAJbXVuaS0yMDI2AAAFbWF5b3IAACB/3o7r84j8/2Z6ib5gQwzG4Zixp4y2A6Oc3QmIWjM24wAACAAAAABq3vpw",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBCAAAJbXVuaS0yMDI2AAAFbWF5b3IAACCSRr4em6n13luvdmolbrcl6adVH7k9f6p5PJOOD0HeNQAACAAAAABq3woQ",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBJAAAJbXVuaS0yMDI2AAAFbWF5b3IAAARjYXN0AAAg4IShBae31Zm4NG08ulrFG3VtfinH73f9nv8x/erjE4kAAAgAAAAAat8IvA==",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBLAAAJbXVuaS0yMDI1AAAHY291bmNpbAAABGNhc3QAACA5CzaglQKwXU+MJ66iY2xrf9BbJ9dC7TIHT/6h+Ijr5AAACAAAAABq3wjk",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBOAAAJbXVuaS0yMDI2AAAKZG9nY2F0Y2hlcgAABGNhc3QAACDCLO7ma4qxBEg8gwUxc7M/mS3U/LRXKExg751pmhxwWQAACAAAAABq3wkC",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBJAAAJbXVuaS0yMDI2AAAFbWF5b3IAAARjYXN0AAAg4IShBae31Zm4NG08ulrFG3VtfinH73f9nv8x/erjE4kAAAgAAAAAat8JSA==",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBJAAAJbXVuaS0yMDI2AAAFbWF5b3IAAARjYXN0AAAgf96O6/OI/P9meom+YEMMxuGYsaeMtgOjnN0JiFozNuMAAAgAAAAAat76cA==",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBJAAAJbXVuaS0yMDI2AAAFbWF5b3IAAARjYXN0AAAgkka+Hpup9d5br3ZqJW63JemnVR+5PX+qeTyTjg9B3jUAAAgAAAAAat8KEA==",
     "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQA3AAAJbXVuaS0yMDI2AAAFbWF5b3IAACD5sAeLXfWW0uoZAQwAG70AnmUd4sV+j7fjVfMeudP3OQ=="
   ],
   "sequenced": [
@@ -66,6 +66,10 @@
         "value": "mayor"
       },
       {
+        "name": "stage",
+        "value": "cast"
+      },
+      {
         "name": "ballot_id",
         "value": "e084a105a7b7d599b8346d3cba5ac51b756d7e29c7ef77fd9eff31fdeae31389"
       },
@@ -82,6 +86,10 @@
       {
         "name": "election_id",
         "value": "council"
+      },
+      {
+        "name": "stage",
+        "value": "cast"
       },
       {
         "name": "ballot_id",
@@ -102,6 +110,10 @@
         "value": "dogcatcher"
       },
       {
+        "name": "stage",
+        "value": "cast"
+      },
+      {
         "name": "ballot_id",
         "value": "c22ceee66b8ab104483c83053173b33f992dd4fcb457284c60ef9d699a1c7059"
       },
@@ -118,6 +130,10 @@
       {
         "name": "election_id",
         "value": "mayor"
+      },
+      {
+        "name": "stage",
+        "value": "cast"
       },
       {
         "name": "ballot_id",
@@ -138,6 +154,10 @@
         "value": "mayor"
       },
       {
+        "name": "stage",
+        "value": "cast"
+      },
+      {
         "name": "ballot_id",
         "value": "7fde8eebf388fcff667a89be60430cc6e198b1a78cb603a39cdd09885a3336e3"
       },
@@ -154,6 +174,10 @@
       {
         "name": "election_id",
         "value": "mayor"
+      },
+      {
+        "name": "stage",
+        "value": "cast"
       },
       {
         "name": "ballot_id",
