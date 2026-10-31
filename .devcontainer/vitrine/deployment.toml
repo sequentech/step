@@ -13,6 +13,8 @@ operator = "sequent"
 quorum = "witnesses"
 words = "en"
 monitor_quorum = 2
+# Other explorer pages anyone can use to look a record up.
+# explorers = ["https://explorer.example.org/"]
 
 [anchor]
 period = 10
@@ -81,6 +83,7 @@ name = "hub-a"
 vkey = "hub-a.localhost+aa8b8f0c+AYVYw0AGwx4o5dP8ZbfXbGIRn3vD7M2ZEzs7JfL3X98C"
 url = "http://localhost:8100/"
 operator = "hub-a-party"
+# explorer = "http://localhost:8100/explorer/"
 quorum = "hw-a"
 witnesses = [{name = "hw-a", vkey = "hub-a-witness.localhost+f78cda18+BMDNr5maYRLQ7LsDPIw/BM0vkFQ5ezVClODVcyCJVagZ", party = "hub-a-witness-party"}]
 
@@ -89,6 +92,7 @@ name = "hub-b"
 vkey = "hub-b.localhost+fb65477d+AV5m7yBs5WBLANN+ZcOZCru0sif5MKaLuluJHLgts2E2"
 url = "http://localhost:8104/"
 operator = "hub-b-party"
+# explorer = "http://localhost:8104/explorer/"
 quorum = "hw-b"
 witnesses = [{name = "hw-b", vkey = "hub-b-witness.localhost+927b93e5+BO7zehUpdCteYfDFbO4kJxPU3dwNffcgRMU1vjS0dqRH", party = "hub-b-witness-party"}]
 
@@ -97,9 +101,11 @@ name = "monitor-a"
 vkey = "monitor-a.localhost+b451709e+AVg2WdnluLhcTqSA05IwSyqEyzbRBrjyWpPL+6B2VvLm"
 url = "http://localhost:8108/"
 party = "monitor-a-party"
+# explorer = "http://localhost:8108/explorer/"
 
 [[monitors]]
 name = "monitor-b"
 vkey = "monitor-b.localhost+0c1473f3+AaAHs3slTWk5rPVd1xb3OsEo+efV20OCm7eBVWpYE5r+"
 url = "http://localhost:8110/"
 party = "monitor-b-party"
+# explorer = "http://localhost:8110/explorer/"

@@ -33,6 +33,13 @@ jest.mock("@sequentech/ui-essentials", () => ({
     ...jest.requireActual("../../../ui-essentials/src/ballot/presentation"),
     ...jest.requireActual("../../../ui-essentials/src/components/SelectElection/electionTimes"),
     ...jest.requireActual("../../../ui-essentials/src/ballot/ElectionListLayout"),
+    // The status dialog's Tracking ID block copies through these.
+    copyBallotHash: jest.requireActual(
+        "../../../ui-essentials/src/components/BallotHash/BallotHash"
+    ).copyBallotHash,
+    CopyBallotHashStatus: jest.requireActual(
+        "../../../ui-essentials/src/components/BallotHash/BallotHash"
+    ).CopyBallotHashStatus,
     theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
     PageLimit: ({children}: any) => <div>{children}</div>,
     Dialog: () => null,

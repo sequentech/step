@@ -8,17 +8,21 @@ const frenchTranslation: TranslationType = {
         ballotPrivacy: {
             ...englishTranslation.translations.ballotPrivacy,
             title: "Tous les bulletins",
-            subtitle: "Tous les bulletins envoyés dans cette élection, une seule fois, à leur dernière étape. Les électeurs figurent sous un pseudonyme et non sous leur nom.",
+            subtitle:
+                "Tous les bulletins envoyés dans cette élection, une seule fois, à leur dernière étape. Les électeurs figurent sous un pseudonyme et non sous leur nom.",
             own: "Votre bulletin est dans le journal",
             copy: "Copier l’identifiant de suivi",
             ballotIdHelp: "À propos de votre identifiant de suivi",
             stageTime: "{{stage}} {{time}}",
-            noMatchHelp: "Vérifiez les fautes de frappe. Un identifiant de suivi comporte un trait d’union et au moins 8 caractères, comme FTBE-MHRX. Un pseudonyme comporte deux-points, comme K7QM:2XWD.",
+            noMatchHelp:
+                "Vérifiez les fautes de frappe. Un identifiant de suivi comporte un trait d’union et au moins 8 caractères, comme FTBE-MHRX. Un pseudonyme comporte deux-points, comme K7QM:2XWD.",
             copied: "Identifiant de suivi copié",
-            copyFailed: "Impossible de copier l’identifiant de suivi. Sélectionnez le code pour le copier.",
+            copyFailed:
+                "Impossible de copier l’identifiant de suivi. Sélectionnez le code pour le copier.",
             search: "Rechercher un identifiant de suivi ou un pseudonyme",
             placeholder: "FTBE-MHRX ou K7QM:2XWD",
-            matchesBoth: "{{tracking}} correspondent par identifiant de suivi · {{pseudonym}} par pseudonyme",
+            matchesBoth:
+                "{{tracking}} correspondent par identifiant de suivi · {{pseudonym}} par pseudonyme",
             ballotId: "Identifiant de suivi",
             lastStep: "Dernière étape",
             time: "Heure",
@@ -26,7 +30,8 @@ const frenchTranslation: TranslationType = {
             trackingIdHelp: "Calculé à partir du bulletin chiffré et de la clé de l’électeur.",
             noMatch: "Aucun identifiant de suivi ni pseudonyme ne commence par {{prefix}}",
             noBallots: "Aucun bulletin n’a encore été envoyé.",
-            invalidPrefix: "Saisissez au moins 8 caractères d’un identifiant de suivi avec un trait d’union, comme FTBE-MHRX, ou jusqu’à 8 d’un pseudonyme avec deux-points, comme K7QM:2XWD. Les codes utilisent les chiffres de 0 à 9 et des lettres majuscules, sans I, L, O ni U.",
+            invalidPrefix:
+                "Saisissez au moins 8 caractères d’un identifiant de suivi avec un trait d’union, comme FTBE-MHRX, ou jusqu’à 8 d’un pseudonyme avec deux-points, comme K7QM:2XWD. Les codes utilisent les chiffres de 0 à 9 et des lettres majuscules, sans I, L, O ni U.",
             stages: {
                 received: {
                     label: "Reçu",
@@ -53,7 +58,8 @@ const frenchTranslation: TranslationType = {
             },
             checkDescriptions: {
                 ...englishTranslation.translations.ballotPrivacy.checkDescriptions,
-                ballotId: "L’identifiant de suivi est calculé à partir du bulletin chiffré et de la clé de l’électeur.",
+                ballotId:
+                    "L’identifiant de suivi est calculé à partir du bulletin chiffré et de la clé de l’électeur.",
             },
         },
         startup: {
@@ -325,7 +331,8 @@ const frenchTranslation: TranslationType = {
                     "Aucun bulletin de vote vérifiable n'est disponible. Veuillez contacter le support.",
                 INCONSISTENT_HASH:
                     "Une erreur est survenue lors du calcul du hachage du bulletin. L'identifiant de suivi ({{ballotId}}) ne correspond pas au hachage du bulletin vérifiable ({{auditableBallotHash}}). Veuillez signaler ce problème au service d'aide.",
-                NOT_RECEIVED: "Le registre public ne contient pas encore votre bulletin, il n'a donc pas été envoyé. Revenez à votre bulletin et réessayez.",
+                NOT_RECEIVED:
+                    "Le registre public ne contient pas encore votre bulletin, il n'a donc pas été envoyé. Revenez à votre bulletin et réessayez.",
                 ELECTION_EVENT_NOT_OPEN:
                     "L'événement électoral est fermé. Veuillez contacter le support.",
                 PARSE_ERROR:
@@ -611,7 +618,8 @@ const frenchTranslation: TranslationType = {
             contentDesc: "Voici le contenu de votre bulletin : ",
             wrongFormatBallotId: "Format incorrect pour l'identifiant de suivi",
             ambiguous: "Plusieurs de vos bulletins commencent par {{ballotId}}. Choisissez-en un :",
-            ambiguousMany: "Plusieurs de vos bulletins commencent par {{ballotId}}. Saisissez davantage de l'identifiant de suivi.",
+            ambiguousMany:
+                "Plusieurs de vos bulletins commencent par {{ballotId}}. Saisissez davantage de l'identifiant de suivi.",
             ballotIdNotFoundAtFilter:
                 "Non trouvé, veuillez vérifier que votre identifiant de suivi est correct et qu'il appartient à cet utilisateur.",
             filterByBallotId: "Filtrez par identifiant de suivi",
@@ -800,9 +808,35 @@ const frenchTranslation: TranslationType = {
                 copy: "Copier l’identifiant de suivi complet",
                 copied: "Identifiant de suivi copié",
                 showFull: "Afficher l’identifiant de suivi complet",
+                selected: "Sélectionné. Appuyez sur Ctrl+C, ou ⌘C sur Mac, pour le copier.",
+                copyByHand:
+                    "Votre navigateur n’a pas pu le copier. Ouvrez l’identifiant de suivi complet pour le sélectionner.",
+            },
+            elsewhere: {
+                title: "Chercher ailleurs",
+                count_one: "{{count}} explorateur, {{independent}} indépendant",
+                count_other: "{{count}} explorateurs, {{independent}} indépendants",
+                introBallot:
+                    "Des explorateurs gérés par des tiers lisent eux-mêmes le registre public. Chacun devrait retrouver votre bulletin, avec les mêmes vérifications, sans ce site.",
+                introEntry:
+                    "Des explorateurs gérés par des tiers lisent eux-mêmes le registre public. Chacun devrait afficher cette entrée telle qu’elle est ici.",
+                foot: "La liste provient de la politique de l’élection. Tout explorateur Vitrine peut ouvrir le même registre : donnez-lui l’identifiant de suivi complet.",
+                name: "Explorateur de {{name}}",
+                operatorName: "Explorateur de l’élection",
+                independent: "Indépendant",
+                operator: "Opérateur",
+                newTab: "S’ouvre dans un nouvel onglet",
+                who: {
+                    monitor: "Un moniteur cité dans la politique de l’élection",
+                    hub: "Un hub d’ancrage cité dans la politique de l’élection",
+                    operator: "Géré par l’autorité électorale",
+                },
             },
             status: {
                 title: "État du bulletin",
+                audit: "Auditer le bulletin",
+                auditNote:
+                    "Vous n’êtes pas sûr que le portail ait bien chiffré vos choix ? Auditez ce bulletin : le portail révèle comment il l’a chiffré pour que vous le vérifiiez. Un bulletin audité ne peut jamais être déposé, vous votez donc de nouveau ensuite.",
                 cast: "Émis le {{when}}",
                 audited: "Audité le {{when}}",
                 ballotCast: "Vote émis",

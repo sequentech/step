@@ -229,6 +229,47 @@ describe("an event that keeps a transparency log", () => {
     })
 })
 
+describe("Audit ballot in the status dialog of the Tracking ID box", () => {
+    const openStatus = () =>
+        fireEvent.click(screen.getByRole("button", {name: /^vitrine.status.aria/}))
+    const auditButton = () =>
+        within(screen.getByRole("dialog")).queryByRole("button", {name: "vitrine.status.audit"})
+
+    it.each([
+        ["SHOW", EVotingPortalAuditButtonCfg.SHOW],
+        ["SHOW_IN_HELP", EVotingPortalAuditButtonCfg.SHOW_IN_HELP],
+    ])("is offered when the audit button is %s", (_name, auditButtonCfg) => {
+        setUpState({transparency: ETransparencyMode.PUBLIC, auditButtonCfg})
+        renderReview()
+        openStatus()
+        expect(auditButton()).not.toBeNull()
+    })
+
+    it.each([
+        ["NOT_SHOW", {auditButtonCfg: EVotingPortalAuditButtonCfg.NOT_SHOW}],
+        ["every contest is acclaimed", {isFullyAcclaimed: true}],
+    ])("is not offered when %s, as there is no box to open it from", (_name, setUp) => {
+        setUpState({transparency: ETransparencyMode.PUBLIC, ...setUp})
+        renderReview()
+        expect(screen.queryByRole("button", {name: /^vitrine.status.aria/})).toBeNull()
+    })
+
+    it.each([
+        ["SHOW", EVotingPortalAuditButtonCfg.SHOW],
+        ["SHOW_IN_HELP", EVotingPortalAuditButtonCfg.SHOW_IN_HELP],
+    ])(
+        "closes the dialog and opens the audit help when the audit button is %s",
+        async (_name, auditButtonCfg) => {
+            setUpState({transparency: ETransparencyMode.PUBLIC, auditButtonCfg})
+            renderReview()
+            openStatus()
+            fireEvent.click(auditButton()!)
+            expect(await screen.findByText("reviewScreen.auditBallotHelpDialog.title")).toBeTruthy()
+            expect(screen.queryByRole("dialog", {name: "vitrine.status.title"})).toBeNull()
+        }
+    )
+})
+
 describe("an event that keeps no transparency log", () => {
     beforeEach(() => setUpState())
 

@@ -14,6 +14,7 @@ import {
     useTheme,
 } from "@mui/material"
 import {useTranslation} from "react-i18next"
+import type {Policy} from "@vitrine/verify"
 import {
     BallotLogProof,
     type BallotLogEvidence,
@@ -21,11 +22,17 @@ import {
 } from "@sequentech/ui-essentials"
 import {BALLOT_BOX_ENTRY, BALLOT_BOX_KEYS} from "../queries/BallotBoxLog"
 import {shortBallotId} from "../services/vitrine/ballotId"
+import {EVitrineLog} from "../services/vitrine/types"
+import {explorersOf} from "./Vitrine/explorers"
+import {FullTrackingId} from "./Vitrine/FullTrackingId"
+import {EFindWhat, FindElsewhere} from "./Vitrine/FindElsewhere"
 
 export interface BallotBoxEntryProps {
     electionEventId: string
     electionId: string
     ballotId: string
+    /** The event's Vitrine policy, which names the explorers of the entry. */
+    policy?: Policy
     onClose: () => void
 }
 
@@ -33,6 +40,7 @@ export const BallotBoxEntry: React.FC<BallotBoxEntryProps> = ({
     electionEventId,
     electionId,
     ballotId,
+    policy,
     onClose,
 }) => {
     const {t} = useTranslation()
@@ -94,7 +102,21 @@ export const BallotBoxEntry: React.FC<BallotBoxEntryProps> = ({
                         {t("ballotPrivacy.proofError")}
                     </Alert>
                 ) : (
-                    <BallotLogProof proof={proof} trust={trust} onRetry={retry} />
+                    <>
+                        <BallotLogProof
+                            proof={proof}
+                            trust={trust}
+                            onRetry={retry}
+                            renderTrackingId={(id) => <FullTrackingId ballotId={id} />}
+                        />
+                        <FindElsewhere
+                            what={EFindWhat.ENTRY}
+                            explorers={explorersOf(policy)}
+                            policyId={policy?.id}
+                            log={EVitrineLog.BALLOTS}
+                            ballotId={ballotId}
+                        />
+                    </>
                 )}
             </DialogContent>
             <DialogActions

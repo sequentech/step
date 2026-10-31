@@ -1255,17 +1255,21 @@ export const ReviewScreen: React.FC = () => {
                     auditButtonCfg !== EVotingPortalAuditButtonCfg.NOT_SHOW &&
                     !isFullyAcclaimed &&
                     keepsTransparencyLog &&
-                    shownBallotId
-                        ? (
-                              <ReviewBallotId
-                                  ballotId={shownBallotId}
-                                  view={receipt.view}
-                                  electionName={electionName}
-                                  helpLabel={t("reviewScreen.ballotIdHelpDialog.title")}
-                                  onHelpClick={() => setOpenBallotIdHelp(true)}
-                              />
-                          )
-                        : undefined
+                    shownBallotId ? (
+                        <ReviewBallotId
+                            ballotId={shownBallotId}
+                            view={receipt.view}
+                            electionName={electionName}
+                            helpLabel={t("reviewScreen.ballotIdHelpDialog.title")}
+                            onHelpClick={() => setOpenBallotIdHelp(true)}
+                            onAudit={
+                                auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ||
+                                auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
+                                    ? () => setAuditBallotHelp(true)
+                                    : undefined
+                            }
+                        />
+                    ) : undefined
                 }
                 steps={<Stepper selected={2} />}
                 onTitleHelp={() => setReviewScreenHelp(true)}
@@ -1343,7 +1347,8 @@ export const ReviewScreen: React.FC = () => {
                 >
                     {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
                 </BallotIdHelpDialog>
-                {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP &&
+                {(auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP ||
+                    auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW) &&
                 !isFullyAcclaimed ? (
                     <AuditBallotHelpDialog
                         auditBallotHelp={auditBallotHelp}

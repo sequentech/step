@@ -37,10 +37,17 @@ export interface BallotLogProofProps {
     trust: BallotLogTrust
     proof: BallotLogEvidence
     onRetry?: () => void
+    /** How the screen shows the full Tracking ID, in place of plain text. */
+    renderTrackingId?: (trackingId: string) => React.ReactNode
 }
 
 /** Both portals run the same WASM verifier over the signed bytes with published keys. */
-export const BallotLogProof: React.FC<BallotLogProofProps> = ({trust, proof, onRetry}) => {
+export const BallotLogProof: React.FC<BallotLogProofProps> = ({
+    trust,
+    proof,
+    onRetry,
+    renderTrackingId,
+}) => {
     const {t} = useTranslation()
     const checked = useMemo(() => {
         try {
@@ -100,18 +107,22 @@ export const BallotLogProof: React.FC<BallotLogProofProps> = ({trust, proof, onR
                     <Typography variant="body2" color="text.secondary" sx={{m: 0}}>
                         {t("ballotPrivacy.trackingId")}
                     </Typography>
-                    <Typography
-                        className="ballot-proof-tracking-id"
-                        sx={{
-                            m: 0,
-                            fontFamily: "monospace",
-                            fontSize: 15,
-                            fontWeight: 700,
-                            overflowWrap: "anywhere",
-                        }}
-                    >
-                        {proof.tracking_id}
-                    </Typography>
+                    {renderTrackingId ? (
+                        renderTrackingId(proof.tracking_id)
+                    ) : (
+                        <Typography
+                            className="ballot-proof-tracking-id"
+                            sx={{
+                                m: 0,
+                                fontFamily: "monospace",
+                                fontSize: 15,
+                                fontWeight: 700,
+                                overflowWrap: "anywhere",
+                            }}
+                        >
+                            {proof.tracking_id}
+                        </Typography>
+                    )}
                     <Typography variant="caption" color="text.secondary" sx={{m: 0}}>
                         {t("ballotPrivacy.trackingIdHelp")}
                     </Typography>

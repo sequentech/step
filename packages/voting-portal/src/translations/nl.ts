@@ -8,17 +8,21 @@ const dutchTranslation: TranslationType = {
         ballotPrivacy: {
             ...englishTranslation.translations.ballotPrivacy,
             title: "Alle stembiljetten",
-            subtitle: "Elk stembiljet dat in deze verkiezing is verzonden, één keer, bij zijn laatste stap. Kiezers staan onder een pseudoniem vermeld in plaats van een naam.",
+            subtitle:
+                "Elk stembiljet dat in deze verkiezing is verzonden, één keer, bij zijn laatste stap. Kiezers staan onder een pseudoniem vermeld in plaats van een naam.",
             own: "Uw stembiljet staat in het logboek",
             copy: "Trackingcode kopiëren",
             ballotIdHelp: "Over uw trackingcode",
             stageTime: "{{stage}} {{time}}",
-            noMatchHelp: "Controleer op typefouten. Een trackingcode bevat een koppelteken en minstens 8 tekens, zoals FTBE-MHRX. Een pseudoniem bevat een dubbele punt, zoals K7QM:2XWD.",
+            noMatchHelp:
+                "Controleer op typefouten. Een trackingcode bevat een koppelteken en minstens 8 tekens, zoals FTBE-MHRX. Een pseudoniem bevat een dubbele punt, zoals K7QM:2XWD.",
             copied: "Trackingcode gekopieerd",
-            copyFailed: "De trackingcode kon niet worden gekopieerd. Selecteer de code om hem te kopiëren.",
+            copyFailed:
+                "De trackingcode kon niet worden gekopieerd. Selecteer de code om hem te kopiëren.",
             search: "Zoek een trackingcode of pseudoniem",
             placeholder: "FTBE-MHRX of K7QM:2XWD",
-            matchesBoth: "{{tracking}} komen overeen met de trackingcode · {{pseudonym}} met het pseudoniem",
+            matchesBoth:
+                "{{tracking}} komen overeen met de trackingcode · {{pseudonym}} met het pseudoniem",
             ballotId: "Trackingcode",
             lastStep: "Laatste stap",
             time: "Tijd",
@@ -26,7 +30,8 @@ const dutchTranslation: TranslationType = {
             trackingIdHelp: "Berekend uit het versleutelde stembiljet en de sleutel van de kiezer.",
             noMatch: "Geen trackingcode of pseudoniem begint met {{prefix}}",
             noBallots: "Er zijn nog geen stembiljetten verzonden.",
-            invalidPrefix: "Voer minstens 8 tekens van een trackingcode met koppelteken in, zoals FTBE-MHRX, of maximaal 8 van een pseudoniem met dubbele punt, zoals K7QM:2XWD. De codes gebruiken de cijfers 0 tot 9 en hoofdletters, zonder I, L, O en U.",
+            invalidPrefix:
+                "Voer minstens 8 tekens van een trackingcode met koppelteken in, zoals FTBE-MHRX, of maximaal 8 van een pseudoniem met dubbele punt, zoals K7QM:2XWD. De codes gebruiken de cijfers 0 tot 9 en hoofdletters, zonder I, L, O en U.",
             stages: {
                 received: {
                     label: "Ontvangen",
@@ -53,7 +58,8 @@ const dutchTranslation: TranslationType = {
             },
             checkDescriptions: {
                 ...englishTranslation.translations.ballotPrivacy.checkDescriptions,
-                ballotId: "De trackingcode wordt berekend uit het versleutelde stembiljet en de sleutel van de kiezer.",
+                ballotId:
+                    "De trackingcode wordt berekend uit het versleutelde stembiljet en de sleutel van de kiezer.",
             },
         },
         startup: {
@@ -325,7 +331,8 @@ const dutchTranslation: TranslationType = {
                     "Er is geen auditeerbaar stembiljet beschikbaar. Neem contact op met ondersteuning.",
                 INCONSISTENT_HASH:
                     "Er was een fout met het hash-proces van het stembiljet. Tracking-ID: {{ballotId}} is niet consistent met de auditeerbare Ballot Hash: {{auditableBallotHash}}. Meld dit probleem bij de ondersteuning.",
-                NOT_RECEIVED: "Het openbare register bevat uw stembiljet nog niet, dus het is niet verzonden. Ga terug naar uw stembiljet en probeer het opnieuw.",
+                NOT_RECEIVED:
+                    "Het openbare register bevat uw stembiljet nog niet, dus het is niet verzonden. Ga terug naar uw stembiljet en probeer het opnieuw.",
                 ELECTION_EVENT_NOT_OPEN:
                     "De kiesgebeurtenis is gesloten. Neem contact op met ondersteuning.",
                 PARSE_ERROR:
@@ -613,7 +620,8 @@ const dutchTranslation: TranslationType = {
             contentDesc: "Dit is de inhoud van uw stembiljet: ",
             wrongFormatBallotId: "Verkeerd formaat voor Tracking-ID",
             ambiguous: "Meerdere van uw stembiljetten beginnen met {{ballotId}}. Kies er een:",
-            ambiguousMany: "Meerdere van uw stembiljetten beginnen met {{ballotId}}. Typ meer van de Tracking-ID.",
+            ambiguousMany:
+                "Meerdere van uw stembiljetten beginnen met {{ballotId}}. Typ meer van de Tracking-ID.",
             ballotIdNotFoundAtFilter:
                 "Niet gevonden, controleer of uw Tracking-ID correct is en tot deze gebruiker behoort.",
             filterByBallotId: "Filteren op Tracking-ID",
@@ -800,9 +808,35 @@ const dutchTranslation: TranslationType = {
                 copy: "De volledige Tracking-ID kopiëren",
                 copied: "Tracking-ID gekopieerd",
                 showFull: "De volledige Tracking-ID tonen",
+                selected: "Geselecteerd. Druk op Ctrl+C, of ⌘C op een Mac, om te kopiëren.",
+                copyByHand:
+                    "Je browser kopieerde het niet. Open de volledige Tracking-ID om hem te selecteren.",
+            },
+            elsewhere: {
+                title: "Elders opzoeken",
+                count_one: "{{count}} verkenner, {{independent}} onafhankelijk",
+                count_other: "{{count}} verkenners, {{independent}} onafhankelijk",
+                introBallot:
+                    "Verkenners van anderen lezen zelf het openbare register. Elk zou je stem moeten vinden, met dezelfde controles, zonder deze website.",
+                introEntry:
+                    "Verkenners van anderen lezen zelf het openbare register. Elk zou deze invoer precies zo moeten tonen als hier.",
+                foot: "De lijst komt uit het beleid van de verkiezing. Elke Vitrine-verkenner kan hetzelfde register openen: geef hem de volledige Tracking-ID.",
+                name: "Verkenner van {{name}}",
+                operatorName: "Verkenner van de verkiezing",
+                independent: "Onafhankelijk",
+                operator: "Beheerder",
+                newTab: "Opent in een nieuw tabblad",
+                who: {
+                    monitor: "Een monitor die in het beleid van de verkiezing staat",
+                    hub: "Een ankerhub die in het beleid van de verkiezing staat",
+                    operator: "Beheerd door de verkiezingsautoriteit",
+                },
             },
             status: {
                 title: "Status van het stembiljet",
+                audit: "Stem controleren",
+                auditNote:
+                    "Niet zeker of het portaal je keuzes goed heeft versleuteld? Controleer deze stem: het portaal laat zien hoe hij is versleuteld, zodat je het kunt nagaan. Een gecontroleerde stem kan nooit worden uitgebracht, dus je stemt daarna opnieuw.",
                 cast: "Uitgebracht op {{when}}",
                 audited: "Geauditeerd op {{when}}",
                 ballotCast: "Stem uitgebracht",

@@ -8,12 +8,14 @@ const tagalogTranslation: TranslationType = {
         ballotPrivacy: {
             ...englishTranslation.translations.ballotPrivacy,
             title: "Lahat ng balota",
-            subtitle: "Bawat balotang naipadala sa halalang ito, isang beses, sa huling hakbang nito. Nakalista ang mga botante sa ilalim ng alyas sa halip na pangalan.",
+            subtitle:
+                "Bawat balotang naipadala sa halalang ito, isang beses, sa huling hakbang nito. Nakalista ang mga botante sa ilalim ng alyas sa halip na pangalan.",
             own: "Nasa log ang iyong balota",
             copy: "Kopyahin ang Tracking ID",
             ballotIdHelp: "Tungkol sa iyong Tracking ID",
             stageTime: "{{stage}} {{time}}",
-            noMatchHelp: "Tingnan kung may mali sa pag-type. Ang Tracking ID ay may gitling at hindi bababa sa 8 karakter, tulad ng FTBE-MHRX. Ang alyas ay may tutuldok, tulad ng K7QM:2XWD.",
+            noMatchHelp:
+                "Tingnan kung may mali sa pag-type. Ang Tracking ID ay may gitling at hindi bababa sa 8 karakter, tulad ng FTBE-MHRX. Ang alyas ay may tutuldok, tulad ng K7QM:2XWD.",
             copied: "Nakopya ang Tracking ID",
             copyFailed: "Hindi makopya ang Tracking ID. Piliin ang code para makopya ito.",
             search: "Maghanap ng Tracking ID o alyas",
@@ -26,7 +28,8 @@ const tagalogTranslation: TranslationType = {
             trackingIdHelp: "Kinukuwenta mula sa naka-encrypt na balota at sa susi ng botante.",
             noMatch: "Walang Tracking ID o alyas na nagsisimula sa {{prefix}}",
             noBallots: "Wala pang naipapadalang balota.",
-            invalidPrefix: "Maglagay ng hindi bababa sa 8 karakter ng Tracking ID na may gitling, tulad ng FTBE-MHRX, o hanggang 8 ng alyas na may tutuldok, tulad ng K7QM:2XWD. Gumagamit ang mga code ng mga digit 0 hanggang 9 at malalaking titik, walang I, L, O at U.",
+            invalidPrefix:
+                "Maglagay ng hindi bababa sa 8 karakter ng Tracking ID na may gitling, tulad ng FTBE-MHRX, o hanggang 8 ng alyas na may tutuldok, tulad ng K7QM:2XWD. Gumagamit ang mga code ng mga digit 0 hanggang 9 at malalaking titik, walang I, L, O at U.",
             stages: {
                 received: {
                     label: "Natanggap",
@@ -53,7 +56,8 @@ const tagalogTranslation: TranslationType = {
             },
             checkDescriptions: {
                 ...englishTranslation.translations.ballotPrivacy.checkDescriptions,
-                ballotId: "Kinukuwenta ang Tracking ID mula sa naka-encrypt na balota at sa susi ng botante.",
+                ballotId:
+                    "Kinukuwenta ang Tracking ID mula sa naka-encrypt na balota at sa susi ng botante.",
             },
         },
         startup: {
@@ -324,7 +328,8 @@ const tagalogTranslation: TranslationType = {
                 NO_AUDITABLE_BALLOT: "Walang balota na maaring suriin. Pakikontak ang helpdesk.",
                 INCONSISTENT_HASH:
                     "Nagkaroon ng error kaugnay sa proseso ng pag-hash ng balota. Ang Tracking ID: {{ballotId}} ay hindi tugma sa sinusuring Hash ng Balota: {{auditableBallotHash}}. Pakireport itong isyu sa helpdesk.",
-                NOT_RECEIVED: "Wala pa ang iyong balota sa pampublikong talaan, kaya hindi ito naipadala. Bumalik sa iyong balota at subukan muli.",
+                NOT_RECEIVED:
+                    "Wala pa ang iyong balota sa pampublikong talaan, kaya hindi ito naipadala. Bumalik sa iyong balota at subukan muli.",
                 ELECTION_EVENT_NOT_OPEN:
                     "Ang kaganapan ng halalan ay sarado na. Pakikontak ang helpdesk.",
                 PARSE_ERROR:
@@ -612,7 +617,8 @@ const tagalogTranslation: TranslationType = {
             contentDesc: "Ito ang nilalaman ng iyong balota: ",
             wrongFormatBallotId: "Mali ang format para sa Tracking ID",
             ambiguous: "Maraming balota mo ang nagsisimula sa {{ballotId}}. Pumili ng isa:",
-            ambiguousMany: "Maraming balota mo ang nagsisimula sa {{ballotId}}. I-type ang mas marami pa sa Tracking ID.",
+            ambiguousMany:
+                "Maraming balota mo ang nagsisimula sa {{ballotId}}. I-type ang mas marami pa sa Tracking ID.",
             ballotIdNotFoundAtFilter:
                 "Hindi natagpuan. Tiyaking tama ang iyong Tracking ID at nabibilang ito sa gumagamit na ito.",
             filterByBallotId: "I-filter ayon sa Tracking ID",
@@ -800,9 +806,35 @@ const tagalogTranslation: TranslationType = {
                 copy: "Kopyahin ang buong Tracking ID",
                 copied: "Nakopya ang Tracking ID",
                 showFull: "Ipakita ang buong Tracking ID",
+                selected: "Napili na. Pindutin ang Ctrl+C, o ⌘C sa Mac, para kopyahin ito.",
+                copyByHand:
+                    "Hindi ito nakopya ng iyong browser. Buksan ang buong Tracking ID para mapili ito.",
+            },
+            elsewhere: {
+                title: "Hanapin sa iba",
+                count_one: "{{count}} explorer, {{independent}} malaya",
+                count_other: "{{count}} explorer, {{independent}} malaya",
+                introBallot:
+                    "Binabasa mismo ng mga explorer na pinapatakbo ng iba ang pampublikong talaan. Dapat mahanap ng bawat isa ang iyong balota, na may parehong mga pagsusuri, nang hindi dumadaan sa website na ito.",
+                introEntry:
+                    "Binabasa mismo ng mga explorer na pinapatakbo ng iba ang pampublikong talaan. Dapat ipakita ng bawat isa ang entry na ito gaya ng nasa dito.",
+                foot: "Galing sa patakaran ng halalan ang listahan. Mabubuksan ng anumang Vitrine explorer ang parehong talaan: ibigay ang buong Tracking ID.",
+                name: "Explorer ng {{name}}",
+                operatorName: "Explorer ng halalan",
+                independent: "Malaya",
+                operator: "Operator",
+                newTab: "Magbubukas sa bagong tab",
+                who: {
+                    monitor: "Isang monitor na binanggit sa patakaran ng halalan",
+                    hub: "Isang anchor hub na binanggit sa patakaran ng halalan",
+                    operator: "Pinapatakbo ng awtoridad ng halalan",
+                },
             },
             status: {
                 title: "Katayuan ng balota",
+                audit: "I-audit ang balota",
+                auditNote:
+                    "Hindi sigurado kung tama ang pag-encrypt ng portal sa iyong mga pinili? I-audit ang balotang ito: ipinapakita ng portal kung paano ito na-encrypt para masuri mo. Hindi na kailanman maibabato ang na-audit na balota, kaya bumoto ka ulit pagkatapos.",
                 cast: "Naiboto noong {{when}}",
                 audited: "Na-audit noong {{when}}",
                 ballotCast: "Naiboto na ang balota",

@@ -3,6 +3,7 @@
 import React from "react"
 import {render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import type {Policy} from "@vitrine/verify"
 import {BallotBoxEntry} from "./BallotBoxEntry"
 import {BALLOT_BOX_ENTRY} from "../queries/BallotBoxLog"
 
@@ -12,6 +13,12 @@ jest.mock("@sequentech/ui-essentials", () => ({
     BallotLogProof: jest.requireActual(
         "../../../ui-essentials/src/components/BallotLogProof/BallotLogProof"
     ).BallotLogProof,
+    copyBallotHash: jest.requireActual(
+        "../../../ui-essentials/src/components/BallotHash/BallotHash"
+    ).copyBallotHash,
+    CopyBallotHashStatus: jest.requireActual(
+        "../../../ui-essentials/src/components/BallotHash/BallotHash"
+    ).CopyBallotHashStatus,
 }))
 jest.mock("@sequentech/ui-core", () => ({
     verifyBallotLogProof: (...args: unknown[]) => mockVerify(...args),
@@ -123,4 +130,41 @@ test.each([
     await userEvent.click(screen.getByRole("button", {name: "ballotPrivacy.retry"}))
     expect(entryRefetch).toHaveBeenCalledTimes(1)
     expect(keysRefetch).toHaveBeenCalledTimes(1)
+})
+
+describe("Look it up elsewhere in the entry's dialog", () => {
+    const policy = {
+        id: "sha256:abc123",
+        operator: "Election authority",
+        monitors: new Map([
+            ["obs", {name: "obs", party: "Observer", explorer: "https://obs.example/"}],
+        ]),
+        hubs: new Map(),
+        explorers: [],
+    } as unknown as Policy
+
+    test("lists the policy's explorers, each opening the entry by its Tracking ID", async () => {
+        render(<BallotBoxEntry {...props} policy={policy} />)
+        const toggle = screen.getByRole("button", {name: /vitrine.elsewhere.title/})
+        expect(toggle).toHaveAttribute("aria-expanded", "false")
+        await userEvent.click(toggle)
+        expect(screen.getByText("vitrine.elsewhere.introEntry")).toBeInTheDocument()
+        expect(screen.getByRole("link", {name: /vitrine.elsewhere.name/})).toHaveAttribute(
+            "href",
+            `https://obs.example/#policy=sha256%3Aabc123&log=ballots&find=${TRACKING_ID}`
+        )
+    })
+
+    test("is hidden without a policy, or when it names no explorer", () => {
+        const {rerender} = render(<BallotBoxEntry {...props} />)
+        expect(screen.queryByText("vitrine.elsewhere.title")).not.toBeInTheDocument()
+        rerender(<BallotBoxEntry {...props} policy={{...policy, monitors: new Map()} as Policy} />)
+        expect(screen.queryByText("vitrine.elsewhere.title")).not.toBeInTheDocument()
+    })
+
+    test("shows the full Tracking ID in the Tracking ID block", () => {
+        const {container} = render(<BallotBoxEntry {...props} />)
+        expect(document.querySelector(".full-tracking-id-value")?.textContent).toBe(TRACKING_ID)
+        expect(container).toBeDefined()
+    })
 })

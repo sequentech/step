@@ -37,11 +37,55 @@ describe("copyBallotHash", () => {
         expect(writeText).toHaveBeenCalledWith("abc123")
     })
 
-    it("returns an error when clipboard access is unavailable or rejected", async () => {
-        await expect(copyBallotHash("abc123", undefined)).resolves.toBe(CopyBallotHashStatus.Error)
-        await expect(
-            copyBallotHash("abc123", {writeText: jest.fn().mockRejectedValue(new Error("denied"))})
-        ).resolves.toBe(CopyBallotHashStatus.Error)
+    describe("when the Clipboard API is refused or missing", () => {
+        const setExecCommand = (execCommand: unknown) =>
+            Object.defineProperty(document, "execCommand", {configurable: true, value: execCommand})
+
+        afterEach(() => {
+            Reflect.deleteProperty(document, "execCommand")
+        })
+
+        it("copies through a temporary text area", async () => {
+            let selected = ""
+            setExecCommand(
+                jest.fn(() => {
+                    selected = document.querySelector("textarea")?.value ?? ""
+                    return true
+                })
+            )
+            const writeText = jest.fn().mockRejectedValue(new Error("denied"))
+
+            await expect(copyBallotHash("abc123", {writeText})).resolves.toBe(
+                CopyBallotHashStatus.Copied
+            )
+            expect(selected).toBe("abc123")
+            expect(document.querySelector("textarea")).toBeNull()
+            await expect(copyBallotHash("abc123", undefined)).resolves.toBe(
+                CopyBallotHashStatus.Copied
+            )
+        })
+
+        it("asks for a manual copy when nothing works, and never reports an error", async () => {
+            setExecCommand(jest.fn().mockReturnValue(false))
+            await expect(copyBallotHash("abc123", undefined)).resolves.toBe(
+                CopyBallotHashStatus.Manual
+            )
+            setExecCommand(
+                jest.fn(() => {
+                    throw new Error("unsupported")
+                })
+            )
+            await expect(
+                copyBallotHash("abc123", {
+                    writeText: jest.fn().mockRejectedValue(new Error("denied")),
+                })
+            ).resolves.toBe(CopyBallotHashStatus.Manual)
+            Reflect.deleteProperty(document, "execCommand")
+            await expect(copyBallotHash("abc123", undefined)).resolves.toBe(
+                CopyBallotHashStatus.Manual
+            )
+            expect(document.querySelector("textarea")).toBeNull()
+        })
     })
 })
 
@@ -149,7 +193,10 @@ describe("BallotHash", () => {
                 fireEvent.click(screen.getByRole("button", {name: copyLabels.copy}))
             )
             expect(screen.getByRole("status")).toHaveTextContent(copyLabels.error)
-            expect(screen.getByRole("button", {name: copyLabels.error})).toBeInTheDocument()
+            const button = screen.getByRole("button", {name: copyLabels.error})
+            // Nothing went wrong with the ballot: no warning sign.
+            expect(button.querySelector("svg[data-icon='triangle-exclamation']")).toBeNull()
+            expect(button.querySelector("svg[data-icon='copy']")).not.toBeNull()
         }
     )
 

@@ -8,12 +8,14 @@ const basqueTranslation: TranslationType = {
         ballotPrivacy: {
             ...englishTranslation.translations.ballotPrivacy,
             title: "Boto-paper guztiak",
-            subtitle: "Hauteskunde honetan bidalitako boto-paper guztiak, bakoitza behin, azken urratsean. Hautesleak ezizen batekin agertzen dira, izenik gabe.",
+            subtitle:
+                "Hauteskunde honetan bidalitako boto-paper guztiak, bakoitza behin, azken urratsean. Hautesleak ezizen batekin agertzen dira, izenik gabe.",
             own: "Zure boto-papera erregistroan dago",
             copy: "Kopiatu jarraipen IDa",
             ballotIdHelp: "Zure jarraipen IDari buruz",
             stageTime: "{{stage}} {{time}}",
-            noMatchHelp: "Begiratu idazketa-akatsik ez dagoela. Jarraipen IDak marratxo bat eta gutxienez 8 karaktere ditu, FTBE-MHRX bezala. Ezizenak bi puntu ditu, K7QM:2XWD bezala.",
+            noMatchHelp:
+                "Begiratu idazketa-akatsik ez dagoela. Jarraipen IDak marratxo bat eta gutxienez 8 karaktere ditu, FTBE-MHRX bezala. Ezizenak bi puntu ditu, K7QM:2XWD bezala.",
             copied: "Jarraipen IDa kopiatu da",
             copyFailed: "Ezin izan da jarraipen IDa kopiatu. Hautatu kodea kopiatzeko.",
             search: "Bilatu jarraipen ID bat edo ezizen bat",
@@ -26,7 +28,8 @@ const basqueTranslation: TranslationType = {
             trackingIdHelp: "Zifratutako boto-paperatik eta hautesleen gakotik kalkulatua.",
             noMatch: "Ez dago {{prefix}}(r)ekin hasten den jarraipen ID edo ezizenik",
             noBallots: "Oraindik ez da boto-paperik bidali.",
-            invalidPrefix: "Idatzi jarraipen ID baten gutxienez 8 karaktere marratxoarekin, FTBE-MHRX bezala, edo ezizen baten gehienez 8 bi punturekin, K7QM:2XWD bezala. Kodeek 0tik 9ra bitarteko digituak eta letra larriak erabiltzen dituzte, I, L, O eta U gabe.",
+            invalidPrefix:
+                "Idatzi jarraipen ID baten gutxienez 8 karaktere marratxoarekin, FTBE-MHRX bezala, edo ezizen baten gehienez 8 bi punturekin, K7QM:2XWD bezala. Kodeek 0tik 9ra bitarteko digituak eta letra larriak erabiltzen dituzte, I, L, O eta U gabe.",
             stages: {
                 received: {
                     label: "Jasota",
@@ -53,7 +56,8 @@ const basqueTranslation: TranslationType = {
             },
             checkDescriptions: {
                 ...englishTranslation.translations.ballotPrivacy.checkDescriptions,
-                ballotId: "Jarraipen IDa zifratutako boto-paperatik eta hautesleen gakotik kalkulatzen da.",
+                ballotId:
+                    "Jarraipen IDa zifratutako boto-paperatik eta hautesleen gakotik kalkulatzen da.",
             },
         },
         startup: {
@@ -326,7 +330,8 @@ const basqueTranslation: TranslationType = {
                     "Ez dago auditatu daitekeen bozketarik eskuragarri. Mesedez, jarri harremanetan laguntzarekin.",
                 INCONSISTENT_HASH:
                     "Errorea izan da bozketa hash prozesuan. Jarraipen IDa: {{ballotId}} ez da koherentea auditatu daitekeen Bozketa Hash-arekin: {{auditableBallotHash}}. Mesedez, eman arazo honen berri laguntzari.",
-                NOT_RECEIVED: "Erregistro publikoak ez du oraindik zure boto-papera jaso, beraz ez da bidali. Itzuli zure boto-paperera eta saiatu berriro.",
+                NOT_RECEIVED:
+                    "Erregistro publikoak ez du oraindik zure boto-papera jaso, beraz ez da bidali. Itzuli zure boto-paperera eta saiatu berriro.",
                 ELECTION_EVENT_NOT_OPEN:
                     "Hauteskunde gertaera itxita dago. Mesedez, jarri harremanetan laguntzarekin.",
                 PARSE_ERROR:
@@ -613,7 +618,8 @@ const basqueTranslation: TranslationType = {
             contentDesc: "Hau da zure Bozketa edukia: ",
             wrongFormatBallotId: "Jarraipen IDaren formatu okerra",
             ambiguous: "Zure boto-paper batzuk {{ballotId}}(r)ekin hasten dira. Aukeratu bat:",
-            ambiguousMany: "Zure boto-paper batzuk {{ballotId}}(r)ekin hasten dira. Idatzi jarraipen IDaren zati gehiago.",
+            ambiguousMany:
+                "Zure boto-paper batzuk {{ballotId}}(r)ekin hasten dira. Idatzi jarraipen IDaren zati gehiago.",
             ballotIdNotFoundAtFilter:
                 "Ez da aurkitu. Egiaztatu zure jarraipen IDa zuzena dela eta erabiltzaile honi dagokiola.",
             filterByBallotId: "Filtratu jarraipen IDaren arabera",
@@ -800,9 +806,35 @@ const basqueTranslation: TranslationType = {
                 copy: "Kopiatu jarraipen ID osoa",
                 copied: "Jarraipen IDa kopiatu da",
                 showFull: "Erakutsi jarraipen ID osoa",
+                selected: "Hautatuta. Sakatu Ctrl+C, edo ⌘C Mac-en, kopiatzeko.",
+                copyByHand:
+                    "Zure nabigatzaileak ez du kopiatu. Ireki jarraipen ID osoa hautatzeko.",
+            },
+            elsewhere: {
+                title: "Bilatu beste nonbait",
+                count_one: "Esploratzaile {{count}}, {{independent}} independente",
+                count_other: "{{count}} esploratzaile, {{independent}} independente",
+                introBallot:
+                    "Besteek kudeatutako esploratzaileek berek irakurtzen dute erregistro publikoa. Bakoitzak zure boto-papera aurkitu beharko luke, egiaztapen berberekin, webgune hau gabe.",
+                introEntry:
+                    "Besteek kudeatutako esploratzaileek berek irakurtzen dute erregistro publikoa. Bakoitzak sarrera hau hemen dagoen bezala erakutsi beharko luke.",
+                foot: "Zerrenda hauteskundearen politikatik dator. Vitrine-ren edozein esploratzailek ireki dezake erregistro bera: eman jarraipen ID osoa.",
+                name: "{{name}} esploratzailea",
+                operatorName: "Hauteskundearen esploratzailea",
+                independent: "Independentea",
+                operator: "Operadorea",
+                newTab: "Fitxa berri batean irekitzen da",
+                who: {
+                    monitor: "Hauteskundearen politikan aipatutako monitore bat",
+                    hub: "Hauteskundearen politikan aipatutako aingura-hub bat",
+                    operator: "Hauteskunde-agintaritzak kudeatua",
+                },
             },
             status: {
                 title: "Bozketaren egoera",
+                audit: "Auditatu boto-papera",
+                auditNote:
+                    "Ez zaude ziur atariak ondo zifratu dituela zure aukerak? Auditatu boto-paper hau: atariak nola zifratu zuen agertzen du, zuk egiazta dezazun. Auditatutako boto-papera ezin da inoiz bidali, beraz gero berriro bozkatzen duzu.",
                 cast: "{{when}}(e)an eman da",
                 audited: "{{when}}(e)an auditatu da",
                 ballotCast: "Boto emana",

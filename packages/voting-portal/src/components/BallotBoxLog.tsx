@@ -43,6 +43,7 @@ import {
     faUserSecret,
 } from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
+import type {Policy} from "@vitrine/verify"
 import {
     pseudonymDisplay,
     stringToHtml,
@@ -977,11 +978,13 @@ const readSearch = (search: string): string | null => {
     return parsed && searchesAnything(parsed) ? parsed.query : null
 }
 export const BallotBoxLog: React.FC<{
+    /** The event's Vitrine policy, which names the explorers of its entries. */
+    policy?: Policy
     electionEventId: string
     electionId?: string
     formatTime: (timestamp: string) => string
     timeZoneLabel?: string
-}> = ({electionEventId, electionId, formatTime, timeZoneLabel}) => {
+}> = ({policy, electionEventId, electionId, formatTime, timeZoneLabel}) => {
     const [search, setSearch] = useState("")
     // What is asked of the server: the typed search once it reads as one, or
     // null while it does not, so nothing unreadable is sent.
@@ -1050,6 +1053,7 @@ export const BallotBoxLog: React.FC<{
                     electionEventId={electionEventId}
                     electionId={selected.election_id}
                     ballotId={selected.tracking_id}
+                    policy={policy}
                     onClose={() => setSelected(undefined)}
                 />
             )}

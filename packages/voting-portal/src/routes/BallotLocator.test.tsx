@@ -36,6 +36,12 @@ jest.mock(
     "@sequentech/ui-essentials",
     () => ({
         theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
+        copyBallotHash: jest.requireActual(
+            "../../../ui-essentials/src/components/BallotHash/BallotHash"
+        ).copyBallotHash,
+        CopyBallotHashStatus: jest.requireActual(
+            "../../../ui-essentials/src/components/BallotHash/BallotHash"
+        ).CopyBallotHashStatus,
         PageLimit: ({children}: {children: React.ReactNode}) => <div>{children}</div>,
         InfoDataBox: ({children}: {children: React.ReactNode}) => <pre>{children}</pre>,
         BreadCrumbSteps: ({selected}: {selected: number}) => (
@@ -539,9 +545,13 @@ describe("the result for an event with transparency", () => {
         expect(ids.getByText("a11y.ballotIdLabel")).toBeVisible()
         expect(ids.getByText("FTBE-MHRX", {selector: ".tracker-short-id"})).toBeVisible()
         expect(ids.getByText("ballotLocator.result.idComment")).toBeVisible()
-        const full = section().querySelector(".tracker-full-id")
+        const full = section().querySelector(".full-tracking-id-value")
         expect(full?.textContent).toBe(GROUPED)
-        expect(full?.querySelector("b")?.textContent).toBe("FTBE-MHRX")
+        expect(
+            Array.from(full?.querySelectorAll(".full-tracking-id-short") ?? []).map(
+                (group) => group.textContent
+            )
+        ).toEqual(["FTBE-", "MHRX-"])
         expect(ids.getByText("b1d8 c475 6132 ··· 5a0d")).toBeVisible()
         expect(ids.getByRole("button", {name: "ballotLocator.result.save"})).toBeVisible()
     })
@@ -599,14 +609,43 @@ describe("the result for an event with transparency", () => {
         const writeText = jest.fn().mockResolvedValue(undefined)
         Object.defineProperty(navigator, "clipboard", {value: {writeText}, configurable: true})
         renderAt(`/${FULL}`)
-        const copy = screen.getByRole("button", {name: "ballotLocator.result.copy"})
+        const copy = screen.getByRole("button", {name: "vitrine.ballotId.copy"})
         expect(copy).toHaveTextContent("")
         await userEvent.click(copy)
         expect(writeText).toHaveBeenCalledWith(GROUPED)
-        const copied = screen.getByRole("button", {name: "ballotLocator.result.copied"})
+        const copied = screen.getByRole("button", {name: "vitrine.ballotId.copied"})
         expect(copied).toBe(copy)
         expect(copied).toHaveTextContent("")
-        expect(copied.querySelector(".tracker-copied-icon")).not.toBeNull()
+        expect(copied.querySelector(".full-tracking-id-copied-icon")).not.toBeNull()
+    })
+
+    it("lists the explorers of the policy under the result, each opening this ballot", async () => {
+        const policy = {
+            id: "sha256:abc123",
+            operator: "Election authority",
+            monitors: new Map([
+                ["obs", {name: "obs", party: "Observer", explorer: "https://obs.example/"}],
+            ]),
+            hubs: new Map(),
+            explorers: ["https://election.example/"],
+        } as unknown as NonNullable<IReceiptView["policy"]>
+        mockTracked.mockReturnValue(tracked({view: {...VERIFIED, policy}}))
+        renderAt(`/${FULL}`)
+        const toggle = within(section()).getByRole("button", {name: /vitrine.elsewhere.title/})
+        await userEvent.click(toggle)
+        const links = Array.from(section().querySelectorAll<HTMLAnchorElement>(".find-elsewhere a"))
+        expect(links.map((a) => a.getAttribute("href"))).toEqual([
+            `https://obs.example/#policy=sha256%3Aabc123&log=ballots&find=${GROUPED}`,
+            `https://election.example/#policy=sha256%3Aabc123&log=ballots&find=${GROUPED}`,
+        ])
+        expect(links.every((a) => a.target === "_blank" && a.rel === "noopener noreferrer")).toBe(
+            true
+        )
+    })
+
+    it("shows no explorers when the policy names none", () => {
+        renderAt(`/${FULL}`)
+        expect(section().querySelector(".find-elsewhere")).toBeNull()
     })
 
     it("shows a verified ballot with its four steps done", () => {

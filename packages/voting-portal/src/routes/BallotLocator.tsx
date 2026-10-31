@@ -40,6 +40,7 @@ import {TrackerResult} from "../components/BallotLocator/TrackerResult"
 import {TrackerSearch} from "../components/BallotLocator/TrackerSearch"
 import {PHONE} from "../components/BallotLocator/trackerStyle"
 import {useTrackedReceipt} from "../hooks/useTrackedReceipt"
+import {useVitrinePolicy} from "../hooks/useVitrinePolicy"
 import {
     ballotIdChars,
     EBallotIdInput,
@@ -237,6 +238,7 @@ const BallotLocator: React.FC = () => {
         [electionEventPresentation]
     )
     const showTracker = transparency.mode !== ETransparencyMode.DISABLED
+    const policy = useVitrinePolicy(transparency)
     const backTo = `/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(electionId ?? ""))
     const logsElectionEvent = dataElectionEvent?.sequent_backend_election_event[0] as
@@ -429,6 +431,7 @@ const BallotLocator: React.FC = () => {
                 <CustomTabPanel className="cast-vote-logs-panel" value={value} index={1}>
                     {pseudonymous && showCVLogsPolicy && eventId ? (
                         <BallotBoxLog
+                            policy={policy}
                             electionEventId={eventId}
                             electionId={electionId}
                             timeZoneLabel={
@@ -841,6 +844,7 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
     const ballotContent = foundBallot?.content ?? null
     const searching = !hasBallotId || ambiguousBallotId
     const showTracker = transparency.mode !== ETransparencyMode.DISABLED
+    const eventPolicy = useVitrinePolicy(transparency)
     const trackedBallotId = foundBallot?.ballot_id ?? undefined
     const showTrackerResult = showTracker && !!trackedBallotId
 
@@ -1136,6 +1140,7 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
                         content={ballotContent}
                         audit={audit}
                         tracked={tracked}
+                        policy={eventPolicy}
                         verifierUrl={globalSettings.BALLOT_VERIFIER_URL}
                         language={vitrineLanguage(i18n.language)}
                         formatTime={formatTime}

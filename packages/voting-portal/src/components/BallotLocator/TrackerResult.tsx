@@ -7,16 +7,11 @@
 // side, on the other where the ballot stands in the record, step by step.
 
 import React, {useState} from "react"
+import type {Policy} from "@vitrine/verify"
 import {useTranslation} from "react-i18next"
 import {Box, ButtonBase, Typography} from "@mui/material"
 import {keyframes, styled} from "@mui/material/styles"
-import {useCopyFeedback} from "../../hooks/useCopyFeedback"
-import {
-    ballotIdGroups,
-    groupBallotId,
-    NARROW_GROUPS_PER_LINE,
-    shortBallotId,
-} from "../../services/vitrine/ballotId"
+import {shortBallotId} from "../../services/vitrine/ballotId"
 import {EAuditOutcome, TAudit} from "../../services/vitrine/ballotAudit"
 import {EBallotStatus} from "../../services/vitrine/ballotStatus"
 import {
@@ -33,13 +28,16 @@ import {
     trackerSteps,
     trackerViewOf,
 } from "../../services/vitrine/ballotTracker"
+import {EVitrineLog} from "../../services/vitrine/types"
 import {receiptFileName} from "../../services/vitrine/confirmation"
 import {RECEIPT_MEDIA_TYPE, saveTextFile} from "../../services/vitrine/file"
 import {openVerifier} from "../../services/vitrine/handoff"
 import {BallotStatusIcon, CHECK_COLORS} from "../Vitrine/BallotStatusIcon"
+import {explorersOf} from "../Vitrine/explorers"
+import {FindElsewhere} from "../Vitrine/FindElsewhere"
+import {FullTrackingId} from "../Vitrine/FullTrackingId"
 import {RecordViewer} from "../Vitrine/RecordViewer"
 import {EStatusTone, StatusTag} from "../Vitrine/StatusTag"
-import {BallotIdLines} from "./BallotIdLines"
 import {MONO, PALETTE, PHONE, TABLET} from "./trackerStyle"
 
 const RING_RADII = [30, 38, 46, 54] as const
@@ -497,105 +495,6 @@ const StepRow: React.FC<IStepRowProps> = ({item, last, formatTime, language}) =>
     )
 }
 
-const CopyButton = styled(ButtonBase)`
-    position: absolute;
-    right: 8px;
-    top: 8px;
-    height: 28px;
-    width: 28px;
-    border-radius: 4px;
-    background: #fff;
-    color: ${PALETTE.text};
-    opacity: 0;
-    transition: opacity 0.15s;
-
-    &:focus-visible,
-    &.copied {
-        opacity: 1;
-    }
-
-    &.copied {
-        background: ${PALETTE.greenTint};
-        color: ${PALETTE.green};
-    }
-
-    @media (hover: none) {
-        opacity: 1;
-    }
-`
-
-const FullId: React.FC<{ballotId: string}> = ({ballotId}) => {
-    const {t} = useTranslation()
-    const {copied, copy} = useCopyFeedback()
-
-    return (
-        <Box
-            className="tracker-full-id-box"
-            sx={{
-                "position": "relative",
-                "width": "100%",
-                "padding": "12px 14px",
-                "borderRadius": "8px",
-                "backgroundColor": "#fff",
-                "border": `1px solid ${PALETTE.border}`,
-                "textAlign": "left",
-                "&:hover .tracker-copy-button": {opacity: 1},
-                [PHONE]: {padding: "10px 12px"},
-            }}
-        >
-            <Box className="tracker-full-id-label" sx={KEY_SX} style={{marginBottom: 4}}>
-                {t("ballotLocator.result.fullId")}
-            </Box>
-            <Box
-                className="tracker-full-id"
-                sx={{font: `400 14px/22px ${MONO}`, color: PALETTE.navy}}
-            >
-                <BallotIdLines ballotId={ballotId} perLine={NARROW_GROUPS_PER_LINE} />
-            </Box>
-            <CopyButton
-                className={`tracker-copy-button${copied ? " copied" : ""}`}
-                onClick={() => copy(groupBallotId(ballotId))}
-                aria-label={t(copied ? "ballotLocator.result.copied" : "ballotLocator.result.copy")}
-            >
-                {copied ? (
-                    <svg
-                        className="tracker-copied-icon"
-                        {...ICON_PROPS}
-                        width={16}
-                        height={16}
-                        strokeWidth={2}
-                        stroke="currentColor"
-                    >
-                        <path className="tracker-copied-icon-path" d="M4.5 12.5l4.75 4.75L19.5 7" />
-                    </svg>
-                ) : (
-                    <svg
-                        className="tracker-copy-icon"
-                        {...ICON_PROPS}
-                        width={16}
-                        height={16}
-                        strokeWidth={2}
-                        stroke="currentColor"
-                    >
-                        <rect
-                            className="tracker-copy-icon-front"
-                            x="8"
-                            y="8"
-                            width="12"
-                            height="12"
-                            rx="2"
-                        />
-                        <path
-                            className="tracker-copy-icon-back"
-                            d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"
-                        />
-                    </svg>
-                )}
-            </CopyButton>
-        </Box>
-    )
-}
-
 const KEY_SX = {
     fontSize: 12,
     fontWeight: 500,
@@ -606,7 +505,11 @@ const KEY_SX = {
 
 /** A hash as the receipt names it: its first three groups and its last. */
 const abbreviated = (hex: string): string => {
-    const groups = hex.replace(/\s+/g, "").toLowerCase().match(/.{1,4}/g) ?? []
+    const groups =
+        hex
+            .replace(/\s+/g, "")
+            .toLowerCase()
+            .match(/.{1,4}/g) ?? []
     return groups.length > 4
         ? `${groups.slice(0, 3).join(" ")} ··· ${groups.at(-1)}`
         : groups.join(" ")
@@ -657,6 +560,8 @@ export interface ITrackerResultProps {
     /** The audit of the record, when it holds an audited ballot. */
     audit?: TAudit
     tracked: ITrackerReceipt
+    /** The event's policy, when the receipt has none to give. */
+    policy?: Policy
     verifierUrl: string
     language: string
     formatTime: (milliseconds: number) => string
@@ -688,6 +593,7 @@ export const TrackerResult: React.FC<ITrackerResultProps> = ({
     content,
     audit,
     tracked,
+    policy: eventPolicy,
     verifierUrl,
     language,
     formatTime,
@@ -724,6 +630,7 @@ export const TrackerResult: React.FC<ITrackerResultProps> = ({
         : undefined
     const blockShown = shown === ETrackerView.STATUS || shown === ETrackerView.CHECKING
     const kindTag = kindTagOf(audit)
+    const policy = view?.policy ?? eventPolicy
 
     return (
         <Box
@@ -801,7 +708,7 @@ export const TrackerResult: React.FC<ITrackerResultProps> = ({
                 >
                     {t("ballotLocator.result.idComment")}
                 </Typography>
-                <FullId ballotId={ballotId} />
+                <FullTrackingId ballotId={ballotId} />
                 {entry ? (
                     <Box
                         className="tracker-record-entry-line"
@@ -1045,6 +952,12 @@ export const TrackerResult: React.FC<ITrackerResultProps> = ({
                         )}
                     </Box>
                 )}
+                <FindElsewhere
+                    explorers={explorersOf(policy)}
+                    policyId={policy?.id}
+                    log={result?.entry?.log ?? EVitrineLog.BALLOTS}
+                    ballotId={ballotId}
+                />
                 <RecordViewer
                     className="ballot-content"
                     title={t("ballotLocator.result.record.title")}

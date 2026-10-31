@@ -32,6 +32,12 @@ jest.mock(
         BallotHashCopyButton: jest.requireActual(
             "../../../../ui-essentials/src/components/BallotHash/BallotHash"
         ).BallotHashCopyButton,
+        copyBallotHash: jest.requireActual(
+            "../../../../ui-essentials/src/components/BallotHash/BallotHash"
+        ).copyBallotHash,
+        CopyBallotHashStatus: jest.requireActual(
+            "../../../../ui-essentials/src/components/BallotHash/BallotHash"
+        ).CopyBallotHashStatus,
         IconButton: jest.requireActual(
             "../../../../ui-essentials/src/components/IconButton/IconButton"
         ).default,
@@ -277,7 +283,7 @@ describe("the Tracking ID box of the review screen", () => {
     const shortId = (container: HTMLElement) =>
         container.querySelector<HTMLButtonElement>(".vitrine-short-ballot-id")!
     const fullId = (container: HTMLElement) =>
-        container.querySelector<HTMLElement>(".vitrine-tracking-id-full")
+        container.querySelector<HTMLElement>(".full-tracking-id")
 
     beforeEach(() => {
         onHelpClick.mockClear()
@@ -338,11 +344,15 @@ describe("the Tracking ID box of the review screen", () => {
             expect(shortId(container).getAttribute("aria-expanded")).toBe("true")
             const full = fullId(container)!
             expect(shortId(container).getAttribute("aria-controls")).toBe(full.id)
-            expect(full.querySelector(".vitrine-tracking-id-full-label")?.textContent).toBe(
+            expect(full.querySelector(".full-tracking-id-label")?.textContent).toBe(
                 "vitrine.ballotId.full"
             )
-            expect(full.querySelector(".vitrine-tracking-id-full-value")?.textContent).toBe(GROUPED)
-            expect(full.querySelector("b")?.textContent).toBe("FTBE-MHRX")
+            expect(full.querySelector(".full-tracking-id-value")?.textContent).toBe(GROUPED)
+            expect(
+                Array.from(full.querySelectorAll(".full-tracking-id-short")).map(
+                    (group) => group.textContent
+                )
+            ).toEqual(["FTBE-", "MHRX-"])
             const row = container.querySelector(".vitrine-tracking-id-row")!
             expect(row.contains(full)).toBe(false)
             expect(row.nextElementSibling).toBe(full)
@@ -369,6 +379,22 @@ describe("the Tracking ID box of the review screen", () => {
         })
     })
 
+    it("moves the row's copy button into the block's corner when the full ID opens", async () => {
+        const {container} = renderBox()
+        expect(container.querySelectorAll(".hash-copy-button")).toHaveLength(1)
+        fireEvent.click(shortId(container))
+        expect(container.querySelector(".hash-copy-button")).toBeNull()
+        const copy = within(fullId(container)!).getByRole("button", {
+            name: "vitrine.ballotId.copy",
+        })
+        await act(async () => {
+            fireEvent.click(copy)
+        })
+        expect(writeText).toHaveBeenCalledWith(GROUPED)
+        fireEvent.click(shortId(container))
+        expect(container.querySelectorAll(".hash-copy-button")).toHaveLength(1)
+    })
+
     it("copies the full ID in groups of four", async () => {
         renderBox()
         await act(async () => {
@@ -389,6 +415,32 @@ describe("the Tracking ID box of the review screen", () => {
         expect(done.querySelector("[data-icon=check]")).not.toBeNull()
         expect(getComputedStyle(done).color).toBe("rgb(4, 120, 87)")
         expect(container.textContent).not.toContain("Copied")
+    })
+
+    it("offers the audit in the status dialog only when it is given one, and closes the dialog first", async () => {
+        const onAudit = jest.fn()
+        const {rerender} = renderBox()
+        fireEvent.click(screen.getByRole("button", {name: /^vitrine.status.aria/}))
+        expect(screen.queryByRole("button", {name: "vitrine.status.audit"})).toBeNull()
+        fireEvent.click(screen.getByRole("button", {name: "vitrine.status.ok"}))
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+
+        rerender(
+            <ThemeProvider theme={theme}>
+                <MemoryRouter>
+                    <ReviewBallotId
+                        ballotId={BALLOT_ID}
+                        helpLabel="About your Tracking ID"
+                        onHelpClick={onHelpClick}
+                        onAudit={onAudit}
+                    />
+                </MemoryRouter>
+            </ThemeProvider>
+        )
+        fireEvent.click(screen.getByRole("button", {name: /^vitrine.status.aria/}))
+        fireEvent.click(screen.getByRole("button", {name: "vitrine.status.audit"}))
+        expect(onAudit).toHaveBeenCalledTimes(1)
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
     })
 
     it("opens the help about the Tracking ID", () => {

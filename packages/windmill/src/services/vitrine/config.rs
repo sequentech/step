@@ -160,6 +160,8 @@ pub struct Monitor {
     pub vkey: String,
     pub url: String,
     pub party: Option<String>,
+    /// Where it publishes an explorer page that anyone can use.
+    pub explorer: Option<String>,
 }
 
 /// A mirror of the event logs' tiles.
@@ -181,6 +183,8 @@ pub struct Hub {
     pub vkey: String,
     pub url: String,
     pub operator: String,
+    /// Where it publishes an explorer page that anyone can use.
+    pub explorer: Option<String>,
     #[serde(default)]
     pub role: HubRole,
     pub witnesses: Vec<Witness>,
@@ -230,6 +234,9 @@ pub struct DeploymentConfig {
     /// The explorer's page for a policy, with `{policy_id}` in its place.
     pub explorer_url: Option<String>,
     pub monitor_quorum: Option<u64>,
+    /// Other explorer pages that anyone can use to look a record up.
+    #[serde(default)]
+    pub explorers: Vec<String>,
     /// How often hubs anchor in the browser layer, in seconds.
     pub browser_period: Option<u64>,
     pub profiles: Profiles,
