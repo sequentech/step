@@ -21,6 +21,9 @@ export const VOTER_USERNAME = "voter@example.org";
  * (the one Step's own portal fixtures use). Nobody holds its secret half. */
 export const ELECTION_PUBLIC_KEY = "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4";
 
+/** The keys ceremony the key came from: the portal's encryption names it, and refuses a non-demo key without one. */
+export const KEYS_CEREMONY_ID = "5f1c3b7e-0a4d-4c8e-9b2a-6d7e8f901234";
+
 /** The preview's ballot box signs with an Ed25519 key from a fixed seed, so that its published
  * half, which Step puts in each ballot style, is the same in the style the events log's
  * config statement commits to (`provision-events`) and in the one the stand-in serves.
@@ -54,7 +57,7 @@ export function ballotStyleText({ live, electionId, policyNote }) {
     area_id: AREA_ID,
     num_allowed_revotes: 0,
     description: "Municipal council election",
-    public_key: { public_key: ELECTION_PUBLIC_KEY, is_demo: false },
+    public_key: { public_key: ELECTION_PUBLIC_KEY, is_demo: false, keys_ceremony_id: KEYS_CEREMONY_ID },
     area_presentation: { allow_early_voting: "no_early_voting" },
     contests: [
       {
