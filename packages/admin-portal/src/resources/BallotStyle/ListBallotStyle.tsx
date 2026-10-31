@@ -5,7 +5,6 @@ import React, {ReactElement} from "react"
 import {DatagridConfigurable, List, TextField, ReferenceField, TextInput} from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Typography} from "@mui/material"
-import {generateRowClickHandler} from "../../services/RowClickService"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
@@ -19,15 +18,9 @@ const Filters: Array<ReactElement> = [
     <TextInput source="election_id" key={5} />,
 ]
 
-export interface ListBallotStyleProps {
-    aside?: ReactElement
-}
-
-export const ListBallotStyle: React.FC<ListBallotStyleProps> = ({aside}) => {
+export const ListBallotStyle: React.FC = () => {
     const [tenantId] = useTenantStore()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
-
-    const rowClickHandler = generateRowClickHandler(["election_event_id", "election_id", "area_id"])
 
     return (
         <>
@@ -41,9 +34,8 @@ export const ListBallotStyle: React.FC<ListBallotStyleProps> = ({aside}) => {
                     tenant_id: tenantId || undefined,
                 }}
                 filters={Filters}
-                aside={aside}
             >
-                <DatagridConfigurable rowClick={rowClickHandler} omit={OMIT_FIELDS}>
+                <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <TextField source="ballot_eml" />
                     <TextField source="status" />
