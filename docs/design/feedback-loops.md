@@ -477,7 +477,10 @@ received Lite reviews after runner timeouts. CodeRabbit reviewed phases 2 and 3;
   the Windmill job recorded 2,275 compile requests and 8 Rust hits (0.66%)
   with the 512 MiB store full, and a CLI build lost its sccache server
   mid-build, so [meta#14622](https://github.com/sequentech/meta/issues/14622)
-  removed the compiler wrapper and kept only the Cargo download cache.
+  removed the compiler wrapper and kept only the Cargo download cache. The
+  same issue then moved compiled units to an unbounded GCS bucket with 30-day
+  expiry, written only by protected-branch pushes and read by everything else
+  through GitHub OIDC.
 - **CLI artifact delivery**: final hosted log inspection found that the build
   produced `step-cli` while the upload step searched for `seq`, leaving otherwise
   successful runs without a binary artifact. The workflow now uploads the

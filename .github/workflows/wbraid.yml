@@ -30,6 +30,8 @@ defaults:
 
 permissions:
   contents: read
+  # OIDC for the shared compiler cache (setup-rust-cache)
+  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
@@ -48,6 +50,7 @@ jobs:
         uses: ./.github/actions/setup-rust-tests
         with:
           cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
+          compile-cache: ${{ vars.STEP_COMPILE_CACHE }}
           profile: dev
           features: default,sqlite,postgres
           cargo-build-name: wbraid-lint
@@ -82,6 +85,7 @@ jobs:
         uses: ./.github/actions/setup-rust-tests
         with:
           cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
+          compile-cache: ${{ vars.STEP_COMPILE_CACHE }}
           profile: release
           features: default,sqlite,postgres
           cargo-build-name: wbraid-test
@@ -108,6 +112,7 @@ jobs:
         uses: ./.github/actions/setup-rust-tests
         with:
           cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
+          compile-cache: ${{ vars.STEP_COMPILE_CACHE }}
           profile: release
           features: no-default-features,wasm-core
           cargo-build-name: wbraid-wasm
@@ -208,6 +213,7 @@ jobs:
         uses: ./.github/actions/setup-rust-tests
         with:
           cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
+          compile-cache: ${{ vars.STEP_COMPILE_CACHE }}
           profile: release
           features: default,sqlite,postgres
           cargo-build-name: wbraid-test

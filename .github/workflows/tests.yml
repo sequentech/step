@@ -12,6 +12,8 @@ on:
 
 permissions:
   contents: read
+  # OIDC for the shared compiler cache (setup-rust-cache)
+  id-token: write
 
 concurrency:
   group: feedback-${{ github.event.pull_request.number || github.ref }}
@@ -109,6 +111,7 @@ jobs:
         uses: ./.github/actions/setup-rust-tests
         with:
           cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
+          compile-cache: ${{ vars.STEP_COMPILE_CACHE }}
           # Per gate, or the gates would evict each other's artifacts.
           cargo-build-name: sequent-core-gate-${{ matrix.cache }}
           cargo-build-path: packages/target
@@ -162,6 +165,7 @@ jobs:
         uses: ./.github/actions/setup-rust-tests
         with:
           cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
+          compile-cache: ${{ vars.STEP_COMPILE_CACHE }}
           cargo-build-name: ${{ matrix.service }}
           cargo-build-path: packages/target
           cargo-lock-path: packages/Cargo.lock
@@ -285,6 +289,7 @@ jobs:
         uses: ./.github/actions/setup-rust-tests
         with:
           cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
+          compile-cache: ${{ vars.STEP_COMPILE_CACHE }}
           cargo-build-name: windmill
           cargo-build-path: packages/target
           cargo-lock-path: packages/Cargo.lock

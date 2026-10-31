@@ -358,5 +358,20 @@ class VerifyCommandTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
+class CompileCacheWiringTests(unittest.TestCase):
+    def test_rust_jobs_can_reach_the_shared_compiler_cache(self):
+        # Without the input or an OIDC token, a job silently compiles everything.
+        for workflow in sorted((ROOT / ".github/workflows").glob("*.yml")):
+            text = workflow.read_text()
+            calls = text.count("uses: ./.github/actions/setup-rust-tests") + text.count(
+                "uses: ./.github/actions/setup-rust-cache"
+            )
+            if not calls:
+                continue
+            with self.subTest(workflow=workflow.name):
+                self.assertEqual(text.count("compile-cache: ${{ vars.STEP_COMPILE_CACHE }}"), calls)
+                self.assertIn("id-token: write", text)
+
+
 if __name__ == "__main__":
     unittest.main()

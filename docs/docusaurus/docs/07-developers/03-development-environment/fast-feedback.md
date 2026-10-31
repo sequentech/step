@@ -588,10 +588,22 @@ exact hits skip saving. Successful PR runs save within their merge ref, which
 successful pushes to `main`, `ovcs` and `release/**` seed the shared copy, and
 other events only restore. A missing download cache builds normally.
 
-Compiled units are not cached. A bounded 512 MiB sccache store was tried and
-removed: on `ovcs` it hit 0.66% of Rust compilations in the Windmill job,
-because the store filled and evicted units as it wrote them, and it once
-crashed mid-build ([meta#14622](https://github.com/sequentech/meta/issues/14622)).
+Compiled units go to a shared sccache store in the GCS bucket
+`sequent-platform-ci-compile-cache`, which keeps each unit for 30 days. The
+`STEP_COMPILE_CACHE` repository variable turns it on with a JSON object:
+`bucket`, `provider` (the Workload Identity provider) and the `reader` and
+`writer` service accounts. Jobs get a GitHub OIDC token (`id-token: write`)
+and exchange it for one of the two identities: pushes to `main`, `ovcs` and
+`release/**` write, and every other run, PRs included, only reads, so a PR
+can't plant units that a protected branch later reuses. Fork PRs get no OIDC
+token and compile without the cache, as does any job where sccache can't
+reach the bucket. The infrastructure is in gitops at
+`iac/catalog/gcp/ci-compile-cache`.
+
+This replaces a bounded 512 MiB sccache store in the GitHub Actions cache: on
+`ovcs` it hit 0.66% of Rust compilations in the Windmill job, because the
+store filled and evicted units as it wrote them, and it once crashed
+mid-build ([meta#14622](https://github.com/sequentech/meta/issues/14622)).
 The identity script still names each job's output directory and download key.
 To reproduce one locally:
 
