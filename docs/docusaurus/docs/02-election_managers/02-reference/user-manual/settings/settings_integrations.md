@@ -1,6 +1,7 @@
 ---
 id: settings_integrations
 title: Integrations
+description: "Integrations with third party software. API keys, configurations, etc."
 ---
 
 <!--
