@@ -383,7 +383,14 @@ async fn a_ballot_the_voter_did_not_cast_is_not_found_and_nothing_is_looked_up_a
 
     let open = Event::create(&tx, None, Board::Created, Some(json!({"telephone": true}))).await;
     ballot_box::ballot_box(&open.tenant, &open.event).await;
-    for ballot_id in ["0abc12", "0ABC", "FTBE-MHRX", "not a ballot id", ""] {
+    for ballot_id in [
+        "0abc12",
+        "0ABC",
+        "FTBE-MHRX",
+        "FTBE-MHRX-2XWD",
+        "not a ballot id",
+        "",
+    ] {
         assert_eq!(
             open.locate(&tx, ballot_id).await,
             LocateBallotStatus::NotFound
@@ -466,9 +473,9 @@ async fn a_voter_finds_their_own_cast_ballot_and_never_another_voters() {
         Some("2028-04-09T00:00:00+00:00")
     );
 
-    // By telephone the first four characters are read out.
+    // By telephone the short Tracking ID, the first eight characters, is read out.
     let by_prefix = f
-        .locate_as(&tx, &area, "voter", &tracking_id_of("ffff00")[..4])
+        .locate_as(&tx, &area, "voter", &tracking_id_of("ffff00")[..9])
         .await;
     assert_eq!(by_prefix.ballot_id, Some(tracking_id_of("ffff00")));
     // The hash still finds it.
@@ -498,11 +505,16 @@ fn a_typed_ballot_id_becomes_a_hash_or_a_tracking_id() {
         ballot_id_match("ftbe mhrx"),
         Some(BallotIdMatch::Tracking("FTBE-MHRX".to_string()))
     );
+    // Fewer than eight characters is no start of a Tracking ID: it is a hash or nothing.
     assert_eq!(
         ballot_id_match("0abc"),
-        Some(BallotIdMatch::Tracking("0ABC".to_string()))
+        Some(BallotIdMatch::Exact("0abc".to_string()))
     );
-    for text in ["", "50%", "not hex", "FTBE:MHRX"] {
+    assert_eq!(
+        ballot_id_match("ftbe-mhrx2"),
+        Some(BallotIdMatch::Tracking("FTBE-MHRX-2".to_string()))
+    );
+    for text in ["", "50%", "not hex", "FTBE", "FTBE-MHR", "FTBE:MHRX"] {
         assert_eq!(ballot_id_match(text), None);
     }
 }
