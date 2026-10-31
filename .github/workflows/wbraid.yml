@@ -153,11 +153,12 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: |
-          if [ -z "$BASE" ] || ! git diff --quiet "$(git merge-base "$BASE" HEAD)" HEAD -- packages/wbraid .github/workflows/wbraid.yml; then
+          if [ -z "$BASE" ] || ! git diff --quiet "$(git merge-base "$BASE" HEAD)" HEAD -- packages/wbraid .github/workflows/wbraid.yml \
+            .github/actions/setup-rust-tests .github/actions/setup-rust-cache scripts/dev/rust_cache.py; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "Neither packages/wbraid nor this workflow changed; the live-b4 tests are skipped." >> "$GITHUB_STEP_SUMMARY"
+            echo "Neither packages/wbraid, this workflow nor the shared Rust setup changed; the live-b4 tests are skipped." >> "$GITHUB_STEP_SUMMARY"
           fi
 
   live-b4:

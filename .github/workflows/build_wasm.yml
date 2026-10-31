@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   # The job takes about 15 minutes. A PR runs it only when the affected-test
-  # planner selects the core's WASM checks, the browser trustee's crates or the
+  # planner selects the core's WASM checks or builds, the browser trustee's crates or the
   # JS packages built here; pushes and releases always run it.
   plan:
     name: Select the WASM build
@@ -31,9 +31,10 @@ jobs:
     outputs:
       build: ${{ steps.plan.outputs.build }}
     steps:
+      # The PR merge commit, which build_wasm also builds; the merge base is then
+      # the base commit itself.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Plan against the actual PR merge base
@@ -44,6 +45,7 @@ jobs:
         run: |
           selection=$(GITHUB_OUTPUT=/dev/null python3 -m scripts.dev.ci plan --base "$BASE" --validation "$VALIDATION")
           if jq -e '.jobs["wasm-freshness"]
+              or (.wasm_builds | length > 0)
               or any(.rust[]; .service == "sequent-core" or .service == "protocol-board")
               or any(.node[]; .package == "ui-core" or .package == "ui-essentials" or .package == "workbench")' \
               <<<"$selection" >/dev/null \

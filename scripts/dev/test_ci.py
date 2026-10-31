@@ -191,6 +191,7 @@ class PlanTests(unittest.TestCase):
         def builds(plan):
             return (
                 plan["jobs"]["wasm-freshness"]
+                or bool(plan["wasm_builds"])
                 or any(row["service"] in ("sequent-core", "protocol-board") for row in plan["rust"])
                 or any(row["package"] in ("ui-core", "ui-essentials", "workbench") for row in plan["node"])
             )
@@ -205,6 +206,7 @@ class PlanTests(unittest.TestCase):
             ("packages/ui-essentials/src/index.ts", True),
             ("packages/workbench/package.json", True),
             ("packages/yarn.lock", True),
+            (".devcontainer/scripts/rebuild-election-config-wasm.sh", True),
         ):
             with self.subTest(path=path):
                 self.assertEqual(builds(self.plan(path)), selected)

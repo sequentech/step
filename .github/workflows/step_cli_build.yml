@@ -31,9 +31,10 @@ jobs:
     outputs:
       build: ${{ steps.plan.outputs.build }}
     steps:
+      # The PR merge commit, which build-cli also checks; the merge base is then
+      # the base commit itself.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Plan against the actual PR merge base
