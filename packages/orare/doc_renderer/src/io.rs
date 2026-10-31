@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use sequent_core::services::pdf::{PrintToPdfOptions, TransferMode};
+use sequent_core::services::pdf::{PdfResourcePolicy, PrintToPdfOptions, TransferMode};
 
 /// Lambda Inputs are of two forms: raw, which receives the full HTML
 /// and returns the base64 PDF.
@@ -27,6 +27,8 @@ pub enum Input {
         html: String,
         #[serde(default)]
         pdf_options: Option<PrintToPdfOptions>,
+        #[serde(default)]
+        resource_policy: PdfResourcePolicy,
     },
     #[serde(rename = "s3")]
     S3 {
@@ -46,8 +48,13 @@ pub enum Input {
 impl Clone for Input {
     fn clone(&self) -> Self {
         match self {
-            Input::Raw { html, pdf_options } => Input::Raw {
+            Input::Raw {
+                html,
+                pdf_options,
+                resource_policy,
+            } => Input::Raw {
                 html: html.clone(),
+                resource_policy: *resource_policy,
                 pdf_options: pdf_options.as_ref().map(|pdf_options| PrintToPdfOptions {
                     landscape: pdf_options.landscape.clone(),
                     display_header_footer: pdf_options.display_header_footer.clone(),
