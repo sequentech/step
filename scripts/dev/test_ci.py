@@ -172,6 +172,19 @@ class PlanTests(unittest.TestCase):
         plan = self.plan("packages/step-cli/src/acceptance/hasura.rs")
         self.assertTrue(plan["jobs"]["run-windmill-tests"])
 
+    def test_step_cli_binary_follows_its_embedded_inputs(self):
+        # Build Step CLI Binary only builds on PRs that select step-cli's tests.
+        for path, selected in (
+            ("packages/admin-portal/src/App.tsx", False),
+            ("docs/docusaurus/docs/intro.md", False),
+            ("packages/sequent-core/src/lib.rs", True),
+            ("packages/admin-portal/public/roboto/Roboto_latin_400.woff2", True),
+            (".devcontainer/minio/public-assets/activity_logs_user.hbs", True),
+        ):
+            with self.subTest(path=path):
+                services = [row["service"] for row in self.plan(path)["rust"]]
+                self.assertEqual("step-cli" in services, selected)
+
     def test_step_cli_builder_does_not_check_core_gates(self):
         plan = self.plan("packages/step-cli/src/commands/build_election_event.rs")
         self.assertEqual([row["service"] for row in plan["rust"]], ["step-cli"])

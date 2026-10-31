@@ -473,7 +473,11 @@ received Lite reviews after runner timeouts. CodeRabbit reviewed phases 2 and 3;
   the next compatible generation. Both dependent aggregate gates pass. This is
   n=1 seed plus n=1 replay at the same SHA, not a natural-push, source-edit or
   timing-speedup result. The missing archives and earlier zero-hit runs remain
-  preserved; their disappearance cause is not established.
+  preserved; their disappearance cause is not established. On `ovcs` on 31 October 2026
+  the Windmill job recorded 2,275 compile requests and 8 Rust hits (0.66%)
+  with the 512 MiB store full, and a CLI build lost its sccache server
+  mid-build, so [meta#14622](https://github.com/sequentech/meta/issues/14622)
+  removed the compiler wrapper and kept only the Cargo download cache.
 - **CLI artifact delivery**: final hosted log inspection found that the build
   produced `step-cli` while the upload step searched for `seq`, leaving otherwise
   successful runs without a binary artifact. The workflow now uploads the

@@ -217,8 +217,9 @@ jobs:
     if: fromJSON(needs.plan.outputs.selection).jobs.run-windmill-tests
     name: Run Windmill tests
     runs-on: ubuntu-24.04
-    # Hosts main's PGMQ and electoral-log contracts and ovcs's database checks, each
-    # building its own test targets: together they take 45 to 55 minutes.
+    # Hosts main's PGMQ and electoral-log contracts and ovcs's database checks.
+    # Steps that select the same packages run together, so Cargo rebuilds as
+    # little as possible between them.
     timeout-minutes: 70
     env:
       RUST_BACKTRACE: "full"
@@ -304,26 +305,8 @@ jobs:
         run: cargo test
         working-directory: packages/windmill
 
-      - name: Test PostgreSQL electoral-log contract
-        run: cargo test --locked -p electoral-log --lib --test postgres --test ballot_box --test events --test provisioning --test console -- --ignored --test-threads=1
-        working-directory: packages
-
       - name: Test electoral-log application wiring
         run: cargo test --locked -p windmill postgres_wiring_tests --lib -- --ignored --test-threads=1
-        working-directory: packages
-
-      - name: Test the acceptance run against an election event's ballot box
-        run: cargo test --locked -p step-cli --test acceptance_cli -- --ignored
-        working-directory: packages
-
-      - name: Test upstream Trellis security regressions with PostgreSQL
-        env:
-          TRELLIS_TEST_DATABASE_URL: "postgresql://test:test@127.0.0.1:3322/trellis_security?sslmode=disable"
-        run: |
-          docker exec "${{ job.services.postgres.id }}" createdb -U test trellis_security
-          cargo test --locked -p trellis --features upstream-service --lib \
-            service::processor::tests::postgres_source_reconciliation_and_tree_recovery \
-            -- --ignored --exact --test-threads=1
         working-directory: packages
 
       - name: Start the voting-flow database fixture
@@ -352,6 +335,27 @@ jobs:
           services::users::tests::delegate_count_only_counts_eligible_delegators_without_a_ballot
           -- --ignored --exact
         working-directory: packages/windmill
+
+      # The steps above all select windmill. Each other package selection
+      # unifies features differently and rebuilds windmill and about 110
+      # dependencies, so those steps come last (sequentech/meta#14622).
+      - name: Test PostgreSQL electoral-log contract
+        run: cargo test --locked -p electoral-log --lib --test postgres --test ballot_box --test events --test provisioning --test console -- --ignored --test-threads=1
+        working-directory: packages
+
+      - name: Test the acceptance run against an election event's ballot box
+        run: cargo test --locked -p step-cli --test acceptance_cli -- --ignored
+        working-directory: packages
+
+      - name: Test upstream Trellis security regressions with PostgreSQL
+        env:
+          TRELLIS_TEST_DATABASE_URL: "postgresql://test:test@127.0.0.1:3322/trellis_security?sslmode=disable"
+        run: |
+          docker exec "${{ job.services.postgres.id }}" createdb -U test trellis_security
+          cargo test --locked -p trellis --features upstream-service --lib \
+            service::processor::tests::postgres_source_reconciliation_and_tree_recovery \
+            -- --ignored --exact --test-threads=1
+        working-directory: packages
 
   run-frontend-tests:
     name: ${{ matrix.package }} focused tests
