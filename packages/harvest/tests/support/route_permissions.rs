@@ -497,6 +497,11 @@ fn cases() -> Vec<Case> {
         case!(UuidTenant, "/signing-reports/requests", {"election_event_id": UUID_EVENT_ID}, [SIGNING_REQUESTS_READ], BACKEND, FORBIDDEN_JSON),
         case!(UuidTenant, "/signing-reports/requests", {"election_event_id": UUID_EVENT_ID}, [SIGN_GENERATE_ELECTION_RETURNS], BACKEND, FORBIDDEN_JSON),
         case!(UuidTenant, "/signing-requests/pdf-prepare", {"request_id": ELECTION_ID, "chain_pem": [PEM]}, [], BACKEND),
+        case!(Admin, "/vitrine/transparency", {"election_event_id": EVENT_ID}, [ELECTION_EVENT_TRANSPARENCY_TAB], BACKEND, UNAUTHORIZED_JSON),
+        case!(Admin, "/vitrine/enable-transparency", {"election_event_id": EVENT_ID, "mode": "public"}, [ELECTION_EVENT_TRANSPARENCY_TAB], BACKEND, UNAUTHORIZED_JSON),
+        case!(Admin, "/vitrine/upload-transparency-policy", {"election_event_id": EVENT_ID, "signed_policy": "not-a-policy"}, [ELECTION_EVENT_TRANSPARENCY_TAB], BACKEND, UNAUTHORIZED_JSON),
+        case!(Voter, "/vitrine/voter-context", {"election_event_id": EVENT_ID, "election_id": ELECTION_ID}, [CAST_VOTE], BACKEND, FORBIDDEN_JSON),
+        case!(Voter, "/vitrine/voter-forward", {"election_event_id": EVENT_ID, "route": "receipt", "body": "{}"}, [CAST_VOTE], BACKEND, FORBIDDEN_JSON),
     ]
 }
 
