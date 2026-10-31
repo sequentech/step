@@ -133,7 +133,8 @@ const parseChainLink = (sdk: IVitrineSdk, text: string): TParsed<IChainInput> =>
 }
 
 /** Reads what was given as a receipt. `base` is the page's own URL, for a
- * reference pasted without its verifier part. */
+ * reference pasted without its verifier part; its query (the language) is not
+ * part of the verifier's address. */
 export const parseReceiptInput = (
     sdk: IVitrineSdk,
     raw: string,
@@ -144,7 +145,7 @@ export const parseReceiptInput = (
     if (text === "") return problem(EInputProblem.EMPTY)
     if (text.includes(CHAIN_LINK_PREFIX)) return parseChainLink(sdk, text)
     if (text.includes(REFERENCE_PREFIX)) {
-        const url = text.startsWith("#") && base ? `${base.split("#")[0]}${text}` : text
+        const url = text.startsWith("#") && base ? `${base.split(/[?#]/)[0]}${text}` : text
         try {
             return {
                 ok: true,

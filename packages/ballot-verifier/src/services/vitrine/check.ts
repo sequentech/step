@@ -139,12 +139,15 @@ export interface IBallotForm {
  * holds (specs/receipt.md, section 1.1). Undefined when they can't make an
  * entry. The whole Tracking ID is needed, not a short one. */
 export const expectFromForm = (sdk: IVitrineSdk, form: IBallotForm): Expect | undefined => {
+    const eventId = form.eventId.trim()
+    const electionId = form.electionId.trim()
+    if (!eventId || !electionId) return undefined
     try {
         return sdk.verify.ballotExpect({
-            eventId: form.eventId.trim(),
-            electionId: form.electionId.trim(),
+            eventId,
+            electionId,
             stage: form.stage,
-            ballotId: sdk.verify.decodeTrackingId(form.ballotId),
+            ballotId: sdk.verify.decodeTrackingId(form.ballotId.trim()),
         })
     } catch {
         return undefined
