@@ -126,7 +126,7 @@ jobs:
             -Dsonar.javascript.node.maxspace=8192
             -Dsonar.sources=.
             -Dsonar.inclusions=**/*.js,**/*.ts,**/*.jsx,**/*.tsx
-            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/rust/**,**/.storybook/**,**/nightwatch/**,**/storybook-static/**,**/test-results/**,**/coverage/**,**/src/gql/**,**/intl-tel-input-*/**,**/zxcvbn.js,**/*.stories.tsx,**/__stories__/**
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/rust/**,**/.storybook/**,**/nightwatch/**,**/storybook-static/**,**/test-results/**,**/coverage/**,**/src/gql/**,**/intl-tel-input/**,**/intl-tel-input-*/**,**/zxcvbn.js,**/*.stories.tsx,**/__stories__/**
             -Dsonar.tests=.
             -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx,**/test/**,**/tests/**,**/test-support/**
             -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
@@ -147,7 +147,7 @@ jobs:
             -Dsonar.javascript.node.maxspace=8192
             -Dsonar.sources=.
             -Dsonar.inclusions=**/*.js,**/*.ts,**/*.jsx,**/*.tsx
-            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/rust/**,**/.storybook/**,**/nightwatch/**,**/storybook-static/**,**/test-results/**,**/coverage/**,**/src/gql/**,**/intl-tel-input-*/**,**/zxcvbn.js,**/*.stories.tsx,**/__stories__/**
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/rust/**,**/.storybook/**,**/nightwatch/**,**/storybook-static/**,**/test-results/**,**/coverage/**,**/src/gql/**,**/intl-tel-input/**,**/intl-tel-input-*/**,**/zxcvbn.js,**/*.stories.tsx,**/__stories__/**
             -Dsonar.tests=.
             -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx,**/test/**,**/tests/**,**/test-support/**
             -Dsonar.branch.name=${{ github.ref_name }}
