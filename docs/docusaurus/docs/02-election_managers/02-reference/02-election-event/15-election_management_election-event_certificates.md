@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_certificates
 title: Certificates
+description: "Voters can authenticate using client certificates issued by a Certificate Authority (CA). For this to work, the relevant CAs must be uploaded to the election event."
 ---
 
 <!--
