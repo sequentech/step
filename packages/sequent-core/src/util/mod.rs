@@ -30,3 +30,9 @@ pub mod voting_screen;
 
 #[cfg(any(feature = "probe", feature = "reports"))]
 pub mod retry;
+
+#[cfg(all(test, any(feature = "tracing", feature = "reports")))]
+pub(crate) mod log_capture;
+
+#[cfg(all(test, feature = "keycloak"))]
+pub(crate) mod http_stub;
