@@ -8,17 +8,20 @@ const catalanTranslation: TranslationType = {
         ballotPrivacy: {
             ...englishTranslation.translations.ballotPrivacy,
             title: "Totes les paperetes",
-            subtitle: "Totes les paperetes enviades en aquesta elecció, una sola vegada, en el seu darrer pas. Els votants apareixen amb un pseudònim en lloc d'un nom.",
+            subtitle:
+                "Totes les paperetes enviades en aquesta elecció, una sola vegada, en el seu darrer pas. Els votants apareixen amb un pseudònim en lloc d'un nom.",
             own: "La teva papereta és al registre",
             copy: "Copia l'ID de seguiment",
             ballotIdHelp: "Sobre el teu ID de seguiment",
             stageTime: "{{stage}} {{time}}",
-            noMatchHelp: "Comprova que no hi hagi errors d'escriptura. Un ID de seguiment porta un guió i almenys 8 caràcters, com FTBE-MHRX. Un pseudònim porta dos punts, com K7QM:2XWD.",
+            noMatchHelp:
+                "Comprova que no hi hagi errors d'escriptura. Un ID de seguiment porta un guió i almenys 8 caràcters, com FTBE-MHRX. Un pseudònim porta dos punts, com K7QM:2XWD.",
             copied: "ID de seguiment copiat",
             copyFailed: "No s'ha pogut copiar l'ID de seguiment. Selecciona el codi per copiar-lo.",
             search: "Cerca un ID de seguiment o un pseudònim",
             placeholder: "FTBE-MHRX o K7QM:2XWD",
-            matchesBoth: "Coincideixen {{tracking}} per ID de seguiment · {{pseudonym}} per pseudònim",
+            matchesBoth:
+                "Coincideixen {{tracking}} per ID de seguiment · {{pseudonym}} per pseudònim",
             ballotId: "ID de seguiment",
             lastStep: "Darrer pas",
             time: "Hora",
@@ -26,7 +29,8 @@ const catalanTranslation: TranslationType = {
             trackingIdHelp: "Calculat a partir de la papereta xifrada i la clau del votant.",
             noMatch: "Cap ID de seguiment ni pseudònim comença per {{prefix}}",
             noBallots: "Encara no s'ha enviat cap papereta.",
-            invalidPrefix: "Escriu almenys 8 caràcters d'un ID de seguiment amb guió, com FTBE-MHRX, o fins a 8 d'un pseudònim amb dos punts, com K7QM:2XWD. Els codis usen els dígits del 0 al 9 i lletres majúscules, sense I, L, O ni U.",
+            invalidPrefix:
+                "Escriu almenys 8 caràcters d'un ID de seguiment amb guió, com FTBE-MHRX, o fins a 8 d'un pseudònim amb dos punts, com K7QM:2XWD. Els codis usen els dígits del 0 al 9 i lletres majúscules, sense I, L, O ni U.",
             stages: {
                 received: {
                     label: "Rebuda",
@@ -53,7 +57,8 @@ const catalanTranslation: TranslationType = {
             },
             checkDescriptions: {
                 ...englishTranslation.translations.ballotPrivacy.checkDescriptions,
-                ballotId: "L'ID de seguiment es calcula a partir de la papereta xifrada i la clau del votant.",
+                ballotId:
+                    "L'ID de seguiment es calcula a partir de la papereta xifrada i la clau del votant.",
             },
         },
         startup: {
@@ -326,7 +331,8 @@ const catalanTranslation: TranslationType = {
                     "No hi ha cap papereta auditable disponible. Si us plau, contacteu amb el servei d'assistència.",
                 INCONSISTENT_HASH:
                     "Hi ha hagut un error relacionat amb el procés de hashing de la papereta. L'ID de seguiment: {{ballotId}} no és consistent amb el Hash de la Papereta Auditable: {{auditableBallotHash}}. Si us plau, informeu d'aquest problema al servei d'assistència.",
-                NOT_RECEIVED: "El registre públic encara no conté la teva papereta, de manera que no s'ha enviat. Torna a la teva papereta i torna-ho a provar.",
+                NOT_RECEIVED:
+                    "El registre públic encara no conté la teva papereta, de manera que no s'ha enviat. Torna a la teva papereta i torna-ho a provar.",
                 ELECTION_EVENT_NOT_OPEN:
                     "L'esdeveniment electoral està tancat. Si us plau, contacteu amb el servei d'assistència.",
                 PARSE_ERROR:
@@ -615,7 +621,8 @@ const catalanTranslation: TranslationType = {
             contentDesc: "Aquest és el contingut de la vostra papereta: ",
             wrongFormatBallotId: "Format incorrecte per l'ID de seguiment",
             ambiguous: "Diverses de les teves paperetes comencen per {{ballotId}}. Tria'n una:",
-            ambiguousMany: "Diverses de les teves paperetes comencen per {{ballotId}}. Escriu més de l'ID de seguiment.",
+            ambiguousMany:
+                "Diverses de les teves paperetes comencen per {{ballotId}}. Escriu més de l'ID de seguiment.",
             ballotIdNotFoundAtFilter:
                 "No trobat, comproveu que l'ID de seguiment sigui correcte i pertanyi a l'usuari actual.",
             filterByBallotId: "Filtra per ID de seguiment",
@@ -803,9 +810,35 @@ const catalanTranslation: TranslationType = {
                 copy: "Copia l'ID de seguiment complet",
                 copied: "ID de seguiment copiat",
                 showFull: "Mostra l'ID de seguiment complet",
+                selected: "Seleccionat. Premeu Ctrl+C, o ⌘C en un Mac, per copiar-lo.",
+                copyByHand:
+                    "El navegador no l'ha copiat. Obriu l'ID de seguiment complet per seleccionar-lo.",
+            },
+            elsewhere: {
+                title: "Cerqueu-la en un altre lloc",
+                count_one: "{{count}} explorador, {{independent}} independent",
+                count_other: "{{count}} exploradors, {{independent}} independents",
+                introBallot:
+                    "Els exploradors de tercers llegeixen pel seu compte el registre públic. Cadascun hauria de trobar la vostra papereta, amb les mateixes comprovacions, sense aquest web.",
+                introEntry:
+                    "Els exploradors de tercers llegeixen pel seu compte el registre públic. Cadascun hauria de mostrar aquesta entrada tal com apareix aquí.",
+                foot: "La llista prové de la política de l'elecció. Qualsevol explorador de Vitrine pot obrir el mateix registre: doneu-li l'ID de seguiment complet.",
+                name: "Explorador de {{name}}",
+                operatorName: "Explorador de l'elecció",
+                independent: "Independent",
+                operator: "Operador",
+                newTab: "S'obre en una pestanya nova",
+                who: {
+                    monitor: "Un monitor citat a la política de l'elecció",
+                    hub: "Un hub d'ancoratge citat a la política de l'elecció",
+                    operator: "El gestiona l'autoritat electoral",
+                },
             },
             status: {
                 title: "Estat de la papereta",
+                audit: "Auditar la papereta",
+                auditNote:
+                    "No esteu segur que el portal hagi xifrat bé les vostres opcions? Auditeu aquesta papereta: el portal revela com la va xifrar perquè ho comproveu. Una papereta auditada no es pot emetre mai, així que després torneu a votar.",
                 cast: "Emesa el {{when}}",
                 audited: "Auditada el {{when}}",
                 ballotCast: "Vot emès",

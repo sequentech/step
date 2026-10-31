@@ -106,7 +106,8 @@ const englishTranslation = {
             checkDescriptions: {
                 binding: "The election authority signed which voter key this pseudonym uses.",
                 received: "The ballot box received a ballot signed with that voter key.",
-                ballotId: "The Tracking ID is computed from the encrypted ballot and the voter key.",
+                ballotId:
+                    "The Tracking ID is computed from the encrypted ballot and the voter key.",
                 cast: "The same key cast the ballot, and the ballot box confirmed the cast.",
             },
             states: {
@@ -450,7 +451,8 @@ const englishTranslation = {
                     "There is no ballot available for audit. Please contact support",
                 INCONSISTENT_HASH:
                     "There was an error related to the ballot hashing process. Tracking ID: {{ballotId}} is not consistent with auditable Ballot Hash: {{auditableBallotHash}}. Please report this issue to support.",
-                NOT_RECEIVED: "The public record does not hold your ballot yet, so it was not sent. Go back to your ballot and try again.",
+                NOT_RECEIVED:
+                    "The public record does not hold your ballot yet, so it was not sent. Go back to your ballot and try again.",
                 ELECTION_EVENT_NOT_OPEN: "This election is closed. You can no longer vote",
                 PARSE_ERROR:
                     "There was an error parsing the ballot. Please try again later or contact support for assistance.",
@@ -732,7 +734,8 @@ const englishTranslation = {
             contentDesc: "This is your Ballot content: ",
             wrongFormatBallotId: "Invalid Tracking ID format",
             ambiguous: "Several of your ballots start with {{ballotId}}. Choose one:",
-            ambiguousMany: "Several of your ballots start with {{ballotId}}. Type more of the Tracking ID.",
+            ambiguousMany:
+                "Several of your ballots start with {{ballotId}}. Type more of the Tracking ID.",
             ballotIdNotFoundAtFilter:
                 "Not found, check that your Tracking ID is correct and belongs to this user.",
             filterByBallotId: "Filter by Tracking ID",
@@ -917,9 +920,35 @@ const englishTranslation = {
                 copy: "Copy the full Tracking ID",
                 copied: "Tracking ID copied",
                 showFull: "Show the full Tracking ID",
+                selected: "Selected. Press Ctrl+C, or ⌘C on a Mac, to copy it.",
+                copyByHand:
+                    "Your browser would not copy it. Open the full Tracking ID to select it.",
+            },
+            elsewhere: {
+                title: "Look it up elsewhere",
+                count_one: "{{count}} explorer, {{independent}} independent",
+                count_other: "{{count}} explorers, {{independent}} independent",
+                introBallot:
+                    "Explorers run by others read the public record themselves. Each should find your ballot, with the same checks, without this website.",
+                introEntry:
+                    "Explorers run by others read the public record themselves. Each should show this entry exactly as it is here.",
+                foot: "The list comes from the election’s policy. Any Vitrine explorer can open the same record: give it the full Tracking ID.",
+                name: "{{name}} explorer",
+                operatorName: "Election explorer",
+                independent: "Independent",
+                operator: "Operator",
+                newTab: "Opens in a new tab",
+                who: {
+                    monitor: "A monitor named in the election’s policy",
+                    hub: "An anchor hub named in the election’s policy",
+                    operator: "Run by the election authority",
+                },
             },
             status: {
                 title: "Ballot status",
+                audit: "Audit ballot",
+                auditNote:
+                    "Not sure the portal encrypted your choices correctly? Audit this ballot: the portal reveals how it was encrypted so you can check it. An audited ballot can never be cast, so you then vote again.",
                 cast: "Cast {{when}}",
                 audited: "Audited {{when}}",
                 ballotCast: "Ballot cast",

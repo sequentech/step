@@ -557,7 +557,11 @@ const ConfirmationScreen: React.FC = () => {
                           copied: t(
                               vitrine ? "vitrine.ballotId.copied" : "reviewScreen.ballotIdCopied"
                           ),
-                          error: t("reviewScreen.ballotIdCopyError"),
+                          error: t(
+                              vitrine
+                                  ? "vitrine.ballotId.copyByHand"
+                                  : "reviewScreen.ballotIdCopyError"
+                          ),
                       }
                     : undefined
             }

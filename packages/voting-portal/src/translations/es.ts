@@ -8,17 +8,21 @@ const spanishTranslation: TranslationType = {
         ballotPrivacy: {
             ...englishTranslation.translations.ballotPrivacy,
             title: "Todas las papeletas",
-            subtitle: "Todas las papeletas enviadas en esta elección, una vez cada una, en su último paso. Los votantes aparecen con un seudónimo en lugar de un nombre.",
+            subtitle:
+                "Todas las papeletas enviadas en esta elección, una vez cada una, en su último paso. Los votantes aparecen con un seudónimo en lugar de un nombre.",
             own: "Tu papeleta está en el registro",
             copy: "Copiar ID de seguimiento",
             ballotIdHelp: "Sobre tu ID de seguimiento",
             stageTime: "{{stage}} {{time}}",
-            noMatchHelp: "Revisa si hay errores al escribir. Un ID de seguimiento lleva un guion y al menos 8 caracteres, como FTBE-MHRX. Un seudónimo lleva dos puntos, como K7QM:2XWD.",
+            noMatchHelp:
+                "Revisa si hay errores al escribir. Un ID de seguimiento lleva un guion y al menos 8 caracteres, como FTBE-MHRX. Un seudónimo lleva dos puntos, como K7QM:2XWD.",
             copied: "ID de seguimiento copiado",
-            copyFailed: "No se pudo copiar el ID de seguimiento. Selecciona el código para copiarlo.",
+            copyFailed:
+                "No se pudo copiar el ID de seguimiento. Selecciona el código para copiarlo.",
             search: "Buscar un ID de seguimiento o un seudónimo",
             placeholder: "FTBE-MHRX o K7QM:2XWD",
-            matchesBoth: "Coinciden {{tracking}} por ID de seguimiento · {{pseudonym}} por seudónimo",
+            matchesBoth:
+                "Coinciden {{tracking}} por ID de seguimiento · {{pseudonym}} por seudónimo",
             ballotId: "ID de seguimiento",
             lastStep: "Último paso",
             time: "Hora",
@@ -26,7 +30,8 @@ const spanishTranslation: TranslationType = {
             trackingIdHelp: "Calculado a partir de la papeleta cifrada y la clave del votante.",
             noMatch: "Ningún ID de seguimiento ni seudónimo empieza por {{prefix}}",
             noBallots: "Todavía no se ha enviado ninguna papeleta.",
-            invalidPrefix: "Escribe al menos 8 caracteres de un ID de seguimiento con guion, como FTBE-MHRX, o hasta 8 de un seudónimo con dos puntos, como K7QM:2XWD. Los códigos usan los dígitos del 0 al 9 y letras mayúsculas, sin I, L, O ni U.",
+            invalidPrefix:
+                "Escribe al menos 8 caracteres de un ID de seguimiento con guion, como FTBE-MHRX, o hasta 8 de un seudónimo con dos puntos, como K7QM:2XWD. Los códigos usan los dígitos del 0 al 9 y letras mayúsculas, sin I, L, O ni U.",
             stages: {
                 received: {
                     label: "Recibida",
@@ -53,7 +58,8 @@ const spanishTranslation: TranslationType = {
             },
             checkDescriptions: {
                 ...englishTranslation.translations.ballotPrivacy.checkDescriptions,
-                ballotId: "El ID de seguimiento se calcula a partir de la papeleta cifrada y la clave del votante.",
+                ballotId:
+                    "El ID de seguimiento se calcula a partir de la papeleta cifrada y la clave del votante.",
             },
         },
         startup: {
@@ -325,7 +331,8 @@ const spanishTranslation: TranslationType = {
                     "No hay una papeleta verificable disponible. Por favor, contacte con el soporte.",
                 INCONSISTENT_HASH:
                     "Hubo un error relacionado con el proceso de hash de la papeleta. El ID de seguimiento: {{ballotId}} no es coherente con el Hash de la Papeleta Verificable: {{auditableBallotHash}}. Por favor, informe de este problema al soporte.",
-                NOT_RECEIVED: "El registro público aún no contiene tu papeleta, por lo que no se ha enviado. Vuelve a tu papeleta e inténtalo de nuevo.",
+                NOT_RECEIVED:
+                    "El registro público aún no contiene tu papeleta, por lo que no se ha enviado. Vuelve a tu papeleta e inténtalo de nuevo.",
                 ELECTION_EVENT_NOT_OPEN:
                     "El evento electoral está cerrado. Por favor, contacte con el soporte.",
                 PARSE_ERROR:
@@ -614,7 +621,8 @@ const spanishTranslation: TranslationType = {
             contentDesc: "Este es el contenido de su papeleta: ",
             wrongFormatBallotId: "Formato incorrecto para el ID de seguimiento",
             ambiguous: "Varias de tus papeletas empiezan por {{ballotId}}. Elige una:",
-            ambiguousMany: "Varias de tus papeletas empiezan por {{ballotId}}. Escribe más del ID de seguimiento.",
+            ambiguousMany:
+                "Varias de tus papeletas empiezan por {{ballotId}}. Escribe más del ID de seguimiento.",
             ballotIdNotFoundAtFilter:
                 "No encontrado, compruebe que el ID de seguimiento sea correcto y pertenezca a este usuario.",
             filterByBallotId: "Filtrar por ID de seguimiento",
@@ -802,9 +810,35 @@ const spanishTranslation: TranslationType = {
                 copy: "Copiar el ID de seguimiento completo",
                 copied: "ID de seguimiento copiado",
                 showFull: "Mostrar el ID de seguimiento completo",
+                selected: "Seleccionado. Pulsa Ctrl+C, o ⌘C en Mac, para copiarlo.",
+                copyByHand:
+                    "Tu navegador no lo ha copiado. Abre el ID de seguimiento completo para seleccionarlo.",
+            },
+            elsewhere: {
+                title: "Búscala en otro sitio",
+                count_one: "{{count}} explorador, {{independent}} independiente",
+                count_other: "{{count}} exploradores, {{independent}} independientes",
+                introBallot:
+                    "Los exploradores de terceros leen por su cuenta el registro público. Cada uno debería encontrar tu papeleta, con las mismas comprobaciones, sin esta web.",
+                introEntry:
+                    "Los exploradores de terceros leen por su cuenta el registro público. Cada uno debería mostrar esta entrada tal como aparece aquí.",
+                foot: "La lista procede de la política de la elección. Cualquier explorador de Vitrine puede abrir el mismo registro: dale el ID de seguimiento completo.",
+                name: "Explorador de {{name}}",
+                operatorName: "Explorador de la elección",
+                independent: "Independiente",
+                operator: "Operador",
+                newTab: "Se abre en una pestaña nueva",
+                who: {
+                    monitor: "Un monitor citado en la política de la elección",
+                    hub: "Un hub de anclaje citado en la política de la elección",
+                    operator: "Lo gestiona la autoridad electoral",
+                },
             },
             status: {
                 title: "Estado de la papeleta",
+                audit: "Auditar papeleta",
+                auditNote:
+                    "¿No estás seguro de que el portal haya cifrado bien tus opciones? Audita esta papeleta: el portal revela cómo la cifró para que lo compruebes. Una papeleta auditada nunca puede emitirse, así que después votas de nuevo.",
                 cast: "Emitida el {{when}}",
                 audited: "Auditada el {{when}}",
                 ballotCast: "Voto emitido",

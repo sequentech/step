@@ -6,10 +6,8 @@
 // ReceiptDialog): the short and full Tracking ID, where the ballot stands, and
 // the three checks behind it, each with what the receipt says about it.
 
-import React, {useEffect, useId, useRef, useState} from "react"
-import {Box, ButtonBase, Dialog, useMediaQuery} from "@mui/material"
-import {useTheme} from "@mui/material/styles"
-import {visuallyHidden} from "@mui/utils"
+import React, {useId} from "react"
+import {Box, ButtonBase, Dialog} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {
     ballotProblemOf,
@@ -21,13 +19,7 @@ import {
     EStepState,
     isAuditStatus,
 } from "../../services/vitrine/ballotStatus"
-import {
-    ballotIdLines,
-    groupBallotId,
-    NARROW_GROUPS_PER_LINE,
-    shortBallotId,
-    WIDE_GROUPS_PER_LINE,
-} from "../../services/vitrine/ballotId"
+import {shortBallotId} from "../../services/vitrine/ballotId"
 import type {IReceiptView} from "../../services/vitrine/castReceipt"
 import {receiptFileName} from "../../services/vitrine/confirmation"
 import {RECEIPT_MEDIA_TYPE, saveTextFile} from "../../services/vitrine/file"
@@ -49,7 +41,11 @@ import {
     ECheckMarks,
     ICheckGlyph,
 } from "./BallotStatusIcon"
+import {EVitrineLog} from "../../services/vitrine/types"
 import {BallotTag} from "./BallotTag"
+import {explorersOf} from "./explorers"
+import {FindElsewhere} from "./FindElsewhere"
+import {FullTrackingId} from "./FullTrackingId"
 
 const DIALOG_COLORS = {
     navy: "#0F054C",
@@ -77,7 +73,6 @@ const focusRing = (offset: number) => ({
 })
 
 const MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
-const COPIED_MS = 1600
 
 const HEAD_COLORS: Partial<Record<EBallotStatus, string>> = {
     [EBallotStatus.VERIFIED]: CHECK_COLORS.BLUE,
@@ -228,163 +223,50 @@ const TitleBar: React.FC<{id: string; title: string; closeLabel: string; onClose
     </Box>
 )
 
-const CopyIcon: React.FC = () => (
-    <svg
-        className="ballot-status-copy-icon"
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        aria-hidden="true"
-    >
-        <path
-            className="ballot-status-copy-front"
-            d="M10 2h7.2L21 5.8V16a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"
-        />
-        <path
-            className="ballot-status-copy-back"
-            d="M5 6h1v12a2 2 0 0 0 2 2h8v1a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"
-        />
-    </svg>
-)
-
-const CopiedIcon: React.FC = () => (
-    <svg
-        className="ballot-status-copied-icon"
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-    >
-        <path className="ballot-status-copied-mark" d="M4.5 12.5l4.75 4.75L19.5 7" />
-    </svg>
-)
-
-const IdBox: React.FC<{ballotId: string; tag: EBallotTag; phone: boolean}> = ({
-    ballotId,
-    tag,
-    phone,
-}) => {
+const IdBox: React.FC<{ballotId: string; tag: EBallotTag}> = ({ballotId, tag}) => {
     const {t} = useTranslation()
-    const [copied, setCopied] = useState(false)
-    const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-    useEffect(() => () => clearTimeout(timer.current), [])
-    const lines = ballotIdLines(ballotId, phone ? NARROW_GROUPS_PER_LINE : WIDE_GROUPS_PER_LINE)
-
-    const copy = async () => {
-        try {
-            await navigator.clipboard.writeText(groupBallotId(ballotId))
-        } catch {
-            return
-        }
-        clearTimeout(timer.current)
-        setCopied(true)
-        timer.current = setTimeout(() => setCopied(false), COPIED_MS)
-    }
-
     const label = {fontSize: "12px", lineHeight: "16px", color: DIALOG_COLORS.grey}
     return (
         <Box
             className="ballot-status-id"
             sx={{
-                "bgcolor": DIALOG_COLORS.mint,
-                "borderRadius": "8px",
-                "p": "12px 14px",
-                "&:hover .ballot-status-full-id": {
-                    textDecoration: phone ? "none" : "underline",
-                },
-                "&:hover .ballot-status-copy, & .ballot-status-copy:focus-visible": {opacity: 1},
+                bgcolor: DIALOG_COLORS.mint,
+                borderRadius: "8px",
+                p: "12px 14px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
             }}
         >
-            <Box
-                className="ballot-status-id-head"
-                sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: "8px",
-                }}
-            >
-                <Box className="ballot-status-id-label" sx={label}>
-                    {t("vitrine.ballotId.label")}
-                </Box>
-                <BallotTag tag={tag} />
-            </Box>
-            <Box
-                className="ballot-status-short-id"
-                sx={{
-                    fontFamily: MONO,
-                    fontSize: "22px",
-                    lineHeight: "30px",
-                    fontWeight: 700,
-                    color: DIALOG_COLORS.text,
-                }}
-            >
-                {shortBallotId(ballotId)}
-            </Box>
-            <Box className="ballot-status-full-label" sx={{...label, mt: "8px"}}>
-                {t("vitrine.ballotId.full")}
-            </Box>
-            <Box
-                className="ballot-status-full-row"
-                sx={{display: "flex", alignItems: "flex-end", gap: "6px"}}
-            >
+            <Box className="ballot-status-id-top">
                 <Box
-                    className="ballot-status-full-id"
+                    className="ballot-status-id-head"
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "8px",
+                    }}
+                >
+                    <Box className="ballot-status-id-label" sx={label}>
+                        {t("vitrine.ballotId.label")}
+                    </Box>
+                    <BallotTag tag={tag} />
+                </Box>
+                <Box
+                    className="ballot-status-short-id"
                     sx={{
                         fontFamily: MONO,
-                        fontSize: "13px",
-                        lineHeight: "19px",
-                        color: DIALOG_COLORS.navy,
-                        textUnderlineOffset: "3px",
+                        fontSize: "22px",
+                        lineHeight: "30px",
+                        fontWeight: 700,
+                        color: DIALOG_COLORS.text,
                     }}
                 >
-                    {lines.map((line, n) => (
-                        <div className="ballot-status-full-line" key={line.join("")}>
-                            {n === 0 ? (
-                                <>
-                                    <b className="ballot-status-full-lead">
-                                        {line.slice(0, 2).join("-")}
-                                    </b>
-                                    {line.length > 2 ? `-${line.slice(2).join("-")}` : ""}
-                                </>
-                            ) : (
-                                line.join("-")
-                            )}
-                        </div>
-                    ))}
+                    {shortBallotId(ballotId)}
                 </Box>
-                <ButtonBase
-                    className="ballot-status-copy"
-                    aria-label={t(copied ? "vitrine.ballotId.copied" : "vitrine.ballotId.copy")}
-                    onClick={() => void copy()}
-                    sx={{
-                        "width": 28,
-                        "height": 28,
-                        "mb": "-4px",
-                        "borderRadius": "4px",
-                        "color": copied ? DIALOG_COLORS.copied : DIALOG_COLORS.text,
-                        "opacity": copied || phone ? 1 : 0,
-                        "transition": "opacity 150ms",
-                        "&.Mui-focusVisible": focusRing(1),
-                    }}
-                >
-                    {copied ? <CopiedIcon /> : <CopyIcon />}
-                </ButtonBase>
             </Box>
-            <Box
-                component="span"
-                className="ballot-status-copy-status"
-                role="status"
-                sx={visuallyHidden}
-            >
-                {copied ? t("vitrine.ballotId.copied") : ""}
-            </Box>
+            <FullTrackingId ballotId={ballotId} />
         </Box>
     )
 }
@@ -544,6 +426,9 @@ export interface IBallotStatusDialogProps {
     kept?: boolean
     /** The ballot in the ballot tracker. */
     tracker?: React.AnchorHTMLAttributes<HTMLAnchorElement>
+    /** Audits the ballot, at review: the dialog offers it, next to OK, for a
+     * ballot that is not cast yet. */
+    onAudit?: () => void
 }
 
 export const BallotStatusDialog: React.FC<IBallotStatusDialogProps> = ({
@@ -558,10 +443,9 @@ export const BallotStatusDialog: React.FC<IBallotStatusDialogProps> = ({
     times,
     kept = false,
     tracker,
+    onAudit,
 }) => {
     const {t} = useTranslation()
-    const theme = useTheme()
-    const phone = useMediaQuery(theme.breakpoints.down("sm"))
     const titleId = useId()
     const notCast = status === EBallotStatus.NOT_CAST
     const problem = status === EBallotStatus.PROBLEM ? ballotProblemOf(view) : undefined
@@ -570,6 +454,13 @@ export const BallotStatusDialog: React.FC<IBallotStatusDialogProps> = ({
     const rows = statusRows(input)
     const tr = ({key, values}: ITranslation): string => t(key, values)
     const chain = view?.chain
+    // The ballot is in the record once its first check has an answer.
+    const inRecord = status !== EBallotStatus.NOT_CAST && status !== EBallotStatus.CHECKING
+    const explorers = inRecord ? explorersOf(view?.policy) : []
+    const entry = view?.result?.entry
+    const reviewing = notCast || tag === EBallotTag.NOT_CAST
+    const canAudit =
+        !!onAudit && reviewing && status !== EBallotStatus.PROBLEM && !isAuditStatus(status)
     const save = () => {
         if (chain) saveTextFile(receiptFileName(ballotId), chain, RECEIPT_MEDIA_TYPE)
     }
@@ -617,7 +508,7 @@ export const BallotStatusDialog: React.FC<IBallotStatusDialogProps> = ({
                         {meta}
                     </Box>
                 ) : null}
-                <IdBox ballotId={ballotId} tag={tag ?? ballotTagOf(status)} phone={phone} />
+                <IdBox ballotId={ballotId} tag={tag ?? ballotTagOf(status)} />
                 <Headline status={status} head={tr(headline.head)} sub={tr(headline.sub)} />
                 <Steps rows={rows} tr={tr} />
                 {status === EBallotStatus.LATE ? (
@@ -674,6 +565,12 @@ export const BallotStatusDialog: React.FC<IBallotStatusDialogProps> = ({
                         </ButtonBase>
                     </Box>
                 ) : null}
+                <FindElsewhere
+                    explorers={explorers}
+                    policyId={view?.policy?.id}
+                    log={entry?.log ?? EVitrineLog.BALLOTS}
+                    ballotId={ballotId}
+                />
                 <Box
                     className="ballot-status-caption"
                     sx={{
@@ -718,6 +615,21 @@ export const BallotStatusDialog: React.FC<IBallotStatusDialogProps> = ({
                         ) : null}
                     </span>
                 </Box>
+                {canAudit ? (
+                    <Box
+                        className="ballot-status-audit-note"
+                        sx={{
+                            p: "12px 14px",
+                            borderRadius: "4px",
+                            bgcolor: "#F8FAFC",
+                            fontSize: "14px",
+                            lineHeight: "20px",
+                            color: "#334155",
+                        }}
+                    >
+                        {t("vitrine.status.auditNote")}
+                    </Box>
+                ) : null}
             </Box>
             <Box
                 className="ballot-status-actions"
@@ -728,6 +640,34 @@ export const BallotStatusDialog: React.FC<IBallotStatusDialogProps> = ({
                     p: "16px 24px 20px",
                 }}
             >
+                {canAudit ? (
+                    <ButtonBase
+                        className="ballot-status-audit"
+                        onClick={onAudit}
+                        sx={{
+                            ...actionSx,
+                            bgcolor: "#fff",
+                            borderColor: DIALOG_COLORS.redStrong,
+                            color: DIALOG_COLORS.redStrong,
+                            gap: "8px",
+                        }}
+                    >
+                        <svg
+                            className="ballot-status-audit-icon"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            aria-hidden="true"
+                        >
+                            <path
+                                className="ballot-status-audit-flame"
+                                d="M13.5 2.5c.4 3-1.2 4.6-2.8 6.2C9 10.4 7.5 12 7.5 14.6a4.5 4.5 0 0 0 9 0c0-1.4-.5-2.6-1.2-3.6.1 1.3-.4 2.3-1.4 2.8.6-3.3-.2-6.8-.4-11.3z"
+                            />
+                        </svg>
+                        {t("vitrine.status.audit")}
+                    </ButtonBase>
+                ) : null}
                 {notCast ? null : (
                     <ButtonBase
                         className="ballot-status-save"

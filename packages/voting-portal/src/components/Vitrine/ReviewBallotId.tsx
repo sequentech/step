@@ -13,12 +13,13 @@ import {Box, ButtonBase} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {BallotHashCopyButton, IconButton, theme} from "@sequentech/ui-essentials"
-import {ballotIdGroups, groupBallotId, shortBallotId} from "../../services/vitrine/ballotId"
+import {groupBallotId, shortBallotId} from "../../services/vitrine/ballotId"
 import {EBallotStatus, EBallotTag} from "../../services/vitrine/ballotStatus"
 import type {IReceiptView} from "../../services/vitrine/castReceipt"
 import {BallotStatus, EBallotStatusTrigger} from "./BallotStatus"
 import {HEAVY_DOTS} from "./BallotStatusIcon"
 import {BallotTag} from "./BallotTag"
+import {FullTrackingId} from "./FullTrackingId"
 import {ID_BUTTON_SX} from "./idButtons"
 
 const MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
@@ -28,22 +29,12 @@ const COLORS = {
     green: theme.palette.green.dark,
     mint: theme.palette.green.light,
     text: theme.palette.customGrey.contrastText,
-    label: theme.palette.customGrey.dark,
     navy: theme.palette.brandColor,
 } as const
 
 const focusSx = {
     "&.Mui-focusVisible": {outline: `2px solid ${COLORS.navy}`, outlineOffset: "1px"},
 } as const
-
-/** The full ID, with its first two groups apart from the rest. */
-const fullIdParts = (ballotId: string): {lead: string; rest: string} => {
-    const groups = ballotIdGroups(ballotId)
-    return {
-        lead: groups.slice(0, 2).join("-"),
-        rest: groups.length > 2 ? `-${groups.slice(2).join("-")}` : "",
-    }
-}
 
 export interface IReviewBallotIdProps {
     ballotId: string
@@ -52,6 +43,8 @@ export interface IReviewBallotIdProps {
     electionName?: string
     helpLabel: string
     onHelpClick: () => void
+    /** Offers the audit in the status dialog, when the event allows it. */
+    onAudit?: () => void
 }
 
 export const ReviewBallotId: React.FC<IReviewBallotIdProps> = ({
@@ -60,11 +53,11 @@ export const ReviewBallotId: React.FC<IReviewBallotIdProps> = ({
     electionName,
     helpLabel,
     onHelpClick,
+    onAudit,
 }) => {
     const {t} = useTranslation()
     const [expanded, setExpanded] = useState(false)
     const fullId = useId()
-    const full = fullIdParts(ballotId)
 
     return (
         <Box className="vitrine-tracking-id">
@@ -121,6 +114,7 @@ export const ReviewBallotId: React.FC<IReviewBallotIdProps> = ({
                         ballotId={ballotId}
                         electionName={electionName}
                         strokeWidth={HEAVY_DOTS}
+                        onAudit={onAudit}
                         sx={{m: "-7px -4px -7px -12px", [PHONE]: {m: "-3px -3px -3px -5px"}}}
                     />
                     <Box
@@ -180,16 +174,18 @@ export const ReviewBallotId: React.FC<IReviewBallotIdProps> = ({
                             [PHONE]: {gap: "10px", ml: 0},
                         }}
                     >
-                        <BallotHashCopyButton
-                            hash={groupBallotId(ballotId)}
-                            copyLabels={{
-                                copy: t("vitrine.ballotId.copy"),
-                                copied: t("vitrine.ballotId.copied"),
-                                error: t("reviewScreen.ballotIdCopyError"),
-                            }}
-                            copiedColor={COLORS.green}
-                            sx={ID_BUTTON_SX}
-                        />
+                        {expanded ? null : (
+                            <BallotHashCopyButton
+                                hash={groupBallotId(ballotId)}
+                                copyLabels={{
+                                    copy: t("vitrine.ballotId.copy"),
+                                    copied: t("vitrine.ballotId.copied"),
+                                    error: t("vitrine.ballotId.copyByHand"),
+                                }}
+                                copiedColor={COLORS.green}
+                                sx={ID_BUTTON_SX}
+                            />
+                        )}
                         <IconButton
                             buttonClassName="hash-help-button"
                             icon={faCircleQuestion}
@@ -206,46 +202,7 @@ export const ReviewBallotId: React.FC<IReviewBallotIdProps> = ({
                         />
                     </Box>
                 </Box>
-                {expanded ? (
-                    <Box
-                        id={fullId}
-                        className="vitrine-tracking-id-full"
-                        sx={{
-                            // Wraps inside the box instead of widening it.
-                            width: 0,
-                            minWidth: "100%",
-                            boxSizing: "border-box",
-                            pl: "26px",
-                            [PHONE]: {pl: "38px"},
-                        }}
-                    >
-                        <Box
-                            className="vitrine-tracking-id-full-label"
-                            sx={{fontSize: "12px", lineHeight: "16px", color: COLORS.label}}
-                        >
-                            {t("vitrine.ballotId.full")}
-                        </Box>
-                        <Box
-                            className="vitrine-tracking-id-full-value"
-                            sx={{
-                                fontFamily: MONO,
-                                fontSize: "13px",
-                                lineHeight: "20px",
-                                color: COLORS.navy,
-                                overflowWrap: "anywhere",
-                            }}
-                        >
-                            <Box
-                                component="b"
-                                className="vitrine-tracking-id-full-lead"
-                                sx={{fontWeight: 700}}
-                            >
-                                {full.lead}
-                            </Box>
-                            {full.rest}
-                        </Box>
-                    </Box>
-                ) : null}
+                {expanded ? <FullTrackingId id={fullId} ballotId={ballotId} /> : null}
             </Box>
         </Box>
     )

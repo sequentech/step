@@ -205,6 +205,8 @@ export interface IBallotStatusProps {
     /** Whether this device keeps the receipt and checks it on each visit. */
     kept?: boolean
     trackerUrl?: string
+    /** Audits the ballot, at review: the dialog closes and this runs. */
+    onAudit?: () => void
     /** The background behind the icon, for the ring around a badge. */
     surface?: string
     strokeWidth?: number
@@ -222,6 +224,7 @@ export const BallotStatus: React.FC<IBallotStatusProps> = ({
     castAt,
     kept,
     trackerUrl,
+    onAudit,
     surface,
     strokeWidth,
     sx,
@@ -252,6 +255,14 @@ export const BallotStatus: React.FC<IBallotStatusProps> = ({
                 times={times}
                 kept={kept}
                 tracker={tracker}
+                onAudit={
+                    onAudit
+                        ? () => {
+                              setOpen(false)
+                              onAudit()
+                          }
+                        : undefined
+                }
             />
         </>
     )

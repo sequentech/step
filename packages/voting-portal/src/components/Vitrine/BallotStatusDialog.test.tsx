@@ -300,15 +300,19 @@ describe("the Tracking ID in the ballot status dialog", () => {
         window.matchMedia = savedMatchMedia
     })
 
-    it("shows the short ID, and the full ID in two lines of eight groups", () => {
+    it("shows the short ID, and the full ID in the Tracking ID block, its first two groups in bold", () => {
         renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED)})
         expect(dialog().querySelector(".ballot-status-short-id")?.textContent).toBe("FTBE-MHRX")
-        const lines = Array.from(dialog().querySelectorAll(".ballot-status-full-id > div"))
-        expect(lines.map((l) => l.textContent)).toEqual([
-            GROUPED.split("-").slice(0, 8).join("-"),
-            GROUPED.split("-").slice(8).join("-"),
-        ])
-        expect(lines[0].querySelector("b")?.textContent).toBe("FTBE-MHRX")
+        const block = dialog().querySelector(".full-tracking-id")
+        expect(block?.querySelector(".full-tracking-id-label")?.textContent).toBe(
+            "vitrine.ballotId.full"
+        )
+        expect(block?.querySelector(".full-tracking-id-value")?.textContent).toBe(GROUPED)
+        expect(
+            Array.from(block?.querySelectorAll(".full-tracking-id-short") ?? []).map(
+                (group) => group.textContent
+            )
+        ).toEqual(["FTBE-", "MHRX-"])
     })
 
     it("tags a verified ballot Cast, and a received one Not cast when it is told so", () => {
@@ -324,19 +328,6 @@ describe("the Tracking ID in the ballot status dialog", () => {
         expect(dialog().textContent).not.toContain("vitrine.status.tag.cast")
     })
 
-    it("breaks the full ID into lines of four groups on a phone", () => {
-        window.matchMedia = ((query: string) => ({
-            matches: true,
-            media: query,
-            addEventListener: jest.fn(),
-            removeEventListener: jest.fn(),
-        })) as unknown as typeof window.matchMedia
-        renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED)})
-        const lines = Array.from(dialog().querySelectorAll(".ballot-status-full-id > div"))
-        expect(lines).toHaveLength(4)
-        expect(lines[3].textContent).toBe("89AB")
-    })
-
     it("copies the full ID in groups of four, and says so", async () => {
         renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED)})
         await act(async () => {
@@ -350,40 +341,28 @@ describe("the Tracking ID in the ballot status dialog", () => {
     it("swaps the copy icon for a check of the same size when it copies, and writes no text", async () => {
         renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED)})
         const copy = screen.getByRole("button", {name: "vitrine.ballotId.copy"})
-        const icon = copy.querySelector(".ballot-status-copy-icon")
+        const icon = copy.querySelector(".full-tracking-id-copy-icon")
         expect(icon).not.toBeNull()
-        expect(copy.querySelector(".ballot-status-copied-icon")).toBeNull()
+        expect(copy.querySelector(".full-tracking-id-copied-icon")).toBeNull()
         expect(copy.textContent).toBe("")
         const size = [icon?.getAttribute("width"), icon?.getAttribute("height")]
         await act(async () => {
             fireEvent.click(copy)
         })
         const done = screen.getByRole("button", {name: "vitrine.ballotId.copied"})
-        const check = done.querySelector(".ballot-status-copied-icon")
-        expect(done.querySelector(".ballot-status-copy-icon")).toBeNull()
+        const check = done.querySelector(".full-tracking-id-copied-icon")
+        expect(done.querySelector(".full-tracking-id-copy-icon")).toBeNull()
         expect(check).not.toBeNull()
         expect([check?.getAttribute("width"), check?.getAttribute("height")]).toEqual(size)
         expect(done.textContent).toBe("")
         expect(getComputedStyle(done).color).toBe("rgb(4, 120, 87)")
     })
 
-    it("keeps the copy button a 28 px square, before and after it copies", async () => {
+    it("keeps its copy button visible, with no hover needed", () => {
         renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED)})
-        const square = (button: HTMLElement) => {
-            const style = getComputedStyle(button)
-            return [style.width, style.height]
-        }
-        expect(square(screen.getByRole("button", {name: "vitrine.ballotId.copy"}))).toEqual([
-            "28px",
-            "28px",
-        ])
-        await act(async () => {
-            fireEvent.click(screen.getByRole("button", {name: "vitrine.ballotId.copy"}))
-        })
-        expect(square(screen.getByRole("button", {name: "vitrine.ballotId.copied"}))).toEqual([
-            "28px",
-            "28px",
-        ])
+        const copy = screen.getByRole("button", {name: "vitrine.ballotId.copy"})
+        expect(getComputedStyle(copy).opacity).not.toBe("0")
+        expect(dialog().querySelector(".ballot-status-copy")).toBeNull()
     })
 
     it("has an 8 px radius, and the Tracking ID label above the short ID", () => {
@@ -420,13 +399,17 @@ describe("the Tracking ID in the ballot status dialog", () => {
         }
     )
 
-    it("says nothing was copied when the clipboard refuses", async () => {
+    it("selects the ID and says how to copy it by hand when the browser refuses, with no warning", async () => {
         writeText.mockRejectedValueOnce(new Error("denied"))
         renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED)})
         await act(async () => {
             fireEvent.click(screen.getByRole("button", {name: "vitrine.ballotId.copy"}))
         })
         expect(screen.queryByRole("button", {name: "vitrine.ballotId.copied"})).toBeNull()
+        expect(within(dialog()).getByRole("status").textContent).toBe("vitrine.ballotId.selected")
+        expect(window.getSelection()?.toString()).toBe(GROUPED)
+        expect(dialog().querySelector("[data-icon='triangle-exclamation']")).toBeNull()
+        expect(dialog().textContent).not.toContain("CopyError")
     })
 })
 
@@ -573,5 +556,106 @@ describe("the ballot status dialog's accessibility", () => {
         expect(
             violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)
         ).toEqual([])
+    })
+})
+
+describe("Audit ballot in the ballot status dialog", () => {
+    const auditButton = () => within(dialog()).queryByRole("button", {name: "vitrine.status.audit"})
+
+    it("is offered next to OK for a ballot that is not cast yet, with a line on what it does", () => {
+        const onAudit = jest.fn()
+        renderDialog({status: EBallotStatus.NOT_CAST, onAudit})
+        expect(dialog().querySelector(".ballot-status-audit-note")?.textContent).toBe(
+            "vitrine.status.auditNote"
+        )
+        fireEvent.click(auditButton()!)
+        expect(onAudit).toHaveBeenCalledTimes(1)
+        const actions = Array.from(dialog().querySelectorAll(".ballot-status-actions button"))
+        expect(actions.map((b) => b.textContent)).toEqual([
+            "vitrine.status.audit",
+            "vitrine.status.ok",
+        ])
+    })
+
+    it("is offered for a ballot received at review, which climbs the checks but is not cast", () => {
+        renderDialog({
+            status: EBallotStatus.WITNESSED,
+            view: view(WITNESSED),
+            tag: EBallotTag.NOT_CAST,
+            onAudit: jest.fn(),
+        })
+        expect(auditButton()).not.toBeNull()
+    })
+
+    it("is not offered when the screen gives no way to audit", () => {
+        renderDialog({status: EBallotStatus.NOT_CAST})
+        expect(auditButton()).toBeNull()
+        expect(dialog().querySelector(".ballot-status-audit-note")).toBeNull()
+    })
+
+    it.each([
+        ["a cast ballot", EBallotStatus.VERIFIED, view(VERIFIED), undefined],
+        ["an audited ballot", EBallotStatus.AUDITABLE, undefined, undefined],
+        ["a ballot with a problem", EBallotStatus.PROBLEM, view(MISMATCH), EBallotTag.NOT_CAST],
+    ] as const)("is not offered for %s", (_name, status, receipt, tag) => {
+        renderDialog({status, view: receipt, tag, onAudit: jest.fn()})
+        expect(auditButton()).toBeNull()
+        expect(dialog().querySelector(".ballot-status-audit-note")).toBeNull()
+    })
+})
+
+describe("Look it up elsewhere in the ballot status dialog", () => {
+    const POLICY = {
+        id: "sha256:abc123",
+        operator: "Election authority",
+        monitors: new Map([
+            [
+                "observer-a",
+                {name: "observer-a", party: "Observer A", explorer: "https://x.example/"},
+            ],
+        ]),
+        hubs: new Map([
+            ["hub-b", {name: "hub-b", operator: "Hub B", explorer: "https://hub-b.example/"}],
+        ]),
+        explorers: ["https://election.example/"],
+    } as unknown as NonNullable<IReceiptView["policy"]>
+
+    const section = () => dialog().querySelector(".find-elsewhere")
+
+    it("lists the explorers of the policy once the ballot is in the record", () => {
+        renderDialog({
+            status: EBallotStatus.VERIFIED,
+            view: view(VERIFIED, {policy: POLICY}),
+        })
+        const toggle = within(dialog()).getByRole("button", {name: /vitrine.elsewhere.title/})
+        expect(toggle.getAttribute("aria-expanded")).toBe("false")
+        expect(toggle.textContent).toContain('{"count":3,"independent":2}')
+        fireEvent.click(toggle)
+        expect(toggle.getAttribute("aria-expanded")).toBe("true")
+        const links = Array.from(section()!.querySelectorAll<HTMLAnchorElement>("a"))
+        expect(links.map((a) => a.getAttribute("href"))).toEqual(
+            ["https://x.example/", "https://hub-b.example/", "https://election.example/"].map(
+                (url) => `${url}#policy=sha256%3Aabc123&log=ballots&find=${GROUPED}`
+            )
+        )
+        for (const link of links) {
+            expect(link.getAttribute("target")).toBe("_blank")
+            expect(link.getAttribute("rel")).toBe("noopener noreferrer")
+        }
+        expect(links[0].textContent).toContain("vitrine.elsewhere.independent")
+        expect(links[2].textContent).toContain("vitrine.elsewhere.operator")
+    })
+
+    it.each([EBallotStatus.NOT_CAST, EBallotStatus.CHECKING])("is not shown while %s", (status) => {
+        renderDialog({status, view: view(undefined, {policy: POLICY})})
+        expect(section()).toBeNull()
+    })
+
+    it("is not shown when the policy names no explorer", () => {
+        renderDialog({
+            status: EBallotStatus.VERIFIED,
+            view: view(VERIFIED, {policy: {id: "sha256:abc123"} as typeof POLICY}),
+        })
+        expect(section()).toBeNull()
     })
 })
