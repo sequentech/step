@@ -3,17 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box} from "@mui/material"
 import React, {useEffect, useState} from "react"
-import {styled} from "@mui/material/styles"
+import {styled, SxProps, Theme} from "@mui/material/styles"
 import IconButton from "../IconButton/IconButton"
 import Icon from "../Icon/Icon"
 import DecorativeIconBox from "../Icon/DecorativeIconBox"
 import {useTranslation} from "react-i18next"
-import {
-    faCheck,
-    faCircleQuestion,
-    faCopy,
-    faTriangleExclamation,
-} from "@fortawesome/free-solid-svg-icons"
+import {faCheck, faCircleQuestion, faCopy} from "@fortawesome/free-solid-svg-icons"
 import theme from "../../services/theme"
 
 const HashContainer = styled(Box)`
@@ -61,6 +56,7 @@ const CopyStatus = styled("span")`
 export interface BallotHashCopyLabels {
     copy: string
     copied: string
+    /** What to say when the browser refuses to copy: the voter copies by hand. */
     error: string
 }
 
@@ -74,34 +70,75 @@ export interface BallotHashProps {
 export enum CopyBallotHashStatus {
     Idle = "idle",
     Copied = "copied",
-    Error = "error",
+    /** The browser refused both ways to copy: the voter copies by hand. Nothing
+     * went wrong with the ballot, so it is not shown as an error. */
+    Manual = "manual",
 }
 
+// A refused copy keeps the copy icon: it is not an alarm.
 const COPY_ICON = {
     idle: faCopy,
     copied: faCheck,
-    error: faTriangleExclamation,
+    manual: faCopy,
 }
 
+/** Copies through a temporary text area, for browsers that refuse the
+ * Clipboard API (a page without its permission, or served without HTTPS). */
+const copyWithSelection = (text: string): boolean => {
+    if (typeof document === "undefined" || typeof document.execCommand !== "function") {
+        return false
+    }
+
+    const area = document.createElement("textarea")
+    area.value = text
+    area.setAttribute("readonly", "")
+    area.setAttribute("aria-hidden", "true")
+    area.style.cssText = "position:fixed;top:0;left:-9999px;opacity:0"
+    const focused = document.activeElement
+    document.body.appendChild(area)
+    try {
+        area.select()
+        return document.execCommand("copy")
+    } catch {
+        return false
+    } finally {
+        document.body.removeChild(area)
+        if (focused instanceof HTMLElement) {
+            focused.focus()
+        }
+    }
+}
+
+/** Copies the hash: through the Clipboard API, else by selecting it in a
+ * temporary text area. When neither works the result is `Manual`. */
 export const copyBallotHash = async (
     hash: string,
     clipboard: Pick<Clipboard, "writeText"> | undefined
 ): Promise<CopyBallotHashStatus> => {
-    if (!clipboard) {
-        return CopyBallotHashStatus.Error
+    try {
+        if (clipboard) {
+            await clipboard.writeText(hash)
+            return CopyBallotHashStatus.Copied
+        }
+    } catch {
+        // Try the fallback.
     }
 
-    try {
-        await clipboard.writeText(hash)
-        return CopyBallotHashStatus.Copied
-    } catch {
-        return CopyBallotHashStatus.Error
-    }
+    return copyWithSelection(hash) ? CopyBallotHashStatus.Copied : CopyBallotHashStatus.Manual
 }
 
-export const BallotHashCopyButton: React.FC<Pick<BallotHashProps, "hash" | "copyLabels">> = ({
+export interface BallotHashCopyButtonProps extends Pick<BallotHashProps, "hash" | "copyLabels"> {
+    /** The colour of the check that replaces the copy icon once the hash is copied. */
+    copiedColor?: string
+    /** Styles for the button, over its own. */
+    sx?: SxProps<Theme>
+}
+
+export const BallotHashCopyButton: React.FC<BallotHashCopyButtonProps> = ({
     hash,
     copyLabels,
+    copiedColor,
+    sx,
 }) => {
     const [copyStatus, setCopyStatus] = useState(CopyBallotHashStatus.Idle)
 
@@ -121,7 +158,13 @@ export const BallotHashCopyButton: React.FC<Pick<BallotHashProps, "hash" | "copy
     }
 
     const copyStatusLabel =
-        copyLabels?.[copyStatus === CopyBallotHashStatus.Idle ? "copy" : copyStatus]
+        copyLabels?.[
+            copyStatus === CopyBallotHashStatus.Idle
+                ? "copy"
+                : copyStatus === CopyBallotHashStatus.Copied
+                  ? "copied"
+                  : "error"
+        ]
 
     if (!copyLabels || !hash) {
         return null
@@ -137,11 +180,15 @@ export const BallotHashCopyButton: React.FC<Pick<BallotHashProps, "hash" | "copy
                     "fontSize": "unset",
                     "lineHeight": "unset",
                     "paddingBottom": "2px",
-                    "color": theme.palette.customGrey.contrastText,
+                    "color":
+                        copyStatus === CopyBallotHashStatus.Copied && copiedColor
+                            ? copiedColor
+                            : theme.palette.customGrey.contrastText,
                     "&:hover": {paddingBottom: "2px"},
                     "&:active": {border: "2px solid transparent"},
+                    ...sx,
                 }}
-                fontSize="18px"
+                fontSize="1.125rem"
                 onClick={handleCopy}
             />
             <CopyStatus
@@ -170,7 +217,7 @@ const BallotHash: React.FC<BallotHashProps> = ({
                 <Icon
                     className="hash-check-icon"
                     icon={faCheck}
-                    style={{fontSize: "14px", lineHeight: "unset", paddingBottom: "2px"}}
+                    style={{fontSize: "0.875rem", lineHeight: "unset", paddingBottom: "2px"}}
                 />
             </DecorativeIconBox>
             <BallotHashText className="hash-text">
@@ -188,7 +235,7 @@ const BallotHash: React.FC<BallotHashProps> = ({
                         paddingBottom: "2px",
                         color: theme.palette.customGrey.contrastText,
                     }}
-                    fontSize="18px"
+                    fontSize="1.125rem"
                     onClick={onHelpClick}
                     ariaLabel={helpButtonLabel || t("a11y.ballotIdHelp")}
                 />

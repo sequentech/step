@@ -1,0 +1,25 @@
+{
+    "signing_rules": [
+        {"action": "initialize-voting", "requirement": "required", "signatures": 2, "requester_signing": "allowed", "expires_minutes": 30},
+        {"action": "open-voting", "requirement": "required", "signatures": 2, "requester_signing": "allowed", "expires_minutes": 30},
+        {"action": "close-voting", "requirement": "required", "signatures": 2, "requester_signing": "allowed", "expires_minutes": 30},
+        {"action": "generate-election-returns", "requirement": "required", "signatures": 3, "requester_signing": "allowed", "expires_minutes": 120},
+        {"action": "generate-reports", "requirement": "required", "signatures": 2, "requester_signing": "allowed", "expires_minutes": 120},
+        {"action": "transmit-results", "requirement": "required", "signatures": 2, "requester_signing": "allowed", "expires_minutes": 120},
+        {"action": "approve-voter", "requirement": "required", "signatures": 1, "requester_signing": "allowed", "expires_minutes": null},
+        {"action": "approve-configuration", "requirement": "required", "signatures": 2, "requester_signing": "allowed", "expires_minutes": 1440},
+        {"action": "key-ceremony", "requirement": "required", "signatures": 1, "requester_signing": "allowed", "expires_minutes": 60},
+        {"action": "tally-key", "requirement": "required", "signatures": 1, "requester_signing": "allowed", "expires_minutes": 60}
+    ],
+    "signing_checks": {
+        "revocation_check": "check",
+        "crl_unavailable": "refuse",
+        "registration": "on-first-use",
+        "post_binding": "one-post"
+    },
+    "sbei_titles": {
+        "01": "Chairperson",
+        "02": "Poll Clerk",
+        "03": "Third Member"
+    }
+}

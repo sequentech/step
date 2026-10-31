@@ -120,7 +120,7 @@ Looking up each one's `api-key-client` secret needs
 `keycloak_admin_user`/`keycloak_admin_password`, same as `new_tenants > 0`.
 
 The keys ceremony defaults to `setup.ceremony_policy: AUTOMATIC`: each
-trustee's `braid` service still does its DKG round the same way, but nothing
+trustee's native wbraid runner still does its DKG round, but nothing
 needs to log in as `trustee1`/`trustee2` to confirm it — the ceremony's
 status flips to done on its own once every trustee's public key is on the
 board, matching the Admin Portal's "automatic ceremony" option. Set it to

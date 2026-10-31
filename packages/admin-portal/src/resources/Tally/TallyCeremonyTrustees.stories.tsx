@@ -1,0 +1,419 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import React from "react"
+import type {StoryObj} from "@storybook/react-vite"
+import {expect, fn, userEvent, waitFor, within} from "storybook/test"
+import {RecordContextProvider} from "react-admin"
+import {i18n} from "@sequentech/ui-core"
+import {AdminStoryProvider, EVENT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
+import {resourceBoundary} from "@/__stories__/resourceBoundary"
+import type {WidgetMeta} from "@/__stories__/widgetStory"
+import {STORY_IDS, eventRecord, keysCeremonyRecord, trusteeRecords} from "@/__stories__/fixtures"
+import {STORY_TRUSTEE} from "@/__stories__/storyAuth"
+import {ITallyTrusteeStatus} from "@/types/ceremonies"
+import {
+    COUNCIL_ELECTION,
+    DEPUTY_ELECTION,
+    TallyStoryContext,
+    executionStatus,
+    tallyExecution,
+    tallySession,
+} from "./__stories__/TallyFixture"
+import {CUSTODY_REQUEST} from "@/components/keys-ceremony/__stories__/KeysCeremonyFixture"
+import {TallyCeremonyTrustees} from "./TallyCeremonyTrustees"
+import type {ISigningApi} from "@/lib/signing/api"
+import {SigningAction} from "@/lib/signing/types"
+import {
+    CUSTODY_PROOF_ORGANIZATIONS,
+    CustodyProofOrganization,
+    CustodyProofRule,
+    SIGNING_REQUEST,
+    TRUSTEE_ROLES,
+    applyCustodyProofOverrides,
+    custodyProofApi,
+    sha256,
+    signCustodyProof,
+    signingNote,
+    trusteeAuth,
+} from "@/components/keys-ceremony/__stories__/CustodyProofSigningFixture"
+import {
+    EStoryPermissions,
+    EStoryWorkflow,
+    useStoryGlobals,
+} from "../../../../ui-essentials/.storybook/globals"
+
+interface Scenario {
+    /** Status of the signed-in trustee's key fragment in the tally. */
+    trusteeStatus: ITallyTrusteeStatus
+    /** Whether the key the trustee uploads matches its fragment. */
+    validKey: boolean
+    /** Whether the event's rule makes the trustee sign the contribution. */
+    rule: CustodyProofRule
+    organization: CustodyProofOrganization
+    onSetTallyId: (tallyId: string | null) => void
+}
+
+let graphql: ReturnType<typeof graphqlBoundary>
+let data: ReturnType<typeof resourceBoundary>
+let api: Awaited<ReturnType<typeof custodyProofApi>>
+
+/** The signed-in trustee's name in the tally: the organization's when the rule is on. */
+const trusteeName = ({rule, organization}: Pick<Scenario, "rule" | "organization">) =>
+    rule === CustodyProofRule.Required
+        ? CUSTODY_PROOF_ORGANIZATIONS[organization].trusteeName
+        : STORY_TRUSTEE
+
+function Fixture({onSetTallyId, rule, organization}: Scenario) {
+    const {permissions, workflow} = useStoryGlobals()
+    // With the rule on, Jose signs in with the organization's trustee account.
+    const signing =
+        rule === CustodyProofRule.Required
+            ? {roles: TRUSTEE_ROLES, auth: trusteeAuth(CUSTODY_PROOF_ORGANIZATIONS[organization])}
+            : {}
+    return (
+        <AdminStoryProvider
+            boundary={graphql}
+            dataProvider={data.provider}
+            role={permissions}
+            signingApi={api as ISigningApi}
+            {...signing}
+        >
+            <RecordContextProvider value={eventRecord(workflow)}>
+                <TallyStoryContext onSetTallyId={onSetTallyId}>
+                    <TallyCeremonyTrustees />
+                </TallyStoryContext>
+            </RecordContextProvider>
+        </AdminStoryProvider>
+    )
+}
+
+const meta = {
+    title: "Admin/Tally/TallyCeremonyTrustees",
+    component: TallyCeremonyTrustees,
+    args: {
+        trusteeStatus: ITallyTrusteeStatus.WAITING,
+        validKey: true,
+        rule: CustodyProofRule.NotRequired,
+        organization: CustodyProofOrganization.Overseas,
+        onSetTallyId: fn(),
+    },
+    argTypes: {
+        trusteeStatus: {control: "inline-radio", options: Object.values(ITallyTrusteeStatus)},
+        rule: {control: "inline-radio", options: Object.values(CustodyProofRule)},
+        organization: {control: "inline-radio", options: Object.values(CustodyProofOrganization)},
+        onSetTallyId: {table: {disable: true}},
+    },
+    // A trustee restores its key fragment while the tally ceremony runs.
+    globals: {workflow: EStoryWorkflow.TALLY, permissions: EStoryPermissions.TRUSTEE},
+    beforeEach: async ({args}) => {
+        const workflow = EStoryWorkflow.TALLY
+        data = resourceBoundary({
+            sequent_backend_tally_session: [tallySession(workflow)],
+            sequent_backend_election: [COUNCIL_ELECTION, DEPUTY_ELECTION],
+            sequent_backend_tally_session_execution: [
+                tallyExecution(workflow, {
+                    status: {
+                        ...executionStatus(workflow),
+                        trustees: trusteeRecords.map(({name}) => ({
+                            name: name === STORY_TRUSTEE ? trusteeName(args) : String(name),
+                            status:
+                                name === STORY_TRUSTEE
+                                    ? args.trusteeStatus
+                                    : ITallyTrusteeStatus.WAITING,
+                        })),
+                    },
+                }),
+            ],
+            sequent_backend_keys_ceremony: [keysCeremonyRecord()],
+            sequent_backend_trustee: trusteeRecords,
+        })
+        const organization = CUSTODY_PROOF_ORGANIZATIONS[args.organization]
+        api = await custodyProofApi(
+            SigningAction.ContributeCustodyProof,
+            {tally_session_id: STORY_IDS.tallySession},
+            organization,
+            KEY,
+            false
+        )
+        graphql = graphqlBoundary(
+            {
+                GetCustodyRequest: () => ({
+                    data: {get_custody_request: {custody_request_json: CUSTODY_REQUEST}},
+                }),
+                RequestServerCustody: () => ({
+                    data: {request_server_custody: {status: "READY", custody_proof_json: KEY}},
+                }),
+                // A restored trustee learns whether they must contribute again, signed.
+                CustodyProofSignatureStatus: () => ({
+                    data: {
+                        custody_proof_signature_status: {
+                            signature_needed: args.rule === CustodyProofRule.Required,
+                            signed: false,
+                        },
+                    },
+                }),
+                AuthorizeTallyCustody: ({variables}) => ({
+                    data: {
+                        authorize_tally_custody: {
+                            is_valid: args.validKey,
+                            outcome: args.validKey ? "RESTORED" : "INVALID",
+                            // The rule makes a right key wait for the trustee's signature.
+                            signing_request:
+                                args.validKey &&
+                                args.rule === CustodyProofRule.Required &&
+                                !variables.signingRequestId
+                                    ? SIGNING_REQUEST
+                                    : null,
+                        },
+                    },
+                }),
+            },
+            {schema: true}
+        )
+        await graphql.ready
+        const restoreTranslations =
+            args.rule === CustodyProofRule.Required
+                ? applyCustodyProofOverrides(organization)
+                : undefined
+        return () => {
+            restoreTranslations?.()
+        }
+    },
+    render: (args, {globals}) => <Fixture key={JSON.stringify(globals)} {...args} />,
+} satisfies WidgetMeta<Scenario>
+export default meta
+type Story = StoryObj<Scenario>
+
+const KEY = "c3ludGhldGljLXByaXZhdGUta2V5"
+
+async function uploadKey(canvasElement: HTMLElement, content = KEY) {
+    const input = canvasElement.querySelector<HTMLInputElement>('input[type="file"]')
+    if (!input) throw new Error("The key drop zone has no file input")
+    await userEvent.upload(input, new File([content], "trustee1.key", {type: "text/plain"}))
+}
+
+const nextButton = (canvasElement: HTMLElement) =>
+    within(canvasElement).getByRole("button", {name: i18n.t("tally.common.next")})
+
+export const Populated: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByRole("checkbox", {name: "Council"})).toBeDisabled()
+        await expect(canvas.getByText(i18n.t("tally.trusteeTitle"))).toBeVisible()
+        await expect(
+            canvas.getByText(/Upload the custody file saved during the key ceremony/)
+        ).toBeVisible()
+        // The next step needs a verified key.
+        await expect(nextButton(canvasElement)).toBeDisabled()
+        expect(data.writes).toEqual([])
+        expect(graphql.calls).toEqual([])
+    },
+}
+
+export const RequiresTheSavedCeremonyFile: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("checkbox", {name: "Council"})
+        expect(
+            canvas.queryByRole("button", {
+                name: i18n.t("keysGeneration.downloadStep.downloadButton"),
+            })
+        ).toBeNull()
+        await expect(nextButton(canvasElement)).toBeDisabled()
+        expect(data.writes).toEqual([])
+        expect(graphql.calls).toEqual([])
+    },
+}
+
+export const AuthorizeCustodyAndContinue: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("checkbox", {name: "Council"})
+        await uploadKey(canvasElement)
+        await expect(
+            await canvas.findByText(i18n.t("keysGeneration.checkStep.verified"))
+        ).toBeVisible()
+        expect(graphql.calls.map(({name, variables}) => ({name, variables}))).toEqual([
+            {
+                name: "AuthorizeTallyCustody",
+                variables: {
+                    electionEventId: EVENT_ID,
+                    tallySessionId: STORY_IDS.tallySession,
+                    custodyProofJson: KEY,
+                    custodyProofSha256: await sha256(KEY),
+                },
+            },
+        ])
+        await userEvent.click(nextButton(canvasElement))
+        // The status step lists the tally's trustees instead of the key upload.
+        await expect(await canvas.findByRole("row", {name: /trustee2/})).toBeVisible()
+        expect(canvas.queryByText(i18n.t("tally.trusteeTitle"))).toBeNull()
+    },
+}
+
+export const InvalidKeyIsRejected: Story = {
+    args: {validKey: false},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("checkbox", {name: "Council"})
+        await uploadKey(canvasElement)
+        await expect(
+            await canvas.findByText(
+                i18n.t("keysGeneration.checkStep.errorUploading", {error: "empty"})
+            )
+        ).toBeVisible()
+        expect(graphql.calls.map(({name}) => name)).toEqual(["AuthorizeTallyCustody"])
+        await expect(nextButton(canvasElement)).toBeDisabled()
+    },
+}
+
+export const CustodyAlreadyAuthorized: Story = {
+    args: {trusteeStatus: ITallyTrusteeStatus.CUSTODY_CONFIRMED},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByRole("row", {name: /trustee2/})).toBeVisible()
+        expect(canvas.queryByText(i18n.t("tally.trusteeTitle"))).toBeNull()
+        expect(canvas.queryByRole("button", {name: i18n.t("tally.common.next")})).toBeNull()
+        await expect(canvas.getByText(STORY_IDS.tallySession)).toBeVisible()
+    },
+}
+
+export const TallyIdIsSelectableAndCompact: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const id = await canvas.findByText(STORY_IDS.tallySession)
+        await expect(id).toBeVisible()
+        expect(canvas.queryByRole("button", {name: "Copy tally ID"})).toBeNull()
+        expect(getComputedStyle(id).userSelect).toBe("all")
+        const label = document.createRange()
+        label.selectNodeContents(canvas.getByText("Tally session ID"))
+        const gap = id.getBoundingClientRect().top - label.getBoundingClientRect().bottom
+        expect(gap).toBeGreaterThanOrEqual(0)
+        expect(gap).toBeLessThanOrEqual(4)
+        expect(graphql.calls).toEqual([])
+        await expect(nextButton(canvasElement)).toBeDisabled()
+    },
+}
+
+export const CancelReturnsToTheTallies: Story = {
+    play: async ({canvasElement, args}) => {
+        const canvas = within(canvasElement)
+        // The footer buttons are recreated on each render, so click once the data has loaded.
+        await canvas.findByRole("checkbox", {name: "Council"})
+        await userEvent.click(canvas.getByRole("button", {name: i18n.t("tally.common.cancel")}))
+        await waitFor(() => expect(args.onSetTallyId).toHaveBeenCalledWith(null))
+    },
+}
+
+/** The rule needs the trustee's signature: the custody proof is contributed once they have signed. */
+export const SignedContributionIsRecorded: Story = {
+    args: {rule: CustodyProofRule.Required},
+    play: async ({canvasElement, args}) => {
+        const canvas = within(canvasElement)
+        const organization = CUSTODY_PROOF_ORGANIZATIONS[args.organization]
+        await canvas.findByRole("checkbox", {name: "Council"})
+        await uploadKey(canvasElement)
+        await expect(await canvas.findByText(signingNote(organization))).toBeVisible()
+        await expect(api.getRequest).toHaveBeenCalledWith(SIGNING_REQUEST.id)
+
+        await signCustodyProof(organization, KEY, {tally_session_id: STORY_IDS.tallySession})
+
+        await expect(
+            await canvas.findByText(
+                i18n.t("keysGeneration.checkStep.verified"),
+                {},
+                {timeout: 10000}
+            )
+        ).toBeVisible()
+        expect(graphql.calls.map(({variables}) => variables)).toEqual([
+            {
+                electionEventId: EVENT_ID,
+                tallySessionId: STORY_IDS.tallySession,
+                custodyProofJson: KEY,
+                custodyProofSha256: await sha256(KEY),
+            },
+            {
+                electionEventId: EVENT_ID,
+                tallySessionId: STORY_IDS.tallySession,
+                custodyProofJson: KEY,
+                signingRequestId: SIGNING_REQUEST.id,
+            },
+        ])
+        // The custody proof goes to the restore only, never to the signing service.
+        const sent = JSON.stringify(Object.values(api).map((call) => call.mock.calls))
+        expect(sent).not.toContain(KEY)
+        await expect(nextButton(canvasElement)).toBeEnabled()
+    },
+}
+
+/** The same flow for an organization that renames the labels in its translations. */
+export const SignedContributionForAnotherOrganization: Story = {
+    ...SignedContributionIsRecorded,
+    args: {rule: CustodyProofRule.Required, organization: CustodyProofOrganization.StudentCouncil},
+}
+
+/** The rule needs signatures and the trustee restored their key unsigned before: they contribute it again, signed. */
+export const CustodyWithoutSignatureContributesAgain: Story = {
+    args: {rule: CustodyProofRule.Required, trusteeStatus: ITallyTrusteeStatus.CUSTODY_CONFIRMED},
+    play: async ({canvasElement, args}) => {
+        const canvas = within(canvasElement)
+        const organization = CUSTODY_PROOF_ORGANIZATIONS[args.organization]
+        await expect(await canvas.findByText(i18n.t("signing.custodyProof.redo"))).toBeVisible()
+        await expect(canvas.getByText(i18n.t("tally.trusteeTitle"))).toBeVisible()
+        expect(graphql.calls.map(({name, variables}) => ({name, variables}))).toContainEqual({
+            name: "CustodyProofSignatureStatus",
+            variables: {electionEventId: EVENT_ID, tallySessionId: STORY_IDS.tallySession},
+        })
+        await uploadKey(canvasElement)
+        await signCustodyProof(organization, KEY, {tally_session_id: STORY_IDS.tallySession})
+        await expect(
+            await canvas.findByText(
+                i18n.t("keysGeneration.checkStep.verified"),
+                {},
+                {timeout: 10000}
+            )
+        ).toBeVisible()
+        expect(
+            graphql.calls
+                .filter(({name}) => name === "AuthorizeTallyCustody")
+                .map(({variables}) => variables.signingRequestId)
+        ).toEqual([undefined, SIGNING_REQUEST.id])
+    },
+}
+
+/** Without the rule a restored trustee sees the tally's status, as before. */
+export const CustodyWithoutTheRuleIsUnchanged: Story = {
+    args: {trusteeStatus: ITallyTrusteeStatus.CUSTODY_CONFIRMED},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByRole("row", {name: /trustee2/})).toBeVisible()
+        expect(canvas.queryByText(i18n.t("tally.trusteeTitle"))).toBeNull()
+        expect(canvas.queryByText(i18n.t("signing.custodyProof.redo"))).toBeNull()
+    },
+}
+
+export const SavedCeremonyFileAuthorizesCurrentTally: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("checkbox", {name: "Council"})
+        await expect(canvas.getByText(i18n.t("keysGeneration.checkStep.subtitle"))).toBeVisible()
+        await uploadKey(canvasElement, CUSTODY_REQUEST)
+        await waitFor(() => expect(nextButton(canvasElement)).toBeEnabled())
+        const request = graphql.calls.find(({name}) => name === "RequestServerCustody")
+        expect(request?.variables.object).toEqual({
+            election_event_id: EVENT_ID,
+            tally_session_id: STORY_IDS.tallySession,
+            custody_request_json: CUSTODY_REQUEST,
+            retry_policy: "RETRY_FAILED",
+        })
+        const authorization = graphql.calls.find(({name}) => name === "AuthorizeTallyCustody")
+        expect(authorization?.variables).toEqual({
+            electionEventId: EVENT_ID,
+            tallySessionId: STORY_IDS.tallySession,
+            custodyProofJson: KEY,
+            custodyProofSha256: await sha256(KEY),
+        })
+        expect(data.writes).toEqual([])
+    },
+}

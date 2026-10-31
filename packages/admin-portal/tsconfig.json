@@ -23,11 +23,22 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@vitrine/verify": [
+        "../node_modules/@vitrine/verify/dist/index.d.ts"
+      ],
+      "@vitrine/verify/*": [
+        "../node_modules/@vitrine/verify/dist/*/index.d.ts",
+        "../node_modules/@vitrine/verify/dist/*.d.ts"
       ]
     }
   },
   "include": [
     "src",
     "../../constants"
+  ],
+  "exclude": [
+    "src/**/*.stories.tsx",
+    "src/**/__stories__/**"
   ]
 }

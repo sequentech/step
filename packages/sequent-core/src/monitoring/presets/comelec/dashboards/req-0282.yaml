@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: req-0282
+title: Enrollment activity
+description: Distinct OVs approved per period.
+section: Enrollment and voting rates
+requirements: [SW-F-0282]
+order: 15
+selectors: [region, post, country]
+layout:
+  - {widget: enrollment-activity, width: 12}

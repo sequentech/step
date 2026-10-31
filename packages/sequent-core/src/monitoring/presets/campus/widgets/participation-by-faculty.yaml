@@ -1,0 +1,34 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: participation-by-faculty
+title: Participation by faculty
+description: Each group over its own electorate.
+source: voter_turnout
+selectors:
+  breakdown:
+    label: By
+    options: {faculty: Faculty, role: Role, region: Campus}
+    default: faculty
+query:
+  template: by_group
+  group_by: {selector: breakdown}
+  ratio: [voted, registered]
+  sort: {by: ratio, order: desc}
+height: 300
+chart:
+  charts:
+    bars:
+      type: bar
+      query: data
+      x: group
+      y: pct
+      # The query's order, Unknown last; unsorted, a bar orders by value.
+      sort: {by: position, order: asc}
+      y_label: Turnout
+      style:
+        orientation: horizontal
+        number_format: percent
+        marks: {bar: {labels: {visible: true, format: percent}}}
+  rows: [bars]

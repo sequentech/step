@@ -11,6 +11,9 @@ export interface IBallotStyle {
     election_event_id: string
     tenant_id: string
     ballot_eml: IElectionDTO
+    /** The ballot style's text exactly as the portal received it, which
+     * Vitrine's config statement hashes. */
+    ballot_eml_text?: string
     ballot_signature?: string | null
     created_at: string
     area_id?: string | null

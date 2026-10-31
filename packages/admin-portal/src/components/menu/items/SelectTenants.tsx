@@ -18,7 +18,7 @@ import {CreateTenant} from "@/resources/Tenant/CreateTenant"
 const SelectTenants: React.FC = () => {
     const [tenantId, setTenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
-    const {i18n} = useTranslation()
+    const {t, i18n} = useTranslation()
     const [isOpenSidebar] = useSidebarState()
     const [isNewTenantOpen, setIsNewTenantOpen] = useState(false)
 
@@ -54,6 +54,7 @@ const SelectTenants: React.FC = () => {
                     {showAddTenant ? (
                         <StyledIcon
                             icon={faPlusCircle as any}
+                            ariaLabel={String(t("tenantScreen.new.subtitle"))}
                             onClick={() => setIsNewTenantOpen(true)}
                         />
                     ) : null}

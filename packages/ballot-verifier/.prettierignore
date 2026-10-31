@@ -40,8 +40,13 @@ LICENSE
 LICENSES/
 node_modules/
 dist/
+dist-vite/
 target/
 pkg/
 build/
 .github
 .direnv
+storybook-static/
+test-results/
+coverage/
+src/gql/

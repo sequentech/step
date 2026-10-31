@@ -13,12 +13,15 @@ import {
     BooleanInput,
     NumberInput,
     ReferenceField,
+    FunctionField,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {ChipList} from "../../components/ChipList"
 import {Typography} from "@mui/material"
 import {generateRowClickHandler} from "../../services/RowClickService"
 import {useTenantStore} from "../../providers/TenantContextProvider"
+import {electionSearchQuery, electionSearchText} from "../../services/ElectionSearch"
+import {usePresentationName} from "../../hooks/usePresentationName"
 
 const OMIT_FIELDS = [
     "id",
@@ -32,7 +35,13 @@ const OMIT_FIELDS = [
 ]
 
 const Filters: Array<ReactElement> = [
-    <TextInput label="Name" source="name" key={0} />,
+    <TextInput
+        label="Name"
+        source="_or"
+        key={0}
+        parse={electionSearchQuery}
+        format={electionSearchText}
+    />,
     <TextInput label="Description" source="description" key={1} />,
     <TextInput label="ID" source="id" key={2} />,
     <BooleanInput label="Is Acclaimed" source="is_acclaimed" key={3} />,
@@ -53,6 +62,7 @@ export interface ListContestProps {
 export const ListContest: React.FC<ListContestProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
+    const presentationName = usePresentationName()
 
     const rowClickHandler = generateRowClickHandler(["election_event_id", "election_id"])
 
@@ -72,7 +82,7 @@ export const ListContest: React.FC<ListContestProps> = ({aside}) => {
             >
                 <DatagridConfigurable rowClick={rowClickHandler} omit={OMIT_FIELDS}>
                     <TextField source="id" />
-                    <TextField source="name" />
+                    <FunctionField label="Name" render={presentationName} />
                     <TextField source="description" />
                     <BooleanField source="is_acclaimed" />
                     <BooleanField source="is_active" />
@@ -95,10 +105,10 @@ export const ListContest: React.FC<ListContestProps> = ({aside}) => {
                         source="election_event_id"
                         reference="sequent_backend_election_event"
                     >
-                        <TextField source="name" />
+                        <FunctionField render={presentationName} />
                     </ReferenceField>
                     <ReferenceField source="election_id" reference="sequent_backend_election">
-                        <TextField source="name" />
+                        <FunctionField render={presentationName} />
                     </ReferenceField>
                 </DatagridConfigurable>
             </List>

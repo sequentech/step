@@ -3,13 +3,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState, useRef, ChangeEvent, KeyboardEvent} from "react"
 import {Autocomplete, TextField, Chip} from "@mui/material"
-import {create} from "@mui/material/styles/createTransitions"
 
 export type Choice = {
     id: string
     name: string
 }
 
+// Exported because its own stories are typed by it, and a declaration referring to
+// a type it cannot name is an error the build refuses (TS4023) — which made
+// `yarn build` fail in this package before anything below was consumable. Found
+// while making the ballot importable by another repository, which needs this
+// package to build at all.
 export interface CustomAutocompleteArrayInputProps {
     label: string
     defaultValue?: string[]
@@ -31,7 +35,13 @@ const CustomAutocompleteArrayInput: React.FC<CustomAutocompleteArrayInputProps> 
 }) => {
     const [inputValue, setInputValue] = useState<string>("")
     const [selectedValues, setSelectedValues] = useState<string[]>(defaultValue || [])
-    const [updatedChoices, setUpdatedChoices] = useState<Choice[] | undefined>(choices)
+    const [createdChoices, setCreatedChoices] = useState<Choice[]>([])
+    // Remote choices can arrive after mounting. Keep only local additions in
+    // state so both the menu and creation guard see the current props immediately.
+    const updatedChoices = [
+        ...(choices || []),
+        ...createdChoices.filter((local) => !choices?.some((choice) => choice.name === local.name)),
+    ]
     const inputRef = useRef<HTMLInputElement>(null)
 
     const handleInputChange = (event: ChangeEvent<{}>, newInputValue: string) => {
@@ -66,29 +76,34 @@ const CustomAutocompleteArrayInput: React.FC<CustomAutocompleteArrayInputProps> 
     const handleCreateOption = () => {
         if (inputValue.trim()) {
             // Ensure inputValue is not blank
-            const newLabels = inputValue.trim().split(/\s+/)
+            const newLabels = Array.from(new Set(inputValue.trim().split(/\s+/)))
 
             const updatedValues = [...selectedValues]
-            const newChoices = [...(updatedChoices || [])]
+            const newChoices = [...createdChoices]
 
             newLabels.forEach((newLabel) => {
-                if (
-                    newLabel &&
-                    !updatedValues.includes(newLabel) &&
-                    !newChoices.some((choice) => choice.name === newLabel)
-                ) {
-                    updatedValues.push(newLabel)
-                    newChoices.push({id: newLabel, name: newLabel})
+                if (newLabel) {
+                    if (!updatedValues.includes(newLabel)) {
+                        updatedValues.push(newLabel)
+                    }
+                    if (!updatedChoices.some((choice) => choice.name === newLabel)) {
+                        newChoices.push({id: newLabel, name: newLabel})
+                    }
                 }
             })
 
             setSelectedValues(updatedValues)
-            setUpdatedChoices(newChoices)
+            setCreatedChoices(newChoices)
             setInputValue("") // Clear inputValue after creating labels
             inputRef?.current?.focus()
 
             newLabels.forEach((newLabel) => {
-                if (onCreate && newLabel && !selectedValues.includes(newLabel)) {
+                if (
+                    onCreate &&
+                    newLabel &&
+                    !selectedValues.includes(newLabel) &&
+                    !updatedChoices?.some((choice) => choice.name === newLabel)
+                ) {
                     onCreate(newLabel)
                 }
             })

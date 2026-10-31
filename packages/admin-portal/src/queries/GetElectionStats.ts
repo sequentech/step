@@ -45,6 +45,7 @@ export const GET_ELECTION_STATS = gql`
                 election_event_id: $electionEventId
                 election_id: $electionId
                 authorized_to_election_alias: $electionAlias
+                enabled: true
             }
         ) {
             count

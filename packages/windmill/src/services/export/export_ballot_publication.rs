@@ -89,6 +89,7 @@ pub async fn process_export_ballot_publication(
 
         let ballot_design = json!({
             "ballot_publication_id": &ballot_publication.id,
+            "publication": ballot_publication,
             "ballot_styles": ballot_emls,
         });
 

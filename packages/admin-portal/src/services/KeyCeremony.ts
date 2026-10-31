@@ -8,6 +8,7 @@ export enum IKeysCeremonyExecutionStatus {
     IN_PROGRESS = "IN_PROGRESS",
     SUCCESS = "SUCCESS",
     CANCELLED = "CANCELLED",
+    FAILED = "FAILED",
 }
 
 export interface IKeysCeremonyLog {
@@ -17,14 +18,17 @@ export interface IKeysCeremonyLog {
 
 export enum IKeysCeremonyTrusteeStatus {
     WAITING = "WAITING",
+    SHARES_POSTED = "SHARES_POSTED",
     KEY_GENERATED = "KEY_GENERATED",
-    KEY_RETRIEVED = "KEY_RETRIEVED",
-    KEY_CHECKED = "KEY_CHECKED",
+    CUSTODY_REQUEST_RETRIEVED = "CUSTODY_REQUEST_RETRIEVED",
+    CUSTODY_CONFIRMED = "CUSTODY_CONFIRMED",
+    HALTED = "HALTED",
 }
 
 export const isKeysCeremonyTerminal = (status: IKeysCeremonyExecutionStatus): boolean =>
     status === IKeysCeremonyExecutionStatus.SUCCESS ||
-    status === IKeysCeremonyExecutionStatus.CANCELLED
+    status === IKeysCeremonyExecutionStatus.CANCELLED ||
+    status === IKeysCeremonyExecutionStatus.FAILED
 
 export interface IKeysCeremonyTrustee {
     name: string
@@ -33,23 +37,25 @@ export interface IKeysCeremonyTrustee {
 
 export interface IExecutionStatus {
     stop_date?: string
-    public_key?: string
+    public_key?: string | null
+    public_key_hash?: string | null
+    failure?: string | null
     logs: Array<IKeysCeremonyLog>
     trustees: Array<IKeysCeremonyTrustee>
 }
 
-interface CanTrusteeRecheckPrivateKeyParams {
+interface CanTrusteeReconfirmCustodyParams {
     executionStatus: IKeysCeremonyExecutionStatus
     trusteeStatus?: IKeysCeremonyTrusteeStatus
     isAutomaticCeremony: boolean
 }
 
-export const canTrusteeRecheckPrivateKey = ({
+export const canTrusteeReconfirmCustody = ({
     executionStatus,
     trusteeStatus,
     isAutomaticCeremony,
-}: CanTrusteeRecheckPrivateKeyParams): boolean => {
-    if (isAutomaticCeremony || trusteeStatus !== IKeysCeremonyTrusteeStatus.KEY_CHECKED) {
+}: CanTrusteeReconfirmCustodyParams): boolean => {
+    if (isAutomaticCeremony || trusteeStatus !== IKeysCeremonyTrusteeStatus.CUSTODY_CONFIRMED) {
         return false
     }
 
@@ -58,3 +64,15 @@ export const canTrusteeRecheckPrivateKey = ({
         executionStatus === IKeysCeremonyExecutionStatus.SUCCESS
     )
 }
+
+/** Custody steps require the joint key verified by the native DKG board. */
+export const hasGeneratedCeremonyKeys = (status: IExecutionStatus): boolean =>
+    Boolean(status.public_key && status.public_key_hash) &&
+    status.trustees.length > 0 &&
+    status.trustees.every((trustee) =>
+        [
+            IKeysCeremonyTrusteeStatus.KEY_GENERATED,
+            IKeysCeremonyTrusteeStatus.CUSTODY_REQUEST_RETRIEVED,
+            IKeysCeremonyTrusteeStatus.CUSTODY_CONFIRMED,
+        ].includes(trustee.status)
+    )

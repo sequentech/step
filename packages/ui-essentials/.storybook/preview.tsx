@@ -1,81 +1,65 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-import React, {Suspense, useEffect} from "react"
-import {theme} from "../src/index"
+import React, {useEffect} from "react"
+import type {Decorator, Preview} from "@storybook/react-vite"
+import {INITIAL_VIEWPORTS} from "storybook/viewport"
 import {ThemeProvider} from "@mui/material"
-import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
 import {I18nextProvider} from "react-i18next"
-import LanguageSetter from "../src/components/LanguageSetter/LanguageSetter"
 import {i18n, initializeLanguages} from "@sequentech/ui-core"
-import {withRouter} from "storybook-addon-remix-react-router"
+import theme from "../src/services/theme"
+import {withMemoryRouter} from "./withMemoryRouter"
+import {
+    DEFAULT_STORY_GLOBALS,
+    readStoryGlobals,
+    storyGlobalTypes,
+    withStoryGlobals,
+} from "./globals"
 
-initializeLanguages({})
+// An explicit language keeps the browser language detector out of the stories.
+initializeLanguages({}, DEFAULT_STORY_GLOBALS.locale)
 
-const MuiDecorator = (Story: React.ComponentType) => (
+const withTheme: Decorator = (Story) => (
     <ThemeProvider theme={theme}>
         <Story />
     </ThemeProvider>
 )
 
-const withI18next = (Story: React.FC, context: any) => {
-    const {locale} = context.globals
+const withI18n: Decorator = (Story, {globals}) => {
+    const {locale} = readStoryGlobals(globals)
 
     useEffect(() => {
-        console.log(`new locale ${locale}`)
-        i18n.changeLanguage(locale)
+        void i18n.changeLanguage(locale)
     }, [locale])
 
     return (
-        <Suspense fallback={<div>loading translations...</div>}>
-            <I18nextProvider i18n={i18n}>
-                <LanguageSetter language={locale}>
-                    <Story />
-                </LanguageSetter>
-            </I18nextProvider>
-        </Suspense>
+        <I18nextProvider i18n={i18n}>
+            <Story />
+        </I18nextProvider>
     )
 }
 
-export const parameters = {
-    actions: {argTypesRegex: "^on[A-Z].*"},
-    controls: {
-        matchers: {
-            color: /(background|color)$/i,
-            date: /Date$/,
-        },
+const preview: Preview = {
+    // The router is innermost so that a route layout also renders inside the
+    // theme, the translations and the story globals.
+    decorators: [withMemoryRouter, withI18n, withTheme, withStoryGlobals],
+    // Stories may change the language; each one starts from the toolbar locale.
+    beforeEach: async ({globals}) => {
+        await i18n.changeLanguage(readStoryGlobals(globals).locale)
     },
-    reactRouter: {
-        // Default global route for stories using <Link> or hooks
-        location: {
-            path: "/",
-            pathParams: {},
-            searchParams: new URLSearchParams(),
+    parameters: {
+        a11y: {test: "error"},
+        controls: {
+            matchers: {
+                color: /(background|color)$/i,
+                date: /Date$/,
+            },
         },
-        routing: {
-            path: "/",
-        },
+        viewport: {options: INITIAL_VIEWPORTS},
     },
-    viewport: {
-        options: INITIAL_VIEWPORTS, // SB 8 uses 'options'
-    },
+    globalTypes: {locale: storyGlobalTypes.locale},
+    initialGlobals: {...DEFAULT_STORY_GLOBALS},
+    tags: ["autodocs"],
 }
 
-// Create a global variable called locale in storybook and add a menu in the toolbar to change your locale
-export const globalTypes = {
-    locale: {
-        name: "Locale",
-        description: "Internationalization locale",
-        toolbar: {
-            icon: "globe",
-            items: [
-                {value: "en", title: "English"},
-                {value: "es", title: "Spanish"},
-            ],
-            showName: true,
-        },
-    },
-}
-
-export const decorators = [withRouter, MuiDecorator, withI18next]
+export default preview

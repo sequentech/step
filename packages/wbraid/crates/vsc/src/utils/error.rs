@@ -42,6 +42,12 @@ pub enum Error {
     #[error("{0}")]
     NaorYungStripError(String),
 
+    /// Occurs when a batched verification (see [`PlEqProof::verify_batch`][`crate::zkp::pleq::PlEqProof::verify_batch`])
+    /// rejects a list in which every item verifies individually. A valid list satisfies the
+    /// batched check identically, so this is an internal inconsistency; the verifier fails closed.
+    #[error("{0}")]
+    BatchVerificationInconsistent(String),
+
     /// Occurs when Joint-Feldman DKG [share verification][`crate::dkgd::dealer::VerifiableShare`] fails.
     #[error("{0}")]
     ShareVerificationFailed(String),

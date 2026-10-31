@@ -9,10 +9,12 @@ import ElectionHeader from "../../components/ElectionHeader"
 import {EditContestData} from "./EditContestData"
 import {CircularProgress} from "@mui/material"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {configuredLanguage, useInheritedLanguage} from "@/hooks/usePresentationName"
 
 export const ContestTabs: React.FC = () => {
     const aliasRenderer = useAliasRenderer()
     const record = useRecordContext<Sequent_Backend_Contest>()
+    const inheritedLanguage = useInheritedLanguage(record)
     if (!record) {
         return <CircularProgress />
     }
@@ -20,7 +22,7 @@ export const ContestTabs: React.FC = () => {
     return (
         <>
             <ElectionHeader
-                title={aliasRenderer(record)}
+                title={aliasRenderer(record, configuredLanguage(record) ?? inheritedLanguage)}
                 subtitle="contestScreen.common.subtitle"
             />
             <TabbedShowLayout>

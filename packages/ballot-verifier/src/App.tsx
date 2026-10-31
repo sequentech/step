@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {Routes, Route, useNavigate, Navigate, useMatch} from "react-router-dom"
+import {Routes, Route, Navigate, useMatch} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, NotFoundScreen, PageBanner} from "@sequentech/ui-essentials"
 import {
@@ -16,10 +16,12 @@ import {
 } from "@sequentech/ui-core"
 import {HomeScreen} from "./screens/HomeScreen"
 import {ConfirmationScreen} from "./screens/ConfirmationScreen"
+import {ReceiptScreen} from "./screens/ReceiptScreen"
+import {APP_LANGUAGES} from "./services/i18n"
 import Stack from "@mui/material/Stack"
 import {IConfirmationBallot, provideBallotService} from "./services/BallotService"
 import {AuthContext} from "./providers/AuthContextProvider"
-import {RouteParameterProvider} from "."
+import {RouteParameterProvider} from "./providers/RouteParameterProvider"
 import {ApolloContextProvider, ApolloWrapper} from "./providers/ApolloContextProvider"
 import {LoginScreen} from "./screens/LoginScreen"
 import {SettingsContext} from "./providers/SettingsContextProvider"
@@ -35,6 +37,30 @@ const StyledAppWrapper = styled(Stack)<{customCss: string}>`
 const StyledApp = styled(Stack)`
     min-height: 100vh;
 `
+
+/** The receipt screen, which needs no login and belongs to no event. */
+const RECEIPT_ROUTE = "/receipt/*"
+
+const onChangeLanguage = (lang: string) => {
+    if (getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) !== lang) {
+        setCookie(USER_LANGUAGE_COOKIE_NAME, lang)
+    }
+}
+
+/** The receipt screen's header: every language, and no profile, as no one
+ * logs in there. */
+const ReceiptHeader: React.FC = () => {
+    const {globalSettings} = useContext(SettingsContext)
+    return (
+        <Header
+            appVersion={{main: globalSettings.APP_VERSION}}
+            appHash={{main: globalSettings.APP_HASH}}
+            languagesList={APP_LANGUAGES}
+            logoUrl={BlankLogoImg}
+            onChangeLanguage={onChangeLanguage}
+        />
+    )
+}
 
 const HeaderWithContext: React.FC = () => {
     const authContext = useContext(AuthContext)
@@ -57,12 +83,6 @@ const HeaderWithContext: React.FC = () => {
               ? SequentLogo
               : presentation?.logo_url
 
-    const onChangeLanguage = (lang: string) => {
-        if (getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) !== lang) {
-            setCookie(USER_LANGUAGE_COOKIE_NAME, lang)
-        }
-    }
-
     return (
         <Header
             appVersion={{main: globalSettings.APP_VERSION}}
@@ -82,7 +102,6 @@ const HeaderWithContext: React.FC = () => {
 }
 
 const App = () => {
-    const navigate = useNavigate()
     const {globalSettings} = useContext(SettingsContext)
     const [confirmationBallot, setConfirmationBallot] = useState<IConfirmationBallot | null>(null)
     const [ballotId, setBallotId] = useState<string>("")
@@ -90,8 +109,52 @@ const App = () => {
     const ballotService = provideBallotService()
 
     const routeMatch = useMatch("/tenant/:tenantId/event/:eventId/*")
+    const receiptMatch = useMatch(RECEIPT_ROUTE)
     const currentEventId = routeMatch?.params.eventId
     const ballotStyle = useAppSelector(selectBallotStyleByElectionEventId(currentEventId))
+
+    // Offline verification can still use public presentation metadata. It must
+    // never need an authenticated ballot-style query or block local import.
+    const tenantId = routeMatch?.params.tenantId
+    const publicConfigUrl =
+        globalSettings.DISABLE_AUTH && tenantId && currentEventId
+            ? `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/event-${currentEventId}/election_event_config.json`
+            : undefined
+    const [publicConfig, setPublicConfig] = useState<{
+        url: string
+        presentation: IElectionEventPresentation | undefined
+    }>()
+    useEffect(() => {
+        if (!publicConfigUrl) return
+        const controller = new AbortController()
+        let active = true
+        void (async () => {
+            try {
+                const response = await fetch(publicConfigUrl, {signal: controller.signal})
+                if (!response.ok) return
+                const config = await response.json()
+                if (
+                    active &&
+                    config.tenant_id === tenantId &&
+                    config.election_event_id === currentEventId
+                ) {
+                    setPublicConfig({
+                        url: publicConfigUrl,
+                        presentation: config.election_event_presentation,
+                    })
+                }
+            } catch {
+                // Public metadata is optional when verifying a local ballot offline.
+            }
+        })()
+        return () => {
+            active = false
+            controller.abort()
+        }
+    }, [publicConfigUrl, tenantId, currentEventId])
+    const presentation =
+        ballotStyle?.ballot_eml?.election_event_presentation ??
+        (publicConfig?.url === publicConfigUrl ? publicConfig?.presentation : undefined)
 
     useEffect(() => {
         setConfirmationBallot(null)
@@ -100,15 +163,6 @@ const App = () => {
     }, [currentEventId])
 
     useEffect(() => {
-        if (globalSettings.DISABLE_AUTH) {
-            navigate(
-                `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/start`
-            )
-        }
-    }, [navigate])
-
-    useEffect(() => {
-        const presentation = ballotStyle?.ballot_eml?.election_event_presentation
         overwriteTranslations(presentation, {
             scope: ETranslationScope.BALLOT_VERIFIER,
             changeDefaultLanguage: false,
@@ -121,7 +175,7 @@ const App = () => {
                 changeDefaultLanguage: false,
             })
         }
-    }, [ballotStyle?.ballot_eml?.election_event_presentation])
+    }, [presentation])
 
     const customCss = useMemo(
         () =>
@@ -134,16 +188,23 @@ const App = () => {
     return (
         <StyledAppWrapper customCss={customCss}>
             <StyledApp className="ballot-verifier app-root">
-                {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
+                {receiptMatch ? (
+                    <ReceiptHeader />
+                ) : globalSettings.DISABLE_AUTH ? (
+                    <Header />
+                ) : (
+                    <HeaderWithContext />
+                )}
                 <PageBanner marginBottom="auto" component="main" id="main-content" tabIndex={-1}>
                     <Routes>
                         <Route path="*" element={<NotFoundScreen />} />
+                        <Route path={RECEIPT_ROUTE} element={<ReceiptScreen />} />
                         <Route
                             path="/"
                             element={
                                 <Navigate
                                     replace
-                                    to={`/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/login`}
+                                    to={`/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/${globalSettings.DISABLE_AUTH ? "start" : "login"}`}
                                 />
                             }
                         />

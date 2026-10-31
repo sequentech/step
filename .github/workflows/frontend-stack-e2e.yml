@@ -1,0 +1,86 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Frontend real-stack journeys
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * *'
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    paths:
+      - .github/workflows/frontend-stack-e2e.yml
+      - rust-toolchain.toml
+      - .devcontainer/**
+      - packages/**
+      - hasura/**
+      - scripts/e2e/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-stack-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  journeys:
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'e2e-stack')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      CARGO_BUILD_JOBS: '1'
+      COMPOSE_PARALLEL_LIMIT: '1'
+      STEP_E2E_PROJECT: step-e2e-ui-${{ github.run_id }}-${{ github.run_attempt }}
+      STEP_E2E_CARGO_TARGET: ${{ github.workspace }}/.cache/backend-e2e/target
+      STEP_E2E_CARGO_HOME: ${{ github.workspace }}/.cache/backend-e2e/cargo-home
+      STEP_E2E_OUTPUT_DIR: ${{ github.workspace }}/.cache/backend-e2e/ui-run
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.22.0'
+          cache: yarn
+          cache-dependency-path: packages/yarn.lock
+      - name: Make room for the backend build
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h .
+      - name: Restore Cargo cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            .cache/backend-e2e/target
+            .cache/backend-e2e/cargo-home
+          key: frontend-stack-e2e-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml', 'packages/Cargo.lock', 'packages/Dockerfile.cargo-packages', 'scripts/e2e/build.sh') }}
+          restore-keys: frontend-stack-e2e-${{ runner.os }}-
+      - name: Install frontend dependencies
+        run: |
+          npm install --global yarn@1.22.22
+          yarn --cwd packages install --frozen-lockfile --non-interactive
+      - name: Check stack ownership and cleanup
+        run: python3 scripts/e2e/ui/test_run_safety.py
+      - name: Check the browser harness
+        run: |
+          yarn --cwd packages/ui-e2e typecheck
+          yarn --cwd packages/ui-e2e lint
+          yarn --cwd packages/ui-e2e prettify
+      - name: Build production portals and run isolated browser journeys
+        run: scripts/e2e/ui/run.sh
+      - name: Restore ownership for cache upload
+        if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" .cache/backend-e2e
+      - name: Summarize browser journeys
+        if: ${{ !cancelled() }}
+        run: node --experimental-strip-types packages/ui-test-kit/coverage/summary.mts results "$STEP_E2E_OUTPUT_DIR/ui-journeys.xml" "Real-stack UI journeys"
+      - name: Upload traces, screenshots, reports and service logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: frontend-stack-e2e-${{ github.run_attempt }}
+          path: .cache/backend-e2e/ui-run
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7

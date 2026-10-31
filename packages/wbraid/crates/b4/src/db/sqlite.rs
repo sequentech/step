@@ -182,17 +182,20 @@ impl SqliteBackend {
         let result = sqlx::query(
             r#"
         INSERT INTO messages (board_name, content_type, inline_data, s3_key, version)
-        VALUES (?, ?, ?, ?, ?)
+        SELECT name, ?, ?, ?, ? FROM boards WHERE name = ? AND status = 'active'
         "#,
         )
-        .bind(board_name)
         .bind(content_type)
         .bind(inline_data)
         .bind(s3_key)
         .bind(version)
+        .bind(board_name)
         .execute(&self.pool)
         .await?;
 
+        if result.rows_affected() != 1 {
+            bail!("board does not exist or is archived");
+        }
         Ok(result.last_insert_rowid())
     }
 
@@ -335,10 +338,32 @@ mod tests {
             .unwrap_err();
 
         assert!(
-            err.to_string().to_lowercase().contains("foreign key"),
+            err.to_string()
+                .contains("board does not exist or is archived"),
             "{err}"
         );
 
+        db.close().await;
+    }
+
+    #[tokio::test]
+    async fn archived_boards_keep_messages_but_reject_new_writes() {
+        let db = TempDb::new().await;
+        db.backend.create_board("archived").await.unwrap();
+        db.backend
+            .insert_message("archived", Some(b"existing"), None, "1")
+            .await
+            .unwrap();
+        sqlx::query("UPDATE boards SET status = 'archived' WHERE name = 'archived'")
+            .execute(&db.backend.pool)
+            .await
+            .unwrap();
+        assert!(db
+            .backend
+            .insert_message("archived", Some(b"new"), None, "1")
+            .await
+            .is_err());
+        assert_eq!(db.backend.list_messages("archived").await.unwrap().len(), 1);
         db.close().await;
     }
 

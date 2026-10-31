@@ -214,9 +214,7 @@ pub async fn get_results_contest(
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     election_id = $3 AND
-                    contest_id = $4
-                RETURNING
-                    id;
+                    contest_id = $4;
             "#,
         )
         .await?;

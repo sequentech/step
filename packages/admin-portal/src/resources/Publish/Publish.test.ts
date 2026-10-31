@@ -57,6 +57,8 @@ jest.mock("@/lib/helpers", () => ({convertToNumber: () => undefined}))
 jest.mock("@sequentech/ui-core", () => ({
     ETaskExecutionStatus: {SUCCESS: "SUCCESS", FAILED: "FAILED"},
     EVotingStatus: {NOT_STARTED: "NOT_STARTED"},
+    EInitializationScope: {POST_AND_COUNTRY: "post-and-country"},
+    EInitializeReportPolicy: {REQUIRED: "required"},
 }))
 jest.mock("./PublishList", () => ({
     PublishList: ({onGenerate}: {onGenerate: () => void}) =>
@@ -78,6 +80,10 @@ jest.mock("./PublishGenerate", () => ({
         ),
 }))
 jest.mock("./EditPreview", () => ({EditPreview: () => null}))
+jest.mock("./FiredTransitions", () => ({FiredTransitions: () => null}))
+jest.mock("./SkippedElectionsAlert", () => ({SkippedElectionsAlert: () => null}))
+jest.mock("./InitializationCountryDialog", () => ({InitializationCountryDialog: () => null}))
+jest.mock("@/hooks/useSignedAction", () => ({useSignedAction: () => () => false}))
 jest.mock("@/components/FormDialog", () => ({__esModule: true, default: () => null}))
 
 const props = {electionEventId: "event", type: EPublishType.Event}

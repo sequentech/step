@@ -1,0 +1,654 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+//! What the ballot box signs when it receives a ballot and when that ballot is
+//! cast, and the keys and IDs that follow from the first.
+//!
+//! The ballot box signs only what it stores, so a Received or a Cast receipt
+//! signature that verifies against the published ballot box key is proof of
+//! storage. Two IDs name a received ballot:
+//!
+//! - The **Tracking ID** is what voters see and what the Vitrine `ballots`
+//!   log holds as `ballot_id`: a digest of the encrypted ballot's hash and
+//!   the voter's public key. The voter's client computes it before sending
+//!   the ballot, so it needs nothing the ballot box returns.
+//! - The **receipt key** (`ReceivedBallot::ballot_id`) is the ballot box's
+//!   own key for the stored ballot: a hash of the voter-signed ballot and of
+//!   the Received signature. It is free of collisions, which a 40-bit Tracking
+//!   ID prefix is not, and the voter casts by signing it with the key that
+//!   signed the ballot. It is internal: no screen shows it.
+
+use crate::ballot::BallotBoxKey;
+use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
+use std::collections::HashMap;
+use voting_crypto::hash::{hash_sha256, hash_to_array};
+use voting_crypto::signing::{Signature, SigningKey, VerificationKey};
+
+const RECEIVED_STATEMENT_DOMAIN: &str = "step/ballot-received/v1";
+const BALLOT_ID_DOMAIN: &str = "step/ballot-id/v1";
+const TRACKING_ID_DOMAIN: &str = "step/ballot-id/v2";
+const CAST_STATEMENT_DOMAIN: &str = "step/ballot-cast/v1";
+const CAST_RECEIPT_DOMAIN: &str = "step/ballot-cast-receipt/v1";
+
+const KEY_ID_BYTES: usize = 8;
+const BALLOT_ID_BYTES: usize = 5;
+const BALLOT_ID_CHARACTERS: usize = 8;
+const BALLOT_ID_GROUP: usize = 4;
+const BALLOT_ID_SEPARATOR: char = '-';
+/// The Tracking ID digest is the first 32 bytes of SHA-512.
+pub const TRACKING_ID_BYTES: usize = 32;
+/// 256 bits take 52 characters of five bits, the last one padded with zeros.
+const TRACKING_ID_CHARACTERS: usize = 52;
+/// The short Tracking ID is the first 40 bits: 8 characters.
+pub const SHORT_TRACKING_ID_CHARACTERS: usize = BALLOT_ID_CHARACTERS;
+/// Crockford's base32: no I, L, O or U.
+const BALLOT_ID_ALPHABET: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+
+quick_error! {
+    #[derive(Debug, PartialEq, Eq)]
+    pub enum BallotReceiptError {
+        Malformed(message: String) {
+            display("Malformed ballot receipt: {}", message)
+        }
+        UnknownKey {
+            display("The receipt was not signed with the published ballot box key")
+        }
+        InvalidSignature {
+            display("The ballot box signature does not verify")
+        }
+        BallotIdMismatch {
+            display("The Ballot ID does not follow from the receipt")
+        }
+        InvalidCastSignature {
+            display("The voter's cast signature does not verify")
+        }
+        VoterKeyNotKept {
+            display("The key that signed the ballot is no longer in memory")
+        }
+    }
+}
+
+/// What the ballot box states about a ballot it has stored.
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct ReceivedStatement {
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
+    /// The hash of the encrypted ballot, as `encrypt::hash_ballot` gives it.
+    pub ballot_hash: String,
+    pub voter_signing_pk: String,
+    pub voter_ballot_signature: String,
+    /// UTC, RFC 3339 with milliseconds: 2028-05-08T03:00:00.000Z.
+    pub received_at: String,
+    pub key_id: String,
+}
+
+/// A Received statement with the ballot box's signature over it.
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct ReceivedBallot {
+    #[serde(flatten)]
+    pub statement: ReceivedStatement,
+    pub received_signature: String,
+    pub ballot_id: String,
+}
+
+fn malformed<E: std::fmt::Display>(
+    field: &'static str,
+) -> impl FnOnce(E) -> BallotReceiptError {
+    move |error| BallotReceiptError::Malformed(format!("{field}: {error}"))
+}
+
+/// Length-prefixed like `ballot::get_ballot_bytes_for_signing`, so that no two
+/// lists of fields share their bytes.
+fn extend_with_field(bytes: &mut Vec<u8>, field: &[u8]) {
+    bytes.extend_from_slice(&(field.len() as u64).to_le_bytes());
+    bytes.extend_from_slice(field);
+}
+
+fn voter_key_bytes(
+    statement: &ReceivedStatement,
+) -> Result<Vec<u8>, BallotReceiptError> {
+    VerificationKey::from_b64_string(&statement.voter_signing_pk)
+        .and_then(|key| key.to_der())
+        .map_err(malformed("voter_signing_pk"))
+}
+
+fn voter_signature_bytes(
+    statement: &ReceivedStatement,
+) -> Result<[u8; 64], BallotReceiptError> {
+    Signature::from_b64_string(&statement.voter_ballot_signature)
+        .map(|signature| signature.to_bytes())
+        .map_err(malformed("voter_ballot_signature"))
+}
+
+impl ReceivedStatement {
+    pub fn bytes_for_signing(&self) -> Result<Vec<u8>, BallotReceiptError> {
+        let mut bytes = vec![];
+        extend_with_field(&mut bytes, RECEIVED_STATEMENT_DOMAIN.as_bytes());
+        extend_with_field(&mut bytes, self.tenant_id.as_bytes());
+        extend_with_field(&mut bytes, self.election_event_id.as_bytes());
+        extend_with_field(&mut bytes, self.election_id.as_bytes());
+        extend_with_field(&mut bytes, self.ballot_hash.as_bytes());
+        extend_with_field(&mut bytes, &voter_key_bytes(self)?);
+        extend_with_field(&mut bytes, &voter_signature_bytes(self)?);
+        extend_with_field(&mut bytes, self.received_at.as_bytes());
+        extend_with_field(&mut bytes, self.key_id.as_bytes());
+        Ok(bytes)
+    }
+}
+
+/// The published form of a ballot box key: the first 8 bytes of SHA-256 of
+/// its standard SubjectPublicKeyInfo encoding name it.
+pub fn ballot_box_key(
+    public_key: &VerificationKey,
+) -> Result<BallotBoxKey, BallotReceiptError> {
+    public_key
+        .to_der()
+        .and_then(|der| hash_sha256(&der))
+        .and_then(|digest| {
+            let key_id: Vec<u8> =
+                digest.into_iter().take(KEY_ID_BYTES).collect();
+            public_key.to_b64_string().map(|public_key| BallotBoxKey {
+                key_id: hex::encode(key_id),
+                public_key,
+            })
+        })
+        .map_err(malformed("public_key"))
+}
+
+/// Writes 40 bits as two groups of four characters: FTBE-MHRX.
+pub fn format_ballot_id(bytes: &[u8; BALLOT_ID_BYTES]) -> String {
+    let bits = bytes
+        .iter()
+        .fold(0u64, |bits, byte| (bits << 8) | u64::from(*byte));
+    let mut id = String::with_capacity(BALLOT_ID_CHARACTERS + 1);
+    for position in 0..BALLOT_ID_CHARACTERS {
+        if position == BALLOT_ID_GROUP {
+            id.push(BALLOT_ID_SEPARATOR);
+        }
+        let shift = 5 * (BALLOT_ID_CHARACTERS - 1 - position);
+        let index = ((bits >> shift) & 0x1f) as usize;
+        id.push(char::from(BALLOT_ID_ALPHABET[index]));
+    }
+    id
+}
+
+/// Reads a typed Ballot ID: any case, with or without the separator, O as 0,
+/// I and L as 1. `None` when it cannot be a Ballot ID.
+pub fn normalize_ballot_id(typed: &str) -> Option<String> {
+    let characters = typed
+        .chars()
+        .filter(|character| {
+            *character != BALLOT_ID_SEPARATOR && !character.is_whitespace()
+        })
+        .map(|character| match character.to_ascii_uppercase() {
+            'O' => Some('0'),
+            'I' | 'L' => Some('1'),
+            upper
+                if upper.is_ascii()
+                    && BALLOT_ID_ALPHABET.contains(&(upper as u8)) =>
+            {
+                Some(upper)
+            }
+            _ => None,
+        })
+        .collect::<Option<Vec<char>>>()?;
+    if characters.len() != BALLOT_ID_CHARACTERS {
+        return None;
+    }
+
+    let (first, second) = characters.split_at(BALLOT_ID_GROUP);
+    Some(
+        first
+            .iter()
+            .chain(std::iter::once(&BALLOT_ID_SEPARATOR))
+            .chain(second)
+            .collect(),
+    )
+}
+
+/// The first 32 bytes of SHA-512 over the length-prefixed domain
+/// `step/ballot-id/v2`, the ballot hash as `encrypt::hash_ballot` writes it,
+/// and the voter's public key as DER, or nothing when the voter did not sign.
+///
+/// It covers neither the ballot box's signature, nor the voter's signature,
+/// nor the time the ballot is received, so a client computes it before the
+/// ballot box has answered and a retry gets the same one.
+pub fn tracking_id_digest(
+    ballot_hash: &str,
+    voter_signing_pk: Option<&str>,
+) -> Result<[u8; TRACKING_ID_BYTES], BallotReceiptError> {
+    let voter_key = match voter_signing_pk {
+        Some(key) => VerificationKey::from_b64_string(key)
+            .and_then(|key| key.to_der())
+            .map_err(malformed("voter_signing_pk"))?,
+        None => vec![],
+    };
+
+    let mut bytes = vec![];
+    extend_with_field(&mut bytes, TRACKING_ID_DOMAIN.as_bytes());
+    extend_with_field(&mut bytes, ballot_hash.as_bytes());
+    extend_with_field(&mut bytes, &voter_key);
+
+    let digest = hash_to_array(&bytes).map_err(malformed("digest"))?;
+    let mut tracking_id = [0u8; TRACKING_ID_BYTES];
+    tracking_id.copy_from_slice(&digest[..TRACKING_ID_BYTES]);
+    Ok(tracking_id)
+}
+
+/// Writes a digest in Crockford base32, most significant bit first, in groups
+/// of four joined by `-`: `FTBE-MHRX-...`, 52 characters. The first two
+/// groups are the short Tracking ID.
+pub fn format_tracking_id(digest: &[u8; TRACKING_ID_BYTES]) -> String {
+    let mut id = String::with_capacity(TRACKING_ID_CHARACTERS + 12);
+    let mut bits: u32 = 0;
+    let mut held = 0;
+    let mut written = 0;
+    let mut push = |index: u32, id: &mut String| {
+        if written > 0 && written % BALLOT_ID_GROUP == 0 {
+            id.push(BALLOT_ID_SEPARATOR);
+        }
+        id.push(char::from(BALLOT_ID_ALPHABET[index as usize]));
+        written += 1;
+    };
+    for byte in digest {
+        bits = (bits << 8) | u32::from(*byte);
+        held += 8;
+        while held >= 5 {
+            held -= 5;
+            push((bits >> held) & 0x1f, &mut id);
+        }
+        bits &= (1 << held) - 1;
+    }
+    if held > 0 {
+        push((bits << (5 - held)) & 0x1f, &mut id);
+    }
+    id
+}
+
+/// The full Tracking ID of a ballot, from what the ballot box stores of it.
+pub fn tracking_id(
+    ballot_hash: &str,
+    voter_signing_pk: Option<&str>,
+) -> Result<String, BallotReceiptError> {
+    tracking_id_digest(ballot_hash, voter_signing_pk)
+        .map(|digest| format_tracking_id(&digest))
+}
+
+/// The short form of a Tracking ID, its first 40 bits: `FTBE-MHRX`.
+pub fn short_tracking_id(tracking_id: &str) -> String {
+    tracking_id
+        .chars()
+        .filter(|character| *character != BALLOT_ID_SEPARATOR)
+        .take(SHORT_TRACKING_ID_CHARACTERS)
+        .enumerate()
+        .fold(String::new(), |mut id, (position, character)| {
+            if position == BALLOT_ID_GROUP {
+                id.push(BALLOT_ID_SEPARATOR);
+            }
+            id.push(character);
+            id
+        })
+}
+
+/// Reads a typed Tracking ID, or the start of one: any case, with or without
+/// separators, O as 0, I and L as 1. The start is at least the 8 characters of
+/// the short form and at most all 52. Gives the characters in groups of four.
+/// `None` for anything else, a voter pseudonym (`FTBE:MHRX`) among it.
+pub fn normalize_tracking_id(typed: &str) -> Option<String> {
+    let characters = typed
+        .chars()
+        .filter(|character| {
+            *character != BALLOT_ID_SEPARATOR && !character.is_whitespace()
+        })
+        .map(|character| match character.to_ascii_uppercase() {
+            'O' => Some('0'),
+            'I' | 'L' => Some('1'),
+            upper
+                if upper.is_ascii()
+                    && BALLOT_ID_ALPHABET.contains(&(upper as u8)) =>
+            {
+                Some(upper)
+            }
+            _ => None,
+        })
+        .collect::<Option<Vec<char>>>()?;
+    if !(SHORT_TRACKING_ID_CHARACTERS..=TRACKING_ID_CHARACTERS)
+        .contains(&characters.len())
+    {
+        return None;
+    }
+    Some(
+        characters
+            .chunks(BALLOT_ID_GROUP)
+            .map(|group| group.iter().collect::<String>())
+            .collect::<Vec<_>>()
+            .join(&BALLOT_ID_SEPARATOR.to_string()),
+    )
+}
+
+/// Whether the Tracking ID starts with what was typed, both as
+/// `normalize_tracking_id` and `tracking_id` give them.
+pub fn tracking_id_starts_with(tracking_id: &str, typed: &str) -> bool {
+    let plain = |id: &str| -> String {
+        id.chars()
+            .filter(|character| *character != BALLOT_ID_SEPARATOR)
+            .collect()
+    };
+    plain(tracking_id).starts_with(&plain(typed))
+}
+
+/// What a voter typed in the search box of the public ballot-box log, read as the
+/// start of a voter pseudonym, of a Tracking ID, or of both.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct BallotLogSearch {
+    /// The start of a pseudonym as it is stored: `K7QM-2X`.
+    pub pseudonym: Option<String>,
+    /// The start of a Tracking ID as `normalize_tracking_id` gives it: at least
+    /// the 8 characters of the short form.
+    pub tracking_id: Option<String>,
+}
+
+/// How long a search may be, separators included.
+const BALLOT_LOG_SEARCH_CHARACTERS: usize = 80;
+
+/// Reads the text typed in the ballot-box log's search box. A colon means a
+/// voter pseudonym (`K7QM:2XWD`) and only pseudonyms are searched; a hyphen
+/// means a Tracking ID (`FTBE-MHRX`) and only Tracking IDs are searched; with
+/// neither, both are. Case, spaces, and I, L and O as in a Tracking ID.
+///
+/// `Ok(None)` for a search with nothing in it, and `Err` for text that is no
+/// start of either. A search too short or too long for what its separator
+/// names (a hyphen and 4 characters) gives a `BallotLogSearch` with nothing to
+/// look for: it matches no ballot.
+pub fn parse_ballot_log_search(
+    typed: &str,
+) -> Result<Option<BallotLogSearch>, BallotReceiptError> {
+    let typed = typed.trim();
+    if typed.is_empty() {
+        return Ok(None);
+    }
+    if typed.chars().count() > BALLOT_LOG_SEARCH_CHARACTERS {
+        return Err(BallotReceiptError::Malformed("search".into()));
+    }
+    let (mut colon, mut hyphen) = (false, false);
+    let mut compact = String::new();
+    for character in typed.chars() {
+        match character {
+            ':' => colon = true,
+            BALLOT_ID_SEPARATOR => hyphen = true,
+            _ if character.is_whitespace() => {}
+            _ => compact.push(match character.to_ascii_uppercase() {
+                'O' => '0',
+                'I' | 'L' => '1',
+                upper
+                    if upper.is_ascii()
+                        && BALLOT_ID_ALPHABET.contains(&(upper as u8)) =>
+                {
+                    upper
+                }
+                _ => {
+                    return Err(BallotReceiptError::Malformed("search".into()))
+                }
+            }),
+        }
+    }
+    let pseudonym = ((colon || !hyphen)
+        && (1..=BALLOT_ID_CHARACTERS).contains(&compact.len()))
+    .then(|| {
+        if compact.len() > BALLOT_ID_GROUP {
+            format!(
+                "{}{}{}",
+                &compact[..BALLOT_ID_GROUP],
+                BALLOT_ID_SEPARATOR,
+                &compact[BALLOT_ID_GROUP..]
+            )
+        } else {
+            compact.clone()
+        }
+    });
+    let tracking_id = if colon {
+        None
+    } else {
+        normalize_tracking_id(&compact)
+    };
+    Ok(Some(BallotLogSearch {
+        pseudonym,
+        tracking_id,
+    }))
+}
+
+/// The ballot box's key for a received ballot: the first 40 bits of SHA-512
+/// over the voter-signed ballot and the ballot box's signature. Internal; the
+/// Tracking ID is what voters see.
+pub fn ballot_id(
+    statement: &ReceivedStatement,
+    received_signature: &str,
+) -> Result<String, BallotReceiptError> {
+    let received_signature = Signature::from_b64_string(received_signature)
+        .map_err(malformed("received_signature"))?;
+
+    let mut bytes = vec![];
+    extend_with_field(&mut bytes, BALLOT_ID_DOMAIN.as_bytes());
+    extend_with_field(&mut bytes, statement.ballot_hash.as_bytes());
+    extend_with_field(&mut bytes, &voter_key_bytes(statement)?);
+    extend_with_field(&mut bytes, &voter_signature_bytes(statement)?);
+    extend_with_field(&mut bytes, statement.received_at.as_bytes());
+    extend_with_field(&mut bytes, statement.key_id.as_bytes());
+    extend_with_field(&mut bytes, &received_signature.to_bytes());
+
+    let digest = hash_to_array(&bytes).map_err(malformed("digest"))?;
+    let mut prefix = [0u8; BALLOT_ID_BYTES];
+    prefix.copy_from_slice(&digest[..BALLOT_ID_BYTES]);
+    Ok(format_ballot_id(&prefix))
+}
+
+/// Signs the statement with the ballot box key. Callers sign only what they
+/// have stored.
+pub fn sign_received_ballot(
+    ballot_box_sk: &SigningKey,
+    statement: ReceivedStatement,
+) -> Result<ReceivedBallot, BallotReceiptError> {
+    let received_signature = ballot_box_sk
+        .sign(&statement.bytes_for_signing()?)
+        .and_then(|signature| signature.to_b64_string())
+        .map_err(malformed("received_signature"))?;
+    let ballot_id = ballot_id(&statement, &received_signature)?;
+
+    Ok(ReceivedBallot {
+        statement,
+        received_signature,
+        ballot_id,
+    })
+}
+
+/// Checks that the published ballot box key signed this receipt and that its
+/// Ballot ID follows from it. Returns the Ballot ID.
+pub fn verify_received_ballot(
+    key: &BallotBoxKey,
+    received: &ReceivedBallot,
+) -> Result<String, BallotReceiptError> {
+    let public_key = signing_public_key(key, &received.statement.key_id)?;
+    let signature = Signature::from_b64_string(&received.received_signature)
+        .map_err(malformed("received_signature"))?;
+    public_key
+        .verify(&signature, &received.statement.bytes_for_signing()?)
+        .map_err(|_| BallotReceiptError::InvalidSignature)?;
+
+    let ballot_id =
+        ballot_id(&received.statement, &received.received_signature)?;
+    if ballot_id != received.ballot_id {
+        return Err(BallotReceiptError::BallotIdMismatch);
+    }
+    Ok(ballot_id)
+}
+
+/// The published ballot box key, if it is the one a receipt names.
+fn signing_public_key(
+    key: &BallotBoxKey,
+    key_id: &str,
+) -> Result<VerificationKey, BallotReceiptError> {
+    let public_key = VerificationKey::from_b64_string(&key.public_key)
+        .map_err(malformed("public_key"))?;
+    if ballot_box_key(&public_key)?.key_id != key.key_id || key_id != key.key_id
+    {
+        return Err(BallotReceiptError::UnknownKey);
+    }
+    Ok(public_key)
+}
+
+/// What the voter signs to cast a ballot the ballot box has received.
+fn cast_statement_bytes(election_id: &str, ballot_id: &str) -> Vec<u8> {
+    let mut bytes = vec![];
+    extend_with_field(&mut bytes, CAST_STATEMENT_DOMAIN.as_bytes());
+    extend_with_field(&mut bytes, election_id.as_bytes());
+    extend_with_field(&mut bytes, ballot_id.as_bytes());
+    bytes
+}
+
+/// Signs "cast this Ballot ID" with the key that signed the ballot.
+pub fn sign_cast_statement(
+    voter_sk: &SigningKey,
+    election_id: &str,
+    ballot_id: &str,
+) -> Result<String, BallotReceiptError> {
+    voter_sk
+        .sign(&cast_statement_bytes(election_id, ballot_id))
+        .and_then(|signature| signature.to_b64_string())
+        .map_err(malformed("cast_signature"))
+}
+
+/// Checks that the key that signed the received ballot asks to cast it.
+pub fn verify_cast_signature(
+    voter_signing_pk: &str,
+    election_id: &str,
+    ballot_id: &str,
+    cast_signature: &str,
+) -> Result<(), BallotReceiptError> {
+    let public_key = VerificationKey::from_b64_string(voter_signing_pk)
+        .map_err(malformed("voter_signing_pk"))?;
+    let signature = Signature::from_b64_string(cast_signature)
+        .map_err(malformed("cast_signature"))?;
+    public_key
+        .verify(&signature, &cast_statement_bytes(election_id, ballot_id))
+        .map_err(|_| BallotReceiptError::InvalidCastSignature)
+}
+
+/// What the ballot box states about a ballot it has stored as cast.
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct CastReceiptStatement {
+    pub election_event_id: String,
+    pub election_id: String,
+    pub ballot_id: String,
+    /// As in the ballot's `ReceivedStatement`.
+    pub received_at: String,
+    /// UTC, RFC 3339 with milliseconds.
+    pub cast_at: String,
+    pub key_id: String,
+    /// The voter's signature over the Cast statement.
+    pub cast_signature: String,
+}
+
+/// A Cast receipt statement with the ballot box's signature over it.
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct CastReceipt {
+    #[serde(flatten)]
+    pub statement: CastReceiptStatement,
+    pub cast_receipt_signature: String,
+}
+
+impl CastReceiptStatement {
+    pub fn bytes_for_signing(&self) -> Result<Vec<u8>, BallotReceiptError> {
+        let cast_signature = Signature::from_b64_string(&self.cast_signature)
+            .map_err(malformed("cast_signature"))?;
+        let cast_signature_digest = hash_sha256(&cast_signature.to_bytes())
+            .map_err(malformed("cast_signature"))?;
+
+        let mut bytes = vec![];
+        extend_with_field(&mut bytes, CAST_RECEIPT_DOMAIN.as_bytes());
+        extend_with_field(&mut bytes, self.election_event_id.as_bytes());
+        extend_with_field(&mut bytes, self.election_id.as_bytes());
+        extend_with_field(&mut bytes, self.ballot_id.as_bytes());
+        extend_with_field(&mut bytes, self.received_at.as_bytes());
+        extend_with_field(&mut bytes, self.cast_at.as_bytes());
+        extend_with_field(&mut bytes, self.key_id.as_bytes());
+        extend_with_field(&mut bytes, &cast_signature_digest);
+        Ok(bytes)
+    }
+}
+
+/// Signs the statement with the ballot box key. Callers sign only a cast they
+/// store in the same transaction.
+pub fn sign_cast_receipt(
+    ballot_box_sk: &SigningKey,
+    statement: CastReceiptStatement,
+) -> Result<CastReceipt, BallotReceiptError> {
+    let cast_receipt_signature = ballot_box_sk
+        .sign(&statement.bytes_for_signing()?)
+        .and_then(|signature| signature.to_b64_string())
+        .map_err(malformed("cast_receipt_signature"))?;
+
+    Ok(CastReceipt {
+        statement,
+        cast_receipt_signature,
+    })
+}
+
+/// Checks that the published ballot box key signed this cast receipt.
+pub fn verify_cast_receipt(
+    key: &BallotBoxKey,
+    receipt: &CastReceipt,
+) -> Result<(), BallotReceiptError> {
+    let public_key = signing_public_key(key, &receipt.statement.key_id)?;
+    let signature = Signature::from_b64_string(&receipt.cast_receipt_signature)
+        .map_err(malformed("cast_receipt_signature"))?;
+    public_key
+        .verify(&signature, &receipt.statement.bytes_for_signing()?)
+        .map_err(|_| BallotReceiptError::InvalidSignature)
+}
+
+thread_local! {
+    /// The single-use keys that signed the ballots under review, by election.
+    /// They live only in this memory: a reload loses them, and the ballot is
+    /// then signed and sent again.
+    static VOTER_SIGNING_KEYS: RefCell<HashMap<String, SigningKey>> =
+        RefCell::new(HashMap::new());
+}
+
+/// Keeps the key that signed an election's ballot until that ballot is cast.
+/// A new ballot for the election replaces the key of the one before.
+pub fn keep_voter_signing_key(election_id: &str, voter_sk: SigningKey) {
+    VOTER_SIGNING_KEYS.with(|keys| {
+        keys.borrow_mut().insert(election_id.to_string(), voter_sk);
+    });
+}
+
+pub fn forget_voter_signing_key(election_id: &str) {
+    VOTER_SIGNING_KEYS.with(|keys| {
+        keys.borrow_mut().remove(election_id);
+    });
+}
+
+/// Signs the Cast statement with the key kept for the election, if it is the
+/// one that signed the received ballot.
+pub fn sign_cast_statement_with_kept_key(
+    election_id: &str,
+    voter_signing_pk: &str,
+    ballot_id: &str,
+) -> Result<String, BallotReceiptError> {
+    VOTER_SIGNING_KEYS.with(|keys| {
+        let keys = keys.borrow();
+        let voter_sk = keys
+            .get(election_id)
+            .ok_or(BallotReceiptError::VoterKeyNotKept)?;
+        let kept_pk = VerificationKey::from_sk(voter_sk)
+            .and_then(|key| key.to_b64_string())
+            .map_err(malformed("voter_signing_pk"))?;
+        if kept_pk != voter_signing_pk {
+            return Err(BallotReceiptError::VoterKeyNotKept);
+        }
+        sign_cast_statement(voter_sk, election_id, ballot_id)
+    })
+}

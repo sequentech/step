@@ -14,15 +14,16 @@ export const getLanguageFromURL = () => {
     return params.get("lang") || undefined
 }
 
-initializeLanguages(
-    {
-        en: englishTranslation,
-        es: spanishTranslation,
-        cat: catalanTranslation,
-        fr: frenchTranslation,
-        tl: tagalogTranslation,
-        gl: galegoTranslation,
-    },
-    getLanguageFromURL(),
-    ETranslationScope.BALLOT_VERIFIER
-)
+const translations = {
+    en: englishTranslation,
+    es: spanishTranslation,
+    cat: catalanTranslation,
+    fr: frenchTranslation,
+    tl: tagalogTranslation,
+    gl: galegoTranslation,
+}
+
+/** Every language the ballot verifier ships. */
+export const APP_LANGUAGES = Object.keys(translations)
+
+initializeLanguages(translations, getLanguageFromURL(), ETranslationScope.BALLOT_VERIFIER)

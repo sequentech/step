@@ -7,12 +7,13 @@ package sequent.keycloak.custom_event_listener;
 import static sequent.keycloak.authenticator.Utils.AUTH_NOTE_DENY_TYPE;
 import static sequent.keycloak.authenticator.Utils.CA_CERT_ISSUER_CN;
 import static sequent.keycloak.authenticator.Utils.VOTER_CERT_SUBJECT_DN;
-import static sequent.keycloak.authenticator.Utils.sendErrorNotificationToUser;
+import static sequent.keycloak.authenticator.Utils.sendRegistrationErrorToSupport;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -22,13 +23,22 @@ import org.keycloak.events.Event;
 import org.keycloak.events.EventListenerProvider;
 import org.keycloak.events.EventType;
 import org.keycloak.events.admin.AdminEvent;
+import org.keycloak.events.admin.AuthDetails;
+import org.keycloak.models.AbstractKeycloakTransaction;
+import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserModel;
+import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics;
 
 @JBossLog
 public class CustomEventListenerProvider implements EventListenerProvider {
 
+  static final String ADMIN_EVENT_MESSAGE_TYPE = "KEYCLOAK_ADMIN_EVENT";
+
   private final KeycloakSession session;
   private final PgmqEventPublisher pgmqEventPublisher;
+  private final SigninNetworkDispatcher signinNetworkDispatcher;
 
   // Environment variables (read once for performance)
   private static final String TASK_NAME =
@@ -39,68 +49,85 @@ public class CustomEventListenerProvider implements EventListenerProvider {
   private final ObjectMapper om = new ObjectMapper();
 
   CustomEventListenerProvider(KeycloakSession session, PgmqEventPublisher pgmqEventPublisher) {
-    this.session = session;
-    this.pgmqEventPublisher = pgmqEventPublisher;
+    this(session, pgmqEventPublisher, null);
   }
 
-  /**
-   * Parses the realm name (from the realm ID) to extract tenant_id and election_event_id. Expected
-   * format: "tenant-<tenant_uuid>-event-<election_event_uuid>"
-   *
-   * @param realmId the realm identifier
-   * @return a String array where index 0 is tenant_id and index 1 is election_event_id.
-   */
-  private String[] parseRealm(String realmId) {
-    String realmName = session.realms().getRealm(realmId).getName();
-    if (realmName != null && realmName.startsWith("tenant-") && realmName.contains("-event-")) {
-      int eventIndex = realmName.indexOf("-event-");
-      String tenantId = realmName.substring("tenant-".length(), eventIndex);
-      String electionEventId = realmName.substring(eventIndex + "-event-".length());
-      return new String[] {tenantId, electionEventId};
+  CustomEventListenerProvider(
+      KeycloakSession session,
+      PgmqEventPublisher pgmqEventPublisher,
+      SigninNetworkDispatcher signinNetworkDispatcher) {
+    this.session = session;
+    this.pgmqEventPublisher = pgmqEventPublisher;
+    this.signinNetworkDispatcher = signinNetworkDispatcher;
+  }
+
+  private static LogRealm logRealm(RealmModel realm) {
+    return LogRealm.fromName(realm == null ? null : realm.getName());
+  }
+
+  /** The account's username, when the realm has an account with that id. */
+  private Optional<String> usernameOf(RealmModel realm, String userId) {
+    if (realm == null || userId == null) {
+      return Optional.empty();
     }
-    return new String[] {"", ""};
+    UserModel user = session.users().getUserById(realm, userId);
+    return Optional.ofNullable(user).map(UserModel::getUsername);
   }
 
   @Override
   public void onEvent(Event event) {
     log.info("onEvent: start");
-    // For REGISTER_ERROR events with "userNotFound", send error notifications.
+    // For REGISTER_ERROR events with "userNotFound", tell support (never the voter: R7-18).
     if (event.getType() == EventType.REGISTER_ERROR && "userNotFound".equals(event.getError())) {
       try {
-        sendErrorNotificationToUser(session, event.getRealmId(), event);
+        sendRegistrationErrorToSupport(session, event.getRealmId(), event);
       } catch (Exception e) {
         log.error("Failed to send error notification", e);
       }
     }
 
-    // Extract tenant_id and election_event_id from the realm.
-    String[] tenantAndEvent = parseRealm(event.getRealmId());
-    String tenantId = tenantAndEvent[0];
-    String electionEventId = tenantAndEvent[1];
-
-    // Extract username from event details (default to "unknown" if absent)
-    String username =
-        Optional.ofNullable(event.getDetails())
-            .map(details -> details.get("username"))
-            .orElse("unknown");
-
-    String userId = event.getUserId();
-
-    if (userId != null) {
-      var user = session.users().getUserById(session.realms().getRealm(event.getRealmId()), userId);
-      if (user != null && user.getUsername() != null) {
-        // Override with the actual username from session if available
-        username = user.getUsername();
-      }
+    RealmModel realmModel = session.realms().getRealm(event.getRealmId());
+    LogRealm realm = logRealm(realmModel);
+    if (realm.kind() == LogRealm.Kind.OTHER) {
+      return;
     }
-    // Prepare message body based on event type.
+    if (realm.kind() == LogRealm.Kind.TENANT && !TenantRealmEvents.keeps(event)) {
+      return;
+    }
+
     Map<String, String> details =
         event.getDetails() != null ? event.getDetails() : Collections.emptyMap();
+    String userId = event.getUserId();
+    Optional<String> accountUsername = usernameOf(realmModel, userId);
+
+    // The tenant log never records what was typed for an account that does not exist; an election
+    // event's log keeps the username of the details, or "unknown".
+    UserEventDetails.Account account =
+        realm.kind() == LogRealm.Kind.TENANT && accountUsername.isEmpty()
+            ? UserEventDetails.Account.UNKNOWN
+            : UserEventDetails.Account.KNOWN;
+    String username =
+        switch (account) {
+          case UNKNOWN -> null;
+          case KNOWN ->
+              accountUsername.orElseGet(
+                  () ->
+                      ScanovateDiagnostics.EVENT_ERROR.equals(event.getError())
+                          ? "unknown"
+                          : Optional.ofNullable(details.get("username")).orElse("unknown"));
+        };
+
+    // Prepare message body based on event type.
     boolean isLoginWithCertificate =
         details.containsKey(VOTER_CERT_SUBJECT_DN) && details.containsKey(CA_CERT_ISSUER_CN);
     String body;
-    if (Utils.EVENT_TYPE_COMMUNICATIONS.equals(details.isEmpty() ? null : details.get("type"))) {
-      String msgBody = Optional.ofNullable(details.get("msgBody")).orElse("");
+    if (Utils.isCommunication(details)) {
+      // The tenant log records that a message was sent to the account, never its text, so the
+      // text does not leave Keycloak. An election event's log keeps the (masked) text.
+      String msgBody =
+          realm.kind() == LogRealm.Kind.TENANT
+              ? ""
+              : Optional.ofNullable(details.get(Utils.EVENT_DETAIL_MSG_BODY)).orElse("");
       body = String.format("%s %s", Utils.EVENT_TYPE_COMMUNICATIONS, msgBody);
     } else if (event.getType() == EventType.LOGIN && isLoginWithCertificate) {
       String certInfo =
@@ -130,37 +157,114 @@ public class CustomEventListenerProvider implements EventListenerProvider {
               + CA_CERT_ISSUER_CN
               + "="
               + details.getOrDefault(CA_CERT_ISSUER_CN, "unknown");
-      body = event.getError() + " " + certInfo;
+      body = UserEventDetails.safeError(event.getError()) + " " + certInfo;
     } else {
       // Use the event error (or another appropriate field) as body for
       // non-communications events.
-      body = event.getError();
+      body = UserEventDetails.safeError(event.getError());
     }
 
+    if (!Utils.isCommunication(details)) {
+      body = UserEventDetails.safeDetailValue(body);
+    }
+    Map<String, Object> eventDetails = UserEventDetails.of(event, account);
+    if (ScanovateDiagnostics.EVENT_ERROR.equals(event.getError())) {
+      // Election boards persist body, whereas the tenant fallback persists details. Give both
+      // the same allowlisted diagnostic object; never persist legacy profile/request fields.
+      body = om.valueToTree(eventDetails).toString();
+    }
     // Publish the event to PGMQ with the complete JSON structure.
     logEvent(
-        electionEventId, event.getType().toString(), body, event.getUserId(), tenantId, username);
+        taskMessage(
+            realm.electionEventId(),
+            event.getType().toString(),
+            body,
+            userId,
+            realm.tenantId(),
+            username,
+            event.getTime(),
+            Map.of("details", eventDetails)));
+
+    if (signinNetworkDispatcher != null && SigninNetworkSender.eligible(realm, event)) {
+      // A rollback must not publish successful sign-in attribution. The callback is request-local;
+      // it does not put network data in a durable task or the ordinary audit queue.
+      SigninNetworkSender.Evidence snapshot = SigninNetworkSender.snapshot(session, realm, event);
+      if (session.getTransactionManager().isActive()) {
+        session
+            .getTransactionManager()
+            .enlistAfterCompletion(
+                new AbstractKeycloakTransaction() {
+                  @Override
+                  protected void commitImpl() {
+                    signinNetworkDispatcher.submit(snapshot);
+                  }
+
+                  @Override
+                  protected void rollbackImpl() {}
+                });
+      } else {
+        signinNetworkDispatcher.submit(snapshot);
+      }
+    }
   }
 
   @Override
   public void onEvent(AdminEvent event, boolean includeRepresentation) {
-    log.info("An admin event was fired, realmId: " + event.getAuthDetails().getRealmId());
+    LogRealm realm = logRealm(session.realms().getRealm(event.getRealmId()));
+    if (realm.kind() == LogRealm.Kind.OTHER) {
+      return;
+    }
+
+    AuthDetails auth = Optional.ofNullable(event.getAuthDetails()).orElseGet(AuthDetails::new);
+    RealmModel authRealm =
+        auth.getRealmId() == null ? null : session.realms().getRealm(auth.getRealmId());
+    String username = usernameOf(authRealm, auth.getUserId()).orElse(null);
+
+    Map<String, Object> actor = new LinkedHashMap<>();
+    actor.put("user_id", auth.getUserId());
+    actor.put("username", username);
+    actor.put("client_id", clientIdOf(authRealm, auth.getClientId()));
+    actor.put("realm", authRealm == null ? auth.getRealmId() : authRealm.getName());
+
+    Map<String, Object> adminEvent = new LinkedHashMap<>();
+    adminEvent.put(
+        "operation", event.getOperationType() == null ? null : event.getOperationType().toString());
+    adminEvent.put("resource_type", event.getResourceTypeAsString());
+    adminEvent.put("resource_path", event.getResourcePath());
+    adminEvent.put(
+        "representation",
+        !includeRepresentation
+            ? null
+            : realm.kind() == LogRealm.Kind.EVENT
+                ? AdminRepresentation.forEventRealmLog(event.getRepresentation())
+                : AdminRepresentation.forLog(event.getRepresentation()));
+    adminEvent.put("error", UserEventDetails.safeError(event.getError()));
+    adminEvent.put("actor", actor);
+
+    logEvent(
+        taskMessage(
+            realm.electionEventId(),
+            ADMIN_EVENT_MESSAGE_TYPE,
+            null,
+            auth.getUserId(),
+            realm.tenantId(),
+            username,
+            event.getTime(),
+            Map.of("admin_event", adminEvent)));
   }
 
-  /**
-   * Publishes the event message to the PGMQ queue. The JSON message includes: election_event_id,
-   * message_type, body, user_id, tenant_id, and username.
-   */
-  private void logEvent(
-      String electionEventId,
-      String messageType,
-      String body,
-      String userId,
-      String tenantId,
-      String username) {
+  /** Keycloak gives the client's internal id; the log names the client as administrators do. */
+  private static String clientIdOf(RealmModel realm, String clientInternalId) {
+    if (realm == null || clientInternalId == null) {
+      return clientInternalId;
+    }
+    ClientModel client = realm.getClientById(clientInternalId);
+    return client == null ? clientInternalId : client.getClientId();
+  }
+
+  /** Publishes the event message to the PGMQ queue; see {@link #taskMessage}. */
+  private void logEvent(List<Object> message) {
     log.info("logEvent: start");
-    List<Object> message =
-        taskMessage(electionEventId, messageType, body, userId, tenantId, username);
 
     // Generate a correlation ID.
     String correlationId = UUID.randomUUID().toString();
@@ -174,37 +278,49 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     }
   }
 
-  /** The Celery arguments of the {@code enqueue_electoral_log_event} task. */
+  /**
+   * The Celery arguments of the {@code enqueue_electoral_log_event} task. Its input holds
+   * election_event_id, message_type, body, user_id, tenant_id and username as strings, a missing
+   * one as the string "null" so that the log reader can deserialize it, and event_time_ms, when
+   * Keycloak saw the event in milliseconds since the Unix epoch, as a number.
+   */
   static List<Object> taskMessage(
       String electionEventId,
       String messageType,
       String body,
       String userId,
       String tenantId,
-      String username) {
-    // We make sure variables are not null otherwise log reporting will give an
-    // error when
-    // deserializing
-    electionEventId = Optional.ofNullable(electionEventId).orElse("null");
-    messageType = Optional.ofNullable(messageType).orElse("null");
-    body = Optional.ofNullable(body).orElse("null");
-    userId = Optional.ofNullable(userId).orElse("null");
-    tenantId = Optional.ofNullable(tenantId).orElse("null");
-    username = Optional.ofNullable(username).orElse("null");
+      String username,
+      long eventTimeMs) {
+    return taskMessage(
+        electionEventId, messageType, body, userId, tenantId, username, eventTimeMs, Map.of());
+  }
 
-    // Build message object
-    List<Object> message = new ArrayList<>();
+  /**
+   * As {@link #taskMessage(String, String, String, String, String, String, long)}, with the
+   * optional objects of the input: {@code details} for a user event, {@code admin_event} for an
+   * admin event.
+   */
+  static List<Object> taskMessage(
+      String electionEventId,
+      String messageType,
+      String body,
+      String userId,
+      String tenantId,
+      String username,
+      long eventTimeMs,
+      Map<String, Object> optional) {
+    Map<String, Object> input = new HashMap<>();
+    input.put("election_event_id", Optional.ofNullable(electionEventId).orElse("null"));
+    input.put("message_type", Optional.ofNullable(messageType).orElse("null"));
+    input.put("body", Optional.ofNullable(body).orElse("null"));
+    input.put("user_id", Optional.ofNullable(userId).orElse("null"));
+    input.put("tenant_id", Optional.ofNullable(tenantId).orElse("null"));
+    input.put("username", Optional.ofNullable(username).orElse("null"));
+    input.put("event_time_ms", eventTimeMs);
+    input.putAll(optional);
 
     Map<String, Object> inputObject = new HashMap<>();
-
-    Map<String, String> input = new HashMap<>();
-    input.put("election_event_id", electionEventId);
-    input.put("message_type", messageType);
-    input.put("body", body);
-    input.put("user_id", userId);
-    input.put("tenant_id", tenantId);
-    input.put("username", username);
-
     inputObject.put("input", input);
 
     Map<String, String> annotations = new HashMap<>();
@@ -213,6 +329,7 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     annotations.put("chain", null);
     annotations.put("chord", null);
 
+    List<Object> message = new ArrayList<>();
     message.add(Collections.emptyList());
     message.add(inputObject);
     message.add(annotations);

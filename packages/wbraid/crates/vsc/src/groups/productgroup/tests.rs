@@ -750,3 +750,104 @@ fn test_multi_exp_edge_cases() {
     assert!(E::multi_exp(&two, &[S::one()]).is_err());
     assert!(<[E; 2]>::dist_multi_exp(&[[base, base]], &[]).is_err());
 }
+
+/// The constant-time and variable-time multi-exp overrides must both equal the
+/// naive product, at a size that spans several parallel chunks (the chunk floor
+/// is 64) and crosses dalek's ~190-point Straus/Pippenger switch on the vartime
+/// path — so both the chunking and the algorithm dispatch are exercised.
+#[test]
+fn test_multi_exp_overrides_match_naive_large() {
+    const N: usize = 200;
+    let mut rng = RCtx::get_rng();
+    type E = <RCtx as Context>::Element;
+    type S = <RCtx as Context>::Scalar;
+
+    let bases: Vec<E> = (0..N).map(|_| E::random(&mut rng)).collect();
+    let refs: Vec<&E> = bases.iter().collect();
+    let exponents: Vec<S> = (0..N).map(|_| S::random(&mut rng)).collect();
+
+    let naive = bases
+        .iter()
+        .zip(&exponents)
+        .fold(E::one(), |acc, (b, e)| acc.mul(&b.exp(e)));
+
+    assert_eq!(E::multi_exp(&refs, &exponents).unwrap(), naive);
+    assert_eq!(E::vartime_multi_exp(&refs, &exponents).unwrap(), naive);
+}
+
+/// `vartime_multi_exp` on its degenerate shapes, mirroring `multi_exp`'s.
+#[test]
+fn test_vartime_multi_exp_edge_cases() {
+    let mut rng = RCtx::get_rng();
+    type E = <RCtx as Context>::Element;
+    type S = <RCtx as Context>::Scalar;
+
+    assert_eq!(E::vartime_multi_exp(&[], &[]).unwrap(), E::one());
+
+    let base = E::random(&mut rng);
+    assert_eq!(E::vartime_multi_exp(&[&base], &[S::one()]).unwrap(), base);
+
+    let two = [&base, &base];
+    assert!(E::vartime_multi_exp(&two, &[S::one()]).is_err());
+}
+
+/// The fixed-base batch override must equal a per-scalar `exp`, and — for the
+/// group generator — the dedicated `g_exp`. Sized to span several chunks.
+#[test]
+fn test_exp_many_matches_naive() {
+    use crate::traits::groups::CryptographicGroup;
+    const N: usize = 200;
+    let mut rng = RCtx::get_rng();
+    type E = <RCtx as Context>::Element;
+    type S = <RCtx as Context>::Scalar;
+
+    let exponents: Vec<S> = (0..N).map(|_| S::random(&mut rng)).collect();
+
+    // Arbitrary base: matches a plain per-scalar exp.
+    let base = E::random(&mut rng);
+    let expected: Vec<E> = exponents.iter().map(|s| base.exp(s)).collect();
+    assert_eq!(base.exp_many(&exponents), expected);
+
+    // The generator: matches the fixed-base `g_exp` too.
+    let g = RCtx::generator();
+    let via_g_exp: Vec<E> = exponents
+        .iter()
+        .map(|s| <RCtx as Context>::G::g_exp(s))
+        .collect();
+    assert_eq!(g.exp_many(&exponents), via_g_exp);
+
+    // Empty batch is the empty vector.
+    assert!(base.exp_many(&[]).is_empty());
+}
+
+/// `par_ser` must produce exactly the bytes the sequential `Vec` encoding does,
+/// for fixed-width leaves and their arrays, on both backends — the property the
+/// transcript wiring relies on to keep proofs bit-identical. Includes the empty
+/// and single-element cases and a size that spans several rayon chunks.
+#[test]
+fn test_par_ser_matches_sequential_ristretto() {
+    test_par_ser::<RCtx>();
+}
+
+#[test]
+fn test_par_ser_matches_sequential_p256() {
+    test_par_ser::<PCtx>();
+}
+
+fn test_par_ser<C: Context>() {
+    use crate::utils::serialization::{Serializable, par_ser};
+    let mut rng = C::get_rng();
+    for n in [0usize, 1, 200] {
+        let elems: Vec<C::Element> = (0..n).map(|_| C::Element::random(&mut rng)).collect();
+        assert_eq!(par_ser(&elems), elems.ser(), "element par_ser at N={n}");
+
+        let scalars: Vec<C::Scalar> = (0..n).map(|_| C::Scalar::random(&mut rng)).collect();
+        assert_eq!(par_ser(&scalars), scalars.ser(), "scalar par_ser at N={n}");
+
+        // `[Element; 2]` exercises the array blanket (`Ciphertext` is arrays).
+        let arrays: Vec<[C::Element; 2]> = (0..n)
+            .map(|_| <[C::Element; 2]>::random(&mut rng))
+            .collect();
+        assert_eq!(par_ser(&arrays), arrays.ser(), "array par_ser at N={n}");
+    }
+}

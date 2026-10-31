@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use sequent_core::{
+    election_config::manifest::ConfigurationStamp,
     signatures::ecies_encrypt::EciesKeyPair,
     types::templates::{PrintToPdfOptionsLocal, ReportOptions},
 };
@@ -21,6 +22,11 @@ pub struct PipeConfigBallotImages {
     pub report_options: Option<ReportOptions>,
     pub execution_annotations: Option<HashMap<String, String>>,
     pub acm_key: Option<EciesKeyPair>,
+    /// The signed configuration the event was imported from. Each folder of
+    /// ballot images then gets `report-manifest.json`, the hash manifest of
+    /// its files.
+    #[serde(default)]
+    pub configuration: Option<ConfigurationStamp>,
 }
 
 pub const DEFAULT_MCBALLOT_TITLE: &str = "Ballot images";
@@ -49,6 +55,7 @@ impl PipeConfigBallotImages {
             report_options: None,
             execution_annotations: None,
             acm_key: None,
+            configuration: None,
         }
     }
 }
@@ -68,6 +75,7 @@ impl Default for PipeConfigBallotImages {
             report_options: None,
             execution_annotations: None,
             acm_key: None,
+            configuration: None,
         }
     }
 }

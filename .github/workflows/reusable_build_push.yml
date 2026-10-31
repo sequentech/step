@@ -11,74 +11,54 @@ on:
         description: 'The tag to use for the images'
         required: false
         type: string
+      scope:
+        description: 'Images to build: all, authoring, or architect'
+        required: false
+        type: string
+        default: all
       push:
         description: 'Whether to push the images'
         required: true
         type: boolean
+    secrets:
+      PAT:
+        required: false
+      DOCKERHUB_TOKEN:
+        required: false
+      AWS_ACCESS_KEY_ID_GLOBALDOT:
+        required: false
+      AWS_SECRET_ACCESS_KEY_GLOBALDOT:
+        required: false
+
+permissions:
+  contents: read
 
 jobs:
-  build-and-push:
+  plan:
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Select the requested image scope
+        id: select
+        env:
+          BUILD_SCOPE: ${{ inputs.scope }}
+        run: |
+          matrix=$(python3 .github/scripts/build_image_matrix.py "$BUILD_SCOPE")
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  build-and-push:
+    needs: plan
+    runs-on: ubuntu-24.04
+    environment: release
     timeout-minutes: 360
     strategy:
-      max-parallel: 13
-      matrix:
-        include:
-          - service: keycloak
-            context: packages
-            file: packages/Dockerfile.keycloak
-            build_contexts: |
-              beyond=./beyond
-
-          - service: voting-portal
-            context: packages
-            file: packages/Dockerfile.prod
-            spa_name: "voting-portal"
-
-          - service: admin-portal
-            context: packages
-            file: packages/Dockerfile.prod
-            spa_name: "admin-portal"
-
-          - service: ballot-verifier
-            context: packages
-            file: packages/Dockerfile.prod
-            spa_name: "ballot-verifier"
-
-          - service: results-portal
-            context: packages
-            file: packages/Dockerfile.prod
-            spa_name: "results-portal"
-
-          - service: harvest
-            context: packages
-            file: packages/harvest/Dockerfile.prod
-
-          - service: b4
-            context: packages
-            file: packages/b4/Dockerfile.prod
-
-          - service: braid
-            context: packages
-            file: packages/braid/Dockerfile.prod
-
-          - service: windmill
-            context: packages
-            file: packages/windmill/Dockerfile.prod
-
-          - service: hasura
-            # Build context is the hasura project dir (migrations/metadata live here),
-            # not repo root — Dockerfile COPYs are relative to this path.
-            context: hasura
-            file: packages/Dockerfile.hasura
-
-          - service: loadtesting
-            context: .
-            file: packages/loadtesting/Dockerfile
-
-          # - service: mock_server
-          #   context: packages/e2e/src/mock_server
-          #   file: packages/e2e/src/mock_server/Dockerfile.prod
+      max-parallel: 15
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
 
       fail-fast: false
 
@@ -87,12 +67,12 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Resolve beyond submodule commit
-      if: matrix.service == 'keycloak'
+      if: contains(fromJSON('["keycloak", "delivery-orchestrator", "election-architect"]'), matrix.service)
       id: beyond
       run: echo "sha=$(git rev-parse HEAD:beyond)" >> "$GITHUB_OUTPUT"
 
     - name: Check out beyond submodule
-      if: matrix.service == 'keycloak'
+      if: contains(fromJSON('["keycloak", "delivery-orchestrator", "election-architect"]'), matrix.service)
       uses: actions/checkout@v4
       with:
         repository: sequentech/beyond
@@ -102,8 +82,32 @@ jobs:
         submodules: recursive
         persist-credentials: false
 
+    # The Architect image takes its sources and WASM from this step's
+    # packages/, while its recipe says they are the step the beyond release
+    # pins. Build only when the two packages/ trees are the same tree.
+    - name: Check this step's packages/ is the one beyond pins
+      if: matrix.service == 'election-architect'
+      run: |
+        pinned=$(git -C beyond rev-parse HEAD:step)
+        git fetch --no-tags --depth 1 origin "$pinned"
+        ours=$(git rev-parse HEAD:packages)
+        theirs=$(git rev-parse "$pinned:packages")
+        echo "step $GITHUB_SHA packages $ours; beyond pins step $pinned packages $theirs"
+        test "$ours" = "$theirs"
+
     - name: Set short SHA
       run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c 1-7)" >> $GITHUB_ENV
+
+    # The wizard's core is this step's election-config WASM. `ring` compiles C
+    # for wasm32 and needs the clang the repository's Nix shell provides.
+    - name: Set up Nix
+      if: matrix.service == 'election-architect'
+      uses: cachix/install-nix-action@v25
+
+    - name: Build the election-config WASM
+      if: matrix.service == 'election-architect'
+      working-directory: packages/sequent-core
+      run: nix develop --command ../../.devcontainer/scripts/rebuild-election-config-wasm.sh
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -127,6 +131,7 @@ jobs:
       uses: aws-actions/amazon-ecr-login@v2
 
     - name: Build & Push to ECR
+      id: image
       uses: docker/build-push-action@v6
       with:
         context: ${{ matrix.context }}
@@ -136,8 +141,22 @@ jobs:
           ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
           ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
         cache-from: type=registry,ref=${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:buildcache
-        cache-to: type=registry,ref=${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:buildcache,mode=max
+        cache-to: ${{ inputs.push && format('type=registry,ref={0}/{1}:buildcache,mode=max', vars.AWS_ECR_REGISTRY_GLOBALDOT, matrix.service) || '' }}
+        labels: |
+          org.opencontainers.image.revision=${{ github.sha }}
+          io.sequent.beyond.revision=${{ steps.beyond.outputs.sha }}
         build-contexts: ${{ matrix.build_contexts }}
         build-args: |
           SPA_NAME=${{ matrix.spa_name }}
           FEATURES=${{ matrix.features }}
+          STEP_REVISION=${{ github.sha }}
+
+    - name: Record immutable image provenance
+      if: inputs.push
+      env:
+        IMAGE: ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}
+        DIGEST: ${{ steps.image.outputs.digest }}
+        STEP_COMMIT: ${{ github.sha }}
+        BEYOND_COMMIT: ${{ steps.beyond.outputs.sha }}
+      run: |
+        printf '%s\n' "Image: $IMAGE@$DIGEST" "Step: $STEP_COMMIT" "Beyond: $BEYOND_COMMIT" >> "$GITHUB_STEP_SUMMARY"

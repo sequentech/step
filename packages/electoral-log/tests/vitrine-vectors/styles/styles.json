@@ -1,0 +1,90 @@
+{
+  "description": "The styles value of a vitrine/config/v1 statement, from the digests of the election's ballot styles, and the booth's check of the style it renders.",
+  "spec": "specs/entry.md section 5.2",
+  "vectors": [
+    {
+      "name": "one-style",
+      "description": "One style hashes a list of one digest, and the booth that renders it accepts.",
+      "config": "GnSLf2TgYMTas1KlX5Pyq1rJgnyDj1WwvE00inorUoA=",
+      "hash": "GnSLf2TgYMTas1KlX5Pyq1rJgnyDj1WwvE00inorUoA=",
+      "rendered": "Uuauj4WrmfV08rwqi/Y1uN1FIHDVqJNiRFj9X736Sy4=",
+      "served": [
+        "Uuauj4WrmfV08rwqi/Y1uN1FIHDVqJNiRFj9X736Sy4="
+      ],
+      "styles": [
+        "eyJhcmVhIjoibm9ydGgiLCJjb250ZXN0cyI6WyJtYXlvciIsImNvdW5jaWwtbm9ydGgiXX0="
+      ],
+      "valid": true
+    },
+    {
+      "name": "three-styles",
+      "description": "The digests are sorted and joined, whatever order the application serves them in.",
+      "config": "G9nJK6Phte5Tl700RzG8wAL+zYwOCZgTqNZHKejzezI=",
+      "hash": "G9nJK6Phte5Tl700RzG8wAL+zYwOCZgTqNZHKejzezI=",
+      "rendered": "l8dO5LrT7HmYE3IX8LLIij4+l6QXRbPrYlnYuj0q8+A=",
+      "served": [
+        "Uuauj4WrmfV08rwqi/Y1uN1FIHDVqJNiRFj9X736Sy4=",
+        "l8dO5LrT7HmYE3IX8LLIij4+l6QXRbPrYlnYuj0q8+A=",
+        "+mSNpdBq6Hw7F6I3PvYjt6tasAjm6Om7ONFXHeXjTQQ="
+      ],
+      "styles": [
+        "eyJhcmVhIjoibm9ydGgiLCJjb250ZXN0cyI6WyJtYXlvciIsImNvdW5jaWwtbm9ydGgiXX0=",
+        "eyJhcmVhIjoic291dGgiLCJjb250ZXN0cyI6WyJtYXlvciIsImNvdW5jaWwtc291dGgiXX0=",
+        "eyJhcmVhIjoiY2VudHJlIiwiY29udGVzdHMiOlsibWF5b3IiLCJjb3VuY2lsLWNlbnRyZSJdfQ=="
+      ],
+      "valid": true
+    },
+    {
+      "name": "repeats",
+      "description": "A digest served twice counts once.",
+      "config": "G9nJK6Phte5Tl700RzG8wAL+zYwOCZgTqNZHKejzezI=",
+      "hash": "G9nJK6Phte5Tl700RzG8wAL+zYwOCZgTqNZHKejzezI=",
+      "rendered": "+mSNpdBq6Hw7F6I3PvYjt6tasAjm6Om7ONFXHeXjTQQ=",
+      "served": [
+        "+mSNpdBq6Hw7F6I3PvYjt6tasAjm6Om7ONFXHeXjTQQ=",
+        "Uuauj4WrmfV08rwqi/Y1uN1FIHDVqJNiRFj9X736Sy4=",
+        "+mSNpdBq6Hw7F6I3PvYjt6tasAjm6Om7ONFXHeXjTQQ=",
+        "l8dO5LrT7HmYE3IX8LLIij4+l6QXRbPrYlnYuj0q8+A="
+      ],
+      "valid": true
+    },
+    {
+      "name": "rendered-not-served",
+      "description": "The style the booth renders isn't in the list.",
+      "config": "G9nJK6Phte5Tl700RzG8wAL+zYwOCZgTqNZHKejzezI=",
+      "hash": "6wqXyo3jtCtNUmlg4ZL1AZ88+CLRWP5BTQTqJQswGGU=",
+      "reason": "the ballot style the booth renders isn't in the list served with the config",
+      "rendered": "+mSNpdBq6Hw7F6I3PvYjt6tasAjm6Om7ONFXHeXjTQQ=",
+      "served": [
+        "Uuauj4WrmfV08rwqi/Y1uN1FIHDVqJNiRFj9X736Sy4=",
+        "l8dO5LrT7HmYE3IX8LLIij4+l6QXRbPrYlnYuj0q8+A="
+      ],
+      "valid": false
+    },
+    {
+      "name": "list-short",
+      "description": "The served list leaves a style out, so it doesn't hash to the config's styles.",
+      "config": "G9nJK6Phte5Tl700RzG8wAL+zYwOCZgTqNZHKejzezI=",
+      "hash": "6wqXyo3jtCtNUmlg4ZL1AZ88+CLRWP5BTQTqJQswGGU=",
+      "reason": "the config's ballot styles don't match the list served with it",
+      "rendered": "Uuauj4WrmfV08rwqi/Y1uN1FIHDVqJNiRFj9X736Sy4=",
+      "served": [
+        "Uuauj4WrmfV08rwqi/Y1uN1FIHDVqJNiRFj9X736Sy4=",
+        "l8dO5LrT7HmYE3IX8LLIij4+l6QXRbPrYlnYuj0q8+A="
+      ],
+      "valid": false
+    },
+    {
+      "name": "one-digest-not-hashed",
+      "description": "With one style, styles is the hash of the list, not the style's digest.",
+      "config": "Uuauj4WrmfV08rwqi/Y1uN1FIHDVqJNiRFj9X736Sy4=",
+      "hash": "GnSLf2TgYMTas1KlX5Pyq1rJgnyDj1WwvE00inorUoA=",
+      "reason": "the config's ballot styles don't match the list served with it",
+      "rendered": "Uuauj4WrmfV08rwqi/Y1uN1FIHDVqJNiRFj9X736Sy4=",
+      "served": [
+        "Uuauj4WrmfV08rwqi/Y1uN1FIHDVqJNiRFj9X736Sy4="
+      ],
+      "valid": false
+    }
+  ]
+}

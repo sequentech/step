@@ -64,6 +64,19 @@ pub trait Transport<C: Context> {
     }
 }
 
+/// Extra HTTP headers for requests to the board service itself, never for
+/// presigned storage URLs. An embedder supplies them when the board sits
+/// behind a gateway that wants them (e.g. a platform access token); wbraid
+/// does not interpret them, so b4 stays untrusted and auth-free (§8).
+///
+/// The HTTP transports ask for the headers before every board request, so a
+/// short-lived token stays fresh over a long ceremony. An error is reported
+/// like a failed board request: an outage the caller retries.
+#[async_trait(?Send)]
+pub trait RequestHeaders {
+    async fn headers(&self) -> Result<Vec<(String, String)>>;
+}
+
 /// Opaque, persistable reference to a **staged** message (§6.4).
 ///
 /// Whatever the transport needs to publish the message later without re-sending

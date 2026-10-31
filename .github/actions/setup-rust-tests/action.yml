@@ -6,11 +6,14 @@ name: Set up Rust tests
 description: Install the Rust toolchain, restore Cargo caches, and install native test dependencies
 
 inputs:
+  cache-epoch:
+    description: Explicit compiler-cache reset version
+    default: v1
   cargo-build-name:
     description: Stable name used to isolate the Cargo build cache
     required: true
   cargo-build-path:
-    description: Path to the package Cargo target directory
+    description: Checkout-relative Cargo output directory (exported as CARGO_TARGET_DIR)
     required: true
   cargo-lock-path:
     description: Cargo lockfile used to invalidate the package build cache
@@ -18,42 +21,85 @@ inputs:
   components:
     description: Toolchain components to install (comma-separated)
     required: false
-    default: rustfmt
+    default: rustfmt, clippy
   targets:
     description: Extra compilation targets to install (comma-separated)
     required: false
     default: x86_64-unknown-linux-musl
 
+  profile:
+    description: Cargo profiles compiled by the job
+    default: dev
+  features:
+    description: Cargo feature sets compiled by the job
+    default: default
+  compile-cache:
+    description: The STEP_COMPILE_CACHE repository variable; empty leaves compiled units uncached
+    default: ''
+
 runs:
   using: composite
   steps:
     - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
       with:
         toolchain: 1.96.0
         components: ${{ inputs.components }}
         targets: ${{ inputs.targets }}
 
-    - name: Cache Cargo registry
-      uses: actions/cache@v4
+    - name: Restore compatible compiler units
+      uses: ./.github/actions/setup-rust-cache
       with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-registry-
+        epoch: ${{ inputs.cache-epoch }}
+        name: ${{ inputs.cargo-build-name }}
+        target-dir: ${{ inputs.cargo-build-path }}
+        lockfile: ${{ inputs.cargo-lock-path }}
+        profile: ${{ inputs.profile }}
+        features: ${{ inputs.features }}
+        targets: host,${{ inputs.targets }}
+        compile-cache: ${{ inputs.compile-cache }}
 
-    - name: Cache Cargo build
-      uses: actions/cache@v4
-      with:
-        path: ${{ inputs.cargo-build-path }}
-        key: ${{ runner.os }}-cargo-test-${{ inputs.cargo-build-name }}-${{ hashFiles(inputs.cargo-lock-path) }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-test-${{ inputs.cargo-build-name }}-
+    # Full debug info makes every test binary larger and slower to link; line
+    # tables keep file and line numbers in backtraces. A job's own setting wins.
+    - name: Limit test debug info to line tables
+      shell: bash
+      run: |
+        if [ -z "${CARGO_PROFILE_DEV_DEBUG:-}" ]; then
+          echo 'CARGO_PROFILE_DEV_DEBUG=line-tables-only' >> "$GITHUB_ENV"
+        fi
+        if [ -z "${CARGO_PROFILE_TEST_DEBUG:-}" ]; then
+          echo 'CARGO_PROFILE_TEST_DEBUG=line-tables-only' >> "$GITHUB_ENV"
+        fi
 
     - name: Install system dependencies
       shell: bash
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev
+
+    - name: Install Core database fixture dependencies
+      if: inputs.cargo-build-name == 'sequent-core'
+      shell: bash
+      run: sudo apt-get install -y postgresql libpq-dev
+
+    # Enforce the first production-module policy; test assertions are unrestricted.
+    # Existing crate-wide lint debt remains tracked in meta #11566.
+    - name: Check Sequent Core assurance lints
+      if: inputs.cargo-build-name == 'sequent-core'
+      shell: bash
+      working-directory: packages
+      env:
+        CARGO_BUILD_JOBS: '2'
+      run: cargo clippy --locked --no-deps --lib -p sequent-core --features default_features,keycloak
+
+    - name: Install the local PDF test browser
+      if: inputs.cargo-build-name == 'velvet'
+      uses: ./.github/actions/setup-test-browser
+
+    - name: Bound PDF test concurrency
+      if: inputs.cargo-build-name == 'velvet'
+      shell: bash
+      run: |
+        echo 'RUST_TEST_THREADS=2' >> "$GITHUB_ENV"
+        echo 'RAYON_NUM_THREADS=2' >> "$GITHUB_ENV"
+        echo 'DOC_RENDERER_BACKEND=inplace' >> "$GITHUB_ENV"

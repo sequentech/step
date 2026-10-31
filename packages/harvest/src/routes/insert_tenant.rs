@@ -2,13 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
+use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
@@ -33,7 +36,13 @@ pub struct CreateTenantOutput {
 pub async fn insert_tenant(
     body: Json<CreateTenantInput>,
     claims: JwtClaims,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<CreateTenantOutput>, (Status, String)> {
+    activity.record(
+        &claims,
+        TenantAction::CreateTenant,
+        json!({"slug": body.slug}),
+    );
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let executer_name = claims
         .name
@@ -75,6 +84,7 @@ pub async fn insert_tenant(
             id.clone(),
             body.slug.clone(),
             Some(task_execution.clone()),
+            Some(audit::actor(&claims)),
         ))
         .await;
 

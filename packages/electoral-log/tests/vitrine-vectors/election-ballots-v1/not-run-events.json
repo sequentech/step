@@ -1,0 +1,86 @@
+{
+  "description": "No events log is followed: after-close and count report not-run, and the rules on the ballots log alone still run.",
+  "params": {
+    "election-ids": [
+      "mayor",
+      "council"
+    ],
+    "event-id": "muni-2026"
+  },
+  "policy": {
+    "opens": 1793001600,
+    "closes": 1793044800
+  },
+  "entries": [
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBNAAAJbXVuaS0yMDI2AAAFbWF5b3IAAAhyZWNlaXZlZAAAIB/CRK8rltAWmhd+JVmvKeBIR0TkuFAdEETXbJ97PPMHAAAIAAAAAGrfCLw=",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBPAAAJbXVuaS0yMDI2AAAHY291bmNpbAAACHJlY2VpdmVkAAAgjvOw18RHbiwKkczFhndAoFSTE7WFNFwdElh8ou0E6fUAAAgAAAAAat8IwQ=="
+  ],
+  "sequenced": [
+    1793001661,
+    1793001666
+  ],
+  "checkpoints": [
+    [
+      2,
+      1793045500
+    ]
+  ],
+  "fields": [
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2026"
+      },
+      {
+        "name": "election_id",
+        "value": "mayor"
+      },
+      {
+        "name": "stage",
+        "value": "received"
+      },
+      {
+        "name": "ballot_id",
+        "value": "1fc244af2b96d0169a177e2559af29e0484744e4b8501d1044d76c9f7b3cf307"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1793001660"
+      }
+    ],
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2026"
+      },
+      {
+        "name": "election_id",
+        "value": "council"
+      },
+      {
+        "name": "stage",
+        "value": "received"
+      },
+      {
+        "name": "ballot_id",
+        "value": "8ef3b0d7c4476e2c0a91ccc5867740a0549313b585345c1d12587ca2ed04e9f5"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1793001665"
+      }
+    ]
+  ],
+  "rules": {
+    "after-close": "not-run",
+    "count": "not-run",
+    "election": "passing",
+    "event": "passing",
+    "in-window": "passing",
+    "on-time": "passing",
+    "one-outcome": "passing",
+    "one-stage": "passing",
+    "received-first": "passing",
+    "vitrine/parse": "passing"
+  }
+}

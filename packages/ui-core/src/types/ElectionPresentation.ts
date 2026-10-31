@@ -41,9 +41,18 @@ export enum EConsolidatedReportPolicy {
 export interface IScheduledEventDates {
     scheduled_at?: string
     stopped_at?: string
+    /**
+     * The IANA zone the date was scheduled in (its `cron_config.timezone`):
+     * the Post's for a Post's own row, the primary for an event-wide one.
+     * Absent on dates published before timezones existed.
+     */
+    timezone?: string
 }
 
 export interface IElectionDates {
+    /** Authenticated current deadline metadata, outside the signed publication. */
+    authoritative_close?: {scheduled_at: string | null; timezone?: string | null}
+
     first_started_at?: string
     last_started_at?: string
     first_paused_at?: string
@@ -67,11 +76,14 @@ export interface IElectionPresentation {
     grace_period_policy?: EGracePeriodPolicy
     grace_period_secs?: number
     initialization_report_generated?: EInitializeReportPolicy
+    initialization_report_policy?: EInitializeReportPolicy | null
     voting_period_end?: EVotingPeriodEnd
     security_confirmation_policy?: ESecurityConfirmationPolicy
     consolidated_report_policy: EConsolidatedReportPolicy
     decline_to_vote_policy?: EDeclineToVotePolicy
     blank_ballots_policy?: EBlankBallotsPolicy
+    /** One of the event's configured timezones; empty uses the primary. */
+    timezone?: string
     voting_screen_back_policy?: IVotingScreenBackPolicy
     // more missing
 }

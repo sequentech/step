@@ -28,6 +28,13 @@ use tracing::{event, info, instrument, Level};
 static SAFE_CHARS_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"[^a-zA-Z0-9._-]").expect("Failed to build safe chars regex"));
 
+fn scoped_export_elections(elections: Vec<ElectionHead>, ids: &[String]) -> Vec<ElectionHead> {
+    elections
+        .into_iter()
+        .filter(|election| ids.contains(&election.id))
+        .collect()
+}
+
 pub const USER_FIELDS: [&str; 9] = [
     "id",
     "email",
@@ -167,7 +174,8 @@ fn get_user_record(
                 .iter()
                 .map(|election: &ElectionHead| match votes_info_map_opt {
                     Some(ref votes_info_map) => match votes_info_map.get(&election.id) {
-                        Some(ref votes_info) => votes_info.last_voted_at.clone(),
+                        Some(ref votes_info) if votes_info.num_votes > 0 => "true".to_string(),
+                        Some(_) => String::new(),
                         None => Default::default(),
                     },
                     None => Default::default(),
@@ -183,7 +191,20 @@ fn get_user_record(
 pub async fn export_users_file(
     hasura_transaction: &Transaction<'_>,
     body: ExportBody,
+    permitted_election_ids: Option<&[String]>,
 ) -> Result<TempPath> {
+    if matches!(
+        &body,
+        ExportBody::Users {
+            election_event_id: Some(_),
+            ..
+        }
+    ) && permitted_election_ids.is_none()
+    {
+        return Err(Error::String(
+            crate::services::participation_authorization::REAUTHORIZE_PARTICIPATION.into(),
+        ));
+    }
     let realm = match &body {
         ExportBody::Users {
             tenant_id,
@@ -218,6 +239,8 @@ pub async fn export_users_file(
             )
             .await
             .with_context(|| "Error retrieving elections for the event")?;
+            let elections =
+                scoped_export_elections(elections, permitted_election_ids.unwrap_or_default());
 
             let areas_by_id = get_areas_by_id(
                 &hasura_transaction,
@@ -333,6 +356,7 @@ pub async fn export_users_file(
             email_verified: None,
             sort: None,
             has_voted: None,
+            permitted_election_ids: permitted_election_ids.map(<[String]>::to_vec),
             authorized_to_election_alias: None,
         };
 
@@ -551,4 +575,37 @@ mod tests {
         assert!(record[index].contains("second-secret"));
         assert!(!record[index].contains("seqenc:"));
     }
+}
+#[test]
+fn privacy_csv_has_only_authorized_elections_and_no_hidden_participation() {
+    let all = ["north", "south", "new-after-authorization"]
+        .into_iter()
+        .map(|id| ElectionHead {
+            id: id.into(),
+            name: id.into(),
+            alias: None,
+            external_id: None,
+        })
+        .collect();
+    let elections = Some(scoped_export_elections(all, &["north".into()]));
+    let user = User {
+        username: Some("voter".into()),
+        votes_info: Some(vec![sequent_core::types::keycloak::VotesInfo {
+            election_id: "south".into(),
+            num_votes: 1,
+            last_voted_at: String::new(),
+        }]),
+        ..Default::default()
+    };
+    let headers = get_headers(&elections, &vec![]);
+    let record = get_user_record(&elections, &None, &user, &vec![]);
+    assert_eq!(headers.last().unwrap(), "election__north");
+    assert_eq!(record.last().unwrap(), "");
+    assert!(!headers
+        .iter()
+        .any(|value| value.contains("south") || value.contains("new-after")));
+    let empty = Some(scoped_export_elections(elections.unwrap(), &[]));
+    assert!(!get_headers(&empty, &vec![])
+        .iter()
+        .any(|value| value.starts_with("election__")));
 }

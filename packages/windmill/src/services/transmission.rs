@@ -72,7 +72,7 @@ pub async fn get_transmission_data_from_tally_session_by_area(
     Ok(tally_session_data)
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ServerData {
     pub server_code: String,
     pub transmitted: String,
@@ -180,4 +180,109 @@ pub async fn get_transmission_servers_data(
         total_not_transmitted,
         last_date_transmitted: last_date_transmitted.unwrap_or("".to_string()),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn area() -> Area {
+        serde_json::from_value(json!({
+            "id": "area",
+            "tenant_id": "tenant",
+            "election_event_id": "event",
+            "annotations": {
+                "miru:area-ccs-servers": json!([
+                    {"name": "CCS Manila (SBOC)", "tag": "ccs-manila", "address": "https://ccs.invalid", "public_key_pem": "", "send_logs": false},
+                    {"name": "Central Server", "tag": "central", "address": "https://central.invalid", "public_key_pem": "", "send_logs": false},
+                    {"name": "Backup Server", "tag": "backup", "address": "", "public_key_pem": "", "send_logs": false},
+                ]).to_string(),
+                "miru:area-station-id": "90010001",
+                "miru:area-station-name": "SPAIN",
+                "miru:area-threshold": "2",
+                "miru:area-trustee-users": "[]",
+                "miru:area-country": "Spain",
+                "miru:registered-voters": "1250",
+            },
+        }))
+        .unwrap()
+    }
+
+    fn package(sent: serde_json::Value) -> MiruTallySessionData {
+        serde_json::from_value(json!([{
+            "election_id": "election",
+            "area_id": "area",
+            "servers": [],
+            "logs": [],
+            "threshold": 2,
+            "documents": [{
+                "document_ids": {"eml": "eml", "xz": "xz", "all_servers": "all"},
+                "transaction_id": "1",
+                "servers_sent_to": sent,
+                "created_at": "2028-05-09T10:00:00Z",
+                "signatures": [],
+            }],
+        }]))
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn each_destination_says_whether_it_was_sent_and_received_the_er_and_when() {
+        let data = get_transmission_servers_data(
+            &package(json!([
+                {"name": "CCS Manila (SBOC)", "sent_at": "2028-05-09T11:05:00Z", "status": "SUCCESS"},
+                {"name": "Central Server", "sent_at": "2028-05-09T11:06:00Z", "status": "ERROR"},
+            ])),
+            &area(),
+        )
+        .await
+        .unwrap();
+        let statuses: Vec<_> = data
+            .servers
+            .iter()
+            .map(|server| {
+                (
+                    server.server_name.as_str(),
+                    server.transmitted.as_str(),
+                    server.date_transmitted.as_str(),
+                    server.received.as_str(),
+                    server.date_received.as_str(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            statuses,
+            [
+                (
+                    "CCS Manila (SBOC)",
+                    "Transmitted",
+                    "2028-05-09T11:05:00Z",
+                    "Received",
+                    "2028-05-09T11:05:00Z"
+                ),
+                (
+                    "Central Server",
+                    "Transmitted",
+                    "2028-05-09T11:06:00Z",
+                    "Not Received",
+                    ""
+                ),
+                ("Backup Server", "Not Transmitted", "", "Not Received", ""),
+            ]
+        );
+        assert_eq!((data.total_transmitted, data.total_not_transmitted), (2, 1));
+        assert_eq!(data.last_date_transmitted, "2028-05-09T11:06:00Z");
+    }
+
+    #[tokio::test]
+    async fn an_area_without_a_package_has_sent_nothing() {
+        let data = get_transmission_servers_data(&vec![], &area())
+            .await
+            .unwrap();
+        assert!(data.servers.iter().all(
+            |server| server.transmitted == "Not Transmitted" && server.date_received.is_empty()
+        ));
+        assert_eq!((data.total_transmitted, data.total_not_transmitted), (0, 3));
+    }
 }

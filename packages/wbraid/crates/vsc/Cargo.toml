@@ -1,6 +1,6 @@
 [package]
 name = "vsc"
-version = "0.6.2"
+version = "0.6.5"
 license = "Apache-2.0"
 edition = "2024"
 
@@ -10,7 +10,6 @@ curve25519-dalek = {version = "=5.0.0-pre.6", features = ["rand_core", "digest",
 # curve25519-dalek = {version = "4.1.3", features = ["rand_core", "digest", "precomputed-tables"] }
 
 elliptic-curve = { version = "=0.14.0-rc.31" }
-generic-array = "=0.14.7"
 p256 = { version = "=0.14.0-rc.9", features = ["arithmetic", "std", "hash2curve", "group-digest"] }
 # p256 = { version = "0.13.2", features = ["arithmetic", "std", "hash2curve"] }
 
@@ -19,9 +18,10 @@ sha3 = "0.11"
 
 # rng
 rand = { version = "0.10.1", features = ["std"] }
+# Enables wasm_js on getrandom 0.4 for the wasm32 build — it is also reached
+# transitively via rand, crypto-bigint and crypto-common, and Cargo unifies the
+# feature across all of them.
 getrandom = { version = "0.4.2", features = ["wasm_js"] }
-# getrandom 0.3.4 is used by some dependencies, need js feature for WASM
-getrandom_v03 = { package = "getrandom", version = "0.3.4", features = ["wasm_js"] }
 
 # signatures
 ed25519-dalek = {version = "=3.0.0-pre.6", features=["rand_core"] }
@@ -32,14 +32,11 @@ base64 = "0.22"
 
 # misc
 thiserror = "1.0.50"
-rayon = { version = "1.10.0", optional = true }
-cfg-if = "1.0.1"
+rayon = "1.10.0"
 
 # serialization
 canonical_derive = { path = "./macros/canonical_derive" }
-serde = { version = "1.0.219", features=["derive"], optional = true}
 
-hex = "0.4.3"
 custom_warning_macro = { path = "../macros/custom_warning_macro" }
 
 # symmetric encryption
@@ -53,21 +50,11 @@ test = true
 name = "cryptography"
 
 [features]
-default = ["client", "server"]
-server = ["dep:rayon"]
-client = []
-# Fold strategy for the shuffle's wide parallel products (see
-# `zkp::shuffle::fold_values`). Off: rayon's recursive `reduce`, the historical
-# behaviour. On: `bounded_combine`, chunked plain loops whose stack use is
-# bounded by a small constant independent of input size and scheduling. The
-# folded values -- and therefore the proofs -- are byte-identical either way;
-# the switch exists so the two implementations can be benchmarked against each
-# other.
-bounded-combine = []
+default = []
 custom-warnings = ["custom_warning_macro/on"]
-serde = ["dep:serde"]
-long_running_tests = []
-wasm = []
+# Wall-clock accumulators per cost category at the stages' outer call sites
+# (utils::profile); examples/targets.rs prints the breakdown. Off: no timers.
+profile = []
 # The benches use the nightly-only libtest harness (#![feature(test)]); this
 # feature keeps them out of stable builds of --all-targets.
 nightly-benches = []
@@ -77,11 +64,21 @@ name = "shuffle"
 harness = true
 required-features = ["nightly-benches"]
 
+# Serial-vs-parallel micro-benchmark for the per-element loops. Criterion
+# (stable), so no nightly-benches gate.
+[[bench]]
+name = "parallel_tradeoff"
+harness = false
+
+# MSM strategy micro-benchmark (naive-parallel vs single/chunked dalek MSM).
+[[bench]]
+name = "msm_strategy"
+harness = false
+
 [dev-dependencies]
-serde = { version = "1.0.219", features=["derive"] }
-bincode = { version = "2.0.1", features=["serde"] }
 wasm-bindgen-test = "0.3"
 proptest = "1"
+criterion = "0.5"
 
 [lints.rustdoc]
 missing_crate_level_docs = "deny"
@@ -98,7 +95,7 @@ private_interfaces = "warn"
 private_bounds = "warn"
 unnameable_types = "warn"
 # https://github.com/taiki-e/cargo-llvm-cov?tab=readme-ov-file#exclude-code-from-coverage
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)', 'cfg(fuzzing)'] }
 
 [lints.clippy]
 missing_docs_in_private_items = "deny"

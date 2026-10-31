@@ -39,3 +39,8 @@ Built with React and TypeScript, integrating with:
 For detailed documentation, see:
 - [Admin Portal Guide](https://docs.sequentech.io/docusaurus/main/docs/admin_portal/)
 - [Developer Documentation](https://docs.sequentech.io/docusaurus/main/docs/developers/Admin-Portal/developers_admin-portal)
+
+## Unit tests
+
+See the [testing guide](../../docs/docusaurus/docs/07-developers/03-development-environment/testing/admin-portal.md)
+for commands, fixtures and coverage scope.

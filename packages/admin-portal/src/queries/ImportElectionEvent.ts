@@ -22,6 +22,7 @@ export const IMPORT_ELECTION_EVENT = gql`
             id
             message
             error
+            problems
             task_execution {
                 id
                 name

@@ -4,6 +4,7 @@
 import React, {useCallback, useRef} from "react"
 import IntlTelInput from "intl-tel-input/react"
 import {Box, InputLabel} from "@mui/material"
+import {canonicalZone} from "@sequentech/ui-core"
 import {data} from "../lib/timezone-countrycode-data"
 
 interface PhoneInputProps {
@@ -41,8 +42,10 @@ const PhoneInput = ({
                     initialCountry: "auto",
                     separateDialCode: true,
                     geoIpLookup: (success, failure) => {
-                        const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-                        let countryCode = data[userTimeZone].toString()
+                        const userTimeZone = canonicalZone(
+                            Intl.DateTimeFormat().resolvedOptions().timeZone || ""
+                        )
+                        let countryCode = data[userTimeZone]?.toString()
                         if (countryCode) {
                             return success(countryCode)
                         }
