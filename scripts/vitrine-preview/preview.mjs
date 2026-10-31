@@ -212,10 +212,10 @@ async function start(c) {
   const webpack = path.join(c.packages, "node_modules/.bin/webpack");
   const nodeOptions = "--openssl-legacy-provider --max-old-space-size=4096";
   if (c.only !== "admin" && !c.dist) {
-    next.votingDev = spawnDetached(c, "voting-portal", webpack, ["serve", "--config", "webpack.config.cjs", "--mode", "development", "--port", String(PORTS.votingDev), "--host", "127.0.0.1", "--no-open"], { NODE_OPTIONS: nodeOptions, PORT: String(PORTS.votingDev) }, path.join(c.packages, "voting-portal"));
+    next.votingDev = spawnDetached(c, "voting-portal", webpack, ["serve", "--config", "webpack.config.cjs", "--mode", "development", "--port", String(PORTS.votingDev), "--host", "127.0.0.1", "--no-open", "--no-client-overlay-warnings"], { NODE_OPTIONS: nodeOptions, PORT: String(PORTS.votingDev) }, path.join(c.packages, "voting-portal"));
   }
   if (c.only !== "voting") {
-    next.adminDev = spawnDetached(c, "admin-portal", webpack, ["serve", "--config", "webpack.config.cjs", "--mode", "development", "--port", String(PORTS.adminDev), "--host", "127.0.0.1", "--no-open"], { NODE_OPTIONS: nodeOptions, PORT: String(PORTS.adminDev) }, path.join(c.packages, "admin-portal"));
+    next.adminDev = spawnDetached(c, "admin-portal", webpack, ["serve", "--config", "webpack.config.cjs", "--mode", "development", "--port", String(PORTS.adminDev), "--host", "127.0.0.1", "--no-open", "--no-client-overlay-warnings"], { NODE_OPTIONS: nodeOptions, PORT: String(PORTS.adminDev) }, path.join(c.packages, "admin-portal"));
   }
   fs.writeFileSync(pidsFile(c), JSON.stringify(next, null, 2));
   console.log(`stand-in:       ${ORIGINS.standin}  (a local stand-in for Step's backend, with a fake Keycloak)`);
