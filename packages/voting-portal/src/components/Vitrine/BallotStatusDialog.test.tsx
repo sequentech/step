@@ -12,7 +12,7 @@ import {ThemeProvider} from "@mui/material/styles"
 import axe from "axe-core"
 import type {ChainResult, TierName, TierResult, TierStatus} from "@vitrine/verify"
 import theme from "../../../../ui-essentials/src/services/theme"
-import {EBallotStatus} from "../../services/vitrine/ballotStatus"
+import {EBallotStatus, EBallotTag} from "../../services/vitrine/ballotStatus"
 import {EReceiptNotice, IReceiptView} from "../../services/vitrine/castReceipt"
 import {clockMinutes} from "../../services/vitrine/statusRows"
 import {BallotStatusDialog, IBallotStatusDialogProps} from "./BallotStatusDialog"
@@ -309,6 +309,19 @@ describe("the Tracking ID in the ballot status dialog", () => {
             GROUPED.split("-").slice(8).join("-"),
         ])
         expect(lines[0].querySelector("b")?.textContent).toBe("FTBE-MHRX")
+    })
+
+    it("tags a verified ballot Cast, and a received one Not cast when it is told so", () => {
+        const {unmount} = renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED)})
+        expect(dialog().textContent).toContain("vitrine.status.tag.cast")
+        unmount()
+        renderDialog({
+            status: EBallotStatus.VERIFIED,
+            view: view(VERIFIED),
+            tag: EBallotTag.NOT_CAST,
+        })
+        expect(dialog().textContent).toContain("vitrine.status.tag.notCast")
+        expect(dialog().textContent).not.toContain("vitrine.status.tag.cast")
     })
 
     it("breaks the full ID into lines of four groups on a phone", () => {

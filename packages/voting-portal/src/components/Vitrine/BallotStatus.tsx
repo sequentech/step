@@ -16,6 +16,7 @@ import {AuthContext} from "../../providers/AuthContextProvider"
 import {
     ballotStatusOf,
     EBallotStatus,
+    EBallotTag,
     EStatusStep,
     EStepState,
     STATUS_STEPS,
@@ -196,6 +197,8 @@ export interface IBallotStatusProps {
     /** Given when the ballot isn't cast yet; otherwise it comes from the receipt. */
     status?: EBallotStatus
     view?: IReceiptView
+    /** The dialog's tag, when the status doesn't tell it. */
+    tag?: EBallotTag
     ballotId: string
     electionName?: string
     castAt?: string
@@ -213,6 +216,7 @@ export const BallotStatus: React.FC<IBallotStatusProps> = ({
     trigger,
     status: given,
     view,
+    tag,
     ballotId,
     electionName,
     castAt,
@@ -241,6 +245,7 @@ export const BallotStatus: React.FC<IBallotStatusProps> = ({
                 onClose={() => setOpen(false)}
                 status={status}
                 view={view}
+                tag={tag}
                 ballotId={ballotId}
                 electionName={electionName}
                 castAt={castAt}

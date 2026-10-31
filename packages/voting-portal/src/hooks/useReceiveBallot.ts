@@ -186,6 +186,9 @@ export const useReceiveBallot = ({
             // receipt (or an acceptable promise) for the `received` entry checks.
             // A queued entry, or a log that cannot be reached, leaves the ballot
             // box's own signature, checked above, and the log is asked again.
+            // The check then goes on while the review screen is open: the
+            // received ballot climbs to witnesses and anchors, as a cast one
+            // does, and keeps its Not cast tag.
             if (transparency && transparency.mode !== ETransparencyMode.DISABLED) {
                 const digest = trackingId && (await trackingDigestHex(trackingId))
                 if (!digest) {
@@ -204,7 +207,6 @@ export const useReceiveBallot = ({
                         context: () => voterContextFor(client, eventId, electionId),
                         forward: voterForward(client, eventId),
                         signal: controller.signal,
-                        checkOnly: true,
                         onChecked: resolve,
                         onView: setView,
                     }).then(() => resolve(EStageCheck.FAILED))

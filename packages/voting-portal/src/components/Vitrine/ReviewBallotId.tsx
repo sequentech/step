@@ -117,6 +117,7 @@ export const ReviewBallotId: React.FC<IReviewBallotIdProps> = ({
                     <BallotStatus
                         trigger={EBallotStatusTrigger.ICON}
                         {...(view ? {view} : {status: EBallotStatus.NOT_CAST})}
+                        tag={EBallotTag.NOT_CAST}
                         ballotId={ballotId}
                         electionName={electionName}
                         strokeWidth={HEAVY_DOTS}

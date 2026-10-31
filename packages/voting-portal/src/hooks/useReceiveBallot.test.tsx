@@ -332,8 +332,8 @@ describe("with transparency on", () => {
                 ballotId: "ab".repeat(32),
             },
             transparency,
-            checkOnly: true,
         })
+        expect(mockRunCastReceipt.mock.calls[0][0]).not.toHaveProperty("checkOnly")
         expect(result.current.trackingId).toBe("FTBE-MHRX-0123-4567")
     })
 

@@ -134,7 +134,7 @@ export interface ICastReceiptOptions extends IReceiptRunOptions {
     /** Called once, when the answer has been checked and before any upgrade. */
     onChecked?: (check: EStageCheck) => void
     /** Stops after the check, but for asking the log for a receipt it queued:
-     * the stages before the cast, whose upgrades belong to the confirmation. */
+     * a cast or an audit, whose upgrades belong to the screen that follows. */
     checkOnly?: boolean
 }
 

@@ -531,6 +531,9 @@ export interface IBallotStatusDialogProps {
     status: EBallotStatus
     /** The receipt this status comes from; none before the ballot is cast. */
     view?: IReceiptView
+    /** The tag, when the status doesn't tell it: a ballot received at review
+     * climbs the same checks as a cast one, and is still not cast. */
+    tag?: EBallotTag
     ballotId: string
     electionName?: string
     /** When the ballot was cast, or audited, as the voter reads it. */
@@ -548,6 +551,7 @@ export const BallotStatusDialog: React.FC<IBallotStatusDialogProps> = ({
     onClose,
     status,
     view,
+    tag,
     ballotId,
     electionName,
     castAt,
@@ -613,7 +617,7 @@ export const BallotStatusDialog: React.FC<IBallotStatusDialogProps> = ({
                         {meta}
                     </Box>
                 ) : null}
-                <IdBox ballotId={ballotId} tag={ballotTagOf(status)} phone={phone} />
+                <IdBox ballotId={ballotId} tag={tag ?? ballotTagOf(status)} phone={phone} />
                 <Headline status={status} head={tr(headline.head)} sub={tr(headline.sub)} />
                 <Steps rows={rows} tr={tr} />
                 {status === EBallotStatus.LATE ? (
