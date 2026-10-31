@@ -37,4 +37,4 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/release-tools" --ignore-scripts --no-audit --no-fund release-it@16.2.1
           echo "$RUNNER_TEMP/release-tools/node_modules/.bin" >> "$GITHUB_PATH"
       - name: Test tags against local Git remotes
-        run: python3 .github/scripts/test_release_explicit_version.py
+        run: python3 .github/scripts/integration_release_explicit_version.py
