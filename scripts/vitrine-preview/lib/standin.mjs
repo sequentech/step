@@ -14,12 +14,11 @@
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import crypto from "node:crypto";
 import { Executor, GraphQLError, Schema, Tables } from "./graphql.mjs";
 import { FakeKeycloak, claimsOf } from "./keycloak.mjs";
-import { ADMIN_ID, AREA_ID, TENANT_ID, VOTER_ID, VOTER_USERNAME, ballotStyleText, eventPresentation, styleDigests, tables as fixtureTables, PORTAL_RELEASE } from "./fixtures.mjs";
+import { ADMIN_ID, AREA_ID, TENANT_ID, VOTER_ID, VOTER_USERNAME, ballotBox as fixtureBallotBox, ballotStyleText, eventPresentation, styleDigests, tables as fixtureTables, PORTAL_RELEASE } from "./fixtures.mjs";
 import { voterContext } from "./events.mjs";
-import { electionEntry, judge, stepBallotId, unavailable } from "./vitrine.mjs";
+import { createBallotBox } from "./ballot-box.mjs";
 import { AUDITED_BALLOT } from "./audited-ballot.mjs";
 
 const MAX_BODY = 8 << 20;
@@ -59,9 +58,8 @@ export function createStandIn({ live, sidecar, origin, stepPackages, electionId,
   const release = PORTAL_RELEASE(version);
   const db = new Tables();
   for (const [name, rows] of Object.entries(fixtureTables({ live, electionId, policyNote, text }))) db.table(name).push(...rows);
-  const casts = new Map();
   const permissions = adminPermissions(stepPackages);
-  const state = { casts: 0, problems: [], lastContext: undefined };
+  const state = { lastContext: undefined };
 
   const keycloak = new FakeKeycloak({
     origin,
@@ -86,99 +84,20 @@ export function createStandIn({ live, sidecar, origin, stepPackages, electionId,
     },
   });
 
-  // -- Casting ------------------------------------------------------------------
+  // -- The ballot box ---------------------------------------------------------------
 
-  /** `insert_cast_vote`: what Step's Windmill and Harvest do, in order. */
-  async function insertCastVote({ election_id: castElection, ballot_id: ballotId, content }, ctx) {
-    const voter = ctx.claims?.sub ?? VOTER_ID;
-    if (castElection !== electionId) throw new GraphQLError(`election ${castElection} is not open for voting here`, "validation-failed");
-    let computed;
-    try {
-      computed = stepBallotId(content);
-    } catch (e) {
-      log(`cast: couldn't recompute the ballot ID (${e.message}); keeping the portal's`);
-    }
-    if (computed && computed !== ballotId) throw new GraphQLError("the ballot_id doesn't match the ballot", "validation-failed");
-    const held = casts.get(ballotId);
-    if (held && held.voter_id_string === voter) return held;
-    const now = Math.floor(Date.now() / 1000);
-    const entry = electionEntry({ eventId: live.eventId, electionId, ballotId, acceptedAt: now });
-    let vitrine;
-    try {
-      const answer = await sidecar.add(live.ballots, entry, BOOTH_BUDGET_MS, CAST_BUDGET_MS);
-      vitrine = judge(answer.status, answer.body, entry);
-    } catch (e) {
-      log(`cast: the ballots log didn't answer (${e.message})`);
-      vitrine = unavailable(entry, "log-unavailable");
-    }
-    const ts = new Date(now * 1000).toISOString();
-    const row = {
-      id: crypto.randomUUID(),
-      ballot_id: ballotId,
-      election_id: electionId,
-      election_event_id: live.eventId,
-      tenant_id: TENANT_ID,
-      area_id: AREA_ID,
-      created_at: ts,
-      last_updated_at: ts,
-      labels: null,
-      annotations: null,
-      content,
-      cast_ballot_signature: null,
-      voter_id_string: voter,
-      status: "valid",
-      vitrine,
-    };
-    casts.set(ballotId, row);
-    db.table("sequent_backend_cast_vote").push(row);
-    state.casts += 1;
-    log(`cast: ballot ${ballotId.slice(0, 12)}... accepted at ${now}; the log answered ${vitrine.kind}${vitrine.reason ? ` (${vitrine.reason})` : ""}`);
-    tamper?.remember?.({ ballotId, entry, acceptedAt: now });
-    return row;
-  }
-
-  // -- The audited ballot --------------------------------------------------------
-  // Step's backend doesn't publish audited ballots. This stand-in does, for one:
-  // it records the ballot's ID in the ballots log, as a cast would be, and
-  // answers the tracker's lookup by that ID with the ballot itself, so the
-  // tracker finds it, checks its receipt and decodes it.
-
-  let auditedRow;
-
-  async function recordAuditedBallot() {
-    const ballot = AUDITED_BALLOT;
-    if (ballot.config?.election_id !== electionId || ballot.config?.election_event_id !== live.eventId) {
-      log("audited ballot: it is for another election; not recorded");
-      return;
-    }
-    const now = Math.floor(Date.now() / 1000);
-    const entry = electionEntry({ eventId: live.eventId, electionId, ballotId: ballot.ballot_hash, acceptedAt: now });
-    let answered;
-    try {
-      const answer = await sidecar.add(live.ballots, entry, BOOTH_BUDGET_MS, CAST_BUDGET_MS);
-      answered = judge(answer.status, answer.body, entry).kind;
-    } catch (e) {
-      answered = `no answer (${e.message})`;
-    }
-    const ts = new Date(now * 1000).toISOString();
-    auditedRow = {
-      id: crypto.randomUUID(),
-      ballot_id: ballot.ballot_hash,
-      election_id: electionId,
-      election_event_id: live.eventId,
-      tenant_id: TENANT_ID,
-      area_id: AREA_ID,
-      created_at: ts,
-      last_updated_at: ts,
-      labels: null,
-      annotations: null,
-      content: JSON.stringify(ballot),
-      cast_ballot_signature: null,
-      voter_id_string: VOTER_ID,
-      status: "valid",
-    };
-    log(`audited ballot: ${ballot.ballot_hash.slice(0, 12)}... recorded at ${now}; the log answered ${answered}`);
-  }
+  const ballotBox = createBallotBox({
+    live,
+    sidecar,
+    electionId,
+    ids: { tenantId: TENANT_ID, areaId: AREA_ID, voterId: VOTER_ID },
+    box: fixtureBallotBox,
+    audited: AUDITED_BALLOT,
+    rows: db.table("sequent_backend_cast_vote"),
+    log,
+    tamper,
+  });
+  const voterOf = (ctx) => ctx.claims?.sub ?? VOTER_ID;
 
   // -- The published ballot data ------------------------------------------------------
   // The voting portal downloads the event, the elections and each ballot style
@@ -273,20 +192,17 @@ export function createStandIn({ live, sidecar, origin, stepPackages, electionId,
     async root(kind, field, args, ctx) {
       switch (field) {
         case "insert_cast_vote":
-          return insertCastVote(args, ctx);
-        case "get_voter_cast_votes": {
-          // The ballot tracker asks for a ballot by its ID, or by the prefix of a short ID.
-          const voter = ctx.claims?.sub ?? VOTER_ID;
-          const prefix = args.ballot_id_prefix?.toLowerCase();
-          const named = Boolean(args.ballot_id || prefix);
-          return [...casts.values(), ...(named && auditedRow ? [auditedRow] : [])].filter(
-            (c) =>
-              c.voter_id_string === voter &&
-              (!args.election_id || c.election_id === args.election_id) &&
-              (!args.ballot_id || c.ballot_id === args.ballot_id) &&
-              (!prefix || c.ballot_id.startsWith(prefix)),
-          );
-        }
+          return ballotBox.insert(args, voterOf(ctx));
+        case "receive_ballot":
+          return ballotBox.receive(args, voterOf(ctx));
+        case "cast_ballot":
+          return ballotBox.cast(args, voterOf(ctx));
+        case "audit_ballot":
+          return ballotBox.audit(args, voterOf(ctx));
+        case "locate_ballot":
+          return ballotBox.locate(voterOf(ctx), args.ballot_id);
+        case "get_voter_cast_votes":
+          return ballotBox.castVotes(voterOf(ctx), args);
         case "get_ballot_files_urls":
           return publication();
         case "vitrine_voter_context":
@@ -300,7 +216,7 @@ export function createStandIn({ live, sidecar, origin, stepPackages, electionId,
         case "list_cast_vote_messages":
           return { list: [], total: 0 };
         case "getElectionEventStats":
-          return { total_areas: 1, total_distinct_voters: new Set([...casts.values()].map((c) => c.voter_id_string)).size, total_elections: 1, total_eligible_voters: 1, voters_by_channel: [], votes_per_day: [] };
+          return { total_areas: 1, total_distinct_voters: new Set(db.table("sequent_backend_cast_vote").map((c) => c.voter_id_string)).size, total_elections: 1, total_eligible_voters: 1, voters_by_channel: [], votes_per_day: [] };
         case "list_keys_ceremony":
         case "get_top_votes_by_ip":
           return { items: [], total: { aggregate: { count: 0 } } };
@@ -359,8 +275,7 @@ export function createStandIn({ live, sidecar, origin, stepPackages, electionId,
           event: live.eventId,
           election: electionId,
           release,
-          casts: state.casts,
-          auditedBallot: auditedRow?.ballot_id ?? null,
+          ballotBox: ballotBox.stats(),
           boothContext: state.lastContext ?? null,
           tamper: tamper?.status?.() ?? null,
         });
@@ -374,7 +289,7 @@ export function createStandIn({ live, sidecar, origin, stepPackages, electionId,
   });
 
   server.once("listening", () => {
-    recordAuditedBallot().catch((e) => log(`audited ballot: ${e.message}`));
+    ballotBox.recordAudited().catch((e) => log(`audited ballot: ${e.message}`));
   });
 
   return { server, state, db, style, text, release, electionId };
