@@ -217,18 +217,12 @@ async fn forensic_detail_requires_an_exact_ip_address_before_querying_storage()
 }
 
 #[test]
-fn received_only_admin_proof_is_pending_without_exposing_uncast_ballots_to_voters(
+fn received_and_audited_ballots_are_in_the_public_log_and_their_proofs_are_open_to_voters(
 ) {
     use electoral_log::adapters::ballot_box_received::ReceivedStatus;
     for status in [ReceivedStatus::Received, ReceivedStatus::Audited] {
-        assert!(ensure_proof_receipt_visible(false, status).is_ok());
         assert_eq!(proof_channel(status, None).unwrap(), "");
-        assert_eq!(
-            ensure_proof_receipt_visible(true, status).unwrap_err().0,
-            Status::NotFound
-        );
     }
-    assert!(ensure_proof_receipt_visible(true, ReceivedStatus::Cast).is_ok());
     assert_eq!(
         proof_channel(ReceivedStatus::Cast, Some("online".into())).unwrap(),
         "online"
@@ -354,7 +348,7 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
             .await
             .unwrap()
             .unwrap();
-        let ballot_id = signed_private_ballot(
+        let (ballot_key, ballot_id) = signed_private_ballot(
             &store,
             &event.tenant_id,
             &event.election_event_id,
@@ -376,7 +370,7 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
             .roles([VoterPermissions::CAST_VOTE]);
         // A second accepted ballot is still pending log publication. Public
         // pagination and the private own view must both reflect durable casts.
-        let second_ballot = signed_private_ballot(
+        let (_, second_ballot) = signed_private_ballot(
             &store,
             &event.tenant_id,
             &event.election_event_id,
@@ -450,13 +444,16 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
         let first = post(&client, "/ballot-box-log", &ordinary, &paged).await;
         assert_eq!(first.status(), Status::Ok);
         let first: Value = first.into_json().await.unwrap();
-        assert_eq!(first["payload"]["ballots"][0]["ballot_id"], second_ballot);
+        assert_eq!(
+            first["payload"]["ballots"][0]["tracking_id"],
+            second_ballot
+        );
         paged["cursor"] = first["payload"]["next_cursor"].clone();
         assert!(paged["cursor"].is_string());
         let next = post(&client, "/ballot-box-log", &ordinary, &paged).await;
         assert_eq!(next.status(), Status::Ok);
         let next: Value = next.into_json().await.unwrap();
-        assert_eq!(next["payload"]["ballots"][0]["ballot_id"], ballot_id);
+        assert_eq!(next["payload"]["ballots"][0]["tracking_id"], ballot_id);
         assert!(next["payload"]["next_cursor"].is_null());
         assert_public_rejections(
             &client, &event, &ordinary, &scope, &area, &election, &code,
@@ -700,7 +697,7 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
                         event_kind: "cast",
                         delivery_id: &format!("forensic-fixture-{index}"),
                         pseudonym,
-                        ballot_id: Some(&ballot_id),
+                        ballot_id: Some(&ballot_key),
                         ip: "198.51.100.7",
                         country: Some("ES"),
                         user_agent: Some("synthetic-forensic-agent"),
@@ -1131,7 +1128,7 @@ async fn signed_private_ballot(
     authority_key: &voting_crypto::signing::SigningKey,
     receipt_key: &voting_crypto::signing::SigningKey,
     publish: bool,
-) -> String {
+) -> (String, String) {
     use chrono::Utc;
     use electoral_log::adapters::ballot_box::{
         AcceptBallot, AcceptOutcome, AcceptReceived, BallotStatus,
@@ -1147,7 +1144,7 @@ async fn signed_private_ballot(
     let election = election.to_owned();
     let area = area.to_owned();
     let pseudonym = pseudonym.to_owned();
-    let result: anyhow::Result<String> = async {
+    let result: anyhow::Result<(String, String)> = async {
         let voter_key = SigningKey::generate()?;
         let published_key =
             ballot_box_key(&VerificationKey::from_sk(&receipt_key)?)?;
@@ -1235,6 +1232,7 @@ async fn signed_private_ballot(
             ReceiveOutcome::Received(ballot) => ballot,
             outcome => anyhow::bail!("Unexpected receive outcome {outcome:?}"),
         };
+        let tracking = tracking_id(&ballot_hash, Some(&voter_pk))?;
         let cast_signature =
             sign_cast_statement(&voter_key, &election, &received.ballot_id)?;
         let cast_receipt = sign_cast_receipt(
@@ -1286,7 +1284,7 @@ async fn signed_private_ballot(
         assert!(matches!(outcome, AcceptOutcome::Accepted { .. }));
 
         if !publish {
-            return Ok(received.ballot_id);
+            return Ok((received.ballot_id, tracking));
         }
         let queued = store.pending_received_ballots(&event, 10).await?;
         let received = store
@@ -1320,7 +1318,7 @@ async fn signed_private_ballot(
             .remove_pending_received(&event, &[queued[0].id])
             .await?;
         store.remove_pending(&event, &[pending[0].seq]).await?;
-        Ok(received.ballot_id)
+        Ok((received.ballot_id, tracking))
     }
     .await;
     result.unwrap()

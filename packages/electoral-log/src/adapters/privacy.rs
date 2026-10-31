@@ -613,24 +613,55 @@ pub(crate) async fn record_forensic_in(
     Ok(row.is_some())
 }
 
-/// A row safe to send to any authorized viewer of this event/election/area.
+/// A row safe to send to any authorized viewer of this event/election/area: one
+/// ballot, at the last step the public log has for it.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PrivacyBallotRow {
     pub election_id: String,
-    pub ballot_id: String,
+    /// The full Tracking ID, computed from the stored ballot and never stored.
+    pub tracking_id: String,
     pub pseudonym: String,
-    pub cast_at: String,
+    /// `received`, `cast` or `audited`.
+    pub stage: String,
+    /// When the ballot reached that stage.
+    pub last_step_at: String,
+    /// Empty until the ballot is cast.
     pub voting_channel: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Where a page of the log continues: the last step of the last row shown and
+/// the ballot's own ID, which breaks ties.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrivacyBallotCursor {
+    pub at: DateTime<Utc>,
+    pub id: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct PrivacyBallotPage {
     pub ballots: Vec<PrivacyBallotRow>,
-    /// Sequence cursor; the API must bind it to the authorized query scope.
-    pub next_cursor: Option<i64>,
+    /// The API must bind it to the authorized query scope.
+    pub next_cursor: Option<PrivacyBallotCursor>,
+    /// Ballots matching the search, either way; `None` without a search.
     pub match_count: Option<i64>,
     pub match_count_capped: bool,
+    /// With both searched, how many match by Tracking ID and by pseudonym.
+    pub tracking_matches: Option<i64>,
+    pub pseudonym_matches: Option<i64>,
 }
+
+/// What to look for. A search with neither matches no ballot.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PrivacyBallotSearch<'a> {
+    /// The start of a stored pseudonym: `K7QM-2X`.
+    pub pseudonym: Option<&'a str>,
+    /// The start of a Tracking ID, in groups of four.
+    pub tracking_id: Option<&'a str>,
+}
+
+/// The Tracking ID of a stored ballot, from its hash and the voter's key. The
+/// crate that defines it depends on this one, so the caller supplies it.
+pub type TrackingIdOf = fn(ballot_hash: &str, voter_signing_pk: &str) -> Option<String>;
 
 /// The area is mandatory. Election visibility must be checked by the caller;
 /// omit election only if every election in that area is authorized.
@@ -640,34 +671,165 @@ pub struct PrivacyBallotQuery<'a> {
     pub area: &'a str,
     pub election: Option<&'a str>,
     pub elections: Option<&'a [String]>,
-    pub prefix: Option<&'a str>,
-    pub before: Option<i64>,
+    pub search: Option<PrivacyBallotSearch<'a>>,
+    pub before: Option<PrivacyBallotCursor>,
     pub limit: i64,
+    pub tracking_id: TrackingIdOf,
 }
 
-fn search_prefix(input: &str) -> Result<String> {
-    let compact = input.trim().to_ascii_uppercase().replace('-', "");
-    ensure!(
-        compact.len() <= 8 && compact.bytes().all(|b| ALPHABET.contains(&b)),
-        "Invalid ballot code prefix"
-    );
-    Ok(if compact.len() > 4 {
-        format!("{}-{}", &compact[..4], &compact[4..])
-    } else {
-        compact
-    })
+/// Matches counted, and ballots a search keeps looking for, before it answers capped.
+const MATCH_CAP: i64 = 10_000;
+/// Ballots read at a time while looking for Tracking IDs, which are computed.
+const TRACKING_SCAN_CHUNK: i64 = 2_000;
+
+const LAST_STEP: &str = "COALESCE(r.cast_at, r.audited_at, r.received_at)";
+// A cast ballot is listed when its ballot is accepted and valid; the others, never cast
+// or never to be, have no ballot of their own.
+const PRIVACY_BALLOT_FROM: &str = "ballot_box_received r LEFT JOIN ballot_box_ballot b
+    ON b.election_event_id = r.election_event_id AND b.ballot_id = r.ballot_hash
+    AND b.election_id = r.election_id AND b.voter_id = r.voter_id AND b.status = 'valid'";
+const PRIVACY_BALLOT_SCOPE: &str =
+    "r.election_event_id = $1::text::uuid AND r.area_id = $2::text::uuid
+    AND ($3::text IS NULL OR r.election_id = $3::text::uuid)
+    AND ($4::text[] IS NULL OR r.election_id::text = ANY($4))
+    AND (r.status <> 'cast' OR b.seq IS NOT NULL)";
+
+/// What a scan keeps: the rows of one page and how many ballots matched.
+#[derive(Default)]
+struct Scanned {
+    rows: Vec<(PrivacyBallotRow, PrivacyBallotCursor)>,
+    tracking: i64,
+    pseudonym: i64,
+    matched: i64,
 }
 
-const PRIVACY_BALLOT_SCOPE: &str = "b.election_event_id = $1::text::uuid AND b.area_id = $2::text::uuid
-    AND ($3::text IS NULL OR b.election_id = $3::text::uuid)
-    AND ($4::text[] IS NULL OR b.election_id::text = ANY($4)) AND b.status = 'valid' AND r.status = 'cast'";
-const PRIVACY_BALLOT_JOIN: &str = "ballot_box_ballot b JOIN ballot_box_received r
-    ON r.election_event_id = b.election_event_id AND r.ballot_hash = b.ballot_id
-    AND r.election_id = b.election_id AND r.voter_id = b.voter_id";
+fn plain(tracking_id: &str) -> String {
+    tracking_id.chars().filter(|c| *c != '-').collect()
+}
 
 impl PostgresStore {
-    /// A bounded page of accepted ballots, independent of signed-log delivery.
-    /// Search uses separate prefix branches so each can use its code index.
+    /// Read ballots newest last step first from `start`, keeping the first `rows` that
+    /// match the search and, with `count`, counting matches until there are more than
+    /// the cap. A pseudonym-only search is answered by the database; looking for a
+    /// Tracking ID, which is computed, reads every ballot in scope in chunks.
+    async fn scan_privacy_ballots(
+        &self,
+        query: &PrivacyBallotQuery<'_>,
+        start: Option<PrivacyBallotCursor>,
+        rows: usize,
+        count: bool,
+    ) -> Result<Scanned> {
+        let search = query.search.as_ref();
+        let tracking = search.and_then(|search| search.tracking_id).map(plain);
+        let pseudonym = search.and_then(|search| search.pseudonym);
+        let pattern = match (&tracking, pseudonym) {
+            (None, Some(prefix)) => Some(format!("{prefix}%")),
+            _ => None,
+        };
+        let chunk = if tracking.is_some() {
+            TRACKING_SCAN_CHUNK
+        } else {
+            (rows as i64)
+                .max(if count { MATCH_CAP + 1 } else { 0 })
+                .max(1)
+        };
+        let sql = format!(
+            "SELECT r.id::text, r.election_id::text, r.voter_id, r.ballot_hash, r.voter_signing_pk,
+                    r.status, {LAST_STEP}, b.voting_channel
+             FROM {PRIVACY_BALLOT_FROM} WHERE {PRIVACY_BALLOT_SCOPE}
+             AND ($5::text IS NULL OR r.voter_id LIKE $5)
+             AND ($6::timestamptz IS NULL OR ({LAST_STEP}, r.id) < ($6::timestamptz, $7::text::uuid))
+             ORDER BY {LAST_STEP} DESC, r.id DESC LIMIT $8"
+        );
+        let client = self.client().await?;
+        let mut position = start;
+        let mut scanned = Scanned::default();
+        loop {
+            let at = position.as_ref().map(|cursor| cursor.at);
+            let id = position.as_ref().map(|cursor| cursor.id.clone());
+            let fetched = client
+                .query(
+                    &sql,
+                    &[
+                        &query.event,
+                        &query.area,
+                        &query.election,
+                        &query.elections,
+                        &pattern,
+                        &at,
+                        &id,
+                        &chunk,
+                    ],
+                )
+                .await?;
+            for row in &fetched {
+                let id: String = row.try_get(0)?;
+                let pseudonym_of: String = row.try_get(2)?;
+                let last_step: DateTime<Utc> = row.try_get(6)?;
+                position = Some(PrivacyBallotCursor {
+                    at: last_step,
+                    id: id.clone(),
+                });
+                let mut tracking_id = None;
+                let by_tracking = match &tracking {
+                    Some(prefix) => {
+                        tracking_id = (query.tracking_id)(
+                            &row.try_get::<_, String>(3)?,
+                            &row.try_get::<_, String>(4)?,
+                        );
+                        tracking_id
+                            .as_deref()
+                            .is_some_and(|found| plain(found).starts_with(prefix.as_str()))
+                    }
+                    None => false,
+                };
+                let by_pseudonym = pseudonym.is_some_and(|prefix| pseudonym_of.starts_with(prefix));
+                if search.is_some() {
+                    if !by_tracking && !by_pseudonym {
+                        continue;
+                    }
+                    scanned.matched += 1;
+                    scanned.tracking += i64::from(by_tracking);
+                    scanned.pseudonym += i64::from(by_pseudonym);
+                }
+                if scanned.rows.len() < rows {
+                    let tracking_id = match tracking_id {
+                        Some(found) => Some(found),
+                        None => (query.tracking_id)(
+                            &row.try_get::<_, String>(3)?,
+                            &row.try_get::<_, String>(4)?,
+                        ),
+                    };
+                    match tracking_id {
+                        Some(tracking_id) => scanned.rows.push((
+                            PrivacyBallotRow {
+                                election_id: row.try_get(1)?,
+                                tracking_id,
+                                pseudonym: pseudonym_of,
+                                stage: row.try_get(5)?,
+                                last_step_at: last_step.to_rfc3339(),
+                                voting_channel: row
+                                    .try_get::<_, Option<String>>(7)?
+                                    .unwrap_or_default(),
+                            },
+                            position.clone().context("Scan position")?,
+                        )),
+                        None => tracing::warn!("Ballot {id} has no Tracking ID"),
+                    }
+                }
+                if scanned.rows.len() >= rows && (!count || scanned.matched > MATCH_CAP) {
+                    return Ok(scanned);
+                }
+            }
+            if (fetched.len() as i64) < chunk {
+                return Ok(scanned);
+            }
+        }
+    }
+
+    /// A bounded page of the ballots the public log lists, independent of
+    /// signed-log delivery: each received ballot once, at its latest stage. The
+    /// Tracking ID of each is computed from the stored ballot.
     pub async fn privacy_ballot_page(
         &self,
         query: &PrivacyBallotQuery<'_>,
@@ -677,107 +839,72 @@ impl PostgresStore {
             self.ballot_identity(query.event).await? == BallotIdentity::Pseudonym,
             "This event does not use pseudonyms"
         );
-        let prefix = query
-            .prefix
-            .map(search_prefix)
-            .transpose()?
-            .filter(|p| !p.is_empty());
-        let before = query.before.unwrap_or(i64::MAX);
-        let limit = query.limit + 1;
-        let client = self.client().await?;
-        let pattern = prefix.as_ref().map(|prefix| format!("{prefix}%"));
-        let (sql, rows) = if let Some(pattern) = pattern.as_ref() {
-            // Bound each branch before deduplication. An outer LIMIT on UNION
-            // alone would still build a set of every matching ballot.
-            let matches = format!("(SELECT b.seq FROM {PRIVACY_BALLOT_JOIN} WHERE {PRIVACY_BALLOT_SCOPE} AND r.ballot_id LIKE $5 LIMIT 10001)
-                UNION (SELECT b.seq FROM {PRIVACY_BALLOT_JOIN} WHERE {PRIVACY_BALLOT_SCOPE} AND b.voter_id LIKE $5 LIMIT 10001)");
-            let page_matches = format!(
-                "(SELECT b.seq FROM {PRIVACY_BALLOT_JOIN} WHERE {PRIVACY_BALLOT_SCOPE}
-                AND r.ballot_id LIKE $5 AND b.seq < $6 ORDER BY b.seq DESC LIMIT $7)
-                UNION (SELECT b.seq FROM {PRIVACY_BALLOT_JOIN} WHERE {PRIVACY_BALLOT_SCOPE}
-                AND b.voter_id LIKE $5 AND b.seq < $6 ORDER BY b.seq DESC LIMIT $7)"
+        let search = query.search.as_ref();
+        if let Some(search) = search {
+            ensure!(
+                search.pseudonym.into_iter().all(|prefix| {
+                    prefix.len() <= 9 && prefix.bytes().all(|b| b == b'-' || ALPHABET.contains(&b))
+                }),
+                "Invalid pseudonym prefix"
             );
-            let sql = format!("WITH matched AS ({page_matches}) SELECT b.seq, b.election_id::text, r.ballot_id, b.voter_id, b.accepted_at, b.voting_channel
-                 FROM {PRIVACY_BALLOT_JOIN} JOIN matched m ON m.seq = b.seq
-                 WHERE {PRIVACY_BALLOT_SCOPE} AND b.seq < $6 ORDER BY b.seq DESC LIMIT $7");
-            let rows = client
-                .query(
-                    &sql,
-                    &[
-                        &query.event,
-                        &query.area,
-                        &query.election,
-                        &query.elections,
-                        &pattern,
-                        &before,
-                        &limit,
-                    ],
-                )
-                .await?;
-            (Some(matches), rows)
-        } else {
-            let sql = format!("SELECT b.seq, b.election_id::text, r.ballot_id, b.voter_id, b.accepted_at, b.voting_channel
-                 FROM {PRIVACY_BALLOT_JOIN} WHERE {PRIVACY_BALLOT_SCOPE} AND b.seq < $5 ORDER BY b.seq DESC LIMIT $6");
-            let rows = client
-                .query(
-                    &sql,
-                    &[
-                        &query.event,
-                        &query.area,
-                        &query.election,
-                        &query.elections,
-                        &before,
-                        &limit,
-                    ],
-                )
-                .await?;
-            (None, rows)
-        };
-        let match_count = match (sql, pattern) {
-            (Some(matches), Some(pattern)) => Some(
-                client
-                    .query_one(
-                        &format!("SELECT count(*) FROM ({matches} LIMIT 10001) matches"),
-                        &[
-                            &query.event,
-                            &query.area,
-                            &query.election,
-                            &query.elections,
-                            &pattern,
-                        ],
-                    )
-                    .await?
-                    .get::<_, i64>(0),
-            ),
-            _ => None,
-        };
-        let has_more = rows.len() > query.limit as usize;
-        let visible = rows.iter().take(query.limit as usize);
-        let next_cursor = if has_more {
-            rows.get(query.limit as usize - 1).map(|r| r.get(0))
+            ensure!(
+                search.tracking_id.into_iter().all(|prefix| {
+                    prefix.len() <= 64 && prefix.bytes().all(|b| b == b'-' || ALPHABET.contains(&b))
+                }),
+                "Invalid Tracking ID prefix"
+            );
+        }
+        let searching = search.is_some();
+        if search.is_some_and(|search| search.pseudonym.is_none() && search.tracking_id.is_none()) {
+            return Ok(PrivacyBallotPage {
+                ballots: vec![],
+                next_cursor: None,
+                match_count: Some(0),
+                match_count_capped: false,
+                tracking_matches: None,
+                pseudonym_matches: None,
+            });
+        }
+        let limit = query.limit as usize;
+        let first = query.before.is_none();
+        let scanned = self
+            .scan_privacy_ballots(query, query.before.clone(), limit + 1, searching && first)
+            .await?;
+        // Counts always read from the newest ballot, not from where the page starts.
+        let counted = if searching && !first {
+            Some(self.scan_privacy_ballots(query, None, 0, true).await?)
         } else {
             None
         };
-        let ballots = visible
-            .map(|row| {
-                Ok(PrivacyBallotRow {
-                    election_id: row.try_get(1)?,
-                    ballot_id: row.try_get(2)?,
-                    pseudonym: row.try_get(3)?,
-                    cast_at: row.try_get::<_, DateTime<Utc>>(4)?.to_rfc3339(),
-                    voting_channel: row.try_get(5)?,
-                })
-            })
-            .collect::<Result<Vec<_>>>()?;
+        let counts = counted
+            .as_ref()
+            .or(searching.then_some(&scanned))
+            .map(|counts| (counts.matched, counts.tracking, counts.pseudonym));
+        let next_cursor = (scanned.rows.len() > limit).then(|| scanned.rows[limit - 1].1.clone());
+        let both =
+            search.is_some_and(|search| search.pseudonym.is_some() && search.tracking_id.is_some());
+        let capped = |count: i64| count.min(MATCH_CAP);
         Ok(PrivacyBallotPage {
-            ballots,
+            ballots: scanned
+                .rows
+                .into_iter()
+                .take(limit)
+                .map(|(row, _)| row)
+                .collect(),
             next_cursor,
-            match_count: match_count.map(|count| count.min(10_000)),
-            match_count_capped: match_count.is_some_and(|count| count > 10_000),
+            match_count: counts.map(|(matched, ..)| capped(matched)),
+            match_count_capped: counts.is_some_and(|(matched, ..)| matched > MATCH_CAP),
+            tracking_matches: counts
+                .filter(|_| both)
+                .map(|(_, tracking, _)| capped(tracking)),
+            pseudonym_matches: counts
+                .filter(|_| both)
+                .map(|(.., pseudonym)| capped(pseudonym)),
         })
     }
 
-    /// Refresh a cached total outside the request's hot path.
+    /// Refresh a cached total outside the request's hot path: every ballot the
+    /// public log lists, one for each received ballot.
     pub async fn privacy_ballot_count(
         &self,
         event: &str,
@@ -789,9 +916,7 @@ impl PostgresStore {
             .client()
             .await?
             .query_one(
-                "SELECT count(*) FROM ballot_box_ballot WHERE election_event_id = $1::text::uuid
-             AND area_id = $2::text::uuid AND ($3::text IS NULL OR election_id = $3::text::uuid)
-             AND ($4::text[] IS NULL OR election_id::text = ANY($4)) AND status = 'valid'",
+                &format!("SELECT count(*) FROM {PRIVACY_BALLOT_FROM} WHERE {PRIVACY_BALLOT_SCOPE}"),
                 &[&event, &area, &election, &elections],
             )
             .await?

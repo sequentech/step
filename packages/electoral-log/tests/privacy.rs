@@ -13,9 +13,25 @@ use electoral_log::adapters::ballot_box_received::{
 };
 use electoral_log::adapters::postgres::PostgresStore;
 use electoral_log::adapters::privacy::{
-    BallotIdentity, ForensicNetworkRecord, PrivacyBallotQuery, ReceivedEvidenceKind,
+    BallotIdentity, ForensicNetworkRecord, PrivacyBallotQuery, PrivacyBallotSearch,
+    ReceivedEvidenceKind,
 };
 use uuid::Uuid;
+
+/// The crate that computes Tracking IDs depends on this one; a stand-in is enough here.
+fn stand_in_tracking_id(_ballot_hash: &str, _voter_signing_pk: &str) -> Option<String> {
+    Some("AAAA-0001-BBBB-CCCC".into())
+}
+
+fn searched<'a>(
+    query: &PrivacyBallotQuery<'a>,
+    search: PrivacyBallotSearch<'a>,
+) -> PrivacyBallotQuery<'a> {
+    PrivacyBallotQuery {
+        search: Some(search),
+        ..query.clone()
+    }
+}
 
 #[tokio::test]
 #[ignore = "needs isolated ELECTORAL_LOG_TEST_DATABASE_URL"]
@@ -124,6 +140,28 @@ async fn privacy_storage_keeps_identity_private_and_cast_effects_atomic() -> Res
         store.pending_received_ballots(&event, 100).await?.len(),
         1,
         "publication retries retain pending evidence"
+    );
+    // A ballot is in the public log from the moment it is received, once.
+    let received_page = store
+        .privacy_ballot_page(&PrivacyBallotQuery {
+            event: &event,
+            area: &area,
+            election: Some(&election),
+            elections: None,
+            search: None,
+            before: None,
+            limit: 10,
+            tracking_id: stand_in_tracking_id,
+        })
+        .await?;
+    assert_eq!(received_page.ballots.len(), 1);
+    assert_eq!(received_page.ballots[0].stage, "received");
+    assert_eq!(received_page.ballots[0].voting_channel, "");
+    assert_eq!(
+        store
+            .privacy_ballot_count(&event, &area, Some(&election), None)
+            .await?,
+        1
     );
     let hash = [7u8; 64];
     let ballot = AcceptBallot {
@@ -252,34 +290,97 @@ async fn privacy_storage_keeps_identity_private_and_cast_effects_atomic() -> Res
         area: &area,
         election: Some(&election),
         elections: None,
-        prefix: None,
+        search: None,
         before: None,
         limit: 10,
+        tracking_id: stand_in_tracking_id,
     };
     let page = store.privacy_ballot_page(&query).await?;
     assert_eq!(page.ballots.len(), 1);
     assert_eq!(page.ballots[0].pseudonym, pseudonym);
-    assert_eq!(page.ballots[0].ballot_id, "AAAA-0001");
+    assert_eq!(page.ballots[0].tracking_id, "AAAA-0001-BBBB-CCCC");
+    assert_eq!(page.ballots[0].stage, "cast");
+    assert_eq!(page.ballots[0].voting_channel, "ONLINE");
+    assert_eq!(page.match_count, None);
+    // The receipt key is not a Tracking ID: it names nothing in the log.
     assert_eq!(
         store
-            .privacy_ballot_page(&PrivacyBallotQuery {
-                prefix: Some("AAAA"),
-                ..query.clone()
-            })
+            .privacy_ballot_page(&searched(
+                &query,
+                PrivacyBallotSearch {
+                    pseudonym: Some("AAAA"),
+                    tracking_id: None,
+                }
+            ))
+            .await?
+            .match_count,
+        Some(0)
+    );
+    let by_tracking = store
+        .privacy_ballot_page(&searched(
+            &query,
+            PrivacyBallotSearch {
+                pseudonym: None,
+                tracking_id: Some("AAAA-0001"),
+            },
+        ))
+        .await?;
+    assert_eq!(by_tracking.match_count, Some(1));
+    assert_eq!(by_tracking.ballots.len(), 1);
+    assert_eq!(by_tracking.tracking_matches, None);
+    assert_eq!(
+        store
+            .privacy_ballot_page(&searched(
+                &query,
+                PrivacyBallotSearch {
+                    pseudonym: None,
+                    tracking_id: Some("AAAA-0002"),
+                }
+            ))
+            .await?
+            .match_count,
+        Some(0)
+    );
+    assert_eq!(
+        store
+            .privacy_ballot_page(&searched(
+                &query,
+                PrivacyBallotSearch {
+                    pseudonym: Some(&pseudonym[..2]),
+                    tracking_id: None,
+                }
+            ))
             .await?
             .match_count,
         Some(1)
     );
-    assert_eq!(
-        store
-            .privacy_ballot_page(&PrivacyBallotQuery {
-                prefix: Some(&pseudonym[..2]),
-                ..query.clone()
-            })
-            .await?
-            .match_count,
-        Some(1)
-    );
+    let both = store
+        .privacy_ballot_page(&searched(
+            &query,
+            PrivacyBallotSearch {
+                pseudonym: Some("AAAA-0001"),
+                tracking_id: Some("AAAA-0001"),
+            },
+        ))
+        .await?;
+    assert_eq!(both.match_count, Some(1));
+    assert_eq!(both.tracking_matches, Some(1));
+    assert_eq!(both.pseudonym_matches, Some(0));
+    assert!(store
+        .privacy_ballot_page(&searched(&query, PrivacyBallotSearch::default()))
+        .await?
+        .ballots
+        .is_empty());
+    assert!(store
+        .privacy_ballot_page(&searched(
+            &query,
+            PrivacyBallotSearch {
+                pseudonym: Some("%"),
+                tracking_id: None,
+            }
+        ))
+        .await
+        .is_err());
     let forbidden_elections = [other_election.clone()];
     assert!(store
         .privacy_ballot_page(&PrivacyBallotQuery {

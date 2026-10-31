@@ -424,8 +424,15 @@ CREATE INDEX IF NOT EXISTS ballot_box_privacy_page
     ON ballot_box_ballot (election_event_id, area_id, seq DESC) WHERE status = 'valid';
 CREATE INDEX IF NOT EXISTS ballot_box_privacy_pseudonym
     ON ballot_box_ballot (election_event_id, area_id, voter_id text_pattern_ops, seq DESC) WHERE status = 'valid';
-CREATE INDEX IF NOT EXISTS ballot_box_privacy_received_code
-    ON ballot_box_received (election_event_id, area_id, ballot_id text_pattern_ops) WHERE status = 'cast';
+-- The public log lists every received ballot once, newest last step first. The
+-- receipt key is not searched; a Tracking ID is computed from the stored ballot.
+DROP INDEX IF EXISTS ballot_box_privacy_received_code;
+CREATE INDEX IF NOT EXISTS ballot_box_received_log
+    ON ballot_box_received (
+        election_event_id, area_id, (COALESCE(cast_at, audited_at, received_at)) DESC, id DESC
+    );
+CREATE INDEX IF NOT EXISTS ballot_box_received_log_pseudonym
+    ON ballot_box_received (election_event_id, area_id, voter_id text_pattern_ops);
 CREATE INDEX IF NOT EXISTS ballot_box_received_hash
     ON ballot_box_received (election_event_id, ballot_hash);
 

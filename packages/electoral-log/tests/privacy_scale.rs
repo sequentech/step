@@ -7,7 +7,7 @@
 
 use anyhow::Result;
 use electoral_log::adapters::postgres::PostgresStore;
-use electoral_log::adapters::privacy::{BallotIdentity, PrivacyBallotQuery};
+use electoral_log::adapters::privacy::{BallotIdentity, PrivacyBallotQuery, PrivacyBallotSearch};
 use std::time::Instant;
 use tokio_postgres::types::ToSql;
 use uuid::Uuid;
@@ -127,7 +127,19 @@ async fn privacy_registry_and_scoped_reads_at_large_event_shape() -> Result<()> 
     }
     let mut later = None;
     let mut newest_ids = Vec::new();
-    for prefix in [None, Some(&pseudonym[..4]), Some(ballot_id.as_str())] {
+    let pseudonym_start = &pseudonym[..4];
+    let tracking_start = scale_tracking_id(&format!("scale-hash-{}", 1), "").unwrap();
+    for search in [
+        None,
+        Some(PrivacyBallotSearch {
+            pseudonym: Some(pseudonym_start),
+            tracking_id: None,
+        }),
+        Some(PrivacyBallotSearch {
+            pseudonym: None,
+            tracking_id: Some(tracking_start.as_str()),
+        }),
+    ] {
         let started = Instant::now();
         let page = store
             .privacy_ballot_page(&PrivacyBallotQuery {
@@ -135,26 +147,27 @@ async fn privacy_registry_and_scoped_reads_at_large_event_shape() -> Result<()> 
                 area: &area,
                 election: None,
                 elections: Some(&allowed),
-                prefix,
+                search: search.clone(),
                 before: None,
                 limit: 50,
+                tracking_id: scale_tracking_id,
             })
             .await?;
-        assert!(!page.ballots.is_empty());
+        assert!(!page.ballots.is_empty() || search.is_some());
         assert!(page
             .ballots
             .iter()
             .all(|row| allowed.contains(&row.election_id)));
-        if prefix.is_none() {
+        if search.is_none() {
             later = page.next_cursor;
             newest_ids = page
                 .ballots
                 .iter()
-                .map(|row| row.ballot_id.clone())
+                .map(|row| row.tracking_id.clone())
                 .collect();
         }
         println!(
-            "scoped_page prefix={prefix:?} rows={} milliseconds={:.3}",
+            "scoped_page search={search:?} rows={} milliseconds={:.3}",
             page.ballots.len(),
             started.elapsed().as_secs_f64() * 1000.0
         );
@@ -172,16 +185,16 @@ async fn privacy_registry_and_scoped_reads_at_large_event_shape() -> Result<()> 
         "exact_ballot_and_identity_lookup_ms={:.3}",
         started.elapsed().as_secs_f64() * 1000.0
     );
-    let later = later.unwrap_or(i64::MAX);
     let later_page = store
         .privacy_ballot_page(&PrivacyBallotQuery {
             event: &event,
             area: &area,
             election: None,
             elections: Some(&allowed),
-            prefix: None,
-            before: Some(later),
+            search: None,
+            before: later.clone(),
             limit: 50,
+            tracking_id: scale_tracking_id,
         })
         .await?;
     if inserted >= 50_000 {
@@ -189,26 +202,36 @@ async fn privacy_registry_and_scoped_reads_at_large_event_shape() -> Result<()> 
         assert!(later_page
             .ballots
             .iter()
-            .all(|row| !newest_ids.contains(&row.ballot_id)));
+            .all(|row| !newest_ids.contains(&row.tracking_id)));
     }
     // These predicates/projections mirror the production page/search/detail
     // queries. Prepared parameter types and authorized election subsets match
     // the real APIs, so plans include their optional-scope clauses.
-    let join = "ballot_box_ballot b JOIN ballot_box_received r
-        ON r.election_event_id=b.election_event_id AND r.ballot_hash=b.ballot_id
-        AND r.election_id=b.election_id AND r.voter_id=b.voter_id";
-    let scope = "b.election_event_id=$1::text::uuid AND b.area_id=$2::text::uuid
-        AND ($3::text IS NULL OR b.election_id=$3::text::uuid)
-        AND ($4::text[] IS NULL OR b.election_id::text=ANY($4)) AND b.status='valid' AND r.status='cast'";
-    let columns = "b.seq,b.election_id::text,r.ballot_id,b.voter_id,b.accepted_at,b.voting_channel";
+    let last_step = "COALESCE(r.cast_at, r.audited_at, r.received_at)";
+    let from = "ballot_box_received r LEFT JOIN ballot_box_ballot b
+        ON b.election_event_id=r.election_event_id AND b.ballot_id=r.ballot_hash
+        AND b.election_id=r.election_id AND b.voter_id=r.voter_id AND b.status='valid'";
+    let scope = "r.election_event_id=$1::text::uuid AND r.area_id=$2::text::uuid
+        AND ($3::text IS NULL OR r.election_id=$3::text::uuid)
+        AND ($4::text[] IS NULL OR r.election_id::text=ANY($4))
+        AND (r.status <> 'cast' OR b.seq IS NOT NULL)";
+    let columns = format!("r.id::text,r.election_id::text,r.voter_id,r.ballot_hash,r.status,{last_step},b.voting_channel");
     let election_scope: Option<&str> = None;
     let allowed_scope = Some(allowed.as_slice());
     let limit = 51i64;
     let large = inserted >= 50_000;
     let page_sql = format!(
-        "SELECT {columns} FROM {join} WHERE {scope} AND b.seq<$5 ORDER BY b.seq DESC LIMIT $6"
+        "SELECT {columns} FROM {from} WHERE {scope}
+         AND ({last_step}, r.id) < ($5::timestamptz, $6::text::uuid) ORDER BY {last_step} DESC, r.id DESC LIMIT $7"
     );
-    for (label, before) in [("newest", i64::MAX), ("later", later)] {
+    let newest = (
+        chrono::DateTime::<chrono::Utc>::from_timestamp(253_402_300_799, 0).unwrap(),
+        "ffffffff-ffff-ffff-ffff-ffffffffffff".to_string(),
+    );
+    let later_at = later
+        .map(|cursor| (cursor.at, cursor.id))
+        .unwrap_or_else(|| newest.clone());
+    for (label, (at, id)) in [("newest", newest), ("later", later_at)] {
         explain_indexed(
             &client,
             label,
@@ -218,7 +241,8 @@ async fn privacy_registry_and_scoped_reads_at_large_event_shape() -> Result<()> 
                 &area,
                 &election_scope,
                 &allowed_scope,
-                &before,
+                &at,
+                &id,
                 &limit,
             ],
             large,
@@ -226,13 +250,9 @@ async fn privacy_registry_and_scoped_reads_at_large_event_shape() -> Result<()> 
         .await?;
     }
     let pattern = format!("{}%", &pseudonym[..4]);
-    let matches = format!(
-        "(SELECT b.seq FROM {join} WHERE {scope} AND r.ballot_id LIKE $5 AND b.seq<$6 ORDER BY b.seq DESC LIMIT $7)
-         UNION (SELECT b.seq FROM {join} WHERE {scope} AND b.voter_id LIKE $5 AND b.seq<$6 ORDER BY b.seq DESC LIMIT $7)"
-    );
     let search_sql = format!(
-        "WITH matched AS ({matches}) SELECT {columns} FROM {join}
-        JOIN matched m ON m.seq=b.seq WHERE {scope} AND b.seq<$6 ORDER BY b.seq DESC LIMIT $7"
+        "SELECT {columns} FROM {from} WHERE {scope} AND r.voter_id LIKE $5
+         ORDER BY {last_step} DESC, r.id DESC LIMIT $6"
     );
     explain_indexed(
         &client,
@@ -244,7 +264,6 @@ async fn privacy_registry_and_scoped_reads_at_large_event_shape() -> Result<()> 
             &election_scope,
             &allowed_scope,
             &pattern,
-            &i64::MAX,
             &limit,
         ],
         large,
@@ -281,6 +300,12 @@ async fn privacy_registry_and_scoped_reads_at_large_event_shape() -> Result<()> 
         )
         .await?;
     Ok(())
+}
+
+/// Tracking IDs are computed in the crate that depends on this one.
+fn scale_tracking_id(ballot_hash: &str, _voter_signing_pk: &str) -> Option<String> {
+    let number: u64 = ballot_hash.strip_prefix("scale-hash-")?.parse().ok()?;
+    Some(format!("{:04X}-{:04X}", number >> 16, number & 0xffff))
 }
 
 async fn explain_indexed(

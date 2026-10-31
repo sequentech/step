@@ -14,7 +14,10 @@ use base64::{
     engine::general_purpose::URL_SAFE_NO_PAD, Engine,
 };
 use electoral_log::adapters::postgres::PostgresStore;
-use electoral_log::adapters::privacy::{BallotIdentity, PrivacyBallotQuery};
+use electoral_log::adapters::privacy::{
+    BallotIdentity, PrivacyBallotCursor, PrivacyBallotQuery,
+    PrivacyBallotSearch,
+};
 use electoral_log::domain::{Filter, LogQuery, SqlCompOperators, TextColumn};
 use electoral_log::messages::{
     message::{Message, SigningData},
@@ -25,6 +28,7 @@ use electoral_log::ports::ElectoralLogStore;
 use rocket::{http::Status, serde::json::Json, State};
 use sequent_core::ballot::ShowCastVoteLogs;
 use sequent_core::ballot_privacy::{BallotPrivacyProof, BallotPrivacyTrust};
+use sequent_core::ballot_receipt::{parse_ballot_log_search, BallotLogSearch};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::permissions::{Permissions, VoterPermissions};
@@ -221,20 +225,56 @@ fn decode_cursor(
     }
     Ok(Some(seq))
 }
-fn prefix(input: Option<&str>) -> Result<String, ApiError> {
-    let code = input
-        .unwrap_or("")
-        .trim()
-        .to_ascii_uppercase()
-        .replace('-', "");
-    if code.len() > 8
-        || !code
-            .bytes()
-            .all(|c| b"0123456789ABCDEFGHJKMNPQRSTVWXYZ".contains(&c))
-    {
-        return Err(bad("Invalid Ballot ID or pseudonym prefix"));
+/// What was typed in the log's search box: the key it scopes a cursor with
+/// (empty without a search), and what it looks for. A colon names a pseudonym
+/// and a hyphen a Tracking ID; with neither, both are searched.
+fn log_search(
+    input: Option<&str>,
+) -> Result<(String, Option<BallotLogSearch>), ApiError> {
+    match parse_ballot_log_search(input.unwrap_or("")) {
+        Ok(None) => Ok((String::new(), None)),
+        Ok(Some(search)) => Ok((
+            json!([search.pseudonym, search.tracking_id]).to_string(),
+            Some(search),
+        )),
+        Err(_) => Err(bad("Invalid Tracking ID or pseudonym search")),
     }
-    Ok(code)
+}
+
+/// A log cursor: the scope it belongs to, the last step of the last row
+/// shown, in microseconds, and the ballot's own ID.
+fn encode_log_cursor(scope: &str, cursor: &PrivacyBallotCursor) -> String {
+    URL_SAFE_NO_PAD.encode(
+        json!([
+            hex::encode(Sha256::digest(scope.as_bytes())),
+            cursor.at.timestamp_micros(),
+            cursor.id
+        ])
+        .to_string(),
+    )
+}
+fn decode_log_cursor(
+    scope: &str,
+    cursor: Option<&str>,
+) -> Result<Option<PrivacyBallotCursor>, ApiError> {
+    let Some(cursor) = cursor else {
+        return Ok(None);
+    };
+    if cursor.len() > 4096 {
+        return Err(bad("Invalid cursor"));
+    }
+    let bytes = URL_SAFE_NO_PAD
+        .decode(cursor)
+        .map_err(|_| bad("Invalid cursor"))?;
+    let (saved, micros, id): (String, i64, String) =
+        serde_json::from_slice(&bytes).map_err(|_| bad("Invalid cursor"))?;
+    if saved != hex::encode(Sha256::digest(scope.as_bytes())) {
+        return Err(bad("Cursor does not belong to this query"));
+    }
+    uuid::Uuid::parse_str(&id).map_err(|_| bad("Invalid cursor"))?;
+    let at = chrono::DateTime::from_timestamp_micros(micros)
+        .ok_or_else(|| bad("Invalid cursor"))?;
+    Ok(Some(PrivacyBallotCursor { at, id }))
 }
 
 type CachedTotal = Arc<Mutex<Option<(Instant, i64)>>>;
@@ -420,18 +460,19 @@ pub async fn ballot_box_log(
     let (area, elections) =
         voter_scope(services, &claims, &event, body.election_id.as_deref())
             .await?;
-    let prefix = prefix(body.prefix.as_deref())?;
-    let scope = scope_key(&event.id, &area, &elections, &prefix);
-    let before = decode_cursor(&scope, body.cursor.as_deref())?;
+    let (search_key, search) = log_search(body.prefix.as_deref())?;
+    let scope = scope_key(&event.id, &area, &elections, &search_key);
+    let before = decode_log_cursor(&scope, body.cursor.as_deref())?;
     let limit = body.limit.unwrap_or(25);
     if !(1..=100).contains(&limit) {
         return Err(bad("Page size must be between 1 and 100"));
     }
     let store = get_event_store(&event.id).await.map_err(unavailable)?;
-    if !prefix.is_empty() {
+    if search.is_some() {
         limit_search(&claims, &store).await?;
     }
-    let cached = if prefix.is_empty() && before.is_none() {
+    let unfiltered = search.is_none() && before.is_none();
+    let cached = if unfiltered {
         Some(
             page_cache_entry(page_cache_key(
                 &event.tenant_id,
@@ -463,9 +504,13 @@ pub async fn ballot_box_log(
             area: &area,
             election: body.election_id.as_deref(),
             elections: Some(&elections),
-            prefix: Some(&prefix),
+            search: search.as_ref().map(|search| PrivacyBallotSearch {
+                pseudonym: search.pseudonym.as_deref(),
+                tracking_id: search.tracking_id.as_deref(),
+            }),
             before,
             limit,
+            tracking_id: tracking_id_of,
         })
         .await
         .map_err(unavailable)?;
@@ -479,14 +524,17 @@ pub async fn ballot_box_log(
     )
     .await
     .map_err(unavailable)?;
-    let response = json!({"ballots": page.ballots, "next_cursor": page.next_cursor.map(|seq| encode_cursor(&scope, seq)),
-        "total":total, "match_count": page.match_count.unwrap_or(total), "match_count_capped":page.match_count_capped});
+    let response = json!({"ballots": page.ballots,
+        "next_cursor": page.next_cursor.as_ref().map(|cursor| encode_log_cursor(&scope, cursor)),
+        "total": total, "match_count": page.match_count.unwrap_or(total),
+        "match_count_capped": page.match_count_capped,
+        "tracking_matches": page.tracking_matches, "pseudonym_matches": page.pseudonym_matches});
     if let Some(entry) = &mut cached {
         **entry = Some((Instant::now(), response.clone()));
     }
     page_payload(
         response,
-        if prefix.is_empty() && before.is_none() {
+        if unfiltered {
             BallotPageCache::Shared
         } else {
             BallotPageCache::Bypass
@@ -533,14 +581,24 @@ pub async fn ballot_box_own(
         .ok_or_else(|| {
             unavailable("Voter privacy registration is not ready")
         })?;
+    // The voter's own ballots at every stage, newest last step first, in the
+    // shape of the log's rows.
     let rows = store.client().await.map_err(unavailable)?.query(
-        "SELECT r.ballot_hash,r.voter_id,b.accepted_at,b.voting_channel,b.election_id::text,r.voter_signing_pk FROM ballot_box_ballot b \
-         JOIN ballot_box_received r ON r.election_event_id=b.election_event_id AND r.election_id=b.election_id AND r.voter_id=b.voter_id AND r.ballot_hash=b.ballot_id \
-         WHERE b.election_event_id=$1::text::uuid AND b.area_id=$2::text::uuid AND b.voter_id=$3 \
-         AND b.election_id::text=ANY($4) AND b.status='valid' ORDER BY b.seq DESC LIMIT 100", &[&event.id,&area,&identity,&elections]).await.map_err(unavailable)?;
-    let ballots = rows.iter().map(|r| Ok(json!({"ballot_id":tracking_id_of(&r.try_get::<_,String>(0)?,&r.try_get::<_,String>(5)?),"pseudonym":r.try_get::<_,String>(1)?,
-        "cast_at":r.try_get::<_,chrono::DateTime<chrono::Utc>>(2)?.to_rfc3339(),"voting_channel":r.try_get::<_,String>(3)?,"election_id":r.try_get::<_,String>(4)?})))
-        .collect::<Result<Vec<_>,tokio_postgres::Error>>().map_err(unavailable)?;
+        "SELECT r.ballot_hash,r.voter_id,r.status,COALESCE(r.cast_at,r.audited_at,r.received_at),b.voting_channel,r.election_id::text,r.voter_signing_pk \
+         FROM ballot_box_received r LEFT JOIN ballot_box_ballot b ON b.election_event_id=r.election_event_id AND b.ballot_id=r.ballot_hash \
+         AND b.election_id=r.election_id AND b.voter_id=r.voter_id AND b.status='valid' \
+         WHERE r.election_event_id=$1::text::uuid AND r.area_id=$2::text::uuid AND r.voter_id=$3 \
+         AND r.election_id::text=ANY($4) AND (r.status<>'cast' OR b.seq IS NOT NULL) \
+         ORDER BY COALESCE(r.cast_at,r.audited_at,r.received_at) DESC, r.id DESC LIMIT 100", &[&event.id,&area,&identity,&elections]).await.map_err(unavailable)?;
+    let ballots = rows.iter().filter_map(|r| -> Option<Result<Value, tokio_postgres::Error>> {
+        let tracking_id = match (r.try_get::<_,String>(0), r.try_get::<_,String>(6)) {
+            (Ok(hash), Ok(key)) => tracking_id_of(&hash, &key)?,
+            (Err(error), _) | (_, Err(error)) => return Some(Err(error)),
+        };
+        Some((|| Ok(json!({"tracking_id":tracking_id,"pseudonym":r.try_get::<_,String>(1)?,"stage":r.try_get::<_,String>(2)?,
+            "last_step_at":r.try_get::<_,chrono::DateTime<chrono::Utc>>(3)?.to_rfc3339(),
+            "voting_channel":r.try_get::<_,Option<String>>(4)?.unwrap_or_default(),"election_id":r.try_get::<_,String>(5)?})))())
+    }).collect::<Result<Vec<_>,tokio_postgres::Error>>().map_err(unavailable)?;
     payload(json!({"ballots":ballots}))
 }
 
@@ -573,15 +631,6 @@ async fn proof_scope(
     Ok(None)
 }
 
-fn ensure_proof_receipt_visible(
-    voter: bool,
-    status: electoral_log::adapters::ballot_box_received::ReceivedStatus,
-) -> Result<(), ApiError> {
-    if voter && status != electoral_log::adapters::ballot_box_received::ReceivedStatus::Cast {
-        return Err((Status::NotFound,"Ballot not found".into()));
-    }
-    Ok(())
-}
 fn proof_channel(
     status: electoral_log::adapters::ballot_box_received::ReceivedStatus,
     channel: Option<String>,
@@ -607,9 +656,25 @@ async fn receipt_key_of_tracking_id(
     election: &str,
     area: Option<&str>,
     typed: &str,
+    key_from_log: bool,
 ) -> Result<String, ApiError> {
-    // Only a Tracking ID names a ballot: its first 8 characters have the shape of
-    // a receipt key, so a key is never read from what is typed.
+    // A person's Tracking ID names a ballot, and its first 8 characters have the
+    // shape of a receipt key, so a key is never read from what a voter types. The
+    // log's own entries carry the key: an administrator opening one of them names
+    // the ballot by it.
+    if key_from_log {
+        if let Some(key) =
+            sequent_core::ballot_receipt::normalize_ballot_id(typed)
+        {
+            let found = store.client().await.map_err(unavailable)?.query_opt(
+                "SELECT ballot_id FROM ballot_box_received WHERE election_event_id=$1::text::uuid AND election_id=$2::text::uuid AND ballot_id=$3 AND ($4::text IS NULL OR area_id=$4::text::uuid)",
+                &[&event,&election,&key,&area],
+            ).await.map_err(unavailable)?;
+            if let Some(row) = found {
+                return row.try_get(0).map_err(unavailable);
+            }
+        }
+    }
     let typed = sequent_core::ballot_receipt::normalize_tracking_id(typed)
         .ok_or_else(|| bad("Invalid Tracking ID"))?;
     let rows = store.client().await.map_err(unavailable)?.query(
@@ -671,6 +736,7 @@ pub async fn ballot_box_entry(
         &body.election_id,
         allowed_area.as_deref(),
         &body.ballot_id,
+        allowed_area.is_none(),
     )
     .await?;
     if store
@@ -692,7 +758,6 @@ pub async fn ballot_box_entry(
         .await
         .map_err(unavailable)?
         .ok_or_else(|| (Status::NotFound, "Ballot not found".into()))?;
-    ensure_proof_receipt_visible(allowed_area.is_some(), received.status)?;
     let channel:Option<String>=store.client().await.map_err(unavailable)?.query_opt(
         "SELECT voting_channel FROM ballot_box_ballot WHERE election_event_id=$1::text::uuid AND election_id=$2::text::uuid AND ballot_id=$3 AND voter_id=$4 AND area_id=$5::text::uuid AND status='valid'",
         &[&event.id,&body.election_id,&received.ballot_hash,&received.voter_id,&area]).await.map_err(unavailable)?
@@ -755,6 +820,8 @@ pub async fn ballot_box_entry(
     .map_err(unavailable)?;
     let mut response = serde_json::to_value(BallotPrivacyProof {
         ballot_id: code,
+        tracking_id: Some(tracking_id),
+        stage: Some(received.status.to_string()),
         pseudonym: received.voter_id,
         voting_channel: channel,
         received_entry: find("BallotReceived"),
@@ -763,8 +830,7 @@ pub async fn ballot_box_entry(
     .map_err(unavailable)?;
     // Display fields never supply trust or replace the canonical signed proof.
     // `ballot_id` stays the key the signed statements carry; the Tracking ID is
-    // what a person is shown.
-    response["tracking_id"] = json!(tracking_id);
+    // what a person is shown, and the proof's checks recompute it.
     response["log_entries"] = json!(log_entries);
     payload(response)
 }
@@ -787,17 +853,13 @@ pub async fn ballot_box_keys(
             &body.election_id,
             allowed_area.as_deref(),
             ballot_id,
+            allowed_area.is_none(),
         )
         .await?;
         let row = store.client().await.map_err(unavailable)?.query_opt(
-            "SELECT key_id,status FROM ballot_box_received WHERE election_event_id=$1::text::uuid AND election_id=$2::text::uuid AND ballot_id=$3 AND ($4::text IS NULL OR area_id=$4::text::uuid)",
+            "SELECT key_id FROM ballot_box_received WHERE election_event_id=$1::text::uuid AND election_id=$2::text::uuid AND ballot_id=$3 AND ($4::text IS NULL OR area_id=$4::text::uuid)",
             &[&event.id,&body.election_id,&code,&allowed_area],
         ).await.map_err(unavailable)?.ok_or_else(||(Status::NotFound,"Ballot not found".into()))?;
-        let status: String = row.try_get(1).map_err(unavailable)?;
-        ensure_proof_receipt_visible(
-            allowed_area.is_some(),
-            status.parse().map_err(unavailable)?,
-        )?;
         Some(row.try_get::<_, String>(0).map_err(unavailable)?)
     } else {
         None
@@ -1141,11 +1203,35 @@ mod tests {
         assert!(decode_cursor(&scope, Some("not a cursor")).is_err());
     }
     #[test]
-    fn prefixes_are_codes_not_sql_patterns() {
-        assert_eq!(prefix(Some("7qkm-2")).unwrap(), "7QKM2");
-        for value in ["%", "_", "7QKI", "123456789"] {
-            assert!(prefix(Some(value)).is_err());
+    fn searches_are_codes_not_sql_patterns() {
+        let (key, search) = log_search(Some("7qkm:2")).unwrap();
+        assert_eq!(search.unwrap().pseudonym.as_deref(), Some("7QKM-2"));
+        assert!(!key.is_empty());
+        assert_eq!(log_search(None).unwrap(), (String::new(), None));
+        assert_eq!(log_search(Some("  ")).unwrap(), (String::new(), None));
+        for value in ["%", "_", "7QKU", "7QK-%", &"7".repeat(81)] {
+            assert!(log_search(Some(value)).is_err(), "{value}");
         }
+    }
+
+    #[test]
+    fn log_cursor_is_bound_to_its_search_and_carries_the_last_step() {
+        let scope = scope_key("event", "area", &["e1".into()], "");
+        let cursor = PrivacyBallotCursor {
+            at: chrono::DateTime::from_timestamp_micros(1_700_000_000_123_456)
+                .unwrap(),
+            id: "00000000-0000-4000-8000-000000000001".into(),
+        };
+        let encoded = encode_log_cursor(&scope, &cursor);
+        assert_eq!(
+            decode_log_cursor(&scope, Some(&encoded)).unwrap(),
+            Some(cursor)
+        );
+        let other =
+            scope_key("event", "area", &["e1".into()], "[\"K7QM\",null]");
+        assert!(decode_log_cursor(&other, Some(&encoded)).is_err());
+        assert!(decode_log_cursor(&scope, Some("not a cursor")).is_err());
+        assert_eq!(decode_log_cursor(&scope, None).unwrap(), None);
     }
 
     #[test]

@@ -346,6 +346,8 @@ async fn verify_private_acceptance(
     };
     let proof = BallotPrivacyProof {
         ballot_id: ballot_id.into(),
+        tracking_id: None,
+        stage: None,
         pseudonym: pseudonym.into(),
         voting_channel: "ONLINE".into(),
         received_entry: Some(STANDARD.encode(&records[0].message)),
