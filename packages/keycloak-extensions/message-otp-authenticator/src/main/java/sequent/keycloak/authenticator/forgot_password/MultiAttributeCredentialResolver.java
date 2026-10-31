@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.common.util.Time;
 import org.keycloak.credential.hash.PasswordHashProvider;
+import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.PasswordPolicy;
 import org.keycloak.models.RealmModel;
@@ -26,6 +27,7 @@ import org.keycloak.models.SingleUseObjectProvider;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserLoginFailureModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.services.managers.BruteForceProtector;
 
 /**
@@ -46,14 +48,14 @@ import org.keycloak.services.managers.BruteForceProtector;
  * letting Keycloak's normal brute-force accounting engage the same way it does for the standard
  * username/password form. If more than one candidate remains, {@link MatchPolicy} governs how the
  * password disambiguates among them; either way a failure there can't be attributed to a single
- * account. Any early-return path performs an equivalent-cost dummy password hash first, so "no
- * viable candidate" doesn't respond measurably faster than "wrong password" - see {@link
+ * account, and {@link SharedCandidateFailurePolicy} decides whether it is charged to every viable
+ * candidate instead. Any early-return path performs an equivalent-cost dummy password hash first,
+ * so "no viable candidate" doesn't respond measurably faster than "wrong password" - see {@link
  * #performDummyHash}.
  *
  * <p>Three DoS mitigations bound the cost an attacker can force per request, since - unlike a
  * standard username/password form - a common attribute value (e.g. a shared date of birth) can
- * legitimately resolve to many candidates, and Keycloak's own brute-force accounting can't engage
- * until resolution narrows to one account:
+ * legitimately resolve to many candidates:
  *
  * <ul>
  *   <li>{@code maxAttributeLookupResults} ({@link ThrottleConfig#maxAttributeLookupResults()}):
@@ -71,7 +73,9 @@ import org.keycloak.services.managers.BruteForceProtector;
  *       hammered past the limit across a cluster. Once a tuple's failures reach the configured
  *       maximum within the window, further attempts against it short-circuit before any user lookup
  *       - closing the accounting gap that lets an attacker repeat a common,
- *       never-uniquely-attributable attribute value indefinitely at full amplification cost.
+ *       never-uniquely-attributable attribute value indefinitely at full amplification cost. A
+ *       failure attributed to one account counts here only when the realm has no Brute Force
+ *       Detection - see {@link #recordAttributedFailure}.
  * </ul>
  */
 @JBossLog
@@ -99,6 +103,7 @@ public final class MultiAttributeCredentialResolver {
    *     lockout lookup or password disambiguation (see the class-level DoS-mitigation note).
    * @param tupleMaxFailures failures allowed for a single submitted-attribute-value combination
    *     within {@code tupleFailureWindowSeconds} before further attempts against it short-circuit.
+   *     With Brute Force Detection on, failures attributed to one account don't count.
    * @param tupleFailureWindowSeconds rolling window, in seconds, that {@code tupleMaxFailures}
    *     applies over; each new failure resets the window for that tuple.
    * @param maxAttributeLookupResults hard ceiling on rows the user store may return for the
@@ -114,12 +119,15 @@ public final class MultiAttributeCredentialResolver {
    *     genuinely pathological case (more true combined matches than the ceiling) - it can never
    *     exclude a legitimate candidate that a less-common attribute would otherwise have uniquely
    *     matched.
+   * @param sharedCandidateFailurePolicy how a failed attempt is recorded when more than one viable
+   *     candidate remains - see {@link SharedCandidateFailurePolicy}.
    */
   public record ThrottleConfig(
       int maxCandidates,
       int tupleMaxFailures,
       int tupleFailureWindowSeconds,
-      int maxAttributeLookupResults) {
+      int maxAttributeLookupResults,
+      SharedCandidateFailurePolicy sharedCandidateFailurePolicy) {
 
     /**
      * Convenience overload defaulting {@code maxAttributeLookupResults} to {@link
@@ -133,12 +141,57 @@ public final class MultiAttributeCredentialResolver {
           Integer.parseInt(Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT));
     }
 
+    /**
+     * Convenience overload defaulting {@code sharedCandidateFailurePolicy} to {@link
+     * SharedCandidateFailurePolicy#CHARGE_VIABLE_CANDIDATES}.
+     */
+    public ThrottleConfig(
+        int maxCandidates,
+        int tupleMaxFailures,
+        int tupleFailureWindowSeconds,
+        int maxAttributeLookupResults) {
+      this(
+          maxCandidates,
+          tupleMaxFailures,
+          tupleFailureWindowSeconds,
+          maxAttributeLookupResults,
+          SharedCandidateFailurePolicy.CHARGE_VIABLE_CANDIDATES);
+    }
+
     public static ThrottleConfig defaults() {
       return new ThrottleConfig(
           Integer.parseInt(Utils.MAX_CANDIDATES_DEFAULT),
           Integer.parseInt(Utils.TUPLE_MAX_FAILURES_DEFAULT),
           Integer.parseInt(Utils.TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT),
           Integer.parseInt(Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT));
+    }
+  }
+
+  /**
+   * Governs how a failed attempt is recorded when the submitted attributes still match more than
+   * one viable candidate, so the failure can't be attributed to a single account.
+   */
+  public enum SharedCandidateFailurePolicy {
+    /**
+     * Default: record the failure through {@link BruteForceProtector} against every viable
+     * candidate, so each of them follows the realm's Brute Force Detection settings just like an
+     * account behind the standard username/password form.
+     */
+    CHARGE_VIABLE_CANDIDATES,
+    /** Count the failure only against the per-tuple throttle, without charging any account. */
+    TUPLE_ONLY;
+
+    /** Same convention as {@link MatchPolicy#fromString}. */
+    public static SharedCandidateFailurePolicy fromString(String value) {
+      if (value == null || value.isBlank()) {
+        return CHARGE_VIABLE_CANDIDATES;
+      }
+      for (SharedCandidateFailurePolicy policy : values()) {
+        if (policy.name().equalsIgnoreCase(value)) {
+          return policy;
+        }
+      }
+      throw new IllegalArgumentException("No constant with text " + value + " found");
     }
   }
 
@@ -418,33 +471,35 @@ public final class MultiAttributeCredentialResolver {
           enabledCandidates.stream()
               .filter(candidate -> verifier.get().test(candidate, password))
               .toList();
-      if (matches.size() == 1) {
-        UserModel candidate = matches.get(0);
-        if (lockoutStates.get(candidate) == LockoutState.NONE) {
-          return resolved(session, realm, tupleKey, candidate, shared);
-        }
-        recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
-        return Resolution.lockedOut(candidate, lockoutStates.get(candidate));
+      if (matches.size() == 1 && lockoutStates.get(matches.get(0)) == LockoutState.NONE) {
+        return resolved(session, realm, tupleKey, matches.get(0), shared);
       }
-      recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
       if (enabledCandidates.size() == 1) {
         UserModel candidate = enabledCandidates.get(0);
+        recordAttributedFailure(session, realm, tupleKey, throttleConfig);
         return lockoutStates.get(candidate) == LockoutState.NONE
             ? Resolution.failureAttributedTo(candidate)
             : Resolution.lockedOut(candidate, lockoutStates.get(candidate));
       }
-      return Resolution.failure();
+      // As in resolved(), a lockout among several candidates stays a generic failure.
+      if (viableCandidates.size() == 1) {
+        recordAttributedFailure(session, realm, tupleKey, throttleConfig);
+        return Resolution.failureAttributedTo(viableCandidates.get(0));
+      }
+      recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
+      return sharedFailure(session, realm, viableCandidates, throttleConfig);
     }
 
     if (viableCandidates.isEmpty()) {
       // Every enabled candidate for these attributes is currently locked out: only report the
       // specific lockout when there is exactly one such account to attribute it to - an ambiguous
       // set of locked accounts must stay as generic a failure as any other ambiguous outcome.
-      recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
       if (lockedOutCandidates.size() == 1) {
         UserModel locked = lockedOutCandidates.get(0);
+        recordAttributedFailure(session, realm, tupleKey, throttleConfig);
         return Resolution.lockedOut(locked, lockoutStates.get(locked));
       }
+      recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
       return dummyFailure(session, realm);
     }
 
@@ -453,7 +508,7 @@ public final class MultiAttributeCredentialResolver {
       if (verifier.get().test(candidate, password)) {
         return resolved(session, realm, tupleKey, candidate, shared);
       }
-      recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
+      recordAttributedFailure(session, realm, tupleKey, throttleConfig);
       return Resolution.failureAttributedTo(candidate);
     }
 
@@ -466,7 +521,7 @@ public final class MultiAttributeCredentialResolver {
         }
       }
       recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
-      return Resolution.failure();
+      return sharedFailure(session, realm, viableCandidates, throttleConfig);
     }
 
     List<UserModel> passwordMatches =
@@ -484,6 +539,35 @@ public final class MultiAttributeCredentialResolver {
           realm.getName(), passwordMatches.size());
     }
     recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
+    return sharedFailure(session, realm, viableCandidates, throttleConfig);
+  }
+
+  /**
+   * Fails a request whose submitted attributes still matched more than one viable candidate. Under
+   * {@link SharedCandidateFailurePolicy#CHARGE_VIABLE_CANDIDATES} each of them is charged with the
+   * same {@link BruteForceProtector#failedLogin} call Keycloak makes for a single attributed user;
+   * that call only records the failure and doesn't hold the account, so candidates who share these
+   * attributes still don't block each other's concurrent logins.
+   */
+  private static Resolution sharedFailure(
+      KeycloakSession session,
+      RealmModel realm,
+      List<UserModel> viableCandidates,
+      ThrottleConfig throttleConfig) {
+    if (throttleConfig.sharedCandidateFailurePolicy()
+            == SharedCandidateFailurePolicy.CHARGE_VIABLE_CANDIDATES
+        && realm.isBruteForceProtected()) {
+      BruteForceProtector protector = session.getProvider(BruteForceProtector.class);
+      KeycloakContext context = session.getContext();
+      for (UserModel candidate : viableCandidates) {
+        protector.failedLogin(
+            realm,
+            candidate,
+            context.getConnection(),
+            context.getUri(),
+            PasswordCredentialModel.TYPE);
+      }
+    }
     return Resolution.failure();
   }
 
@@ -583,6 +667,20 @@ public final class MultiAttributeCredentialResolver {
     SingleUseObjectProvider store = session.singleUseObjects();
     int nextCount = failureCount(store.get(storeKey)) + 1;
     store.put(storeKey, windowSeconds, Map.of(FAILURE_COUNT_NOTE, String.valueOf(nextCount)));
+  }
+
+  /**
+   * Records a failure the result attributes to one account. With Brute Force Detection on, Keycloak
+   * charges that account once the caller sets it as the flow's user, so the failure stays out of
+   * the tuple counter: that counter is keyed only on the submitted values, and filling it would let
+   * anyone who knows them keep the voter out even with the right password. Without Brute Force
+   * Detection the tuple counter is the only limit, so it still counts the failure.
+   */
+  private static void recordAttributedFailure(
+      KeycloakSession session, RealmModel realm, String tupleKey, ThrottleConfig throttleConfig) {
+    if (!realm.isBruteForceProtected()) {
+      recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
+    }
   }
 
   private static void clearTupleThrottle(KeycloakSession session, String tupleKey) {
