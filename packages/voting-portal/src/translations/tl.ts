@@ -199,7 +199,7 @@ const tagalogTranslation: TranslationType = {
             },
             castRecovery: {
                 uncertain:
-                    "Hindi pa nakumpirma ang resulta ng pagboto. Maaari mong subukan muli ang parehong kahilingan o tingnan ang Ballot ID bago magsimulang muli.",
+                    "Hindi pa nakumpirma ang resulta ng pagboto. Maaari mong subukan muli ang parehong kahilingan o tingnan ang Tracking ID bago magsimulang muli.",
                 checkBallot: "Tingnan ang balota",
             },
             acclamation: {

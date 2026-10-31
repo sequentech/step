@@ -199,7 +199,7 @@ const catalanTranslation: TranslationType = {
             },
             castRecovery: {
                 uncertain:
-                    "El resultat de l’emissió no s’ha confirmat. Podeu reintentar la mateixa sol·licitud o comprovar l’identificador de la papereta abans de tornar a començar.",
+                    "El resultat de l’emissió no s’ha confirmat. Podeu reintentar la mateixa sol·licitud o comprovar l’ID de seguiment abans de tornar a començar.",
                 checkBallot: "Comprova la papereta",
             },
             acclamation: {

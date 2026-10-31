@@ -200,7 +200,7 @@ const galegoTranslation: TranslationType = {
             },
             castRecovery: {
                 uncertain:
-                    "Non se confirmou o resultado do envío. Pode tentar de novo a mesma solicitude ou comprobar o identificador da papeleta antes de comezar de novo.",
+                    "Non se confirmou o resultado do envío. Pode tentar de novo a mesma solicitude ou comprobar o ID de seguimento antes de comezar de novo.",
                 checkBallot: "Comprobar papeleta",
             },
             acclamation: {

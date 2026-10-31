@@ -38,7 +38,7 @@ event has two logs on the sidecar:
 
 | Log | Profile | Entries | How they arrive |
 | --- | --- | --- | --- |
-| `ballots` | `vitrine/election/ballots/v1` | One per accepted ballot | The ballot box writes the entry to the log's queue in the event's electoral-log database, in the transaction that stores the ballot. |
+| `ballots` | `vitrine/election/ballots/v1` | One per accepted ballot and stage: `received` at review, then `cast` or `audited` (a direct cast writes `received` and `cast` together) | The ballot box writes the entry to the log's queue in the event's electoral-log database, in the transaction that stores the ballot or its step. |
 | `events` | `vitrine/election/events/v1` | Each election's configuration, `voting-opened`, `voting-closed`, and a milestone when a tally completes and when results are published | Windmill posts signed statements to the sidecar's `POST add`, with the log's submission token. |
 
 Witnesses co-sign the logs' checkpoints. The event's trust policy names the
@@ -158,6 +158,45 @@ sequenceDiagram
   one cast tries again: its success closes the breaker, its failure opens it
   for another period.
 
+### Receiving at review, then casting or auditing
+
+With the event's **Receipts signed by the ballot box** setting, a ballot goes
+through the `ballots` log in steps, each its own entry with a `stage`:
+`received`, then `cast` or `audited`. The profile's rules check that a ballot
+has one entry per stage, is cast or audited but not both, and that a `cast` or
+`audited` entry follows a `received` one.
+
+- **Receive** (`POST /receive-ballot`). When the review screen opens, the
+  portal sends the voter-signed ballot. Windmill runs the cast checks, stores
+  it in `ballot_box_received` and queues its `received` entry in the same
+  transaction, then answers with the ballot box's signature
+  (`step/ballot-received/v1`) and the log's receipt, promise, queued entry or
+  reason, as for a cast. The portal turns **Cast ballot** on once it has
+  checked the signature and, with transparency on, the log's receipt or
+  promise for the `received` entry it computes itself. A queued entry or a
+  log it cannot reach leaves the signature, and the portal asks the log
+  again. The monitors keep the promise, so a log that breaks it is caught
+  without the voter.
+- **Cast** (`POST /cast-ballot`). The same voter key signs the cast of the
+  receipt key the ballot box signed at review (`step/ballot-cast/v1`); the
+  ballot is not sent again. Windmill
+  stores the cast vote, marks the received ballot cast and queues the `cast`
+  entry in one write, and signs a cast receipt
+  (`step/ballot-cast-receipt/v1`). The portal checks the receipt or promise
+  for the `cast` entry before it opens the confirmation screen. The same
+  signature again is a retry and gets the same receipt.
+- **Audit** (`POST /audit-ballot`). Auditing a received ballot queues its
+  `audited` entry and stops it from ever being cast; the portal shows the
+  plaintext only after the ballot box acknowledges the audit.
+- **A reload** drops the key that casts the ballot. The portal keeps a
+  marker (no key and no choices) once the ballot box has the ballot, and after
+  a reload the review screen says **Your ballot was not cast** and offers
+  **Back to my ballot**.
+
+Telephone voting has no voter device to check a receipt, so it keeps casting
+directly through `insert_cast_vote`, which queues the `received` and `cast`
+entries together.
+
 ### Statements in the `events` log
 
 Windmill beat runs `schedule_vitrine_statements` every 15 seconds (the beat
@@ -249,8 +288,15 @@ event's overview. It shows only what `get_transparency` returns, and says
 The voting portal's flow stays as it is, with additions when the event's
 transparency is on: a check mark next to the Tracking ID, the name the voter
 sees for the ballot's ID (`ballot_id` in the API and the database), and a tag
-that says **Not cast** or **Cast**. The ID shows in groups of four characters,
-and the first two groups are the short ID. On the review screen the ID sits in
+that says **Not cast** or **Cast**. The Tracking ID is the first 32 bytes of
+SHA-512 over `step/ballot-id/v2`, the ballot's hash and the voter key's DER
+(empty without a key), each length-prefixed, written in Crockford base32 in
+hyphenated groups of four, as in `FTBE-MHRX-71J7-…`. The first two groups are
+the short ID. Voter pseudonyms use a colon instead (`K7QM:2XWD`), so the two
+never read as each other. A lookup ignores case and hyphens, reads `I` and `L`
+as `1` and `O` as `0`, and needs at least 8 characters; when a short ID fits
+up to 10 ballots it lists them, and above that it asks for more characters. On
+the review screen the ID sits in
 a box next to the title on a wide screen. The check mark shows how far the
 receipt's check has got: not cast yet on the review screen, then checking, in
 the public record, confirmed by witnesses, verified, late or problem. The worst

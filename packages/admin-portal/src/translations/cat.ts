@@ -1536,7 +1536,7 @@ const catalanTranslation: TranslationType = {
                     "disabled": "Desactivat",
                     "signed-by-ballot-box": "Signats per l'urna",
                     "helperText":
-                        "Quan està activat, l'urna emmagatzema i signa cada papereta a la pantalla de revisió, i el votant veu un ID de papereta només quan l'urna l'ha rebuda. Els votants signen les seves paperetes. Torneu a publicar les paperetes després de canviar-ho.",
+                        "Quan està activat, l'urna signa cada papereta quan la rep a la pantalla de revisió i signa un rebut d'emissió que el dispositiu del votant comprova. Els votants signen les seves paperetes. Torneu a publicar les paperetes després de canviar-ho.",
                     "lockedHelperText": "No es pot canviar un cop iniciada la votació.",
                 },
                 VoterCertificatePolicy: {

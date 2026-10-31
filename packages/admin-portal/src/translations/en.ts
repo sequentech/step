@@ -1751,7 +1751,7 @@ const englishTranslation = {
                     "disabled": "Disabled",
                     "signed-by-ballot-box": "Signed by the ballot box",
                     "helperText":
-                        "When on, the ballot box stores and signs each ballot at review, and the voter sees a Ballot ID only once the ballot has been received. Voters sign their ballots. Publish the ballots again after changing it.",
+                        "When on, the ballot box signs each ballot when it receives it at review, and signs a cast receipt that the voter's device checks. Voters sign their ballots. Publish the ballots again after changing it.",
                     "lockedHelperText": "This cannot be changed once voting has started.",
                 },
                 VoterCertificatePolicy: {

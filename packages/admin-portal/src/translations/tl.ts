@@ -1542,7 +1542,7 @@ const tagalogTranslation: TranslationType = {
                     "disabled": "Hindi pinagana",
                     "signed-by-ballot-box": "Pinirmahan ng ballot box",
                     "helperText":
-                        "Kapag naka-on, iniimbak at pinipirmahan ng ballot box ang bawat balota sa pagsusuri, at makikita lamang ng botante ang Ballot ID kapag natanggap na ang balota. Pinipirmahan ng mga botante ang kanilang mga balota. I-publish muli ang mga balota pagkatapos itong baguhin.",
+                        "Kapag naka-on, pinipirmahan ng ballot box ang bawat balota kapag natanggap ito sa pagsusuri, at pumipirma ito ng resibo ng pagboto na sinusuri ng device ng botante. Pinipirmahan ng mga botante ang kanilang mga balota. I-publish muli ang mga balota pagkatapos itong baguhin.",
                     "lockedHelperText": "Hindi na ito mababago kapag nagsimula na ang botohan.",
                 },
                 VoterCertificatePolicy: {

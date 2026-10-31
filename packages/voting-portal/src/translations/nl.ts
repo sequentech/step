@@ -199,7 +199,7 @@ const dutchTranslation: TranslationType = {
             },
             castRecovery: {
                 uncertain:
-                    "Het resultaat van het uitbrengen is niet bevestigd. U kunt hetzelfde verzoek opnieuw proberen of uw stembiljet-ID controleren voordat u opnieuw begint.",
+                    "Het resultaat van het uitbrengen is niet bevestigd. U kunt hetzelfde verzoek opnieuw proberen of uw trackingcode controleren voordat u opnieuw begint.",
                 checkBallot: "Stembiljet controleren",
             },
             acclamation: {

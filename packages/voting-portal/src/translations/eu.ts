@@ -199,7 +199,7 @@ const basqueTranslation: TranslationType = {
             },
             castRecovery: {
                 uncertain:
-                    "Botoaren emaitza ez da baieztatu. Eskaera bera berriro bidal dezakezu edo boto-paperaren IDa egiaztatu berriro hasi aurretik.",
+                    "Botoaren emaitza ez da baieztatu. Eskaera bera berriro bidal dezakezu edo jarraipen IDa egiaztatu berriro hasi aurretik.",
                 checkBallot: "Egiaztatu boto-papera",
             },
             acclamation: {

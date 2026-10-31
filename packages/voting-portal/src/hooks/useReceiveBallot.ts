@@ -72,8 +72,10 @@ export const isReceivedAtReview = (ballotStyle?: IBallotStyle): boolean =>
 
 /**
  * Sends the voter-signed ballot to the ballot box when the review screen
- * opens. The Ballot ID is known only after the ballot box has stored and
- * signed the ballot and this device has checked that signature.
+ * opens. The Tracking ID shows at once; the ballot counts as received only
+ * once the ballot box has stored and signed it, this device has checked that
+ * signature and, with transparency on, the log's receipt or promise for its
+ * `received` entry.
  */
 export const useReceiveBallot = ({
     ballotStyle,

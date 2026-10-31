@@ -1523,7 +1523,7 @@ const basqueTranslation: TranslationType = {
                     "disabled": "Desgaituta",
                     "signed-by-ballot-box": "Hautetsontziak sinatuta",
                     "helperText":
-                        "Aktibatuta dagoenean, hautetsontziak boto-txartel bakoitza berrikuspen-pantailan gorde eta sinatzen du, eta bozkatzaileak boto-txartelaren IDa hautetsontziak jaso ondoren bakarrik ikusten du. Bozkatzaileek beren boto-txartelak sinatzen dituzte. Aldatu ondoren, argitaratu berriro boto-txartelak.",
+                        "Aktibatuta dagoenean, hautetsontziak boto-txartel bakoitza sinatzen du berrikuspen-pantailan jasotzen duenean, eta bozkatzailearen gailuak egiaztatzen duen emate-agiri bat sinatzen du. Bozkatzaileek beren boto-txartelak sinatzen dituzte. Aldatu ondoren, argitaratu berriro boto-txartelak.",
                     "lockedHelperText": "Ezin da aldatu bozketa hasi ondoren.",
                 },
                 VoterCertificatePolicy: {

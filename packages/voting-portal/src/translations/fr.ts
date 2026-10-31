@@ -199,7 +199,7 @@ const frenchTranslation: TranslationType = {
             },
             castRecovery: {
                 uncertain:
-                    "Le résultat du vote n’a pas été confirmé. Vous pouvez réessayer la même demande ou vérifier votre identifiant de bulletin avant de recommencer.",
+                    "Le résultat du vote n’a pas été confirmé. Vous pouvez réessayer la même demande ou vérifier votre identifiant de suivi avant de recommencer.",
                 checkBallot: "Vérifier le bulletin",
             },
             acclamation: {

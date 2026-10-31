@@ -1537,7 +1537,7 @@ const frenchTranslation: TranslationType = {
                     "disabled": "Désactivé",
                     "signed-by-ballot-box": "Signés par l'urne",
                     "helperText":
-                        "Lorsque cette option est activée, l'urne enregistre et signe chaque bulletin à l'étape de vérification, et l'électeur ne voit un identifiant de bulletin qu'une fois le bulletin reçu. Les électeurs signent leurs bulletins. Publiez à nouveau les bulletins après l'avoir modifiée.",
+                        "Lorsque cette option est activée, l'urne signe chaque bulletin quand elle le reçoit à l'étape de vérification, et signe un reçu de dépôt que l'appareil de l'électeur vérifie. Les électeurs signent leurs bulletins. Publiez à nouveau les bulletins après l'avoir modifiée.",
                     "lockedHelperText":
                         "Ce réglage ne peut plus être modifié une fois le vote commencé.",
                 },

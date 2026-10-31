@@ -45,7 +45,7 @@ const catalanTranslation: TranslationType = {
             styleErrorDescription:
                 "L'estil de vot d'aquest vot auditable no és el publicat per a l'elecció: la seva clau pública o les seves contendes i candidatures difereixen, o no està publicat. No es pot confiar en el vot.",
             legacyBallotWarning:
-                "Aquest vot auditable usa un format anterior l'ID de vot del qual no cobreix l'estil de vot. El seu ID de vot no pot confirmar que es va xifrar amb la clau publicada de l'elecció.",
+                "Aquest vot auditable usa un format anterior l'ID de seguiment del qual no cobreix l'estil de vot. El seu ID de seguiment no pot confirmar que es va xifrar amb la clau publicada de l'elecció.",
             useSampleLink: "Utilitzeu vot d'exemple",
             nextButton: "Continuar",
             fileUploaded: "Carregat",

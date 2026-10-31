@@ -110,7 +110,7 @@ export const BallotIdHelp: Story = {
             within(canvasElement).getByRole("button", {name: "About your Tracking ID"})
         )
         const dialog = await within(document.body).findByRole("dialog")
-        await waitFor(() => expect(within(dialog).getByText(/About the Ballot ID/)).toBeVisible())
+        await waitFor(() => expect(within(dialog).getByText(/About the Tracking ID/)).toBeVisible())
     },
 }
 export const BothSearched: Story = {

@@ -1601,7 +1601,7 @@ const spanishTranslation: TranslationType = {
                     "disabled": "Desactivado",
                     "signed-by-ballot-box": "Firmados por la urna",
                     "helperText":
-                        "Cuando está activado, la urna almacena y firma cada papeleta en la pantalla de revisión, y el votante ve un ID de papeleta solo cuando la urna la ha recibido. Los votantes firman sus papeletas. Vuelva a publicar las papeletas después de cambiarlo.",
+                        "Cuando está activado, la urna firma cada papeleta al recibirla en la pantalla de revisión y firma un recibo de emisión que el dispositivo del votante comprueba. Los votantes firman sus papeletas. Vuelva a publicar las papeletas después de cambiarlo.",
                     "lockedHelperText": "No se puede cambiar una vez iniciada la votación.",
                 },
                 VoterCertificatePolicy: {

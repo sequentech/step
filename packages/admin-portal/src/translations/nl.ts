@@ -1533,7 +1533,7 @@ const dutchTranslation: TranslationType = {
                     "disabled": "Uitgeschakeld",
                     "signed-by-ballot-box": "Ondertekend door de stembus",
                     "helperText":
-                        "Indien ingeschakeld slaat de stembus elk stembiljet bij de controle op en ondertekent het, en ziet de kiezer pas een stembiljet-ID nadat het stembiljet is ontvangen. Kiezers ondertekenen hun stembiljetten. Publiceer de stembiljetten opnieuw na een wijziging.",
+                        "Indien ingeschakeld ondertekent de stembus elk stembiljet wanneer het dit bij de controle ontvangt, en ondertekent het een ontvangstbewijs van het uitbrengen dat het apparaat van de kiezer controleert. Kiezers ondertekenen hun stembiljetten. Publiceer de stembiljetten opnieuw na een wijziging.",
                     "lockedHelperText":
                         "Dit kan niet meer worden gewijzigd nadat het stemmen is begonnen.",
                 },

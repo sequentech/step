@@ -326,7 +326,7 @@ const englishTranslation = {
             },
             castRecovery: {
                 uncertain:
-                    "The cast result has not been confirmed. You can retry the same request or check your Ballot ID before starting again.",
+                    "The cast result has not been confirmed. You can retry the same request or check your Tracking ID before starting again.",
                 checkBallot: "Check ballot",
             },
             acclamation: {

@@ -45,7 +45,7 @@ const spanishTranslation: TranslationType = {
             styleErrorDescription:
                 "El estilo de voto de este voto auditable no es el publicado para la elección: su clave pública o sus contiendas y candidaturas difieren, o no está publicado. No se puede confiar en el voto.",
             legacyBallotWarning:
-                "Este voto auditable usa un formato anterior cuyo ID de voto no cubre el estilo de voto. Su ID de voto no puede confirmar que se cifró con la clave publicada de la elección.",
+                "Este voto auditable usa un formato anterior cuyo ID de seguimiento no cubre el estilo de voto. Su ID de seguimiento no puede confirmar que se cifró con la clave publicada de la elección.",
             useSampleLink: "Use voto de ejemplo",
             nextButton: "Continuar",
             fileUploaded: "Cargado",

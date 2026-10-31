@@ -46,7 +46,7 @@ const galegoTranslation: TranslationType = {
             styleErrorDescription:
                 "O estilo de papeleta desta papeleta auditábel non é o publicado para a elección: a súa chave pública ou os seus concursos e candidaturas difiren, ou non está publicado. Non se pode confiar na papeleta.",
             legacyBallotWarning:
-                "Esta papeleta auditábel usa un formato anterior cuxo ID de papeleta non cobre o estilo de papeleta. O seu ID non pode confirmar que se cifrou coa chave publicada da elección.",
+                "Esta papeleta auditábel usa un formato anterior cuxo ID de seguimento non cobre o estilo de papeleta. O seu ID non pode confirmar que se cifrou coa chave publicada da elección.",
             useSampleLink: "Usar unha papeleta de exemplo",
             nextButton: "Seguinte",
             fileUploaded: "Cargado",

@@ -1527,7 +1527,7 @@ const galegoTranslation: TranslationType = {
                     "disabled": "Desactivado",
                     "signed-by-ballot-box": "Asinados pola urna",
                     "helperText":
-                        "Cando está activado, a urna almacena e asina cada papeleta na pantalla de revisión, e o votante ve un ID de papeleta só cando a urna a recibiu. Os votantes asinan as súas papeletas. Volva publicar as papeletas despois de cambialo.",
+                        "Cando está activado, a urna asina cada papeleta cando a recibe na pantalla de revisión e asina un recibo de emisión que o dispositivo do votante comproba. Os votantes asinan as súas papeletas. Volva publicar as papeletas despois de cambialo.",
                     "lockedHelperText": "Non se pode cambiar unha vez iniciada a votación.",
                 },
                 VoterCertificatePolicy: {

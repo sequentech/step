@@ -199,7 +199,7 @@ const spanishTranslation: TranslationType = {
             },
             castRecovery: {
                 uncertain:
-                    "No se ha confirmado el resultado del envío. Puede reintentar la misma solicitud o comprobar el identificador de la papeleta antes de empezar de nuevo.",
+                    "No se ha confirmado el resultado del envío. Puede reintentar la misma solicitud o comprobar el ID de seguimiento antes de empezar de nuevo.",
                 checkBallot: "Comprobar papeleta",
             },
             acclamation: {
