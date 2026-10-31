@@ -9,6 +9,7 @@
 // the portal casts.
 
 import { sha256, styleDigest, styleList, stylesHash } from "./vitrine.mjs";
+import { createBallotBox } from "./receipts.mjs";
 
 export const TENANT_ID = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
 export const AREA_ID = "5e1c2a3b-7f64-4b08-9d51-6c3a0e8f2b17";
@@ -19,6 +20,13 @@ export const VOTER_USERNAME = "voter@example.org";
 /** The election public key the portal encrypts to: a valid Ristretto point
  * (the one Step's own portal fixtures use). Nobody holds its secret half. */
 export const ELECTION_PUBLIC_KEY = "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4";
+
+/** The preview's ballot box signs with an Ed25519 key from a fixed seed, so that its published
+ * half, which Step puts in each ballot style, is the same in the style the events log's
+ * config statement commits to (`provision-events`) and in the one the stand-in serves.
+ * The key is the preview's own: it signs nothing outside it. */
+export const BALLOT_BOX_SEED = sha256(Buffer.from("vitrine-preview/ballot-box-key/v1"));
+export const ballotBox = createBallotBox(BALLOT_BOX_SEED);
 
 const CANDIDATES = [
   ["ana-ferrer", "Ana Ferrer", "Teacher and former deputy mayor."],
@@ -88,6 +96,8 @@ export function ballotStyleText({ live, electionId, policyNote }) {
       i18n: i18n("Municipal council election", "Choose who chairs the municipal council."),
     },
     election_dates: {},
+    // With receipts signed by the ballot box, Step publishes the box's key in the style.
+    ballot_box_key: ballotBox.key,
   };
   return JSON.stringify(style, null, 2);
 }
@@ -104,6 +114,9 @@ export function eventPresentation({ live, policyNote }) {
     skip_election_list: false,
     show_user_profile: true,
     show_cast_vote_logs: "hide-logs-tab",
+    // The ballot box receives each ballot at review and signs it; voters sign their ballots.
+    voter_signing_policy: "with-signature",
+    receipts: { policy: "signed-by-ballot-box", checks_period_policy: "unlimited" },
     transparency: "public",
     vitrine: {
       policy_id: live.policyId,
