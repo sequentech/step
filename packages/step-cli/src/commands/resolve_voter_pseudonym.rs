@@ -30,7 +30,7 @@ pub struct ResolveVoterPseudonym {
 }
 
 fn parse_pseudonym(value: &str) -> Result<String, String> {
-    normalize_ballot_id(value).ok_or_else(|| "Enter one eight-character pseudonym".into())
+    normalize_ballot_id(&value.replace(':', "-")).ok_or_else(|| "Enter one eight-character pseudonym".into())
 }
 
 fn parse_reason(value: &str) -> Result<String, String> {

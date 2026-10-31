@@ -10,6 +10,7 @@ use crate::ballot_codec::multi_ballot::*;
 use crate::ballot_codec::raw_ballot::RawBallotCodec;
 use crate::ballot_receipt::{
     forget_voter_signing_key, keep_voter_signing_key, normalize_ballot_id,
+    normalize_tracking_id, tracking_id,
     sign_cast_statement_with_kept_key, verify_cast_receipt,
     verify_received_ballot, CastReceipt, ReceivedBallot,
 };
@@ -1447,6 +1448,46 @@ pub fn normalize_ballot_id_js(typed: JsValue) -> Result<JsValue, JsValue> {
         .into_json()?;
 
     serde_wasm_bindgen::to_value(&normalize_ballot_id(&typed))
+        .map_err(|err| format!("Error writing javascript string: {err}",))
+        .into_json()
+}
+
+// returns the full Tracking ID of a ballot (`FTBE-MHRX-...`, 52 characters in
+// groups of four) from its hash and the voter's public key, or from the hash
+// alone when the voter does not sign
+#[wasm_bindgen]
+pub fn tracking_id_js(
+    ballot_hash: JsValue,
+    voter_signing_pk: JsValue,
+) -> Result<JsValue, JsValue> {
+    let ballot_hash: String = serde_wasm_bindgen::from_value(ballot_hash)
+        .map_err(|err| format!("Error deserializing ballot hash: {err}"))
+        .into_json()?;
+    let voter_signing_pk: Option<String> =
+        serde_wasm_bindgen::from_value(voter_signing_pk)
+            .map_err(|err| {
+                format!("Error deserializing voter signing key: {err}")
+            })
+            .into_json()?;
+
+    let id = tracking_id(&ballot_hash, voter_signing_pk.as_deref())
+        .map_err(|err| format!("Error computing the Tracking ID: {err}"))
+        .into_json()?;
+    serde_wasm_bindgen::to_value(&id)
+        .map_err(|err| format!("Error writing javascript string: {err}",))
+        .into_json()
+}
+
+// returns a typed Tracking ID, or its first 4 or 8 characters, in groups of
+// four, or null when the typed text cannot be one: a voter pseudonym
+// (`FTBE:MHRX`) is not
+#[wasm_bindgen]
+pub fn normalize_tracking_id_js(typed: JsValue) -> Result<JsValue, JsValue> {
+    let typed: String = serde_wasm_bindgen::from_value(typed)
+        .map_err(|err| format!("Error deserializing tracking id: {err}"))
+        .into_json()?;
+
+    serde_wasm_bindgen::to_value(&normalize_tracking_id(&typed))
         .map_err(|err| format!("Error writing javascript string: {err}",))
         .into_json()
 }

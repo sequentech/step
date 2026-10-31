@@ -8,6 +8,7 @@ use crate::routes::insert_cast_vote::{
 };
 use crate::services::authorization::authorize_voter_election;
 use crate::services::dependencies::HarvestServices;
+use crate::services::vitrine::CastReceipts;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -17,10 +18,22 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::VoterPermissions;
 use sequent_core::util::retry::retry_with_exponential_backoff;
 use std::time::{Duration, Instant};
+use serde::Serialize;
 use tracing::{info, instrument};
+use windmill::types::vitrine::VitrineCast;
 use windmill::services::cast_ballot::{
     CastBallotInput, CastBallotOutput, CastBallotResult,
 };
+
+/// The ballot box's cast receipt, and what the event's Vitrine `ballots` log
+/// said about the ballot's `cast` entry, or `None` when the event's
+/// transparency is off.
+#[derive(Debug, Serialize)]
+pub struct CastBallotResponse {
+    #[serde(flatten)]
+    pub receipt: CastBallotOutput,
+    pub vitrine: Option<VitrineCast>,
+}
 
 const MAX_RETRIES: usize = 5;
 const INITIAL_BACKOFF: Duration = Duration::from_millis(100);
@@ -38,7 +51,8 @@ pub async fn cast_ballot(
     claims: JwtClaims,
     user_info: UserLocation,
     services: &State<HarvestServices>,
-) -> Result<Json<CastBallotOutput>, JsonError> {
+    receipts: &State<CastReceipts>,
+) -> Result<Json<CastBallotResponse>, JsonError> {
     let start = Instant::now();
     let input: CastBallotInput = body.into_inner();
     let election_id = input.election_id.to_string();
@@ -84,11 +98,11 @@ pub async fn cast_ballot(
     )
     .await;
 
-    let receipt = match cast_result {
-        Ok(CastBallotResult::Cast(receipt)) => receipt,
-        Ok(CastBallotResult::PendingDatafix(receipt, cast_vote)) => {
+    let (receipt, vitrine) = match cast_result {
+        Ok(CastBallotResult::Cast(receipt, vitrine)) => (receipt, vitrine),
+        Ok(CastBallotResult::PendingDatafix(receipt, cast_vote, vitrine)) => {
             enqueue_datafix_cast_vote(services, &cast_vote).await;
-            receipt
+            (receipt, vitrine)
         }
         Ok(CastBallotResult::SkipRetryFailure(cast_err)) | Err(cast_err) => {
             info!(
@@ -104,7 +118,8 @@ pub async fn cast_ballot(
         duration_us = start.elapsed().as_micros() as u64,
         "cast-ballot route completed"
     );
-    Ok(Json(receipt))
+    let vitrine = receipts.cast(vitrine).await;
+    Ok(Json(CastBallotResponse { receipt, vitrine }))
 }
 
 #[cfg(test)]

@@ -5,6 +5,7 @@
 //! policy. The ballot box signs a receipt with a short Ballot ID for each; the voter
 //! casts one by that Ballot ID, with `accept_received_ballot`.
 
+use super::ballot_box::{election_entry, queue_entry, QueueState, VitrineEntry, VitrineQueue};
 use super::ballot_box_reads::{BallotContent, BallotIdMatch, StoredBallot};
 use super::postgres::PostgresStore;
 use super::privacy::BallotIdentity;
@@ -12,6 +13,9 @@ use anyhow::{anyhow, ensure, Context, Result};
 use chrono::{DateTime, Duration, Utc};
 use strum_macros::{Display, EnumString};
 use tokio_postgres::Row;
+use tracing::warn;
+
+use crate::vitrine::{leaf_hash, Stage};
 
 /// Receipt times a received ballot is signed for, one millisecond apart, before
 /// giving up on finding a free Ballot ID. A taken Ballot ID is about one in a million
@@ -55,6 +59,9 @@ pub struct ReceiveBallot<'a> {
     pub content: &'a str,
     pub voter_signing_pk: &'a str,
     pub voter_ballot_signature: &'a str,
+    /// The event's Vitrine `ballots` log, when the event has transparency on:
+    /// the `received` entry is queued in the transaction that stores the ballot.
+    pub vitrine: Option<VitrineQueue>,
 }
 
 /// The receipt the ballot box signed for a received ballot at one receipt time.
@@ -87,6 +94,10 @@ pub struct ReceivedBallot {
     pub cast_at: Option<DateTime<Utc>>,
     pub cast_signature: Option<String>,
     pub cast_receipt_signature: Option<String>,
+    /// The `received` entry that went into the Vitrine log with the ballot, or,
+    /// for a ballot sent again, the same entry rebuilt from the stored one. It
+    /// is not a column: a ballot read from the store has none.
+    pub vitrine: Option<VitrineEntry>,
 }
 
 /// What receiving a ballot did.
@@ -137,7 +148,34 @@ pub(crate) fn received_ballot(row: &Row) -> Result<ReceivedBallot> {
         cast_at: row.try_get(14)?,
         cast_signature: row.try_get(15)?,
         cast_receipt_signature: row.try_get(16)?,
+        vitrine: None,
     })
+}
+
+/// The `received` entry of a stored ballot, as the first receipt queued it.
+fn received_entry(ballot: &ReceiveBallot<'_>, stored: &ReceivedBallot) -> Option<VitrineEntry> {
+    let queue = ballot.vitrine?;
+    election_entry(
+        ballot.election_event_id,
+        ballot.election_id,
+        Stage::Received,
+        &queue,
+        stored.received_at.timestamp(),
+    )
+    .map_err(|error| warn!("No Vitrine entry for received ballot {}: {error:#}", stored.ballot_id))
+    .ok()
+    .map(|entry| VitrineEntry {
+        leaf_hash: leaf_hash(&entry),
+        entry,
+        queue: QueueState::Queued,
+    })
+}
+
+/// A ballot the voter sent before, with its `received` entry.
+fn already_received(ballot: &ReceiveBallot<'_>, row: &Row) -> Result<ReceiveOutcome> {
+    let mut stored = received_ballot(row)?;
+    stored.vitrine = received_entry(ballot, &stored);
+    Ok(ReceiveOutcome::AlreadyReceived(stored))
 }
 
 impl PostgresStore {
@@ -195,7 +233,7 @@ impl PostgresStore {
         // On the same connection: taking a second one while holding this one could
         // exhaust the pool under load.
         if let Some(row) = client.query_opt(&by_hash, &hash_parameters).await? {
-            return Ok(ReceiveOutcome::AlreadyReceived(received_ballot(&row)?));
+            return already_received(ballot, &row);
         }
         let insert = client
             .prepare_cached(&format!(
@@ -223,7 +261,7 @@ impl PostgresStore {
         for attempt in 0..RECEIVE_ATTEMPTS {
             let received_at = first_received_at + Duration::milliseconds(attempt);
             let signature = sign(received_at)?;
-            let transaction = client.transaction().await?;
+            let mut transaction = client.transaction().await?;
             if privacy {
                 let reserved = transaction
                     .query_opt(
@@ -236,7 +274,7 @@ impl PostgresStore {
                     transaction.rollback().await?;
                     // A simultaneous retry may have reserved this same receipt.
                     if let Some(row) = client.query_opt(&by_hash, &hash_parameters).await? {
-                        return Ok(ReceiveOutcome::AlreadyReceived(received_ballot(&row)?));
+                        return already_received(ballot, &row);
                     }
                     continue;
                 }
@@ -265,7 +303,35 @@ impl PostgresStore {
                 .await
                 .context("Error storing the received ballot")?;
             if let Some(row) = inserted {
-                let stored = received_ballot(&row)?;
+                let mut stored = received_ballot(&row)?;
+                // The entry and the ballot commit together or not at all, but the
+                // queue never refuses the ballot: its insert is under a savepoint.
+                if let Some(queue) = ballot.vitrine {
+                    stored.vitrine = match election_entry(
+                        ballot.election_event_id,
+                        ballot.election_id,
+                        Stage::Received,
+                        &queue,
+                        received_at.timestamp(),
+                    ) {
+                        Ok(entry) => Some(
+                            queue_entry(
+                                &mut transaction,
+                                &queue,
+                                entry,
+                                &format!("received ballot {}", signature.ballot_id),
+                            )
+                            .await,
+                        ),
+                        Err(error) => {
+                            warn!(
+                                "No Vitrine entry for received ballot {}: {error:#}",
+                                signature.ballot_id
+                            );
+                            None
+                        }
+                    };
+                }
                 transaction.commit().await?;
                 return Ok(ReceiveOutcome::Received(stored));
             }
@@ -274,7 +340,7 @@ impl PostgresStore {
             // Either the voter's same ballot arrived on another request, or the
             // Ballot ID is taken in the election event.
             if let Some(row) = client.query_opt(&by_hash, &hash_parameters).await? {
-                return Ok(ReceiveOutcome::AlreadyReceived(received_ballot(&row)?));
+                return already_received(ballot, &row);
             }
         }
         Ok(ReceiveOutcome::NoFreeBallotId)
@@ -291,27 +357,83 @@ impl PostgresStore {
         voter: &str,
         ballot_id: &str,
     ) -> Result<AuditOutcome> {
-        let row = self
-            .client()
+        Ok(self
+            .audit_received_ballot_with_vitrine(event, election, area, voter, ballot_id, None)
             .await?
+            .0)
+    }
+
+    /// As `audit_received_ballot`, and queues the ballot's `audited` entry, in
+    /// the transaction that closes the choice, when the event has a Vitrine
+    /// `ballots` log. Auditing a ballot again returns the entry rebuilt from the
+    /// stored audit time.
+    pub async fn audit_received_ballot_with_vitrine(
+        &self,
+        event: &str,
+        election: &str,
+        area: &str,
+        voter: &str,
+        ballot_id: &str,
+        vitrine: Option<VitrineQueue>,
+    ) -> Result<(AuditOutcome, Option<VitrineEntry>)> {
+        let audited_at = Utc::now();
+        let mut client = self.client().await?;
+        let mut transaction = client.transaction().await?;
+        let row = transaction
             .query_opt(
                 "WITH selected AS (
-                SELECT id,status FROM ballot_box_received
+                SELECT id,status,audited_at FROM ballot_box_received
                 WHERE election_event_id=$1::text::uuid AND election_id=$2::text::uuid
                     AND area_id=$3::text::uuid AND voter_id=$4 AND ballot_id=$5 FOR UPDATE
              ), audited AS (
-                UPDATE ballot_box_received r SET status='audited'
+                UPDATE ballot_box_received r SET status='audited', audited_at=$6
                 FROM selected s WHERE r.election_event_id=$1::text::uuid AND r.id=s.id
                     AND s.status='received' RETURNING r.id
-             ) SELECT status FROM selected",
-                &[&event, &election, &area, &voter, &ballot_id],
+             ) SELECT s.status, s.audited_at, EXISTS (SELECT 1 FROM audited) FROM selected s",
+                &[&event, &election, &area, &voter, &ballot_id, &audited_at],
             )
             .await?;
-        Ok(match row.map(|row| row.get::<_, String>(0)).as_deref() {
-            Some("received" | "audited") => AuditOutcome::Audited,
-            Some("cast") => AuditOutcome::AlreadyCast,
+        let Some(row) = row else {
+            transaction.rollback().await?;
+            return Ok((AuditOutcome::NotFound, None));
+        };
+        let status: String = row.get(0);
+        let stored_audit: Option<DateTime<Utc>> = row.get(1);
+        let just_audited: bool = row.get(2);
+        let outcome = match status.as_str() {
+            "received" | "audited" => AuditOutcome::Audited,
+            "cast" => AuditOutcome::AlreadyCast,
             _ => AuditOutcome::NotFound,
-        })
+        };
+        let entry = match (outcome, vitrine) {
+            (AuditOutcome::Audited, Some(queue)) => {
+                let at = if just_audited { Some(audited_at) } else { stored_audit };
+                match at.map(|at| election_entry(event, election, Stage::Audited, &queue, at.timestamp())) {
+                    Some(Ok(entry)) if just_audited => Some(
+                        queue_entry(
+                            &mut transaction,
+                            &queue,
+                            entry,
+                            &format!("audited ballot {ballot_id}"),
+                        )
+                        .await,
+                    ),
+                    Some(Ok(entry)) => Some(VitrineEntry {
+                        leaf_hash: leaf_hash(&entry),
+                        entry,
+                        queue: QueueState::Queued,
+                    }),
+                    Some(Err(error)) => {
+                        warn!("No Vitrine entry for audited ballot {ballot_id}: {error:#}");
+                        None
+                    }
+                    None => None,
+                }
+            }
+            _ => None,
+        };
+        transaction.commit().await?;
+        Ok((outcome, entry))
     }
 
     /// The voter's received ballot with this ballot hash in an election.
@@ -410,6 +532,7 @@ impl PostgresStore {
         let (condition, value) = match ballot_id {
             BallotIdMatch::Exact(value) => ("r.ballot_id = $4", value),
             BallotIdMatch::Prefix(value) => ("starts_with(r.ballot_id, $4)", value),
+            BallotIdMatch::Any => ("length($4::text) >= 0", ""),
         };
         let rows = self
             .client()

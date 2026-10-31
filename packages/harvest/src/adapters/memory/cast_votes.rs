@@ -11,7 +11,7 @@ use windmill::services::insert_cast_vote::{
     CastVoteError, InsertCastVoteInput, InsertCastVoteResult,
 };
 use windmill::services::receive_ballot::{
-    ReceiveBallotInput, ReceiveBallotOutput,
+    ReceiveBallotInput, ReceiveBallotResult,
 };
 
 /// Who cast a vote, as the insertion received it.
@@ -35,7 +35,7 @@ pub struct Attempt {
 pub struct ScriptedCastVotes {
     outcomes: Mutex<VecDeque<Result<InsertCastVoteResult, CastVoteError>>>,
     attempts: Mutex<Vec<Attempt>>,
-    receipts: Mutex<VecDeque<Result<ReceiveBallotOutput, CastVoteError>>>,
+    receipts: Mutex<VecDeque<Result<ReceiveBallotResult, CastVoteError>>>,
     receive_attempts: Mutex<Vec<Attempt>>,
     casts: Mutex<VecDeque<Result<CastBallotResult, CastVoteError>>>,
     cast_attempts: Mutex<Vec<Attempt>>,
@@ -44,7 +44,7 @@ pub struct ScriptedCastVotes {
 impl ScriptedCastVotes {
     pub fn receiving(
         receipts: impl IntoIterator<
-            Item = Result<ReceiveBallotOutput, CastVoteError>,
+            Item = Result<ReceiveBallotResult, CastVoteError>,
         >,
     ) -> Self {
         Self {
@@ -118,7 +118,7 @@ impl CastVotes for ScriptedCastVotes {
         &self,
         input: ReceiveBallotInput,
         voter: CastVoter<'_>,
-    ) -> Result<ReceiveBallotOutput, CastVoteError> {
+    ) -> Result<ReceiveBallotResult, CastVoteError> {
         self.receive_attempts.lock().unwrap().push(Attempt {
             ballot_id: input.ballot_id,
             election_id: input.election_id.to_string(),

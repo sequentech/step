@@ -3,14 +3,26 @@
 
 use crate::services::authorization::authorize_voter_election;
 use crate::services::dependencies::HarvestServices;
+use crate::services::vitrine::CastReceipts;
 use electoral_log::adapters::ballot_box_received::AuditOutcome;
 use rocket::{http::Status, serde::json::Json, State};
 use sequent_core::ballot_receipt::normalize_ballot_id;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::VoterPermissions;
+use serde::Serialize;
+use windmill::types::vitrine::VitrineCast;
 use windmill::services::receive_ballot::{
     AuditBallotInput, AuditBallotOutput, AuditBallotStatus,
 };
+
+/// The audit acknowledgement, and what the event's Vitrine `ballots` log said
+/// about the ballot's `audited` entry, or `None` when its transparency is off.
+#[derive(Debug, Serialize)]
+pub struct AuditBallotResponse {
+    #[serde(flatten)]
+    pub audit: AuditBallotOutput,
+    pub vitrine: Option<VitrineCast>,
+}
 
 type ApiError = (Status, String);
 fn unavailable(_: impl std::fmt::Display) -> ApiError {
@@ -25,7 +37,8 @@ pub async fn audit_ballot(
     body: Json<AuditBallotInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
-) -> Result<Json<AuditBallotOutput>, ApiError> {
+    receipts: &State<CastReceipts>,
+) -> Result<Json<AuditBallotResponse>, ApiError> {
     let mut input = body.into_inner();
     let (area, _) = authorize_voter_election(
         &claims,
@@ -48,7 +61,7 @@ pub async fn audit_ballot(
         .get()
         .await
         .map_err(unavailable)?;
-    let tx = client.transaction().await.map_err(unavailable)?;
+    let mut tx = client.transaction().await.map_err(unavailable)?;
     let event =
         windmill::postgres::election_event::get_election_event_by_id_if_exist(
             &tx,
@@ -62,8 +75,10 @@ pub async fn audit_ballot(
         windmill::services::electoral_log_board::get_event_store(event_id)
             .await
             .map_err(unavailable)?;
-    let outcome = windmill::services::receive_ballot::audit_ballot_for_voter(
+    let (outcome, vitrine) = windmill::services::receive_ballot::audit_ballot_for_voter(
         &store,
+        &mut tx,
+        &claims.hasura_claims.tenant_id,
         &event,
         &area,
         &claims.hasura_claims.user_id,
@@ -72,10 +87,16 @@ pub async fn audit_ballot(
     .await
     .map_err(unavailable)?;
     match outcome {
-        AuditOutcome::Audited => Ok(Json(AuditBallotOutput {
-            ballot_id: input.ballot_id,
-            status: AuditBallotStatus::Audited,
-        })),
+        AuditOutcome::Audited => {
+            let vitrine = receipts.cast(vitrine).await;
+            Ok(Json(AuditBallotResponse {
+                audit: AuditBallotOutput {
+                    ballot_id: input.ballot_id,
+                    status: AuditBallotStatus::Audited,
+                },
+                vitrine,
+            }))
+        }
         AuditOutcome::AlreadyCast => {
             Err((Status::Conflict, "A cast ballot cannot be audited".into()))
         }

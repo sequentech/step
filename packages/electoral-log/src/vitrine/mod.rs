@@ -13,7 +13,7 @@ pub mod proof;
 pub mod statement;
 
 pub use entry::{
-    ballot_id_hash, leaf_hash, ElectionEntry, EventKind, EventsEntry, Field, Hash, Subject,
+    leaf_hash, ElectionEntry, EventKind, EventsEntry, Field, Hash, Stage, Subject,
     ELECTION_MEANING_HASH, ELECTION_TAG, EVENTS_MEANING_HASH, EVENTS_TAG, MAX_ENTRY_SIZE,
 };
 pub use note::{NoteSigner, Vkey};

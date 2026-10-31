@@ -32,13 +32,14 @@ impl BallotIdentity {
     }
 }
 
-/// The stored and displayed form is identical; ambiguous alphabet characters are
+/// The stored form is `7QKM-2HXD`, the displayed form `7QKM:2HXD`; a typed code may have
+/// either. Ambiguous alphabet characters are
 /// refused rather than silently converted into a different code.
 pub fn normalize_privacy_code(input: &str) -> Option<String> {
     let input = input.trim().to_ascii_uppercase();
     let compact = match input.len() {
         8 => input,
-        9 if input.as_bytes().get(4) == Some(&b'-') => input.replace('-', ""),
+        9 if matches!(input.as_bytes().get(4), Some(b'-' | b':')) => input.replace(['-', ':'], ""),
         _ => return None,
     };
     if compact.len() != 8 || !compact.bytes().all(|byte| ALPHABET.contains(&byte)) {

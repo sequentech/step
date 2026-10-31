@@ -10,8 +10,8 @@
 use crate::services::ballot_box_key::{get_ballot_box_signing_key, published_key};
 use crate::services::electoral_log_board::{get_event_databases, get_event_store};
 use crate::services::insert_cast_vote::{
-    try_cast, CastOutcome, CastRequest, CastVoteError, InsertCastVoteInput, InsertCastVoteOutput,
-    InsertCastVoteResult,
+    try_cast, CastOutcome, CastRequest, CastVitrine, CastVoteError, InsertCastVoteInput,
+    InsertCastVoteOutput, InsertCastVoteResult,
 };
 use crate::services::receive_ballot::{format_signed_time, truncate_to_milliseconds};
 use chrono::{DateTime, Utc};
@@ -50,10 +50,14 @@ pub struct CastBallotOutput {
     pub cast_vote_id: String,
 }
 
+/// The cast, with the `cast` entry that went into the event's `ballots` log in the same
+/// transaction, for the caller to wait for its receipt, when the event's transparency is
+/// on. A cast the ballot box stored already (`AlreadyCast`) has none: the booth asks the
+/// log for the entry's receipt.
 pub enum CastBallotResult {
-    Cast(CastBallotOutput),
+    Cast(CastBallotOutput, Option<CastVitrine>),
     /// Cast, and still to be confirmed by the Datafix pipeline.
-    PendingDatafix(CastBallotOutput, InsertCastVoteOutput),
+    PendingDatafix(CastBallotOutput, InsertCastVoteOutput, Option<CastVitrine>),
     SkipRetryFailure(CastVoteError),
 }
 
@@ -509,17 +513,22 @@ pub async fn try_cast_ballot_with_network(
     };
 
     match outcome {
-        CastOutcome::AlreadyCast(cast) => Ok(CastBallotResult::Cast(cast)),
+        CastOutcome::AlreadyCast(cast) => Ok(CastBallotResult::Cast(cast, None)),
         CastOutcome::Inserted { result, receipt } => match result {
             InsertCastVoteResult::SkipRetryFailure(error) => {
                 Ok(CastBallotResult::SkipRetryFailure(error))
             }
-            InsertCastVoteResult::Success(cast_vote, _) => {
-                Ok(CastBallotResult::Cast(output(receipt, &cast_vote)?))
+            InsertCastVoteResult::Success(cast_vote, vitrine) => Ok(CastBallotResult::Cast(
+                output(receipt, &cast_vote)?,
+                vitrine,
+            )),
+            InsertCastVoteResult::PendingDatafix(cast_vote, vitrine) => {
+                Ok(CastBallotResult::PendingDatafix(
+                    output(receipt, &cast_vote)?,
+                    cast_vote,
+                    vitrine,
+                ))
             }
-            InsertCastVoteResult::PendingDatafix(cast_vote, _) => Ok(
-                CastBallotResult::PendingDatafix(output(receipt, &cast_vote)?, cast_vote),
-            ),
         },
     }
 }
@@ -590,7 +599,8 @@ mod postgres_wiring_tests {
                         content: "ciphertext",
                         voter_signing_pk: &voter_signing_pk,
                         voter_ballot_signature: &voter_ballot_signature,
-                    },
+            vitrine: None,
+        },
                     truncate_to_milliseconds(Utc::now()).unwrap(),
                     |received_at| {
                         let received = sign_received_ballot(

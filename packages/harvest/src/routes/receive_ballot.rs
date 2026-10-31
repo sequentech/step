@@ -6,6 +6,7 @@ use crate::ports::cast_votes::CastVoter;
 use crate::routes::insert_cast_vote::cast_vote_error_response;
 use crate::services::authorization::authorize_voter_election;
 use crate::services::dependencies::HarvestServices;
+use crate::services::vitrine::CastReceipts;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -14,10 +15,21 @@ use sequent_core::services::connection::UserLocation;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::VoterPermissions;
 use std::time::Instant;
+use serde::Serialize;
 use tracing::{info, instrument};
+use windmill::types::vitrine::VitrineCast;
 use windmill::services::receive_ballot::{
     ReceiveBallotInput, ReceiveBallotOutput,
 };
+
+/// The received ballot, and what the event's Vitrine `ballots` log said about
+/// its `received` entry, or `None` when the event's transparency is off.
+#[derive(Debug, Serialize)]
+pub struct ReceiveBallotResponse {
+    #[serde(flatten)]
+    pub received: ReceiveBallotOutput,
+    pub vitrine: Option<VitrineCast>,
+}
 
 /// The ballot box receives a voter's ballot at review. POST coming from the
 /// frontend->Hasura->Harvest->Here.
@@ -32,7 +44,8 @@ pub async fn receive_ballot(
     claims: JwtClaims,
     user_info: UserLocation,
     services: &State<HarvestServices>,
-) -> Result<Json<ReceiveBallotOutput>, JsonError> {
+    receipts: &State<CastReceipts>,
+) -> Result<Json<ReceiveBallotResponse>, JsonError> {
     let start = Instant::now();
     let input: ReceiveBallotInput = body.into_inner();
     let election_id = input.election_id.to_string();
@@ -50,7 +63,7 @@ pub async fn receive_ballot(
         )
     })?;
 
-    let received = services
+    let (received, vitrine) = services
         .cast_votes
         .try_receive(
             input,
@@ -83,7 +96,8 @@ pub async fn receive_ballot(
         duration_us = start.elapsed().as_micros() as u64,
         "receive-ballot route completed"
     );
-    Ok(Json(received))
+    let vitrine = receipts.cast(vitrine).await;
+    Ok(Json(ReceiveBallotResponse { received, vitrine }))
 }
 
 #[cfg(test)]

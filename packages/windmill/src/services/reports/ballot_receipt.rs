@@ -11,7 +11,7 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use electoral_log::adapters::ballot_box_reads::{BallotIdMatch, StoredBallot};
-use sequent_core::ballot_receipt::normalize_ballot_id;
+use sequent_core::ballot_receipt::{normalize_tracking_id, tracking_id_starts_with};
 use sequent_core::util::temp_path::*;
 
 use sequent_core::services::pdf;
@@ -142,18 +142,20 @@ impl TemplateRenderer for BallotTemplate {
         // queueing this task, so its payload never carries the real voter ID.
         let in_box =
             |ballot: &StoredBallot| ballot.area_id == area_id && ballot.election_id == election;
-        // A ballot cast with a signed receipt goes by the receipt's Ballot ID.
-        let cast = match normalize_ballot_id(ballot_id) {
-            Some(receipt_ballot_id) => store
-                .received_cast_ballots(
-                    &event,
-                    voter_id,
-                    &election,
-                    BallotIdMatch::Exact(&receipt_ballot_id),
-                )
+        // A ballot goes by its Tracking ID, or by its hash.
+        let cast = match normalize_tracking_id(ballot_id) {
+            Some(typed) => store
+                .voter_ballot_contents(&event, voter_id, &election, BallotIdMatch::Any)
                 .await?
                 .iter()
-                .any(|cast| in_box(&cast.ballot.ballot)),
+                .any(|found| {
+                    in_box(&found.ballot)
+                        && crate::services::receive_ballot::tracking_id_of_content(
+                            &found.ballot.ballot_id,
+                            &found.content,
+                        )
+                        .is_some_and(|tracking_id| tracking_id_starts_with(&tracking_id, &typed))
+                }),
             None => store
                 .voter_ballots(&event, voter_id)
                 .await?

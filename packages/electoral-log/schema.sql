@@ -164,6 +164,8 @@ CREATE TABLE IF NOT EXISTS ballot_box_received (
         AND (cast_signature IS NULL OR status = 'cast')
     )
 ) PARTITION BY LIST (election_event_id);
+-- When the voter audited the ballot instead of casting it: the time of its `audited` entry.
+ALTER TABLE ballot_box_received ADD COLUMN IF NOT EXISTS audited_at TIMESTAMPTZ;
 -- Seals of ballot boxes, the ballots of one election's area. A box with a seal, sealed
 -- or failed, takes no more writes. A seal is stored with its record on the event's board
 -- in one transaction, and never changes.

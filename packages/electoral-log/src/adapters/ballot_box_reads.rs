@@ -23,6 +23,20 @@ pub struct StoredBallot {
     pub accepted_at: i64,
 }
 
+/// One stage a voter's ballot reached, as its Vitrine entry records it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BallotStage {
+    pub election_id: String,
+    /// The ballot's hash.
+    pub ballot_hash: String,
+    /// The ballot as the ballot box stored it, which names the voter's key.
+    pub content: String,
+    /// `received`, `cast` or `audited`.
+    pub stage: String,
+    /// POSIX seconds, as the entry holds them.
+    pub accepted_at: i64,
+}
+
 /// A stored ballot with its content.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BallotContent {
@@ -37,6 +51,9 @@ pub enum BallotIdMatch<'a> {
     Exact(&'a str),
     /// Ballot IDs that start with these characters.
     Prefix(&'a str),
+    /// Every ballot ID: the caller keeps the ballots whose Tracking ID matches, which
+    /// it computes from the stored ballot.
+    Any,
 }
 
 /// Valid ballots in one time bucket and voting channel.
@@ -177,6 +194,49 @@ fn stored_ballot(row: &Row) -> Result<StoredBallot> {
 }
 
 impl PostgresStore {
+    /// Every stage the voter's ballots reached in an election event. A vote with
+    /// no received ballot behind it reached `received` and `cast` together.
+    pub async fn voter_ballot_stages(
+        &self,
+        election_event_id: &str,
+        voter_id: &str,
+    ) -> Result<Vec<BallotStage>> {
+        let rows = self
+            .client()
+            .await?
+            .query(
+                "SELECT b.election_id::text, b.ballot_id, b.content, st.stage,
+                        floor(extract(epoch FROM b.accepted_at))::bigint
+                   FROM ballot_box_ballot b, (VALUES ('cast'), ('received')) AS st(stage)
+                  WHERE b.election_event_id = $1::text::uuid AND b.voter_id = $2
+                    AND (st.stage = 'cast' OR NOT EXISTS (
+                         SELECT 1 FROM ballot_box_received r
+                          WHERE r.election_event_id = b.election_event_id
+                            AND r.ballot_hash = b.ballot_id))
+                 UNION ALL
+                 SELECT r.election_id::text, r.ballot_hash, r.content, st.stage,
+                        floor(extract(epoch FROM CASE st.stage WHEN 'received' THEN r.received_at
+                                                  ELSE r.audited_at END))::bigint
+                   FROM ballot_box_received r, (VALUES ('received'), ('audited')) AS st(stage)
+                  WHERE r.election_event_id = $1::text::uuid AND r.voter_id = $2
+                    AND (st.stage = 'received' OR (r.status = 'audited' AND r.audited_at IS NOT NULL))",
+                &[&election_event_id, &voter_id],
+            )
+            .await
+            .context("Error reading the stages of the voter's ballots")?;
+        rows.iter()
+            .map(|row| {
+                Ok(BallotStage {
+                    election_id: row.try_get(0)?,
+                    ballot_hash: row.try_get(1)?,
+                    content: row.try_get(2)?,
+                    stage: row.try_get(3)?,
+                    accepted_at: row.try_get(4)?,
+                })
+            })
+            .collect()
+    }
+
     /// A voter's ballots in an election event, in acceptance order.
     pub async fn voter_ballots(
         &self,
@@ -210,6 +270,7 @@ impl PostgresStore {
         let (condition, value) = match ballot_id {
             BallotIdMatch::Exact(value) => ("ballot_id = $4", value),
             BallotIdMatch::Prefix(value) => ("starts_with(ballot_id, $4)", value),
+            BallotIdMatch::Any => ("length($4::text) >= 0", ""),
         };
         let rows = self
             .client()

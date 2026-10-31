@@ -15,7 +15,8 @@ use crate::services::database::get_hasura_pool;
 use crate::services::electoral_log_board::get_event_store;
 use crate::services::insert_cast_vote::{
     ballot_tracker_context, check_status, deserialize_and_check_ballot,
-    deserialize_and_check_multi_ballot, CastVoteError, InsertCastVoteInput,
+    deserialize_and_check_multi_ballot, vitrine_target, CastVitrine,
+    CastVoteError, CastVoteIds, InsertCastVoteInput,
 };
 use chrono::{DateTime, TimeZone, Utc};
 use dashmap::DashMap;
@@ -38,6 +39,11 @@ use voting_crypto::signing::SigningKey;
 
 pub type ReceiveBallotInput = InsertCastVoteInput;
 pub type ReceiveBallotOutput = ReceivedBallot;
+
+/// A received ballot, with the Vitrine entry that went into the event's `ballots` log
+/// in the same transaction, for the caller to wait for its receipt. `None` when the
+/// event's transparency is off.
+pub type ReceiveBallotResult = (ReceiveBallotOutput, Option<CastVitrine>);
 
 /// The authenticated owner may audit a received ballot, which permanently
 /// prevents casting it. No plaintext, signing key or user identity is input.
@@ -64,32 +70,71 @@ pub struct AuditBallotOutput {
 #[instrument(skip_all)]
 pub async fn audit_ballot_for_voter(
     store: &electoral_log::adapters::postgres::PostgresStore,
+    hasura_transaction: &mut Transaction<'_>,
+    tenant_id: &str,
     event: &sequent_core::types::hasura::core::ElectionEvent,
     area: &str,
     voter: &str,
     input: &AuditBallotInput,
-) -> anyhow::Result<electoral_log::adapters::ballot_box_received::AuditOutcome> {
+) -> anyhow::Result<(
+    electoral_log::adapters::ballot_box_received::AuditOutcome,
+    Option<CastVitrine>,
+)> {
     use electoral_log::adapters::ballot_box_received::AuditOutcome;
-    let identity = if crate::services::vote_privacy::identity_mode(event)?
-        == sequent_core::types::vote_privacy::BallotIdentity::Pseudonym
-    {
+    use electoral_log::adapters::privacy::BallotIdentity;
+    let mode = match crate::services::vote_privacy::identity_mode(event)? {
+        sequent_core::types::vote_privacy::BallotIdentity::VoterId => BallotIdentity::VoterId,
+        sequent_core::types::vote_privacy::BallotIdentity::Pseudonym => BallotIdentity::Pseudonym,
+    };
+    let identity = if mode == BallotIdentity::Pseudonym {
         let Some(identity) = store.voter_pseudonym(&event.id, voter).await? else {
-            return Ok(AuditOutcome::NotFound);
+            return Ok((AuditOutcome::NotFound, None));
         };
         identity
     } else {
         voter.to_owned()
     };
+    let election = input.election_id.to_string();
+    let target = vitrine_target(
+        hasura_transaction,
+        CastVoteIds {
+            election_event_id: &event.id,
+            tenant_id,
+            voter_id: voter,
+            area_id: area,
+        },
+        event,
+    )
+    .await;
+    // The `audited` entry carries the ballot's Tracking ID, which comes from the stored
+    // ballot hash and the voter's key.
+    let queue = match &target {
+        crate::services::insert_cast_vote::VitrineTarget::Log { .. } => {
+            match store
+                .received_ballot_for_owner(&event.id, &election, area, voter, &input.ballot_id, mode)
+                .await?
+            {
+                Some(received) => target.queue(
+                    Utc::now().timestamp(),
+                    tracking_id_of_key(&received.ballot_hash, &received.voter_signing_pk),
+                ),
+                None => None,
+            }
+        }
+        _ => None,
+    };
     crate::services::ballot_box::request_sequencer(&event.id).await?;
-    store
-        .audit_received_ballot(
+    let (outcome, entry) = store
+        .audit_received_ballot_with_vitrine(
             &event.id,
-            &input.election_id.to_string(),
+            &election,
             area,
             &identity,
             &input.ballot_id,
+            queue,
         )
-        .await
+        .await?;
+    Ok((outcome, target.cast(entry)))
 }
 
 /// The format of the times the ballot box signs: `ReceivedStatement::received_at`
@@ -122,6 +167,21 @@ struct BallotEnvelope {
     voter_ballot_signature: Option<String>,
 }
 
+/// The Tracking ID digest of a ballot, from its hash and the voter's key as the ballot
+/// carries it.
+fn tracking_id_of_key(
+    ballot_hash: &str,
+    voter_signing_pk: &str,
+) -> Option<electoral_log::vitrine::Hash> {
+    match sequent_core::ballot_receipt::tracking_id_digest(ballot_hash, Some(voter_signing_pk)) {
+        Ok(digest) => Some(digest),
+        Err(error) => {
+            tracing::warn!("No Tracking ID for ballot {ballot_hash}: {error}");
+            None
+        }
+    }
+}
+
 /// Whether a ballot must have been received by the ballot box before it is
 /// cast. Telephone voting has no voter device to check a receipt, so it keeps
 /// casting directly.
@@ -130,6 +190,14 @@ pub fn must_be_received(policy: &ReceiptsPolicy, voting_channel: VotingStatusCha
         ReceiptsPolicy::DISABLED => false,
         ReceiptsPolicy::SIGNED_BY_BALLOT_BOX => voting_channel != VotingStatusChannel::TELEPHONE,
     }
+}
+
+/// The full Tracking ID of a stored ballot, from its hash and the voter's key as the
+/// stored ballot carries it. `None` when the stored ballot can't be read.
+pub(crate) fn tracking_id_of_content(ballot_hash: &str, content: &str) -> Option<String> {
+    let envelope: BallotEnvelope = deserialize_str(content).ok()?;
+    sequent_core::ballot_receipt::tracking_id(ballot_hash, envelope.voter_signing_pk.as_deref())
+        .ok()
 }
 
 fn voter_signature(envelope: &BallotEnvelope) -> Result<(String, String), CastVoteError> {
@@ -343,7 +411,7 @@ pub async fn try_receive_ballot(
     area_id: &str,
     voting_channel: VotingStatusChannel,
     auth_time: &Option<i64>,
-) -> Result<ReceiveBallotOutput, CastVoteError> {
+) -> Result<ReceiveBallotResult, CastVoteError> {
     try_receive_ballot_with_network(
         input,
         tenant_id,
@@ -365,13 +433,13 @@ pub async fn try_receive_ballot_with_network(
     voting_channel: VotingStatusChannel,
     auth_time: &Option<i64>,
     network: Option<(&str, Option<&str>, Option<&str>)>,
-) -> Result<ReceiveBallotOutput, CastVoteError> {
+) -> Result<ReceiveBallotResult, CastVoteError> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
         .await
         .map_err(|e| CastVoteError::GetDbClientFailed(e.to_string()))?;
-    let hasura_transaction = hasura_db_client
+    let mut hasura_transaction = hasura_db_client
         .transaction()
         .await
         .map_err(|e| CastVoteError::GetTransactionFailed(e.to_string()))?;
@@ -474,6 +542,17 @@ pub async fn try_receive_ballot_with_network(
                 "The election event has no ballot box key; publish its ballots".to_string(),
             )
         })?;
+    let target = vitrine_target(
+        &mut hasura_transaction,
+        CastVoteIds {
+            election_event_id: &election_event.id,
+            tenant_id,
+            voter_id,
+            area_id,
+        },
+        &election_event,
+    )
+    .await;
     hasura_transaction
         .commit()
         .await
@@ -534,6 +613,13 @@ pub async fn try_receive_ballot_with_network(
                 content: &stored_content,
                 voter_signing_pk: &voter_signing_pk,
                 voter_ballot_signature: &voter_ballot_signature,
+                // The `received` entry is queued with the ballot, in one transaction. Its
+                // `ballot_id` is the Tracking ID the voter's client computed before it sent
+                // the ballot.
+                vitrine: target.queue(
+                    first_received_at.timestamp(),
+                    tracking_id_of_key(&input.ballot_id, &voter_signing_pk),
+                ),
             },
             first_received_at,
             network.as_ref(),
@@ -560,8 +646,9 @@ pub async fn try_receive_ballot_with_network(
         })?;
 
     match outcome {
-        ReceiveOutcome::Received(stored) | ReceiveOutcome::AlreadyReceived(stored) => {
-            Ok(stored_receipt(&tenant_uuid, stored))
+        ReceiveOutcome::Received(mut stored) | ReceiveOutcome::AlreadyReceived(mut stored) => {
+            let entry = stored.vitrine.take();
+            Ok((stored_receipt(&tenant_uuid, stored), target.cast(entry)))
         }
         ReceiveOutcome::NoFreeBallotId => Err(CastVoteError::InsertFailed(
             "No free Ballot ID for the received ballot".to_string(),

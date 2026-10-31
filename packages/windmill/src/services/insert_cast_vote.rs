@@ -72,6 +72,7 @@ use std::time::Instant;
 use strum_macros::Display;
 use tracing::{debug, error, info, instrument, trace, warn};
 use uuid::Uuid;
+use electoral_log::vitrine::Hash as VitrineHash;
 use voting_crypto::hash::{hash_to_array, Hash, HashWrapper};
 use voting_crypto::signing::Signature;
 use voting_crypto::signing::VerificationKey;
@@ -321,11 +322,11 @@ fn skip_or_propagate(cast_vote_err: CastVoteError) -> Result<InsertCastVoteResul
 }
 
 #[derive(Debug, Clone, Copy)]
-struct CastVoteIds<'a> {
-    election_event_id: &'a str,
-    tenant_id: &'a str,
-    voter_id: &'a str,
-    area_id: &'a str,
+pub(crate) struct CastVoteIds<'a> {
+    pub(crate) election_event_id: &'a str,
+    pub(crate) tenant_id: &'a str,
+    pub(crate) voter_id: &'a str,
+    pub(crate) area_id: &'a str,
 }
 
 #[derive(Serialize, Deserialize, Debug, Display)]
@@ -980,7 +981,7 @@ const VITRINE_SAVEPOINT: &str = "vitrine_ballots_log";
 
 /// Where a cast's Vitrine entry goes.
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum VitrineTarget {
+pub(crate) enum VitrineTarget {
     /// The event's transparency is off.
     Off,
     /// It is on, but the event's `ballots` log is missing or can't be read.
@@ -992,17 +993,23 @@ enum VitrineTarget {
 }
 
 impl VitrineTarget {
-    fn queue(&self, accepted_at: i64) -> Option<VitrineQueue> {
-        match self {
-            VitrineTarget::Log { log_id, .. } => Some(VitrineQueue {
+    pub(crate) fn queue(
+        &self,
+        accepted_at: i64,
+        tracking_id: Option<VitrineHash>,
+    ) -> Option<VitrineQueue> {
+        match (self, tracking_id) {
+            (VitrineTarget::Log { log_id, .. }, Some(tracking_id)) => Some(VitrineQueue {
                 log_id: *log_id,
                 accepted_at,
+                tracking_id,
             }),
-            VitrineTarget::Off | VitrineTarget::NoLog => None,
+            (VitrineTarget::Log { .. }, None) => None,
+            (VitrineTarget::Off | VitrineTarget::NoLog, _) => None,
         }
     }
 
-    fn cast(self, entry: Option<VitrineEntry>) -> Option<CastVitrine> {
+    pub(crate) fn cast(self, entry: Option<VitrineEntry>) -> Option<CastVitrine> {
         match self {
             VitrineTarget::Off => None,
             VitrineTarget::NoLog => Some(CastVitrine {
@@ -1017,11 +1024,37 @@ impl VitrineTarget {
     }
 }
 
+/// The Tracking ID digest of a ballot, from its hash and the key that signed
+/// it. Transparency never fails a cast: a ballot whose digest can't be
+/// computed is cast without its entries.
+pub(crate) fn tracking_id_of(
+    ballot_hash: &str,
+    voter_signature_data: Option<&(VerificationKey, Signature)>,
+) -> Option<VitrineHash> {
+    let voter_key = match voter_signature_data
+        .map(|(key, _)| key.to_b64_string())
+        .transpose()
+    {
+        Ok(key) => key,
+        Err(error) => {
+            warn!("Error writing the voter's key: {error:#}");
+            return None;
+        }
+    };
+    match sequent_core::ballot_receipt::tracking_id_digest(ballot_hash, voter_key.as_deref()) {
+        Ok(digest) => Some(digest),
+        Err(error) => {
+            warn!("No Tracking ID for ballot {ballot_hash}: {error}");
+            None
+        }
+    }
+}
+
 /// The event's `ballots` log, when its transparency is on. Transparency never
 /// fails a cast: the log is read under a savepoint, and an error only means
 /// that the ballot is cast without its entry.
 #[instrument(skip_all)]
-async fn vitrine_target(
+pub(crate) async fn vitrine_target(
     hasura_transaction: &mut Transaction<'_>,
     ids: CastVoteIds<'_>,
     election_event: &ElectionEvent,
@@ -1121,6 +1154,10 @@ async fn accept_into_ballot_box(
     let ballot_hash = ballot_hash.0.clone().to_inner();
     let format = format.to_string();
     let channel = effective_voting_channel.to_string();
+    // The Tracking ID the voter's client showed before it sent the ballot: a digest of the
+    // ballot's hash and of the key that signed it. It is `ballot_id` in every entry the
+    // ballot gets.
+    let tracking_id = tracking_id_of(&input.ballot_id, voter_signature_data.as_ref());
     let accept = AcceptBallot {
         election_event_id: ids.election_event_id,
         election_id: &election_id,
@@ -1138,7 +1175,7 @@ async fn accept_into_ballot_box(
         voter_country: None,
         username: username.as_deref(),
         allowed_votes,
-        vitrine: target.queue(chrono::Utc::now().timestamp()),
+        vitrine: target.queue(chrono::Utc::now().timestamp(), tracking_id),
     };
     let _phase = CastVotePhase::start("accept");
     let (outcome, receipt) = match received {

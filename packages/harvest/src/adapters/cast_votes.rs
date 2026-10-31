@@ -11,7 +11,7 @@ use windmill::services::insert_cast_vote::{
     InsertCastVoteResult,
 };
 use windmill::services::receive_ballot::{
-    try_receive_ballot_with_network, ReceiveBallotInput, ReceiveBallotOutput,
+    try_receive_ballot_with_network, ReceiveBallotInput, ReceiveBallotResult,
 };
 
 /// Windmill's cast vote insertion, on its process-wide pools.
@@ -42,7 +42,7 @@ impl CastVotes for WindmillCastVotes {
         &self,
         input: ReceiveBallotInput,
         voter: CastVoter<'_>,
-    ) -> Result<ReceiveBallotOutput, CastVoteError> {
+    ) -> Result<ReceiveBallotResult, CastVoteError> {
         try_receive_ballot_with_network(
             input,
             voter.tenant_id,

@@ -8,7 +8,7 @@ use windmill::services::insert_cast_vote::{
     CastVoteError, InsertCastVoteInput, InsertCastVoteResult,
 };
 use windmill::services::receive_ballot::{
-    ReceiveBallotInput, ReceiveBallotOutput,
+    ReceiveBallotInput, ReceiveBallotResult,
 };
 
 /// Authenticated voter context forwarded to Windmill's insertion.
@@ -39,7 +39,7 @@ pub trait CastVotes: Send + Sync {
         &self,
         input: ReceiveBallotInput,
         voter: CastVoter<'_>,
-    ) -> Result<ReceiveBallotOutput, CastVoteError>;
+    ) -> Result<ReceiveBallotResult, CastVoteError>;
 
     /// Casts a ballot received at review, on the voter's signed request, and
     /// answers with the ballot box's cast receipt.

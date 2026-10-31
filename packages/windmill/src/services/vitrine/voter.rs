@@ -20,13 +20,11 @@ use crate::types::vitrine::{
 };
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
-use electoral_log::adapters::ballot_box_reads::StoredBallot;
-use electoral_log::vitrine::{ballot_id_hash, ElectionEntry, Submitted};
+use electoral_log::adapters::ballot_box_reads::BallotStage;
+use electoral_log::vitrine::{ElectionEntry, Stage, Submitted};
 use sequent_core::ballot::TransparencyMode;
 use serde_json::{json, Value};
 use std::str::FromStr;
-
-const MICROS_PER_SEC: i64 = 1_000_000;
 
 /// `{statement, entry, chain}` of a receipted statement.
 fn receipted(statement: Option<VitrineStatement>) -> Option<VitrineStatement> {
@@ -77,19 +75,36 @@ pub async fn voter_context(
     })
 }
 
-/// The `vitrine/election/ballots/v1` entries of a voter's ballots, as the ballot box
-/// queued them. Ballots whose ID isn't a hash have none.
-pub fn ballot_entries(election_event_id: &str, ballots: &[StoredBallot]) -> Result<Vec<Vec<u8>>> {
+/// The key a stored ballot names, if it was signed: the same for every stage.
+fn voter_signing_pk(content: &str) -> Option<String> {
+    #[derive(serde::Deserialize)]
+    struct Envelope {
+        voter_signing_pk: Option<String>,
+    }
+    serde_json::from_str::<Envelope>(content)
+        .ok()
+        .and_then(|envelope| envelope.voter_signing_pk)
+}
+
+/// The `vitrine/election/ballots/v1` entries of a voter's ballots, one per stage a
+/// ballot reached, as the ballot box queued them. A ballot whose Tracking ID can't
+/// be computed has none.
+pub fn ballot_entries(election_event_id: &str, stages: &[BallotStage]) -> Result<Vec<Vec<u8>>> {
     let event_id = canonical_id(election_event_id)?;
-    Ok(ballots
+    Ok(stages
         .iter()
-        .filter_map(|ballot| {
-            let accepted_at = u64::try_from(ballot.accepted_at.div_euclid(MICROS_PER_SEC)).ok()?;
+        .filter_map(|reached| {
+            let pk = voter_signing_pk(&reached.content);
             ElectionEntry {
                 event_id: event_id.clone(),
-                election_id: canonical_id(&ballot.election_id).ok()?,
-                ballot_id: ballot_id_hash(&ballot.ballot_id).ok()?,
-                accepted_at,
+                election_id: canonical_id(&reached.election_id).ok()?,
+                stage: Stage::from_str(&reached.stage).ok()?,
+                ballot_id: sequent_core::ballot_receipt::tracking_id_digest(
+                    &reached.ballot_hash,
+                    pk.as_deref(),
+                )
+                .ok()?,
+                accepted_at: u64::try_from(reached.accepted_at).ok()?,
             }
             .encode()
             .ok()
@@ -170,7 +185,7 @@ pub async fn voter_forward(
     } else {
         get_event_store(election_event_id)
             .await?
-            .voter_ballots(election_event_id, voter_id)
+            .voter_ballot_stages(election_event_id, voter_id)
             .await?
     };
     let route = check_forward(
@@ -199,23 +214,30 @@ mod tests {
     use super::*;
     use base64::engine::general_purpose::STANDARD;
     use base64::Engine;
-    use electoral_log::adapters::ballot_box::BallotStatus;
-    use electoral_log::vitrine::leaf_hash;
+        use electoral_log::vitrine::leaf_hash;
 
     const EVENT: &str = "e7a2b3c4-0000-4000-8000-000000000001";
     const MAYOR: &str = "E7A2B3C4-0000-4000-8000-000000000002";
 
-    fn ballot(ballot_id: &str, accepted_at: i64) -> StoredBallot {
-        StoredBallot {
-            id: "b".into(),
-            ballot_id: ballot_id.into(),
+    /// The pk of a ballot signed by a voter whose key is 32 bytes of 2.
+    const VOTER_PK: &str = "gTl3Dqh9F19Wo1Rmw0x+zMuNipG07jeiXfYPW4/Js5Q=";
+
+    fn reached(ballot_hash: &str, stage: &str, accepted_at: i64, signed: bool) -> BallotStage {
+        BallotStage {
             election_id: MAYOR.into(),
-            area_id: "a".into(),
-            voter_id: "v".into(),
-            status: BallotStatus::Valid,
-            voting_channel: "ONLINE".into(),
+            ballot_hash: ballot_hash.into(),
+            content: if signed {
+                format!("{{\"voter_signing_pk\":\"{VOTER_PK}\"}}")
+            } else {
+                "{}".into()
+            },
+            stage: stage.into(),
             accepted_at,
         }
+    }
+
+    fn ballot(ballot_hash: &str, accepted_at: i64) -> BallotStage {
+        reached(ballot_hash, "cast", accepted_at / 1_000_000, true)
     }
 
     fn receipt(entry: &[u8]) -> String {
@@ -247,25 +269,44 @@ mod tests {
     }
 
     #[test]
-    fn a_voters_entries_are_those_the_ballot_box_queued() {
+    fn a_voters_entries_are_those_the_ballot_box_queued_one_per_stage() {
         let mine = "ab".repeat(32);
         let entries = ballot_entries(
             EVENT,
             &[
-                ballot(&mine, 1_793_520_123_000_000),
-                ballot("not-a-hash", 1),
+                reached(&mine, "received", 1_793_520_100, true),
+                reached(&mine, "cast", 1_793_520_123, true),
+                reached("not-a-stage", "someday", 1, true),
             ],
         )
         .unwrap();
-        let expected = ElectionEntry {
-            event_id: EVENT.into(),
-            election_id: MAYOR.to_lowercase(),
-            ballot_id: [0xab; 32],
-            accepted_at: 1_793_520_123,
-        }
-        .encode()
-        .unwrap();
-        assert_eq!(entries, [expected]);
+        let id = sequent_core::ballot_receipt::tracking_id_digest(&mine, Some(VOTER_PK)).unwrap();
+        let expected = |stage, accepted_at| {
+            ElectionEntry {
+                event_id: EVENT.into(),
+                election_id: MAYOR.to_lowercase(),
+                stage,
+                ballot_id: id,
+                accepted_at,
+            }
+            .encode()
+            .unwrap()
+        };
+        assert_eq!(
+            entries,
+            [
+                expected(Stage::Received, 1_793_520_100),
+                expected(Stage::Cast, 1_793_520_123)
+            ]
+        );
+    }
+
+    #[test]
+    fn the_tracking_id_of_an_unsigned_ballot_has_no_key_in_it() {
+        let mine = "ab".repeat(32);
+        let signed = ballot_entries(EVENT, &[reached(&mine, "cast", 5, true)]).unwrap();
+        let unsigned = ballot_entries(EVENT, &[reached(&mine, "cast", 5, false)]).unwrap();
+        assert_ne!(signed, unsigned);
     }
 
     #[test]

@@ -3,14 +3,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! What the ballot box signs when it receives a ballot and when that ballot is
-//! cast, and the Ballot ID that follows from the first.
+//! cast, and the keys and IDs that follow from the first.
 //!
 //! The ballot box signs only what it stores, so a Received or a Cast receipt
 //! signature that verifies against the published ballot box key is proof of
-//! storage. The Ballot ID is a hash of the voter-signed ballot and of the
-//! Received signature: it cannot be known before the ballot box has answered.
-//! The voter casts by signing that Ballot ID with the key that signed the
-//! ballot.
+//! storage. Two IDs name a received ballot:
+//!
+//! - The **Tracking ID** is what voters see and what the Vitrine `ballots`
+//!   log holds as `ballot_id`: a digest of the encrypted ballot's hash and
+//!   the voter's public key. The voter's client computes it before sending
+//!   the ballot, so it needs nothing the ballot box returns.
+//! - The **receipt key** (`ReceivedBallot::ballot_id`) is the ballot box's
+//!   own key for the stored ballot: a hash of the voter-signed ballot and of
+//!   the Received signature. It is free of collisions, which a 40-bit Tracking
+//!   ID prefix is not, and the voter casts by signing it with the key that
+//!   signed the ballot. It is internal: no screen shows it.
 
 use crate::ballot::BallotBoxKey;
 use serde::{Deserialize, Serialize};
@@ -21,6 +28,7 @@ use voting_crypto::signing::{Signature, SigningKey, VerificationKey};
 
 const RECEIVED_STATEMENT_DOMAIN: &str = "step/ballot-received/v1";
 const BALLOT_ID_DOMAIN: &str = "step/ballot-id/v1";
+const TRACKING_ID_DOMAIN: &str = "step/ballot-id/v2";
 const CAST_STATEMENT_DOMAIN: &str = "step/ballot-cast/v1";
 const CAST_RECEIPT_DOMAIN: &str = "step/ballot-cast-receipt/v1";
 
@@ -29,6 +37,12 @@ const BALLOT_ID_BYTES: usize = 5;
 const BALLOT_ID_CHARACTERS: usize = 8;
 const BALLOT_ID_GROUP: usize = 4;
 const BALLOT_ID_SEPARATOR: char = '-';
+/// The Tracking ID digest is the first 32 bytes of SHA-512.
+pub const TRACKING_ID_BYTES: usize = 32;
+/// 256 bits take 52 characters of five bits, the last one padded with zeros.
+const TRACKING_ID_CHARACTERS: usize = 52;
+/// The short Tracking ID is the first 40 bits: 8 characters.
+pub const SHORT_TRACKING_ID_CHARACTERS: usize = BALLOT_ID_CHARACTERS;
 /// Crockford's base32: no I, L, O or U.
 const BALLOT_ID_ALPHABET: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
@@ -195,8 +209,141 @@ pub fn normalize_ballot_id(typed: &str) -> Option<String> {
     )
 }
 
-/// The first 40 bits of SHA-512 over the voter-signed ballot and the ballot
-/// box's signature.
+/// The first 32 bytes of SHA-512 over the length-prefixed domain
+/// `step/ballot-id/v2`, the ballot hash as `encrypt::hash_ballot` writes it,
+/// and the voter's public key as DER, or nothing when the voter did not sign.
+///
+/// It covers neither the ballot box's signature, nor the voter's signature,
+/// nor the time the ballot is received, so a client computes it before the
+/// ballot box has answered and a retry gets the same one.
+pub fn tracking_id_digest(
+    ballot_hash: &str,
+    voter_signing_pk: Option<&str>,
+) -> Result<[u8; TRACKING_ID_BYTES], BallotReceiptError> {
+    let voter_key = match voter_signing_pk {
+        Some(key) => VerificationKey::from_b64_string(key)
+            .and_then(|key| key.to_der())
+            .map_err(malformed("voter_signing_pk"))?,
+        None => vec![],
+    };
+
+    let mut bytes = vec![];
+    extend_with_field(&mut bytes, TRACKING_ID_DOMAIN.as_bytes());
+    extend_with_field(&mut bytes, ballot_hash.as_bytes());
+    extend_with_field(&mut bytes, &voter_key);
+
+    let digest = hash_to_array(&bytes).map_err(malformed("digest"))?;
+    let mut tracking_id = [0u8; TRACKING_ID_BYTES];
+    tracking_id.copy_from_slice(&digest[..TRACKING_ID_BYTES]);
+    Ok(tracking_id)
+}
+
+/// Writes a digest in Crockford base32, most significant bit first, in groups
+/// of four joined by `-`: `FTBE-MHRX-...`, 52 characters. The first two
+/// groups are the short Tracking ID.
+pub fn format_tracking_id(digest: &[u8; TRACKING_ID_BYTES]) -> String {
+    let mut id = String::with_capacity(TRACKING_ID_CHARACTERS + 12);
+    let mut bits: u32 = 0;
+    let mut held = 0;
+    let mut written = 0;
+    let mut push = |index: u32, id: &mut String| {
+        if written > 0 && written % BALLOT_ID_GROUP == 0 {
+            id.push(BALLOT_ID_SEPARATOR);
+        }
+        id.push(char::from(BALLOT_ID_ALPHABET[index as usize]));
+        written += 1;
+    };
+    for byte in digest {
+        bits = (bits << 8) | u32::from(*byte);
+        held += 8;
+        while held >= 5 {
+            held -= 5;
+            push((bits >> held) & 0x1f, &mut id);
+        }
+        bits &= (1 << held) - 1;
+    }
+    if held > 0 {
+        push((bits << (5 - held)) & 0x1f, &mut id);
+    }
+    id
+}
+
+/// The full Tracking ID of a ballot, from what the ballot box stores of it.
+pub fn tracking_id(
+    ballot_hash: &str,
+    voter_signing_pk: Option<&str>,
+) -> Result<String, BallotReceiptError> {
+    tracking_id_digest(ballot_hash, voter_signing_pk)
+        .map(|digest| format_tracking_id(&digest))
+}
+
+/// The short form of a Tracking ID, its first 40 bits: `FTBE-MHRX`.
+pub fn short_tracking_id(tracking_id: &str) -> String {
+    tracking_id
+        .chars()
+        .filter(|character| *character != BALLOT_ID_SEPARATOR)
+        .take(SHORT_TRACKING_ID_CHARACTERS)
+        .enumerate()
+        .fold(String::new(), |mut id, (position, character)| {
+            if position == BALLOT_ID_GROUP {
+                id.push(BALLOT_ID_SEPARATOR);
+            }
+            id.push(character);
+            id
+        })
+}
+
+/// Reads a typed Tracking ID, or the start of one: any case, with or without
+/// separators, O as 0, I and L as 1. The start is 4 characters (for a
+/// telephone), the 8 of the short form, or all 52. Gives the characters in
+/// groups of four. `None` for anything else, a voter pseudonym
+/// (`FTBE:MHRX`) among it.
+pub fn normalize_tracking_id(typed: &str) -> Option<String> {
+    let characters = typed
+        .chars()
+        .filter(|character| {
+            *character != BALLOT_ID_SEPARATOR && !character.is_whitespace()
+        })
+        .map(|character| match character.to_ascii_uppercase() {
+            'O' => Some('0'),
+            'I' | 'L' => Some('1'),
+            upper
+                if upper.is_ascii()
+                    && BALLOT_ID_ALPHABET.contains(&(upper as u8)) =>
+            {
+                Some(upper)
+            }
+            _ => None,
+        })
+        .collect::<Option<Vec<char>>>()?;
+    if ![BALLOT_ID_GROUP, SHORT_TRACKING_ID_CHARACTERS, TRACKING_ID_CHARACTERS]
+        .contains(&characters.len())
+    {
+        return None;
+    }
+    Some(
+        characters
+            .chunks(BALLOT_ID_GROUP)
+            .map(|group| group.iter().collect::<String>())
+            .collect::<Vec<_>>()
+            .join(&BALLOT_ID_SEPARATOR.to_string()),
+    )
+}
+
+/// Whether the Tracking ID starts with what was typed, both as
+/// `normalize_tracking_id` and `tracking_id` give them.
+pub fn tracking_id_starts_with(tracking_id: &str, typed: &str) -> bool {
+    let plain = |id: &str| -> String {
+        id.chars()
+            .filter(|character| *character != BALLOT_ID_SEPARATOR)
+            .collect()
+    };
+    plain(tracking_id).starts_with(&plain(typed))
+}
+
+/// The ballot box's key for a received ballot: the first 40 bits of SHA-512
+/// over the voter-signed ballot and the ballot box's signature. Internal; the
+/// Tracking ID is what voters see.
 pub fn ballot_id(
     statement: &ReceivedStatement,
     received_signature: &str,

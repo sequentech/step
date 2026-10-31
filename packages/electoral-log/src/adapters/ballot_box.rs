@@ -11,7 +11,7 @@ use super::ballot_box_received::ReceivedStatus;
 use super::ballot_box_seal::is_ballot_box_sealed;
 use super::postgres::PostgresStore;
 use super::privacy::ForensicNetworkRecord;
-use crate::vitrine::{ballot_id_hash, leaf_hash, ElectionEntry, Hash};
+use crate::vitrine::{leaf_hash, ElectionEntry, Hash, Stage};
 use anyhow::{ensure, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Object;
@@ -70,7 +70,19 @@ pub struct VitrineQueue {
     /// When the ballot is accepted, in POSIX seconds truncated to the profile's
     /// granularity. The ballot row and the entry both hold it.
     pub accepted_at: i64,
+    /// The ballot's Tracking ID digest: the `ballot_id` of every entry the
+    /// ballot gets. The caller computes it from the ballot hash and the
+    /// voter's key, as the voter's client did before sending the ballot.
+    pub tracking_id: Hash,
 }
+
+/// The stages a vote that is not a received ballot logs together: with no
+/// receipts there is no separate send, so the ballot box logs `received` and
+/// `cast` in one statement.
+const CAST_WITHOUT_RECEIPT: &[Stage] = &[Stage::Received, Stage::Cast];
+/// The stage a vote that casts a received ballot logs: its `received` entry
+/// was queued when the ballot box received it.
+const CAST_RECEIVED: &[Stage] = &[Stage::Cast];
 
 /// Whether an accepted ballot's entry went into its log's queue.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -314,35 +326,33 @@ fn accepted_outcome(
     }
 }
 
-/// The ballot's `vitrine/election/ballots/v1` entry.
-fn vitrine_entry(ballot: &AcceptBallot<'_>, accepted_at: i64) -> Result<Vec<u8>> {
+/// The `vitrine/election/ballots/v1` entry of one stage of a ballot.
+pub(crate) fn election_entry(
+    election_event_id: &str,
+    election_id: &str,
+    stage: Stage,
+    queue: &VitrineQueue,
+    accepted_at: i64,
+) -> Result<Vec<u8>> {
     ElectionEntry {
-        event_id: canonical_uuid(ballot.election_event_id)?,
-        election_id: canonical_uuid(ballot.election_id)?,
-        ballot_id: ballot_id_hash(ballot.ballot_id)?,
+        event_id: canonical_uuid(election_event_id)?,
+        election_id: canonical_uuid(election_id)?,
+        stage,
+        ballot_id: queue.tracking_id,
         accepted_at: u64::try_from(accepted_at).context("accepted_at is before 1970")?,
     }
     .encode()
 }
 
-/// Queue the ballot's Vitrine entry in the transaction that stored the ballot.
-/// The queue never refuses a ballot: its insert runs under a savepoint, and if it
-/// fails the ballot stays accepted without its entry.
-async fn queue_vitrine_entry(
+/// Queue an encoded entry in the log's queue partition, in the caller's
+/// transaction. The queue never refuses a ballot: the insert runs under a
+/// savepoint, and if it fails the ballot stays accepted without its entry.
+pub(crate) async fn queue_entry(
     transaction: &mut deadpool_postgres::Transaction<'_>,
-    ballot: &AcceptBallot<'_>,
-) -> Option<VitrineEntry> {
-    let queue = ballot.vitrine?;
-    let entry = match vitrine_entry(ballot, queue.accepted_at) {
-        Ok(entry) => entry,
-        Err(error) => {
-            warn!(
-                "No Vitrine entry for ballot {}: {error:#}",
-                ballot.ballot_id
-            );
-            return None;
-        }
-    };
+    queue: &VitrineQueue,
+    entry: Vec<u8>,
+    what: &str,
+) -> VitrineEntry {
     let insert = format!(
         "INSERT INTO vitrine.queue_{} (entry) VALUES ($1::bytea)",
         queue.log_id
@@ -357,18 +367,57 @@ async fn queue_vitrine_entry(
         Ok(()) => QueueState::Queued,
         Err(error) => {
             warn!(
-                "The queue of Vitrine log {} refused ballot {}; accepting it without \
+                "The queue of Vitrine log {} refused {what}; accepting it without \
                  its entry: {error}",
-                queue.log_id, ballot.ballot_id
+                queue.log_id
             );
             QueueState::NotQueued
         }
     };
-    Some(VitrineEntry {
+    VitrineEntry {
         leaf_hash: leaf_hash(&entry),
         entry,
         queue: state,
-    })
+    }
+}
+
+/// Queue the ballot's Vitrine entries, one per stage, in the transaction that
+/// stored the ballot. The last one is the entry the voter's answer is about.
+async fn queue_vitrine_entry(
+    transaction: &mut deadpool_postgres::Transaction<'_>,
+    ballot: &AcceptBallot<'_>,
+    stages: &[Stage],
+) -> Option<VitrineEntry> {
+    let queue = ballot.vitrine?;
+    let mut last = None;
+    for stage in stages {
+        let entry = match election_entry(
+            ballot.election_event_id,
+            ballot.election_id,
+            *stage,
+            &queue,
+            queue.accepted_at,
+        ) {
+            Ok(entry) => entry,
+            Err(error) => {
+                warn!(
+                    "No Vitrine entry for ballot {}: {error:#}",
+                    ballot.ballot_id
+                );
+                return None;
+            }
+        };
+        last = Some(
+            queue_entry(
+                transaction,
+                &queue,
+                entry,
+                &format!("ballot {} ({stage})", ballot.ballot_id),
+            )
+            .await,
+        );
+    }
+    last
 }
 
 /// Run an accepting statement in a transaction and, when it stored a ballot,
@@ -378,6 +427,7 @@ async fn query_and_queue(
     statement: &tokio_postgres::Statement,
     parameters: &[&(dyn ToSql + Sync)],
     ballot: &AcceptBallot<'_>,
+    stages: &[Stage],
 ) -> Result<(Option<tokio_postgres::Row>, Option<VitrineEntry>), tokio_postgres::Error> {
     if ballot.vitrine.is_none() {
         return Ok((client.query_opt(statement, parameters).await?, None));
@@ -385,7 +435,7 @@ async fn query_and_queue(
     let mut transaction = client.transaction().await?;
     let row = transaction.query_opt(statement, parameters).await?;
     let vitrine = match row {
-        Some(_) => queue_vitrine_entry(&mut transaction, ballot).await,
+        Some(_) => queue_vitrine_entry(&mut transaction, ballot, stages).await,
         None => None,
     };
     transaction.commit().await?;
@@ -416,8 +466,14 @@ async fn replay(client: &Object, ballot: &AcceptBallot<'_>) -> Result<Option<Acc
         return Ok(None);
     }
     let accepted_at: i64 = row.get(5);
-    let vitrine = ballot.vitrine.and_then(|_| {
-        vitrine_entry(ballot, accepted_at)
+    let vitrine = ballot.vitrine.and_then(|queue| {
+        election_entry(
+            ballot.election_event_id,
+            ballot.election_id,
+            Stage::Cast,
+            &queue,
+            accepted_at,
+        )
             .map_err(|error| {
                 warn!(
                     "No Vitrine entry for ballot {}: {error:#}",
@@ -800,7 +856,7 @@ impl PostgresStore {
         if ballot.vitrine.is_some() {
             parameters.push(&accepted_at);
         }
-        let accepted = query_and_queue(&mut client, &statement, &parameters, ballot).await;
+        let accepted = query_and_queue(&mut client, &statement, &parameters, ballot, CAST_WITHOUT_RECEIPT).await;
         match accepted {
             Ok((Some(row), vitrine)) => Ok(accepted_outcome(&row, ballot, vitrine)),
             Ok((None, _)) => {
@@ -842,7 +898,8 @@ impl PostgresStore {
             &received.cast_signature,
             &received.cast_receipt_signature,
         ]);
-        let accepted = query_and_queue(&mut client, &statement, &parameters, ballot).await;
+        let accepted =
+            query_and_queue(&mut client, &statement, &parameters, ballot, CAST_RECEIVED).await;
         match accepted {
             Ok((Some(row), vitrine)) => Ok(accepted_outcome(&row, ballot, vitrine)),
             Ok((None, _)) => received_refused_outcome(&client, ballot, received).await,
@@ -881,7 +938,7 @@ impl PostgresStore {
             &record.user_agent,
             &record.recorded_at,
         ]);
-        match query_and_queue(&mut client, &statement, &parameters, ballot).await {
+        match query_and_queue(&mut client, &statement, &parameters, ballot, CAST_RECEIVED).await {
             Ok((Some(row), vitrine)) => Ok(accepted_outcome(&row, ballot, vitrine)),
             Ok((None, _)) => received_refused_outcome(&client, ballot, received).await,
             Err(error) => error_outcome(error),
@@ -920,7 +977,7 @@ impl PostgresStore {
             &record.user_agent,
             &record.recorded_at,
         ]);
-        match query_and_queue(&mut client, &statement, &parameters, ballot).await {
+        match query_and_queue(&mut client, &statement, &parameters, ballot, CAST_WITHOUT_RECEIPT).await {
             Ok((Some(row), vitrine)) => Ok(accepted_outcome(&row, ballot, vitrine)),
             Ok((None, _)) => refused_outcome(&client, ballot).await,
             Err(error) => error_outcome(error),

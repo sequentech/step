@@ -534,11 +534,11 @@ pub async fn ballot_box_own(
             unavailable("Voter privacy registration is not ready")
         })?;
     let rows = store.client().await.map_err(unavailable)?.query(
-        "SELECT r.ballot_id,r.voter_id,b.accepted_at,b.voting_channel,b.election_id::text FROM ballot_box_ballot b \
+        "SELECT r.ballot_hash,r.voter_id,b.accepted_at,b.voting_channel,b.election_id::text,r.voter_signing_pk FROM ballot_box_ballot b \
          JOIN ballot_box_received r ON r.election_event_id=b.election_event_id AND r.election_id=b.election_id AND r.voter_id=b.voter_id AND r.ballot_hash=b.ballot_id \
          WHERE b.election_event_id=$1::text::uuid AND b.area_id=$2::text::uuid AND b.voter_id=$3 \
          AND b.election_id::text=ANY($4) AND b.status='valid' ORDER BY b.seq DESC LIMIT 100", &[&event.id,&area,&identity,&elections]).await.map_err(unavailable)?;
-    let ballots = rows.iter().map(|r| Ok(json!({"ballot_id":r.try_get::<_,String>(0)?,"pseudonym":r.try_get::<_,String>(1)?,
+    let ballots = rows.iter().map(|r| Ok(json!({"ballot_id":tracking_id_of(&r.try_get::<_,String>(0)?,&r.try_get::<_,String>(5)?),"pseudonym":r.try_get::<_,String>(1)?,
         "cast_at":r.try_get::<_,chrono::DateTime<chrono::Utc>>(2)?.to_rfc3339(),"voting_channel":r.try_get::<_,String>(3)?,"election_id":r.try_get::<_,String>(4)?})))
         .collect::<Result<Vec<_>,tokio_postgres::Error>>().map_err(unavailable)?;
     payload(json!({"ballots":ballots}))
@@ -593,6 +593,66 @@ fn proof_channel(
     }
 }
 
+/// The Tracking ID of a stored ballot: the screens show its first two groups.
+fn tracking_id_of(ballot_hash: &str, voter_signing_pk: &str) -> Option<String> {
+    sequent_core::ballot_receipt::tracking_id(ballot_hash, Some(voter_signing_pk)).ok()
+}
+
+/// The ballot box's key of the received ballot a typed Tracking ID names, among the
+/// election's (in the area, for a voter). The key is internal: a Tracking ID is
+/// computed from the stored ballot, and a pseudonym is never read as one.
+async fn receipt_key_of_tracking_id(
+    store: &PostgresStore,
+    event: &str,
+    election: &str,
+    area: Option<&str>,
+    typed: &str,
+) -> Result<String, ApiError> {
+    // A Tracking ID has at least 9 characters here; the key a log entry carries is
+    // 8, so the two never meet. The key serves the Logs tab, which holds log
+    // entries and not ballots, and is only found among this election's own.
+    let key = electoral_log::adapters::privacy::normalize_privacy_code(typed);
+    let typed = if key.is_some() {
+        String::new()
+    } else {
+        sequent_core::ballot_receipt::normalize_tracking_id(typed)
+            .filter(|typed| typed.len() >= 9)
+            .ok_or_else(|| bad("Invalid Tracking ID"))?
+    };
+    let rows = store.client().await.map_err(unavailable)?.query(
+        "SELECT ballot_id,ballot_hash,voter_signing_pk FROM ballot_box_received WHERE election_event_id=$1::text::uuid AND election_id=$2::text::uuid AND ($3::text IS NULL OR area_id=$3::text::uuid)",
+        &[&event,&election,&area],
+    ).await.map_err(unavailable)?;
+    let mut found = None;
+    for row in &rows {
+        let (row_key, hash, voter_key): (String, String, String) = (
+            row.try_get(0).map_err(unavailable)?,
+            row.try_get(1).map_err(unavailable)?,
+            row.try_get(2).map_err(unavailable)?,
+        );
+        let matches = match &key {
+            Some(key) => *key == row_key,
+            None => sequent_core::ballot_receipt::tracking_id(
+                &hash,
+                Some(&voter_key),
+            )
+            .is_ok_and(|tracking_id| {
+                sequent_core::ballot_receipt::tracking_id_starts_with(
+                    &tracking_id,
+                    &typed,
+                )
+            }),
+        };
+        if matches {
+            if found.is_some() {
+                return Err(bad("Enter more of the Tracking ID"));
+            }
+            found = Some(row_key);
+        }
+    }
+    found.ok_or_else(|| (Status::NotFound, "Ballot not found".into()))
+}
+
 #[post("/ballot-box-entry", format = "json", data = "<body>")]
 pub async fn ballot_box_entry(
     services: &State<HarvestServices>,
@@ -604,10 +664,14 @@ pub async fn ballot_box_entry(
     let allowed_area =
         proof_scope(services, &claims, &event, &body.election_id).await?;
     let store = get_event_store(&event.id).await.map_err(unavailable)?;
-    let code = electoral_log::adapters::privacy::normalize_privacy_code(
+    let code = receipt_key_of_tracking_id(
+        &store,
+        &event.id,
+        &body.election_id,
+        allowed_area.as_deref(),
         &body.ballot_id,
     )
-    .ok_or_else(|| bad("Invalid Ballot ID"))?;
+    .await?;
     if store
         .ballot_identity(&event.id)
         .await
@@ -683,6 +747,11 @@ pub async fn ballot_box_entry(
             }))
         })
         .collect();
+    let tracking_id = sequent_core::ballot_receipt::tracking_id(
+        &received.ballot_hash,
+        Some(&received.voter_signing_pk),
+    )
+    .map_err(unavailable)?;
     let mut response = serde_json::to_value(BallotPrivacyProof {
         ballot_id: code,
         pseudonym: received.voter_id,
@@ -692,6 +761,9 @@ pub async fn ballot_box_entry(
     })
     .map_err(unavailable)?;
     // Display fields never supply trust or replace the canonical signed proof.
+    // `ballot_id` stays the key the signed statements carry; the Tracking ID is
+    // what a person is shown.
+    response["tracking_id"] = json!(tracking_id);
     response["log_entries"] = json!(log_entries);
     payload(response)
 }
@@ -708,9 +780,14 @@ pub async fn ballot_box_keys(
         proof_scope(services, &claims, &event, &body.election_id).await?;
     let store = get_event_store(&event.id).await.map_err(unavailable)?;
     let key_id = if let Some(ballot_id) = body.ballot_id.as_deref() {
-        let code =
-            electoral_log::adapters::privacy::normalize_privacy_code(ballot_id)
-                .ok_or_else(|| bad("Invalid Ballot ID"))?;
+        let code = receipt_key_of_tracking_id(
+            &store,
+            &event.id,
+            &body.election_id,
+            allowed_area.as_deref(),
+            ballot_id,
+        )
+        .await?;
         let row = store.client().await.map_err(unavailable)?.query_opt(
             "SELECT key_id,status FROM ballot_box_received WHERE election_event_id=$1::text::uuid AND election_id=$2::text::uuid AND ballot_id=$3 AND ($4::text IS NULL OR area_id=$4::text::uuid)",
             &[&event.id,&body.election_id,&code,&allowed_area],
@@ -1022,8 +1099,10 @@ pub async fn forensic_network_detail(
     let scope = json!([event.id, elections, ip]).to_string();
     let before = decode_cursor(&scope, body.cursor.as_deref())?;
     let client = store.client().await.map_err(unavailable)?;
-    let rows=client.query("SELECT id,ballot_id,pseudonym,recorded_at FROM sequent_backend.forensic_network_record WHERE election_event_id=$1::text::uuid \
-        AND ($2::text[] IS NULL OR election_id::text=ANY($2)) AND ip=$3 AND event_kind='cast' AND ($4::bigint IS NULL OR id<$4) ORDER BY id DESC LIMIT $5",
+    let rows=client.query("SELECT f.id,r.ballot_hash,f.pseudonym,f.recorded_at,r.voter_signing_pk FROM sequent_backend.forensic_network_record f \
+        LEFT JOIN ballot_box_received r ON r.election_event_id=f.election_event_id AND r.election_id=f.election_id AND r.ballot_id=f.ballot_id \
+        WHERE f.election_event_id=$1::text::uuid \
+        AND ($2::text[] IS NULL OR f.election_id::text=ANY($2)) AND f.ip=$3 AND f.event_kind='cast' AND ($4::bigint IS NULL OR f.id<$4) ORDER BY f.id DESC LIMIT $5",
         &[&event.id,&elections,&ip,&before,&(limit+1)]).await.map_err(unavailable)?;
     let next = if rows.len() > limit as usize {
         Some(encode_cursor(
@@ -1033,7 +1112,7 @@ pub async fn forensic_network_detail(
     } else {
         None
     };
-    let ballots=rows.iter().take(limit as usize).map(|r| -> Result<Value> {Ok(json!({"ballot_id":r.try_get::<_,Option<String>>(1)?,"pseudonym":r.try_get::<_,String>(2)?,"cast_at":r.try_get::<_,chrono::DateTime<chrono::Utc>>(3)?.to_rfc3339()}))}).collect::<Result<Vec<_>>>().map_err(unavailable)?;
+    let ballots=rows.iter().take(limit as usize).map(|r| -> Result<Value> {Ok(json!({"ballot_id":match (r.try_get::<_,Option<String>>(1)?,r.try_get::<_,Option<String>>(4)?){(Some(hash),Some(key))=>tracking_id_of(&hash,&key),_=>None},"pseudonym":r.try_get::<_,String>(2)?,"cast_at":r.try_get::<_,chrono::DateTime<chrono::Utc>>(3)?.to_rfc3339()}))}).collect::<Result<Vec<_>>>().map_err(unavailable)?;
     let total=client.query_one("SELECT min(country),COALESCE(sum(records),0)::bigint,min(first_at),max(last_at) FROM sequent_backend.forensic_network_summary \
         WHERE election_event_id=$1::text::uuid AND ($2::text[] IS NULL OR election_id::text=ANY($2)) AND ip=$3",&[&event.id,&elections,&ip]).await.map_err(unavailable)?;
     payload(
