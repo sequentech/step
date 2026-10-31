@@ -8,7 +8,8 @@ use crate::encrypt::hash_ballot_style;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
-use crate::types::hasura::core::{self, ElectionEvent};
+use crate::types::hasura::core as hasura_core;
+use crate::types::hasura::core::ElectionEvent;
 use crate::types::scheduled_event::EventProcessors;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
@@ -23,7 +24,23 @@ use strand::zkp::Schnorr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 use strum_macros::{Display, EnumString, IntoStaticStr};
 
-pub const TYPES_VERSION: u32 = 1;
+/// Version of the ballots encrypted by this crate. Their tracker covers the
+/// ballot format and the ballot style besides the contests.
+pub const TYPES_VERSION: u32 = 2;
+
+/// Version of the ballots whose tracker covers only the issue date and the
+/// contests. They are still read, and hashed as they were cast.
+pub const LEGACY_TYPES_VERSION: u32 = 1;
+
+pub(crate) fn check_types_version(version: u32) -> Result<u32, BallotError> {
+    match version {
+        TYPES_VERSION | LEGACY_TYPES_VERSION => Ok(version),
+        _ => Err(BallotError::Serialization(format!(
+            "Unexpected version {version}, expected {TYPES_VERSION} or \
+             {LEGACY_TYPES_VERSION}"
+        ))),
+    }
+}
 
 pub type I18nContent<T = Option<String>> = HashMap<String, T>;
 
@@ -131,6 +148,20 @@ pub struct RawHashableBallot<C: Ctx> {
     pub contests: Vec<HashableBallotContest<C>>,
 }
 
+/// What the tracker of a ballot of [`TYPES_VERSION`] is the hash of. Besides
+/// what [`RawHashableBallot`] covers, it names the ballot format and the
+/// ballot style (its id and hash), so the same contests under another format,
+/// election, public key or candidate list get another tracker.
+#[derive(BorshSerialize, PartialEq, Eq, Debug, Clone)]
+pub struct StyleBoundHashableBallot<T> {
+    pub version: u32,
+    pub format: ContestEncryptionPolicy,
+    pub issue_date: String,
+    pub config: String,
+    pub ballot_style_hash: String,
+    pub contests: T,
+}
+
 impl HashableBallot {
     pub fn deserialize_contests<C: Ctx>(
         &self,
@@ -175,6 +206,23 @@ impl<C: Ctx> TryFrom<&HashableBallot> for RawHashableBallot<C> {
     }
 }
 
+impl<C: Ctx> TryFrom<&HashableBallot>
+    for StyleBoundHashableBallot<Vec<HashableBallotContest<C>>>
+{
+    type Error = BallotError;
+
+    fn try_from(value: &HashableBallot) -> Result<Self, Self::Error> {
+        Ok(StyleBoundHashableBallot {
+            version: value.version,
+            format: ContestEncryptionPolicy::SINGLE_CONTEST,
+            issue_date: value.issue_date.clone(),
+            config: value.config.clone(),
+            ballot_style_hash: value.ballot_style_hash.clone(),
+            contests: value.deserialize_contests::<C>()?,
+        })
+    }
+}
+
 impl<C: Ctx> From<&AuditableBallotContest<C>> for HashableBallotContest<C> {
     fn from(value: &AuditableBallotContest<C>) -> HashableBallotContest<C> {
         HashableBallotContest {
@@ -189,13 +237,7 @@ impl TryFrom<&AuditableBallot> for HashableBallot {
     type Error = BallotError;
 
     fn try_from(value: &AuditableBallot) -> Result<Self, Self::Error> {
-        if TYPES_VERSION != value.version {
-            return Err(BallotError::Serialization(format!(
-                "Unexpected version {}, expected {}",
-                value.version.to_string(),
-                TYPES_VERSION
-            )));
-        }
+        let version = check_types_version(value.version)?;
 
         let contests = value.deserialize_contests::<RistrettoCtx>()?;
         let hashable_ballot_contest: Vec<HashableBallotContest<RistrettoCtx>> =
@@ -217,7 +259,7 @@ impl TryFrom<&AuditableBallot> for HashableBallot {
                 ))
             })?;
         Ok(HashableBallot {
-            version: TYPES_VERSION,
+            version,
             issue_date: value.issue_date.clone(),
             contests: HashableBallot::serialize_contests::<RistrettoCtx>(
                 &hashable_ballot_contest,
@@ -692,6 +734,8 @@ pub struct ElectionEventPresentation {
     pub enrollment: Option<Enrollment>,
     pub otp: Option<Otp>,
     pub voter_signing_policy: Option<VoterSigningPolicy>,
+    #[borsh(skip)]
+    pub ballot_tracker_policy: Option<BallotTrackerPolicy>,
 }
 
 impl ElectionEvent {
@@ -942,7 +986,7 @@ pub struct ElectionPresentation {
     pub initialization_report_policy: Option<EInitializeReportPolicy>,
 }
 
-impl core::Election {
+impl hasura_core::Election {
     pub fn get_presentation(&self) -> Option<ElectionPresentation> {
         let election_presentation: Option<ElectionPresentation> = self
             .presentation
@@ -1281,6 +1325,35 @@ pub enum VoterSigningPolicy {
     WITH_SIGNATURE,
 }
 
+/// Which ballots a cast vote is accepted with. A ballot of [`TYPES_VERSION`]
+/// must always name the ballot style published for the voter's area and
+/// election. A ballot of [`LEGACY_TYPES_VERSION`], whose tracker does not
+/// cover the ballot style, is only accepted with `ALLOW_LEGACY`.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum BallotTrackerPolicy {
+    #[default]
+    #[strum(serialize = "style-bound")]
+    #[serde(rename = "style-bound")]
+    STYLE_BOUND,
+    #[strum(serialize = "allow-legacy")]
+    #[serde(rename = "allow-legacy")]
+    ALLOW_LEGACY,
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     BorshSerialize,
@@ -1461,7 +1534,7 @@ pub enum VotingStatusChannel {
 impl VotingStatusChannel {
     pub fn channel_from(
         &self,
-        channels: &core::VotingChannels,
+        channels: &hasura_core::VotingChannels,
     ) -> Option<bool> {
         match self {
             &VotingStatusChannel::ONLINE => channels.online.clone(),
@@ -1834,4 +1907,20 @@ pub struct CustomUrls {
     pub login: Option<String>,
     pub enrollment: Option<String>,
     pub saml: Option<String>,
+}
+
+#[cfg(test)]
+mod ballot_tracker_policy_tests {
+    use super::*;
+
+    #[test]
+    fn ballot_tracker_policy_does_not_change_borsh_bytes() {
+        let event_bytes =
+            borsh::to_vec(&ElectionEventPresentation::default()).unwrap();
+        let event_with_policy = ElectionEventPresentation {
+            ballot_tracker_policy: Some(BallotTrackerPolicy::ALLOW_LEGACY),
+            ..ElectionEventPresentation::default()
+        };
+        assert_eq!(borsh::to_vec(&event_with_policy).unwrap(), event_bytes);
+    }
 }
