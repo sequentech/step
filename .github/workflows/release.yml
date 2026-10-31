@@ -191,15 +191,39 @@ jobs:
       if: github.event.inputs.version != ''
       env:
         REQUESTED_VERSION: ${{ github.event.inputs.version }}
-        RELEASE_REF: ${{ github.ref }}
-        RELEASE_SHA: ${{ github.sha }}
-      run: python3 .github/scripts/release_explicit_version.py --check
+      run: |
+        test "$GITHUB_REF_TYPE" = branch
+        test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+        tag="v${REQUESTED_VERSION#v}"
+        if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
+          echo "Error: tag $tag already exists. Latest tags:"
+          git ls-remote --tags --sort=-v:refname origin "refs/tags/${tag%.*}*" | grep -v '\^{}' | head -5
+          exit 1
+        fi
+        # release-it silently skips a version older than the latest tag on the branch
+        latestTag=$(git describe --tags --abbrev=0 2>/dev/null || true)
+        if ! python3 - "${tag#v}" "${latestTag#v}" <<'EOF'
+        import re, sys
+        def key(version):
+            match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)(?:-rc\.(\d+))?", version)
+            if match is None:
+                return None
+            major, minor, patch, rc = match.groups()
+            return (int(major), int(minor), int(patch), float("inf") if rc is None else int(rc))
+        requested, latest = key(sys.argv[1]), key(sys.argv[2])
+        sys.exit(0 if latest is None or requested > latest else 1)
+        EOF
+        then
+          echo "Error: $tag is not newer than $latestTag, the latest tag on this branch"
+          exit 1
+        fi
 
     - name: Install release tools
       run: |
         sudo npm install --global release-it@16.2.1
 
     - name: Determine Release Increment
+      if: github.event.inputs.version == ''
       id: CheckLatestRelease
       run: |
         # Only check for a pre-release if we are NOT creating a new release branch
@@ -234,13 +258,18 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         REQUESTED_VERSION: ${{ github.event.inputs.version }}
-        RELEASE_REF: ${{ github.ref }}
-        RELEASE_SHA: ${{ github.sha }}
       run: |
         requestedVersion="${REQUESTED_VERSION#v}"
         if [ -n "$requestedVersion" ]; then
           # Release exactly the requested version (validated in create-release-branch)
-          python3 .github/scripts/release_explicit_version.py
+          release-it --ci "$requestedVersion" --verbose
+          # Do not publish a version to downstream jobs without its remote tag.
+          tag="v$requestedVersion"
+          commit=$(git rev-parse HEAD)
+          test "$(git rev-parse "$tag^{commit}")" = "$commit"
+          remote=$(git ls-remote --exit-code origin "refs/tags/$tag" "refs/tags/$tag^{}")
+          remote_commit=$(printf '%s\n' "$remote" | awk '/\^\{\}$/ {peeled=$1} {direct=$1} END {print peeled ? peeled : direct}')
+          test "$remote_commit" = "$commit"
         # If the new release branch is not created, then increment the patch version
         elif [ "${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH }}" == "" ]; then
           if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
@@ -357,8 +386,7 @@ jobs:
         inputs: '{"version":"${{ needs.release.outputs.VERSION }}", "hash":"${{ needs.release.outputs.HASH }}", "infra_only":"${{ github.event.inputs.infra_only }}" }'
 
   cleanup:
-    # Explicit releases never delete a tag that a retry may already have reused.
-    if: ${{ failure() && inputs.version == '' }}
+    if: failure()
     # Here define the depenency jobs
     needs: [release]
     runs-on: ubuntu-24.04
