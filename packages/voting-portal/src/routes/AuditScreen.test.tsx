@@ -14,6 +14,8 @@ import {
     setAuditableBallot,
 } from "../store/auditableBallots/auditableBallotsSlice"
 import {setReceivedBallot} from "../store/receivedBallots/receivedBallotsSlice"
+import {EStageCheck} from "../services/vitrine/castReceipt"
+import {ETransparencyMode} from "../services/vitrine/types"
 import AuditScreen from "./AuditScreen"
 
 jest.mock("react-i18next", () => ({
@@ -36,8 +38,21 @@ jest.mock("../services/BallotService", () => ({
         forgetVoterSigningKey: (...args: unknown[]) => mockForgetKey(...args),
     }),
 }))
+jest.mock("../services/vitrine/castReceipt", () => ({
+    ...jest.requireActual("../services/vitrine/castReceipt"),
+    runCastReceipt: (...args: unknown[]) => mockRunCastReceipt(...args),
+}))
+jest.mock("../services/vitrine/trackingId", () => ({
+    trackingIdOf: () => MOCK_TRACKING_ID,
+    trackingDigestHex: async () => MOCK_DIGEST,
+}))
+jest.mock("../services/vitrine/forward", () => ({voterForward: () => jest.fn()}))
+jest.mock("../services/vitrine/voterContext", () => ({voterContextFor: jest.fn()}))
 const mockAudit = jest.fn()
 const mockForgetKey = jest.fn()
+const mockRunCastReceipt = jest.fn()
+const MOCK_TRACKING_ID = "FTBE-MHRX-0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ-0123-4567-89AB"
+const MOCK_DIGEST = "ab".repeat(32)
 const received = {
     tenant_id: "tenant",
     election_event_id: "event",
@@ -152,4 +167,102 @@ test("a delayed audit acknowledgement preserves a newer ballot and its receipt",
     expect(selectAuditableBallot("election")(store.getState())?.ballot_hash).toBe("new-ballot-hash")
     expect(store.getState().receivedBallots.election).toEqual(newerReceipt)
     expect(mockForgetKey).not.toHaveBeenCalled()
+})
+
+describe("an event that keeps a transparency log", () => {
+    beforeEach(() => {
+        const previous = store.getState().auditableBallots.election!.auditableBallot!
+        store.dispatch(
+            setAuditableBallot({
+                electionId: "election",
+                isBlankBallot: false,
+                auditableBallot: {
+                    ...previous,
+                    config: {
+                        election_event_presentation: {
+                            receipts: {policy: "signed-by-ballot-box"},
+                            transparency: ETransparencyMode.PUBLIC,
+                        },
+                    },
+                } as unknown as IAuditableBallot,
+            })
+        )
+        mockAudit.mockResolvedValue({
+            data: {audit_ballot: {ballot_id: "FTBE-MHRX", status: "audited", vitrine: null}},
+        })
+    })
+    const logs = (check: EStageCheck) =>
+        mockRunCastReceipt.mockImplementation(async (options: {onChecked?: Function}) => {
+            options.onChecked?.(check)
+        })
+
+    test("asks the log for the audited entry of the ballot, by its Tracking ID", async () => {
+        logs(EStageCheck.CHECKED)
+        draw()
+        await waitFor(() => expect(mockRunCastReceipt).toHaveBeenCalledTimes(1))
+        expect(mockRunCastReceipt).toHaveBeenCalledWith(
+            expect.objectContaining({
+                target: {
+                    eventId: "event",
+                    electionId: "election",
+                    stage: "audited",
+                    ballotId: MOCK_DIGEST,
+                },
+                checkOnly: true,
+            })
+        )
+    })
+
+    test("shows the short Tracking ID with the Audited tag once the log holds the audit", async () => {
+        logs(EStageCheck.CHECKED)
+        const {container} = draw()
+        await waitFor(() =>
+            expect(container.querySelector(".audit-tracking-id-short")).toHaveTextContent(
+                "FTBE-MHRX"
+            )
+        )
+        expect(container.querySelector(".audit-tracking-id")).toHaveTextContent(
+            "vitrine.status.tag.audited"
+        )
+        expect(container.querySelector(".audit-tracking-id")).not.toHaveTextContent(
+            "vitrine.status.tag.cast"
+        )
+        expect(screen.getByText(/private-choice-and-randomness/)).toBeVisible()
+    })
+
+    test("keeps the audit copy back when the log holds no receipt for the audited entry", async () => {
+        logs(EStageCheck.FAILED)
+        const {container} = draw()
+        expect(await screen.findByText("auditScreen.auditUnavailable")).toBeVisible()
+        expect(screen.queryByText(/private-choice-and-randomness/)).not.toBeInTheDocument()
+        expect(container.querySelector(".audit-tracking-id")).toBeNull()
+        // The ballot box refused nothing, but the audit is not whole: keep the receipt.
+        expect(mockForgetKey).not.toHaveBeenCalled()
+        expect(store.getState().receivedBallots.election).toEqual(received)
+    })
+
+    test("accepts the box's audit while the log has only queued the entry", async () => {
+        logs(EStageCheck.WAITING)
+        const {container} = draw()
+        await waitFor(() => expect(mockForgetKey).toHaveBeenCalledWith("election"))
+        expect(container.querySelector(".audit-tracking-id-short")).toHaveTextContent("FTBE-MHRX")
+    })
+
+    test("a retry asks the log again", async () => {
+        logs(EStageCheck.FAILED)
+        draw()
+        const retry = await screen.findByRole("button", {name: "ballotPrivacy.retry"})
+        logs(EStageCheck.CHECKED)
+        await act(async () => retry.click())
+        await waitFor(() => expect(mockRunCastReceipt).toHaveBeenCalledTimes(2))
+        expect(await screen.findByText(/private-choice-and-randomness/)).toBeVisible()
+    })
+})
+
+test("an event with no transparency log asks the log nothing and shows no tag", async () => {
+    mockAudit.mockResolvedValue({data: {audit_ballot: {ballot_id: "FTBE-MHRX", status: "audited"}}})
+    const {container} = draw()
+    await waitFor(() => expect(mockForgetKey).toHaveBeenCalledWith("election"))
+    expect(mockRunCastReceipt).not.toHaveBeenCalled()
+    expect(container.querySelector(".audit-tracking-id")).toBeNull()
 })
