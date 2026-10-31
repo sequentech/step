@@ -116,8 +116,12 @@ const u64be = (n) => {
   return b;
 };
 
-/** A `vitrine/election/ballots/v1` entry, as Step's ballot box encodes it. */
-export function electionEntry({ eventId, electionId, ballotId, acceptedAt }) {
+export const STAGES = ["received", "cast", "audited"];
+
+/** A `vitrine/election/ballots/v1` entry, as Step's ballot box encodes it: one
+ * stage of a ballot, named by its Tracking ID digest (`ballotId`, in hex). */
+export function electionEntry({ eventId, electionId, stage, ballotId, acceptedAt }) {
+  if (!STAGES.includes(stage)) throw new Error(`unknown stage ${JSON.stringify(stage)}`);
   const ballot = Buffer.from(ballotId, "hex");
   if (ballot.length !== 32 || ballot.toString("hex") !== ballotId.toLowerCase()) {
     throw new Error("ballot_id isn't a 32-byte hash");
@@ -125,6 +129,7 @@ export function electionEntry({ eventId, electionId, ballotId, acceptedAt }) {
   return encodeEntry(ELECTION_TAG, [
     Buffer.from(checkId(eventId), "ascii"),
     Buffer.from(checkId(electionId), "ascii"),
+    Buffer.from(stage, "ascii"),
     ballot,
     u64be(acceptedAt),
   ]);

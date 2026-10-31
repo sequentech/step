@@ -163,6 +163,40 @@ export function digestOfTrackingId(id) {
   return (bits >> 4n).toString(16).padStart(64, "0");
 }
 
+// -- The voter's signature on a ballot -------------------------------------------------
+
+const u32le = (n) => {
+  const b = Buffer.alloc(4);
+  b.writeUInt32LE(n);
+  return b;
+};
+const borshString = (text) => {
+  const bytes = Buffer.from(text, "utf8");
+  return Buffer.concat([u32le(bytes.length), bytes]);
+};
+
+/** Borsh of a `HashableBallot`: version, issue date, contests, ballot style ID and hash. */
+export const hashableBallotBytes = (ballot) =>
+  Buffer.concat([
+    u32le(ballot.version),
+    borshString(ballot.issue_date),
+    u32le(ballot.contests.length),
+    ...ballot.contests.map(borshString),
+    borshString(ballot.config),
+    borshString(ballot.ballot_style_hash),
+  ]);
+
+/** Whether the voter's key signed this ballot, as `verify_ballot_signature` checks it: the
+ * signature covers the ballot's hash, the election and the borsh of its hashable ballot. */
+export function verifyBallotSignature({ ballotHash, electionId, ballot }) {
+  try {
+    const message = fields(ballotHash, electionId, hashableBallotBytes(ballot));
+    return verify(publicKeyBytes(ballot.voter_signing_pk), message, signatureBytes(ballot.voter_ballot_signature, "voter_ballot_signature"));
+  } catch {
+    return false;
+  }
+}
+
 // -- The Received statement ----------------------------------------------------------
 
 function receivedBytes(s) {

@@ -19,8 +19,10 @@ import {
   trackingId,
   trackingIdDigest,
   trackingIdStartsWith,
+  verifyBallotSignature,
   verifyCastSignature,
 } from "./receipts.mjs";
+import { readFileSync } from "node:fs";
 
 const BALLOT_BOX_SEED = Buffer.alloc(32, 1);
 const VOTER_SEED = Buffer.alloc(32, 2);
@@ -102,4 +104,19 @@ test("typed IDs are read the way people write them", () => {
   assert.equal(crockfordCharacters("o-i l"), "011");
   assert.ok(trackingIdStartsWith("BJHF-GCZX-A25K", normalizeTrackingId("bjhf gczx")));
   assert.ok(!trackingIdStartsWith("BJHF-GCZX-A25K", normalizeTrackingId("BJHF-GCZY")));
+});
+
+// A signed cast made with Step's voting portal code (Vitrine's test vectors for Step), if the Vitrine checkout is there.
+const VECTORS = `${process.env.VITRINE_DIR ?? `${process.env.HOME}/vitrine`}/packages/extension/test/vectors/step/casts.json`;
+test("the voter's signature on a ballot made by Step's portal verifies", { skip: !(() => { try { readFileSync(VECTORS); return true; } catch { return false; } })() }, () => {
+  const cases = JSON.parse(readFileSync(VECTORS, "utf8")).cases.filter((c) => c.name === "single-2-contests-signed");
+  assert.equal(cases.length, 1);
+  const { variables } = JSON.parse(cases[0].request.body);
+  const ballot = JSON.parse(variables.content);
+  const args = { ballotHash: variables.ballotId, electionId: variables.electionId, ballot };
+  assert.ok(verifyBallotSignature(args));
+  assert.ok(!verifyBallotSignature({ ...args, electionId: "another" }));
+  assert.ok(!verifyBallotSignature({ ...args, ballot: { ...ballot, issue_date: "24/10/2026" } }));
+  // The tracker of the vector is the digest of its hash and key.
+  assert.equal(digestOfTrackingId(trackingId(variables.ballotId, ballot.voter_signing_pk)).length, 64);
 });
