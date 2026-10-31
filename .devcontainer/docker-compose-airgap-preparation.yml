@@ -178,6 +178,7 @@ services:
       HASURA_GRAPHQL_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       ACTIONS_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+      HARVEST_BALLOT_LOG_DOMAIN: ${HARVEST_BALLOT_LOG_DOMAIN:-harvest-edge:8080}
     depends_on:
       data-connector-agent:
         condition: service_healthy
@@ -267,6 +268,8 @@ services:
       /opt/keycloak/bin/kc.sh start-dev
       --features=preview
       --health-enabled=true
+      --spi-events-store--provider-default=sequent-privacy
+      --spi-user-sessions--provider-default=sequent-privacy
       --spi-user-profile-declarative-user-profile-read-only-attributes=area-id,tenant-id
       --spi-user-profile-declarative-user-profile-admin-read-only-attributes=sequent.admin-read-only.*
       -Dkeycloak.profile.feature.upload_scripts=enabled
@@ -298,7 +301,11 @@ services:
     ports:
       - 3002:8000
     stdin_open: true
+    # Forwards /b4/ to Harvest (resolved per request).
+    volumes:
+      - ./admin-portal-nginx:/etc/nginx/default.d:ro,z
     environment:
+        WBRAID_BOARD_URL: ${WBRAID_BOARD_PUBLIC_URL:-/b4}
         MAX_DIFF_LINES: ${MAX_DIFF_LINES}
         SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
         SECONDS_TO_SHOW_ALERT: ${SECONDS_TO_SHOW_ALERT}
@@ -327,6 +334,18 @@ services:
       - 3004:8000
     stdin_open: true
 
+  harvest-edge:
+    profiles: ["full", "base"]
+    image: nginx:latest
+    restart: always
+    environment:
+      HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+    volumes:
+      - ./harvest-edge/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    depends_on:
+      harvest:
+        condition: service_started
+
   harvest:
     profiles: ["full", "base"]
     stdin_open: true
@@ -336,6 +355,10 @@ services:
       task-queues-setup:
         condition: service_completed_successfully
     environment:
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       ENV_SLUG: ${ENV_SLUG}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
@@ -391,9 +414,9 @@ services:
       QUEUE_DB_READER_PASSWORD: ${QUEUE_DB_READER_PASSWORD}
       QUEUE_DB__MANAGER__RECYCLING_METHOD: ${QUEUE_DB__MANAGER__RECYCLING_METHOD}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KIOSK_KEYCLOAK_URL: ${KIOSK_KEYCLOAK_URL:-}
+      HARVEST_JWT_ISSUER_URLS: ${HARVEST_JWT_ISSUER_URLS:-}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
-      AWS_S3_JWKS_FETCH_TIMEOUT_SECS: ${AWS_S3_JWKS_FETCH_TIMEOUT_SECS:-5}
-      AWS_S3_JWKS_MIN_REFRESH_SECS: ${AWS_S3_JWKS_MIN_REFRESH_SECS:-10}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
@@ -439,85 +462,169 @@ services:
       CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
-      B4_PG_HOST: ${B4_PG_HOST}
-      B4_PG_PORT: ${B4_PG_PORT}
-      B4_PG_USER: ${B4_PG_USER}
-      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
-      B4_PG_DATABASE: ${B4_PG_DATABASE}
-    ports:
-     - ${HARVEST_PORT}:${HARVEST_PORT}
+      WBRAID_B4_URL: http://b4v6:3005
+      # Other origins whose pages may read boards (`*` or a comma-separated list); empty: the admin portal only.
+      HARVEST_B4_READ_ORIGINS: ${HARVEST_B4_READ_ORIGINS:-}
+      WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
+      # The monitoring renderer, reached on the internal monitoring-renderer
+      # network only.
+      HARVEST_MONITORING_RENDERER_URL: ${HARVEST_MONITORING_RENDERER_URL:-http://monitoring-renderer:8080}
+      HARVEST_MONITORING_RENDERER_TOKEN: ${MONITORING_RENDERER_TOKEN}
+      HARVEST_MONITORING_RENDERER_TIMEOUT_MS: ${HARVEST_MONITORING_RENDERER_TIMEOUT_MS:-5000}
+      # Provider callbacks arrive only through messaging-webhooks.
+      MESSAGING_RELAY_SECRET: ${MESSAGING_RELAY_SECRET:?MESSAGING_RELAY_SECRET must be set}
+      MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
+      MESSAGING_WEBHOOKS_MAX_BODY_BYTES: ${MESSAGING_WEBHOOKS_MAX_BODY_BYTES:-262144}
+      MESSAGING_CALLBACK_CONNECTIONS: ${MESSAGING_CALLBACK_CONNECTIONS:-4}
+    networks:
+      - default
+      - monitoring-renderer
+    # No published port: harvest is internal. Hasura and messaging-webhooks
+    # reach it on the compose network (HARVEST_DOMAIN).
 
-  b4:
+  # The one public entrypoint for messaging provider callbacks; relays each
+  # one, signed, to harvest's internal /messaging/callbacks.
+  messaging-webhooks:
     profiles: ["full", "base"]
-    stdin_open: true
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/b4:STEP_VERSION
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/messaging-webhooks:STEP_VERSION
     platform: linux/amd64
-    container_name: b4
-    restart: always
-    ports:
-      - "50051:50051"
+    depends_on:
+      - harvest
     environment:
-      RUSTFLAGS: ${RUSTFLAGS}
-      RUST_BACKTRACE: ${RUST_BACKTRACE}
       LOG_LEVEL: ${LOG_LEVEL}
-      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      B4_PG_HOST: ${B4_PG_HOST}
-      B4_PG_PORT: ${B4_PG_PORT}
-      B4_PG_USER: ${B4_PG_USER}
-      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
-      B4_PG_DATABASE: ${B4_PG_DATABASE}
-      B4_BIND: ${B4_BIND}
-      AWS_REGION: ${AWS_REGION}
+      ROCKET_ADDRESS: ${ROCKET_ADDRESS}
+      ROCKET_PORT: ${MESSAGING_WEBHOOKS_PORT}
+      HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+      MESSAGING_RELAY_SECRET: ${MESSAGING_RELAY_SECRET:?MESSAGING_RELAY_SECRET must be set}
+      MESSAGING_WEBHOOKS_MAX_BODY_BYTES: ${MESSAGING_WEBHOOKS_MAX_BODY_BYTES:-262144}
+      MESSAGING_WEBHOOKS_MAX_IN_FLIGHT: ${MESSAGING_WEBHOOKS_MAX_IN_FLIGHT:-16}
+    ports:
+     - ${MESSAGING_WEBHOOKS_PORT}:${MESSAGING_WEBHOOKS_PORT}
+
+  # Draws monitoring widgets with dbt Charts. Internal only: no published
+  # ports, on a network with no route out, shared with harvest alone.
+  monitoring-renderer:
+    profiles: ["full", "base"]
+    container_name: monitoring-renderer
+    image: sequentech.local/monitoring-renderer
+    platform: linux/amd64
+    build: ../packages/monitoring-renderer
+    restart: always
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      RENDERER_TOKEN: ${MONITORING_RENDERER_TOKEN}
+      RENDERER_CONCURRENCY: ${MONITORING_RENDERER_CONCURRENCY:-2}
+    networks:
+      - monitoring-renderer
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/ready', timeout=4).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  postgres-b4v6:
+    profiles: ["full", "base"]
+    image: postgres:16-bookworm
+    platform: linux/amd64
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: wbraid_board
+      POSTGRES_PASSWORD: ${WBRAID_B4_PG_PASSWORD:?set the native board database password}
+    volumes:
+      - wbraid_board_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d wbraid_board"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  b4v6:
+    profiles: ["full", "base"]
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/b4v6:STEP_VERSION
+    platform: linux/amd64
+    restart: unless-stopped
+    # Not published: trustees reach the board through Harvest (/b4).
+    depends_on:
+      postgres-b4v6:
+        condition: service_healthy
+    environment:
+      WBRAID_B4_BIND: 0.0.0.0:3005
+      DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
+      AWS_ENDPOINT_URL: ${AWS_S3_PRIVATE_URI}
       AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}
       AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
-      AWS_ENDPOINT_URL: ${AWS_S3_PRIVATE_URI}
+      AWS_REGION: ${AWS_REGION}
       S3_BUCKET_NAME: ${AWS_S3_BUCKET}
-      AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
-      AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
 
   trustee1:
     profiles: ["full"]
     stdin_open: true
     container_name: trustee1
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/trustee:STEP_VERSION
     platform: linux/amd64
+    working_dir: /opt/trustee
+    volumes:
+      - trustee1_data:/opt/trustee
     environment:
-        TRUSTEE_NAME: trustee1
-        TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
-        SECRETS_BACKEND: ${SECRETS_BACKEND}
-        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-        VAULT_TOKEN: ${VAULT_TOKEN}
-
+      LOG_LEVEL: ${LOG_LEVEL}
+      TRUSTEE_NAME: trustee1
+      TRUSTEE_CONFIG_PATH: ${TRUSTEE1_CONFIG:-/opt/trustee/trustee.toml}
+      TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG_DATA:-}
+      SECRETS_BACKEND: ${SECRETS_BACKEND}
+      AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
+      AWS_REGION: ${AWS_REGION}
+      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      B4_URL: http://${HARVEST_DOMAIN}/b4
+      TRUSTEE_PASSWORD: ${TRUSTEE1_PASSWORD}
+      TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
+      TRUSTEE_KEYCLOAK_URL: ${KEYCLOAK_URL}
+      TRUSTEE_KEYCLOAK_REALM: tenant-${TENANT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_ID: ${TRUSTEE_KEYCLOAK_CLIENT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
+    depends_on:
+      harvest:
+        condition: service_started
 
   trustee2:
     profiles: ["full"]
     stdin_open: true
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/trustee:STEP_VERSION
     platform: linux/amd64
     container_name: trustee2
+    depends_on:
+      harvest:
+        condition: service_started
+    working_dir: /opt/trustee
+    volumes:
+      - trustee2_data:/opt/trustee
     environment:
-        TRUSTEE_NAME: trustee2
-        TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
-        SECRETS_BACKEND: ${SECRETS_BACKEND}
-        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-        VAULT_TOKEN: ${VAULT_TOKEN}
-
-  # trustee3:
-  #   profiles: ["full"]
-  #   stdin_open: true
-  #   image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
-  #   container_name: trustee3
-  #   depends_on:
-  #       condition: service_healthy
-  #   environment:
-  #       TRUSTEE_NAME: trustee3
-  #       TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
-  #       IGNORE_BOARDS: ${IGNORE_BOARDS}
-  #       SECRETS_BACKEND: ${SECRETS_BACKEND}
-  #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-  #       VAULT_TOKEN: ${VAULT_TOKEN}
+      LOG_LEVEL: ${LOG_LEVEL}
+      TRUSTEE_NAME: trustee2
+      TRUSTEE_CONFIG_PATH: ${TRUSTEE2_CONFIG:-/opt/trustee/trustee.toml}
+      TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG_DATA:-}
+      SECRETS_BACKEND: ${SECRETS_BACKEND}
+      AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
+      AWS_REGION: ${AWS_REGION}
+      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      B4_URL: http://${HARVEST_DOMAIN}/b4
+      TRUSTEE_PASSWORD: ${TRUSTEE2_PASSWORD}
+      TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
+      TRUSTEE_KEYCLOAK_URL: ${KEYCLOAK_URL}
+      TRUSTEE_KEYCLOAK_REALM: tenant-${TENANT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_ID: ${TRUSTEE_KEYCLOAK_CLIENT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
 
 
   # Installs PGMQ and the queues in the task-queue database, as the database owner,
@@ -556,6 +663,10 @@ services:
       configure-minio:
         condition: service_completed_successfully
     environment:
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       ENV_SLUG: ${ENV_SLUG}
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
@@ -564,7 +675,6 @@ services:
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
-      AWS_S3_JWKS_FETCH_TIMEOUT_SECS: ${AWS_S3_JWKS_FETCH_TIMEOUT_SECS:-5}
       ELECTORAL_LOG_PG_HOST: ${ELECTORAL_LOG_PG_HOST}
       ELECTORAL_LOG_PG_PORT: ${ELECTORAL_LOG_PG_PORT}
       ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
@@ -611,6 +721,7 @@ services:
       SECRETS_BACKEND: ${SECRETS_BACKEND}
       MASTER_SECRET: ${MASTER_SECRET}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
+      MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
 
       KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
       KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY}
@@ -620,6 +731,8 @@ services:
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+      ADMIN_PORTAL_URL: ${ADMIN_PORTAL_URL}
+      KIOSK_VOTING_PORTAL_URL: ${KIOSK_VOTING_PORTAL_URL:-}
       RESULTS_PORTAL_URL: ${RESULTS_PORTAL_URL}
       KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
@@ -675,6 +788,10 @@ services:
       task-queues-setup:
         condition: service_completed_successfully
     environment:
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       ENV_SLUG: ${ENV_SLUG}
       QUEUE_DB__HOST: ${QUEUE_DB__HOST}
       QUEUE_DB__PORT: ${QUEUE_DB__PORT}
@@ -691,3 +808,15 @@ services:
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
       ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS: ${ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS:-300}
       QUEUE_ARCHIVE_PURGE_INTERVAL_SECS: ${QUEUE_ARCHIVE_PURGE_INTERVAL_SECS:-3600}
+      # Messaging, the same callback base as harvest and windmill.
+      MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
+
+networks:
+  # Harvest and the monitoring renderer only; no route out.
+  monitoring-renderer:
+    internal: true
+
+volumes:
+  trustee1_data:
+  trustee2_data:
+  wbraid_board_data:

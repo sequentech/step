@@ -1,5 +1,5 @@
 {
-  "description": "Voting closed with one ballot per election, but the log has two for mayor, and the council ballot was sequenced a second after the voting-closed milestone.",
+  "description": "Voting closed with one cast ballot per election, but the log has two for mayor, and the council ballot was cast and sequenced a second after the voting-closed milestone.",
   "params": {
     "election-ids": [
       "mayor",
@@ -12,18 +12,24 @@
     "closes": 1793044800
   },
   "entries": [
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBCAAAJbXVuaS0yMDI2AAAFbWF5b3IAACCnkRzf3CjmoYZ+NZukJggarPppL96z6XjSpo3ZJPqMPgAACAAAAABq3wi8",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBCAAAJbXVuaS0yMDI2AAAFbWF5b3IAACAhVIxmtENH2HfntAWiUBIc2ofNSUsSLwMk9987bNdfhgAACAAAAABq3wja",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBEAAAJbXVuaS0yMDI2AAAHY291bmNpbAAAILwtndyYV+U1mGd9vqgqJYOHnonObAMsd9glGHvz8alDAAAIAAAAAGrfsUA="
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBNAAAJbXVuaS0yMDI2AAAFbWF5b3IAAAhyZWNlaXZlZAAAIKeRHN/cKOahhn41m6QmCBqs+mkv3rPpeNKmjdkk+ow+AAAIAAAAAGrfCLw=",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBNAAAJbXVuaS0yMDI2AAAFbWF5b3IAAAhyZWNlaXZlZAAAICFUjGa0Q0fYd+e0BaJQEhzah81JSxIvAyT33zts11+GAAAIAAAAAGrfCNo=",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBPAAAJbXVuaS0yMDI2AAAHY291bmNpbAAACHJlY2VpdmVkAAAgvC2d3JhX5TWYZ32+qColg4eeic5sAyx32CUYe/PxqUMAAAgAAAAAat8I5A==",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBJAAAJbXVuaS0yMDI2AAAFbWF5b3IAAARjYXN0AAAgp5Ec39wo5qGGfjWbpCYIGqz6aS/es+l40qaN2ST6jD4AAAgAAAAAat8JIA==",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBJAAAJbXVuaS0yMDI2AAAFbWF5b3IAAARjYXN0AAAgIVSMZrRDR9h357QFolASHNqHzUlLEi8DJPffO2zXX4YAAAgAAAAAat8JPg==",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBLAAAJbXVuaS0yMDI2AAAHY291bmNpbAAABGNhc3QAACC8LZ3cmFflNZhnfb6oKiWDh56JzmwDLHfYJRh78/GpQwAACAAAAABq37FA"
   ],
   "sequenced": [
     1793001661,
     1793001691,
+    1793001701,
+    1793001761,
+    1793001791,
     1793044921
   ],
   "checkpoints": [
     [
-      3,
+      6,
       1793045500
     ]
   ],
@@ -60,6 +66,10 @@
         "value": "mayor"
       },
       {
+        "name": "stage",
+        "value": "received"
+      },
+      {
         "name": "ballot_id",
         "value": "a7911cdfdc28e6a1867e359ba426081aacfa692fdeb3e978d2a68dd924fa8c3e"
       },
@@ -76,6 +86,10 @@
       {
         "name": "election_id",
         "value": "mayor"
+      },
+      {
+        "name": "stage",
+        "value": "received"
       },
       {
         "name": "ballot_id",
@@ -96,6 +110,76 @@
         "value": "council"
       },
       {
+        "name": "stage",
+        "value": "received"
+      },
+      {
+        "name": "ballot_id",
+        "value": "bc2d9ddc9857e53598677dbea82a2583879e89ce6c032c77d825187bf3f1a943"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1793001700"
+      }
+    ],
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2026"
+      },
+      {
+        "name": "election_id",
+        "value": "mayor"
+      },
+      {
+        "name": "stage",
+        "value": "cast"
+      },
+      {
+        "name": "ballot_id",
+        "value": "a7911cdfdc28e6a1867e359ba426081aacfa692fdeb3e978d2a68dd924fa8c3e"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1793001760"
+      }
+    ],
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2026"
+      },
+      {
+        "name": "election_id",
+        "value": "mayor"
+      },
+      {
+        "name": "stage",
+        "value": "cast"
+      },
+      {
+        "name": "ballot_id",
+        "value": "21548c66b44347d877e7b405a250121cda87cd494b122f0324f7df3b6cd75f86"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1793001790"
+      }
+    ],
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2026"
+      },
+      {
+        "name": "election_id",
+        "value": "council"
+      },
+      {
+        "name": "stage",
+        "value": "cast"
+      },
+      {
         "name": "ballot_id",
         "value": "bc2d9ddc9857e53598677dbea82a2583879e89ce6c032c77d825187bf3f1a943"
       },
@@ -112,7 +196,9 @@
     "event": "passing",
     "in-window": "passing",
     "on-time": "passing",
-    "one-ballot": "passing",
+    "one-outcome": "passing",
+    "one-stage": "passing",
+    "received-first": "passing",
     "vitrine/parse": "passing"
   }
 }

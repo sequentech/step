@@ -5,10 +5,11 @@
 import React from "react"
 import {Box, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {Dialog, theme} from "@sequentech/ui-essentials"
+import {Dialog} from "@sequentech/ui-essentials"
 import {EBoothRefusalState} from "../../services/vitrine/boothCheck"
 import {vitrineLanguage} from "../../services/vitrine/language"
 import type {IBoothRefusal} from "../../hooks/useBoothCheck"
+import {BOARD, EGlyph, Glyph, quietTextSx} from "./board"
 import {VitrineStatusView} from "./VitrineElements"
 
 export interface IBoothRefusalDialogProps {
@@ -18,7 +19,8 @@ export interface IBoothRefusalDialogProps {
 }
 
 /** Why the booth didn't encrypt the ballot (step-integration.md, section
- * 2.6): the kit's status and the portal's own calm explanation. */
+ * 2.6): the design board Alert's mark, the kit's status and the portal's own
+ * calm explanation. */
 export const BoothRefusalDialog: React.FC<IBoothRefusalDialogProps> = ({
     refusal,
     onRetry,
@@ -27,6 +29,8 @@ export const BoothRefusalDialog: React.FC<IBoothRefusalDialogProps> = ({
     const {t, i18n} = useTranslation()
     const state = refusal?.state ?? EBoothRefusalState.PENDING
     const message = t(`vitrine.booth.${state}`)
+    const waiting = state === EBoothRefusalState.PENDING
+    const color = waiting ? BOARD.subtle : BOARD.warning
     return (
         <Dialog
             className="vitrine-booth-refusal-dialog"
@@ -35,14 +39,39 @@ export const BoothRefusalDialog: React.FC<IBoothRefusalDialogProps> = ({
             title={t("vitrine.booth.title")}
             ok={t("vitrine.booth.retry")}
             cancel={t("vitrine.booth.close")}
-            variant={state === EBoothRefusalState.PENDING ? "info" : "softwarning"}
+            variant={waiting ? "info" : "softwarning"}
         >
-            <Box className="vitrine-booth-refusal" data-reason={refusal?.reason}>
+            <Box
+                className="vitrine-booth-refusal"
+                data-reason={refusal?.reason}
+                sx={{display: "flex", flexDirection: "column", gap: "12px"}}
+            >
+                <Box
+                    className="vitrine-booth-icon"
+                    aria-hidden="true"
+                    sx={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: "50%",
+                        border: `2.5px solid ${color}`,
+                        bgcolor: waiting ? BOARD.tint : BOARD.warningTint,
+                        color,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                    }}
+                >
+                    <Glyph
+                        glyph={waiting ? EGlyph.REFRESH : EGlyph.EXCLAIM}
+                        size={waiting ? 24 : 28}
+                        stroke={waiting ? 2.4 : 3.2}
+                    />
+                </Box>
                 <Typography
                     className="vitrine-booth-explanation"
                     variant="body2"
                     component="p"
-                    sx={{color: theme.palette.customGrey.main, marginBottom: "12px"}}
+                    sx={{...quietTextSx, margin: 0, fontSize: "14px", color: BOARD.body}}
                 >
                     {t("vitrine.booth.explanation")}
                 </Typography>

@@ -6,10 +6,14 @@ import React from "react"
 import {act, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {MemoryRouter, Route, Routes} from "react-router-dom"
 import * as verify from "@vitrine/verify"
+import type {OverallStatus, TierName, TierStatus} from "@vitrine/verify"
 import * as pure from "@vitrine/verify/pure"
-import {wordsFor, type VitrineProofSteps, type VitrineReceipt} from "@vitrine/ui"
+import {wordsFor} from "@vitrine/ui"
 import {
+    ballotEntry,
     BALLOT_ID,
+    TRACKING_ID,
+    OTHER_TRACKING_ID,
     chainLink,
     draftPolicyText,
     ELECTION_ID,
@@ -34,17 +38,33 @@ import {CHAIN_MEDIA_TYPE} from "../services/vitrine/input"
 import {EPolicyRefusal, examinePolicy, PINNED_POLICIES_KEY} from "../services/vitrine/policies"
 import {ETransparencyMode} from "../services/vitrine/presentation"
 import type {IVitrineSdk} from "../services/vitrine/sdk"
+import {clockTime} from "../components/Vitrine/ReceiptStatus"
 import {IReceiptScreenDeps, ReceiptScreen} from "./ReceiptScreen"
 
+// The key, and the values it is given: what the screen says, and with what.
 jest.mock("react-i18next", () => ({
-    useTranslation: () => ({t: (key: string) => key, i18n: {language: "en"}}),
+    useTranslation: () => ({
+        t: (key: string, options?: Record<string, unknown>) =>
+            options ? `${key} ${JSON.stringify(options)}` : key,
+        i18n: {language: "en"},
+    }),
 }))
 jest.mock("@sequentech/ui-essentials", () => {
     const React = require("react")
     return {
         PageLimit: ({children}: {children?: React.ReactNode}) =>
             React.createElement("div", null, children),
-        theme: {palette: {customGrey: {main: "#000"}}},
+        ActionsContainer: ({children}: {children?: React.ReactNode}) =>
+            React.createElement("div", null, children),
+        StyledButton: require("@mui/material/Button").default,
+        theme: {
+            palette: {
+                customGrey: {main: "#000", light: "#eee", dark: "#666", contrastText: "#111"},
+                red: {light: "#fcc"},
+                green: {light: "#cfc"},
+                brandColor: "#00f",
+            },
+        },
         DropFile: ({handleFiles}: {handleFiles: (files: FileList) => void}) =>
             React.createElement("input", {
                 "type": "file",
@@ -139,27 +159,45 @@ const openFile = async (chain: string) => {
     })
 }
 
-/** The UI kit's receipt, once the page has given it a result. */
-const receiptElement = async (): Promise<VitrineReceipt> => {
-    let element: VitrineReceipt | null = null
-    await waitFor(() => {
-        element = document.querySelector("vitrine-receipt")
-        expect(element?.result).toBeTruthy()
-    })
-    return element as unknown as VitrineReceipt
+/** The status the screen shows for the receipt, once it has a result. */
+const statusOf = async (): Promise<HTMLElement> => {
+    await screen.findByTestId(/^round-/)
+    return screen.getByTestId("receipt-status")
 }
 
-const issuedOf = (chain: unknown): string | undefined => {
-    const issued = pure.parseChain(String(chain)).issued
-    return issued && pure.bytes.fromUtf8(issued)
-}
+/** The verifier, with the result's tiers as the test needs them: the fixtures'
+ * policy has an events log that nothing serves, so that no tier verifies. */
+const withTiers = (
+    status: OverallStatus,
+    tiers: Partial<Record<TierName, TierStatus>>
+): IVitrineSdk => ({
+    pure,
+    verify: {
+        ...verify,
+        checkChain: async (...args: Parameters<typeof verify.checkChain>) => {
+            const checked = await verify.checkChain(...args)
+            const result = {
+                ...checked.result,
+                status,
+                tiers: checked.result.tiers.map((t) => ({...t, status: tiers[t.tier] ?? t.status})),
+            }
+            return {...checked, result}
+        },
+    },
+})
+
+const LOG_ROUND_TIERS = {record: "verified", witnesses: "verified", hubs: "pending"} as const
+
+const rowOf = (step: string): HTMLElement => screen.getByTestId(`status-row-${step}`)
 
 describe("the receipt screen", () => {
     it("offers the policy the voting portal's link names, and pins it only when asked", async () => {
         const s = receiptScenario()
         net.serve(policyUrlOf(s), s.policy)
         serveLog(s)
-        renderScreen(chainLink(s.chain, s.entry, {url: policyUrlOf(s)}))
+        renderScreen(chainLink(s.chain, s.entry, {url: policyUrlOf(s)}), {
+            loadSdk: async () => withTiers("pending", LOG_ROUND_TIERS),
+        })
 
         const offer = await screen.findByTestId("policy-offer")
         const policy = verify.parsePolicy(s.policy)
@@ -183,18 +221,24 @@ describe("the receipt screen", () => {
         expect(await screen.findByTestId("policy-pinned")).toBeInTheDocument()
         expect(pinnedTexts()).toEqual([s.policy])
 
-        const element = await receiptElement()
-        expect(element.getAttribute("where")).toBe("independent")
-        expect(element.state).toBe("done")
-        expect(element.result?.where).toBe("independent")
-        expect(element.result?.ok).toBe(true)
-        expect(issuedOf(element.chain)).toBe(s.receipt)
-        expect(element.expect).toEqual({entry: s.entry})
-        const steps = document.querySelector("vitrine-proof-steps") as VitrineProofSteps | null
-        expect(steps?.result).toBe(element.result)
-        // The link names the entry: no ballot ID to type.
-        expect(screen.getByTestId("ballot-looked-for")).toHaveTextContent(BALLOT_ID)
-        expect(screen.queryByTestId("ballot-section")).toBeNull()
+        // The log round: the record and the witnesses are done, the anchors wait.
+        const status = await statusOf()
+        expect(status).toHaveAttribute("data-status", "witnessed")
+        expect(rowOf("record")).toHaveAttribute("data-state", "done")
+        expect(rowOf("record")).toHaveTextContent(
+            `receiptScreen.status.rows.recordDone {"index":0}`
+        )
+        await waitFor(() => expect(rowOf("record")).toHaveTextContent(clockTime(NOW, "en", true)))
+        expect(rowOf("witnesses")).toHaveAttribute("data-state", "done")
+        expect(rowOf("witnesses")).toHaveTextContent('"signed":2')
+        expect(rowOf("witnesses")).toHaveTextContent('"needed":2')
+        expect(rowOf("anchors")).toHaveAttribute("data-state", "active")
+        expect(rowOf("anchors")).toHaveTextContent("receiptScreen.status.rows.anchorsActive")
+        expect(screen.getByTestId("receipt-file-card")).toBeInTheDocument()
+        // The link names the entry: no tracking ID to type or change.
+        expect(screen.getByTestId("ballot-looked-for")).toHaveTextContent(TRACKING_ID)
+        expect(screen.queryByTestId("ballot-form")).toBeNull()
+        expect(screen.queryByTestId("ballot-change")).toBeNull()
 
         // The first round asks only the policy's logs; the full round waits.
         expect(await screen.findByTestId("round-log")).toBeInTheDocument()
@@ -292,11 +336,11 @@ describe("the receipt screen", () => {
         expect(screen.getByTestId("policy-input")).toBeInTheDocument()
     })
 
-    it("asks a receipt file for the ballot ID, and checks for that ballot", async () => {
+    it("asks a receipt file for the tracking ID, and checks for that ballot", async () => {
         const s = receiptScenario()
         pin(s.policy)
         serveLog(s)
-        renderScreen()
+        renderScreen("", {loadSdk: async () => withTiers("pending", LOG_ROUND_TIERS)})
         await openFile(s.chain)
 
         const form = await screen.findByTestId("ballot-form")
@@ -314,20 +358,21 @@ describe("the receipt screen", () => {
         ])
         expect(screen.queryByTestId("receipt-result")).toBeNull()
 
-        type("ballot-id", "not a ballot ID")
+        type("ballot-id", "not a tracking ID")
         fireEvent.change(election, {target: {value: ELECTION_ID}})
         fireEvent.submit(form)
         expect(await screen.findByTestId("ballot-invalid")).toBeInTheDocument()
         expect(screen.queryByTestId("receipt-result")).toBeNull()
 
-        type("ballot-id", BALLOT_ID.toUpperCase())
+        type("ballot-id", TRACKING_ID.toLowerCase())
+        expect((screen.getByTestId("ballot-id") as HTMLInputElement).value).toBe(
+            TRACKING_ID
+        )
         fireEvent.submit(form)
-        const element = await receiptElement()
-        expect(element.result?.ok).toBe(true)
-        expect(element.expect).toEqual({
-            fields: {event_id: EVENT_ID, election_id: ELECTION_ID, ballot_id: BALLOT_ID},
-        })
-        expect(screen.getByTestId("ballot-looked-for")).toHaveTextContent(BALLOT_ID)
+        expect(await statusOf()).toHaveAttribute("data-status", "witnessed")
+        expect(screen.getByTestId("receipt-file-name")).toHaveTextContent("receipt.vitrine-receipt")
+        expect(screen.getByTestId("ballot-looked-for")).toHaveTextContent(TRACKING_ID)
+        expect(screen.getByTestId("short-ballot-id")).toHaveTextContent("R3ZY-XG7Z")
 
         fireEvent.click(screen.getByTestId("ballot-change"))
         expect(await screen.findByTestId("ballot-form")).toBeInTheDocument()
@@ -344,12 +389,16 @@ describe("the receipt screen", () => {
         const election = (await screen.findByTestId("ballot-election")) as HTMLInputElement
         expect(election.value).toBe(ELECTION_ID)
         expect(election.readOnly).toBe(true)
-        type("ballot-id", OTHER_BALLOT_ID)
+        type("ballot-id", OTHER_TRACKING_ID)
         fireEvent.submit(screen.getByTestId("ballot-form"))
-        const element = await receiptElement()
-        expect(element.result?.ok).toBe(false)
-        const record = element.result?.tiers.find((t) => t.tier === "record")
-        expect(record?.reasons.map((r) => r.code)).toContain("entry-mismatch")
+        expect(await statusOf()).toHaveAttribute("data-status", "problem")
+        expect(screen.getByTestId("status-headline")).toHaveTextContent(
+            "receiptScreen.status.problem.head"
+        )
+        expect(rowOf("record")).toHaveAttribute("data-state", "failed")
+        expect(rowOf("witnesses")).toHaveAttribute("data-state", "skipped")
+        expect(rowOf("anchors")).toHaveAttribute("data-state", "skipped")
+        expect(screen.getByTestId("problem-callout")).toBeInTheDocument()
     })
 
     it("checks a private event's receipt offline, with the policy its link carries", async () => {
@@ -357,8 +406,7 @@ describe("the receipt screen", () => {
         renderScreen(chainLink(p.chain, p.entry, {text: p.policy}))
 
         fireEvent.click(await screen.findByTestId("policy-pin"))
-        const element = await receiptElement()
-        expect(element.result?.where).toBe("independent")
+        await statusOf()
         expect(await screen.findByTestId("round-offline")).toBeInTheDocument()
         expect(screen.queryByTestId("check-everything")).toBeNull()
         expect(net.calls).toEqual([])
@@ -379,10 +427,9 @@ describe("the receipt screen", () => {
 
         net.serve(referenceReceiptUrl(s), s.receipt)
         fireEvent.click(within(problem).getByRole("button"))
-        const element = await receiptElement()
-        expect(issuedOf(element.chain)).toBe(s.receipt)
-        expect(screen.getByTestId("ballot-looked-for")).toHaveTextContent(BALLOT_ID)
-        expect(screen.queryByTestId("ballot-section")).toBeNull()
+        await statusOf()
+        expect(screen.getByTestId("ballot-looked-for")).toHaveTextContent(TRACKING_ID)
+        expect(screen.queryByTestId("ballot-form")).toBeNull()
         expect(screen.queryByTestId("check-problem")).toBeNull()
         expect(net.calls.filter((c) => !underLogs(c.url))).toEqual([])
     })
@@ -438,7 +485,7 @@ describe("the receipt screen", () => {
         pin(s.policy)
         serveLog(s)
         renderScreen(chainLink(s.chain, s.entry))
-        await receiptElement()
+        await statusOf()
 
         fireEvent.click(screen.getByTestId("policy-unpin"))
         expect(await screen.findByTestId("policy-input")).toBeInTheDocument()
@@ -470,15 +517,16 @@ describe("the receipt screen", () => {
         ) {
             names.push(this.download)
         })
-        renderScreen(chainLink(s.chain, s.entry))
-        await receiptElement()
+        // The link names another ballot's entry: the record doesn't match.
+        renderScreen(chainLink(s.chain, ballotEntry(OTHER_BALLOT_ID)))
+        await statusOf()
 
-        const steps = document.querySelector("vitrine-proof-steps")
-        act(() => {
-            steps?.dispatchEvent(
-                new CustomEvent("vitrine-evidence", {detail: {step: "record", reasons: []}})
-            )
-        })
+        expect(screen.queryByTestId("report-advice")).toBeNull()
+        fireEvent.click(screen.getByTestId("how-to-report"))
+        expect(screen.getByTestId("report-advice")).toHaveTextContent(
+            "receiptScreen.result.advice.failed"
+        )
+        fireEvent.click(screen.getByTestId("save-evidence"))
         expect(await screen.findByTestId("evidence-saved")).toBeInTheDocument()
         expect(saved).toHaveLength(1)
         expect(saved[0].type).toBe(CHAIN_MEDIA_TYPE)
@@ -501,9 +549,43 @@ describe("the receipt screen", () => {
         }
         renderScreen(chainLink(s.chain, s.entry), {loadSdk: async () => late})
 
-        expect(await screen.findByTestId("check-advice")).toHaveTextContent(
+        expect(await screen.findByTestId("late-callout")).toHaveTextContent(
             "receiptScreen.result.advice.late"
         )
+        expect(screen.getByTestId("receipt-status")).toHaveAttribute("data-status", "late")
+        expect(screen.queryByTestId("problem-callout")).toBeNull()
+    })
+
+    it("says that damaged data isn't evidence, and offers to check again", async () => {
+        const s = receiptScenario()
+        pin(s.policy)
+        serveLog(s)
+        const damaged = withTiers("invalid", {record: "verified", witnesses: "invalid"})
+        renderScreen(chainLink(s.chain, s.entry), {loadSdk: async () => damaged})
+
+        await statusOf()
+        expect(screen.getByTestId("status-headline")).toHaveTextContent(
+            "receiptScreen.status.damaged.head"
+        )
+        expect(rowOf("record")).toHaveAttribute("data-state", "done")
+        expect(rowOf("witnesses")).toHaveAttribute("data-state", "damaged")
+        expect(rowOf("anchors")).toHaveAttribute("data-state", "skipped")
+        expect(screen.queryByTestId("problem-callout")).toBeNull()
+        expect(screen.getByTestId("check-everything")).toBeInTheDocument()
+    })
+
+    it("tells the receipt's file apart from the ballot it is checked for", async () => {
+        const s = receiptScenario()
+        pin(s.policy)
+        serveLog(s)
+        renderScreen(chainLink(s.chain, s.entry))
+        await statusOf()
+
+        expect(screen.getByTestId("receipt-file-name")).toHaveTextContent(
+            "receiptScreen.receipt.pasteLabel"
+        )
+        expect(screen.getByTestId("receipt-file-card")).toHaveTextContent("acme-2026")
+        expect(screen.getByTestId("full-ballot-id").querySelectorAll("b")).toHaveLength(2)
     })
 
     it("says so when the verifier can't be loaded", async () => {

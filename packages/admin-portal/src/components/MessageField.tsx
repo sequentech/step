@@ -11,6 +11,7 @@ type MessageFieldProps = {
     source?: string
     content?: string | undefined
     initialLength?: number
+    details?: React.ReactNode
 }
 
 /**
@@ -24,12 +25,14 @@ type MessageFieldProps = {
  * @param {string} [props.source] - The source of the data for the field if it is in the record context.
  * @param {string} [props.content] - The content of the field if is rendered directly from parent.
  * @param {number} [props.initialLength=256] - The initial length of the field.
+ * @param {ReactNode} [props.details] - Shown under the full text once expanded.
  * @returns {ReactElement}
  */
 export const MessageField: React.FC<MessageFieldProps> = ({
     source,
     content,
     initialLength = 256,
+    details,
 }) => {
     const {t} = useTranslation()
     const base = useRecordContext()
@@ -47,6 +50,7 @@ export const MessageField: React.FC<MessageFieldProps> = ({
             initialLength={initialLength}
             showMoreLabel={t("electionEventScreen.common.showMore")}
             showLessLabel={t("electionEventScreen.common.showLess")}
+            details={details}
         />
     )
 }

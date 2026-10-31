@@ -43,3 +43,6 @@ target/
 pkg/
 build/
 .github
+storybook-static/
+test-results/
+coverage/

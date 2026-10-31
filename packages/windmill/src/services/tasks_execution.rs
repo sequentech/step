@@ -192,6 +192,38 @@ pub async fn post_with_annotations(
     .await
 }
 
+/// Only authenticated native producers call this. The grant is stripped from
+/// annotations and stored atomically in the column Hasura never exposes.
+pub async fn post_with_participation(
+    tenant_id: &str,
+    election_event_id: &str,
+    task_type: ETasksExecution,
+    executed_by_user: &str,
+    mut annotations: serde_json::Value,
+) -> Result<TasksExecution> {
+    use crate::services::participation_authorization::{
+        ParticipationAuthorization, PARTICIPATION_AUTHORIZATION,
+    };
+    let grant = annotations
+        .as_object_mut()
+        .and_then(|value| value.remove(PARTICIPATION_AUTHORIZATION))
+        .context("Missing server participation authorization")?;
+    let _: ParticipationAuthorization = serde_json::from_value(grant.clone())?;
+    crate::postgres::tasks_execution::insert_tasks_execution_with_participation(
+        tenant_id,
+        Some(election_event_id),
+        &task_type.to_name(),
+        &task_type.to_string(),
+        TasksExecutionStatus::IN_PROGRESS,
+        Some(annotations),
+        None,
+        Some(serde_json::to_value(general_start_log())?),
+        executed_by_user,
+        Some(grant),
+    )
+    .await
+}
+
 async fn post_internal(
     tenant_id: &str,
     election_event_id: Option<&str>,
@@ -357,6 +389,22 @@ mod secret_export_tests {
             "document-id",
         ));
     }
+
+    #[test]
+    fn a_failed_task_keeps_its_problems_and_no_document() {
+        use sequent_core::election_config::import_problems;
+
+        let problem = import_problems::checksum_mismatch("expected", "actual");
+        let annotations = failure_annotations(&[problem]).unwrap();
+
+        assert_eq!(annotations["problems"][0]["id"], "file.checksum-mismatch");
+        assert_eq!(annotations["problems"][0]["details"]["actual"], "actual");
+        assert!(annotations.get("document_id").is_none());
+        assert_eq!(
+            failure_annotations(&[]).unwrap(),
+            serde_json::json!({ "problems": [] })
+        );
+    }
 }
 
 // TODO filter also by tenant-id and document-id
@@ -482,6 +530,41 @@ pub async fn update_fail(task: &TasksExecution, err_message: &str) -> Result<(),
     .context("Failed to update task execution record with failure status")?;
 
     Ok(())
+}
+
+/// Fails a task and keeps the structured reasons beside the log line.
+///
+/// The log carries the English the task always wrote. `annotations.problems`
+/// carries the same failure as [`Problem`]s — a code, a path, a stable id and the
+/// specifics — so the Admin Portal can say it in the operator's language rather
+/// than print a backend string. Anything reading only the log sees no change.
+#[instrument(skip_all, err)]
+pub async fn update_fail_with_problems(
+    task: &TasksExecution,
+    err_message: &str,
+    problems: &[sequent_core::election_config::Problem],
+) -> Result<(), anyhow::Error> {
+    let new_logs = serde_json::to_value(append_general_log(
+        &task.logs,
+        &("Error: ".to_owned() + err_message),
+    ))?;
+
+    update_task_execution_status(
+        &task.tenant_id,
+        &task.id,
+        TasksExecutionStatus::FAILED,
+        Some(new_logs),
+        failure_annotations(problems)?,
+    )
+    .await
+    .context("Failed to update task execution record with failure status")
+}
+
+/// What a failed task stores for a screen to read: its problems, and no document.
+pub fn failure_annotations(
+    problems: &[sequent_core::election_config::Problem],
+) -> Result<serde_json::Value, serde_json::Error> {
+    Ok(serde_json::json!({ "problems": serde_json::to_value(problems)? }))
 }
 
 /// Fails an export only if it is still active. In particular, a replay that

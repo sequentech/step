@@ -258,6 +258,15 @@ select_permissions:
       role: area-write
     - comment: ""
       permission:
+          columns:
+              - id
+              - name
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: election-dashboard-tab
+    - comment: ""
+      permission:
           allow_aggregations: true
           columns:
               - annotations
@@ -277,7 +286,15 @@ select_permissions:
     - comment: ""
       permission:
           columns:
-              - annotations
+              - id
+              - name
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: tally-read
+    - comment: ""
+      permission:
+          columns:
               - created_at
               - description
               - election_event_id
@@ -321,7 +338,9 @@ update_permissions:
       role: admin-user
     - comment: ""
       permission:
-          check: {}
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           columns:
               - annotations
               - created_at

@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Sign-in attempts by outcome, failed attempts by whether the username named
+# an account, and forgot-password requests beside completed resets. Counted
+# in attempts, not voters.
+id: access-security
+title: Access and security
+description: Counted in sign-in attempts, not OVs.
+source: access_security
+requirements: [SW-F-0252, SW-F-0268]
+queries:
+  outcomes:
+    template: by_measure
+    measures: [logins, login_failures]
+    labels: {logins: Successful sign-ins, login_failures: Failed sign-ins}
+  failures:
+    template: by_measure
+    measures: [login_failures, login_failures_valid_user, login_failures_unregistered]
+    labels:
+      login_failures: Failed sign-ins
+      login_failures_valid_user: Valid user authentication failed
+      login_failures_unregistered: Unregistered user
+  passwords:
+    template: by_measure
+    measures: [password_reset_requests, password_resets]
+    labels: {password_reset_requests: Forgot-password requests, password_resets: Passwords reset}
+height: 420
+chart:
+  charts:
+    outcomes:
+      type: spark_bar
+      query: outcomes
+      x: value
+      y: label
+    failures:
+      type: spark_bar
+      query: failures
+      title: Failed attempts by kind
+      x: value
+      y: label
+    passwords:
+      type: spark_bar
+      query: passwords
+      title: Password requests
+      x: value
+      y: label
+  rows:
+    - outcomes
+    - failures
+    - passwords

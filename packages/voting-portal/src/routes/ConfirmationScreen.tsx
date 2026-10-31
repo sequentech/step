@@ -1,21 +1,16 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Alert, Box, CircularProgress, Typography} from "@mui/material"
+import {Alert} from "@mui/material"
 import React, {useState, useEffect, useContext, useCallback, useRef, useMemo} from "react"
 import {useTranslation} from "react-i18next"
 import {
-    PageLimit,
-    Icon,
-    IconButton,
-    theme,
-    QRCode,
+    ConfirmationLayout,
     Dialog,
-    ActionsContainer,
+    ConfirmationActions,
     StyledButton,
     VisuallyHidden,
-    DecorativeIconBox,
-    BallotHashCopyButton,
+    theme,
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
@@ -27,10 +22,7 @@ import {
     areAllContestsAcclaimed,
     EVotingPortalAuditButtonCfg,
 } from "@sequentech/ui-core"
-import {styled} from "@mui/material/styles"
-import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
-import Link from "@mui/material/Link"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {
     selectAuditableBallot,
@@ -47,9 +39,9 @@ import {
     selectFirstBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {useMutation, useQuery} from "@apollo/client/react"
+import {useMutation} from "@apollo/client/react"
 import {CREATE_BALLOT_RECEIPT} from "../queries/CreateBallotReceipt"
-import {useGetPublicDocumentUrl} from "../hooks/public-document-url"
+import {useReceiptDocument} from "../hooks/useReceiptDocument"
 import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {provideBallotService} from "../services/BallotService"
@@ -59,68 +51,29 @@ import {
     CreateBallotReceiptMutationVariables,
     GetDocumentQuery,
 } from "../gql/graphql"
-import {downloadUrl} from "@sequentech/ui-core"
+import {downloadUrl, formatVotingPortalDateTime} from "@sequentech/ui-core"
 import {
     ConfirmationScreenData,
     selectConfirmationScreenData,
 } from "../store/castVotes/confirmationScreenDataSlice"
 import {GET_DOCUMENT} from "../queries/GetDocument"
-import {CastReceipt} from "../components/Vitrine/CastReceipt"
+import {BallotStatus, EBallotStatusTrigger} from "../components/Vitrine/BallotStatus"
+import {BallotTag} from "../components/Vitrine/BallotTag"
+import {ID_BUTTON_SX} from "../components/Vitrine/idButtons"
+import {useCastReceipt} from "../hooks/useCastReceipt"
+import {useElectionName} from "../hooks/useElectionName"
+import {groupBallotId, shortBallotId} from "../services/vitrine/ballotId"
+import {EBallotTag} from "../services/vitrine/ballotStatus"
+import {ETransparencyMode} from "../services/vitrine/types"
+import type {IConfirmationVitrine} from "../store/castVotes/confirmationScreenDataSlice"
+import {selectReceivedBallot} from "../store/receivedBallots/receivedBallotsSlice"
 
-const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
-    margin-top: 25.5px;
-    display: flex;
-    flex-direction: row;
-    gap: 16px;
-`
-
-const BallotIdContainer = styled(Box)`
-    display: flex;
-    flex-direction: row;
-    gap: 30px;
-    margin: 25px 0;
-    align-items: center;
-`
-
-const BallotIdBorder = styled(Box)`
-    background-color: ${({theme}) => theme.palette.green.light};
-    color: ${({theme}) => theme.palette.customGrey.contrastText};
-    padding: 10px 12px;
-    display: flex;
-    flex-direction: row;
-    justify-content: left;
-    align-items: center;
-    gap: 10px;
-    border-radius: 4px;
-`
-
-const BallotIdLink = styled(Link)`
-    color: ${({theme}) => theme.palette.brandColor};
-    text-decoration: none;
-    font-weight: normal;
-    overflow-wrap: anywhere;
-    text-overflow: ellipsis;
-    &:hover {
-        text-decoration: underline;
-    }
-`
-
-const QRContainer = styled(Box)`
-    display: flex;
-    justify-content: center;
-    width: 100%;
-    margin: 15px auto;
-`
-
-const StyledCircularProgress = styled(CircularProgress)`
-    width: 14px !important;
-    height: 14px !important;
-`
-
-const StyledIcon = styled(Icon)`
-    min-width: 14px;
-    padding: 5px;
-`
+/*
+ * The spinner and the printer were here, with the row they belonged to.
+ *
+ * Both are `ConfirmationActions` in `ui-essentials` now, so the Election Architect's
+ * preview draws this screen's buttons rather than two plain ones of its own.
+ */
 
 interface ActionButtonsProps {
     electionId?: string
@@ -152,7 +105,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         CreateBallotReceiptMutationVariables
     >(CREATE_BALLOT_RECEIPT)
     const [documentId, setDocumentId] = useState<string | null>(null)
-    const {getDocumentUrl} = useGetPublicDocumentUrl()
     const {globalSettings} = useContext(SettingsContext)
     const [errorDialog, setErrorDialog] = useState<boolean>(false)
     const [openPrintDemoModal, setOpenPrintDemoModal] = useState<boolean>(false)
@@ -167,16 +119,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
 
     const {
         data: ballotReceiptDocuments,
+        error: receiptError,
         startPolling,
         stopPolling,
-    } = useQuery<GetDocumentQuery>(GET_DOCUMENT, {
-        variables: {
-            ids: documentId ? [documentId] : [],
-            electionEventId: eventId,
-            tenantId: tenantId || "",
-        },
-        skip: !documentId, // Skip query if no documentId
-    })
+    } = useReceiptDocument(eventId, documentId)
 
     const canVote = voterContext.data?.sequent_backend_election.some((election) => {
         // Bootstrap includes earlier votes, while Redux also has the cast that
@@ -245,26 +191,50 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
             setOpenPrintDemoModal(true)
             return
         }
-        if (!documentId) {
-            if (!ballotTrackerUrl) {
-                setIsHitPrint(false)
-                return
+        try {
+            setErrorDialog(false)
+            if (!documentId) {
+                if (!ballotTrackerUrl) {
+                    setIsHitPrint(false)
+                    return
+                }
+                const res = await createBallotReceipt({
+                    variables: {
+                        ballot_id: ballotId,
+                        ballot_tracker_url: ballotTrackerUrl,
+                        election_event_id: eventId,
+                        tenant_id: tenantId,
+                        election_id: electionId,
+                    },
+                })
+                const docId = res.data?.create_ballot_receipt?.id
+                if (!docId) throw new Error("Receipt generation returned no document")
+                setDocumentId(docId)
             }
-            const res = await createBallotReceipt({
-                variables: {
-                    ballot_id: ballotId,
-                    ballot_tracker_url: ballotTrackerUrl,
-                    election_event_id: eventId,
-                    tenant_id: tenantId,
-                    election_id: electionId,
-                },
-            })
-            let docId = res.data?.create_ballot_receipt?.id
-            console.log("docId: ", docId)
-            setDocumentId(docId)
+            setIsDownloadingReport(true)
+        } catch {
+            failReceipt()
         }
-        setIsDownloadingReport(true)
     }
+
+    const failReceipt = useCallback(() => {
+        stopPolling()
+        setDocumentId(null)
+        setIsPolling(false)
+        setIsDownloadingReport(false)
+        setIsHitPrint(false)
+        setErrorDialog(true)
+    }, [stopPolling])
+
+    useEffect(() => {
+        if (documentId && receiptError) failReceipt()
+    }, [documentId, receiptError, failReceipt])
+
+    useEffect(() => {
+        if (!documentId) return
+        const timeout = setTimeout(failReceipt, globalSettings.POLLING_DURATION_TIMEOUT)
+        return () => clearTimeout(timeout)
+    }, [documentId, globalSettings.POLLING_DURATION_TIMEOUT, failReceipt])
 
     async function downloadFileWithRetry(url: string, name: string, retries = 0) {
         try {
@@ -282,9 +252,13 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     }
 
     useEffect(() => {
-        if (ballotReceiptDocuments?.sequent_backend_document?.[0]?.id && documentId) {
+        if (
+            documentId &&
+            !receiptError &&
+            ballotReceiptDocuments?.receipt_document.payload.document?.id === documentId
+        ) {
             const fileName = `ballot_receipt_${eventId}.pdf`
-            const documentUrl = getDocumentUrl(documentId!, fileName)
+            const documentUrl = ballotReceiptDocuments.receipt_document.payload.document.url
             downloadFileWithRetry(documentUrl, fileName)
             setIsDownloadingReport(false)
             setIsHitPrint(false)
@@ -292,14 +266,14 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
             setDocumentId(null)
             stopPolling()
         }
-    }, [ballotReceiptDocuments?.sequent_backend_document?.[0]?.id, documentId])
+    }, [ballotReceiptDocuments?.receipt_document.payload.document?.id, documentId, receiptError])
 
     useEffect(() => {
-        if (!isPolling && documentId) {
+        if (!isPolling && documentId && !receiptError) {
             setIsPolling(true)
             startPolling(globalSettings.QUERY_POLL_INTERVAL_MS)
         }
-    }, [startPolling, globalSettings.QUERY_POLL_INTERVAL_MS, documentId, isPolling])
+    }, [startPolling, globalSettings.QUERY_POLL_INTERVAL_MS, documentId, isPolling, receiptError])
 
     return (
         <>
@@ -324,52 +298,22 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
             <VisuallyHidden className="remaining-elections-status" role="status">
                 {waitingForEligibility && !voterContext.error ? t("a11y.loading") : ""}
             </VisuallyHidden>
-            <ActionsContainer className="actions-container">
-                {/* There is no ballot to receipt when nothing was cast. */}
-                {isFullyAcclaimed ? null : (
-                    <>
-                        <StyledButton
-                            className="print-receipt-button"
-                            onClick={printBallotReceiptReport}
-                            disabled={isHitPrint || (!isDemo && !documentId && !ballotTrackerUrl)}
-                            variant="secondary"
-                            sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                        >
-                            {isHitPrint ? (
-                                <StyledCircularProgress
-                                    className="print-receipt-progress"
-                                    color="inherit"
-                                    aria-hidden="true"
-                                />
-                            ) : (
-                                <StyledIcon
-                                    className="print-receipt-icon"
-                                    icon={faPrint}
-                                    size="sm"
-                                />
-                            )}
-                            <Box className="print-receipt-label">
-                                {t("confirmationScreen.printButton")}
-                            </Box>
-                        </StyledButton>
-                        {/* Generating the receipt is an asynchronous poll, so the wait
-                        and its end are announced rather than shown only as a spinner. */}
-                        <VisuallyHidden className="print-receipt-status" role="status">
-                            {isHitPrint ? t("a11y.loading") : ""}
-                        </VisuallyHidden>
-                    </>
-                )}
-                <StyledButton
-                    className="finish-button"
-                    onClick={onClickFinishButton}
-                    disabled={waitingForEligibility || !!voterContext.error}
-                    sx={{width: {xs: "100%", sm: "200px"}}}
-                >
-                    <Box className="finish-button-label">
-                        {t("confirmationScreen.finishButton")}
-                    </Box>
-                </StyledButton>
-            </ActionsContainer>
+            {/* `ConfirmationActions` in `ui-essentials`: the secondary Print with its
+                printer, and Finish. Here so the Election Architect's preview draws this
+                row rather than two plain buttons — what Print *does* stays with this
+                route, since it renders a receipt from a cast vote. There is no ballot
+                to receipt when nothing was cast, and no receipt to make without a
+                document or a tracker URL. */}
+            <ConfirmationActions
+                withPrint={!isFullyAcclaimed}
+                printing={isHitPrint}
+                onPrint={
+                    isDemo || documentId || ballotTrackerUrl ? printBallotReceiptReport : undefined
+                }
+                onFinish={
+                    waitingForEligibility || voterContext.error ? undefined : onClickFinishButton
+                }
+            />
 
             <Dialog
                 className="demo-print-receipt-dialog"
@@ -395,6 +339,56 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     )
 }
 
+interface ConfirmationBallotStatusProps {
+    eventId: string
+    electionId: string
+    ballotId: string
+    vitrine: IConfirmationVitrine
+    trackerUrl?: string
+}
+
+/** The check mark in the Tracking ID box: the status of the ballot just cast,
+ * which its receipt upgrades while this page is open. */
+const ConfirmationBallotStatus: React.FC<ConfirmationBallotStatusProps> = ({
+    eventId,
+    electionId,
+    ballotId,
+    vitrine,
+    trackerUrl,
+}) => {
+    const {i18n} = useTranslation()
+    const target = useMemo(
+        () => ({eventId, electionId, trackingId: ballotId}),
+        [eventId, electionId, ballotId]
+    )
+    const {view, kept} = useCastReceipt(target, vitrine)
+    const electionName = useElectionName(electionId)
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const acceptedAt = view?.own?.acceptedAt
+    const castAt =
+        acceptedAt === undefined
+            ? undefined
+            : formatVotingPortalDateTime(
+                  acceptedAt * 1000,
+                  electionEvent,
+                  i18n.resolvedLanguage || i18n.language
+              )
+
+    return (
+        <BallotStatus
+            trigger={EBallotStatusTrigger.ICON}
+            view={view}
+            ballotId={ballotId}
+            electionName={electionName}
+            castAt={castAt}
+            kept={kept}
+            trackerUrl={trackerUrl}
+            surface={theme.palette.green.light}
+            sx={{m: "-7px -4px -7px -7px"}}
+        />
+    )
+}
+
 const ConfirmationScreen: React.FC = () => {
     const {isKiosk} = useContext(AuthContext)
     const {tenantId, eventId} = useParams<TenantEventType>()
@@ -402,6 +396,7 @@ const ConfirmationScreen: React.FC = () => {
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const isBlankBallot = useAppSelector(selectIsBlankBallot(String(electionId)))
     const confirmationScreenData = useAppSelector(selectConfirmationScreenData(String(electionId)))
+    const receivedBallot = useAppSelector(selectReceivedBallot(String(electionId)))
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
@@ -419,15 +414,21 @@ const ConfirmationScreen: React.FC = () => {
 
     const getBallotId = (): {
         ballotIdStored: string | undefined
+        ballotHashStored: string | undefined
         isDemoStored: boolean | undefined
     } => {
         if (!auditableBallot) {
             if (!confirmationScreenData) {
                 console.log("confirmationScreenData not found in redux")
-                return {ballotIdStored: undefined, isDemoStored: undefined}
+                return {
+                    ballotIdStored: undefined,
+                    ballotHashStored: undefined,
+                    isDemoStored: undefined,
+                }
             } else {
                 return {
                     ballotIdStored: confirmationScreenData.ballotId,
+                    ballotHashStored: undefined,
                     isDemoStored: confirmationScreenData.isDemo,
                 }
             }
@@ -439,13 +440,20 @@ const ConfirmationScreen: React.FC = () => {
             const hashableBallot = isMultiContest
                 ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : hashBallot(auditableBallot as IAuditableSingleBallot)
-            const ballotIdStored = (auditableBallot && hashableBallot) || undefined
+            const ballotHashStored = (auditableBallot && hashableBallot) || undefined
+            // A ballot the ballot box received at review is known by the
+            // Ballot ID the ballot box signed for it.
+            const ballotIdStored =
+                receivedBallot && receivedBallot.ballot_hash === ballotHashStored
+                    ? receivedBallot.ballot_id
+                    : ballotHashStored
             const isDemoStored = oneBallotStyle?.ballot_eml.public_key?.is_demo
-            return {ballotIdStored, isDemoStored}
+            return {ballotIdStored, ballotHashStored, isDemoStored}
         }
     }
 
     const ballotId = useRef<string | undefined>(undefined)
+    const ballotHash = useRef<string | undefined>(undefined)
     const gotData = useRef<boolean | undefined>(false)
     const navigate = useNavigate()
     const [demoBallotIdHelp, setDemoBallotIdHelp] = useState<boolean>(false)
@@ -455,10 +463,10 @@ const ConfirmationScreen: React.FC = () => {
     if (
         gotData.current &&
         auditableBallot?.ballot_hash &&
-        ballotId.current !== auditableBallot?.ballot_hash
+        ballotHash.current !== auditableBallot?.ballot_hash
     ) {
         console.log(
-            `ballotId: ${ballotId.current}\n auditable Ballot Hash: ${auditableBallot?.ballot_hash}`
+            `ballotId: ${ballotHash.current}\n auditable Ballot Hash: ${auditableBallot?.ballot_hash}`
         )
         throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
     }
@@ -469,18 +477,31 @@ const ConfirmationScreen: React.FC = () => {
         }
         if (!gotData.current) {
             gotData.current = true
-            const {ballotIdStored, isDemoStored} = getBallotId()
+            const {ballotIdStored, ballotHashStored, isDemoStored} = getBallotId()
             if (!ballotIdStored) {
                 console.log("No stored ballot found, navigating to the election-chooser page.")
                 navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
             }
             ballotId.current = ballotIdStored
+            ballotHash.current = ballotHashStored
             setIsDemo(isDemoStored ?? false)
             setBallotTrackerUrl(
                 `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotIdStored}${isKiosk() ? "?kiosk" : ""}`
             )
         }
     }, [])
+
+    const transparency = confirmationScreenData?.vitrine
+    const vitrine =
+        transparency !== undefined &&
+        transparency.transparency.mode !== ETransparencyMode.DISABLED &&
+        !isDemo &&
+        !isFullyAcclaimed &&
+        eventId &&
+        electionId &&
+        ballotId.current
+            ? transparency
+            : undefined
 
     const handleBallotIdLinkClick = (event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
         if (isDemo) {
@@ -495,245 +516,120 @@ const ConfirmationScreen: React.FC = () => {
     }
 
     return (
-        <PageLimit maxWidth="lg" className="confirmation-screen screen">
-            <Box className="stepper-box" marginTop="24px">
-                <Stepper selected={3} />
-            </Box>
-            <StyledTitle
-                className="screen-title"
-                variant="h4"
-                component="h1"
-                fontSize="24px"
-                fontWeight="bold"
-                sx={{marginTop: "40px"}}
-            >
-                <Box className="screen-title-text">
-                    {t(
-                        isFullyAcclaimed
-                            ? "confirmationScreen.acclamation.title"
-                            : "confirmationScreen.title"
-                    )}
-                </Box>
-                <IconButton
-                    buttonClassName="screen-help-button"
-                    icon={faCircleQuestion}
-                    sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                    fontSize="16px"
-                    onClick={() => setOpenConfirmationHelp(true)}
-                    ariaLabel={t("a11y.helpAbout", {
-                        topic: t("confirmationScreen.confirmationHelpDialog.title"),
-                    })}
+        // The arrangement is `ConfirmationLayout`, in `ui-essentials`, so the
+        // Election Architect's preview shows this screen rather than a copy of
+        // it. What stays here is what needs the store, the router or this
+        // screen's own state: the breadcrumb, the dialogs, and the actions.
+        <ConfirmationLayout
+            steps={<Stepper selected={3} />}
+            onTitleHelp={() => setOpenConfirmationHelp(true)}
+            isFullyAcclaimed={isFullyAcclaimed}
+            isBlankBallot={isBlankBallot}
+            ballotId={ballotId.current ?? ""}
+            ballotIdOnPhone={t("ballotHash", {ballotId: ballotId.current})}
+            {...(vitrine && eventId && electionId
+                ? {
+                      shortBallotId: shortBallotId(ballotId.current ?? ""),
+                      ballotIdTag: <BallotTag tag={EBallotTag.CAST} />,
+                      ballotIdCopyValue: groupBallotId(ballotId.current ?? ""),
+                      ballotIdStatus: (
+                          <ConfirmationBallotStatus
+                              eventId={eventId}
+                              electionId={electionId}
+                              ballotId={ballotId.current ?? ""}
+                              vitrine={vitrine}
+                              trackerUrl={ballotTrackerUrl}
+                          />
+                      ),
+                      ballotIdButtonSx: ID_BUTTON_SX,
+                      ballotIdCopiedColor: theme.palette.green.dark,
+                      compact: true,
+                  }
+                : {})}
+            ballotIdHref={isDemo ? undefined : ballotTrackerUrl}
+            ballotIdTarget={isKiosk() ? null : "_blank"}
+            onBallotIdClick={handleBallotIdLinkClick}
+            onBallotIdHelp={() => (isDemo ? setDemoBallotIdHelp(true) : setOpenBallotIdHelp(true))}
+            ballotIdCopyLabels={
+                auditButtonCfg !== EVotingPortalAuditButtonCfg.NOT_SHOW
+                    ? {
+                          copy: t(vitrine ? "vitrine.ballotId.copy" : "reviewScreen.copyBallotId"),
+                          copied: t(
+                              vitrine ? "vitrine.ballotId.copied" : "reviewScreen.ballotIdCopied"
+                          ),
+                          error: t("reviewScreen.ballotIdCopyError"),
+                      }
+                    : undefined
+            }
+            qrValue={isDemo ? t("confirmationScreen.demoQRText") : (ballotTrackerUrl ?? "")}
+            actions={
+                <ActionButtons
+                    ballotTrackerUrl={ballotTrackerUrl}
+                    electionId={electionId}
+                    ballotId={ballotId.current ?? ""}
+                    isFullyAcclaimed={isFullyAcclaimed}
                 />
-
-                <Dialog
-                    className="screen-help-dialog confirmation-help-dialog"
-                    handleClose={() => setOpenConfirmationHelp(false)}
-                    open={openConfirmationHelp}
-                    title={t(
-                        isFullyAcclaimed
-                            ? "confirmationScreen.acclamation.helpDialog.title"
-                            : "confirmationScreen.confirmationHelpDialog.title"
-                    )}
-                    ok={t(
-                        isFullyAcclaimed
-                            ? "confirmationScreen.acclamation.helpDialog.ok"
-                            : "confirmationScreen.confirmationHelpDialog.ok"
-                    )}
-                    variant="info"
-                >
-                    {stringToHtml(
-                        t(
-                            isFullyAcclaimed
-                                ? "confirmationScreen.acclamation.helpDialog.content"
-                                : "confirmationScreen.confirmationHelpDialog.content"
-                        )
-                    )}
-                </Dialog>
-            </StyledTitle>
-            <Typography
-                className="screen-description"
-                variant="body2"
-                component="div"
-                sx={{color: theme.palette.customGrey.main}}
+            }
+        >
+            {/* The four dialogs, which belong with the state that opens them.
+                They sat inside the heading and the identifier's border before;
+                MUI renders a dialog into a portal wherever it is declared, so a
+                reader cannot tell, and gathering them makes the frame liftable. */}
+            <Dialog
+                className="screen-help-dialog confirmation-help-dialog"
+                handleClose={() => setOpenConfirmationHelp(false)}
+                open={openConfirmationHelp}
+                title={t(
+                    isFullyAcclaimed
+                        ? "confirmationScreen.acclamation.helpDialog.title"
+                        : "confirmationScreen.confirmationHelpDialog.title"
+                )}
+                ok={t(
+                    isFullyAcclaimed
+                        ? "confirmationScreen.acclamation.helpDialog.ok"
+                        : "confirmationScreen.confirmationHelpDialog.ok"
+                )}
+                variant="info"
             >
                 {stringToHtml(
                     t(
                         isFullyAcclaimed
-                            ? "confirmationScreen.acclamation.description"
-                            : "confirmationScreen.description"
+                            ? "confirmationScreen.acclamation.helpDialog.content"
+                            : "confirmationScreen.confirmationHelpDialog.content"
                     )
                 )}
-            </Typography>
-            {isBlankBallot ? (
-                <Typography
-                    className="blank-ballot-description"
-                    variant="body2"
-                    component="div"
-                    sx={{color: theme.palette.customGrey.main}}
-                >
-                    {stringToHtml(t("confirmationScreen.blankBallot.description"))}
-                </Typography>
-            ) : null}
-            {/* A fully acclaimed election casts no ballot, so it has no
-                ballot id, tracker link or QR code to show. */}
-            {isFullyAcclaimed ? null : (
-                <>
-                    <BallotIdContainer className="ballot-id-container">
-                        <Typography
-                            className="ballot-id-label"
-                            variant="h5"
-                            component="h2"
-                            fontSize="18px"
-                            fontWeight="bold"
-                            sx={{display: {xs: "none", sm: "block"}}}
-                        >
-                            {t("confirmationScreen.ballotId")}
-                        </Typography>
-                        <BallotIdBorder className="ballot-id-border">
-                            <DecorativeIconBox className="ballot-id-status-icon">
-                                <Icon
-                                    className="ballot-id-check-icon"
-                                    icon={faCheck}
-                                    style={{
-                                        fontSize: "14px",
-                                        lineHeight: "unset",
-                                        paddingBottom: "2px",
-                                    }}
-                                    color={theme.palette.customGrey.contrastText}
-                                />
-                            </DecorativeIconBox>
-                            <BallotIdLink
-                                data-testid="ballot-id"
-                                className="ballot-id-value ballot-id-value-desktop"
-                                href={!isDemo ? ballotTrackerUrl : undefined}
-                                target={!isDemo && !isKiosk() ? "_blank" : undefined}
-                                sx={{display: {xs: "none", sm: "block"}}}
-                                onClick={handleBallotIdLinkClick}
-                            >
-                                {ballotId.current}
-                            </BallotIdLink>
-                            <BallotIdLink
-                                data-testid="ballot-id"
-                                className="ballot-id-value ballot-id-value-mobile"
-                                href={!isDemo ? ballotTrackerUrl : undefined}
-                                target={!isDemo && !isKiosk() ? "_blank" : undefined}
-                                sx={{display: {xs: "block", sm: "none"}}}
-                                onClick={handleBallotIdLinkClick}
-                            >
-                                {t("ballotHash", {ballotId: ballotId.current})}
-                            </BallotIdLink>
-                            {auditButtonCfg !== EVotingPortalAuditButtonCfg.NOT_SHOW ? (
-                                <BallotHashCopyButton
-                                    hash={ballotId.current ?? ""}
-                                    copyLabels={{
-                                        copy: t("reviewScreen.copyBallotId"),
-                                        copied: t("reviewScreen.ballotIdCopied"),
-                                        error: t("reviewScreen.ballotIdCopyError"),
-                                    }}
-                                />
-                            ) : null}
-                            <IconButton
-                                buttonClassName="ballot-id-help-button"
-                                icon={faCircleQuestion}
-                                sx={{
-                                    fontSize: "unset",
-                                    lineHeight: "unset",
-                                    marginLeft:
-                                        auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW
-                                            ? "16px"
-                                            : 0,
-                                }}
-                                fontSize="18px"
-                                onClick={() =>
-                                    isDemo ? setDemoBallotIdHelp(true) : setOpenBallotIdHelp(true)
-                                }
-                                ariaLabel={t("a11y.helpAbout", {
-                                    topic: t("confirmationScreen.ballotId"),
-                                })}
-                            />
-                            <Dialog
-                                className="ballot-id-help-dialog"
-                                handleClose={() => setOpenBallotIdHelp(false)}
-                                open={openBallotIdHelp}
-                                title={t("confirmationScreen.ballotIdHelpDialog.title")}
-                                ok={t("confirmationScreen.ballotIdHelpDialog.ok")}
-                                variant="info"
-                            >
-                                {stringToHtml(t("confirmationScreen.ballotIdHelpDialog.content"))}
-                            </Dialog>
-                            <Dialog
-                                className="demo-ballot-url-dialog"
-                                handleClose={() => setDemoBallotUrlHelp(false)}
-                                open={openDemoBallotUrlHelp}
-                                title={t("confirmationScreen.demoBallotUrlDialog.title")}
-                                ok={t("confirmationScreen.demoBallotUrlDialog.ok")}
-                                variant="info"
-                            >
-                                {stringToHtml(t("confirmationScreen.demoBallotUrlDialog.content"))}
-                            </Dialog>
-                            <Dialog
-                                className="demo-ballot-id-help-dialog"
-                                handleClose={() => setDemoBallotIdHelp(false)}
-                                open={demoBallotIdHelp}
-                                title={t("confirmationScreen.ballotIdDemoHelpDialog.title")}
-                                ok={t("confirmationScreen.ballotIdDemoHelpDialog.ok")}
-                                variant="info"
-                            >
-                                {stringToHtml(
-                                    t("confirmationScreen.ballotIdDemoHelpDialog.content")
-                                )}
-                            </Dialog>
-                        </BallotIdBorder>
-                    </BallotIdContainer>
-                    {confirmationScreenData?.vitrine &&
-                    !isDemo &&
-                    eventId &&
-                    electionId &&
-                    ballotId.current ? (
-                        <CastReceipt
-                            eventId={eventId}
-                            electionId={electionId}
-                            ballotId={ballotId.current}
-                            vitrine={confirmationScreenData.vitrine}
-                        />
-                    ) : null}
-                    <Typography
-                        className="ballot-verification-title"
-                        variant="h5"
-                        component="h2"
-                        fontSize="18px"
-                        fontWeight="bold"
-                    >
-                        {t("confirmationScreen.verifyCastTitle")}
-                    </Typography>
-                    <Typography
-                        className="ballot-verification-description"
-                        variant="body2"
-                        component="div"
-                        sx={{color: theme.palette.customGrey.main}}
-                        id="qr-code-description"
-                    >
-                        {stringToHtml(t("confirmationScreen.verifyCastDescription"))}
-                    </Typography>
-                    <QRContainer className="qr-container">
-                        <QRCode
-                            ariaLabelledby="qr-code-description"
-                            value={
-                                isDemo
-                                    ? t("confirmationScreen.demoQRText")
-                                    : (ballotTrackerUrl ?? "")
-                            }
-                        />
-                    </QRContainer>
-                </>
-            )}
-            <ActionButtons
-                ballotTrackerUrl={ballotTrackerUrl}
-                electionId={electionId}
-                ballotId={ballotId.current ?? ""}
-                isFullyAcclaimed={isFullyAcclaimed}
-            />
-        </PageLimit>
+            </Dialog>
+            <Dialog
+                className="ballot-id-help-dialog"
+                handleClose={() => setOpenBallotIdHelp(false)}
+                open={openBallotIdHelp}
+                title={t("confirmationScreen.ballotIdHelpDialog.title")}
+                ok={t("confirmationScreen.ballotIdHelpDialog.ok")}
+                variant="info"
+            >
+                {stringToHtml(t("confirmationScreen.ballotIdHelpDialog.content"))}
+            </Dialog>
+            <Dialog
+                className="demo-ballot-url-dialog"
+                handleClose={() => setDemoBallotUrlHelp(false)}
+                open={openDemoBallotUrlHelp}
+                title={t("confirmationScreen.demoBallotUrlDialog.title")}
+                ok={t("confirmationScreen.demoBallotUrlDialog.ok")}
+                variant="info"
+            >
+                {stringToHtml(t("confirmationScreen.demoBallotUrlDialog.content"))}
+            </Dialog>
+            <Dialog
+                className="demo-ballot-id-help-dialog"
+                handleClose={() => setDemoBallotIdHelp(false)}
+                open={demoBallotIdHelp}
+                title={t("confirmationScreen.ballotIdDemoHelpDialog.title")}
+                ok={t("confirmationScreen.ballotIdDemoHelpDialog.ok")}
+                variant="info"
+            >
+                {stringToHtml(t("confirmationScreen.ballotIdDemoHelpDialog.content"))}
+            </Dialog>
+        </ConfirmationLayout>
     )
 }
 

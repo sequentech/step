@@ -15,7 +15,8 @@ import {DropFile} from "@sequentech/ui-essentials"
 import {CHAIN_FILE_EXTENSION, EInputProblem, MAX_RECEIPT_TEXT} from "../../services/vitrine/input"
 
 export interface IReceiptInputProps {
-    onText: (text: string) => void
+    /** The receipt's text, and its file's name when it came from a file. */
+    onText: (text: string, fileName?: string) => void
     onProblem: (problem: EInputProblem) => void
 }
 
@@ -31,7 +32,7 @@ export const ReceiptInput: React.FC<IReceiptInputProps> = ({onText, onProblem}) 
             return
         }
         try {
-            onText(await file.text())
+            onText(await file.text(), file.name)
         } catch {
             onProblem(EInputProblem.UNREADABLE)
         }

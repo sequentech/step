@@ -101,7 +101,9 @@ impl Tally {
         let aggregated = self
             .tally_results
             .iter()
-            .fold(contest_result, |acc, x| acc.aggregate(x, true));
+            .try_fold(contest_result, |acc, x| {
+                acc.aggregate_checked_channels(x, true)
+            })?;
         Ok(aggregated)
     }
 

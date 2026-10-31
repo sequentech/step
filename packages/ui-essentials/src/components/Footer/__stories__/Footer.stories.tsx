@@ -2,9 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {StoryFn, Meta} from "@storybook/react"
+import {StoryFn, Meta} from "@storybook/react-vite"
 import Footer from "../Footer"
-import {withRouter} from "storybook-addon-react-router-v6"
 import {theme} from "../../../services/theme"
 
 // React 19 compatibility wrapper for I18nextProvider
@@ -19,7 +18,6 @@ import {I18nextProvider, initReactI18next} from "react-i18next"
 export default {
     title: "components/Footer",
     component: Footer,
-    decorators: [withRouter],
     parameters: {
         backgrounds: {
             default: "white",

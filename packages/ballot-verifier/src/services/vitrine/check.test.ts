@@ -7,6 +7,7 @@ import * as pure from "@vitrine/verify/pure"
 import type {ChainResult} from "@vitrine/verify"
 import {
     BALLOT_ID,
+    TRACKING_ID,
     ballotEntry,
     ELECTION_ID,
     EVENT_ID,
@@ -20,6 +21,7 @@ import {
     referenceReceiptUrl,
     WITNESSES,
 } from "../../fixtures/vitrine"
+import {groupBallotId} from "./ballotId"
 import {
     chainFromReference,
     checkRound,
@@ -98,36 +100,50 @@ describe("needsFullRoundNow", () => {
 })
 
 describe("expectFromForm", () => {
-    it("expects the entry of that ballot ID, election and event", () => {
+    it("expects the entry of that tracking ID, election and event", () => {
         expect(
             expectFromForm(sdk, {
                 eventId: ` ${EVENT_ID} `,
                 electionId: ELECTION_ID,
-                ballotId: ` ${BALLOT_ID.toUpperCase()}\n`,
+                ballotId: ` ${TRACKING_ID.toLowerCase()}\n`,
+                stage: "cast",
             })
-        ).toEqual({fields: {event_id: EVENT_ID, election_id: ELECTION_ID, ballot_id: BALLOT_ID}})
+        ).toEqual({fields: {event_id: EVENT_ID, election_id: ELECTION_ID, stage: "cast", ballot_id: BALLOT_ID}})
+    })
+
+    it("reads a tracking ID in groups of four, as the field shows it", () => {
+        expect(
+            expectFromForm(sdk, {
+                eventId: EVENT_ID,
+                electionId: ELECTION_ID,
+                ballotId: groupBallotId(TRACKING_ID),
+                stage: "cast",
+            })
+        ).toEqual({fields: {event_id: EVENT_ID, election_id: ELECTION_ID, stage: "cast", ballot_id: BALLOT_ID}})
     })
 
     it.each([
-        ["a short ballot ID", {ballotId: "c0ffee"}],
-        ["a ballot ID that isn't hex", {ballotId: "<script>alert(1)</script>"}],
+        ["a short tracking ID", {ballotId: "FTBE-MHRX"}],
+        ["a voter pseudonym", {ballotId: "FTBE:MHRX"}],
+        ["a tracking ID that isn't Crockford base32", {ballotId: "<script>alert(1)</script>"}],
         ["no election", {electionId: ""}],
         ["no event", {eventId: ""}],
     ])("refuses %s", (_what, change) => {
-        const form = {eventId: EVENT_ID, electionId: ELECTION_ID, ballotId: BALLOT_ID, ...change}
+        const form = {eventId: EVENT_ID, electionId: ELECTION_ID, ballotId: TRACKING_ID, stage: "cast" as const, ...change}
         expect(expectFromForm(sdk, form)).toBeUndefined()
     })
 })
 
 describe("expectedBallotId", () => {
-    it("reads the ballot ID from the fields or from the entry", () => {
+    it("reads the tracking ID from the fields or from the entry", () => {
         const expect_ = expectFromForm(sdk, {
             eventId: EVENT_ID,
             electionId: ELECTION_ID,
-            ballotId: BALLOT_ID,
+            ballotId: TRACKING_ID,
+            stage: "cast",
         })
-        expect(expect_ && expectedBallotId(sdk, expect_)).toBe(BALLOT_ID)
-        expect(expectedBallotId(sdk, {entry: ballotEntry()})).toBe(BALLOT_ID)
+        expect(expect_ && expectedBallotId(sdk, expect_)).toBe(TRACKING_ID)
+        expect(expectedBallotId(sdk, {entry: ballotEntry()})).toBe(TRACKING_ID)
         expect(expectedBallotId(sdk, {entry: Uint8Array.of(1, 2, 3)})).toBeUndefined()
     })
 })

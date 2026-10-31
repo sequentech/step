@@ -14,9 +14,9 @@ import {bytes, encoding, hashes, notes} from "@vitrine/verify/pure"
 
 const PKCS8_ED25519_PREFIX = "302e020100300506032b657004220420"
 const EVENTS_TAG = "vitrine/election/events/v1"
-const MEANING_HASH = "sha256:03a5a99d740d19741de6491ee2fb77bd1680d8d934f6dc5ca90bb25c841bdba7"
+const MEANING_HASH = "sha256:b77e087d44cf4621cb2ca2cdf982abb5c46f3b964ce79f9ff2b04ef645624ab1"
 const EVENTS_MEANING_HASH =
-    "sha256:819b9a9da4755aaf78b18ea35390f7908d1a21a824e7c7c6874702bf7152bc4f"
+    "sha256:a76f20437d3846a9cb930a379fe545c218e9e80f35c186fff6dd79e870b5ba51"
 
 export const EVENT_ID = "0b6c4f53-8c0b-4cbb-9b7a-6c8a3a5c2f10"
 export const OTHER_EVENT_ID = "7e0c1d2b-3a4f-4b5c-8d6e-9f0a1b2c3d4e"
@@ -79,8 +79,10 @@ const KEYS = {
     monitor2: testKey("monitor2.example", 12),
     hub1: testKey("hub1.example", 13),
     hub2: testKey("hub2.example", 14),
+    hub3: testKey("hub3.example", 19),
     hubWitness1: testKey("hub-witness1.example", 15, notes.SIG_COSIGNATURE_V1),
     hubWitness2: testKey("hub-witness2.example", 16, notes.SIG_COSIGNATURE_V1),
+    hubWitness3: testKey("hub-witness3.example", 20, notes.SIG_COSIGNATURE_V1),
     auditor: testKey("auditor.example", 9),
     ballotsTime: testKey("logs.acme.example/e/ballots", 10, notes.SIG_COSIGNATURE_V1),
     eventsTime: testKey("logs.acme.example/e/events", 11, notes.SIG_COSIGNATURE_V1),
@@ -94,6 +96,8 @@ export interface IPolicyOptions {
     eventId?: string
     /** The policy's `name`. */
     name?: string
+    /** Adds the bootstrap hub h3, in which the app hubs anchor. */
+    bootstrap?: boolean
 }
 
 /** The policy's lines without the seal: the draft the Board seals. */
@@ -140,6 +144,16 @@ const policyLines = (o: IPolicyOptions): string[] => {
         `hub-witness h2 w ${KEYS.hubWitness2.vkey}`,
         "hub-witness-party h2 w hub-witness-party2",
         "hub-quorum h2 w",
+        ...(o.bootstrap
+            ? [
+                  `hub h3 ${KEYS.hub3.vkey} https://hub3.example/`,
+                  "hub-operator h3 hubco3",
+                  `hub-witness h3 w ${KEYS.hubWitness3.vkey}`,
+                  "hub-witness-party h3 w hub-witness-party3",
+                  "hub-quorum h3 w",
+                  "bootstrap h3",
+              ]
+            : []),
         `monitor observers2 ${KEYS.monitor2.vkey} https://monitor2.example/`,
         "monitor-party observers monitorco1",
         "monitor-party observers2 monitorco2",
@@ -216,7 +230,10 @@ export const sidecarStatus = (policyHex: string): Record<string, unknown> => ({
             },
             {name: "w3", current: false},
         ],
-        hubs: {"hub-a.example": {size: 8, index: 41, time: NOW - 90}},
+        hubs: {
+            h1: {origin: "hub1.example", size: 8, entry_index: 41, hub_size: 50, time: NOW - 90},
+            h2: {origin: "hub2.example", size: null, entry_index: null, hub_size: null, time: null},
+        },
     },
     events: {
         name: `${EVENT_ID}-events`,

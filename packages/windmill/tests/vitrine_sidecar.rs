@@ -271,6 +271,9 @@ async fn a_public_event_logs_its_ballots_and_statements_on_the_sidecar() -> Resu
             vitrine: Some(VitrineQueue {
                 log_id: logs[&LogName::Ballots].2.id,
                 accepted_at: now,
+                tracking_id: sequent_core::ballot_receipt::tracking_id_digest(
+                    &ballot_id, None,
+                )?,
             }),
         })
         .await?;
@@ -291,8 +294,13 @@ async fn a_public_event_logs_its_ballots_and_statements_on_the_sidecar() -> Resu
     })
     .await?;
     receipt_for(&receipt, &queued.entry)?;
-    let own = ballot_entries(&event, &store.voter_ballots(&event, VOTER).await?)?;
-    assert_eq!(own, vec![queued.entry.clone()]);
+    let own = ballot_entries(
+        &event,
+        &store.voter_ballot_stages(&event, VOTER).await?,
+    )?;
+    // A vote with no received ballot behind it reached both stages at once.
+    assert_eq!(own.len(), 2);
+    assert!(own.contains(&queued.entry));
     assert!(check_forward("upgrade", &receipt, &own).is_ok());
     assert!(check_forward("upgrade", &receipt, &[]).is_err());
 

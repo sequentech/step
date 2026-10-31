@@ -23,6 +23,7 @@ import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
 import {Button, Identifier, useNotify} from "react-admin"
 import {Logs} from "@/components/Logs"
+import {AdminDateTime} from "@/components/AdminDateTime"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useLazyQuery, useQuery} from "@apollo/client"
@@ -188,7 +189,11 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                                         {t("tasksScreen.column.start_at")}
                                     </TableCell>
                                     <TableCell align="left">
-                                        {task?.start_at && new Date(task.start_at).toLocaleString()}
+                                        <AdminDateTime
+                                            value={task?.start_at}
+                                            event={electionEventRecord ?? task?.election_event_id}
+                                            seconds
+                                        />
                                     </TableCell>
                                 </TableRow>
                                 <TableRow>
@@ -196,7 +201,11 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                                         {t("tasksScreen.column.end_at")}
                                     </TableCell>
                                     <TableCell align="left">
-                                        {task?.end_at && new Date(task.end_at).toLocaleString()}
+                                        <AdminDateTime
+                                            value={task?.end_at}
+                                            event={electionEventRecord ?? task?.election_event_id}
+                                            seconds
+                                        />
                                     </TableCell>
                                 </TableRow>
                             </TableBody>
@@ -213,7 +222,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                     onReveal={() => void revealDocumentPassword()}
                 />
             ) : null}
-            <Logs logs={task?.logs} />
+            <Logs logs={task?.logs} event={electionEventRecord ?? task?.election_event_id} />
         </>
     )
 

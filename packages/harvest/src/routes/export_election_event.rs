@@ -2,10 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
+use crate::types::error_response::ErrorCode;
 use anyhow::{anyhow, Context, Result};
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -17,6 +21,10 @@ use windmill::services::celery_app::get_celery_app;
 use windmill::services::electoral_log::{
     post_voter_secret_attribute_audit, ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
+};
+use windmill::services::participation_authorization::{
+    ParticipationAuthorization, ParticipationCommand,
+    PARTICIPATION_AUTHORIZATION,
 };
 use windmill::services::voter_secret_attributes::get_secret_attribute_config;
 use windmill::services::{password, tasks_execution::*};
@@ -36,11 +44,12 @@ pub struct ExportElectionEventOutput {
     task_execution: TasksExecution,
 }
 
-#[instrument(skip(claims, input))]
+#[instrument(skip(services, claims, input))]
 #[post("/export-election-event", format = "json", data = "<input>")]
 pub async fn export_election_event_route(
     claims: jwt::JwtClaims,
     input: Json<ExportElectionEventInput>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<ExportElectionEventOutput>, (Status, String)> {
     authorize(
         &claims,
@@ -57,6 +66,16 @@ pub async fn export_election_event_route(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
     let mut export_config = body.export_configurations.clone();
+    export_config.validate_protocol_archive().map_err(|error| {
+        (
+            Status::BadRequest,
+            serde_json::json!({
+                "message": error.to_string(),
+                "extensions": {"code": ErrorCode::TallyValidation}
+            })
+            .to_string(),
+        )
+    })?;
     export_config.password = None;
     export_config.contains_voter_secrets = false;
     export_config.is_encrypted = export_config.is_encrypted
@@ -90,6 +109,48 @@ pub async fn export_election_event_route(
     }
 
     let document_id = Uuid::new_v4().to_string();
+    // An archive contains the whole event, so the caller must be allowed to
+    // read every current election. Persist that explicit upper bound.
+    let mut scope_client = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(|error| (Status::InternalServerError, error.to_string()))?;
+    let scope_tx = scope_client
+        .transaction()
+        .await
+        .map_err(|error| (Status::InternalServerError, error.to_string()))?;
+    crate::services::authorization::authorize_election_permission_labels(
+        &scope_tx,
+        &claims,
+        &election_event_id,
+        None,
+    )
+    .await?;
+    let election_ids =
+        crate::services::authorization::explicit_participation_elections(
+            &scope_tx,
+            &claims,
+            &election_event_id,
+        )
+        .await?;
+    drop(scope_tx);
+    let mut task_annotations = secret_export_task_annotations(
+        &document_id,
+        export_config.contains_voter_secrets,
+    );
+    task_annotations[PARTICIPATION_AUTHORIZATION] =
+        serde_json::to_value(ParticipationAuthorization {
+            tenant_id: tenant_id.clone(),
+            election_event_id: election_event_id.clone(),
+            actor_id: claims.hasura_claims.user_id.clone(),
+            command: ParticipationCommand::EventArchive,
+            command_id: document_id.clone(),
+            election_ids,
+        })
+        .map_err(|error| (Status::InternalServerError, error.to_string()))?;
     if export_config.contains_voter_secrets {
         post_voter_secret_attribute_audit(
             &tenant_id,
@@ -113,15 +174,12 @@ pub async fn export_election_event_route(
     }
 
     // Insert the task execution record
-    let task_execution = post_with_annotations(
+    let task_execution = post_with_participation(
         &tenant_id,
-        Some(&election_event_id),
+        &election_event_id,
         ETasksExecution::EXPORT_ELECTION_EVENT,
         &executer_name,
-        secret_export_task_annotations(
-            &document_id,
-            export_config.contains_voter_secrets,
-        ),
+        task_annotations,
     )
     .await
     .map_err(|error| {
@@ -177,6 +235,19 @@ pub async fn export_election_event_route(
             ));
         }
     };
+
+    let entry = audit::exported(
+        &claims,
+        audit::target(
+            &claims.hasura_claims.tenant_id,
+            Some(&body.election_event_id),
+        )?,
+        audit::election_event(&body.election_event_id),
+        "Requested the export of the election event",
+        Some(&task_execution.id),
+        Some(&document_id),
+    );
+    audit::record(services, &entry).await?;
 
     let output = ExportElectionEventOutput {
         document_id,

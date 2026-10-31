@@ -55,6 +55,12 @@ impl ProbeHandler {
     }
 
     pub fn future(&self) -> impl Future<Output = ()> {
+        self.bind().1
+    }
+
+    /// Bind once and return the actual address, including an OS-selected port.
+    /// The returned future owns the listener for its entire lifetime.
+    pub fn bind(&self) -> (SocketAddr, impl Future<Output = ()>) {
         let il = Arc::clone(&self.is_live);
         let ir = Arc::clone(&self.is_ready);
 
@@ -111,7 +117,7 @@ impl ProbeHandler {
                     )),
             );
 
-        warp::serve(filter).bind(self.address)
+        warp::serve(filter).bind_ephemeral(self.address)
     }
 
     pub async fn set_live(

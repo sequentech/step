@@ -10,7 +10,6 @@ import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -46,6 +45,7 @@ import org.keycloak.policy.PasswordPolicyManagerProvider;
 import org.keycloak.policy.PolicyError;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.services.validation.Validation;
 import org.keycloak.userprofile.AttributeMetadata;
@@ -54,6 +54,11 @@ import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.userprofile.ValidationException;
+import sequent.keycloak.authenticator.messaging.ContactDetails;
+import sequent.keycloak.authenticator.messaging.MessageChannel;
+import sequent.keycloak.authenticator.messaging.MessagingAttributes;
+import sequent.keycloak.authenticator.messaging.PublicMessagingChannels;
+import sequent.keycloak.authenticator.messaging.VoterChannels;
 
 @JBossLog
 @AutoService(FormActionFactory.class)
@@ -109,6 +114,20 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String MISSING_FIELDS_ERROR = "error_user_attribute_required";
   public static final String HIDDEN_PROFILE_ATTRIBUTES = "hidden-profile-attributes";
   public static final String HIDDEN_PROFILE_ATTRIBUTES_DEFAULT = UserModel.LOCALE;
+  public static final String CHANNEL_CHOICE_POLICY = "channel-choice-policy";
+  public static final String POST_ELECTION_ATTRIBUTE = "post-election-attribute";
+
+  /**
+   * Event details that the event listener reads to classify an event. They are set by
+   * authenticators, so a form field with one of these names is not copied into the event details.
+   */
+  private static final Set<String> RESERVED_EVENT_DETAILS =
+      Set.of(
+          sequent.keycloak.authenticator.Utils.EVENT_DETAIL_TYPE,
+          sequent.keycloak.authenticator.Utils.EVENT_DETAIL_MSG_BODY,
+          sequent.keycloak.authenticator.Utils.VOTER_CERT_SUBJECT_DN,
+          sequent.keycloak.authenticator.Utils.CA_CERT_ISSUER_CN,
+          sequent.keycloak.authenticator.Utils.AUTH_NOTE_DENY_TYPE);
 
   @Override
   public String getHelpText() {
@@ -135,6 +154,17 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             ProviderConfigProperty.LIST_TYPE,
             PrefillPolicy.IGNORE.name());
     prefillPolicy.setOptions(asList(PrefillPolicy.IGNORE.name(), PrefillPolicy.ACCEPT.name()));
+
+    ProviderConfigProperty channelChoicePolicy =
+        new ProviderConfigProperty(
+            CHANNEL_CHOICE_POLICY,
+            "Channel Choice Policy",
+            "OTP_CHANNELS asks the voter how to get the verification code, among the channels"
+                + " the voter's Post offers for codes (realm attribute sequent.messaging).",
+            ProviderConfigProperty.LIST_TYPE,
+            EnrollmentChannels.ChannelChoicePolicy.NONE.name());
+    channelChoicePolicy.setOptions(
+        Stream.of(EnrollmentChannels.ChannelChoicePolicy.values()).map(Enum::name).toList());
 
     // Define configuration properties
     return List.of(
@@ -180,6 +210,14 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             "Comma-separated list of profile attributes to hide from the form and ignore if Keycloak marks them as required.",
             ProviderConfigProperty.STRING_TYPE,
             HIDDEN_PROFILE_ATTRIBUTES_DEFAULT),
+        new ProviderConfigProperty(
+            POST_ELECTION_ATTRIBUTE,
+            "Post Election Attribute",
+            "Form field with the voter's Post: the ID or any label (name, alias, external ID) of its election, which restricts the channels"
+                + " offered for codes. When empty or matching no election, only channels every Post offers are shown.",
+            ProviderConfigProperty.STRING_TYPE,
+            ""),
+        channelChoicePolicy,
         prefillPolicy,
         formMode);
   }
@@ -235,9 +273,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     Attributes attributes = profile.getAttributes();
     String email = attributes.getFirst(UserModel.EMAIL);
 
-    if (context.getRealm().isRegistrationEmailAsUsername()) {
-      context.getEvent().detail(Details.USERNAME, email);
-    }
+    // The typed email (the username on email-as-username realms) never goes to the event: events
+    // carry no contact (R3-06, R7-13).
 
     try {
       profile.validate();
@@ -279,9 +316,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
               .collect(Collectors.toList());
       List<FormMessage> errors = Validation.getFormErrorsFromValidation(filteredErrors);
 
-      if (pve.hasError(Messages.INVALID_EMAIL)) {
-        context.getEvent().detail(Details.EMAIL, attributes.getFirst(UserModel.EMAIL));
-      }
       // if error is empty but we are here, then the exception was related
       // to error to be ignored (username/email exists), so we ignore them
       // and continue
@@ -310,12 +344,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     if (!searchAttributesList.isEmpty()) {
       if (user == null) {
         String sessionId = context.getAuthenticationSession().getParentSession().getId();
-        log.errorv("validate(): User could not be found. Error code: {0}", sessionId);
-        // Display what the user set in formData for the search attributes
-        for (String attribute : searchAttributesList) {
-          log.errorv(
-              "validate(): Register form data {0}: {1}", attribute, formData.getFirst(attribute));
-        }
+        // The fields searched are logged, never what was typed in them (R7-13).
+        log.warnv(
+            "validate(): no voter matches the form's {0}. Error code: {1}",
+            searchAttributesList, sessionId);
         if (loginMode && passwordRequired) {
           performDummyHash(context);
         }
@@ -403,7 +435,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       // Check if the password field is blank.
       if (Validation.isBlank(password)) {
         errors.add(new FormMessage(RegistrationPage.FIELD_PASSWORD, Messages.MISSING_PASSWORD));
-      } else if (!formMode.equals(FormMode.LOGIN.getValue()) && !password.equals(passwordConfirm)) {
+      } else if (requiresPasswordConfirmation(formMode) && !password.equals(passwordConfirm)) {
         // In registration mode, check if the password and confirmation match.
         context.error(PASSWORD_NOT_MATCHED);
         errors.add(
@@ -428,6 +460,15 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
                   RegistrationPage.FIELD_PASSWORD, err.getMessage(), err.getParameters()));
         }
       }
+    }
+
+    if (!loginMode && asksForChannel(configMap)) {
+      errors.addAll(
+          EnrollmentChannels.validate(
+              offeredChannels(context, configMap, formData),
+              formData,
+              PHONE_NUMBER,
+              EnrollmentChannels.consentVersion(context.getRealm())));
     }
 
     // Check for other confirmation fields (e.g., 'email-confirm').
@@ -475,9 +516,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     log.infov(
         "validate: formMode={0} vs FormMode.LOGIN.getValue()={1}",
         formMode, FormMode.LOGIN.getValue());
-    if (formMode.equals(FormMode.LOGIN.getValue())) {
+    if (FormMode.LOGIN.getValue().equals(formMode)) {
       if (user != null) {
-        log.info("validate: setting authenticated user " + user.getUsername());
+        log.infov("validate: setting authenticated user {0}", user.getId());
         context.getAuthenticationSession().setAuthenticatedUser(user);
         context.setUser(user);
       }
@@ -532,6 +573,12 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
   static boolean shouldValidatePasswordCreationPolicy(String formMode) {
     return !FormMode.LOGIN.getValue().equals(formMode);
+  }
+
+  // The register template only renders the password confirmation field when the
+  // form mode is set and isn't LOGIN.
+  static boolean requiresPasswordConfirmation(String formMode) {
+    return formMode != null && !FormMode.LOGIN.getValue().equals(formMode);
   }
 
   private void reportValidationError(
@@ -604,7 +651,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         Stream<UserModel> currentStream =
             session
                 .users()
-                .searchForUserStream(realm, Collections.singletonMap(attribute, value.trim()));
+                .searchForUserStream(
+                    realm,
+                    Map.of(attribute, value.trim(), UserModel.EXACT, Boolean.TRUE.toString()));
 
         // Invalid if there's more than one user with specified attributes.
         if (currentStream.count() > 1) {
@@ -638,6 +687,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     form.setAttribute("passwordRequired", passwordRequired);
     form.setAttribute("formMode", formMode);
     form.setAttribute("hiddenProfileAttributes", hiddenProfileAttributes);
+    if (asksForChannel(configMap) && !FormMode.LOGIN.getValue().equals(formMode)) {
+      setChannelChoiceAttributes(
+          context, form, configMap, context.getHttpRequest().getDecodedFormParameters());
+    }
     log.infov("buildPage(): formMode = {0}", formMode);
     checkNotOtherUserAuthenticating(context);
   }
@@ -751,7 +804,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     Map<String, String> configMap = config.getConfig();
     final String formMode = configMap.get(FORM_MODE);
 
-    if (!formMode.equals(FormMode.LOGIN.getValue())) {
+    if (!FormMode.LOGIN.getValue().equals(formMode)) {
       checkNotOtherUserAuthenticating(context);
     }
 
@@ -765,7 +818,101 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     // information in the authentication session notes. This stored
     // information is then retrieved at a later time to create the user
     // account.
-    Utils.storeUserDataInAuthSessionNotes(context, searchAttributesList);
+    EnrollmentChannels.ChannelChoicePolicy channelChoice = formChannelChoice(configMap);
+    Utils.storeUserDataInAuthSessionNotes(context, searchAttributesList, channelChoice);
+
+    if (channelChoice == EnrollmentChannels.ChannelChoicePolicy.OTP_CHANNELS) {
+      EnrollmentChannels.recordConsent(
+          context.getAuthenticationSession(),
+          context.getHttpRequest().getDecodedFormParameters(),
+          EnrollmentChannels.consentVersion(context.getRealm()));
+      context
+          .getAuthenticationSession()
+          .setAuthNote(
+              MessagingAttributes.NOTE_OFFERED_CHANNELS,
+              String.join(
+                  ",",
+                  VoterChannels.names(
+                      offeredChannels(
+                          context,
+                          configMap,
+                          context.getHttpRequest().getDecodedFormParameters()))));
+    }
+  }
+
+  /**
+   * Whether the submitted form asks for a channel: OTP_CHANNELS only when configured so and not in
+   * LOGIN mode (which never shows the choice). Otherwise the form's channel fields are ignored
+   * (R7-09).
+   */
+  static EnrollmentChannels.ChannelChoicePolicy formChannelChoice(Map<String, String> configMap) {
+    return asksForChannel(configMap) && !FormMode.LOGIN.getValue().equals(configMap.get(FORM_MODE))
+        ? EnrollmentChannels.ChannelChoicePolicy.OTP_CHANNELS
+        : EnrollmentChannels.ChannelChoicePolicy.NONE;
+  }
+
+  static boolean asksForChannel(Map<String, String> configMap) {
+    return EnrollmentChannels.ChannelChoicePolicy.OTP_CHANNELS
+        .name()
+        .equals(configMap.get(CHANNEL_CHOICE_POLICY));
+  }
+
+  /** The channels the voter's Post offers, once the form names the Post's election. */
+  private static List<MessageChannel> offeredChannels(
+      FormContext context, Map<String, String> configMap, MultivaluedMap<String, String> formData) {
+    String attribute = configMap.get(POST_ELECTION_ATTRIBUTE);
+    String election =
+        attribute == null || attribute.isBlank() || formData == null
+            ? null
+            : formData.getFirst(attribute);
+    Set<String> elections =
+        election == null || election.isBlank() ? Set.of() : Set.of(election.trim());
+    return EnrollmentChannels.offered(context.getSession(), context.getRealm(), elections);
+  }
+
+  private static void setChannelChoiceAttributes(
+      FormContext context,
+      LoginFormsProvider form,
+      Map<String, String> configMap,
+      MultivaluedMap<String, String> formData) {
+    RealmModel realm = context.getRealm();
+    List<MessageChannel> offered = offeredChannels(context, configMap, formData);
+    form.setAttribute("messagingChannels", VoterChannels.names(offered));
+    // Each Post's channels, so the page shows the selected Post's and refreshes them when the Post
+    // changes; the server checks the submitted Post again.
+    String postAttribute = configMap.get(POST_ELECTION_ATTRIBUTE);
+    Map<String, List<String>> byPost =
+        EnrollmentChannels.channelsByPost(context.getSession(), realm, postAttribute);
+    form.setAttribute("messagingChannelsByPost", byPost);
+    form.setAttribute("messagingChannelsByPostJson", toJson(byPost));
+    if (postAttribute != null && !postAttribute.isBlank()) {
+      form.setAttribute("messagingPostAttribute", postAttribute);
+    }
+    // Every channel some Post offers, so the page can say when a Post offers fewer.
+    Set<String> anyPost = new java.util.HashSet<>(VoterChannels.names(offered));
+    byPost.values().forEach(anyPost::addAll);
+    form.setAttribute(
+        "messagingAllChannels",
+        sequent.keycloak.authenticator.messaging.VoterChannel.CHANNEL_ORDER.stream()
+            .map(Enum::name)
+            .filter(anyPost::contains)
+            .toList());
+    form.setAttribute(
+        "messagingOrganization", sequent.keycloak.authenticator.Utils.getRealmName(realm));
+    form.setAttribute("messagingConsentVersion", EnrollmentChannels.consentVersion(realm));
+    if (offered.contains(MessageChannel.MESSENGER)) {
+      PublicMessagingChannels.fromRealm(realm)
+          .flatMap(PublicMessagingChannels::messengerPage)
+          .ifPresent(page -> form.setAttribute("messagingPage", page.displayName()));
+    }
+  }
+
+  private static String toJson(Object value) {
+    try {
+      return org.keycloak.util.JsonSerialization.writeValueAsString(value);
+    } catch (java.io.IOException e) {
+      return "{}";
+    }
   }
 
   private void checkNotOtherUserAuthenticating(FormContext context) {
@@ -954,6 +1101,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     return true;
   }
 
+  /**
+   * Adds the submitted form fields, except credentials, hidden profile attributes and {@link
+   * #RESERVED_EVENT_DETAILS}, to the registration event, and links the event to the matched user.
+   */
   private void buildEventDetails(
       MultivaluedMap<String, String> formData,
       ValidationContext context,
@@ -962,7 +1113,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     formData = normalizeFormParameters(formData, hiddenProfileAttributes);
     formData.forEach(
         (key, value) -> {
-          if (value != null) {
+          // Events reach the electoral log: never a voter's number or email address.
+          if (value != null
+              && !RESERVED_EVENT_DETAILS.contains(key)
+              && value.stream().noneMatch(entry -> ContactDetails.isContact(key, entry))) {
             context.getEvent().detail(key, value);
           }
         });
@@ -1023,8 +1177,15 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
     // Validate password using Keycloak's credential manager
     // This uses constant-time comparison internally for security
+    // Only this attempt's password counts (R7-10).
+    context.getAuthenticationSession().removeAuthNote(AuthenticationManager.PASSWORD_VALIDATED);
     if (user.credentialManager().isValid(UserCredentialModel.password(password))) {
       log.info("validatePasswordForLogin: password valid");
+      // As Keycloak's own password form does: later steps (a Messenger reconnect after a Page
+      // change, R7-10) know the password was checked in this session.
+      context
+          .getAuthenticationSession()
+          .setAuthNote(AuthenticationManager.PASSWORD_VALIDATED, "true");
       return true;
     } else {
       log.info("validatePasswordForLogin: password invalid");

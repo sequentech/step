@@ -17,10 +17,10 @@ use fake::faker::internet::raw::Username;
 use fake::locales::EN;
 use fake::Fake;
 use std::env;
-use strand::signature::{StrandSignature, StrandSignaturePk};
 use uuid::Uuid;
-use windmill::services::protocol_manager::get_event_board;
-use windmill::services::protocol_manager::{get_board_client, get_event_databases};
+use voting_crypto::signing::{Signature, VerificationKey};
+use windmill::services::electoral_log_board::get_event_board;
+use windmill::services::electoral_log_board::{get_board_client, get_event_databases};
 
 #[derive(Args)]
 #[command(about)]
@@ -63,14 +63,14 @@ impl CreateElectoralLogs {
         let statement_timestamp = created;
 
         let dummy_bytes = [0u8; 64];
-        let sender_signature = StrandSignature::from_bytes(dummy_bytes.clone())
-            .expect("Dummy signature conversion failed");
+        let sender_signature =
+            Signature::from_bytes(dummy_bytes.clone()).expect("Dummy signature conversion failed");
         let system_signature =
-            StrandSignature::from_bytes(dummy_bytes).expect("Dummy signature conversion failed");
+            Signature::from_bytes(dummy_bytes).expect("Dummy signature conversion failed");
 
         let dummy_bytes = [0u8; 32];
-        let sender_pk = StrandSignaturePk::from_bytes(dummy_bytes)
-            .with_context(|| "Error in create Dummy StrandSignaturePk")?;
+        let sender_pk = VerificationKey::from_bytes(dummy_bytes)
+            .with_context(|| "Error in create Dummy VerificationKey")?;
 
         let message = &Message {
             sender: Sender {

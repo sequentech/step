@@ -137,6 +137,7 @@ mod tests {
         ElectionEntry {
             event_id: "e".into(),
             election_id: "mayor".into(),
+            stage: crate::vitrine::Stage::Cast,
             ballot_id: [ballot; 32],
             accepted_at: 10,
         }

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::scheduled_event::insert_new_scheduled_event;
+use crate::services::schedule_csv::checked_import_cron_config;
 use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
@@ -108,10 +109,23 @@ pub async fn process_record(
         .get(6)
         .map(|s| deserialize_str::<JsonValue>(s).ok())
         .flatten();
-    let annotations = record
+    let mut annotations = record
         .get(7)
         .map(|s| deserialize_str::<JsonValue>(s).ok())
         .flatten();
+    // Imported schedules start a fresh lifecycle; prior execution evidence
+    // must not be copied to unrelated event/Post identities.
+    if let Some(annotations) = annotations.as_mut().and_then(JsonValue::as_object_mut) {
+        for key in [
+            crate::services::scheduled_outcome::FIRED_OUTCOME,
+            crate::services::scheduled_outcome::PREDICTED_OUTCOME,
+            crate::services::initialization_schedule::PENDING_ANNOTATION,
+            crate::services::initialization_schedule::WAIT_ANNOTATION,
+            crate::services::schedule_recompute::ANNOTATION,
+        ] {
+            annotations.remove(key);
+        }
+    }
     let event_processor: Option<EventProcessors> = record
         .get(8)
         .map(|val| deserialize_str::<EventProcessors>(val))
@@ -121,7 +135,12 @@ pub async fn process_record(
         .get(9)
         .map(|val| deserialize_str(val))
         .transpose()
-        .context("Error deserializing cron_config")?;
+        .context("Error deserializing cron_config")?
+        // A date without an offset is recomputed from its wall time and
+        // zone, or refused: its instant can't be known.
+        .map(checked_import_cron_config)
+        .transpose()
+        .with_context(|| format!("Scheduled event {:?}", record.get(0).unwrap_or_default()))?;
     if event_payload.is_null() {
         event_payload = serde_json::json!({});
     }

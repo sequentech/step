@@ -14,7 +14,7 @@ fi
 
 if ! grep OPENWHISK_API_HOST .devcontainer/.env &> /dev/null; then
   cat <<EOF >> .devcontainer/.env
-OPENWHISK_API_HOST="http://$(docker inspect openwhisk | jq -r '.[].Config.Hostname'):3233"
+OPENWHISK_API_HOST="http://$(docker inspect "$(sed -n 's/^DEVCONTAINER_NAME_PREFIX=//p' .devcontainer/.env)openwhisk" | jq -r '.[].Config.Hostname'):3233"
 EOF
 fi
 
@@ -25,3 +25,7 @@ cargo build --release
 popd
 
 source .devcontainer/scripts/config-cli.sh
+
+# Startup imports do not update an existing Keycloak realm. Provision the
+# dedicated browser identities without changing native trustee accounts.
+scripts/dev/step-dev browser_trustees

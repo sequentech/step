@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# What the renderer's tests add. Compiled, with hashes, into
+# requirements-dev.txt:
+#   pip-compile --generate-hashes --allow-unsafe --strip-extras requirements-dev.in
+-c requirements.txt
+httpx
+pytest
+pytest-socket

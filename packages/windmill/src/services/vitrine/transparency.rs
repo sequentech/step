@@ -24,7 +24,7 @@ use crate::postgres::vitrine::{
     lock_election_event, set_vitrine_event_policy, set_vitrine_log_policy,
     update_presentation_transparency, vitrine_voting_opened, VitrineEvent, VitrineLog,
 };
-use crate::services::protocol_manager::get_event_databases;
+use crate::services::electoral_log_board::get_event_databases;
 use crate::types::vitrine::TransparencyOutput;
 use anyhow::{anyhow, Context};
 use deadpool_postgres::{Client as DbClient, Transaction};

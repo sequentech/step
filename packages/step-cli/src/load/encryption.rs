@@ -19,7 +19,7 @@ use sequent_core::multi_ballot::{
 };
 use sequent_core::plaintext::DecodedVoteContest;
 use std::io::{self, BufWriter, Write};
-use strand::backend::ristretto::RistrettoCtx;
+use voting_crypto::RistrettoCtx;
 
 /// Use the portal's encryption and signing policies, with fresh randomness per row.
 pub fn encrypt(
@@ -48,7 +48,7 @@ pub fn encrypt_to(
     let multi =
         presentation.contest_encryption_policy == Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS);
     let sign = presentation.voter_signing_policy == Some(VoterSigningPolicy::WITH_SIGNATURE);
-    let ctx = RistrettoCtx::default();
+    let ctx = RistrettoCtx;
     let mut output = BufWriter::new(output);
     for _ in 0..count {
         let (id, content) = if multi {

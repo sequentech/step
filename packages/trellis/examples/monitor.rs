@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //! Example: Consistency Monitoring (CT-style Auditor)
 //!
 //! This example demonstrates how to continuously monitor a merkle log for consistency.

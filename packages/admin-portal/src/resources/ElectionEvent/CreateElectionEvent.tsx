@@ -259,8 +259,8 @@ export const CreateElectionList: React.FC = () => {
                 <Hidden>
                     <SelectInput
                         source="encryption_protocol"
-                        choices={[{id: "RSA256", name: "RSA256"}]}
-                        defaultValue={"RSA256"}
+                        choices={[{id: "WBRAID", name: "wbraid"}]}
+                        defaultValue={"WBRAID"}
                     />
                     <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
                         <SelectInput optionText="slug" defaultValue={tenantId} />

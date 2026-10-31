@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Each applicant's latest decision as bars against all applications, and the
+# most frequent reasons for disapproval.
+id: enrollment-decisions
+title: Enrollment decisions
+description: The latest decision on each OV's application.
+source: enrollment_decisions
+requirements: [SW-F-0249, SW-F-0366]
+queries:
+  outcomes:
+    template: by_measure
+    measures: [applications, approved, disapproved, pending]
+  reasons:
+    template: by_group
+    group_by: reason
+    measures: [disapproved]
+    sort: {by: value, order: desc}
+    limit: 5
+height: 380
+chart:
+  charts:
+    outcomes:
+      type: spark_bar
+      query: outcomes
+      x: value
+      y: label
+    reasons:
+      type: table
+      query: reasons
+      title: Top disapproval reasons
+      style:
+        columns:
+          group: {label: Reason}
+          group_key: {visible: false}
+          position: {visible: false}
+          disapproved: {label: Disapproved, format: integer, align: right}
+  rows:
+    - outcomes
+    - reasons

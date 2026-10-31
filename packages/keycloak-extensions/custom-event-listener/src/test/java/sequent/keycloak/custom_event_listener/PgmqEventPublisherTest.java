@@ -119,7 +119,8 @@ class PgmqEventPublisherTest {
                 null,
                 "0b9f6c5e-7d3a-4a1e-8c2f-5e4d3c2b1a09",
                 "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
-                "voter@example.com"));
+                "voter@example.com",
+                1778511600123L));
     ObjectNode actual =
         (ObjectNode)
             mapper.readTree(

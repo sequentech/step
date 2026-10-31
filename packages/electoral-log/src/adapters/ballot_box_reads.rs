@@ -23,6 +23,20 @@ pub struct StoredBallot {
     pub accepted_at: i64,
 }
 
+/// One stage a voter's ballot reached, as its Vitrine entry records it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BallotStage {
+    pub election_id: String,
+    /// The ballot's hash.
+    pub ballot_hash: String,
+    /// The ballot as the ballot box stored it, which names the voter's key.
+    pub content: String,
+    /// `received`, `cast` or `audited`.
+    pub stage: String,
+    /// POSIX seconds, as the entry holds them.
+    pub accepted_at: i64,
+}
+
 /// A stored ballot with its content.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BallotContent {
@@ -37,6 +51,9 @@ pub enum BallotIdMatch<'a> {
     Exact(&'a str),
     /// Ballot IDs that start with these characters.
     Prefix(&'a str),
+    /// Every ballot ID: the caller keeps the ballots whose Tracking ID matches, which
+    /// it computes from the stored ballot.
+    Any,
 }
 
 /// Valid ballots in one time bucket and voting channel.
@@ -81,7 +98,8 @@ pub struct IpBallots {
 pub struct IpBallotsFilter<'a> {
     pub ip_pattern: Option<&'a str>,
     pub country_pattern: Option<&'a str>,
-    pub election_id: Option<&'a str>,
+    /// Only these elections' ballots; `None`, every election's.
+    pub elections: Option<&'a [String]>,
     pub limit: i64,
     pub offset: i64,
 }
@@ -103,12 +121,37 @@ pub struct Participation {
     pub voters: i64,
 }
 
+/// When a voter's earliest valid ballot in an election, among those read, was cast.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FirstValidVote {
+    pub election_id: String,
+    pub voter_id: String,
+    /// Microseconds since the epoch.
+    pub accepted_at: i64,
+}
+
+/// The voters' earliest valid ballots after a sequence number, and where the next
+/// read starts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FirstValidVotes {
+    pub votes: Vec<FirstValidVote>,
+    /// The `after_seq` of the next read.
+    pub next_seq: i64,
+}
+
 const STORED_BALLOT: &str = "id::text, ballot_id, election_id::text, area_id::text, voter_id, \
      status, voting_channel, (extract(epoch FROM accepted_at) * 1000000)::bigint";
 
 const VALID: &str = "valid";
 const PENDING: &str = "pending";
 const REJECTED: &str = "rejected";
+
+/// Seconds after a ballot's `accepted_at` by which every vote that took a lower
+/// sequence number has committed or failed. A vote is one statement, which takes
+/// its number after `accepted_at` and ends well within half of this; a vote that
+/// took a lower number started before this ballot's vote ended, so it has ended
+/// too.
+pub const SEQUENCE_SETTLED_SECS: f64 = 60.0;
 
 /// Query of the tally input of an election's area, as rows `(voter_id, content,
 /// voting_channel)`: each voter's latest valid ballot among those the sequencer has
@@ -151,6 +194,49 @@ fn stored_ballot(row: &Row) -> Result<StoredBallot> {
 }
 
 impl PostgresStore {
+    /// Every stage the voter's ballots reached in an election event. A vote with
+    /// no received ballot behind it reached `received` and `cast` together.
+    pub async fn voter_ballot_stages(
+        &self,
+        election_event_id: &str,
+        voter_id: &str,
+    ) -> Result<Vec<BallotStage>> {
+        let rows = self
+            .client()
+            .await?
+            .query(
+                "SELECT b.election_id::text, b.ballot_id, b.content, st.stage,
+                        floor(extract(epoch FROM b.accepted_at))::bigint
+                   FROM ballot_box_ballot b, (VALUES ('cast'), ('received')) AS st(stage)
+                  WHERE b.election_event_id = $1::text::uuid AND b.voter_id = $2
+                    AND (st.stage = 'cast' OR NOT EXISTS (
+                         SELECT 1 FROM ballot_box_received r
+                          WHERE r.election_event_id = b.election_event_id
+                            AND r.ballot_hash = b.ballot_id))
+                 UNION ALL
+                 SELECT r.election_id::text, r.ballot_hash, r.content, st.stage,
+                        floor(extract(epoch FROM CASE st.stage WHEN 'received' THEN r.received_at
+                                                  ELSE r.audited_at END))::bigint
+                   FROM ballot_box_received r, (VALUES ('received'), ('audited')) AS st(stage)
+                  WHERE r.election_event_id = $1::text::uuid AND r.voter_id = $2
+                    AND (st.stage = 'received' OR (r.status = 'audited' AND r.audited_at IS NOT NULL))",
+                &[&election_event_id, &voter_id],
+            )
+            .await
+            .context("Error reading the stages of the voter's ballots")?;
+        rows.iter()
+            .map(|row| {
+                Ok(BallotStage {
+                    election_id: row.try_get(0)?,
+                    ballot_hash: row.try_get(1)?,
+                    content: row.try_get(2)?,
+                    stage: row.try_get(3)?,
+                    accepted_at: row.try_get(4)?,
+                })
+            })
+            .collect()
+    }
+
     /// A voter's ballots in an election event, in acceptance order.
     pub async fn voter_ballots(
         &self,
@@ -184,6 +270,7 @@ impl PostgresStore {
         let (condition, value) = match ballot_id {
             BallotIdMatch::Exact(value) => ("ballot_id = $4", value),
             BallotIdMatch::Prefix(value) => ("starts_with(ballot_id, $4)", value),
+            BallotIdMatch::Any => ("length($4::text) >= 0", ""),
         };
         let rows = self
             .client()
@@ -209,11 +296,12 @@ impl PostgresStore {
             .collect()
     }
 
-    /// Voters with a valid ballot, by the voting channel of their latest one.
+    /// Voters with a valid ballot, by the voting channel of their latest one,
+    /// among the ballots of `elections` (`None`: every election).
     pub async fn voters_by_channel(
         &self,
         election_event_id: &str,
-        election_id: Option<&str>,
+        elections: Option<&[String]>,
     ) -> Result<Vec<(String, i64)>> {
         let rows = self
             .client()
@@ -223,11 +311,11 @@ impl PostgresStore {
                      SELECT DISTINCT ON (voter_id) voting_channel \
                      FROM ballot_box_ballot \
                      WHERE election_event_id = $1::text::uuid AND status = $3 \
-                       AND ($2::text IS NULL OR election_id = $2::text::uuid) \
+                       AND ($2::text[] IS NULL OR election_id = ANY($2::text[]::uuid[])) \
                      ORDER BY voter_id, seq DESC \
                  ) \
                  SELECT voting_channel, count(*) FROM latest GROUP BY 1 ORDER BY 1",
-                &[&election_event_id, &election_id, &VALID],
+                &[&election_event_id, &elections, &VALID],
             )
             .await
             .context("Error counting voters by channel")?;
@@ -236,12 +324,13 @@ impl PostgresStore {
             .collect()
     }
 
-    /// Valid ballots per time bucket and voting channel. Every bucket of the range
-    /// is listed; one without ballots has `default_channel` and a count of 0.
+    /// Valid ballots of `elections` (`None`: every election) per time bucket and
+    /// voting channel. Every bucket of the range is listed; one without ballots has
+    /// `default_channel` and a count of 0.
     pub async fn ballots_per_bucket(
         &self,
         election_event_id: &str,
-        election_id: Option<&str>,
+        elections: Option<&[String]>,
         range: &BucketRange<'_>,
         default_channel: &str,
     ) -> Result<Vec<BucketCount>> {
@@ -282,7 +371,7 @@ impl PostgresStore {
                 ) AS series(bucket)
                 LEFT JOIN ballot_box_ballot b
                     ON b.election_event_id = $1::text::uuid
-                    AND ($2::text IS NULL OR b.election_id = $2::text::uuid)
+                    AND ($2::text[] IS NULL OR b.election_id = ANY($2::text[]::uuid[]))
                     AND b.status = $9
                     AND date_trunc($6::text, b.accepted_at AT TIME ZONE $5::text) = series.bucket
                     AND (b.accepted_at AT TIME ZONE $5::text) >= bounds.start_bucket
@@ -293,7 +382,7 @@ impl PostgresStore {
                 "#,
                 &[
                     &election_event_id,
-                    &election_id,
+                    &elections,
                     &range.start,
                     &range.end,
                     &range.time_zone,
@@ -335,7 +424,7 @@ impl PostgresStore {
                    AND voter_ip IS NOT NULL AND voter_country IS NOT NULL \
                    AND ($2::text IS NULL OR voter_ip ILIKE $2) \
                    AND ($3::text IS NULL OR voter_country ILIKE $3) \
-                   AND ($4::text IS NULL OR election_id = $4::text::uuid) \
+                   AND ($4::text[] IS NULL OR election_id = ANY($4::text[]::uuid[])) \
                  GROUP BY voter_ip, voter_country, election_id \
                  ORDER BY ballots DESC, voter_ip, voter_country, election_id \
                  LIMIT $5 OFFSET $6",
@@ -343,7 +432,7 @@ impl PostgresStore {
                     &election_event_id,
                     &filter.ip_pattern,
                     &filter.country_pattern,
-                    &filter.election_id,
+                    &filter.elections,
                     &filter.limit,
                     &filter.offset,
                     &VALID,
@@ -398,11 +487,13 @@ impl PostgresStore {
             .collect()
     }
 
-    /// Valid ballots of an event, or of one of its elections, and their voters.
+    /// Valid ballots of an event, or of one of its elections, and their voters;
+    /// those cast in one area when `area_id` names it.
     pub async fn participation(
         &self,
         election_event_id: &str,
         election_id: Option<&str>,
+        area_id: Option<&str>,
     ) -> Result<Participation> {
         let row = self
             .client()
@@ -410,8 +501,9 @@ impl PostgresStore {
             .query_one(
                 "SELECT count(*), count(DISTINCT voter_id) FROM ballot_box_ballot \
                  WHERE election_event_id = $1::text::uuid AND status = $3 \
-                   AND ($2::text IS NULL OR election_id = $2::text::uuid)",
-                &[&election_event_id, &election_id, &VALID],
+                   AND ($2::text IS NULL OR election_id = $2::text::uuid) \
+                   AND ($4::text IS NULL OR area_id = $4::text::uuid)",
+                &[&election_event_id, &election_id, &VALID, &area_id],
             )
             .await
             .context("Error counting participation")?;
@@ -441,6 +533,67 @@ impl PostgresStore {
     }
 }
 
+impl PostgresStore {
+    /// Each voter's earliest valid ballot per election among an event's ballots with
+    /// a sequence number above `after_seq`, 0 to read them all, for monitoring. The
+    /// read stops below the first ballot still waiting for the sequencer. The next
+    /// one starts there, or lower: never above a ballot accepted less than
+    /// [`SEQUENCE_SETTLED_SECS`] ago, since a vote still running may hold a lower
+    /// sequence number, which a later read finds once that vote commits. A ballot
+    /// whose status became valid later may be left out: a read from 0 counts it.
+    pub async fn first_valid_votes(
+        &self,
+        election_event_id: &str,
+        after_seq: i64,
+    ) -> Result<FirstValidVotes> {
+        let client = self.client().await?;
+        let bounds = client
+            .query_one(
+                "SELECT GREATEST($2, read_to), GREATEST($2, LEAST(read_to, settled)) \
+                 FROM (SELECT coalesce( \
+                           (SELECT min(seq) - 1 FROM ballot_box_pending \
+                            WHERE election_event_id = $1::text::uuid), \
+                           (SELECT max(seq) FROM ballot_box_ballot \
+                            WHERE election_event_id = $1::text::uuid), \
+                           $2) AS read_to, \
+                         coalesce( \
+                           (SELECT max(seq) FROM ballot_box_ballot \
+                            WHERE election_event_id = $1::text::uuid \
+                              AND accepted_at <= now() - make_interval(secs => $3)), \
+                           $2) AS settled) AS bounds",
+                &[&election_event_id, &after_seq, &SEQUENCE_SETTLED_SECS],
+            )
+            .await
+            .context("Error reading the ballot box's sequence")?;
+        let (read_to, next_seq): (i64, i64) = (bounds.try_get(0)?, bounds.try_get(1)?);
+        let rows = client
+            .query(
+                "SELECT election_id::text, voter_id, \
+                        (extract(epoch FROM min(accepted_at)) * 1000000)::bigint \
+                 FROM ballot_box_ballot \
+                 WHERE election_event_id = $1::text::uuid AND seq > $2 AND seq <= $3 \
+                   AND status = $4 \
+                 GROUP BY election_id, voter_id",
+                &[&election_event_id, &after_seq, &read_to, &VALID],
+            )
+            .await
+            .context("Error reading the voters' first valid ballots")?;
+        Ok(FirstValidVotes {
+            votes: rows
+                .iter()
+                .map(|row| {
+                    Ok(FirstValidVote {
+                        election_id: row.try_get(0)?,
+                        voter_id: row.try_get(1)?,
+                        accepted_at: row.try_get(2)?,
+                    })
+                })
+                .collect::<Result<_>>()?,
+            next_seq,
+        })
+    }
+}
+
 /// Checks before an election's area is tallied.
 impl PostgresStore {
     /// Accepted ballots of an election's area that the sequencer has not appended
@@ -455,11 +608,15 @@ impl PostgresStore {
             .client()
             .await?
             .query_one(
-                "SELECT count(*) FROM ballot_box_pending p \
-                 JOIN ballot_box_ballot b \
-                   ON b.election_event_id = p.election_event_id AND b.seq = p.seq \
-                 WHERE p.election_event_id = $1::text::uuid \
-                   AND b.election_id = $2::text::uuid AND b.area_id = $3::text::uuid",
+                "SELECT (SELECT count(*) FROM ballot_box_pending p
+                 JOIN ballot_box_ballot b
+                   ON b.election_event_id = p.election_event_id AND b.seq = p.seq
+                 WHERE p.election_event_id = $1::text::uuid
+                   AND b.election_id = $2::text::uuid AND b.area_id = $3::text::uuid)
+                 + (SELECT count(*) FROM sequent_backend.ballot_evidence_pending p
+                    JOIN ballot_box_received r ON r.election_event_id = p.election_event_id AND r.id = p.received_id
+                    WHERE p.election_event_id = $1::text::uuid
+                      AND r.election_id = $2::text::uuid AND r.area_id = $3::text::uuid)",
                 &[&election_event_id, &election_id, &area_id],
             )
             .await

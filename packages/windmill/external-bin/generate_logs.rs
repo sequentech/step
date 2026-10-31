@@ -10,13 +10,12 @@ use serde::Deserialize;
 use std::collections::HashMap; // Added for HashMap
 use std::fs;
 use std::path::PathBuf;
-use strand::serialization::StrandDeserialize;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
-use windmill::services::electoral_log::ElectoralLogRow;
+use voting_crypto::RecordDeserialize;
+use windmill::services::electoral_log_board::{get_board_client, get_event_board};
 use windmill::services::partial_file::PartialFile;
-use windmill::services::protocol_manager::{get_board_client, get_event_board};
-use windmill::services::reports::activity_log::ActivityLogRow;
+use windmill::services::reports::activity_log::{ActivityLogRow, LogZones};
 
 /// Generates a CSV report of activity logs from PostgreSQL.
 #[derive(Parser, Debug)]
@@ -42,6 +41,9 @@ struct Cli {
 #[derive(Deserialize, Debug)]
 struct Config {
     elections: HashMap<String, String>, // election_id -> election_name (for CSV filename)
+    /// IANA zone for this standalone export; absent settings use UTC.
+    #[serde(default)]
+    time_zone: Option<String>,
 }
 
 // --- Helper Functions ---
@@ -87,6 +89,12 @@ async fn main() -> Result<()> {
     })?;
 
     info!(config = ?config, "Configuration loaded successfully."); // Use ? for Debug formatting of Config
+    let chosen_zone = config
+        .time_zone
+        .as_deref()
+        .map(windmill::services::time_zones::parse_zone)
+        .transpose()?;
+    let log_zones = LogZones::new(chosen_zone, None, &[]);
 
     // Get board name
     let slug = std::env::var("ENV_SLUG").context("ENV_SLUG must be set")?;
@@ -118,14 +126,13 @@ async fn main() -> Result<()> {
         }
         cursor = rows.last().unwrap().id;
         for row in rows {
-            let message = Message::strand_deserialize(&row.message)?;
+            let message = Message::record_deserialize(&row.message)?;
             let filename_stem_key = match message.election_id.as_ref() {
                 Some(id) => config.elections.get(id).unwrap_or(id).clone(),
                 None => "general_logs".to_owned(),
             };
             let sanitized_stem = sanitize_filename(&filename_stem_key);
-            let elog_row = ElectoralLogRow::try_from(row)?;
-            let activity_log_row = ActivityLogRow::try_from(elog_row)?;
+            let activity_log_row = ActivityLogRow::new(row, &log_zones)?;
             if !csv_writers.contains_key(&sanitized_stem) {
                 let csv_path = cli
                     .output_folder_path

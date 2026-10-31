@@ -1,3 +1,6 @@
+-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+-- SPDX-License-Identifier: AGPL-3.0-only
+
 -- psql -U postgres -f .\src\scripts\database.sql
 DROP DATABASE trellis_db;
 CREATE DATABASE trellis_db;

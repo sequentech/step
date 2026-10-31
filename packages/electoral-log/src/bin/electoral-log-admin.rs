@@ -40,7 +40,7 @@ enum Action {
     /// Create an election event's database (`--tenant-id`, `--election-event-id`).
     CreateEventDatabase,
     /// Drop an election event's database and every record and ballot in it
-    /// (`--tenant-id`, `--election-event-id`).
+    /// (`--tenant-id`, `--election-event-id`). Refused while it holds ballot box seals.
     DropEventDatabase,
     /// Apply the schema to an election event's database again, or to every event's
     /// without `--election-event-id`, and let the reader and backup roles read it.
@@ -105,9 +105,18 @@ async fn main() -> Result<()> {
             return Ok(());
         }
         Action::DropEventDatabase => {
-            return databases
-                .drop_event(tenant_required()?, &event_required()?)
-                .await
+            let event = event_required()?;
+            if databases.has_event(&event).await? {
+                anyhow::ensure!(
+                    !databases
+                        .store(&event)
+                        .await?
+                        .has_ballot_box_seals(&event)
+                        .await?,
+                    "The database of election event {event} holds ballot box seals"
+                );
+            }
+            return databases.drop_event(tenant_required()?, &event).await;
         }
         Action::UpgradeEventDatabases => {
             let events = match &event {

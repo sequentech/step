@@ -21,6 +21,7 @@ import {
     TALLY_RESULTS_PIE_PANEL_WIDTH,
 } from "./constants"
 import {Chart, ChartPanel} from "./ChartPanel"
+import {withEscapedChartText} from "../../services/chartOptions"
 import {ParticipationByChannel} from "./ParticipationByChannel"
 import type {
     NumericValue,
@@ -193,13 +194,13 @@ export const ParticipationSummaryChart: React.FC<ParticipationSummaryChartProps>
     )
     const chartOptions = useMemo<ApexChartProps>(
         () => ({
-            options: {
+            options: withEscapedChartText({
                 labels: chartData.map((item) => item.label),
                 legend: {
                     position: "right",
                 },
                 responsive: RESPONSIVE_PIE_OPTIONS,
-            },
+            }),
             series: chartData.map((item) => item.value),
         }),
         [chartData]
@@ -301,7 +302,9 @@ export const ParticipationSummary: React.FC<ParticipationSummaryProps> = ({
                                                     width: {xs: "48%", sm: "44%"},
                                                     overflowWrap: "anywhere",
                                                 }}
-                                            />
+                                            >
+                                                {mergedLabels.participationSummary}
+                                            </TableCell>
                                             <TableCell
                                                 className="seq-tally-results-participation-summary__total-heading"
                                                 sx={{width: {xs: "26%", sm: "28%"}}}

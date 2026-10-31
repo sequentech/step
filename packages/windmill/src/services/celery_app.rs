@@ -13,10 +13,14 @@ use strum_macros::{AsRefStr, EnumIter, EnumString, IntoStaticStr};
 use tokio::sync::OnceCell;
 use tracing::{event, instrument, Level};
 
+use crate::services::messaging::checks::check_messaging_accounts;
 use crate::services::plugins_manager::plugin_manager::init_plugin_manager;
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
+use crate::tasks::apply_configuration_package::apply_configuration_package;
 use crate::tasks::apply_reconciliation_patch::apply_reconciliation_patch;
 use crate::tasks::audit_electoral_log::audit_electoral_log;
+use crate::tasks::audit_log_outbox::post_audit_log_outbox;
+use crate::tasks::backfill_ballot_verification_keys::backfill_ballot_verification_keys;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
@@ -26,11 +30,14 @@ use crate::tasks::edit_user::edit_user;
 use crate::tasks::electoral_log::{
     electoral_log_batch_dispatcher, enqueue_electoral_log_event, process_electoral_log_events_batch,
 };
+use crate::tasks::enforce_signed_closes::enforce_signed_closes_task;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::export_application::export_application;
+use crate::tasks::export_audit_logs::export_audit_logs;
 use crate::tasks::export_ballot_publication::export_ballot_publication;
 use crate::tasks::export_certificate_authority::export_certificate_authority;
 use crate::tasks::export_election_event::export_election_event;
+use crate::tasks::export_monitoring_data::export_monitoring_data;
 use crate::tasks::export_tally_results::export_tally_results_to_xlsx_task;
 use crate::tasks::export_tasks_execution::export_tasks_execution;
 use crate::tasks::export_templates::export_templates;
@@ -53,9 +60,15 @@ use crate::tasks::manage_election_event_date::manage_election_event_date;
 use crate::tasks::manage_election_event_enrollment::manage_election_event_enrollment;
 use crate::tasks::manage_election_event_lockdown::manage_election_event_lockdown;
 use crate::tasks::manage_election_init_report::manage_election_init_report;
+use crate::tasks::manage_election_lifecycle_window::manage_election_lifecycle_window;
 use crate::tasks::manage_election_voting_period_end::manage_election_voting_period_end;
 use crate::tasks::manage_electoral_log_dead_letters::manage_electoral_log_dead_letters;
 use crate::tasks::manual_verification_report::generate_manual_verification_report;
+use crate::tasks::migrate_messaging_attributes::migrate_messaging_attributes;
+use crate::tasks::migrate_realm_permissions::migrate_realm_permissions;
+use crate::tasks::migrate_registration_flows::migrate_registration_flows;
+use crate::tasks::migrate_tenant_logs::migrate_tenant_logs;
+use crate::tasks::migrate_vote_privacy_realms::migrate_vote_privacy_realms;
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
 use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
 use crate::tasks::plugins_tasks::execute_plugin_task;
@@ -68,15 +81,31 @@ use crate::tasks::publish_electoral_log_checkpoint::{
 };
 use crate::tasks::publish_results_website::publish_results_website_task;
 use crate::tasks::purge_queue_archives::purge_queue_archives;
+use crate::tasks::purge_vote_privacy::purge_vote_privacy;
+use crate::tasks::recompute_schedule_instants::recompute_schedule_instants;
+use crate::tasks::reconcile_messages::reconcile_messages;
+use crate::tasks::recount_messaging_voters::{
+    recount_messaging_voters, recount_messaging_voters_due,
+};
+use crate::tasks::refresh_monitoring_snapshot::{
+    refresh_monitoring_event_snapshot, refresh_monitoring_snapshots,
+};
+use crate::tasks::refresh_staff_crls::refresh_staff_crls;
 use crate::tasks::render_document_pdf::render_document_pdf;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
 use crate::tasks::review_cast_votes::review_cast_votes;
+use crate::tasks::run_signed_action::run_signed_action;
 use crate::tasks::scheduled_events::scheduled_events;
 use crate::tasks::scheduled_reports::scheduled_reports;
+use crate::tasks::seal_ballot_boxes::{
+    schedule_ballot_box_seals, seal_ballot_box, seal_ballot_boxes,
+};
 use crate::tasks::send_template::send_template;
 use crate::tasks::sequence_ballot_box::{schedule_ballot_box_sequencers, sequence_ballot_box};
 use crate::tasks::set_public_key::set_public_key;
+use crate::tasks::signing_log_outbox::post_signing_log_outbox;
+use crate::tasks::signing_requests::{expire_signing_requests, sweep_signing_executions};
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use crate::tasks::vitrine_statements::{log_vitrine_statements, schedule_vitrine_statements};
 use crate::tasks::voter_information_letter::generate_voter_information_letter;
@@ -105,6 +134,10 @@ pub enum Queue {
     ElectoralLogEvent,
     #[strum(serialize = "electoral_log_dead_letter_queue")]
     ElectoralLogDeadLetter,
+    /// The monitoring snapshot passes: long, CPU-bound counts that must not
+    /// hold up the reports voters wait for.
+    #[strum(serialize = "monitoring_queue")]
+    Monitoring,
 }
 
 impl Queue {
@@ -268,8 +301,13 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             PgmqBrokerBuilder::from_pool(queue_pool).environment(&slug)
         ),
         tasks = [
+            apply_configuration_package,
             create_keys,
             review_boards,
+            reconcile_messages,
+            check_messaging_accounts,
+            recount_messaging_voters,
+            recount_messaging_voters_due,
             process_board,
             render_report,
             generate_report,
@@ -319,10 +357,14 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             import_applications,
             export_trustees_task,
             export_tenant_config,
+            export_audit_logs,
             import_tenant_config,
             enqueue_electoral_log_event,
             process_electoral_log_events_batch,
             electoral_log_batch_dispatcher,
+            refresh_monitoring_snapshots,
+            refresh_monitoring_event_snapshot,
+            export_monitoring_data,
             process_cast_vote,
             edit_user,
             render_document_pdf,
@@ -335,10 +377,37 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             generate_reconciliation_patches,
             apply_reconciliation_patch,
             generate_voter_information_letter,
+            migrate_realm_permissions,
+            purge_vote_privacy,
+            backfill_ballot_verification_keys,
+            post_signing_log_outbox,
+            post_audit_log_outbox,
+            migrate_tenant_logs,
+            migrate_vote_privacy_realms,
+            expire_signing_requests,
+            sweep_signing_executions,
+            refresh_staff_crls,
+            migrate_registration_flows,
+            migrate_messaging_attributes,
+            run_signed_action,
+            manage_election_lifecycle_window,
+            enforce_signed_closes_task,
+            recompute_schedule_instants,
+            seal_ballot_boxes,
+            seal_ballot_box,
+            schedule_ballot_box_seals,
         ],
         task_routes = [
             create_keys::NAME => Queue::Short.queue_name(),
             review_boards::NAME => Queue::Beat.queue_name(),
+            // The messaging sweep must not wait behind bulk sends.
+            reconcile_messages::NAME => Queue::Beat.queue_name(),
+            // The daily account check: a few provider requests per account.
+            check_messaging_accounts::NAME => Queue::Beat.queue_name(),
+            // Voter recounts: long counts on the Keycloak database, kept off
+            // the sweep's queue; beat's pass only asks for them.
+            recount_messaging_voters::NAME => Queue::Monitoring.queue_name(),
+            recount_messaging_voters_due::NAME => Queue::Beat.queue_name(),
             process_board::NAME => Queue::Beat.queue_name(),
             render_report::NAME => Queue::Reports.queue_name(),
             create_ballot_receipt::NAME => Queue::Reports.queue_name(),
@@ -365,7 +434,9 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             import_election_event::NAME => Queue::ImportExport.queue_name(),
             export_templates::NAME => Queue::ImportExport.queue_name(),
             export_tenant_config::NAME => Queue::ImportExport.queue_name(),
+            export_audit_logs::NAME => Queue::ImportExport.queue_name(),
             import_tenant_config::NAME => Queue::ImportExport.queue_name(),
+            apply_configuration_package::NAME => Queue::ImportExport.queue_name(),
             scheduled_events::NAME => Queue::Beat.queue_name(),
             scheduled_reports::NAME => Queue::Beat.queue_name(),
             review_cast_votes::NAME => Queue::Beat.queue_name(),
@@ -394,6 +465,9 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             enqueue_electoral_log_event::NAME => Queue::ElectoralLogEvent.queue_name(),
             process_electoral_log_events_batch::NAME => Queue::ElectoralLogBatch.queue_name(),
             electoral_log_batch_dispatcher::NAME => Queue::ElectoralLogBeat.queue_name(),
+            refresh_monitoring_snapshots::NAME => Queue::Beat.queue_name(),
+            refresh_monitoring_event_snapshot::NAME => Queue::Monitoring.queue_name(),
+            export_monitoring_data::NAME => Queue::Reports.queue_name(),
             execute_plugin_task::NAME => Queue::Short.queue_name(),
             prepare_publication_preview::NAME => Queue::Beat.queue_name(),
             export_tally_results_to_xlsx_task::NAME => Queue::ImportExport.queue_name(),
@@ -408,6 +482,28 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             generate_reconciliation_patches::NAME => Queue::ImportExport.queue_name(),
             apply_reconciliation_patch::NAME => Queue::ImportExport.queue_name(),
             generate_voter_information_letter::NAME => Queue::Reports.queue_name(),
+            migrate_realm_permissions::NAME => Queue::Short.queue_name(),
+            purge_vote_privacy::NAME => Queue::Short.queue_name(),
+            backfill_ballot_verification_keys::NAME => Queue::Short.queue_name(),
+            migrate_registration_flows::NAME => Queue::Short.queue_name(),
+            migrate_messaging_attributes::NAME => Queue::Short.queue_name(),
+            post_signing_log_outbox::NAME => Queue::ElectoralLogBeat.queue_name(),
+            post_audit_log_outbox::NAME => Queue::ElectoralLogBeat.queue_name(),
+            migrate_tenant_logs::NAME => Queue::Short.queue_name(),
+            migrate_vote_privacy_realms::NAME => Queue::Short.queue_name(),
+            expire_signing_requests::NAME => Queue::Beat.queue_name(),
+            sweep_signing_executions::NAME => Queue::Beat.queue_name(),
+            refresh_staff_crls::NAME => Queue::Beat.queue_name(),
+            run_signed_action::NAME => Queue::Short.queue_name(),
+            manage_election_lifecycle_window::NAME => Queue::Beat.queue_name(),
+            enforce_signed_closes_task::NAME => Queue::Beat.queue_name(),
+            recompute_schedule_instants::NAME => Queue::Beat.queue_name(),
+            // The dispatcher and the close's schedule are light. Sealing a
+            // box goes on the short queue: every worker configuration
+            // consumes it and long tallies (tally queue) don't hold it.
+            seal_ballot_boxes::NAME => Queue::Beat.queue_name(),
+            schedule_ballot_box_seals::NAME => Queue::Beat.queue_name(),
+            seal_ballot_box::NAME => Queue::Short.queue_name(),
         ],
         default_queue = Queue::Short.queue_name(),
         prefetch_count = prefetch_count,
@@ -418,4 +514,51 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
     )
     .await
     .map_err(|err| anyhow!("{:?}", err))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    /// `task::NAME => Queue::X` pairs of a `task_routes = [...]` list.
+    fn routes(source: &str) -> BTreeMap<String, String> {
+        let start = source.find("task_routes = [").expect("a task_routes list");
+        let list = &source[start..];
+        let end = list.find("\n        ],").expect("the end of the list");
+        list[..end]
+            .lines()
+            .filter_map(|line| {
+                let line = line.trim();
+                let (task, queue) = line.split_once("::NAME => Queue::")?;
+                let queue = queue.split('.').next()?;
+                Some((task.to_string(), queue.to_string()))
+            })
+            .collect()
+    }
+
+    /// Beat routes the tasks it schedules itself, and the workers route
+    /// every task: both must send a task to the same queue.
+    #[test]
+    fn beat_and_worker_routes_agree() {
+        let worker = routes(include_str!("celery_app.rs"));
+        let beat = routes(include_str!("../bin/beat.rs"));
+        assert!(beat.len() > 5, "{beat:?}");
+        for (task, queue) in &beat {
+            assert_eq!(
+                worker.get(task),
+                Some(queue),
+                "{task} goes to {queue} from beat but not from the workers"
+            );
+        }
+        assert_eq!(
+            worker.get("reconcile_messages").map(String::as_str),
+            Some("Beat")
+        );
+        for routes in [&worker, &beat] {
+            assert_eq!(
+                routes.get("check_messaging_accounts").map(String::as_str),
+                Some("Beat")
+            );
+        }
+    }
 }

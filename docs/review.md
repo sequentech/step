@@ -6,7 +6,7 @@
 
 ## Frontend interface decisions
 
-The three apps use the verifier and UI packed from Vitrine commit `93a346021b23c6dc4a0e437ea96eb5bb4d5edd24`. The archive-based vendor script runs upstream builds and tests before packing and has no failed-test bypass. Repacking the installed verifier and UI produces byte-identical tarballs; their SHA-256 digests are recorded in `packages/vendor-npm/SHA256SUMS`.
+The three apps use the verifier and UI packed from Vitrine commit `e9a9e0976dc465f783a7e663e7c1a2dcb1d0ce60` (`packages/vendor-npm/VITRINE_COMMIT`). The archive-based vendor script runs upstream builds and tests before packing and has no failed-test bypass. Repacking the installed verifier and UI produces byte-identical tarballs; their SHA-256 digests are recorded in `packages/vendor-npm/SHA256SUMS`.
 
 New policy admission uses the SDK's `pinPolicy`, including authenticated profile meanings and election minimums. Structural parsing remains available for unsigned Board drafts. Election fixtures use `vitrine/election/ballots/v1` and `vitrine/election/events/v1` with their published meaning hashes, two app hubs, an independent hub subset and two monitor parties. Private fixtures name separate blinded subjects for both logs.
 
@@ -140,3 +140,28 @@ no service or third-party request, and has no page errors. The temporary
 listener/browser and owned `vitrine-step-waict-browser` container shut down.
 This is deterministic verifier conformance, separate from the retained live
 queue/sidecar rehearsal above.
+
+## UI review against the design boards
+
+Vitrine's UI review (`docs/ui-review.md` there) compared each screen with its
+design board. On Step's side:
+
+- The confirmation page follows the Main board: the portal's stepper, a
+  headline that changes once witnesses confirm the ballot, the kit's receipt
+  card naming ballots in the eight languages, Save receipt and Finish, and the
+  QR code behind a row. It keeps asking the log for the hub and browser
+  anchors, every 2 s at first and at most every 30 s, until those tiers are
+  done or due, so the last receipt steps fill in while the voter watches.
+- Kept receipts show one card per receipt with a row per tier (Revisit), and
+  the failure page builds its evidence card from the tiers that failed
+  (Alert).
+- The Transparency tab derives its overview from the policy and the logs, laid
+  out as the Admin board in the admin theme, with its label in eight
+  languages.
+- The voting portal's build gives each script SHA-256 integrity, so the
+  extension can check the page's code against the logged release.
+- `scripts/vitrine-preview` serves both portals against a local Vitrine stack,
+  with a switch for the Alert scenario.
+
+The kit from `e9a9e0976dc465f783a7e663e7c1a2dcb1d0ce60` says on the receipt
+when a bootstrap hub stands in for the browser layer.

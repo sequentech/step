@@ -8,8 +8,8 @@
     "closes": 1793044800
   },
   "entries": [
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBCAAAJbXVuaS0yMDI2AAAFbWF5b3IAACAfwkSvK5bQFpoXfiVZryngSEdE5LhQHRBE12yfezzzBwAACAAAAABq3wi8",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBEAAAJbXVuaS0yMDI2AAAHY291bmNpbAAAII7zsNfER24sCpHMxYZ3QKBUkxO1hTRcHRJYfKLtBOn1AAAIAAAAAGrfCME="
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBNAAAJbXVuaS0yMDI2AAAFbWF5b3IAAAhyZWNlaXZlZAAAIB/CRK8rltAWmhd+JVmvKeBIR0TkuFAdEETXbJ97PPMHAAAIAAAAAGrfCLw=",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBPAAAJbXVuaS0yMDI2AAAHY291bmNpbAAACHJlY2VpdmVkAAAgjvOw18RHbiwKkczFhndAoFSTE7WFNFwdElh8ou0E6fUAAAgAAAAAat8IwQ=="
   ],
   "sequenced": [
     1793001661,
@@ -54,6 +54,10 @@
         "value": "mayor"
       },
       {
+        "name": "stage",
+        "value": "received"
+      },
+      {
         "name": "ballot_id",
         "value": "1fc244af2b96d0169a177e2559af29e0484744e4b8501d1044d76c9f7b3cf307"
       },
@@ -72,6 +76,10 @@
         "value": "council"
       },
       {
+        "name": "stage",
+        "value": "received"
+      },
+      {
         "name": "ballot_id",
         "value": "8ef3b0d7c4476e2c0a91ccc5867740a0549313b585345c1d12587ca2ed04e9f5"
       },
@@ -88,7 +96,9 @@
     "event": "not-run",
     "in-window": "not-run",
     "on-time": "not-run",
-    "one-ballot": "not-run",
+    "one-outcome": "not-run",
+    "one-stage": "not-run",
+    "received-first": "not-run",
     "vitrine/parse": "passing"
   }
 }

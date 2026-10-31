@@ -8,6 +8,8 @@ import {useTranslation} from "react-i18next"
 import {useEditController} from "react-admin"
 
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {TimeZonePicker} from "@/components/timezones/TimeZonePicker"
+import {DEFAULT_TIME_ZONE} from "@/lib/timezones/zonedFormat"
 import {
     ELanguageDetectionPolicy,
     ILanguageConf,
@@ -131,8 +133,21 @@ export const SettingsLanguages: React.FC<void> = () => {
         }
     }
 
+    const logsTimeZone =
+        (record?.settings as ITenantSettings | undefined)?.logs_timezone || DEFAULT_TIME_ZONE
+
+    const onLogsTimeZoneChange = (zone: string | null) => {
+        if (!zone || zone === logsTimeZone || !save) return
+        save({
+            settings: {
+                ...((record?.settings as ITenantSettings | undefined) ?? {}),
+                logs_timezone: zone,
+            },
+        })
+    }
+
     useEffect(() => {
-        if (record.settings) {
+        if (record?.settings) {
             setLanguageConf(
                 (record?.settings as ITenantSettings | undefined)?.language_conf ??
                     defaultLanguageConf
@@ -199,6 +214,13 @@ export const SettingsLanguages: React.FC<void> = () => {
                     ))}
                 </Select>
             </FormControl>
+
+            <TimeZonePicker
+                label={t("settings.languages.logsTimezone")}
+                value={logsTimeZone}
+                onChange={onLogsTimeZoneChange}
+                sx={{width: {xs: "100%", md: "30%"}, minWidth: {md: 320}, mt: 2}}
+            />
         </SettingsLanguagesStyles.Wrapper>
     )
 }

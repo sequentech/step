@@ -1,0 +1,56 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Cache only public newest pages, after an uncached authorization subrequest.
+proxy_cache_path /var/cache/nginx/ballot-log levels=1:2 keys_zone=ballot_log:16m
+                 max_size=128m inactive=10s use_temp_path=off;
+map $upstream_http_x_ballot_cacheable $ballot_no_cache {
+    default 1;
+    "1" 0;
+}
+
+# Never share requests whose body is unavailable to the cache-key evaluator.
+map $request_body $ballot_body_missing { default 0; "" 1; }
+map $request_body_file $ballot_body_spilled { default 1; "" 0; }
+
+server {
+    listen 8080;
+    access_log off;
+    # Request bodies and bearer tokens are never logged.
+    error_log /dev/stderr warn;
+    client_max_body_size 16k;
+    client_body_buffer_size 16k;
+
+    location = /_ballot_log_authorize {
+        internal;
+        proxy_pass http://${HARVEST_DOMAIN}/ballot-box-log-authorize;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header Authorization $http_authorization;
+    }
+
+    location = /ballot-box-log {
+        auth_request /_ballot_log_authorize;
+        auth_request_set $ballot_scope $upstream_http_x_ballot_scope;
+        proxy_pass http://${HARVEST_DOMAIN};
+        proxy_cache ballot_log;
+        proxy_cache_methods POST;
+        proxy_cache_key "$request_method|$ballot_scope|$request_body";
+        proxy_cache_valid 200 3s;
+        proxy_cache_lock on;
+        proxy_cache_bypass $ballot_body_missing $ballot_body_spilled;
+        proxy_no_cache $ballot_no_cache $ballot_body_missing $ballot_body_spilled;
+        proxy_ignore_headers Cache-Control;
+        proxy_hide_header X-Ballot-Cacheable;
+        proxy_hide_header Cache-Control;
+        add_header Cache-Control "private, no-store" always;
+        # Stale entries must not extend the authorized checks period.
+        proxy_cache_use_stale off;
+        add_header X-Ballot-Cache $upstream_cache_status always;
+    }
+
+    # Own ballots, investigation data and mutations always reach Harvest.
+    location / {
+        proxy_pass http://${HARVEST_DOMAIN};
+    }
+}

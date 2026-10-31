@@ -12,7 +12,7 @@
 // an accepted promise is shown as a failure and reported to the monitors.
 // The vote is already cast: nothing here throws into the page.
 
-import type {ChainResult, Expect, Policy, PolicyHistory} from "@vitrine/verify"
+import type {ChainResult, Expect, Policy, PolicyHistory, TierResult} from "@vitrine/verify"
 import type {notes, promises} from "@vitrine/verify/pure"
 import {pinnedPolicy} from "./boothCheck"
 import {FetchLike, httpGet, IHttpResponse, joinUrl} from "./http"
@@ -116,10 +116,26 @@ export interface IReceiptRunOptions {
     onView: (view: IReceiptView) => void
 }
 
+/** How the check of Harvest's answer for one stage came out. */
+export enum EStageCheck {
+    /** A receipt, or a promise the booth accepts, for the voter's entry. */
+    CHECKED = "checked",
+    /** The log queued the entry or could not be reached: only the ballot box's
+     * own signature vouches for the stage, and the log is asked again. */
+    WAITING = "waiting",
+    /** An answer that is not the voter's receipt or an acceptable promise. */
+    FAILED = "failed",
+}
+
 export interface ICastReceiptOptions extends IReceiptRunOptions {
     /** Harvest's answer; null when it gave none for an event with
      * transparency on. */
     cast: IVitrineCast | null
+    /** Called once, when the answer has been checked and before any upgrade. */
+    onChecked?: (check: EStageCheck) => void
+    /** Stops after the check, but for asking the log for a receipt it queued:
+     * a cast or an audit, whose upgrades belong to the screen that follows. */
+    checkOnly?: boolean
 }
 
 /** A receipt kept on this device: its chain, or the entry that waits for one. */
@@ -136,6 +152,9 @@ export const MAX_POLL_MS = 30_000
 const RECEIPT_GRACE = 90
 /** How long after a promise's deadline the booth still asks for its receipt. */
 const PROMISE_ASK_GRACE = 30
+/** How long the confirmation screen asks for hub and browser anchors when
+ * their tiers name no deadline, in seconds. */
+export const ANCHORS_WAIT = 900
 /** `|time - now|` beyond which a promise is no promise (receipt.md, section 2). */
 const PROMISE_ACCEPT_WINDOW = 60
 /** The upgrader's reason when the log answered 425: a quiet period. */
@@ -180,7 +199,7 @@ class ReceiptRun {
             notice: EReceiptNotice.NONE,
             policy,
             policyText,
-            expect: receiptExpect(o.target),
+            expect: receiptExpect(sdk, o.target),
         }
     }
 
@@ -236,7 +255,7 @@ class ReceiptRun {
 
     /** Shows a chain for the voter's entry, if it verifies. */
     private accept(chain: string, own: IOwnEntry): boolean {
-        const expect = receiptExpect(this.o.target, own.acceptedAt)
+        const expect = receiptExpect(this.sdk, this.o.target, own.acceptedAt)
         const result = this.verify(chain, expect)
         if (!result || !hasReceipt(result)) return false
         this.waiting = undefined
@@ -249,7 +268,7 @@ class ReceiptRun {
      * answer, never the entry (specs/evidence.md, section 3.1). */
     private noReceipt(answer: string, own: IOwnEntry | undefined, reason?: string): void {
         this.waiting = own
-        const expect = receiptExpect(this.o.target, own?.acceptedAt)
+        const expect = receiptExpect(this.sdk, this.o.target, own?.acceptedAt)
         if (!this.policy.required) {
             this.show({
                 notice: own ? EReceiptNotice.WAITING : EReceiptNotice.UNCHECKED,
@@ -258,8 +277,8 @@ class ReceiptRun {
             })
             return
         }
-        const {eventId, electionId, ballotId} = this.o.target
-        const seen = `${eventId}/${electionId}/${ballotId}`
+        const {eventId, electionId, stage, ballotId} = this.o.target
+        const seen = `${eventId}/${electionId}/${stage}/${ballotId}`
         if (!observed.has(seen)) {
             observed.add(seen)
             sendObservation(
@@ -451,7 +470,27 @@ class ReceiptRun {
         }
         if (this.aborted || !this.view.chain || !chainReceipt(this.sdk, this.view.chain)) return
         if (atCast) await this.upgradeAtCast()
-        if (!this.aborted) await this.checkWithLog()
+        if (this.aborted || !(await this.checkWithLog()) || !atCast) return
+        await this.poll(
+            this.anchorsDue(),
+            () => this.checkWithLog(),
+            () => this.anchorsWaiting().length === 0
+        )
+    }
+
+    /** The hub and browser tiers that wait for their anchors. */
+    private anchorsWaiting(): TierResult[] {
+        return (this.view.result?.tiers ?? []).filter(
+            (t) => (t.tier === "hubs" || t.tier === "browser") && t.status === "pending"
+        )
+    }
+
+    /** When the anchors are due: the latest deadline of their tiers. */
+    private anchorsDue(): number {
+        const deadlines = this.anchorsWaiting().flatMap((t) =>
+            t.deadline === undefined ? [] : [t.deadline]
+        )
+        return deadlines.length > 0 ? Math.max(...deadlines) : this.nowSeconds() + ANCHORS_WAIT
     }
 
     /** Merges a voter route's answer into the chain if it verifies. */
@@ -509,7 +548,33 @@ class ReceiptRun {
         else await this.upgradePrivate()
     }
 
-    async fromCast(cast: IVitrineCast | null): Promise<void> {
+    /** What the answer came to, from the view it left. */
+    private checked(cast: IVitrineCast | null): EStageCheck {
+        if (this.view.chain && this.view.result && hasReceipt(this.view.result)) {
+            return EStageCheck.CHECKED
+        }
+        const kind = cast?.kind
+        return kind === EVitrineCastKind.QUEUED || kind === EVitrineCastKind.UNAVAILABLE
+            ? EStageCheck.WAITING
+            : EStageCheck.FAILED
+    }
+
+    /** Asks the log for the queued entry's receipt until it is due. */
+    private async askUntilReceived(): Promise<void> {
+        const own = this.waiting
+        if (!own || this.view.chain || this.mode !== ETransparencyMode.PUBLIC) return
+        await this.poll(
+            own.acceptedAt + this.policy.mmd + RECEIPT_GRACE,
+            () => this.askLog(own),
+            () => !this.waiting
+        )
+    }
+
+    async fromCast(
+        cast: IVitrineCast | null,
+        onChecked?: (check: EStageCheck) => void,
+        checkOnly = false
+    ): Promise<void> {
         const text = cast?.text ?? ""
         const logKey = this.ballotsLog?.vkey
         if (!cast) this.noReceipt(NO_ANSWER, undefined, ENoReceiptReason.NO_VITRINE)
@@ -527,7 +592,9 @@ class ReceiptRun {
             const reason = cast.reason && REASON_CODE.test(cast.reason) ? cast.reason : undefined
             this.noReceipt(cast.kind, own, reason)
         }
-        await this.upgrade(true)
+        onChecked?.(this.checked(cast))
+        if (checkOnly) await this.askUntilReceived()
+        else await this.upgrade(true)
     }
 
     /** A kept chain is shown as it verifies now; a kept entry waits for its
@@ -537,7 +604,7 @@ class ReceiptRun {
         const own =
             (receipt ? receiptEntry(this.sdk, this.o.target, receipt) : undefined) ??
             (acceptedAt === undefined ? undefined : entryAt(this.sdk, this.o.target, acceptedAt))
-        const expect = receiptExpect(this.o.target, own?.acceptedAt)
+        const expect = receiptExpect(this.sdk, this.o.target, own?.acceptedAt)
         if (chain) {
             this.show({chain, expect, own, result: this.verify(chain, expect)})
         } else {
@@ -586,11 +653,27 @@ const start = async (o: IReceiptRunOptions): Promise<ReceiptRun | undefined> => 
 /** Checks Harvest's answer at cast and upgrades the receipt while the page is
  * open, reporting each new view. */
 export const runCastReceipt = async (o: ICastReceiptOptions): Promise<void> => {
+    let reported = false
+    const report = (check: EStageCheck) => {
+        if (reported) return
+        reported = true
+        o.onChecked?.(check)
+    }
     try {
         const run = await start(o)
-        await run?.fromCast(o.cast)
+        if (!run) {
+            // Nothing could be set up: an unchecked view, not a checked stage.
+            report(
+                o.transparency.mode === ETransparencyMode.DISABLED
+                    ? EStageCheck.CHECKED
+                    : EStageCheck.FAILED
+            )
+            return
+        }
+        await run.fromCast(o.cast, report, o.checkOnly)
     } catch {
         // Aborted, or an unexpected failure: the page keeps what it showed.
+        report(EStageCheck.FAILED)
     }
 }
 

@@ -1,5 +1,5 @@
 {
-  "description": "While voting is open: entry 1 is for another event, entry 2 for an election the event doesn't have, entry 3 repeats entry 0's ballot, entry 4 was accepted an hour before the window and sequenced long after, entry 5 was sequenced 600 seconds after it was accepted, and entry 6 has three fields.",
+  "description": "While voting is open: entry 1 is for another event, entry 2 for an election the event doesn't have, entry 3 receives entry 0's ballot a second time, entry 4 was accepted an hour before the window and sequenced long after, entry 5 was sequenced 600 seconds after it was accepted, and entry 6 has three fields. No ballot is cast, so the rules about outcomes have nothing to fail.",
   "params": {
     "election-ids": [
       "mayor",
@@ -12,12 +12,12 @@
     "closes": 1793044800
   },
   "entries": [
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBCAAAJbXVuaS0yMDI2AAAFbWF5b3IAACDghKEFp7fVmbg0bTy6WsUbdW1+Kcfvd/2e/zH96uMTiQAACAAAAABq3wi8",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBEAAAJbXVuaS0yMDI1AAAHY291bmNpbAAAIDkLNqCVArBdT4wnrqJjbGt/0Fsn10LtMgdP/qH4iOvkAAAIAAAAAGrfCOQ=",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBHAAAJbXVuaS0yMDI2AAAKZG9nY2F0Y2hlcgAAIMIs7uZrirEESDyDBTFzsz+ZLdT8tFcoTGDvnWmaHHBZAAAIAAAAAGrfCQI=",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBCAAAJbXVuaS0yMDI2AAAFbWF5b3IAACDghKEFp7fVmbg0bTy6WsUbdW1+Kcfvd/2e/zH96uMTiQAACAAAAABq3wlI",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBCAAAJbXVuaS0yMDI2AAAFbWF5b3IAACB/3o7r84j8/2Z6ib5gQwzG4Zixp4y2A6Oc3QmIWjM24wAACAAAAABq3vpw",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBCAAAJbXVuaS0yMDI2AAAFbWF5b3IAACCSRr4em6n13luvdmolbrcl6adVH7k9f6p5PJOOD0HeNQAACAAAAABq3woQ",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBNAAAJbXVuaS0yMDI2AAAFbWF5b3IAAAhyZWNlaXZlZAAAIOCEoQWnt9WZuDRtPLpaxRt1bX4px+93/Z7/Mf3q4xOJAAAIAAAAAGrfCLw=",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBPAAAJbXVuaS0yMDI1AAAHY291bmNpbAAACHJlY2VpdmVkAAAgOQs2oJUCsF1PjCeuomNsa3/QWyfXQu0yB0/+ofiI6+QAAAgAAAAAat8I5A==",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBSAAAJbXVuaS0yMDI2AAAKZG9nY2F0Y2hlcgAACHJlY2VpdmVkAAAgwizu5muKsQRIPIMFMXOzP5kt1Py0VyhMYO+daZoccFkAAAgAAAAAat8JAg==",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBNAAAJbXVuaS0yMDI2AAAFbWF5b3IAAAhyZWNlaXZlZAAAIOCEoQWnt9WZuDRtPLpaxRt1bX4px+93/Z7/Mf3q4xOJAAAIAAAAAGrfCUg=",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBNAAAJbXVuaS0yMDI2AAAFbWF5b3IAAAhyZWNlaXZlZAAAIH/ejuvziPz/ZnqJvmBDDMbhmLGnjLYDo5zdCYhaMzbjAAAIAAAAAGre+nA=",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBNAAAJbXVuaS0yMDI2AAAFbWF5b3IAAAhyZWNlaXZlZAAAIJJGvh6bqfXeW692aiVutyXpp1UfuT1/qnk8k44PQd41AAAIAAAAAGrfChA=",
     "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQA3AAAJbXVuaS0yMDI2AAAFbWF5b3IAACD5sAeLXfWW0uoZAQwAG70AnmUd4sV+j7fjVfMeudP3OQ=="
   ],
   "sequenced": [
@@ -66,6 +66,10 @@
         "value": "mayor"
       },
       {
+        "name": "stage",
+        "value": "received"
+      },
+      {
         "name": "ballot_id",
         "value": "e084a105a7b7d599b8346d3cba5ac51b756d7e29c7ef77fd9eff31fdeae31389"
       },
@@ -82,6 +86,10 @@
       {
         "name": "election_id",
         "value": "council"
+      },
+      {
+        "name": "stage",
+        "value": "received"
       },
       {
         "name": "ballot_id",
@@ -102,6 +110,10 @@
         "value": "dogcatcher"
       },
       {
+        "name": "stage",
+        "value": "received"
+      },
+      {
         "name": "ballot_id",
         "value": "c22ceee66b8ab104483c83053173b33f992dd4fcb457284c60ef9d699a1c7059"
       },
@@ -118,6 +130,10 @@
       {
         "name": "election_id",
         "value": "mayor"
+      },
+      {
+        "name": "stage",
+        "value": "received"
       },
       {
         "name": "ballot_id",
@@ -138,6 +154,10 @@
         "value": "mayor"
       },
       {
+        "name": "stage",
+        "value": "received"
+      },
+      {
         "name": "ballot_id",
         "value": "7fde8eebf388fcff667a89be60430cc6e198b1a78cb603a39cdd09885a3336e3"
       },
@@ -154,6 +174,10 @@
       {
         "name": "election_id",
         "value": "mayor"
+      },
+      {
+        "name": "stage",
+        "value": "received"
       },
       {
         "name": "ballot_id",
@@ -173,7 +197,9 @@
     "event": "failing",
     "in-window": "failing",
     "on-time": "failing",
-    "one-ballot": "failing",
+    "one-outcome": "passing",
+    "one-stage": "failing",
+    "received-first": "passing",
     "vitrine/parse": "failing"
   }
 }

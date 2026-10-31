@@ -10,7 +10,7 @@ const execution = {
         logs: [],
         trustees: [
             {name: "trustee-1", status: ITallyTrusteeStatus.WAITING},
-            {name: "trustee-2", status: ITallyTrusteeStatus.KEY_RESTORED},
+            {name: "trustee-2", status: ITallyTrusteeStatus.CUSTODY_CONFIRMED},
         ],
         elections_status: [],
     },
@@ -18,7 +18,9 @@ const execution = {
 
 describe("getTallyTrusteeStatus", () => {
     it("returns the status for the trustee claim", () => {
-        expect(getTallyTrusteeStatus(execution, "trustee-2")).toBe(ITallyTrusteeStatus.KEY_RESTORED)
+        expect(getTallyTrusteeStatus(execution, "trustee-2")).toBe(
+            ITallyTrusteeStatus.CUSTODY_CONFIRMED
+        )
     })
 
     it.each(["another-trustee", undefined, null])("returns null for non-participant %s", (name) => {

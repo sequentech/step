@@ -257,14 +257,13 @@ describe("readLogs", () => {
     })
 
     it("lists the policy's hubs and the ones the log reports, with their last anchors", () => {
-        const [ballots, events] = readLogs(sidecarLogs(hex), sidecarStatus(hex), [
-            "hub-b.example",
-        ])
+        const [ballots, events] = readLogs(sidecarLogs(hex), sidecarStatus(hex), ["h3"])
         expect(ballots.hubs).toEqual([
-            {name: "hub-a.example", anchor: {size: 8, index: 41, time: NOW - 90}},
-            {name: "hub-b.example"},
+            {name: "h1", anchor: {size: 8, index: 41, time: NOW - 90}},
+            {name: "h2"},
+            {name: "h3"},
         ])
-        expect(events.hubs).toEqual([{name: "hub-b.example"}])
+        expect(events.hubs).toEqual([{name: "h3"}])
     })
 
     it("reads the jsonb Harvest returns as text, too", () => {

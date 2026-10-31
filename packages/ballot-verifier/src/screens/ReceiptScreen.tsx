@@ -18,18 +18,16 @@ import Button from "@mui/material/Button"
 import Typography from "@mui/material/Typography"
 import {styled} from "@mui/material/styles"
 import {useTranslation} from "react-i18next"
-import {PageLimit, theme} from "@sequentech/ui-essentials"
-import type {EvidenceDetail} from "@vitrine/ui"
+import {ActionsContainer, PageLimit, StyledButton, theme} from "@sequentech/ui-essentials"
 import type {Expect, PolicyHistory, Reason} from "@vitrine/verify"
 import {BallotForm} from "../components/Vitrine/BallotForm"
 import {PolicyFacts} from "../components/Vitrine/PolicyFacts"
 import {PolicyInput} from "../components/Vitrine/PolicyInput"
+import {BallotLookedFor, ReceiptFile} from "../components/Vitrine/ReceiptCards"
 import {ReceiptInput} from "../components/Vitrine/ReceiptInput"
-import {
-    useVitrineUi,
-    VitrineProofStepsView,
-    VitrineReceiptView,
-} from "../components/Vitrine/VitrineElements"
+import {ReceiptStatus} from "../components/Vitrine/ReceiptStatus"
+import {useVitrineUi} from "../components/Vitrine/VitrineElements"
+import {statusSteps} from "../services/vitrine/ballotStatus"
 import {ECheckRound, expectedBallotId} from "../services/vitrine/check"
 import {EPolicyFetchProblem, fetchPolicyText} from "../services/vitrine/http"
 import {
@@ -61,12 +59,24 @@ import {
     IReceiptCheckInput,
     useReceiptCheck,
 } from "./hooks/useReceiptCheck"
+import {useStepTimes} from "./hooks/useStepTimes"
 
 const Section = styled(Box)`
-    margin-top: 32px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
+`
+
+const SectionTitle = styled(Typography)`
+    margin: 28px 0 0;
+    font-size: 18px;
+    line-height: 1.5;
+    font-weight: 700;
+`
+
+const Rounds = styled(Typography)`
+    margin-top: 16px;
+    color: #475569;
 `
 
 const Muted = styled(Typography)`
@@ -129,10 +139,6 @@ const saveChain = (sdk: IVitrineSdk, chain: string): boolean => {
     return true
 }
 
-/** The statuses for which the screen says what to do next. The UI kit says it
- * for damaged data. */
-const ADVICE_STATUSES = ["failed", "late"]
-
 export const ReceiptScreen: React.FC<IReceiptScreenProps> = ({deps = {}}) => {
     const {t, i18n} = useTranslation()
     const lang = vitrineLanguage(i18n.language)
@@ -145,6 +151,7 @@ export const ReceiptScreen: React.FC<IReceiptScreenProps> = ({deps = {}}) => {
     const [{sdk, failed: sdkFailed}, setSdkState] = useState<ISdkState>({failed: false})
     const [pinned, setPinned] = useState<IPolicyView[]>([])
     const [receipt, setReceipt] = useState<TReceiptInput | undefined>(undefined)
+    const [receiptName, setReceiptName] = useState<string | undefined>(undefined)
     const [receiptProblem, setReceiptProblem] = useState<EInputProblem | undefined>(undefined)
     const [candidate, setCandidate] = useState<TCandidate | undefined>(undefined)
     const [formExpect, setFormExpect] = useState<Expect | undefined>(undefined)
@@ -170,7 +177,7 @@ export const ReceiptScreen: React.FC<IReceiptScreenProps> = ({deps = {}}) => {
         }
     }, [])
 
-    const openReceipt = (raw: string) => {
+    const openReceipt = (raw: string, fileName?: string) => {
         if (!sdk) return
         const parsed = parseReceiptInput(sdk, raw, window.location.href)
         if (!parsed.ok) {
@@ -179,6 +186,7 @@ export const ReceiptScreen: React.FC<IReceiptScreenProps> = ({deps = {}}) => {
         }
         candidateRun.current++
         setReceipt(parsed.value)
+        setReceiptName(fileName)
         setReceiptProblem(undefined)
         setCandidate(undefined)
         setFormExpect(undefined)
@@ -193,6 +201,7 @@ export const ReceiptScreen: React.FC<IReceiptScreenProps> = ({deps = {}}) => {
     const closeReceipt = () => {
         candidateRun.current++
         setReceipt(undefined)
+        setReceiptName(undefined)
         setReceiptProblem(undefined)
         setCandidate(undefined)
         setFormExpect(undefined)
@@ -307,7 +316,13 @@ export const ReceiptScreen: React.FC<IReceiptScreenProps> = ({deps = {}}) => {
         schedule: deps.schedule,
     })
 
-    const onEvidence = (_detail: EvidenceDetail) => {
+    const stepTimes = useStepTimes(
+        statusSteps(check.outcome?.result),
+        depsRef.current.now ?? (() => Math.floor(Date.now() / 1000)),
+        checkInput
+    )
+
+    const onEvidence = () => {
         if (sdk && check.outcome) setEvidenceSaved(saveChain(sdk, check.outcome.chain))
     }
 
@@ -434,22 +449,33 @@ export const ReceiptScreen: React.FC<IReceiptScreenProps> = ({deps = {}}) => {
         )
     }
 
+    const ballotSection = (): React.ReactNode => {
+        if (!receipt || !view || !sdk) return null
+        return (
+            <Section data-testid="ballot-section">
+                <SectionTitle variant="h3">{t("receiptScreen.ballot.title")}</SectionTitle>
+                {lookedFor ? (
+                    <BallotLookedFor
+                        ballotId={lookedFor}
+                        onChange={linkExpect ? undefined : () => setFormExpect(undefined)}
+                    />
+                ) : null}
+                {expect ? null : (
+                    <>
+                        <Muted variant="body2">{t("receiptScreen.ballot.description")}</Muted>
+                        <BallotForm sdk={sdk} policy={view.policy} onExpect={setFormExpect} />
+                    </>
+                )}
+            </Section>
+        )
+    }
+
     const resultSection = (): React.ReactNode => {
         if (!checkInput || !view || !expect) return null
-        const {outcome, running, problem, fullDue} = check
+        const {outcome, problem, fullDue} = check
         return (
             <Section data-testid="receipt-result">
-                <Typography variant="h5" component="h2">
-                    {t("receiptScreen.result.title")}
-                </Typography>
-                {lookedFor ? (
-                    <Typography variant="body2" data-testid="ballot-looked-for">
-                        {t("receiptScreen.ballot.lookedFor")} <code>{lookedFor}</code>
-                    </Typography>
-                ) : null}
-                {running && !outcome ? (
-                    <Typography role="status">{t("receiptScreen.result.checking")}</Typography>
-                ) : null}
+                <SectionTitle variant="h3">{t("receiptScreen.result.title")}</SectionTitle>
                 {problem ? (
                     <Alert
                         severity="warning"
@@ -463,67 +489,67 @@ export const ReceiptScreen: React.FC<IReceiptScreenProps> = ({deps = {}}) => {
                         {checkProblemText(problem)}
                     </Alert>
                 ) : null}
-                {uiFailed ? <Alert severity="error">{t("receiptScreen.loadFailed")}</Alert> : null}
+                {outcome || !problem ? (
+                    <ReceiptStatus
+                        result={outcome?.result}
+                        policy={view.policy}
+                        fullDue={fullDue}
+                        times={stepTimes}
+                        lang={lang}
+                        onEvidence={onEvidence}
+                    />
+                ) : null}
+                {evidenceSaved ? (
+                    <Alert severity="info" data-testid="evidence-saved">
+                        {t("receiptScreen.result.evidenceSaved")}
+                    </Alert>
+                ) : null}
                 {outcome ? (
-                    <>
-                        <VitrineReceiptView
-                            chain={outcome.chain}
-                            policy={view.policy}
-                            expect={expect}
-                            result={outcome.result}
-                            where="independent"
-                            lang={lang}
-                            onRetry={check.retry}
-                        />
-                        <Box data-testid={`round-${outcome.round}`}>
-                            <Muted variant="body2">
-                                {t(`receiptScreen.result.rounds.${outcome.round}`)}
-                            </Muted>
-                            {running ? (
-                                <Typography role="status" variant="body2">
-                                    {t("receiptScreen.result.checking")}
-                                </Typography>
-                            ) : outcome.round === ECheckRound.OFFLINE ? null : (
-                                <Button
-                                    variant="secondary"
-                                    onClick={check.checkEverything}
-                                    data-testid="check-everything"
-                                >
-                                    {fullDue
-                                        ? t("receiptScreen.result.checkEverything")
-                                        : t("receiptScreen.result.checkAgain")}
-                                </Button>
-                            )}
-                        </Box>
-                        <VitrineProofStepsView
-                            result={outcome.result}
-                            lang={lang}
-                            onEvidence={onEvidence}
-                        />
-                        {evidenceSaved ? (
-                            <Alert severity="info" data-testid="evidence-saved">
-                                {t("receiptScreen.result.evidenceSaved")}
-                            </Alert>
-                        ) : null}
-                        {ADVICE_STATUSES.includes(outcome.result.status) ? (
-                            <Alert severity="info" data-testid="check-advice">
-                                {t(`receiptScreen.result.advice.${outcome.result.status}`)}
-                            </Alert>
-                        ) : null}
-                    </>
+                    <Rounds variant="body2" data-testid={`round-${outcome.round}`}>
+                        {t(`receiptScreen.result.rounds.${outcome.round}`)}
+                    </Rounds>
                 ) : null}
             </Section>
         )
     }
 
+    const actions = (): React.ReactNode => {
+        if (!receipt) return null
+        const {outcome, running, fullDue} = check
+        return (
+            <ActionsContainer sx={{margin: "10px 0 20px", paddingTop: "24px"}}>
+                <StyledButton
+                    variant="secondary"
+                    onClick={closeReceipt}
+                    data-testid="receipt-another"
+                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                >
+                    <span>{t("receiptScreen.receipt.another")}</span>
+                </StyledButton>
+                {outcome && outcome.round !== ECheckRound.OFFLINE ? (
+                    <StyledButton
+                        onClick={check.checkEverything}
+                        disabled={!!running}
+                        data-testid="check-everything"
+                        sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                    >
+                        <span>
+                            {fullDue
+                                ? t("receiptScreen.result.checkEverything")
+                                : t("receiptScreen.result.checkAgain")}
+                        </span>
+                    </StyledButton>
+                ) : null}
+            </ActionsContainer>
+        )
+    }
+
     return (
         <PageLimit maxWidth="md" className="receipt-screen screen">
-            <Section>
-                <Typography variant="h4" component="h1">
-                    {t("receiptScreen.title")}
-                </Typography>
-                <Muted variant="body2">{t("receiptScreen.description")}</Muted>
-            </Section>
+            <Typography variant="h5" component="h1" sx={{padding: "40px 0 8px"}}>
+                {t("receiptScreen.title")}
+            </Typography>
+            <Muted variant="body2">{t("receiptScreen.description")}</Muted>
             {sdkFailed ? (
                 <Alert severity="error" data-testid="receipt-load-failed">
                     {t("receiptScreen.loadFailed")}
@@ -533,24 +559,17 @@ export const ReceiptScreen: React.FC<IReceiptScreenProps> = ({deps = {}}) => {
             ) : (
                 <>
                     <Section data-testid="receipt-section">
-                        <Typography variant="h5" component="h2">
-                            {t("receiptScreen.receipt.title")}
-                        </Typography>
+                        <SectionTitle variant="h3">{t("receiptScreen.receipt.title")}</SectionTitle>
                         {receiptProblem ? (
                             <Alert severity="warning" data-testid="receipt-problem">
                                 {t(`receiptScreen.receipt.problems.${receiptProblem}`)}
                             </Alert>
                         ) : null}
                         {receipt ? (
-                            <Box>
-                                <Button
-                                    variant="secondary"
-                                    onClick={closeReceipt}
-                                    data-testid="receipt-another"
-                                >
-                                    {t("receiptScreen.receipt.another")}
-                                </Button>
-                            </Box>
+                            <ReceiptFile
+                                name={receiptName ?? t("receiptScreen.receipt.pasteLabel")}
+                                detail={view?.summary.event}
+                            />
                         ) : (
                             <>
                                 <Muted variant="body2">
@@ -562,42 +581,18 @@ export const ReceiptScreen: React.FC<IReceiptScreenProps> = ({deps = {}}) => {
                     </Section>
                     {receipt ? (
                         <Section data-testid="policy-section">
-                            <Typography variant="h5" component="h2">
+                            <SectionTitle variant="h3">
                                 {t("receiptScreen.policy.title")}
-                            </Typography>
+                            </SectionTitle>
+                            {uiFailed ? (
+                                <Alert severity="error">{t("receiptScreen.loadFailed")}</Alert>
+                            ) : null}
                             {policySection()}
                         </Section>
                     ) : null}
-                    {receipt && view && !linkExpect ? (
-                        <Section data-testid="ballot-section">
-                            <Typography variant="h5" component="h2">
-                                {t("receiptScreen.ballot.title")}
-                            </Typography>
-                            {formExpect ? (
-                                <Box>
-                                    <Button
-                                        variant="secondary"
-                                        onClick={() => setFormExpect(undefined)}
-                                        data-testid="ballot-change"
-                                    >
-                                        {t("receiptScreen.ballot.change")}
-                                    </Button>
-                                </Box>
-                            ) : (
-                                <>
-                                    <Muted variant="body2">
-                                        {t("receiptScreen.ballot.description")}
-                                    </Muted>
-                                    <BallotForm
-                                        sdk={sdk}
-                                        policy={view.policy}
-                                        onExpect={setFormExpect}
-                                    />
-                                </>
-                            )}
-                        </Section>
-                    ) : null}
+                    {ballotSection()}
                     {resultSection()}
+                    {actions()}
                 </>
             )}
         </PageLimit>

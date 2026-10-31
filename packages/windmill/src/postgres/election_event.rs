@@ -182,19 +182,41 @@ pub async fn get_election_event_by_id_if_exist(
     Ok((election_event))
 }
 
-/// Whether an election event with this ID exists in any tenant.
+const ELECTION_EVENT_ID_LOCK_PREFIX: &str = "election-event-id";
+
+/// Locks an election event id until the transaction ends, so concurrent
+/// attempts to set up an election event with the same id run one at a time.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn lock_election_event_id(
+    hasura_transaction: &Transaction<'_>,
+    election_event_id: &str,
+) -> Result<()> {
+    let lock_key = format!(
+        "{ELECTION_EVENT_ID_LOCK_PREFIX}:{}",
+        parse_uuid_v4(election_event_id)?
+    );
+    hasura_transaction
+        .query_one(
+            "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+            &[&lock_key],
+        )
+        .await?;
+    Ok(())
+}
+
+/// Whether an election event with this id exists in any tenant.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn election_event_id_exists(
     hasura_transaction: &Transaction<'_>,
     election_event_id: &str,
 ) -> Result<bool> {
-    let statement = hasura_transaction
-        .prepare("SELECT 1 FROM sequent_backend.election_event WHERE id = $1")
+    let row = hasura_transaction
+        .query_one(
+            "SELECT EXISTS (SELECT 1 FROM sequent_backend.election_event WHERE id = $1)",
+            &[&parse_uuid_v4(election_event_id)?],
+        )
         .await?;
-    Ok(!hasura_transaction
-        .query(&statement, &[&parse_uuid_v4(election_event_id)?])
-        .await?
-        .is_empty())
+    Ok(row.try_get(0)?)
 }
 
 /// Returns all the Election events as ElectionEventDatafix
@@ -468,13 +490,47 @@ pub async fn get_election_event_by_election_area(
         .ok_or(anyhow!("Election event not found"))
 }
 
+/// Why an election event with ballot box seals can't be deleted.
+pub const SEALED_EVENT_DELETE_REFUSAL: &str =
+    "This election event has sealed ballot boxes and cannot be deleted. Archive it instead.";
+
+/// The refusal to delete an election event with ballot box seals, as a
+/// type callers can match ([`SEALED_EVENT_DELETE_REFUSAL`] is its text).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{}", SEALED_EVENT_DELETE_REFUSAL)]
+pub struct SealedEventDeleteRefusal;
+
 #[instrument(err, skip_all)]
 pub async fn delete_election_event(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<()> {
+    // Ballot box seals are permanent (VOTE-FREEZE): an event with any can't
+    // be deleted, only archived.
+    if super::ballot_box_seal::any_for_event(
+        hasura_transaction,
+        &parse_uuid_v4(tenant_id)?,
+        &parse_uuid_v4(election_event_id)?,
+    )
+    .await?
+    {
+        return Err(SealedEventDeleteRefusal.into());
+    }
+    super::trusted_write::trusted_write(hasura_transaction).await?;
+    super::protocol_board::delete_event_protocol_metadata(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
+    // Children before the rows their ON DELETE RESTRICT foreign keys name:
+    // tally_sheet_import_item references tally_sheet, tally_sheet_import,
+    // election, area and contest; tally_sheet references tally_sheet_import,
+    // which references document. tally_session_resolution goes with its
+    // tally_session, but its contest foreign key must not outlive contest.
     let related_tables = vec![
+        "phone_blacklist",
         "tally_results_publication",
         "secret",
         "area_contest",
@@ -488,8 +544,11 @@ pub async fn delete_election_event(
         "ballot_style",
         "ballot_publication",
         "candidate",
+        "tally_session_resolution",
         "tally_session_contest",
+        "tally_sheet_import_item",
         "tally_sheet",
+        "tally_sheet_import",
         "tally_session_execution",
         "contest",
         "election",
@@ -595,7 +654,7 @@ pub async fn get_batch_election_events(
     let statement = hasura_transaction
         .prepare(
             r#"
-            SELECT 
+            SELECT
                 *
             FROM sequent_backend.election_event
             WHERE is_archived = false

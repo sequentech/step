@@ -13,7 +13,6 @@ import React, {useContext, useEffect, useState} from "react"
 import {ElectionEventBaseTabs} from "./resources/ElectionEvent/ElectionEventBaseTabs"
 
 import {CreateAreaContest} from "./resources/AreaContest/CreateAreaContest"
-import {CreateBallotStyle} from "./resources/BallotStyle/CreateBallotStyle"
 import {CreateCandidate} from "./resources/Candidate/CreateCandidate"
 import {CreateContest} from "./resources/Contest/CreateContest"
 import {CreateDocument} from "./resources/Document/CreateDocument"
@@ -38,7 +37,7 @@ import {ElectoralLogConsole} from "./screens/ElectoralLogConsole"
 import {TaskQueues} from "./screens/TaskQueues"
 import {ListUsers} from "./resources/User/ListUsers"
 import {CustomLayout} from "./components/CustomLayout"
-import {EditBallotStyle} from "./resources/BallotStyle/EditBallotStyle"
+import {PluginRoute} from "./plugins/PluginRoutes"
 import {EditAreaContest} from "./resources/AreaContest/EditAreaContest"
 import {EditTenant} from "./resources/Tenant/EditTenant"
 import {CreateTenant} from "./resources/Tenant/CreateTenant"
@@ -50,10 +49,7 @@ import {SettingsElectionsTypesCreate} from "./resources/Settings/SettingsElectio
 import {adminI18nProvider} from "./services/AdminTranslation"
 import {useTranslation} from "react-i18next"
 import {ApolloContext} from "./providers/ApolloContextProvider"
-import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
-import {Box} from "@mui/material"
-import {styled} from "@mui/material/styles"
-import {useAtomValue} from "jotai"
+import {StyledAppAtom} from "@/components/StyledAppAtom"
 import ListScheduledEvents from "./resources/ScheduledEvents/ListScheduledEvent"
 import Notifications from "./resources/Notifications/Notifications"
 import {TemplateEdit} from "./resources/Template/TemplateEdit"
@@ -65,23 +61,9 @@ import {AuthContext} from "./providers/AuthContextProvider"
 import {customSortData} from "./lib/helpers"
 import {UpsertArea} from "./resources/Area/UpsertArea"
 import {TrusteeDashboard} from "./screens/TrusteeDashboard"
+import {rethrowTrustedWriteError} from "./services/trustedWriteError"
 
 interface AppProps {}
-
-const StyledApp = styled(Box, {
-    shouldForwardProp: (prop) => prop !== "customCss",
-})<{customCss: string}>`
-    ${({customCss}) => customCss}
-`
-
-export const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children}) => {
-    const css = useAtomValue(cssInputLookAndFeel)
-    return (
-        <StyledApp className="styled-app-atom" customCss={css}>
-            {children}
-        </StyledApp>
-    )
-}
 
 // This function builds and wraps your Hasura data provider.
 export const buildWrappedHasuraProvider = async (apolloClient: any): Promise<DataProvider> => {
@@ -98,6 +80,12 @@ export const buildWrappedHasuraProvider = async (apolloClient: any): Promise<Dat
     // Override the getList method to apply custom sort logic.
     const wrappedDataProvider: DataProvider = {
         ...dataProviderHasura,
+        create: (resource, params) =>
+            dataProviderHasura.create(resource, params).catch(rethrowTrustedWriteError),
+        update: (resource, params) =>
+            dataProviderHasura.update(resource, params).catch(rethrowTrustedWriteError),
+        updateMany: (resource, params) =>
+            dataProviderHasura.updateMany(resource, params).catch(rethrowTrustedWriteError),
         getList: (resource: string, params: GetListParams): Promise<GetListResult> =>
             dataProviderHasura.getList(resource, params).then((response: GetListResult) => {
                 // Create a new sort object ensuring proper literal types for order.
@@ -159,6 +147,7 @@ const App: React.FC<AppProps> = () => {
                     <Route path="/electoral-log-console" element={<ElectoralLogConsole />} />
                     <Route path="/task-queues" element={<TaskQueues />} />
                     <Route path="/settings/*" element={<SettingsScreen />} />
+                    <Route path="/plugins/:id/*" element={<PluginRoute />} />
                 </CustomRoutes>
 
                 <Resource
@@ -216,9 +205,7 @@ const App: React.FC<AppProps> = () => {
                 />
                 <Resource
                     name="sequent_backend_ballot_style"
-                    edit={EditBallotStyle}
                     list={ListBallotStyle}
-                    create={CreateBallotStyle}
                     options={{label: "Ballot Styles"}}
                 />
                 <Resource name="sequent_backend_certificate_authority" />
@@ -280,7 +267,7 @@ const App: React.FC<AppProps> = () => {
 
                 <Resource
                     name="user"
-                    edit={UpsertArea}
+                    edit={ListUsers}
                     list={ListUsers}
                     options={{label: "Users"}}
                 />

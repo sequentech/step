@@ -7,7 +7,9 @@ use super::utils::*;
 use crate::services::ballot_box::get_voter_ballot_state;
 use crate::services::database::get_hasura_pool;
 use crate::services::pg_lock::PgLock;
-use crate::services::users::{list_users, FilterOption, ListUsersFilter};
+use crate::services::users::{
+    changed_census_attributes, list_users, FilterOption, ListUsersFilter,
+};
 use anyhow::Result;
 use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -177,9 +179,27 @@ pub async fn update_datafix_voter(
         })?;
         hash_map.insert(DATE_OF_BIRTH.to_string(), vec![birthdate]);
     }
-    let attributes = Some(hash_map);
 
     let user_id = get_user_id(keycloak_transaction, realm, &username).await?;
+    let previous_user = client.get_user(realm, &user_id).await.map_err(|e| {
+        error!("Error loading user before updating it: {e:?}");
+        DatafixResponse::error(DatafixErrorCode::InternalError)
+    })?;
+    if !changed_census_attributes(&previous_user, voter_info.enabled, &hash_map).is_empty() {
+        let state =
+            get_voter_ballot_state(hasura_transaction, tenant_id, election_event_id, &user_id)
+                .await
+                .map_err(|err| {
+                    error!(
+                "Error checking for an active online vote before updating a Datafix voter: {err}"
+            );
+                    DatafixResponse::error(DatafixErrorCode::InternalError)
+                })?;
+        if let Some(error_code) = active_vote_error(&state) {
+            return Err(DatafixResponse::error(error_code));
+        }
+    }
+    let attributes = Some(hash_map);
     let _user = client
         .edit_user(
             realm,

@@ -132,9 +132,10 @@ logged, and other languages are unaffected.
 The configured format applies to the voter-visible dates rendered by the Voting Portal:
 
 - **Election cards** — the open / close period dates shown in the election list.
-- **Ballot Locator** — the timestamps in the Logs tab.
+- **Ballot status dialog** — when the ballot was cast.
+- **Ballot Tracking** — the timestamps in the Logs tab, the times of the receipt's steps and when each of several matching ballots was cast.
 
-> **Note:** Ballot Locator timestamps previously rendered as a raw UTC string. With this
+> **Note:** Ballot Tracking timestamps previously rendered as a raw UTC string. With this
 > feature they render in the configured format (in local time), consistent with the rest
 > of the Voting Portal.
 

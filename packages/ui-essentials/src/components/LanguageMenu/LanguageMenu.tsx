@@ -10,6 +10,7 @@ import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {faLanguage, faCaretDown} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
+import {toBCP47} from "@sequentech/ui-core"
 import {useInertBackground} from "../../services/useInertBackground"
 
 interface ButtonProps {
@@ -17,9 +18,9 @@ interface ButtonProps {
 }
 
 const StyledButton = styled(Button)<ButtonProps>(
-    ({isactive}) => `
+    ({isactive, theme}) => `
     gap: 10px;
-    color: ${({theme}) => theme.black};
+    color: ${theme.palette.black};
     border-color: transparent;
     background-color: ${"true" === isactive ? "#eee" : "inherit"};
 `
@@ -76,9 +77,9 @@ const LanguageMenu: React.FC<{
                 id="lang-button"
                 variant="actionbar"
                 data-testid="lang-button-test"
-                aria-label={t("language")}
                 aria-controls={open ? "lang-menu" : undefined}
                 aria-haspopup="true"
+                aria-label={t("a11y.languageSelector", {language: t("language")})}
                 aria-expanded={open ? "true" : undefined}
                 onClick={handleClick}
                 isactive={String(open)}
@@ -112,6 +113,10 @@ const LanguageMenu: React.FC<{
                 {languagesList.map((language) => (
                     <MenuItem
                         className="language-option"
+                        role="menuitemradio"
+                        aria-checked={language === i18n.language}
+                        selected={language === i18n.language}
+                        lang={toBCP47(language)}
                         onClick={() => changeLanguage(language)}
                         key={`menu-language-${language}`}
                     >

@@ -38,7 +38,7 @@ event has two logs on the sidecar:
 
 | Log | Profile | Entries | How they arrive |
 | --- | --- | --- | --- |
-| `ballots` | `vitrine/election/ballots/v1` | One per accepted ballot | The ballot box writes the entry to the log's queue in the event's electoral-log database, in the transaction that stores the ballot. |
+| `ballots` | `vitrine/election/ballots/v1` | One per accepted ballot and stage: `received` at review, then `cast` or `audited` (a direct cast writes `received` and `cast` together) | The ballot box writes the entry to the log's queue in the event's electoral-log database, in the transaction that stores the ballot or its step. |
 | `events` | `vitrine/election/events/v1` | Each election's configuration, `voting-opened`, `voting-closed`, and a milestone when a tally completes and when results are published | Windmill posts signed statements to the sidecar's `POST add`, with the log's submission token. |
 
 Witnesses co-sign the logs' checkpoints. The event's trust policy names the
@@ -158,6 +158,45 @@ sequenceDiagram
   one cast tries again: its success closes the breaker, its failure opens it
   for another period.
 
+### Receiving at review, then casting or auditing
+
+With the event's **Receipts signed by the ballot box** setting, a ballot goes
+through the `ballots` log in steps, each its own entry with a `stage`:
+`received`, then `cast` or `audited`. The profile's rules check that a ballot
+has one entry per stage, is cast or audited but not both, and that a `cast` or
+`audited` entry follows a `received` one.
+
+- **Receive** (`POST /receive-ballot`). When the review screen opens, the
+  portal sends the voter-signed ballot. Windmill runs the cast checks, stores
+  it in `ballot_box_received` and queues its `received` entry in the same
+  transaction, then answers with the ballot box's signature
+  (`step/ballot-received/v1`) and the log's receipt, promise, queued entry or
+  reason, as for a cast. The portal turns **Cast ballot** on once it has
+  checked the signature and, with transparency on, the log's receipt or
+  promise for the `received` entry it computes itself. A queued entry or a
+  log it cannot reach leaves the signature, and the portal asks the log
+  again. The monitors keep the promise, so a log that breaks it is caught
+  without the voter.
+- **Cast** (`POST /cast-ballot`). The same voter key signs the cast of the
+  receipt key the ballot box signed at review (`step/ballot-cast/v1`); the
+  ballot is not sent again. Windmill
+  stores the cast vote, marks the received ballot cast and queues the `cast`
+  entry in one write, and signs a cast receipt
+  (`step/ballot-cast-receipt/v1`). The portal checks the receipt or promise
+  for the `cast` entry before it opens the confirmation screen. The same
+  signature again is a retry and gets the same receipt.
+- **Audit** (`POST /audit-ballot`). Auditing a received ballot queues its
+  `audited` entry and stops it from ever being cast; the portal shows the
+  plaintext only after the ballot box acknowledges the audit.
+- **A reload** drops the key that casts the ballot. The portal keeps a
+  marker (no key and no choices) once the ballot box has the ballot, and after
+  a reload the review screen says **Your ballot was not cast** and offers
+  **Back to my ballot**.
+
+Telephone voting has no voter device to check a receipt, so it keeps casting
+directly through `insert_cast_vote`, which queues the `received` and `cast`
+entries together.
+
 ### Statements in the `events` log
 
 Windmill beat runs `schedule_vitrine_statements` every 15 seconds (the beat
@@ -226,6 +265,56 @@ events prefix is never forwarded to voters. Public discovery can check a
 complete prefix for absence and order; a new candidate still needs a separate
 earliest-quorum proof before adoption.
 
+### What the portals show
+
+The admin portal's Transparency tab follows Vitrine's design board for the
+event's overview. It shows only what `get_transparency` returns, and says
+"Not reported" for the rest instead of guessing:
+
+- **The record's health** comes from the stored policy, the logs' reported
+  alerts and their witnesses: it is healthy unless the stored policy is
+  invalid, a log runs under another policy ID, or a log or witness reports an
+  alert.
+- **Figures** the sidecar reports: the entries in the logs' witnessed
+  checkpoints, the sequencer queue and how long its oldest entry has waited,
+  and when an app hub last received an anchor. Not reported: the accepted
+  rate, the receipt time, the browser layer, overdue promises, evidence
+  reports, the booth release and which milestones the record holds.
+- **Witnesses, hubs, monitors and redactions** come from the sealed policy,
+  with each witness in its worst state across the event's logs.
+- **Visibility** is the mode the logs were created with, locked once voting
+  opened. The draft, upload and enrolment workflow stays below the overview.
+
+The voting portal's flow stays as it is, with additions when the event's
+transparency is on: a check mark next to the Tracking ID, the name the voter
+sees for the ballot's ID (`ballot_id` in the API and the database), and a tag
+that says **Not cast** or **Cast**. The Tracking ID is the first 32 bytes of
+SHA-512 over `step/ballot-id/v2`, the ballot's hash and the voter key's DER
+(empty without a key), each length-prefixed, written in Crockford base32 in
+hyphenated groups of four, as in `FTBE-MHRX-71J7-…`. The first two groups are
+the short ID. Voter pseudonyms use a colon instead (`K7QM:2XWD`), so the two
+never read as each other. A lookup ignores case and hyphens, reads `I` and `L`
+as `1` and `O` as `0`, and needs at least 8 characters; when a short ID fits
+up to 10 ballots it lists them, and above that it asks for more characters. On
+the review screen the ID sits in
+a box next to the title on a wide screen. The check mark shows how far the
+receipt's check has got: not cast yet on the review screen, then checking, in
+the public record, confirmed by witnesses, verified, late or problem. The worst
+step wins, and it is blue only when every tier the policy uses is verified.
+Selecting it opens a dialog with the short and full ID and three steps: in the
+public record, confirmed by witnesses and anchored publicly. The dialog also
+has two states for an audited ballot, auditable and audit failed, but Step does
+not open it in those two states today. Contradicting signed proofs, or a
+required receipt that never came, show as a problem, and never turn an accepted
+cast into a failed one. In the election list, **Ballot cast** with the check
+mark replaces **Voted** for a ballot whose receipt this browser kept, and
+**Click to Vote** is off once the voter cast every ballot an open election
+allows. The ballot tracker, Ballot Tracking, shows the whole receipt, for a
+ballot found by its short or full Tracking ID, and the ballot's record in a
+viewer that expands, copies and saves it. Step does not publish audited
+ballots; when the record that the tracker finds for a Tracking ID is an audited
+ballot, the tracker checks it in the voter's browser and shows its selections.
+
 ### Deleting, exporting and importing events
 
 - Deleting a transparent event freezes its logs first, with
@@ -259,7 +348,7 @@ vkeys: Ed25519 for authorities, auditors, monitors and hubs, and
 | `operator` | Yes | The party that runs the logs, as a name. |
 | `quorum` | Yes | The app quorum: the name of a group or a witness. |
 | `min_faults` | No | Every quorum must tolerate this many more faulty parties. |
-| `words` | No | The language of policy and receipt words: `en`, `es`, `fr`, `it`, `pt`, `cs`, `ja`, `ko`, `zh-hans` or `zh-hant`. The event's default language is used instead when it is one of them. |
+| `words` | No | The language of the policy's words: `en`, `es`, `fr`, `it`, `pt`, `cs`, `ja`, `ko`, `zh-hans` or `zh-hant`. The event's default language is used instead when it is one of them. |
 | `mmd` | No | The maximum merge delay of promises, in seconds. Default 30, at most 3600. |
 | `explorer_url` | No | The explorer's page for a policy, with `{policy_id}` where the ID goes. The Transparency tab links to it. |
 | `monitor_quorum` | No | How many monitors, of distinct parties, must report an availability failure before verifiers show it as established. At least two and at most the number of monitors; at least two distinct monitor parties are required. |

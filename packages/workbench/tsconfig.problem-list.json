@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "rootDir": "..",
+    "outDir": "dist/problem-list/types",
+    "paths": {}
+  },
+  "include": ["src/problemList.ts", "src/env.d.ts"],
+  "exclude": []
+}

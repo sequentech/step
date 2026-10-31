@@ -38,14 +38,10 @@ export const loadVitrineSdk = (): Promise<IVitrineSdk> => {
     return sdk
 }
 
-/** The UI kit, with its elements (`<vitrine-receipt>`, `<vitrine-proof-steps>`
- * and the others) defined. */
+/** The UI kit, for the words it says a trust policy in. */
 export const loadVitrineUi = (): Promise<TVitrineUi> => {
     if (!ui) {
-        const loading = import("@vitrine/ui").then((kit) => {
-            kit.defineAll()
-            return kit
-        })
+        const loading = import("@vitrine/ui")
         loading.catch(() => {
             if (ui === loading) ui = undefined
         })

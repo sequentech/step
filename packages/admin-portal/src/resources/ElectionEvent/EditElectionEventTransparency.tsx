@@ -3,34 +3,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // The election event's Transparency tab (step-integration.md, section 2.8):
-// its Vitrine mode, the trust policy the Electoral Board seals, the logs with
-// their witnesses and hubs, and the witness enrolment notes. Everything Harvest
-// and the sidecar return is shown as text; the policy's ID and words are
-// computed here with @vitrine/verify, and its labels come from the UI kit.
+// the record's health and figures, its Vitrine mode, the trust policy the
+// Electoral Board seals, the logs with their witnesses and hubs, and the
+// witness enrolment notes. Everything Harvest and the sidecar return is shown
+// as text; the policy's ID and words are computed here with @vitrine/verify,
+// and its labels come from the UI kit.
 
 import React, {ChangeEvent, useEffect, useMemo, useState} from "react"
 import {useMutation, useQuery} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {
     Alert,
-    AlertTitle,
     Box,
     Button,
-    Card,
-    CardContent,
-    Chip,
     CircularProgress,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogContentText,
-    DialogTitle,
-    FormControl,
-    FormControlLabel,
-    FormLabel,
-    Link,
-    Radio,
-    RadioGroup,
     Stack,
     Table,
     TableBody,
@@ -61,12 +47,10 @@ import {
 import {
     boardCommands,
     draftFileName,
-    ENABLED_MODES,
     EPolicyMismatch,
     EPolicyState,
     ETransparencyMode,
     ILogView,
-    isKnownRefusal,
     MAX_POLICY_CHARS,
     normalisePolicyText,
     policyHex,
@@ -76,10 +60,37 @@ import {
     readMode,
     safeExternalUrl,
     sameDraft,
+    signedPolicyFileName,
     TPolicyExamination,
     examinePolicy,
     vitrineLanguage,
 } from "@/services/Transparency"
+import {
+    EPolicyCheck,
+    hubRows,
+    policyFacts,
+    recordFigures,
+    recordHealth,
+    witnessRows,
+} from "@/services/TransparencyOverview"
+import {
+    AnchoringCard,
+    BOARD,
+    BoardSection,
+    BoothCard,
+    columns,
+    ETone,
+    Figures,
+    filledButton,
+    HealthBanner,
+    MilestonesCard,
+    outlinedButton,
+    PolicyCards,
+    StatusChip,
+    textButton,
+    VisibilityCard,
+    WitnessesCard,
+} from "./TransparencyOverview"
 
 const ROLE = {headers: {"x-hasura-role": IPermissions.ELECTION_EVENT_TRANSPARENCY_TAB}}
 const TEXT_MEDIA_TYPE = "text/plain;charset=utf-8"
@@ -110,6 +121,18 @@ const useVitrineSdk = (): ESdkState => {
         }
     }, [])
     return state
+}
+
+const CLOCK_TICK_MS = 10_000
+
+/** Now, in POSIX seconds, updated while the tab is open. */
+const useNow = (): number => {
+    const [now, setNow] = useState(() => Date.now() / 1000)
+    useEffect(() => {
+        const timer = setInterval(() => setNow(Date.now() / 1000), CLOCK_TICK_MS)
+        return () => clearInterval(timer)
+    }, [])
+    return now
 }
 
 const formatTime = (seconds: number, lang: string): string => {
@@ -145,6 +168,8 @@ const downloadText = (name: string, text: string): void => {
 
 const monospace = {fontFamily: "monospace", overflowWrap: "anywhere"} as const
 
+const subHeading = {m: 0, fontSize: "14px", fontWeight: 700, color: BOARD.text} as const
+
 const CopyButton: React.FC<{text: string; label: string; testId?: string}> = ({
     text,
     label,
@@ -161,141 +186,13 @@ const CopyButton: React.FC<{text: string; label: string; testId?: string}> = ({
         }
     }
     return (
-        <Button size="small" onClick={copy} data-testid={testId}>
+        <Button onClick={copy} data-testid={testId} sx={textButton}>
             {copied === undefined
                 ? label
                 : copied
                   ? t("transparencyTab.copied")
                   : t("transparencyTab.copyFailed")}
         </Button>
-    )
-}
-
-// -- Mode -------------------------------------------------------------------------
-
-interface IModeCardProps {
-    mode: ETransparencyMode
-    refusal?: string
-    locked: boolean
-    enabling: boolean
-    onEnable: (mode: ETransparencyMode) => void
-}
-
-const RefusalAlert: React.FC<{code: string}> = ({code}) => {
-    const {t} = useTranslation()
-    return (
-        <Alert severity="warning" data-testid="public-refusal">
-            <AlertTitle>{t("transparencyTab.mode.refusalTitle")}</AlertTitle>
-            {isKnownRefusal(code)
-                ? t(`transparencyTab.mode.refusals.${code}`)
-                : t("transparencyTab.mode.refusalUnknown", {code})}{" "}
-            {t("transparencyTab.mode.refusalOptions")}
-        </Alert>
-    )
-}
-
-const ModeCard: React.FC<IModeCardProps> = ({mode, refusal, locked, enabling, onEnable}) => {
-    const {t} = useTranslation()
-    const publicRefused = Boolean(refusal)
-    const [choice, setChoice] = useState(
-        publicRefused ? ETransparencyMode.PRIVATE : ETransparencyMode.PUBLIC
-    )
-    const [confirming, setConfirming] = useState(false)
-    const chosen = publicRefused && choice === ETransparencyMode.PUBLIC ? undefined : choice
-
-    return (
-        <Card variant="outlined">
-            <CardContent>
-                <Stack spacing={2}>
-                    <Typography variant="h6" component="h3">
-                        {t("transparencyTab.mode.title")}
-                    </Typography>
-                    <Box>
-                        <Chip
-                            data-testid="transparency-mode"
-                            label={t(`transparencyTab.mode.${mode}`)}
-                            color={mode === ETransparencyMode.DISABLED ? "default" : "success"}
-                        />
-                        <Typography variant="body2" sx={{mt: 1}}>
-                            {t(`transparencyTab.mode.${mode}Help`)}
-                        </Typography>
-                    </Box>
-                    {locked ? (
-                        <Alert severity="info" data-testid="transparency-locked">
-                            {t("transparencyTab.mode.locked")}
-                        </Alert>
-                    ) : null}
-                    {refusal && mode === ETransparencyMode.DISABLED ? (
-                        <RefusalAlert code={refusal} />
-                    ) : null}
-                    {mode === ETransparencyMode.DISABLED && !locked ? (
-                        <Box data-testid="enable-transparency">
-                            <FormControl>
-                                <FormLabel id="transparency-mode-choice">
-                                    {t("transparencyTab.mode.choose")}
-                                </FormLabel>
-                                <RadioGroup
-                                    aria-labelledby="transparency-mode-choice"
-                                    value={chosen ?? ""}
-                                    onChange={(e) => setChoice(e.target.value as ETransparencyMode)}
-                                >
-                                    {ENABLED_MODES.map((m) => (
-                                        <FormControlLabel
-                                            key={m}
-                                            value={m}
-                                            control={<Radio />}
-                                            disabled={
-                                                m === ETransparencyMode.PUBLIC && publicRefused
-                                            }
-                                            label={`${t(`transparencyTab.mode.${m}`)}: ${t(
-                                                `transparencyTab.mode.${m}Help`
-                                            )}`}
-                                        />
-                                    ))}
-                                </RadioGroup>
-                            </FormControl>
-                            <Box>
-                                <Button
-                                    variant="contained"
-                                    disabled={!chosen || enabling}
-                                    onClick={() => setConfirming(true)}
-                                    data-testid="enable-transparency-button"
-                                >
-                                    {t("transparencyTab.mode.enable")}
-                                </Button>
-                            </Box>
-                            <Dialog open={confirming} onClose={() => setConfirming(false)}>
-                                <DialogTitle>
-                                    {t("transparencyTab.mode.confirmTitle", {
-                                        mode: chosen ? t(`transparencyTab.mode.${chosen}`) : "",
-                                    })}
-                                </DialogTitle>
-                                <DialogContent>
-                                    <DialogContentText>
-                                        {t("transparencyTab.mode.confirmText")}
-                                    </DialogContentText>
-                                </DialogContent>
-                                <DialogActions>
-                                    <Button onClick={() => setConfirming(false)}>
-                                        {t("transparencyTab.cancel")}
-                                    </Button>
-                                    <Button
-                                        variant="contained"
-                                        data-testid="confirm-enable-transparency"
-                                        onClick={() => {
-                                            setConfirming(false)
-                                            if (chosen) onEnable(chosen)
-                                        }}
-                                    >
-                                        {t("transparencyTab.mode.enable")}
-                                    </Button>
-                                </DialogActions>
-                            </Dialog>
-                        </Box>
-                    ) : null}
-                </Stack>
-            </CardContent>
-        </Card>
     )
 }
 
@@ -316,10 +213,20 @@ const PolicyFacts: React.FC<{
             sx={{
                 "display": "grid",
                 "gridTemplateColumns": "minmax(8em, max-content) 1fr",
+                "alignItems": "baseline",
                 "gap": "4px 16px",
                 "m": 0,
-                "& dt": {fontWeight: "bold"},
-                "& dd": {m: 0, overflowWrap: "anywhere"},
+                "& dt": {fontSize: "12.5px", fontWeight: 600, color: BOARD.subtle},
+                "& dd": {
+                    m: 0,
+                    fontSize: "14px",
+                    color: BOARD.text,
+                    overflowWrap: "anywhere",
+                    display: "flex",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                    gap: "0 8px",
+                },
                 "& ul": {m: 0, pl: 2},
             }}
         >
@@ -375,7 +282,7 @@ const DraftSection: React.FC<{
     }
     return (
         <Stack spacing={1} data-testid="draft-policy">
-            <Typography variant="subtitle1" component="h4">
+            <Typography component="h4" sx={subHeading}>
                 {t("transparencyTab.policy.draftTitle")}
             </Typography>
             {changed ? (
@@ -383,7 +290,7 @@ const DraftSection: React.FC<{
             ) : null}
             <Typography variant="body2">{t("transparencyTab.policy.draftHelp")}</Typography>
             <Box>
-                <Typography variant="body2" sx={{fontWeight: "bold"}}>
+                <Typography variant="body2" sx={{fontWeight: 700, color: BOARD.text}}>
                     {t("transparencyTab.policy.draftWords")}
                 </Typography>
                 <Typography lang={examined.policy.words} data-testid="draft-words">
@@ -395,14 +302,14 @@ const DraftSection: React.FC<{
             </Box>
             <Box>
                 <Button
-                    variant="outlined"
                     data-testid="download-draft"
                     onClick={() => downloadText(draftFileName(electionEventId), text)}
+                    sx={outlinedButton}
                 >
                     {t("transparencyTab.policy.download")}
                 </Button>
             </Box>
-            <Typography variant="body2" sx={{fontWeight: "bold"}}>
+            <Typography variant="body2" sx={{fontWeight: 700, color: BOARD.text}}>
                 {t("transparencyTab.policy.commands")}
             </Typography>
             <Box
@@ -471,14 +378,14 @@ const UploadForm: React.FC<IUploadFormProps> = ({
 
     return (
         <Stack spacing={1} data-testid="upload-policy">
-            <Typography variant="subtitle1" component="h4">
+            <Typography component="h4" sx={subHeading}>
                 {successor
                     ? t("transparencyTab.upload.successorTitle")
                     : t("transparencyTab.upload.title")}
             </Typography>
             <Typography variant="body2">{t("transparencyTab.upload.help")}</Typography>
             <Box>
-                <Button variant="outlined" component="label">
+                <Button component="label" sx={outlinedButton}>
                     {t("transparencyTab.upload.chooseFile")}
                     <input
                         hidden
@@ -543,10 +450,10 @@ const UploadForm: React.FC<IUploadFormProps> = ({
                     ) : null}
                     <Box>
                         <Button
-                            variant="contained"
                             disabled={Boolean(mismatch) || uploading}
                             onClick={submit}
                             data-testid="upload-policy-button"
+                            sx={filledButton}
                         >
                             {t("transparencyTab.upload.submit")}
                         </Button>
@@ -591,72 +498,70 @@ const PolicyCard: React.FC<IPolicyCardProps> = ({
     const loggedId = policyHex(output.policy_id)
 
     return (
-        <Card variant="outlined">
-            <CardContent>
-                <Stack spacing={2}>
-                    <Typography variant="h6" component="h3">
-                        {t("transparencyTab.policy.title")}
-                    </Typography>
-                    {sealedPolicy ? (
-                        <Stack spacing={1} data-testid="sealed-policy">
-                            <Typography variant="subtitle1" component="h4">
-                                {t("transparencyTab.policy.sealedTitle")}
-                            </Typography>
-                            <Typography variant="body2">
-                                {t("transparencyTab.policy.sealedHelp")}
-                            </Typography>
-                            <PolicyFacts
-                                policy={sealedPolicy.policy}
-                                summary={sealedPolicy.summary}
-                                words={words}
-                                testId="event-policy"
-                            />
-                            {output.policy_id && loggedId !== policyHex(sealedPolicy.policy.id) ? (
-                                <Alert severity="error" data-testid="policy-id-mismatch">
-                                    {t("transparencyTab.policy.idMismatch", {id: output.policy_id})}
-                                </Alert>
-                            ) : null}
-                        </Stack>
-                    ) : null}
-                    {sealed && sealed.state !== EPolicyState.SEALED ? (
-                        <Alert severity="error" data-testid="stored-policy-invalid">
-                            {t("transparencyTab.policy.invalidStored", {
-                                reason: words.reason(
-                                    sealed.state === EPolicyState.INVALID
-                                        ? sealed.reason
-                                        : {code: "policy-draft"}
-                                ),
-                            })}
-                        </Alert>
-                    ) : null}
-                    {draftToShow && output.draft_policy ? (
-                        <DraftSection
-                            electionEventId={electionEventId}
-                            text={output.draft_policy}
-                            examined={draftToShow}
-                            changed={changed}
-                            words={words}
-                        />
-                    ) : null}
-                    {!sealed && !output.draft_policy ? (
-                        <Typography variant="body2" data-testid="no-draft">
-                            {t("transparencyTab.policy.none")}
+        <BoardSection title={t("transparencyTab.policy.title")} testId="transparency-policy">
+            <Stack spacing={2} sx={{color: BOARD.text}}>
+                {output.locked ? (
+                    <Typography variant="body2">{t("transparencyTab.mode.locked")}</Typography>
+                ) : null}
+                {sealedPolicy ? (
+                    <Stack spacing={1} data-testid="sealed-policy">
+                        <Typography component="h4" sx={subHeading}>
+                            {t("transparencyTab.policy.sealedTitle")}
                         </Typography>
-                    ) : null}
-                    {!output.locked ? (
-                        <UploadForm
-                            electionEventId={electionEventId}
-                            mode={mode}
-                            successor={Boolean(sealedPolicy)}
-                            draft={draftPolicy}
-                            uploading={uploading}
+                        <Typography variant="body2">
+                            {t("transparencyTab.policy.sealedHelp")}
+                        </Typography>
+                        <PolicyFacts
+                            policy={sealedPolicy.policy}
+                            summary={sealedPolicy.summary}
                             words={words}
-                            onUpload={onUpload}
+                            testId="event-policy"
                         />
-                    ) : null}
-                </Stack>
-            </CardContent>
-        </Card>
+                        {output.policy_id && loggedId !== policyHex(sealedPolicy.policy.id) ? (
+                            <Alert severity="error" data-testid="policy-id-mismatch">
+                                {t("transparencyTab.policy.idMismatch", {id: output.policy_id})}
+                            </Alert>
+                        ) : null}
+                    </Stack>
+                ) : null}
+                {sealed && sealed.state !== EPolicyState.SEALED ? (
+                    <Alert severity="error" data-testid="stored-policy-invalid">
+                        {t("transparencyTab.policy.invalidStored", {
+                            reason: words.reason(
+                                sealed.state === EPolicyState.INVALID
+                                    ? sealed.reason
+                                    : {code: "policy-draft"}
+                            ),
+                        })}
+                    </Alert>
+                ) : null}
+                {draftToShow && output.draft_policy ? (
+                    <DraftSection
+                        electionEventId={electionEventId}
+                        text={output.draft_policy}
+                        examined={draftToShow}
+                        changed={changed}
+                        words={words}
+                    />
+                ) : null}
+                {!sealed && !output.draft_policy ? (
+                    <Typography variant="body2" data-testid="no-draft">
+                        {t("transparencyTab.policy.none")}
+                    </Typography>
+                ) : null}
+                {!output.locked ? (
+                    <UploadForm
+                        electionEventId={electionEventId}
+                        mode={mode}
+                        successor={Boolean(sealedPolicy)}
+                        draft={draftPolicy}
+                        uploading={uploading}
+                        words={words}
+                        onUpload={onUpload}
+                    />
+                ) : null}
+            </Stack>
+        </BoardSection>
     )
 }
 
@@ -697,149 +602,140 @@ const LogCard: React.FC<{log: ILogView; policyId?: string; lang: string}> = ({
     }
 
     return (
-        <Card variant="outlined" data-testid={`log-${log.key}`}>
-            <CardContent>
-                <Stack spacing={1}>
-                    <Stack
-                        direction="row"
-                        spacing={1}
-                        alignItems="center"
-                        flexWrap="wrap"
-                        useFlexGap
-                    >
-                        <Typography variant="subtitle1" component="h4">
-                            {log.key}
-                        </Typography>
-                        {log.visibility ? <Chip size="small" label={log.visibility} /> : null}
-                        {log.frozen ? (
-                            <Chip size="small" label={t("transparencyTab.logs.frozen")} />
-                        ) : null}
-                        {log.alert ? (
-                            <Chip
-                                size="small"
-                                color="error"
-                                data-testid={`log-${log.key}-alert`}
-                                label={t("transparencyTab.logs.alert", {alert: log.alert})}
-                            />
-                        ) : null}
-                    </Stack>
-                    <Table size="small">
+        <Box
+            data-testid={`log-${log.key}`}
+            sx={{borderTop: `1px solid ${BOARD.border}`, p: "14px 18px 18px", color: BOARD.text}}
+        >
+            <Stack spacing={1}>
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                    <Typography component="h4" sx={subHeading}>
+                        {log.key}
+                    </Typography>
+                    {log.visibility ? (
+                        <StatusChip tone={ETone.NEUTRAL} label={log.visibility} />
+                    ) : null}
+                    {log.frozen ? (
+                        <StatusChip tone={ETone.NEUTRAL} label={t("transparencyTab.logs.frozen")} />
+                    ) : null}
+                    {log.alert ? (
+                        <StatusChip
+                            tone={ETone.ALERT}
+                            testId={`log-${log.key}-alert`}
+                            label={t("transparencyTab.logs.alert", {alert: log.alert})}
+                        />
+                    ) : null}
+                </Stack>
+                <Table size="small">
+                    <TableBody>
+                        {rows.map(([label, value]) => (
+                            <TableRow key={label}>
+                                <TableCell component="th" scope="row">
+                                    {label}
+                                </TableCell>
+                                <TableCell sx={{overflowWrap: "anywhere"}}>{value}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+                <Typography component="h5" sx={subHeading}>
+                    {t("transparencyTab.logs.witnesses")}
+                </Typography>
+                {log.witnesses.length === 0 ? (
+                    <Typography variant="body2">{t("transparencyTab.logs.noWitnesses")}</Typography>
+                ) : (
+                    <Table size="small" data-testid={`log-${log.key}-witnesses`}>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>{t("transparencyTab.logs.witness")}</TableCell>
+                                <TableCell>{t("transparencyTab.logs.witnessState")}</TableCell>
+                                <TableCell>{t("transparencyTab.logs.witnessLag")}</TableCell>
+                                <TableCell>{t("transparencyTab.logs.witnessCosigned")}</TableCell>
+                                <TableCell>{t("transparencyTab.logs.witnessError")}</TableCell>
+                            </TableRow>
+                        </TableHead>
                         <TableBody>
-                            {rows.map(([label, value]) => (
-                                <TableRow key={label}>
-                                    <TableCell component="th" scope="row">
-                                        {label}
+                            {log.witnesses.map((w) => (
+                                <TableRow key={w.name} data-testid={`witness-${w.name}`}>
+                                    <TableCell>{w.name}</TableCell>
+                                    <TableCell>
+                                        <StatusChip
+                                            tone={
+                                                w.alert
+                                                    ? ETone.ALERT
+                                                    : w.current
+                                                      ? ETone.OK
+                                                      : ETone.WARN
+                                            }
+                                            label={
+                                                w.alert
+                                                    ? t("transparencyTab.logs.witnessAlert")
+                                                    : w.current
+                                                      ? t("transparencyTab.logs.witnessCurrent")
+                                                      : t("transparencyTab.logs.witnessBehind")
+                                            }
+                                        />
                                     </TableCell>
-                                    <TableCell sx={{overflowWrap: "anywhere"}}>{value}</TableCell>
+                                    <TableCell data-testid={`witness-${w.name}-lag`}>
+                                        {w.behind !== undefined
+                                            ? w.behind.toLocaleString(lang)
+                                            : w.current
+                                              ? (0).toLocaleString(lang)
+                                              : unknown}
+                                    </TableCell>
+                                    <TableCell>
+                                        {w.cosignedAgeSeconds !== undefined
+                                            ? t("transparencyTab.logs.ago", {
+                                                  duration: duration(w.cosignedAgeSeconds),
+                                              })
+                                            : unknown}
+                                    </TableCell>
+                                    <TableCell sx={{overflowWrap: "anywhere"}}>
+                                        {w.lastError ?? none}
+                                    </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
                     </Table>
-                    <Typography variant="subtitle2" component="h5">
-                        {t("transparencyTab.logs.witnesses")}
-                    </Typography>
-                    {log.witnesses.length === 0 ? (
-                        <Typography variant="body2">
-                            {t("transparencyTab.logs.noWitnesses")}
-                        </Typography>
-                    ) : (
-                        <Table size="small" data-testid={`log-${log.key}-witnesses`}>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>{t("transparencyTab.logs.witness")}</TableCell>
-                                    <TableCell>{t("transparencyTab.logs.witnessState")}</TableCell>
-                                    <TableCell>{t("transparencyTab.logs.witnessLag")}</TableCell>
+                )}
+                <Typography component="h5" sx={subHeading}>
+                    {t("transparencyTab.logs.hubs")}
+                </Typography>
+                {log.hubs.length === 0 ? (
+                    <Typography variant="body2">{t("transparencyTab.logs.noHubs")}</Typography>
+                ) : (
+                    <Table size="small" data-testid={`log-${log.key}-hubs`}>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>{t("transparencyTab.logs.hub")}</TableCell>
+                                <TableCell>{t("transparencyTab.logs.hubSize")}</TableCell>
+                                <TableCell>{t("transparencyTab.logs.hubTime")}</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {log.hubs.map((h) => (
+                                <TableRow key={h.name} data-testid={`hub-${h.name}`}>
+                                    <TableCell>{h.name}</TableCell>
                                     <TableCell>
-                                        {t("transparencyTab.logs.witnessCosigned")}
+                                        {h.anchor?.size !== undefined
+                                            ? h.anchor.size.toLocaleString(lang)
+                                            : h.anchor
+                                              ? unknown
+                                              : t("transparencyTab.logs.hubNoAnchor")}
                                     </TableCell>
-                                    <TableCell>{t("transparencyTab.logs.witnessError")}</TableCell>
+                                    <TableCell>
+                                        {h.anchor?.time !== undefined
+                                            ? formatTime(h.anchor.time, lang)
+                                            : h.anchor
+                                              ? unknown
+                                              : null}
+                                    </TableCell>
                                 </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {log.witnesses.map((w) => (
-                                    <TableRow key={w.name} data-testid={`witness-${w.name}`}>
-                                        <TableCell>{w.name}</TableCell>
-                                        <TableCell>
-                                            <Chip
-                                                size="small"
-                                                color={
-                                                    w.alert
-                                                        ? "error"
-                                                        : w.current
-                                                          ? "success"
-                                                          : "warning"
-                                                }
-                                                label={
-                                                    w.alert
-                                                        ? t("transparencyTab.logs.witnessAlert")
-                                                        : w.current
-                                                          ? t("transparencyTab.logs.witnessCurrent")
-                                                          : t("transparencyTab.logs.witnessBehind")
-                                                }
-                                            />
-                                        </TableCell>
-                                        <TableCell data-testid={`witness-${w.name}-lag`}>
-                                            {w.behind !== undefined
-                                                ? w.behind.toLocaleString(lang)
-                                                : w.current
-                                                  ? (0).toLocaleString(lang)
-                                                  : unknown}
-                                        </TableCell>
-                                        <TableCell>
-                                            {w.cosignedAgeSeconds !== undefined
-                                                ? t("transparencyTab.logs.ago", {
-                                                      duration: duration(w.cosignedAgeSeconds),
-                                                  })
-                                                : unknown}
-                                        </TableCell>
-                                        <TableCell sx={{overflowWrap: "anywhere"}}>
-                                            {w.lastError ?? none}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
-                    <Typography variant="subtitle2" component="h5">
-                        {t("transparencyTab.logs.hubs")}
-                    </Typography>
-                    {log.hubs.length === 0 ? (
-                        <Typography variant="body2">{t("transparencyTab.logs.noHubs")}</Typography>
-                    ) : (
-                        <Table size="small" data-testid={`log-${log.key}-hubs`}>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>{t("transparencyTab.logs.hub")}</TableCell>
-                                    <TableCell>{t("transparencyTab.logs.hubSize")}</TableCell>
-                                    <TableCell>{t("transparencyTab.logs.hubTime")}</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {log.hubs.map((h) => (
-                                    <TableRow key={h.name} data-testid={`hub-${h.name}`}>
-                                        <TableCell>{h.name}</TableCell>
-                                        <TableCell>
-                                            {h.anchor?.size !== undefined
-                                                ? h.anchor.size.toLocaleString(lang)
-                                                : h.anchor
-                                                  ? unknown
-                                                  : t("transparencyTab.logs.hubNoAnchor")}
-                                        </TableCell>
-                                        <TableCell>
-                                            {h.anchor?.time !== undefined
-                                                ? formatTime(h.anchor.time, lang)
-                                                : h.anchor
-                                                  ? unknown
-                                                  : null}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
-                </Stack>
-            </CardContent>
-        </Card>
+                            ))}
+                        </TableBody>
+                    </Table>
+                )}
+            </Stack>
+        </Box>
     )
 }
 
@@ -899,6 +795,19 @@ export const EditElectionEventTransparency: React.FC<IEditElectionEventTranspare
     )
     const enrolments = useMemo(() => readEnrolments(output?.enrolments), [output?.enrolments])
     const explorer = safeExternalUrl(output?.explorer_url)
+    const sealedPolicy = sealed?.state === EPolicyState.SEALED ? sealed.policy : undefined
+    const facts = useMemo(
+        () => (sealedPolicy ? policyFacts(sealedPolicy) : undefined),
+        [sealedPolicy]
+    )
+    const witnesses = useMemo(() => witnessRows(sealedPolicy, logs), [sealedPolicy, logs])
+    const hubs = useMemo(
+        () => (sealedPolicy ? hubRows(sealedPolicy, logs) : []),
+        [sealedPolicy, logs]
+    )
+    const figures = useMemo(() => recordFigures(hubs, logs), [hubs, logs])
+    const now = useNow()
+    const duration = useDuration()
 
     if (!electionEventId) return null
 
@@ -980,38 +889,150 @@ export const EditElectionEventTransparency: React.FC<IEditElectionEventTranspare
     }
 
     const mode = readMode(output.mode)
+    const enabled = mode !== ETransparencyMode.DISABLED
+    const policyCheck =
+        sdk === ESdkState.LOADING
+            ? EPolicyCheck.CHECKING
+            : sdk === ESdkState.FAILED
+              ? EPolicyCheck.UNCHECKED
+              : !output.policy
+                ? EPolicyCheck.NONE
+                : sealedPolicy
+                  ? EPolicyCheck.SEALED
+                  : EPolicyCheck.INVALID
+    const health = recordHealth({
+        mode,
+        policy: policyCheck,
+        policyHex: policyHex(sealedPolicy?.id),
+        loggedPolicyId: output.policy_id,
+        loggedPolicyHex: policyHex(output.policy_id),
+        logs,
+    })
+    const signedPolicy = sealedPolicy ? output.policy : undefined
+    const reported = logs.length > 0
 
     return (
-        <Stack spacing={2} sx={{p: 2}} data-testid="transparency-tab">
-            <Box>
-                <Typography variant="h5" component="h2">
-                    {t("transparencyTab.title")}
-                </Typography>
-                <Typography variant="body2">{t("transparencyTab.help")}</Typography>
-            </Box>
+        <Box
+            role="region"
+            aria-label={t("transparencyTab.title")}
+            data-testid="transparency-tab"
+            sx={{
+                "bgcolor": BOARD.tint,
+                "color": BOARD.text,
+                "fontFamily": BOARD.font,
+                "p": {xs: "16px", sm: "20px 24px 40px"},
+                "display": "flex",
+                "flexDirection": "column",
+                "gap": "22px",
+                "& .MuiTypography-root, & .MuiButton-root, & .MuiTableCell-root, & .MuiInputBase-root, & .MuiFormLabel-root, & .MuiAlert-root":
+                    {fontFamily: "inherit"},
+                "& .MuiTypography-root": {margin: 0},
+                "& .MuiAlert-root, & .MuiOutlinedInput-root": {borderRadius: 0},
+                "& .MuiAlert-standardError, & .MuiAlert-standardWarning": {
+                    "bgcolor": "#FFF7ED",
+                    "color": "#9A3412",
+                    "borderLeft": `3px solid ${BOARD.warning}`,
+                    "& .MuiAlert-icon": {color: BOARD.warning},
+                },
+                "& .MuiAlert-standardInfo": {
+                    "bgcolor": BOARD.white,
+                    "color": BOARD.body,
+                    "borderLeft": `3px solid ${BOARD.navy}`,
+                    "& .MuiAlert-icon": {color: BOARD.navy},
+                },
+                "& .MuiAlert-standardSuccess": {
+                    "bgcolor": "#ECFDF5",
+                    "color": "#064E3B",
+                    "borderLeft": `3px solid ${BOARD.green}`,
+                    "& .MuiAlert-icon": {color: BOARD.green},
+                },
+                "& .MuiTableCell-root": {
+                    fontSize: "13.5px",
+                    color: BOARD.text,
+                    borderColor: BOARD.border,
+                    p: "8px 12px",
+                },
+                "& .MuiTableCell-head": {fontSize: "12.5px", fontWeight: 600, color: BOARD.subtle},
+            }}
+        >
             {notice ? (
                 <Alert
                     severity={notice.severity}
+                    role={notice.severity === "error" ? "alert" : "status"}
                     data-testid="transparency-notice"
                     onClose={() => setNotice(undefined)}
                 >
                     {notice.text}
                 </Alert>
             ) : null}
-            <ModeCard
+            <HealthBanner
+                health={health}
                 mode={mode}
-                refusal={output.refusal ?? undefined}
+                facts={facts}
                 locked={output.locked}
-                enabling={enabling}
-                onEnable={enable}
+                explorer={enabled ? explorer : undefined}
+                onDownloadPolicy={
+                    signedPolicy
+                        ? () => downloadText(signedPolicyFileName(electionEventId), signedPolicy)
+                        : undefined
+                }
+                duration={duration}
             />
-            {mode !== ETransparencyMode.DISABLED ? (
+            {enabled && (facts || reported) ? (
+                <>
+                    <Figures
+                        figures={figures}
+                        facts={facts}
+                        reported={reported}
+                        now={now}
+                        lang={lang}
+                        duration={duration}
+                    />
+                    <Box
+                        sx={{
+                            display: "grid",
+                            gridTemplateColumns: columns(3, 300, 20),
+                            gap: "20px",
+                        }}
+                    >
+                        <WitnessesCard rows={witnesses} duration={duration} />
+                        {facts ? (
+                            <AnchoringCard
+                                hubs={hubs}
+                                facts={facts}
+                                reported={reported}
+                                now={now}
+                                duration={duration}
+                            />
+                        ) : null}
+                        <BoothCard explorer={explorer} />
+                    </Box>
+                    {facts ? <MilestonesCard facts={facts} duration={duration} /> : null}
+                </>
+            ) : null}
+            <Box
+                sx={{
+                    display: "grid",
+                    gridTemplateColumns: columns(2, 420, 20),
+                    gap: "20px",
+                }}
+            >
+                <VisibilityCard
+                    mode={mode}
+                    refusal={output.refusal ?? undefined}
+                    locked={output.locked}
+                    enabling={enabling}
+                    onEnable={enable}
+                />
+                {enabled && facts ? <PolicyCards facts={facts} /> : null}
+            </Box>
+            {enabled ? (
                 sdk === ESdkState.FAILED ? (
                     <Alert severity="error" data-testid="vitrine-sdk-failed">
                         {t("transparencyTab.sdkError")}
                     </Alert>
                 ) : !ready ? (
-                    <Box data-testid="vitrine-sdk-loading">
+                    <Box data-testid="vitrine-sdk-loading" role="status">
                         <CircularProgress size={24} /> {t("transparencyTab.sdkLoading")}
                     </Box>
                 ) : (
@@ -1027,25 +1048,17 @@ export const EditElectionEventTransparency: React.FC<IEditElectionEventTranspare
                     />
                 )
             ) : null}
-            {mode !== ETransparencyMode.DISABLED ? (
-                <Stack spacing={1} data-testid="transparency-logs">
-                    <Typography variant="h6" component="h3">
-                        {t("transparencyTab.logs.title")}
-                    </Typography>
-                    {explorer ? (
-                        <Box>
-                            <Link
-                                href={explorer}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                data-testid="explorer-link"
-                            >
-                                {t("transparencyTab.logs.explorer")}
-                            </Link>
-                        </Box>
-                    ) : null}
+            {enabled ? (
+                <BoardSection
+                    title={t("transparencyTab.logs.title")}
+                    testId="transparency-logs"
+                    flush
+                >
                     {logs.length === 0 ? (
-                        <Typography variant="body2" data-testid="no-logs">
+                        <Typography
+                            data-testid="no-logs"
+                            sx={{p: "0 18px 18px", fontSize: "13.5px", color: BOARD.muted}}
+                        >
                             {t("transparencyTab.logs.unreported")}
                         </Typography>
                     ) : (
@@ -1053,45 +1066,40 @@ export const EditElectionEventTransparency: React.FC<IEditElectionEventTranspare
                             <LogCard
                                 key={log.key}
                                 log={log}
-                                policyId={policyHex(sealedSummary?.id)}
+                                policyId={policyHex(sealedPolicy?.id)}
                                 lang={lang}
                             />
                         ))
                     )}
-                </Stack>
+                </BoardSection>
             ) : null}
             {enrolments.length > 0 ? (
-                <Card variant="outlined" data-testid="witness-enrolments">
-                    <CardContent>
-                        <Stack spacing={1}>
-                            <Typography variant="h6" component="h3">
-                                {t("transparencyTab.enrolments.title")}
+                <BoardSection
+                    title={t("transparencyTab.enrolments.title")}
+                    testId="witness-enrolments"
+                >
+                    <Typography variant="body2">{t("transparencyTab.enrolments.help")}</Typography>
+                    {enrolments.map((e) => (
+                        <Box
+                            key={e.log}
+                            data-testid={`enrolment-${e.log}`}
+                            sx={{color: BOARD.text}}
+                        >
+                            <Typography component="h4" sx={subHeading}>
+                                {t("transparencyTab.enrolments.log", {log: e.log})}
                             </Typography>
-                            <Typography variant="body2">
-                                {t("transparencyTab.enrolments.help")}
-                            </Typography>
-                            {enrolments.map((e) => (
-                                <Box key={e.log} data-testid={`enrolment-${e.log}`}>
-                                    <Typography variant="subtitle2" component="h4">
-                                        {t("transparencyTab.enrolments.log", {log: e.log})}
-                                    </Typography>
-                                    <Box
-                                        component="pre"
-                                        sx={{...monospace, whiteSpace: "pre-wrap", m: 0}}
-                                    >
-                                        {e.note}
-                                    </Box>
-                                    <CopyButton
-                                        text={e.note}
-                                        label={t("transparencyTab.enrolments.copy")}
-                                        testId={`copy-enrolment-${e.log}`}
-                                    />
-                                </Box>
-                            ))}
-                        </Stack>
-                    </CardContent>
-                </Card>
+                            <Box component="pre" sx={{...monospace, whiteSpace: "pre-wrap", m: 0}}>
+                                {e.note}
+                            </Box>
+                            <CopyButton
+                                text={e.note}
+                                label={t("transparencyTab.enrolments.copy")}
+                                testId={`copy-enrolment-${e.log}`}
+                            />
+                        </Box>
+                    ))}
+                </BoardSection>
             ) : null}
-        </Stack>
+        </Box>
     )
 }

@@ -19,9 +19,11 @@ import {
     scenario,
 } from "../../fixtures/vitrine"
 import {
+    ANCHORS_WAIT,
     EReceiptNotice,
     ICastReceiptOptions,
     IReceiptView,
+    MAX_POLL_MS,
     runCastReceipt,
     runKeptReceipt,
     TForward,
@@ -102,7 +104,7 @@ const cast = async (
     const views: IReceiptView[] = []
     await runCastReceipt({
         cast: answer,
-        target: {eventId: EVENT_ID, electionId: ELECTION_ID, ballotId},
+        target: {eventId: EVENT_ID, electionId: ELECTION_ID, stage: "cast", ballotId},
         transparency: readTransparency(s.presentation),
         context: async () => s.context,
         fetch: net.fetch as unknown as typeof fetch,
@@ -151,6 +153,27 @@ describe("runCastReceipt", () => {
         expect(record?.reasons.map((r) => r.code)).toEqual(["successors-unchecked"])
         expect(last?.own?.acceptedAt).toBe(ACCEPTED_AT)
         expect(observations(net)).toEqual([])
+    })
+
+    it("keeps asking the log for the anchors while the screen is open, until they're due", async () => {
+        const {s, ballotId, receipt} = withReceipt()
+        const checkChain = jest.fn(verify.checkChain)
+        let t = NOW * 1000
+        const {last} = await cast(
+            s,
+            ballotId,
+            {kind: "receipt", text: receipt},
+            {
+                loadSdk: async () => ({verify: {...verify, checkChain}, pure}),
+                now: () => t,
+                sleep: async (ms) => {
+                    t += ms
+                },
+            }
+        )
+        expect(last?.result?.tiers.find((tier) => tier.tier === "hubs")?.status).toBe("pending")
+        expect(checkChain.mock.calls.length).toBeGreaterThan(1)
+        expect(t / 1000).toBeLessThanOrEqual(NOW + ANCHORS_WAIT + MAX_POLL_MS / 1000)
     })
 
     it("reports a receipt for another ballot, without the receipt or the entry", async () => {
@@ -384,7 +407,7 @@ describe("runKeptReceipt", () => {
         const views: IReceiptView[] = []
         await runKeptReceipt({
             acceptedAt: ACCEPTED_AT,
-            target: {eventId: EVENT_ID, electionId: ELECTION_ID, ballotId},
+            target: {eventId: EVENT_ID, electionId: ELECTION_ID, stage: "cast", ballotId},
             transparency: readTransparency(s.presentation),
             fetch: net.fetch as unknown as typeof fetch,
             now: () => NOW * 1000,

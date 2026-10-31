@@ -16,13 +16,33 @@
 ARG OID4VP_VERSION=0.6.2
 ARG OID4VP_SHA256=f6cd968bc77fec4f8e1417d3caeefe4920941e01b119f152f1c9186bbd2b2e15
 
+# Optional offline dependency source. The default, scratch, copies an empty
+# directory and leaves the online build unchanged. Point it at
+# packages/Dockerfile.offline-dependencies' output to resolve Maven dependencies
+# and the oid4vp archive from vendored inputs instead of the network.
+# See sequentech/meta#13625.
+ARG VENDOR_IMAGE=scratch
+FROM ${VENDOR_IMAGE} AS vendor
+
 # Start with a Maven base image to compile the Keycloak provider extensions.
-FROM maven:3-amazoncorretto-17 AS spis-build
-RUN dnf install -y findutils && dnf clean all
+FROM maven:3-amazoncorretto-17@sha256:046784a9c83821fc3e9ded94c2f18155e0daf1981c8a0813d0ff693a9dc4a51b AS spis-build
+# Only install findutils if the base image lacks find, which current
+# maven:3-amazoncorretto-17 does not. Unconditional, this was a network fetch on
+# every build -- including offline ones, where it cannot succeed.
+RUN command -v find >/dev/null 2>&1 || { dnf install -y findutils && dnf clean all; }
+# Maven stamps every jar entry with the time of the build unless it is given
+# one. With SOURCE_DATE_EPOCH (a BuildKit built-in argument) the jars are the
+# same on every build; without it nothing changes.
+ARG SOURCE_DATE_EPOCH
 COPY ./keycloak-extensions/ /build/context/packages/keycloak-extensions/
+# OTP contract tests compare Java values with the shared Rust definitions.
+COPY ./sequent-core/src/types/messaging.rs /build/context/packages/sequent-core/src/types/
+COPY ./sequent-core/src/types/dial_codes.rs /build/context/packages/sequent-core/src/types/
+COPY --from=vendor / /vendor/
 WORKDIR /build/context
 RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
     set -eux; \
+    reproducible="${SOURCE_DATE_EPOCH:+-Dproject.build.outputTimestamp=${SOURCE_DATE_EPOCH}}"; \
     keycloak_extensions_dir=packages/keycloak-extensions; \
     beyond_keycloak_extensions_dir=beyond/packages/keycloak-extensions; \
     if [ -d /build/beyond-context/packages/keycloak-extensions ]; then \
@@ -33,7 +53,13 @@ RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
     if [ -d "${beyond_keycloak_extensions_dir}" ]; then \
         find "${beyond_keycloak_extensions_dir}" -name target -type d -prune -exec rm -rf {} +; \
     fi; \
-    mvn -B -f "${keycloak_extensions_dir}/pom.xml" clean package; \
+    if [ -d /vendor/m2-repo ]; then \
+        echo "offline build: using vendored Maven repository"; \
+        mvn -B -o ${reproducible} -Dmaven.repo.local=/vendor/m2-repo \
+            -f "${keycloak_extensions_dir}/pom.xml" clean package; \
+    else \
+        mvn -B ${reproducible} -f "${keycloak_extensions_dir}/pom.xml" clean package; \
+    fi; \
     mkdir -p /build/keycloak-provider-jars /build/keycloak-provider-conf; \
     cp "${keycloak_extensions_dir}/quarkus.properties" /build/keycloak-provider-conf/quarkus.properties; \
     provider_dirs="${keycloak_extensions_dir}"; \
@@ -47,22 +73,65 @@ RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
         -exec cp -t /build/keycloak-provider-jars/ {} +
 
 # Build the oid4vp extension from source (requires Java 21)
-FROM maven:3-amazoncorretto-21 AS oid4vp-build
+FROM maven:3-amazoncorretto-21@sha256:efdf660ec74911594e2a7f642e177ffba21b741c8e848223bf41a6d0fc367692 AS oid4vp-build
 ARG OID4VP_VERSION
 ARG OID4VP_SHA256
-RUN curl -fsSL -o /tmp/oid4vp.tar.gz \
-    https://github.com/ba-itsys/keycloak-extension-oid4vp/archive/refs/tags/v${OID4VP_VERSION}.tar.gz \
- && echo "${OID4VP_SHA256}  /tmp/oid4vp.tar.gz" | sha256sum -c - \
- && mkdir -p /build \
- && tar -xzf /tmp/oid4vp.tar.gz -C /build \
- && cd /build/keycloak-extension-oid4vp-${OID4VP_VERSION} \
- && mvn -B clean package -DskipTests
+ARG SOURCE_DATE_EPOCH
+COPY --from=vendor / /vendor/
+# The archive is checksum-pinned either way, so the vendored copy is verified
+# against the same expected digest as a freshly downloaded one.
+RUN set -eux; \
+    reproducible="${SOURCE_DATE_EPOCH:+-Dproject.build.outputTimestamp=${SOURCE_DATE_EPOCH}}"; \
+    if [ -f /vendor/oid4vp/oid4vp.tar.gz ]; then \
+        echo "offline build: using the vendored oid4vp archive"; \
+        cp /vendor/oid4vp/oid4vp.tar.gz /tmp/oid4vp.tar.gz; \
+    else \
+        curl -fsSL -o /tmp/oid4vp.tar.gz \
+            https://github.com/ba-itsys/keycloak-extension-oid4vp/archive/refs/tags/v${OID4VP_VERSION}.tar.gz; \
+    fi; \
+    echo "${OID4VP_SHA256}  /tmp/oid4vp.tar.gz" | sha256sum -c -; \
+    mkdir -p /build; \
+    tar -xzf /tmp/oid4vp.tar.gz -C /build; \
+    cd /build/keycloak-extension-oid4vp-${OID4VP_VERSION}; \
+    if [ -d /vendor/m2-repo-oid4vp ]; then \
+        mvn -B -o ${reproducible} -Dmaven.repo.local=/vendor/m2-repo-oid4vp clean package -DskipTests; \
+    else \
+        mvn -B ${reproducible} clean package -DskipTests; \
+    fi
 
-FROM quay.io/keycloak/keycloak:26.6.1 AS builder
+# Build the React login themes (packages/keycloak-ui) and lay them out as
+# `step-dev keycloak prepare --runtime built` does in development: React pages,
+# and every other page inherited from the matching FreeMarker theme.
+# Keycloakify packages the theme jar with Maven.
+FROM node:22-bookworm@sha256:363e1587494626837fa7f9a23bdb453d13b0ff3c67c705c2805cfc69c2d2fad7 AS themes-build
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends maven openjdk-17-jdk-headless \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /build/repo/packages
+COPY ./package.json ./yarn.lock ./
+COPY ./ui-core ./ui-core
+COPY ./ui-essentials ./ui-essentials
+COPY ./ui-test-kit ./ui-test-kit
+COPY ./test-support ./test-support
+COPY ./keycloak-ui ./keycloak-ui
+COPY ./keycloak-extensions/sequent-theme ./keycloak-extensions/sequent-theme
+RUN yarn install --frozen-lockfile --non-interactive
+# The themes compile ui-core sources that import sequent-core, a peer
+# dependency the portals provide. No portal is installed here.
+RUN mkdir -p node_modules/sequent-core \
+ && tar -xzf ui-core/rust/sequent-core-0.1.0.tgz -C node_modules/sequent-core --strip-components=1
+COPY --from=scripts ./dev /build/repo/scripts/dev
+WORKDIR /build/repo
+RUN python3 -m scripts.dev.keycloak prepare --runtime built
+
+FROM quay.io/keycloak/keycloak:26.7.5@sha256:37dbaf6f0722c9ec246335f36e1ef8b2e6cb960f7c27e0d8c615121a3d475a85 AS builder
 ARG OID4VP_VERSION
 
 # The extension OID4VP_VERSION v0.6.2 requires Keycloak 26.6.1 or later, as
 # it references UserAuthenticationIdentityProvider which was introduced in that version
+# Keycloak 26.8 changed the return type of
+# SdJwtPresentationConsumer#verifySdJwtPresentation, which v0.6.2 calls, so this
+# image stays on 26.7 until OID4VP_VERSION moves to a release built for 26.8.
 
 # Enable health and metrics support
 ENV KC_HEALTH_ENABLED=true
@@ -73,17 +142,25 @@ ENV KC_DB=postgres
 
 WORKDIR /opt/keycloak
 
-# for demonstration purposes only, please make sure to use proper certificates
-# in production instead
-RUN keytool \
-   -genkeypair \
-   -storepass password \
-   -storetype PKCS12 \
-   -keyalg RSA \
-   -keysize 2048 \
-   -dname "CN=server" \
-   -alias keycloak-server -ext "SAN:c=DNS:localhost,IP:127.0.0.1" \
-   -keystore conf/server.keystore
+# No keystore is generated here, and none is generated at runtime either.
+#
+# This image previously ran keytool -genkeypair during the build "for
+# demonstration purposes", which produced a fresh random key in every image and
+# so made the image unreproducible -- meta#13625 requires random certificates to
+# be kept out of release outputs.
+#
+# It is removed rather than moved, because conf/server.keystore is only read when
+# Keycloak terminates TLS itself. It does not here: the airgap deployment runs it
+# on plain HTTP behind Traefik (KC_PROXY=edge, KC_HTTP_PORT=8090) and gitops runs
+# it behind the gateway with PROXY_HEADERS=xforwarded. Nothing in either tree sets
+# KC_HTTPS_* or references server.keystore, so the key was never used.
+#
+# Generating it at container start would have been worse than useless: each pod
+# has its own filesystem, so three replicas would hold three different keys and
+# every restart would mint another -- divergent TLS identities that look like
+# security material but are not. If Keycloak is ever to terminate TLS directly,
+# the certificate belongs in a mounted Secret provisioned at installation, which
+# is what meta#13625 requires of TLS material anyway.
 
 # Copy the compiled provider SPIs into the Keycloak providers directory
 # before calling `kc.sh build`
@@ -97,9 +174,22 @@ COPY --chown=keycloak:keycloak \
    /build/keycloak-extension-oid4vp-${OID4VP_VERSION}/target/keycloak-extension-oid4vp.jar \
    /opt/keycloak/providers/
 
-RUN /opt/keycloak/bin/kc.sh build 
+COPY --chown=keycloak:keycloak --from=themes-build /build/repo/.cache/keycloak-ui/themes/ /opt/keycloak/themes/
 
-FROM quay.io/keycloak/keycloak:26.6.1
+# kc.sh build writes the optimised server ahead of time, for `start --optimized`.
+# Its output is different on every run: about a hundred generated classes carry
+# random field names and keys in no fixed order. An image that has to be the
+# same on every build passes KEYCLOAK_AUGMENTATION=at-start and leaves this to
+# the server's start, which is what `start-dev` does anyway, discarding this
+# output (sequentech/meta#13625).
+ARG KEYCLOAK_AUGMENTATION=in-image
+RUN case "${KEYCLOAK_AUGMENTATION}" in \
+        in-image) /opt/keycloak/bin/kc.sh build ;; \
+        at-start) ;; \
+        *) echo "KEYCLOAK_AUGMENTATION must be in-image or at-start" >&2; exit 1 ;; \
+    esac
+
+FROM quay.io/keycloak/keycloak:26.7.5@sha256:37dbaf6f0722c9ec246335f36e1ef8b2e6cb960f7c27e0d8c615121a3d475a85
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
 COPY --from=spis-build /build/keycloak-provider-conf/quarkus.properties /opt/keycloak/conf/quarkus.properties
 

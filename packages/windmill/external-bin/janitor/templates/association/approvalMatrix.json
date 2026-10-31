@@ -1,0 +1,9 @@
+{
+  "compared_fields": ["firstName", "lastName", "dateOfBirth"],
+  "rules": [
+    {"when": {"already_enrolled": true}, "then": {"decision": "REJECTED", "reason": "ALREADY_APPROVED"}},
+    {"when": {"identity": "MANUAL_ENTRY"}, "then": {"decision": "PENDING", "reason": "IDENTITY_NOT_VERIFIED"}},
+    {"when": {"differing": "none"}, "then": {"decision": "ACCEPTED"}}
+  ],
+  "otherwise": {"decision": "PENDING", "reason": "NO_VOTER"}
+}

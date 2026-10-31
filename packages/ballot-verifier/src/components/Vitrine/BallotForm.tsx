@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// What makes a receipt file the user's own: the ballot ID the voting portal
+// What makes a receipt file the user's own: the tracking ID the voting portal
 // showed, with the election and the event (Vitrine's specs/receipt.md,
 // section 1.1). The event and the elections come from the pinned policy when
-// it names them; the ballot ID always comes from the user, never from the
+// it names them; the tracking ID always comes from the user, never from the
 // receipt.
 
 import React, {useState} from "react"
@@ -18,6 +18,7 @@ import type {Expect, Policy} from "@vitrine/verify"
 import {expectFromForm, IBallotForm} from "../../services/vitrine/check"
 import {policyElections} from "../../services/vitrine/policies"
 import type {IVitrineSdk} from "../../services/vitrine/sdk"
+import {BallotIdField} from "./BallotIdField"
 
 export interface IBallotFormProps {
     sdk: IVitrineSdk
@@ -32,6 +33,7 @@ export const BallotForm: React.FC<IBallotFormProps> = ({sdk, policy, onExpect}) 
         eventId: eventId ?? "",
         electionId: electionIds.length === 1 ? electionIds[0] : "",
         ballotId: "",
+        stage: "cast",
     })
     const [invalid, setInvalid] = useState(false)
 
@@ -57,19 +59,26 @@ export const BallotForm: React.FC<IBallotFormProps> = ({sdk, policy, onExpect}) 
             maxWidth="630px"
             data-testid="ballot-form"
         >
-            <TextField
-                required
-                label={t("receiptScreen.ballot.ballotId")}
-                placeholder={t("receiptScreen.ballot.ballotIdPlaceholder")}
-                InputLabelProps={{shrink: true}}
+            <BallotIdField
                 value={form.ballotId}
-                onChange={set("ballotId")}
-                inputProps={{
-                    "data-testid": "ballot-id",
-                    "spellCheck": false,
-                    "autoComplete": "off",
-                }}
+                onChange={(ballotId) => setForm((f) => ({...f, ballotId}))}
             />
+            <TextField
+                select
+                required
+                label={t("receiptScreen.ballot.stage")}
+                InputLabelProps={{shrink: true}}
+                SelectProps={{native: true}}
+                value={form.stage}
+                onChange={set("stage")}
+                inputProps={{"data-testid": "ballot-stage"}}
+            >
+                {["received", "cast", "audited"].map((stage) => (
+                    <option key={stage} value={stage}>
+                        {t(`receiptScreen.ballot.stages.${stage}`)}
+                    </option>
+                ))}
+            </TextField>
             {electionIds.length > 1 ? (
                 <TextField
                     select
@@ -112,7 +121,7 @@ export const BallotForm: React.FC<IBallotFormProps> = ({sdk, policy, onExpect}) 
             />
             {invalid ? (
                 <Alert severity="warning" data-testid="ballot-invalid">
-                    {t("receiptScreen.ballot.invalid")}
+                    {t("ballotIdField.formatError")}
                 </Alert>
             ) : null}
             <Box>

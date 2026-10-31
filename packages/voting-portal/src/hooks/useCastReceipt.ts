@@ -3,64 +3,37 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {useCallback, useContext, useEffect, useState} from "react"
-import type {ApolloClient} from "@apollo/client"
 import {useApolloClient} from "@apollo/client/react"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {
-    VITRINE_VOTER_FORWARD,
-    VitrineVoterForwardMutation,
-    VitrineVoterForwardMutationVariables,
-} from "../queries/VitrineVoterForward"
-import {
-    IReceiptView,
-    runCastReceipt,
-    runKeptReceipt,
-    TForward,
-} from "../services/vitrine/castReceipt"
+import {IReceiptView, runCastReceipt, runKeptReceipt} from "../services/vitrine/castReceipt"
+import {voterForward} from "../services/vitrine/forward"
 import type {ITransparency} from "../services/vitrine/presentation"
-import type {IReceiptTarget} from "../services/vitrine/receipt"
+import {trackingDigestHex} from "../services/vitrine/trackingId"
 import {IVitrineSdk, loadVitrineSdk} from "../services/vitrine/sdk"
 import {
     EReceiptKeeping,
-    forgetReceipt,
     forgetReceipts,
     IKeptReceipt,
     keepReceipt,
     keptReceipts,
     receiptKeeping,
-    setReceiptKeeping,
 } from "../services/vitrine/storage"
 import {ETransparencyMode} from "../services/vitrine/types"
 import {voterContextFor} from "../services/vitrine/voterContext"
 import type {IConfirmationVitrine} from "../store/castVotes/confirmationScreenDataSlice"
 
-/** Harvest's `vitrine_voter_forward` for the event (private events). An
- * answer that didn't come reads as status 0. */
-export const voterForward =
-    (client: ApolloClient, eventId: string): TForward =>
-    async (route, body, hub) => {
-        try {
-            const {data} = await client.mutate<
-                VitrineVoterForwardMutation,
-                VitrineVoterForwardMutationVariables
-            >({
-                mutation: VITRINE_VOTER_FORWARD,
-                variables: {electionEventId: eventId, route, body, ...(hub ? {hub} : {})},
-            })
-            const answer = data?.vitrine_voter_forward
-            return answer
-                ? {status: answer.status, ...(answer.body ? {body: answer.body} : {})}
-                : {status: 0}
-        } catch {
-            return {status: 0}
-        }
-    }
+/** The ballot an election's receipt is about, by the Tracking ID the voter reads. */
+export interface IReceiptBallot {
+    eventId: string
+    electionId: string
+    trackingId: string
+}
 
 /** Keeps what a view holds: the chain, or the entry that waits for one. */
 const keepView = async (
     sdk: IVitrineSdk,
     userId: string,
-    target: IReceiptTarget,
+    target: IReceiptBallot,
     view: IReceiptView,
     isAllowed?: () => boolean
 ): Promise<boolean> => {
@@ -70,7 +43,9 @@ const keepView = async (
         sdk,
         userId,
         {
-            ...target,
+            eventId: target.eventId,
+            electionId: target.electionId,
+            ballotId: target.trackingId,
             ...(own ? {acceptedAt: own.acceptedAt} : {}),
             policyId: policy.id,
             ...(chain ? {chain} : {}),
@@ -82,42 +57,44 @@ const keepView = async (
 
 export interface ICastReceipt {
     view?: IReceiptView
-    keeping: EReceiptKeeping
     /** Whether this device keeps the receipt. */
     kept: boolean
-    setKeeping: (keeping: EReceiptKeeping) => void
 }
 
 /** The receipt of the ballot just cast: checked, upgraded while the page is
  * open, and kept on this device unless it is a kiosk or the voter said no. */
 export const useCastReceipt = (
-    target: IReceiptTarget,
+    target: IReceiptBallot,
     vitrine: IConfirmationVitrine
 ): ICastReceipt => {
     const client = useApolloClient()
     const {isKiosk, userId} = useContext(AuthContext)
     const kiosk = isKiosk()
     const [view, setView] = useState<IReceiptView>()
-    const [keeping, setKeepingState] = useState<EReceiptKeeping>(receiptKeeping)
     const [kept, setKept] = useState(false)
-    const {eventId, electionId, ballotId} = target
+    const {eventId, electionId, trackingId} = target
 
     useEffect(() => {
         const controller = new AbortController()
-        void runCastReceipt({
-            cast: vitrine.cast,
-            target: {eventId, electionId, ballotId},
-            transparency: vitrine.transparency,
-            context: () => voterContextFor(client, eventId, electionId),
-            forward: voterForward(client, eventId),
-            signal: controller.signal,
-            onView: setView,
-        })
+        const run = async () => {
+            const ballotId = await trackingDigestHex(trackingId)
+            if (!ballotId || controller.signal.aborted) return
+            await runCastReceipt({
+                cast: vitrine.cast,
+                target: {eventId, electionId, stage: "cast", ballotId},
+                transparency: vitrine.transparency,
+                context: () => voterContextFor(client, eventId, electionId),
+                forward: voterForward(client, eventId),
+                signal: controller.signal,
+                onView: setView,
+            })
+        }
+        void run()
         return () => controller.abort()
-    }, [client, eventId, electionId, ballotId, vitrine])
+    }, [client, eventId, electionId, trackingId, vitrine])
 
     useEffect(() => {
-        if (!view || kiosk || !userId || keeping !== EReceiptKeeping.KEEP) return
+        if (!view || kiosk || !userId || receiptKeeping() !== EReceiptKeeping.KEEP) return
         let active = true
         const keep = async () => {
             let ok = false
@@ -127,7 +104,7 @@ export const useCastReceipt = (
                 ok = await keepView(
                     sdk,
                     userId,
-                    {eventId, electionId, ballotId},
+                    {eventId, electionId, trackingId},
                     view,
                     () => active
                 )
@@ -140,27 +117,9 @@ export const useCastReceipt = (
         return () => {
             active = false
         }
-    }, [view, kiosk, keeping, userId, eventId, electionId, ballotId])
+    }, [view, kiosk, userId, eventId, electionId, trackingId])
 
-    const setKeeping = useCallback(
-        (next: EReceiptKeeping) => {
-            setReceiptKeeping(next)
-            setKeepingState(next)
-            if (next !== EReceiptKeeping.FORGET) return
-            setKept(false)
-            const forget = async () => {
-                try {
-                    await forgetReceipt(await loadVitrineSdk(), eventId, electionId)
-                } catch {
-                    // Nothing was kept.
-                }
-            }
-            void forget()
-        },
-        [eventId, electionId]
-    )
-
-    return {view, keeping, kept, setKeeping}
+    return {view, kept}
 }
 
 export interface IKeptReceiptView {
@@ -212,7 +171,20 @@ export const useKeptReceipts = (
             setReceiptOwner(userId)
             setReceipts(kept.map((k) => ({kept: k})))
             kept.forEach((k) => {
-                const target = {eventId, electionId: k.electionId, ballotId: k.ballotId}
+                const ballot = {eventId, electionId: k.electionId, trackingId: k.ballotId}
+                // Only a Tracking ID names a kept ballot: older receipts are left out.
+                let digest: string
+                try {
+                    digest = sdk.pure.encoding.hexEncode(sdk.verify.decodeTrackingId(k.ballotId))
+                } catch {
+                    return
+                }
+                const target = {
+                    eventId,
+                    electionId: k.electionId,
+                    stage: "cast" as const,
+                    ballotId: digest,
+                }
                 void runKeptReceipt({
                     ...(k.chain ? {chain: k.chain} : {}),
                     ...(k.acceptedAt === undefined ? {} : {acceptedAt: k.acceptedAt}),
@@ -231,7 +203,7 @@ export const useKeptReceipts = (
                             void keepView(
                                 sdk,
                                 userId,
-                                target,
+                                ballot,
                                 view,
                                 () => !controller.signal.aborted
                             )

@@ -17,6 +17,7 @@ use p256::hash2curve::{ExpandMsgXmd, GroupDigest, hash_to_scalar};
 
 use crate::utils::error::Error;
 use crate::utils::rng;
+use rayon::prelude::*;
 
 /// P-256 implementation of [`CryptographicGroup`]
 pub struct P256Group;
@@ -106,23 +107,19 @@ impl CryptographicGroup for P256Group {
     /// - `HashToElementError` if `NistP256::hash_from_bytes` returns error
     fn ind_generators(count: usize, label: &[u8]) -> Result<Vec<Self::Element>, Error> {
         let ds_tags: &[&[u8]] = &[b"context", b"independent_generators_p256_counter"];
-        let mut ret = vec![];
 
-        #[cfg_attr(
-            feature = "custom-warnings",
-            crate::warning("The following code is not optimized. Parallelize with rayon")
-        )]
-        for i in 0..count {
-            // Cannot use platform dependent type in random oracle
-            let i_u64 = i as u64;
-            let inputs = &[label, &i_u64.to_be_bytes()];
-            let point = NistP256::hash_from_bytes(inputs, ds_tags)
-                .map_err(|e| Error::HashToElementError(e.to_string()));
+        (0..count)
+            .into_par_iter()
+            .map(|i| {
+                // Cannot use platform dependent type in random oracle
+                let i_u64 = i as u64;
+                let inputs = &[label, &i_u64.to_be_bytes()];
+                let point = NistP256::hash_from_bytes(inputs, ds_tags)
+                    .map_err(|e| Error::HashToElementError(e.to_string()))?;
 
-            ret.push(P256Element(point?));
-        }
-
-        Ok(ret)
+                Ok(P256Element(point))
+            })
+            .collect()
     }
 
     /// Encrypt a scalar with ElGamal encryption using the given public key

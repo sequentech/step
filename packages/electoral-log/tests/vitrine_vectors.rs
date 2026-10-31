@@ -5,6 +5,9 @@
 //! Step's encoders against Vitrine's vectors, copied from Vitrine's
 //! `profiles/election/ballots/v1/vectors`, `profiles/election/events/v1/vectors` and
 //! `testdata/styles`.
+//!
+//! All of them are Vitrine's own, unchanged (fc03a78). Its `testdata/tracking-id`
+//! vectors are in `sequent-core`'s tests, where the Tracking ID is computed.
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use electoral_log::vitrine::note::split_note;
@@ -106,6 +109,7 @@ fn election_entries_match_the_vectors() {
             let entry = ElectionEntry {
                 event_id: text(field(&fields, "event_id")).into(),
                 election_id: text(field(&fields, "election_id")).into(),
+                stage: text(field(&fields, "stage")).parse().unwrap(),
                 ballot_id: hash(text(field(&fields, "ballot_id"))),
                 accepted_at: text(field(&fields, "accepted_at")).parse().unwrap(),
             };

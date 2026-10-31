@@ -12,17 +12,19 @@
     "closes": 1793044800
   },
   "entries": [
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBCAAAJbXVuaS0yMDI2AAAFbWF5b3IAACCVU0mBQg2aHl0807VnxuIfkgdCCH7PRMGH4HfNyEl6wgAACAAAAABq3wi8",
-    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBEAAAJbXVuaS0yMDI2AAAHY291bmNpbAAAIMjSYRbtMPmBagX98GGyU1FFRy84jZgU6W8z8INp28vQAAAIAAAAAGrfCME="
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBNAAAJbXVuaS0yMDI2AAAFbWF5b3IAAAhyZWNlaXZlZAAAIJVTSYFCDZoeXTzTtWfG4h+SB0IIfs9EwYfgd83ISXrCAAAIAAAAAGrfCLw=",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBPAAAJbXVuaS0yMDI2AAAHY291bmNpbAAACHJlY2VpdmVkAAAgyNJhFu0w+YFqBf3wYbJTUUVHLziNmBTpbzPwg2nby9AAAAgAAAAAat8IwQ==",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBJAAAJbXVuaS0yMDI2AAAFbWF5b3IAAARjYXN0AAAglVNJgUINmh5dPNO1Z8biH5IHQgh+z0TBh+B3zchJesIAAAgAAAAAat8IxQ=="
   ],
   "sequenced": [
     1793001661,
-    1793001666
+    1793001666,
+    1793001670
   ],
   "checkpoints": [
     [
-      2,
-      1793001670
+      3,
+      1793001680
     ]
   ],
   "context": {
@@ -56,6 +58,10 @@
         "value": "mayor"
       },
       {
+        "name": "stage",
+        "value": "received"
+      },
+      {
         "name": "ballot_id",
         "value": "95534981420d9a1e5d3cd3b567c6e21f920742087ecf44c187e077cdc8497ac2"
       },
@@ -74,12 +80,38 @@
         "value": "council"
       },
       {
+        "name": "stage",
+        "value": "received"
+      },
+      {
         "name": "ballot_id",
         "value": "c8d26116ed30f9816a05fdf061b2535145472f388d9814e96f33f08369dbcbd0"
       },
       {
         "name": "accepted_at",
         "value": "1793001665"
+      }
+    ],
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2026"
+      },
+      {
+        "name": "election_id",
+        "value": "mayor"
+      },
+      {
+        "name": "stage",
+        "value": "cast"
+      },
+      {
+        "name": "ballot_id",
+        "value": "95534981420d9a1e5d3cd3b567c6e21f920742087ecf44c187e077cdc8497ac2"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1793001669"
       }
     ]
   ],
@@ -90,7 +122,9 @@
     "event": "passing",
     "in-window": "passing",
     "on-time": "passing",
-    "one-ballot": "passing",
+    "one-outcome": "passing",
+    "one-stage": "passing",
+    "received-first": "passing",
     "vitrine/parse": "passing"
   }
 }

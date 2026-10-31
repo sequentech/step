@@ -19,9 +19,9 @@ pub const ELECTION_TAG: &str = "vitrine/election/ballots/v1";
 pub const EVENTS_TAG: &str = "vitrine/election/events/v1";
 /// Reviewed Vitrine core meanings for Step's two election logs.
 pub const ELECTION_MEANING_HASH: &str =
-    "sha256:03a5a99d740d19741de6491ee2fb77bd1680d8d934f6dc5ca90bb25c841bdba7";
+    "sha256:b77e087d44cf4621cb2ca2cdf982abb5c46f3b964ce79f9ff2b04ef645624ab1";
 pub const EVENTS_MEANING_HASH: &str =
-    "sha256:819b9a9da4755aaf78b18ea35390f7908d1a21a824e7c7c6874702bf7152bc4f";
+    "sha256:a76f20437d3846a9cb930a379fe545c218e9e80f35c186fff6dd79e870b5ba51";
 
 pub const HASH_SIZE: usize = 32;
 pub type Hash = [u8; HASH_SIZE];
@@ -32,7 +32,7 @@ const MAX_TAG: usize = 255;
 const MAX_ID: usize = 255;
 const TIME_SIZE: usize = 8;
 
-const ELECTION_FIELDS: usize = 4;
+const ELECTION_FIELDS: usize = 5;
 const EVENTS_FIELDS: usize = 5;
 
 const SUBJECT_NOTHING: u8 = 0;
@@ -214,19 +214,26 @@ fn time_field(field: &Field) -> Result<u64> {
     Ok(u64::from_be_bytes(b))
 }
 
-/// Step's `ballot_id`, the hex of a 32-byte hash, as the `hash` the entry holds.
-pub fn ballot_id_hash(ballot_id: &str) -> Result<Hash> {
-    let bytes = hex::decode(ballot_id).context("ballot_id isn't hex")?;
-    bytes
-        .try_into()
-        .map_err(|_| anyhow!("ballot_id isn't a 32-byte hash"))
+/// The stage of a ballot an `ballots/v1` entry records.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Display, EnumString, AsRefStr)]
+#[strum(serialize_all = "kebab-case")]
+pub enum Stage {
+    /// The ballot box stored the encrypted ballot.
+    Received,
+    /// The voter cast it.
+    Cast,
+    /// The voter audited it instead, which spoils it.
+    Audited,
 }
 
-/// A `vitrine/election/ballots/v1` entry: one accepted ballot.
+/// A `vitrine/election/ballots/v1` entry: one stage of a ballot. A ballot has
+/// one entry per stage it reaches, all with the same `ballot_id`: its
+/// Tracking ID digest.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ElectionEntry {
     pub event_id: String,
     pub election_id: String,
+    pub stage: Stage,
     pub ballot_id: Hash,
     pub accepted_at: u64,
 }
@@ -240,6 +247,7 @@ impl ElectionEntry {
             &[
                 Field::Public(self.event_id.as_bytes().to_vec()),
                 Field::Public(self.election_id.as_bytes().to_vec()),
+                Field::Public(self.stage.as_ref().as_bytes().to_vec()),
                 Field::Public(self.ballot_id.to_vec()),
                 Field::Public(self.accepted_at.to_be_bytes().to_vec()),
             ],
@@ -248,11 +256,13 @@ impl ElectionEntry {
 
     pub fn decode(entry: &[u8]) -> Result<Self> {
         let f = decode_layout(entry, ELECTION_TAG, ELECTION_FIELDS)?;
+        let stage = std::str::from_utf8(public(&f[2])?).context("a stage is ASCII")?;
         Ok(ElectionEntry {
             event_id: id_field(&f[0])?,
             election_id: id_field(&f[1])?,
-            ballot_id: hash_field(&f[2])?,
-            accepted_at: time_field(&f[3])?,
+            stage: Stage::from_str(stage).map_err(|_| anyhow!("unknown stage {stage:?}"))?,
+            ballot_id: hash_field(&f[3])?,
+            accepted_at: time_field(&f[4])?,
         })
     }
 }
@@ -409,6 +419,7 @@ mod tests {
         ElectionEntry {
             event_id: "muni-2026".into(),
             election_id: "mayor".into(),
+            stage: Stage::Cast,
             ballot_id: [7u8; 32],
             accepted_at: 1_793_001_660,
         }
@@ -451,10 +462,33 @@ mod tests {
     }
 
     #[test]
-    fn ballot_ids_are_32_byte_hex() {
-        assert_eq!(ballot_id_hash(&"ab".repeat(32)).unwrap(), [0xab; 32]);
-        assert!(ballot_id_hash(&"ab".repeat(31)).is_err());
-        assert!(ballot_id_hash("zz").is_err());
+    fn a_stage_is_one_of_three_tokens() {
+        for (stage, token) in [
+            (Stage::Received, "received"),
+            (Stage::Cast, "cast"),
+            (Stage::Audited, "audited"),
+        ] {
+            let mut e = entry();
+            e.stage = stage;
+            let bytes = e.encode().unwrap();
+            assert!(bytes.windows(token.len()).any(|w| w == token.as_bytes()));
+            assert_eq!(ElectionEntry::decode(&bytes).unwrap(), e);
+        }
+        let mut e = entry();
+        e.stage = Stage::Received;
+        let bytes = e.encode().unwrap();
+        let other = String::from_utf8_lossy(&bytes).replace("received", "RECEIVED");
+        assert!(ElectionEntry::decode(other.as_bytes()).is_err());
+    }
+
+    #[test]
+    fn a_ballot_has_one_entry_per_stage_under_one_ballot_id() {
+        let mut received = entry();
+        received.stage = Stage::Received;
+        let mut cast = received.clone();
+        cast.stage = Stage::Cast;
+        assert_ne!(received.encode().unwrap(), cast.encode().unwrap());
+        assert_eq!(received.ballot_id, cast.ballot_id);
     }
 
     #[test]
