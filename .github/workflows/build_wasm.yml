@@ -7,7 +7,9 @@ name: Build Sequent Core WASM Target
 on:
   pull_request:
   push:
-    branches: [ 'main', 'feat/use-arc-runner-java-test' ]
+    # ovcs and release branches build on push so beyond's vendor-core.sh finds
+    # a run with artifacts even when the merged pull request skipped its build.
+    branches: [ 'main', 'ovcs', 'release/[0-9]+.[0-9]+', 'feat/use-arc-runner-java-test' ]
   release:
     types: [published]
 
@@ -19,12 +21,57 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # The job takes about 15 minutes. A PR runs it only when the affected-test
+  # planner selects the core's WASM checks or builds, the browser trustee's crates or the
+  # JS packages built here; pushes and releases always run it.
+  plan:
+    name: Select the WASM build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.plan.outputs.build }}
+    steps:
+      # The PR merge commit, which build_wasm also builds; the merge base is then
+      # the base commit itself.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Plan against the actual PR merge base
+        id: plan
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.sha }}
+          VALIDATION: ${{ github.event_name == 'pull_request' && 'affected' || 'full' }}
+        run: |
+          selection=$(GITHUB_OUTPUT=/dev/null python3 -m scripts.dev.ci plan --base "$BASE" --validation "$VALIDATION")
+          if jq -e '.jobs["wasm-freshness"]
+              or (.wasm_builds | length > 0)
+              or any(.rust[]; .service == "sequent-core" or .service == "protocol-board")
+              or any(.node[]; .package == "ui-core" or .package == "ui-essentials" or .package == "workbench")' \
+              <<<"$selection" >/dev/null \
+            || ! git diff --quiet "$(git merge-base "$BASE" HEAD)" HEAD -- .github/workflows/build_wasm.yml; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "Nothing built here is affected by this change; the WASM build is skipped." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   build_wasm:
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
     runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      # The three WASM builds' release output outgrew the hosted runner's free
+      # disk ("No space left on device" linking braid). These preinstalled SDKs
+      # are about 20 GB that nothing here uses.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
 
       - name: Set up Nix
         uses: cachix/install-nix-action@v25
