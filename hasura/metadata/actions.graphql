@@ -1819,6 +1819,7 @@ type ReceiveBallotOutput {
     key_id: String!
     received_signature: String!
     ballot_id: String!
+    vitrine: VitrineCast
 }
 
 type CastBallotOutput {
@@ -1831,6 +1832,7 @@ type CastBallotOutput {
     cast_signature: String!
     cast_receipt_signature: String!
     cast_vote_id: uuid!
+    vitrine: VitrineCast
 }
 
 type createBallotReceiptOutput {
@@ -3410,4 +3412,5 @@ type Mutation {
 type AuditBallotOutput {
     ballot_id: String!
     status: String!
+    vitrine: VitrineCast
 }

@@ -91,6 +91,7 @@ export type AuditBallotOutput = {
   __typename?: 'AuditBallotOutput';
   ballot_id: Scalars['String']['output'];
   status: Scalars['String']['output'];
+  vitrine?: Maybe<VitrineCast>;
 };
 
 export type AuthorizeTallyCustodyInput = {
@@ -142,6 +143,7 @@ export type CastBallotOutput = {
   election_id: Scalars['uuid']['output'];
   key_id: Scalars['String']['output'];
   received_at: Scalars['String']['output'];
+  vitrine?: Maybe<VitrineCast>;
 };
 
 export type CastVoteEntry = {
@@ -1382,6 +1384,7 @@ export type ReceiveBallotOutput = {
   received_at: Scalars['String']['output'];
   received_signature: Scalars['String']['output'];
   tenant_id: Scalars['uuid']['output'];
+  vitrine?: Maybe<VitrineCast>;
   voter_ballot_signature: Scalars['String']['output'];
   voter_signing_pk: Scalars['String']['output'];
 };
