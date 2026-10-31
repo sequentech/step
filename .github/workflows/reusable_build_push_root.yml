@@ -15,10 +15,20 @@ on:
         description: 'Whether to push the images'
         required: true
         type: boolean
+    secrets:
+      PAT:
+        required: false
+      DOCKERHUB_TOKEN:
+        required: false
+      AWS_ACCESS_KEY_ID:
+        required: false
+      AWS_SECRET_ACCESS_KEY:
+        required: false
 
 jobs:
   build-and-push:
     runs-on: ubuntu-24.04
+    environment: release
     strategy:
       matrix:
         include:
