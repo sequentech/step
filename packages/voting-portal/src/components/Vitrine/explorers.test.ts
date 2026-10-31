@@ -5,14 +5,29 @@
 import type {Policy} from "@vitrine/verify"
 import {explorerLink, explorersOf} from "./explorers"
 
-const policyWith = (fields: Record<string, unknown>) => fields as unknown as Policy
+const policyWith = (fields: Record<string, unknown>) =>
+    ({
+        operator: "",
+        explorers: [],
+        monitors: new Map(),
+        hubs: new Map(),
+        ...fields,
+    }) as unknown as Policy
 
 describe("the explorers a policy names", () => {
-    it("lists those of monitors and hubs first, independent, and the operator's last", () => {
+    it("lists independent monitors' and hubs' first, then others', and the operator's last", () => {
         const policy = policyWith({
             operator: "Election authority",
             explorers: ["https://election.example/"],
             hubs: new Map([
+                [
+                    "hub-a",
+                    {
+                        name: "hub-a",
+                        operator: "Election authority",
+                        explorer: "https://hub-a.example/",
+                    },
+                ],
                 ["hub-b", {name: "hub-b", operator: "Hub B", explorer: "https://hub-b.example/"}],
                 ["hub-c", {name: "hub-c", operator: "Hub C"}],
             ]),
@@ -36,6 +51,13 @@ describe("the explorers a policy names", () => {
                 independent: true,
             },
             {
+                url: "https://hub-a.example/",
+                kind: "hub",
+                name: "hub-a",
+                party: "Election authority",
+                independent: false,
+            },
+            {
                 url: "https://election.example/",
                 kind: "operator",
                 name: "Election authority",
@@ -46,7 +68,6 @@ describe("the explorers a policy names", () => {
     })
 
     it("lists none for a policy without explorer lines, or none at all", () => {
-        expect(explorersOf(policyWith({monitors: new Map(), hubs: new Map()}))).toEqual([])
         expect(explorersOf(policyWith({}))).toEqual([])
         expect(explorersOf(undefined)).toEqual([])
     })

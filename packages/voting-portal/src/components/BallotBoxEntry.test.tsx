@@ -135,9 +135,12 @@ test.each([
 describe("Look it up elsewhere in the entry's dialog", () => {
     const policy = {
         id: "sha256:abc123",
+        operator: "Election authority",
         monitors: new Map([
             ["obs", {name: "obs", party: "Observer", explorer: "https://obs.example/"}],
         ]),
+        hubs: new Map(),
+        explorers: [],
     } as unknown as Policy
 
     test("lists the policy's explorers, each opening the entry by its Tracking ID", async () => {
@@ -155,7 +158,7 @@ describe("Look it up elsewhere in the entry's dialog", () => {
     test("is hidden without a policy, or when it names no explorer", () => {
         const {rerender} = render(<BallotBoxEntry {...props} />)
         expect(screen.queryByText("vitrine.elsewhere.title")).not.toBeInTheDocument()
-        rerender(<BallotBoxEntry {...props} policy={{id: "sha256:abc123"} as unknown as Policy} />)
+        rerender(<BallotBoxEntry {...props} policy={{...policy, monitors: new Map()} as Policy} />)
         expect(screen.queryByText("vitrine.elsewhere.title")).not.toBeInTheDocument()
     })
 

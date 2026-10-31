@@ -654,7 +654,14 @@ describe("Look it up elsewhere in the ballot status dialog", () => {
     it("is not shown when the policy names no explorer", () => {
         renderDialog({
             status: EBallotStatus.VERIFIED,
-            view: view(VERIFIED, {policy: {id: "sha256:abc123"} as typeof POLICY}),
+            view: view(VERIFIED, {
+                policy: {
+                    ...POLICY,
+                    monitors: new Map(),
+                    hubs: new Map(),
+                    explorers: [],
+                } as typeof POLICY,
+            }),
         })
         expect(section()).toBeNull()
     })

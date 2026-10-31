@@ -626,6 +626,7 @@ describe("the result for an event with transparency", () => {
             monitors: new Map([
                 ["obs", {name: "obs", party: "Observer", explorer: "https://obs.example/"}],
             ]),
+            hubs: new Map(),
             explorers: ["https://election.example/"],
         } as unknown as NonNullable<IReceiptView["policy"]>
         mockTracked.mockReturnValue(tracked({view: {...VERIFIED, policy}}))
