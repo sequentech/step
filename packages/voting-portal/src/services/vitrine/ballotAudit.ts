@@ -3,11 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // The checks the ballot tracker runs on an audited ballot, the ones the
-// standalone ballot verifier runs: the ballot's hash is the Tracking ID, its
-// ciphertext reproduces from the plaintext and randomness it carries, and only
+// standalone ballot verifier runs: the ballot's hash and voter key give the
+// Tracking ID it was found by, its ciphertext reproduces from the plaintext and randomness it carries, and only
 // then does it decode into the voter's selections.
 
 import {
+    trackingId,
     verifyAuditableBallotCiphertext,
     verifyAuditableMultiBallotCiphertext,
 } from "@sequentech/ui-core"
@@ -42,6 +43,7 @@ export type TAuditService = Pick<
 > & {
     verifyAuditableBallotCiphertext: (ballot: IAuditableSingleBallot) => boolean
     verifyAuditableMultiBallotCiphertext: (ballot: IAuditableMultiBallot) => boolean
+    trackingId: (ballotHash: string, voterSigningPk?: string | null) => string
 }
 
 export const provideAuditService = (): TAuditService => {
@@ -54,6 +56,7 @@ export const provideAuditService = (): TAuditService => {
         decodeAuditableMultiBallot,
         verifyAuditableBallotCiphertext,
         verifyAuditableMultiBallotCiphertext,
+        trackingId,
     }
 }
 
@@ -84,9 +87,15 @@ export const auditBallot = (
 ): TAudit => {
     try {
         const expected = ballotIdChars(trackingId)
-        const hash = ballotIdChars(hashOf(service, record))
+        const hash = hashOf(service, record)
         if (!expected || !hash) return {outcome: EAuditOutcome.NOT_VERIFIABLE}
-        if (hash !== expected || !reproduces(service, record)) {
+        // The Tracking ID digests the ballot's hash with the key that signed
+        // it; a ballot without a key digests an empty one.
+        const computed = ballotIdChars(
+            service.trackingId(hash, record.ballot.voter_signing_pk ?? null)
+        )
+        if (!computed) return {outcome: EAuditOutcome.NOT_VERIFIABLE}
+        if (computed !== expected || !reproduces(service, record)) {
             return {outcome: EAuditOutcome.MISMATCH}
         }
         const selections = decode(service, record)
