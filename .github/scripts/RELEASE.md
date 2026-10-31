@@ -23,7 +23,7 @@ and deployment remain separate downstream operations.
 To test locally, install `release-it@16.2.1` on `PATH` and run:
 
 ```sh
-python3 .github/scripts/test_release_explicit_version.py
+python3 .github/scripts/integration_release_explicit_version.py
 ```
 
 The tests use temporary Git repositories and local bare remotes. GitHub release
