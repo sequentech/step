@@ -608,50 +608,51 @@ async fn receipt_key_of_tracking_id(
     area: Option<&str>,
     typed: &str,
 ) -> Result<String, ApiError> {
-    // A Tracking ID has at least 9 characters here; the key a log entry carries is
-    // 8, so the two never meet. The key serves the Logs tab, which holds log
-    // entries and not ballots, and is only found among this election's own.
-    let key = electoral_log::adapters::privacy::normalize_privacy_code(typed);
-    let typed = if key.is_some() {
-        String::new()
-    } else {
-        sequent_core::ballot_receipt::normalize_tracking_id(typed)
-            .filter(|typed| typed.len() >= 9)
-            .ok_or_else(|| bad("Invalid Tracking ID"))?
-    };
+    // Only a Tracking ID names a ballot: its first 8 characters have the shape of
+    // a receipt key, so a key is never read from what is typed.
+    let typed = sequent_core::ballot_receipt::normalize_tracking_id(typed)
+        .ok_or_else(|| bad("Invalid Tracking ID"))?;
     let rows = store.client().await.map_err(unavailable)?.query(
         "SELECT ballot_id,ballot_hash,voter_signing_pk FROM ballot_box_received WHERE election_event_id=$1::text::uuid AND election_id=$2::text::uuid AND ($3::text IS NULL OR area_id=$3::text::uuid)",
         &[&event,&election,&area],
     ).await.map_err(unavailable)?;
-    let mut found = None;
+    let mut found: Vec<(String, String)> = Vec::new();
     for row in &rows {
         let (row_key, hash, voter_key): (String, String, String) = (
             row.try_get(0).map_err(unavailable)?,
             row.try_get(1).map_err(unavailable)?,
             row.try_get(2).map_err(unavailable)?,
         );
-        let matches = match &key {
-            Some(key) => *key == row_key,
-            None => sequent_core::ballot_receipt::tracking_id(
-                &hash,
-                Some(&voter_key),
-            )
-            .is_ok_and(|tracking_id| {
-                sequent_core::ballot_receipt::tracking_id_starts_with(
-                    &tracking_id,
-                    &typed,
-                )
-            }),
-        };
-        if matches {
-            if found.is_some() {
-                return Err(bad("Enter more of the Tracking ID"));
+        if let Ok(tracking_id) =
+            sequent_core::ballot_receipt::tracking_id(&hash, Some(&voter_key))
+        {
+            if sequent_core::ballot_receipt::tracking_id_starts_with(
+                &tracking_id,
+                &typed,
+            ) {
+                found.push((tracking_id, row_key));
             }
-            found = Some(row_key);
         }
     }
-    found.ok_or_else(|| (Status::NotFound, "Ballot not found".into()))
+    found.sort();
+    found.dedup();
+    match found.len() {
+        0 => Err((Status::NotFound, "Ballot not found".into())),
+        1 => Ok(found.remove(0).1),
+        n if n <= MAX_LISTED_MATCHES => Err(bad(&format!(
+            "Several ballots match: {}",
+            found
+                .iter()
+                .map(|(id, _)| id.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ))),
+        _ => Err(bad("Enter more of the Tracking ID")),
+    }
 }
+
+/// How many matches of a Tracking ID start are listed before more is asked.
+const MAX_LISTED_MATCHES: usize = 10;
 
 #[post("/ballot-box-entry", format = "json", data = "<body>")]
 pub async fn ballot_box_entry(

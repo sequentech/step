@@ -294,10 +294,9 @@ pub fn short_tracking_id(tracking_id: &str) -> String {
 }
 
 /// Reads a typed Tracking ID, or the start of one: any case, with or without
-/// separators, O as 0, I and L as 1. The start is 4 characters (for a
-/// telephone), the 8 of the short form, or all 52. Gives the characters in
-/// groups of four. `None` for anything else, a voter pseudonym
-/// (`FTBE:MHRX`) among it.
+/// separators, O as 0, I and L as 1. The start is at least the 8 characters of
+/// the short form and at most all 52. Gives the characters in groups of four.
+/// `None` for anything else, a voter pseudonym (`FTBE:MHRX`) among it.
 pub fn normalize_tracking_id(typed: &str) -> Option<String> {
     let characters = typed
         .chars()
@@ -316,7 +315,7 @@ pub fn normalize_tracking_id(typed: &str) -> Option<String> {
             _ => None,
         })
         .collect::<Option<Vec<char>>>()?;
-    if ![BALLOT_ID_GROUP, SHORT_TRACKING_ID_CHARACTERS, TRACKING_ID_CHARACTERS]
+    if !(SHORT_TRACKING_ID_CHARACTERS..=TRACKING_ID_CHARACTERS)
         .contains(&characters.len())
     {
         return None;

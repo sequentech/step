@@ -722,14 +722,14 @@ fn typed_tracking_ids_are_the_start_of_one_in_groups_of_four() {
     for typed in ["bjhf-gczx", "BJHFGCZX", " bjhf gczx "] {
         assert_eq!(normalize_tracking_id(typed).as_deref(), Some("BJHF-GCZX"));
     }
-    assert_eq!(normalize_tracking_id("bjhf").as_deref(), Some("BJHF"));
+    assert_eq!(normalize_tracking_id("bjhf-gczx-1"), Some("BJHF-GCZX-1".into()));
+    assert_eq!(normalize_tracking_id("bjhf"), None);
     let full = tracking_id(TRACKING_BALLOT_HASH, Some(TRACKING_VOTER_PK)).unwrap();
     assert_eq!(
         normalize_tracking_id(&full.to_lowercase().replace('-', " ")).as_deref(),
         Some(full.as_str())
     );
     assert!(tracking_id_starts_with(&full, "BJHF-GCZX"));
-    assert!(tracking_id_starts_with(&full, "BJHF"));
     assert!(!tracking_id_starts_with(&full, "BJHF-GCZY"));
 }
 
@@ -738,7 +738,7 @@ fn a_voter_pseudonym_is_not_a_tracking_id() {
     for typed in ["BJHF:GCZX", "bjhf:gczx", "BJHF:", "BJHF-GCZX:"] {
         assert_eq!(normalize_tracking_id(typed), None, "{typed}");
     }
-    for malformed in ["", "BJH", "BJHF-GCZ", "BJHF-GCZXX", "BJHF-GCZU"] {
+    for malformed in ["", "BJH", "BJHF", "BJHF-GCZ", "BJHF-GCZU"] {
         assert_eq!(normalize_tracking_id(malformed), None, "{malformed}");
     }
 }

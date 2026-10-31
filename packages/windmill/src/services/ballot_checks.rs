@@ -41,7 +41,14 @@ pub struct LocateBallotOutput {
     pub content: Option<String>,
     pub cast_at: Option<String>,
     pub checks_available_until: Option<String>,
+    /// The Tracking IDs of every ballot that matches, when several do and there
+    /// are few enough to list; empty otherwise (more of the ID is asked for).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub matches: Vec<String>,
 }
+
+/// How many matches of the start of a Tracking ID are listed before more is asked.
+pub const MAX_LISTED_MATCHES: usize = 10;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum BallotIdMatch {
@@ -51,8 +58,7 @@ pub enum BallotIdMatch {
     Exact(String),
 }
 
-/// A lookup is a Tracking ID (the 4 characters a telephone voter reads out, the 8 of
-/// the short form, or all 52), or the hexadecimal hash of the ballot. Anything else,
+/// A lookup is a Tracking ID (from the 8 characters of the short form to all 52), or the hexadecimal hash of the ballot. Anything else,
 /// a voter pseudonym (`FTBE:MHRX`) among it, matches no ballot and never reaches the
 /// ballot box.
 pub fn ballot_id_match(ballot_id: &str) -> Option<BallotIdMatch> {
@@ -96,6 +102,7 @@ pub fn locate_ballot_output(
         content: None,
         cast_at: None,
         checks_available_until: checks_available_until.clone(),
+        matches: Vec::new(),
     };
     if matches!(period, ChecksPeriod::Ended(_)) {
         return without_ballot(LocateBallotStatus::ChecksEnded);
@@ -108,8 +115,19 @@ pub fn locate_ballot_output(
             content: Some(ballot.content.clone()),
             cast_at: Some(ballot.cast_at.to_rfc3339()),
             checks_available_until,
+            matches: Vec::new(),
         },
-        _ => without_ballot(LocateBallotStatus::Ambiguous),
+        _ => LocateBallotOutput {
+            matches: if matches.len() <= MAX_LISTED_MATCHES {
+                matches
+                    .iter()
+                    .map(|ballot| ballot.ballot_id.clone())
+                    .collect()
+            } else {
+                Vec::new()
+            },
+            ..without_ballot(LocateBallotStatus::Ambiguous)
+        },
     }
 }
 
@@ -247,9 +265,10 @@ mod tests {
             Some(BallotIdMatch::Tracking("FTBE-MHRX".to_string()))
         );
         assert_eq!(
-            ballot_id_match("0abc"),
-            Some(BallotIdMatch::Tracking("0ABC".to_string()))
+            ballot_id_match("0abc12345"),
+            Some(BallotIdMatch::Tracking("0ABC-1234-5".to_string()))
         );
+        assert_eq!(ballot_id_match("0abc"), Some(BallotIdMatch::Exact("0abc".to_string())));
     }
 
     #[test]
@@ -306,6 +325,12 @@ mod tests {
         assert_eq!(several.status, LocateBallotStatus::Ambiguous);
         assert_eq!(several.ballot_id, None);
         assert_eq!(several.content, None);
+        assert_eq!(several.matches, vec!["0abc12", "0abc34"]);
+
+        let many: Vec<_> = (0..11).map(|n| cast_vote(&format!("0abc{n:02}"))).collect();
+        let many = locate_ballot_output(&ChecksPeriod::Unlimited, &many);
+        assert_eq!(many.status, LocateBallotStatus::Ambiguous);
+        assert!(many.matches.is_empty());
     }
 
     #[test]
@@ -320,6 +345,7 @@ mod tests {
                 content: None,
                 cast_at: None,
                 checks_available_until: Some("2028-06-07T15:59:00+00:00".to_string()),
+                matches: Vec::new(),
             }
         );
     }
