@@ -17,12 +17,17 @@
 #                         host path (default volume step-e2e-cargo-target)
 # STEP_E2E_CARGO_HOME     registry/git cache: a volume name or an absolute host
 #                         path (default volume step-e2e-cargo-home)
+# STEP_E2E_BINARIES       all (default), debug (windmill, beat, harvest,
+#                         messaging-webhooks, step-cli) or release (trustee, b4v6);
+#                         CI builds the two sets on separate runners
 # CARGO_BUILD_JOBS        parallel rustc jobs (default: all cores)
 set -euo pipefail
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 IMAGE=${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
 COVERAGE=${STEP_E2E_COVERAGE:-0}
+BINARIES=${STEP_E2E_BINARIES:-all}
+case "$BINARIES" in all | debug | release) ;; *) echo 'STEP_E2E_BINARIES must be all, debug or release' >&2; exit 2 ;; esac
 [[ "$COVERAGE" == [01] ]] || { echo 'STEP_E2E_COVERAGE must be 0 or 1' >&2; exit 2; }
 default_bin=$ROOT/.cache/backend-e2e/bin
 [[ "$COVERAGE" == 1 ]] && default_bin+=-coverage
@@ -69,6 +74,7 @@ $DOCKER run --rm \
     --volume "$STAGING:/out" \
     --workdir /workspaces/step/packages \
     --env STEP_E2E_COVERAGE="$COVERAGE" \
+    --env STEP_E2E_BINARIES="$BINARIES" \
     --env CARGO_INCREMENTAL=0 \
     --env CARGO_PROFILE_DEV_DEBUG=line-tables-only \
     --env CARGO_TERM_COLOR=never \
@@ -90,19 +96,23 @@ $DOCKER run --rm \
             printf "%s\n" "$stamp" > "$CARGO_TARGET_DIR/.wrapper"
         fi
         build() { echo "::group::cargo build $*"; cargo build --locked "$@"; echo "::endgroup::"; }
-        build -p windmill --bin main --bin beat
-        build -p harvest --bin harvest
-        build -p messaging-webhooks --bin messaging-webhooks
-        build -p step-cli --bin step-cli
-        build --release -p trustee --bin trustee
-        build --manifest-path wbraid/Cargo.toml --release -p b4 --features postgres --bin b4v6
-        install -m 0755 "$CARGO_TARGET_DIR/debug/main" /out/windmill
-        install -m 0755 "$CARGO_TARGET_DIR/debug/beat" /out/beat
-        install -m 0755 "$CARGO_TARGET_DIR/debug/harvest" /out/harvest
-        install -m 0755 "$CARGO_TARGET_DIR/debug/messaging-webhooks" /out/messaging-webhooks
-        install -m 0755 "$CARGO_TARGET_DIR/debug/step-cli" /out/step-cli
-        install -m 0755 "$CARGO_TARGET_DIR/release/b4v6" /out/b4v6
-        install -m 0755 "$CARGO_TARGET_DIR/release/trustee" /out/trustee
+        if [[ "$STEP_E2E_BINARIES" != release ]]; then
+            # One Cargo call: separate package selections unify features
+            # differently and recompile the crates the four share.
+            build -p windmill -p harvest -p messaging-webhooks -p step-cli \
+                --bin main --bin beat --bin harvest --bin messaging-webhooks --bin step-cli
+            install -m 0755 "$CARGO_TARGET_DIR/debug/main" /out/windmill
+            install -m 0755 "$CARGO_TARGET_DIR/debug/beat" /out/beat
+            install -m 0755 "$CARGO_TARGET_DIR/debug/harvest" /out/harvest
+            install -m 0755 "$CARGO_TARGET_DIR/debug/messaging-webhooks" /out/messaging-webhooks
+            install -m 0755 "$CARGO_TARGET_DIR/debug/step-cli" /out/step-cli
+        fi
+        if [[ "$STEP_E2E_BINARIES" != debug ]]; then
+            build --release -p trustee --bin trustee
+            build --manifest-path wbraid/Cargo.toml --release -p b4 --features postgres --bin b4v6
+            install -m 0755 "$CARGO_TARGET_DIR/release/b4v6" /out/b4v6
+            install -m 0755 "$CARGO_TARGET_DIR/release/trustee" /out/trustee
+        fi
         chown "$OUT_UID:$OUT_GID" /out/*
     '
 # Same-directory renames: a service starting now executes a complete old or new
