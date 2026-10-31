@@ -4391,6 +4391,8 @@ const dutchTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Configureerbare dashboards",
+            modeChangeError: "De dashboardmodus kon niet worden gewijzigd. Probeer het opnieuw.",
             title: "Monitoring",
             loading: "Monitoring laden",
             unavailableAlert:

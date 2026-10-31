@@ -34,8 +34,8 @@
 use crate::postgres::monitoring_config::{
     advance_head, check_deferred_constraints, create_head, create_monitoring_event,
     election_event_exists, get_event_and_heads, get_event_and_revisions_at, get_head, get_heads,
-    get_revision, get_revisions, insert_revision, lock_election_event, raise_generation,
-    update_mode_and_preset, MonitoringEvent, NewRevision,
+    get_revision, get_revisions, insert_revision, lock_election_event, lock_monitoring_event,
+    raise_generation, update_mode_and_preset, MonitoringEvent, NewRevision,
 };
 use crate::services::audit_log::{self, AuditActor, AuditOrigin};
 use anyhow::{anyhow, Context};
@@ -898,6 +898,51 @@ async fn reset_in(
     ))
 }
 
+/// The shipped initial dashboard set. Its version is stored with the documents;
+/// later mode switches never upgrade or replace an event's configuration.
+pub const DEFAULT_PRESET_ID: &str = "comelec";
+
+fn default_preset() -> anyhow::Result<(presets::Preset, PresetVersion)> {
+    let preset = presets::load(DEFAULT_PRESET_ID)
+        .ok_or_else(|| anyhow!("The default monitoring preset is missing"))?
+        .map_err(|report| anyhow!("The default monitoring preset is invalid: {report}"))?;
+    let version = PresetVersion {
+        id: preset.manifest.id.clone(),
+        version: i32::try_from(preset.manifest.version)?,
+    };
+    Ok((preset, version))
+}
+
+/// Initializes a newly created event inside its creation transaction. Existing
+/// monitoring rows, including an explicit LEGACY choice, are never changed.
+/// The caller supplies the creation audit implementation; no read path calls this.
+pub async fn initialize_default_config(
+    transaction: &Transaction<'_>,
+    audit: &dyn MonitoringConfigAudit,
+    event: EventRef,
+    author: &Author,
+) -> Result<ResetOutcome, ResetError> {
+    check_author(author).map_err(ResetError::Invalid)?;
+    if !lock_election_event(transaction, event).await? {
+        return Err(ResetError::NotFound);
+    }
+    if get_event_and_heads(transaction, event).await?.is_some() {
+        return Ok(ResetOutcome::Unchanged);
+    }
+    let (preset, version) = default_preset()?;
+    let (outcome, _) = reset_in(
+        transaction,
+        audit,
+        event,
+        author,
+        &preset,
+        version,
+        DashboardMode::Configured,
+    )
+    .await?;
+    Ok(outcome)
+}
+
 /// Switches the Dashboard tab between the standard dashboard and the
 /// configured ones. The configuration is kept either way.
 pub async fn set_mode(
@@ -926,8 +971,19 @@ pub async fn set_mode_as(
 ) -> Result<ModeOutcome, ModeError> {
     check_author(author).map_err(ModeError::Invalid)?;
     match read(client, event).await? {
-        None => return Err(ModeError::NotConfigured),
-        Some((stored, _)) if stored.mode == mode => return Ok(ModeOutcome::Unchanged),
+        None => {
+            if !election_event_exists(&*client, event).await? {
+                return Err(ModeError::NotConfigured);
+            }
+            if mode == DashboardMode::Legacy {
+                return Ok(ModeOutcome::Unchanged);
+            }
+        }
+        Some((stored, heads))
+            if stored.mode == mode && (mode == DashboardMode::Legacy || !heads.is_empty()) =>
+        {
+            return Ok(ModeOutcome::Unchanged);
+        }
         Some(_) => {}
     }
     audit
@@ -946,8 +1002,38 @@ async fn set_mode_in(
     author: &Author,
     mode: DashboardMode,
 ) -> Result<(ModeOutcome, Finish), ModeError> {
-    let Some(stored) = raise_generation(transaction, event).await? else {
+    // Serialize first initialization with resets and other mode switches, then
+    // inspect the locked state: a concurrent editor's documents must never reset.
+    if !lock_election_event(transaction, event).await? {
         return Err(ModeError::NotConfigured);
+    }
+    if mode == DashboardMode::Configured {
+        create_monitoring_event(transaction, event).await?;
+    }
+    lock_monitoring_event(transaction, event).await?;
+    let current = get_event_and_heads(transaction, event).await?;
+    if mode == DashboardMode::Configured
+        && current.as_ref().is_none_or(|(_, heads)| heads.is_empty())
+    {
+        let (preset, version) = default_preset()?;
+        let (reset, finish) = reset_in(transaction, audit, event, author, &preset, version, mode)
+            .await
+            .map_err(|error| match error {
+                ResetError::NotFound => ModeError::NotConfigured,
+                ResetError::Invalid(report) => ModeError::Invalid(report),
+                ResetError::Internal(error) => ModeError::Internal(error),
+                ResetError::UnknownPreset => ModeError::Internal(anyhow!("Default preset missing")),
+            })?;
+        return Ok((
+            match reset {
+                ResetOutcome::Reset { generation, .. } => ModeOutcome::Switched { generation },
+                ResetOutcome::Unchanged => ModeOutcome::Unchanged,
+            },
+            finish,
+        ));
+    }
+    let Some(stored) = raise_generation(transaction, event).await? else {
+        return Ok((ModeOutcome::Unchanged, Finish::Rollback));
     };
     if stored.mode == mode {
         return Ok((ModeOutcome::Unchanged, Finish::Rollback));

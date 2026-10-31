@@ -4373,6 +4373,8 @@ const galegoTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Paneis configurables",
+            modeChangeError: "Non se puido cambiar o modo do panel. Ténteo de novo.",
             title: "Monitorización",
             loading: "Cargando a monitorización",
             unavailableAlert:

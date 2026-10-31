@@ -4392,6 +4392,8 @@ const catalanTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Taulers configurables",
+            modeChangeError: "No s’ha pogut canviar el mode del tauler. Torneu-ho a provar.",
             title: "Monitoratge",
             loading: "Carregant el monitoratge",
             unavailableAlert:
