@@ -331,9 +331,13 @@ const tagalogTranslation: TranslationType = {
             common: {
                 gapiKey: "Service account key ng Google Calendar",
                 gapiEmail: "Email ng authentication sa Google Calendar",
+                gapiKeyHelper:
+                    "Hindi ipinapakita ang naka-save na key. Mag-paste ng bagong key para palitan ito.",
+                gapiKeySaved: "Na-save ang Google Calendar Service Account Key",
             },
             errors: {
                 invalidGapiKey: "Hindi wastong format ng Google Calendar Service Account Key",
+                saveGapiKey: "Hindi ma-save ang Google Calendar Service Account Key",
             },
         },
         lookAndFeelScreen: {
