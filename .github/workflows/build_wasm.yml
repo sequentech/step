@@ -65,6 +65,14 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # The three WASM builds' release output outgrew the hosted runner's free
+      # disk ("No space left on device" linking braid). These preinstalled SDKs
+      # are about 20 GB that nothing here uses.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
+
       - name: Set up Nix
         uses: cachix/install-nix-action@v25
         with:
