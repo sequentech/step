@@ -17,8 +17,10 @@ jest.mock("react-i18next", () => ({
     useTranslation: () => ({i18n: {language: mockLanguage}}),
 }))
 
-jest.mock("@sequentech/ui-core", () =>
-    jest.requireActual("../../../../../../ui-core/src/services/translate")
+jest.mock(
+    "@sequentech/ui-core",
+    () => jest.requireActual("../../../../../../ui-core/src/services/translate"),
+    {virtual: true}
 )
 
 const i18n = i18next.createInstance()
