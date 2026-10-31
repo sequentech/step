@@ -13,6 +13,7 @@ import os
 import sys
 import tempfile
 import unittest
+import urllib.error
 import uuid
 from pathlib import Path
 
@@ -88,6 +89,7 @@ class FakeKeycloak:
     def __init__(self):
         self.users = {}
         self.puts = 0
+        self.fail_after_puts = None
 
     def add(self, number, value, area=SOURCE, weight="1", **extra):
         attributes = {regroup.AREA_ID_ATTRIBUTE: [area], regroup.VOTE_WEIGHT_ATTRIBUTE: [weight],
@@ -105,6 +107,8 @@ class FakeKeycloak:
         return copy.deepcopy(self.users[uid])
 
     def put_user(self, realm, user):
+        if self.fail_after_puts is not None and self.puts >= self.fail_after_puts:
+            raise urllib.error.URLError("connection reset")
         self.puts += 1
         self.users[user["id"]] = copy.deepcopy(user)
 
@@ -116,6 +120,7 @@ class Args:
         self.source_area_id = SOURCE
         self.attribute = ATTRIBUTE
         self.blank_policy = "fail"
+        self.resume = False
         self.plan = os.path.join(directory, "plan.json")
         self.journal = os.path.join(directory, "journal.json")
         self.__dict__.update(overrides)
@@ -155,6 +160,8 @@ class RegroupTest(unittest.TestCase):
             code = regroup.COMMANDS[command](context, out)
         except regroup.RegroupError as error:
             return 2, {"outcome": "REFUSED", "problems": error.problems}
+        except urllib.error.URLError as error:
+            return 1, {"outcome": "ERROR", "problems": [str(error)]}
         return code, json.loads(out.getvalue())
 
     def problems(self, **overrides):
@@ -321,6 +328,49 @@ class RegroupTest(unittest.TestCase):
                 code, result = self.run_command("verify")
                 self.assertEqual(code, 2)
                 self.assertIn("changed in something other than their area", " ".join(result["problems"]))
+
+    def interrupted_apply(self):
+        self.run_command("plan")
+        self.keycloak.fail_after_puts = 2
+        code, _ = self.run_command("apply")
+        self.assertEqual(code, 1)
+        self.keycloak.fail_after_puts = None
+        return Path(Args(self.directory).journal).read_bytes()
+
+    def test_resume_finishes_from_the_original_journal_without_rewriting_it(self):
+        journal = self.interrupted_apply()
+        code, result = self.run_command("apply", resume=True)
+        self.assertEqual((code, result["outcome"]), (3, "PUBLICATION_PENDING"))
+        self.assertEqual(Path(Args(self.directory).journal).read_bytes(), journal)
+        self.assertEqual(len([a for a in self.hasura.areas if a["name"] == "Unit A"]), 1)
+        self.assertEqual(len(self.hasura.area_contests), len(CONTESTS) * 3)
+        self.publish()
+        code, result = self.run_command("verify")
+        self.assertEqual((code, result["outcome"]), (0, "READY_FOR_TALLY"))
+
+    def test_resume_refuses_work_the_original_plan_did_not_record(self):
+        self.interrupted_apply()
+        self.keycloak.add(6, "Unit C")
+        code, result = self.run_command("apply", resume=True)
+        self.assertEqual(code, 2)
+        self.assertIn("not in the original plan", " ".join(result["problems"]))
+
+    def test_resume_still_detects_changes_made_after_the_first_mutation(self):
+        self.interrupted_apply()
+        self.hasura.extra_fingerprints["tally_session"]["baseline"] = "changed meanwhile"
+        code, result = self.run_command("apply", resume=True)
+        self.assertEqual(code, 2)
+        self.assertIn("tally_session", " ".join(result["problems"]))
+
+    def test_revert_refuses_once_a_new_tally_exists(self):
+        self.run_command("plan")
+        self.run_command("apply")
+        self.hasura.tally_sessions.append({"id": "second", "execution_status": "SUCCESS"})
+        puts = self.keycloak.puts
+        code, result = self.run_command("revert")
+        self.assertEqual(code, 2)
+        self.assertIn("created after apply: second", result["problems"][0])
+        self.assertEqual(self.keycloak.puts, puts)
 
     def test_revert_refuses_while_a_tally_is_running(self):
         self.run_command("plan")

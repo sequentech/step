@@ -623,20 +623,46 @@ def command_plan(context, out):
     return 0
 
 
+def require_within(original, remaining):
+    """Resuming may only finish work the original journal recorded, exactly as recorded."""
+    problems = []
+    if any(area not in original["areas_to_create"] for area in remaining["areas_to_create"]):
+        problems.append("an area to create is not in the original plan")
+    if any(item not in original["contests_to_create"] for item in remaining["contests_to_create"]):
+        problems.append("an area contest to create is not in the original plan")
+    if any(move not in original["user_moves"] for move in remaining["user_moves"]):
+        problems.append("a voter move is not in the original plan")
+    for target, ids in remaining["vote_moves"].items():
+        if not set(ids) <= set(original["vote_moves"].get(target, [])):
+            problems.append(f"cast vote moves to area {target} are not in the original plan")
+    if problems:
+        raise RegroupError(problems + ["the event changed since the first apply; revert or "
+                                       "investigate instead of resuming"])
+
+
 def command_apply(context, out):
-    reviewed = read_json(context.plan_path)
-    require_same_scope(context, reviewed)
-    _, users, plan = current_plan(context, reviewed["area_ids"])
-    if plan["digest"] != reviewed["digest"]:
-        raise RegroupError("the event changed since the plan was reviewed; plan again")
+    if context.resume:
+        # The original journal is never rewritten: its snapshot predates the
+        # first change, so verifying against it shows everything since then.
+        journal = read_json(context.journal_path)
+        require_same_scope(context, journal["plan"])
+        _, _, plan = current_plan(context, journal["plan"]["area_ids"])
+        require_within(journal["plan"], plan)
+    else:
+        reviewed = read_json(context.plan_path)
+        require_same_scope(context, reviewed)
+        _, users, plan = current_plan(context, reviewed["area_ids"])
+        if plan["digest"] != reviewed["digest"]:
+            raise RegroupError("the event changed since the plan was reviewed; plan again")
+        journal = {
+            "plan": plan,
+            "fingerprints": context.hasura.fingerprints(context.tenant_id,
+                                                        context.election_event_id),
+            "voters": voter_invariants(users, set(plan["voter_ids"])),
+            "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+        write_private_json(context.journal_path, journal, exclusive=True)
     realm = event_realm(context.tenant_id, context.election_event_id)
-    journal = {
-        "plan": plan,
-        "fingerprints": context.hasura.fingerprints(context.tenant_id, context.election_event_id),
-        "voters": voter_invariants(users, set(plan["voter_ids"])),
-        "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-    }
-    write_private_json(context.journal_path, journal, exclusive=True)
 
     created, contests, moved = context.hasura.apply(
         context.tenant_id, context.election_event_id, context.source_area_id,
@@ -649,7 +675,8 @@ def command_apply(context, out):
         conflicts.append("area or contest inserts did not match the plan")
     if conflicts:
         raise RegroupError(conflicts + ["database changes are committed; Keycloak was not changed. "
-                                        "Run verify, then plan and apply again or revert"])
+                                        "Investigate, then apply --resume with the same journal "
+                                        "or revert"])
     for move in plan["user_moves"]:
         move_user(context.keycloak, realm, move["user_id"], move["from"], move["to"])
     return command_verify(context, out, journal)
@@ -708,6 +735,12 @@ def command_revert(context, out):
     if not state["event"]:
         raise RegroupError("election event not found in tenant")
     problems = operational_problems(state)
+    new_sessions = sorted({s["id"] for s in state["tally_sessions"]}
+                          - set(journal["fingerprints"]["tally_session"]))
+    if new_sessions:
+        problems.append(f"tally session(s) created after apply: {', '.join(new_sessions)}. "
+                        f"Moving their inputs back would make them unsafe to re-run, so revert "
+                        f"is refused")
     if problems:
         raise RegroupError(problems)
     realm = event_realm(context.tenant_id, context.election_event_id)
@@ -755,6 +788,7 @@ class Context:
         self.blank_policy = BlankPolicy(args.blank_policy)
         self.plan_path = args.plan
         self.journal_path = args.journal
+        self.resume = args.resume
         self.hasura = hasura
         self.keycloak = keycloak
 
@@ -775,6 +809,8 @@ def parse_args(argv):
                         default=BlankPolicy.FAIL.value)
     parser.add_argument("--plan", required=True, help="plan file written by plan, read by apply")
     parser.add_argument("--journal", help="recovery journal written by apply before any change")
+    parser.add_argument("--resume", action="store_true",
+                        help="finish an interrupted apply from its original journal")
     args = parser.parse_args(argv)
     if args.command != "plan" and not args.journal:
         parser.error(f"{args.command} needs --journal")

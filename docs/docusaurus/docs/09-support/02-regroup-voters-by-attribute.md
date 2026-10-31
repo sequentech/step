@@ -12,7 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 The procedure below is based on reading the `v10.1.0-rc.4` source. The script
 has only been run against its focused tests
-(`python3 scripts/test_regroup_voters_by_attribute.py`: 32 tests, OK, using
+(`python3 scripts/test_regroup_voters_by_attribute.py`: 36 tests, OK, using
 in-memory Hasura and Keycloak). A full run on an rc.4 stack (baseline tally,
 regroup, second tally) is still pending. Do not use it on a production event
 until this notice is replaced with that evidence.
@@ -135,12 +135,27 @@ the event, and run `regroup verify`:
 
 Start a new tally. Each area then has its own results.
 
-Running `plan` again after a successful `apply` shows nothing left to do. If
-`apply` stopped part-way, run `plan` and `apply` again with a new journal file
-to finish, or recover with `regroup revert`. Revert moves journaled voters and
-votes back only where nothing else changed them, verifies the result, and
-otherwise fails and lists what it left alone. Areas created by `apply` stay in
-place, so publish again before any tally.
+Running `plan` again after a successful `apply` shows nothing left to do.
+
+### Recovery
+
+Keep the journal written by the first `apply` unchanged. It is the only
+snapshot taken before the first change. Do not start over with a new plan and
+journal after a partial apply, because a later snapshot would hide anything
+that changed in between.
+
+- **Finish an interrupted apply:** `regroup apply --resume`, with the same
+  `--journal`. It only performs moves recorded in that journal, exactly as
+  recorded, and refuses anything else. It then verifies against that original
+  snapshot. Later `regroup verify` runs also use the original journal.
+- **Undo:** `regroup revert`, with the same `--journal`. It is allowed only
+  while voting is closed, no tally is running, and no tally session has been
+  created since the apply. The baseline tally that existed before is fine. Once
+  a new tally exists, moving its inputs back would make that session unsafe to
+  re-run, so revert is refused and any recovery needs its own review. Revert
+  moves voters and votes back only where nothing else changed them, verifies
+  the result, and otherwise fails and lists what it left alone. Areas created by
+  `apply` stay in place, so publish again before any tally.
 
 Exit codes: 0 done, 2 refused (with reasons), 3 publication pending, 1
 connection or file error.
