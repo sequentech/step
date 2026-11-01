@@ -5,7 +5,7 @@ import {screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {ECandidatesLayout, EOverVotePolicy, ICandidate} from "@sequentech/ui-core"
 
-import {aCandidate, aContest, anOption, marks, mountContest} from "../testing/ballot"
+import {aCandidate, aContest, anEngine, anOption, marks, mountContest} from "../testing/ballot"
 
 const senators = (count: number): Array<ICandidate> =>
     Array.from({length: count}, (_, index) =>
@@ -24,6 +24,74 @@ const paperContest = (over: Record<string, unknown> = {}) =>
 const grid = () => document.querySelector(".candidates-paper-grid") as HTMLElement
 
 describe("a contest drawn as a paper ballot", () => {
+    beforeEach(() => sessionStorage.clear())
+
+    it("keeps randomized candidate numbers on review and when returning to vote", async () => {
+        const contest = paperContest({
+            candidates: senators(3),
+            presentation: {
+                candidates_layout: ECandidatesLayout.PAPER_GRID,
+                candidates_order: "random",
+            },
+        })
+        const sort = jest.fn((candidates: ICandidate[]) => [...candidates].reverse())
+        const engine = {...anEngine(), sortCandidatesInContest: sort}
+        const mounted = mountContest(contest, {engine})
+        await userEvent.click(screen.getByRole("checkbox", {name: "1. Senator 003"}))
+        const selection = mounted.held()
+        mounted.unmount()
+        sort.mockImplementation((candidates) => candidates)
+        const review = mountContest(contest, {engine, selection, isReview: true})
+        expect(document.querySelector(".paper-candidate-name")).toHaveTextContent("1. Senator 003")
+        review.unmount()
+        mountContest(contest, {engine, selection})
+        expect(screen.getByRole("checkbox", {name: "1. Senator 003"})).toBeChecked()
+    })
+
+    it("makes authored details available without changing the candidate's mark", async () => {
+        const contest = paperContest({
+            candidates: [
+                aCandidate("a", "Alice", {
+                    description: "A candidate statement",
+                    presentation: {
+                        urls: [
+                            {title: "Photo", url: "alice.png", is_image: true},
+                            {title: "URL", url: "https://example.com/alice", is_image: false},
+                        ],
+                    },
+                }),
+            ],
+        })
+        const mounted = mountContest(contest)
+        const details = document.querySelector("details")!
+        const summary = details.querySelector("summary")!
+        await userEvent.click(summary)
+        expect(details).toHaveAttribute("open")
+        expect(screen.getByText("A candidate statement")).toBeVisible()
+        expect(details.querySelector("img")).toHaveAttribute(
+            "src",
+            "https://assets.example/alice.png"
+        )
+        expect(screen.getByRole("link")).toHaveAttribute("href", "https://example.com/alice")
+        expect(mounted.held().choices[0].selected).toBe(-1)
+    })
+
+    it.each([
+        [2, 2, "Select 2 options"],
+        [1, 3, "Select between 1 and 3 options"],
+    ])("shows the %i..%i requirement in the visible heading", (min, max, instruction) => {
+        mountContest(paperContest({min_votes: min, max_votes: max}))
+        expect(document.querySelector(".contest-paper-subtitle")).toHaveTextContent(instruction)
+    })
+
+    it.each([{isReview: true}, {is_acclaimed: true}])(
+        "does not instruct a voter to mark a read-only contest: %j",
+        (mode) => {
+            mountContest(paperContest(mode), {isReview: "isReview" in mode})
+            expect(document.querySelector(".contest-paper-subtitle")).toBeNull()
+        }
+    )
+
     it("keeps the card list when no layout is configured", () => {
         mountContest(aContest())
         expect(grid()).toBeNull()

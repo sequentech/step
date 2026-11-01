@@ -253,3 +253,46 @@ export const Senator66Review: Story = {
         isReview: true,
     },
 }
+
+/** Candidate information remains available without changing a vote. */
+export const CandidateDetails: Story = {
+    args: {
+        contest: paperContest("details", "Candidates", 1, [
+            {
+                ...candidate("details", "alice", "Alice", 0),
+                description: "A candidate statement",
+                presentation: {
+                    urls: [
+                        {
+                            title: "Photo",
+                            url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect width='64' height='64' fill='%23888'/%3E%3C/svg%3E",
+                            is_image: true,
+                        },
+                        {title: "URL", url: "https://example.com/alice", is_image: false},
+                    ],
+                },
+            },
+        ]),
+        selected: [],
+        isReview: false,
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const mark = canvas.getByRole("checkbox", {name: "1. Alice"})
+        const details = canvasElement.querySelector("details")!
+        const summary = details.querySelector("summary")!
+        await userEvent.click(summary)
+        await expect(details).toHaveAttribute("open")
+        await expect(canvas.getByText("A candidate statement")).toBeVisible()
+        await expect(canvas.getByRole("link", {name: "More information 1. Alice"})).toHaveAttribute(
+            "href",
+            "https://example.com/alice"
+        )
+        await expect(mark).not.toBeChecked()
+        await userEvent.click(summary)
+        await expect(details).not.toHaveAttribute("open")
+        mark.focus()
+        await userEvent.keyboard(" ")
+        await expect(mark).toBeChecked()
+    },
+}

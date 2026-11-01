@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {ECandidatesLayout, IContest} from "@sequentech/ui-core"
 
-import {aContest} from "../testing/ballot"
+import {aCandidate, aContest} from "../testing/ballot"
 import {
     EPaperGridDensity,
     PAPER_GRID_DEFAULT_COLUMNS,
@@ -11,8 +11,77 @@ import {
     getPaperGridColumns,
     getPaperGridDensity,
     getPaperGridRows,
+    getPaperCandidateOrder,
     getResponsivePaperGridColumns,
 } from "./paperGrid"
+
+describe("saved paper candidate order", () => {
+    const candidates = [aCandidate("a", "Alice"), aCandidate("b", "Bob")]
+    beforeEach(() => sessionStorage.clear())
+    afterEach(() => jest.restoreAllMocks())
+
+    it("remembers only IDs and separates ballot styles and contests", () => {
+        const shuffle = jest.fn(() => [...candidates].reverse())
+        expect(getPaperCandidateOrder("style", "contest", candidates, shuffle)).toEqual(
+            [...candidates].reverse()
+        )
+        expect(getPaperCandidateOrder("style", "contest", candidates, () => candidates)).toEqual(
+            [...candidates].reverse()
+        )
+        expect(getPaperCandidateOrder("other", "contest", candidates, () => candidates)).toEqual(
+            candidates
+        )
+        expect(getPaperCandidateOrder("style", "other", candidates, () => candidates)).toEqual(
+            candidates
+        )
+        expect(JSON.parse(sessionStorage.getItem(sessionStorage.key(0)!)!)).toEqual(["b", "a"])
+        expect(shuffle).toHaveBeenCalledTimes(1)
+    })
+
+    it.each(["broken JSON", '["a","a"]', '["missing","a"]', '["a"]', "[1,2]"])(
+        "replaces an unusable saved order: %s",
+        (saved) => {
+            getPaperCandidateOrder("style", "contest", candidates, () => candidates)
+            sessionStorage.setItem(sessionStorage.key(0)!, saved)
+            const shuffle = jest.fn(() => [...candidates].reverse())
+            expect(getPaperCandidateOrder("style", "contest", candidates, shuffle)).toEqual(
+                [...candidates].reverse()
+            )
+            expect(shuffle).toHaveBeenCalledTimes(1)
+        }
+    )
+
+    it("keeps the order across remounts when storage is unavailable", () => {
+        jest.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+            throw new Error("blocked")
+        })
+        jest.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+            throw new Error("blocked")
+        })
+        expect(
+            getPaperCandidateOrder("private-style", "contest", candidates, () =>
+                [...candidates].reverse()
+            )
+        ).toEqual([...candidates].reverse())
+        expect(
+            getPaperCandidateOrder("private-style", "contest", candidates, () => candidates)
+        ).toEqual([...candidates].reverse())
+    })
+
+    it("keeps the order when storage can be read but its quota is full", () => {
+        getPaperCandidateOrder("quota-style", "contest", candidates, () => candidates)
+        sessionStorage.setItem(sessionStorage.key(0)!, '["stale"]')
+        jest.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+            throw new Error("quota exceeded")
+        })
+        getPaperCandidateOrder("quota-style", "contest", candidates, () =>
+            [...candidates].reverse()
+        )
+        expect(
+            getPaperCandidateOrder("quota-style", "contest", candidates, () => candidates)
+        ).toEqual([...candidates].reverse())
+    })
+})
 
 const withPresentation = (presentation: Record<string, unknown>): IContest =>
     aContest({presentation} as never)

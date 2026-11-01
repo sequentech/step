@@ -395,13 +395,6 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
-    const candidatesLayoutChoices = (): Array<EnumChoice<ECandidatesLayout>> => {
-        return Object.values(ECandidatesLayout).map((value) => ({
-            id: value,
-            name: t(`contestScreen.candidatesLayout.${value}`),
-        }))
-    }
-
     const underVotePolicyChoices = (): Array<EnumChoice<EUnderVotePolicy>> => {
         return Object.values(EUnderVotePolicy).map((value) => ({
             id: value,
@@ -789,7 +782,16 @@ export const ContestDataForm: React.FC = () => {
                                 <NumberInput source="presentation.columns" min={1} />
                                 <SelectInput
                                     source="presentation.candidates_layout"
-                                    choices={candidatesLayoutChoices()}
+                                    choices={[
+                                        {
+                                            id: ECandidatesLayout.LIST,
+                                            name: "contestScreen.candidatesLayout.list",
+                                        },
+                                        {
+                                            id: ECandidatesLayout.PAPER_GRID,
+                                            name: "contestScreen.candidatesLayout.paper-grid",
+                                        },
+                                    ]}
                                     label={String(t("contestScreen.candidatesLayout.label"))}
                                     helperText={String(
                                         t("contestScreen.candidatesLayout.helperText")

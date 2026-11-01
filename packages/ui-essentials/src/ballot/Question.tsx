@@ -19,7 +19,12 @@ import {
     ECandidatesLayout,
 } from "@sequentech/ui-core"
 import {PaperBallotGrid, PaperBallotHeading} from "../components/PaperBallot/PaperBallot"
-import {getCandidatesLayout, getPaperGridColumns, getPaperGridDensity} from "./paperGrid"
+import {
+    getCandidatesLayout,
+    getPaperCandidateOrder,
+    getPaperGridColumns,
+    getPaperGridDensity,
+} from "./paperGrid"
 import BlankAnswer from "../components/BlankAnswer/BlankAnswer"
 import VisuallyHidden from "../components/VisuallyHidden/VisuallyHidden"
 import {theme} from "../services/theme"
@@ -280,11 +285,17 @@ export const Question: React.FC<IQuestionProps> = ({
     }
 
     if (null === candidatesOrder) {
-        let sortedCandidates = engine.sortCandidatesInContest(
-            noCategoryCandidates,
-            candidatesOrderType,
-            true
-        )
+        const sortCandidates = () =>
+            engine.sortCandidatesInContest(noCategoryCandidates, candidatesOrderType, true)
+        let sortedCandidates =
+            isPaperGrid && candidatesOrderType === CandidatesOrder.RANDOM
+                ? getPaperCandidateOrder(
+                      ballotStyle.id,
+                      question.id,
+                      noCategoryCandidates,
+                      sortCandidates
+                  )
+                : sortCandidates()
 
         if (isReview && isPreferentialVote && contestState) {
             const choicesById = keyBy(contestState.choices, "id")
@@ -329,7 +340,7 @@ export const Question: React.FC<IQuestionProps> = ({
     // The review screen shows the same contests read-only, so there the limit
     // would be announced for options the voter can no longer change.
     const selectionInstruction = useMemo(() => {
-        if (isReview) {
+        if (isReview || isAcclaimed) {
             return ""
         }
         const min = question.min_votes
@@ -341,7 +352,7 @@ export const Question: React.FC<IQuestionProps> = ({
             return t("a11y.selectBetween", {min, max})
         }
         return t("a11y.selectUpTo", {count: max})
-    }, [question.min_votes, question.max_votes, isReview, t])
+    }, [question.min_votes, question.max_votes, isReview, isAcclaimed, t])
 
     const contestTitle = (
         <StyledTitle
@@ -383,9 +394,15 @@ export const Question: React.FC<IQuestionProps> = ({
             {isPaperGrid ? (
                 <PaperBallotHeading className="contest-paper-heading">
                     {contestTitle}
-                    <span className="contest-paper-subtitle">
-                        {t("contest.paperBallot.voteForNoMoreThan", {count: question.max_votes})}
-                    </span>
+                    {!isReview && !isAcclaimed ? (
+                        <span className="contest-paper-subtitle">
+                            {question.min_votes > 0
+                                ? selectionInstruction
+                                : t("contest.paperBallot.voteForNoMoreThan", {
+                                      count: question.max_votes,
+                                  })}
+                        </span>
+                    ) : null}
                 </PaperBallotHeading>
             ) : (
                 contestTitle

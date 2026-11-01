@@ -241,11 +241,15 @@ export const Answer: React.FC<IAnswerProps> = ({
     }
 
     if (layout === ECandidatesLayout.PAPER_GRID) {
+        const description = translate(answer, "description", i18n.language)
         return (
             <PaperBallotCandidate
                 ballotNumber={index + 1}
                 title={translate(answer, "name", i18n.language)}
                 subtitle={slateLabel}
+                description={description ? stringToHtml(description) : undefined}
+                imageUrl={imageUrl ? `${selection.imageBaseUrl}${imageUrl}` : undefined}
+                url={infoUrl}
                 density={paperGridDensity}
                 checked={isChecked()}
                 isSelectable={isSelectable && !isAcclaimed}

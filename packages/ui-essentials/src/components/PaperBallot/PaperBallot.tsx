@@ -169,6 +169,32 @@ const PaperCell = styled("li", {
         font-weight: normal;
     }
 
+    .paper-candidate-details {
+        position: relative;
+        z-index: 1;
+        margin-top: 4px;
+        font-weight: normal;
+        text-transform: none;
+        line-height: 1.4;
+
+        summary {
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .candidate-image {
+            display: block;
+            width: 64px;
+            max-width: 100%;
+            height: auto;
+            margin-top: 4px;
+        }
+
+        a {
+            color: inherit;
+        }
+    }
+
     .paper-candidate-write-in {
         position: relative;
         z-index: 1;
@@ -193,6 +219,9 @@ export interface PaperBallotCandidateProps {
     ballotNumber: number
     title: ReactNode
     subtitle?: string
+    description?: ReactNode
+    imageUrl?: string
+    url?: string
     density: EPaperGridDensity
     checked: boolean
     isSelectable: boolean
@@ -216,6 +245,9 @@ export const PaperBallotCandidate: React.FC<PaperBallotCandidateProps> = ({
     ballotNumber,
     title,
     subtitle,
+    description,
+    imageUrl,
+    url,
     density,
     checked,
     isSelectable,
@@ -231,6 +263,8 @@ export const PaperBallotCandidate: React.FC<PaperBallotCandidateProps> = ({
     const generatedId = useId()
     const nameId = `${generatedId}-name`
     const writeInLabelId = `${generatedId}-writein-label`
+    const detailsLabelId = `${generatedId}-details-label`
+    const linkLabelId = `${generatedId}-link-label`
     const labelIds = isWriteIn ? `${writeInLabelId} ${nameId}` : nameId
 
     return (
@@ -259,6 +293,28 @@ export const PaperBallotCandidate: React.FC<PaperBallotCandidateProps> = ({
                     </span>
                 ) : null}
             </span>
+            {description || imageUrl || url ? (
+                <details className="paper-candidate-details">
+                    <summary aria-labelledby={`${detailsLabelId} ${nameId}`}>
+                        <span id={detailsLabelId}>{t("candidate.moreInformationLink")}</span>
+                    </summary>
+                    {imageUrl ? <img className="candidate-image" src={imageUrl} alt="" /> : null}
+                    {description ? (
+                        <div className="candidate-description">{description}</div>
+                    ) : null}
+                    {url ? (
+                        <a
+                            className="candidate-link"
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-labelledby={`${linkLabelId} ${nameId}`}
+                        >
+                            <span id={linkLabelId}>{t("candidate.moreInformationLink")}</span>
+                        </a>
+                    ) : null}
+                </details>
+            ) : null}
             {isWriteIn ? (
                 <>
                     <VisuallyHidden className="candidate-write-in-label" id={writeInLabelId}>

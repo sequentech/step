@@ -1,7 +1,45 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {ECandidatesLayout, IContest} from "@sequentech/ui-core"
+import {ECandidatesLayout, ICandidate, IContest} from "@sequentech/ui-core"
+
+// Keep a remount stable even when the browser denies session storage. Only the
+// candidate order is remembered, never selections or write-in text.
+const fallbackOrders = new Map<string, string[]>()
+
+export const getPaperCandidateOrder = (
+    ballotStyleId: string,
+    contestId: string,
+    candidates: ICandidate[],
+    shuffle: () => ICandidate[]
+): ICandidate[] => {
+    const key = `paper-candidates-order-${JSON.stringify([ballotStyleId, contestId])}`
+    let saved: unknown
+    try {
+        saved = fallbackOrders.get(key) ?? JSON.parse(sessionStorage.getItem(key) ?? "null")
+    } catch {
+        // Ignore unavailable storage or a malformed saved order.
+    }
+    const byId = new Map(candidates.map((candidate) => [candidate.id, candidate]))
+    if (
+        Array.isArray(saved) &&
+        saved.length === candidates.length &&
+        new Set(saved).size === candidates.length &&
+        saved.every((id) => typeof id === "string" && byId.has(id))
+    ) {
+        return saved.map((id) => byId.get(id)!)
+    }
+    const ordered = shuffle()
+    const ids = ordered.map((candidate) => candidate.id)
+    try {
+        sessionStorage.setItem(key, JSON.stringify(ids))
+        fallbackOrders.delete(key)
+    } catch {
+        // The in-memory order still survives route navigation in this tab.
+        fallbackOrders.set(key, ids)
+    }
+    return ordered
+}
 
 export const PAPER_GRID_DEFAULT_COLUMNS = 4
 export const PAPER_GRID_MAX_SMALL_SCREEN_COLUMNS = 2

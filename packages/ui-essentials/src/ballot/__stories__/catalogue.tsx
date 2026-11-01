@@ -37,6 +37,9 @@ void instance.init({
                     printButton: "Print",
                     finishButton: "Finish",
                 },
+                candidate: {
+                    moreInformationLink: "More information",
+                },
                 contest: {
                     paperBallot: {
                         voteForNoMoreThan_one: "Vote for no more than {{count}}",
