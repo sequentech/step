@@ -39,9 +39,27 @@ class BuildImageMatrixTests(unittest.TestCase):
             {row["service"] for row in rows},
             {"keycloak", "voting-portal", "admin-portal", "ballot-verifier",
              "results-portal", "harvest", "b4v6", "trustee", "windmill",
-             "hasura", "loadtesting", "election-architect", "delivery-orchestrator"},
+             "hasura", "loadtesting", "election-architect", "delivery-orchestrator",
+             "monitoring-renderer", "messaging-webhooks"},
         )
-        self.assertEqual(len(rows), 13)
+        self.assertEqual(len(rows), 15)
+
+    def test_monitoring_and_webhooks_use_their_production_build_contexts(self):
+        result = self.select("all")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        rows = {row["service"]: row for row in json.loads(result.stdout)["include"]}
+        for service, context, dockerfile in (
+            ("monitoring-renderer", "packages/monitoring-renderer",
+             "packages/monitoring-renderer/Dockerfile"),
+            ("messaging-webhooks", "packages",
+             "packages/messaging-webhooks/Dockerfile.prod"),
+        ):
+            with self.subTest(service=service):
+                self.assertIn(service, rows)
+                self.assertEqual(rows[service]["context"], context)
+                self.assertEqual(rows[service]["file"], dockerfile)
+                self.assertTrue((ROOT / context).is_dir())
+                self.assertTrue((ROOT / dockerfile).is_file())
 
     def test_architect_scope_excludes_delivery(self):
         result = self.select("architect")
