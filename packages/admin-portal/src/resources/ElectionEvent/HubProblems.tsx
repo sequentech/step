@@ -43,9 +43,20 @@ export interface IHubProblemsBannerProps {
     policy: Policy | undefined
 }
 
-export const HubProblemsBanner: React.FC<IHubProblemsBannerProps> = ({policy}) => {
+export const HubProblemsBanner: React.FC<IHubProblemsBannerProps> = ({policy}) => (
+    <HubProblemsList policy={policy} found={useHubProblems(policy)} />
+)
+
+export interface IHubProblemsListProps {
+    policy: Policy | undefined
+    /** What `useHubProblems` found for the policy. */
+    found: IHubProblems | undefined
+}
+
+/** The banner for problems already asked for, so that a page that also
+ * counts them asks the hubs once. */
+export const HubProblemsList: React.FC<IHubProblemsListProps> = ({policy, found}) => {
     const {t} = useTranslation()
-    const found = useHubProblems(policy)
     if (!policy || !found || found.problems.length === 0) return null
     const sites = new Map(offeredHubs(policy).map((hub) => [hub.name, hub.site]))
     const count = found.problems.length

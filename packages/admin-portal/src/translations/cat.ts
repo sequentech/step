@@ -7206,6 +7206,8 @@ const catalanTranslation: TranslationType = {
                     logAlert: "El registre {{log}} informa d'una alerta: {{alert}}",
                     witnessAlert:
                         "El testimoni {{witness}} informa d'una alerta al registre {{log}}.",
+                    hubProblems_one: "Un node llista un problema per a aquesta elecció: vegeu més avall.",
+                    hubProblems_other: "Els nodes llisten {{count}} problemes per a aquesta elecció: vegeu més avall.",
                 },
                 figures: {
                     title: "Xifres del registre",

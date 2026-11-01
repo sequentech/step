@@ -7180,6 +7180,8 @@ const basqueTranslation: TranslationType = {
                     logAlert: "{{log}} erregistroak alerta bat jakinarazten du: {{alert}}",
                     witnessAlert:
                         "{{witness}} lekukoak alerta bat jakinarazten du {{log}} erregistroan.",
+                    hubProblems_one: "Gune batek arazo bat zerrendatzen du hauteskunde honetarako: ikus behean.",
+                    hubProblems_other: "Guneek {{count}} arazo zerrendatzen dituzte hauteskunde honetarako: ikus behean.",
                 },
                 figures: {
                     title: "Erregistroaren zifrak",

@@ -74,7 +74,7 @@ import {
     witnessRows,
 } from "@/services/TransparencyOverview"
 import {AuthorityContactSection} from "./AuthorityContact"
-import {HubProblemsBanner} from "./HubProblems"
+import {HubProblemsList, useHubProblems} from "./HubProblems"
 import {HubUpdatesSection} from "./HubUpdates"
 import {
     AnchoringCard,
@@ -867,6 +867,7 @@ export const EditElectionEventTransparency: React.FC<IEditElectionEventTranspare
     const figures = useMemo(() => recordFigures(hubs, logs), [hubs, logs])
     const now = useNow()
     const duration = useDuration()
+    const hubProblems = useHubProblems(sealedPolicy)
 
     if (!electionEventId) return null
 
@@ -966,6 +967,7 @@ export const EditElectionEventTransparency: React.FC<IEditElectionEventTranspare
         loggedPolicyId: output.policy_id,
         loggedPolicyHex: policyHex(output.policy_id),
         logs,
+        hubProblems: hubProblems?.problems.length,
     })
     const signedPolicy = sealedPolicy ? output.policy : undefined
     const reported = logs.length > 0
@@ -1037,7 +1039,9 @@ export const EditElectionEventTransparency: React.FC<IEditElectionEventTranspare
                 }
                 duration={duration}
             />
-            {enabled && sealedPolicy ? <HubProblemsBanner policy={sealedPolicy} /> : null}
+            {enabled && sealedPolicy ? (
+                <HubProblemsList policy={sealedPolicy} found={hubProblems} />
+            ) : null}
             {enabled && (facts || reported) ? (
                 <>
                     <Figures

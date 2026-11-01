@@ -7224,6 +7224,8 @@ const dutchTranslation: TranslationType = {
                     logOtherPolicy: "De log {{log}} draait onder een ander beleid.",
                     logAlert: "De log {{log}} meldt een waarschuwing: {{alert}}",
                     witnessAlert: "Getuige {{witness}} meldt een waarschuwing bij de log {{log}}.",
+                    hubProblems_one: "Een hub vermeldt een probleem voor deze verkiezing: zie hieronder.",
+                    hubProblems_other: "Hubs vermelden {{count}} problemen voor deze verkiezing: zie hieronder.",
                 },
                 figures: {
                     title: "Cijfers van het register",
