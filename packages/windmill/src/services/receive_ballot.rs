@@ -46,11 +46,17 @@ pub type ReceiveBallotOutput = ReceivedBallot;
 pub type ReceiveBallotResult = (ReceiveBallotOutput, Option<CastVitrine>);
 
 /// The authenticated owner may audit a received ballot, which permanently
-/// prevents casting it. No plaintext, signing key or user identity is input.
+/// prevents casting it. No signing key or user identity is input. The portal
+/// first audits with no auditable ballot; once the ballot box can no longer
+/// cast it, it audits again with the auditable ballot (the plaintext and
+/// randomness of its ciphertexts), which the ballot box publishes.
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct AuditBallotInput {
     pub election_id: Uuid,
     pub ballot_id: String,
+    /// The auditable ballot, as JSON, to publish for anyone to decode.
+    #[serde(default)]
+    pub auditable_ballot: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -59,11 +65,117 @@ pub enum AuditBallotStatus {
     Audited,
 }
 
+/// Whether the audited ballot's auditable content is in the public record.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AuditPublication {
+    Published,
+    /// None was sent, or the one sent is not the stored ballot's.
+    NotPublished,
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct AuditBallotOutput {
     pub ballot_id: String,
     pub status: AuditBallotStatus,
+    pub publication: AuditPublication,
 }
+
+/// Why the ballot box doesn't publish an auditable ballot.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AuditableBallotRefusal {
+    /// It is not an auditable ballot of the event's format.
+    Unreadable(String),
+    /// It is not the stored ballot: another hash, voter key, ballot style or ciphertext.
+    NotTheStoredBallot,
+}
+
+/// An auditable ballot the ballot box can publish: as the typed ballot writes it,
+/// with nothing the portal added, and the ballot's Tracking ID.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PublishableAudit {
+    pub content: String,
+    pub tracking_id: String,
+}
+
+/// Checks the auditable ballot the portal publishes for a ballot it audited
+/// against the ballot the ballot box received: it parses in the event's format,
+/// and its hash, voter key, ballot style and ciphertexts are the stored ballot's.
+/// Its plaintext and randomness are not checked: whoever decodes it checks them
+/// against the ciphertexts, which is what an audit is for.
+pub fn check_auditable_ballot(
+    auditable: &str,
+    stored: &StoredReceivedBallot,
+    policy: &ContestEncryptionPolicy,
+) -> Result<PublishableAudit, AuditableBallotRefusal> {
+    use sequent_core::ballot::{AuditableBallot, HashableBallot, SignedHashableBallot};
+    use sequent_core::encrypt::{hash_ballot, hash_multi_ballot};
+    use sequent_core::multi_ballot::{
+        AuditableMultiBallot, HashableMultiBallot, SignedHashableMultiBallot,
+    };
+    let unreadable =
+        |error: &dyn std::fmt::Display| AuditableBallotRefusal::Unreadable(error.to_string());
+    let differs = || AuditableBallotRefusal::NotTheStoredBallot;
+    let (content, ballot_hash, voter_signing_pk) = match policy {
+        ContestEncryptionPolicy::SINGLE_CONTEST => {
+            let ballot: AuditableBallot =
+                serde_json::from_str(auditable).map_err(|e| unreadable(&e))?;
+            let signed = SignedHashableBallot::try_from(&ballot).map_err(|e| unreadable(&e))?;
+            let received: SignedHashableBallot =
+                serde_json::from_str(&stored.content).map_err(|_| differs())?;
+            if signed != received {
+                return Err(differs());
+            }
+            let hashable = HashableBallot::try_from(&signed).map_err(|e| unreadable(&e))?;
+            let hash = hash_ballot(&hashable).map_err(|e| unreadable(&e))?;
+            if hash != ballot.ballot_hash {
+                return Err(differs());
+            }
+            let content = serde_json::to_string(&ballot).map_err(|e| unreadable(&e))?;
+            (content, ballot.ballot_hash, ballot.voter_signing_pk)
+        }
+        ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
+            let ballot: AuditableMultiBallot =
+                serde_json::from_str(auditable).map_err(|e| unreadable(&e))?;
+            let signed =
+                SignedHashableMultiBallot::try_from(&ballot).map_err(|e| unreadable(&e))?;
+            let received: SignedHashableMultiBallot =
+                serde_json::from_str(&stored.content).map_err(|_| differs())?;
+            if signed != received {
+                return Err(differs());
+            }
+            let hashable = HashableMultiBallot::try_from(&signed).map_err(|e| unreadable(&e))?;
+            let hash = hash_multi_ballot(&hashable).map_err(|e| unreadable(&e))?;
+            if hash != ballot.ballot_hash {
+                return Err(differs());
+            }
+            let content = serde_json::to_string(&ballot).map_err(|e| unreadable(&e))?;
+            (content, ballot.ballot_hash, ballot.voter_signing_pk)
+        }
+    };
+    if ballot_hash != stored.ballot_hash
+        || voter_signing_pk.as_deref() != Some(stored.voter_signing_pk.as_str())
+    {
+        return Err(differs());
+    }
+    let tracking_id = sequent_core::ballot_receipt::tracking_id(
+        &stored.ballot_hash,
+        Some(&stored.voter_signing_pk),
+    )
+    .map_err(|e| unreadable(&e))?;
+    Ok(PublishableAudit {
+        content,
+        tracking_id,
+    })
+}
+
+/// What auditing a ballot did: the outcome, the `audited` entry when the event
+/// keeps a Vitrine `ballots` log, and whether its auditable ballot is published.
+pub type AuditBallotResult = (
+    electoral_log::adapters::ballot_box_received::AuditOutcome,
+    Option<CastVitrine>,
+    AuditPublication,
+);
 
 /// Resolves only the authenticated caller internally; an unknown or purged
 /// mapping is indistinguishable from an unowned receipt.
@@ -76,11 +188,8 @@ pub async fn audit_ballot_for_voter(
     area: &str,
     voter: &str,
     input: &AuditBallotInput,
-) -> anyhow::Result<(
-    electoral_log::adapters::ballot_box_received::AuditOutcome,
-    Option<CastVitrine>,
-)> {
-    use electoral_log::adapters::ballot_box_received::AuditOutcome;
+) -> anyhow::Result<AuditBallotResult> {
+    use electoral_log::adapters::ballot_box_received::{AuditOutcome, PublishAudited};
     use electoral_log::adapters::privacy::BallotIdentity;
     let mode = match crate::services::vote_privacy::identity_mode(event)? {
         sequent_core::types::vote_privacy::BallotIdentity::VoterId => BallotIdentity::VoterId,
@@ -88,7 +197,7 @@ pub async fn audit_ballot_for_voter(
     };
     let identity = if mode == BallotIdentity::Pseudonym {
         let Some(identity) = store.voter_pseudonym(&event.id, voter).await? else {
-            return Ok((AuditOutcome::NotFound, None));
+            return Ok((AuditOutcome::NotFound, None, AuditPublication::NotPublished));
         };
         identity
     } else {
@@ -106,35 +215,70 @@ pub async fn audit_ballot_for_voter(
         event,
     )
     .await;
+    let logged = matches!(
+        target,
+        crate::services::insert_cast_vote::VitrineTarget::Log { .. }
+    );
+    let received = if logged || input.auditable_ballot.is_some() {
+        store
+            .received_ballot_for_owner(&event.id, &election, area, voter, &input.ballot_id, mode)
+            .await?
+    } else {
+        None
+    };
     // The `audited` entry carries the ballot's Tracking ID, which comes from the stored
     // ballot hash and the voter's key.
-    let queue = match &target {
-        crate::services::insert_cast_vote::VitrineTarget::Log { .. } => {
-            match store
-                .received_ballot_for_owner(&event.id, &election, area, voter, &input.ballot_id, mode)
-                .await?
-            {
-                Some(received) => target.queue(
-                    Utc::now().timestamp(),
-                    tracking_id_of_key(&received.ballot_hash, &received.voter_signing_pk),
-                ),
-                None => None,
+    let queue = match (&received, logged) {
+        (Some(received), true) => target.queue(
+            Utc::now().timestamp(),
+            tracking_id_of_key(&received.ballot_hash, &received.voter_signing_pk),
+        ),
+        _ => None,
+    };
+    let policy = event
+        .get_presentation()?
+        .unwrap_or_default()
+        .contest_encryption_policy
+        .unwrap_or_default();
+    let publishable = match (&input.auditable_ballot, &received) {
+        (Some(auditable), Some(received)) => {
+            match check_auditable_ballot(auditable, received, &policy) {
+                Ok(publishable) => Some((received.ballot_hash.clone(), publishable)),
+                Err(refusal) => {
+                    tracing::warn!(
+                        "Not publishing the auditable ballot of {}: {refusal:?}",
+                        input.ballot_id
+                    );
+                    None
+                }
             }
         }
         _ => None,
     };
     crate::services::ballot_box::request_sequencer(&event.id).await?;
-    let (outcome, entry) = store
-        .audit_received_ballot_with_vitrine(
+    let audit = store
+        .audit_and_publish_received_ballot(
             &event.id,
             &election,
             area,
             &identity,
             &input.ballot_id,
             queue,
+            publishable
+                .as_ref()
+                .map(|(ballot_hash, publishable)| PublishAudited {
+                    ballot_hash,
+                    tracking_id: &publishable.tracking_id,
+                    content: &publishable.content,
+                }),
         )
         .await?;
-    Ok((outcome, target.cast(entry)))
+    let publication = if audit.published {
+        AuditPublication::Published
+    } else {
+        AuditPublication::NotPublished
+    };
+    Ok((audit.outcome, target.cast(audit.entry), publication))
 }
 
 /// The format of the times the ballot box signs: `ReceivedStatement::received_at`

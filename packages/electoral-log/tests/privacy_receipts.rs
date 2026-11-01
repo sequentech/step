@@ -602,3 +602,159 @@ async fn matched_receipt_and_cast_storage_cost() -> Result<()> {
     }
     Ok(())
 }
+
+#[tokio::test]
+#[ignore = "needs isolated ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn an_audited_ballot_is_published_once_for_anyone_and_a_cast_one_never() -> Result<()> {
+    use electoral_log::adapters::ballot_box_received::{PublishAudited, PublishedMatch};
+    let f = Fixture::new().await?;
+    f.store
+        .receive_ballot(&f.ballot(), Utc::now(), signature)
+        .await?;
+    let audit = |publish: Option<PublishAudited<'static>>| {
+        f.store.audit_and_publish_received_ballot(
+            &f.event,
+            &f.election,
+            &f.area,
+            &f.pseudonym,
+            "ABCD-1234",
+            None,
+            publish,
+        )
+    };
+    let published = |lookup| {
+        f.store
+            .published_audited_ballots(&f.event, &f.election, lookup, 10)
+    };
+    const TRACKING: &str = "ABCD-1234-EFGH";
+    let content = PublishAudited {
+        ballot_hash: "synthetic-hash",
+        tracking_id: TRACKING,
+        content: "auditable",
+    };
+    // The audit alone publishes nothing.
+    let first = audit(None).await?;
+    assert_eq!(first.outcome, AuditOutcome::Audited);
+    assert!(!first.published);
+    assert!(published(PublishedMatch::Tracking("ABCD-1234")).await?.is_empty());
+    // Content checked against another ballot is not this one's.
+    let other = audit(Some(PublishAudited {
+        ballot_hash: "other-hash",
+        ..content
+    }))
+    .await?;
+    assert!(!other.published);
+    assert!(published(PublishedMatch::BallotHash("synthetic-hash")).await?.is_empty());
+    // Then the auditable ballot, once the ballot box can no longer cast it.
+    let publish = audit(Some(content)).await?;
+    assert_eq!(publish.outcome, AuditOutcome::Audited);
+    assert!(publish.published);
+    for lookup in [
+        PublishedMatch::Tracking("ABCD-1234"),
+        PublishedMatch::Tracking(TRACKING),
+        PublishedMatch::BallotHash("synthetic-hash"),
+    ] {
+        let found = published(lookup).await?;
+        assert_eq!(found.len(), 1, "{lookup:?}");
+        assert_eq!(found[0].tracking_id, TRACKING);
+        assert_eq!(found[0].content, "auditable");
+    }
+    assert!(published(PublishedMatch::Tracking("ABCD-1235")).await?.is_empty());
+    // Published content never changes, and the audit is still audited once.
+    let again = audit(Some(PublishAudited {
+        content: "changed",
+        ..content
+    }))
+    .await?;
+    assert!(again.published);
+    assert!(audit(None).await?.published);
+    assert_eq!(
+        published(PublishedMatch::Tracking(TRACKING)).await?[0].content,
+        "auditable"
+    );
+    let evidence = f.store.pending_received_ballots(&f.event, 10).await?;
+    assert_eq!(
+        evidence
+            .iter()
+            .filter(|p| p.kind == ReceivedEvidenceKind::Audited)
+            .count(),
+        1
+    );
+    // Not in another election of the event.
+    assert!(f
+        .store
+        .published_audited_ballots(
+            &f.event,
+            &Uuid::new_v4().to_string(),
+            PublishedMatch::Tracking(TRACKING),
+            10
+        )
+        .await?
+        .is_empty());
+    f.cleanup().await?;
+
+    // A cast ballot gets no content, whatever is sent.
+    let f = Fixture::new().await?;
+    let ReceiveOutcome::Received(received) = f
+        .store
+        .receive_ballot(&f.ballot(), Utc::now(), signature)
+        .await?
+    else {
+        panic!("new receipt expected")
+    };
+    let hash = [1; 64];
+    let cast = AcceptBallot {
+        election_event_id: &f.event,
+        election_id: &f.election,
+        area_id: &f.area,
+        voter_id: &f.pseudonym,
+        ballot_id: "synthetic-hash",
+        format: "hashable-ballot",
+        content: "encrypted",
+        voter_signature: None,
+        pseudonym_hash: &hash,
+        ballot_hash: &hash,
+        voting_channel: "ONLINE",
+        status: BallotStatus::Valid,
+        voter_ip: None,
+        voter_country: None,
+        username: Some(&f.pseudonym),
+        allowed_votes: 1,
+        vitrine: None,
+    };
+    let receipt = AcceptReceived {
+        ballot_id: &received.ballot_id,
+        cast_at: Utc::now(),
+        cast_signature: "cast",
+        cast_receipt_signature: "receipt",
+    };
+    assert!(matches!(
+        f.store.accept_received_ballot(&cast, &receipt).await?,
+        AcceptOutcome::Accepted { .. }
+    ));
+    let refused = f
+        .store
+        .audit_and_publish_received_ballot(
+            &f.event,
+            &f.election,
+            &f.area,
+            &f.pseudonym,
+            &received.ballot_id,
+            None,
+            Some(content),
+        )
+        .await?;
+    assert_eq!(refused.outcome, AuditOutcome::AlreadyCast);
+    assert!(!refused.published);
+    assert!(f
+        .store
+        .published_audited_ballots(
+            &f.event,
+            &f.election,
+            PublishedMatch::BallotHash("synthetic-hash"),
+            10
+        )
+        .await?
+        .is_empty());
+    f.cleanup().await
+}

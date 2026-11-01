@@ -95,6 +95,7 @@ export type ApprovalMatrixOutput = {
 export type AuditBallotOutput = {
   __typename?: 'AuditBallotOutput';
   ballot_id: Scalars['String']['output'];
+  publication?: Maybe<Scalars['String']['output']>;
   status: Scalars['String']['output'];
   vitrine?: Maybe<VitrineCast>;
 };
@@ -3279,6 +3280,7 @@ export type Mutation_RootApply_Schedule_RecomputeArgs = {
 
 /** mutation root */
 export type Mutation_RootAudit_BallotArgs = {
+  auditable_ballot?: InputMaybe<Scalars['String']['input']>;
   ballot_id: Scalars['String']['input'];
   election_id: Scalars['uuid']['input'];
 };

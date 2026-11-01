@@ -39,6 +39,21 @@ pub fn search_session(claims: &JwtClaims) -> Vec<u8> {
     .to_vec()
 }
 
+/// The limiter key of lookups made with no token, such as a hub's ballot
+/// verifier asking for a published audited ballot: one per client address, and
+/// one shared by every client whose address is unknown. Only the digest is kept.
+pub fn public_lookup_session(ip: Option<std::net::IpAddr>) -> Vec<u8> {
+    Sha256::digest(
+        serde_json::json!([
+            "public-ballot-lookup-v1",
+            ip.map(|ip| ip.to_string())
+        ])
+        .to_string()
+        .as_bytes(),
+    )
+    .to_vec()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -71,5 +86,25 @@ mod tests {
         refreshed.sid = first.sid.clone();
         refreshed.hasura_claims.tenant_id = "other".into();
         assert_ne!(search_session(&first), search_session(&refreshed));
+    }
+
+    #[test]
+    fn public_lookups_are_limited_per_address_apart_from_voters() {
+        let one = public_lookup_session(Some("192.0.2.1".parse().unwrap()));
+        assert_eq!(one.len(), 32);
+        assert_eq!(
+            one,
+            public_lookup_session(Some("192.0.2.1".parse().unwrap()))
+        );
+        assert_ne!(
+            one,
+            public_lookup_session(Some("192.0.2.2".parse().unwrap()))
+        );
+        assert_ne!(one, public_lookup_session(None));
+        assert_eq!(public_lookup_session(None), public_lookup_session(None));
+        assert_ne!(
+            public_lookup_session(None),
+            search_session(&Claims::new("tenant", "voter").build())
+        );
     }
 }

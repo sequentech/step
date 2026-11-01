@@ -47,6 +47,46 @@ pub enum AuditOutcome {
     NotFound,
 }
 
+/// What the voter's portal publishes about a ballot it audited: the auditable ballot,
+/// once checked against the stored one, and the ballot's Tracking ID.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PublishAudited<'a> {
+    /// The hash of the stored ballot the content was checked against.
+    pub ballot_hash: &'a str,
+    /// The ballot's full Tracking ID, as `format_tracking_id` writes it.
+    pub tracking_id: &'a str,
+    /// The auditable ballot: the ballot with the plaintext and randomness of its
+    /// ciphertexts.
+    pub content: &'a str,
+}
+
+/// What auditing a ballot did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Audit {
+    pub outcome: AuditOutcome,
+    /// The `audited` entry, when the event has a Vitrine `ballots` log.
+    pub entry: Option<VitrineEntry>,
+    /// Whether the ballot's auditable content is published, now or before.
+    pub published: bool,
+}
+
+/// An audited ballot whose auditable content is published: anyone may read it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PublishedAudited {
+    pub tracking_id: String,
+    pub content: String,
+    pub audited_at: DateTime<Utc>,
+}
+
+/// Which published audited ballots a lookup asks for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PublishedMatch<'a> {
+    /// The Tracking ID, or the start of one, as `normalize_tracking_id` writes it.
+    Tracking(&'a str),
+    /// The hexadecimal hash of the ballot.
+    BallotHash(&'a str),
+}
+
 /// A ballot the ballot box received.
 #[derive(Debug, Clone)]
 pub struct ReceiveBallot<'a> {
@@ -376,30 +416,84 @@ impl PostgresStore {
         ballot_id: &str,
         vitrine: Option<VitrineQueue>,
     ) -> Result<(AuditOutcome, Option<VitrineEntry>)> {
+        let audit = self
+            .audit_and_publish_received_ballot(
+                event, election, area, voter, ballot_id, vitrine, None,
+            )
+            .await?;
+        Ok((audit.outcome, audit.entry))
+    }
+
+    /// As `audit_received_ballot_with_vitrine`, and publishes the ballot's auditable
+    /// content, in the transaction that closes the choice, when it is given and is for
+    /// the stored ballot (`publish.ballot_hash`). A ballot audited before without its
+    /// content gets it now; published content never changes, and a cast ballot never
+    /// gets any.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn audit_and_publish_received_ballot(
+        &self,
+        event: &str,
+        election: &str,
+        area: &str,
+        voter: &str,
+        ballot_id: &str,
+        vitrine: Option<VitrineQueue>,
+        publish: Option<PublishAudited<'_>>,
+    ) -> Result<Audit> {
         let audited_at = Utc::now();
+        let ballot_hash = publish.map(|p| p.ballot_hash);
+        let tracking_id = publish.map(|p| p.tracking_id);
+        let content = publish.map(|p| p.content);
         let mut client = self.client().await?;
         let mut transaction = client.transaction().await?;
         let row = transaction
             .query_opt(
                 "WITH selected AS (
-                SELECT id,status,audited_at FROM ballot_box_received
+                SELECT id,status,audited_at,audited_content IS NOT NULL AS published
+                FROM ballot_box_received
                 WHERE election_event_id=$1::text::uuid AND election_id=$2::text::uuid
                     AND area_id=$3::text::uuid AND voter_id=$4 AND ballot_id=$5 FOR UPDATE
              ), audited AS (
-                UPDATE ballot_box_received r SET status='audited', audited_at=$6
+                UPDATE ballot_box_received r SET status='audited',
+                    audited_at=CASE WHEN s.status='received' THEN $6 ELSE r.audited_at END,
+                    audited_content=CASE WHEN r.audited_content IS NULL AND r.ballot_hash=$7
+                        THEN $8 ELSE r.audited_content END,
+                    audited_tracking_id=CASE WHEN r.audited_content IS NULL AND r.ballot_hash=$7
+                        THEN $9 ELSE r.audited_tracking_id END
                 FROM selected s WHERE r.election_event_id=$1::text::uuid AND r.id=s.id
-                    AND s.status='received' RETURNING r.id
-             ) SELECT s.status, s.audited_at, EXISTS (SELECT 1 FROM audited) FROM selected s",
-                &[&event, &election, &area, &voter, &ballot_id, &audited_at],
+                    AND (s.status='received'
+                        OR (s.status='audited' AND NOT s.published AND $8::text IS NOT NULL))
+                RETURNING s.status='received' AS just_audited,
+                    r.audited_content IS NOT NULL AS published
+             ) SELECT s.status, s.audited_at,
+                COALESCE((SELECT just_audited FROM audited), false),
+                COALESCE((SELECT published FROM audited), s.published)
+             FROM selected s",
+                &[
+                    &event,
+                    &election,
+                    &area,
+                    &voter,
+                    &ballot_id,
+                    &audited_at,
+                    &ballot_hash,
+                    &content,
+                    &tracking_id,
+                ],
             )
             .await?;
         let Some(row) = row else {
             transaction.rollback().await?;
-            return Ok((AuditOutcome::NotFound, None));
+            return Ok(Audit {
+                outcome: AuditOutcome::NotFound,
+                entry: None,
+                published: false,
+            });
         };
         let status: String = row.get(0);
         let stored_audit: Option<DateTime<Utc>> = row.get(1);
         let just_audited: bool = row.get(2);
+        let published: bool = row.get(3);
         let outcome = match status.as_str() {
             "received" | "audited" => AuditOutcome::Audited,
             "cast" => AuditOutcome::AlreadyCast,
@@ -407,8 +501,14 @@ impl PostgresStore {
         };
         let entry = match (outcome, vitrine) {
             (AuditOutcome::Audited, Some(queue)) => {
-                let at = if just_audited { Some(audited_at) } else { stored_audit };
-                match at.map(|at| election_entry(event, election, Stage::Audited, &queue, at.timestamp())) {
+                let at = if just_audited {
+                    Some(audited_at)
+                } else {
+                    stored_audit
+                };
+                match at.map(|at| {
+                    election_entry(event, election, Stage::Audited, &queue, at.timestamp())
+                }) {
                     Some(Ok(entry)) if just_audited => Some(
                         queue_entry(
                             &mut transaction,
@@ -433,7 +533,52 @@ impl PostgresStore {
             _ => None,
         };
         transaction.commit().await?;
-        Ok((outcome, entry))
+        Ok(Audit {
+            outcome,
+            entry,
+            published: outcome == AuditOutcome::Audited && published,
+        })
+    }
+
+    /// The published audited ballots of an election that the lookup names, at most
+    /// `limit`, by Tracking ID. Anyone may read them: never a cast ballot, nor anything
+    /// about the voter.
+    pub async fn published_audited_ballots(
+        &self,
+        election_event_id: &str,
+        election_id: &str,
+        lookup: PublishedMatch<'_>,
+        limit: i64,
+    ) -> Result<Vec<PublishedAudited>> {
+        let (condition, value) = match lookup {
+            PublishedMatch::Tracking(start) => ("starts_with(audited_tracking_id, $3)", start),
+            PublishedMatch::BallotHash(hash) => ("ballot_hash = $3", hash),
+        };
+        let rows = self
+            .client()
+            .await?
+            .query(
+                &format!(
+                    "SELECT audited_tracking_id, audited_content, COALESCE(audited_at, received_at)
+                     FROM ballot_box_received
+                     WHERE election_event_id = $1::text::uuid AND election_id = $2::text::uuid
+                       AND status = 'audited' AND audited_content IS NOT NULL
+                       AND audited_tracking_id IS NOT NULL AND {condition}
+                     ORDER BY audited_tracking_id LIMIT $4"
+                ),
+                &[&election_event_id, &election_id, &value, &limit],
+            )
+            .await
+            .context("Error looking up published audited ballots")?;
+        rows.iter()
+            .map(|row| {
+                Ok(PublishedAudited {
+                    tracking_id: row.try_get(0)?,
+                    content: row.try_get(1)?,
+                    audited_at: row.try_get(2)?,
+                })
+            })
+            .collect()
     }
 
     /// The voter's received ballot with this ballot hash in an election.
