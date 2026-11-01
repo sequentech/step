@@ -251,6 +251,14 @@ const tagalogTranslation: TranslationType = {
                 ok: "Oo, nais kong ibasura ang aking balota upang suriin ito",
                 cancel: "Kanselahin",
             },
+            auditConfirm: {
+                title: "I-audit ang balotang ito sa halip na iboto?",
+                text: "Inilalathala ng portal kung paano nito na-encrypt ang <Id>{{id}}</Id>, para masuri mo sa isang hub na laman nito ang pinili mo.",
+                never: "Hindi ito kailanman iboboto o bibilangin: ipapakita ng lihim nito kung paano ka bumoto.",
+                again: "Pagkatapos, bumoto ka ulit, gamit ang bagong Tracking ID.",
+                cancel: "Kanselahin",
+                audit: "I-audit ang balota",
+            },
             confirmCastVoteDialog: {
                 title: "Sigurado ka bang nais mong i-submit ang iyong boto?",
                 content: "Pagkatapos mong kumpirmahin, ang iyong boto ay mai-susubmit.",
@@ -459,6 +467,68 @@ const tagalogTranslation: TranslationType = {
             },
             bottomWarning:
                 "Para sa mga dahilan ng seguridad, kapag sinusuri mo ang iyong balota, kailangan itong ipawalang-bisa. Upang magpatuloy sa proseso ng pagboto, kailangan mong i-click ang ‘<b>Simulan ang Pagboto</b>’ sa ibaba.",
+            voteAgain: "Bumoto ulit",
+            check: {
+                title: "Suriin ang iyong na-audit na balota",
+                lead: "Binuksan ang balotang ito sa halip na iboto, kaya hindi ito kailanman bibilangin. Suriin sa isang hub na laman nito ang pinili mo, saka bumoto ulit.",
+                label: "Pagsusuri ng na-audit na balota",
+                encrypted: {
+                    title: "Na-encrypt sa device na ito",
+                    text: "Kasama ang Tracking ID nito, bago mo piniling i-audit ito.",
+                },
+                opened: {
+                    title: "Binuksan sa pampublikong talaan",
+                    text: "Inilathala ng portal ang lihim na ginamit nito sa pag-encrypt. Minamarkahan ng talaan ang balota bilang Na-audit.",
+                },
+                compare: {
+                    title: "Ihambing ito sa isang hub",
+                    text: "Dine-decode ito ng hub sa iyong browser at ipinapakita ang mga piniling laman nito. Ikaw lang ang nakaaalam ng pinili mo.",
+                },
+                entry: "entry #{{index}}",
+                hubsLabel: "Mga hub na sumusuri ng balota, mula sa patakaran ng halalan",
+                runBy: "Pinapatakbo ng {{party}}",
+                hubLabel:
+                    "{{name}}, pinapatakbo ng {{party}}: suriin ang balotang ito sa sarili nitong site (magbubukas sa bagong tab)",
+                authorityName: "Ballot verifier ng halalan",
+                runByAuthority: "Pinapatakbo ng awtoridad ng halalan",
+                authorityLabel:
+                    "Ballot verifier ng halalan, pinapatakbo ng awtoridad ng halalan: suriin ang balotang ito sa sarili nitong site (magbubukas sa bagong tab)",
+                footnote:
+                    "Bawat hub sa patakaran ng halalan na sumusuri ng balota, sa random na pagkakasunod-sunod bawat beses. Bawat isa ay nagbubukas sa sarili nitong site na may Tracking ID sa link.",
+                footnoteAuthority:
+                    "Wala pang hub sa patakaran ng halalan na sumusuri ng balota, kaya ito ang sariling ballot verifier ng awtoridad ng halalan. Nagbubukas ito na may Tracking ID sa link.",
+                trackerText:
+                    "Wala pang hub sa patakaran ng halalan na sumusuri ng balota. Maipapakita ito ng ballot tracker: dine-decode nito ang balota sa iyong browser.",
+                trackerLink: "Buksan ito sa ballot tracker",
+                tip: "Pinakamatibay sa ibang device, gaya ng iyong telepono: buksan ang site ng anumang hub at i-paste ang Tracking ID.",
+                tipTracker:
+                    "Pinakamatibay sa ibang device, gaya ng iyong telepono: buksan doon ang ballot tracker at i-paste ang Tracking ID.",
+                why: "Bakit mag-audit?",
+                faq: {
+                    why: {
+                        question: "Bakit mag-audit?",
+                        answer: "Naka-encrypt sa iyong device ang boto mo, kaya walang makababasa nito, kahit ikaw. Pinapayagan ka ng pag-audit na tiyaking ini-encrypt ng portal ang pinili mo.",
+                    },
+                    catch: {
+                        question: "Bakit nahuhuli nito ang pandaraya?",
+                        answer: "Nag-e-encrypt ang portal bago mo piliing mag-audit, kaya hindi nito alam kung aling mga balota ang susuriin. Kung binago nito ang mga boto, mahuhuli ito ng sinumang nag-audit.",
+                    },
+                    spent: {
+                        question: "Bakit hindi mabibilang ang balotang ito?",
+                        answer: "Kapag nailathala na ang lihim nito, ipinapakita ng balota kung paano ka bumoto. Para manatiling lihim ang boto mo, ang balotang na-audit ay hindi kailanman iboboto.",
+                    },
+                    hub: {
+                        question: "Bakit sa isang hub?",
+                        answer: "Ang portal na nagbago ng boto mo ay maaari ring magpakita sa iyo ng pekeng pagsusuri. Ibang site ang hub; ang balota at ang lihim nito ay galing sa pampublikong talaan, hindi sa pahinang ito.",
+                    },
+                },
+                helpDialog: {
+                    title: "Suriin ang iyong na-audit na balota",
+                    content:
+                        "<p>Binubuksan ng pag-audit ang balota sa halip na iboto ito. Inilalathala ng portal ang lihim na ginamit nito sa pag-encrypt ng mga pinili mo, kaya kahit sino ay maaaring mag-decode ng balota at makita ang laman nito.</p><p>Suriin sa isang hub na laman nito ang pinili mo. Pagkatapos, bumoto ulit: may bagong Tracking ID ang bago mong balota, at iyon ang bibilangin.</p>",
+                    ok: "OK",
+                },
+            },
         },
         electionSelectionScreen: {
             title: "Mga Balota",

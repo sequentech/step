@@ -374,6 +374,14 @@ const englishTranslation = {
                 ok: "Yes, discard my ballot to audit",
                 cancel: "Cancel",
             },
+            auditConfirm: {
+                title: "Audit this ballot instead of casting it?",
+                text: "The portal publishes how it encrypted <Id>{{id}}</Id>, so you can check on a hub that it holds what you chose.",
+                never: "It is never cast or counted: its secret would show how you voted.",
+                again: "Then you vote again, with a new Tracking ID.",
+                cancel: "Cancel",
+                audit: "Audit ballot",
+            },
             confirmCastVoteDialog: {
                 title: "Are you sure you want to cast your vote?",
                 content: "After you confirm, your vote will be cast.",
@@ -577,6 +585,68 @@ const englishTranslation = {
             },
             bottomWarning:
                 "For security reasons, when you audit your ballot, it needs to be spoiled. To continue with the voting process, you need to click ‘<b>Start Voting</b>’ below.",
+            voteAgain: "Vote again",
+            check: {
+                title: "Check your audited ballot",
+                lead: "This ballot was opened instead of cast, so it will never be counted. Check on a hub that it holds what you chose, then vote again.",
+                label: "Checking an audited ballot",
+                encrypted: {
+                    title: "Encrypted on this device",
+                    text: "With its Tracking ID, before you chose to audit it.",
+                },
+                opened: {
+                    title: "Opened in the public record",
+                    text: "The portal published the secret it encrypted with. The record marks the ballot Audited.",
+                },
+                compare: {
+                    title: "Compare it on a hub",
+                    text: "The hub decodes it in your browser and shows the choices it holds. Only you know what you chose.",
+                },
+                entry: "entry #{{index}}",
+                hubsLabel: "Hubs that check ballots, from the election’s policy",
+                runBy: "Run by {{party}}",
+                hubLabel:
+                    "{{name}}, run by {{party}}: check this ballot on its own site (opens a new tab)",
+                authorityName: "Election ballot verifier",
+                runByAuthority: "Run by the election authority",
+                authorityLabel:
+                    "Election ballot verifier, run by the election authority: check this ballot on its own site (opens a new tab)",
+                footnote:
+                    "Every hub in the election’s policy that checks ballots, in a random order each time. Each opens on its own site with the Tracking ID in the link.",
+                footnoteAuthority:
+                    "No hub in the election’s policy checks ballots yet, so this is the election authority’s own ballot verifier. It opens with the Tracking ID in the link.",
+                trackerText:
+                    "No hub in the election’s policy checks ballots yet. The ballot tracker can show it: it decodes the ballot in your browser.",
+                trackerLink: "Open it in the ballot tracker",
+                tip: "Strongest on another device, such as your phone: open any hub’s site and paste the Tracking ID.",
+                tipTracker:
+                    "Strongest on another device, such as your phone: open the ballot tracker there and paste the Tracking ID.",
+                why: "Why audit?",
+                faq: {
+                    why: {
+                        question: "Why audit?",
+                        answer: "Your vote is encrypted on your device, so no one can read it, not even you. Auditing lets you check that the portal encrypted what you chose.",
+                    },
+                    catch: {
+                        question: "Why does it catch cheating?",
+                        answer: "The portal encrypts before you decide to audit, so it can’t know which ballots will be checked. If it changed votes, anyone who audits could catch it.",
+                    },
+                    spent: {
+                        question: "Why can’t this ballot count?",
+                        answer: "With its secret published, the ballot shows how you voted. To keep your vote secret, an audited ballot is never cast.",
+                    },
+                    hub: {
+                        question: "Why on a hub?",
+                        answer: "A portal that changed your vote could also show you a false check. A hub is another site; the ballot and its secret come from the public record, not from this page.",
+                    },
+                },
+                helpDialog: {
+                    title: "Check your audited ballot",
+                    content:
+                        "<p>Auditing opens a ballot instead of casting it. The portal publishes the secret it encrypted your choices with, so anyone can decode the ballot and see what it holds.</p><p>Check on a hub that it holds what you chose. Then vote again: your new ballot gets a new Tracking ID, and that is the one that counts.</p>",
+                    ok: "OK",
+                },
+            },
         },
         electionSelectionScreen: {
             title: "Ballot list",

@@ -35,6 +35,9 @@ export const useAuditBallot = (
 ) => {
     const client = useApolloClient()
     const [view, setView] = useState<IReceiptView>()
+    // When the ballot box received the encrypted ballot, which the audit
+    // screen shows; the received ballot itself is dropped with the audit.
+    const [receivedAt, setReceivedAt] = useState<string>()
     const dispatch = useAppDispatch()
     const store = useStore<RootState>()
     const ballot = useAppSelector(selectBallotForAudit(electionId))
@@ -95,6 +98,7 @@ export const useAuditBallot = (
                 store.getState().auditableBallots[electionId]?.auditableBallot?.ballot_hash ===
                 ballot.ballot_hash
             ) {
+                if (serverReceiptRequired && received) setReceivedAt(received.received_at)
                 provideBallotService().forgetVoterSigningKey(electionId)
                 dispatch(markBallotAudited({electionId, ballotHash: ballot.ballot_hash}))
                 dispatch(clearReceivedBallot(electionId))
@@ -125,5 +129,12 @@ export const useAuditBallot = (
         attempted.current = key
         void audit()
     }, [audit, ballot, electionId, status])
-    return {ready: status === EBallotAuditStatus.AUDITED, loading, error, retry: audit, view}
+    return {
+        ready: status === EBallotAuditStatus.AUDITED,
+        loading,
+        error,
+        retry: audit,
+        view,
+        receivedAt,
+    }
 }

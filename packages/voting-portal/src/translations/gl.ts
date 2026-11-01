@@ -253,6 +253,14 @@ const galegoTranslation: TranslationType = {
                 ok: "Si, quero descartar a miña papeleta para auditala",
                 cancel: "Cancelar",
             },
+            auditConfirm: {
+                title: "Auditar esta papeleta en lugar de emitila?",
+                text: "O portal publica como cifrou <Id>{{id}}</Id>, para que poidas comprobar nun nodo que contén o que elixiches.",
+                never: "Nunca se emite nin se conta: o seu segredo amosaría como votaches.",
+                again: "Despois votas de novo, cun novo ID de seguimento.",
+                cancel: "Cancelar",
+                audit: "Auditar a papeleta",
+            },
             confirmCastVoteDialog: {
                 title: "Estás seguro de que queres emitir o teu voto?",
                 content: "Tras confirmar, o teu voto será emitido.",
@@ -460,6 +468,68 @@ const galegoTranslation: TranslationType = {
             },
             bottomWarning:
                 "Por razóns de seguridade, ao auditar a túa papeleta, esta debe ser anulada. Para continuar co proceso de votación, necesitas facer clic en ‘<b>Comezar a votar</b>’ abaixo.",
+            voteAgain: "Votar de novo",
+            check: {
+                title: "Comproba a túa papeleta auditada",
+                lead: "Esta papeleta abriuse en lugar de emitirse, así que nunca se contará. Comproba nun nodo que contén o que elixiches e despois vota de novo.",
+                label: "Comprobación dunha papeleta auditada",
+                encrypted: {
+                    title: "Cifrada neste dispositivo",
+                    text: "Co seu ID de seguimento, antes de que decidises auditala.",
+                },
+                opened: {
+                    title: "Aberta no rexistro público",
+                    text: "O portal publicou o segredo co que a cifrou. O rexistro marca a papeleta como Auditada.",
+                },
+                compare: {
+                    title: "Compárala nun nodo",
+                    text: "O nodo descífraa no teu navegador e amosa as opcións que contén. Só ti sabes o que elixiches.",
+                },
+                entry: "entrada #{{index}}",
+                hubsLabel: "Nodos que comproban papeletas, segundo a política da elección",
+                runBy: "Xestionado por {{party}}",
+                hubLabel:
+                    "{{name}}, xestionado por {{party}}: comproba esta papeleta no seu propio sitio (ábrese nunha lapela nova)",
+                authorityName: "Verificador de papeletas da elección",
+                runByAuthority: "Xestionado pola autoridade electoral",
+                authorityLabel:
+                    "Verificador de papeletas da elección, xestionado pola autoridade electoral: comproba esta papeleta no seu propio sitio (ábrese nunha lapela nova)",
+                footnote:
+                    "Todos os nodos da política da elección que comproban papeletas, nunha orde aleatoria cada vez. Cada un ábrese no seu propio sitio co ID de seguimento na ligazón.",
+                footnoteAuthority:
+                    "Ningún nodo da política da elección comproba papeletas aínda, así que este é o verificador de papeletas da propia autoridade electoral. Ábrese co ID de seguimento na ligazón.",
+                trackerText:
+                    "Ningún nodo da política da elección comproba papeletas aínda. O rastrexador de papeletas pode amosala: descifra a papeleta no teu navegador.",
+                trackerLink: "Ábrea no rastrexador de papeletas",
+                tip: "É máis sólido desde outro dispositivo, como o teu móbil: abre o sitio de calquera nodo e pega o ID de seguimento.",
+                tipTracker:
+                    "É máis sólido desde outro dispositivo, como o teu móbil: abre alí o rastrexador de papeletas e pega o ID de seguimento.",
+                why: "Por que auditar?",
+                faq: {
+                    why: {
+                        question: "Por que auditar?",
+                        answer: "O teu voto cífrase no teu dispositivo, así que ninguén pode lelo, nin sequera ti. Auditar permíteche comprobar que o portal cifrou o que elixiches.",
+                    },
+                    catch: {
+                        question: "Por que detecta o engano?",
+                        answer: "O portal cifra antes de que decidas auditar, así que non pode saber que papeletas se comprobarán. Se cambiase votos, calquera que audite podería descubrilo.",
+                    },
+                    spent: {
+                        question: "Por que non pode contar esta papeleta?",
+                        answer: "Co segredo publicado, a papeleta amosa como votaches. Para manter o teu voto en segredo, unha papeleta auditada nunca se emite.",
+                    },
+                    hub: {
+                        question: "Por que nun nodo?",
+                        answer: "Un portal que cambiase o teu voto tamén podería amosarche unha comprobación falsa. Un nodo é outro sitio; a papeleta e o seu segredo saen do rexistro público, non desta páxina.",
+                    },
+                },
+                helpDialog: {
+                    title: "Comproba a túa papeleta auditada",
+                    content:
+                        "<p>Auditar abre unha papeleta en lugar de emitila. O portal publica o segredo co que cifrou as túas opcións, así que calquera pode descifrar a papeleta e ver o que contén.</p><p>Comproba nun nodo que contén o que elixiches. Despois vota de novo: a túa nova papeleta ten un novo ID de seguimento, e é a que conta.</p>",
+                    ok: "Aceptar",
+                },
+            },
         },
         electionSelectionScreen: {
             title: "Papeletas",

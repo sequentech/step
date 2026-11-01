@@ -253,6 +253,14 @@ const dutchTranslation: TranslationType = {
                 ok: "Ja, ik wil mijn stembiljet verwerpen om het te auditen",
                 cancel: "Annuleren",
             },
+            auditConfirm: {
+                title: "Dit stembiljet auditeren in plaats van uitbrengen?",
+                text: "De portal publiceert hoe hij <Id>{{id}}</Id> heeft versleuteld, zodat u op een hub kunt controleren dat het bevat wat u koos.",
+                never: "Het wordt nooit uitgebracht of geteld: het geheim zou laten zien hoe u stemde.",
+                again: "Daarna stemt u opnieuw, met een nieuwe Tracking-ID.",
+                cancel: "Annuleren",
+                audit: "Stem controleren",
+            },
             confirmCastVoteDialog: {
                 title: "Weet u zeker dat u uw stem wilt uitbrengen?",
                 content: "Na bevestiging wordt uw stem uitgebracht.",
@@ -462,6 +470,68 @@ const dutchTranslation: TranslationType = {
             },
             bottomWarning:
                 "Om veiligheidsredenen moet uw stembiljet ongeldig worden gemaakt wanneer u het audit. Om door te gaan met het stemproces, moet u hieronder op ‘<b>Begin met stemmen</b>’ klikken.",
+            voteAgain: "Opnieuw stemmen",
+            check: {
+                title: "Controleer uw geauditeerde stembiljet",
+                lead: "Dit stembiljet is geopend in plaats van uitgebracht, dus het wordt nooit geteld. Controleer op een hub dat het bevat wat u koos en stem daarna opnieuw.",
+                label: "Een geauditeerd stembiljet controleren",
+                encrypted: {
+                    title: "Versleuteld op dit apparaat",
+                    text: "Met de Tracking-ID, voordat u besloot het te auditeren.",
+                },
+                opened: {
+                    title: "Geopend in het openbare register",
+                    text: "De portal publiceerde het geheim waarmee hij het versleutelde. Het register markeert het stembiljet als Geauditeerd.",
+                },
+                compare: {
+                    title: "Vergelijk het op een hub",
+                    text: "De hub ontsleutelt het in uw browser en toont de keuzes die het bevat. Alleen u weet wat u koos.",
+                },
+                entry: "item #{{index}}",
+                hubsLabel: "Hubs die stembiljetten controleren, uit het beleid van de verkiezing",
+                runBy: "Beheerd door {{party}}",
+                hubLabel:
+                    "{{name}}, beheerd door {{party}}: controleer dit stembiljet op de eigen site (opent in een nieuw tabblad)",
+                authorityName: "Stembiljetverificatie van de verkiezing",
+                runByAuthority: "Beheerd door de verkiezingsautoriteit",
+                authorityLabel:
+                    "Stembiljetverificatie van de verkiezing, beheerd door de verkiezingsautoriteit: controleer dit stembiljet op de eigen site (opent in een nieuw tabblad)",
+                footnote:
+                    "Elke hub in het beleid van de verkiezing die stembiljetten controleert, telkens in een willekeurige volgorde. Elke hub opent op de eigen site met de Tracking-ID in de link.",
+                footnoteAuthority:
+                    "Nog geen hub in het beleid van de verkiezing controleert stembiljetten, dus dit is de stembiljetverificatie van de verkiezingsautoriteit zelf. Die opent met de Tracking-ID in de link.",
+                trackerText:
+                    "Nog geen hub in het beleid van de verkiezing controleert stembiljetten. De stembiljettracker kan het tonen: die ontsleutelt het stembiljet in uw browser.",
+                trackerLink: "Open het in de stembiljettracker",
+                tip: "Het sterkst op een ander apparaat, zoals uw telefoon: open de site van een hub en plak de Tracking-ID.",
+                tipTracker:
+                    "Het sterkst op een ander apparaat, zoals uw telefoon: open daar de stembiljettracker en plak de Tracking-ID.",
+                why: "Waarom auditeren?",
+                faq: {
+                    why: {
+                        question: "Waarom auditeren?",
+                        answer: "Uw stem wordt op uw apparaat versleuteld, dus niemand kan hem lezen, ook u niet. Met auditeren controleert u of de portal heeft versleuteld wat u koos.",
+                    },
+                    catch: {
+                        question: "Waarom betrapt dit fraude?",
+                        answer: "De portal versleutelt voordat u besluit te auditeren, dus hij kan niet weten welke stembiljetten worden gecontroleerd. Als hij stemmen veranderde, zou iedereen die auditeert dat kunnen ontdekken.",
+                    },
+                    spent: {
+                        question: "Waarom kan dit stembiljet niet meetellen?",
+                        answer: "Met het geheim gepubliceerd laat het stembiljet zien hoe u stemde. Om uw stem geheim te houden, wordt een geauditeerd stembiljet nooit uitgebracht.",
+                    },
+                    hub: {
+                        question: "Waarom op een hub?",
+                        answer: "Een portal die uw stem veranderde, kan u ook een valse controle tonen. Een hub is een andere site; het stembiljet en het geheim komen uit het openbare register, niet van deze pagina.",
+                    },
+                },
+                helpDialog: {
+                    title: "Controleer uw geauditeerde stembiljet",
+                    content:
+                        "<p>Auditeren opent een stembiljet in plaats van het uit te brengen. De portal publiceert het geheim waarmee hij uw keuzes versleutelde, zodat iedereen het stembiljet kan ontsleutelen en zien wat het bevat.</p><p>Controleer op een hub dat het bevat wat u koos. Stem daarna opnieuw: uw nieuwe stembiljet krijgt een nieuwe Tracking-ID, en dat is het stembiljet dat telt.</p>",
+                    ok: "OK",
+                },
+            },
         },
         electionSelectionScreen: {
             title: "Stembiljetten",

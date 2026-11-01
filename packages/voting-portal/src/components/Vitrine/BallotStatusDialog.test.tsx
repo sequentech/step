@@ -389,8 +389,8 @@ describe("the Tracking ID in the ballot status dialog", () => {
         [EBallotStatus.VERIFIED, "cast", "success", VERIFIED],
         [EBallotStatus.LATE, "cast", "success", LATE],
         [EBallotStatus.PROBLEM, "cast", "success", MISMATCH],
-        [EBallotStatus.AUDITABLE, "auditable", "success", undefined],
-        [EBallotStatus.AUDIT_FAILED, "auditable", "success", undefined],
+        [EBallotStatus.AUDITABLE, "audited", "success", undefined],
+        [EBallotStatus.AUDIT_FAILED, "audited", "success", undefined],
     ] as const)(
         "tags a ballot that is %s with the word %s in the %s tone, at the right of the label",
         (status, word, tone, result) => {

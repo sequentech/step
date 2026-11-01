@@ -57,7 +57,7 @@ const useStepTimes = (steps: Record<EStatusStep, EStepState>): TTimes => {
 
 /** The ballot tracker link: a new tab, or in this one on a kiosk, which keeps
  * its session in memory. */
-const useTrackerLink = (
+export const useTrackerLink = (
     url: string | undefined
 ): React.AnchorHTMLAttributes<HTMLAnchorElement> | undefined => {
     const {isKiosk} = useContext(AuthContext)

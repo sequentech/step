@@ -7,6 +7,9 @@ import type {Policy} from "@vitrine/verify"
 import * as pure from "@vitrine/verify/pure"
 import {policyText} from "../../fixtures/vitrine"
 import {
+    auditedBallotLink,
+    auditHubs,
+    ballotVerifierOf,
     EHubUpdate,
     offeredHubs,
     readHubUpdates,
@@ -181,5 +184,89 @@ describe("watchPayload", () => {
     it("handles a receipt larger than a function call can spread", () => {
         const text = "line of a receipt chain\n".repeat(20000)
         expect(pure.bytes.fromUtf8(pure.encoding.b64urlDecode(watchPayload(text)))).toBe(text)
+    })
+})
+
+// The vendored parser has no hub-ballot-verifier line yet, so the tests give a
+// parsed hub the field the way a newer parser would.
+const withVerifier = (policy: Policy, hub: string, url: unknown): Policy => {
+    Object.assign(policy.hubs.get(hub)!, {ballotVerifier: url})
+    return policy
+}
+
+describe("ballotVerifierOf", () => {
+    it("reads the hub's ballot verifier when the policy names one", () => {
+        const policy = withVerifier(parsed([]), "h1", "https://hub1.verifier.example/")
+        expect(ballotVerifierOf(policy.hubs.get("h1")!)).toBe("https://hub1.verifier.example/")
+    })
+
+    it("tolerates a policy from before the field, or a value that isn't a site", () => {
+        const policy = parsed([])
+        expect(ballotVerifierOf(policy.hubs.get("h1")!)).toBeUndefined()
+        expect(ballotVerifierOf(withVerifier(policy, "h1", "").hubs.get("h1")!)).toBeUndefined()
+        expect(ballotVerifierOf(withVerifier(policy, "h1", 7).hubs.get("h1")!)).toBeUndefined()
+    })
+})
+
+describe("auditHubs", () => {
+    it("lists only the hubs with a ballot verifier, and who runs them", () => {
+        const policy = withVerifier(
+            parsed([`hub-explorer h1 ${SITE_H1}`, `hub-explorer h2 ${SITE_H2}`]),
+            "h2",
+            "https://hub2.verifier.example/"
+        )
+        expect(auditHubs(policy)).toEqual([
+            {name: "h2", party: "hubco2", site: "https://hub2.verifier.example/"},
+        ])
+    })
+
+    it("lists a hub with a ballot verifier but no explorer", () => {
+        const policy = withVerifier(parsed([]), "h1", "https://hub1.verifier.example/")
+        expect(auditHubs(policy)).toEqual([
+            {name: "h1", party: "hubco1", site: "https://hub1.verifier.example/"},
+        ])
+    })
+
+    it("lists nothing without a policy, or when no hub checks ballots", () => {
+        expect(auditHubs(undefined)).toEqual([])
+        expect(auditHubs(parsed([`hub-explorer h1 ${SITE_H1}`]))).toEqual([])
+    })
+})
+
+describe("auditedBallotLink", () => {
+    const path = {tenantId: "t-1", eventId: "e-1", electionId: "el-1"}
+    const id = "FTBE-MHRX-0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ-0123-4567-89AB"
+    const route = "tenant/t-1/event/e-1/election/el-1/audited"
+
+    it("puts the full Tracking ID and the policy in the fragment, after the audited route", () => {
+        expect(auditedBallotLink("https://hub.example/", path, id, "sha256:abcd")).toBe(
+            `https://hub.example/${route}#id=${id}&policy=sha256:abcd`
+        )
+    })
+
+    it("adds the slash a base without one is missing", () => {
+        expect(auditedBallotLink("https://hub.example/verify", path, id, "sha256:abcd")).toBe(
+            `https://hub.example/verify/${route}#id=${id}&policy=sha256:abcd`
+        )
+    })
+
+    it("replaces a fragment the base already had", () => {
+        expect(auditedBallotLink("https://hub.example/#old", path, id, "sha256:abcd")).toBe(
+            `https://hub.example/${route}#id=${id}&policy=sha256:abcd`
+        )
+    })
+
+    it("leaves the policy out when there is none to pin", () => {
+        expect(auditedBallotLink("https://hub.example/", path, id)).toBe(
+            `https://hub.example/${route}#id=${id}`
+        )
+    })
+
+    it("encodes ids that are not safe in a path", () => {
+        expect(
+            auditedBallotLink("https://hub.example/", {...path, eventId: "a/b"}, id, "sha256:ab")
+        ).toBe(
+            `https://hub.example/tenant/t-1/event/a%2Fb/election/el-1/audited#id=${id}&policy=sha256:ab`
+        )
     })
 })

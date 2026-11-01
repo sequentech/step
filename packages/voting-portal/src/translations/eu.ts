@@ -251,6 +251,14 @@ const basqueTranslation: TranslationType = {
                 ok: "Bai, nire bozketa baztertu nahi dut auditatzeko",
                 cancel: "Ezeztatu",
             },
+            auditConfirm: {
+                title: "Boto-paper hau auditatu nahi duzu, eman beharrean?",
+                text: "Atariak <Id>{{id}}</Id> nola zifratu zuen argitaratzen du, gune batean zuk aukeratutakoa duela egiazta dezazun.",
+                never: "Ez da inoiz ematen ezta zenbatzen ere: bere sekretuak nola bozkatu zenuen erakutsiko luke.",
+                again: "Gero berriro bozkatzen duzu, jarraipen-ID berri batekin.",
+                cancel: "Utzi",
+                audit: "Auditatu boto-papera",
+            },
             confirmCastVoteDialog: {
                 title: "Ziur zaude zure botoa eman nahi duzula?",
                 content: "Berretsi ondoren, zure botoa emango da.",
@@ -460,6 +468,69 @@ const basqueTranslation: TranslationType = {
             },
             bottomWarning:
                 "Segurtasun arrazoiengatik, zure bozketa audtatzen duzunean, hondatu egin behar da. Bozketa prozesuarekin jarraitzeko, beheko '<b>Hasi Bozketa</b>' sakatu behar duzu.",
+            voteAgain: "Bozkatu berriro",
+            check: {
+                title: "Egiaztatu zure boto-paper auditatua",
+                lead: "Boto-paper hau ireki egin da eman beharrean, beraz ez da inoiz zenbatuko. Egiaztatu gune batean zuk aukeratutakoa duela, eta gero bozkatu berriro.",
+                label: "Boto-paper auditatu bat egiaztatzen",
+                encrypted: {
+                    title: "Gailu honetan zifratua",
+                    text: "Bere jarraipen-IDarekin, auditatzea erabaki aurretik.",
+                },
+                opened: {
+                    title: "Erregistro publikoan irekia",
+                    text: "Atariak zifratzeko erabili zuen sekretua argitaratu zuen. Erregistroak boto-papera Auditatua gisa markatzen du.",
+                },
+                compare: {
+                    title: "Alderatu gune batean",
+                    text: "Guneak zure nabigatzailean deszifratzen du eta dituen aukerak erakusten ditu. Zuk bakarrik dakizu zer aukeratu zenuen.",
+                },
+                entry: "#{{index}} sarrera",
+                hubsLabel:
+                    "Boto-paperak egiaztatzen dituzten guneak, hauteskundearen politikaren arabera",
+                runBy: "Kudeatzailea: {{party}}",
+                hubLabel:
+                    "{{name}} (kudeatzailea: {{party}}): egiaztatu boto-paper hau bere webgunean (fitxa berri batean irekitzen da)",
+                authorityName: "Hauteskundearen boto-paperen egiaztatzailea",
+                runByAuthority: "Kudeatzailea: hauteskunde-agintaritza",
+                authorityLabel:
+                    "Hauteskundearen boto-paperen egiaztatzailea (kudeatzailea: hauteskunde-agintaritza): egiaztatu boto-paper hau bere webgunean (fitxa berri batean irekitzen da)",
+                footnote:
+                    "Hauteskundearen politikan boto-paperak egiaztatzen dituen gune oro, aldi bakoitzean ausazko ordenan. Bakoitza bere webgunean irekitzen da, jarraipen-IDa estekan duela.",
+                footnoteAuthority:
+                    "Hauteskundearen politikako gune batek ere ez ditu oraindik boto-paperak egiaztatzen, beraz hau hauteskunde-agintaritzaren beraren boto-paperen egiaztatzailea da. Jarraipen-IDa estekan duela irekitzen da.",
+                trackerText:
+                    "Hauteskundearen politikako gune batek ere ez ditu oraindik boto-paperak egiaztatzen. Txartelen jarraitzaileak erakuts dezake: boto-papera zure nabigatzailean deszifratzen du.",
+                trackerLink: "Ireki txartelen jarraitzailean",
+                tip: "Sendoagoa da beste gailu batean, zure telefonoan adibidez: ireki edozein guneren webgunea eta itsatsi jarraipen-IDa.",
+                tipTracker:
+                    "Sendoagoa da beste gailu batean, zure telefonoan adibidez: ireki han txartelen jarraitzailea eta itsatsi jarraipen-IDa.",
+                why: "Zergatik auditatu?",
+                faq: {
+                    why: {
+                        question: "Zergatik auditatu?",
+                        answer: "Zure botoa zure gailuan zifratzen da, beraz inork ezin du irakurri, ezta zuk ere. Auditatzeak egiaztatzeko aukera ematen dizu atariak zuk aukeratutakoa zifratu duela.",
+                    },
+                    catch: {
+                        question: "Zergatik harrapatzen du iruzurra?",
+                        answer: "Atariak auditatzea erabaki aurretik zifratzen du, beraz ezin du jakin zein boto-paper egiaztatuko diren. Botoak aldatuko balitu, auditatzen duen edonor konturatu liteke.",
+                    },
+                    spent: {
+                        question: "Zergatik ezin da boto-paper hau zenbatu?",
+                        answer: "Sekretua argitaratuta dagoenez, boto-paperak nola bozkatu zenuen erakusten du. Zure botoa sekretu mantentzeko, auditatutako boto-papera ez da inoiz ematen.",
+                    },
+                    hub: {
+                        question: "Zergatik gune batean?",
+                        answer: "Zure botoa aldatu duen atari batek egiaztapen faltsu bat ere erakuts liezazuke. Gunea beste webgune bat da; boto-papera eta bere sekretua erregistro publikotik datoz, ez orri honetatik.",
+                    },
+                },
+                helpDialog: {
+                    title: "Egiaztatu zure boto-paper auditatua",
+                    content:
+                        "<p>Auditatzeak boto-paper bat ireki egiten du eman beharrean. Atariak zure aukerak zifratzeko erabili zuen sekretua argitaratzen du, beraz edonork deszifra dezake boto-papera eta zer duen ikusi.</p><p>Egiaztatu gune batean zuk aukeratutakoa duela. Gero bozkatu berriro: boto-paper berriak jarraipen-ID berri bat du, eta hori da zenbatzen dena.</p>",
+                    ok: "Ados",
+                },
+            },
         },
         electionSelectionScreen: {
             title: "Bozketak",

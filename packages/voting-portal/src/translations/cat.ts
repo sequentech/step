@@ -252,6 +252,14 @@ const catalanTranslation: TranslationType = {
                 ok: "Sí, descartar la meva papereta per auditar-la",
                 cancel: "Cancel·lar",
             },
+            auditConfirm: {
+                title: "Voleu auditar aquesta papereta en lloc d'emetre-la?",
+                text: "El portal publica com va xifrar <Id>{{id}}</Id>, perquè pugueu comprovar en un node que conté el que vau triar.",
+                never: "No s'emet ni es compta mai: el seu secret mostraria com vau votar.",
+                again: "Després torneu a votar, amb un nou ID de seguiment.",
+                cancel: "Cancel·la",
+                audit: "Auditar la papereta",
+            },
             confirmCastVoteDialog: {
                 title: "Esteu segur que voleu emetre el vostre vot?",
                 content: "Un cop confirmeu, el vostre vot serà emès.",
@@ -462,6 +470,68 @@ const catalanTranslation: TranslationType = {
             },
             bottomWarning:
                 "Per motius de seguretat, quan auditeu la vostra papereta, haureu d'invalidar-la. Per continuar amb el procés de votació, feu clic a ‘<b>Iniciar votació</b>’.",
+            voteAgain: "Torna a votar",
+            check: {
+                title: "Comproveu la vostra papereta auditada",
+                lead: "Aquesta papereta es va obrir en lloc d'emetre's, així que no es comptarà mai. Comproveu en un node que conté el que vau triar i després torneu a votar.",
+                label: "Comprovació d'una papereta auditada",
+                encrypted: {
+                    title: "Xifrada en aquest dispositiu",
+                    text: "Amb el seu ID de seguiment, abans que decidíssiu auditar-la.",
+                },
+                opened: {
+                    title: "Oberta al registre públic",
+                    text: "El portal va publicar el secret amb què la va xifrar. El registre marca la papereta com a Auditada.",
+                },
+                compare: {
+                    title: "Compareu-la en un node",
+                    text: "El node la desxifra al vostre navegador i mostra les opcions que conté. Només vosaltres sabeu què vau triar.",
+                },
+                entry: "entrada #{{index}}",
+                hubsLabel: "Nodes que comproven paperetes, segons la política de l'elecció",
+                runBy: "Gestionat per {{party}}",
+                hubLabel:
+                    "{{name}}, gestionat per {{party}}: comproveu aquesta papereta al seu propi lloc (s'obre en una pestanya nova)",
+                authorityName: "Verificador de paperetes de l'elecció",
+                runByAuthority: "Gestionat per l'autoritat electoral",
+                authorityLabel:
+                    "Verificador de paperetes de l'elecció, gestionat per l'autoritat electoral: comproveu aquesta papereta al seu propi lloc (s'obre en una pestanya nova)",
+                footnote:
+                    "Tots els nodes de la política de l'elecció que comproven paperetes, en un ordre aleatori cada vegada. Cadascun s'obre al seu propi lloc amb l'ID de seguiment a l'enllaç.",
+                footnoteAuthority:
+                    "Encara cap node de la política de l'elecció no comprova paperetes, així que aquest és el verificador de paperetes de la mateixa autoritat electoral. S'obre amb l'ID de seguiment a l'enllaç.",
+                trackerText:
+                    "Encara cap node de la política de l'elecció no comprova paperetes. El seguiment de paperetes la pot mostrar: desxifra la papereta al vostre navegador.",
+                trackerLink: "Obriu-la al seguiment de paperetes",
+                tip: "És més sòlid des d'un altre dispositiu, com el mòbil: obriu el lloc de qualsevol node i enganxeu-hi l'ID de seguiment.",
+                tipTracker:
+                    "És més sòlid des d'un altre dispositiu, com el mòbil: obriu-hi el seguiment de paperetes i enganxeu-hi l'ID de seguiment.",
+                why: "Per què auditar?",
+                faq: {
+                    why: {
+                        question: "Per què auditar?",
+                        answer: "El vostre vot es xifra al vostre dispositiu, així que ningú pot llegir-lo, ni tan sols vosaltres. Auditar us permet comprovar que el portal va xifrar el que vau triar.",
+                    },
+                    catch: {
+                        question: "Per què detecta l'engany?",
+                        answer: "El portal xifra abans que decidiu auditar, així que no pot saber quines paperetes es comprovaran. Si canviés vots, qualsevol que auditi ho podria descobrir.",
+                    },
+                    spent: {
+                        question: "Per què no pot comptar aquesta papereta?",
+                        answer: "Amb el secret publicat, la papereta mostra com vau votar. Per mantenir secret el vostre vot, una papereta auditada no s'emet mai.",
+                    },
+                    hub: {
+                        question: "Per què en un node?",
+                        answer: "Un portal que canviés el vostre vot també us podria mostrar una comprovació falsa. Un node és un altre lloc; la papereta i el seu secret surten del registre públic, no d'aquesta pàgina.",
+                    },
+                },
+                helpDialog: {
+                    title: "Comproveu la vostra papereta auditada",
+                    content:
+                        "<p>Auditar obre una papereta en lloc d'emetre-la. El portal publica el secret amb què va xifrar les vostres opcions, així que qualsevol pot desxifrar la papereta i veure què conté.</p><p>Comproveu en un node que conté el que vau triar. Després torneu a votar: la nova papereta té un nou ID de seguiment, i és la que compta.</p>",
+                    ok: "D'acord",
+                },
+            },
         },
         electionSelectionScreen: {
             title: "Llista de Votacions",

@@ -213,11 +213,11 @@ describe("ballotTagOf", () => {
             EBallotStatus.PROBLEM,
         ]
         expect(cast.map(ballotTagOf)).toEqual(cast.map(() => EBallotTag.CAST))
-        expect(ballotTagOf(EBallotStatus.AUDITABLE)).toBe(EBallotTag.AUDITABLE)
-        expect(ballotTagOf(EBallotStatus.AUDIT_FAILED)).toBe(EBallotTag.AUDITABLE)
+        expect(ballotTagOf(EBallotStatus.AUDITABLE)).toBe(EBallotTag.AUDITED)
+        expect(ballotTagOf(EBallotStatus.AUDIT_FAILED)).toBe(EBallotTag.AUDITED)
     })
 
     it("uses the keys of the tag's words as its values", () => {
-        expect(Object.values(EBallotTag)).toEqual(["notCast", "cast", "auditable", "audited"])
+        expect(Object.values(EBallotTag)).toEqual(["notCast", "cast", "audited"])
     })
 })
