@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Fast feedback loops | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4126/docs/developers/development-environment/fast-feedback"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Fast feedback loops | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4126/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4126/docs/developers/development-environment/fast-feedback"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4126/docs/developers/development-environment/fast-feedback" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4126/docs/developers/development-environment/fast-feedback" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Fast feedback loops","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4126/docs/developers/development-environment/fast-feedback"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4126/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4126/assets/js/runtime~main.b9e03bd4.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4126/assets/js/runtime~main.d8ab2244.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4126/assets/js/main.ea8b5689.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -338,10 +338,11 @@ document with <code>base</code>, <code>fallback</code>, <code>files</code>, <cod
 <div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">git</span><span class="token plain"> config core.hooksPath scripts/dev/hooks</span><br></span></code></pre></div></div>
 <p>The hook runs the lint and format checks that the pushed commits select (Rust
 <code>cargo fmt</code>, ESLint and Prettier per frontend package, REUSE, Ruff, Hasura),
-the same commands as <code>lint_prettify.yml</code>. It skips checks whose tools aren&#x27;t
-installed, and frontend ones until <code>packages/</code> has its dependencies, saying so.
-<code>STEP_PRE_PUSH=tests</code> also runs the fast tests (<code>step-dev test --affected --committed</code>), <code>STEP_PRE_PUSH=off</code> disables it, and <code>git push --no-verify</code> skips
-it once.</p>
+the same commands as <code>lint_prettify.yml</code>. A new branch counts from its merge
+base with <code>origin/ovcs</code>. It skips checks whose tools aren&#x27;t installed, and frontend ones until <code>packages/</code> has its dependencies, saying so.
+<code>STEP_PRE_PUSH=tests</code> runs <code>step-dev test --affected</code> over the pushed changes
+instead, which covers the fast tests and the lint checks; <code>STEP_PRE_PUSH=off</code>
+disables the hook, and <code>git push --no-verify</code> skips it once.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="benchmarks">Benchmarks<a href="#benchmarks" class="hash-link" aria-label="Direct link to Benchmarks" title="Direct link to Benchmarks" translate="no">​</a></h2>
 <p><code>scripts/dev/step-dev bench</code> times these loops for any checkout given with
 <code>--checkout</code>, so two trees can be compared on the same machine. Each series is
@@ -389,7 +390,8 @@ crates (<code>electoral-log</code>, <code>trellis</code>, <code>pgmq-broker</cod
 <code>wrap-map-err</code>) share a <code>small-crates</code> runner, each tested from its own
 directory; the sequent-core feature gates run in one job; and the selected Python
 suites run in one tooling job. The PostgreSQL contracts of <code>electoral-log</code>,
-<code>step-cli</code> and Trellis run beside the Windmill job, on their own runner.</p>
+<code>step-cli</code> and Trellis run on their own runner, selected by their own checks, so
+a step-cli change no longer starts the Windmill job.</p>
 <p><code>Required feedback checks</code> rejects failed, cancelled, missing or unexpectedly
 skipped managed jobs. It covers <code>Tests</code> and its reusable frontend UI workflow;
 existing coverage, backend integration and other workflows keep their separate
