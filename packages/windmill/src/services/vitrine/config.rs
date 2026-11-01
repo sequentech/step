@@ -14,6 +14,7 @@ use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
 use strum_macros::{Display, EnumString};
+use tracing::warn;
 
 use super::quorum::{party_split_cost, split_cost, Node, QuorumTree};
 
@@ -35,9 +36,9 @@ const PROFILE_HASH_PREFIX: &str = "sha256:";
 const POLICY_ID_PLACEHOLDER: &str = "{policy_id}";
 /// The place of a log's path (`<tenant id>/<event id>/<log>`) in a mirror URL.
 pub const MIRROR_PATH_PLACEHOLDER: &str = "{path}";
-pub const WORD_LISTS: [&str; 10] = [
-    "en", "es", "fr", "it", "pt", "cs", "ja", "ko", "zh-hans", "zh-hant",
-];
+/// The party whose software runs the deployment, unless the configuration
+/// names another (policy.md, section 2.1).
+pub const DEFAULT_PLATFORM: &str = "Sequent";
 
 /// What an authority does for the deployment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Display, EnumString)]
@@ -45,7 +46,7 @@ pub const WORD_LISTS: [&str; 10] = [
 #[strum(serialize_all = "kebab-case")]
 pub enum AuthorityRole {
     /// The Electoral Board: it seals each event's policy and announces its
-    /// words.
+    /// policy ID.
     Board,
     /// The operator: windmill signs the `events` statements with its key.
     Operator,
@@ -227,8 +228,13 @@ pub struct DeploymentConfig {
     pub quorum: String,
     /// Every quorum tolerates this many more faulty parties.
     pub min_faults: Option<u64>,
-    /// The language of policy and receipt words.
-    pub words: Option<String>,
+    /// The party whose software runs the deployment: the policy's `platform`
+    /// line. `Sequent` if absent.
+    pub platform: Option<String>,
+    /// Policies no longer have words: the key is accepted, and ignored, so
+    /// that a configuration that still has it loads.
+    #[serde(default)]
+    pub words: Option<serde::de::IgnoredAny>,
     /// Maximum merge delay of promises, in seconds.
     pub mmd: Option<u64>,
     /// The explorer's page for a policy, with `{policy_id}` in its place.
@@ -485,12 +491,9 @@ impl DeploymentConfig {
                 && self.profiles.events == EVENTS_MEANING_HASH,
             "Step requires the reviewed election ballots and election events meaning hashes"
         );
-        if let Some(words) = &self.words {
-            ensure!(
-                WORD_LISTS.contains(&words.as_str()),
-                "words {words:?} isn't one of {}",
-                WORD_LISTS.join(", ")
-            );
+        check_name("the platform", self.platform())?;
+        if self.words.is_some() {
+            warn!("the Vitrine deployment configuration's `words` is ignored: policies have no words, their policy ID is shown in groups");
         }
         ensure!(self.mmd() <= MAX_MMD, "mmd is at most {MAX_MMD} seconds");
         if let Some(url) = &self.explorer_url {
@@ -604,8 +607,7 @@ impl DeploymentConfig {
             );
         }
         let min_faults = self.min_faults.unwrap_or(0);
-        let operator_faulty = BTreeSet::from([self.operator.clone()]);
-        check_quorum_safety("the app quorum", &tree, &operator_faulty, min_faults)?;
+        check_quorum_safety("the app quorum", &tree, &self.faulty_parties(), min_faults)?;
 
         let mut monitor_names = BTreeSet::new();
         for m in &self.monitors {
@@ -694,7 +696,8 @@ impl DeploymentConfig {
                     h.name
                 );
             }
-            let faulty = BTreeSet::from([self.operator.clone(), h.operator.clone()]);
+            let mut faulty = self.faulty_parties();
+            faulty.insert(h.operator.clone());
             check_quorum_safety(&what, &hub_tree, &faulty, min_faults)?;
         }
         if let Some(a) = &self.anchor {
@@ -726,6 +729,42 @@ impl DeploymentConfig {
         Ok(())
     }
 
+    /// The party whose software runs the deployment.
+    pub fn platform(&self) -> &str {
+        self.platform.as_deref().unwrap_or(DEFAULT_PLATFORM)
+    }
+
+    /// Rule 5: the faulty parties of every quorum are the operator and the
+    /// platform (a hub's quorum adds the hub's operator).
+    fn faulty_parties(&self) -> BTreeSet<String> {
+        BTreeSet::from([self.operator.clone(), self.platform().to_string()])
+    }
+
+    /// Rule 6: a hub is independent when its operator is neither the
+    /// deployment's operator nor its platform.
+    pub fn hub_is_independent(&self, hub: &Hub) -> bool {
+        hub.operator != self.operator && hub.operator != self.platform()
+    }
+
+    /// The `anchor-hubs` line of a drafted policy: `anchor-hubs 2 1`, at
+    /// least, when the hubs allow it (so at least one hub is run by neither
+    /// the operator nor the platform), else the deployment's own rule.
+    pub fn anchor_hubs_rule(&self) -> AnchorHubs {
+        let own = self.anchor_hubs.clone();
+        let wanted = AnchorHubs {
+            min: own.as_ref().map_or(0, |r| r.min).max(2),
+            min_independent: own.as_ref().map_or(0, |r| r.min_independent).max(1),
+        };
+        if self.check_anchor_hubs(&wanted).is_ok() {
+            wanted
+        } else {
+            own.unwrap_or(AnchorHubs {
+                min: 2,
+                min_independent: 1,
+            })
+        }
+    }
+
     /// Rule 6: two hubs are independent of each other when their operators
     /// differ and each one's quorum keeps a split cost of at least 1 with the
     /// parties they share counted as faulty, besides its own faulty parties.
@@ -736,7 +775,7 @@ impl DeploymentConfig {
         let shared: BTreeSet<String> = a.parties().intersection(&b.parties()).cloned().collect();
         for hub in [a, b] {
             let mut faulty = shared.clone();
-            faulty.insert(self.operator.clone());
+            faulty.extend(self.faulty_parties());
             faulty.insert(hub.operator.clone());
             if split_cost(&hub.quorum_tree()?, &faulty) == 0 {
                 return Ok(false);
@@ -749,8 +788,8 @@ impl DeploymentConfig {
     fn check_bootstrap_hubs(&self) -> Result<()> {
         for b in self.hubs.iter().filter(|h| h.role == HubRole::Bootstrap) {
             ensure!(
-                b.operator != self.operator,
-                "bootstrap hub {} is run by the operator",
+                self.hub_is_independent(b),
+                "bootstrap hub {} is run by the operator or the platform",
                 b.name
             );
             for h in self.app_hubs() {
@@ -766,7 +805,8 @@ impl DeploymentConfig {
     }
 
     /// Rule 6: the app hubs include `min` hubs that are pairwise independent
-    /// of each other, `min_independent` of them independent of the operator.
+    /// of each other, `min_independent` of them independent of the operator and
+    /// the platform.
     fn check_anchor_hubs(&self, rule: &AnchorHubs) -> Result<()> {
         let hubs: Vec<&Hub> = self.app_hubs().collect();
         let mut linked = vec![vec![false; hubs.len()]; hubs.len()];
@@ -777,7 +817,7 @@ impl DeploymentConfig {
                 linked[j][i] = independent;
             }
         }
-        let independent: Vec<bool> = hubs.iter().map(|h| h.operator != self.operator).collect();
+        let independent: Vec<bool> = hubs.iter().map(|h| self.hub_is_independent(h)).collect();
         let size = rule.min.max(rule.min_independent) as usize;
         let found = find_hubs(
             &linked,
@@ -1079,6 +1119,69 @@ pub(crate) mod tests {
         })
         .unwrap_err();
         assert!(format!("{err:#}").contains("anchor_hubs"), "{err:#}");
+    }
+
+    #[test]
+    fn the_platform_defaults_to_sequent_and_is_a_party_name() {
+        assert_eq!(dev().platform(), DEFAULT_PLATFORM);
+        let config = with(|t| {
+            t.insert("platform".into(), "Vendor".into());
+        })
+        .unwrap();
+        assert_eq!(config.platform(), "Vendor");
+        assert!(with(|t| {
+            t.insert("platform".into(), "".into());
+        })
+        .is_err());
+    }
+
+    #[test]
+    fn the_platforms_witnesses_are_faulty_like_the_operators() {
+        let err = with(|t| {
+            t.insert("platform".into(), "observers".into());
+            let witnesses = array(t, "witnesses");
+            witnesses[1]
+                .as_table_mut()
+                .unwrap()
+                .insert("party".into(), "observers".into());
+        })
+        .unwrap_err();
+        assert!(format!("{err:#}").contains("split cost 0"), "{err:#}");
+    }
+
+    #[test]
+    fn a_hub_run_by_the_platform_is_not_independent() {
+        let config = with(|t| {
+            t.insert("platform".into(), "hub-a-party".into());
+        })
+        .unwrap();
+        let hubs: Vec<&Hub> = config.app_hubs().collect();
+        assert!(!config.hub_is_independent(hubs[0]));
+        assert!(config.hub_is_independent(hubs[1]));
+        // With no hub left that neither the operator nor the platform runs,
+        // the election profiles' `anchor-hubs 2 1` floor fails.
+        let err = with(|t| {
+            t.insert("platform".into(), "hub-a-party".into());
+            array(t, "hubs")[1]
+                .as_table_mut()
+                .unwrap()
+                .insert("operator".into(), "hub-a-party".into());
+        })
+        .unwrap_err();
+        assert!(format!("{err:#}").contains("anchor_hubs"), "{err:#}");
+    }
+
+    #[test]
+    fn the_old_words_key_is_accepted_and_ignored() {
+        let config = with(|t| {
+            t.insert("words".into(), "en".into());
+        })
+        .unwrap();
+        assert!(config.words.is_some());
+        assert!(with(|t| {
+            t.insert("word_list".into(), "en".into());
+        })
+        .is_err());
     }
 
     #[test]

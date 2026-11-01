@@ -15,7 +15,7 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use strum_macros::{Display, EnumString};
 
-use super::config::{DeploymentConfig, HubRole, Mirror, MIRROR_PATH_PLACEHOLDER, WORD_LISTS};
+use super::config::{DeploymentConfig, HubRole, Mirror, MIRROR_PATH_PLACEHOLDER};
 use super::window::VotingWindow;
 use super::{canonical_id, LogName};
 
@@ -108,8 +108,6 @@ pub struct DraftEvent {
     pub election_event_id: String,
     pub election_ids: Vec<String>,
     pub window: VotingWindow,
-    /// The event's default language, if it is a word list's.
-    pub language: Option<String>,
     /// Private events: 32 random bytes, in lowercase hex.
     pub policy_salt: Option<String>,
     pub ballots: DraftLog,
@@ -131,17 +129,6 @@ pub fn policy_name(
         }
     }
     Ok(format!("{}/{event}", canonical_id(tenant_id)?))
-}
-
-/// The words language: the event's, if it has a word list, else the
-/// deployment's.
-pub fn words_language<'a>(
-    config: &'a DeploymentConfig,
-    event_language: Option<&'a str>,
-) -> Option<&'a str> {
-    event_language
-        .filter(|l| WORD_LISTS.contains(l))
-        .or(config.words.as_deref())
 }
 
 fn check_log_keys(name: LogName, log: &DraftLog) -> Result<(Vkey, Vkey)> {
@@ -363,6 +350,7 @@ pub fn draft(config: &DeploymentConfig, event: &DraftEvent) -> Result<String> {
         lines.push(&["policy-salt", salt]);
     }
     lines.push(&["operator", &config.operator]);
+    lines.push(&["platform", config.platform()]);
     if let Some(min_faults) = config.min_faults {
         lines.push(&["min-faults", &min_faults.to_string()]);
     }
@@ -390,9 +378,6 @@ pub fn draft(config: &DeploymentConfig, event: &DraftEvent) -> Result<String> {
     lines.push(&["opens", &event.window.opens.to_string()]);
     lines.push(&["closes", &event.window.closes.to_string()]);
     lines.push(&["quiet", &event.window.quiet().to_string()]);
-    if let Some(words) = words_language(config, event.language.as_deref()) {
-        lines.push(&["words", words]);
-    }
     for m in &config.monitors {
         lines.push(&["monitor", &m.name, &m.vkey, &m.url]);
     }
@@ -455,13 +440,12 @@ pub fn draft(config: &DeploymentConfig, event: &DraftEvent) -> Result<String> {
                 &anchor.max_gap.to_string(),
             ]);
         }
-        if let Some(rule) = &config.anchor_hubs {
-            lines.push(&[
-                "anchor-hubs",
-                &rule.min.to_string(),
-                &rule.min_independent.to_string(),
-            ]);
-        }
+        let rule = config.anchor_hubs_rule();
+        lines.push(&[
+            "anchor-hubs",
+            &rule.min.to_string(),
+            &rule.min_independent.to_string(),
+        ]);
         for h in &hubs {
             lines.push(&["hub", &h.name, &h.vkey, &h.url]);
             lines.push(&["hub-operator", &h.name, &h.operator]);
@@ -561,6 +545,7 @@ impl PolicyFacts {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::super::config::tests::{dev, DEV_CONFIG};
+    use super::super::config::AnchorHubs;
     use super::super::window::QUIET_SECS;
     use super::*;
     use base64::{engine::general_purpose::STANDARD, Engine as _};
@@ -625,7 +610,6 @@ pub(crate) mod tests {
                 opens: 1793520000,
                 closes: 1793566800,
             },
-            language: Some("es".into()),
             policy_salt: (mode == TransparencyMode::PRIVATE).then(|| "ab".repeat(32)),
             ballots,
             events,
@@ -778,6 +762,7 @@ pub(crate) mod tests {
             "visibility",
             "required",
             "operator",
+            "platform",
         ];
         expected.extend(std::iter::repeat("authority").take(config.authorities.len()));
         expected.push("sign");
@@ -787,7 +772,6 @@ pub(crate) mod tests {
             "opens",
             "closes",
             "quiet",
-            "words",
             "monitor",
             "monitor",
             "monitor-party",
@@ -875,7 +859,12 @@ pub(crate) mod tests {
         assert_eq!(line(&text, "opens"), ["opens 1793520000"]);
         assert_eq!(line(&text, "closes"), ["closes 1793566800"]);
         assert_eq!(line(&text, "quiet"), [format!("quiet {QUIET_SECS}")]);
-        assert_eq!(line(&text, "words"), ["words es"]);
+        assert!(line(&text, "words").is_empty(), "words in {text}");
+        assert_eq!(line(&text, "platform"), ["platform Sequent"]);
+        assert!(
+            line(&text, "contact").is_empty(),
+            "Step has no authority-contact settings, so a draft has no contact line: {text}"
+        );
         assert_eq!(
             line(&text, "param"),
             [
@@ -978,14 +967,70 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn the_words_follow_the_events_language_when_it_has_a_list() {
+    fn the_platform_is_drafted_and_can_be_named_by_the_deployment() {
         let config = dev();
-        assert_eq!(words_language(&config, Some("es")), Some("es"));
+        let text = draft(&config, &event(&config, TransparencyMode::PUBLIC)).unwrap();
+        assert_eq!(line(&text, "platform"), ["platform Sequent"]);
+        assert_eq!(keywords(&text)[4..6], ["operator", "platform"]);
+        let mut config = with_hubs();
+        config.platform = Some("Vendor".into());
+        let text = draft(&config, &event(&config, TransparencyMode::PUBLIC)).unwrap();
+        assert_eq!(line(&text, "platform"), ["platform Vendor"]);
+    }
+
+    #[test]
+    fn a_hub_run_by_the_platform_isnt_independent() {
+        let mut config = with_hubs();
+        config.platform = Some("example-org".into());
+        let [example, other, _] = &config.hubs[..] else {
+            panic!("three hubs")
+        };
+        assert!(!config.hub_is_independent(example));
+        assert!(config.hub_is_independent(other));
+        // The other app hub still gives `anchor-hubs 2 1` its independent hub.
+        assert_eq!(config.anchor_hubs_rule().min_independent, 1);
+    }
+
+    #[test]
+    fn the_anchor_hubs_line_is_2_1_when_the_hubs_allow_it() {
+        let config = with_hubs();
         assert_eq!(
-            words_language(&config, Some("cat")),
-            config.words.as_deref()
+            (
+                config.anchor_hubs_rule().min,
+                config.anchor_hubs_rule().min_independent
+            ),
+            (2, 1)
         );
-        assert_eq!(words_language(&config, None), config.words.as_deref());
+        // A weaker rule in the deployment is raised to the recommended one.
+        let mut config = with_hubs();
+        config.anchor_hubs = Some(AnchorHubs {
+            min: 1,
+            min_independent: 0,
+        });
+        let text = draft(&config, &event(&config, TransparencyMode::PUBLIC)).unwrap();
+        assert_eq!(line(&text, "anchor-hubs"), ["anchor-hubs 2 1"]);
+        // A stronger one is kept when the hubs allow it.
+        config.anchor_hubs = Some(AnchorHubs {
+            min: 2,
+            min_independent: 2,
+        });
+        let text = draft(&config, &event(&config, TransparencyMode::PUBLIC)).unwrap();
+        assert_eq!(line(&text, "anchor-hubs"), ["anchor-hubs 2 2"]);
+        // Without the deployment's rule, the hubs still give the recommended one.
+        let mut table: toml::Table = toml::from_str(DEV_CONFIG).unwrap();
+        table.remove("anchor_hubs");
+        let config = DeploymentConfig::parse(&toml::to_string(&table).unwrap()).unwrap();
+        let text = draft(&config, &event(&config, TransparencyMode::PUBLIC)).unwrap();
+        assert_eq!(line(&text, "anchor-hubs"), ["anchor-hubs 2 1"]);
+    }
+
+    #[test]
+    fn a_configuration_with_the_old_words_key_still_loads() {
+        let mut table: toml::Table = toml::from_str(DEV_CONFIG).unwrap();
+        table.insert("words".into(), "es".into());
+        let config = DeploymentConfig::parse(&toml::to_string(&table).unwrap()).unwrap();
+        let text = draft(&config, &event(&config, TransparencyMode::PUBLIC)).unwrap();
+        assert!(line(&text, "words").is_empty(), "words in {text}");
     }
 
     #[test]

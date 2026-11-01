@@ -190,10 +190,6 @@ async fn draft_policy(
         return Ok(None);
     };
     let tenant = get_tenant_by_id(tx, &event.tenant_id).await?;
-    let language = event
-        .get_presentation()?
-        .and_then(|p| p.language_conf)
-        .and_then(|l| l.default_language_code);
     let policy_salt = vitrine.and_then(|v| {
         v.policy
             .as_deref()
@@ -252,7 +248,6 @@ async fn draft_policy(
         election_event_id: event.id.clone(),
         election_ids: elections.iter().map(|e| e.id.clone()).collect(),
         window,
-        language,
         policy_salt,
         ballots,
         events,

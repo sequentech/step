@@ -11,7 +11,6 @@
 domain = "vote.localhost"
 operator = "sequent"
 quorum = "witnesses"
-words = "en"
 monitor_quorum = 2
 # Other explorer pages anyone can use to look a record up.
 # explorers = ["https://explorer.example.org/"]
