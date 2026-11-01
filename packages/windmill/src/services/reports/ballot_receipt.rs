@@ -288,7 +288,7 @@ mod tests {
             name: name.to_string(),
             operator: operator.to_string(),
             url: format!(
-                "https://{name}.example/#policy=sha256%3A{}&watch=RlRCRS1NSFJY",
+                "https://{name}.example/#policy=sha256%3A{}&watch-id={TRACKING_ID}",
                 "ab".repeat(32)
             ),
         }

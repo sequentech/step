@@ -11,12 +11,12 @@
         {
             "name": "hub-a",
             "operator": "Example Partner A",
-            "url": "https://hub-a.example/#policy=sha256%3Aabababababababababababababababababababababababababababababababab&watch=RlRCRS1NSFJYLTcxSjctNVpCRC1RUFRELVlETU4tQjQ3US1NR0FELTBBTkotOTZBVi1YWjJULUpHNVItS1BHRw"
+            "url": "https://hub-a.example/#policy=sha256%3Aabababababababababababababababababababababababababababababababab&watch-id=FTBE-MHRX-71J7-5ZBD-QPTD-YDMN-B47Q-MGAD-0ANJ-96AV-XZ2T-JG5R-KPGG"
         },
         {
             "name": "hub-b",
             "operator": "Example Partner B",
-            "url": "https://hub-b.example/#policy=sha256%3Aabababababababababababababababababababababababababababababababab&watch=RlRCRS1NSFJYLTcxSjctNVpCRC1RUFRELVlETU4tQjQ3US1NR0FELTBBTkotOTZBVi1YWjJULUpHNVItS1BHRw"
+            "url": "https://hub-b.example/#policy=sha256%3Aabababababababababababababababababababababababababababababababab&watch-id=FTBE-MHRX-71J7-5ZBD-QPTD-YDMN-B47Q-MGAD-0ANJ-96AV-XZ2T-JG5R-KPGG"
         }
     ],
     "ballot_tracker_url": "https://sequentech.io?lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum-lorem-ipsum"

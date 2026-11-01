@@ -5,7 +5,7 @@
 //! The hubs of an event's trust policy that give voters a site of their own
 //! (its `hub-explorer` lines), and the links the cast ballot receipt gives
 //! into them (design decision D7). Each link carries the policy ID and the
-//! ballot's Tracking ID in its fragment, which a browser never sends to the
+//! ballot's full Tracking ID (`watch-id`) in its fragment, which a browser never sends to the
 //! hub's server; the hub's site asks the voter for an address and for what to
 //! watch. Windmill sends nothing and learns no address.
 //!
@@ -14,7 +14,6 @@
 //! `services/vitrine/hubUpdates.ts`. Both are the place to swap when it has.
 
 use crate::postgres::vitrine::VitrineEvent;
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use rand::{seq::SliceRandom, Rng};
 use reqwest::Url;
 use sequent_core::ballot::{ElectionEventPresentation, HubUpdatesPolicy};
@@ -96,14 +95,16 @@ fn encode_component(value: &str) -> String {
         .collect()
 }
 
-/// `<site>#policy=<sha256:hex>&watch=<base64url Tracking ID>`; the site's own
-/// fragment, if it has one, is replaced.
+/// `<site>#policy=<sha256:hex>&watch-id=<full Tracking ID>` (D7); the site's
+/// own fragment, if it has one, is replaced. The Tracking ID keeps its
+/// hyphens. A link that carries a receipt uses `watch=<base64url receipt>`
+/// instead, which only the voting portal can build: windmill has no receipt.
 pub fn watch_link(site: &Url, policy_id: &str, tracking_id: &str) -> String {
     let mut link = site.clone();
     link.set_fragment(Some(&format!(
-        "policy={}&watch={}",
+        "policy={}&watch-id={}",
         encode_component(policy_id),
-        URL_SAFE_NO_PAD.encode(tracking_id)
+        encode_component(tracking_id)
     )));
     link.into()
 }
@@ -284,13 +285,8 @@ mod tests {
             params[0],
             ("policy", format!("sha256%3A{}", "ab".repeat(32)).as_str())
         );
-        assert_eq!(params[1].0, "watch");
-        let payload = URL_SAFE_NO_PAD.decode(params[1].1).unwrap();
-        assert_eq!(String::from_utf8(payload).unwrap(), TRACKING_ID);
-        assert!(params[1]
-            .1
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'));
+        // The full Tracking ID with its hyphens, not a base64url payload of it.
+        assert_eq!(params[1], ("watch-id", TRACKING_ID));
     }
 
     #[test]

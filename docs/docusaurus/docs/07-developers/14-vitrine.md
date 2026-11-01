@@ -329,7 +329,9 @@ voter by email when their ballot is confirmed and counted. Step never takes the
 voter's address: it sends the voter to the hub's site, where they enter it and
 choose what to watch. Every hub with a site is offered equally, in a random
 order, with no default and no label that ranks one above another. The link
-into a hub is `<hub-explorer url>#policy=<sha256:hex>&watch=<base64url>`. The
+into a hub is `<hub-explorer url>#policy=<sha256:hex>&watch=<base64url receipt>`
+when the portal holds the receipt, and `<hub-explorer url>#policy=<sha256:hex>&watch-id=<full Tracking ID>`
+when only the Tracking ID is known (the receipt PDF and the cast email). The
 payload sits in the fragment, which a browser never sends to the hub's server.
 
 - **The confirmation page** shows a "Get email updates" callout when
@@ -342,7 +344,7 @@ payload sits in the fragment, which a browser never sends to the hub's server.
   prints in place of `ballot_id` when it is set. `hubs` is a list of
   `{name, operator, url}` in a random order for each receipt, and is empty
   unless the event is transparent and `hub_updates.cast_email` is not `off`.
-  The payload of each `url` is the Tracking ID. Custom templates keep working
+  Each `url` carries the Tracking ID as `watch-id`. Custom templates keep working
   without either variable. Step has no email of its own for a cast ballot: the
   hubs reach a voter through the receipt, wherever the deployment delivers it.
 
