@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Backend E2E journeys | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4120/docs/developers/development-environment/testing/backend-e2e"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Backend E2E journeys | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4120/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4120/docs/developers/development-environment/testing/backend-e2e"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4120/docs/developers/development-environment/testing/backend-e2e" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4120/docs/developers/development-environment/testing/backend-e2e" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Backend E2E journeys","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4120/docs/developers/development-environment/testing/backend-e2e"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4120/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4120/assets/js/runtime~main.84b40f88.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4120/assets/js/runtime~main.a57b04f4.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4120/assets/js/main.e38119fd.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -60,6 +60,12 @@ runs with <code>--skip-images --skip-build</code>. <code>--build-only</code> bui
 <code>STEP_E2E_IMAGES</code> names (default: every image the stack needs) and the
 selected binaries, then stops. Pushes to <code>main</code>, <code>ovcs</code> and release branches
 seed the Cargo caches that pull requests restore.
+The service images reuse layers from GHCR (<code>ghcr.io/sequentech/step/backend-e2e-cache</code>):
+<code>STEP_E2E_BUILD_CACHE</code> names the repository, <code>STEP_E2E_BUILD_CACHE_READ</code> the
+scopes to import (the branch and its base) and <code>STEP_E2E_BUILD_CACHE_WRITE</code> the
+one to export to. Pushes and manual runs export to their branch&#x27;s tags; pull
+requests only import. The export needs a buildx builder such as
+<code>docker buildx create --use --driver docker-container</code>.
 The job summary (<code>scripts/e2e/summary.py &lt;output&gt;</code> writes it to <code>summary.md</code>) lists each
 journey and the bootstrap check with status and duration, then the totals. The
 <code>backend-e2e-results-&lt;attempt&gt;</code> artifact keeps it with the JSON results.</p>
