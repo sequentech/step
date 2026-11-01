@@ -22,7 +22,7 @@ const resultOf = (
         status: "verified",
         tiers,
         entry: entry ? {log: "ballots", leafHash: "ab", promised: false, ...entry} : undefined,
-        policy: {id: "x", words: [], lang: "en", event: "e", witnesses: [], hubs: [], ...policy},
+        policy: {id: "x", event: "e", witnesses: [], hubs: [], ...policy},
     }) as unknown as ChainResult
 
 const ALL_VERIFIED = [

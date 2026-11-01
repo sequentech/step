@@ -98,8 +98,6 @@ const resultOf = (tiers: TierResult[], browser: ChainResult["policy"]["browser"]
         entry: {log: "ballots", leafHash: "ab", index: 1, promised: false},
         policy: {
             id: "p",
-            words: [],
-            lang: "en",
             event: "e",
             witnesses: [],
             hubs: ["h1", "h2"],
@@ -243,8 +241,15 @@ describe("signerTimes", () => {
 })
 
 describe("who runs a signer", () => {
-    it("names no platform until the policy can", () => {
+    it("names no platform when the policy has no platform line", () => {
         expect(platformOf(parsedPolicy())).toBeUndefined()
+    })
+
+    it("names the party of the policy's platform line", () => {
+        const policy = parsedPolicy([...POLICY_LINES, "platform hosting-co"])
+        expect(platformOf(policy)).toBe("hosting-co")
+        expect(isOperatorOrPlatform(policy, "hosting-co")).toBe(true)
+        expect(isOperatorOrPlatform(parsedPolicy(), "hosting-co")).toBe(false)
     })
 
     it("takes the operator and the platform as the ones that get no link", () => {

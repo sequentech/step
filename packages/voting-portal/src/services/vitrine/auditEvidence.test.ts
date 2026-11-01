@@ -86,9 +86,58 @@ describe("the evidence file of an audited ballot that decodes to something else"
 })
 
 describe("who an audit mismatch is reported to", () => {
-    it("is no one until the policy's contact lines can be read", () => {
+    const policyWith = (contact: Policy["contact"]) => ({contact}) as unknown as Policy
+
+    it("is the contact in the policy's contact lines, marked as the policy's", () => {
+        expect(
+            authorityContact(
+                policyWith({
+                    name: "City election office",
+                    email: "help@vote.city.example",
+                    phone: "+34 900 000 000",
+                    url: "https://vote.city.example/help",
+                })
+            )
+        ).toEqual({
+            name: "City election office",
+            email: "help@vote.city.example",
+            phone: "+34 900 000 000",
+            url: "https://vote.city.example/help",
+            source: EContactSource.POLICY,
+        })
+    })
+
+    it("keeps the lines the policy has, and nothing else", () => {
+        expect(authorityContact(policyWith({email: "help@vote.city.example"}))).toEqual({
+            email: "help@vote.city.example",
+            source: EContactSource.POLICY,
+        })
+    })
+
+    it("is the settings' contact, marked as the settings', when the policy has no contact line", () => {
+        const settings = {name: "Support", phone: "+34 900 111 222"}
+        expect(authorityContact(policyWith({}), settings)).toEqual({
+            ...settings,
+            source: EContactSource.SETTINGS,
+        })
+        expect(authorityContact(undefined, settings)).toEqual({
+            ...settings,
+            source: EContactSource.SETTINGS,
+        })
+    })
+
+    it("prefers the policy's contact to the settings'", () => {
+        expect(authorityContact(policyWith({name: "Board"}), {name: "Support"})).toEqual({
+            name: "Board",
+            source: EContactSource.POLICY,
+        })
+    })
+
+    it("is no one when neither names an office, an address, a phone or a page", () => {
+        expect(authorityContact(policyWith({}))).toBeUndefined()
         expect(authorityContact({} as unknown as Policy)).toBeUndefined()
         expect(authorityContact(undefined)).toBeUndefined()
+        expect(authorityContact(policyWith({}), {})).toBeUndefined()
     })
 })
 

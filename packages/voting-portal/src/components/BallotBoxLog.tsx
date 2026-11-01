@@ -58,6 +58,7 @@ import {
     searchesAnything,
 } from "../services/BallotLogSearch"
 import {groupBallotId, shortBallotId} from "../services/vitrine/ballotId"
+import {isPolicyIdTyped} from "../services/vitrine/policyId"
 import {BallotBoxEntry} from "./BallotBoxEntry"
 
 export interface BallotBoxLogViewProps {
@@ -67,6 +68,8 @@ export interface BallotBoxLogViewProps {
     error: boolean
     search: string
     onSearch: (value: string) => void
+    /** The search is the election's policy ID, which no ballot has. */
+    policyIdTyped?: boolean
     limit: number
     onLimit: (limit: number) => void
     canPrevious: boolean
@@ -85,6 +88,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
     error,
     search,
     onSearch,
+    policyIdTyped = false,
     limit,
     onLimit,
     canPrevious,
@@ -101,7 +105,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
     const [copyStatus, setCopyStatus] = useState<"copied" | "copyFailed">()
     const parsed = parseBallotLogSearch(search)
     const searching = !!parsed && parsed.query !== ""
-    const unreadable = parsed === null || !searchesAnything(parsed)
+    const unreadable = !policyIdTyped && (parsed === null || !searchesAnything(parsed))
     const ownIds = new Set(ownBallots.map((ballot) => ballot.tracking_id))
     const channel = (value: string) =>
         t(`ballotPrivacy.channels.${value.toLowerCase()}`, {defaultValue: value})
@@ -460,7 +464,13 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                         value={search}
                         onChange={(event) => onSearch(event.target.value)}
                         error={unreadable}
-                        helperText={unreadable ? t("ballotPrivacy.invalidPrefix") : undefined}
+                        helperText={
+                            unreadable
+                                ? t("ballotPrivacy.invalidPrefix")
+                                : policyIdTyped
+                                  ? t("ballotPrivacy.policyId")
+                                  : undefined
+                        }
                         slotProps={{
                             htmlInput: {
                                 "aria-label": t("ballotPrivacy.search"),
@@ -977,6 +987,9 @@ const readSearch = (search: string): string | null => {
     const parsed = parseBallotLogSearch(search)
     return parsed && searchesAnything(parsed) ? parsed.query : null
 }
+/** What is asked of the server: nothing for the policy's ID, which no ballot has. */
+const searchSent = (search: string, policyId: string | undefined): string | null =>
+    isPolicyIdTyped(search, policyId) ? null : readSearch(search)
 export const BallotBoxLog: React.FC<{
     /** The event's Vitrine policy, which names the explorers of its entries. */
     policy?: Policy
@@ -985,6 +998,7 @@ export const BallotBoxLog: React.FC<{
     formatTime: (timestamp: string) => string
     timeZoneLabel?: string
 }> = ({policy, electionEventId, electionId, formatTime, timeZoneLabel}) => {
+    const policyId = policy?.id
     const [search, setSearch] = useState("")
     // What is asked of the server: the typed search once it reads as one, or
     // null while it does not, so nothing unreadable is sent.
@@ -994,11 +1008,11 @@ export const BallotBoxLog: React.FC<{
     const [selected, setSelected] = useState<IBallotLogRow>()
     useEffect(() => {
         const timer = setTimeout(() => {
-            setPrefix(readSearch(search))
+            setPrefix(searchSent(search, policyId))
             setCursors([null])
         }, 300)
         return () => clearTimeout(timer)
-    }, [search])
+    }, [search, policyId])
     useEffect(() => {
         setSearch("")
         setPrefix("")
@@ -1026,10 +1040,11 @@ export const BallotBoxLog: React.FC<{
             <BallotBoxLogView
                 page={page}
                 ownBallots={own.data?.ballot_box_own.payload.ballots ?? []}
-                loading={list.loading || readSearch(search) !== prefix}
+                loading={list.loading || searchSent(search, policyId) !== prefix}
                 error={!!list.error}
                 search={search}
                 onSearch={setSearch}
+                policyIdTyped={isPolicyIdTyped(search, policyId)}
                 limit={limit}
                 onLimit={(value) => {
                     setLimit(value)

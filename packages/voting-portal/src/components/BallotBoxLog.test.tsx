@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {fireEvent, render, screen, waitFor} from "@testing-library/react"
+import {act, fireEvent, render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import type {IBallotLogRow} from "@sequentech/ui-core"
+import {policyIdDisplay} from "@vitrine/verify"
 import {BallotBoxLog, BallotBoxLogView, type BallotBoxLogViewProps} from "./BallotBoxLog"
 
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
@@ -77,6 +78,59 @@ test("a hyphen needs the 8 characters of a Tracking ID, and a colon is a pseudon
     rerender(<BallotBoxLogView {...props()} search="K7QM:" />)
     expect(screen.queryByText("ballotPrivacy.invalidPrefix")).not.toBeInTheDocument()
     expect(screen.getAllByRole("button", {name: "FTBE-MHRX"}).length).toBeGreaterThan(0)
+})
+
+const POLICY_ID = `sha256:${"0123456789abcdef".repeat(4)}`
+const POLICY_GROUPS = policyIdDisplay(POLICY_ID)
+
+test("the election's policy ID typed in the search is told what it is, not called invalid", () => {
+    const four = POLICY_GROUPS.split("-").slice(0, 4).join("-")
+    render(<BallotBoxLogView {...props()} ownBallots={[]} search={four} policyIdTyped />)
+    expect(screen.getByText("ballotPrivacy.policyId")).toBeInTheDocument()
+    expect(screen.queryByText("ballotPrivacy.invalidPrefix")).not.toBeInTheDocument()
+})
+
+test("the log asks the server for nothing while the search is the policy's ID", async () => {
+    jest.useFakeTimers()
+    try {
+        mockQuery.mockImplementation((_query, options) => ({
+            data:
+                "limit" in options.variables
+                    ? {ballot_box_log: {payload: props().page}}
+                    : {ballot_box_own: {payload: {ballots: []}}},
+            loading: false,
+        }))
+        mockQuery.mockClear()
+        render(
+            <BallotBoxLog
+                policy={{id: POLICY_ID} as never}
+                electionEventId="event"
+                formatTime={() => "03:00 UTC"}
+            />
+        )
+        const prefixes = () =>
+            mockQuery.mock.calls
+                .map(([, options]) => options?.variables)
+                .filter((variables) => variables && "limit" in variables)
+                .map((variables) => variables.prefix)
+        fireEvent.change(screen.getByRole("textbox"), {
+            target: {value: POLICY_GROUPS.split("-").slice(0, 4).join("-")},
+        })
+        await act(async () => {
+            jest.advanceTimersByTime(400)
+        })
+        expect(prefixes().at(-1)).toBeNull()
+        expect(screen.getByText("ballotPrivacy.policyId")).toBeInTheDocument()
+        // A short Tracking ID is still searched.
+        fireEvent.change(screen.getByRole("textbox"), {target: {value: "FTBE-MHRX"}})
+        await act(async () => {
+            jest.advanceTimersByTime(400)
+        })
+        expect(prefixes().at(-1)).toBe("FTBE-MHRX")
+        expect(screen.queryByText("ballotPrivacy.policyId")).not.toBeInTheDocument()
+    } finally {
+        jest.useRealTimers()
+    }
 })
 
 test("rows show the short Tracking ID, the pseudonym with a colon and the last step", () => {

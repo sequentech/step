@@ -32,6 +32,8 @@ const frenchTranslation: TranslationType = {
             noBallots: "Aucun bulletin n’a encore été envoyé.",
             invalidPrefix:
                 "Saisissez au moins 8 caractères d’un identifiant de suivi avec un trait d’union, comme FTBE-MHRX, ou jusqu’à 8 d’un pseudonyme avec deux-points, comme K7QM:2XWD. Les codes utilisent les chiffres de 0 à 9 et des lettres majuscules, sans I, L, O ni U.",
+            policyId:
+                "C’est l’identifiant de la politique de cette élection. L’identifiant de suivi d’un bulletin figure sur votre reçu.",
             stages: {
                 received: {
                     label: "Reçu",
@@ -625,6 +627,8 @@ const frenchTranslation: TranslationType = {
             filterByBallotId: "Filtrez par identifiant de suivi",
             totalBallots: "Total: {{total}}",
             idHelp: "L'identifiant de suivi court, comme FTBE-MHRX, ou l'identifiant complet",
+            policyId:
+                "C’est l’identifiant de la politique de cette élection. L’identifiant de suivi d’un bulletin figure sur votre reçu.",
             foundShort:
                 "Trouvé grâce à son identifiant court. Pour être certain que c'est le vôtre, comparez l'identifiant de suivi complet avec votre reçu.",
             search: {
@@ -641,7 +645,7 @@ const frenchTranslation: TranslationType = {
                 features: {
                     cast: {
                         title: "Bulletins émis",
-                        text: "Vérifiez qu'il figure dans le registre public, confirmé par des témoins indépendants et ancré publiquement.",
+                        text: "Vérifiez qu'il figure dans le registre public, confirmé par des témoins et ancré publiquement.",
                     },
                     audited: {
                         title: "Bulletins audités",
@@ -717,7 +721,7 @@ const frenchTranslation: TranslationType = {
                     },
                     differ: {
                         question: "Et s’ils ne correspondent pas ?",
-                        answer: "Ne votez pas sur cet appareil. Enregistrez la preuve et signalez-la à l’autorité électorale. Votez ensuite depuis un autre appareil.",
+                        answer: "Ne votez pas sur cet appareil. Enregistrez la preuve et signalez-la à l’autorité électorale, dont le contact provient de la politique de l’élection. Votez ensuite depuis un autre appareil.",
                     },
                     tip: "Pour la vérification la plus solide, ouvrez cette page sur un autre appareil que celui avec lequel vous avez voté, par exemple votre téléphone. Un appareil qui aurait modifié votre bulletin pourrait aussi modifier ce qu’il vous montre ici.",
                 },
@@ -762,7 +766,7 @@ const frenchTranslation: TranslationType = {
                 saveEvidence: "Enregistrer la preuve",
                 howToReport: "Comment le signaler",
                 howToReportText:
-                    "Enregistrez le fichier de la preuve et envoyez-le à l'autorité électorale ou à un observateur indépendant. Ils peuvent le vérifier sur leurs propres ordinateurs. Il ne contient rien sur la façon dont vous avez voté.",
+                    "Enregistrez le fichier de la preuve et envoyez-le à l'autorité électorale ou à un observateur. Ils peuvent le vérifier sur leurs propres ordinateurs. Il ne contient rien sur la façon dont vous avez voté.",
                 noReceipt:
                     "Cet appareil n'a pas de reçu pour ce bulletin. Vérifiez-le sur l'appareil avec lequel vous avez voté, ou vérifiez le fichier du reçu dans le vérificateur de bulletins.",
                 receiptPending:
@@ -786,7 +790,7 @@ const frenchTranslation: TranslationType = {
                     },
                     verified: {
                         head: "Vérifié",
-                        sub: "Dans le registre public, confirmé par des témoins indépendants et ancré publiquement.",
+                        sub: "Dans le registre public, confirmé par des témoins et ancré publiquement.",
                     },
                     late: {
                         head: "Plus long que prévu",
@@ -810,7 +814,7 @@ const frenchTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Confirmé par des témoins",
-                        done: "Des témoins indépendants ont signé un registre qui l'inclut.",
+                        done: "Des témoins ont signé un registre qui l'inclut.",
                         count: "{{signed}} sur {{total}} · {{needed}} requis",
                         countOf: "{{signed}} sur {{total}}",
                     },
@@ -876,8 +880,8 @@ const frenchTranslation: TranslationType = {
             },
             elsewhere: {
                 title: "Chercher ailleurs",
-                count_one: "{{count}} explorateur, {{independent}} indépendant",
-                count_other: "{{count}} explorateurs, {{independent}} indépendants",
+                count_one: "{{count}} explorateur",
+                count_other: "{{count}} explorateurs",
                 introBallot:
                     "Des explorateurs gérés par des tiers lisent eux-mêmes le registre public. Chacun devrait retrouver votre bulletin, avec les mêmes vérifications, sans ce site.",
                 introEntry:
@@ -885,13 +889,11 @@ const frenchTranslation: TranslationType = {
                 foot: "La liste provient de la politique de l’élection. Tout explorateur Vitrine peut ouvrir le même registre : donnez-lui l’identifiant de suivi complet.",
                 name: "Explorateur de {{name}}",
                 operatorName: "Explorateur de l’élection",
-                independent: "Indépendant",
-                operator: "Opérateur",
                 newTab: "S’ouvre dans un nouvel onglet",
                 who: {
-                    monitor: "Un moniteur cité dans la politique de l’élection",
-                    hub: "Un hub d’ancrage cité dans la politique de l’élection",
-                    operator: "Géré par l’autorité électorale",
+                    monitor: "Géré par {{party}}, un moniteur cité dans la politique de l’élection",
+                    hub: "Géré par {{party}}, un hub d’ancrage cité dans la politique de l’élection",
+                    operator: "Géré par l’autorité électorale, qui organise cette élection",
                 },
             },
             status: {
@@ -940,9 +942,9 @@ const frenchTranslation: TranslationType = {
                     recorded:
                         "Votre navigateur a trouvé votre bulletin dans le registre public. Les témoins le confirment ensuite.",
                     witnessed:
-                        "Des témoins indépendants ont confirmé le registre. Les ancrages publics suivent d’ici {{minutes}} minutes ; inutile d’attendre.",
+                        "Des témoins ont confirmé le registre. Les ancrages publics suivent d’ici {{minutes}} minutes ; inutile d’attendre.",
                     verified:
-                        "Votre bulletin figure dans le registre public, confirmé par des témoins indépendants et ancré publiquement.",
+                        "Votre bulletin figure dans le registre public, confirmé par des témoins et ancré publiquement.",
                     late: "Votre bulletin figure dans le registre public et confirmé par les témoins, mais ses ancrages publics sont en retard.",
                     lateStep:
                         "Une étape prend plus de temps que prévu. Ce n’est pas une preuve de falsification, et votre navigateur continue de vérifier.",
@@ -969,7 +971,7 @@ const frenchTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Confirmé par des témoins",
-                        upcoming: "Des témoins indépendants signent un registre qui l’inclut.",
+                        upcoming: "Des témoins signent un registre qui l’inclut.",
                     },
                     anchors: {
                         title: "Ancré publiquement",
@@ -985,7 +987,7 @@ const frenchTranslation: TranslationType = {
                     recorded: "Votre navigateur a vérifié sa preuve.",
                     recordedEntry: "Entrée n° {{index}}. Votre navigateur a vérifié sa preuve.",
                     witnessed:
-                        "Assez de témoins indépendants de la politique ({{count}}) ont signé un registre qui l’inclut.",
+                        "Assez de témoins de la politique ({{count}}) ont signé un registre qui l’inclut.",
                     anchoredWaict:
                         "Dans les nœuds publics ({{count}}) et là où les navigateurs vérifient.",
                     anchoredBootstrap:

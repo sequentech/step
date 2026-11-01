@@ -67,18 +67,41 @@ export interface IAuthorityContact {
     name?: string
     email?: string
     phone?: string
+    /** A page of the authority's, shown as text. */
+    url?: string
     source: EContactSource
 }
 
+/** A contact as the policy or the election's settings give it. */
+export type TContactDetails = Omit<IAuthorityContact, "source">
+
+const hasDetails = (contact: TContactDetails | undefined): contact is TContactDetails =>
+    contact !== undefined && [contact.name, contact.email, contact.phone, contact.url].some(Boolean)
+
+const detailsOf = ({name, email, phone, url}: TContactDetails): TContactDetails => ({
+    ...(name ? {name} : {}),
+    ...(email ? {email} : {}),
+    ...(phone ? {phone} : {}),
+    ...(url ? {url} : {}),
+})
+
 /** The election authority's contact for a voter whose audit does not match:
- * the pinned policy's `contact` lines, or else the election's support contact
- * from its settings. The pinned verifier does not parse `contact` lines yet
- * and the portal has no support contact to read, so there is none. When the
- * verifier exposes `Policy.contact` (`{name?, email?, phone?, url?}`), return
- * `{...policy.contact, source: EContactSource.POLICY}` here when it names an
- * office, an address or a phone; the settings fallback goes after it. */
-export const authorityContact = (_policy: Policy | undefined): IAuthorityContact | undefined =>
-    undefined
+ * the pinned policy's `contact` lines, which a dishonest portal cannot swap,
+ * or else the election's support contact from its settings, which the page
+ * labels as the settings'. Step's election event has no support contact to
+ * read yet, so no caller passes `settings` and an election whose policy has
+ * no `contact` line gets no contact; the page then says to report it to the
+ * authority. */
+export const authorityContact = (
+    policy: Policy | undefined,
+    settings?: TContactDetails
+): IAuthorityContact | undefined => {
+    if (hasDetails(policy?.contact)) {
+        return {...detailsOf(policy.contact), source: EContactSource.POLICY}
+    }
+    if (hasDetails(settings)) return {...detailsOf(settings), source: EContactSource.SETTINGS}
+    return undefined
+}
 
 /** One address, without the characters that would add recipients, fields or a
  * fragment to a mailto link. */

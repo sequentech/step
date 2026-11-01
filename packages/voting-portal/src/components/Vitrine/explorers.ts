@@ -13,7 +13,7 @@ export {explorerLink} from "@vitrine/verify"
 
 export type IExplorer = PolicyExplorer
 
-/** The policy's explorers, independent ones first and the operator's last;
- * none while there is no policy. */
+/** The policy's explorers, the operator's last; none while there is no
+ * policy. */
 export const explorersOf = (policy: Policy | undefined): IExplorer[] =>
     policy ? policyExplorers(policy) : []

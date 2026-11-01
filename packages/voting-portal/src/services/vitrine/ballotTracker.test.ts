@@ -62,8 +62,6 @@ const resultOf = (
         },
         policy: {
             id: "p",
-            words: [],
-            lang: "en",
             event: "e",
             witnesses: [],
             hubs: ["hub-a", "hub-b"],

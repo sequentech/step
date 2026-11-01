@@ -32,6 +32,8 @@ const dutchTranslation: TranslationType = {
             noBallots: "Er zijn nog geen stembiljetten verzonden.",
             invalidPrefix:
                 "Voer minstens 8 tekens van een trackingcode met koppelteken in, zoals FTBE-MHRX, of maximaal 8 van een pseudoniem met dubbele punt, zoals K7QM:2XWD. De codes gebruiken de cijfers 0 tot 9 en hoofdletters, zonder I, L, O en U.",
+            policyId:
+                "Dit is de beleids-ID van deze verkiezing. De Tracking-ID van een stembiljet staat op uw ontvangstbewijs.",
             stages: {
                 received: {
                     label: "Ontvangen",
@@ -627,6 +629,8 @@ const dutchTranslation: TranslationType = {
             filterByBallotId: "Filteren op Tracking-ID",
             totalBallots: "Aantal stembiljet: {{total}}",
             idHelp: "De korte Tracking-ID, zoals FTBE-MHRX, of de volledige",
+            policyId:
+                "Dit is de beleids-ID van deze verkiezing. De Tracking-ID van een stembiljet staat op uw ontvangstbewijs.",
             foundShort:
                 "Gevonden via de korte ID. Vergelijk de volledige Tracking-ID met uw ontvangstbewijs om zeker te weten dat het uw stembiljet is.",
             search: {
@@ -642,7 +646,7 @@ const dutchTranslation: TranslationType = {
                 features: {
                     cast: {
                         title: "Uitgebrachte stembiljetten",
-                        text: "Controleer of het in het openbare register staat, bevestigd door onafhankelijke getuigen en openbaar verankerd.",
+                        text: "Controleer of het in het openbare register staat, bevestigd door getuigen en openbaar verankerd.",
                     },
                     audited: {
                         title: "Geauditeerde stembiljetten",
@@ -719,7 +723,7 @@ const dutchTranslation: TranslationType = {
                     },
                     differ: {
                         question: "Wat als ze niet overeenkomen?",
-                        answer: "Stem niet op dat apparaat. Bewaar het bewijs en meld het bij de verkiezingsautoriteit. Stem daarna vanaf een ander apparaat.",
+                        answer: "Stem niet op dat apparaat. Bewaar het bewijs en meld het bij de verkiezingsautoriteit, waarvan het contact uit het beleid van de verkiezing komt. Stem daarna vanaf een ander apparaat.",
                     },
                     tip: "Voor de sterkste controle opent u deze pagina op een ander apparaat dan waarmee u stemde, bijvoorbeeld uw telefoon. Een apparaat dat uw stembiljet veranderde, kan ook veranderen wat het u hier toont.",
                 },
@@ -763,7 +767,7 @@ const dutchTranslation: TranslationType = {
                 saveEvidence: "Bewijs opslaan",
                 howToReport: "Hoe meldt u het",
                 howToReportText:
-                    "Sla het bewijsbestand op en stuur het naar de verkiezingsautoriteit of een onafhankelijke waarnemer. Zij kunnen het op hun eigen computers controleren. Het bevat niets over hoe u hebt gestemd.",
+                    "Sla het bewijsbestand op en stuur het naar de verkiezingsautoriteit of een waarnemer. Zij kunnen het op hun eigen computers controleren. Het bevat niets over hoe u hebt gestemd.",
                 noReceipt:
                     "Dit apparaat heeft geen ontvangstbewijs voor dit stembiljet. Controleer het op het apparaat waarmee u hebt gestemd, of controleer het bestand van het ontvangstbewijs in de stembiljetverificatie.",
                 receiptPending:
@@ -787,7 +791,7 @@ const dutchTranslation: TranslationType = {
                     },
                     verified: {
                         head: "Geverifieerd",
-                        sub: "In het openbare register, bevestigd door onafhankelijke getuigen en openbaar verankerd.",
+                        sub: "In het openbare register, bevestigd door getuigen en openbaar verankerd.",
                     },
                     late: {
                         head: "Duurt langer dan verwacht",
@@ -811,7 +815,7 @@ const dutchTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Bevestigd door getuigen",
-                        done: "Onafhankelijke getuigen hebben een register ondertekend dat het bevat.",
+                        done: "Getuigen hebben een register ondertekend dat het bevat.",
                         count: "{{signed}} van {{total}} · {{needed}} nodig",
                         countOf: "{{signed}} van {{total}}",
                     },
@@ -877,8 +881,8 @@ const dutchTranslation: TranslationType = {
             },
             elsewhere: {
                 title: "Elders opzoeken",
-                count_one: "{{count}} verkenner, {{independent}} onafhankelijk",
-                count_other: "{{count}} verkenners, {{independent}} onafhankelijk",
+                count_one: "{{count}} verkenner",
+                count_other: "{{count}} verkenners",
                 introBallot:
                     "Verkenners van anderen lezen zelf het openbare register. Elk zou je stem moeten vinden, met dezelfde controles, zonder deze website.",
                 introEntry:
@@ -886,13 +890,12 @@ const dutchTranslation: TranslationType = {
                 foot: "De lijst komt uit het beleid van de verkiezing. Elke Vitrine-verkenner kan hetzelfde register openen: geef hem de volledige Tracking-ID.",
                 name: "Verkenner van {{name}}",
                 operatorName: "Verkenner van de verkiezing",
-                independent: "Onafhankelijk",
-                operator: "Beheerder",
                 newTab: "Opent in een nieuw tabblad",
                 who: {
-                    monitor: "Een monitor die in het beleid van de verkiezing staat",
-                    hub: "Een ankerhub die in het beleid van de verkiezing staat",
-                    operator: "Beheerd door de verkiezingsautoriteit",
+                    monitor:
+                        "Beheerd door {{party}}, een monitor die in het beleid van de verkiezing staat",
+                    hub: "Beheerd door {{party}}, een ankerhub die in het beleid van de verkiezing staat",
+                    operator: "Beheerd door de verkiezingsautoriteit, die deze verkiezing beheert",
                 },
             },
             status: {
@@ -941,9 +944,9 @@ const dutchTranslation: TranslationType = {
                     recorded:
                         "Uw browser heeft uw stembiljet in het openbare register gevonden. Daarna bevestigen getuigen het.",
                     witnessed:
-                        "Onafhankelijke getuigen hebben het register bevestigd. Openbare verankeringen volgen binnen {{minutes}} minuten; wachten is niet nodig.",
+                        "Getuigen hebben het register bevestigd. Openbare verankeringen volgen binnen {{minutes}} minuten; wachten is niet nodig.",
                     verified:
-                        "Uw stembiljet staat in het openbare register, bevestigd door onafhankelijke getuigen en openbaar verankerd.",
+                        "Uw stembiljet staat in het openbare register, bevestigd door getuigen en openbaar verankerd.",
                     late: "Uw stembiljet staat in het openbare register en is bevestigd door getuigen, maar de openbare verankeringen zijn vertraagd.",
                     lateStep:
                         "Een stap duurt langer dan verwacht. Dat is geen bewijs van knoeien, en uw browser blijft controleren.",
@@ -970,8 +973,7 @@ const dutchTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Bevestigd door getuigen",
-                        upcoming:
-                            "Onafhankelijke getuigen ondertekenen een register dat het bevat.",
+                        upcoming: "Getuigen ondertekenen een register dat het bevat.",
                     },
                     anchors: {
                         title: "Openbaar verankerd",
@@ -987,7 +989,7 @@ const dutchTranslation: TranslationType = {
                     recorded: "Uw browser heeft het bewijs gecontroleerd.",
                     recordedEntry: "Item #{{index}}. Uw browser heeft het bewijs gecontroleerd.",
                     witnessed:
-                        "Genoeg van de onafhankelijke getuigen van het beleid ({{count}}) hebben een register ondertekend dat het bevat.",
+                        "Genoeg van de getuigen van het beleid ({{count}}) hebben een register ondertekend dat het bevat.",
                     anchoredWaict: "In de openbare hubs ({{count}}) en waar browsers controleren.",
                     anchoredBootstrap:
                         "In de openbare hubs ({{count}}) en waar browsers controleren, voorlopig via een vervangende hub.",

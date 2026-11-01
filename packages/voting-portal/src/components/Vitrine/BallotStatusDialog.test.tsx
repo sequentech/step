@@ -55,15 +55,11 @@ const resultOf = (
         steps: [],
         where: "page",
         entry: {log: "ballots", leafHash: "ab", index: 21, promised: false},
-        words: [],
-        wordsLang: "en",
         now: 0,
         clockWarning: false,
         profileMetadataResolved: true,
         policy: {
             id: "x",
-            words: [],
-            lang: "en",
             event: "e",
             witnesses: [{name: "a"}, {name: "b"}, {name: "c"}],
             hubs: ["h1", "h2"],
@@ -630,7 +626,7 @@ describe("Look it up elsewhere in the ballot status dialog", () => {
         })
         const toggle = within(dialog()).getByRole("button", {name: /vitrine.elsewhere.title/})
         expect(toggle.getAttribute("aria-expanded")).toBe("false")
-        expect(toggle.textContent).toContain('{"count":3,"independent":2}')
+        expect(toggle.textContent).toContain('{"count":3}')
         fireEvent.click(toggle)
         expect(toggle.getAttribute("aria-expanded")).toBe("true")
         const links = Array.from(section()!.querySelectorAll<HTMLAnchorElement>("a"))
@@ -643,8 +639,19 @@ describe("Look it up elsewhere in the ballot status dialog", () => {
             expect(link.getAttribute("target")).toBe("_blank")
             expect(link.getAttribute("rel")).toBe("noopener noreferrer")
         }
-        expect(links[0].textContent).toContain("vitrine.elsewhere.independent")
-        expect(links[2].textContent).toContain("vitrine.elsewhere.operator")
+        // Each says who runs it, from the policy; none is marked independent or not.
+        expect(links[0].textContent).toContain(
+            'vitrine.elsewhere.who.monitor {"party":"Observer A"}'
+        )
+        expect(links[1].textContent).toContain('vitrine.elsewhere.who.hub {"party":"Hub B"}')
+        expect(links[2].textContent).toContain(
+            'vitrine.elsewhere.who.operator {"party":"Election authority"}'
+        )
+        for (const link of links) {
+            expect(link.textContent).not.toMatch(
+                /independent|vitrine\.elsewhere\.operator\b(?!Name)/
+            )
+        }
     })
 
     it.each([EBallotStatus.NOT_CAST, EBallotStatus.CHECKING])("is not shown while %s", (status) => {

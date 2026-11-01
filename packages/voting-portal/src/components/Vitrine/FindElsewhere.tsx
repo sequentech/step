@@ -4,15 +4,14 @@
 
 // "Look it up elsewhere" (design board FindElsewhere): a collapsed section that
 // lists the explorers the election's policy names, each opening this ballot, or
-// this log entry, in a record that someone else reads. Those run by others come
-// first and are tagged Independent; the election authority's own come last.
+// this log entry, in a record that someone else reads. Each says who runs it
+// ("Run by ..."), from the policy; no tag vouches for any of them.
 
 import React, {useId, useState} from "react"
 import {Box, ButtonBase} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {groupBallotId} from "../../services/vitrine/ballotId"
 import {explorerLink, IExplorer} from "./explorers"
-import {EStatusTone, StatusTag} from "./StatusTag"
 
 const COLORS = {
     border: "#E7EAEE",
@@ -53,7 +52,6 @@ export const FindElsewhere: React.FC<IFindElsewhereProps> = ({
     const listId = useId()
     if (!policyId || explorers.length === 0) return null
 
-    const independent = explorers.filter((explorer) => explorer.independent).length
     const target = {
         policyId,
         log,
@@ -122,7 +120,7 @@ export const FindElsewhere: React.FC<IFindElsewhereProps> = ({
                         className="find-elsewhere-count"
                         sx={{fontSize: "13px", lineHeight: "18px", color: COLORS.quiet}}
                     >
-                        {t("vitrine.elsewhere.count", {count: explorers.length, independent})}
+                        {t("vitrine.elsewhere.count", {count: explorers.length})}
                     </Box>
                     <svg
                         className="find-elsewhere-chevron"
@@ -208,24 +206,14 @@ export const FindElsewhere: React.FC<IFindElsewhereProps> = ({
                                             ? t("vitrine.elsewhere.operatorName")
                                             : t("vitrine.elsewhere.name", {name: explorer.name})}
                                     </Box>
-                                    <StatusTag
-                                        label={t(
-                                            explorer.independent
-                                                ? "vitrine.elsewhere.independent"
-                                                : "vitrine.elsewhere.operator"
-                                        )}
-                                        tone={
-                                            explorer.independent
-                                                ? EStatusTone.SUCCESS
-                                                : EStatusTone.NEUTRAL
-                                        }
-                                    />
                                 </Box>
                                 <Box
                                     className="find-elsewhere-who"
                                     sx={{fontSize: "13px", lineHeight: "18px", color: COLORS.quiet}}
                                 >
-                                    {t(`vitrine.elsewhere.who.${explorer.kind}`)}
+                                    {t(`vitrine.elsewhere.who.${explorer.kind}`, {
+                                        party: explorer.party,
+                                    })}
                                 </Box>
                             </Box>
                             <svg

@@ -83,6 +83,8 @@ const englishTranslation = {
             noBallots: "No ballots have been sent yet.",
             invalidPrefix:
                 "Enter at least 8 characters of a Tracking ID with a hyphen, as in FTBE-MHRX, or up to 8 of a pseudonym with a colon, as in K7QM:2XWD. The codes use the digits 0 to 9 and capital letters, without I, L, O and U.",
+            policyId:
+                "That’s this election’s policy ID. A ballot’s Tracking ID is on your receipt.",
             loadError: "The ballot box log could not be loaded. Please try again.",
             retry: "Try again",
             help: "About the log of all ballots",
@@ -741,6 +743,8 @@ const englishTranslation = {
             filterByBallotId: "Filter by Tracking ID",
             totalBallots: "Total Ballots: {{total}}",
             idHelp: "The short Tracking ID, like FTBE-MHRX, or the full one",
+            policyId:
+                "That’s this election’s policy ID. A ballot’s Tracking ID is on your receipt.",
             foundShort:
                 "Found by its short ID. To be certain it is yours, compare the full Tracking ID with your receipt.",
             search: {
@@ -756,7 +760,7 @@ const englishTranslation = {
                 features: {
                     cast: {
                         title: "Cast ballots",
-                        text: "See that it is in the public record, confirmed by independent witnesses and anchored publicly.",
+                        text: "See that it is in the public record, confirmed by witnesses and anchored publicly.",
                     },
                     audited: {
                         title: "Audited ballots",
@@ -832,7 +836,7 @@ const englishTranslation = {
                     },
                     differ: {
                         question: "What if they don’t match?",
-                        answer: "Don’t vote on that device. Save the evidence and report it to the election authority. Then vote from another device.",
+                        answer: "Don’t vote on that device. Save the evidence and report it to the election authority, whose contact comes from the election’s policy. Then vote from another device.",
                     },
                     tip: "For the strongest check, open this page on a different device from the one you voted on, such as your phone. A device that changed your ballot could also change what it shows you here.",
                 },
@@ -874,7 +878,7 @@ const englishTranslation = {
                 saveEvidence: "Save evidence",
                 howToReport: "How to report it",
                 howToReportText:
-                    "Save the evidence file and send it to the election authority or to an independent observer. They can check it on their own computers. It contains nothing about how you voted.",
+                    "Save the evidence file and send it to the election authority or to an observer. They can check it on their own computers. It contains nothing about how you voted.",
                 noReceipt:
                     "This device has no receipt for this ballot. Check it on the device you voted on, or check the receipt file in the ballot verifier.",
                 receiptPending:
@@ -898,7 +902,7 @@ const englishTranslation = {
                     },
                     verified: {
                         head: "Verified",
-                        sub: "In the public record, confirmed by independent witnesses and anchored publicly.",
+                        sub: "In the public record, confirmed by witnesses and anchored publicly.",
                     },
                     late: {
                         head: "Taking longer than expected",
@@ -922,7 +926,7 @@ const englishTranslation = {
                     },
                     witnesses: {
                         title: "Confirmed by witnesses",
-                        done: "Independent witnesses signed a record that includes it.",
+                        done: "Witnesses signed a record that includes it.",
                         count: "{{signed}} of {{total}} · {{needed}} needed",
                         countOf: "{{signed}} of {{total}}",
                     },
@@ -988,8 +992,8 @@ const englishTranslation = {
             },
             elsewhere: {
                 title: "Look it up elsewhere",
-                count_one: "{{count}} explorer, {{independent}} independent",
-                count_other: "{{count}} explorers, {{independent}} independent",
+                count_one: "{{count}} explorer",
+                count_other: "{{count}} explorers",
                 introBallot:
                     "Explorers run by others read the public record themselves. Each should find your ballot, with the same checks, without this website.",
                 introEntry:
@@ -997,13 +1001,11 @@ const englishTranslation = {
                 foot: "The list comes from the election’s policy. Any Vitrine explorer can open the same record: give it the full Tracking ID.",
                 name: "{{name}} explorer",
                 operatorName: "Election explorer",
-                independent: "Independent",
-                operator: "Operator",
                 newTab: "Opens in a new tab",
                 who: {
-                    monitor: "A monitor named in the election’s policy",
-                    hub: "An anchor hub named in the election’s policy",
-                    operator: "Run by the election authority",
+                    monitor: "Run by {{party}}, a monitor named in the election’s policy",
+                    hub: "Run by {{party}}, a hub named in the election’s policy",
+                    operator: "Run by the election authority, which runs this election",
                 },
             },
             status: {
@@ -1051,9 +1053,9 @@ const englishTranslation = {
                     recorded:
                         "Your browser found your ballot in the public record. Witnesses confirm it next.",
                     witnessed:
-                        "Independent witnesses confirmed the record. Public anchors follow within {{minutes}} minutes; no need to wait.",
+                        "Witnesses confirmed the record. Public anchors follow within {{minutes}} minutes; no need to wait.",
                     verified:
-                        "Your ballot is in the public record, confirmed by independent witnesses and anchored publicly.",
+                        "Your ballot is in the public record, confirmed by witnesses and anchored publicly.",
                     late: "Your ballot is in the public record and confirmed by witnesses, but its public anchors are late.",
                     lateStep:
                         "A step is taking longer than expected. This is not evidence of tampering, and your browser keeps checking.",
@@ -1077,7 +1079,7 @@ const englishTranslation = {
                     },
                     witnesses: {
                         title: "Confirmed by witnesses",
-                        upcoming: "Independent witnesses sign a record that includes it.",
+                        upcoming: "Witnesses sign a record that includes it.",
                     },
                     anchors: {
                         title: "Anchored publicly",
@@ -1092,7 +1094,7 @@ const englishTranslation = {
                     recorded: "Your browser checked its proof.",
                     recordedEntry: "Entry #{{index}}. Your browser checked its proof.",
                     witnessed:
-                        "Enough of the policy’s independent witnesses ({{count}}) signed a record that includes it.",
+                        "Enough of the policy’s witnesses ({{count}}) signed a record that includes it.",
                     anchoredWaict: "In the public hubs ({{count}}), and where browsers check.",
                     anchoredBootstrap:
                         "In the public hubs ({{count}}), and where browsers check, through a stand-in hub for now.",

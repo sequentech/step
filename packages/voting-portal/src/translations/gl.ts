@@ -32,6 +32,8 @@ const galegoTranslation: TranslationType = {
             noBallots: "Aínda non se enviou ningunha papeleta.",
             invalidPrefix:
                 "Escribe polo menos 8 caracteres dun ID de seguimento con guión, como FTBE-MHRX, ou ata 8 dun pseudónimo con dous puntos, como K7QM:2XWD. Os códigos usan os díxitos do 0 ao 9 e letras maiúsculas, sen I, L, O nin U.",
+            policyId:
+                "Este é o ID da política desta elección. O ID de seguimento dunha papeleta está no teu recibo.",
             stages: {
                 received: {
                     label: "Recibida",
@@ -625,6 +627,8 @@ const galegoTranslation: TranslationType = {
             filterByBallotId: "Filtrar por ID de seguimento",
             totalBallots: "Papeletas: {{total}}",
             idHelp: "O ID de seguimento curto, como FTBE-MHRX, ou o completo",
+            policyId:
+                "Este é o ID da política desta elección. O ID de seguimento dunha papeleta está no teu recibo.",
             foundShort:
                 "Atopada polo seu ID curto. Para estares seguro de que é a túa, compara o ID de seguimento completo co teu recibo.",
             search: {
@@ -640,7 +644,7 @@ const galegoTranslation: TranslationType = {
                 features: {
                     cast: {
                         title: "Papeletas emitidas",
-                        text: "Comproba que a túa papeleta está no rexistro público, confirmada por testemuñas independentes e ancorada publicamente.",
+                        text: "Comproba que a túa papeleta está no rexistro público, confirmada por testemuñas e ancorada publicamente.",
                     },
                     audited: {
                         title: "Papeletas auditadas",
@@ -716,7 +720,7 @@ const galegoTranslation: TranslationType = {
                     },
                     differ: {
                         question: "E se non coinciden?",
-                        answer: "Non votes nese dispositivo. Garda a proba e avisa a autoridade electoral. Despois vota desde outro dispositivo.",
+                        answer: "Non votes nese dispositivo. Garda a proba e avisa a autoridade electoral, cuxo contacto sae da política da elección. Despois vota desde outro dispositivo.",
                     },
                     tip: "Para a comprobación máis sólida, abre esta páxina nun dispositivo distinto daquel co que votaches, por exemplo o teu móbil. Un dispositivo que cambiase a túa papeleta tamén podería cambiar o que che amosa aquí.",
                 },
@@ -761,7 +765,7 @@ const galegoTranslation: TranslationType = {
                 saveEvidence: "Gardar a proba",
                 howToReport: "Como denuncialo",
                 howToReportText:
-                    "Garda o ficheiro da proba e envíao á autoridade electoral ou a un observador independente. Poden comprobalo nos seus propios ordenadores. Non contén nada sobre como votaches.",
+                    "Garda o ficheiro da proba e envíao á autoridade electoral ou a un observador. Poden comprobalo nos seus propios ordenadores. Non contén nada sobre como votaches.",
                 noReceipt:
                     "Este dispositivo non ten o recibo desta papeleta. Compróbaa no dispositivo co que votaches, ou comproba o ficheiro do recibo no verificador de papeletas.",
                 receiptPending:
@@ -785,7 +789,7 @@ const galegoTranslation: TranslationType = {
                     },
                     verified: {
                         head: "Verificada",
-                        sub: "No rexistro público, confirmada por testemuñas independentes e ancorada publicamente.",
+                        sub: "No rexistro público, confirmada por testemuñas e ancorada publicamente.",
                     },
                     late: {
                         head: "Tarda máis do esperado",
@@ -809,7 +813,7 @@ const galegoTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Confirmada por testemuñas",
-                        done: "Testemuñas independentes asinaron un rexistro que a inclúe.",
+                        done: "Testemuñas asinaron un rexistro que a inclúe.",
                         count: "{{signed}} de {{total}} · fan falta {{needed}}",
                         countOf: "{{signed}} de {{total}}",
                     },
@@ -875,8 +879,8 @@ const galegoTranslation: TranslationType = {
             },
             elsewhere: {
                 title: "Búscaa noutro sitio",
-                count_one: "{{count}} explorador, {{independent}} independente",
-                count_other: "{{count}} exploradores, {{independent}} independentes",
+                count_one: "{{count}} explorador",
+                count_other: "{{count}} exploradores",
                 introBallot:
                     "Os exploradores de terceiros len por conta propia o rexistro público. Cada un debería atopar a túa papeleta, coas mesmas comprobacións, sen esta web.",
                 introEntry:
@@ -884,13 +888,11 @@ const galegoTranslation: TranslationType = {
                 foot: "A lista vén da política da elección. Calquera explorador de Vitrine pode abrir o mesmo rexistro: dálle o ID de seguimento completo.",
                 name: "Explorador de {{name}}",
                 operatorName: "Explorador da elección",
-                independent: "Independente",
-                operator: "Operador",
                 newTab: "Ábrese nunha pestana nova",
                 who: {
-                    monitor: "Un monitor citado na política da elección",
-                    hub: "Un hub de ancoraxe citado na política da elección",
-                    operator: "Xestiónao a autoridade electoral",
+                    monitor: "Xestionado por {{party}}, un monitor citado na política da elección",
+                    hub: "Xestionado por {{party}}, un hub de ancoraxe citado na política da elección",
+                    operator: "Xestionado pola autoridade electoral, que xestiona esta elección",
                 },
             },
             status: {
@@ -939,9 +941,9 @@ const galegoTranslation: TranslationType = {
                     recorded:
                         "O teu navegador atopou a túa papeleta no rexistro público. Agora confírmana as testemuñas.",
                     witnessed:
-                        "Testemuñas independentes confirmaron o rexistro. As ancoraxes públicas chegan en {{minutes}} minutos; non hai que agardar.",
+                        "Testemuñas confirmaron o rexistro. As ancoraxes públicas chegan en {{minutes}} minutos; non hai que agardar.",
                     verified:
-                        "A túa papeleta está no rexistro público, confirmada por testemuñas independentes e ancorada publicamente.",
+                        "A túa papeleta está no rexistro público, confirmada por testemuñas e ancorada publicamente.",
                     late: "A túa papeleta está no rexistro público e confirmada polas testemuñas, pero as súas ancoraxes públicas van con atraso.",
                     lateStep:
                         "Un paso tarda máis do previsto. Non é proba de manipulación, e o teu navegador segue comprobando.",
@@ -967,7 +969,7 @@ const galegoTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Confirmada por testemuñas",
-                        upcoming: "Testemuñas independentes asinan un rexistro que a inclúe.",
+                        upcoming: "Testemuñas asinan un rexistro que a inclúe.",
                     },
                     anchors: {
                         title: "Ancorada publicamente",
@@ -983,7 +985,7 @@ const galegoTranslation: TranslationType = {
                     recorded: "O teu navegador comprobou a súa proba.",
                     recordedEntry: "Entrada n.º {{index}}. O teu navegador comprobou a súa proba.",
                     witnessed:
-                        "Un número suficiente das testemuñas independentes da política ({{count}}) asinou un rexistro que a inclúe.",
+                        "Un número suficiente das testemuñas da política ({{count}}) asinou un rexistro que a inclúe.",
                     anchoredWaict:
                         "Nos nodos públicos ({{count}}) e onde comproban os navegadores.",
                     anchoredBootstrap:

@@ -31,10 +31,9 @@ export enum ESignerState {
     LATE = "late",
 }
 
-/** The party that provides the voting platform, from the policy's `platform`
- * line. The pinned verifier does not parse that line yet, so none is named;
- * when it does (as `Policy.platform`, a string), return that here. */
-export const platformOf = (_policy: Policy): string | undefined => undefined
+/** The party that provides the voting platform: the policy's `platform` line,
+ * or none when the policy has no such line. */
+export const platformOf = (policy: Policy): string | undefined => policy.platform
 
 /** Whether the election authority (the policy's operator) or the platform
  * runs a party. Their sites get no "Check on its site" link. */

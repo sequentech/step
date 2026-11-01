@@ -208,7 +208,7 @@ export interface IAuditCompareProps {
 }
 
 const detailsOf = (contact: IAuthorityContact): string =>
-    [contact.name, contact.email, contact.phone].filter(Boolean).join(" · ")
+    [contact.name, contact.email, contact.phone, contact.url].filter(Boolean).join(" · ")
 
 export const AuditCompare: React.FC<IAuditCompareProps> = ({
     ballotId,

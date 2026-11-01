@@ -1111,6 +1111,7 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
                         onChange={setInputBallotId}
                         onSubmit={() => locate(true)}
                         canSubmit={canLocate}
+                        policyId={eventPolicy?.id}
                     >
                         <BallotMatches
                             look={EMatchesLook.CARDS}

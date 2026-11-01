@@ -32,6 +32,8 @@ const spanishTranslation: TranslationType = {
             noBallots: "Todavía no se ha enviado ninguna papeleta.",
             invalidPrefix:
                 "Escribe al menos 8 caracteres de un ID de seguimiento con guion, como FTBE-MHRX, o hasta 8 de un seudónimo con dos puntos, como K7QM:2XWD. Los códigos usan los dígitos del 0 al 9 y letras mayúsculas, sin I, L, O ni U.",
+            policyId:
+                "Este es el ID de la política de esta elección. El ID de seguimiento de una papeleta está en su recibo.",
             stages: {
                 received: {
                     label: "Recibida",
@@ -628,6 +630,8 @@ const spanishTranslation: TranslationType = {
             filterByBallotId: "Filtrar por ID de seguimiento",
             totalBallots: "Papeletas: {{total}}",
             idHelp: "El ID de seguimiento corto, como FTBE-MHRX, o el completo",
+            policyId:
+                "Este es el ID de la política de esta elección. El ID de seguimiento de una papeleta está en su recibo.",
             foundShort:
                 "Encontrada por su ID corto. Para estar seguro de que es la suya, compare el ID de seguimiento completo con su recibo.",
             search: {
@@ -643,7 +647,7 @@ const spanishTranslation: TranslationType = {
                 features: {
                     cast: {
                         title: "Papeletas emitidas",
-                        text: "Compruebe que su papeleta está en el registro público, confirmada por testigos independientes y anclada públicamente.",
+                        text: "Compruebe que su papeleta está en el registro público, confirmada por testigos y anclada públicamente.",
                     },
                     audited: {
                         title: "Papeletas auditadas",
@@ -719,7 +723,7 @@ const spanishTranslation: TranslationType = {
                     },
                     differ: {
                         question: "¿Y si no coinciden?",
-                        answer: "No vote en ese dispositivo. Guarde la prueba y avise a la autoridad electoral. Después vote desde otro dispositivo.",
+                        answer: "No vote en ese dispositivo. Guarde la prueba y avise a la autoridad electoral, cuyo contacto sale de la política de la elección. Después vote desde otro dispositivo.",
                     },
                     tip: "Para la comprobación más sólida, abra esta página en un dispositivo distinto de aquel con el que votó, por ejemplo su móvil. Un dispositivo que cambiara su papeleta también podría cambiar lo que le muestra aquí.",
                 },
@@ -764,7 +768,7 @@ const spanishTranslation: TranslationType = {
                 saveEvidence: "Guardar la prueba",
                 howToReport: "Cómo denunciarlo",
                 howToReportText:
-                    "Guarde el archivo de la prueba y envíelo a la autoridad electoral o a un observador independiente. Pueden comprobarlo en sus propios ordenadores. No contiene nada sobre cómo votó.",
+                    "Guarde el archivo de la prueba y envíelo a la autoridad electoral o a un observador. Pueden comprobarlo en sus propios ordenadores. No contiene nada sobre cómo votó.",
                 noReceipt:
                     "Este dispositivo no tiene el recibo de esta papeleta. Compruébela en el dispositivo con el que votó, o compruebe el archivo del recibo en el verificador de papeletas.",
                 receiptPending:
@@ -788,7 +792,7 @@ const spanishTranslation: TranslationType = {
                     },
                     verified: {
                         head: "Verificada",
-                        sub: "En el registro público, confirmada por testigos independientes y anclada públicamente.",
+                        sub: "En el registro público, confirmada por testigos y anclada públicamente.",
                     },
                     late: {
                         head: "Tarda más de lo esperado",
@@ -812,7 +816,7 @@ const spanishTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Confirmada por testigos",
-                        done: "Testigos independientes firmaron un registro que la incluye.",
+                        done: "Testigos firmaron un registro que la incluye.",
                         count: "{{signed}} de {{total}} · hacen falta {{needed}}",
                         countOf: "{{signed}} de {{total}}",
                     },
@@ -878,8 +882,8 @@ const spanishTranslation: TranslationType = {
             },
             elsewhere: {
                 title: "Búscala en otro sitio",
-                count_one: "{{count}} explorador, {{independent}} independiente",
-                count_other: "{{count}} exploradores, {{independent}} independientes",
+                count_one: "{{count}} explorador",
+                count_other: "{{count}} exploradores",
                 introBallot:
                     "Los exploradores de terceros leen por su cuenta el registro público. Cada uno debería encontrar tu papeleta, con las mismas comprobaciones, sin esta web.",
                 introEntry:
@@ -887,13 +891,12 @@ const spanishTranslation: TranslationType = {
                 foot: "La lista procede de la política de la elección. Cualquier explorador de Vitrine puede abrir el mismo registro: dale el ID de seguimiento completo.",
                 name: "Explorador de {{name}}",
                 operatorName: "Explorador de la elección",
-                independent: "Independiente",
-                operator: "Operador",
                 newTab: "Se abre en una pestaña nueva",
                 who: {
-                    monitor: "Un monitor citado en la política de la elección",
-                    hub: "Un hub de anclaje citado en la política de la elección",
-                    operator: "Lo gestiona la autoridad electoral",
+                    monitor:
+                        "Gestionado por {{party}}, un monitor citado en la política de la elección",
+                    hub: "Gestionado por {{party}}, un hub de anclaje citado en la política de la elección",
+                    operator: "Gestionado por la autoridad electoral, que gestiona esta elección",
                 },
             },
             status: {
@@ -942,9 +945,9 @@ const spanishTranslation: TranslationType = {
                     recorded:
                         "Su navegador ha encontrado su papeleta en el registro público. Ahora la confirman los testigos.",
                     witnessed:
-                        "Testigos independientes han confirmado el registro. Los anclajes públicos llegan en {{minutes}} minutos; no hace falta esperar.",
+                        "Testigos han confirmado el registro. Los anclajes públicos llegan en {{minutes}} minutos; no hace falta esperar.",
                     verified:
-                        "Su papeleta está en el registro público, confirmada por testigos independientes y anclada públicamente.",
+                        "Su papeleta está en el registro público, confirmada por testigos y anclada públicamente.",
                     late: "Su papeleta está en el registro público y confirmada por los testigos, pero sus anclajes públicos van con retraso.",
                     lateStep:
                         "Un paso tarda más de lo previsto. No es prueba de manipulación, y su navegador sigue comprobando.",
@@ -971,7 +974,7 @@ const spanishTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Confirmada por testigos",
-                        upcoming: "Testigos independientes firman un registro que la incluye.",
+                        upcoming: "Testigos firman un registro que la incluye.",
                     },
                     anchors: {
                         title: "Anclada públicamente",
@@ -987,7 +990,7 @@ const spanishTranslation: TranslationType = {
                     recorded: "Su navegador comprobó su prueba.",
                     recordedEntry: "Entrada n.º {{index}}. Su navegador comprobó su prueba.",
                     witnessed:
-                        "Suficientes testigos independientes de la política ({{count}}) firmaron un registro que la incluye.",
+                        "Suficientes testigos de la política ({{count}}) firmaron un registro que la incluye.",
                     anchoredWaict:
                         "En los nodos públicos ({{count}}) y donde comprueban los navegadores.",
                     anchoredBootstrap:
