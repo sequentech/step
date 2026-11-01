@@ -121,6 +121,22 @@ export const Voting: Story = {
         await canvas.findByRole("heading", {level: 1})
         await expect(canvas.getByText("Step 1 of 4 · Your details")).toBeVisible()
         await expect(canvas.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "1")
+        await expect(canvasElement.querySelector("#login-custom-css")).toBeNull()
+    },
+}
+
+// A realm that restyles its login pages through the loginCustomCss localization text.
+export const RealmCustomCss: Story = {
+    args: {
+        kcContext: {
+            themeName: "sequent-ui-voting",
+            sequent: {loginCustomCss: ".sequent-auth .auth-title { color: rgb(1, 2, 3); }"},
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const title = await canvas.findByRole("heading", {level: 1})
+        await expect(getComputedStyle(title).color).toBe("rgb(1, 2, 3)")
     },
 }
 

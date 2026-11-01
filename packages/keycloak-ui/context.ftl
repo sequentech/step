@@ -8,7 +8,8 @@ window.kcContext.sequent = {
     loginValidationPolicy: "${(realm.attributes['login-validation-policy']!'BROWSER')?js_string}",
     loginHintUsernamePolicy: "${(realm.attributes['loginHintUsernamePolicy']!'EDITABLE')?js_string}",
     voterAccessibilitySettingsPolicy: "${(realm.attributes['voter-accessibility-settings-policy']!'disabled')?js_string}",
-    audioInstructionsPolicy: "${(realm.attributes['audio-instructions-policy']!'disabled')?js_string}"
+    audioInstructionsPolicy: "${(realm.attributes['audio-instructions-policy']!'disabled')?js_string}"<#if msg("loginCustomCss") != "loginCustomCss">,
+    loginCustomCss: decodeHtmlEntities("${msg("loginCustomCss")?js_string}")</#if>
 };
 <#if courier??>
 window.kcContext.courier = "${courier?string?js_string}";
