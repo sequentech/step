@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 After you cast in an election with transparency enabled, the confirmation screen shows a check mark next to your Tracking ID. It shows how far your browser has verified that your ballot is in the election's public record. Your vote has already been accepted. A missing receipt or a delayed check does not undo that acceptance.
 
-Tracking IDs show in groups of four characters, for example `30ff d314 4238 6472 …`. The short ID is the first two groups, `30ff d314`. It is what you read and type to find your ballot. The full ID has 16 groups, and it is what your browser and the ballot verifier check.
+Tracking IDs show in groups of four characters, digits and letters, for example `FTBE-MHRX-4N2C-…`. The short ID is the first two groups, `FTBE-MHRX`. It is what you read and type to find your ballot. The full ID has 13 groups, and it is what your browser and the ballot verifier check.
 
 The receipt separates three facts, which are the three steps of the status:
 

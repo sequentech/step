@@ -74,7 +74,7 @@ This stage allows you to verify your choices before they are permanently recorde
 3. Select `Cast your Ballot`.
 
 :::info
-**Transparency:** When your election has transparency enabled, the box shows your Tracking ID as its first two groups of four characters, such as `30ff d314`, with a dotted check mark for a ballot that is not cast yet, a **Not cast** tag, a copy button and a help button. Select the short ID to show the full Tracking ID in the box. The copy button copies the full Tracking ID. The check mark opens the **Ballot status** dialog. See [Check your transparency receipt](./04-voter_transparency_receipt.md).
+**Transparency:** When your election has transparency enabled, the box shows your Tracking ID as its first two groups of four characters, such as `FTBE-MHRX`, with a dotted check mark for a ballot that is not cast yet, a **Not cast** tag, a copy button and a help button. Select the short ID to show the full Tracking ID in the box. The copy button copies the full Tracking ID. The check mark opens the **Ballot status** dialog. See [Check your transparency receipt](./04-voter_transparency_receipt.md).
 :::
 
 :::warning
