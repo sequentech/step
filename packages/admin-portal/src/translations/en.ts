@@ -7240,6 +7240,43 @@ const englishTranslation = {
             sdkLoading: "Loading the Vitrine verifier...",
             sdkError:
                 "The Vitrine verifier could not start in this browser, so the trust policy can't be checked here.",
+            authorityContact: {
+                title: "Election authority contact",
+                intro: "Optional. How voters reach the election authority, for example to report an audit mismatch. It goes into the trust policy, and voters’ apps show it only from the sealed policy.",
+                name: {
+                    label: "Name",
+                    help: "Up to 128 bytes, with single spaces and no line breaks.",
+                    invalid:
+                        "The name must be 1 to 128 bytes, with single spaces and no line breaks or invisible characters.",
+                },
+                email: {
+                    label: "Email",
+                    help: "An address with letters, digits and . _ % + - only.",
+                    invalid:
+                        "Use a plain address such as elections@acme.example, without accents or quotes.",
+                },
+                phone: {
+                    label: "Phone",
+                    help: "A + and 7 to 15 digits, with no spaces.",
+                    invalid:
+                        "Use a + and 7 to 15 digits, the first not 0, with no spaces or dashes.",
+                },
+                url: {
+                    label: "Website",
+                    help: "An https address.",
+                    invalid:
+                        "Use an https address, such as https://elections.acme.example/contact.",
+                },
+                save: "Save contact",
+                saved: "The election authority contact was saved.",
+                notStored: "The event has no settings to store it in.",
+                saveError: "The contact could not be saved: {{reason}}",
+                readOnly: "You can see the contact but not change it.",
+                locked: "Voting has opened, so the contact can’t be changed here.",
+                successor:
+                    "The sealed policy keeps the contact it was sealed with. Saving changes the draft, and the Electoral Board seals a successor policy to carry it.",
+                footer: "Each field you fill in becomes one contact line of the trust policy. Empty fields are left out, and none is required.",
+            },
             hubUpdates: {
                 title: "Updates from hubs",
                 intro: "Optional. Voters can ask a hub to email them about their ballot. Every hub in the trust policy is offered the same way.",

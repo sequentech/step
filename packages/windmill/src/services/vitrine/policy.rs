@@ -16,6 +16,7 @@ use std::collections::BTreeSet;
 use strum_macros::{Display, EnumString};
 
 use super::config::{DeploymentConfig, HubRole, Mirror, MIRROR_PATH_PLACEHOLDER};
+use super::contact::AuthorityContact;
 use super::window::VotingWindow;
 use super::{canonical_id, LogName};
 
@@ -110,6 +111,9 @@ pub struct DraftEvent {
     pub window: VotingWindow,
     /// Private events: 32 random bytes, in lowercase hex.
     pub policy_salt: Option<String>,
+    /// How voters reach the election authority: one `contact` line per kind
+    /// that is set.
+    pub contact: AuthorityContact,
     pub ballots: DraftLog,
     pub events: DraftLog,
 }
@@ -351,6 +355,10 @@ pub fn draft(config: &DeploymentConfig, event: &DraftEvent) -> Result<String> {
     }
     lines.push(&["operator", &config.operator]);
     lines.push(&["platform", config.platform()]);
+    event.contact.check()?;
+    for contact in event.contact.lines() {
+        lines.push(&contact);
+    }
     if let Some(min_faults) = config.min_faults {
         lines.push(&["min-faults", &min_faults.to_string()]);
     }
@@ -611,6 +619,7 @@ pub(crate) mod tests {
                 closes: 1793566800,
             },
             policy_salt: (mode == TransparencyMode::PRIVATE).then(|| "ab".repeat(32)),
+            contact: AuthorityContact::default(),
             ballots,
             events,
         }
@@ -976,6 +985,52 @@ pub(crate) mod tests {
         config.platform = Some("Vendor".into());
         let text = draft(&config, &event(&config, TransparencyMode::PUBLIC)).unwrap();
         assert_eq!(line(&text, "platform"), ["platform Vendor"]);
+    }
+
+    #[test]
+    fn the_contact_is_drafted_after_the_platform_one_line_per_kind() {
+        let config = dev();
+        let mut e = event(&config, TransparencyMode::PUBLIC);
+        assert!(line(&draft(&config, &e).unwrap(), "contact").is_empty());
+        e.contact = AuthorityContact {
+            name: Some("Electoral Board of Acme".into()),
+            email: Some("elections@acme.example".into()),
+            phone: None,
+            url: Some("https://elections.acme.example/contact".into()),
+        };
+        let text = draft(&config, &e).unwrap();
+        assert_eq!(
+            line(&text, "contact"),
+            [
+                "contact name Electoral Board of Acme",
+                "contact email elections@acme.example",
+                "contact url https://elections.acme.example/contact",
+            ]
+        );
+        assert_eq!(
+            keywords(&text)[4..9],
+            ["operator", "platform", "contact", "contact", "contact"]
+        );
+    }
+
+    #[test]
+    fn a_contact_that_breaks_its_syntax_refuses_the_draft() {
+        let config = dev();
+        for (name, email, phone, url) in [
+            (Some("Two  spaces"), None, None, None),
+            (None, Some("elections@acme"), None, None),
+            (None, None, Some("+34 900 000 000"), None),
+            (None, None, None, Some("http://elections.acme.example")),
+        ] {
+            let mut e = event(&config, TransparencyMode::PUBLIC);
+            e.contact = AuthorityContact {
+                name: name.map(Into::into),
+                email: email.map(Into::into),
+                phone: phone.map(Into::into),
+                url: url.map(Into::into),
+            };
+            assert!(draft(&config, &e).is_err(), "{e:?}");
+        }
     }
 
     #[test]

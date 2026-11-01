@@ -7091,6 +7091,43 @@ const catalanTranslation: TranslationType = {
             sdkLoading: "S'està carregant el verificador de Vitrine...",
             sdkError:
                 "El verificador de Vitrine no s'ha pogut iniciar en aquest navegador, de manera que aquí no es pot comprovar la política de confiança.",
+            authorityContact: {
+                title: "Contacte de l'autoritat electoral",
+                intro: "Opcional. Com poden contactar els votants amb l'autoritat electoral, per exemple per avisar d'una discrepància en una auditoria. S'inclou a la política de confiança, i les aplicacions dels votants només el mostren a partir de la política segellada.",
+                name: {
+                    label: "Nom",
+                    help: "Fins a 128 bytes, amb espais simples i sense salts de línia.",
+                    invalid:
+                        "El nom ha de tenir entre 1 i 128 bytes, amb espais simples i sense salts de línia ni caràcters invisibles.",
+                },
+                email: {
+                    label: "Correu electrònic",
+                    help: "Una adreça amb només lletres, xifres i . _ % + -",
+                    invalid:
+                        "Feu servir una adreça senzilla com eleccions@acme.example, sense accents ni cometes.",
+                },
+                phone: {
+                    label: "Telèfon",
+                    help: "Un + i de 7 a 15 xifres, sense espais.",
+                    invalid:
+                        "Feu servir un + i de 7 a 15 xifres, la primera diferent de 0, sense espais ni guions.",
+                },
+                url: {
+                    label: "Lloc web",
+                    help: "Una adreça https.",
+                    invalid:
+                        "Feu servir una adreça https, com https://eleccions.acme.example/contacte.",
+                },
+                save: "Desa el contacte",
+                saved: "S'ha desat el contacte de l'autoritat electoral.",
+                notStored: "L'esdeveniment no té ajustos on desar-lo.",
+                saveError: "No s'ha pogut desar el contacte: {{reason}}",
+                readOnly: "Podeu veure el contacte, però no canviar-lo.",
+                locked: "La votació ja s'ha obert, de manera que el contacte no es pot canviar aquí.",
+                successor:
+                    "La política segellada conserva el contacte amb què es va segellar. En desar canvia l'esborrany, i la Junta Electoral segella una política successora que l'inclogui.",
+                footer: "Cada camp que ompliu es converteix en una línia de contacte de la política de confiança. Els camps buits s'ometen i cap no és obligatori.",
+            },
             hubUpdates: {
                 title: "Novetats dels nodes",
                 intro: "Opcional. Els votants poden demanar a un node que els escrigui per correu sobre la seva papereta. Tots els nodes de la política de confiança s'ofereixen de la mateixa manera.",

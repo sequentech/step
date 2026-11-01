@@ -10,6 +10,7 @@ use super::client::{
     post_enrolment, read_token_file, CreateLog, SidecarClient, SidecarError, Submission,
 };
 use super::config::DeploymentConfig;
+use super::contact::AuthorityContact;
 use super::policy::{
     check_mode, draft, policy_name, public_refusal, DraftEvent, DraftLog, PolicyFacts,
 };
@@ -249,6 +250,7 @@ async fn draft_policy(
         election_ids: elections.iter().map(|e| e.id.clone()).collect(),
         window,
         policy_salt,
+        contact: AuthorityContact::from_presentation(event.presentation.as_ref()),
         ballots,
         events,
     };

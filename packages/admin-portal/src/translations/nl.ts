@@ -7109,6 +7109,43 @@ const dutchTranslation: TranslationType = {
             sdkLoading: "De Vitrine-verificatie laden...",
             sdkError:
                 "De Vitrine-verificatie kon in deze browser niet starten, dus het vertrouwensbeleid kan hier niet worden gecontroleerd.",
+            authorityContact: {
+                title: "Contact van de verkiezingsautoriteit",
+                intro: "Optioneel. Hoe kiezers de verkiezingsautoriteit bereiken, bijvoorbeeld om een afwijking bij een audit te melden. Het komt in het vertrouwensbeleid, en de apps van kiezers tonen het alleen uit het verzegelde beleid.",
+                name: {
+                    label: "Naam",
+                    help: "Maximaal 128 bytes, met enkele spaties en zonder regeleinden.",
+                    invalid:
+                        "De naam is 1 tot 128 bytes, met enkele spaties en zonder regeleinden of onzichtbare tekens.",
+                },
+                email: {
+                    label: "E-mail",
+                    help: "Een adres met alleen letters, cijfers en . _ % + -",
+                    invalid:
+                        "Gebruik een eenvoudig adres zoals verkiezingen@acme.example, zonder accenten of aanhalingstekens.",
+                },
+                phone: {
+                    label: "Telefoon",
+                    help: "Een + en 7 tot 15 cijfers, zonder spaties.",
+                    invalid:
+                        "Gebruik een + en 7 tot 15 cijfers, het eerste niet 0, zonder spaties of streepjes.",
+                },
+                url: {
+                    label: "Website",
+                    help: "Een https-adres.",
+                    invalid:
+                        "Gebruik een https-adres, zoals https://verkiezingen.acme.example/contact.",
+                },
+                save: "Contact opslaan",
+                saved: "Het contact van de verkiezingsautoriteit is opgeslagen.",
+                notStored: "De gebeurtenis heeft geen instellingen om het in op te slaan.",
+                saveError: "Het contact kon niet worden opgeslagen: {{reason}}",
+                readOnly: "U kunt het contact bekijken, maar niet wijzigen.",
+                locked: "De stemming is geopend, dus het contact kan hier niet meer worden gewijzigd.",
+                successor:
+                    "Het verzegelde beleid behoudt het contact waarmee het is verzegeld. Opslaan wijzigt het concept, en de kiesraad verzegelt een opvolgend beleid dat het bevat.",
+                footer: "Elk veld dat u invult wordt een contactregel van het vertrouwensbeleid. Lege velden blijven weg en geen enkel veld is verplicht.",
+            },
             hubUpdates: {
                 title: "Updates van hubs",
                 intro: "Optioneel. Kiezers kunnen een hub vragen hen per e-mail te informeren over hun stembiljet. Elke hub in het vertrouwensbeleid wordt op dezelfde manier aangeboden.",

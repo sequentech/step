@@ -7142,6 +7142,43 @@ const spanishTranslation: TranslationType = {
             sdkLoading: "Cargando el verificador de Vitrine...",
             sdkError:
                 "El verificador de Vitrine no pudo iniciarse en este navegador, así que aquí no se puede comprobar la política de confianza.",
+            authorityContact: {
+                title: "Contacto de la autoridad electoral",
+                intro: "Opcional. Cómo pueden contactar los votantes con la autoridad electoral, por ejemplo para avisar de una discrepancia en una auditoría. Se incluye en la política de confianza, y las aplicaciones de los votantes solo lo muestran a partir de la política sellada.",
+                name: {
+                    label: "Nombre",
+                    help: "Hasta 128 bytes, con espacios simples y sin saltos de línea.",
+                    invalid:
+                        "El nombre debe tener entre 1 y 128 bytes, con espacios simples y sin saltos de línea ni caracteres invisibles.",
+                },
+                email: {
+                    label: "Correo electrónico",
+                    help: "Una dirección con solo letras, cifras y . _ % + -",
+                    invalid:
+                        "Use una dirección sencilla como elecciones@acme.example, sin acentos ni comillas.",
+                },
+                phone: {
+                    label: "Teléfono",
+                    help: "Un + y de 7 a 15 cifras, sin espacios.",
+                    invalid:
+                        "Use un + y de 7 a 15 cifras, la primera distinta de 0, sin espacios ni guiones.",
+                },
+                url: {
+                    label: "Sitio web",
+                    help: "Una dirección https.",
+                    invalid:
+                        "Use una dirección https, como https://elecciones.acme.example/contacto.",
+                },
+                save: "Guardar contacto",
+                saved: "Se guardó el contacto de la autoridad electoral.",
+                notStored: "El evento no tiene ajustes donde guardarlo.",
+                saveError: "No se pudo guardar el contacto: {{reason}}",
+                readOnly: "Puede ver el contacto, pero no cambiarlo.",
+                locked: "La votación ya se abrió, así que el contacto no se puede cambiar aquí.",
+                successor:
+                    "La política sellada conserva el contacto con el que se selló. Al guardar cambia el borrador, y la Junta Electoral sella una política sucesora que lo incluya.",
+                footer: "Cada campo que rellene se convierte en una línea de contacto de la política de confianza. Los campos vacíos se omiten y ninguno es obligatorio.",
+            },
             hubUpdates: {
                 title: "Novedades de los centros",
                 intro: "Opcional. Los votantes pueden pedir a un centro que les escriba por correo sobre su papeleta. Todos los centros de la política de confianza se ofrecen de la misma manera.",

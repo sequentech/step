@@ -7122,6 +7122,43 @@ const frenchTranslation: TranslationType = {
             sdkLoading: "Chargement du vérificateur Vitrine...",
             sdkError:
                 "Le vérificateur Vitrine n'a pas pu démarrer dans ce navigateur : la politique de confiance ne peut donc pas être vérifiée ici.",
+            authorityContact: {
+                title: "Contact de l’autorité électorale",
+                intro: "Facultatif. Comment les électeurs joignent l’autorité électorale, par exemple pour signaler un écart lors d’un audit. Il figure dans la politique de confiance, et les applications des électeurs ne l’affichent qu’à partir de la politique scellée.",
+                name: {
+                    label: "Nom",
+                    help: "Jusqu’à 128 octets, avec des espaces simples et sans saut de ligne.",
+                    invalid:
+                        "Le nom fait de 1 à 128 octets, avec des espaces simples, sans saut de ligne ni caractère invisible.",
+                },
+                email: {
+                    label: "E-mail",
+                    help: "Une adresse avec seulement des lettres, chiffres et . _ % + -",
+                    invalid:
+                        "Utilisez une adresse simple comme elections@acme.example, sans accents ni guillemets.",
+                },
+                phone: {
+                    label: "Téléphone",
+                    help: "Un + et de 7 à 15 chiffres, sans espaces.",
+                    invalid:
+                        "Utilisez un + et de 7 à 15 chiffres, le premier différent de 0, sans espaces ni tirets.",
+                },
+                url: {
+                    label: "Site web",
+                    help: "Une adresse https.",
+                    invalid:
+                        "Utilisez une adresse https, comme https://elections.acme.example/contact.",
+                },
+                save: "Enregistrer le contact",
+                saved: "Le contact de l’autorité électorale a été enregistré.",
+                notStored: "L’événement n’a pas de paramètres où l’enregistrer.",
+                saveError: "Le contact n’a pas pu être enregistré : {{reason}}",
+                readOnly: "Vous pouvez voir le contact, mais pas le modifier.",
+                locked: "Le vote est ouvert : le contact ne peut plus être modifié ici.",
+                successor:
+                    "La politique scellée garde le contact avec lequel elle a été scellée. L’enregistrement modifie le brouillon, et la commission électorale scelle une politique successeur qui le porte.",
+                footer: "Chaque champ rempli devient une ligne de contact de la politique de confiance. Les champs vides sont omis, et aucun n’est obligatoire.",
+            },
             hubUpdates: {
                 title: "Mises à jour des pôles",
                 intro: "Facultatif. Les électeurs peuvent demander à un pôle de leur écrire par e-mail à propos de leur bulletin. Chaque pôle de la politique de confiance est proposé de la même façon.",

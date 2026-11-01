@@ -47,6 +47,7 @@ use windmill::services::vitrine::client::{
     MAX_WAIT_MS,
 };
 use windmill::services::vitrine::config::DeploymentConfig;
+use windmill::services::vitrine::contact::AuthorityContact;
 use windmill::services::vitrine::policy::{
     draft, policy_name, pseudo_origin, DraftEvent, DraftLog, PolicyFacts,
 };
@@ -218,6 +219,13 @@ async fn a_public_event_logs_its_ballots_and_statements_on_the_sidecar() -> Resu
                 closes: now + 86_400,
             },
             policy_salt: None,
+            // The sidecar parses the contact lines too.
+            contact: AuthorityContact {
+                name: Some("Electoral Board of Acme".into()),
+                email: Some("elections@acme.example".into()),
+                phone: Some("+34900000000".into()),
+                url: Some("https://elections.acme.example/contact".into()),
+            },
             ballots: draft_log(LogName::Ballots),
             events: draft_log(LogName::Events),
         },
@@ -513,6 +521,7 @@ async fn a_private_event_provisions_both_blinded_keys_and_exposes_authenticated_
                 closes: now + 86_400,
             },
             policy_salt: Some(salt),
+            contact: AuthorityContact::default(),
             ballots: logs[&LogName::Ballots].clone(),
             events: logs[&LogName::Events].clone(),
         },

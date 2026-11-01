@@ -7041,6 +7041,42 @@ const galegoTranslation: TranslationType = {
             sdkLoading: "Cargando o verificador de Vitrine...",
             sdkError:
                 "O verificador de Vitrine non puido iniciarse neste navegador, así que aquí non se pode comprobar a política de confianza.",
+            authorityContact: {
+                title: "Contacto da autoridade electoral",
+                intro: "Opcional. Como poden contactar os votantes coa autoridade electoral, por exemplo para avisar dunha discrepancia nunha auditoría. Inclúese na política de confianza, e as aplicacións dos votantes só o amosan a partir da política selada.",
+                name: {
+                    label: "Nome",
+                    help: "Ata 128 bytes, con espazos simples e sen saltos de liña.",
+                    invalid:
+                        "O nome debe ter entre 1 e 128 bytes, con espazos simples e sen saltos de liña nin caracteres invisibles.",
+                },
+                email: {
+                    label: "Correo electrónico",
+                    help: "Un enderezo con só letras, cifras e . _ % + -",
+                    invalid:
+                        "Usa un enderezo sinxelo como eleccions@acme.example, sen acentos nin comiñas.",
+                },
+                phone: {
+                    label: "Teléfono",
+                    help: "Un + e de 7 a 15 cifras, sen espazos.",
+                    invalid:
+                        "Usa un + e de 7 a 15 cifras, a primeira distinta de 0, sen espazos nin guións.",
+                },
+                url: {
+                    label: "Sitio web",
+                    help: "Un enderezo https.",
+                    invalid: "Usa un enderezo https, como https://eleccions.acme.example/contacto.",
+                },
+                save: "Gardar o contacto",
+                saved: "Gardouse o contacto da autoridade electoral.",
+                notStored: "O evento non ten axustes onde gardalo.",
+                saveError: "Non se puido gardar o contacto: {{reason}}",
+                readOnly: "Podes ver o contacto, pero non cambialo.",
+                locked: "A votación xa se abriu, polo que o contacto non se pode cambiar aquí.",
+                successor:
+                    "A política selada conserva o contacto co que se selou. Ao gardar cambia o borrador, e a Xunta Electoral sela unha política sucesora que o inclúa.",
+                footer: "Cada campo que enchas convértese nunha liña de contacto da política de confianza. Os campos baleiros omítense e ningún é obrigatorio.",
+            },
             hubUpdates: {
                 title: "Novidades dos nodos",
                 intro: "Opcional. Os votantes poden pedir a un nodo que lles escriba por correo sobre a súa papeleta. Todos os nodos da política de confianza ofrécense do mesmo xeito.",

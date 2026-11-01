@@ -73,6 +73,7 @@ import {
     recordHealth,
     witnessRows,
 } from "@/services/TransparencyOverview"
+import {AuthorityContactSection} from "./AuthorityContact"
 import {HubUpdatesSection} from "./HubUpdates"
 import {
     AnchoringCard,
@@ -792,10 +793,11 @@ const LogCard: React.FC<{log: ILogView; policyId?: string; lang: string}> = ({
 
 export interface IEditElectionEventTransparencyProps {
     electionEventId?: string
-    /** The event's `presentation`, where its "Updates from hubs" switches are
-     * stored. */
+    /** The event's `presentation`, where its "Updates from hubs" switches and
+     * its authority contact are stored. */
     presentation?: unknown
-    /** Whether the admin may change those switches. */
+    /** Whether the admin may change those switches and the authority contact,
+     * which are stored with the event's settings. */
     canChangeHubUpdates?: boolean
     /** Called once the event's transparency or hub updates changed, so that
      * its record is read again: the event's presentation changes with them. */
@@ -1082,6 +1084,20 @@ export const EditElectionEventTransparency: React.FC<IEditElectionEventTranspare
                 />
                 {enabled && facts ? <PolicyCards facts={facts} /> : null}
             </Box>
+            {enabled ? (
+                <AuthorityContactSection
+                    electionEventId={electionEventId}
+                    presentation={presentation}
+                    canChange={canChangeHubUpdates}
+                    locked={output.locked}
+                    sealed={Boolean(sealedPolicy)}
+                    onChanged={async () => {
+                        // The draft policy carries the contact.
+                        await retry()
+                        onChanged?.()
+                    }}
+                />
+            ) : null}
             {enabled ? (
                 sdk === ESdkState.FAILED ? (
                     <Alert severity="error" data-testid="vitrine-sdk-failed">

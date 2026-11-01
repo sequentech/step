@@ -7125,6 +7125,43 @@ const tagalogTranslation: TranslationType = {
             sdkLoading: "Nilo-load ang verifier ng Vitrine...",
             sdkError:
                 "Hindi masimulan ang verifier ng Vitrine sa browser na ito, kaya hindi masusuri rito ang patakaran ng tiwala.",
+            authorityContact: {
+                title: "Contact ng awtoridad sa halalan",
+                intro: "Opsyonal. Kung paano maaabot ng mga botante ang awtoridad sa halalan, halimbawa para iulat ang hindi pagkakatugma sa isang audit. Napapabilang ito sa patakaran ng tiwala, at ipinapakita lang ito ng mga app ng mga botante mula sa selyadong patakaran.",
+                name: {
+                    label: "Pangalan",
+                    help: "Hanggang 128 byte, may iisang espasyo at walang line break.",
+                    invalid:
+                        "Ang pangalan ay 1 hanggang 128 byte, may iisang espasyo at walang line break o di-nakikitang karakter.",
+                },
+                email: {
+                    label: "Email",
+                    help: "Address na may mga letra, numero at . _ % + - lang.",
+                    invalid:
+                        "Gumamit ng simpleng address tulad ng halalan@acme.example, walang accent o panipi.",
+                },
+                phone: {
+                    label: "Telepono",
+                    help: "Isang + at 7 hanggang 15 digit, walang espasyo.",
+                    invalid:
+                        "Gumamit ng + at 7 hanggang 15 digit, hindi 0 ang una, walang espasyo o gitling.",
+                },
+                url: {
+                    label: "Website",
+                    help: "Isang https address.",
+                    invalid:
+                        "Gumamit ng https address, tulad ng https://halalan.acme.example/contact.",
+                },
+                save: "I-save ang contact",
+                saved: "Nai-save ang contact ng awtoridad sa halalan.",
+                notStored: "Walang mga setting ang kaganapan na mapag-iimbakan nito.",
+                saveError: "Hindi ma-save ang contact: {{reason}}",
+                readOnly: "Makikita mo ang contact pero hindi mo mababago.",
+                locked: "Nagbukas na ang botohan, kaya hindi na mababago rito ang contact.",
+                successor:
+                    "Pinapanatili ng selyadong patakaran ang contact na kasama nito noong selyuhan. Binabago ng pag-save ang draft, at nagseselyo ang Lupon ng Halalan ng kapalit na patakaran na may dala nito.",
+                footer: "Ang bawat field na pupunan mo ay nagiging isang contact line ng patakaran ng tiwala. Hindi isinasama ang mga walang laman, at walang kailangan.",
+            },
             hubUpdates: {
                 title: "Mga update mula sa mga hub",
                 intro: "Opsyonal. Maaaring hilingin ng mga botante sa isang hub na i-email sila tungkol sa kanilang balota. Ang bawat hub sa patakaran ng tiwala ay inaalok sa parehong paraan.",

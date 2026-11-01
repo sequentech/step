@@ -7066,6 +7066,43 @@ const basqueTranslation: TranslationType = {
             sdkLoading: "Vitrineren egiaztatzailea kargatzen...",
             sdkError:
                 "Vitrineren egiaztatzaileak ezin izan du nabigatzaile honetan abiarazi; beraz, ezin da hemen konfiantza-politika egiaztatu.",
+            authorityContact: {
+                title: "Hauteskunde-agintaritzaren kontaktua",
+                intro: "Aukerakoa. Bozkatzaileek hauteskunde-agintaritzarekin nola jar daitezkeen harremanetan, adibidez auditoria bateko desadostasun baten berri emateko. Konfiantza-politikan sartzen da, eta bozkatzaileen aplikazioek politika zigilatutik soilik erakusten dute.",
+                name: {
+                    label: "Izena",
+                    help: "128 byte arte, tarte bakunekin eta lerro-jauzirik gabe.",
+                    invalid:
+                        "Izenak 1 eta 128 byte artean izan behar ditu, tarte bakunekin eta lerro-jauzirik edo karaktere ikusezinik gabe.",
+                },
+                email: {
+                    label: "Posta elektronikoa",
+                    help: "Letrak, zifrak eta . _ % + - soilik dituen helbidea.",
+                    invalid:
+                        "Erabili helbide soil bat, hauteskundeak@acme.example bezalakoa, azenturik eta komatxorik gabe.",
+                },
+                phone: {
+                    label: "Telefonoa",
+                    help: "+ bat eta 7 eta 15 zifra artean, zuriunerik gabe.",
+                    invalid:
+                        "Erabili + bat eta 7 eta 15 zifra artean, lehena 0 ez dena, zuriunerik eta marratxorik gabe.",
+                },
+                url: {
+                    label: "Webgunea",
+                    help: "https helbide bat.",
+                    invalid:
+                        "Erabili https helbide bat, adibidez https://hauteskundeak.acme.example/kontaktua.",
+                },
+                save: "Gorde kontaktua",
+                saved: "Hauteskunde-agintaritzaren kontaktua gorde da.",
+                notStored: "Gertaerak ez du hori gordetzeko ezarpenik.",
+                saveError: "Ezin izan da kontaktua gorde: {{reason}}",
+                readOnly: "Kontaktua ikus dezakezu, baina ezin duzu aldatu.",
+                locked: "Bozketa ireki da, beraz kontaktua ezin da hemen aldatu.",
+                successor:
+                    "Politika zigilatuak zigilatu zenean zuen kontaktua gordetzen du. Gordetzean zirriborroa aldatzen da, eta Hauteskunde Batzordeak ordezko politika bat zigilatzen du hura barnean hartzeko.",
+                footer: "Betetzen duzun eremu bakoitza konfiantza-politikako kontaktu-lerro bat bihurtzen da. Eremu hutsak kanpoan uzten dira, eta bat ere ez da derrigorrezkoa.",
+            },
             hubUpdates: {
                 title: "Guneen berriak",
                 intro: "Aukerakoa. Bozkatzaileek gune bati eska diezaiokete boto-paperari buruz posta elektronikoz idazteko. Konfiantza-politikako gune guztiak modu berean eskaintzen dira.",

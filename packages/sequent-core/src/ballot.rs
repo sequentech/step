@@ -1373,6 +1373,12 @@ pub struct ElectionEventPresentation {
     #[borsh(skip)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hub_updates: Option<HubUpdatesPresentation>,
+    /// How voters reach the election authority, as the admin typed it. The
+    /// Transparency tab drafts the policy's `contact` lines from it. Skipped
+    /// in Borsh so ballot-style hashes don't change.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authority_contact: Option<AuthorityContactPresentation>,
 }
 
 
@@ -1385,6 +1391,23 @@ impl ElectionEventPresentation {
     pub fn hub_updates(&self) -> HubUpdatesPresentation {
         self.hub_updates.clone().unwrap_or_default()
     }
+}
+
+/// The election authority's contact: each kind that is set becomes one
+/// `contact` line of the event's Vitrine policy (specs/policy.md, section 3,
+/// rule 19). Windmill checks the syntax of each when it drafts the policy.
+#[derive(
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Default,
+)]
+pub struct AuthorityContactPresentation {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phone: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
 }
 
 /// Whether voters are offered updates from the hubs the election's policy
@@ -4406,6 +4429,33 @@ mod transparency_presentation_tests {
             ..ElectionEventPresentation::default()
         };
         assert_eq!(borsh::to_vec(&off).unwrap(), plain);
+    }
+
+    #[test]
+    fn the_authority_contact_round_trips_and_leaves_borsh_alone() {
+        let presentation: ElectionEventPresentation =
+            serde_json::from_value(serde_json::json!({
+                "authority_contact": {
+                    "name": "Electoral Board of Acme",
+                    "email": "elections@acme.example"
+                }
+            }))
+            .unwrap();
+        let contact = presentation.authority_contact.clone().unwrap();
+        assert_eq!(contact.name.as_deref(), Some("Electoral Board of Acme"));
+        assert_eq!(contact.phone, None);
+        let json = serde_json::to_value(&presentation).unwrap();
+        assert!(json["authority_contact"].get("phone").is_none());
+        assert!(json["authority_contact"].get("url").is_none());
+        let plain = ElectionEventPresentation::default();
+        assert!(serde_json::to_value(&plain)
+            .unwrap()
+            .get("authority_contact")
+            .is_none());
+        assert_eq!(
+            borsh::to_vec(&presentation).unwrap(),
+            borsh::to_vec(&plain).unwrap()
+        );
     }
 
     #[test]

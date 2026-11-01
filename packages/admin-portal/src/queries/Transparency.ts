@@ -137,3 +137,33 @@ export interface SetHubUpdatesMutation {
         hub_updates?: unknown
     } | null
 }
+
+/** Stores the election authority's contact with the election event's
+ * Transparency settings. `_append` replaces `authority_contact` and leaves the
+ * other keys of `presentation` as they are, so a kind that was cleared is
+ * dropped. Windmill drafts the policy's `contact` lines from it. */
+export const SET_AUTHORITY_CONTACT = gql`
+    mutation SetAuthorityContact($electionEventId: uuid!, $patch: jsonb!) {
+        update_sequent_backend_election_event_by_pk(
+            pk_columns: {id: $electionEventId}
+            _append: {presentation: $patch}
+        ) {
+            id
+            authority_contact: presentation(path: "authority_contact")
+        }
+    }
+`
+
+export interface SetAuthorityContactMutationVariables {
+    electionEventId: string
+    /** `{authority_contact: {...}}`, to append to the presentation. */
+    patch: Record<string, unknown>
+}
+
+export interface SetAuthorityContactMutation {
+    update_sequent_backend_election_event_by_pk?: {
+        id: string
+        /** The stored contact, or null if the event has no presentation. */
+        authority_contact?: unknown
+    } | null
+}
