@@ -13,6 +13,8 @@ import {Box, ButtonBase, Typography} from "@mui/material"
 import {keyframes, styled} from "@mui/material/styles"
 import {shortBallotId} from "../../services/vitrine/ballotId"
 import {EAuditOutcome, TAudit} from "../../services/vitrine/ballotAudit"
+import {ISignerList, ISignerLists, signerLists} from "../../services/vitrine/signers"
+import {anchorMinutes} from "../../services/vitrine/statusRows"
 import {EBallotStatus} from "../../services/vitrine/ballotStatus"
 import {
     ETrackerState,
@@ -35,9 +37,10 @@ import {openVerifier} from "../../services/vitrine/handoff"
 import {BallotStatusIcon, CHECK_COLORS} from "../Vitrine/BallotStatusIcon"
 import {explorersOf} from "../Vitrine/explorers"
 import {FindElsewhere} from "../Vitrine/FindElsewhere"
-import {FullTrackingId} from "../Vitrine/FullTrackingId"
+import {EFullTrackingIdSurface, FullTrackingId} from "../Vitrine/FullTrackingId"
 import {RecordViewer} from "../Vitrine/RecordViewer"
 import {EStatusTone, StatusTag} from "../Vitrine/StatusTag"
+import {WitnessList} from "../Vitrine/WitnessList"
 import {MONO, PALETTE, PHONE, TABLET} from "./trackerStyle"
 
 const RING_RADII = [30, 38, 46, 54] as const
@@ -259,9 +262,25 @@ const MarkerGlyph: React.FC<{glyph: IMarker["glyph"]; color: string}> = ({glyph,
 
 interface IStepRowProps {
     item: ITrackerStep
+    /** Who signed or which hubs, under the step that has them. */
+    signers?: ISignerList
+    /** Minutes that the hubs have, from the policy. */
+    minutes: number
     last: boolean
     formatTime: (milliseconds: number) => string
     language: string
+}
+
+/** The states in which a step opens a list of who signed: the witnesses once
+ * they have, the hubs once they have or are late. */
+const listedStates = (step: ETrackerStep): ETrackerState[] =>
+    step === ETrackerStep.WITNESSES
+        ? [ETrackerState.DONE]
+        : [ETrackerState.DONE, ETrackerState.LATE]
+
+const signersOf = (lists: ISignerLists, step: ETrackerStep): ISignerList | undefined => {
+    if (step === ETrackerStep.WITNESSES) return lists.witnesses
+    return step === ETrackerStep.HUBS ? lists.hubs : undefined
 }
 
 const listOf = (names: string[], language: string): string => {
@@ -272,7 +291,7 @@ const listOf = (names: string[], language: string): string => {
     }
 }
 
-const StepRow: React.FC<IStepRowProps> = ({item, last, formatTime, language}) => {
+const StepRow: React.FC<IStepRowProps> = ({item, signers, minutes, last, formatTime, language}) => {
     const {t} = useTranslation()
     const {step, state} = item
     const key = `ballotLocator.result.steps.${step}`
@@ -490,6 +509,11 @@ const StepRow: React.FC<IStepRowProps> = ({item, last, formatTime, language}) =>
                         </span>
                     </Box>
                 ) : null}
+                {signers && listedStates(step).includes(state) ? (
+                    <Box className="tracker-step-signers" sx={{marginTop: "4px"}}>
+                        <WitnessList list={signers} minutes={minutes} />
+                    </Box>
+                ) : null}
             </Box>
         </Box>
     )
@@ -631,6 +655,7 @@ export const TrackerResult: React.FC<ITrackerResultProps> = ({
     const blockShown = shown === ETrackerView.STATUS || shown === ETrackerView.CHECKING
     const kindTag = kindTagOf(audit)
     const policy = view?.policy ?? eventPolicy
+    const lists = signerLists({policy, result, times: view?.signers, standIn: false})
 
     return (
         <Box
@@ -708,7 +733,7 @@ export const TrackerResult: React.FC<ITrackerResultProps> = ({
                 >
                     {t("ballotLocator.result.idComment")}
                 </Typography>
-                <FullTrackingId ballotId={ballotId} />
+                <FullTrackingId ballotId={ballotId} surface={EFullTrackingIdSurface.TINT} />
                 {entry ? (
                     <Box
                         className="tracker-record-entry-line"
@@ -789,6 +814,8 @@ export const TrackerResult: React.FC<ITrackerResultProps> = ({
                                 <StepRow
                                     key={item.step}
                                     item={item}
+                                    signers={signersOf(lists, item.step)}
+                                    minutes={anchorMinutes(policy)}
                                     last={n === steps.length - 1}
                                     formatTime={formatTime}
                                     language={language}

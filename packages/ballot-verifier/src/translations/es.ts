@@ -133,7 +133,8 @@ const spanishTranslation: TranslationType = {
                 description:
                     "Los recibos se comprueban con la política de confianza que publicó la autoridad electoral. Indíquela aquí, con su texto o su dirección https, tal como figura en el anuncio oficial de la elección.",
                 fromLink:
-                    "El enlace del recibo indica dónde está su política de confianza. Antes de fijarla en este dispositivo, compare sus palabras y su ID con el anuncio oficial de la elección.",
+                    "El enlace del recibo indica dónde está su política de confianza. Antes de fijarla en este dispositivo, compare los cuatro primeros grupos de su ID de política con el anuncio oficial de la elección.",
+                compareGroups: "Compare los cuatro primeros grupos, en negrita, con el anuncio. Las herramientas comparan los 13.",
                 inputLabel: "Política de confianza o su dirección",
                 inputPlaceholder: "Pegue la política o su dirección https",
                 load: "Cargar la política",
@@ -145,7 +146,7 @@ const spanishTranslation: TranslationType = {
                     "No use esta política. Avise a la autoridad electoral e indique la política del anuncio oficial de la elección.",
                 pinned: "Comprobado con la política de confianza que fijó en este dispositivo.",
                 unpin: "Olvidar esta política",
-                draft: "Esto es un borrador de la política, no la política sellada, así que no se puede fijar. Sus palabras de borrador:",
+                draft: "Esto es un borrador de la política, no la política sellada, así que no se puede fijar. Su ID de borrador:",
                 invalid: "Esto no es una política de confianza válida.",
                 otherPolicy: "Esta política de confianza es válida, pero el recibo es de otra.",
                 ambiguous:

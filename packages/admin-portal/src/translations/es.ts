@@ -7130,7 +7130,7 @@ const spanishTranslation: TranslationType = {
         },
         transparencyTab: {
             title: "Transparencia",
-            help: "Con Vitrine, las papeletas y los hitos del evento se anotan en registros a los que solo se pueden añadir entradas y que firman testigos independientes, para que votantes y observadores puedan comprobar que no se ha eliminado ni cambiado nada.",
+            help: "Con Vitrine, las papeletas y los hitos del evento se anotan en registros a los que solo se pueden añadir entradas y que firman los testigos que nombra la política de confianza, para que votantes y observadores puedan comprobar que no se ha eliminado ni cambiado nada.",
             loading: "Cargando la transparencia del evento...",
             loadError: "No se pudo cargar la transparencia del evento: {{reason}}",
             unknownError: "error desconocido",
@@ -7142,6 +7142,81 @@ const spanishTranslation: TranslationType = {
             sdkLoading: "Cargando el verificador de Vitrine...",
             sdkError:
                 "El verificador de Vitrine no pudo iniciarse en este navegador, así que aquí no se puede comprobar la política de confianza.",
+            hubProblems: {
+                title_one: "Un centro lista un problema en esta elección",
+                title_other: "Se listan {{count}} problemas en esta elección",
+                listedBy: "Lo lista {{hubs}}",
+                proof: "Ver la prueba",
+                note: "Este aviso es una comodidad de este portal, y un listado es solo una referencia: abra la prueba para comprobarla en su navegador. Cada centro también lista sus problemas en su propio sitio, los muestre o no este portal. Un centro que no responde no es un problema.",
+                kind: {
+                    splitView: "Dos versiones del registro",
+                    brokenPromise: "Falta una entrada prometida",
+                    breaksRules: "Una entrada incumple las reglas",
+                    twoPolicies: "Dos políticas",
+                    unloggedCode: "Código que no está registrado",
+                    other: "Un problema registrado por un centro",
+                },
+            },
+            authorityContact: {
+                title: "Contacto de la autoridad electoral",
+                intro: "Opcional. Cómo pueden contactar los votantes con la autoridad electoral, por ejemplo para avisar de una discrepancia en una auditoría. Se incluye en la política de confianza, y las aplicaciones de los votantes solo lo muestran a partir de la política sellada.",
+                name: {
+                    label: "Nombre",
+                    help: "Hasta 128 bytes, con espacios simples y sin saltos de línea.",
+                    invalid:
+                        "El nombre debe tener entre 1 y 128 bytes, con espacios simples y sin saltos de línea ni caracteres invisibles.",
+                },
+                email: {
+                    label: "Correo electrónico",
+                    help: "Una dirección con solo letras, cifras y . _ % + -",
+                    invalid:
+                        "Use una dirección sencilla como elecciones@acme.example, sin acentos ni comillas.",
+                },
+                phone: {
+                    label: "Teléfono",
+                    help: "Un + y de 7 a 15 cifras, sin espacios.",
+                    invalid:
+                        "Use un + y de 7 a 15 cifras, la primera distinta de 0, sin espacios ni guiones.",
+                },
+                url: {
+                    label: "Sitio web",
+                    help: "Una dirección https.",
+                    invalid:
+                        "Use una dirección https, como https://elecciones.acme.example/contacto.",
+                },
+                save: "Guardar contacto",
+                saved: "Se guardó el contacto de la autoridad electoral.",
+                notStored: "El evento no tiene ajustes donde guardarlo.",
+                saveError: "No se pudo guardar el contacto: {{reason}}",
+                readOnly: "Puede ver el contacto, pero no cambiarlo.",
+                locked: "La votación ya se abrió, así que el contacto no se puede cambiar aquí.",
+                successor:
+                    "La política sellada conserva el contacto con el que se selló. Al guardar cambia el borrador, y la Junta Electoral sella una política sucesora que lo incluya.",
+                footer: "Cada campo que rellene se convierte en una línea de contacto de la política de confianza. Los campos vacíos se omiten y ninguno es obligatorio.",
+            },
+            hubUpdates: {
+                title: "Novedades de los centros",
+                intro: "Opcional. Los votantes pueden pedir a un centro que les escriba por correo sobre su papeleta. Todos los centros de la política de confianza se ofrecen de la misma manera.",
+                confirmation: {
+                    label: "Ofrecer «Recibir novedades por correo» en la página de confirmación",
+                    help: "Después de votar, bajo el código QR. Muestra todos los centros, y cada uno se abre en su propio sitio con el recibo del votante.",
+                },
+                castEmail: {
+                    label: "Añadir los centros al correo del voto emitido",
+                    help: "El correo con el recibo de la papeleta incluye el ID de seguimiento completo y un enlace a cada centro, en orden aleatorio.",
+                },
+                readOnly: "Puede ver estos ajustes, pero no cambiarlos.",
+                saved: "Se guardó el ajuste de las novedades de los centros.",
+                notStored: "El evento no tiene ajustes del portal de votación donde guardarlo.",
+                saveError: "No se pudo guardar el ajuste: {{reason}}",
+                hubs: {
+                    title: "Centros",
+                    help: "Los de la política de confianza de la elección. Para cambiarlos, publique una política nueva.",
+                    none: "Ningún centro de la política de confianza tiene sitio web, así que no se ofrecen novedades a los votantes.",
+                    order: "Los votantes los ven en orden aleatorio, cada vez. El orden no se puede fijar y ningún centro puede ser el predeterminado.",
+                },
+                footer: "Ambos están activados por defecto cuando la política nombra un centro. Se guardan con los demás ajustes del portal de votación del evento. Desactivarlos solo oculta la invitación del portal: los centros siguen comprobando el registro y los votantes pueden ir a cualquier centro por su cuenta.",
+            },
             overview: {
                 notReported: "Sin informar",
                 ago: "hace {{duration}}",
@@ -7164,8 +7239,9 @@ const spanishTranslation: TranslationType = {
                     public: "Registro público",
                     private: "Registro privado",
                     quorum: "política de testigos {{k}} de {{n}}",
-                    hubs_one: "{{count}} centro de anclaje, {{independent}} independiente",
-                    hubs_other: "{{count}} centros de anclaje, {{independent}} independientes",
+                    hubs_one: "{{count}} centro de anclaje",
+                    hubs_other: "{{count}} centros de anclaje",
+                    hubsOutside: "{{count}} gestionados por una parte distinta de la autoridad electoral y de la plataforma",
                     mmd: "retraso máximo de fusión {{duration}}",
                     locked: "bloqueado desde que se abrió la votación",
                     explorerPublic: "Abrir el explorador público",
@@ -7219,7 +7295,7 @@ const spanishTranslation: TranslationType = {
                 anchoring: {
                     title: "Anclaje",
                     sub: "centros cada {{hubs}} · navegadores cada {{browsers}}",
-                    independent: "Gestionado por {{party}}, independiente de {{operator}}",
+                    rule: "Regla: de {{min}} centros de anclaje, al menos {{outside}} deben estar gestionados por una parte distinta de la autoridad electoral y de la plataforma.",
                     noAnchor: "Aún sin ancla",
                     browserLayer: "Capa de navegadores",
                     browserLayerSub: "Los centros de la aplicación anclan en {{hubs}}",
@@ -7264,7 +7340,7 @@ const spanishTranslation: TranslationType = {
                     none: "Esta política de confianza no permite ninguna retirada de datos.",
                 },
                 monitors: {
-                    title: "Monitores independientes",
+                    title: "Monitores",
                     list_one:
                         "La política de confianza nombra un monitor: {{names}}. Los verificadores, entre ellos los navegadores de los votantes, le envían gossip, promesas y evidencias.",
                     list_other:
@@ -7314,9 +7390,13 @@ const spanishTranslation: TranslationType = {
                 draftTitle: "Borrador para la Junta Electoral",
                 draftHelp:
                     "Descargue el borrador y entrégueselo a la Junta Electoral. La Junta lo comprueba, lo sella y lo firma con la herramienta de línea de comandos de Vitrine, y consigue la firma de cualquier otra autoridad que nombre su línea sign. Después, suba aquí la política firmada.",
-                draftWords: "Las ocho palabras del borrador",
-                draftWordsHelp:
-                    "La Junta comprueba que «vitrine policy words» muestra estas palabras para el archivo que recibió.",
+                draftId: "El hash del borrador",
+                draftIdHelp:
+                    "La Junta comprueba que «vitrine policy id» muestra este hash para el archivo que recibió. Un borrador no tiene identificador de política hasta que se sella.",
+                draftTag: "Borrador",
+                shortId: "Identificador de la política, primeros cuatro grupos",
+                shortIdHelp:
+                    "Las personas comparan estos grupos con la convocatoria oficial. Las herramientas comparan los 13.",
                 download: "Descargar el borrador",
                 commands: "Los comandos de la Junta",
                 invalidDraft: "El borrador de la política no es válido: {{reason}}",
@@ -7324,7 +7404,7 @@ const spanishTranslation: TranslationType = {
                     "El borrador del evento cambió después de sellar esta política. La Junta debe sellar y firmar el nuevo borrador, que luego se sube como sucesora.",
                 sealedTitle: "La política del evento",
                 sealedHelp:
-                    "Publique el identificador de la política y sus seis palabras en la convocatoria oficial de la elección, para que votantes y observadores reconozcan la política con la que se comprueban sus recibos.",
+                    "Publique el identificador de la política en la convocatoria oficial de la elección, para que votantes y observadores reconozcan la política con la que se comprueban sus recibos. Se comparan sus primeros cuatro grupos.",
                 idMismatch:
                     "Los registros indican el identificador de política {{id}}, que no es el de esta política.",
                 invalidStored: "La política guardada del evento no es válida: {{reason}}",
@@ -7337,7 +7417,7 @@ const spanishTranslation: TranslationType = {
                 text: "Política firmada",
                 readError: "No se pudo leer el archivo.",
                 tooLarge: "Esto es más grande de lo que puede ser una política de confianza.",
-                draft: "Esto es un borrador sin sellar, cuyas palabras son {{words}}. Primero la Junta Electoral debe sellarlo y firmarlo.",
+                draft: "Esto es un borrador sin sellar, cuyo hash es {{id}}. Primero la Junta Electoral debe sellarlo y firmarlo.",
                 invalid: "Esto no es una política firmada válida: {{reason}}",
                 preview: "Compruebe estos datos con la Junta Electoral antes de subir la política.",
                 otherEvent: "Esta política es de otro evento electoral.",
@@ -7346,7 +7426,7 @@ const spanishTranslation: TranslationType = {
                 notFromDraft: "Esta política no se selló a partir del borrador actual del evento.",
                 submit: "Subir la política",
                 uploaded:
-                    "Se subió la política. Publique su identificador y sus seis palabras en la convocatoria oficial de la elección.",
+                    "Se subió la política. Publique su identificador en la convocatoria oficial de la elección.",
                 error: "No se pudo subir la política: {{reason}}",
             },
             logs: {

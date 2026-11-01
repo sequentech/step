@@ -59,13 +59,15 @@ import {
 import {GET_DOCUMENT} from "../queries/GetDocument"
 import {BallotStatus, EBallotStatusTrigger} from "../components/Vitrine/BallotStatus"
 import {BallotTag} from "../components/Vitrine/BallotTag"
+import {GetUpdates} from "../components/Vitrine/GetUpdates"
 import {ID_BUTTON_SX} from "../components/Vitrine/idButtons"
 import {useCastReceipt} from "../hooks/useCastReceipt"
 import {useElectionName} from "../hooks/useElectionName"
 import {groupBallotId, shortBallotId} from "../services/vitrine/ballotId"
 import {EBallotTag} from "../services/vitrine/ballotStatus"
+import type {IReceiptView} from "../services/vitrine/castReceipt"
+import {EHubUpdate, offeredHubs, readHubUpdates} from "../services/vitrine/hubUpdates"
 import {ETransparencyMode} from "../services/vitrine/types"
-import type {IConfirmationVitrine} from "../store/castVotes/confirmationScreenDataSlice"
 import {selectReceivedBallot} from "../store/receivedBallots/receivedBallotsSlice"
 
 /*
@@ -343,7 +345,10 @@ interface ConfirmationBallotStatusProps {
     eventId: string
     electionId: string
     ballotId: string
-    vitrine: IConfirmationVitrine
+    /** The receipt of the ballot just cast, as far as it has been checked. */
+    view?: IReceiptView
+    /** Whether this device keeps the receipt. */
+    kept: boolean
     trackerUrl?: string
 }
 
@@ -353,15 +358,11 @@ const ConfirmationBallotStatus: React.FC<ConfirmationBallotStatusProps> = ({
     eventId,
     electionId,
     ballotId,
-    vitrine,
+    view,
+    kept,
     trackerUrl,
 }) => {
     const {i18n} = useTranslation()
-    const target = useMemo(
-        () => ({eventId, electionId, trackingId: ballotId}),
-        [eventId, electionId, ballotId]
-    )
-    const {view, kept} = useCastReceipt(target, vitrine)
     const electionName = useElectionName(electionId)
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const acceptedAt = view?.own?.acceptedAt
@@ -503,6 +504,22 @@ const ConfirmationScreen: React.FC = () => {
             ? transparency
             : undefined
 
+    // The receipt of the ballot just cast, shared by the check mark in the
+    // Tracking ID box and by the hubs' links, which carry it to their sites.
+    const {view, kept} = useCastReceipt(
+        {eventId: eventId ?? "", electionId: electionId ?? "", trackingId: ballotId.current ?? ""},
+        vitrine
+    )
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const hubs = useMemo(() => offeredHubs(view?.policy), [view?.policy])
+    // Not on a kiosk: the hub's address, with the receipt in it, would stay in
+    // the shared browser's history, and a kiosk keeps no receipts for that reason.
+    const offersUpdates =
+        vitrine !== undefined &&
+        !isKiosk() &&
+        readHubUpdates(electionEvent?.presentation).confirmation === EHubUpdate.ON &&
+        hubs.length > 0
+
     const handleBallotIdLinkClick = (event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
         if (isDemo) {
             event.preventDefault()
@@ -537,7 +554,8 @@ const ConfirmationScreen: React.FC = () => {
                               eventId={eventId}
                               electionId={electionId}
                               ballotId={ballotId.current ?? ""}
-                              vitrine={vitrine}
+                              view={view}
+                              kept={kept}
                               trackerUrl={ballotTrackerUrl}
                           />
                       ),
@@ -575,6 +593,18 @@ const ConfirmationScreen: React.FC = () => {
                 />
             }
         >
+            {/* "Get email updates", between the QR code and the actions: the layout
+                renders its children there, after the QR code and before the
+                actions. The order of the tiles is drawn when the callout
+                appears, so a new policy asks for a new draw with its key. */}
+            {offersUpdates && view?.policy ? (
+                <GetUpdates
+                    key={view.policy.id}
+                    hubs={hubs}
+                    policyId={view.policy.id}
+                    receipt={view.chain}
+                />
+            ) : null}
             {/* The four dialogs, which belong with the state that opens them.
                 They sat inside the heading and the identifier's border before;
                 MUI renders a dialog into a portal wherever it is declared, so a

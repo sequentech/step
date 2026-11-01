@@ -31,6 +31,8 @@ const catalanTranslation: TranslationType = {
             noBallots: "Encara no s'ha enviat cap papereta.",
             invalidPrefix:
                 "Escriu almenys 8 caràcters d'un ID de seguiment amb guió, com FTBE-MHRX, o fins a 8 d'un pseudònim amb dos punts, com K7QM:2XWD. Els codis usen els dígits del 0 al 9 i lletres majúscules, sense I, L, O ni U.",
+            policyId:
+                "Aquest és l'ID de la política d'aquesta elecció. L'ID de seguiment d'una papereta és al vostre rebut.",
             stages: {
                 received: {
                     label: "Rebuda",
@@ -628,6 +630,8 @@ const catalanTranslation: TranslationType = {
             filterByBallotId: "Filtra per ID de seguiment",
             totalBallots: "Paperetes: {{total}}",
             idHelp: "L'ID de seguiment curt, com FTBE-MHRX, o el complet",
+            policyId:
+                "Aquest és l'ID de la política d'aquesta elecció. L'ID de seguiment d'una papereta és al vostre rebut.",
             foundShort:
                 "Trobada pel seu ID curt. Per estar-ne segur que és la vostra, compareu l'ID de seguiment complet amb el vostre rebut.",
             search: {
@@ -643,7 +647,7 @@ const catalanTranslation: TranslationType = {
                 features: {
                     cast: {
                         title: "Paperetes emeses",
-                        text: "Comproveu que la vostra papereta és al registre públic, confirmada per testimonis independents i ancorada públicament.",
+                        text: "Comproveu que la vostra papereta és al registre públic, confirmada per testimonis i ancorada públicament.",
                     },
                     audited: {
                         title: "Paperetes auditades",
@@ -656,13 +660,100 @@ const catalanTranslation: TranslationType = {
                 },
             },
             matches: {
-                title: "{{total}} paperetes comparteixen l'ID curt <b>{{shortId}}</b>. Trieu la vostra o introduïu l'ID de seguiment complet.",
                 cast: "Emesa el {{time}}",
                 audited: "Auditada el {{time}}",
             },
+            shortId: {
+                head: {
+                    one: "1 papereta comença per {{start}}",
+                    other: "{{count}} paperetes comencen per {{start}}",
+                    atLeast: "{{count}} o més paperetes comencen per {{start}}",
+                    mine: "La vostra papereta i {{count}} més que comencen per {{start}}",
+                    mineAlone: "La vostra papereta comença per {{start}}",
+                },
+                sub: {
+                    few: "Quina és la vostra? Compareu el grup ressaltat amb el rebut, o escriviu-lo a sota.",
+                    one: "Obriu-la i compareu el seu ID de seguiment complet amb el rebut.",
+                    many: "Són més de les que mostrem. Escriviu el tercer grup del rebut per trobar la vostra.",
+                    mine: "Aquest dispositiu guarda el vostre rebut, així que sap quina és la vostra.",
+                },
+                why: {
+                    few: "Un ID curt troba paperetes. Només l'ID de seguiment complet, o el rebut del vostre propi dispositiu, diu quina és la vostra.",
+                    many: "Tantes sol voler dir que algú ha creat paperetes perquè coincideixin amb aquest ID curt a propòsit. La vostra continua al registre: encertar també tres grups requeriria uns mil trilions d'intents.",
+                    mine: "Les altres pertanyen a altres votants. Es mostren perquè una de semblant no pugui passar per la vostra.",
+                },
+                third: "Tercer grup del rebut",
+                thirdOr: "O escriviu el tercer grup del rebut",
+                find: "Cerca",
+                onDevice: "En aquest dispositiu",
+                deviceMatches: "El rebut d'aquest dispositiu coincideix amb els 13 grups",
+                serverSees:
+                    "Els servidors del registre no han pogut fer aquesta cerca sense saber quina papereta busqueu, així que s'ha demanat al servidor de l'elecció aquest ID exacte i l'ha pogut veure.",
+            },
             audit: {
-                title: "Les vostres seleccions, descodificades",
-                note: "El vostre navegador ha desxifrat aquesta papereta auditada amb la clau que ha revelat el portal. Si aquestes no són les seleccions que vau fer, poseu-vos en contacte amb l'autoritat electoral.",
+                kicker: "Auditoria de la papereta",
+                title: "Comproveu que la vostra papereta es va xifrar tal com vau triar",
+                note: "Aquesta és la papereta que vau auditar, descodificada pel vostre navegador. Només vosaltres sabeu què vau triar, així que només vosaltres podeu fer aquesta comprovació.",
+                steps: {
+                    label: "Com funciona la comprovació",
+                    encrypted: {
+                        title: "Xifrada al vostre dispositiu",
+                        text: "El portal va xifrar les vostres opcions i va donar a la papereta el seu ID de seguiment, abans que decidíssiu auditar-la.",
+                    },
+                    decoded: {
+                        title: "Descodificada aquí",
+                        text: "En auditar, el portal va revelar el seu secret. El vostre navegador va descodificar la papereta amb ell i la va comparar amb el registre públic.",
+                    },
+                    compare: {
+                        title: "Compareu vosaltres",
+                        text: "Mireu les opcions de sota. Són les que vau triar?",
+                    },
+                },
+                choices: "Opcions descodificades d'aquesta papereta",
+                question: "Coincideixen amb el que vau triar?",
+                yes: "Sí, coincideixen",
+                no: "No, hi ha alguna cosa diferent",
+                change: "Canviar la meva resposta",
+                match: {
+                    title: "La vostra papereta es va xifrar tal com vau triar",
+                    text: "Aquesta papereta auditada ja està gastada: mai es va emetre i mai es comptarà. Torneu enrere i voteu. El vostre vot rebrà un ID de seguiment nou, i si voleu podeu auditar-ne una altra abans.",
+                    vote: "Tornar i votar",
+                },
+                mismatch: {
+                    title: "No voteu en aquest dispositiu",
+                    text: "El que es va xifrar no és el que vau triar, així que aquest dispositiu o el portal de votació poden haver estat manipulats. El vostre navegador ha desat la prova: la papereta xifrada del registre públic, el secret que va revelar el portal i el que descodifica.",
+                    report: "Aviseu l'autoritat electoral",
+                    reportNoContact: "Aviseu l'autoritat electoral.",
+                    fromPolicy: "De la política publicada de l'elecció, no d'aquesta pàgina.",
+                    fromSettings: "De la configuració de l'elecció.",
+                    then: "Després voteu des d'un altre dispositiu.",
+                    save: "Desar la prova",
+                    email: "Escriure a l'autoritat",
+                    emailSubject:
+                        "La meva papereta auditada no es descodifica en les meves opcions",
+                    emailBody:
+                        "He auditat una papereta en aquesta elecció i les opcions que ha descodificat el meu navegador no són les que vaig triar.\n\nID de seguiment: {{id}}\n\nHe desat la prova en un fitxer i la puc enviar.",
+                },
+                how: "Com funciona?",
+                faq: {
+                    why: {
+                        question: "Per què auditar?",
+                        answer: "El vostre vot es xifra al vostre dispositiu, així que ningú pot llegir-lo, ni tan sols vosaltres. Auditar us permet comprovar que el portal va xifrar el que vau triar abans de votar de debò.",
+                    },
+                    catch: {
+                        question: "Per què detecta l'engany?",
+                        answer: "El portal xifra abans que decidiu auditar, així que no pot saber quines paperetes es comprovaran. Si canviés vots, qualsevol votant que auditi ho podria descobrir.",
+                    },
+                    spent: {
+                        question: "Per què no pot comptar aquesta papereta?",
+                        answer: "Amb el secret revelat, la papereta mostra com vau votar. Per mantenir secret el vostre vot, una papereta auditada no s'emet mai.",
+                    },
+                    differ: {
+                        question: "I si no coincideixen?",
+                        answer: "No voteu en aquest dispositiu. Deseu la prova i aviseu l'autoritat electoral, el contacte de la qual surt de la política de l'elecció. Després voteu des d'un altre dispositiu.",
+                    },
+                    tip: "Per a la comprovació més sòlida, obriu aquesta pàgina en un dispositiu diferent d'aquell en què vau votar, per exemple el mòbil. Un dispositiu que canviés la vostra papereta també podria canviar el que us mostra aquí.",
+                },
                 failed: {
                     title: "Auditoria fallida",
                     text: "La papereta del registre públic no es desxifra amb la clau que ha revelat el portal. No emeteu el vostre vot des d'aquest dispositiu; aviseu l'autoritat electoral.",
@@ -704,7 +795,7 @@ const catalanTranslation: TranslationType = {
                 saveEvidence: "Desa la prova",
                 howToReport: "Com denunciar-ho",
                 howToReportText:
-                    "Deseu el fitxer de la prova i envieu-lo a l'autoritat electoral o a un observador independent. Poden comprovar-lo als seus ordinadors. No conté res sobre com heu votat.",
+                    "Deseu el fitxer de la prova i envieu-lo a l'autoritat electoral o a un observador. Poden comprovar-lo als seus ordinadors. No conté res sobre com heu votat.",
                 noReceipt:
                     "Aquest dispositiu no té el rebut d'aquesta papereta. Comproveu-la al dispositiu amb què vau votar, o comproveu el fitxer del rebut al verificador de paperetes.",
                 receiptPending:
@@ -728,7 +819,7 @@ const catalanTranslation: TranslationType = {
                     },
                     verified: {
                         head: "Verificada",
-                        sub: "Al registre públic, confirmada per testimonis independents i ancorada públicament.",
+                        sub: "Al registre públic, confirmada per testimonis i ancorada públicament.",
                     },
                     late: {
                         head: "Triga més del previst",
@@ -752,7 +843,7 @@ const catalanTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Confirmada pels testimonis",
-                        done: "Testimonis independents van signar un registre que la inclou.",
+                        done: "Testimonis van signar un registre que la inclou.",
                         count: "{{signed}} de {{total}} · en calen {{needed}}",
                         countOf: "{{signed}} de {{total}}",
                     },
@@ -803,12 +894,31 @@ const catalanTranslation: TranslationType = {
             },
         },
         vitrine: {
+            hubProblems: {
+                title: {
+                    one: "Un hub llista un problema en aquesta elecció",
+                    other: "Es llisten {{count}} problemes en aquesta elecció",
+                },
+                listedBy: "El llista {{hubs}}",
+                proof: "Veure la prova",
+                note: "Aquest avís és una comoditat d'aquest lloc, i un llistat és només una referència: obriu la prova per comprovar-la al navegador. Els hubs també us ho comuniquen per correu, als seus propis llocs i a l'extensió, ho faci o no aquest lloc.",
+                kind: {
+                    splitView: "Dues versions del registre",
+                    brokenPromise: "Falta una entrada promesa",
+                    breaksRules: "Una entrada incompleix les regles",
+                    twoPolicies: "Dues polítiques",
+                    unloggedCode: "Codi que no està registrat",
+                    other: "Un problema registrat per un hub",
+                },
+            },
             ballotId: {
                 label: "ID de seguiment",
                 full: "ID de seguiment complet",
                 yours: "El vostre ID de seguiment:",
                 copy: "Copia l'ID de seguiment complet",
                 copied: "ID de seguiment copiat",
+                copyText: "Copia",
+                copiedText: "Copiat",
                 showFull: "Mostra l'ID de seguiment complet",
                 selected: "Seleccionat. Premeu Ctrl+C, o ⌘C en un Mac, per copiar-lo.",
                 copyByHand:
@@ -816,8 +926,8 @@ const catalanTranslation: TranslationType = {
             },
             elsewhere: {
                 title: "Cerqueu-la en un altre lloc",
-                count_one: "{{count}} explorador, {{independent}} independent",
-                count_other: "{{count}} exploradors, {{independent}} independents",
+                count_one: "{{count}} explorador",
+                count_other: "{{count}} exploradors",
                 introBallot:
                     "Els exploradors de tercers llegeixen pel seu compte el registre públic. Cadascun hauria de trobar la vostra papereta, amb les mateixes comprovacions, sense aquest web.",
                 introEntry:
@@ -825,13 +935,11 @@ const catalanTranslation: TranslationType = {
                 foot: "La llista prové de la política de l'elecció. Qualsevol explorador de Vitrine pot obrir el mateix registre: doneu-li l'ID de seguiment complet.",
                 name: "Explorador de {{name}}",
                 operatorName: "Explorador de l'elecció",
-                independent: "Independent",
-                operator: "Operador",
                 newTab: "S'obre en una pestanya nova",
                 who: {
-                    monitor: "Un monitor citat a la política de l'elecció",
-                    hub: "Un hub d'ancoratge citat a la política de l'elecció",
-                    operator: "El gestiona l'autoritat electoral",
+                    monitor: "Gestionat per {{party}}, un monitor citat a la política de l'elecció",
+                    hub: "Gestionat per {{party}}, un hub d'ancoratge citat a la política de l'elecció",
+                    operator: "Gestionat per l'autoritat electoral, que gestiona aquesta elecció",
                 },
             },
             status: {
@@ -880,9 +988,9 @@ const catalanTranslation: TranslationType = {
                     recorded:
                         "El navegador ha trobat la vostra papereta al registre públic. Ara la confirmen els testimonis.",
                     witnessed:
-                        "Testimonis independents han confirmat el registre. Els ancoratges públics arriben en {{minutes}} minuts; no cal esperar.",
+                        "Testimonis han confirmat el registre. Els ancoratges públics arriben en {{minutes}} minuts; no cal esperar.",
                     verified:
-                        "La vostra papereta és al registre públic, confirmada per testimonis independents i ancorada públicament.",
+                        "La vostra papereta és al registre públic, confirmada per testimonis i ancorada públicament.",
                     late: "La vostra papereta és al registre públic i confirmada pels testimonis, però els seus ancoratges públics van tard.",
                     lateStep:
                         "Un pas està trigant més del previst. No és prova de manipulació, i el navegador continua comprovant.",
@@ -907,7 +1015,7 @@ const catalanTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Confirmada pels testimonis",
-                        upcoming: "Testimonis independents signen un registre que la inclou.",
+                        upcoming: "Testimonis signen un registre que la inclou.",
                     },
                     anchors: {
                         title: "Ancorada públicament",
@@ -923,11 +1031,13 @@ const catalanTranslation: TranslationType = {
                     recorded: "El navegador n'ha comprovat la prova.",
                     recordedEntry: "Entrada #{{index}}. El navegador n'ha comprovat la prova.",
                     witnessed:
-                        "Prou testimonis independents de la política ({{count}}) han signat un registre que la inclou.",
+                        "Prou testimonis de la política ({{count}}) han signat un registre que la inclou.",
                     anchoredWaict: "Als nodes públics ({{count}}) i on comproven els navegadors.",
                     anchoredBootstrap:
                         "Als nodes públics ({{count}}) i on comproven els navegadors, per ara mitjançant un node substitut.",
                     anchoredHubs: "Als nodes públics ({{count}}).",
+                    anchoredOneHub: "Ancorada en 1 node, gestionat per {{party}}.",
+                    anchoredOneHubPlatform: "Ancorada en 1 node, gestionat per la plataforma.",
                     lateNow: "Ja hauria d'estar fet.",
                     lateStep: "Hauria d'estar fet a les {{time}}.",
                     lateAnchors: "Els nodes l'haurien d'haver ancorat a les {{time}}.",
@@ -973,6 +1083,53 @@ const catalanTranslation: TranslationType = {
                     checked: "Comprovat pel navegador, amb codi que qualsevol pot inspeccionar.",
                     kept: "Aquest dispositiu guarda el justificant i el torna a comprovar a cada visita.",
                 },
+            },
+            signers: {
+                witnesses: {open: "Qui ha signat", close: "Amaga qui ha signat"},
+                hubs: {open: "Quins nodes", close: "Amaga quins nodes"},
+                runBy: "Gestionat per {{party}}",
+                runByAlso: "Gestionat per {{party}}, que també gestiona {{hubs}}",
+                signed: "Ha signat a les {{time}}",
+                signedNoTime: "Ha signat",
+                notYet: "Encara no",
+                late: "Tard",
+                anchored: "Ancorat a les {{time}}",
+                anchoredNoTime: "Ancorat",
+                within: "En {{minutes}} min",
+                check: "Comprova al seu lloc",
+                checkWitness:
+                    "Comprova al seu lloc: testimoni {{name}} (s'obre en una pestanya nova)",
+                checkHub: "Comprova al seu lloc: node {{name}} (s'obre en una pestanya nova)",
+                linksNote:
+                    "«Comprova al seu lloc» obre l'explorador del mateix signant, que hi comprova aquesta signatura.",
+                standIn: {name: "On comproven els navegadors", who: "Un node substitut, de moment"},
+                rule: {
+                    witnesses:
+                        "La política exigeix que signin {{needed}} dels seus {{total}} testimonis. Han signat {{signed}}.",
+                    witnessesAlone:
+                        "La política exigeix que signin {{needed}} dels seus {{total}} testimonis, i cap part en gestiona tants. Han signat {{signed}}.",
+                    witnessesCount:
+                        "Han signat {{signed}} dels {{total}} testimonis de la política.",
+                    hubs: "Els {{count}} nodes han d'ancorar el registre, i almenys {{independent}} han d'estar gestionats per algú altre que l'autoritat electoral.",
+                    hubsPlatform:
+                        "Els {{count}} nodes han d'ancorar el registre, i almenys {{independent}} han d'estar gestionats per algú que no sigui ni l'autoritat electoral ni la plataforma.",
+                    hubsAll: "Els {{count}} nodes han d'ancorar el registre.",
+                    oneHub: "La política anomena un sol node, gestionat per {{party}}.",
+                    oneHubPlatform: "La política anomena un sol node, gestionat per la plataforma.",
+                },
+            },
+            updates: {
+                title: "Rebeu actualitzacions per correu sobre aquesta papereta",
+                description:
+                    "Quan es confirmi i quan es compti, o si es registra un problema. Trieu qualsevol node: cadascun comprova el registre per si mateix.",
+                listLabel: "Nodes de la política d'aquesta elecció",
+                runBy: "Gestionat per {{party}}",
+                hubLabel:
+                    "{{name}}, gestionat per {{party}}: rebre actualitzacions per correu al seu propi lloc (s'obre en una pestanya nova)",
+                footnote:
+                    "Els nodes que anomena la política de l'elecció, en ordre aleatori cada vegada. Cadascun s'obre al seu propi lloc amb el vostre rebut a l'enllaç; no es comparteix res fins que trieu què seguir-hi.",
+                footnoteNoReceipt:
+                    "Els nodes que anomena la política de l'elecció, en ordre aleatori cada vegada. Cadascun s'obre al seu propi lloc; no es comparteix res fins que trieu què seguir-hi.",
             },
             booth: {
                 title: "Encara no es pot preparar la vostra papereta",

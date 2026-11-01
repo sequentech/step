@@ -59,6 +59,21 @@ public events work end to end.
   event's `presentation`, hold what voters read: the policy ID, the sealed
   policy (public events only), and each log's URL and origin. They never hold
   a token, a secret or a private key.
+- **`presentation.hub_updates`**, in the same `presentation`, holds the two
+  switches of the Transparency tab's **Updates from hubs**: `confirmation` and
+  `cast_email`, each `"on"` or `"off"`. A switch that is absent is on, so
+  events from before the setting offer hub updates. The admin portal writes
+  them with the permission `election-event-write`, and the trigger below does
+  not guard them: they only decide what voters are offered, and can change at
+  any time.
+- **`presentation.authority_contact`**, in the same `presentation`, holds the
+  election authority's contact as the admin typed it in the Transparency tab:
+  up to four text values, `name`, `email`, `phone` and `url`. Windmill drafts
+  the policy's `contact` lines from it (see the draft policy below). The admin
+  portal writes it with `election-event-write`, checks each value by the
+  policy's syntax before it saves, and shows the fields read-only once voting
+  has opened. Nothing else reads it: voters see the contact only from the
+  pinned policy.
 - **`sequent_backend.vitrine_log`** holds each log as the sidecar created it:
   its name on the sidecar (`<tenant id>/<event id>/<log>`), its log ID and
   instance ID, origin, URL and keys, the `events` log's submission token, the
@@ -294,8 +309,19 @@ SHA-512 over `step/ballot-id/v2`, the ballot's hash and the voter key's DER
 hyphenated groups of four, as in `FTBE-MHRX-71J7-…`. The first two groups are
 the short ID. Voter pseudonyms use a colon instead (`K7QM:2XWD`), so the two
 never read as each other. A lookup ignores case and hyphens, reads `I` and `L`
-as `1` and `O` as `0`, and needs at least 8 characters; when a short ID fits
-up to 10 ballots it lists them, and above that it asks for more characters. On
+as `1` and `O` as `0`, and needs at least 8 characters. A short ID finds
+ballots and never proves one is the voter's: when it fits up to 5 ballots they
+are listed, each with its full ID, and above that the page asks for the third
+group (four more characters). Where the event is public, the browser asks a
+log server or monitor of the policy for the whole bucket of ballots whose
+Tracking ID starts with the first 3 characters, with
+`GET <server>/lookup/<log>/tracking-bucket/<3 characters>`, and keeps the ones
+that share the typed groups itself, so no server learns which ballot was
+looked for. A server that has no such route (404) is skipped, and when none of
+the policy's servers has it, the lookup that sends the typed ID to the
+election's server takes over, and the page says that this server sees the exact
+ID. A voter who then opens one of the listed ballots does send its ID to that
+server, to get the ballot's content. On
 the review screen the ID sits in
 a box next to the title on a wide screen. The check mark shows how far the
 receipt's check has got: not cast yet on the review screen, then checking, in
@@ -314,6 +340,47 @@ ballot found by its short or full Tracking ID, and the ballot's record in a
 viewer that expands, copies and saves it. Step does not publish audited
 ballots; when the record that the tracker finds for a Tracking ID is an audited
 ballot, the tracker checks it in the voter's browser and shows its selections.
+
+### Updates from the policy's hubs
+
+A hub that the policy gives a site (`hub-explorer <name> <url>`) can tell a
+voter by email when their ballot is confirmed and counted. Step never takes the
+voter's address: it sends the voter to the hub's site, where they enter it and
+choose what to watch. Every hub with a site is offered equally, in a random
+order, with no default and no label that ranks one above another. The link
+into a hub is `<hub-explorer url>#policy=<sha256:hex>&watch=<base64url receipt>`
+when the portal holds the receipt, and `<hub-explorer url>#policy=<sha256:hex>&watch-id=<full Tracking ID>`
+when only the Tracking ID is known (the receipt PDF and the cast email). The
+payload sits in the fragment, which a browser never sends to the hub's server.
+
+- **The confirmation page** shows a "Get email updates" callout when
+  `hub_updates.confirmation` is not `off`, the event is transparent, the
+  policy has a hub with a site, and the voting portal is not the kiosk. The
+  order is drawn once for each visit. The payload is the receipt chain, once
+  the browser has it; before that the link names only the policy.
+- **The ballot receipt** (the `BALLOT_RECEIPT` template) gets two variables.
+  `tracking_id` is the ballot's full Tracking ID, which the default template
+  prints in place of `ballot_id` when it is set. `hubs` is a list of
+  `{name, operator, url}` in a random order for each receipt, and is empty
+  unless the event is transparent and `hub_updates.cast_email` is not `off`.
+  Each `url` carries the Tracking ID as `watch-id`. Custom templates keep working
+  without either variable.
+- **The cast email.** When a `BALLOT_RECEIPT` report is sent by email (a
+  report task with recipients, or a voter ID, sends it), the email's text gets
+  a section below the template's own: the ballot's full Tracking ID and one
+  link to each hub, in the receipt's random order, one to a line, in plain
+  text. An HTML body gets the same section before `</body>`. The switch is the
+  receipt's: with no hubs (not transparent, `hub_updates.cast_email` `off`, or
+  no hub with a site) the email is the template's text untouched. If the
+  ballot can't be read again when the email goes, it goes without the section
+  and the log says so. Step's own ballot-receipt task passes no recipients and
+  no voter ID (the receipt route keeps the real voter ID out of the task), so
+  it sends no email: a deployment that emails the receipt adds the recipients.
+
+Each hub's `name` and `operator` come from the policy, and a hub whose site is
+not a plain HTTP(S) address without credentials is left out. The admin portal
+lists the hubs read-only under the switches, in the policy's order, and says
+that voters see them in a random order.
 
 ### Deleting, exporting and importing events
 
@@ -348,7 +415,8 @@ vkeys: Ed25519 for authorities, auditors, monitors and hubs, and
 | `operator` | Yes | The party that runs the logs, as a name. |
 | `quorum` | Yes | The app quorum: the name of a group or a witness. |
 | `min_faults` | No | Every quorum must tolerate this many more faulty parties. |
-| `words` | No | The language of the policy's words: `en`, `es`, `fr`, `it`, `pt`, `cs`, `ja`, `ko`, `zh-hans` or `zh-hant`. The event's default language is used instead when it is one of them. |
+| `platform` | No | The party whose software runs the deployment: the policy's `platform` line. Default `Sequent`. Its witnesses count as faulty, like the operator's, and a hub it runs is not independent. |
+| `words` | No | Deprecated and ignored (a warning is logged): policies have no words now, their ID is shown in groups of four. A configuration that still has the key loads. |
 | `mmd` | No | The maximum merge delay of promises, in seconds. Default 30, at most 3600. |
 | `explorer_url` | No | The explorer's page for a policy, with `{policy_id}` where the ID goes. The Transparency tab links to it. |
 | `monitor_quorum` | No | How many monitors, of distinct parties, must report an availability failure before verifiers show it as established. At least two and at most the number of monitors; at least two distinct monitor parties are required. |
@@ -363,7 +431,7 @@ vkeys: Ed25519 for authorities, auditors, monitors and hubs, and
 | `[sign]` | `threshold`, `authorities` | How many of the listed authorities must sign a policy. It must list the Board, which seals. |
 | `[redaction]` | `threshold`, `authorities` | Optional: who approves redaction notices, in the same shape. Without it, nothing can be redacted. |
 | `[anchor]` | `period`, `max_gap` | Optional: public logs that grew anchor in hubs every `period` seconds (at least 1); private logs send blinded anchors every period even when idle. Monitors report `anchor-late` when a checkpoint waited more than `max_gap` seconds for an anchor. Vitrine's default is 10 and 60. |
-| `[anchor_hubs]` | `min`, `min_independent` | Optional stronger requirements. The election profiles always require a subset of at least two pairwise independent app hubs, at least one independent of the operator; bootstrap hubs do not count. |
+| `[anchor_hubs]` | `min`, `min_independent` | Optional stronger requirements. The election profiles always require a subset of at least two pairwise independent app hubs, at least one run by neither the operator nor the platform; bootstrap hubs do not count. The drafted policy says `anchor-hubs 2 1` at least, when the hubs allow it. |
 | `[[authorities]]` | `name`, `vkey`, `role` | The policy's authorities. `role` is `board`, `operator` or `other`; exactly one is the Board and exactly one the operator, whose key signs the `events` statements. |
 | `[[auditors]]` | `name`, `vkey` | The auditors who may read private logs. A private event needs one. |
 | `[[witnesses]]` | `name`, `vkey`, `url`, `party` | The logs' witnesses. `url` is optional; `party` defaults to the witness's own name. |
@@ -381,7 +449,7 @@ Harvest also checks that:
   more faulty parties;
 - with app hubs, the witnesses have distinct key names, and there are at most
   31 of them;
-- a bootstrap hub isn't run by the operator and is independent of every app
+- a bootstrap hub isn't run by the operator or the platform and is independent of every app
   hub, and the app hubs meet `[anchor_hubs]` and the unconditional election-profile floor;
 - the profile bindings equal the two reviewed built-in meaning hashes in the configuration. Unknown, obsolete or future meanings need an explicit integration update and are refused.
 
@@ -398,6 +466,51 @@ whole window if it is shorter. The `ballots` log's `param` lines name the event
 and its elections. Each log's `log`, `log-time`, `mirror`, `mirror-party` and
 `profile` lines come from the logs that the sidecar created and the
 configuration. Everything else comes from the configuration.
+
+Two lines follow the deployment, not the event. `platform` is the
+configuration's `platform` (`Sequent` by default) and sits right after
+`operator`. `anchor-hubs` is `2 1` when the configured hubs allow it, so that
+at least one hub is run by neither the operator nor the platform; a stronger
+`[anchor_hubs]` rule is kept, a weaker one is raised to it. A draft has no
+`words` line. The `contact` lines come from the election event's
+`presentation.authority_contact`, one line for each kind that is set, right
+after `platform`, in the order `name`, `email`, `phone`, `url`. Each value
+follows rule 19 of the policy specification: a name is 1 to 128 bytes of text
+with single spaces and no line breaks, control or format characters; an email is
+an ASCII `local@domain` address of at most 254 bytes; a phone is `+` and 7 to 15
+digits, the first not `0`; a URL is an absolute `https` URL, so `http` is
+refused even on localhost. Windmill reads the stored contact tolerantly and
+leaves out a kind that is empty or breaks its syntax, with a warning in its
+log, so that the draft the Board seals is always valid; `draft` itself refuses
+a contact that breaks it. A draft without a contact has no `contact` lines. A
+successor policy may change the contact even after voting opens, but the tab
+locks the fields then. Until the policy carries a contact, voters see the
+contact in the portal only as "From the election's settings", never as the
+policy's.
+
+### Problems that the hubs list
+
+A hub lists the problems it has recorded for a policy at
+`GET <hub>/problems?policy=sha256:<hex>`, which answers
+`{hub, problems: [{id, kind, subject, policy, logged_at, entry}], more}`. Each
+row points to an evidence file that anyone can check, and the hub's site opens
+it at `<hub-explorer url>#policy=<sha256:hex>&problem=<evidence hex>`. The
+voting portal's **Ballot status** dialog and the admin Transparency tab ask
+every hub of the sealed policy once (two pages of 50 rows at most) and show a
+notice when any of them lists a problem. Each app keeps the call in one small
+module (`services/vitrine/hubProblems.ts` in the voting portal,
+`services/HubProblems.ts` in the admin portal), because the SDK has no client
+for it yet. The notice names each kind in plain words ("Two versions of the
+record" for `split-view`, "A promised entry is missing" for `broken-promise`,
+"An entry breaks the rules" for `bad-entry`, `hub-entry`, `time-regression` and
+`bad-checkpoint`, "Two policies" for `policy-equivocation` and "Code that isn't
+logged" for `unlogged-code`), never by its code, and any other kind as "A problem
+recorded by a hub". It names the hubs that list the problem and links to the
+proof on the hub's site, and it says that it is a convenience of the portal: it
+works only while the portal tells the truth, and the hubs' emails, sites and the
+extension work even if it does not. A hub that does not answer is never shown as
+a problem, and availability reports (a log or hub that stopped answering) are
+not hub evidence and are never read.
 
 ## Environment variables
 
@@ -513,7 +626,7 @@ The hub operators must authorize the sidecar's enrolment signer, and the monitor
    ```
 
    The development `[sign]` asks for the Board's signature only, which
-   sealing adds. The `vitrine policy check policy.txt` checks the result; `vitrine policy words policy.txt` shows the policy's words. Upload
+   sealing adds. The `vitrine policy check policy.txt` checks the result; `vitrine policy id policy.txt` prints the policy's ID, in groups of four, for the Board to announce. Upload
    `policy.txt` in the Transparency tab. Harvest installs it in both logs and,
    with `HARVEST_VITRINE_DEV_WITNESS_ADMINS`, enrols the logs in both
    witnesses.

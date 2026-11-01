@@ -3,11 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // Trust policies pinned on this device. A receipt is checked only against a
-// policy the user pinned after comparing its ID and six words with the
-// official election notice (Vitrine's specs/receipt.md, section 3.1). A draft
-// is never pinned: its eight draft words are shown, so the user can tell it
-// from the sealed policy. Pins live in localStorage, a convenience of this
-// browser only, and are checked again whenever they are read.
+// policy the user pinned after comparing the first four groups of its policy
+// ID with the official election notice (Vitrine's specs/receipt.md, section
+// 3.1). A draft is never pinned: its draft hash is shown in the same groups,
+// so the user can tell it from the sealed policy. Pins live in localStorage,
+// a convenience of this browser only, and are checked again whenever they are
+// read.
 
 import type {Policy, PolicySummary, Reason} from "@vitrine/verify"
 import {EReceiptInput, TReceiptInput} from "./input"
@@ -23,8 +24,12 @@ export interface IPolicyView {
     policy: Policy
     /** The signed policy note. */
     text: string
-    /** Its ID, words, event and witnesses. */
+    /** Its ID, event and witnesses. */
     summary: PolicySummary
+    /** Its policy ID in the 13 groups of a Tracking ID. */
+    idDisplay: string
+    /** The first four of those groups, which people compare with the notice. */
+    shortId: string
 }
 
 export enum EPolicyRefusal {
@@ -34,7 +39,7 @@ export enum EPolicyRefusal {
 
 export type TPolicyExamination =
     | {ok: true; view: IPolicyView}
-    | {ok: false; refusal: EPolicyRefusal.DRAFT; draftWords: string[]}
+    | {ok: false; refusal: EPolicyRefusal.DRAFT; draftId: string}
     | {ok: false; refusal: EPolicyRefusal.INVALID; reason: Reason}
 
 const draftOf = (sdk: IVitrineSdk, note: string): Policy | undefined => {
@@ -50,14 +55,24 @@ const draftOf = (sdk: IVitrineSdk, note: string): Policy | undefined => {
 export const examinePolicy = (sdk: IVitrineSdk, text: string): TPolicyExamination => {
     try {
         const policy = sdk.verify.pinPolicy(text)
-        return {ok: true, view: {policy, text, summary: sdk.verify.policySummary(policy)}}
+        return {
+            ok: true,
+            view: {
+                policy,
+                text,
+                summary: sdk.verify.policySummary(policy),
+                idDisplay: sdk.verify.policyIdDisplay(policy.id),
+                shortId: sdk.verify.shortPolicyId(policy.id),
+            },
+        }
     } catch (e) {
         const draft = draftOf(sdk, text)
         if (draft) {
             return {
                 ok: false,
                 refusal: EPolicyRefusal.DRAFT,
-                draftWords: sdk.pure.policies.draftWords(draft),
+                // A draft has no policy ID: its `id` holds its draft hash.
+                draftId: sdk.verify.policyIdDisplay(draft.id),
             }
         }
         return {

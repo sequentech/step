@@ -9,6 +9,8 @@
 
 pub mod client;
 pub mod config;
+pub mod contact;
+pub mod hub_sites;
 pub mod policy;
 pub mod quorum;
 pub mod statements;

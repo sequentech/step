@@ -52,12 +52,22 @@ import {
 } from "@sequentech/ui-core"
 import {PseudonymChip} from "@sequentech/ui-essentials"
 import {BALLOT_BOX_LOG, BALLOT_BOX_OWN} from "../queries/BallotBoxLog"
+import {useBucketMatches} from "../hooks/useShortIdMatches"
 import {
     matchedCharacters,
     parseBallotLogSearch,
     searchesAnything,
 } from "../services/BallotLogSearch"
 import {groupBallotId, shortBallotId} from "../services/vitrine/ballotId"
+import {isPolicyIdTyped} from "../services/vitrine/policyId"
+import {
+    EShortIdKind,
+    EShortIdStatus,
+    IShortIdMatch,
+    IShortIdResult,
+    shortIdToLook,
+} from "../services/vitrine/shortId"
+import {ShortIdMatches, ShortIdServerNote} from "./BallotLocator/ShortIdMatches"
 import {BallotBoxEntry} from "./BallotBoxEntry"
 
 export interface BallotBoxLogViewProps {
@@ -67,6 +77,8 @@ export interface BallotBoxLogViewProps {
     error: boolean
     search: string
     onSearch: (value: string) => void
+    /** The search is the election's policy ID, which no ballot has. */
+    policyIdTyped?: boolean
     limit: number
     onLimit: (limit: number) => void
     canPrevious: boolean
@@ -76,6 +88,17 @@ export interface BallotBoxLogViewProps {
     onOpen: (ballot: IBallotLogRow) => void
     formatTime: (timestamp: string) => string
     timeZoneLabel?: string
+    /** The ballots that share the short ID searched for, listed from a bucket
+     * of the record's servers, which are not told which ballot it is. They
+     * take the place of the page. */
+    shortIds?: {
+        result: IShortIdResult
+        onOpen: (match: IShortIdMatch) => void
+        onNarrow: (typed: string) => void
+    }
+    /** The search was answered by the election's server, which saw the ID,
+     * because no server of the record lists buckets. */
+    shortIdServerSaw?: boolean
 }
 
 export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
@@ -85,6 +108,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
     error,
     search,
     onSearch,
+    policyIdTyped = false,
     limit,
     onLimit,
     canPrevious,
@@ -94,6 +118,8 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
     onOpen,
     formatTime,
     timeZoneLabel,
+    shortIds,
+    shortIdServerSaw = false,
 }) => {
     const {t} = useTranslation()
     const [help, setHelp] = useState(false)
@@ -101,7 +127,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
     const [copyStatus, setCopyStatus] = useState<"copied" | "copyFailed">()
     const parsed = parseBallotLogSearch(search)
     const searching = !!parsed && parsed.query !== ""
-    const unreadable = parsed === null || !searchesAnything(parsed)
+    const unreadable = !policyIdTyped && (parsed === null || !searchesAnything(parsed))
     const ownIds = new Set(ownBallots.map((ballot) => ballot.tracking_id))
     const channel = (value: string) =>
         t(`ballotPrivacy.channels.${value.toLowerCase()}`, {defaultValue: value})
@@ -167,7 +193,7 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
             }}
         />
     )
-    const validPage = page && !unreadable && !loading && !error
+    const validPage = page && !unreadable && !loading && !error && !shortIds
     return (
         <Stack
             className="ballot-box-log"
@@ -460,7 +486,13 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                         value={search}
                         onChange={(event) => onSearch(event.target.value)}
                         error={unreadable}
-                        helperText={unreadable ? t("ballotPrivacy.invalidPrefix") : undefined}
+                        helperText={
+                            unreadable
+                                ? t("ballotPrivacy.invalidPrefix")
+                                : policyIdTyped
+                                  ? t("ballotPrivacy.policyId")
+                                  : undefined
+                        }
                         slotProps={{
                             htmlInput: {
                                 "aria-label": t("ballotPrivacy.search"),
@@ -546,6 +578,24 @@ export const BallotBoxLogView: React.FC<BallotBoxLogViewProps> = ({
                             size={24}
                             aria-label={t("ballotPrivacy.checking")}
                         />
+                    </Box>
+                )}
+                {shortIds && !loading && !error && !unreadable && (
+                    <Box className="ballot-box-log-short-ids" sx={{p: 2.5, pt: 0}}>
+                        <ShortIdMatches
+                            key={shortIds.result.typed}
+                            result={shortIds.result}
+                            onOpen={shortIds.onOpen}
+                            onNarrow={shortIds.onNarrow}
+                            formatTime={(seconds) =>
+                                formatTime(new Date(seconds * 1000).toISOString())
+                            }
+                        />
+                    </Box>
+                )}
+                {validPage && shortIdServerSaw && (
+                    <Box className="ballot-box-log-short-id-note" sx={{px: 2.5}}>
+                        <ShortIdServerNote />
                     </Box>
                 )}
                 {validPage && (
@@ -977,6 +1027,9 @@ const readSearch = (search: string): string | null => {
     const parsed = parseBallotLogSearch(search)
     return parsed && searchesAnything(parsed) ? parsed.query : null
 }
+/** What is asked of the server: nothing for the policy's ID, which no ballot has. */
+const searchSent = (search: string, policyId: string | undefined): string | null =>
+    isPolicyIdTyped(search, policyId) ? null : readSearch(search)
 export const BallotBoxLog: React.FC<{
     /** The event's Vitrine policy, which names the explorers of its entries. */
     policy?: Policy
@@ -985,26 +1038,47 @@ export const BallotBoxLog: React.FC<{
     formatTime: (timestamp: string) => string
     timeZoneLabel?: string
 }> = ({policy, electionEventId, electionId, formatTime, timeZoneLabel}) => {
+    const policyId = policy?.id
     const [search, setSearch] = useState("")
     // What is asked of the server: the typed search once it reads as one, or
     // null while it does not, so nothing unreadable is sent.
     const [prefix, setPrefix] = useState<string | null>("")
     const [limit, setLimit] = useState(10)
     const [cursors, setCursors] = useState<Array<string | null>>([null])
-    const [selected, setSelected] = useState<IBallotLogRow>()
+    const [selected, setSelected] = useState<Pick<IBallotLogRow, "tracking_id" | "election_id">>()
     useEffect(() => {
         const timer = setTimeout(() => {
-            setPrefix(readSearch(search))
+            setPrefix(searchSent(search, policyId))
             setCursors([null])
         }, 300)
         return () => clearTimeout(timer)
-    }, [search])
+    }, [search, policyId])
     useEffect(() => {
         setSearch("")
         setPrefix("")
         setCursors([null])
         setSelected(undefined)
     }, [electionEventId, electionId])
+    // A short ID is looked up in a bucket of the record's servers; only when
+    // none lists buckets does the election's server see it.
+    const parsedPrefix = parseBallotLogSearch(prefix ?? "")
+    const look =
+        parsedPrefix && parsedPrefix.pseudonym === null && parsedPrefix.trackingId
+            ? shortIdToLook(parsedPrefix.trackingId)
+            : undefined
+    const bucket = useBucketMatches({
+        look,
+        eventId: electionEventId,
+        applicable: !!policy,
+        policy,
+        settled: true,
+    })
+    const bucketBusy = bucket.status === EShortIdStatus.LOADING
+    const listed =
+        bucket.status === EShortIdStatus.DONE &&
+        (bucket.result?.kind === EShortIdKind.LISTED || bucket.result?.kind === EShortIdKind.MANY)
+            ? bucket.result
+            : undefined
     const list = useQuery<{ballot_box_log: {payload: IBallotLogPage}}>(BALLOT_BOX_LOG, {
         variables: {
             electionEventId,
@@ -1013,7 +1087,7 @@ export const BallotBoxLog: React.FC<{
             cursor: cursors[cursors.length - 1],
             limit,
         },
-        skip: prefix === null,
+        skip: prefix === null || bucketBusy || !!listed,
         fetchPolicy: "network-only",
     })
     const own = useQuery<{ballot_box_own: {payload: {ballots: IBallotLogRow[]}}}>(BALLOT_BOX_OWN, {
@@ -1026,10 +1100,11 @@ export const BallotBoxLog: React.FC<{
             <BallotBoxLogView
                 page={page}
                 ownBallots={own.data?.ballot_box_own.payload.ballots ?? []}
-                loading={list.loading || readSearch(search) !== prefix}
+                loading={list.loading || bucketBusy || searchSent(search, policyId) !== prefix}
                 error={!!list.error}
                 search={search}
                 onSearch={setSearch}
+                policyIdTyped={isPolicyIdTyped(search, policyId)}
                 limit={limit}
                 onLimit={(value) => {
                     setLimit(value)
@@ -1047,6 +1122,20 @@ export const BallotBoxLog: React.FC<{
                 onOpen={setSelected}
                 formatTime={formatTime}
                 timeZoneLabel={timeZoneLabel}
+                {...(listed
+                    ? {
+                          shortIds: {
+                              result: listed,
+                              onOpen: (match: IShortIdMatch) =>
+                                  setSelected({
+                                      tracking_id: match.trackingId,
+                                      election_id: match.election || electionId || "",
+                                  }),
+                              onNarrow: (typed: string) => setSearch(groupBallotId(typed)),
+                          },
+                      }
+                    : {})}
+                shortIdServerSaw={bucket.status === EShortIdStatus.DONE && !listed && !!look}
             />
             {selected && (
                 <BallotBoxEntry

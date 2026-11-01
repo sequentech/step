@@ -41,6 +41,7 @@ const MARKUP = "<img src=x onerror=alert(1)>"
 
 const enable = jest.fn()
 const upload = jest.fn()
+const setHubUpdates = jest.fn()
 const refetch = jest.fn()
 const writeText = jest.fn()
 const createObjectURL = jest.fn()
@@ -71,7 +72,14 @@ const answer = (value: ITransparencyOutput | undefined, error?: unknown) => {
     })
 }
 
-const renderTab = async (props: {electionEventId?: string; onChanged?: () => void} = {}) => {
+const renderTab = async (
+    props: {
+        electionEventId?: string
+        presentation?: unknown
+        canChangeHubUpdates?: boolean
+        onChanged?: () => void
+    } = {}
+) => {
     const view = render(<EditElectionEventTransparency electionEventId={EVENT_ID} {...props} />)
     await act(async () => {})
     return view
@@ -83,8 +91,13 @@ const paste = async (text: string) => {
     })
 }
 
-const draftWords = (text: string) =>
-    verify.policyWords(verify.parsePolicy(text, {allowDraft: true, requireSignatures: false}))
+const GROUPS_13 = /^([0-9A-Z]{4}-){12}[0-9A-Z]{4}$/
+
+/** A draft's draft hash in 13 groups, as the tab shows it. */
+const draftId = (text: string) =>
+    verify.policyIdDisplay(
+        verify.parsePolicy(text, {allowDraft: true, requireSignatures: false}).id
+    )
 
 beforeAll(async () => {
     await verify.init()
@@ -95,7 +108,11 @@ beforeAll(async () => {
 beforeEach(() => {
     jest.clearAllMocks()
     ;(useMutation as jest.Mock).mockImplementation((document: string) => [
-        document.includes("EnableTransparency") ? enable : upload,
+        document.includes("EnableTransparency")
+            ? enable
+            : document.includes("SetHubUpdates")
+              ? setHubUpdates
+              : upload,
         {loading: false},
     ])
     writeText.mockResolvedValue(undefined)
@@ -155,8 +172,8 @@ describe("the event's mode", () => {
         )
         const visibility = within(screen.getByTestId("overview-visibility"))
         expect((visibility.getByDisplayValue("private") as HTMLInputElement).checked).toBe(true)
-        expect(screen.getByTestId("draft-words").textContent).toBe(
-            draftWords(draftPolicyText({visibility: "private"})).join(" ")
+        expect(screen.getByTestId("draft-id").textContent).toBe(
+            draftId(draftPolicyText({visibility: "private"}))
         )
         expect(changed).toHaveBeenCalledTimes(1)
     })
@@ -244,16 +261,21 @@ describe("the event's mode", () => {
 })
 
 describe("the trust policy", () => {
-    it("offers the draft to download for the Board, with its eight words", async () => {
+    it("offers the draft to download for the Board, with its hash marked as a draft's", async () => {
         answer(publicDraft())
         await renderTab()
 
-        const words = draftWords(draftPolicyText())
-        expect(words).toHaveLength(8)
-        expect(screen.getByTestId("draft-words").textContent).toBe(words.join(" "))
-        expect(screen.getByTestId("board-commands").textContent).toContain(
-            `vitrine policy words ${draftFileName(EVENT_ID)}`
+        const id = draftId(draftPolicyText())
+        expect(id).toMatch(GROUPS_13)
+        expect(screen.getByTestId("draft-id").textContent).toBe(id)
+        expect(screen.getByTestId("draft-id-short").textContent).toBe(
+            id.split("-").slice(0, 4).join("-")
         )
+        expect(screen.getByTestId("draft-tag").textContent).toBe("transparencyTab.policy.draftTag")
+        expect(screen.getByTestId("board-commands").textContent).toContain(
+            `vitrine policy id ${draftFileName(EVENT_ID)}`
+        )
+        expect(screen.getByTestId("board-commands").textContent).not.toContain("words")
 
         const click = jest.spyOn(HTMLAnchorElement.prototype, "click")
         fireEvent.click(screen.getByTestId("download-draft"))
@@ -272,7 +294,7 @@ describe("the trust policy", () => {
         expect(screen.queryByTestId("draft-policy")).toBeNull()
     })
 
-    it("checks the signed policy before uploading it, then shows its ID and six words", async () => {
+    it("checks the signed policy before uploading it, then shows its ID in groups", async () => {
         const changed = jest.fn()
         const signed = policyText()
         const summary = verify.policySummary(verify.parsePolicy(signed))
@@ -289,9 +311,14 @@ describe("the trust policy", () => {
 
         await paste(signed.replace(/\n/g, "\r\n").trimEnd())
         const preview = screen.getByTestId("policy-preview")
-        expect(within(preview).getByTestId("candidate-policy-id").textContent).toBe(summary.id)
-        expect(within(preview).getByTestId("candidate-policy-words").textContent).toBe(
-            summary.words.join(" ")
+        const groups = verify.policyIdDisplay(summary.id)
+        expect(groups).toMatch(GROUPS_13)
+        expect(within(preview).getByTestId("candidate-policy-id").textContent).toBe(groups)
+        expect(within(preview).getByTestId("candidate-policy-id-short").textContent).toBe(
+            verify.shortPolicyId(summary.id)
+        )
+        expect(within(preview).getByTestId("candidate-policy-short-id").textContent).toBe(
+            verify.shortPolicyId(summary.id)
         )
         expect(screen.queryByTestId("policy-not-from-draft")).toBeNull()
 
@@ -305,8 +332,9 @@ describe("the trust policy", () => {
         expect(screen.getByTestId("transparency-notice").textContent).toBe(
             "transparencyTab.upload.uploaded"
         )
-        expect(screen.getByTestId("event-policy-id").textContent).toBe(summary.id)
-        expect(screen.getByTestId("event-policy-words").textContent).toBe(summary.words.join(" "))
+        expect(screen.getByTestId("event-policy-id").textContent).toBe(
+            verify.policyIdDisplay(summary.id)
+        )
         expect(screen.queryByTestId("policy-preview")).toBeNull()
         expect(screen.queryByTestId("draft-policy")).toBeNull()
         expect(changed).toHaveBeenCalledTimes(1)
@@ -322,7 +350,7 @@ describe("the trust policy", () => {
         })
 
         expect((await screen.findByTestId("candidate-policy-id")).textContent).toBe(
-            verify.parsePolicy(policyText()).id
+            verify.policyIdDisplay(verify.parsePolicy(policyText()).id)
         )
     })
 
@@ -351,7 +379,7 @@ describe("the trust policy", () => {
         expect(container.querySelector("img")).toBeNull()
     })
 
-    it("names the draft's words when a draft is pasted", async () => {
+    it("names the draft's hash when a draft is pasted", async () => {
         answer(publicDraft())
         await renderTab()
 
@@ -359,7 +387,7 @@ describe("the trust policy", () => {
 
         expect(screen.getByTestId("policy-is-draft").textContent).toBe(
             `transparencyTab.upload.draft ${JSON.stringify({
-                words: draftWords(draftPolicyText()).join(" "),
+                id: draftId(draftPolicyText()),
             })}`
         )
     })
@@ -394,14 +422,38 @@ describe("the trust policy", () => {
         expect(screen.getByTestId("policy-preview")).toBeTruthy()
     })
 
+    it("copies the policy ID in its 13 groups, and its short form on its own", async () => {
+        const signed = policyText()
+        const summary = verify.policySummary(verify.parsePolicy(signed))
+        answer(publicDraft({policy: signed, policy_id: policyHexOf(signed)}))
+        await renderTab()
+
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("event-policy-copy-id"))
+        })
+        expect(writeText).toHaveBeenLastCalledWith(verify.policyIdDisplay(summary.id))
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("event-policy-copy-short-id"))
+        })
+        expect(writeText).toHaveBeenLastCalledWith(verify.shortPolicyId(summary.id))
+    })
+
     it("shows the event's policy and offers to upload a successor", async () => {
         const signed = policyText()
         const summary = verify.policySummary(verify.parsePolicy(signed))
         answer(publicDraft({policy: signed, policy_id: policyHexOf(signed)}))
         await renderTab()
 
-        expect(screen.getByTestId("event-policy-id").textContent).toBe(summary.id)
-        expect(screen.getByTestId("event-policy-words").textContent).toBe(summary.words.join(" "))
+        expect(screen.getByTestId("event-policy-id").textContent).toBe(
+            verify.policyIdDisplay(summary.id)
+        )
+        expect(screen.getByTestId("event-policy-short-id").textContent).toBe(
+            verify.shortPolicyId(summary.id)
+        )
+        expect(screen.getByTestId("event-policy").textContent).toContain(
+            "transparencyTab.policy.shortId"
+        )
+        expect(screen.getByTestId("event-policy").textContent).not.toContain(summary.id)
         expect(screen.getByTestId("event-policy").textContent).toContain("acme-2026")
         expect(screen.queryByTestId("policy-id-mismatch")).toBeNull()
         expect(screen.queryByTestId("draft-policy")).toBeNull()
@@ -432,8 +484,8 @@ describe("the trust policy", () => {
         expect(screen.getByTestId("draft-policy").textContent).toContain(
             "transparencyTab.policy.changedDraft"
         )
-        expect(screen.getByTestId("draft-words").textContent).toBe(
-            draftWords(draftPolicyText({name: "acme-2027"})).join(" ")
+        expect(screen.getByTestId("draft-id").textContent).toBe(
+            draftId(draftPolicyText({name: "acme-2027"}))
         )
     })
 
@@ -564,7 +616,10 @@ describe("the overview", () => {
             `transparencyTab.overview.health.quorum ${JSON.stringify({k: 2, n: 3})}`
         )
         expect(summary).toContain(
-            `transparencyTab.overview.health.hubs ${JSON.stringify({count: 2, independent: 2})}`
+            `transparencyTab.overview.health.hubs ${JSON.stringify({count: 2})}`
+        )
+        expect(summary).toContain(
+            `transparencyTab.overview.health.hubsOutside ${JSON.stringify({count: 2})}`
         )
         expect(summary).not.toContain("transparencyTab.overview.health.locked")
         expect(screen.queryByTestId("transparency-health-issues")).toBeNull()
@@ -662,6 +717,22 @@ describe("the overview", () => {
         )
     })
 
+    it("states the hub rule, and says who runs each hub without judging them", async () => {
+        const rule = policyText({platform: "hubco2", anchorHubs: true})
+        answer(publicDraft({policy: rule, policy_id: policyHexOf(rule)}))
+        await renderTab()
+
+        expect(screen.getByTestId("overview-hub-rule").textContent).toBe(
+            `transparencyTab.overview.anchoring.rule ${JSON.stringify({min: 2, outside: 1})}`
+        )
+        const hub = screen.getByTestId("overview-hub-h2").textContent
+        expect(hub).toContain(`transparencyTab.overview.runBy ${JSON.stringify({party: "hubco2"})}`)
+        expect(hub).not.toContain("independent")
+        expect(screen.getByTestId("transparency-health-summary").textContent).toContain(
+            `transparencyTab.overview.health.hubsOutside ${JSON.stringify({count: 1})}`
+        )
+    })
+
     it("marks no milestone as committed, since the logs don't report them", async () => {
         answer(ok())
         await renderTab()
@@ -740,6 +811,82 @@ describe("the overview", () => {
         expect(screen.queryByTestId("transparency-policy")).toBeNull()
         expect(screen.queryByTestId("transparency-logs")).toBeNull()
         expect(screen.getByTestId("enable-transparency")).toBeTruthy()
+    })
+})
+
+describe("updates from hubs", () => {
+    const signed = policyText({hubExplorers: true})
+
+    it("are offered once transparency is on and the policy is sealed, with the event's own settings", async () => {
+        answer(publicDraft({policy: signed, policy_id: policyHexOf(signed)}))
+        await renderTab({
+            presentation: {hub_updates: {confirmation: "off"}},
+            canChangeHubUpdates: true,
+        })
+
+        expect(screen.getByTestId("hub-updates")).toBeTruthy()
+        const confirmation = screen.getByRole("switch", {
+            name: "transparencyTab.hubUpdates.confirmation.label",
+        }) as HTMLInputElement
+        expect(confirmation.checked).toBe(false)
+        expect(confirmation.disabled).toBe(false)
+        expect(screen.getByTestId("hub-updates-hub-h1")).toBeTruthy()
+        expect(screen.getByTestId("hub-updates-hub-h2")).toBeTruthy()
+    })
+
+    it("are changed as the election-event-write role, and the record is read again", async () => {
+        const changed = jest.fn()
+        setHubUpdates.mockResolvedValue({
+            data: {
+                update_sequent_backend_election_event_by_pk: {
+                    id: EVENT_ID,
+                    hub_updates: {confirmation: "on", cast_email: "off"},
+                },
+            },
+        })
+        answer(publicDraft({policy: signed, policy_id: policyHexOf(signed)}))
+        await renderTab({canChangeHubUpdates: true, onChanged: changed})
+
+        expect(useMutation).toHaveBeenCalledWith(expect.stringContaining("SetHubUpdates"), {
+            context: {headers: {"x-hasura-role": "election-event-write"}},
+        })
+        await act(async () => {
+            fireEvent.click(
+                screen.getByRole("switch", {name: "transparencyTab.hubUpdates.castEmail.label"})
+            )
+        })
+        expect(setHubUpdates).toHaveBeenCalledWith({
+            variables: {
+                electionEventId: EVENT_ID,
+                patch: {hub_updates: {confirmation: "on", cast_email: "off"}},
+            },
+        })
+        expect(changed).toHaveBeenCalledTimes(1)
+    })
+
+    it("are locked for an admin who may not change the event", async () => {
+        answer(publicDraft({policy: signed, policy_id: policyHexOf(signed)}))
+        await renderTab()
+
+        const castEmail = screen.getByRole("switch", {
+            name: "transparencyTab.hubUpdates.castEmail.label",
+        }) as HTMLInputElement
+        expect(castEmail.disabled).toBe(true)
+        expect(screen.getByTestId("hub-updates-read-only")).toBeTruthy()
+    })
+
+    it("say there is no hub to offer while the policy has not been sealed", async () => {
+        answer(publicDraft())
+        await renderTab({canChangeHubUpdates: true})
+
+        expect(screen.getByTestId("hub-updates-no-hubs")).toBeTruthy()
+    })
+
+    it("are not offered while transparency is off", async () => {
+        answer(output())
+        await renderTab({canChangeHubUpdates: true})
+
+        expect(screen.queryByTestId("hub-updates")).toBeNull()
     })
 })
 

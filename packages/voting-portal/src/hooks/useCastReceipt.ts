@@ -62,10 +62,12 @@ export interface ICastReceipt {
 }
 
 /** The receipt of the ballot just cast: checked, upgraded while the page is
- * open, and kept on this device unless it is a kiosk or the voter said no. */
+ * open, and kept on this device unless it is a kiosk or the voter said no.
+ * Without `vitrine` (the event has no transparency, the ballot is a demo, or
+ * the page does not know the ballot yet) there is nothing to check. */
 export const useCastReceipt = (
     target: IReceiptBallot,
-    vitrine: IConfirmationVitrine
+    vitrine: IConfirmationVitrine | undefined
 ): ICastReceipt => {
     const client = useApolloClient()
     const {isKiosk, userId} = useContext(AuthContext)
@@ -75,6 +77,7 @@ export const useCastReceipt = (
     const {eventId, electionId, trackingId} = target
 
     useEffect(() => {
+        if (!vitrine) return
         const controller = new AbortController()
         const run = async () => {
             const ballotId = await trackingDigestHex(trackingId)

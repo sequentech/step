@@ -13,6 +13,7 @@ import {styled} from "@mui/material/styles"
 import {translateHtml} from "@sequentech/ui-core"
 import {typedBallotId} from "../../services/vitrine/ballotId"
 import {rejectedBallotId} from "../../services/vitrine/ballotTracker"
+import {isPolicyIdTyped} from "../../services/vitrine/policyId"
 import {CHECK_COLORS} from "../Vitrine/BallotStatusIcon"
 import {MONO, PALETTE, PHONE} from "./trackerStyle"
 
@@ -193,6 +194,10 @@ export interface ITrackerSearchProps {
     onSubmit: () => void
     /** Whether the field holds an ID to find a ballot by. */
     canSubmit: boolean
+    /** The election's policy ID (`sha256:` and hex). It looks like a Tracking ID, so when the
+     * field holds it, the field says what it is and finds no ballot (design
+     * board PolicyId). */
+    policyId?: string
     /** The ballots that share the short ID, to choose from. */
     children?: React.ReactNode
 }
@@ -202,10 +207,12 @@ export const TrackerSearch: React.FC<ITrackerSearchProps> = ({
     onChange,
     onSubmit,
     canSubmit,
+    policyId,
     children,
 }) => {
     const {t} = useTranslation()
     const [rejected, setRejected] = useState(false)
+    const policyIdTyped = isPolicyIdTyped(value, policyId)
 
     return (
         <>
@@ -337,7 +344,7 @@ export const TrackerSearch: React.FC<ITrackerSearchProps> = ({
                                     onChange(typedBallotId(event.target.value))
                                 }}
                                 onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) => {
-                                    if (event.key === "Enter") onSubmit()
+                                    if (event.key === "Enter" && !policyIdTyped) onSubmit()
                                 }}
                                 sx={{
                                     "flex": 1,
@@ -355,7 +362,7 @@ export const TrackerSearch: React.FC<ITrackerSearchProps> = ({
                             />
                             <FindButton
                                 className="locate-ballot-button"
-                                disabled={!canSubmit}
+                                disabled={!canSubmit || policyIdTyped}
                                 onClick={onSubmit}
                             >
                                 <span className="locate-ballot-label">
@@ -427,7 +434,21 @@ export const TrackerSearch: React.FC<ITrackerSearchProps> = ({
                                 </>
                             ) : null}
                         </Box>
-                        {rejected ? null : (
+                        {rejected ? null : policyIdTyped ? (
+                            <Box
+                                className="ballot-id-help ballot-id-policy-id"
+                                id={HELP_ID}
+                                role="status"
+                                sx={{
+                                    margin: "12px 0 0 4px",
+                                    fontSize: 14,
+                                    lineHeight: "20px",
+                                    color: PALETTE.muted,
+                                }}
+                            >
+                                {t("ballotLocator.policyId")}
+                            </Box>
+                        ) : (
                             <Box
                                 className="ballot-id-help"
                                 id={HELP_ID}

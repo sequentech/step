@@ -32,6 +32,8 @@ const frenchTranslation: TranslationType = {
             noBallots: "Aucun bulletin n’a encore été envoyé.",
             invalidPrefix:
                 "Saisissez au moins 8 caractères d’un identifiant de suivi avec un trait d’union, comme FTBE-MHRX, ou jusqu’à 8 d’un pseudonyme avec deux-points, comme K7QM:2XWD. Les codes utilisent les chiffres de 0 à 9 et des lettres majuscules, sans I, L, O ni U.",
+            policyId:
+                "C’est l’identifiant de la politique de cette élection. L’identifiant de suivi d’un bulletin figure sur votre reçu.",
             stages: {
                 received: {
                     label: "Reçu",
@@ -625,6 +627,8 @@ const frenchTranslation: TranslationType = {
             filterByBallotId: "Filtrez par identifiant de suivi",
             totalBallots: "Total: {{total}}",
             idHelp: "L'identifiant de suivi court, comme FTBE-MHRX, ou l'identifiant complet",
+            policyId:
+                "C’est l’identifiant de la politique de cette élection. L’identifiant de suivi d’un bulletin figure sur votre reçu.",
             foundShort:
                 "Trouvé grâce à son identifiant court. Pour être certain que c'est le vôtre, comparez l'identifiant de suivi complet avec votre reçu.",
             search: {
@@ -641,7 +645,7 @@ const frenchTranslation: TranslationType = {
                 features: {
                     cast: {
                         title: "Bulletins émis",
-                        text: "Vérifiez qu'il figure dans le registre public, confirmé par des témoins indépendants et ancré publiquement.",
+                        text: "Vérifiez qu'il figure dans le registre public, confirmé par des témoins et ancré publiquement.",
                     },
                     audited: {
                         title: "Bulletins audités",
@@ -654,13 +658,99 @@ const frenchTranslation: TranslationType = {
                 },
             },
             matches: {
-                title: "{{total}} bulletins partagent l'identifiant court <b>{{shortId}}</b>. Choisissez le vôtre, ou saisissez l'identifiant de suivi complet.",
                 cast: "Émis le {{time}}",
                 audited: "Audité le {{time}}",
             },
+            shortId: {
+                head: {
+                    one: "1 bulletin commence par {{start}}",
+                    other: "{{count}} bulletins commencent par {{start}}",
+                    atLeast: "{{count}} bulletins ou plus commencent par {{start}}",
+                    mine: "Votre bulletin, et {{count}} autres qui commencent par {{start}}",
+                    mineAlone: "Votre bulletin commence par {{start}}",
+                },
+                sub: {
+                    few: "Lequel est le vôtre ? Comparez le groupe en surbrillance avec votre reçu, ou saisissez-le ci-dessous.",
+                    one: "Ouvrez-le, puis comparez son identifiant de suivi complet avec votre reçu.",
+                    many: "C'est plus que ce que nous listons. Saisissez le troisième groupe de votre reçu pour trouver le vôtre.",
+                    mine: "Cet appareil conserve votre reçu, il sait donc lequel est le vôtre.",
+                },
+                why: {
+                    few: "Un identifiant court trouve des bulletins. Seul l'identifiant de suivi complet, ou le reçu de votre propre appareil, dit lequel est le vôtre.",
+                    many: "Autant signifie souvent que quelqu'un a fabriqué des bulletins pour correspondre à cet identifiant court exprès. Le vôtre est toujours dans le registre : faire aussi correspondre trois groupes demanderait environ un milliard de milliards d'essais.",
+                    mine: "Les autres appartiennent à d'autres électeurs. Ils sont listés pour qu'un bulletin ressemblant ne puisse pas passer pour le vôtre.",
+                },
+                third: "Troisième groupe de votre reçu",
+                thirdOr: "Ou saisissez le troisième groupe de votre reçu",
+                find: "Chercher",
+                onDevice: "Sur cet appareil",
+                deviceMatches: "Le reçu de cet appareil correspond aux 13 groupes",
+                serverSees:
+                    "Les serveurs du registre n'ont pas pu faire cette recherche sans savoir quel bulletin vous voulez ; le serveur de l'élection a donc reçu cet identifiant exact et a pu le voir.",
+            },
             audit: {
-                title: "Vos sélections, décodées",
-                note: "Votre navigateur a déchiffré ce bulletin audité avec la clé révélée par le portail. Si ce ne sont pas les sélections que vous avez faites, contactez l'autorité électorale.",
+                kicker: "Audit du bulletin",
+                title: "Vérifiez que votre bulletin a été chiffré comme vous l’avez choisi",
+                note: "Voici le bulletin que vous avez audité, décodé par votre navigateur. Vous seul savez ce que vous avez choisi : vous seul pouvez donc faire cette vérification.",
+                steps: {
+                    label: "Comment fonctionne la vérification",
+                    encrypted: {
+                        title: "Chiffré sur votre appareil",
+                        text: "Le portail a chiffré vos choix et a donné au bulletin son identifiant de suivi, avant que vous décidiez de l’auditer.",
+                    },
+                    decoded: {
+                        title: "Décodé ici",
+                        text: "En auditant, vous avez fait révéler son secret au portail. Votre navigateur a décodé le bulletin avec lui et l’a comparé au registre public.",
+                    },
+                    compare: {
+                        title: "Vous comparez",
+                        text: "Regardez les choix ci-dessous. Sont-ils ceux que vous avez faits ?",
+                    },
+                },
+                choices: "Choix décodés de ce bulletin",
+                question: "Correspondent-ils à ce que vous avez choisi ?",
+                yes: "Oui, ils correspondent",
+                no: "Non, quelque chose est différent",
+                change: "Changer ma réponse",
+                match: {
+                    title: "Votre bulletin a été chiffré comme vous l’avez choisi",
+                    text: "Ce bulletin audité est maintenant épuisé : il n’a jamais été déposé et ne sera jamais compté. Retournez voter. Votre vote recevra un nouvel identifiant de suivi, et vous pouvez auditer à nouveau avant si vous le souhaitez.",
+                    vote: "Retourner voter",
+                },
+                mismatch: {
+                    title: "Ne votez pas sur cet appareil",
+                    text: "Ce qui a été chiffré n’est pas ce que vous avez choisi : cet appareil ou le portail de vote a peut-être été altéré. Votre navigateur a conservé la preuve : le bulletin chiffré du registre public, le secret révélé par le portail et ce qu’il décode.",
+                    report: "Signalez-le à l’autorité électorale",
+                    reportNoContact: "Signalez-le à l’autorité électorale.",
+                    fromPolicy: "Tiré de la politique publiée de l’élection, pas de cette page.",
+                    fromSettings: "Tiré des paramètres de l’élection.",
+                    then: "Votez ensuite depuis un autre appareil.",
+                    save: "Enregistrer la preuve",
+                    email: "Écrire à l’autorité",
+                    emailSubject: "Mon bulletin audité ne se décode pas en mes choix",
+                    emailBody:
+                        "J’ai audité un bulletin lors de cette élection et les choix décodés par mon navigateur ne sont pas ceux que j’ai faits.\n\nIdentifiant de suivi : {{id}}\n\nJ’ai enregistré la preuve dans un fichier et je peux l’envoyer.",
+                },
+                how: "Comment ça marche ?",
+                faq: {
+                    why: {
+                        question: "Pourquoi auditer ?",
+                        answer: "Votre vote est chiffré sur votre appareil : personne ne peut le lire, pas même vous. L’audit vous permet de vérifier que le portail a chiffré ce que vous avez choisi avant que vous votiez pour de bon.",
+                    },
+                    catch: {
+                        question: "Pourquoi cela détecte-t-il la triche ?",
+                        answer: "Le portail chiffre avant que vous décidiez d’auditer : il ne peut pas savoir quels bulletins seront vérifiés. S’il modifiait des votes, chaque électeur qui audite pourrait s’en apercevoir.",
+                    },
+                    spent: {
+                        question: "Pourquoi ce bulletin ne peut-il pas être compté ?",
+                        answer: "Son secret révélé, le bulletin montre comment vous avez voté. Pour garder votre vote secret, un bulletin audité n’est jamais déposé.",
+                    },
+                    differ: {
+                        question: "Et s’ils ne correspondent pas ?",
+                        answer: "Ne votez pas sur cet appareil. Enregistrez la preuve et signalez-la à l’autorité électorale, dont le contact provient de la politique de l’élection. Votez ensuite depuis un autre appareil.",
+                    },
+                    tip: "Pour la vérification la plus solide, ouvrez cette page sur un autre appareil que celui avec lequel vous avez voté, par exemple votre téléphone. Un appareil qui aurait modifié votre bulletin pourrait aussi modifier ce qu’il vous montre ici.",
+                },
                 failed: {
                     title: "Échec de l'audit",
                     text: "Le bulletin figurant dans le registre public ne se déchiffre pas avec la clé révélée par le portail. Ne votez pas depuis cet appareil ; informez l'autorité électorale.",
@@ -702,7 +792,7 @@ const frenchTranslation: TranslationType = {
                 saveEvidence: "Enregistrer la preuve",
                 howToReport: "Comment le signaler",
                 howToReportText:
-                    "Enregistrez le fichier de la preuve et envoyez-le à l'autorité électorale ou à un observateur indépendant. Ils peuvent le vérifier sur leurs propres ordinateurs. Il ne contient rien sur la façon dont vous avez voté.",
+                    "Enregistrez le fichier de la preuve et envoyez-le à l'autorité électorale ou à un observateur. Ils peuvent le vérifier sur leurs propres ordinateurs. Il ne contient rien sur la façon dont vous avez voté.",
                 noReceipt:
                     "Cet appareil n'a pas de reçu pour ce bulletin. Vérifiez-le sur l'appareil avec lequel vous avez voté, ou vérifiez le fichier du reçu dans le vérificateur de bulletins.",
                 receiptPending:
@@ -726,7 +816,7 @@ const frenchTranslation: TranslationType = {
                     },
                     verified: {
                         head: "Vérifié",
-                        sub: "Dans le registre public, confirmé par des témoins indépendants et ancré publiquement.",
+                        sub: "Dans le registre public, confirmé par des témoins et ancré publiquement.",
                     },
                     late: {
                         head: "Plus long que prévu",
@@ -750,7 +840,7 @@ const frenchTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Confirmé par des témoins",
-                        done: "Des témoins indépendants ont signé un registre qui l'inclut.",
+                        done: "Des témoins ont signé un registre qui l'inclut.",
                         count: "{{signed}} sur {{total}} · {{needed}} requis",
                         countOf: "{{signed}} sur {{total}}",
                     },
@@ -801,12 +891,31 @@ const frenchTranslation: TranslationType = {
             },
         },
         vitrine: {
+            hubProblems: {
+                title: {
+                    one: "Un hub signale un problème pour cette élection",
+                    other: "{{count}} problèmes sont signalés pour cette élection",
+                },
+                listedBy: "Signalé par {{hubs}}",
+                proof: "Voir la preuve",
+                note: "Cet avis est une commodité de ce site, et une liste n'est qu'un renvoi : ouvrez la preuve pour la vérifier dans votre navigateur. Les hubs vous le disent aussi, par courriel, sur leurs propres sites et dans l'extension, que ce site le fasse ou non.",
+                kind: {
+                    splitView: "Deux versions du registre",
+                    brokenPromise: "Une entrée promise manque",
+                    breaksRules: "Une entrée enfreint les règles",
+                    twoPolicies: "Deux politiques",
+                    unloggedCode: "Du code qui n'est pas journalisé",
+                    other: "Un problème enregistré par un hub",
+                },
+            },
             ballotId: {
                 label: "Identifiant de suivi",
                 full: "Identifiant de suivi complet",
                 yours: "Votre identifiant de suivi :",
                 copy: "Copier l’identifiant de suivi complet",
                 copied: "Identifiant de suivi copié",
+                copyText: "Copier",
+                copiedText: "Copié",
                 showFull: "Afficher l’identifiant de suivi complet",
                 selected: "Sélectionné. Appuyez sur Ctrl+C, ou ⌘C sur Mac, pour le copier.",
                 copyByHand:
@@ -814,8 +923,8 @@ const frenchTranslation: TranslationType = {
             },
             elsewhere: {
                 title: "Chercher ailleurs",
-                count_one: "{{count}} explorateur, {{independent}} indépendant",
-                count_other: "{{count}} explorateurs, {{independent}} indépendants",
+                count_one: "{{count}} explorateur",
+                count_other: "{{count}} explorateurs",
                 introBallot:
                     "Des explorateurs gérés par des tiers lisent eux-mêmes le registre public. Chacun devrait retrouver votre bulletin, avec les mêmes vérifications, sans ce site.",
                 introEntry:
@@ -823,13 +932,11 @@ const frenchTranslation: TranslationType = {
                 foot: "La liste provient de la politique de l’élection. Tout explorateur Vitrine peut ouvrir le même registre : donnez-lui l’identifiant de suivi complet.",
                 name: "Explorateur de {{name}}",
                 operatorName: "Explorateur de l’élection",
-                independent: "Indépendant",
-                operator: "Opérateur",
                 newTab: "S’ouvre dans un nouvel onglet",
                 who: {
-                    monitor: "Un moniteur cité dans la politique de l’élection",
-                    hub: "Un hub d’ancrage cité dans la politique de l’élection",
-                    operator: "Géré par l’autorité électorale",
+                    monitor: "Géré par {{party}}, un moniteur cité dans la politique de l’élection",
+                    hub: "Géré par {{party}}, un hub d’ancrage cité dans la politique de l’élection",
+                    operator: "Géré par l’autorité électorale, qui organise cette élection",
                 },
             },
             status: {
@@ -878,9 +985,9 @@ const frenchTranslation: TranslationType = {
                     recorded:
                         "Votre navigateur a trouvé votre bulletin dans le registre public. Les témoins le confirment ensuite.",
                     witnessed:
-                        "Des témoins indépendants ont confirmé le registre. Les ancrages publics suivent d’ici {{minutes}} minutes ; inutile d’attendre.",
+                        "Des témoins ont confirmé le registre. Les ancrages publics suivent d’ici {{minutes}} minutes ; inutile d’attendre.",
                     verified:
-                        "Votre bulletin figure dans le registre public, confirmé par des témoins indépendants et ancré publiquement.",
+                        "Votre bulletin figure dans le registre public, confirmé par des témoins et ancré publiquement.",
                     late: "Votre bulletin figure dans le registre public et confirmé par les témoins, mais ses ancrages publics sont en retard.",
                     lateStep:
                         "Une étape prend plus de temps que prévu. Ce n’est pas une preuve de falsification, et votre navigateur continue de vérifier.",
@@ -907,7 +1014,7 @@ const frenchTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Confirmé par des témoins",
-                        upcoming: "Des témoins indépendants signent un registre qui l’inclut.",
+                        upcoming: "Des témoins signent un registre qui l’inclut.",
                     },
                     anchors: {
                         title: "Ancré publiquement",
@@ -923,12 +1030,14 @@ const frenchTranslation: TranslationType = {
                     recorded: "Votre navigateur a vérifié sa preuve.",
                     recordedEntry: "Entrée n° {{index}}. Votre navigateur a vérifié sa preuve.",
                     witnessed:
-                        "Assez de témoins indépendants de la politique ({{count}}) ont signé un registre qui l’inclut.",
+                        "Assez de témoins de la politique ({{count}}) ont signé un registre qui l’inclut.",
                     anchoredWaict:
                         "Dans les nœuds publics ({{count}}) et là où les navigateurs vérifient.",
                     anchoredBootstrap:
                         "Dans les nœuds publics ({{count}}) et là où les navigateurs vérifient, par un nœud de substitution pour l’instant.",
                     anchoredHubs: "Dans les nœuds publics ({{count}}).",
+                    anchoredOneHub: "Ancré dans 1 nœud, géré par {{party}}.",
+                    anchoredOneHubPlatform: "Ancré dans 1 nœud, géré par la plateforme.",
                     lateNow: "Cela devrait déjà être fait.",
                     lateStep: "Cela devrait être fait à {{time}}.",
                     lateAnchors: "Les nœuds auraient dû l’ancrer à {{time}}.",
@@ -977,6 +1086,56 @@ const frenchTranslation: TranslationType = {
                         "Contrôlé par votre navigateur, avec un code que chacun peut inspecter.",
                     kept: "Cet appareil conserve le justificatif et le vérifie de nouveau à chaque visite.",
                 },
+            },
+            signers: {
+                witnesses: {open: "Qui a signé", close: "Masquer qui a signé"},
+                hubs: {open: "Quels nœuds", close: "Masquer quels nœuds"},
+                runBy: "Géré par {{party}}",
+                runByAlso: "Géré par {{party}}, qui gère aussi {{hubs}}",
+                signed: "Signé à {{time}}",
+                signedNoTime: "Signé",
+                notYet: "Pas encore",
+                late: "En retard",
+                anchored: "Ancré à {{time}}",
+                anchoredNoTime: "Ancré",
+                within: "Sous {{minutes}} min",
+                check: "Vérifier sur son site",
+                checkWitness:
+                    "Vérifier sur son site : témoin {{name}} (s’ouvre dans un nouvel onglet)",
+                checkHub: "Vérifier sur son site : nœud {{name}} (s’ouvre dans un nouvel onglet)",
+                linksNote:
+                    "« Vérifier sur son site » ouvre l’explorateur du signataire lui-même, qui y vérifie cette signature.",
+                standIn: {
+                    name: "Là où les navigateurs vérifient",
+                    who: "Un nœud de substitution, pour l’instant",
+                },
+                rule: {
+                    witnesses:
+                        "La politique exige que {{needed}} de ses {{total}} témoins signent. {{signed}} ont signé.",
+                    witnessesAlone:
+                        "La politique exige que {{needed}} de ses {{total}} témoins signent, et aucune partie n’en gère autant. {{signed}} ont signé.",
+                    witnessesCount: "{{signed}} des {{total}} témoins de la politique ont signé.",
+                    hubs: "Les {{count}} nœuds doivent ancrer le registre, et au moins {{independent}} doivent être gérés par quelqu’un d’autre que l’autorité électorale.",
+                    hubsPlatform:
+                        "Les {{count}} nœuds doivent ancrer le registre, et au moins {{independent}} doivent être gérés par quelqu’un qui n’est ni l’autorité électorale ni la plateforme.",
+                    hubsAll: "Les {{count}} nœuds doivent ancrer le registre.",
+                    oneHub: "La politique ne nomme qu’un seul nœud, géré par {{party}}.",
+                    oneHubPlatform:
+                        "La politique ne nomme qu’un seul nœud, géré par la plateforme.",
+                },
+            },
+            updates: {
+                title: "Recevez des mises à jour par e-mail sur ce bulletin",
+                description:
+                    "Quand il est confirmé et quand il est compté, ou si un problème est enregistré. Choisissez n’importe quel nœud : chacun vérifie le registre lui-même.",
+                listLabel: "Nœuds de la politique de cette élection",
+                runBy: "Géré par {{party}}",
+                hubLabel:
+                    "{{name}}, géré par {{party}} : recevoir des mises à jour par e-mail sur son propre site (s’ouvre dans un nouvel onglet)",
+                footnote:
+                    "Les nœuds que nomme la politique de l’élection, dans un ordre aléatoire à chaque fois. Chacun s’ouvre sur son propre site avec votre reçu dans le lien ; rien n’est partagé tant que vous n’avez pas choisi quoi suivre là-bas.",
+                footnoteNoReceipt:
+                    "Les nœuds que nomme la politique de l’élection, dans un ordre aléatoire à chaque fois. Chacun s’ouvre sur son propre site ; rien n’est partagé tant que vous n’avez pas choisi quoi suivre là-bas.",
             },
             booth: {
                 title: "Votre bulletin ne peut pas encore être préparé",

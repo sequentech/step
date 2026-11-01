@@ -152,6 +152,12 @@ const subproof = (leaves: Uint8Array[], m: number, whole: boolean): Uint8Array[]
         : [...subproof(leaves.slice(k), m - k, false), merkle.treeRoot(leaves.slice(0, k))]
 }
 
+/** A witness and the time it cosigns a checkpoint. */
+export interface ITestCosigner {
+    key: ITestKey
+    time: number
+}
+
 export class TestLog {
     readonly entries: Uint8Array[] = []
 
@@ -180,8 +186,12 @@ export class TestLog {
     }
 
     /** The checkpoint at `size`, signed by the log, dated by its log-time key
-     * and cosigned at `time`. */
-    checkpoint(size: number, witnesses: readonly ITestKey[], time: number = NOW - 10): string {
+     * and cosigned at `time`, or by each witness at its own time. */
+    checkpoint(
+        size: number,
+        witnesses: readonly (ITestKey | ITestCosigner)[],
+        time: number = NOW - 10
+    ): string {
         const text = this.checkpointText(size)
         const logSig = {
             name: this.key.name,
@@ -191,7 +201,9 @@ export class TestLog {
         return notes.formatNote(text, [
             logSig,
             cosignature(this.logTime, time, text),
-            ...witnesses.map((w) => cosignature(w, time, text)),
+            ...witnesses.map((w) =>
+                "time" in w ? cosignature(w.key, w.time, text) : cosignature(w, time, text)
+            ),
         ])
     }
 
@@ -207,7 +219,7 @@ export class TestLog {
     receipt(
         index: number,
         size: number,
-        witnesses: readonly ITestKey[],
+        witnesses: readonly (ITestKey | ITestCosigner)[],
         time: number = NOW - 10
     ): string {
         return proofs.formatTlogProof({

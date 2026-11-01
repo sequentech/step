@@ -249,9 +249,19 @@ const LogsTab: React.FC = () => (
 const TransparencyTab: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const refresh = useRefresh()
+    const authContext = useContext(AuthContext)
     return (
         <Suspense fallback={<div>Loading Transparency...</div>}>
-            <EditElectionEventTransparency electionEventId={record?.id} onChanged={refresh} />
+            <EditElectionEventTransparency
+                electionEventId={record?.id}
+                presentation={record?.presentation}
+                canChangeHubUpdates={authContext.isAuthorized(
+                    true,
+                    authContext.tenantId,
+                    IPermissions.ELECTION_EVENT_WRITE
+                )}
+                onChanged={refresh}
+            />
         </Suspense>
     )
 }

@@ -34,12 +34,13 @@ import Tabs from "@mui/material/Tabs"
 import Tab from "@mui/material/Tab"
 import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
 import {BallotIdField} from "../components/BallotLocator/BallotIdField"
-import {BallotMatches, EMatchesLook, IBallotMatch} from "../components/BallotLocator/BallotMatches"
+import {ShortIdMatches, ShortIdServerNote} from "../components/BallotLocator/ShortIdMatches"
 import {TrackerAudit} from "../components/BallotLocator/TrackerAudit"
 import {TrackerResult} from "../components/BallotLocator/TrackerResult"
 import {TrackerSearch} from "../components/BallotLocator/TrackerSearch"
 import {PHONE} from "../components/BallotLocator/trackerStyle"
 import {useTrackedReceipt} from "../hooks/useTrackedReceipt"
+import {useShortIdMatches} from "../hooks/useShortIdMatches"
 import {useVitrinePolicy} from "../hooks/useVitrinePolicy"
 import {
     ballotIdChars,
@@ -48,6 +49,8 @@ import {
     shortBallotId,
     typedBallotId,
 } from "../services/vitrine/ballotId"
+import {authorityContact} from "../services/vitrine/auditEvidence"
+import {EShortIdKind, EShortIdStatus} from "../services/vitrine/shortId"
 import {auditBallot, EAuditOutcome, provideAuditService} from "../services/vitrine/ballotAudit"
 import {
     acceptedAtOf,
@@ -148,21 +151,6 @@ function isHex(str: string) {
     const regex = /^[0-9a-fA-F]+$/
     return regex.test(str)
 }
-
-const matchOf = (vote: {
-    ballot_id?: string | null
-    created_at?: string | null
-    content?: string | null
-}): IBallotMatch[] =>
-    vote.ballot_id
-        ? [
-              {
-                  ballotId: vote.ballot_id,
-                  kind: classifyRecord(vote.content).kind,
-                  ...(vote.created_at ? {createdAt: vote.created_at} : {}),
-              },
-          ]
-        : []
 
 interface IBackButtonProps {
     to: string
@@ -791,6 +779,15 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
 
     const election = dataElections?.sequent_backend_election.find((item) => item.id === electionId)
     const ballotLookup = ballotLookupOf(ballotId)
+    const showTracker = transparency.mode !== ETransparencyMode.DISABLED
+    // A short ID is first looked up in a bucket of the record's servers, which
+    // do not learn which ballot it is; the election's server is asked for the
+    // exact ID only when none of them can list buckets.
+    const short = useShortIdMatches(showTracker ? ballotId : undefined, eventId, transparency)
+    const bucketBusy = short.status === EShortIdStatus.LOADING
+    const bucketListing =
+        short.status === EShortIdStatus.DONE &&
+        (short.result?.kind === EShortIdKind.LISTED || short.result?.kind === EShortIdKind.MANY)
 
     const {
         data,
@@ -806,13 +803,15 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
         skip:
             globalSettings.DISABLE_AUTH ||
             !hasBallotId ||
+            bucketBusy ||
+            bucketListing ||
             electionEventLoading ||
             loadingElections ||
             checksPeriod.status === EChecksPeriodStatus.ENDED,
     })
 
     const lookupLoading = loadingElections || locating
-    const lookupDone = hasBallotId && !lookupLoading && !electionEventLoading
+    const lookupDone = hasBallotId && !lookupLoading && !electionEventLoading && !bucketBusy
     const validatedBallotId = isBallotIdInput(inputBallotId ?? "")
 
     const located = data?.locate_ballot
@@ -842,8 +841,7 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
               }
             : undefined
     const ballotContent = foundBallot?.content ?? null
-    const searching = !hasBallotId || ambiguousBallotId
-    const showTracker = transparency.mode !== ETransparencyMode.DISABLED
+    const searching = !hasBallotId || ambiguousBallotId || bucketBusy || bucketListing
     const eventPolicy = useVitrinePolicy(transparency)
     const trackedBallotId = foundBallot?.ballot_id ?? undefined
     const showTrackerResult = showTracker && !!trackedBallotId
@@ -873,7 +871,8 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
     const language = i18n.resolvedLanguage || i18n.language
     const formatTime = (time: number | string) =>
         formatVotingPortalDateTime(time, electionEvent, language)
-    const locatorPath = `/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator`
+    const electionPath = `/tenant/${tenantId}/event/${eventId}/election/${electionId}`
+    const locatorPath = `${electionPath}/ballot-locator`
     const canLocate = [EBallotIdInput.SHORT, EBallotIdInput.PARTIAL, EBallotIdInput.FULL].includes(
         trackerInput(inputBallotId)
     )
@@ -1027,7 +1026,7 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
                     <Typography className="ballot-checks-ended" component="div">
                         {t("ballotLocator.checksEnded", {date: checksUntilText})}
                     </Typography>
-                ) : lookupDone ? (
+                ) : lookupDone && !bucketListing ? (
                     lookupError ? (
                         <MessageFailed className="ballot-locator-failure">
                             {stringToHtml(t("errors.page.somethingWrong"))}
@@ -1087,6 +1086,12 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
                     )
                 ) : null}
             </Box>
+            {short.status === EShortIdStatus.DONE &&
+            !bucketListing &&
+            lookupDone &&
+            !checksEnded ? (
+                <ShortIdServerNote />
+            ) : null}
             {showTrackerResult && !searching && ballotContent && ballotLookup?.ballotIdPrefix && (
                 <Typography
                     className="ballot-found-short-note"
@@ -1109,14 +1114,22 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
                         onChange={setInputBallotId}
                         onSubmit={() => locate(true)}
                         canSubmit={canLocate}
+                        policyId={eventPolicy?.id}
                     >
-                        <BallotMatches
-                            look={EMatchesLook.CARDS}
-                            matches={[]}
-                            lookedFor={ballotId ?? ""}
-                            hrefOf={(id) => `${locatorPath}/${id}${location.search}`}
-                            formatTime={formatTime}
-                        />
+                        {bucketListing && short.result ? (
+                            <ShortIdMatches
+                                key={short.result.typed}
+                                result={short.result}
+                                hrefOf={(match) =>
+                                    `${locatorPath}/${match.trackingId}${location.search}`
+                                }
+                                formatTime={(seconds) => formatTime(seconds * 1000)}
+                                onNarrow={(typed) => {
+                                    setInputBallotId(typedBallotId(typed))
+                                    navigate(`${locatorPath}/${typed}${location.search}`)
+                                }}
+                            />
+                        ) : null}
                     </TrackerSearch>
                 ) : (
                     <>
@@ -1124,12 +1137,6 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
                             value={inputBallotId}
                             onChange={setInputBallotId}
                             onSubmit={() => locate(true)}
-                        />
-                        <BallotMatches
-                            matches={[]}
-                            lookedFor={ballotId ?? ""}
-                            hrefOf={(id) => `${locatorPath}/${id}${location.search}`}
-                            formatTime={formatTime}
                         />
                     </>
                 ))}
@@ -1151,6 +1158,10 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
                             ballotStyle={record.ballot.config}
                             language={i18n.language}
                             publicBucketUrl={globalSettings.PUBLIC_BUCKET_URL}
+                            ballotId={trackedBallotId}
+                            record={record}
+                            voteHref={`${electionPath}/start${location.search}`}
+                            contact={authorityContact(tracked.view?.policy ?? eventPolicy)}
                         />
                     ) : null}
                 </>

@@ -110,10 +110,15 @@ export interface INamedParty {
 export interface IPolicyFacts {
     visibility: ETransparencyMode
     operator: string
+    /** The `platform` line: the party whose software runs the election. */
+    platform?: string
     quorum: IQuorum
     appHubs: number
-    /** App hubs run by someone other than the operator. */
-    independentHubs: number
+    /** App hubs run by neither the operator nor the platform. */
+    outsideHubs: number
+    /** The policy's `anchor-hubs` rule, when it has one: `min` hubs, at least
+     * `outside` of them run by neither the operator nor the platform. */
+    hubRule?: {min: number; outside: number}
     bootstrapHubs: string[]
     mmd: number
     anchorPeriod: number
@@ -130,6 +135,10 @@ export const witnessQuorum = (set: Pick<Policy["witnesses"], "groups" | "quorum"
     return group ? {k: group.k, n: group.members.length} : {k: 1, n: 1}
 }
 
+/** True when `party` is neither the policy's operator nor its platform. */
+const runByOthers = (policy: Pick<Policy, "operator" | "platform">, party: string): boolean =>
+    party !== policy.operator && party !== policy.platform
+
 export const policyFacts = (policy: Policy): IPolicyFacts => {
     const hubs = Array.from(policy.hubs.values())
     const appHubs = hubs.filter((h) => !h.bootstrap)
@@ -139,7 +148,7 @@ export const policyFacts = (policy: Policy): IPolicyFacts => {
         operator: policy.operator,
         quorum: witnessQuorum(policy.witnesses),
         appHubs: appHubs.length,
-        independentHubs: appHubs.filter((h) => h.operator !== policy.operator).length,
+        outsideHubs: appHubs.filter((h) => runByOthers(policy, h.operator)).length,
         bootstrapHubs: hubs.filter((h) => h.bootstrap).map((h) => h.name),
         mmd: policy.mmd,
         anchorPeriod: policy.anchorPeriod,
@@ -148,6 +157,10 @@ export const policyFacts = (policy: Policy): IPolicyFacts => {
             m.party && m.party !== m.name ? {name: m.name, party: m.party} : {name: m.name}
         ),
         monitorQuorum: policy.monitorQuorum,
+    }
+    if (policy.platform !== undefined) facts.platform = policy.platform
+    if (policy.anchorHubs) {
+        facts.hubRule = {min: policy.anchorHubs.min, outside: policy.anchorHubs.minIndependent}
     }
     if (policy.redaction) {
         facts.redaction = {k: policy.redaction.k, names: [...policy.redaction.names]}
@@ -213,7 +226,6 @@ export const witnessRows = (
 export interface IHubRow {
     name: string
     operator: string
-    independent: boolean
     /** When the hub last received an anchor of any of the logs, in POSIX
      * seconds. */
     lastAnchor?: number
@@ -236,7 +248,6 @@ export const hubRows = (policy: Policy, logs: readonly ILogView[]): IHubRow[] =>
             const row: IHubRow = {
                 name: h.name,
                 operator: h.operator,
-                independent: h.operator !== policy.operator,
             }
             const lastAnchor = lastAnchorOf(h.name, logs)
             if (lastAnchor !== undefined) row.lastAnchor = lastAnchor

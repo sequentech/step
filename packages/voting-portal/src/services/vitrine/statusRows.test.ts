@@ -22,7 +22,7 @@ const resultOf = (
         status: "verified",
         tiers,
         entry: entry ? {log: "ballots", leafHash: "ab", promised: false, ...entry} : undefined,
-        policy: {id: "x", words: [], lang: "en", event: "e", witnesses: [], hubs: [], ...policy},
+        policy: {id: "x", event: "e", witnesses: [], hubs: [], ...policy},
     }) as unknown as ChainResult
 
 const ALL_VERIFIED = [
@@ -65,6 +65,32 @@ describe("the anchors step of a verified ballot", () => {
 
     it("says what the step is when the policy has no hubs", () => {
         expect(anchorsDetail({hubs: []}).key).toBe("vitrine.status.step.anchors.upcoming")
+    })
+
+    describe("with one hub", () => {
+        const hub = {name: "hub-a", operator: "partner", bootstrap: false}
+        const policy = {operator: "sequent", hubs: new Map([["hub-a", hub]])} as unknown as Policy
+        const detail = (platform?: string) =>
+            statusRows({
+                status: EBallotStatus.VERIFIED,
+                result: resultOf(ALL_VERIFIED, {hubs: ["hub-a"], browser: "waict"}),
+                policy,
+                ...(platform ? {platform} : {}),
+            })[2].detail
+
+        it("says it is anchored in 1 hub, and who runs it", () => {
+            expect(detail()).toEqual({
+                key: "vitrine.status.row.anchoredOneHub",
+                values: {party: "partner"},
+            })
+        })
+
+        it("says the platform runs it when the policy names the platform as its operator", () => {
+            expect(detail("partner")).toEqual({
+                key: "vitrine.status.row.anchoredOneHubPlatform",
+                values: {party: "partner"},
+            })
+        })
     })
 })
 

@@ -36,6 +36,7 @@ import {
     upgradeBlocks,
 } from "./receipt"
 import {IVitrineSdk, loadVitrineSdk} from "./sdk"
+import {ISignerTimes, signerTimes} from "./signers"
 import {
     ETransparencyMode,
     EVitrineCastKind,
@@ -89,6 +90,9 @@ export interface IReceiptView {
     /** The receipt chain, once there is a receipt or an accepted promise. */
     chain?: string
     result?: ChainResult
+    /** When the witnesses signed and the hubs anchored the chain's record, as
+     * far as it can be read: what the lists of who signed show. */
+    signers?: ISignerTimes
     /** The voter's entry, when the portal knows its `accepted_at`. */
     own?: IOwnEntry
 }
@@ -219,7 +223,19 @@ class ReceiptRun {
 
     private show(patch: Partial<IReceiptView>): void {
         this.view = {...this.view, ...patch}
+        if ("chain" in patch || "result" in patch) this.readSigners()
         if (!this.aborted) this.o.onView(this.view)
+    }
+
+    /** Who signed what the view's chain holds, once it has a chain and a check. */
+    private readSigners(): void {
+        const {signers: _previous, ...view} = this.view
+        const {chain, result} = view
+        const signers =
+            chain && result
+                ? signerTimes(this.sdk.pure, {policy: this.policy, chain, now: result.now})
+                : undefined
+        this.view = {...view, ...(signers ? {signers} : {})}
     }
 
     private verify(chain: string, expect: Expect): ChainResult | undefined {

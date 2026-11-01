@@ -12,11 +12,13 @@ import {
     ballotEntry,
     ELECTION_ID,
     EVENT_ID,
+    IScenarioOptions,
     KEYS,
     LOG_URLS,
     NOW,
     scenario,
 } from "../fixtures/vitrine"
+import type {IElectionEventPresentation} from "@sequentech/ui-core"
 import type {THttpInit} from "../services/vitrine/http"
 import {readTransparency} from "../services/vitrine/presentation"
 import type {IVitrineCast} from "../services/vitrine/types"
@@ -103,6 +105,8 @@ jest.mock("../services/vitrine/file", () => ({
 
 let mockState: RootState
 let mockIsKiosk = false
+/** The election event's `presentation` as the portal has it, when a test sets one. */
+let mockPresentation: Record<string, unknown> | undefined
 const mockKeepReceipt = jest.fn(async (..._args: unknown[]) => true)
 const mockSaveTextFile = jest.fn((..._args: unknown[]) => undefined)
 
@@ -137,6 +141,7 @@ afterAll(() => {
 beforeEach(() => {
     calls = []
     mockIsKiosk = false
+    mockPresentation = undefined
     mockKeepReceipt.mockClear()
     jest.spyOn(Date, "now").mockReturnValue(NOW * 1000)
 })
@@ -154,6 +159,16 @@ const confirm = (
     confirmationScreenData: {
         [ELECTION_ID]: {ballotId, isDemo, ...(vitrine ? {vitrine} : {})},
     },
+    ...(mockPresentation
+        ? {
+              electionEvent: {
+                  [EVENT_ID]: {
+                      id: EVENT_ID,
+                      presentation: mockPresentation as unknown as IElectionEventPresentation,
+                  },
+              },
+          }
+        : {}),
 })
 
 const renderScreen = () => {
@@ -178,8 +193,11 @@ const renderScreen = () => {
 }
 
 /** A public event whose log holds the voter's entry, and Harvest's answer. */
-const casting = (answer: (s: ReturnType<typeof scenario>, ballotId: string) => IVitrineCast) => {
-    const s = scenario()
+const casting = (
+    answer: (s: ReturnType<typeof scenario>, ballotId: string) => IVitrineCast,
+    options: IScenarioOptions = {}
+) => {
+    const s = scenario(options)
     const ballotId = nextBallotId()
     const cast = answer(s, ballotId)
     // The screen reads the ballot's Tracking ID, whose digest the entries name.
@@ -452,9 +470,135 @@ describe("the status of the ballot just cast", () => {
         expect(container.querySelector(".ballot-id-value-mobile")).not.toBeNull()
         expect(hiddenByAnyRule(container.querySelector(".ballot-id-label")!)).toBe(true)
         expect(container.querySelector(".status-tag")).toBeNull()
+        expect(container.querySelector(".get-updates")).toBeNull()
         expect(container.querySelector(".ballot-id-text")).toBeNull()
         expect(getComputedStyle(container.querySelector(".ballot-id-border")!).borderRadius).toBe(
             "4px"
+        )
+    })
+})
+
+const HUB_ONE = "https://hub-one.explorer.example/"
+const HUB_TWO = "https://hub-two.explorer.example/#old"
+const WITH_SITES = [`hub-explorer h1 ${HUB_ONE}`, `hub-explorer h2 ${HUB_TWO}`]
+
+const callout = (container: HTMLElement): HTMLElement | null =>
+    container.querySelector<HTMLElement>(".get-updates")
+
+const tileNames = (container: HTMLElement): string[] =>
+    Array.from(container.querySelectorAll(".get-updates-hub-name")).map((e) => e.textContent ?? "")
+
+describe("Get email updates on the confirmation screen", () => {
+    it("offers every hub that has a site as an equal tile, between the QR code and the actions", async () => {
+        const {s} = casting(receiptOf, {policyExtra: WITH_SITES})
+        const {container} = renderScreen()
+        await waitFor(() => expect(callout(container)).not.toBeNull())
+        expect([...tileNames(container)].sort()).toEqual(["h1", "h2"])
+        const links = Array.from(container.querySelectorAll<HTMLAnchorElement>(".get-updates-hub"))
+        expect(links.map((a) => (a.getAttribute("href") ?? "").split("#")[0]).sort()).toEqual([
+            HUB_ONE,
+            "https://hub-two.explorer.example/",
+        ])
+        for (const link of links) {
+            expect(link.getAttribute("target")).toBe("_blank")
+            expect(link.getAttribute("rel")).toBe("noopener noreferrer")
+            expect(new URLSearchParams(link.hash.slice(1)).get("policy")).toBe(s.policyId)
+        }
+        const qr = container.querySelector(".qr-container")!
+        const actions = container.querySelector(".actions-container")!
+        expect(qr.compareDocumentPosition(callout(container)!)).toBe(
+            Node.DOCUMENT_POSITION_FOLLOWING
+        )
+        expect(callout(container)!.compareDocumentPosition(actions)).toBe(
+            Node.DOCUMENT_POSITION_FOLLOWING
+        )
+    })
+
+    it("carries the receipt that the screen keeps in the links' fragments", async () => {
+        casting(receiptOf, {policyExtra: WITH_SITES})
+        const {container} = renderScreen()
+        await waitFor(() => expect(mockKeepReceipt).toHaveBeenCalled())
+        const kept = mockKeepReceipt.mock.calls[0][2] as {chain: string}
+        await waitFor(() =>
+            expect(container.querySelector(".get-updates-hub")?.getAttribute("href")).toContain(
+                "watch="
+            )
+        )
+        for (const link of Array.from(
+            container.querySelectorAll<HTMLAnchorElement>(".get-updates-hub")
+        )) {
+            const watch = new URLSearchParams(link.hash.slice(1)).get("watch") ?? ""
+            expect(pure.bytes.fromUtf8(pure.encoding.b64urlDecode(watch))).toBe(kept.chain)
+        }
+        expect(container.querySelector(".get-updates-foot")?.textContent).toBe(
+            "vitrine.updates.footnote"
+        )
+    })
+
+    it("draws the order again on each visit", async () => {
+        const draw = jest.spyOn(Math, "random")
+        casting(receiptOf, {policyExtra: WITH_SITES})
+        draw.mockReturnValue(0.99)
+        const first = renderScreen()
+        await waitFor(() => expect(callout(first.container)).not.toBeNull())
+        const unswapped = tileNames(first.container)
+        first.unmount()
+        casting(receiptOf, {policyExtra: WITH_SITES})
+        draw.mockReturnValue(0)
+        const second = renderScreen()
+        await waitFor(() => expect(callout(second.container)).not.toBeNull())
+        expect(tileNames(second.container)).toEqual([...unswapped].reverse())
+    })
+
+    it("is not shown when the admin turned the confirmation switch off", async () => {
+        mockPresentation = {hub_updates: {confirmation: "off", cast_email: "on"}}
+        casting(receiptOf, {policyExtra: WITH_SITES})
+        const {container} = renderScreen()
+        await waitFor(() => expect(mockKeepReceipt).toHaveBeenCalled())
+        expect(statusButton(container)).not.toBeNull()
+        expect(callout(container)).toBeNull()
+    })
+
+    it("is still shown when only the cast email switch is off", async () => {
+        mockPresentation = {hub_updates: {confirmation: "on", cast_email: "off"}}
+        casting(receiptOf, {policyExtra: WITH_SITES})
+        const {container} = renderScreen()
+        await waitFor(() => expect(callout(container)).not.toBeNull())
+    })
+
+    it("is shown when the event never stored the switches", async () => {
+        mockPresentation = {transparency: "public"}
+        casting(receiptOf, {policyExtra: WITH_SITES})
+        const {container} = renderScreen()
+        await waitFor(() => expect(callout(container)).not.toBeNull())
+    })
+
+    it("is not shown when the policy gives no hub a site", async () => {
+        casting(receiptOf, {policyExtra: ["monitor-explorer observers https://monitor.example/"]})
+        const {container} = renderScreen()
+        await waitFor(() => expect(mockKeepReceipt).toHaveBeenCalled())
+        expect(callout(container)).toBeNull()
+    })
+
+    it("is not shown on a kiosk, which keeps no receipt and leaves nothing in the browser", async () => {
+        mockIsKiosk = true
+        casting(receiptOf, {policyExtra: WITH_SITES})
+        const {container} = renderScreen()
+        await openWithReceipt(container)
+        expect(callout(container)).toBeNull()
+    })
+
+    it("is offered for a cast whose receipt has not come yet, with the policy only", async () => {
+        casting(entryOf("queued", "busy"), {policyExtra: WITH_SITES})
+        const {container} = renderScreen()
+        await waitFor(() => expect(callout(container)).not.toBeNull())
+        for (const link of Array.from(
+            container.querySelectorAll<HTMLAnchorElement>(".get-updates-hub")
+        )) {
+            expect(new URLSearchParams(link.hash.slice(1)).has("watch")).toBe(false)
+        }
+        expect(container.querySelector(".get-updates-foot")?.textContent).toBe(
+            "vitrine.updates.footnoteNoReceipt"
         )
     })
 })

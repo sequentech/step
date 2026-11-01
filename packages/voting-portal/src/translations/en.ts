@@ -83,6 +83,8 @@ const englishTranslation = {
             noBallots: "No ballots have been sent yet.",
             invalidPrefix:
                 "Enter at least 8 characters of a Tracking ID with a hyphen, as in FTBE-MHRX, or up to 8 of a pseudonym with a colon, as in K7QM:2XWD. The codes use the digits 0 to 9 and capital letters, without I, L, O and U.",
+            policyId:
+                "That’s this election’s policy ID. A ballot’s Tracking ID is on your receipt.",
             loadError: "The ballot box log could not be loaded. Please try again.",
             retry: "Try again",
             help: "About the log of all ballots",
@@ -741,6 +743,8 @@ const englishTranslation = {
             filterByBallotId: "Filter by Tracking ID",
             totalBallots: "Total Ballots: {{total}}",
             idHelp: "The short Tracking ID, like FTBE-MHRX, or the full one",
+            policyId:
+                "That’s this election’s policy ID. A ballot’s Tracking ID is on your receipt.",
             foundShort:
                 "Found by its short ID. To be certain it is yours, compare the full Tracking ID with your receipt.",
             search: {
@@ -756,7 +760,7 @@ const englishTranslation = {
                 features: {
                     cast: {
                         title: "Cast ballots",
-                        text: "See that it is in the public record, confirmed by independent witnesses and anchored publicly.",
+                        text: "See that it is in the public record, confirmed by witnesses and anchored publicly.",
                     },
                     audited: {
                         title: "Audited ballots",
@@ -769,13 +773,99 @@ const englishTranslation = {
                 },
             },
             matches: {
-                title: "{{total}} ballots share the short ID <b>{{shortId}}</b>. Choose yours, or enter the full Tracking ID.",
                 cast: "Cast {{time}}",
                 audited: "Audited {{time}}",
             },
+            shortId: {
+                head: {
+                    one: "1 ballot starts with {{start}}",
+                    other: "{{count}} ballots start with {{start}}",
+                    atLeast: "{{count}} or more ballots start with {{start}}",
+                    mine: "Your ballot, and {{count}} others that start with {{start}}",
+                    mineAlone: "Your ballot starts with {{start}}",
+                },
+                sub: {
+                    few: "Which is yours? Compare the highlighted group with your receipt, or type it below.",
+                    one: "Open it, then compare its full Tracking ID with your receipt.",
+                    many: "That’s more than we list. Type the third group from your receipt to find yours.",
+                    mine: "This device keeps your receipt, so it knows which one is yours.",
+                },
+                why: {
+                    few: "A short ID finds ballots. Only the full Tracking ID, or the receipt on your own device, says which one is yours.",
+                    many: "So many usually means someone made ballots to match this short ID on purpose. Yours is still in the record: matching three groups as well would take about a billion billion tries.",
+                    mine: "The others belong to other voters. They are listed so that a look-alike can’t pass for yours.",
+                },
+                third: "Third group from your receipt",
+                thirdOr: "Or type the third group from your receipt",
+                find: "Find",
+                onDevice: "On this device",
+                deviceMatches: "The receipt on this device matches all 13 groups",
+                serverSees:
+                    "The record’s servers could not look this up without being told which ballot you want, so the election’s server was asked for this exact ID and could see it.",
+            },
             audit: {
-                title: "Your selections, decoded",
-                note: "Your browser decrypted this audited ballot with the key the portal revealed. If these are not the selections you made, contact the election authority.",
+                kicker: "Ballot audit",
+                title: "Check that your ballot was encrypted as you chose",
+                note: "This is the ballot you audited, decoded by your browser. Only you know what you chose, so only you can do this check.",
+                steps: {
+                    label: "How the check works",
+                    encrypted: {
+                        title: "Encrypted on your device",
+                        text: "The portal encrypted your choices and gave the ballot its Tracking ID, before you chose to audit it.",
+                    },
+                    decoded: {
+                        title: "Decoded here",
+                        text: "Auditing made the portal reveal its secret. Your browser decoded the ballot with it and checked it against the public record.",
+                    },
+                    compare: {
+                        title: "You compare",
+                        text: "Look at the choices below. Are they the ones you made?",
+                    },
+                },
+                choices: "Choices decoded from this ballot",
+                question: "Do these match what you chose?",
+                yes: "Yes, they match",
+                no: "No, something’s different",
+                change: "Change my answer",
+                match: {
+                    title: "Your ballot was encrypted as you chose",
+                    text: "This audited ballot is now spent: it was never cast and will never be counted. Go back and vote. Your vote gets a new Tracking ID, and you can audit again first if you like.",
+                    vote: "Go back and vote",
+                },
+                mismatch: {
+                    title: "Don’t vote on this device",
+                    text: "What was encrypted isn’t what you chose, so this device or the voting portal may have been tampered with. Your browser kept the evidence: the encrypted ballot from the public record, the secret the portal revealed, and what it decodes to.",
+                    report: "Report it to the election authority",
+                    reportNoContact: "Report it to the election authority.",
+                    fromPolicy: "From the election’s published policy, not from this page.",
+                    fromSettings: "From the election’s settings.",
+                    then: "Then vote from another device.",
+                    save: "Save evidence",
+                    email: "Email the authority",
+                    emailSubject: "My audited ballot does not decode to my choices",
+                    emailBody:
+                        "I audited a ballot in this election and the choices my browser decoded are not the ones I made.\n\nTracking ID: {{id}}\n\nI have saved the evidence as a file and can send it.",
+                },
+                how: "How does this work?",
+                faq: {
+                    why: {
+                        question: "Why audit?",
+                        answer: "Your vote is encrypted on your device, so no one can read it, not even you. Auditing lets you check that the portal encrypted what you chose before you vote for real.",
+                    },
+                    catch: {
+                        question: "Why does it catch cheating?",
+                        answer: "The portal encrypts before you decide to audit, so it can’t know which ballots will be checked. If it changed votes, every voter who audits could catch it.",
+                    },
+                    spent: {
+                        question: "Why can’t this ballot count?",
+                        answer: "With its secret revealed, the ballot shows how you voted. To keep your vote secret, an audited ballot is never cast.",
+                    },
+                    differ: {
+                        question: "What if they don’t match?",
+                        answer: "Don’t vote on that device. Save the evidence and report it to the election authority, whose contact comes from the election’s policy. Then vote from another device.",
+                    },
+                    tip: "For the strongest check, open this page on a different device from the one you voted on, such as your phone. A device that changed your ballot could also change what it shows you here.",
+                },
                 failed: {
                     title: "Audit failed",
                     text: "The ballot in the public record does not decrypt with the key the portal revealed. Do not cast from this device; tell the election authority.",
@@ -814,7 +904,7 @@ const englishTranslation = {
                 saveEvidence: "Save evidence",
                 howToReport: "How to report it",
                 howToReportText:
-                    "Save the evidence file and send it to the election authority or to an independent observer. They can check it on their own computers. It contains nothing about how you voted.",
+                    "Save the evidence file and send it to the election authority or to an observer. They can check it on their own computers. It contains nothing about how you voted.",
                 noReceipt:
                     "This device has no receipt for this ballot. Check it on the device you voted on, or check the receipt file in the ballot verifier.",
                 receiptPending:
@@ -838,7 +928,7 @@ const englishTranslation = {
                     },
                     verified: {
                         head: "Verified",
-                        sub: "In the public record, confirmed by independent witnesses and anchored publicly.",
+                        sub: "In the public record, confirmed by witnesses and anchored publicly.",
                     },
                     late: {
                         head: "Taking longer than expected",
@@ -862,7 +952,7 @@ const englishTranslation = {
                     },
                     witnesses: {
                         title: "Confirmed by witnesses",
-                        done: "Independent witnesses signed a record that includes it.",
+                        done: "Witnesses signed a record that includes it.",
                         count: "{{signed}} of {{total}} · {{needed}} needed",
                         countOf: "{{signed}} of {{total}}",
                     },
@@ -913,12 +1003,31 @@ const englishTranslation = {
             },
         },
         vitrine: {
+            hubProblems: {
+                title: {
+                    one: "A hub lists a problem for this election",
+                    other: "{{count}} problems are listed for this election",
+                },
+                listedBy: "Listed by {{hubs}}",
+                proof: "See the proof",
+                note: "This notice is a convenience from this site, and a listing is only a pointer: open the proof to check it in your browser. The hubs also tell you, by email, on their own sites and in the extension, whether or not this site does.",
+                kind: {
+                    splitView: "Two versions of the record",
+                    brokenPromise: "A promised entry is missing",
+                    breaksRules: "An entry breaks the rules",
+                    twoPolicies: "Two policies",
+                    unloggedCode: "Code that isn’t logged",
+                    other: "A problem recorded by a hub",
+                },
+            },
             ballotId: {
                 label: "Tracking ID",
                 full: "Full Tracking ID",
                 yours: "Your Tracking ID:",
                 copy: "Copy the full Tracking ID",
                 copied: "Tracking ID copied",
+                copyText: "Copy",
+                copiedText: "Copied",
                 showFull: "Show the full Tracking ID",
                 selected: "Selected. Press Ctrl+C, or ⌘C on a Mac, to copy it.",
                 copyByHand:
@@ -926,8 +1035,8 @@ const englishTranslation = {
             },
             elsewhere: {
                 title: "Look it up elsewhere",
-                count_one: "{{count}} explorer, {{independent}} independent",
-                count_other: "{{count}} explorers, {{independent}} independent",
+                count_one: "{{count}} explorer",
+                count_other: "{{count}} explorers",
                 introBallot:
                     "Explorers run by others read the public record themselves. Each should find your ballot, with the same checks, without this website.",
                 introEntry:
@@ -935,13 +1044,11 @@ const englishTranslation = {
                 foot: "The list comes from the election’s policy. Any Vitrine explorer can open the same record: give it the full Tracking ID.",
                 name: "{{name}} explorer",
                 operatorName: "Election explorer",
-                independent: "Independent",
-                operator: "Operator",
                 newTab: "Opens in a new tab",
                 who: {
-                    monitor: "A monitor named in the election’s policy",
-                    hub: "An anchor hub named in the election’s policy",
-                    operator: "Run by the election authority",
+                    monitor: "Run by {{party}}, a monitor named in the election’s policy",
+                    hub: "Run by {{party}}, a hub named in the election’s policy",
+                    operator: "Run by the election authority, which runs this election",
                 },
             },
             status: {
@@ -989,9 +1096,9 @@ const englishTranslation = {
                     recorded:
                         "Your browser found your ballot in the public record. Witnesses confirm it next.",
                     witnessed:
-                        "Independent witnesses confirmed the record. Public anchors follow within {{minutes}} minutes; no need to wait.",
+                        "Witnesses confirmed the record. Public anchors follow within {{minutes}} minutes; no need to wait.",
                     verified:
-                        "Your ballot is in the public record, confirmed by independent witnesses and anchored publicly.",
+                        "Your ballot is in the public record, confirmed by witnesses and anchored publicly.",
                     late: "Your ballot is in the public record and confirmed by witnesses, but its public anchors are late.",
                     lateStep:
                         "A step is taking longer than expected. This is not evidence of tampering, and your browser keeps checking.",
@@ -1015,7 +1122,7 @@ const englishTranslation = {
                     },
                     witnesses: {
                         title: "Confirmed by witnesses",
-                        upcoming: "Independent witnesses sign a record that includes it.",
+                        upcoming: "Witnesses sign a record that includes it.",
                     },
                     anchors: {
                         title: "Anchored publicly",
@@ -1030,11 +1137,13 @@ const englishTranslation = {
                     recorded: "Your browser checked its proof.",
                     recordedEntry: "Entry #{{index}}. Your browser checked its proof.",
                     witnessed:
-                        "Enough of the policy’s independent witnesses ({{count}}) signed a record that includes it.",
+                        "Enough of the policy’s witnesses ({{count}}) signed a record that includes it.",
                     anchoredWaict: "In the public hubs ({{count}}), and where browsers check.",
                     anchoredBootstrap:
                         "In the public hubs ({{count}}), and where browsers check, through a stand-in hub for now.",
                     anchoredHubs: "In the public hubs ({{count}}).",
+                    anchoredOneHub: "Anchored in 1 hub, run by {{party}}.",
+                    anchoredOneHubPlatform: "Anchored in 1 hub, run by the platform.",
                     lateNow: "It should have been done by now.",
                     lateStep: "It should have been done by {{time}}.",
                     lateAnchors: "The hubs should have anchored it by {{time}}.",
@@ -1078,6 +1187,51 @@ const englishTranslation = {
                     checked: "Checked by your browser, with code anyone can inspect.",
                     kept: "This device keeps the receipt and checks it again on each visit.",
                 },
+            },
+            signers: {
+                witnesses: {open: "Who signed", close: "Hide who signed"},
+                hubs: {open: "Which hubs", close: "Hide which hubs"},
+                runBy: "Run by {{party}}",
+                runByAlso: "Run by {{party}}, which also runs {{hubs}}",
+                signed: "Signed {{time}}",
+                signedNoTime: "Signed",
+                notYet: "Not yet",
+                late: "Late",
+                anchored: "Anchored {{time}}",
+                anchoredNoTime: "Anchored",
+                within: "Within {{minutes}} min",
+                check: "Check on its site",
+                checkWitness: "Check on its site: witness {{name}} (opens in a new tab)",
+                checkHub: "Check on its site: hub {{name}} (opens in a new tab)",
+                linksNote:
+                    "“Check on its site” opens the signer’s own explorer, which checks that signature there.",
+                standIn: {name: "Where browsers check", who: "A stand-in hub, for now"},
+                rule: {
+                    witnesses:
+                        "The policy needs {{needed}} of its {{total}} witnesses to sign. {{signed}} have signed.",
+                    witnessesAlone:
+                        "The policy needs {{needed}} of its {{total}} witnesses to sign, and no single party runs that many. {{signed}} have signed.",
+                    witnessesCount: "{{signed}} of the policy’s {{total}} witnesses have signed.",
+                    hubs: "All {{count}} hubs must anchor the record, and at least {{independent}} must be run by someone other than the election authority.",
+                    hubsPlatform:
+                        "All {{count}} hubs must anchor the record, and at least {{independent}} must be run by neither the election authority nor the platform.",
+                    hubsAll: "All {{count}} hubs must anchor the record.",
+                    oneHub: "The policy names one hub, run by {{party}}.",
+                    oneHubPlatform: "The policy names one hub, run by the platform.",
+                },
+            },
+            updates: {
+                title: "Get email updates about this ballot",
+                description:
+                    "When it’s confirmed and when it’s counted, or if a problem is recorded. Choose any hub: each checks the record itself.",
+                listLabel: "Hubs in this election’s policy",
+                runBy: "Run by {{party}}",
+                hubLabel:
+                    "{{name}}, run by {{party}}: get email updates on its own site (opens a new tab)",
+                footnote:
+                    "The hubs named in the election’s policy, in a random order each time. Each opens on its own site with your receipt in the link; nothing is shared until you choose what to watch there.",
+                footnoteNoReceipt:
+                    "The hubs named in the election’s policy, in a random order each time. Each opens on its own site; nothing is shared until you choose what to watch there.",
             },
             booth: {
                 title: "Your ballot can't be prepared yet",

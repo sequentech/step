@@ -48,6 +48,7 @@ Hover over the check mark to see its state. Select it to open the **Ballot statu
 - Your **Tracking ID** with a tag: **Not cast** or **Cast**. It shows the short Tracking ID and the full Tracking ID. The copy button next to the full ID copies it in groups of four, and turns into a green check for a moment.
 - The state as a headline, and the three steps, each with what the receipt says about it and when your browser saw it done.
 - When the status is **Late** or **Problem**, what it means.
+- When one of the hubs in the election's policy lists a problem for this election, a red notice names it in plain words, such as "Two versions of the record", says which hubs list it and links to the proof on the hub's own site, where your browser checks it. The notice is a convenience of the portal, and it says so: the hubs also tell you by email, on their own sites and in the extension. A hub that does not answer is not a problem, and the notice does not appear for it.
 - **Open in the ballot tracker**, **Save receipt** and **OK**. Before you cast, the dialog has only **OK**.
 
 The headline of a **Problem** says which one it is:
@@ -59,7 +60,7 @@ The headline of a **Problem** says which one it is:
 
 ## Check independently
 
-The status is your browser's check, with code anyone can inspect, on the voting portal's page. To check the receipt in the separate ballot verifier instead, open your ballot in the ballot tracker, which is Ballot Tracking (**Open in the ballot tracker** in the dialog, or **Track your ballot** in the ballot list), and select **Check it independently**. It opens the deployment's ballot verifier with the receipt. Compare the policy ID and its six words with the election notice, or with the policy your election organiser supplied through an authenticated channel, before pinning it. An unsigned draft has eight words and cannot be pinned.
+The status is your browser's check, with code anyone can inspect, on the voting portal's page. To check the receipt in the separate ballot verifier instead, open your ballot in the ballot tracker, which is Ballot Tracking (**Open in the ballot tracker** in the dialog, or **Track your ballot** in the ballot list), and select **Check it independently**. It opens the deployment's ballot verifier with the receipt. Compare the first four groups of the policy ID with the election notice, or with the policy your election organiser supplied through an authenticated channel, before pinning it. An unsigned draft shows its draft hash in the same form, tagged **Draft**, and cannot be pinned. The policy ID is not a ballot's Tracking ID: if you type it into the ballot tracker, the tracker says so.
 
 A receipt file and policy are data. The verifier checks them; it does not execute downloaded code. It shows the same status and three steps, with what its checks found: the entry number, how many witnesses signed and how many the policy needs, and how many hubs hold the record. Its first online round asks the policy's logs. Further checks with mirrors, hubs and monitors run after a random delay of 1 to 30 minutes to reduce timing correlation, unless you select **Check everything now** or an anchor hub or the browser layer is already late. Private-election receipts can be checked offline with the policy and proofs they contain; their upgrades remain behind the voting portal's login.
 

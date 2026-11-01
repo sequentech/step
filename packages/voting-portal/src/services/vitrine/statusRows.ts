@@ -17,6 +17,7 @@ import {
     STEP_TIERS,
     statusSteps,
 } from "./ballotStatus"
+import {platformOf, soleHubOf} from "./signers"
 
 const STATUS_KEYS = "vitrine.status"
 
@@ -48,6 +49,8 @@ export interface IStatusInput {
     policy?: Policy
     /** When this page saw each step done, in milliseconds. */
     times?: Partial<Record<EStatusStep, number>>
+    /** The party that runs the platform, when the policy names it. */
+    platform?: string
 }
 
 const pad = (n: number): string => String(n).padStart(2, "0")
@@ -153,17 +156,33 @@ const FAILED_WORDS: Record<EBallotProblem, string> = {
     [EBallotProblem.UNCHECKED]: "unchecked",
 }
 
-/** The hubs part of the anchors, with the browser layer when the policy has one. */
-const anchoredDetail = (result: ChainResult | undefined): ITranslation => {
+/** The hubs part of the anchors, with the browser layer when the policy has
+ * one. A policy with one hub says so, and who runs it. */
+const anchoredDetail = (
+    result: ChainResult | undefined,
+    policy: Policy | undefined,
+    platform: string | undefined
+): ITranslation => {
     const hubs = result?.policy.hubs.length ?? 0
     if (hubs === 0) return text("step.anchors.upcoming")
+    const sole = hubs === 1 && policy ? soleHubOf(policy, platform) : undefined
+    if (sole) {
+        return text(sole.platform ? "row.anchoredOneHubPlatform" : "row.anchoredOneHub", {
+            party: sole.party,
+        })
+    }
     const layer = result?.policy.browser
     if (layer === "waict") return text("row.anchoredWaict", {count: hubs})
     if (layer === "bootstrap") return text("row.anchoredBootstrap", {count: hubs})
     return text("row.anchoredHubs", {count: hubs})
 }
 
-const doneDetail = (step: EStatusStep, result: ChainResult | undefined): ITranslation => {
+const doneDetail = (
+    step: EStatusStep,
+    result: ChainResult | undefined,
+    policy: Policy | undefined,
+    platform: string | undefined
+): ITranslation => {
     switch (step) {
         case EStatusStep.RECORD: {
             const index = result?.entry?.index
@@ -174,7 +193,7 @@ const doneDetail = (step: EStatusStep, result: ChainResult | undefined): ITransl
             return count > 0 ? text("row.witnessed", {count}) : text("step.witnesses.upcoming")
         }
         default:
-            return anchoredDetail(result)
+            return anchoredDetail(result, policy, platform)
     }
 }
 
@@ -192,6 +211,7 @@ const lateDetail = (step: EStatusStep, result: ChainResult | undefined): ITransl
 /** The three steps, each with what it means now and the receipt's facts. */
 export const statusRows = (input: IStatusInput): IStatusRow[] => {
     const {status, problem, result, policy, times} = input
+    const platform = input.platform ?? (policy ? platformOf(policy) : undefined)
     const states = statusSteps(status, result)
     const minutes = anchorMinutes(policy)
     return STATUS_STEPS.map((step): IStatusRow => {
@@ -223,7 +243,7 @@ export const statusRows = (input: IStatusInput): IStatusRow[] => {
                 const doneAt = times?.[step]
                 return {
                     ...base,
-                    detail: doneDetail(step, result),
+                    detail: doneDetail(step, result, policy, platform),
                     ...(doneAt === undefined ? {} : {doneAt}),
                 }
             }

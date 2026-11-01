@@ -32,6 +32,8 @@ const spanishTranslation: TranslationType = {
             noBallots: "Todavía no se ha enviado ninguna papeleta.",
             invalidPrefix:
                 "Escribe al menos 8 caracteres de un ID de seguimiento con guion, como FTBE-MHRX, o hasta 8 de un seudónimo con dos puntos, como K7QM:2XWD. Los códigos usan los dígitos del 0 al 9 y letras mayúsculas, sin I, L, O ni U.",
+            policyId:
+                "Este es el ID de la política de esta elección. El ID de seguimiento de una papeleta está en su recibo.",
             stages: {
                 received: {
                     label: "Recibida",
@@ -628,6 +630,8 @@ const spanishTranslation: TranslationType = {
             filterByBallotId: "Filtrar por ID de seguimiento",
             totalBallots: "Papeletas: {{total}}",
             idHelp: "El ID de seguimiento corto, como FTBE-MHRX, o el completo",
+            policyId:
+                "Este es el ID de la política de esta elección. El ID de seguimiento de una papeleta está en su recibo.",
             foundShort:
                 "Encontrada por su ID corto. Para estar seguro de que es la suya, compare el ID de seguimiento completo con su recibo.",
             search: {
@@ -643,7 +647,7 @@ const spanishTranslation: TranslationType = {
                 features: {
                     cast: {
                         title: "Papeletas emitidas",
-                        text: "Compruebe que su papeleta está en el registro público, confirmada por testigos independientes y anclada públicamente.",
+                        text: "Compruebe que su papeleta está en el registro público, confirmada por testigos y anclada públicamente.",
                     },
                     audited: {
                         title: "Papeletas auditadas",
@@ -656,13 +660,99 @@ const spanishTranslation: TranslationType = {
                 },
             },
             matches: {
-                title: "{{total}} papeletas comparten el ID corto <b>{{shortId}}</b>. Elija la suya o introduzca el ID de seguimiento completo.",
                 cast: "Emitida el {{time}}",
                 audited: "Auditada el {{time}}",
             },
+            shortId: {
+                head: {
+                    one: "1 papeleta empieza por {{start}}",
+                    other: "{{count}} papeletas empiezan por {{start}}",
+                    atLeast: "{{count}} o más papeletas empiezan por {{start}}",
+                    mine: "Su papeleta y {{count}} más que empiezan por {{start}}",
+                    mineAlone: "Su papeleta empieza por {{start}}",
+                },
+                sub: {
+                    few: "¿Cuál es la suya? Compare el grupo resaltado con su recibo, o escríbalo abajo.",
+                    one: "Ábrala y compare su ID de seguimiento completo con su recibo.",
+                    many: "Son más de las que mostramos. Escriba el tercer grupo de su recibo para encontrar la suya.",
+                    mine: "Este dispositivo guarda su recibo, así que sabe cuál es la suya.",
+                },
+                why: {
+                    few: "Un ID corto encuentra papeletas. Solo el ID de seguimiento completo, o el recibo de su propio dispositivo, dice cuál es la suya.",
+                    many: "Tantas suele significar que alguien creó papeletas para que coincidan con este ID corto a propósito. La suya sigue en el registro: acertar también tres grupos requeriría unos mil trillones de intentos.",
+                    mine: "Las demás pertenecen a otros votantes. Se muestran para que una parecida no pueda hacerse pasar por la suya.",
+                },
+                third: "Tercer grupo de su recibo",
+                thirdOr: "O escriba el tercer grupo de su recibo",
+                find: "Buscar",
+                onDevice: "En este dispositivo",
+                deviceMatches: "El recibo de este dispositivo coincide con los 13 grupos",
+                serverSees:
+                    "Los servidores del registro no pudieron hacer esta búsqueda sin saber qué papeleta busca, así que se pidió al servidor de la elección este ID exacto y pudo verlo.",
+            },
             audit: {
-                title: "Sus selecciones, descodificadas",
-                note: "Su navegador descifró esta papeleta auditada con la clave que reveló el portal. Si estas no son las selecciones que hizo, póngase en contacto con la autoridad electoral.",
+                kicker: "Auditoría de la papeleta",
+                title: "Compruebe que su papeleta se cifró como usted eligió",
+                note: "Esta es la papeleta que auditó, descodificada por su navegador. Solo usted sabe lo que eligió, así que solo usted puede hacer esta comprobación.",
+                steps: {
+                    label: "Cómo funciona la comprobación",
+                    encrypted: {
+                        title: "Cifrada en su dispositivo",
+                        text: "El portal cifró sus opciones y dio a la papeleta su ID de seguimiento, antes de que usted decidiera auditarla.",
+                    },
+                    decoded: {
+                        title: "Descodificada aquí",
+                        text: "Al auditar, el portal reveló su secreto. Su navegador descodificó la papeleta con él y la comparó con el registro público.",
+                    },
+                    compare: {
+                        title: "Usted compara",
+                        text: "Mire las opciones de abajo. ¿Son las que eligió?",
+                    },
+                },
+                choices: "Opciones descodificadas de esta papeleta",
+                question: "¿Coinciden con lo que eligió?",
+                yes: "Sí, coinciden",
+                no: "No, hay algo distinto",
+                change: "Cambiar mi respuesta",
+                match: {
+                    title: "Su papeleta se cifró como eligió",
+                    text: "Esta papeleta auditada ya está gastada: nunca se emitió y nunca se contará. Vuelva y vote. Su voto recibirá un ID de seguimiento nuevo, y si lo desea puede auditar otra vez antes.",
+                    vote: "Volver y votar",
+                },
+                mismatch: {
+                    title: "No vote en este dispositivo",
+                    text: "Lo que se cifró no es lo que eligió, así que este dispositivo o el portal de votación pueden haber sido manipulados. Su navegador guardó la prueba: la papeleta cifrada del registro público, el secreto que reveló el portal y lo que descodifica.",
+                    report: "Avise a la autoridad electoral",
+                    reportNoContact: "Avise a la autoridad electoral.",
+                    fromPolicy: "De la política publicada de la elección, no de esta página.",
+                    fromSettings: "De los ajustes de la elección.",
+                    then: "Después vote desde otro dispositivo.",
+                    save: "Guardar la prueba",
+                    email: "Escribir a la autoridad",
+                    emailSubject: "Mi papeleta auditada no se descodifica en mis opciones",
+                    emailBody:
+                        "Audité una papeleta en esta elección y las opciones que descodificó mi navegador no son las que elegí.\n\nID de seguimiento: {{id}}\n\nHe guardado la prueba en un archivo y puedo enviarla.",
+                },
+                how: "¿Cómo funciona?",
+                faq: {
+                    why: {
+                        question: "¿Por qué auditar?",
+                        answer: "Su voto se cifra en su dispositivo, así que nadie puede leerlo, ni siquiera usted. Auditar le permite comprobar que el portal cifró lo que eligió antes de votar de verdad.",
+                    },
+                    catch: {
+                        question: "¿Por qué detecta el engaño?",
+                        answer: "El portal cifra antes de que usted decida auditar, así que no puede saber qué papeletas se comprobarán. Si cambiara votos, cualquier votante que audite podría descubrirlo.",
+                    },
+                    spent: {
+                        question: "¿Por qué no puede contar esta papeleta?",
+                        answer: "Con su secreto revelado, la papeleta muestra cómo votó usted. Para mantener su voto en secreto, una papeleta auditada nunca se emite.",
+                    },
+                    differ: {
+                        question: "¿Y si no coinciden?",
+                        answer: "No vote en ese dispositivo. Guarde la prueba y avise a la autoridad electoral, cuyo contacto sale de la política de la elección. Después vote desde otro dispositivo.",
+                    },
+                    tip: "Para la comprobación más sólida, abra esta página en un dispositivo distinto de aquel con el que votó, por ejemplo su móvil. Un dispositivo que cambiara su papeleta también podría cambiar lo que le muestra aquí.",
+                },
                 failed: {
                     title: "Auditoría fallida",
                     text: "La papeleta del registro público no se descifra con la clave que reveló el portal. No emita su voto desde este dispositivo; avise a la autoridad electoral.",
@@ -704,7 +794,7 @@ const spanishTranslation: TranslationType = {
                 saveEvidence: "Guardar la prueba",
                 howToReport: "Cómo denunciarlo",
                 howToReportText:
-                    "Guarde el archivo de la prueba y envíelo a la autoridad electoral o a un observador independiente. Pueden comprobarlo en sus propios ordenadores. No contiene nada sobre cómo votó.",
+                    "Guarde el archivo de la prueba y envíelo a la autoridad electoral o a un observador. Pueden comprobarlo en sus propios ordenadores. No contiene nada sobre cómo votó.",
                 noReceipt:
                     "Este dispositivo no tiene el recibo de esta papeleta. Compruébela en el dispositivo con el que votó, o compruebe el archivo del recibo en el verificador de papeletas.",
                 receiptPending:
@@ -728,7 +818,7 @@ const spanishTranslation: TranslationType = {
                     },
                     verified: {
                         head: "Verificada",
-                        sub: "En el registro público, confirmada por testigos independientes y anclada públicamente.",
+                        sub: "En el registro público, confirmada por testigos y anclada públicamente.",
                     },
                     late: {
                         head: "Tarda más de lo esperado",
@@ -752,7 +842,7 @@ const spanishTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Confirmada por testigos",
-                        done: "Testigos independientes firmaron un registro que la incluye.",
+                        done: "Testigos firmaron un registro que la incluye.",
                         count: "{{signed}} de {{total}} · hacen falta {{needed}}",
                         countOf: "{{signed}} de {{total}}",
                     },
@@ -803,12 +893,31 @@ const spanishTranslation: TranslationType = {
             },
         },
         vitrine: {
+            hubProblems: {
+                title: {
+                    one: "Un hub lista un problema en esta elección",
+                    other: "Se listan {{count}} problemas en esta elección",
+                },
+                listedBy: "Lo lista {{hubs}}",
+                proof: "Ver la prueba",
+                note: "Este aviso es una comodidad de este sitio, y un listado es solo una referencia: abra la prueba para comprobarla en su navegador. Los hubs también se lo comunican por correo, en sus propios sitios y en la extensión, lo haga o no este sitio.",
+                kind: {
+                    splitView: "Dos versiones del registro",
+                    brokenPromise: "Falta una entrada prometida",
+                    breaksRules: "Una entrada incumple las reglas",
+                    twoPolicies: "Dos políticas",
+                    unloggedCode: "Código que no está registrado",
+                    other: "Un problema registrado por un hub",
+                },
+            },
             ballotId: {
                 label: "ID de seguimiento",
                 full: "ID de seguimiento completo",
                 yours: "Su ID de seguimiento:",
                 copy: "Copiar el ID de seguimiento completo",
                 copied: "ID de seguimiento copiado",
+                copyText: "Copiar",
+                copiedText: "Copiado",
                 showFull: "Mostrar el ID de seguimiento completo",
                 selected: "Seleccionado. Pulsa Ctrl+C, o ⌘C en Mac, para copiarlo.",
                 copyByHand:
@@ -816,8 +925,8 @@ const spanishTranslation: TranslationType = {
             },
             elsewhere: {
                 title: "Búscala en otro sitio",
-                count_one: "{{count}} explorador, {{independent}} independiente",
-                count_other: "{{count}} exploradores, {{independent}} independientes",
+                count_one: "{{count}} explorador",
+                count_other: "{{count}} exploradores",
                 introBallot:
                     "Los exploradores de terceros leen por su cuenta el registro público. Cada uno debería encontrar tu papeleta, con las mismas comprobaciones, sin esta web.",
                 introEntry:
@@ -825,13 +934,12 @@ const spanishTranslation: TranslationType = {
                 foot: "La lista procede de la política de la elección. Cualquier explorador de Vitrine puede abrir el mismo registro: dale el ID de seguimiento completo.",
                 name: "Explorador de {{name}}",
                 operatorName: "Explorador de la elección",
-                independent: "Independiente",
-                operator: "Operador",
                 newTab: "Se abre en una pestaña nueva",
                 who: {
-                    monitor: "Un monitor citado en la política de la elección",
-                    hub: "Un hub de anclaje citado en la política de la elección",
-                    operator: "Lo gestiona la autoridad electoral",
+                    monitor:
+                        "Gestionado por {{party}}, un monitor citado en la política de la elección",
+                    hub: "Gestionado por {{party}}, un hub de anclaje citado en la política de la elección",
+                    operator: "Gestionado por la autoridad electoral, que gestiona esta elección",
                 },
             },
             status: {
@@ -880,9 +988,9 @@ const spanishTranslation: TranslationType = {
                     recorded:
                         "Su navegador ha encontrado su papeleta en el registro público. Ahora la confirman los testigos.",
                     witnessed:
-                        "Testigos independientes han confirmado el registro. Los anclajes públicos llegan en {{minutes}} minutos; no hace falta esperar.",
+                        "Testigos han confirmado el registro. Los anclajes públicos llegan en {{minutes}} minutos; no hace falta esperar.",
                     verified:
-                        "Su papeleta está en el registro público, confirmada por testigos independientes y anclada públicamente.",
+                        "Su papeleta está en el registro público, confirmada por testigos y anclada públicamente.",
                     late: "Su papeleta está en el registro público y confirmada por los testigos, pero sus anclajes públicos van con retraso.",
                     lateStep:
                         "Un paso tarda más de lo previsto. No es prueba de manipulación, y su navegador sigue comprobando.",
@@ -909,7 +1017,7 @@ const spanishTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Confirmada por testigos",
-                        upcoming: "Testigos independientes firman un registro que la incluye.",
+                        upcoming: "Testigos firman un registro que la incluye.",
                     },
                     anchors: {
                         title: "Anclada públicamente",
@@ -925,12 +1033,14 @@ const spanishTranslation: TranslationType = {
                     recorded: "Su navegador comprobó su prueba.",
                     recordedEntry: "Entrada n.º {{index}}. Su navegador comprobó su prueba.",
                     witnessed:
-                        "Suficientes testigos independientes de la política ({{count}}) firmaron un registro que la incluye.",
+                        "Suficientes testigos de la política ({{count}}) firmaron un registro que la incluye.",
                     anchoredWaict:
                         "En los nodos públicos ({{count}}) y donde comprueban los navegadores.",
                     anchoredBootstrap:
                         "En los nodos públicos ({{count}}) y donde comprueban los navegadores, por ahora mediante un nodo sustituto.",
                     anchoredHubs: "En los nodos públicos ({{count}}).",
+                    anchoredOneHub: "Anclada en 1 nodo, gestionado por {{party}}.",
+                    anchoredOneHubPlatform: "Anclada en 1 nodo, gestionado por la plataforma.",
                     lateNow: "Ya debería estar hecho.",
                     lateStep: "Debería estar hecho a las {{time}}.",
                     lateAnchors: "Los nodos deberían haberla anclado a las {{time}}.",
@@ -980,6 +1090,57 @@ const spanishTranslation: TranslationType = {
                         "Comprobado por su navegador, con código que cualquiera puede inspeccionar.",
                     kept: "Este dispositivo guarda el justificante y lo vuelve a comprobar en cada visita.",
                 },
+            },
+            signers: {
+                witnesses: {open: "Quién firmó", close: "Ocultar quién firmó"},
+                hubs: {open: "Qué nodos", close: "Ocultar qué nodos"},
+                runBy: "Gestionado por {{party}}",
+                runByAlso: "Gestionado por {{party}}, que también gestiona {{hubs}}",
+                signed: "Firmó a las {{time}}",
+                signedNoTime: "Firmó",
+                notYet: "Aún no",
+                late: "Con retraso",
+                anchored: "Anclado a las {{time}}",
+                anchoredNoTime: "Anclado",
+                within: "En {{minutes}} min",
+                check: "Comprobar en su sitio",
+                checkWitness:
+                    "Comprobar en su sitio: testigo {{name}} (se abre en una pestaña nueva)",
+                checkHub: "Comprobar en su sitio: nodo {{name}} (se abre en una pestaña nueva)",
+                linksNote:
+                    "«Comprobar en su sitio» abre el explorador del propio firmante, que comprueba allí esa firma.",
+                standIn: {
+                    name: "Donde comprueban los navegadores",
+                    who: "Un nodo sustituto, por ahora",
+                },
+                rule: {
+                    witnesses:
+                        "La política exige que firmen {{needed}} de sus {{total}} testigos. Han firmado {{signed}}.",
+                    witnessesAlone:
+                        "La política exige que firmen {{needed}} de sus {{total}} testigos, y ninguna parte gestiona tantos. Han firmado {{signed}}.",
+                    witnessesCount:
+                        "Han firmado {{signed}} de los {{total}} testigos de la política.",
+                    hubs: "Los {{count}} nodos deben anclar el registro, y al menos {{independent}} deben estar gestionados por alguien distinto de la autoridad electoral.",
+                    hubsPlatform:
+                        "Los {{count}} nodos deben anclar el registro, y al menos {{independent}} deben estar gestionados por alguien que no sea ni la autoridad electoral ni la plataforma.",
+                    hubsAll: "Los {{count}} nodos deben anclar el registro.",
+                    oneHub: "La política nombra un solo nodo, gestionado por {{party}}.",
+                    oneHubPlatform:
+                        "La política nombra un solo nodo, gestionado por la plataforma.",
+                },
+            },
+            updates: {
+                title: "Reciba actualizaciones por correo sobre esta papeleta",
+                description:
+                    "Cuando se confirme y cuando se cuente, o si se registra un problema. Elija cualquier nodo: cada uno comprueba el registro por sí mismo.",
+                listLabel: "Nodos de la política de esta elección",
+                runBy: "Gestionado por {{party}}",
+                hubLabel:
+                    "{{name}}, gestionado por {{party}}: recibir actualizaciones por correo en su propio sitio (se abre en una pestaña nueva)",
+                footnote:
+                    "Los nodos que nombra la política de la elección, en orden aleatorio cada vez. Cada uno se abre en su propio sitio con su recibo en el enlace; no se comparte nada hasta que elija qué seguir allí.",
+                footnoteNoReceipt:
+                    "Los nodos que nombra la política de la elección, en orden aleatorio cada vez. Cada uno se abre en su propio sitio; no se comparte nada hasta que elija qué seguir allí.",
             },
             booth: {
                 title: "Todavía no se puede preparar su papeleta",

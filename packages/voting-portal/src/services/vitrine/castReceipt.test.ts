@@ -155,6 +155,15 @@ describe("runCastReceipt", () => {
         expect(observations(net)).toEqual([])
     })
 
+    it("reads when the witnesses signed from the receipt, for the lists of who signed", async () => {
+        const {s, ballotId, receipt} = withReceipt()
+        const {last} = await cast(s, ballotId, {kind: "receipt", text: receipt})
+        expect(last?.signers?.witnesses).toEqual(
+            new Map(WITNESSES.map((_, n) => [`w${n + 1}`, NOW - 10]))
+        )
+        expect(last?.signers?.size).toBe(2)
+    })
+
     it("keeps asking the log for the anchors while the screen is open, until they're due", async () => {
         const {s, ballotId, receipt} = withReceipt()
         const checkChain = jest.fn(verify.checkChain)

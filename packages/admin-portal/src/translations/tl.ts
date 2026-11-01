@@ -7113,7 +7113,7 @@ const tagalogTranslation: TranslationType = {
         },
         transparencyTab: {
             title: "Transparency",
-            help: "Sa Vitrine, itinatala ang mga balota at mahahalagang yugto ng kaganapan sa mga log na madadagdagan lamang at nilalagdaan ng mga independiyenteng saksi, para masuri ng mga botante at tagamasid na walang inalis o binago.",
+            help: "Sa Vitrine, itinatala ang mga balota at mahahalagang yugto ng kaganapan sa mga log na madadagdagan lamang at nilalagdaan ng mga saksing pinangalanan sa patakaran ng tiwala, para masuri ng mga botante at tagamasid na walang inalis o binago.",
             loading: "Nilo-load ang transparency ng kaganapan...",
             loadError: "Hindi ma-load ang transparency ng kaganapan: {{reason}}",
             unknownError: "hindi kilalang error",
@@ -7125,6 +7125,82 @@ const tagalogTranslation: TranslationType = {
             sdkLoading: "Nilo-load ang verifier ng Vitrine...",
             sdkError:
                 "Hindi masimulan ang verifier ng Vitrine sa browser na ito, kaya hindi masusuri rito ang patakaran ng tiwala.",
+            hubProblems: {
+                title_one: "May isang problemang inilista ng isang hub para sa halalang ito",
+                title_other: "{{count}} problema ang nakalista para sa halalang ito",
+                listedBy: "Inilista ng {{hubs}}",
+                proof: "Tingnan ang patunay",
+                note: "Ang paalalang ito ay kaginhawahan lang ng portal na ito, at ang listahan ay pahiwatig lamang: buksan ang patunay para suriin ito sa iyong browser. Inililista rin ng bawat hub ang mga problema nito sa sarili nitong site, ipakita man o hindi ng portal na ito. Ang hub na hindi sumasagot ay hindi problema.",
+                kind: {
+                    splitView: "Dalawang bersyon ng talaan",
+                    brokenPromise: "May nawawalang ipinangakong entry",
+                    breaksRules: "May entry na lumalabag sa mga patakaran",
+                    twoPolicies: "Dalawang patakaran",
+                    unloggedCode: "Code na hindi nakatala",
+                    other: "Problemang itinala ng isang hub",
+                },
+            },
+            authorityContact: {
+                title: "Contact ng awtoridad sa halalan",
+                intro: "Opsyonal. Kung paano maaabot ng mga botante ang awtoridad sa halalan, halimbawa para iulat ang hindi pagkakatugma sa isang audit. Napapabilang ito sa patakaran ng tiwala, at ipinapakita lang ito ng mga app ng mga botante mula sa selyadong patakaran.",
+                name: {
+                    label: "Pangalan",
+                    help: "Hanggang 128 byte, may iisang espasyo at walang line break.",
+                    invalid:
+                        "Ang pangalan ay 1 hanggang 128 byte, may iisang espasyo at walang line break o di-nakikitang karakter.",
+                },
+                email: {
+                    label: "Email",
+                    help: "Address na may mga letra, numero at . _ % + - lang.",
+                    invalid:
+                        "Gumamit ng simpleng address tulad ng halalan@acme.example, walang accent o panipi.",
+                },
+                phone: {
+                    label: "Telepono",
+                    help: "Isang + at 7 hanggang 15 digit, walang espasyo.",
+                    invalid:
+                        "Gumamit ng + at 7 hanggang 15 digit, hindi 0 ang una, walang espasyo o gitling.",
+                },
+                url: {
+                    label: "Website",
+                    help: "Isang https address.",
+                    invalid:
+                        "Gumamit ng https address, tulad ng https://halalan.acme.example/contact.",
+                },
+                save: "I-save ang contact",
+                saved: "Nai-save ang contact ng awtoridad sa halalan.",
+                notStored: "Walang mga setting ang kaganapan na mapag-iimbakan nito.",
+                saveError: "Hindi ma-save ang contact: {{reason}}",
+                readOnly: "Makikita mo ang contact pero hindi mo mababago.",
+                locked: "Nagbukas na ang botohan, kaya hindi na mababago rito ang contact.",
+                successor:
+                    "Pinapanatili ng selyadong patakaran ang contact na kasama nito noong selyuhan. Binabago ng pag-save ang draft, at nagseselyo ang Lupon ng Halalan ng kapalit na patakaran na may dala nito.",
+                footer: "Ang bawat field na pupunan mo ay nagiging isang contact line ng patakaran ng tiwala. Hindi isinasama ang mga walang laman, at walang kailangan.",
+            },
+            hubUpdates: {
+                title: "Mga update mula sa mga hub",
+                intro: "Opsyonal. Maaaring hilingin ng mga botante sa isang hub na i-email sila tungkol sa kanilang balota. Ang bawat hub sa patakaran ng tiwala ay inaalok sa parehong paraan.",
+                confirmation: {
+                    label: "Mag-alok ng “Kumuha ng mga update sa email” sa pahina ng kumpirmasyon",
+                    help: "Pagkatapos bumoto, sa ilalim ng QR code. Inililista nito ang bawat hub, at bawat isa ay bumubukas sa sarili nitong site kasama ang resibo ng botante.",
+                },
+                castEmail: {
+                    label: "Idagdag ang mga hub sa email ng naiboto",
+                    help: "Ang email ng resibo ng balota ay may buong Tracking ID at link sa bawat hub, sa random na ayos.",
+                },
+                readOnly: "Makikita mo ang mga setting na ito pero hindi mo mababago.",
+                saved: "Nai-save ang setting ng mga update mula sa mga hub.",
+                notStored:
+                    "Walang mga setting ng portal ng pagboto ang kaganapan na mapag-iimbakan nito.",
+                saveError: "Hindi ma-save ang setting: {{reason}}",
+                hubs: {
+                    title: "Mga hub",
+                    help: "Mula sa patakaran ng tiwala ng halalan. Para baguhin ang mga ito, maglathala ng bagong patakaran.",
+                    none: "Walang hub sa patakaran ng tiwala na may site, kaya hindi inaalok ng mga update ang mga botante.",
+                    order: "Nakikita ng mga botante ang mga ito sa random na ayos, sa bawat pagkakataon. Hindi maitatakda ang ayos, at walang hub na maaaring gawing default.",
+                },
+                footer: "Parehong naka-on bilang default kapag may pinangalanang hub ang patakaran. Iniimbak kasama ng iba pang setting ng portal ng pagboto ng kaganapan. Ang pag-off ay nagtatago lang ng imbitasyon ng portal: patuloy na sumusuri ang mga hub sa talaan, at puwede pa ring pumunta ang mga botante sa anumang hub nang sila mismo.",
+            },
             overview: {
                 notReported: "Hindi naiulat",
                 ago: "{{duration}} na ang nakalipas",
@@ -7147,8 +7223,9 @@ const tagalogTranslation: TranslationType = {
                     public: "Pampublikong talaan",
                     private: "Pribadong talaan",
                     quorum: "patakaran sa mga saksi: {{k}} sa {{n}}",
-                    hubs_one: "{{count}} angklang hub, {{independent}} malaya",
-                    hubs_other: "{{count}} angklang hub, {{independent}} malaya",
+                    hubs_one: "{{count}} angklang hub",
+                    hubs_other: "{{count}} angklang hub",
+                    hubsOutside: "{{count}} na pinapatakbo ng partidong hindi ang awtoridad ng halalan o ang platform",
                     mmd: "pinakamataas na pagkaantala sa pagsasama: {{duration}}",
                     locked: "naka-lock mula nang magbukas ang botohan",
                     explorerPublic: "Buksan ang pampublikong explorer",
@@ -7201,7 +7278,7 @@ const tagalogTranslation: TranslationType = {
                 anchoring: {
                     title: "Pag-aangkla",
                     sub: "mga hub bawat {{hubs}} · mga browser bawat {{browsers}}",
-                    independent: "Pinapatakbo ng {{party}}, malaya sa {{operator}}",
+                    rule: "Panuntunan: sa {{min}} angklang hub, hindi bababa sa {{outside}} ang dapat patakbuhin ng partidong hindi ang awtoridad ng halalan o ang platform.",
                     noAnchor: "Wala pang angkla",
                     browserLayer: "Layer ng browser",
                     browserLayerSub: "Ang mga hub ng app ay nag-aangkla sa {{hubs}}",
@@ -7246,7 +7323,7 @@ const tagalogTranslation: TranslationType = {
                     none: "Walang pinapayagang pagtatago ng datos ang patakarang ito ng tiwala.",
                 },
                 monitors: {
-                    title: "Mga malayang monitor",
+                    title: "Mga monitor",
                     list_one:
                         "Isang monitor ang pinangalanan ng patakaran ng tiwala: {{names}}. Nagpapadala rito ang mga verifier, kasama ang mga browser ng mga botante, ng gossip, mga pangako at ebidensya.",
                     list_other:
@@ -7297,9 +7374,13 @@ const tagalogTranslation: TranslationType = {
                 draftTitle: "Borador para sa Lupon ng Halalan",
                 draftHelp:
                     "I-download ang borador at ibigay ito sa Lupon ng Halalan. Sinusuri, sinisilyuhan, at nilalagdaan ito ng Lupon gamit ang command-line tool ng Vitrine, at ipinalalagda rin ito sa anumang ibang awtoridad na pinangangalanan ng sign line nito. Pagkatapos, i-upload dito ang nilagdaang patakaran.",
-                draftWords: "Ang walong salita ng borador",
-                draftWordsHelp:
-                    "Tinitiyak ng Lupon na ipinapakita ng “vitrine policy words” ang mga salitang ito para sa file na natanggap nito.",
+                draftId: "Ang hash ng borador",
+                draftIdHelp:
+                    "Tinitiyak ng Lupon na ipinapakita ng “vitrine policy id” ang hash na ito para sa file na natanggap nito. Walang ID ng patakaran ang borador hangga't hindi ito nasisilyuhan.",
+                draftTag: "Borador",
+                shortId: "ID ng patakaran, unang apat na grupo",
+                shortIdHelp:
+                    "Inihahambing ng mga tao ang mga grupong ito sa opisyal na abiso. Inihahambing ng mga kasangkapan ang lahat ng 13.",
                 download: "I-download ang borador",
                 commands: "Ang mga command ng Lupon",
                 invalidDraft: "Hindi wasto ang borador ng patakaran: {{reason}}",
@@ -7307,7 +7388,7 @@ const tagalogTranslation: TranslationType = {
                     "Nagbago ang borador ng kaganapan matapos silyuhan ang patakarang ito. Kailangang silyuhan at lagdaan ng Lupon ang bagong borador, na ia-upload bilang kahalili.",
                 sealedTitle: "Ang patakaran ng kaganapan",
                 sealedHelp:
-                    "Ilathala ang ID ng patakaran at ang anim na salita nito sa opisyal na abiso ng halalan, para makilala ng mga botante at tagamasid ang patakarang ginagamit sa pagsusuri ng kanilang mga resibo.",
+                    "Ilathala ang ID ng patakaran sa opisyal na abiso ng halalan, para makilala ng mga botante at tagamasid ang patakarang ginagamit sa pagsusuri ng kanilang mga resibo. Inihahambing ang unang apat na grupo nito.",
                 idMismatch:
                     "Iniuulat ng mga log ang ID ng patakaran na {{id}}, na hindi sa patakarang ito.",
                 invalidStored: "Hindi wasto ang nakaimbak na patakaran ng kaganapan: {{reason}}",
@@ -7321,7 +7402,7 @@ const tagalogTranslation: TranslationType = {
                 readError: "Hindi mabasa ang file.",
                 tooLarge:
                     "Mas malaki ito kaysa sa maaaring maging laki ng isang patakaran ng tiwala.",
-                draft: "Isa itong borador na hindi pa nasisilyuhan, na ang mga salita ay {{words}}. Kailangan muna itong silyuhan at lagdaan ng Lupon ng Halalan.",
+                draft: "Isa itong borador na hindi pa nasisilyuhan, na ang hash ay {{id}}. Kailangan muna itong silyuhan at lagdaan ng Lupon ng Halalan.",
                 invalid: "Hindi ito wastong nilagdaang patakaran: {{reason}}",
                 preview:
                     "Suriin ang mga detalyeng ito kasama ng Lupon ng Halalan bago i-upload ang patakaran.",
@@ -7332,7 +7413,7 @@ const tagalogTranslation: TranslationType = {
                     "Hindi sinilyuhan ang patakarang ito mula sa kasalukuyang borador ng kaganapan.",
                 submit: "I-upload ang patakaran",
                 uploaded:
-                    "Na-upload ang patakaran. Ilathala ang ID nito at ang anim na salita nito sa opisyal na abiso ng halalan.",
+                    "Na-upload ang patakaran. Ilathala ang ID nito sa opisyal na abiso ng halalan.",
                 error: "Hindi ma-upload ang patakaran: {{reason}}",
             },
             logs: {

@@ -132,7 +132,8 @@ const frenchTranslation: TranslationType = {
                 description:
                     "Les reçus sont vérifiés avec la politique de confiance publiée par l'autorité électorale. Indiquez-la ici, par son texte ou son adresse https, telle qu'elle figure dans l'avis officiel de l'élection.",
                 fromLink:
-                    "Le lien du reçu indique où se trouve sa politique de confiance. Avant de l'épingler sur cet appareil, comparez ses mots et son ID avec l'avis officiel de l'élection.",
+                    "Le lien du reçu indique où se trouve sa politique de confiance. Avant de l'épingler sur cet appareil, comparez les quatre premiers groupes de son ID de politique avec l'avis officiel de l'élection.",
+                compareGroups: "Comparez les quatre premiers groupes, en gras, avec l'avis. Les outils comparent les 13.",
                 inputLabel: "Politique de confiance ou son adresse",
                 inputPlaceholder: "Collez la politique ou son adresse https",
                 load: "Charger la politique",
@@ -144,7 +145,7 @@ const frenchTranslation: TranslationType = {
                     "N'utilisez pas cette politique. Prévenez l'autorité électorale et indiquez la politique de l'avis officiel de l'élection.",
                 pinned: "Vérifié avec la politique de confiance que vous avez épinglée sur cet appareil.",
                 unpin: "Oublier cette politique",
-                draft: "Ceci est un brouillon de la politique, pas la politique scellée ; il ne peut donc pas être épinglé. Ses mots de brouillon :",
+                draft: "Ceci est un brouillon de la politique, pas la politique scellée ; il ne peut donc pas être épinglé. Son ID de brouillon :",
                 invalid: "Ceci n'est pas une politique de confiance valide.",
                 otherPolicy:
                     "Cette politique de confiance est valide, mais le reçu en concerne une autre.",

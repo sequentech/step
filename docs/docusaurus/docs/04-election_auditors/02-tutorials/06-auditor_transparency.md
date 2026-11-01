@@ -9,7 +9,7 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-The ballot verifier offers **Transparency receipt** beside the existing ballot audit, with a **Check a receipt** button. On **Check a transparency receipt**, open a receipt file (the `.vitrine-receipt` file that **Save receipt** saves in the voting portal), paste a receipt, its link or its reference, or follow the ballot tracker's **Check it independently** action. Check the trust policy's ID and six words against the official notice before pinning it. A policy carried by a receipt link is a candidate, not an independently established trust anchor.
+The ballot verifier offers **Transparency receipt** beside the existing ballot audit, with a **Check a receipt** button. On **Check a transparency receipt**, open a receipt file (the `.vitrine-receipt` file that **Save receipt** saves in the voting portal), paste a receipt, its link or its reference, or follow the ballot tracker's **Check it independently** action. Check the trust policy's ID against the official notice before pinning it: the ID is 13 groups of four characters, the format of a Tracking ID, and the first four groups (80 bits) are the ones to compare. Tools compare all 13. A policy carried by a receipt link is a candidate, not an independently established trust anchor.
 
 **Your ballot** shows the Tracking ID the page looks for, as the short ID and the full ID in groups of four. Provide the expected full Tracking ID, event and election when the receipt file does not already carry the entry the voter expects. The field refuses a short ID, and **Change the tracking ID** looks for another one. **Result** shows a headline and three steps: **In the public record**, **Confirmed by witnesses** and **Anchored publicly**. Each step shows what its checks found, such as the entry number, how many witnesses signed and how many the policy needs, and how many hubs hold the record.
 
@@ -21,7 +21,7 @@ With the Vitrine CLI installed, the equivalent offline starting points are:
 
 ```sh
 vitrine policy check policy.txt
-vitrine policy words policy.txt
+vitrine policy id policy.txt
 vitrine chain verify receipt.vrc --policy policy.txt --offline \
   --expect event_id=EVENT_ID --expect election_id=ELECTION_ID --expect ballot_id=BALLOT_ID
 vitrine evidence verify evidence.txt --pin policy.txt

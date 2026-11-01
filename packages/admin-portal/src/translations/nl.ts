@@ -7097,7 +7097,7 @@ const dutchTranslation: TranslationType = {
         },
         transparencyTab: {
             title: "Transparantie",
-            help: "Met Vitrine komen de stembiljetten en mijlpalen van het evenement in logs waaraan alleen iets kan worden toegevoegd en die onafhankelijke getuigen ondertekenen, zodat kiezers en waarnemers kunnen controleren dat er niets is verwijderd of gewijzigd.",
+            help: "Met Vitrine komen de stembiljetten en mijlpalen van het evenement in logs waaraan alleen iets kan worden toegevoegd en die de getuigen uit het vertrouwensbeleid ondertekenen, zodat kiezers en waarnemers kunnen controleren dat er niets is verwijderd of gewijzigd.",
             loading: "Transparantie van het evenement laden...",
             loadError: "De transparantie van het evenement kon niet worden geladen: {{reason}}",
             unknownError: "onbekende fout",
@@ -7109,6 +7109,82 @@ const dutchTranslation: TranslationType = {
             sdkLoading: "De Vitrine-verificatie laden...",
             sdkError:
                 "De Vitrine-verificatie kon in deze browser niet starten, dus het vertrouwensbeleid kan hier niet worden gecontroleerd.",
+            hubProblems: {
+                title_one: "Een hub meldt een probleem voor deze verkiezing",
+                title_other: "Er worden {{count}} problemen gemeld voor deze verkiezing",
+                listedBy: "Gemeld door {{hubs}}",
+                proof: "Bekijk het bewijs",
+                note: "Deze melding is een gemak van dit portaal, en een vermelding is slechts een verwijzing: open het bewijs om het in uw browser te controleren. Elke hub meldt zijn problemen ook op zijn eigen site, of dit portaal ze nu toont of niet. Een hub die niet antwoordt is geen probleem.",
+                kind: {
+                    splitView: "Twee versies van het register",
+                    brokenPromise: "Een beloofde invoer ontbreekt",
+                    breaksRules: "Een invoer overtreedt de regels",
+                    twoPolicies: "Twee beleidsstukken",
+                    unloggedCode: "Code die niet is vastgelegd",
+                    other: "Een probleem vastgelegd door een hub",
+                },
+            },
+            authorityContact: {
+                title: "Contact van de verkiezingsautoriteit",
+                intro: "Optioneel. Hoe kiezers de verkiezingsautoriteit bereiken, bijvoorbeeld om een afwijking bij een audit te melden. Het komt in het vertrouwensbeleid, en de apps van kiezers tonen het alleen uit het verzegelde beleid.",
+                name: {
+                    label: "Naam",
+                    help: "Maximaal 128 bytes, met enkele spaties en zonder regeleinden.",
+                    invalid:
+                        "De naam is 1 tot 128 bytes, met enkele spaties en zonder regeleinden of onzichtbare tekens.",
+                },
+                email: {
+                    label: "E-mail",
+                    help: "Een adres met alleen letters, cijfers en . _ % + -",
+                    invalid:
+                        "Gebruik een eenvoudig adres zoals verkiezingen@acme.example, zonder accenten of aanhalingstekens.",
+                },
+                phone: {
+                    label: "Telefoon",
+                    help: "Een + en 7 tot 15 cijfers, zonder spaties.",
+                    invalid:
+                        "Gebruik een + en 7 tot 15 cijfers, het eerste niet 0, zonder spaties of streepjes.",
+                },
+                url: {
+                    label: "Website",
+                    help: "Een https-adres.",
+                    invalid:
+                        "Gebruik een https-adres, zoals https://verkiezingen.acme.example/contact.",
+                },
+                save: "Contact opslaan",
+                saved: "Het contact van de verkiezingsautoriteit is opgeslagen.",
+                notStored: "De gebeurtenis heeft geen instellingen om het in op te slaan.",
+                saveError: "Het contact kon niet worden opgeslagen: {{reason}}",
+                readOnly: "U kunt het contact bekijken, maar niet wijzigen.",
+                locked: "De stemming is geopend, dus het contact kan hier niet meer worden gewijzigd.",
+                successor:
+                    "Het verzegelde beleid behoudt het contact waarmee het is verzegeld. Opslaan wijzigt het concept, en de kiesraad verzegelt een opvolgend beleid dat het bevat.",
+                footer: "Elk veld dat u invult wordt een contactregel van het vertrouwensbeleid. Lege velden blijven weg en geen enkel veld is verplicht.",
+            },
+            hubUpdates: {
+                title: "Updates van hubs",
+                intro: "Optioneel. Kiezers kunnen een hub vragen hen per e-mail te informeren over hun stembiljet. Elke hub in het vertrouwensbeleid wordt op dezelfde manier aangeboden.",
+                confirmation: {
+                    label: "«E-mailupdates ontvangen» aanbieden op de bevestigingspagina",
+                    help: "Na het stemmen, onder de QR-code. Het toont elke hub, en elke hub opent op zijn eigen site met het ontvangstbewijs van de kiezer.",
+                },
+                castEmail: {
+                    label: "De hubs toevoegen aan de e-mail over de uitgebrachte stem",
+                    help: "De e-mail met het ontvangstbewijs van het stembiljet bevat de volledige Tracking-ID en een link naar elke hub, in willekeurige volgorde.",
+                },
+                readOnly: "U kunt deze instellingen bekijken, maar niet wijzigen.",
+                saved: "De instelling voor updates van hubs is opgeslagen.",
+                notStored:
+                    "Het evenement heeft geen instellingen van de stemportal om dit in op te slaan.",
+                saveError: "De instelling kon niet worden opgeslagen: {{reason}}",
+                hubs: {
+                    title: "Hubs",
+                    help: "Uit het vertrouwensbeleid van de verkiezing. Publiceer een nieuw beleid om ze te wijzigen.",
+                    none: "Geen enkele hub in het vertrouwensbeleid heeft een site, dus kiezers krijgen geen updates aangeboden.",
+                    order: "Kiezers zien ze elke keer in willekeurige volgorde. De volgorde kan niet worden ingesteld en geen enkele hub kan de standaard worden.",
+                },
+                footer: "Beide staan standaard aan zodra het beleid een hub noemt. Ze worden opgeslagen met de andere instellingen van de stemportal van het evenement. Uitzetten verbergt alleen de uitnodiging van de portal: hubs controleren het register nog steeds, en kiezers kunnen zelf nog naar elke hub gaan.",
+            },
             overview: {
                 notReported: "Niet gemeld",
                 ago: "{{duration}} geleden",
@@ -7131,8 +7207,9 @@ const dutchTranslation: TranslationType = {
                     public: "Openbaar register",
                     private: "Privéregister",
                     quorum: "getuigenbeleid {{k}} van {{n}}",
-                    hubs_one: "{{count}} ankerhub, {{independent}} onafhankelijk",
-                    hubs_other: "{{count}} ankerhubs, {{independent}} onafhankelijk",
+                    hubs_one: "{{count}} ankerhub",
+                    hubs_other: "{{count}} ankerhubs",
+                    hubsOutside: "{{count}} beheerd door een andere partij dan de kiesautoriteit en het platform",
                     mmd: "maximale samenvoegvertraging {{duration}}",
                     locked: "vergrendeld sinds het openen van de stemming",
                     explorerPublic: "Openbare verkenner openen",
@@ -7184,7 +7261,7 @@ const dutchTranslation: TranslationType = {
                 anchoring: {
                     title: "Verankering",
                     sub: "hubs elke {{hubs}} · browsers elke {{browsers}}",
-                    independent: "Beheerd door {{party}}, onafhankelijk van {{operator}}",
+                    rule: "Regel: van {{min}} ankerhubs moeten er minstens {{outside}} worden beheerd door een andere partij dan de kiesautoriteit en het platform.",
                     noAnchor: "Nog geen anker",
                     browserLayer: "Browserlaag",
                     browserLayerSub: "De hubs van de app verankeren in {{hubs}}",
@@ -7229,7 +7306,7 @@ const dutchTranslation: TranslationType = {
                     none: "Dit vertrouwensbeleid staat het achterhouden van gegevens niet toe.",
                 },
                 monitors: {
-                    title: "Onafhankelijke monitors",
+                    title: "Monitors",
                     list_one:
                         "Het vertrouwensbeleid noemt één monitor: {{names}}. Verificatiesystemen, ook de browsers van kiezers, sturen die gossip, beloftes en bewijs.",
                     list_other:
@@ -7279,9 +7356,13 @@ const dutchTranslation: TranslationType = {
                 draftTitle: "Concept voor de Kiescommissie",
                 draftHelp:
                     "Download het concept en geef het aan de Kiescommissie. De commissie controleert, verzegelt en ondertekent het met de opdrachtregeltool van Vitrine, en laat het ook ondertekenen door elke andere instantie die de sign-regel noemt. Upload daarna hier het ondertekende beleid.",
-                draftWords: "De acht woorden van het concept",
-                draftWordsHelp:
-                    "De commissie controleert dat ‘vitrine policy words’ deze woorden toont voor het bestand dat ze heeft ontvangen.",
+                draftId: "De hash van het concept",
+                draftIdHelp:
+                    "De commissie controleert dat ‘vitrine policy id’ deze hash toont voor het bestand dat ze heeft ontvangen. Een concept heeft geen beleids-ID totdat het is verzegeld.",
+                draftTag: "Concept",
+                shortId: "Beleids-ID, eerste vier groepen",
+                shortIdHelp:
+                    "Mensen vergelijken deze groepen met de officiële aankondiging. Hulpmiddelen vergelijken alle 13.",
                 download: "Concept downloaden",
                 commands: "De opdrachten van de commissie",
                 invalidDraft: "Het conceptbeleid is niet geldig: {{reason}}",
@@ -7289,7 +7370,7 @@ const dutchTranslation: TranslationType = {
                     "Het concept van het evenement is gewijzigd nadat dit beleid werd verzegeld. De commissie moet het nieuwe concept verzegelen en ondertekenen, dat daarna als opvolger wordt geüpload.",
                 sealedTitle: "Het beleid van het evenement",
                 sealedHelp:
-                    "Publiceer de beleids-ID en de zes woorden in de officiële verkiezingsaankondiging, zodat kiezers en waarnemers het beleid herkennen waartegen hun ontvangstbewijzen worden gecontroleerd.",
+                    "Publiceer de beleids-ID in de officiële verkiezingsaankondiging, zodat kiezers en waarnemers het beleid herkennen waartegen hun ontvangstbewijzen worden gecontroleerd. Mensen vergelijken de eerste vier groepen.",
                 idMismatch: "De logs melden de beleids-ID {{id}}, die niet van dit beleid is.",
                 invalidStored: "Het opgeslagen beleid van het evenement is niet geldig: {{reason}}",
             },
@@ -7301,7 +7382,7 @@ const dutchTranslation: TranslationType = {
                 text: "Ondertekend beleid",
                 readError: "Het bestand kon niet worden gelezen.",
                 tooLarge: "Dit is groter dan een vertrouwensbeleid kan zijn.",
-                draft: "Dit is een onverzegeld concept, met de woorden {{words}}. De Kiescommissie moet het eerst verzegelen en ondertekenen.",
+                draft: "Dit is een onverzegeld concept, met de hash {{id}}. De Kiescommissie moet het eerst verzegelen en ondertekenen.",
                 invalid: "Dit is geen geldig ondertekend beleid: {{reason}}",
                 preview:
                     "Controleer deze gegevens met de Kiescommissie voordat u het beleid uploadt.",
@@ -7312,7 +7393,7 @@ const dutchTranslation: TranslationType = {
                     "Dit beleid is niet verzegeld vanuit het huidige concept van het evenement.",
                 submit: "Beleid uploaden",
                 uploaded:
-                    "Het beleid is geüpload. Publiceer de ID en de zes woorden in de officiële verkiezingsaankondiging.",
+                    "Het beleid is geüpload. Publiceer de ID in de officiële verkiezingsaankondiging.",
                 error: "Het beleid kon niet worden geüpload: {{reason}}",
             },
             logs: {

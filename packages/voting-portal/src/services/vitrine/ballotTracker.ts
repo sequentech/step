@@ -193,7 +193,10 @@ const quorumOf = (result: ChainResult): {signed?: number; at?: number} => {
     return {signed: numberOf(params?.cosignatures), at: numberOf(params?.quorumTime)}
 }
 
-const witnessCount = (policy: Policy | undefined, signed: number | undefined) => {
+export const witnessCount = (
+    policy: Policy | undefined,
+    signed: number | undefined
+): IWitnessCount | undefined => {
     const set = policy?.witnesses
     if (!set || signed === undefined) return undefined
     const root = set.groups.get(set.quorum)

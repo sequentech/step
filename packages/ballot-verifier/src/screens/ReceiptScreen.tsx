@@ -96,7 +96,7 @@ enum ECandidate {
     LOADING = "loading",
     /** Valid, for this receipt, and waiting for the user's comparison. */
     OFFERED = "offered",
-    /** The user said its words don't match the notice. */
+    /** The user said its policy ID doesn't match the notice. */
     REJECTED = "rejected",
     DRAFT = "draft",
     INVALID = "invalid",
@@ -109,7 +109,7 @@ type TCandidate =
     | {state: ECandidate.LOADING}
     | {state: ECandidate.OFFERED; view: IPolicyView}
     | {state: ECandidate.REJECTED}
-    | {state: ECandidate.DRAFT; draftWords: string[]}
+    | {state: ECandidate.DRAFT; draftId: string}
     | {state: ECandidate.INVALID; reason: Reason}
     | {state: ECandidate.OTHER_POLICY}
     | {state: ECandidate.FETCH_FAILED; problem: EPolicyFetchProblem; status?: number}
@@ -241,7 +241,7 @@ export const ReceiptScreen: React.FC<IReceiptScreenProps> = ({deps = {}}) => {
         if (!examined.ok) {
             setCandidate(
                 examined.refusal === EPolicyRefusal.DRAFT
-                    ? {state: ECandidate.DRAFT, draftWords: examined.draftWords}
+                    ? {state: ECandidate.DRAFT, draftId: examined.draftId}
                     : {state: ECandidate.INVALID, reason: examined.reason}
             )
         } else if (!policyFitsReceipt(sdk, receipt, examined.view)) {
@@ -351,6 +351,8 @@ export const ReceiptScreen: React.FC<IReceiptScreenProps> = ({deps = {}}) => {
                             ui={ui}
                             lang={lang}
                             summary={candidate.view.summary}
+                            idDisplay={candidate.view.idDisplay}
+                            shortId={candidate.view.shortId}
                             compare
                             witnesses
                         />
@@ -378,9 +380,7 @@ export const ReceiptScreen: React.FC<IReceiptScreenProps> = ({deps = {}}) => {
                 return (
                     <Alert severity="warning" data-testid="policy-draft">
                         {t("receiptScreen.policy.draft")}{" "}
-                        <strong data-testid="policy-draft-words">
-                            {candidate.draftWords.join(" ")}
-                        </strong>
+                        <code data-testid="policy-draft-id">{candidate.draftId}</code>
                     </Alert>
                 )
             case ECandidate.INVALID:
@@ -422,7 +422,15 @@ export const ReceiptScreen: React.FC<IReceiptScreenProps> = ({deps = {}}) => {
             return (
                 <Box data-testid="policy-pinned">
                     <Muted variant="body2">{t("receiptScreen.policy.pinned")}</Muted>
-                    {ui ? <PolicyFacts ui={ui} lang={lang} summary={view.summary} /> : null}
+                    {ui ? (
+                        <PolicyFacts
+                            ui={ui}
+                            lang={lang}
+                            summary={view.summary}
+                            idDisplay={view.idDisplay}
+                            shortId={view.shortId}
+                        />
+                    ) : null}
                     <Button
                         variant="secondary"
                         onClick={() => unpin(view)}

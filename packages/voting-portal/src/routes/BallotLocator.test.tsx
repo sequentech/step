@@ -88,6 +88,11 @@ jest.mock("../hooks/useTrackedReceipt", () => ({
     useTrackedReceipt: (...args: unknown[]) => mockTracked(...args),
 }))
 
+let mockShort: {status: string; result?: unknown} = {status: "off"}
+jest.mock("../hooks/useShortIdMatches", () => ({
+    useShortIdMatches: () => mockShort,
+}))
+
 const mockAudit = jest.fn()
 jest.mock("../services/vitrine/ballotAudit", () => ({
     ...jest.requireActual("../services/vitrine/ballotAudit"),
@@ -104,7 +109,7 @@ interface ICastVote {
 let mockPresentation: Record<string, unknown> = {}
 let mockTelephone = false
 let mockVotes: ICastVote[] = []
-const mockQueries: {name: string; variables: Record<string, unknown>}[] = []
+const mockQueries: {name: string; variables: Record<string, unknown>; skip?: boolean}[] = []
 
 /** What the ballot box answers to a lookup, from the voter's ballots it would match. */
 const located = () =>
@@ -127,10 +132,10 @@ const located = () =>
 jest.mock("@apollo/client/react", () => ({
     useQuery: (
         query: {definitions: {kind: string; name?: {value: string}}[]},
-        options: {variables: Record<string, unknown>}
+        options: {variables: Record<string, unknown>; skip?: boolean}
     ) => {
         const name = query.definitions.find((d) => d.kind === "OperationDefinition")?.name?.value
-        mockQueries.push({name: name ?? "", variables: options.variables})
+        mockQueries.push({name: name ?? "", variables: options.variables, skip: options.skip})
         const data =
             name === "GetElectionEvent"
                 ? {sequent_backend_election_event: [{id: "event", presentation: mockPresentation}]}
@@ -311,6 +316,7 @@ beforeEach(() => {
     mockTelephone = false
     mockVotes = []
     mockQueries.length = 0
+    mockShort = {status: "off"}
     mockTracked.mockReset()
     mockTracked.mockReturnValue(tracked({view: VERIFIED}))
     mockAudit.mockReset()
@@ -519,6 +525,113 @@ describe("ballots that the ID does not tell apart", () => {
     })
 })
 
+describe("ballots that share the short ID, listed from a bucket of the record's servers", () => {
+    const device = `${SHORT}0123${"0".repeat(36)}`
+    const listing = (extra: Record<string, unknown>) => ({
+        kind: "listed",
+        typed: SHORT,
+        matches: [],
+        total: 0,
+        truncated: false,
+        ...extra,
+    })
+    const row = (third: string, extra: Record<string, unknown> = {}) => ({
+        ballotId: "ab".repeat(32),
+        trackingId: `${SHORT}${third}5ZBD${"0".repeat(36)}`,
+        third,
+        fourth: "5ZBD",
+        audited: false,
+        at: 1_793_270_528,
+        event: "event",
+        election: "election",
+        onDevice: false,
+        ...extra,
+    })
+    const locates = () =>
+        mockQueries.filter((query) => query.name === "LocateBallot" && !query.skip)
+
+    beforeEach(() => {
+        mockPresentation = TRACKER
+    })
+
+    it("lists them without asking the election's server which ballot it is", () => {
+        mockShort = {
+            status: "done",
+            result: listing({matches: [row("71J7"), row("0WDY")], total: 2}),
+        }
+        renderAt(`/${SHORT}`)
+        const links = within(
+            document.querySelector(".short-id-matches") as HTMLElement
+        ).getAllByRole("link")
+        expect(links.map((link) => link.getAttribute("href"))).toEqual([
+            `${PATH}/${SHORT}71J75ZBD${"0".repeat(36)}`,
+            `${PATH}/${SHORT}0WDY5ZBD${"0".repeat(36)}`,
+        ])
+        expect(locates()).toHaveLength(0)
+        expect(screen.queryByText("ballotLocator.shortId.serverSees")).toBeNull()
+        expect(screen.queryByText(/ballotLocator\.notFound/)).toBeNull()
+        expect(screen.getByTestId("steps")).toHaveTextContent("0")
+    })
+
+    it("asks only for the third group when many share it", () => {
+        mockShort = {status: "done", result: listing({kind: "many", total: 28})}
+        renderAt(`/${SHORT}`)
+        expect(screen.queryAllByRole("link", {name: /FTBE-MHRX/})).toHaveLength(0)
+        expect(screen.getByLabelText("ballotLocator.shortId.third")).toBeVisible()
+    })
+
+    it("marks the receipt of this device, with the look-alikes listed", () => {
+        mockShort = {
+            status: "done",
+            result: listing({
+                matches: [row("0123", {onDevice: true, trackingId: device}), row("0WDY")],
+                total: 2,
+                mine: device,
+            }),
+        }
+        renderAt(`/${SHORT}`)
+        expect(screen.getByText("ballotLocator.shortId.onDevice")).toBeVisible()
+        expect(document.querySelectorAll(".short-id-match")).toHaveLength(2)
+    })
+
+    it("narrows by the third group the voter types", async () => {
+        mockShort = {status: "done", result: listing({kind: "many", total: 28})}
+        renderAt(`/${SHORT}`)
+        await userEvent.type(screen.getByLabelText("ballotLocator.shortId.third"), "71J7")
+        await userEvent.click(screen.getByRole("button", {name: "ballotLocator.shortId.find"}))
+        expect(router.state.location.pathname).toBe(`${PATH}/${SHORT}71J7`)
+        expect(field().value).toBe("FTBE-MHRX-71J7")
+    })
+
+    it("waits for the bucket before asking the election's server", () => {
+        mockShort = {status: "loading"}
+        renderAt(`/${SHORT}`)
+        expect(locates()).toHaveLength(0)
+        expect(screen.queryByText(/ballotLocator\.notFound/)).toBeNull()
+    })
+
+    it("falls back to the election's server when no server lists buckets, and says it saw the ID", () => {
+        mockShort = {status: "done", result: listing({kind: "unsupported"})}
+        mockVotes = [vote(FULL)]
+        renderAt(`/${SHORT}`)
+        expect(screen.getByText("ballotLocator.shortId.serverSees")).toBeVisible()
+        expect(locates().some((query) => query.variables.ballotId === SHORT)).toBe(true)
+    })
+
+    it("says the same when the event has no policy to name a server", () => {
+        mockShort = {status: "done"}
+        mockVotes = [vote(FULL)]
+        renderAt(`/${SHORT}`)
+        expect(screen.getByText("ballotLocator.shortId.serverSees")).toBeVisible()
+    })
+
+    it("says nothing about it where no bucket was tried", () => {
+        mockVotes = [vote(FULL)]
+        renderAt(`/${SHORT}`)
+        expect(screen.queryByText("ballotLocator.shortId.serverSees")).toBeNull()
+    })
+})
+
 describe("the result for an event with transparency", () => {
     beforeEach(() => {
         mockPresentation = TRACKER
@@ -552,6 +665,9 @@ describe("the result for an event with transparency", () => {
                 (group) => group.textContent
             )
         ).toEqual(["FTBE-", "MHRX-"])
+        expect(section().querySelector(".full-tracking-id")?.getAttribute("data-surface")).toBe(
+            "tint"
+        )
         expect(ids.getByText("b1d8 c475 6132 ··· 5a0d")).toBeVisible()
         expect(ids.getByRole("button", {name: "ballotLocator.result.save"})).toBeVisible()
     })
@@ -605,17 +721,17 @@ describe("the result for an event with transparency", () => {
         })
     })
 
-    it("copies the full ID, grouped, and swaps the copy icon for a check, without a word", async () => {
+    it("copies the full ID, grouped, and swaps the copy icon for a check and the word Copied", async () => {
         const writeText = jest.fn().mockResolvedValue(undefined)
         Object.defineProperty(navigator, "clipboard", {value: {writeText}, configurable: true})
         renderAt(`/${FULL}`)
         const copy = screen.getByRole("button", {name: "vitrine.ballotId.copy"})
-        expect(copy).toHaveTextContent("")
+        expect(copy).toHaveTextContent("vitrine.ballotId.copyText")
         await userEvent.click(copy)
         expect(writeText).toHaveBeenCalledWith(GROUPED)
         const copied = screen.getByRole("button", {name: "vitrine.ballotId.copied"})
         expect(copied).toBe(copy)
-        expect(copied).toHaveTextContent("")
+        expect(copied).toHaveTextContent("vitrine.ballotId.copiedText")
         expect(copied.querySelector(".full-tracking-id-copied-icon")).not.toBeNull()
     })
 
@@ -748,6 +864,173 @@ describe("the result for an event with transparency", () => {
         expect(top.getByRole("link", {name: "votingScreen.backButton"})).toBeVisible()
         expect(top.getByRole("button", {name: "ballotLocator.locateAgain"})).toBeVisible()
         expect(screen.queryByRole("region", {name: "ballotLocator.result.receipt"})).toBeNull()
+    })
+})
+
+describe("Who signed and Which hubs in the result for an event with transparency", () => {
+    const SIGNED_AT = NOW - 600
+    const POLICY = {
+        id: "sha256:abc123",
+        operator: "Election authority",
+        browserPeriod: 600,
+        witnesses: {
+            witnesses: new Map([
+                ["w1", {name: "w1", party: "Observer A"}],
+                ["w2", {name: "w2", party: "Observer B"}],
+            ]),
+            groups: new Map([["quorum", {k: 2, members: ["w1", "w2"]}]]),
+            quorum: "quorum",
+        },
+        monitors: new Map([
+            ["obs", {name: "obs", party: "Observer A", explorer: "https://obs.example/"}],
+        ]),
+        hubs: new Map([
+            ["hub-a", {name: "hub-a", operator: "Hub A", explorer: "https://hub-a.example/"}],
+            ["hub-b", {name: "hub-b", operator: "Election authority"}],
+        ]),
+        explorers: [],
+        anchorHubs: {min: 2, minIndependent: 1},
+    } as unknown as NonNullable<IReceiptView["policy"]>
+
+    const signers = {
+        witnesses: new Map([
+            ["w1", SIGNED_AT],
+            ["w2", SIGNED_AT + 1],
+        ]),
+        hubs: new Map([["hub-a", SIGNED_AT + 2]]),
+        size: 22,
+    }
+
+    const hubTiers = [
+        {hub: "hub-a", status: "verified"},
+        {hub: "hub-b", status: "late"},
+    ]
+
+    const withSigners = (
+        status: ChainResult["status"],
+        tiers: TierResult[],
+        extra: Partial<IReceiptView> = {}
+    ): IReceiptView => ({
+        ...viewOf({
+            ...resultOf(status, tiers),
+            policy: {hubs: ["hub-a", "hub-b"], browser: "bootstrap"},
+        } as unknown as ChainResult),
+        policy: POLICY,
+        signers,
+        ...extra,
+    })
+
+    const step = (name: string) => document.querySelector(`.tracker-step-${name}`) as HTMLElement
+    const toggleOf = (name: string) =>
+        within(step(name)).queryByRole("button", {name: /vitrine\.signers\./})
+
+    beforeEach(() => {
+        mockPresentation = TRACKER
+        mockVotes = [vote(FULL)]
+    })
+
+    it("opens a list of the witnesses under the step they confirmed, and of the hubs under theirs", () => {
+        mockTracked.mockReturnValue(
+            tracked({
+                view: withSigners("verified", [
+                    tier("record", "verified"),
+                    tier("witnesses", "verified"),
+                    tier("hubs", "verified", {hubs: hubTiers} as unknown as Partial<TierResult>),
+                    tier("browser", "verified"),
+                ]),
+            })
+        )
+        renderAt(`/${FULL}`)
+        expect(toggleOf("record")).toBeNull()
+        expect(toggleOf("witnesses")).toHaveTextContent("vitrine.signers.witnesses.open")
+        expect(toggleOf("hubs")).toHaveTextContent("vitrine.signers.hubs.open")
+        expect(toggleOf("browser")).toBeNull()
+    })
+
+    it("lists the witnesses with when each signed, and a link only where the policy names a site", async () => {
+        mockTracked.mockReturnValue(
+            tracked({
+                view: withSigners("pending", [
+                    tier("record", "verified"),
+                    tier("witnesses", "verified"),
+                    tier("hubs", "pending"),
+                    tier("browser", "pending"),
+                ]),
+            })
+        )
+        renderAt(`/${FULL}`)
+        await userEvent.click(toggleOf("witnesses")!)
+        const rows = Array.from(step("witnesses").querySelectorAll(".witness-list-row"))
+        expect(rows.map((row) => row.querySelector(".witness-list-name")?.textContent)).toEqual([
+            "w1",
+            "w2",
+        ])
+        expect(
+            Array.from(step("witnesses").querySelectorAll<HTMLAnchorElement>("a")).map((a) =>
+                a.getAttribute("href")
+            )
+        ).toEqual([
+            "https://obs.example/#policy=sha256%3Aabc123&log=ballots&checkpoint=22&cosigner=w1",
+        ])
+    })
+
+    it("lists the hubs, the late one too, and leaves out where browsers check", async () => {
+        mockTracked.mockReturnValue(
+            tracked({
+                view: withSigners("late", [
+                    tier("record", "verified"),
+                    tier("witnesses", "verified"),
+                    tier("hubs", "late", {
+                        deadline: NOW - 60,
+                        hubs: hubTiers,
+                    } as unknown as Partial<TierResult>),
+                    tier("browser", "pending"),
+                ]),
+            })
+        )
+        renderAt(`/${FULL}`)
+        await userEvent.click(toggleOf("hubs")!)
+        const rows = Array.from(step("hubs").querySelectorAll(".witness-list-row"))
+        expect(rows.map((row) => row.querySelector(".witness-list-name")?.textContent)).toEqual([
+            "hub-a",
+            "hub-b",
+        ])
+        expect(rows[1].querySelector(".witness-list-when")?.textContent).toBe(
+            "vitrine.signers.late"
+        )
+    })
+
+    it("offers no list before the witnesses have signed, or when the receipt gave no times", () => {
+        mockTracked.mockReturnValue(
+            tracked({
+                view: withSigners("pending", [
+                    tier("record", "verified"),
+                    tier("witnesses", "pending"),
+                    tier("hubs", "pending"),
+                    tier("browser", "pending"),
+                ]),
+            })
+        )
+        const {unmount} = renderAt(`/${FULL}`)
+        expect(toggleOf("witnesses")).toBeNull()
+        unmount()
+        mockTracked.mockReturnValue(
+            tracked({
+                view: withSigners(
+                    "verified",
+                    [
+                        tier("record", "verified"),
+                        tier("witnesses", "verified"),
+                        tier("hubs", "verified"),
+                        tier("browser", "verified"),
+                    ],
+                    {signers: undefined}
+                ),
+            })
+        )
+        renderAt(`/${FULL}`)
+        expect(toggleOf("witnesses")).toBeNull()
+        expect(toggleOf("hubs")).toBeNull()
     })
 })
 

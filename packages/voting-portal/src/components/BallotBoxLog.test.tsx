@@ -1,13 +1,20 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {fireEvent, render, screen, waitFor} from "@testing-library/react"
+import {act, fireEvent, render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import type {IBallotLogRow} from "@sequentech/ui-core"
+import {policyIdDisplay} from "@vitrine/verify"
 import {BallotBoxLog, BallotBoxLogView, type BallotBoxLogViewProps} from "./BallotBoxLog"
 
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
-jest.mock("./BallotBoxEntry", () => ({BallotBoxEntry: () => null}))
+jest.mock("./BallotBoxEntry", () => ({
+    BallotBoxEntry: ({electionId, ballotId}: {electionId: string; ballotId: string}) => (
+        <div data-testid="entry">{`${electionId}/${ballotId}`}</div>
+    ),
+}))
+let mockBucket: {status: string; result?: unknown} = {status: "off"}
+jest.mock("../hooks/useShortIdMatches", () => ({useBucketMatches: () => mockBucket}))
 jest.mock("@apollo/client/react", () => ({useQuery: (...args: unknown[]) => mockQuery(...args)}))
 const mockQuery = jest.fn()
 
@@ -77,6 +84,59 @@ test("a hyphen needs the 8 characters of a Tracking ID, and a colon is a pseudon
     rerender(<BallotBoxLogView {...props()} search="K7QM:" />)
     expect(screen.queryByText("ballotPrivacy.invalidPrefix")).not.toBeInTheDocument()
     expect(screen.getAllByRole("button", {name: "FTBE-MHRX"}).length).toBeGreaterThan(0)
+})
+
+const POLICY_ID = `sha256:${"0123456789abcdef".repeat(4)}`
+const POLICY_GROUPS = policyIdDisplay(POLICY_ID)
+
+test("the election's policy ID typed in the search is told what it is, not called invalid", () => {
+    const four = POLICY_GROUPS.split("-").slice(0, 4).join("-")
+    render(<BallotBoxLogView {...props()} ownBallots={[]} search={four} policyIdTyped />)
+    expect(screen.getByText("ballotPrivacy.policyId")).toBeInTheDocument()
+    expect(screen.queryByText("ballotPrivacy.invalidPrefix")).not.toBeInTheDocument()
+})
+
+test("the log asks the server for nothing while the search is the policy's ID", async () => {
+    jest.useFakeTimers()
+    try {
+        mockQuery.mockImplementation((_query, options) => ({
+            data:
+                "limit" in options.variables
+                    ? {ballot_box_log: {payload: props().page}}
+                    : {ballot_box_own: {payload: {ballots: []}}},
+            loading: false,
+        }))
+        mockQuery.mockClear()
+        render(
+            <BallotBoxLog
+                policy={{id: POLICY_ID} as never}
+                electionEventId="event"
+                formatTime={() => "03:00 UTC"}
+            />
+        )
+        const prefixes = () =>
+            mockQuery.mock.calls
+                .map(([, options]) => options?.variables)
+                .filter((variables) => variables && "limit" in variables)
+                .map((variables) => variables.prefix)
+        fireEvent.change(screen.getByRole("textbox"), {
+            target: {value: POLICY_GROUPS.split("-").slice(0, 4).join("-")},
+        })
+        await act(async () => {
+            jest.advanceTimersByTime(400)
+        })
+        expect(prefixes().at(-1)).toBeNull()
+        expect(screen.getByText("ballotPrivacy.policyId")).toBeInTheDocument()
+        // A short Tracking ID is still searched.
+        fireEvent.change(screen.getByRole("textbox"), {target: {value: "FTBE-MHRX"}})
+        await act(async () => {
+            jest.advanceTimersByTime(400)
+        })
+        expect(prefixes().at(-1)).toBe("FTBE-MHRX")
+        expect(screen.queryByText("ballotPrivacy.policyId")).not.toBeInTheDocument()
+    } finally {
+        jest.useRealTimers()
+    }
 })
 
 test("rows show the short Tracking ID, the pseudonym with a colon and the last step", () => {
@@ -247,4 +307,105 @@ test("search and page-size controls forward user choices and opening a row fires
     fireEvent.click(document.querySelector(".ballot-box-log-row")!)
     expect(input.onOpen).toHaveBeenCalledTimes(2)
     expect(input.onOpen).toHaveBeenLastCalledWith(ballot)
+})
+
+describe("a short ID searched in the log", () => {
+    const FULL_ID = `FTBEMHRX71J75ZBD${"0".repeat(36)}`
+    const listing = {
+        kind: "listed",
+        typed: "FTBEMHRX",
+        matches: [
+            {
+                ballotId: "ab".repeat(32),
+                trackingId: FULL_ID,
+                third: "71J7",
+                fourth: "5ZBD",
+                audited: false,
+                at: 1_793_270_528,
+                event: "event",
+                election: "election-9",
+                onDevice: false,
+            },
+        ],
+        total: 1,
+        truncated: false,
+    }
+    const policy = {id: POLICY_ID} as never
+
+    beforeEach(() => {
+        jest.useFakeTimers()
+        mockBucket = {status: "off"}
+        mockQuery.mockImplementation((_query, options) => ({
+            data:
+                "limit" in options.variables
+                    ? {ballot_box_log: {payload: props().page}}
+                    : {ballot_box_own: {payload: {ballots: []}}},
+            loading: false,
+        }))
+        mockQuery.mockClear()
+    })
+    afterEach(() => {
+        jest.useRealTimers()
+        mockBucket = {status: "off"}
+    })
+
+    const search = async (value: string) => {
+        fireEvent.change(screen.getByRole("textbox", {name: "ballotPrivacy.search"}), {
+            target: {value},
+        })
+        await act(async () => {
+            jest.advanceTimersByTime(400)
+        })
+    }
+    const lastLogQuery = () =>
+        mockQuery.mock.calls
+            .map(([, options]) => options)
+            .filter((options) => options?.variables && "limit" in options.variables)
+            .at(-1)
+
+    it("is listed from the buckets in place of the page, and the server is not asked", async () => {
+        mockBucket = {status: "done", result: listing}
+        render(<BallotBoxLog policy={policy} electionEventId="event" formatTime={() => "t"} />)
+        await search("FTBE-MHRX")
+        expect(lastLogQuery()?.skip).toBe(true)
+        expect(document.querySelector(".ballot-box-log-short-ids")).not.toBeNull()
+        expect(screen.getByRole("button", {name: /FTBE-MHRX/})).toBeInTheDocument()
+        expect(document.querySelector(".ballot-box-log-table-body")).toBeNull()
+        expect(screen.queryByText("ballotLocator.shortId.serverSees")).toBeNull()
+    })
+
+    it("opens the ballot it lists", async () => {
+        mockBucket = {status: "done", result: listing}
+        render(<BallotBoxLog policy={policy} electionEventId="event" formatTime={() => "t"} />)
+        await search("FTBE-MHRX")
+        fireEvent.click(screen.getByRole("button", {name: /FTBE-MHRX/}))
+        // The entry opens by the full Tracking ID, in the election it was logged for.
+        expect(screen.getByTestId("entry")).toHaveTextContent(`election-9/${FULL_ID}`)
+    })
+
+    it("waits for the bucket before it asks the server", async () => {
+        mockBucket = {status: "loading"}
+        render(<BallotBoxLog policy={policy} electionEventId="event" formatTime={() => "t"} />)
+        await search("FTBE-MHRX")
+        expect(lastLogQuery()?.skip).toBe(true)
+    })
+
+    it("goes to the server when no server lists buckets, and says it saw the ID", async () => {
+        mockBucket = {status: "done"}
+        render(<BallotBoxLog policy={policy} electionEventId="event" formatTime={() => "t"} />)
+        await search("FTBE-MHRX")
+        expect(lastLogQuery()?.skip).toBe(false)
+        expect(lastLogQuery()?.variables.prefix).toBe("FTBE-MHRX")
+        expect(screen.getByText("ballotLocator.shortId.serverSees")).toBeInTheDocument()
+    })
+
+    it("is not looked up in a bucket when it could be a pseudonym", async () => {
+        const looks: unknown[] = []
+        mockBucket = {status: "off"}
+        render(<BallotBoxLog policy={policy} electionEventId="event" formatTime={() => "t"} />)
+        await search("FTBEMHRX")
+        looks.push(lastLogQuery()?.variables.prefix)
+        expect(looks).toEqual(["FTBEMHRX"])
+        expect(screen.queryByText("ballotLocator.shortId.serverSees")).toBeNull()
+    })
 })

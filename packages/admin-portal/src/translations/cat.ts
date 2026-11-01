@@ -7079,7 +7079,7 @@ const catalanTranslation: TranslationType = {
         },
         transparencyTab: {
             title: "Transparència",
-            help: "Amb Vitrine, les paperetes i les fites de l'esdeveniment s'anoten en registres als quals només es poden afegir entrades i que signen testimonis independents, perquè votants i observadors puguin comprovar que no s'ha eliminat ni canviat res.",
+            help: "Amb Vitrine, les paperetes i les fites de l'esdeveniment s'anoten en registres als quals només es poden afegir entrades i que signen els testimonis que anomena la política de confiança, perquè votants i observadors puguin comprovar que no s'ha eliminat ni canviat res.",
             loading: "S'està carregant la transparència de l'esdeveniment...",
             loadError: "No s'ha pogut carregar la transparència de l'esdeveniment: {{reason}}",
             unknownError: "error desconegut",
@@ -7091,6 +7091,81 @@ const catalanTranslation: TranslationType = {
             sdkLoading: "S'està carregant el verificador de Vitrine...",
             sdkError:
                 "El verificador de Vitrine no s'ha pogut iniciar en aquest navegador, de manera que aquí no es pot comprovar la política de confiança.",
+            hubProblems: {
+                title_one: "Un node llista un problema en aquesta elecció",
+                title_other: "Es llisten {{count}} problemes en aquesta elecció",
+                listedBy: "El llista {{hubs}}",
+                proof: "Veure la prova",
+                note: "Aquest avís és una comoditat d'aquest portal, i un llistat és només una referència: obriu la prova per comprovar-la al navegador. Cada node també llista els seus problemes al seu propi lloc, els mostri o no aquest portal. Un node que no respon no és un problema.",
+                kind: {
+                    splitView: "Dues versions del registre",
+                    brokenPromise: "Falta una entrada promesa",
+                    breaksRules: "Una entrada incompleix les regles",
+                    twoPolicies: "Dues polítiques",
+                    unloggedCode: "Codi que no està registrat",
+                    other: "Un problema registrat per un node",
+                },
+            },
+            authorityContact: {
+                title: "Contacte de l'autoritat electoral",
+                intro: "Opcional. Com poden contactar els votants amb l'autoritat electoral, per exemple per avisar d'una discrepància en una auditoria. S'inclou a la política de confiança, i les aplicacions dels votants només el mostren a partir de la política segellada.",
+                name: {
+                    label: "Nom",
+                    help: "Fins a 128 bytes, amb espais simples i sense salts de línia.",
+                    invalid:
+                        "El nom ha de tenir entre 1 i 128 bytes, amb espais simples i sense salts de línia ni caràcters invisibles.",
+                },
+                email: {
+                    label: "Correu electrònic",
+                    help: "Una adreça amb només lletres, xifres i . _ % + -",
+                    invalid:
+                        "Feu servir una adreça senzilla com eleccions@acme.example, sense accents ni cometes.",
+                },
+                phone: {
+                    label: "Telèfon",
+                    help: "Un + i de 7 a 15 xifres, sense espais.",
+                    invalid:
+                        "Feu servir un + i de 7 a 15 xifres, la primera diferent de 0, sense espais ni guions.",
+                },
+                url: {
+                    label: "Lloc web",
+                    help: "Una adreça https.",
+                    invalid:
+                        "Feu servir una adreça https, com https://eleccions.acme.example/contacte.",
+                },
+                save: "Desa el contacte",
+                saved: "S'ha desat el contacte de l'autoritat electoral.",
+                notStored: "L'esdeveniment no té ajustos on desar-lo.",
+                saveError: "No s'ha pogut desar el contacte: {{reason}}",
+                readOnly: "Podeu veure el contacte, però no canviar-lo.",
+                locked: "La votació ja s'ha obert, de manera que el contacte no es pot canviar aquí.",
+                successor:
+                    "La política segellada conserva el contacte amb què es va segellar. En desar canvia l'esborrany, i la Junta Electoral segella una política successora que l'inclogui.",
+                footer: "Cada camp que ompliu es converteix en una línia de contacte de la política de confiança. Els camps buits s'ometen i cap no és obligatori.",
+            },
+            hubUpdates: {
+                title: "Novetats dels nodes",
+                intro: "Opcional. Els votants poden demanar a un node que els escrigui per correu sobre la seva papereta. Tots els nodes de la política de confiança s'ofereixen de la mateixa manera.",
+                confirmation: {
+                    label: "Oferir «Rebre novetats per correu» a la pàgina de confirmació",
+                    help: "Després de votar, sota el codi QR. Mostra tots els nodes, i cadascun s'obre al seu propi lloc amb el rebut del votant.",
+                },
+                castEmail: {
+                    label: "Afegir els nodes al correu del vot emès",
+                    help: "El correu amb el rebut de la papereta inclou l'ID de seguiment complet i un enllaç a cada node, en ordre aleatori.",
+                },
+                readOnly: "Podeu veure aquests ajustos, però no canviar-los.",
+                saved: "S'ha desat l'ajust de les novetats dels nodes.",
+                notStored: "L'esdeveniment no té ajustos del portal de votació on desar-lo.",
+                saveError: "No s'ha pogut desar l'ajust: {{reason}}",
+                hubs: {
+                    title: "Nodes",
+                    help: "Els de la política de confiança de l'elecció. Per canviar-los, publiqueu una política nova.",
+                    none: "Cap node de la política de confiança té lloc web, així que no s'ofereixen novetats als votants.",
+                    order: "Els votants els veuen en ordre aleatori, cada vegada. L'ordre no es pot fixar i cap node pot ser el predeterminat.",
+                },
+                footer: "Tots dos estan activats per defecte quan la política anomena un node. Es desen amb els altres ajustos del portal de votació de l'esdeveniment. Desactivar-los només amaga la invitació del portal: els nodes continuen comprovant el registre i els votants poden anar a qualsevol node pel seu compte.",
+            },
             overview: {
                 notReported: "No informat",
                 ago: "fa {{duration}}",
@@ -7113,8 +7188,9 @@ const catalanTranslation: TranslationType = {
                     public: "Registre públic",
                     private: "Registre privat",
                     quorum: "política de testimonis {{k}} de {{n}}",
-                    hubs_one: "{{count}} node d'ancoratge, {{independent}} independent",
-                    hubs_other: "{{count}} nodes d'ancoratge, {{independent}} independents",
+                    hubs_one: "{{count}} node d'ancoratge",
+                    hubs_other: "{{count}} nodes d'ancoratge",
+                    hubsOutside: "{{count}} gestionats per una part diferent de l'autoritat electoral i de la plataforma",
                     mmd: "retard màxim de fusió {{duration}}",
                     locked: "bloquejat des de l'obertura de la votació",
                     explorerPublic: "Obre l'explorador públic",
@@ -7167,7 +7243,7 @@ const catalanTranslation: TranslationType = {
                 anchoring: {
                     title: "Ancoratge",
                     sub: "nodes cada {{hubs}} · navegadors cada {{browsers}}",
-                    independent: "Gestionat per {{party}}, independent de {{operator}}",
+                    rule: "Regla: de {{min}} nodes d'ancoratge, almenys {{outside}} han d'estar gestionats per una part diferent de l'autoritat electoral i de la plataforma.",
                     noAnchor: "Encara sense àncora",
                     browserLayer: "Capa de navegadors",
                     browserLayerSub: "Els nodes de l'aplicació ancoren a {{hubs}}",
@@ -7212,7 +7288,7 @@ const catalanTranslation: TranslationType = {
                     none: "Aquesta política de confiança no permet cap retirada de dades.",
                 },
                 monitors: {
-                    title: "Monitors independents",
+                    title: "Monitors",
                     list_one:
                         "La política de confiança anomena un monitor: {{names}}. Els verificadors, entre ells els navegadors dels votants, li envien gossip, promeses i evidències.",
                     list_other:
@@ -7264,9 +7340,13 @@ const catalanTranslation: TranslationType = {
                 draftTitle: "Esborrany per a la Junta Electoral",
                 draftHelp:
                     "Baixeu l'esborrany i lliureu-lo a la Junta Electoral. La Junta el comprova, el segella i el signa amb l'eina de línia d'ordres de Vitrine, i aconsegueix la signatura de qualsevol altra autoritat que anomeni la seva línia sign. Després, pugeu aquí la política signada.",
-                draftWords: "Les vuit paraules de l'esborrany",
-                draftWordsHelp:
-                    "La Junta comprova que «vitrine policy words» mostra aquestes paraules per al fitxer que ha rebut.",
+                draftId: "El hash de l'esborrany",
+                draftIdHelp:
+                    "La Junta comprova que «vitrine policy id» mostra aquest hash per al fitxer que ha rebut. Un esborrany no té identificador de política fins que es segella.",
+                draftTag: "Esborrany",
+                shortId: "Identificador de la política, primers quatre grups",
+                shortIdHelp:
+                    "Les persones comparen aquests grups amb la convocatòria oficial. Les eines comparen els 13.",
                 download: "Baixa l'esborrany",
                 commands: "Les ordres de la Junta",
                 invalidDraft: "L'esborrany de la política no és vàlid: {{reason}}",
@@ -7274,7 +7354,7 @@ const catalanTranslation: TranslationType = {
                     "L'esborrany de l'esdeveniment ha canviat després de segellar aquesta política. La Junta ha de segellar i signar el nou esborrany, que després es puja com a successora.",
                 sealedTitle: "La política de l'esdeveniment",
                 sealedHelp:
-                    "Publiqueu l'identificador de la política i les seves sis paraules a la convocatòria oficial de l'elecció, perquè votants i observadors reconeguin la política amb què es comproven els seus comprovants.",
+                    "Publiqueu l'identificador de la política a la convocatòria oficial de l'elecció, perquè votants i observadors reconeguin la política amb què es comproven els seus comprovants. Se'n comparen els primers quatre grups.",
                 idMismatch:
                     "Els registres indiquen l'identificador de política {{id}}, que no és el d'aquesta política.",
                 invalidStored: "La política desada de l'esdeveniment no és vàlida: {{reason}}",
@@ -7287,7 +7367,7 @@ const catalanTranslation: TranslationType = {
                 text: "Política signada",
                 readError: "No s'ha pogut llegir el fitxer.",
                 tooLarge: "Això és més gran del que pot ser una política de confiança.",
-                draft: "Això és un esborrany sense segellar, amb les paraules {{words}}. Primer la Junta Electoral l'ha de segellar i signar.",
+                draft: "Això és un esborrany sense segellar, amb el hash {{id}}. Primer la Junta Electoral l'ha de segellar i signar.",
                 invalid: "Això no és una política signada vàlida: {{reason}}",
                 preview:
                     "Comproveu aquestes dades amb la Junta Electoral abans de pujar la política.",
@@ -7298,7 +7378,7 @@ const catalanTranslation: TranslationType = {
                     "Aquesta política no s'ha segellat a partir de l'esborrany actual de l'esdeveniment.",
                 submit: "Puja la política",
                 uploaded:
-                    "S'ha pujat la política. Publiqueu-ne l'identificador i les sis paraules a la convocatòria oficial de l'elecció.",
+                    "S'ha pujat la política. Publiqueu-ne l'identificador a la convocatòria oficial de l'elecció.",
                 error: "No s'ha pogut pujar la política: {{reason}}",
             },
             logs: {

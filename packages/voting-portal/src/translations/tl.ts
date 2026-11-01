@@ -30,6 +30,8 @@ const tagalogTranslation: TranslationType = {
             noBallots: "Wala pang naipapadalang balota.",
             invalidPrefix:
                 "Maglagay ng hindi bababa sa 8 karakter ng Tracking ID na may gitling, tulad ng FTBE-MHRX, o hanggang 8 ng alyas na may tutuldok, tulad ng K7QM:2XWD. Gumagamit ang mga code ng mga digit 0 hanggang 9 at malalaking titik, walang I, L, O at U.",
+            policyId:
+                "Ito ang ID ng patakaran ng halalang ito. Nasa iyong resibo ang Tracking ID ng isang balota.",
             stages: {
                 received: {
                     label: "Natanggap",
@@ -624,6 +626,8 @@ const tagalogTranslation: TranslationType = {
             filterByBallotId: "I-filter ayon sa Tracking ID",
             totalBallots: "Kumulang mga balota: {{total}}",
             idHelp: "Ang maikling Tracking ID, tulad ng FTBE-MHRX, o ang buo",
+            policyId:
+                "Ito ang ID ng patakaran ng halalang ito. Nasa iyong resibo ang Tracking ID ng isang balota.",
             foundShort:
                 "Natagpuan sa pamamagitan ng maikling ID nito. Para matiyak na iyo ito, ihambing ang buong Tracking ID sa iyong resibo.",
             search: {
@@ -639,7 +643,7 @@ const tagalogTranslation: TranslationType = {
                 features: {
                     cast: {
                         title: "Mga naipasang balota",
-                        text: "Tingnan na nasa pampublikong talaan ito, kinumpirma ng mga malayang saksi at naka-anchor sa publiko.",
+                        text: "Tingnan na nasa pampublikong talaan ito, kinumpirma ng mga saksi at naka-anchor sa publiko.",
                     },
                     audited: {
                         title: "Mga na-audit na balota",
@@ -652,13 +656,100 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             matches: {
-                title: "{{total}} balota ang may parehong maikling ID na <b>{{shortId}}</b>. Piliin ang iyo, o ilagay ang buong Tracking ID.",
                 cast: "Naipasa noong {{time}}",
                 audited: "Na-audit noong {{time}}",
             },
+            shortId: {
+                head: {
+                    one: "1 balota ang nagsisimula sa {{start}}",
+                    other: "{{count}} balota ang nagsisimula sa {{start}}",
+                    atLeast: "{{count}} o higit pang balota ang nagsisimula sa {{start}}",
+                    mine: "Ang iyong balota, at {{count}} pa na nagsisimula sa {{start}}",
+                    mineAlone: "Ang iyong balota ay nagsisimula sa {{start}}",
+                },
+                sub: {
+                    few: "Alin ang iyo? Ihambing ang naka-highlight na grupo sa iyong resibo, o i-type ito sa ibaba.",
+                    one: "Buksan ito, saka ihambing ang buong Tracking ID nito sa iyong resibo.",
+                    many: "Mas marami ito kaysa sa ipinapakita namin. I-type ang ikatlong grupo mula sa iyong resibo para mahanap ang iyo.",
+                    mine: "Itinatago ng device na ito ang iyong resibo, kaya alam nito kung alin ang iyo.",
+                },
+                why: {
+                    few: "Ang maikling ID ay naghahanap ng mga balota. Ang buong Tracking ID lang, o ang resibo sa sarili mong device, ang nagsasabi kung alin ang iyo.",
+                    many: "Kapag ganito karami, kadalasan may gumawa ng mga balota para tumugma sa maikling ID na ito nang sinasadya. Nasa talaan pa rin ang iyo: ang pagtugma rin sa tatlong grupo ay mangangailangan ng halos isang bilyong bilyong subok.",
+                    mine: "Ang iba ay pag-aari ng ibang botante. Nakalista ang mga ito para hindi mapagkamalang iyo ang kamukha.",
+                },
+                third: "Ikatlong grupo mula sa iyong resibo",
+                thirdOr: "O i-type ang ikatlong grupo mula sa iyong resibo",
+                find: "Hanapin",
+                onDevice: "Sa device na ito",
+                deviceMatches: "Tumutugma ang resibo sa device na ito sa lahat ng 13 grupo",
+                serverSees:
+                    "Hindi nagawa ng mga server ng talaan ang paghahanap na ito nang hindi sinasabi kung aling balota ang gusto mo, kaya hiniling sa server ng halalan ang eksaktong ID na ito at nakita nito iyon.",
+            },
             audit: {
-                title: "Ang iyong mga napili, na-decode",
-                note: "Na-decrypt ng iyong browser ang na-audit na balotang ito gamit ang susing inihayag ng portal. Kung hindi ito ang mga napili mo, makipag-ugnayan sa awtoridad ng halalan.",
+                kicker: "Audit ng balota",
+                title: "Tiyaking na-encrypt ang iyong balota ayon sa pinili mo",
+                note: "Ito ang balotang na-audit mo, na-decode ng iyong browser. Ikaw lang ang nakaaalam ng pinili mo, kaya ikaw lang ang makagagawa ng pagsusuring ito.",
+                steps: {
+                    label: "Paano gumagana ang pagsusuri",
+                    encrypted: {
+                        title: "Na-encrypt sa iyong device",
+                        text: "Ini-encrypt ng portal ang iyong mga pinili at binigyan ang balota ng Tracking ID nito, bago mo piniling i-audit ito.",
+                    },
+                    decoded: {
+                        title: "Na-decode rito",
+                        text: "Sa pag-audit, ipinahayag ng portal ang lihim nito. Na-decode ng iyong browser ang balota gamit iyon at inihambing ito sa pampublikong talaan.",
+                    },
+                    compare: {
+                        title: "Ikaw ang naghahambing",
+                        text: "Tingnan ang mga pinili sa ibaba. Ito ba ang mga pinili mo?",
+                    },
+                },
+                choices: "Mga pinili na na-decode mula sa balotang ito",
+                question: "Tugma ba ang mga ito sa pinili mo?",
+                yes: "Oo, tugma",
+                no: "Hindi, may kakaiba",
+                change: "Baguhin ang sagot ko",
+                match: {
+                    title: "Na-encrypt ang iyong balota ayon sa pinili mo",
+                    text: "Nagamit na ang balotang na-audit na ito: hindi ito kailanman naiboto at hindi kailanman bibilangin. Bumalik at bumoto. May bagong Tracking ID ang iyong boto, at puwede kang mag-audit muli bago iyon kung gusto mo.",
+                    vote: "Bumalik at bumoto",
+                },
+                mismatch: {
+                    title: "Huwag bumoto sa device na ito",
+                    text: "Hindi ang pinili mo ang na-encrypt, kaya maaaring may nakialam sa device na ito o sa portal ng pagboto. Itinago ng iyong browser ang ebidensiya: ang naka-encrypt na balota mula sa pampublikong talaan, ang lihim na inihayag ng portal, at ang resulta ng pag-decode nito.",
+                    report: "I-ulat ito sa awtoridad ng halalan",
+                    reportNoContact: "I-ulat ito sa awtoridad ng halalan.",
+                    fromPolicy:
+                        "Mula sa nailathalang patakaran ng halalan, hindi mula sa pahinang ito.",
+                    fromSettings: "Mula sa mga setting ng halalan.",
+                    then: "Pagkatapos, bumoto mula sa ibang device.",
+                    save: "I-save ang ebidensiya",
+                    email: "I-email ang awtoridad",
+                    emailSubject: "Hindi nagde-decode sa mga pinili ko ang na-audit kong balota",
+                    emailBody:
+                        "Nag-audit ako ng balota sa halalang ito at hindi ang mga pinili ko ang na-decode ng aking browser.\n\nTracking ID: {{id}}\n\nNai-save ko ang ebidensiya sa isang file at maipapadala ko ito.",
+                },
+                how: "Paano ito gumagana?",
+                faq: {
+                    why: {
+                        question: "Bakit mag-audit?",
+                        answer: "Naka-encrypt sa iyong device ang boto mo, kaya walang makababasa nito, kahit ikaw. Pinapayagan ka ng pag-audit na tiyaking ini-encrypt ng portal ang pinili mo bago ka bumoto nang totoo.",
+                    },
+                    catch: {
+                        question: "Bakit nahuhuli nito ang pandaraya?",
+                        answer: "Nag-e-encrypt ang portal bago mo piliing mag-audit, kaya hindi nito alam kung aling mga balota ang susuriin. Kung binago nito ang mga boto, mahuhuli ito ng bawat botanteng nag-audit.",
+                    },
+                    spent: {
+                        question: "Bakit hindi mabibilang ang balotang ito?",
+                        answer: "Kapag naihayag na ang lihim nito, ipinapakita ng balota kung paano ka bumoto. Para manatiling lihim ang boto mo, ang balotang na-audit ay hindi kailanman iboboto.",
+                    },
+                    differ: {
+                        question: "Paano kung hindi tugma?",
+                        answer: "Huwag bumoto sa device na iyon. I-save ang ebidensiya at i-ulat ito sa awtoridad ng halalan, na ang contact ay mula sa patakaran ng halalan. Pagkatapos, bumoto mula sa ibang device.",
+                    },
+                    tip: "Para sa pinakamatibay na pagsusuri, buksan ang pahinang ito sa device na iba sa ginamit mong pagboto, tulad ng iyong telepono. Ang device na nagbago ng iyong balota ay maaari ring magbago ng ipinapakita nito sa iyo rito.",
+                },
                 failed: {
                     title: "Nabigo ang audit",
                     text: "Hindi ma-decrypt ang balota sa pampublikong talaan gamit ang susing inihayag ng portal. Huwag bumoto gamit ang device na ito; ipaalam sa awtoridad ng halalan.",
@@ -700,7 +791,7 @@ const tagalogTranslation: TranslationType = {
                 saveEvidence: "I-save ang ebidensya",
                 howToReport: "Paano ito iuulat",
                 howToReportText:
-                    "I-save ang file ng ebidensya at ipadala ito sa awtoridad ng halalan o sa isang malayang tagamasid. Masusuri nila ito sa sarili nilang mga computer. Wala itong laman tungkol sa kung paano ka bumoto.",
+                    "I-save ang file ng ebidensya at ipadala ito sa awtoridad ng halalan o sa isang tagamasid. Masusuri nila ito sa sarili nilang mga computer. Wala itong laman tungkol sa kung paano ka bumoto.",
                 noReceipt:
                     "Walang resibo ang device na ito para sa balotang ito. Suriin ito sa device na ginamit mo sa pagboto, o suriin ang file ng resibo sa ballot verifier.",
                 receiptPending:
@@ -724,7 +815,7 @@ const tagalogTranslation: TranslationType = {
                     },
                     verified: {
                         head: "Napatunayan",
-                        sub: "Nasa pampublikong talaan, kinumpirma ng mga malayang saksi at naka-anchor sa publiko.",
+                        sub: "Nasa pampublikong talaan, kinumpirma ng mga saksi at naka-anchor sa publiko.",
                     },
                     late: {
                         head: "Mas matagal kaysa inaasahan",
@@ -748,7 +839,7 @@ const tagalogTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Kinumpirma ng mga saksi",
-                        done: "Lumagda ang mga malayang saksi sa talaang kasama ito.",
+                        done: "Lumagda ang mga saksi sa talaang kasama ito.",
                         count: "{{signed}} sa {{total}} · {{needed}} ang kailangan",
                         countOf: "{{signed}} sa {{total}}",
                     },
@@ -799,12 +890,31 @@ const tagalogTranslation: TranslationType = {
             },
         },
         vitrine: {
+            hubProblems: {
+                title: {
+                    one: "May isang problemang inilista ng isang hub para sa halalang ito",
+                    other: "{{count}} problema ang nakalista para sa halalang ito",
+                },
+                listedBy: "Inilista ng {{hubs}}",
+                proof: "Tingnan ang patunay",
+                note: "Ang paalalang ito ay kaginhawahan lang mula sa site na ito, at ang listahan ay pahiwatig lamang: buksan ang patunay para suriin ito sa iyong browser. Sasabihin din ito sa iyo ng mga hub, sa email, sa sarili nilang site at sa extension, ginawa man o hindi ito ng site na ito.",
+                kind: {
+                    splitView: "Dalawang bersyon ng talaan",
+                    brokenPromise: "May nawawalang ipinangakong entry",
+                    breaksRules: "May entry na lumalabag sa mga patakaran",
+                    twoPolicies: "Dalawang patakaran",
+                    unloggedCode: "Code na hindi nakatala",
+                    other: "Problemang itinala ng isang hub",
+                },
+            },
             ballotId: {
                 label: "Tracking ID",
                 full: "Buong Tracking ID",
                 yours: "Ang Iyong Tracking ID:",
                 copy: "Kopyahin ang buong Tracking ID",
                 copied: "Nakopya ang Tracking ID",
+                copyText: "Kopyahin",
+                copiedText: "Nakopya",
                 showFull: "Ipakita ang buong Tracking ID",
                 selected: "Napili na. Pindutin ang Ctrl+C, o ⌘C sa Mac, para kopyahin ito.",
                 copyByHand:
@@ -812,8 +922,8 @@ const tagalogTranslation: TranslationType = {
             },
             elsewhere: {
                 title: "Hanapin sa iba",
-                count_one: "{{count}} explorer, {{independent}} malaya",
-                count_other: "{{count}} explorer, {{independent}} malaya",
+                count_one: "{{count}} explorer",
+                count_other: "{{count}} explorer",
                 introBallot:
                     "Binabasa mismo ng mga explorer na pinapatakbo ng iba ang pampublikong talaan. Dapat mahanap ng bawat isa ang iyong balota, na may parehong mga pagsusuri, nang hindi dumadaan sa website na ito.",
                 introEntry:
@@ -821,13 +931,13 @@ const tagalogTranslation: TranslationType = {
                 foot: "Galing sa patakaran ng halalan ang listahan. Mabubuksan ng anumang Vitrine explorer ang parehong talaan: ibigay ang buong Tracking ID.",
                 name: "Explorer ng {{name}}",
                 operatorName: "Explorer ng halalan",
-                independent: "Malaya",
-                operator: "Operator",
                 newTab: "Magbubukas sa bagong tab",
                 who: {
-                    monitor: "Isang monitor na binanggit sa patakaran ng halalan",
-                    hub: "Isang anchor hub na binanggit sa patakaran ng halalan",
-                    operator: "Pinapatakbo ng awtoridad ng halalan",
+                    monitor:
+                        "Pinapatakbo ng {{party}}, isang monitor na binanggit sa patakaran ng halalan",
+                    hub: "Pinapatakbo ng {{party}}, isang anchor hub na binanggit sa patakaran ng halalan",
+                    operator:
+                        "Pinapatakbo ng awtoridad ng halalan, na nagpapatakbo ng halalang ito",
                 },
             },
             status: {
@@ -877,9 +987,9 @@ const tagalogTranslation: TranslationType = {
                     recorded:
                         "Nakita ng iyong browser ang iyong balota sa pampublikong talaan. Susunod itong kukumpirmahin ng mga saksi.",
                     witnessed:
-                        "Kinumpirma ng mga independiyenteng saksi ang talaan. Susunod ang mga pampublikong angkla sa loob ng {{minutes}} minuto; hindi na kailangang maghintay.",
+                        "Kinumpirma ng mga saksi ang talaan. Susunod ang mga pampublikong angkla sa loob ng {{minutes}} minuto; hindi na kailangang maghintay.",
                     verified:
-                        "Nasa pampublikong talaan ang iyong balota, kinumpirma ng mga independiyenteng saksi at pampublikong naka-angkla.",
+                        "Nasa pampublikong talaan ang iyong balota, kinumpirma ng mga saksi at pampublikong naka-angkla.",
                     late: "Nasa pampublikong talaan ang iyong balota at kinumpirma ng mga saksi, ngunit huli ang mga pampublikong angkla nito.",
                     lateStep:
                         "Mas matagal kaysa inaasahan ang isang hakbang. Hindi ito patunay ng pakikialam, at patuloy na sumusuri ang iyong browser.",
@@ -905,8 +1015,7 @@ const tagalogTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Kinumpirma ng mga saksi",
-                        upcoming:
-                            "Pinipirmahan ng mga independiyenteng saksi ang talaang kasama ito.",
+                        upcoming: "Pinipirmahan ng mga saksi ang talaang kasama ito.",
                     },
                     anchors: {
                         title: "Pampublikong naka-angkla",
@@ -922,12 +1031,14 @@ const tagalogTranslation: TranslationType = {
                     recorded: "Nasuri ng iyong browser ang patunay nito.",
                     recordedEntry: "Entry #{{index}}. Nasuri ng iyong browser ang patunay nito.",
                     witnessed:
-                        "Sapat na bilang ng mga independiyenteng saksi ng patakaran ({{count}}) ang pumirma sa talaang kasama ito.",
+                        "Sapat na bilang ng mga saksi ng patakaran ({{count}}) ang pumirma sa talaang kasama ito.",
                     anchoredWaict:
                         "Sa mga pampublikong hub ({{count}}) at kung saan sumusuri ang mga browser.",
                     anchoredBootstrap:
                         "Sa mga pampublikong hub ({{count}}) at kung saan sumusuri ang mga browser, sa pamamagitan muna ng pamalit na hub.",
                     anchoredHubs: "Sa mga pampublikong hub ({{count}}).",
+                    anchoredOneHub: "Naka-angkla sa 1 hub, pinapatakbo ng {{party}}.",
+                    anchoredOneHubPlatform: "Naka-angkla sa 1 hub, pinapatakbo ng platform.",
                     lateNow: "Dapat tapos na ito ngayon.",
                     lateStep: "Dapat tapos na ito pagsapit ng {{time}}.",
                     lateAnchors: "Dapat naangkla na ito ng mga hub pagsapit ng {{time}}.",
@@ -974,6 +1085,55 @@ const tagalogTranslation: TranslationType = {
                     checked: "Sinuri ng iyong browser, gamit ang code na masisiyasat ng sinuman.",
                     kept: "Itinatago ng device na ito ang resibo at muling sinusuri ito sa bawat pagbisita.",
                 },
+            },
+            signers: {
+                witnesses: {open: "Sino ang pumirma", close: "Itago kung sino ang pumirma"},
+                hubs: {open: "Aling mga hub", close: "Itago kung aling mga hub"},
+                runBy: "Pinapatakbo ng {{party}}",
+                runByAlso: "Pinapatakbo ng {{party}}, na nagpapatakbo rin ng {{hubs}}",
+                signed: "Pumirma {{time}}",
+                signedNoTime: "Pumirma",
+                notYet: "Hindi pa",
+                late: "Huli",
+                anchored: "Naka-angkla {{time}}",
+                anchoredNoTime: "Naka-angkla",
+                within: "Sa loob ng {{minutes}} min",
+                check: "Suriin sa site nito",
+                checkWitness: "Suriin sa site nito: saksing {{name}} (bubukas sa bagong tab)",
+                checkHub: "Suriin sa site nito: hub na {{name}} (bubukas sa bagong tab)",
+                linksNote:
+                    "Binubuksan ng “Suriin sa site nito” ang sariling explorer ng pumirma, na doon sinusuri ang lagdang iyon.",
+                standIn: {
+                    name: "Kung saan sumusuri ang mga browser",
+                    who: "Pamalit na hub, sa ngayon",
+                },
+                rule: {
+                    witnesses:
+                        "Hinihingi ng patakaran na pumirma ang {{needed}} sa {{total}} nitong saksi. {{signed}} ang pumirma.",
+                    witnessesAlone:
+                        "Hinihingi ng patakaran na pumirma ang {{needed}} sa {{total}} nitong saksi, at walang iisang panig na nagpapatakbo ng ganoon karami. {{signed}} ang pumirma.",
+                    witnessesCount: "{{signed}} sa {{total}} saksi ng patakaran ang pumirma.",
+                    hubs: "Dapat i-angkla ng lahat ng {{count}} hub ang talaan, at hindi bababa sa {{independent}} ang dapat patakbuhin ng iba maliban sa awtoridad ng halalan.",
+                    hubsPlatform:
+                        "Dapat i-angkla ng lahat ng {{count}} hub ang talaan, at hindi bababa sa {{independent}} ang dapat patakbuhin ng hindi awtoridad ng halalan ni ng platform.",
+                    hubsAll: "Dapat i-angkla ng lahat ng {{count}} hub ang talaan.",
+                    oneHub: "Isang hub lang ang pinangalanan ng patakaran, pinapatakbo ng {{party}}.",
+                    oneHubPlatform:
+                        "Isang hub lang ang pinangalanan ng patakaran, pinapatakbo ng platform.",
+                },
+            },
+            updates: {
+                title: "Kumuha ng mga update sa email tungkol sa balotang ito",
+                description:
+                    "Kapag nakumpirma na ito at kapag nabilang na, o kung may naitalang problema. Pumili ng alinmang hub: sinusuri ng bawat isa ang talaan nang mag-isa.",
+                listLabel: "Mga hub sa patakaran ng halalang ito",
+                runBy: "Pinapatakbo ng {{party}}",
+                hubLabel:
+                    "{{name}}, pinapatakbo ng {{party}}: kumuha ng mga update sa email sa sarili nitong site (bubukas sa bagong tab)",
+                footnote:
+                    "Ang mga hub na pinangalanan ng patakaran ng halalan, sa random na pagkakasunod-sunod sa bawat pagkakataon. Bawat isa ay bubukas sa sarili nitong site kasama ang iyong resibo sa link; walang ibinabahagi hanggang sa pumili ka roon kung ano ang susubaybayan.",
+                footnoteNoReceipt:
+                    "Ang mga hub na pinangalanan ng patakaran ng halalan, sa random na pagkakasunod-sunod sa bawat pagkakataon. Bawat isa ay bubukas sa sarili nitong site; walang ibinabahagi hanggang sa pumili ka roon kung ano ang susubaybayan.",
             },
             booth: {
                 title: "Hindi pa maihahanda ang iyong balota",

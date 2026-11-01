@@ -73,12 +73,10 @@ const resultOf = (status: ChainResult["status"], tiers: TierResult[]): ChainResu
         steps: [],
         where: "page",
         entry: {log: "ballots", leafHash: "ab", index: 21, promised: false},
-        words: [],
-        wordsLang: "en",
         now: 0,
         clockWarning: false,
         profileMetadataResolved: true,
-        policy: {id: "x", words: [], lang: "en", event: "e", witnesses: [], hubs: []},
+        policy: {id: "x", event: "e", witnesses: [], hubs: []},
     }) as unknown as ChainResult
 
 const RECORDED: IReceiptView = {

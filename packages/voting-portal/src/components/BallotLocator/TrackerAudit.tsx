@@ -4,33 +4,32 @@
 
 // What the ballot tracker shows under the record of an audited ballot (design
 // boards TrackerAudit and PhoneTrackerAudit): the selections the ballot decodes
-// into once its audit has passed, or else why there are none. The selections
-// are drawn from memory and kept nowhere.
+// into once its audit has passed, for the voter to compare with what they
+// chose (AuditCompare), or else why there are none. The selections are drawn
+// from memory and kept nowhere, but for the evidence file a voter chooses to
+// save.
 
 import React from "react"
 import {useTranslation} from "react-i18next"
-import {Global} from "@emotion/react"
-import {Box, Button, Typography} from "@mui/material"
+import {Box, Typography} from "@mui/material"
 import Image from "mui-image"
 import {BlankAnswer, Candidate} from "@sequentech/ui-essentials"
 import {stringToHtml, translate} from "@sequentech/ui-core"
 import type {IBallotStyle, ICandidate, IContest, IDecodedVoteContest} from "@sequentech/ui-core"
 import {provideBallotService} from "../../services/BallotService"
 import {checkIsInvalidVote, getImageUrl} from "../../services/ElectionConfigService"
-import {EAuditOutcome, TAudit} from "../../services/vitrine/ballotAudit"
+import {
+    auditEvidence,
+    evidenceFileName,
+    EVIDENCE_MEDIA_TYPE,
+    IAuthorityContact,
+} from "../../services/vitrine/auditEvidence"
+import {EAuditOutcome, TAudit, TAuditedRecord} from "../../services/vitrine/ballotAudit"
+import {saveTextFile} from "../../services/vitrine/file"
+import {AuditCompare} from "./AuditCompare"
 import {PALETTE, PHONE} from "./trackerStyle"
 
-const SELECTIONS_CLASS = "tracker-selections"
 const RANK_LAST = Number.MAX_SAFE_INTEGER
-
-// A printed page holds the card alone: whatever neither holds it nor sits
-// inside it is left out.
-const PRINT_ONLY_SELECTIONS = {
-    "@media print": {
-        [`body *:not(:has(.${SELECTIONS_CLASS})):not(.${SELECTIONS_CLASS}):not(.${SELECTIONS_CLASS} *)`]:
-            {display: "none !important"},
-    },
-}
 
 const CARD_SX = {
     marginTop: "24px",
@@ -42,9 +41,6 @@ const CARD_SX = {
 
 const HEADING_SX = {margin: 0, fontSize: 20, lineHeight: "28px", fontWeight: 700} as const
 const NOTE_SX = {fontSize: 14, lineHeight: "20px", color: PALETTE.muted} as const
-
-const PRINTER_PATH =
-    "M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"
 
 interface IChoice {
     candidate: ICandidate
@@ -79,7 +75,6 @@ interface IDecodedContestProps {
     decoded: IDecodedVoteContest
     language: string
     publicBucketUrl: string
-    first: boolean
 }
 
 const DecodedContest: React.FC<IDecodedContestProps> = ({
@@ -87,7 +82,6 @@ const DecodedContest: React.FC<IDecodedContestProps> = ({
     decoded,
     language,
     publicBucketUrl,
-    first,
 }) => {
     const {t} = useTranslation()
     const {isPreferential} = provideBallotService()
@@ -96,12 +90,7 @@ const DecodedContest: React.FC<IDecodedContestProps> = ({
     const headingId = `tracker-selection-${contest.id}-title`
 
     return (
-        <Box
-            component="section"
-            className="tracker-selection"
-            aria-labelledby={headingId}
-            sx={{marginTop: first ? 0 : "20px"}}
-        >
+        <Box component="section" className="tracker-selection" aria-labelledby={headingId}>
             <Typography
                 component="h3"
                 id={headingId}
@@ -169,6 +158,14 @@ export interface ITrackerAuditProps {
     ballotStyle: IBallotStyle
     language: string
     publicBucketUrl: string
+    /** The audited ballot's full Tracking ID. */
+    ballotId: string
+    /** The audited ballot, as the public record holds it. */
+    record: TAuditedRecord
+    /** Where the voter goes to vote, once the ballot matches what they chose. */
+    voteHref: string
+    /** Who a voter whose ballot does not match reports it to, when known. */
+    contact?: IAuthorityContact
 }
 
 export const TrackerAudit: React.FC<ITrackerAuditProps> = ({
@@ -176,6 +173,10 @@ export const TrackerAudit: React.FC<ITrackerAuditProps> = ({
     ballotStyle,
     language,
     publicBucketUrl,
+    ballotId,
+    record,
+    voteHref,
+    contact,
 }) => {
     const {t} = useTranslation()
 
@@ -239,64 +240,38 @@ export const TrackerAudit: React.FC<ITrackerAuditProps> = ({
         return decoded ? [{contest, decoded}] : []
     })
 
+    const saveEvidence = () =>
+        saveTextFile(
+            evidenceFileName(ballotId),
+            auditEvidence({ballotId, record, selections: audit.selections}),
+            EVIDENCE_MEDIA_TYPE
+        )
+
     return (
-        <Box
-            component="section"
-            className={SELECTIONS_CLASS}
-            aria-labelledby="tracker-selections-title"
-            sx={CARD_SX}
+        <AuditCompare
+            ballotId={ballotId}
+            voteHref={voteHref}
+            contact={contact}
+            onSaveEvidence={saveEvidence}
         >
-            <Global styles={PRINT_ONLY_SELECTIONS} />
             <Box
-                className="tracker-selections-header"
+                className="tracker-selections-list"
                 sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: "12px",
-                    flexWrap: "wrap",
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                    gap: "16px 20px",
                 }}
             >
-                <Typography
-                    component="h2"
-                    id="tracker-selections-title"
-                    className="tracker-selections-title"
-                    sx={HEADING_SX}
-                >
-                    {t("ballotLocator.audit.title")}
-                </Typography>
-                <Button
-                    variant="secondary"
-                    className="tracker-print-button"
-                    onClick={() => window.print()}
-                >
-                    <svg
-                        className="tracker-print-icon"
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                        aria-hidden="true"
-                        focusable="false"
-                    >
-                        <path className="tracker-print-icon-path" d={PRINTER_PATH} />
-                    </svg>
-                    {t("auditScreen.printButton")}
-                </Button>
+                {contests.map(({contest, decoded}) => (
+                    <DecodedContest
+                        key={contest.id}
+                        contest={contest}
+                        decoded={decoded}
+                        language={language}
+                        publicBucketUrl={publicBucketUrl}
+                    />
+                ))}
             </Box>
-            <Typography className="tracker-selections-note" sx={{...NOTE_SX, margin: "8px 0 16px"}}>
-                {t("ballotLocator.audit.note")}
-            </Typography>
-            {contests.map(({contest, decoded}, n) => (
-                <DecodedContest
-                    key={contest.id}
-                    contest={contest}
-                    decoded={decoded}
-                    language={language}
-                    publicBucketUrl={publicBucketUrl}
-                    first={n === 0}
-                />
-            ))}
-        </Box>
+        </AuditCompare>
     )
 }

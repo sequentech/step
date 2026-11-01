@@ -30,6 +30,8 @@ const basqueTranslation: TranslationType = {
             noBallots: "Oraindik ez da boto-paperik bidali.",
             invalidPrefix:
                 "Idatzi jarraipen ID baten gutxienez 8 karaktere marratxoarekin, FTBE-MHRX bezala, edo ezizen baten gehienez 8 bi punturekin, K7QM:2XWD bezala. Kodeek 0tik 9ra bitarteko digituak eta letra larriak erabiltzen dituzte, I, L, O eta U gabe.",
+            policyId:
+                "Hau hauteskunde honen politikaren IDa da. Boto-txartel baten jarraipen IDa zure hartu-agirian dago.",
             stages: {
                 received: {
                     label: "Jasota",
@@ -625,6 +627,8 @@ const basqueTranslation: TranslationType = {
             filterByBallotId: "Filtratu jarraipen IDaren arabera",
             totalBallots: "Bozketa kopurua: {{total}}",
             idHelp: "Jarraipen ID laburra, FTBE-MHRX bezalakoa, edo osoa",
+            policyId:
+                "Hau hauteskunde honen politikaren IDa da. Boto-txartel baten jarraipen IDa zure hartu-agirian dago.",
             foundShort:
                 "ID laburraren bidez aurkitu da. Zurea dela ziur egoteko, alderatu jarraipen ID osoa zure hartu-agiriarekin.",
             search: {
@@ -640,7 +644,7 @@ const basqueTranslation: TranslationType = {
                 features: {
                     cast: {
                         title: "Emandako boto-txartelak",
-                        text: "Ikusi erregistro publikoan dagoela, lekuko independenteek baieztatua eta publikoki ainguratua.",
+                        text: "Ikusi erregistro publikoan dagoela, lekukoek baieztatua eta publikoki ainguratua.",
                     },
                     audited: {
                         title: "Auditatutako boto-txartelak",
@@ -653,13 +657,100 @@ const basqueTranslation: TranslationType = {
                 },
             },
             matches: {
-                title: "{{total}} boto-txartelek ID labur bera dute: <b>{{shortId}}</b>. Aukeratu zurea, edo sartu jarraipen ID osoa.",
                 cast: "Emana: {{time}}",
                 audited: "Auditatua: {{time}}",
             },
+            shortId: {
+                head: {
+                    one: "Boto-txartel 1ek hasiera hau du: {{start}}",
+                    other: "{{count}} boto-txartelek hasiera hau dute: {{start}}",
+                    atLeast: "{{count}} boto-txartelek edo gehiagok hasiera hau dute: {{start}}",
+                    mine: "Zure boto-txartela eta hasiera hau duten beste {{count}}: {{start}}",
+                    mineAlone: "Zure boto-txartelak hasiera hau du: {{start}}",
+                },
+                sub: {
+                    few: "Zein da zurea? Konparatu nabarmendutako taldea zure ordainagiriarekin, edo idatzi behean.",
+                    one: "Ireki eta konparatu bere jarraipen ID osoa zure ordainagiriarekin.",
+                    many: "Erakusten ditugunak baino gehiago dira. Idatzi zure ordainagiriko hirugarren taldea zurea aurkitzeko.",
+                    mine: "Gailu honek zure ordainagiria gordetzen du, beraz badaki zein den zurea.",
+                },
+                why: {
+                    few: "ID laburrak boto-txartelak aurkitzen ditu. Jarraipen ID osoak edo zure gailuko ordainagiriak soilik esaten du zein den zurea.",
+                    many: "Hainbeste izateak normalean esan nahi du norbaitek nahita sortu dituela ID labur honekin bat datozen boto-txartelak. Zurea erregistroan dago oraindik: hiru taldeak asmatzeak mila trilioi saiakera inguru beharko luke.",
+                    mine: "Besteak beste boto-emaile batzuenak dira. Zerrendatuta daude, antzeko batek zurearen lekua har ez dezan.",
+                },
+                third: "Zure ordainagiriko hirugarren taldea",
+                thirdOr: "Edo idatzi zure ordainagiriko hirugarren taldea",
+                find: "Bilatu",
+                onDevice: "Gailu honetan",
+                deviceMatches: "Gailu honetako ordainagiriak 13 taldeekin bat egiten du",
+                serverSees:
+                    "Erregistroaren zerbitzariek ezin izan dute bilaketa hau egin zein boto-txartel nahi duzun jakin gabe; beraz, hauteskundeko zerbitzariari ID zehatz hau eskatu zaio eta ikusi ahal izan du.",
+            },
             audit: {
-                title: "Zure hautaketak, dekodetuta",
-                note: "Zure nabigatzaileak auditatutako boto-txartel hau deszifratu du atariak agerian utzi duen gakoarekin. Hauek ez badira zuk egindako hautaketak, jarri harremanetan hauteskunde-agintaritzarekin.",
+                kicker: "Boto-paperaren auditoretza",
+                title: "Egiaztatu zure boto-papera zuk aukeratu bezala zifratu dela",
+                note: "Hau auditatu zenuen boto-papera da, zure nabigatzaileak dekodetua. Zuk bakarrik dakizu zer aukeratu zenuen, beraz zuk bakarrik egin dezakezu egiaztapen hau.",
+                steps: {
+                    label: "Egiaztapenak nola funtzionatzen duen",
+                    encrypted: {
+                        title: "Zure gailuan zifratua",
+                        text: "Atariak zure aukerak zifratu zituen eta boto-paperari bere jarraipen ID-a eman zion, auditatzea erabaki aurretik.",
+                    },
+                    decoded: {
+                        title: "Hemen dekodetua",
+                        text: "Auditatzean, atariak bere sekretua agerian utzi zuen. Zure nabigatzaileak boto-papera sekretu horrekin dekodetu zuen eta erregistro publikoarekin alderatu zuen.",
+                    },
+                    compare: {
+                        title: "Zuk alderatzen duzu",
+                        text: "Begiratu beheko aukerei. Zuk egindakoak al dira?",
+                    },
+                },
+                choices: "Boto-paper honetatik dekodetutako aukerak",
+                question: "Zuk aukeratutakoarekin bat datoz?",
+                yes: "Bai, bat datoz",
+                no: "Ez, zerbait desberdina da",
+                change: "Aldatu nire erantzuna",
+                match: {
+                    title: "Zure boto-papera zuk aukeratu bezala zifratu zen",
+                    text: "Auditatutako boto-paper hau gastatuta dago: ez zen inoiz bozkatu eta ez da inoiz zenbatuko. Itzuli eta bozkatu. Zure botoak jarraipen ID berri bat izango du, eta nahi baduzu berriro audita dezakezu lehenago.",
+                    vote: "Itzuli eta bozkatu",
+                },
+                mismatch: {
+                    title: "Ez bozkatu gailu honetan",
+                    text: "Zifratu zena ez da zuk aukeratu zenuena, beraz gailu hau edo bozketa-atari hau manipulatuta egon daiteke. Zure nabigatzaileak froga gorde du: erregistro publikoko boto-paper zifratua, atariak agerian utzi zuen sekretua eta dekodetzen duena.",
+                    report: "Jakinarazi hauteskunde-agintaritzari",
+                    reportNoContact: "Jakinarazi hauteskunde-agintaritzari.",
+                    fromPolicy:
+                        "Hauteskundearen politika argitaratutik dator, ez orrialde honetatik.",
+                    fromSettings: "Hauteskundearen ezarpenetatik dator.",
+                    then: "Gero bozkatu beste gailu batetik.",
+                    save: "Gorde froga",
+                    email: "Idatzi agintaritzari",
+                    emailSubject: "Nire boto-paper auditatua ez da nire aukeretan dekodetzen",
+                    emailBody:
+                        "Hauteskunde honetan boto-paper bat auditatu nuen, eta nire nabigatzaileak dekodetutako aukerak ez dira nik aukeratu nituenak.\n\nJarraipen ID-a: {{id}}\n\nFrogak fitxategi batean gorde ditut eta bidal dezaket.",
+                },
+                how: "Nola funtzionatzen du?",
+                faq: {
+                    why: {
+                        question: "Zergatik auditatu?",
+                        answer: "Zure botoa zure gailuan zifratzen da, beraz inork ezin du irakurri, ezta zuk ere. Auditatzeak egiaztatzeko aukera ematen dizu atariak benetan bozkatu aurretik zuk aukeratutakoa zifratu duela.",
+                    },
+                    catch: {
+                        question: "Zergatik harrapatzen du iruzurra?",
+                        answer: "Atariak auditatzea erabaki aurretik zifratzen du, beraz ezin du jakin zein boto-paper egiaztatuko diren. Botoak aldatuko balitu, auditatzen duen edozein hautesle konturatu liteke.",
+                    },
+                    spent: {
+                        question: "Zergatik ezin da boto-paper hau zenbatu?",
+                        answer: "Sekretua agerian dagoenez, boto-paperak nola bozkatu zenuen erakusten du. Zure botoa sekretu mantentzeko, auditatutako boto-papera ez da inoiz bozkatzen.",
+                    },
+                    differ: {
+                        question: "Eta bat ez badatoz?",
+                        answer: "Ez bozkatu gailu horretan. Gorde froga eta jakinarazi hauteskunde-agintaritzari, zeinaren kontaktua hauteskundearen politikatik datorren. Gero bozkatu beste gailu batetik.",
+                    },
+                    tip: "Egiaztapen sendoenerako, ireki orri hau bozkatu zenuen gailuaz bestelako batean, adibidez telefonoan. Zure boto-papera aldatu zuen gailu batek hemen erakusten dizuna ere alda lezake.",
+                },
                 failed: {
                     title: "Auditoriak huts egin du",
                     text: "Erregistro publikoko boto-txartela ez da deszifratzen atariak agerian utzi duen gakoarekin. Ez eman botorik gailu honetatik; jakinarazi hauteskunde-agintaritzari.",
@@ -700,7 +791,7 @@ const basqueTranslation: TranslationType = {
                 saveEvidence: "Gorde froga",
                 howToReport: "Nola salatu",
                 howToReportText:
-                    "Gorde frogaren fitxategia eta bidali hauteskunde-agintaritzari edo behatzaile independente bati. Beren ordenagailuetan egiaztatu dezakete. Ez du ezer jasotzen nola bozkatu duzun.",
+                    "Gorde frogaren fitxategia eta bidali hauteskunde-agintaritzari edo behatzaile bati. Beren ordenagailuetan egiaztatu dezakete. Ez du ezer jasotzen nola bozkatu duzun.",
                 noReceipt:
                     "Gailu honek ez du boto-txartel honen hartu-agiririk. Egiaztatu bozkatzeko erabili zenuen gailuan, edo egiaztatu hartu-agiriaren fitxategia boto-txartelen egiaztatzailean.",
                 receiptPending:
@@ -724,7 +815,7 @@ const basqueTranslation: TranslationType = {
                     },
                     verified: {
                         head: "Egiaztatuta",
-                        sub: "Erregistro publikoan, lekuko independenteek baieztatua eta publikoki ainguratua.",
+                        sub: "Erregistro publikoan, lekukoek baieztatua eta publikoki ainguratua.",
                     },
                     late: {
                         head: "Espero baino gehiago irauten du",
@@ -748,7 +839,7 @@ const basqueTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Lekukoek baieztatua",
-                        done: "Lekuko independenteek hura barne hartzen duen erregistro bat sinatu dute.",
+                        done: "Lekukoek hura barne hartzen duen erregistro bat sinatu dute.",
                         count: "{{signed}} / {{total}} · {{needed}} behar dira",
                         countOf: "{{signed}} / {{total}}",
                     },
@@ -799,12 +890,31 @@ const basqueTranslation: TranslationType = {
             },
         },
         vitrine: {
+            hubProblems: {
+                title: {
+                    one: "Hub batek arazo bat zerrendatzen du hauteskunde honetan",
+                    other: "{{count}} arazo zerrendatzen dira hauteskunde honetan",
+                },
+                listedBy: "Zerrendatzailea: {{hubs}}",
+                proof: "Ikusi froga",
+                note: "Abisu hau gune honen erosotasun bat da, eta zerrenda bat aipamen soila da: ireki froga zure nabigatzailean egiaztatzeko. Hub-ek ere jakinaraziko dizute, posta elektronikoz, beren guneetan eta luzapenean, gune honek egin zein ez.",
+                kind: {
+                    splitView: "Erregistroaren bi bertsio",
+                    brokenPromise: "Agindutako sarrera bat falta da",
+                    breaksRules: "Sarrera batek arauak urratzen ditu",
+                    twoPolicies: "Bi politika",
+                    unloggedCode: "Erregistratu gabeko kodea",
+                    other: "Hub batek erregistratutako arazo bat",
+                },
+            },
             ballotId: {
                 label: "Jarraipen IDa",
                 full: "Jarraipen ID osoa",
                 yours: "Zure jarraipen IDa:",
                 copy: "Kopiatu jarraipen ID osoa",
                 copied: "Jarraipen IDa kopiatu da",
+                copyText: "Kopiatu",
+                copiedText: "Kopiatuta",
                 showFull: "Erakutsi jarraipen ID osoa",
                 selected: "Hautatuta. Sakatu Ctrl+C, edo ⌘C Mac-en, kopiatzeko.",
                 copyByHand:
@@ -812,8 +922,8 @@ const basqueTranslation: TranslationType = {
             },
             elsewhere: {
                 title: "Bilatu beste nonbait",
-                count_one: "Esploratzaile {{count}}, {{independent}} independente",
-                count_other: "{{count}} esploratzaile, {{independent}} independente",
+                count_one: "Esploratzaile {{count}}",
+                count_other: "{{count}} esploratzaile",
                 introBallot:
                     "Besteek kudeatutako esploratzaileek berek irakurtzen dute erregistro publikoa. Bakoitzak zure boto-papera aurkitu beharko luke, egiaztapen berberekin, webgune hau gabe.",
                 introEntry:
@@ -821,13 +931,13 @@ const basqueTranslation: TranslationType = {
                 foot: "Zerrenda hauteskundearen politikatik dator. Vitrine-ren edozein esploratzailek ireki dezake erregistro bera: eman jarraipen ID osoa.",
                 name: "{{name}} esploratzailea",
                 operatorName: "Hauteskundearen esploratzailea",
-                independent: "Independentea",
-                operator: "Operadorea",
                 newTab: "Fitxa berri batean irekitzen da",
                 who: {
-                    monitor: "Hauteskundearen politikan aipatutako monitore bat",
-                    hub: "Hauteskundearen politikan aipatutako aingura-hub bat",
-                    operator: "Hauteskunde-agintaritzak kudeatua",
+                    monitor:
+                        "Kudeatzailea: {{party}}, hauteskundearen politikan aipatutako monitore bat",
+                    hub: "Kudeatzailea: {{party}}, hauteskundearen politikan aipatutako aingura-hub bat",
+                    operator:
+                        "Kudeatzailea: hauteskunde-agintaritza, hauteskunde hau kudeatzen duena",
                 },
             },
             status: {
@@ -876,9 +986,9 @@ const basqueTranslation: TranslationType = {
                     recorded:
                         "Zure nabigatzaileak zure bozketa erregistro publikoan aurkitu du. Orain lekukoek berretsiko dute.",
                     witnessed:
-                        "Lekuko independenteek erregistroa berretsi dute. Aingura publikoak {{minutes}} minuturen buruan iristen dira; ez dago itxaron beharrik.",
+                        "Lekukoek erregistroa berretsi dute. Aingura publikoak {{minutes}} minuturen buruan iristen dira; ez dago itxaron beharrik.",
                     verified:
-                        "Zure bozketa erregistro publikoan dago, lekuko independenteek berretsia eta publikoki ainguratua.",
+                        "Zure bozketa erregistro publikoan dago, lekukoek berretsia eta publikoki ainguratua.",
                     late: "Zure bozketa erregistro publikoan dago eta lekukoek berretsi dute, baina aingura publikoak berandu doaz.",
                     lateStep:
                         "Urrats bat espero baino gehiago tardatzen ari da. Ez da manipulazioaren froga, eta zure nabigatzaileak egiaztatzen jarraitzen du.",
@@ -905,7 +1015,7 @@ const basqueTranslation: TranslationType = {
                     witnesses: {
                         title: "Lekukoek berretsia",
                         upcoming:
-                            "Lekuko independenteek bozketa barne hartzen duen erregistro bat sinatzen dute.",
+                            "Lekukoek bozketa barne hartzen duen erregistro bat sinatzen dute.",
                     },
                     anchors: {
                         title: "Publikoki ainguratua",
@@ -922,12 +1032,14 @@ const basqueTranslation: TranslationType = {
                     recordedEntry:
                         "#{{index}} sarrera. Zure nabigatzaileak bere froga egiaztatu du.",
                     witnessed:
-                        "Politikako lekuko independente nahikok ({{count}}) sinatu dute bozketa barne hartzen duen erregistro bat.",
+                        "Politikako lekuko nahikok ({{count}}) sinatu dute bozketa barne hartzen duen erregistro bat.",
                     anchoredWaict:
                         "Gune publikoetan ({{count}}) eta nabigatzaileek egiaztatzen duten tokian.",
                     anchoredBootstrap:
                         "Gune publikoetan ({{count}}) eta nabigatzaileek egiaztatzen duten tokian, oraingoz ordezko gune baten bidez.",
                     anchoredHubs: "Gune publikoetan ({{count}}).",
+                    anchoredOneHub: "Gune bakarrean ainguratua; kudeatzailea: {{party}}.",
+                    anchoredOneHubPlatform: "Gune bakarrean ainguratua; kudeatzailea: plataforma.",
                     lateNow: "Dagoeneko eginda egon beharko luke.",
                     lateStep: "{{time}} baino lehen eginda egon beharko luke.",
                     lateAnchors: "Guneek {{time}} baino lehen ainguratu beharko zuten.",
@@ -974,6 +1086,58 @@ const basqueTranslation: TranslationType = {
                     checked: "Zure nabigatzaileak egiaztatua, edonork ikuska dezakeen kodearekin.",
                     kept: "Gailu honek ordainagiria gordetzen du eta bisita bakoitzean berriro egiaztatzen du.",
                 },
+            },
+            signers: {
+                witnesses: {open: "Nork sinatu duen", close: "Ezkutatu nork sinatu duen"},
+                hubs: {open: "Zein gune", close: "Ezkutatu zein gune"},
+                runBy: "Kudeatzailea: {{party}}",
+                runByAlso: "Kudeatzailea: {{party}}, hau ere kudeatzen du: {{hubs}}",
+                signed: "Sinatua: {{time}}",
+                signedNoTime: "Sinatua",
+                notYet: "Oraindik ez",
+                late: "Berandu",
+                anchored: "Ainguratua: {{time}}",
+                anchoredNoTime: "Ainguratua",
+                within: "{{minutes}} min barru",
+                check: "Egiaztatu bere webgunean",
+                checkWitness:
+                    "Egiaztatu bere webgunean: {{name}} lekukoa (fitxa berri batean irekitzen da)",
+                checkHub:
+                    "Egiaztatu bere webgunean: {{name}} gunea (fitxa berri batean irekitzen da)",
+                linksNote:
+                    "“Egiaztatu bere webgunean” aukerak sinatzailearen beraren esploratzailea irekitzen du, eta han egiaztatzen da sinadura hori.",
+                standIn: {
+                    name: "Nabigatzaileek egiaztatzen duten tokia",
+                    who: "Ordezko gune bat, oraingoz",
+                },
+                rule: {
+                    witnesses:
+                        "Politikak eskatzen du bere {{total}} lekukoetatik gutxienez {{needed}} sinatzea. Sinatu dutenak: {{signed}}.",
+                    witnessesAlone:
+                        "Politikak eskatzen du bere {{total}} lekukoetatik gutxienez {{needed}} sinatzea, eta ez dago hainbeste kudeatzen dituen alderik. Sinatu dutenak: {{signed}}.",
+                    witnessesCount:
+                        "Politikaren {{total}} lekukoetatik sinatu dutenak: {{signed}}.",
+                    hubs: "Gune guztiek ({{count}}) erregistroa ainguratu behar dute, eta gutxienez {{independent}} hauteskunde-agintaritzaz bestelako norbaitek kudeatuak izan behar dira.",
+                    hubsPlatform:
+                        "Gune guztiek ({{count}}) erregistroa ainguratu behar dute, eta gutxienez {{independent}} ez hauteskunde-agintaritzak ez plataformak kudeatuak izan behar dira.",
+                    hubsAll: "Gune guztiek ({{count}}) erregistroa ainguratu behar dute.",
+                    oneHub: "Politikak gune bakar bat du izendatuta; kudeatzailea: {{party}}.",
+                    oneHubPlatform:
+                        "Politikak gune bakar bat du izendatuta; kudeatzailea: plataforma.",
+                },
+            },
+            updates: {
+                title: "Jaso posta elektronikoz eguneratzeak txartel honi buruz",
+                description:
+                    "Berretsi denean eta zenbatu denean, edo arazoren bat erregistratzen bada. Aukeratu edozein gune: bakoitzak berak egiaztatzen du erregistroa.",
+                listLabel: "Hauteskunde honen politikako guneak",
+                runBy: "Kudeatzailea: {{party}}",
+                hubLabel:
+                    "{{name}}, kudeatzailea: {{party}}: jaso eguneratzeak posta elektronikoz bere webgunean (fitxa berri batean irekitzen da)",
+                footnote:
+                    "Hauteskundearen politikak izendatzen dituen guneak, aldi bakoitzean ordena aleatorioan. Bakoitza bere webgunean irekitzen da zure ordainagiriarekin esteka barruan; ez da ezer partekatzen han zer jarraitu aukeratu arte.",
+                footnoteNoReceipt:
+                    "Hauteskundearen politikak izendatzen dituen guneak, aldi bakoitzean ordena aleatorioan. Bakoitza bere webgunean irekitzen da; ez da ezer partekatzen han zer jarraitu aukeratu arte.",
             },
             booth: {
                 title: "Zure boto-txartela ezin da oraindik prestatu",

@@ -7054,7 +7054,7 @@ const basqueTranslation: TranslationType = {
         },
         transparencyTab: {
             title: "Gardentasuna",
-            help: "Vitrinerekin, gertaeraren boto-txartelak eta mugarriak sarrerak gehitu besterik ezin zaizkien erregistroetan gordetzen dira, eta lekuko independenteek sinatzen dituzte; horrela, bozkatzaileek eta behatzaileek egiazta dezakete ez dela ezer kendu edo aldatu.",
+            help: "Vitrinerekin, gertaeraren boto-txartelak eta mugarriak sarrerak gehitu besterik ezin zaizkien erregistroetan gordetzen dira, eta konfiantza-politikak izendatzen dituen lekukoek sinatzen dituzte; horrela, bozkatzaileek eta behatzaileek egiazta dezakete ez dela ezer kendu edo aldatu.",
             loading: "Gertaeraren gardentasuna kargatzen...",
             loadError: "Ezin izan da gertaeraren gardentasuna kargatu: {{reason}}",
             unknownError: "errore ezezaguna",
@@ -7066,6 +7066,81 @@ const basqueTranslation: TranslationType = {
             sdkLoading: "Vitrineren egiaztatzailea kargatzen...",
             sdkError:
                 "Vitrineren egiaztatzaileak ezin izan du nabigatzaile honetan abiarazi; beraz, ezin da hemen konfiantza-politika egiaztatu.",
+            hubProblems: {
+                title_one: "Gune batek arazo bat zerrendatzen du hauteskunde honetan",
+                title_other: "{{count}} arazo zerrendatzen dira hauteskunde honetan",
+                listedBy: "Zerrendatzailea: {{hubs}}",
+                proof: "Ikusi froga",
+                note: "Abisu hau portal honen erosotasun bat da, eta zerrenda bat aipamen soila da: ireki froga zure nabigatzailean egiaztatzeko. Gune bakoitzak bere arazoak bere webgunean ere zerrendatzen ditu, portal honek erakutsi zein ez. Erantzuten ez duen gune bat ez da arazo bat.",
+                kind: {
+                    splitView: "Erregistroaren bi bertsio",
+                    brokenPromise: "Agindutako sarrera bat falta da",
+                    breaksRules: "Sarrera batek arauak urratzen ditu",
+                    twoPolicies: "Bi politika",
+                    unloggedCode: "Erregistratu gabeko kodea",
+                    other: "Gune batek erregistratutako arazo bat",
+                },
+            },
+            authorityContact: {
+                title: "Hauteskunde-agintaritzaren kontaktua",
+                intro: "Aukerakoa. Bozkatzaileek hauteskunde-agintaritzarekin nola jar daitezkeen harremanetan, adibidez auditoria bateko desadostasun baten berri emateko. Konfiantza-politikan sartzen da, eta bozkatzaileen aplikazioek politika zigilatutik soilik erakusten dute.",
+                name: {
+                    label: "Izena",
+                    help: "128 byte arte, tarte bakunekin eta lerro-jauzirik gabe.",
+                    invalid:
+                        "Izenak 1 eta 128 byte artean izan behar ditu, tarte bakunekin eta lerro-jauzirik edo karaktere ikusezinik gabe.",
+                },
+                email: {
+                    label: "Posta elektronikoa",
+                    help: "Letrak, zifrak eta . _ % + - soilik dituen helbidea.",
+                    invalid:
+                        "Erabili helbide soil bat, hauteskundeak@acme.example bezalakoa, azenturik eta komatxorik gabe.",
+                },
+                phone: {
+                    label: "Telefonoa",
+                    help: "+ bat eta 7 eta 15 zifra artean, zuriunerik gabe.",
+                    invalid:
+                        "Erabili + bat eta 7 eta 15 zifra artean, lehena 0 ez dena, zuriunerik eta marratxorik gabe.",
+                },
+                url: {
+                    label: "Webgunea",
+                    help: "https helbide bat.",
+                    invalid:
+                        "Erabili https helbide bat, adibidez https://hauteskundeak.acme.example/kontaktua.",
+                },
+                save: "Gorde kontaktua",
+                saved: "Hauteskunde-agintaritzaren kontaktua gorde da.",
+                notStored: "Gertaerak ez du hori gordetzeko ezarpenik.",
+                saveError: "Ezin izan da kontaktua gorde: {{reason}}",
+                readOnly: "Kontaktua ikus dezakezu, baina ezin duzu aldatu.",
+                locked: "Bozketa ireki da, beraz kontaktua ezin da hemen aldatu.",
+                successor:
+                    "Politika zigilatuak zigilatu zenean zuen kontaktua gordetzen du. Gordetzean zirriborroa aldatzen da, eta Hauteskunde Batzordeak ordezko politika bat zigilatzen du hura barnean hartzeko.",
+                footer: "Betetzen duzun eremu bakoitza konfiantza-politikako kontaktu-lerro bat bihurtzen da. Eremu hutsak kanpoan uzten dira, eta bat ere ez da derrigorrezkoa.",
+            },
+            hubUpdates: {
+                title: "Guneen berriak",
+                intro: "Aukerakoa. Bozkatzaileek gune bati eska diezaiokete boto-paperari buruz posta elektronikoz idazteko. Konfiantza-politikako gune guztiak modu berean eskaintzen dira.",
+                confirmation: {
+                    label: "Eskaini «Jaso berriak posta elektronikoz» berrespen-orrian",
+                    help: "Bozkatu ondoren, QR kodearen azpian. Gune guztiak zerrendatzen ditu, eta bakoitza bere webgunean irekitzen da bozkatzailearen ordainagiriarekin.",
+                },
+                castEmail: {
+                    label: "Gehitu guneak bozketaren mezu elektronikoan",
+                    help: "Boto-paperaren ordainagiriaren mezuak jarraipen ID osoa eta gune bakoitzerako esteka ditu, ausazko ordenan.",
+                },
+                readOnly: "Ezarpen hauek ikus ditzakezu, baina ezin dituzu aldatu.",
+                saved: "Guneen berrien ezarpena gorde da.",
+                notStored: "Gertaerak ez du bozketa-ataria ezarpenik non gordetzeko.",
+                saveError: "Ezin izan da ezarpena gorde: {{reason}}",
+                hubs: {
+                    title: "Guneak",
+                    help: "Hauteskundearen konfiantza-politikakoak. Aldatzeko, argitaratu politika berri bat.",
+                    none: "Konfiantza-politikako gune batek ere ez du webgunerik, beraz bozkatzaileei ez zaie berririk eskaintzen.",
+                    order: "Bozkatzaileek ausazko ordenan ikusten dituzte, aldi bakoitzean. Ordena ezin da finkatu, eta ezin da gune bat lehenetsi gisa ezarri.",
+                },
+                footer: "Biak aktibatuta daude lehenespenez, politikak gune bat izendatu bezain laster. Gertaerako bozketa-atariaren gainerako ezarpenekin batera gordetzen dira. Desaktibatzeak atariaren gonbidapena ezkutatzen du soilik: guneek erregistroa egiaztatzen jarraitzen dute, eta bozkatzaileak edozein gunetara joan daitezke beren kabuz.",
+            },
             overview: {
                 notReported: "Jakinarazi gabe",
                 ago: "duela {{duration}}",
@@ -7088,8 +7163,9 @@ const basqueTranslation: TranslationType = {
                     public: "Erregistro publikoa",
                     private: "Erregistro pribatua",
                     quorum: "lekukoen politika {{k}}/{{n}}",
-                    hubs_one: "{{count}} aingura-gune, {{independent}} independente",
-                    hubs_other: "{{count}} aingura-gune, {{independent}} independente",
+                    hubs_one: "{{count}} aingura-gune",
+                    hubs_other: "{{count}} aingura-gune",
+                    hubsOutside: "{{count}} hauteskunde-agintaritzaz eta plataformaz bestelako batek kudeatuak",
                     mmd: "gehieneko batze-atzerapena: {{duration}}",
                     locked: "bozketa ireki zenetik blokeatuta",
                     explorerPublic: "Ireki esploratzaile publikoa",
@@ -7141,7 +7217,7 @@ const basqueTranslation: TranslationType = {
                 anchoring: {
                     title: "Ainguratzea",
                     sub: "guneen maiztasuna: {{hubs}} · nabigatzaileena: {{browsers}}",
-                    independent: "Kudeatzailea: {{party}}, {{operator}}-ekiko independentea",
+                    rule: "Araua: {{min}} aingura-guneetatik, gutxienez {{outside}} hauteskunde-agintaritzaz eta plataformaz bestelako batek kudeatu behar ditu.",
                     noAnchor: "Oraindik aingurarik gabe",
                     browserLayer: "Nabigatzaileen geruza",
                     browserLayerSub: "Aplikazioaren guneak hemen ainguratzen dira: {{hubs}}",
@@ -7186,7 +7262,7 @@ const basqueTranslation: TranslationType = {
                     none: "Konfiantza-politika honek ez du datuak kentzea onartzen.",
                 },
                 monitors: {
-                    title: "Monitore independenteak",
+                    title: "Monitoreak",
                     list_one:
                         "Konfiantza-politikak monitore bat aipatzen du: {{names}}. Egiaztatzaileek, bozkatzaileen nabigatzaileak barne, gossip-a, promesak eta ebidentziak bidaltzen dizkiote.",
                     list_other:
@@ -7237,9 +7313,13 @@ const basqueTranslation: TranslationType = {
                 draftTitle: "Hauteskunde Batzordearentzako zirriborroa",
                 draftHelp:
                     "Deskargatu zirriborroa eta eman Hauteskunde Batzordeari. Batzordeak egiaztatu, zigilatu eta sinatu egiten du Vitrineren komando-lerroko tresnarekin, eta haren sign lerroak izendatzen duen beste edozein agintaritzaren sinadura ere lortzen du. Ondoren, igo hona sinatutako politika.",
-                draftWords: "Zirriborroaren zortzi hitzak",
-                draftWordsHelp:
-                    "Batzordeak egiaztatzen du «vitrine policy words» komandoak hitz hauek erakusten dituela jaso duen fitxategirako.",
+                draftId: "Zirriborroaren hasha",
+                draftIdHelp:
+                    "Batzordeak egiaztatzen du «vitrine policy id» komandoak hash hau erakusten duela jaso duen fitxategirako. Zirriborro batek ez du politikaren IDrik zigilatu arte.",
+                draftTag: "Zirriborroa",
+                shortId: "Politikaren IDa, lehen lau taldeak",
+                shortIdHelp:
+                    "Pertsonek talde hauek alderatzen dituzte deialdi ofizialarekin. Tresnek 13 taldeak alderatzen dituzte.",
                 download: "Deskargatu zirriborroa",
                 commands: "Batzordearen komandoak",
                 invalidDraft: "Politikaren zirriborroa ez da baliozkoa: {{reason}}",
@@ -7247,7 +7327,7 @@ const basqueTranslation: TranslationType = {
                     "Gertaeraren zirriborroa aldatu egin da politika hau zigilatu ondoren. Batzordeak zirriborro berria zigilatu eta sinatu behar du, eta ondorengo gisa igoko da.",
                 sealedTitle: "Gertaeraren politika",
                 sealedHelp:
-                    "Argitaratu politikaren IDa eta haren sei hitzak hauteskundeen deialdi ofizialean, bozkatzaileek eta behatzaileek ezagut dezaten zein politikaren arabera egiaztatzen diren beren hartu-agiriak.",
+                    "Argitaratu politikaren IDa hauteskundeen deialdi ofizialean, bozkatzaileek eta behatzaileek ezagut dezaten zein politikaren arabera egiaztatzen diren beren hartu-agiriak. Haren lehen lau taldeak alderatzen dira.",
                 idMismatch:
                     "Erregistroek {{id}} politika-IDa adierazten dute, eta ez da politika honena.",
                 invalidStored: "Gertaeraren gordetako politika ez da baliozkoa: {{reason}}",
@@ -7260,7 +7340,7 @@ const basqueTranslation: TranslationType = {
                 text: "Politika sinatua",
                 readError: "Ezin izan da fitxategia irakurri.",
                 tooLarge: "Hau konfiantza-politika bat izan daitekeena baino handiagoa da.",
-                draft: "Hau zigilatu gabeko zirriborro bat da, hitz hauekin: {{words}}. Hauteskunde Batzordeak zigilatu eta sinatu behar du lehenik.",
+                draft: "Hau zigilatu gabeko zirriborro bat da, {{id}} hasharekin. Hauteskunde Batzordeak zigilatu eta sinatu behar du lehenik.",
                 invalid: "Hau ez da baliozko politika sinatu bat: {{reason}}",
                 preview: "Egiaztatu datu hauek Hauteskunde Batzordearekin politika igo aurretik.",
                 otherEvent: "Politika hau beste hauteskunde gertaera batena da.",
@@ -7268,8 +7348,7 @@ const basqueTranslation: TranslationType = {
                     "Politika hau {{policy}} da, baina gertaeraren gardentasuna {{event}} da.",
                 notFromDraft: "Politika hau ez da gertaeraren uneko zirriborrotik zigilatu.",
                 submit: "Igo politika",
-                uploaded:
-                    "Politika igo da. Argitaratu haren IDa eta sei hitzak hauteskundeen deialdi ofizialean.",
+                uploaded: "Politika igo da. Argitaratu haren IDa hauteskundeen deialdi ofizialean.",
                 error: "Ezin izan da politika igo: {{reason}}",
             },
             logs: {

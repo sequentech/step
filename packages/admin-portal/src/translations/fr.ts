@@ -7110,7 +7110,7 @@ const frenchTranslation: TranslationType = {
         },
         transparencyTab: {
             title: "Transparence",
-            help: "Avec Vitrine, les bulletins et les étapes de l'événement sont inscrits dans des journaux auxquels on ne peut qu'ajouter des entrées et que signent des témoins indépendants, afin que les électeurs et les observateurs puissent vérifier que rien n'a été supprimé ni modifié.",
+            help: "Avec Vitrine, les bulletins et les étapes de l'événement sont inscrits dans des journaux auxquels on ne peut qu'ajouter des entrées et que signent les témoins que nomme la politique de confiance, afin que les électeurs et les observateurs puissent vérifier que rien n'a été supprimé ni modifié.",
             loading: "Chargement de la transparence de l'événement...",
             loadError: "La transparence de l'événement n'a pas pu être chargée : {{reason}}",
             unknownError: "erreur inconnue",
@@ -7122,6 +7122,81 @@ const frenchTranslation: TranslationType = {
             sdkLoading: "Chargement du vérificateur Vitrine...",
             sdkError:
                 "Le vérificateur Vitrine n'a pas pu démarrer dans ce navigateur : la politique de confiance ne peut donc pas être vérifiée ici.",
+            hubProblems: {
+                title_one: "Un pôle signale un problème pour cette élection",
+                title_other: "{{count}} problèmes sont signalés pour cette élection",
+                listedBy: "Signalé par {{hubs}}",
+                proof: "Voir la preuve",
+                note: "Cet avis est une commodité de ce portail, et une liste n'est qu'un renvoi : ouvrez la preuve pour la vérifier dans votre navigateur. Chaque pôle liste aussi ses problèmes sur son propre site, que ce portail les affiche ou non. Un pôle qui ne répond pas n'est pas un problème.",
+                kind: {
+                    splitView: "Deux versions du registre",
+                    brokenPromise: "Une entrée promise manque",
+                    breaksRules: "Une entrée enfreint les règles",
+                    twoPolicies: "Deux politiques",
+                    unloggedCode: "Du code qui n'est pas journalisé",
+                    other: "Un problème enregistré par un pôle",
+                },
+            },
+            authorityContact: {
+                title: "Contact de l’autorité électorale",
+                intro: "Facultatif. Comment les électeurs joignent l’autorité électorale, par exemple pour signaler un écart lors d’un audit. Il figure dans la politique de confiance, et les applications des électeurs ne l’affichent qu’à partir de la politique scellée.",
+                name: {
+                    label: "Nom",
+                    help: "Jusqu’à 128 octets, avec des espaces simples et sans saut de ligne.",
+                    invalid:
+                        "Le nom fait de 1 à 128 octets, avec des espaces simples, sans saut de ligne ni caractère invisible.",
+                },
+                email: {
+                    label: "E-mail",
+                    help: "Une adresse avec seulement des lettres, chiffres et . _ % + -",
+                    invalid:
+                        "Utilisez une adresse simple comme elections@acme.example, sans accents ni guillemets.",
+                },
+                phone: {
+                    label: "Téléphone",
+                    help: "Un + et de 7 à 15 chiffres, sans espaces.",
+                    invalid:
+                        "Utilisez un + et de 7 à 15 chiffres, le premier différent de 0, sans espaces ni tirets.",
+                },
+                url: {
+                    label: "Site web",
+                    help: "Une adresse https.",
+                    invalid:
+                        "Utilisez une adresse https, comme https://elections.acme.example/contact.",
+                },
+                save: "Enregistrer le contact",
+                saved: "Le contact de l’autorité électorale a été enregistré.",
+                notStored: "L’événement n’a pas de paramètres où l’enregistrer.",
+                saveError: "Le contact n’a pas pu être enregistré : {{reason}}",
+                readOnly: "Vous pouvez voir le contact, mais pas le modifier.",
+                locked: "Le vote est ouvert : le contact ne peut plus être modifié ici.",
+                successor:
+                    "La politique scellée garde le contact avec lequel elle a été scellée. L’enregistrement modifie le brouillon, et la commission électorale scelle une politique successeur qui le porte.",
+                footer: "Chaque champ rempli devient une ligne de contact de la politique de confiance. Les champs vides sont omis, et aucun n’est obligatoire.",
+            },
+            hubUpdates: {
+                title: "Mises à jour des pôles",
+                intro: "Facultatif. Les électeurs peuvent demander à un pôle de leur écrire par e-mail à propos de leur bulletin. Chaque pôle de la politique de confiance est proposé de la même façon.",
+                confirmation: {
+                    label: "Proposer « Recevoir des mises à jour par e-mail » sur la page de confirmation",
+                    help: "Après le vote, sous le code QR. Elle liste chaque pôle, qui s'ouvre sur son propre site avec le reçu de l'électeur.",
+                },
+                castEmail: {
+                    label: "Ajouter les pôles à l'e-mail du vote déposé",
+                    help: "L'e-mail du reçu du bulletin contient l'identifiant de suivi complet et un lien vers chaque pôle, dans un ordre aléatoire.",
+                },
+                readOnly: "Vous pouvez voir ces paramètres, mais pas les modifier.",
+                saved: "Le paramètre des mises à jour des pôles a été enregistré.",
+                notStored: "L'événement n'a pas de paramètres du portail de vote où l'enregistrer.",
+                saveError: "Le paramètre n'a pas pu être enregistré : {{reason}}",
+                hubs: {
+                    title: "Pôles",
+                    help: "Ceux de la politique de confiance de l'élection. Pour les changer, publiez une nouvelle politique.",
+                    none: "Aucun pôle de la politique de confiance n'a de site, donc aucune mise à jour n'est proposée aux électeurs.",
+                    order: "Les électeurs les voient dans un ordre aléatoire, à chaque fois. L'ordre ne peut pas être fixé et aucun pôle ne peut être mis par défaut.",
+                },
+                footer: "Les deux sont activés par défaut dès que la politique nomme un pôle. Ils sont enregistrés avec les autres paramètres du portail de vote de l'événement. Les désactiver masque seulement l'invitation du portail : les pôles continuent de vérifier le registre, et les électeurs peuvent toujours aller eux-mêmes sur n'importe quel pôle.",
+            },
             overview: {
                 notReported: "Non communiqué",
                 ago: "il y a {{duration}}",
@@ -7144,8 +7219,9 @@ const frenchTranslation: TranslationType = {
                     public: "Registre public",
                     private: "Registre privé",
                     quorum: "politique de témoins {{k}} sur {{n}}",
-                    hubs_one: "{{count}} pôle d'ancrage, {{independent}} indépendant",
-                    hubs_other: "{{count}} pôles d'ancrage, {{independent}} indépendants",
+                    hubs_one: "{{count}} pôle d'ancrage",
+                    hubs_other: "{{count}} pôles d'ancrage",
+                    hubsOutside: "{{count}} gérés par une partie autre que l'autorité électorale et la plateforme",
                     mmd: "délai maximal de fusion {{duration}}",
                     locked: "verrouillé depuis l'ouverture du vote",
                     explorerPublic: "Ouvrir l'explorateur public",
@@ -7198,7 +7274,7 @@ const frenchTranslation: TranslationType = {
                 anchoring: {
                     title: "Ancrage",
                     sub: "pôles toutes les {{hubs}} · navigateurs toutes les {{browsers}}",
-                    independent: "Géré par {{party}}, indépendant de {{operator}}",
+                    rule: "Règle : sur {{min}} pôles d'ancrage, au moins {{outside}} doivent être gérés par une partie autre que l'autorité électorale et la plateforme.",
                     noAnchor: "Pas encore d'ancre",
                     browserLayer: "Couche des navigateurs",
                     browserLayerSub: "Les pôles de l'application s'ancrent dans {{hubs}}",
@@ -7243,7 +7319,7 @@ const frenchTranslation: TranslationType = {
                     none: "Cette politique de confiance n'autorise aucun retrait de données.",
                 },
                 monitors: {
-                    title: "Moniteurs indépendants",
+                    title: "Moniteurs",
                     list_one:
                         "La politique de confiance nomme un moniteur : {{names}}. Les vérificateurs, dont les navigateurs des électeurs, lui envoient du gossip, des promesses et des preuves.",
                     list_other:
@@ -7293,9 +7369,13 @@ const frenchTranslation: TranslationType = {
                 draftTitle: "Brouillon pour la commission électorale",
                 draftHelp:
                     "Téléchargez le brouillon et remettez-le à la commission électorale. La commission le vérifie, le scelle et le signe avec l'outil en ligne de commande de Vitrine, et le fait aussi signer par toute autre autorité que nomme sa ligne sign. Téléversez ensuite ici la politique signée.",
-                draftWords: "Les huit mots du brouillon",
-                draftWordsHelp:
-                    "La commission vérifie que « vitrine policy words » affiche ces mots pour le fichier qu'elle a reçu.",
+                draftId: "Le hachage du brouillon",
+                draftIdHelp:
+                    "La commission vérifie que « vitrine policy id » affiche ce hachage pour le fichier qu'elle a reçu. Un brouillon n'a pas d'identifiant de politique avant d'être scellé.",
+                draftTag: "Brouillon",
+                shortId: "Identifiant de la politique, quatre premiers groupes",
+                shortIdHelp:
+                    "Les personnes comparent ces groupes avec l'avis officiel. Les outils comparent les 13.",
                 download: "Télécharger le brouillon",
                 commands: "Les commandes de la commission",
                 invalidDraft: "Le brouillon de la politique n'est pas valide : {{reason}}",
@@ -7303,7 +7383,7 @@ const frenchTranslation: TranslationType = {
                     "Le brouillon de l'événement a changé après le scellement de cette politique. La commission doit sceller et signer le nouveau brouillon, qui est ensuite téléversé comme successeur.",
                 sealedTitle: "La politique de l'événement",
                 sealedHelp:
-                    "Publiez l'identifiant de la politique et ses six mots dans l'avis officiel de l'élection, afin que les électeurs et les observateurs reconnaissent la politique selon laquelle leurs reçus sont vérifiés.",
+                    "Publiez l'identifiant de la politique dans l'avis officiel de l'élection, afin que les électeurs et les observateurs reconnaissent la politique selon laquelle leurs reçus sont vérifiés. On compare ses quatre premiers groupes.",
                 idMismatch:
                     "Les journaux indiquent l'identifiant de politique {{id}}, qui n'est pas celui de cette politique.",
                 invalidStored:
@@ -7317,7 +7397,7 @@ const frenchTranslation: TranslationType = {
                 text: "Politique signée",
                 readError: "Le fichier n'a pas pu être lu.",
                 tooLarge: "C'est plus volumineux qu'une politique de confiance ne peut l'être.",
-                draft: "C'est un brouillon non scellé, dont les mots sont {{words}}. La commission électorale doit d'abord le sceller et le signer.",
+                draft: "C'est un brouillon non scellé, dont le hachage est {{id}}. La commission électorale doit d'abord le sceller et le signer.",
                 invalid: "Ce n'est pas une politique signée valide : {{reason}}",
                 preview:
                     "Vérifiez ces informations avec la commission électorale avant de téléverser la politique.",
@@ -7328,7 +7408,7 @@ const frenchTranslation: TranslationType = {
                     "Cette politique n'a pas été scellée à partir du brouillon actuel de l'événement.",
                 submit: "Téléverser la politique",
                 uploaded:
-                    "La politique a été téléversée. Publiez son identifiant et ses six mots dans l'avis officiel de l'élection.",
+                    "La politique a été téléversée. Publiez son identifiant dans l'avis officiel de l'élection.",
                 error: "La politique n'a pas pu être téléversée : {{reason}}",
             },
             logs: {

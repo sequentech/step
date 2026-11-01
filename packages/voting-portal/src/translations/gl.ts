@@ -32,6 +32,8 @@ const galegoTranslation: TranslationType = {
             noBallots: "Aínda non se enviou ningunha papeleta.",
             invalidPrefix:
                 "Escribe polo menos 8 caracteres dun ID de seguimento con guión, como FTBE-MHRX, ou ata 8 dun pseudónimo con dous puntos, como K7QM:2XWD. Os códigos usan os díxitos do 0 ao 9 e letras maiúsculas, sen I, L, O nin U.",
+            policyId:
+                "Este é o ID da política desta elección. O ID de seguimento dunha papeleta está no teu recibo.",
             stages: {
                 received: {
                     label: "Recibida",
@@ -625,6 +627,8 @@ const galegoTranslation: TranslationType = {
             filterByBallotId: "Filtrar por ID de seguimento",
             totalBallots: "Papeletas: {{total}}",
             idHelp: "O ID de seguimento curto, como FTBE-MHRX, ou o completo",
+            policyId:
+                "Este é o ID da política desta elección. O ID de seguimento dunha papeleta está no teu recibo.",
             foundShort:
                 "Atopada polo seu ID curto. Para estares seguro de que é a túa, compara o ID de seguimento completo co teu recibo.",
             search: {
@@ -640,7 +644,7 @@ const galegoTranslation: TranslationType = {
                 features: {
                     cast: {
                         title: "Papeletas emitidas",
-                        text: "Comproba que a túa papeleta está no rexistro público, confirmada por testemuñas independentes e ancorada publicamente.",
+                        text: "Comproba que a túa papeleta está no rexistro público, confirmada por testemuñas e ancorada publicamente.",
                     },
                     audited: {
                         title: "Papeletas auditadas",
@@ -653,13 +657,99 @@ const galegoTranslation: TranslationType = {
                 },
             },
             matches: {
-                title: "{{total}} papeletas comparten o ID curto <b>{{shortId}}</b>. Escolle a túa ou introduce o ID de seguimento completo.",
                 cast: "Emitida o {{time}}",
                 audited: "Auditada o {{time}}",
             },
+            shortId: {
+                head: {
+                    one: "1 papeleta comeza por {{start}}",
+                    other: "{{count}} papeletas comezan por {{start}}",
+                    atLeast: "{{count}} ou máis papeletas comezan por {{start}}",
+                    mine: "A túa papeleta e {{count}} máis que comezan por {{start}}",
+                    mineAlone: "A túa papeleta comeza por {{start}}",
+                },
+                sub: {
+                    few: "Cal é a túa? Compara o grupo resaltado co teu recibo, ou escríbeo abaixo.",
+                    one: "Ábrea e compara o seu ID de seguimento completo co teu recibo.",
+                    many: "Son máis das que mostramos. Escribe o terceiro grupo do teu recibo para atopar a túa.",
+                    mine: "Este dispositivo garda o teu recibo, así que sabe cal é a túa.",
+                },
+                why: {
+                    few: "Un ID curto atopa papeletas. Só o ID de seguimento completo, ou o recibo do teu propio dispositivo, di cal é a túa.",
+                    many: "Tantas adoita significar que alguén creou papeletas para que coincidan con este ID curto adrede. A túa segue no rexistro: acertar tamén tres grupos requiriría uns mil trillóns de intentos.",
+                    mine: "As outras pertencen a outros votantes. Móstranse para que unha parecida non poida pasar pola túa.",
+                },
+                third: "Terceiro grupo do teu recibo",
+                thirdOr: "Ou escribe o terceiro grupo do teu recibo",
+                find: "Buscar",
+                onDevice: "Neste dispositivo",
+                deviceMatches: "O recibo deste dispositivo coincide cos 13 grupos",
+                serverSees:
+                    "Os servidores do rexistro non puideron facer esta busca sen saber que papeleta buscas, así que se lle pediu ao servidor da elección este ID exacto e puido velo.",
+            },
             audit: {
-                title: "As túas seleccións, descodificadas",
-                note: "O teu navegador descifrou esta papeleta auditada coa clave que revelou o portal. Se estas non son as seleccións que fixeches, ponte en contacto coa autoridade electoral.",
+                kicker: "Auditoría da papeleta",
+                title: "Comproba que a túa papeleta se cifrou como elixiches",
+                note: "Esta é a papeleta que auditaches, descodificada polo teu navegador. Só ti sabes o que elixiches, así que só ti podes facer esta comprobación.",
+                steps: {
+                    label: "Como funciona a comprobación",
+                    encrypted: {
+                        title: "Cifrada no teu dispositivo",
+                        text: "O portal cifrou as túas opcións e deulle á papeleta o seu ID de seguimento, antes de que decidiras auditala.",
+                    },
+                    decoded: {
+                        title: "Descodificada aquí",
+                        text: "Ao auditar, o portal revelou o seu segredo. O teu navegador descodificou a papeleta con el e comparouna co rexistro público.",
+                    },
+                    compare: {
+                        title: "Comparas ti",
+                        text: "Mira as opcións de abaixo. Son as que fixeches?",
+                    },
+                },
+                choices: "Opcións descodificadas desta papeleta",
+                question: "Coinciden co que elixiches?",
+                yes: "Si, coinciden",
+                no: "Non, hai algo diferente",
+                change: "Cambiar a miña resposta",
+                match: {
+                    title: "A túa papeleta cifrouse como elixiches",
+                    text: "Esta papeleta auditada xa está gastada: nunca se emitiu e nunca se contará. Volve e vota. O teu voto recibirá un ID de seguimento novo, e se queres podes auditar outra vez antes.",
+                    vote: "Volver e votar",
+                },
+                mismatch: {
+                    title: "Non votes neste dispositivo",
+                    text: "O que se cifrou non é o que elixiches, así que este dispositivo ou o portal de votación poden ter sido manipulados. O teu navegador gardou a proba: a papeleta cifrada do rexistro público, o segredo que revelou o portal e o que descodifica.",
+                    report: "Avisa a autoridade electoral",
+                    reportNoContact: "Avisa a autoridade electoral.",
+                    fromPolicy: "Da política publicada da elección, non desta páxina.",
+                    fromSettings: "Dos axustes da elección.",
+                    then: "Despois vota desde outro dispositivo.",
+                    save: "Gardar a proba",
+                    email: "Escribir á autoridade",
+                    emailSubject: "A miña papeleta auditada non se descodifica nas miñas opcións",
+                    emailBody:
+                        "Auditei unha papeleta nesta elección e as opcións que descodificou o meu navegador non son as que elixín.\n\nID de seguimento: {{id}}\n\nGardei a proba nun ficheiro e podo enviala.",
+                },
+                how: "Como funciona?",
+                faq: {
+                    why: {
+                        question: "Por que auditar?",
+                        answer: "O teu voto cífrase no teu dispositivo, así que ninguén pode lelo, nin sequera ti. Auditar permíteche comprobar que o portal cifrou o que elixiches antes de votar de verdade.",
+                    },
+                    catch: {
+                        question: "Por que detecta o engano?",
+                        answer: "O portal cifra antes de que decidas auditar, así que non pode saber que papeletas se comprobarán. Se cambiase votos, calquera votante que audite podería descubrilo.",
+                    },
+                    spent: {
+                        question: "Por que non pode contar esta papeleta?",
+                        answer: "Co segredo revelado, a papeleta amosa como votaches. Para manter o teu voto en segredo, unha papeleta auditada nunca se emite.",
+                    },
+                    differ: {
+                        question: "E se non coinciden?",
+                        answer: "Non votes nese dispositivo. Garda a proba e avisa a autoridade electoral, cuxo contacto sae da política da elección. Despois vota desde outro dispositivo.",
+                    },
+                    tip: "Para a comprobación máis sólida, abre esta páxina nun dispositivo distinto daquel co que votaches, por exemplo o teu móbil. Un dispositivo que cambiase a túa papeleta tamén podería cambiar o que che amosa aquí.",
+                },
                 failed: {
                     title: "Auditoría fallida",
                     text: "A papeleta do rexistro público non se descifra coa clave que revelou o portal. Non emitas o teu voto desde este dispositivo; avisa á autoridade electoral.",
@@ -701,7 +791,7 @@ const galegoTranslation: TranslationType = {
                 saveEvidence: "Gardar a proba",
                 howToReport: "Como denuncialo",
                 howToReportText:
-                    "Garda o ficheiro da proba e envíao á autoridade electoral ou a un observador independente. Poden comprobalo nos seus propios ordenadores. Non contén nada sobre como votaches.",
+                    "Garda o ficheiro da proba e envíao á autoridade electoral ou a un observador. Poden comprobalo nos seus propios ordenadores. Non contén nada sobre como votaches.",
                 noReceipt:
                     "Este dispositivo non ten o recibo desta papeleta. Compróbaa no dispositivo co que votaches, ou comproba o ficheiro do recibo no verificador de papeletas.",
                 receiptPending:
@@ -725,7 +815,7 @@ const galegoTranslation: TranslationType = {
                     },
                     verified: {
                         head: "Verificada",
-                        sub: "No rexistro público, confirmada por testemuñas independentes e ancorada publicamente.",
+                        sub: "No rexistro público, confirmada por testemuñas e ancorada publicamente.",
                     },
                     late: {
                         head: "Tarda máis do esperado",
@@ -749,7 +839,7 @@ const galegoTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Confirmada por testemuñas",
-                        done: "Testemuñas independentes asinaron un rexistro que a inclúe.",
+                        done: "Testemuñas asinaron un rexistro que a inclúe.",
                         count: "{{signed}} de {{total}} · fan falta {{needed}}",
                         countOf: "{{signed}} de {{total}}",
                     },
@@ -800,12 +890,31 @@ const galegoTranslation: TranslationType = {
             },
         },
         vitrine: {
+            hubProblems: {
+                title: {
+                    one: "Un hub lista un problema nesta elección",
+                    other: "Lístanse {{count}} problemas nesta elección",
+                },
+                listedBy: "Lístao {{hubs}}",
+                proof: "Ver a proba",
+                note: "Este aviso é unha comodidade deste sitio, e un listado é só unha referencia: abre a proba para comprobala no teu navegador. Os hubs tamén cho comunican por correo, nos seus propios sitios e na extensión, o faga ou non este sitio.",
+                kind: {
+                    splitView: "Dúas versións do rexistro",
+                    brokenPromise: "Falta unha entrada prometida",
+                    breaksRules: "Unha entrada incumpre as regras",
+                    twoPolicies: "Dúas políticas",
+                    unloggedCode: "Código que non está rexistrado",
+                    other: "Un problema rexistrado por un hub",
+                },
+            },
             ballotId: {
                 label: "ID de seguimento",
                 full: "ID de seguimento completo",
                 yours: "O teu ID de seguimento:",
                 copy: "Copiar o ID de seguimento completo",
                 copied: "ID de seguimento copiado",
+                copyText: "Copiar",
+                copiedText: "Copiado",
                 showFull: "Mostrar o ID de seguimento completo",
                 selected: "Seleccionado. Preme Ctrl+C, ou ⌘C nun Mac, para copialo.",
                 copyByHand:
@@ -813,8 +922,8 @@ const galegoTranslation: TranslationType = {
             },
             elsewhere: {
                 title: "Búscaa noutro sitio",
-                count_one: "{{count}} explorador, {{independent}} independente",
-                count_other: "{{count}} exploradores, {{independent}} independentes",
+                count_one: "{{count}} explorador",
+                count_other: "{{count}} exploradores",
                 introBallot:
                     "Os exploradores de terceiros len por conta propia o rexistro público. Cada un debería atopar a túa papeleta, coas mesmas comprobacións, sen esta web.",
                 introEntry:
@@ -822,13 +931,11 @@ const galegoTranslation: TranslationType = {
                 foot: "A lista vén da política da elección. Calquera explorador de Vitrine pode abrir o mesmo rexistro: dálle o ID de seguimento completo.",
                 name: "Explorador de {{name}}",
                 operatorName: "Explorador da elección",
-                independent: "Independente",
-                operator: "Operador",
                 newTab: "Ábrese nunha pestana nova",
                 who: {
-                    monitor: "Un monitor citado na política da elección",
-                    hub: "Un hub de ancoraxe citado na política da elección",
-                    operator: "Xestiónao a autoridade electoral",
+                    monitor: "Xestionado por {{party}}, un monitor citado na política da elección",
+                    hub: "Xestionado por {{party}}, un hub de ancoraxe citado na política da elección",
+                    operator: "Xestionado pola autoridade electoral, que xestiona esta elección",
                 },
             },
             status: {
@@ -877,9 +984,9 @@ const galegoTranslation: TranslationType = {
                     recorded:
                         "O teu navegador atopou a túa papeleta no rexistro público. Agora confírmana as testemuñas.",
                     witnessed:
-                        "Testemuñas independentes confirmaron o rexistro. As ancoraxes públicas chegan en {{minutes}} minutos; non hai que agardar.",
+                        "Testemuñas confirmaron o rexistro. As ancoraxes públicas chegan en {{minutes}} minutos; non hai que agardar.",
                     verified:
-                        "A túa papeleta está no rexistro público, confirmada por testemuñas independentes e ancorada publicamente.",
+                        "A túa papeleta está no rexistro público, confirmada por testemuñas e ancorada publicamente.",
                     late: "A túa papeleta está no rexistro público e confirmada polas testemuñas, pero as súas ancoraxes públicas van con atraso.",
                     lateStep:
                         "Un paso tarda máis do previsto. Non é proba de manipulación, e o teu navegador segue comprobando.",
@@ -905,7 +1012,7 @@ const galegoTranslation: TranslationType = {
                     },
                     witnesses: {
                         title: "Confirmada por testemuñas",
-                        upcoming: "Testemuñas independentes asinan un rexistro que a inclúe.",
+                        upcoming: "Testemuñas asinan un rexistro que a inclúe.",
                     },
                     anchors: {
                         title: "Ancorada publicamente",
@@ -921,12 +1028,14 @@ const galegoTranslation: TranslationType = {
                     recorded: "O teu navegador comprobou a súa proba.",
                     recordedEntry: "Entrada n.º {{index}}. O teu navegador comprobou a súa proba.",
                     witnessed:
-                        "Un número suficiente das testemuñas independentes da política ({{count}}) asinou un rexistro que a inclúe.",
+                        "Un número suficiente das testemuñas da política ({{count}}) asinou un rexistro que a inclúe.",
                     anchoredWaict:
                         "Nos nodos públicos ({{count}}) e onde comproban os navegadores.",
                     anchoredBootstrap:
                         "Nos nodos públicos ({{count}}) e onde comproban os navegadores, por agora mediante un nodo substituto.",
                     anchoredHubs: "Nos nodos públicos ({{count}}).",
+                    anchoredOneHub: "Ancorada en 1 nodo, xestionado por {{party}}.",
+                    anchoredOneHubPlatform: "Ancorada en 1 nodo, xestionado pola plataforma.",
                     lateNow: "Xa debería estar feito.",
                     lateStep: "Debería estar feito ás {{time}}.",
                     lateAnchors: "Os nodos deberían telo ancorado ás {{time}}.",
@@ -975,6 +1084,55 @@ const galegoTranslation: TranslationType = {
                         "Comprobado polo teu navegador, con código que calquera pode inspeccionar.",
                     kept: "Este dispositivo garda o xustificante e volve comprobalo en cada visita.",
                 },
+            },
+            signers: {
+                witnesses: {open: "Quen asinou", close: "Agochar quen asinou"},
+                hubs: {open: "Que nodos", close: "Agochar que nodos"},
+                runBy: "Xestionado por {{party}}",
+                runByAlso: "Xestionado por {{party}}, que tamén xestiona {{hubs}}",
+                signed: "Asinou ás {{time}}",
+                signedNoTime: "Asinou",
+                notYet: "Aínda non",
+                late: "Con atraso",
+                anchored: "Ancorado ás {{time}}",
+                anchoredNoTime: "Ancorado",
+                within: "En {{minutes}} min",
+                check: "Comprobar no seu sitio",
+                checkWitness:
+                    "Comprobar no seu sitio: testemuña {{name}} (ábrese nunha pestana nova)",
+                checkHub: "Comprobar no seu sitio: nodo {{name}} (ábrese nunha pestana nova)",
+                linksNote:
+                    "«Comprobar no seu sitio» abre o explorador do propio asinante, que comproba alí esa sinatura.",
+                standIn: {
+                    name: "Onde comproban os navegadores",
+                    who: "Un nodo substituto, por agora",
+                },
+                rule: {
+                    witnesses:
+                        "A política esixe que asinen {{needed}} das súas {{total}} testemuñas. Asinaron {{signed}}.",
+                    witnessesAlone:
+                        "A política esixe que asinen {{needed}} das súas {{total}} testemuñas, e ningunha parte xestiona tantas. Asinaron {{signed}}.",
+                    witnessesCount: "Asinaron {{signed}} das {{total}} testemuñas da política.",
+                    hubs: "Os {{count}} nodos deben ancorar o rexistro, e polo menos {{independent}} deben estar xestionados por alguén distinto da autoridade electoral.",
+                    hubsPlatform:
+                        "Os {{count}} nodos deben ancorar o rexistro, e polo menos {{independent}} deben estar xestionados por alguén que non sexa nin a autoridade electoral nin a plataforma.",
+                    hubsAll: "Os {{count}} nodos deben ancorar o rexistro.",
+                    oneHub: "A política nomea un só nodo, xestionado por {{party}}.",
+                    oneHubPlatform: "A política nomea un só nodo, xestionado pola plataforma.",
+                },
+            },
+            updates: {
+                title: "Recibe actualizacións por correo sobre esta papeleta",
+                description:
+                    "Cando se confirme e cando se conte, ou se se rexistra un problema. Escolle calquera nodo: cada un comproba o rexistro por si mesmo.",
+                listLabel: "Nodos da política desta elección",
+                runBy: "Xestionado por {{party}}",
+                hubLabel:
+                    "{{name}}, xestionado por {{party}}: recibir actualizacións por correo no seu propio sitio (ábrese nunha pestana nova)",
+                footnote:
+                    "Os nodos que nomea a política da elección, en orde aleatoria cada vez. Cada un ábrese no seu propio sitio co teu recibo na ligazón; non se comparte nada ata que escollas que seguir alí.",
+                footnoteNoReceipt:
+                    "Os nodos que nomea a política da elección, en orde aleatoria cada vez. Cada un ábrese no seu propio sitio; non se comparte nada ata que escollas que seguir alí.",
             },
             booth: {
                 title: "Aínda non se pode preparar a súa papeleta",

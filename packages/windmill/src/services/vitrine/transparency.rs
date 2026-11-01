@@ -10,6 +10,7 @@ use super::client::{
     post_enrolment, read_token_file, CreateLog, SidecarClient, SidecarError, Submission,
 };
 use super::config::DeploymentConfig;
+use super::contact::AuthorityContact;
 use super::policy::{
     check_mode, draft, policy_name, public_refusal, DraftEvent, DraftLog, PolicyFacts,
 };
@@ -190,10 +191,6 @@ async fn draft_policy(
         return Ok(None);
     };
     let tenant = get_tenant_by_id(tx, &event.tenant_id).await?;
-    let language = event
-        .get_presentation()?
-        .and_then(|p| p.language_conf)
-        .and_then(|l| l.default_language_code);
     let policy_salt = vitrine.and_then(|v| {
         v.policy
             .as_deref()
@@ -252,8 +249,8 @@ async fn draft_policy(
         election_event_id: event.id.clone(),
         election_ids: elections.iter().map(|e| e.id.clone()).collect(),
         window,
-        language,
         policy_salt,
+        contact: AuthorityContact::from_presentation(event.presentation.as_ref()),
         ballots,
         events,
     };

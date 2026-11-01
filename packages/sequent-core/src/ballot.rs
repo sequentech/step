@@ -1368,12 +1368,95 @@ pub struct ElectionEventPresentation {
     #[borsh(skip)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vitrine: Option<VitrinePresentation>,
+    /// Where voters are offered updates from the policy's hubs. Absent means
+    /// both are on. Skipped in Borsh so ballot-style hashes don't change.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hub_updates: Option<HubUpdatesPresentation>,
+    /// How voters reach the election authority, as the admin typed it. The
+    /// Transparency tab drafts the policy's `contact` lines from it. Skipped
+    /// in Borsh so ballot-style hashes don't change.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authority_contact: Option<AuthorityContactPresentation>,
 }
 
 
 impl ElectionEventPresentation {
     pub fn transparency_mode(&self) -> TransparencyMode {
         self.transparency.unwrap_or_default()
+    }
+
+    /// The hub updates settings, with each switch that is not set on.
+    pub fn hub_updates(&self) -> HubUpdatesPresentation {
+        self.hub_updates.clone().unwrap_or_default()
+    }
+}
+
+/// The election authority's contact: each kind that is set becomes one
+/// `contact` line of the event's Vitrine policy (specs/policy.md, section 3,
+/// rule 19). Windmill checks the syntax of each when it drafts the policy.
+#[derive(
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Default,
+)]
+pub struct AuthorityContactPresentation {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phone: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+}
+
+/// Whether voters are offered updates from the hubs the election's policy
+/// names. They are on unless an admin turns them off.
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum HubUpdatesPolicy {
+    #[default]
+    #[strum(serialize = "on")]
+    #[serde(rename = "on")]
+    ON,
+    #[strum(serialize = "off")]
+    #[serde(rename = "off")]
+    OFF,
+}
+
+/// The admin's choices about hub updates, stored with the election event's
+/// other voting portal settings. Each switch that is absent is on.
+#[derive(
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Default,
+)]
+pub struct HubUpdatesPresentation {
+    /// A callout on the vote confirmation page, with a link to each hub's
+    /// explorer that watches the voter's receipt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub confirmation: Option<HubUpdatesPolicy>,
+    /// A link to each hub's explorer in the cast ballot receipt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cast_email: Option<HubUpdatesPolicy>,
+}
+
+impl HubUpdatesPresentation {
+    pub fn confirmation(&self) -> HubUpdatesPolicy {
+        self.confirmation.unwrap_or_default()
+    }
+
+    pub fn cast_email(&self) -> HubUpdatesPolicy {
+        self.cast_email.unwrap_or_default()
     }
 }
 
@@ -4288,6 +4371,104 @@ mod transparency_presentation_tests {
         let back: ElectionEventPresentation =
             serde_json::from_value(json).unwrap();
         assert_eq!(back, transparent_presentation());
+    }
+
+    #[test]
+    fn hub_updates_are_on_unless_an_admin_turns_them_off() {
+        let presentation: ElectionEventPresentation =
+            serde_json::from_value(serde_json::json!({"css": "x"})).unwrap();
+        let updates = presentation.hub_updates();
+        assert_eq!(updates.confirmation(), HubUpdatesPolicy::ON);
+        assert_eq!(updates.cast_email(), HubUpdatesPolicy::ON);
+        let json = serde_json::to_value(&presentation).unwrap();
+        assert!(json.get("hub_updates").is_none());
+    }
+
+    #[test]
+    fn a_switch_that_is_not_set_stays_on() {
+        let presentation: ElectionEventPresentation = serde_json::from_value(
+            serde_json::json!({"hub_updates": {"confirmation": "off"}}),
+        )
+        .unwrap();
+        let updates = presentation.hub_updates();
+        assert_eq!(updates.confirmation(), HubUpdatesPolicy::OFF);
+        assert_eq!(updates.cast_email(), HubUpdatesPolicy::ON);
+        let json = serde_json::to_value(&presentation).unwrap();
+        assert_eq!(json["hub_updates"]["confirmation"], "off");
+        assert!(json["hub_updates"].get("cast_email").is_none());
+    }
+
+    #[test]
+    fn hub_updates_round_trip_in_the_contract_shape() {
+        let presentation = ElectionEventPresentation {
+            hub_updates: Some(HubUpdatesPresentation {
+                confirmation: Some(HubUpdatesPolicy::ON),
+                cast_email: Some(HubUpdatesPolicy::OFF),
+            }),
+            ..transparent_presentation()
+        };
+        let json = serde_json::to_value(&presentation).unwrap();
+        assert_eq!(
+            json["hub_updates"],
+            serde_json::json!({"confirmation": "on", "cast_email": "off"})
+        );
+        let back: ElectionEventPresentation =
+            serde_json::from_value(json).unwrap();
+        assert_eq!(back, presentation);
+    }
+
+    #[test]
+    fn hub_updates_do_not_change_borsh_bytes() {
+        let plain =
+            borsh::to_vec(&ElectionEventPresentation::default()).unwrap();
+        let off = ElectionEventPresentation {
+            hub_updates: Some(HubUpdatesPresentation {
+                confirmation: Some(HubUpdatesPolicy::OFF),
+                cast_email: Some(HubUpdatesPolicy::OFF),
+            }),
+            ..ElectionEventPresentation::default()
+        };
+        assert_eq!(borsh::to_vec(&off).unwrap(), plain);
+    }
+
+    #[test]
+    fn the_authority_contact_round_trips_and_leaves_borsh_alone() {
+        let presentation: ElectionEventPresentation =
+            serde_json::from_value(serde_json::json!({
+                "authority_contact": {
+                    "name": "Electoral Board of Acme",
+                    "email": "elections@acme.example"
+                }
+            }))
+            .unwrap();
+        let contact = presentation.authority_contact.clone().unwrap();
+        assert_eq!(contact.name.as_deref(), Some("Electoral Board of Acme"));
+        assert_eq!(contact.phone, None);
+        let json = serde_json::to_value(&presentation).unwrap();
+        assert!(json["authority_contact"].get("phone").is_none());
+        assert!(json["authority_contact"].get("url").is_none());
+        let plain = ElectionEventPresentation::default();
+        assert!(serde_json::to_value(&plain)
+            .unwrap()
+            .get("authority_contact")
+            .is_none());
+        assert_eq!(
+            borsh::to_vec(&presentation).unwrap(),
+            borsh::to_vec(&plain).unwrap()
+        );
+    }
+
+    #[test]
+    fn hub_updates_policies_parse_and_print_as_the_contract_spells_them() {
+        for (text, policy) in
+            [("on", HubUpdatesPolicy::ON), ("off", HubUpdatesPolicy::OFF)]
+        {
+            assert_eq!(HubUpdatesPolicy::from_str(text).unwrap(), policy);
+            assert_eq!(policy.to_string(), text);
+        }
+        assert!(HubUpdatesPolicy::from_str("ON").is_err());
+        assert!(serde_json::from_str::<HubUpdatesPolicy>("true").is_err());
+        assert!(serde_json::from_str::<HubUpdatesPolicy>("\"maybe\"").is_err());
     }
 
     #[test]

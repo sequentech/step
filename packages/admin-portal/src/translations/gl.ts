@@ -7029,7 +7029,7 @@ const galegoTranslation: TranslationType = {
         },
         transparencyTab: {
             title: "Transparencia",
-            help: "Con Vitrine, as papeletas e os fitos do evento anótanse en rexistros aos que só se poden engadir entradas e que asinan testemuñas independentes, para que votantes e observadores poidan comprobar que non se eliminou nin cambiou nada.",
+            help: "Con Vitrine, as papeletas e os fitos do evento anótanse en rexistros aos que só se poden engadir entradas e que asinan as testemuñas que nomea a política de confianza, para que votantes e observadores poidan comprobar que non se eliminou nin cambiou nada.",
             loading: "Cargando a transparencia do evento...",
             loadError: "Non se puido cargar a transparencia do evento: {{reason}}",
             unknownError: "erro descoñecido",
@@ -7041,6 +7041,80 @@ const galegoTranslation: TranslationType = {
             sdkLoading: "Cargando o verificador de Vitrine...",
             sdkError:
                 "O verificador de Vitrine non puido iniciarse neste navegador, así que aquí non se pode comprobar a política de confianza.",
+            hubProblems: {
+                title_one: "Un nodo lista un problema nesta elección",
+                title_other: "Lístanse {{count}} problemas nesta elección",
+                listedBy: "Lístao {{hubs}}",
+                proof: "Ver a proba",
+                note: "Este aviso é unha comodidade deste portal, e un listado é só unha referencia: abre a proba para comprobala no teu navegador. Cada nodo tamén lista os seus problemas no seu propio sitio, os amose ou non este portal. Un nodo que non responde non é un problema.",
+                kind: {
+                    splitView: "Dúas versións do rexistro",
+                    brokenPromise: "Falta unha entrada prometida",
+                    breaksRules: "Unha entrada incumpre as regras",
+                    twoPolicies: "Dúas políticas",
+                    unloggedCode: "Código que non está rexistrado",
+                    other: "Un problema rexistrado por un nodo",
+                },
+            },
+            authorityContact: {
+                title: "Contacto da autoridade electoral",
+                intro: "Opcional. Como poden contactar os votantes coa autoridade electoral, por exemplo para avisar dunha discrepancia nunha auditoría. Inclúese na política de confianza, e as aplicacións dos votantes só o amosan a partir da política selada.",
+                name: {
+                    label: "Nome",
+                    help: "Ata 128 bytes, con espazos simples e sen saltos de liña.",
+                    invalid:
+                        "O nome debe ter entre 1 e 128 bytes, con espazos simples e sen saltos de liña nin caracteres invisibles.",
+                },
+                email: {
+                    label: "Correo electrónico",
+                    help: "Un enderezo con só letras, cifras e . _ % + -",
+                    invalid:
+                        "Usa un enderezo sinxelo como eleccions@acme.example, sen acentos nin comiñas.",
+                },
+                phone: {
+                    label: "Teléfono",
+                    help: "Un + e de 7 a 15 cifras, sen espazos.",
+                    invalid:
+                        "Usa un + e de 7 a 15 cifras, a primeira distinta de 0, sen espazos nin guións.",
+                },
+                url: {
+                    label: "Sitio web",
+                    help: "Un enderezo https.",
+                    invalid: "Usa un enderezo https, como https://eleccions.acme.example/contacto.",
+                },
+                save: "Gardar o contacto",
+                saved: "Gardouse o contacto da autoridade electoral.",
+                notStored: "O evento non ten axustes onde gardalo.",
+                saveError: "Non se puido gardar o contacto: {{reason}}",
+                readOnly: "Podes ver o contacto, pero non cambialo.",
+                locked: "A votación xa se abriu, polo que o contacto non se pode cambiar aquí.",
+                successor:
+                    "A política selada conserva o contacto co que se selou. Ao gardar cambia o borrador, e a Xunta Electoral sela unha política sucesora que o inclúa.",
+                footer: "Cada campo que enchas convértese nunha liña de contacto da política de confianza. Os campos baleiros omítense e ningún é obrigatorio.",
+            },
+            hubUpdates: {
+                title: "Novidades dos nodos",
+                intro: "Opcional. Os votantes poden pedir a un nodo que lles escriba por correo sobre a súa papeleta. Todos os nodos da política de confianza ofrécense do mesmo xeito.",
+                confirmation: {
+                    label: "Ofrecer «Recibir novidades por correo» na páxina de confirmación",
+                    help: "Despois de votar, baixo o código QR. Mostra todos os nodos, e cada un ábrese no seu propio sitio co recibo do votante.",
+                },
+                castEmail: {
+                    label: "Engadir os nodos ao correo do voto emitido",
+                    help: "O correo co recibo da papeleta inclúe o ID de seguimento completo e unha ligazón a cada nodo, en orde aleatoria.",
+                },
+                readOnly: "Podes ver estes axustes, pero non cambialos.",
+                saved: "Gardouse o axuste das novidades dos nodos.",
+                notStored: "O evento non ten axustes do portal de votación onde gardalo.",
+                saveError: "Non se puido gardar o axuste: {{reason}}",
+                hubs: {
+                    title: "Nodos",
+                    help: "Os da política de confianza da elección. Para cambialos, publica unha política nova.",
+                    none: "Ningún nodo da política de confianza ten sitio web, así que non se ofrecen novidades aos votantes.",
+                    order: "Os votantes véxenos en orde aleatoria, cada vez. A orde non se pode fixar e ningún nodo pode ser o predeterminado.",
+                },
+                footer: "Ambos están activados por defecto cando a política nomea un nodo. Gárdanse cos demais axustes do portal de votación do evento. Desactivalos só agocha o convite do portal: os nodos seguen comprobando o rexistro e os votantes poden ir a calquera nodo pola súa conta.",
+            },
             overview: {
                 notReported: "Sen informar",
                 ago: "hai {{duration}}",
@@ -7063,8 +7137,9 @@ const galegoTranslation: TranslationType = {
                     public: "Rexistro público",
                     private: "Rexistro privado",
                     quorum: "política de testemuñas {{k}} de {{n}}",
-                    hubs_one: "{{count}} nodo de ancoraxe, {{independent}} independente",
-                    hubs_other: "{{count}} nodos de ancoraxe, {{independent}} independentes",
+                    hubs_one: "{{count}} nodo de ancoraxe",
+                    hubs_other: "{{count}} nodos de ancoraxe",
+                    hubsOutside: "{{count}} xestionados por unha parte distinta da autoridade electoral e da plataforma",
                     mmd: "atraso máximo de fusión {{duration}}",
                     locked: "bloqueado desde que se abriu a votación",
                     explorerPublic: "Abrir o explorador público",
@@ -7116,7 +7191,7 @@ const galegoTranslation: TranslationType = {
                 anchoring: {
                     title: "Ancoraxe",
                     sub: "nodos cada {{hubs}} · navegadores cada {{browsers}}",
-                    independent: "Xestionado por {{party}}, independente de {{operator}}",
+                    rule: "Regra: de {{min}} nodos de ancoraxe, polo menos {{outside}} deben estar xestionados por unha parte distinta da autoridade electoral e da plataforma.",
                     noAnchor: "Aínda sen áncora",
                     browserLayer: "Capa de navegadores",
                     browserLayerSub: "Os nodos da aplicación ancoran en {{hubs}}",
@@ -7161,7 +7236,7 @@ const galegoTranslation: TranslationType = {
                     none: "Esta política de confianza non permite ningunha retirada de datos.",
                 },
                 monitors: {
-                    title: "Monitores independentes",
+                    title: "Monitores",
                     list_one:
                         "A política de confianza nomea un monitor: {{names}}. Os verificadores, entre eles os navegadores dos votantes, envíanlle gossip, promesas e evidencias.",
                     list_other:
@@ -7211,9 +7286,13 @@ const galegoTranslation: TranslationType = {
                 draftTitle: "Borrador para a Xunta Electoral",
                 draftHelp:
                     "Descargue o borrador e entrégueo á Xunta Electoral. A Xunta compróbao, sélao e asínao coa ferramenta de liña de comandos de Vitrine, e consegue a sinatura de calquera outra autoridade que nomee a súa liña sign. Despois, suba aquí a política asinada.",
-                draftWords: "As oito palabras do borrador",
-                draftWordsHelp:
-                    "A Xunta comproba que «vitrine policy words» amosa estas palabras para o ficheiro que recibiu.",
+                draftId: "O hash do borrador",
+                draftIdHelp:
+                    "A Xunta comproba que «vitrine policy id» amosa este hash para o ficheiro que recibiu. Un borrador non ten identificador de política ata que se sela.",
+                draftTag: "Borrador",
+                shortId: "Identificador da política, primeiros catro grupos",
+                shortIdHelp:
+                    "As persoas comparan estes grupos coa convocatoria oficial. As ferramentas comparan os 13.",
                 download: "Descargar o borrador",
                 commands: "Os comandos da Xunta",
                 invalidDraft: "O borrador da política non é válido: {{reason}}",
@@ -7221,7 +7300,7 @@ const galegoTranslation: TranslationType = {
                     "O borrador do evento cambiou despois de selar esta política. A Xunta debe selar e asinar o novo borrador, que logo se sobe como sucesora.",
                 sealedTitle: "A política do evento",
                 sealedHelp:
-                    "Publique o identificador da política e as súas seis palabras na convocatoria oficial da elección, para que votantes e observadores recoñezan a política coa que se comproban os seus recibos.",
+                    "Publique o identificador da política na convocatoria oficial da elección, para que votantes e observadores recoñezan a política coa que se comproban os seus recibos. Compáranse os seus primeiros catro grupos.",
                 idMismatch:
                     "Os rexistros indican o identificador de política {{id}}, que non é o desta política.",
                 invalidStored: "A política gardada do evento non é válida: {{reason}}",
@@ -7234,7 +7313,7 @@ const galegoTranslation: TranslationType = {
                 text: "Política asinada",
                 readError: "Non se puido ler o ficheiro.",
                 tooLarge: "Isto é máis grande do que pode ser unha política de confianza.",
-                draft: "Isto é un borrador sen selar, coas palabras {{words}}. Primeiro a Xunta Electoral debe selalo e asinalo.",
+                draft: "Isto é un borrador sen selar, co hash {{id}}. Primeiro a Xunta Electoral debe selalo e asinalo.",
                 invalid: "Isto non é unha política asinada válida: {{reason}}",
                 preview: "Comprobe estes datos coa Xunta Electoral antes de subir a política.",
                 otherEvent: "Esta política é doutro evento electoral.",
@@ -7243,7 +7322,7 @@ const galegoTranslation: TranslationType = {
                 notFromDraft: "Esta política non se selou a partir do borrador actual do evento.",
                 submit: "Subir a política",
                 uploaded:
-                    "Subiuse a política. Publique o seu identificador e as súas seis palabras na convocatoria oficial da elección.",
+                    "Subiuse a política. Publique o seu identificador na convocatoria oficial da elección.",
                 error: "Non se puido subir a política: {{reason}}",
             },
             logs: {

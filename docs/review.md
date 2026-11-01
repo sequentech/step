@@ -6,7 +6,7 @@
 
 ## Frontend interface decisions
 
-The three apps use the verifier and UI packed from Vitrine commit `e9a9e0976dc465f783a7e663e7c1a2dcb1d0ce60` (`packages/vendor-npm/VITRINE_COMMIT`). The archive-based vendor script runs upstream builds and tests before packing and has no failed-test bypass. Repacking the installed verifier and UI produces byte-identical tarballs; their SHA-256 digests are recorded in `packages/vendor-npm/SHA256SUMS`.
+The three apps use the verifier and UI packed from Vitrine commit `9251120816b8823ba626c4e2b017b0dd3fb1ac39` (`packages/vendor-npm/VITRINE_COMMIT`). The archive-based vendor script runs upstream builds and tests before packing and has no failed-test bypass. Repacking the installed verifier and UI produces byte-identical tarballs; their SHA-256 digests are recorded in `packages/vendor-npm/SHA256SUMS`.
 
 New policy admission uses the SDK's `pinPolicy`, including authenticated profile meanings and election minimums. Structural parsing remains available for unsigned Board drafts. Election fixtures use `vitrine/election/ballots/v1` and `vitrine/election/events/v1` with their published meaning hashes, two app hubs, an independent hub subset and two monitor parties. Private fixtures name separate blinded subjects for both logs.
 
@@ -163,5 +163,5 @@ design board. On Step's side:
 - `scripts/vitrine-preview` serves both portals against a local Vitrine stack,
   with a switch for the Alert scenario.
 
-The kit from `e9a9e0976dc465f783a7e663e7c1a2dcb1d0ce60` says on the receipt
+The kit from `9251120816b8823ba626c4e2b017b0dd3fb1ac39` says on the receipt
 when a bootstrap hub stands in for the browser layer.
