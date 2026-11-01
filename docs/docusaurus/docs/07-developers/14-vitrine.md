@@ -59,6 +59,13 @@ public events work end to end.
   event's `presentation`, hold what voters read: the policy ID, the sealed
   policy (public events only), and each log's URL and origin. They never hold
   a token, a secret or a private key.
+- **`presentation.hub_updates`**, in the same `presentation`, holds the two
+  switches of the Transparency tab's **Updates from hubs**: `confirmation` and
+  `cast_email`, each `"on"` or `"off"`. A switch that is absent is on, so
+  events from before the setting offer hub updates. The admin portal writes
+  them with the permission `election-event-write`, and the trigger below does
+  not guard them: they only decide what voters are offered, and can change at
+  any time.
 - **`sequent_backend.vitrine_log`** holds each log as the sidecar created it:
   its name on the sidecar (`<tenant id>/<event id>/<log>`), its log ID and
   instance ID, origin, URL and keys, the `events` log's submission token, the
@@ -314,6 +321,35 @@ ballot found by its short or full Tracking ID, and the ballot's record in a
 viewer that expands, copies and saves it. Step does not publish audited
 ballots; when the record that the tracker finds for a Tracking ID is an audited
 ballot, the tracker checks it in the voter's browser and shows its selections.
+
+### Updates from the policy's hubs
+
+A hub that the policy gives a site (`hub-explorer <name> <url>`) can tell a
+voter by email when their ballot is confirmed and counted. Step never takes the
+voter's address: it sends the voter to the hub's site, where they enter it and
+choose what to watch. Every hub with a site is offered equally, in a random
+order, with no default and no label that ranks one above another. The link
+into a hub is `<hub-explorer url>#policy=<sha256:hex>&watch=<base64url>`. The
+payload sits in the fragment, which a browser never sends to the hub's server.
+
+- **The confirmation page** shows a "Get email updates" callout when
+  `hub_updates.confirmation` is not `off`, the event is transparent, the
+  policy has a hub with a site, and the voting portal is not the kiosk. The
+  order is drawn once for each visit. The payload is the receipt chain, once
+  the browser has it; before that the link names only the policy.
+- **The ballot receipt** (the `BALLOT_RECEIPT` template) gets two variables.
+  `tracking_id` is the ballot's full Tracking ID, which the default template
+  prints in place of `ballot_id` when it is set. `hubs` is a list of
+  `{name, operator, url}` in a random order for each receipt, and is empty
+  unless the event is transparent and `hub_updates.cast_email` is not `off`.
+  The payload of each `url` is the Tracking ID. Custom templates keep working
+  without either variable. Step has no email of its own for a cast ballot: the
+  hubs reach a voter through the receipt, wherever the deployment delivers it.
+
+Each hub's `name` and `operator` come from the policy, and a hub whose site is
+not a plain HTTP(S) address without credentials is left out. The admin portal
+lists the hubs read-only under the switches, in the policy's order, and says
+that voters see them in a random order.
 
 ### Deleting, exporting and importing events
 
