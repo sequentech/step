@@ -164,6 +164,12 @@ export enum EAudioInstructionsPolicy {
     RECORDED_OR_SYNTHESIZED = "recorded-or-synthesized",
 }
 
+/** Where the breadcrumb puts the start screen's instructions. Unset is MERGED_WITH_BALLOT. */
+export enum EInstructionsStepPolicy {
+    MERGED_WITH_BALLOT = "merged-with-ballot",
+    OWN_STEP = "own-step",
+}
+
 export enum EResultsWebsiteStatus {
     ENABLED = "enabled",
     DISABLED = "disabled",
@@ -303,6 +309,7 @@ export interface IElectionEventPresentation {
     receipts?: IReceiptsPresentation
     voter_accessibility_settings_policy?: EVoterAccessibilitySettingsPolicy
     audio_instructions_policy?: EAudioInstructionsPolicy
+    instructions_step_policy?: EInstructionsStepPolicy
     /** Configured timezones and the primary one (VOTE-LIFECYCLE). */
     timezones?: IElectionEventTimeZones
     /** Lifecycle decisions that are part of the (signed) configuration. */

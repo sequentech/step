@@ -225,6 +225,7 @@ const englishTranslation = {
         },
         breadcrumbSteps: {
             electionList: "Ballots",
+            instructions: "Instructions",
             ballot: "Ballot",
             review: "Review",
             confirmation: "Confirm",

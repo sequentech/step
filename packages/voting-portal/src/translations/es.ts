@@ -71,6 +71,7 @@ const spanishTranslation: TranslationType = {
         },
         breadcrumbSteps: {
             electionList: "Votaciones",
+            instructions: "Instrucciones",
             ballot: "Papeleta",
             review: "Revisión",
             confirmation: "Confirmar",

@@ -1330,6 +1330,10 @@ pub struct ElectionEventPresentation {
     /// Skipped in Borsh so that published ballot styles keep their hashes.
     #[borsh(skip)]
     pub audio_instructions_policy: Option<AudioInstructionsPolicy>,
+    /// Skipped in Borsh so that published ballot styles keep their hashes.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instructions_step_policy: Option<InstructionsStepPolicy>,
     /// The event's configured timezones and its primary one (VOTE-LIFECYCLE).
     /// Display and configuration data only: skipped in Borsh so ballot-style
     /// hashes (and the auditable ballots that carry them) don't change.
@@ -2459,6 +2463,32 @@ pub enum VoterAccessibilitySettingsPolicy {
     #[default]
     Disabled,
     Enabled,
+}
+
+/// Where the Voting Portal's breadcrumb puts the start screen's instructions:
+/// in the ballot's step, as it always has, or in a step of their own between
+/// the ballot list and the ballot.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    EnumString,
+    Display,
+)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum InstructionsStepPolicy {
+    #[default]
+    MergedWithBallot,
+    OwnStep,
 }
 
 /// Whether each Voting Portal screen offers spoken instructions, and where
@@ -3807,6 +3837,42 @@ mod presentation_borsh_compat_tests {
     }
 
     #[test]
+    fn instructions_step_policy_is_optional_and_strict() {
+        let parse = |presentation: serde_json::Value| {
+            serde_json::from_value::<ElectionEventPresentation>(presentation)
+        };
+        let legacy = parse(serde_json::json!({})).unwrap();
+        assert_eq!(legacy.instructions_step_policy, None);
+        assert_eq!(
+            legacy.instructions_step_policy.unwrap_or_default(),
+            InstructionsStepPolicy::MergedWithBallot
+        );
+        assert!(serde_json::to_value(&legacy)
+            .unwrap()
+            .get("instructions_step_policy")
+            .is_none());
+
+        let configured = parse(serde_json::json!({
+            "instructions_step_policy": "own-step"
+        }))
+        .unwrap();
+        assert_eq!(
+            configured.instructions_step_policy,
+            Some(InstructionsStepPolicy::OwnStep)
+        );
+        assert_eq!(
+            serde_json::to_value(&configured).unwrap()
+                ["instructions_step_policy"],
+            "own-step"
+        );
+
+        assert!(parse(serde_json::json!({
+            "instructions_step_policy": "hidden"
+        }))
+        .is_err());
+    }
+
+    #[test]
     fn audio_instructions_policy_is_optional_and_strict() {
         let parse = |presentation: serde_json::Value| {
             serde_json::from_value::<ElectionEventPresentation>(presentation)
@@ -3887,6 +3953,15 @@ mod presentation_borsh_compat_tests {
             ..ElectionEventPresentation::default()
         };
         assert_eq!(borsh::to_vec(&event_with_audio).unwrap(), event_bytes);
+
+        let event_with_instructions_step = ElectionEventPresentation {
+            instructions_step_policy: Some(InstructionsStepPolicy::OwnStep),
+            ..ElectionEventPresentation::default()
+        };
+        assert_eq!(
+            borsh::to_vec(&event_with_instructions_step).unwrap(),
+            event_bytes
+        );
 
         let election_presentation = ElectionPresentation::default();
         let election_bytes = borsh::to_vec(&election_presentation).unwrap();

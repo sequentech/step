@@ -7,7 +7,7 @@ import {useTranslation} from "react-i18next"
 import BreadCrumbSteps from "../components/BreadCrumbSteps/BreadCrumbSteps"
 
 /**
- * The four steps a voter walks, by the keys the portal has always used.
+ * The steps a voter walks, by the keys the portal has always used.
  *
  * Keys and not text: `BreadCrumbSteps` translates each label it is handed, which is how
  * the portal's `Stepper` passed these before this component existed, and it is why the
@@ -18,21 +18,33 @@ import BreadCrumbSteps from "../components/BreadCrumbSteps/BreadCrumbSteps"
  * vendors the portal's catalogue and hands it to the preview — so the copy bought nothing
  * and cost the Spanish. `EA-F2-053`.
  */
-const LIST = "breadcrumbSteps.electionList"
-const BALLOT = "breadcrumbSteps.ballot"
-const REVIEW = "breadcrumbSteps.review"
-const CONFIRMATION = "breadcrumbSteps.confirmation"
+export enum EBallotStep {
+    LIST = "breadcrumbSteps.electionList",
+    INSTRUCTIONS = "breadcrumbSteps.instructions",
+    BALLOT = "breadcrumbSteps.ballot",
+    REVIEW = "breadcrumbSteps.review",
+    CONFIRMATION = "breadcrumbSteps.confirmation",
+}
+
+/** What each number meant before the steps had names. */
+const NUMBERED_STEPS = [
+    EBallotStep.LIST,
+    EBallotStep.BALLOT,
+    EBallotStep.REVIEW,
+    EBallotStep.CONFIRMATION,
+]
 
 export interface IBallotStepsProps {
     /**
-     * Which step the voter is on, counted **as though the list were always there**:
-     * `0` the ballot list, `1` the ballot, `2` review, `3` confirmation.
+     * Which step the voter is on, by name, or by number **as though the list were
+     * always there**: `0` the ballot list, `1` the ballot, `2` review, `3`
+     * confirmation. A number past those (the audit screen's `4`) marks no step.
      *
-     * Counted that way so a caller does not have to know whether this event skips
-     * the list — the numbering of a screen is a property of the flow, and the list
-     * is a property of the event. `withElectionList={false}` shifts them down here.
+     * Either way a caller does not have to know whether this event skips the list
+     * or gives the instructions a step of their own — the screen a voter is on is a
+     * property of the flow, and which steps are drawn is a property of the event.
      */
-    selected: number
+    selected: EBallotStep | number
     /**
      * Whether this event offers the ballot list at all.
      *
@@ -41,6 +53,12 @@ export interface IBallotStepsProps {
      * `selectBypassChooser`, and a preview reads it from the plan.
      */
     withElectionList?: boolean
+    /**
+     * Whether the start screen's instructions are a step of their own, between the
+     * list and the ballot. Without it they share the ballot's step, as they always
+     * have; the portal reads this from the event's `instructions_step_policy`.
+     */
+    withInstructions?: boolean
     /** Draw the current step as a warning. The audit screen does. */
     warning?: boolean
     /** The list's accessible name. Defaults to `a11y.votingProgress`. */
@@ -59,18 +77,33 @@ export interface IBallotStepsProps {
 export const BallotSteps = ({
     selected,
     withElectionList = true,
+    withInstructions = false,
     warning,
     ariaLabel,
 }: IBallotStepsProps): React.JSX.Element => {
     const {t} = useTranslation()
-    const labels = withElectionList
-        ? [LIST, BALLOT, REVIEW, CONFIRMATION]
-        : [BALLOT, REVIEW, CONFIRMATION]
+    const labels = [
+        ...(withElectionList ? [EBallotStep.LIST] : []),
+        ...(withInstructions ? [EBallotStep.INSTRUCTIONS] : []),
+        EBallotStep.BALLOT,
+        EBallotStep.REVIEW,
+        EBallotStep.CONFIRMATION,
+    ]
+    const step = typeof selected === "number" ? NUMBERED_STEPS[selected] : selected
+    // A step this event does not draw is shown as the one it is folded into: the
+    // instructions into the ballot, and the list (support materials, for one,
+    // passes it) into whatever comes first.
+    const shown =
+        step === EBallotStep.INSTRUCTIONS && !withInstructions
+            ? EBallotStep.BALLOT
+            : step === EBallotStep.LIST && !withElectionList
+              ? labels[0]
+              : step
 
     return (
         <BreadCrumbSteps
             labels={labels}
-            selected={withElectionList ? selected : Math.max(0, selected - 1)}
+            selected={shown === undefined ? -1 : labels.indexOf(shown)}
             warning={warning}
             ariaLabel={ariaLabel ?? t("a11y.votingProgress")}
         />

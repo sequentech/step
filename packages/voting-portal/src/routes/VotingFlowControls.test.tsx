@@ -75,6 +75,7 @@ jest.mock("@sequentech/ui-core", () => ({
 jest.mock("@sequentech/ui-essentials", () => ({
     // ElectionConfigService re-exports the shared presentation helpers.
     ...jest.requireActual("../../../ui-essentials/src/ballot/presentation"),
+    EBallotStep: jest.requireActual("../../../ui-essentials/src/ballot/BallotSteps").EBallotStep,
     PageLimit: jest.requireActual("../../../ui-essentials/src/components/PageLimit/PageLimit")
         .default,
     Icon: jest.requireActual("../../../ui-essentials/src/components/Icon/Icon").default,

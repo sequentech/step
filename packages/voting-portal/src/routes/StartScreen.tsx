@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {Dialog, StartLayout} from "@sequentech/ui-essentials"
+import {Dialog, EBallotStep, StartLayout} from "@sequentech/ui-essentials"
 import {
     stringToHtml,
     translateFromPresentation,
@@ -132,7 +132,7 @@ const StartScreen: React.FC = () => {
                 }) ?? "-"
             }
             description={titleDescription ? stringToHtml(titleDescription) : undefined}
-            steps={<Stepper selected={1} />}
+            steps={<Stepper selected={EBallotStep.INSTRUCTIONS} />}
             below={
                 <StartActions
                     election={election}
