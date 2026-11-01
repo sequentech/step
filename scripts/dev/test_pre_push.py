@@ -50,8 +50,10 @@ class ChangedFiles(unittest.TestCase):
     def git(self, *arguments):
         if arguments[0] == "merge-base":
             return "base\n"
-        return {"old...a": "a.rs\nshared.rs\n", "base...b": "b.ts\nshared.rs\n"}[
-            arguments[2]
+        self.assertEqual(arguments[:3], ("diff", "--name-only", "--no-renames"))
+        # Both endpoints: a forced push also counts the commits it drops.
+        return {("old", "a"): "a.rs\nshared.rs\n", ("base", "b"): "b.ts\nshared.rs\n"}[
+            arguments[3:]
         ]
 
     def test_a_new_ref_counts_from_its_own_tip(self):

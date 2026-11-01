@@ -88,15 +88,17 @@ def known(sha: str) -> bool:
 def changed_files(
     ranges: list[tuple[str | None, str]], default_base: str
 ) -> list[str] | None:
-    """Files the pushed commits change. A ref without a base counts from its
-    merge base with the model's default base; None when that is unknown too."""
+    """Files that differ between each remote tip and the pushed one, so a
+    forced push also counts what it drops, with both paths of a rename. A ref
+    without a remote tip counts from its merge base with the model's default
+    base; None when that is unknown too."""
     files = set()
     for base, tip in ranges:
         if base is None:
             if not known(default_base):
                 return None
             base = git("merge-base", default_base, tip).strip()
-        files.update(git("diff", "--name-only", f"{base}...{tip}").splitlines())
+        files.update(git("diff", "--name-only", "--no-renames", base, tip).splitlines())
     return sorted(files)
 
 
