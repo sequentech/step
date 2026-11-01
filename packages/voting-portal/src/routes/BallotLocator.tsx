@@ -48,6 +48,7 @@ import {
     shortBallotId,
     typedBallotId,
 } from "../services/vitrine/ballotId"
+import {authorityContact} from "../services/vitrine/auditEvidence"
 import {auditBallot, EAuditOutcome, provideAuditService} from "../services/vitrine/ballotAudit"
 import {
     acceptedAtOf,
@@ -873,7 +874,8 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
     const language = i18n.resolvedLanguage || i18n.language
     const formatTime = (time: number | string) =>
         formatVotingPortalDateTime(time, electionEvent, language)
-    const locatorPath = `/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator`
+    const electionPath = `/tenant/${tenantId}/event/${eventId}/election/${electionId}`
+    const locatorPath = `${electionPath}/ballot-locator`
     const canLocate = [EBallotIdInput.SHORT, EBallotIdInput.PARTIAL, EBallotIdInput.FULL].includes(
         trackerInput(inputBallotId)
     )
@@ -1151,6 +1153,10 @@ const BallotLocatorLogic: React.FC<IBallotLocatorLogicProps> = ({
                             ballotStyle={record.ballot.config}
                             language={i18n.language}
                             publicBucketUrl={globalSettings.PUBLIC_BUCKET_URL}
+                            ballotId={trackedBallotId}
+                            record={record}
+                            voteHref={`${electionPath}/start${location.search}`}
+                            contact={authorityContact(tracked.view?.policy ?? eventPolicy)}
                         />
                     ) : null}
                 </>

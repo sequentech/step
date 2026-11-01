@@ -774,8 +774,68 @@ const englishTranslation = {
                 audited: "Audited {{time}}",
             },
             audit: {
-                title: "Your selections, decoded",
-                note: "Your browser decrypted this audited ballot with the key the portal revealed. If these are not the selections you made, contact the election authority.",
+                kicker: "Ballot audit",
+                title: "Check that your ballot was encrypted as you chose",
+                note: "This is the ballot you audited, decoded by your browser. Only you know what you chose, so only you can do this check.",
+                steps: {
+                    label: "How the check works",
+                    encrypted: {
+                        title: "Encrypted on your device",
+                        text: "The portal encrypted your choices and gave the ballot its Tracking ID, before you chose to audit it.",
+                    },
+                    decoded: {
+                        title: "Decoded here",
+                        text: "Auditing made the portal reveal its secret. Your browser decoded the ballot with it and checked it against the public record.",
+                    },
+                    compare: {
+                        title: "You compare",
+                        text: "Look at the choices below. Are they the ones you made?",
+                    },
+                },
+                choices: "Choices decoded from this ballot",
+                question: "Do these match what you chose?",
+                yes: "Yes, they match",
+                no: "No, something’s different",
+                change: "Change my answer",
+                match: {
+                    title: "Your ballot was encrypted as you chose",
+                    text: "This audited ballot is now spent: it was never cast and will never be counted. Go back and vote. Your vote gets a new Tracking ID, and you can audit again first if you like.",
+                    vote: "Go back and vote",
+                },
+                mismatch: {
+                    title: "Don’t vote on this device",
+                    text: "What was encrypted isn’t what you chose, so this device or the voting portal may have been tampered with. Your browser kept the evidence: the encrypted ballot from the public record, the secret the portal revealed, and what it decodes to.",
+                    report: "Report it to the election authority",
+                    reportNoContact: "Report it to the election authority.",
+                    fromPolicy: "From the election’s published policy, not from this page.",
+                    fromSettings: "From the election’s settings.",
+                    then: "Then vote from another device.",
+                    save: "Save evidence",
+                    email: "Email the authority",
+                    emailSubject: "My audited ballot does not decode to my choices",
+                    emailBody:
+                        "I audited a ballot in this election and the choices my browser decoded are not the ones I made.\n\nTracking ID: {{id}}\n\nI have saved the evidence as a file and can send it.",
+                },
+                how: "How does this work?",
+                faq: {
+                    why: {
+                        question: "Why audit?",
+                        answer: "Your vote is encrypted on your device, so no one can read it, not even you. Auditing lets you check that the portal encrypted what you chose before you vote for real.",
+                    },
+                    catch: {
+                        question: "Why does it catch cheating?",
+                        answer: "The portal encrypts before you decide to audit, so it can’t know which ballots will be checked. If it changed votes, every voter who audits could catch it.",
+                    },
+                    spent: {
+                        question: "Why can’t this ballot count?",
+                        answer: "With its secret revealed, the ballot shows how you voted. To keep your vote secret, an audited ballot is never cast.",
+                    },
+                    differ: {
+                        question: "What if they don’t match?",
+                        answer: "Don’t vote on that device. Save the evidence and report it to the election authority. Then vote from another device.",
+                    },
+                    tip: "For the strongest check, open this page on a different device from the one you voted on, such as your phone. A device that changed your ballot could also change what it shows you here.",
+                },
                 failed: {
                     title: "Audit failed",
                     text: "The ballot in the public record does not decrypt with the key the portal revealed. Do not cast from this device; tell the election authority.",

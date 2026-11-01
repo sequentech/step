@@ -657,8 +657,69 @@ const tagalogTranslation: TranslationType = {
                 audited: "Na-audit noong {{time}}",
             },
             audit: {
-                title: "Ang iyong mga napili, na-decode",
-                note: "Na-decrypt ng iyong browser ang na-audit na balotang ito gamit ang susing inihayag ng portal. Kung hindi ito ang mga napili mo, makipag-ugnayan sa awtoridad ng halalan.",
+                kicker: "Audit ng balota",
+                title: "Tiyaking na-encrypt ang iyong balota ayon sa pinili mo",
+                note: "Ito ang balotang na-audit mo, na-decode ng iyong browser. Ikaw lang ang nakaaalam ng pinili mo, kaya ikaw lang ang makagagawa ng pagsusuring ito.",
+                steps: {
+                    label: "Paano gumagana ang pagsusuri",
+                    encrypted: {
+                        title: "Na-encrypt sa iyong device",
+                        text: "Ini-encrypt ng portal ang iyong mga pinili at binigyan ang balota ng Tracking ID nito, bago mo piniling i-audit ito.",
+                    },
+                    decoded: {
+                        title: "Na-decode rito",
+                        text: "Sa pag-audit, ipinahayag ng portal ang lihim nito. Na-decode ng iyong browser ang balota gamit iyon at inihambing ito sa pampublikong talaan.",
+                    },
+                    compare: {
+                        title: "Ikaw ang naghahambing",
+                        text: "Tingnan ang mga pinili sa ibaba. Ito ba ang mga pinili mo?",
+                    },
+                },
+                choices: "Mga pinili na na-decode mula sa balotang ito",
+                question: "Tugma ba ang mga ito sa pinili mo?",
+                yes: "Oo, tugma",
+                no: "Hindi, may kakaiba",
+                change: "Baguhin ang sagot ko",
+                match: {
+                    title: "Na-encrypt ang iyong balota ayon sa pinili mo",
+                    text: "Nagamit na ang balotang na-audit na ito: hindi ito kailanman naiboto at hindi kailanman bibilangin. Bumalik at bumoto. May bagong Tracking ID ang iyong boto, at puwede kang mag-audit muli bago iyon kung gusto mo.",
+                    vote: "Bumalik at bumoto",
+                },
+                mismatch: {
+                    title: "Huwag bumoto sa device na ito",
+                    text: "Hindi ang pinili mo ang na-encrypt, kaya maaaring may nakialam sa device na ito o sa portal ng pagboto. Itinago ng iyong browser ang ebidensiya: ang naka-encrypt na balota mula sa pampublikong talaan, ang lihim na inihayag ng portal, at ang resulta ng pag-decode nito.",
+                    report: "I-ulat ito sa awtoridad ng halalan",
+                    reportNoContact: "I-ulat ito sa awtoridad ng halalan.",
+                    fromPolicy:
+                        "Mula sa nailathalang patakaran ng halalan, hindi mula sa pahinang ito.",
+                    fromSettings: "Mula sa mga setting ng halalan.",
+                    then: "Pagkatapos, bumoto mula sa ibang device.",
+                    save: "I-save ang ebidensiya",
+                    email: "I-email ang awtoridad",
+                    emailSubject: "Hindi nagde-decode sa mga pinili ko ang na-audit kong balota",
+                    emailBody:
+                        "Nag-audit ako ng balota sa halalang ito at hindi ang mga pinili ko ang na-decode ng aking browser.\n\nTracking ID: {{id}}\n\nNai-save ko ang ebidensiya sa isang file at maipapadala ko ito.",
+                },
+                how: "Paano ito gumagana?",
+                faq: {
+                    why: {
+                        question: "Bakit mag-audit?",
+                        answer: "Naka-encrypt sa iyong device ang boto mo, kaya walang makababasa nito, kahit ikaw. Pinapayagan ka ng pag-audit na tiyaking ini-encrypt ng portal ang pinili mo bago ka bumoto nang totoo.",
+                    },
+                    catch: {
+                        question: "Bakit nahuhuli nito ang pandaraya?",
+                        answer: "Nag-e-encrypt ang portal bago mo piliing mag-audit, kaya hindi nito alam kung aling mga balota ang susuriin. Kung binago nito ang mga boto, mahuhuli ito ng bawat botanteng nag-audit.",
+                    },
+                    spent: {
+                        question: "Bakit hindi mabibilang ang balotang ito?",
+                        answer: "Kapag naihayag na ang lihim nito, ipinapakita ng balota kung paano ka bumoto. Para manatiling lihim ang boto mo, ang balotang na-audit ay hindi kailanman iboboto.",
+                    },
+                    differ: {
+                        question: "Paano kung hindi tugma?",
+                        answer: "Huwag bumoto sa device na iyon. I-save ang ebidensiya at i-ulat ito sa awtoridad ng halalan. Pagkatapos, bumoto mula sa ibang device.",
+                    },
+                    tip: "Para sa pinakamatibay na pagsusuri, buksan ang pahinang ito sa device na iba sa ginamit mong pagboto, tulad ng iyong telepono. Ang device na nagbago ng iyong balota ay maaari ring magbago ng ipinapakita nito sa iyo rito.",
+                },
                 failed: {
                     title: "Nabigo ang audit",
                     text: "Hindi ma-decrypt ang balota sa pampublikong talaan gamit ang susing inihayag ng portal. Huwag bumoto gamit ang device na ito; ipaalam sa awtoridad ng halalan.",

@@ -658,8 +658,69 @@ const basqueTranslation: TranslationType = {
                 audited: "Auditatua: {{time}}",
             },
             audit: {
-                title: "Zure hautaketak, dekodetuta",
-                note: "Zure nabigatzaileak auditatutako boto-txartel hau deszifratu du atariak agerian utzi duen gakoarekin. Hauek ez badira zuk egindako hautaketak, jarri harremanetan hauteskunde-agintaritzarekin.",
+                kicker: "Boto-paperaren auditoretza",
+                title: "Egiaztatu zure boto-papera zuk aukeratu bezala zifratu dela",
+                note: "Hau auditatu zenuen boto-papera da, zure nabigatzaileak dekodetua. Zuk bakarrik dakizu zer aukeratu zenuen, beraz zuk bakarrik egin dezakezu egiaztapen hau.",
+                steps: {
+                    label: "Egiaztapenak nola funtzionatzen duen",
+                    encrypted: {
+                        title: "Zure gailuan zifratua",
+                        text: "Atariak zure aukerak zifratu zituen eta boto-paperari bere jarraipen ID-a eman zion, auditatzea erabaki aurretik.",
+                    },
+                    decoded: {
+                        title: "Hemen dekodetua",
+                        text: "Auditatzean, atariak bere sekretua agerian utzi zuen. Zure nabigatzaileak boto-papera sekretu horrekin dekodetu zuen eta erregistro publikoarekin alderatu zuen.",
+                    },
+                    compare: {
+                        title: "Zuk alderatzen duzu",
+                        text: "Begiratu beheko aukerei. Zuk egindakoak al dira?",
+                    },
+                },
+                choices: "Boto-paper honetatik dekodetutako aukerak",
+                question: "Zuk aukeratutakoarekin bat datoz?",
+                yes: "Bai, bat datoz",
+                no: "Ez, zerbait desberdina da",
+                change: "Aldatu nire erantzuna",
+                match: {
+                    title: "Zure boto-papera zuk aukeratu bezala zifratu zen",
+                    text: "Auditatutako boto-paper hau gastatuta dago: ez zen inoiz bozkatu eta ez da inoiz zenbatuko. Itzuli eta bozkatu. Zure botoak jarraipen ID berri bat izango du, eta nahi baduzu berriro audita dezakezu lehenago.",
+                    vote: "Itzuli eta bozkatu",
+                },
+                mismatch: {
+                    title: "Ez bozkatu gailu honetan",
+                    text: "Zifratu zena ez da zuk aukeratu zenuena, beraz gailu hau edo bozketa-atari hau manipulatuta egon daiteke. Zure nabigatzaileak froga gorde du: erregistro publikoko boto-paper zifratua, atariak agerian utzi zuen sekretua eta dekodetzen duena.",
+                    report: "Jakinarazi hauteskunde-agintaritzari",
+                    reportNoContact: "Jakinarazi hauteskunde-agintaritzari.",
+                    fromPolicy:
+                        "Hauteskundearen politika argitaratutik dator, ez orrialde honetatik.",
+                    fromSettings: "Hauteskundearen ezarpenetatik dator.",
+                    then: "Gero bozkatu beste gailu batetik.",
+                    save: "Gorde froga",
+                    email: "Idatzi agintaritzari",
+                    emailSubject: "Nire boto-paper auditatua ez da nire aukeretan dekodetzen",
+                    emailBody:
+                        "Hauteskunde honetan boto-paper bat auditatu nuen, eta nire nabigatzaileak dekodetutako aukerak ez dira nik aukeratu nituenak.\n\nJarraipen ID-a: {{id}}\n\nFrogak fitxategi batean gorde ditut eta bidal dezaket.",
+                },
+                how: "Nola funtzionatzen du?",
+                faq: {
+                    why: {
+                        question: "Zergatik auditatu?",
+                        answer: "Zure botoa zure gailuan zifratzen da, beraz inork ezin du irakurri, ezta zuk ere. Auditatzeak egiaztatzeko aukera ematen dizu atariak benetan bozkatu aurretik zuk aukeratutakoa zifratu duela.",
+                    },
+                    catch: {
+                        question: "Zergatik harrapatzen du iruzurra?",
+                        answer: "Atariak auditatzea erabaki aurretik zifratzen du, beraz ezin du jakin zein boto-paper egiaztatuko diren. Botoak aldatuko balitu, auditatzen duen edozein hautesle konturatu liteke.",
+                    },
+                    spent: {
+                        question: "Zergatik ezin da boto-paper hau zenbatu?",
+                        answer: "Sekretua agerian dagoenez, boto-paperak nola bozkatu zenuen erakusten du. Zure botoa sekretu mantentzeko, auditatutako boto-papera ez da inoiz bozkatzen.",
+                    },
+                    differ: {
+                        question: "Eta bat ez badatoz?",
+                        answer: "Ez bozkatu gailu horretan. Gorde froga eta jakinarazi hauteskunde-agintaritzari. Gero bozkatu beste gailu batetik.",
+                    },
+                    tip: "Egiaztapen sendoenerako, ireki orri hau bozkatu zenuen gailuaz bestelako batean, adibidez telefonoan. Zure boto-papera aldatu zuen gailu batek hemen erakusten dizuna ere alda lezake.",
+                },
                 failed: {
                     title: "Auditoriak huts egin du",
                     text: "Erregistro publikoko boto-txartela ez da deszifratzen atariak agerian utzi duen gakoarekin. Ez eman botorik gailu honetatik; jakinarazi hauteskunde-agintaritzari.",

@@ -661,8 +661,68 @@ const spanishTranslation: TranslationType = {
                 audited: "Auditada el {{time}}",
             },
             audit: {
-                title: "Sus selecciones, descodificadas",
-                note: "Su navegador descifró esta papeleta auditada con la clave que reveló el portal. Si estas no son las selecciones que hizo, póngase en contacto con la autoridad electoral.",
+                kicker: "Auditoría de la papeleta",
+                title: "Compruebe que su papeleta se cifró como usted eligió",
+                note: "Esta es la papeleta que auditó, descodificada por su navegador. Solo usted sabe lo que eligió, así que solo usted puede hacer esta comprobación.",
+                steps: {
+                    label: "Cómo funciona la comprobación",
+                    encrypted: {
+                        title: "Cifrada en su dispositivo",
+                        text: "El portal cifró sus opciones y dio a la papeleta su ID de seguimiento, antes de que usted decidiera auditarla.",
+                    },
+                    decoded: {
+                        title: "Descodificada aquí",
+                        text: "Al auditar, el portal reveló su secreto. Su navegador descodificó la papeleta con él y la comparó con el registro público.",
+                    },
+                    compare: {
+                        title: "Usted compara",
+                        text: "Mire las opciones de abajo. ¿Son las que eligió?",
+                    },
+                },
+                choices: "Opciones descodificadas de esta papeleta",
+                question: "¿Coinciden con lo que eligió?",
+                yes: "Sí, coinciden",
+                no: "No, hay algo distinto",
+                change: "Cambiar mi respuesta",
+                match: {
+                    title: "Su papeleta se cifró como eligió",
+                    text: "Esta papeleta auditada ya está gastada: nunca se emitió y nunca se contará. Vuelva y vote. Su voto recibirá un ID de seguimiento nuevo, y si lo desea puede auditar otra vez antes.",
+                    vote: "Volver y votar",
+                },
+                mismatch: {
+                    title: "No vote en este dispositivo",
+                    text: "Lo que se cifró no es lo que eligió, así que este dispositivo o el portal de votación pueden haber sido manipulados. Su navegador guardó la prueba: la papeleta cifrada del registro público, el secreto que reveló el portal y lo que descodifica.",
+                    report: "Avise a la autoridad electoral",
+                    reportNoContact: "Avise a la autoridad electoral.",
+                    fromPolicy: "De la política publicada de la elección, no de esta página.",
+                    fromSettings: "De los ajustes de la elección.",
+                    then: "Después vote desde otro dispositivo.",
+                    save: "Guardar la prueba",
+                    email: "Escribir a la autoridad",
+                    emailSubject: "Mi papeleta auditada no se descodifica en mis opciones",
+                    emailBody:
+                        "Audité una papeleta en esta elección y las opciones que descodificó mi navegador no son las que elegí.\n\nID de seguimiento: {{id}}\n\nHe guardado la prueba en un archivo y puedo enviarla.",
+                },
+                how: "¿Cómo funciona?",
+                faq: {
+                    why: {
+                        question: "¿Por qué auditar?",
+                        answer: "Su voto se cifra en su dispositivo, así que nadie puede leerlo, ni siquiera usted. Auditar le permite comprobar que el portal cifró lo que eligió antes de votar de verdad.",
+                    },
+                    catch: {
+                        question: "¿Por qué detecta el engaño?",
+                        answer: "El portal cifra antes de que usted decida auditar, así que no puede saber qué papeletas se comprobarán. Si cambiara votos, cualquier votante que audite podría descubrirlo.",
+                    },
+                    spent: {
+                        question: "¿Por qué no puede contar esta papeleta?",
+                        answer: "Con su secreto revelado, la papeleta muestra cómo votó usted. Para mantener su voto en secreto, una papeleta auditada nunca se emite.",
+                    },
+                    differ: {
+                        question: "¿Y si no coinciden?",
+                        answer: "No vote en ese dispositivo. Guarde la prueba y avise a la autoridad electoral. Después vote desde otro dispositivo.",
+                    },
+                    tip: "Para la comprobación más sólida, abra esta página en un dispositivo distinto de aquel con el que votó, por ejemplo su móvil. Un dispositivo que cambiara su papeleta también podría cambiar lo que le muestra aquí.",
+                },
                 failed: {
                     title: "Auditoría fallida",
                     text: "La papeleta del registro público no se descifra con la clave que reveló el portal. No emita su voto desde este dispositivo; avise a la autoridad electoral.",

@@ -660,8 +660,69 @@ const dutchTranslation: TranslationType = {
                 audited: "Geauditeerd op {{time}}",
             },
             audit: {
-                title: "Uw selecties, gedecodeerd",
-                note: "Uw browser heeft dit geauditeerde stembiljet ontsleuteld met de sleutel die de portal heeft onthuld. Als dit niet de selecties zijn die u hebt gemaakt, neem dan contact op met de verkiezingsautoriteit.",
+                kicker: "Stembiljetaudit",
+                title: "Controleer of uw stembiljet is versleuteld zoals u koos",
+                note: "Dit is het stembiljet dat u hebt geauditeerd, gedecodeerd door uw browser. Alleen u weet wat u hebt gekozen, dus alleen u kunt deze controle uitvoeren.",
+                steps: {
+                    label: "Hoe de controle werkt",
+                    encrypted: {
+                        title: "Versleuteld op uw apparaat",
+                        text: "De portal versleutelde uw keuzes en gaf het stembiljet zijn Tracking-ID, voordat u besloot het te auditeren.",
+                    },
+                    decoded: {
+                        title: "Hier gedecodeerd",
+                        text: "Bij het auditeren onthulde de portal zijn geheim. Uw browser decodeerde het stembiljet ermee en vergeleek het met het openbare register.",
+                    },
+                    compare: {
+                        title: "U vergelijkt",
+                        text: "Bekijk de keuzes hieronder. Zijn dit de keuzes die u hebt gemaakt?",
+                    },
+                },
+                choices: "Uit dit stembiljet gedecodeerde keuzes",
+                question: "Komen deze overeen met wat u koos?",
+                yes: "Ja, ze komen overeen",
+                no: "Nee, er klopt iets niet",
+                change: "Mijn antwoord wijzigen",
+                match: {
+                    title: "Uw stembiljet is versleuteld zoals u koos",
+                    text: "Dit geauditeerde stembiljet is nu verbruikt: het is nooit uitgebracht en wordt nooit geteld. Ga terug en stem. Uw stem krijgt een nieuw Tracking-ID, en u kunt eerst opnieuw auditeren als u wilt.",
+                    vote: "Terug en stemmen",
+                },
+                mismatch: {
+                    title: "Stem niet op dit apparaat",
+                    text: "Wat is versleuteld, is niet wat u koos. Dit apparaat of de stemportal kan dus zijn gemanipuleerd. Uw browser heeft het bewijs bewaard: het versleutelde stembiljet uit het openbare register, het geheim dat de portal onthulde en wat het decodeert.",
+                    report: "Meld het bij de verkiezingsautoriteit",
+                    reportNoContact: "Meld het bij de verkiezingsautoriteit.",
+                    fromPolicy:
+                        "Uit het gepubliceerde beleid van de verkiezing, niet van deze pagina.",
+                    fromSettings: "Uit de instellingen van de verkiezing.",
+                    then: "Stem daarna vanaf een ander apparaat.",
+                    save: "Bewijs bewaren",
+                    email: "De autoriteit mailen",
+                    emailSubject: "Mijn geauditeerde stembiljet decodeert niet naar mijn keuzes",
+                    emailBody:
+                        "Ik heb een stembiljet in deze verkiezing geauditeerd en de keuzes die mijn browser decodeerde zijn niet de keuzes die ik maakte.\n\nTracking-ID: {{id}}\n\nIk heb het bewijs als bestand bewaard en kan het sturen.",
+                },
+                how: "Hoe werkt dit?",
+                faq: {
+                    why: {
+                        question: "Waarom auditeren?",
+                        answer: "Uw stem wordt op uw apparaat versleuteld, dus niemand kan hem lezen, ook u niet. Met auditeren controleert u of de portal heeft versleuteld wat u koos, voordat u echt stemt.",
+                    },
+                    catch: {
+                        question: "Waarom betrapt dit fraude?",
+                        answer: "De portal versleutelt voordat u besluit te auditeren, dus hij kan niet weten welke stembiljetten worden gecontroleerd. Als hij stemmen veranderde, zou elke kiezer die auditeert dat kunnen ontdekken.",
+                    },
+                    spent: {
+                        question: "Waarom kan dit stembiljet niet meetellen?",
+                        answer: "Met het geheim onthuld laat het stembiljet zien hoe u stemde. Om uw stem geheim te houden, wordt een geauditeerd stembiljet nooit uitgebracht.",
+                    },
+                    differ: {
+                        question: "Wat als ze niet overeenkomen?",
+                        answer: "Stem niet op dat apparaat. Bewaar het bewijs en meld het bij de verkiezingsautoriteit. Stem daarna vanaf een ander apparaat.",
+                    },
+                    tip: "Voor de sterkste controle opent u deze pagina op een ander apparaat dan waarmee u stemde, bijvoorbeeld uw telefoon. Een apparaat dat uw stembiljet veranderde, kan ook veranderen wat het u hier toont.",
+                },
                 failed: {
                     title: "Audit mislukt",
                     text: "Het stembiljet in het openbare register kan niet worden ontsleuteld met de sleutel die de portal heeft onthuld. Breng geen stem uit vanaf dit apparaat; breng de verkiezingsautoriteit op de hoogte.",

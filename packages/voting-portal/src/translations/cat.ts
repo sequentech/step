@@ -661,8 +661,69 @@ const catalanTranslation: TranslationType = {
                 audited: "Auditada el {{time}}",
             },
             audit: {
-                title: "Les vostres seleccions, descodificades",
-                note: "El vostre navegador ha desxifrat aquesta papereta auditada amb la clau que ha revelat el portal. Si aquestes no són les seleccions que vau fer, poseu-vos en contacte amb l'autoritat electoral.",
+                kicker: "Auditoria de la papereta",
+                title: "Comproveu que la vostra papereta es va xifrar tal com vau triar",
+                note: "Aquesta és la papereta que vau auditar, descodificada pel vostre navegador. Només vosaltres sabeu què vau triar, així que només vosaltres podeu fer aquesta comprovació.",
+                steps: {
+                    label: "Com funciona la comprovació",
+                    encrypted: {
+                        title: "Xifrada al vostre dispositiu",
+                        text: "El portal va xifrar les vostres opcions i va donar a la papereta el seu ID de seguiment, abans que decidíssiu auditar-la.",
+                    },
+                    decoded: {
+                        title: "Descodificada aquí",
+                        text: "En auditar, el portal va revelar el seu secret. El vostre navegador va descodificar la papereta amb ell i la va comparar amb el registre públic.",
+                    },
+                    compare: {
+                        title: "Compareu vosaltres",
+                        text: "Mireu les opcions de sota. Són les que vau triar?",
+                    },
+                },
+                choices: "Opcions descodificades d'aquesta papereta",
+                question: "Coincideixen amb el que vau triar?",
+                yes: "Sí, coincideixen",
+                no: "No, hi ha alguna cosa diferent",
+                change: "Canviar la meva resposta",
+                match: {
+                    title: "La vostra papereta es va xifrar tal com vau triar",
+                    text: "Aquesta papereta auditada ja està gastada: mai es va emetre i mai es comptarà. Torneu enrere i voteu. El vostre vot rebrà un ID de seguiment nou, i si voleu podeu auditar-ne una altra abans.",
+                    vote: "Tornar i votar",
+                },
+                mismatch: {
+                    title: "No voteu en aquest dispositiu",
+                    text: "El que es va xifrar no és el que vau triar, així que aquest dispositiu o el portal de votació poden haver estat manipulats. El vostre navegador ha desat la prova: la papereta xifrada del registre públic, el secret que va revelar el portal i el que descodifica.",
+                    report: "Aviseu l'autoritat electoral",
+                    reportNoContact: "Aviseu l'autoritat electoral.",
+                    fromPolicy: "De la política publicada de l'elecció, no d'aquesta pàgina.",
+                    fromSettings: "De la configuració de l'elecció.",
+                    then: "Després voteu des d'un altre dispositiu.",
+                    save: "Desar la prova",
+                    email: "Escriure a l'autoritat",
+                    emailSubject:
+                        "La meva papereta auditada no es descodifica en les meves opcions",
+                    emailBody:
+                        "He auditat una papereta en aquesta elecció i les opcions que ha descodificat el meu navegador no són les que vaig triar.\n\nID de seguiment: {{id}}\n\nHe desat la prova en un fitxer i la puc enviar.",
+                },
+                how: "Com funciona?",
+                faq: {
+                    why: {
+                        question: "Per què auditar?",
+                        answer: "El vostre vot es xifra al vostre dispositiu, així que ningú pot llegir-lo, ni tan sols vosaltres. Auditar us permet comprovar que el portal va xifrar el que vau triar abans de votar de debò.",
+                    },
+                    catch: {
+                        question: "Per què detecta l'engany?",
+                        answer: "El portal xifra abans que decidiu auditar, així que no pot saber quines paperetes es comprovaran. Si canviés vots, qualsevol votant que auditi ho podria descobrir.",
+                    },
+                    spent: {
+                        question: "Per què no pot comptar aquesta papereta?",
+                        answer: "Amb el secret revelat, la papereta mostra com vau votar. Per mantenir secret el vostre vot, una papereta auditada no s'emet mai.",
+                    },
+                    differ: {
+                        question: "I si no coincideixen?",
+                        answer: "No voteu en aquest dispositiu. Deseu la prova i aviseu l'autoritat electoral. Després voteu des d'un altre dispositiu.",
+                    },
+                    tip: "Per a la comprovació més sòlida, obriu aquesta pàgina en un dispositiu diferent d'aquell en què vau votar, per exemple el mòbil. Un dispositiu que canviés la vostra papereta també podria canviar el que us mostra aquí.",
+                },
                 failed: {
                     title: "Auditoria fallida",
                     text: "La papereta del registre públic no es desxifra amb la clau que ha revelat el portal. No emeteu el vostre vot des d'aquest dispositiu; aviseu l'autoritat electoral.",

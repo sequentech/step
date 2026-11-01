@@ -10,8 +10,12 @@
 import React from "react"
 import {render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import {MemoryRouter} from "react-router-dom"
 import type {IBallotStyle, IDecodedVoteContest} from "@sequentech/ui-core"
-import {EAuditOutcome, TAudit} from "../../services/vitrine/ballotAudit"
+import {EAuditOutcome, TAudit, TAuditedRecord} from "../../services/vitrine/ballotAudit"
+import {ERecordEncoding, ERecordKind} from "../../services/vitrine/ballotTracker"
+import {EContactSource} from "../../services/vitrine/auditEvidence"
+import {saveTextFile} from "../../services/vitrine/file"
 import {TrackerAudit} from "./TrackerAudit"
 
 jest.mock("react-i18next", () => ({
@@ -65,7 +69,20 @@ jest.mock("mui-image", () => ({
     default: ({src}: {src: string}) => <img className="candidate-image" src={src} alt="" />,
 }))
 
+jest.mock("../../services/vitrine/file", () => ({
+    ...jest.requireActual("../../services/vitrine/file"),
+    saveTextFile: jest.fn(),
+}))
+
 const BUCKET = "https://bucket.example/"
+const BALLOT_ID = "FTBEMHRX0123456789ABCDEFGHJKMNPQRSTVWXYZ0123456789AB"
+const VOTE_HREF = "/tenant/t/event/e/election/x/start?lang=en"
+
+const RECORD = {
+    kind: ERecordKind.AUDITED,
+    encoding: ERecordEncoding.SINGLE_CONTEST,
+    ballot: {version: 2, contests: ["ciphertext-and-secret"], ballot_hash: BALLOT_ID},
+} as unknown as TAuditedRecord
 
 const candidate = (id: string, extra: Record<string, unknown> = {}) => ({
     id,
@@ -127,15 +144,21 @@ const verified = (selections: IDecodedVoteContest[]): TAudit => ({
     selections,
 })
 
-const renderAudit = (audit: TAudit, language = "en") =>
-    render(
+const element = (audit: TAudit, language = "en") => (
+    <MemoryRouter>
         <TrackerAudit
             audit={audit}
             ballotStyle={STYLE}
             language={language}
             publicBucketUrl={BUCKET}
+            ballotId={BALLOT_ID}
+            record={RECORD}
+            voteHref={VOTE_HREF}
         />
-    )
+    </MemoryRouter>
+)
+
+const renderAudit = (audit: TAudit, language = "en") => render(element(audit, language))
 
 const contestNamed = (name: string) =>
     screen.getByRole("heading", {name, level: 3}).closest("section") as HTMLElement
@@ -208,17 +231,14 @@ describe("the selections of a verified audited ballot", () => {
         expect(titlesIn(container)).toEqual(["Name of invalid"])
         expect(container.querySelector(".candidate-item")).toHaveAttribute("data-invalid", "true")
         rerender(
-            <TrackerAudit
-                audit={verified([
+            element(
+                verified([
                     decoded("mayor", [
                         ["puig", 0],
                         ["invalid", -1],
                     ]),
-                ])}
-                ballotStyle={STYLE}
-                language="en"
-                publicBucketUrl={BUCKET}
-            />
+                ])
+            )
         )
         expect(titlesIn(container)).toEqual(["Name of puig"])
     })
@@ -270,6 +290,79 @@ describe("the selections of a verified audited ballot", () => {
         renderAudit(verified([]))
         expect(screen.getByRole("region", {name: "ballotLocator.audit.title"})).toBeVisible()
         expect(screen.queryAllByRole("heading", {level: 3})).toHaveLength(0)
+    })
+})
+
+describe("the compare step around the selections", () => {
+    it("holds the decoded choices, for the voter to compare with what they chose", () => {
+        renderAudit(verified([decoded("council", [["hill", 0]])]))
+        const choices = screen.getByRole("group", {name: "ballotLocator.audit.choices"})
+        expect(titlesIn(choices)).toEqual(["Name of hill"])
+        expect(screen.getByText("ballotLocator.audit.question")).toBeVisible()
+    })
+
+    it("sends a voter whose ballot matches back to vote, in the same election", async () => {
+        renderAudit(verified([decoded("council", [["hill", 0]])]))
+        await userEvent.click(screen.getByRole("button", {name: "ballotLocator.audit.yes"}))
+        expect(screen.getByRole("link", {name: "ballotLocator.audit.match.vote"})).toHaveAttribute(
+            "href",
+            VOTE_HREF
+        )
+    })
+
+    it("saves the evidence as a JSON file named after the Tracking ID, with the record and the decoded choices", async () => {
+        const save = saveTextFile as jest.Mock
+        save.mockClear()
+        renderAudit(verified([decoded("council", [["hill", 0]])]))
+        await userEvent.click(screen.getByRole("button", {name: "ballotLocator.audit.no"}))
+        await userEvent.click(
+            screen.getByRole("button", {name: "ballotLocator.audit.mismatch.save"})
+        )
+        expect(save).toHaveBeenCalledTimes(1)
+        const [name, text, type] = save.mock.calls[0]
+        expect(name).toBe("ballot-audit-FTBEMHRX.json")
+        expect(type).toBe("application/json")
+        const file = JSON.parse(text)
+        expect(file.record.contests).toEqual(["ciphertext-and-secret"])
+        expect(file.decoded[0].choices).toEqual([{id: "hill", selected: 0}])
+        expect(file.trackingId).toBe(
+            "FTBE-MHRX-0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ-0123-4567-89AB"
+        )
+    })
+
+    it("offers no contact for the authority while none is known", async () => {
+        const {container} = renderAudit(verified([decoded("council", [["hill", 0]])]))
+        await userEvent.click(screen.getByRole("button", {name: "ballotLocator.audit.no"}))
+        expect(container.querySelector(".audit-compare-contact")).toBeNull()
+        expect(container.querySelector("a.audit-compare-email")).toBeNull()
+        expect(screen.getByText("ballotLocator.audit.mismatch.reportNoContact")).toBeVisible()
+    })
+
+    it("shows the contact it is given, and says where it comes from", async () => {
+        render(
+            <MemoryRouter>
+                <TrackerAudit
+                    audit={verified([decoded("council", [["hill", 0]])])}
+                    ballotStyle={STYLE}
+                    language="en"
+                    publicBucketUrl={BUCKET}
+                    ballotId={BALLOT_ID}
+                    record={RECORD}
+                    voteHref={VOTE_HREF}
+                    contact={{
+                        name: "Electoral board",
+                        email: "board@example.org",
+                        source: EContactSource.POLICY,
+                    }}
+                />
+            </MemoryRouter>
+        )
+        await userEvent.click(screen.getByRole("button", {name: "ballotLocator.audit.no"}))
+        expect(screen.getByText("Electoral board · board@example.org")).toBeVisible()
+        expect(screen.getByText("ballotLocator.audit.mismatch.fromPolicy")).toBeVisible()
+        expect(
+            screen.getByRole("link", {name: "ballotLocator.audit.mismatch.email"})
+        ).toHaveAttribute("href", expect.stringMatching(/^mailto:board@example\.org\?/))
     })
 })
 

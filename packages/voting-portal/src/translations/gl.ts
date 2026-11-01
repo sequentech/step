@@ -658,8 +658,68 @@ const galegoTranslation: TranslationType = {
                 audited: "Auditada o {{time}}",
             },
             audit: {
-                title: "As túas seleccións, descodificadas",
-                note: "O teu navegador descifrou esta papeleta auditada coa clave que revelou o portal. Se estas non son as seleccións que fixeches, ponte en contacto coa autoridade electoral.",
+                kicker: "Auditoría da papeleta",
+                title: "Comproba que a túa papeleta se cifrou como elixiches",
+                note: "Esta é a papeleta que auditaches, descodificada polo teu navegador. Só ti sabes o que elixiches, así que só ti podes facer esta comprobación.",
+                steps: {
+                    label: "Como funciona a comprobación",
+                    encrypted: {
+                        title: "Cifrada no teu dispositivo",
+                        text: "O portal cifrou as túas opcións e deulle á papeleta o seu ID de seguimento, antes de que decidiras auditala.",
+                    },
+                    decoded: {
+                        title: "Descodificada aquí",
+                        text: "Ao auditar, o portal revelou o seu segredo. O teu navegador descodificou a papeleta con el e comparouna co rexistro público.",
+                    },
+                    compare: {
+                        title: "Comparas ti",
+                        text: "Mira as opcións de abaixo. Son as que fixeches?",
+                    },
+                },
+                choices: "Opcións descodificadas desta papeleta",
+                question: "Coinciden co que elixiches?",
+                yes: "Si, coinciden",
+                no: "Non, hai algo diferente",
+                change: "Cambiar a miña resposta",
+                match: {
+                    title: "A túa papeleta cifrouse como elixiches",
+                    text: "Esta papeleta auditada xa está gastada: nunca se emitiu e nunca se contará. Volve e vota. O teu voto recibirá un ID de seguimento novo, e se queres podes auditar outra vez antes.",
+                    vote: "Volver e votar",
+                },
+                mismatch: {
+                    title: "Non votes neste dispositivo",
+                    text: "O que se cifrou non é o que elixiches, así que este dispositivo ou o portal de votación poden ter sido manipulados. O teu navegador gardou a proba: a papeleta cifrada do rexistro público, o segredo que revelou o portal e o que descodifica.",
+                    report: "Avisa a autoridade electoral",
+                    reportNoContact: "Avisa a autoridade electoral.",
+                    fromPolicy: "Da política publicada da elección, non desta páxina.",
+                    fromSettings: "Dos axustes da elección.",
+                    then: "Despois vota desde outro dispositivo.",
+                    save: "Gardar a proba",
+                    email: "Escribir á autoridade",
+                    emailSubject: "A miña papeleta auditada non se descodifica nas miñas opcións",
+                    emailBody:
+                        "Auditei unha papeleta nesta elección e as opcións que descodificou o meu navegador non son as que elixín.\n\nID de seguimento: {{id}}\n\nGardei a proba nun ficheiro e podo enviala.",
+                },
+                how: "Como funciona?",
+                faq: {
+                    why: {
+                        question: "Por que auditar?",
+                        answer: "O teu voto cífrase no teu dispositivo, así que ninguén pode lelo, nin sequera ti. Auditar permíteche comprobar que o portal cifrou o que elixiches antes de votar de verdade.",
+                    },
+                    catch: {
+                        question: "Por que detecta o engano?",
+                        answer: "O portal cifra antes de que decidas auditar, así que non pode saber que papeletas se comprobarán. Se cambiase votos, calquera votante que audite podería descubrilo.",
+                    },
+                    spent: {
+                        question: "Por que non pode contar esta papeleta?",
+                        answer: "Co segredo revelado, a papeleta amosa como votaches. Para manter o teu voto en segredo, unha papeleta auditada nunca se emite.",
+                    },
+                    differ: {
+                        question: "E se non coinciden?",
+                        answer: "Non votes nese dispositivo. Garda a proba e avisa a autoridade electoral. Despois vota desde outro dispositivo.",
+                    },
+                    tip: "Para a comprobación máis sólida, abre esta páxina nun dispositivo distinto daquel co que votaches, por exemplo o teu móbil. Un dispositivo que cambiase a túa papeleta tamén podería cambiar o que che amosa aquí.",
+                },
                 failed: {
                     title: "Auditoría fallida",
                     text: "A papeleta do rexistro público non se descifra coa clave que revelou o portal. Non emitas o teu voto desde este dispositivo; avisa á autoridade electoral.",

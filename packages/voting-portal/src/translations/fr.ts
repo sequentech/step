@@ -659,8 +659,68 @@ const frenchTranslation: TranslationType = {
                 audited: "Audité le {{time}}",
             },
             audit: {
-                title: "Vos sélections, décodées",
-                note: "Votre navigateur a déchiffré ce bulletin audité avec la clé révélée par le portail. Si ce ne sont pas les sélections que vous avez faites, contactez l'autorité électorale.",
+                kicker: "Audit du bulletin",
+                title: "Vérifiez que votre bulletin a été chiffré comme vous l’avez choisi",
+                note: "Voici le bulletin que vous avez audité, décodé par votre navigateur. Vous seul savez ce que vous avez choisi : vous seul pouvez donc faire cette vérification.",
+                steps: {
+                    label: "Comment fonctionne la vérification",
+                    encrypted: {
+                        title: "Chiffré sur votre appareil",
+                        text: "Le portail a chiffré vos choix et a donné au bulletin son identifiant de suivi, avant que vous décidiez de l’auditer.",
+                    },
+                    decoded: {
+                        title: "Décodé ici",
+                        text: "En auditant, vous avez fait révéler son secret au portail. Votre navigateur a décodé le bulletin avec lui et l’a comparé au registre public.",
+                    },
+                    compare: {
+                        title: "Vous comparez",
+                        text: "Regardez les choix ci-dessous. Sont-ils ceux que vous avez faits ?",
+                    },
+                },
+                choices: "Choix décodés de ce bulletin",
+                question: "Correspondent-ils à ce que vous avez choisi ?",
+                yes: "Oui, ils correspondent",
+                no: "Non, quelque chose est différent",
+                change: "Changer ma réponse",
+                match: {
+                    title: "Votre bulletin a été chiffré comme vous l’avez choisi",
+                    text: "Ce bulletin audité est maintenant épuisé : il n’a jamais été déposé et ne sera jamais compté. Retournez voter. Votre vote recevra un nouvel identifiant de suivi, et vous pouvez auditer à nouveau avant si vous le souhaitez.",
+                    vote: "Retourner voter",
+                },
+                mismatch: {
+                    title: "Ne votez pas sur cet appareil",
+                    text: "Ce qui a été chiffré n’est pas ce que vous avez choisi : cet appareil ou le portail de vote a peut-être été altéré. Votre navigateur a conservé la preuve : le bulletin chiffré du registre public, le secret révélé par le portail et ce qu’il décode.",
+                    report: "Signalez-le à l’autorité électorale",
+                    reportNoContact: "Signalez-le à l’autorité électorale.",
+                    fromPolicy: "Tiré de la politique publiée de l’élection, pas de cette page.",
+                    fromSettings: "Tiré des paramètres de l’élection.",
+                    then: "Votez ensuite depuis un autre appareil.",
+                    save: "Enregistrer la preuve",
+                    email: "Écrire à l’autorité",
+                    emailSubject: "Mon bulletin audité ne se décode pas en mes choix",
+                    emailBody:
+                        "J’ai audité un bulletin lors de cette élection et les choix décodés par mon navigateur ne sont pas ceux que j’ai faits.\n\nIdentifiant de suivi : {{id}}\n\nJ’ai enregistré la preuve dans un fichier et je peux l’envoyer.",
+                },
+                how: "Comment ça marche ?",
+                faq: {
+                    why: {
+                        question: "Pourquoi auditer ?",
+                        answer: "Votre vote est chiffré sur votre appareil : personne ne peut le lire, pas même vous. L’audit vous permet de vérifier que le portail a chiffré ce que vous avez choisi avant que vous votiez pour de bon.",
+                    },
+                    catch: {
+                        question: "Pourquoi cela détecte-t-il la triche ?",
+                        answer: "Le portail chiffre avant que vous décidiez d’auditer : il ne peut pas savoir quels bulletins seront vérifiés. S’il modifiait des votes, chaque électeur qui audite pourrait s’en apercevoir.",
+                    },
+                    spent: {
+                        question: "Pourquoi ce bulletin ne peut-il pas être compté ?",
+                        answer: "Son secret révélé, le bulletin montre comment vous avez voté. Pour garder votre vote secret, un bulletin audité n’est jamais déposé.",
+                    },
+                    differ: {
+                        question: "Et s’ils ne correspondent pas ?",
+                        answer: "Ne votez pas sur cet appareil. Enregistrez la preuve et signalez-la à l’autorité électorale. Votez ensuite depuis un autre appareil.",
+                    },
+                    tip: "Pour la vérification la plus solide, ouvrez cette page sur un autre appareil que celui avec lequel vous avez voté, par exemple votre téléphone. Un appareil qui aurait modifié votre bulletin pourrait aussi modifier ce qu’il vous montre ici.",
+                },
                 failed: {
                     title: "Échec de l'audit",
                     text: "Le bulletin figurant dans le registre public ne se déchiffre pas avec la clé révélée par le portail. Ne votez pas depuis cet appareil ; informez l'autorité électorale.",
