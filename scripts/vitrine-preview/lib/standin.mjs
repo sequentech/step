@@ -49,7 +49,7 @@ export function adminPermissions(stepPackages) {
   }
 }
 
-export function createStandIn({ live, sidecar, origin, stepPackages, electionId, version, voterOrigin, adminOrigin, tamper, log }) {
+export function createStandIn({ live, sidecar, origin, stepPackages, electionId, version, voterOrigin, adminOrigin, tamper, dishonest, log }) {
   const schemaFile = path.join(stepPackages, "admin-portal/graphql.schema.json");
   const schema = new Schema(JSON.parse(fs.readFileSync(schemaFile, "utf8")));
   const policyNote = live.policy;
@@ -278,9 +278,11 @@ export function createStandIn({ live, sidecar, origin, stepPackages, electionId,
           ballotBox: ballotBox.stats(),
           boothContext: state.lastContext ?? null,
           tamper: tamper?.status?.() ?? null,
+          dishonestPortal: dishonest?.status?.() ?? null,
         });
       }
       if (url.pathname.startsWith("/__preview/tamper") && tamper) return tamper.handle(req, res, url, readBody, send);
+      if (url.pathname === "/__preview/dishonest-portal" && dishonest) return dishonest.handle(req, res, url, readBody, send);
       send(res, 404, { error: "not found", path: url.pathname });
     } catch (e) {
       log(`error ${req.method} ${url.pathname}: ${e.stack ?? e}`);

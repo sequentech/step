@@ -131,6 +131,19 @@ browser is shown it by `playwright/tamper-route.mjs` (`installTamperRoute(contex
 navigating), because the portal reads the log's URL from the pinned policy. The portal's own
 checks then hold two log-signed checkpoints of one size with different roots (split-view evidence).
 
+## The staged attack, version 2: a dishonest portal
+
+`node scripts/vitrine-preview/preview.mjs dishonest-portal on|off` stands in for an operator that
+also controls the voting portal. With it on, the voting portal's origin serves its pages with one
+more script in front of the app's own (`lib/dishonest-portal.mjs`), which answers every hub's
+`GET <hub>/problems` with an empty list, so the voter's own page goes on saying the ballot is
+verified. Nothing in Step's code changes. The split view itself comes from Vitrine's
+`deploy/split-view.sh`, which gossips a second checkpoint of the voter's receipt's size to hub-b:
+hub-b holds the voter's checkpoint from their confirmed watch made from the receipt, proves the
+split view, records it and mails the watchers. The voter learns of it from what the operator
+doesn't serve: the hub's email and site, a monitor, the browser extension. The admin portal is
+not affected, so its banner shows it too.
+
 ## Playwright
 
 `playwright/run.sh NAME SCRIPT OUTDIR [args]` runs a script in `mcr.microsoft.com/playwright:v1.64.1-noble`

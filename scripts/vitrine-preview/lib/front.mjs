@@ -20,6 +20,7 @@ import fs from "node:fs";
 import http from "node:http";
 import net from "node:net";
 import path from "node:path";
+import { injectHideProblems } from "./dishonest-portal.mjs";
 
 export const ISOLATION_HEADERS = {
   "Cross-Origin-Opener-Policy": "same-origin",
@@ -65,7 +66,7 @@ export function releaseIdentity(file, fallback) {
   }
 }
 
-export function createFront({ settings, upstreamPort, graphqlPort, dist, release, log }) {
+export function createFront({ settings, upstreamPort, graphqlPort, dist, release, dishonest, log }) {
   const settingsText = `${JSON.stringify(settings, null, 2)}\n`;
 
   const headers = (extra = {}) => ({ ...ISOLATION_HEADERS, "Cache-Control": "no-cache", ...extra });
@@ -97,9 +98,25 @@ export function createFront({ settings, upstreamPort, graphqlPort, dist, release
   };
 
   function proxy(req, res, port = upstreamPort) {
+    // With the dishonest portal on, pages come back uncompressed so that its
+    // script can go in front of the app's.
+    const rewrite = dishonest?.isOn() && port === upstreamPort && req.method === "GET" && /text\/html/.test(req.headers.accept ?? "");
+    const upHeaders = { ...req.headers, host: `127.0.0.1:${port}` };
+    if (rewrite) delete upHeaders["accept-encoding"];
     const up = http.request(
-      { host: "127.0.0.1", port, path: req.url, method: req.method, headers: { ...req.headers, host: `127.0.0.1:${port}` } },
+      { host: "127.0.0.1", port, path: req.url, method: req.method, headers: upHeaders },
       (answer) => {
+        if (rewrite && /text\/html/.test(answer.headers["content-type"] ?? "")) {
+          const chunks = [];
+          answer.on("data", (c) => chunks.push(c));
+          answer.on("end", () => {
+            const body = Buffer.from(injectHideProblems(Buffer.concat(chunks).toString("utf8")));
+            const { "content-length": _length, etag: _etag, ...rest } = answer.headers;
+            res.writeHead(answer.statusCode, { ...rest, ...ISOLATION_HEADERS, "Content-Length": body.length, "Cache-Control": "no-store" });
+            res.end(body);
+          });
+          return;
+        }
         res.writeHead(answer.statusCode, { ...answer.headers, ...ISOLATION_HEADERS });
         answer.pipe(res);
       },

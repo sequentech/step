@@ -10,6 +10,7 @@
 //   node preview.mjs stop             stop what `start` started, and nothing else
 //   node preview.mjs status           what is running, and what the stack still needs
 //   node preview.mjs tamper on|off    the Alert scenario's switch
+//   node preview.mjs dishonest-portal on|off   the voting portal hides hubs' problems
 //   node preview.mjs provision-events write the election's configuration into the events log
 //   node preview.mjs settings voting|admin   print the /global-settings.json served
 
@@ -23,6 +24,7 @@ import { createStandIn } from "./lib/standin.mjs";
 import { Sidecar } from "./lib/sidecar.mjs";
 import { pickElection, readStack } from "./lib/stack.mjs";
 import { createTamper } from "./lib/tamper.mjs";
+import { createDishonestPortal } from "./lib/dishonest-portal.mjs";
 import { provisionEvents } from "./lib/provision.mjs";
 import { TENANT_ID } from "./lib/fixtures.mjs";
 
@@ -244,14 +246,15 @@ async function serve() {
   const sidecar = new Sidecar(live, c.socket);
   const release = releaseOf(c);
   const tamper = createTamper({ live, log });
+  const dishonest = createDishonestPortal({ log });
   const standin = createStandIn({
     live, sidecar, origin: ORIGINS.standin, stepPackages: c.packages, electionId: c.election, version: release.version,
-    voterOrigin: ORIGINS.voting, adminOrigin: ORIGINS.admin, tamper, log,
+    voterOrigin: ORIGINS.voting, adminOrigin: ORIGINS.admin, tamper, dishonest, log,
   });
   const listen = (server, port) => new Promise((resolve, reject) => server.once("error", reject).listen(port, "127.0.0.1", resolve));
   await listen(standin.server, PORTS.standin);
   if (c.only !== "admin") {
-    const front = createFront({ settings: portalSettings(c, live, "voting", release), upstreamPort: PORTS.votingDev, graphqlPort: PORTS.standin, dist: c.dist, release: c.releaseFile ? release : undefined, log: logFile("voting") });
+    const front = createFront({ settings: portalSettings(c, live, "voting", release), upstreamPort: PORTS.votingDev, graphqlPort: PORTS.standin, dist: c.dist, release: c.releaseFile ? release : undefined, dishonest, log: logFile("voting") });
     await listen(front.server, PORTS.voting);
   }
   if (c.only !== "voting") {
@@ -347,9 +350,9 @@ try {
   else if (command === "status") await status(c);
   else if (command === "reload") await reload(c);
   else if (command === "serve") await serve();
-  else if (command === "tamper") {
+  else if (command === "tamper" || command === "dishonest-portal") {
     const mode = rest[1] ?? "status";
-    const res = await fetch(`${ORIGINS.standin}/__preview/tamper`, { method: mode === "status" ? "GET" : "POST", headers: { "Content-Type": "application/json" }, body: mode === "status" ? undefined : JSON.stringify({ on: mode === "on" }) });
+    const res = await fetch(`${ORIGINS.standin}/__preview/${command}`, { method: mode === "status" ? "GET" : "POST", headers: { "Content-Type": "application/json" }, body: mode === "status" ? undefined : JSON.stringify({ on: mode === "on" }) });
     console.log(JSON.stringify(await res.json(), null, 2));
   } else if (command === "provision-events") {
     const live = readStack(c.vitrine);
@@ -365,7 +368,7 @@ try {
     const live = readStack(c.vitrine);
     process.stdout.write(`${JSON.stringify(portalSettings(c, live, rest[1] === "admin" ? "admin" : "voting", releaseOf(c)), null, 2)}\n`);
   } else {
-    console.error("usage: preview.mjs start|stop|status|tamper on|off|provision-events|settings voting|admin  [--static-dist DIR] [--release-bundle FILE] [--version V] [--wait]");
+    console.error("usage: preview.mjs start|stop|status|tamper on|off|dishonest-portal on|off|provision-events|settings voting|admin  [--static-dist DIR] [--release-bundle FILE] [--version V] [--wait]");
     process.exitCode = 2;
   }
 } catch (e) {
