@@ -2804,6 +2804,9 @@ const catalanTranslation: TranslationType = {
                         delete: "Estàs segur de que vols eliminar aquest element?",
                         sealsUnknown:
                             "No s'han pogut comprovar els segells de les urnes: si té urnes segellades, l'esborrat es rebutjarà.",
+                        archiveNamed: 'Estàs segur de que vols arxivar "{{name}}"?',
+                        unarchiveNamed: 'Estàs segur de que vols desarxivar "{{name}}"?',
+                        deleteNamed: 'Estàs segur de que vols eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2924,6 +2927,13 @@ const catalanTranslation: TranslationType = {
                 "label": "Forma de la icona de la casella de verificació dels candidats",
                 "square-checkbox": "Caixa de verificació quadrada",
                 "round-checkbox": "Caixa de verificació rodona",
+            },
+            candidatesLayout: {
+                "label": "Disposició de les candidatures",
+                "helperText":
+                    "La graella de papereta de paper mostra les candidatures com a cel·les numerades amb un cercle per omplir, columna per columna, segons Columnes (4 si és buit). Les votacions per ordre de preferència sempre fan servir la llista.",
+                "list": "Llista",
+                "paper-grid": "Graella de papereta de paper",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidats I Llistes",
@@ -4392,6 +4402,8 @@ const catalanTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Taulers configurables",
+            modeChangeError: "No s’ha pogut canviar el mode del tauler. Torneu-ho a provar.",
             title: "Monitoratge",
             loading: "Carregant el monitoratge",
             unavailableAlert:

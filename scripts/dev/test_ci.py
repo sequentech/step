@@ -9,7 +9,8 @@ import sys
 import unittest
 from pathlib import Path
 
-from scripts.dev.affected.changes import from_files
+from scripts.dev import ci
+from scripts.dev.affected.changes import ChangeSet, Scope, from_files
 from scripts.dev.affected.model import load_model
 from scripts.dev.ci import Validation, check_results, matrices, selection_for
 
@@ -24,9 +25,17 @@ class PlanTests(unittest.TestCase):
     def plan(self, *paths):
         return matrices(self.model.select(from_files(ROOT, paths, ROOT)))
 
+    def full_plan(self):
+        changes = ChangeSet(
+            ROOT, Scope.COMMITTED, [], problems=["full validation event"]
+        )
+        return matrices(self.model.select(changes))
+
     def test_sbom_changes_run_inventory_tests_in_python_matrix(self):
         plan = self.plan("scripts/sbom/generate.py")
-        self.assertEqual([row["check"] for row in plan["python"]], ["python:scripts-sbom"])
+        self.assertEqual(
+            [row["check"] for row in plan["python"]], ["python:scripts-sbom"]
+        )
 
     def test_unchanged_tree_skips_every_managed_job(self):
         plan = self.plan()
@@ -153,6 +162,32 @@ class PlanTests(unittest.TestCase):
         features = rust["sequent-core"].removeprefix("--features ").split(",")
         self.assertIn("monitoring", features)
 
+    def test_small_crates_share_one_runner_and_keep_their_arguments(self):
+        plan = self.full_plan()
+        jobs = {row["service"]: row["script"] for row in plan["rust_jobs"]}
+        self.assertNotIn("trellis", jobs)
+        script = jobs["small-crates"]
+        self.assertIn(
+            "(cd packages/voting-crypto && cargo test --locked --release) || status=1",
+            script,
+        )
+        self.assertIn("--features upstream-service --lib --example monitor", script)
+        self.assertTrue(script.endswith("exit $status"))
+        self.assertEqual(
+            jobs["harvest"], "(cd packages/harvest && cargo test --locked)"
+        )
+        self.assertEqual(
+            {row["service"] for row in plan["rust"]},
+            set(jobs) - {"small-crates"} | set(ci.SMALL_RUST),
+        )
+
+    def test_database_contracts_run_from_their_own_checks(self):
+        self.assertTrue(self.full_plan()["jobs"]["run-database-contracts"])
+        # step-cli's own change needs its contracts, not Windmill's job.
+        plan = self.plan("packages/step-cli/src/acceptance/hasura.rs")
+        self.assertTrue(plan["jobs"]["run-database-contracts"])
+        self.assertFalse(plan["jobs"]["run-windmill-tests"])
+
     def test_trellis_tests_its_upstream_service_and_postgres_consumers(self):
         plan = self.plan("packages/trellis/src/tree.rs")
         rust = {row["service"]: row["extra"] for row in plan["rust"]}
@@ -161,7 +196,7 @@ class PlanTests(unittest.TestCase):
             "--features upstream-service --lib --example monitor --example post",
         )
         self.assertIn("electoral-log", rust)
-        self.assertTrue(plan["jobs"]["run-windmill-tests"])
+        self.assertTrue(plan["jobs"]["run-database-contracts"])
 
     def test_pgmq_broker_tests_its_crate_and_the_windmill_transport(self):
         plan = self.plan("packages/pgmq-broker/src/lib.rs")
@@ -170,7 +205,52 @@ class PlanTests(unittest.TestCase):
 
     def test_step_cli_acceptance_change_runs_its_database_check(self):
         plan = self.plan("packages/step-cli/src/acceptance/hasura.rs")
-        self.assertTrue(plan["jobs"]["run-windmill-tests"])
+        self.assertTrue(plan["jobs"]["run-database-contracts"])
+
+    def test_step_cli_binary_follows_its_embedded_inputs(self):
+        # Build Step CLI Binary only builds on PRs that select step-cli's tests.
+        for path, selected in (
+            ("packages/admin-portal/src/App.tsx", False),
+            ("docs/docusaurus/docs/intro.md", False),
+            ("packages/sequent-core/src/lib.rs", True),
+            ("packages/admin-portal/public/roboto/Roboto_latin_400.woff2", True),
+            (".devcontainer/minio/public-assets/activity_logs_user.hbs", True),
+            ("packages/voting-load/Dockerfile", True),
+        ):
+            with self.subTest(path=path):
+                services = [row["service"] for row in self.plan(path)["rust"]]
+                self.assertEqual("step-cli" in services, selected)
+
+    def test_wasm_build_follows_what_it_builds(self):
+        # build_wasm.yml builds on PRs only when this predicate holds.
+        def builds(plan):
+            return (
+                plan["jobs"]["wasm-freshness"]
+                or bool(plan["wasm_builds"])
+                or any(
+                    row["service"] in ("sequent-core", "protocol-board")
+                    for row in plan["rust"]
+                )
+                or any(
+                    row["package"] in ("ui-core", "ui-essentials", "workbench")
+                    for row in plan["node"]
+                )
+            )
+
+        for path, selected in (
+            ("packages/admin-portal/src/App.tsx", False),
+            ("packages/windmill/src/lib.rs", False),
+            ("docs/docusaurus/docs/intro.md", False),
+            ("packages/sequent-core/src/lib.rs", True),
+            ("packages/protocol-board/src/lib.rs", True),
+            ("packages/wbraid/crates/braid/src/lib.rs", True),
+            ("packages/ui-essentials/src/index.ts", True),
+            ("packages/workbench/package.json", True),
+            ("packages/yarn.lock", True),
+            (".devcontainer/scripts/rebuild-election-config-wasm.sh", True),
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(builds(self.plan(path)), selected)
 
     def test_step_cli_builder_does_not_check_core_gates(self):
         plan = self.plan("packages/step-cli/src/commands/build_election_event.rs")
@@ -319,6 +399,23 @@ class VerifyCommandTests(unittest.TestCase):
             scope="ui_jobs",
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
+class CompileCacheWiringTests(unittest.TestCase):
+    def test_rust_jobs_can_reach_the_shared_compiler_cache(self):
+        # Without the input or an OIDC token, a job silently compiles everything.
+        for workflow in sorted((ROOT / ".github/workflows").glob("*.yml")):
+            text = workflow.read_text()
+            calls = text.count("uses: ./.github/actions/setup-rust-tests") + text.count(
+                "uses: ./.github/actions/setup-rust-cache"
+            )
+            if not calls:
+                continue
+            with self.subTest(workflow=workflow.name):
+                self.assertEqual(
+                    text.count("compile-cache: ${{ vars.STEP_COMPILE_CACHE }}"), calls
+                )
+                self.assertIn("id-token: write", text)
 
 
 if __name__ == "__main__":

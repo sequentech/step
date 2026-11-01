@@ -2859,6 +2859,9 @@ const spanishTranslation: TranslationType = {
                         delete: "¿Está seguro de que desea eliminar este elemento?",
                         sealsUnknown:
                             "No se pudieron comprobar los sellos de las urnas: si tiene urnas selladas, se rechazará el borrado.",
+                        archiveNamed: '¿Está seguro de que desea archivar "{{name}}"?',
+                        unarchiveNamed: '¿Está seguro de que desea desarchivar "{{name}}"?',
+                        deleteNamed: '¿Está seguro de que desea eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2979,6 +2982,13 @@ const spanishTranslation: TranslationType = {
                 "label": "Forma del icono de la casilla de verificación de los candidatos",
                 "square-checkbox": "Casilla de verificación cuadrada",
                 "round-checkbox": "Casilla de verificación redonda",
+            },
+            candidatesLayout: {
+                "label": "Disposición de las candidaturas",
+                "helperText":
+                    "La cuadrícula de papeleta en papel muestra las candidaturas como celdas numeradas con un círculo para rellenar, columna a columna, según Columnas (4 si está vacío). Las votaciones por orden de preferencia siempre usan la lista.",
+                "list": "Lista",
+                "paper-grid": "Cuadrícula de papeleta en papel",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidatos Y Listas",
@@ -4453,6 +4463,8 @@ const spanishTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Paneles configurables",
+            modeChangeError: "No se pudo cambiar el modo del panel. Inténtelo de nuevo.",
             title: "Monitorización",
             loading: "Cargando la monitorización",
             unavailableAlert:

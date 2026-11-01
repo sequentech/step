@@ -2985,6 +2985,9 @@ const englishTranslation = {
                         delete: "Are you sure to delete this item?",
                         sealsUnknown:
                             "The ballot box seals could not be checked: if it has sealed ballot boxes, the delete is refused.",
+                        archiveNamed: 'Are you sure you want to archive "{{name}}"?',
+                        unarchiveNamed: 'Are you sure you want to unarchive "{{name}}"?',
+                        deleteNamed: 'Are you sure you want to delete "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -3105,6 +3108,13 @@ const englishTranslation = {
                 "label": "Candidates checkbox icon shape",
                 "square-checkbox": "Square Checkbox",
                 "round-checkbox": "Round Checkbox",
+            },
+            candidatesLayout: {
+                "label": "Candidates layout",
+                "helperText":
+                    "Paper ballot grid shows candidates as numbered cells with a fill-in circle, filled column by column, using Columns (4 if empty). Ranked contests always use the list.",
+                "list": "List",
+                "paper-grid": "Paper ballot grid",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidates And Lists",
@@ -4587,6 +4597,8 @@ const englishTranslation = {
             },
         },
         monitoring: {
+            configuredDashboards: "Configurable dashboards",
+            modeChangeError: "Could not change the dashboard mode. Try again.",
             title: "Monitoring",
             loading: "Loading monitoring",
             unavailableAlert:

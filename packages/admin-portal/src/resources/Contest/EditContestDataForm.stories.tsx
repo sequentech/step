@@ -211,6 +211,14 @@ export const CheckboxShapeSavesBothChoices = contestPolicyChoices(
         ["Square Checkbox", "square-checkbox"],
     ]
 )
+export const CandidatesLayoutSavesBothChoices = contestPolicyChoices(
+    "Candidates layout",
+    "candidates_layout",
+    [
+        ["Paper ballot grid", "paper-grid"],
+        ["List", "list"],
+    ]
+)
 export const SelectionAndDisplaySettingsSave: Story = {
     play: async ({canvasElement}) => {
         const canvas = await openPolicies(canvasElement, "contest")

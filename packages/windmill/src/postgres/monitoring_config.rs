@@ -355,6 +355,21 @@ pub async fn lock_election_event(transaction: &Transaction<'_>, event: EventRef)
         .is_some())
 }
 
+/// Holds the monitoring row before choosing between first initialization and
+/// a mode-only change. Resets and saves take the same row lock when they raise
+/// the generation, so a first enable cannot overwrite a concurrent change.
+pub async fn lock_monitoring_event(transaction: &Transaction<'_>, event: EventRef) -> Result<()> {
+    transaction
+        .query_opt(
+            "SELECT 1 FROM sequent_backend.monitoring_event
+         WHERE tenant_id = $1 AND election_event_id = $2 FOR UPDATE",
+            &[&event.tenant_id, &event.election_event_id],
+        )
+        .await
+        .context("Failed to lock the monitoring configuration")?;
+    Ok(())
+}
+
 /// Makes now the checks the tables defer to commit, so that a change the
 /// electoral log is about to record is one that will commit.
 #[instrument(err, skip(transaction))]

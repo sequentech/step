@@ -14,7 +14,8 @@ on:
       - scripts/coverage/**
       - rust-toolchain.toml
   push:
-    branches: [main]
+    # Pushes seed the build caches that PRs against these branches restore.
+    branches: [main, ovcs, 'release/[0-9]+.[0-9]+']
     paths:
       - .github/workflows/backend-e2e.yml
       - .devcontainer/**
@@ -30,21 +31,112 @@ permissions:
 
 concurrency:
   group: backend-e2e-${{ github.ref }}
-  cancel-in-progress: true
+  # A cancelled push saves no cache, so only PRs cancel their older runs.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Layer caches for the service images, in GHCR: the repository's Actions cache
+# is full and evicts within hours. Every run imports its branch's tags and the
+# base branch's; pushes and manual runs export to their branch's tags.
+env:
+  STEP_E2E_BUILD_CACHE: ghcr.io/${{ github.repository }}/backend-e2e-cache
+  STEP_E2E_BUILD_CACHE_READ: ${{ github.head_ref || github.ref_name }} ${{ github.base_ref || github.event.repository.default_branch }}
+  STEP_E2E_BUILD_CACHE_WRITE: ${{ github.event_name != 'pull_request' && github.ref_name || '' }}
 
 jobs:
+  # trustee and b4v6 are release builds, about a third of the compile. They
+  # build on their own runner while the journeys job builds the images and the
+  # debug binaries, and reach it through the Actions cache: the organization's
+  # artifact storage is shared and can be full.
+  release-binaries:
+    name: Release binaries (trustee, b4)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      # The image layer cache.
+      packages: read
+    env:
+      CARGO_BUILD_JOBS: "4"
+      STEP_E2E_PROJECT: step-e2e-release-${{ github.run_id }}-${{ github.run_attempt }}
+      STEP_E2E_CARGO_TARGET: ${{ github.workspace }}/.cache/backend-e2e/target
+      STEP_E2E_CARGO_HOME: ${{ github.workspace }}/.cache/backend-e2e/cargo-home
+      STEP_E2E_BIN_DIR: ${{ github.workspace }}/.cache/backend-e2e/release-bin
+      STEP_E2E_OUTPUT_DIR: ${{ github.workspace }}/.cache/backend-e2e/run
+      STEP_E2E_COVERAGE: "1"
+      STEP_E2E_BINARIES: release
+      # The image the binaries build in; the journeys job builds the rest.
+      STEP_E2E_IMAGES: harvest
+      # The journeys job exports harvest's layers too.
+      STEP_E2E_BUILD_CACHE_WRITE: ""
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Make room for the build
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h .
+
+      - name: Restore Cargo cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            .cache/backend-e2e/target
+            .cache/backend-e2e/cargo-home
+          key: backend-e2e-release-coverage-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml', 'packages/Cargo.lock', 'packages/wbraid/Cargo.lock', 'packages/Dockerfile.cargo-packages', 'scripts/e2e/build.sh', 'scripts/e2e/coverage-rustc') }}
+          restore-keys: backend-e2e-release-coverage-${{ runner.os }}-
+
+      # A builder that exports caches; the images still load into Docker.
+      - name: Set up the image builder
+        run: docker buildx create --use --name backend-e2e --driver docker-container
+
+      # Fork PRs may get no registry access: they build without the cache.
+      - name: Log in to the image layer cache
+        continue-on-error: true
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          GHCR_USER: ${{ github.actor }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USER" --password-stdin
+
+      - name: Build trustee and b4v6
+        run: scripts/e2e/run.sh --build-only
+
+      - name: Restore ownership for cache upload
+        if: always()
+        run: |
+          if [[ -d .cache/backend-e2e ]]; then
+            sudo chown -R "$(id -u):$(id -g)" .cache/backend-e2e
+          fi
+
+      # Keyed by run: a rerun of this job finds the key taken and keeps the
+      # first build of the same commit.
+      - name: Hand the binaries to the journeys job
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .cache/backend-e2e/release-bin
+          key: backend-e2e-release-bin-${{ github.run_id }}
+
   journeys:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+    permissions:
+      contents: read
+      # To wait for the release-binaries job.
+      actions: read
+      # The image layer cache; PRs never export to it (STEP_E2E_BUILD_CACHE_WRITE).
+      packages: write
     env:
-      CARGO_BUILD_JOBS: "1"
+      CARGO_BUILD_JOBS: "4"
       COMPOSE_PARALLEL_LIMIT: "1"
       STEP_E2E_PROJECT: step-e2e-${{ github.run_id }}-${{ github.run_attempt }}
       STEP_E2E_CARGO_TARGET: ${{ github.workspace }}/.cache/backend-e2e/target
       STEP_E2E_CARGO_HOME: ${{ github.workspace }}/.cache/backend-e2e/cargo-home
+      STEP_E2E_BIN_DIR: ${{ github.workspace }}/.cache/backend-e2e/bin-coverage
       STEP_E2E_OUTPUT_DIR: ${{ github.workspace }}/.cache/backend-e2e/run
       # Instrumented binaries also report the coverage the journeys exercise.
       STEP_E2E_COVERAGE: "1"
+      STEP_E2E_BINARIES: debug
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -65,11 +157,56 @@ jobs:
             .cache/backend-e2e/target
             .cache/backend-e2e/cargo-home
           # Instrumented builds use their own target tree; do not restore the old one.
-          key: backend-e2e-coverage-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml', 'packages/Cargo.lock', 'packages/Dockerfile.cargo-packages', 'scripts/e2e/build.sh', 'scripts/e2e/coverage-rustc') }}
-          restore-keys: backend-e2e-coverage-${{ runner.os }}-
+          key: backend-e2e-debug-coverage-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml', 'packages/Cargo.lock', 'packages/Dockerfile.cargo-packages', 'scripts/e2e/build.sh', 'scripts/e2e/coverage-rustc') }}
+          restore-keys: backend-e2e-debug-coverage-${{ runner.os }}-
 
-      - name: Build and run the isolated backend journeys
-        run: scripts/e2e/run.sh
+      # A builder that exports caches; the images still load into Docker.
+      - name: Set up the image builder
+        run: docker buildx create --use --name backend-e2e --driver docker-container
+
+      # Fork PRs may get no registry access: they build without the cache.
+      - name: Log in to the image layer cache
+        continue-on-error: true
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          GHCR_USER: ${{ github.actor }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USER" --password-stdin
+
+      - name: Build the images and the debug binaries
+        run: scripts/e2e/run.sh --build-only
+
+      - name: Wait for the release binaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB: Release binaries (trustee, b4)
+        run: |
+          # Every attempt, newest first: rerunning failed jobs doesn't rerun a
+          # release job that succeeded, so its success is in an earlier attempt.
+          for _ in $(seq 1 180); do
+            status= conclusion=
+            read -r status conclusion < <(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?filter=all&per_page=100" \
+              --jq '[.jobs[] | select(.name == env.JOB)] | max_by(.run_attempt) | "\(.status) \(.conclusion)"') || true
+            if [[ "$status" == completed ]]; then
+              [[ "$conclusion" == success ]] && exit 0
+              echo "::error::$JOB finished with $conclusion"
+              exit 1
+            fi
+            sleep 20
+          done
+          echo "::error::$JOB did not finish within an hour"
+          exit 1
+
+      - name: Restore the release binaries
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .cache/backend-e2e/release-bin
+          key: backend-e2e-release-bin-${{ github.run_id }}
+          fail-on-cache-miss: true
+
+      - name: Run the isolated backend journeys
+        run: |
+          install -m 0755 .cache/backend-e2e/release-bin/trustee .cache/backend-e2e/release-bin/b4v6 "$STEP_E2E_BIN_DIR/"
+          scripts/e2e/run.sh --skip-images --skip-build
 
       - name: Restore ownership for cache upload
         if: always()

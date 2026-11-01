@@ -547,9 +547,9 @@ pub async fn set_dashboard_mode(
     )
     .await
     .map_err(|error| match error {
-        ModeError::NotConfigured => MonitoringError::not_found(
-            "The event has no monitoring configuration; reset it to a preset first.",
-        ),
+        ModeError::NotConfigured => {
+            MonitoringError::not_found("The election event does not exist.")
+        }
         ModeError::Invalid(report) => MonitoringError::invalid(&report),
         ModeError::Internal(error) => MonitoringError::internal(error),
     })?;
