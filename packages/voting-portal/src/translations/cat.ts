@@ -90,7 +90,7 @@ const catalanTranslation: TranslationType = {
                 "review":
                     "Aquesta pàgina mostra les opcions que heu triat. Comproveu-les amb atenció. Per canviar alguna cosa, feu servir el botó per editar la papereta. Per emetre el vot, aneu al botó per emetre la papereta i premeu Retorn. L'identificador de la papereta és al principi de la pàgina. El podeu copiar per localitzar la papereta més endavant.",
                 "confirmation":
-                    "El vostre vot s'ha emès. Aquesta pàgina mostra l'identificador de la papereta, amb què podeu comprovar que s'ha registrat. El podeu copiar o podeu imprimir aquesta pàgina. Quan acabeu, feu servir el botó del final de la pàgina per finalitzar.",
+                    "El vostre vot s'ha emès. Aquesta pàgina mostra l'identificador de la papereta, amb què podeu comprovar que s'ha registrat. El podeu copiar o podeu desar el rebut en PDF. Quan acabeu, feu servir el botó per finalitzar, que va just després del que desa el rebut.",
                 "audit":
                     "Aquesta pàgina us permet auditar la papereta en lloc d'emetre-la. Mostra la informació que podeu comprovar amb el verificador de paperetes. Una papereta auditada no s'emet, de manera que després heu de tornar a la papereta per votar.",
                 "ballot-locator":
@@ -383,35 +383,24 @@ const catalanTranslation: TranslationType = {
                 title: "Resolt per aclamació",
                 description:
                     "Totes les votacions d'aquesta elecció s'han resolt per aclamació, per la qual cosa no s'ha emès cap papereta i no hi ha ID de seguiment.",
-                helpDialog: {
-                    title: "Informació: Aclamació",
-                    content:
-                        "Totes les votacions d'aquesta elecció s'han resolt per aclamació: les seves candidatures resulten elegides sense votació. Com que no s'ha emès cap papereta, no hi ha ID de seguiment, comprovant ni codi QR per verificar.",
-                    ok: "D'acord",
-                },
             },
             title: "El vostre vot ha estat emès",
-            description:
-                "La vostra papereta va ser emesa correctament. Utilitzeu el codi a continuació per verificar que va ser comptabilitzada",
             blankBallot: {
                 description:
                     "La vostra papereta s'ha emès en blanc, que és una elecció vàlida i deliberada.",
             },
             ballotId: "ID de seguiment",
-            printButton: "Imprimir",
             finishButton: "Finalitzar",
+            saveReceiptButton: "Desa el rebut (PDF)",
+            receipt: "Rebut",
+            keepTitle: "Conserveu el vostre rebut",
+            keepLead:
+                "Aquest lloc web no en guarda cap còpia. Deseu-lo ara per comprovar la vostra papereta més endavant, des de qualsevol dispositiu.",
+            castEmailNote: "També us n’hem enviat una còpia per correu electrònic.",
+            qrCaption: "Escanegeu-lo per comprovar-la en un altre dispositiu",
             remainingElectionsError:
                 "No hem pogut comprovar si teniu més eleccions en què votar. Torneu-ho a provar.",
             retryButton: "Tornar-ho a provar",
-            verifyCastTitle: "Comproveu que el vostre vot va ser emès",
-            verifyCastDescription:
-                "Podeu verificar en qualsevol moment que la vostra papereta va ser emesa correctament usant el codi QR a continuació",
-            confirmationHelpDialog: {
-                title: "Sobre la pantalla de confirmació",
-                content:
-                    "Aquesta pantalla confirma que el vostre vot va ser emès correctament. La informació aquí us permet verificar que la papereta va ser emmagatzemada a l'urna, tant durant el període de votació com després del seu tancament",
-                ok: "D'acord",
-            },
             demoPrintDialog: {
                 title: "Impressió de la papereta de vot",
                 content: "Impressió desactivada en mode de demostració",
@@ -1179,6 +1168,7 @@ const catalanTranslation: TranslationType = {
                 },
             },
             updates: {
+                optional: "Opcional",
                 title: "Rebeu actualitzacions per correu sobre aquesta papereta",
                 description:
                     "Quan es confirmi i quan es compti, o si es registra un problema. Trieu qualsevol node: cadascun comprova el registre per si mateix.",

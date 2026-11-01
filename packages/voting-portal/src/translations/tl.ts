@@ -89,7 +89,7 @@ const tagalogTranslation: TranslationType = {
                 "review":
                     "Ipinapakita ng pahinang ito ang mga pinili mo. Suriin itong mabuti. Para may baguhin, gamitin ang button para i-edit ang iyong balota. Para bumoto, pumunta sa button para ihulog ang iyong balota at pindutin ang Enter. Nasa itaas ng pahina ang iyong Ballot ID. Maaari mo itong kopyahin upang mahanap ang iyong balota sa ibang pagkakataon.",
                 "confirmation":
-                    "Naihulog na ang iyong boto. Ipinapakita ng pahinang ito ang iyong Ballot ID, na magagamit mo upang tiyaking naitala ang iyong balota. Maaari mo itong kopyahin o i-print ang pahinang ito. Kapag tapos ka na, gamitin ang button sa dulo ng pahina upang tapusin.",
+                    "Naihulog na ang iyong boto. Ipinapakita ng pahinang ito ang iyong Ballot ID, na magagamit mo upang tiyaking naitala ang iyong balota. Maaari mo itong kopyahin o i-save ang iyong resibo bilang PDF. Kapag tapos ka na, gamitin ang button para tapusin, na kasunod mismo ng button na nagse-save ng resibo.",
                 "audit":
                     "Sa pahinang ito, maaari mong i-audit ang iyong balota sa halip na ihulog ito. Ipinapakita nito ang impormasyong masusuri mo gamit ang ballot verifier. Hindi naihuhulog ang balotang na-audit, kaya bumalik pagkatapos sa iyong balota upang bumoto.",
                 "ballot-locator":
@@ -380,35 +380,24 @@ const tagalogTranslation: TranslationType = {
                 title: "Napagpasyahan sa pamamagitan ng aklamasyon",
                 description:
                     "Lahat ng paligsahan sa halalang ito ay napagpasyahan sa pamamagitan ng aklamasyon, kaya walang balotang isinumite at walang Tracking ID.",
-                helpDialog: {
-                    title: "Impormasyon: Aklamasyon",
-                    content:
-                        "Lahat ng paligsahan sa halalang ito ay napagpasyahan sa pamamagitan ng aklamasyon: ang mga kandidato nito ay nahalal nang walang botohan. Dahil walang balotang isinumite, walang Tracking ID, resibo, o QR code na maaaring i-verify.",
-                    ok: "OK",
-                },
             },
             title: "Ang iyong boto ay nai-submit na",
-            description:
-                "Ang code ng kumpirmasyon sa ibaba ay nagpapatunay na <b>ang iyong balota ay matagumpay na nai-submit</b>. Maaari mong gamitin ang code na ito upang tiyakin na ang iyong balota ay nabilang.",
             blankBallot: {
                 description:
                     "Ang iyong balota ay naisumite bilang blangko, na isang wasto at sinasadyang pagpili.",
             },
             ballotId: "Tracking ID",
-            printButton: "I-print",
             finishButton: "Tapos na",
+            saveReceiptButton: "I-save ang resibo (PDF)",
+            receipt: "Resibo",
+            keepTitle: "Itago ang iyong resibo",
+            keepLead:
+                "Hindi nagtatago ng kopya ang website na ito. I-save ito ngayon para masuri ang iyong balota sa ibang pagkakataon, sa anumang device.",
+            castEmailNote: "Ipinadala rin sa iyo ang isang kopya sa email.",
+            qrCaption: "I-scan para masuri ito sa ibang device",
             remainingElectionsError:
                 "Hindi namin masuri kung mayroon ka pang ibang eleksiyong maaaring botohan. Pakisubukang muli.",
             retryButton: "Subukang muli",
-            verifyCastTitle: "Tiyakin na ang iyong balota ay nai-submit",
-            verifyCastDescription:
-                "Maaari mong tiyakin na ang iyong balota ay nai-submit nang tama anumang oras gamit ang sumusunod na QR code:",
-            confirmationHelpDialog: {
-                title: "Tungkol sa screen ng kumpirmasyon",
-                content:
-                    "Ipinapakita ng screen na ito na ang iyong boto ay matagumpay na nai-submit. Maaari mong tiyakin na ang balota ay nai-submit sa ballot box.",
-                ok: "OK",
-            },
             demoPrintDialog: {
                 title: "Pagpi-print ng balota",
                 content: "Ang pagpi-print ay hindi pinapayagan sa demo mode",
@@ -1184,6 +1173,7 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             updates: {
+                optional: "Opsyonal",
                 title: "Kumuha ng mga update sa email tungkol sa balotang ito",
                 description:
                     "Kapag nakumpirma na ito at kapag nabilang na, o kung may naitalang problema. Pumili ng alinmang hub: sinusuri ng bawat isa ang talaan nang mag-isa.",

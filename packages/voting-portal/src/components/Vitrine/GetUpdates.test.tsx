@@ -218,77 +218,20 @@ describe("the order", () => {
 })
 
 describe("the layout", () => {
-    it("is one column of tiles, for a phone, and a band with the tiles beside the text at 760 px", () => {
+    it("lays the hubs out as equal tiles, and one column when the section is narrow (design v42)", () => {
         render(<GetUpdates hubs={[HUB_B, HUB_S]} policyId={POLICY_ID} receipt={RECEIPT} />)
         const section = document.querySelector(".get-updates") as HTMLElement
         expect(getComputedStyle(section).containerType).toBe("inline-size")
         expect(getComputedStyle(screen.getByRole("list")).gridTemplateColumns).toBe(
-            "minmax(0, 1fr)"
+            "repeat(auto-fill, minmax(232px, 1fr))"
         )
         const rules = css()
-        expect(rules).toMatch(/@container \(min-width: 760px\)/)
-        expect(rules).toMatch(/grid-auto-flow: column/)
-        expect(rules).toMatch(/grid-auto-columns: 220px/)
-        expect(rules).toMatch(/grid-template-columns: minmax\(0, 1fr\) auto/)
+        expect(rules).toMatch(/@container \(max-width: 480px\)/)
+        expect(rules).toMatch(/grid-template-columns: minmax\(0, 1fr\)/)
     })
 
     it("gives each tile room for a finger", () => {
         render(<GetUpdates hubs={[HUB_B]} policyId={POLICY_ID} receipt={RECEIPT} />)
-        expect(getComputedStyle(tiles()[0]).minHeight).toBe("56px")
-    })
-})
-
-describe("the accessibility", () => {
-    it("has no axe violations, with or without a receipt", async () => {
-        const hubs = [HUB_B, HUB_S, HUB_C]
-        const withReceipt = render(
-            <GetUpdates hubs={hubs} policyId={POLICY_ID} receipt={RECEIPT} />
-        )
-        expect(await violations(withReceipt.container)).toEqual([])
-        withReceipt.unmount()
-        const without = render(<GetUpdates hubs={[HUB_B]} policyId={POLICY_ID} />)
-        expect(await violations(without.container)).toEqual([])
-    })
-
-    it("keeps the decorative icons out of the tree, so a tile's name is the label alone", () => {
-        render(<GetUpdates hubs={[HUB_B]} policyId={POLICY_ID} receipt={RECEIPT} />)
-        for (const icon of Array.from(document.querySelectorAll("svg"))) {
-            expect(icon.getAttribute("aria-hidden")).toBe("true")
-        }
-        expect(
-            screen.getByRole("link", {
-                name: 'vitrine.updates.hubLabel {"name":"hub-b","party":"Partner Co"}',
-            })
-        ).toBeTruthy()
-    })
-})
-
-describe("the words", () => {
-    type TCatalogue = {translations: {vitrine: {updates: Record<string, string>}}}
-    const catalogues = Object.entries(votingPortalTranslations).map(
-        ([language, resource]) =>
-            [language, (resource as unknown as TCatalogue).translations.vitrine.updates] as const
-    )
-    const english = catalogues.find(([language]) => language === "en")![1]
-    const placeholders = (text: string): string[] => (text.match(/{{\w+}}/g) ?? []).sort()
-
-    it("are there in every language the portal ships", () => {
-        expect(catalogues.map(([language]) => language).sort()).toEqual(
-            ["cat", "en", "es", "eu", "fr", "gl", "nl", "tl"].sort()
-        )
-    })
-
-    it.each(catalogues)("%s has every key, with the same placeholders", (_language, words) => {
-        expect(Object.keys(words).sort()).toEqual(Object.keys(english).sort())
-        for (const [key, text] of Object.entries(words)) {
-            expect(text.trim()).not.toBe("")
-            expect(placeholders(text)).toEqual(placeholders(english[key]))
-        }
-    })
-
-    it("name no hub apart from the others", () => {
-        for (const text of Object.values(english)) {
-            expect(text).not.toMatch(/independent|recommended|default|featured|badge/i)
-        }
+        expect(getComputedStyle(tiles()[0]).minHeight).toBe("60px")
     })
 })

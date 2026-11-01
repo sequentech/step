@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// "Get email updates about this ballot" (design boards GetUpdates,
-// ConfirmationUpdates and PhoneConfirmationUpdates): the hubs that the
-// election's policy names, as equal tiles. Each opens the hub's own site in a
+// "Get email updates about this ballot" (design boards HubTilesV42 and
+// ConfirmationV42B): an optional section under the receipt, with no box of its
+// own, offering the hubs that the election's policy names as equal tiles. Each opens the hub's own site in a
 // new tab with the ballot's receipt in the link, and the hub's site asks for
 // the address and what to watch there; nothing is sent from this page. The
 // tiles come in a random order on each visit, and none is the default or
@@ -16,23 +16,19 @@ import {useTranslation} from "react-i18next"
 import {IOfferedHub, shuffled, watchLink} from "../../services/vitrine/hubUpdates"
 
 const COLORS = {
-    border: "#E3E7F1",
-    tileBorder: "#CBD3E3",
+    tileBorder: "#D5DBE8",
     text: "#191D23",
     navy: "#0F054C",
-    // The board's grey, a little darker: the band behind the footnote is not white.
-    quiet: "#5B6B80",
-    body: "#475569",
-    icon: "#E9EAF6",
+    quiet: "#5B6474",
+    body: "#4A5262",
+    hover: "#FAFBFF",
 } as const
 
-/** From this width the text goes left and the tiles right, in one band. */
-const WIDE = 760
+/** Narrower than this, the tiles stack and the words get a little smaller. */
+const NARROW = 480
 
-/** The width of a tile in the wide band, and the icon's indent under which
- * the footnote lines up with the title. */
-const TILE_WIDTH = 220
-const FOOT_INDENT = 54
+/** The narrowest a tile gets before the row wraps. */
+const TILE_MIN = 232
 
 const KEYS = "vitrine.updates"
 
@@ -105,175 +101,167 @@ export const GetUpdates: React.FC<IGetUpdatesProps> = ({hubs, policyId, receipt}
             sx={{
                 width: "100%",
                 boxSizing: "border-box",
-                m: "4px 0 20px",
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: "12px",
-                background: "linear-gradient(180deg, #FAFBFF 0%, #F4F6FC 100%)",
                 color: COLORS.text,
                 containerType: "inline-size",
-                [`@container (min-width: ${WIDE}px)`]: {
-                    "& .get-updates-inner": {
-                        gridTemplateColumns: "minmax(0, 1fr) auto",
-                        alignItems: "center",
-                        columnGap: "32px",
-                        padding: "18px 20px",
-                    },
-                    "& .get-updates-hubs": {
-                        gridTemplateColumns: "none",
-                        gridAutoFlow: "column",
-                        gridAutoColumns: `${TILE_WIDTH}px`,
-                    },
-                    "& .get-updates-foot": {
-                        gridColumn: "1 / -1",
-                        paddingLeft: `${FOOT_INDENT}px`,
-                    },
+                [`@container (max-width: ${NARROW}px)`]: {
+                    "& .get-updates-hubs": {gridTemplateColumns: "minmax(0, 1fr)"},
+                    "& .get-updates-title": {fontSize: "17px"},
+                    "& .get-updates-description": {fontSize: "14px", lineHeight: "21px"},
                 },
             }}
         >
-            <Box className="get-updates-inner" sx={{display: "grid", gap: "14px", p: "18px"}}>
-                <Box
-                    className="get-updates-head"
-                    sx={{display: "flex", gap: "14px", alignItems: "flex-start", minWidth: 0}}
-                >
+            <Box
+                component="span"
+                className="get-updates-optional"
+                sx={{
+                    display: "inline-block",
+                    m: "0 0 6px",
+                    fontSize: "12px",
+                    lineHeight: "16px",
+                    fontWeight: 700,
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                    color: COLORS.quiet,
+                }}
+            >
+                {t(`${KEYS}.optional`)}
+            </Box>
+            <Box
+                component="h2"
+                id={titleId}
+                className="get-updates-title"
+                sx={{
+                    "display": "flex",
+                    "alignItems": "center",
+                    "gap": "10px",
+                    "m": 0,
+                    "fontSize": "18px",
+                    "lineHeight": "24px",
+                    "fontWeight": 700,
+                    "& .get-updates-mail": {flex: "none", color: COLORS.navy},
+                }}
+            >
+                <MailIcon />
+                <span className="get-updates-title-text">{t(`${KEYS}.title`)}</span>
+            </Box>
+            <Box
+                component="p"
+                className="get-updates-description"
+                sx={{
+                    m: "6px 0 0",
+                    maxWidth: "62ch",
+                    fontSize: "15px",
+                    lineHeight: "22px",
+                    color: COLORS.body,
+                }}
+            >
+                {t(`${KEYS}.description`)}
+            </Box>
+            <Box
+                component="ul"
+                className="get-updates-hubs"
+                aria-label={t(`${KEYS}.listLabel`)}
+                sx={{
+                    display: "grid",
+                    gridTemplateColumns: `repeat(auto-fill, minmax(${TILE_MIN}px, 1fr))`,
+                    gap: "10px",
+                    m: "16px 0 0",
+                    p: 0,
+                    listStyle: "none",
+                }}
+            >
+                {ordered.map((hub) => (
                     <Box
-                        component="span"
-                        className="get-updates-icon"
-                        aria-hidden="true"
-                        sx={{
-                            flex: "none",
-                            width: 40,
-                            height: 40,
-                            borderRadius: "50%",
-                            backgroundColor: COLORS.icon,
-                            color: COLORS.navy,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                        }}
+                        component="li"
+                        key={hub.name}
+                        className="get-updates-item"
+                        sx={{display: "flex", minWidth: 0}}
                     >
-                        <MailIcon />
-                    </Box>
-                    <Box className="get-updates-text" sx={{minWidth: 0}}>
                         <Box
-                            component="h2"
-                            id={titleId}
-                            className="get-updates-title"
-                            sx={{m: 0, fontSize: "16px", lineHeight: "22px", fontWeight: 700}}
-                        >
-                            {t(`${KEYS}.title`)}
-                        </Box>
-                        <Box
-                            component="p"
-                            className="get-updates-description"
+                            component="a"
+                            className="get-updates-hub"
+                            href={watchLink(hub.site, policyId, receipt)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={t(`${KEYS}.hubLabel`, {
+                                name: hub.name,
+                                party: hub.party,
+                            })}
                             sx={{
-                                m: "2px 0 0",
-                                fontSize: "14px",
-                                lineHeight: "20px",
-                                color: COLORS.body,
+                                "flex": 1,
+                                "minWidth": 0,
+                                "display": "flex",
+                                "alignItems": "center",
+                                "gap": "12px",
+                                "minHeight": 60,
+                                "p": "10px 14px 10px 16px",
+                                "boxSizing": "border-box",
+                                "border": `1px solid ${COLORS.tileBorder}`,
+                                "borderRadius": "10px",
+                                "backgroundColor": "#fff",
+                                "color": COLORS.navy,
+                                "textDecoration": "none",
+                                "transition": "border-color .15s, background-color .15s",
+                                "&:hover": {
+                                    borderColor: COLORS.navy,
+                                    backgroundColor: COLORS.hover,
+                                },
+                                "&:focus-visible": {
+                                    outline: `2px solid ${COLORS.navy}`,
+                                    outlineOffset: "2px",
+                                },
                             }}
                         >
-                            {t(`${KEYS}.description`)}
-                        </Box>
-                    </Box>
-                </Box>
-                <Box
-                    component="ul"
-                    className="get-updates-hubs"
-                    aria-label={t(`${KEYS}.listLabel`)}
-                    sx={{
-                        display: "grid",
-                        gridTemplateColumns: "minmax(0, 1fr)",
-                        gap: "8px",
-                        m: 0,
-                        p: 0,
-                        listStyle: "none",
-                    }}
-                >
-                    {ordered.map((hub) => (
-                        <Box
-                            component="li"
-                            key={hub.name}
-                            className="get-updates-item"
-                            sx={{display: "flex"}}
-                        >
                             <Box
-                                component="a"
-                                className="get-updates-hub"
-                                href={watchLink(hub.site, policyId, receipt)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                aria-label={t(`${KEYS}.hubLabel`, {
-                                    name: hub.name,
-                                    party: hub.party,
-                                })}
-                                sx={{
-                                    "flex": 1,
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "gap": "12px",
-                                    "minHeight": 56,
-                                    "p": "8px 14px",
-                                    "boxSizing": "border-box",
-                                    "border": `1px solid ${COLORS.tileBorder}`,
-                                    "borderRadius": "8px",
-                                    "backgroundColor": "#fff",
-                                    "color": COLORS.navy,
-                                    "textDecoration": "none",
-                                    "transition": "border-color .15s, box-shadow .15s",
-                                    "&:hover": {
-                                        borderColor: COLORS.navy,
-                                        boxShadow: "0 1px 0 rgba(15, 5, 76, 0.08)",
-                                    },
-                                    "&:focus-visible": {
-                                        outline: `2px solid ${COLORS.navy}`,
-                                        outlineOffset: "2px",
-                                    },
-                                }}
+                                component="span"
+                                className="get-updates-hub-text"
+                                sx={{flex: 1, minWidth: 0}}
                             >
                                 <Box
                                     component="span"
-                                    className="get-updates-hub-text"
-                                    sx={{flex: 1, minWidth: 0}}
+                                    className="get-updates-hub-name"
+                                    sx={{
+                                        display: "block",
+                                        fontSize: "15px",
+                                        lineHeight: "20px",
+                                        fontWeight: 600,
+                                        overflowWrap: "anywhere",
+                                    }}
                                 >
-                                    <Box
-                                        component="span"
-                                        className="get-updates-hub-name"
-                                        sx={{
-                                            display: "block",
-                                            fontSize: "15px",
-                                            lineHeight: "20px",
-                                            fontWeight: 600,
-                                            overflowWrap: "anywhere",
-                                        }}
-                                    >
-                                        {hub.name}
-                                    </Box>
-                                    <Box
-                                        component="span"
-                                        className="get-updates-hub-who"
-                                        sx={{
-                                            display: "block",
-                                            fontSize: "13px",
-                                            lineHeight: "18px",
-                                            color: COLORS.quiet,
-                                            overflowWrap: "anywhere",
-                                        }}
-                                    >
-                                        {t(`${KEYS}.runBy`, {party: hub.party})}
-                                    </Box>
+                                    {hub.name}
                                 </Box>
-                                <ExternalIcon />
+                                <Box
+                                    component="span"
+                                    className="get-updates-hub-who"
+                                    sx={{
+                                        display: "block",
+                                        mt: "1px",
+                                        fontSize: "13px",
+                                        lineHeight: "18px",
+                                        color: COLORS.quiet,
+                                        overflowWrap: "anywhere",
+                                    }}
+                                >
+                                    {t(`${KEYS}.runBy`, {party: hub.party})}
+                                </Box>
                             </Box>
+                            <ExternalIcon />
                         </Box>
-                    ))}
-                </Box>
-                <Box
-                    component="p"
-                    className="get-updates-foot"
-                    sx={{m: 0, fontSize: "12px", lineHeight: "17px", color: COLORS.quiet}}
-                >
-                    {t(receipt ? `${KEYS}.footnote` : `${KEYS}.footnoteNoReceipt`)}
-                </Box>
+                    </Box>
+                ))}
+            </Box>
+            <Box
+                component="p"
+                className="get-updates-foot"
+                sx={{
+                    m: "12px 0 0",
+                    maxWidth: "80ch",
+                    fontSize: "13px",
+                    lineHeight: "19px",
+                    color: COLORS.quiet,
+                }}
+            >
+                {t(receipt ? `${KEYS}.footnote` : `${KEYS}.footnoteNoReceipt`)}
             </Box>
         </Box>
     )

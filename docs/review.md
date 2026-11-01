@@ -160,6 +160,13 @@ design board. On Step's side:
   `hub-ballot-verifier` line, and the hub's ballot verifier opens the ballot
   by Tracking ID from the public record. An event without a log keeps the
   download.
+- With design v42 the confirmation screen draws the receipt as a ticket for
+  every event (ConfirmationV42B, HubTilesV42): the outcome and Keep your
+  receipt on the left, the ticket with the Tracking ID and the QR code on the
+  right, one column on a phone. Save receipt (PDF) replaces Print, Finish ends
+  the row, the screen's help icon is gone, and Get email updates is optional,
+  after the actions, as equal tiles. The cast email line is left out: the
+  portal cannot tell whether the election sends one.
 - The Transparency tab derives its overview from the policy and the logs, laid
   out as the Admin board in the admin theme, with its label in eight
   languages.

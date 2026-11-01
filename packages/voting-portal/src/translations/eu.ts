@@ -89,7 +89,7 @@ const basqueTranslation: TranslationType = {
                 "review":
                     "Orri honek egin dituzun aukerak erakusten ditu. Egiaztatu arretaz. Zerbait aldatzeko, erabili boto-papera editatzeko botoia. Botoa emateko, joan boto-papera emateko botoira eta sakatu Sartu. Zure boto-paperaren identifikatzailea orriaren hasieran dago. Kopiatu dezakezu boto-papera geroago aurkitzeko.",
                 "confirmation":
-                    "Zure botoa eman da. Orri honek zure boto-paperaren identifikatzailea erakusten du; harekin egiaztatu dezakezu erregistratu dela. Kopiatu dezakezu edo orri hau inprimatu. Amaitzean, erabili orriaren amaierako botoia bukatzeko.",
+                    "Zure botoa eman da. Orri honek zure boto-paperaren identifikatzailea erakusten du; harekin egiaztatu dezakezu erregistratu dela. Kopiatu dezakezu edo zure ordainagiria PDF gisa gorde. Amaitzean, erabili amaitzeko botoia, ordainagiria gordetzen duenaren ondoren dagoena.",
                 "audit":
                     "Orri honek boto-papera eman beharrean ikuskatzeko aukera ematen dizu. Boto-paperen egiaztatzailearekin egiazta dezakezun informazioa erakusten du. Ikuskatutako boto-papera ez da ematen; beraz, itzuli gero zure boto-paperera botoa emateko.",
                 "ballot-locator":
@@ -381,35 +381,24 @@ const basqueTranslation: TranslationType = {
                 title: "Aklamazioz erabakia",
                 description:
                     "Hauteskunde honetako galdera guztiak aklamazioz erabaki dira, beraz, ez da boto-txartelik eman eta ez dago jarraipen IDrik.",
-                helpDialog: {
-                    title: "Informazioa: Aklamazioa",
-                    content:
-                        "Hauteskunde honetako galdera guztiak aklamazioz erabaki dira: haien hautagaiak bozketarik gabe hautatzen dira. Boto-txartelik eman ez denez, ez dago egiaztatzeko jarraipen IDrik, ordainagiririk edo QR koderik.",
-                    ok: "Ados",
-                },
             },
             title: "Zure botoa eman da",
-            description:
-                "Beheko berrespen kodeak egiaztatzen du <b>zure bozketa arrakastaz eman dela</b>. Kode hau erabil dezakezu zure bozketa kontatu dela egiaztatzeko.",
             blankBallot: {
                 description:
                     "Zure boto-txartela zuri gisa aurkeztu da, aukera baliozko eta nahitakoa da.",
             },
             ballotId: "Jarraipen IDa",
-            printButton: "Inprimatu",
             finishButton: "Amaitu",
+            saveReceiptButton: "Gorde ordainagiria (PDF)",
+            receipt: "Ordainagiria",
+            keepTitle: "Gorde zure ordainagiria",
+            keepLead:
+                "Webgune honek ez du kopiarik gordetzen. Gorde ezazu orain, zure boto-papera geroago egiaztatzeko, edozein gailutan.",
+            castEmailNote: "Kopia bat posta elektronikoz ere bidali dizugu.",
+            qrCaption: "Eskaneatu beste gailu batean egiaztatzeko",
             remainingElectionsError:
                 "Ezin izan dugu egiaztatu botoa emateko beste hauteskunderik duzun. Saiatu berriro.",
             retryButton: "Saiatu berriro",
-            verifyCastTitle: "Egiaztatu zure bozketa eman dela",
-            verifyCastDescription:
-                "Zure bozketa zuzen eman dela egiaztatu dezakezu edozein unetan hurrengo QR kodea erabiliz:",
-            confirmationHelpDialog: {
-                title: "Berrespen pantailari buruz",
-                content:
-                    "Pantaila honek zure botoa arrakastaz eman dela erakusten du. Bozketa kutxan gorde dela egiaztatzeko aukera ematen dizu.",
-                ok: "Ados",
-            },
             demoPrintDialog: {
                 title: "Bozketa inprimatzen",
                 content: "Inprimatzea desgaituta demo moduan",
@@ -1189,6 +1178,7 @@ const basqueTranslation: TranslationType = {
                 },
             },
             updates: {
+                optional: "Aukerakoa",
                 title: "Jaso posta elektronikoz eguneratzeak txartel honi buruz",
                 description:
                     "Berretsi denean eta zenbatu denean, edo arazoren bat erregistratzen bada. Aukeratu edozein gune: bakoitzak berak egiaztatzen du erregistroa.",

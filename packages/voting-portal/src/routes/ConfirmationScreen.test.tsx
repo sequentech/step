@@ -46,7 +46,9 @@ jest.mock("@sequentech/ui-core", () => ({
 }))
 jest.mock("@sequentech/ui-essentials", () => ({
     ...jest.requireActual("../../../ui-essentials/src/index"),
-    Dialog: () => null,
+    // Only which of the screen's own dialogs is open.
+    Dialog: ({open, className}: {open: boolean; className?: string}) =>
+        open ? <div className={className} data-testid="open-dialog" /> : null,
 }))
 jest.mock("../store/hooks", () => ({
     useAppSelector: (selector: (state: RootState) => unknown) => selector(mockState),
@@ -80,7 +82,7 @@ jest.mock("@apollo/client/react", () => {
     // Apollo gives every component the same client.
     const client = {}
     return {
-        useMutation: () => [jest.fn()],
+        useMutation: () => [mockCreateReceipt],
         useQuery: () => ({data: undefined, startPolling: jest.fn(), stopPolling: jest.fn()}),
         useApolloClient: () => client,
     }
@@ -96,6 +98,9 @@ let mockIsKiosk = false
 /** The election event's `presentation` as the portal has it, when a test sets one. */
 let mockPresentation: Record<string, unknown> | undefined
 const mockSaveTextFile = jest.fn((..._args: unknown[]) => undefined)
+const mockCreateReceipt = jest.fn(async (..._args: unknown[]) => ({
+    data: {create_ballot_receipt: {id: "receipt-1"}},
+}))
 
 const WITNESSES = KEYS.witnesses.slice(0, 2)
 const PATH = `/tenant/tenant-1/event/${EVENT_ID}/election/${ELECTION_ID}`
@@ -130,6 +135,7 @@ beforeEach(() => {
     mockIsKiosk = false
     mockPresentation = undefined
     mockSaveTextFile.mockClear()
+    mockCreateReceipt.mockClear()
     jest.spyOn(Date, "now").mockReturnValue(NOW * 1000)
 })
 
@@ -235,19 +241,83 @@ const hiddenByAnyRule = (element: Element): boolean => {
 }
 
 describe("the Tracking ID on the confirmation screen", () => {
-    it("keeps the portal's own layout, with the status check mark in the ID box", async () => {
+    it("draws the receipt as a ticket, with the status check mark in the ID chip", async () => {
         casting(receiptOf)
         const {container} = renderScreen()
         await waitFor(() => expect(statusButton(container)).not.toBeNull())
         expect(container.querySelector(".screen-title")).not.toBeNull()
-        expect(container.querySelector(".ballot-id-container")).not.toBeNull()
-        expect(container.querySelector(".ballot-verification-title")).not.toBeNull()
-        expect(container.querySelector(".qr-container svg")).not.toBeNull()
-        const actions = container.querySelector(".actions-container")
+        const ticket = container.querySelector(".confirmation-ticket")!
+        expect(ticket.querySelector(".confirmation-ticket-head")).not.toBeNull()
+        expect(ticket.querySelector(".ballot-id-border")).toContainElement(statusButton(container))
+        expect(ticket.querySelector(".qr-container svg")).not.toBeNull()
+        expect(ticket.querySelector(".qr-caption")?.textContent).toBe(
+            "confirmationScreen.qrCaption"
+        )
+        expect(container.querySelector(".ballot-verification-title")).toBeNull()
+        expect(container.querySelector(".screen-help-button")).toBeNull()
+        const actions = container.querySelector(".confirmation-keep .actions-container")
         expect(actions?.querySelector(".print-receipt-button")).not.toBeNull()
         expect(actions?.querySelector(".finish-button")).not.toBeNull()
         expect(container.querySelector(".ballot-id-check-icon")).toBeNull()
         expect(container.querySelector("[class*=vitrine-]")).toBeNull()
+    })
+
+    it("puts Save receipt and Finish in one row under Keep your receipt, Finish last", async () => {
+        casting(receiptOf)
+        const {container} = renderScreen()
+        await waitFor(() => expect(statusButton(container)).not.toBeNull())
+        const keep = container.querySelector(".confirmation-keep")!
+        expect(keep.querySelector(".confirmation-keep-title")?.textContent).toBe(
+            "confirmationScreen.keepTitle"
+        )
+        const row = keep.querySelector(".actions-container")!
+        const save = screen.getByRole("button", {name: "confirmationScreen.saveReceiptButton"})
+        const finish = screen.getByRole("button", {name: "confirmationScreen.finishButton"})
+        expect(save.parentElement).toBe(row)
+        expect(row.lastElementChild).toBe(finish)
+        expect(container.querySelectorAll("button.finish-button")).toHaveLength(1)
+    })
+
+    it("downloads the PDF receipt from Save receipt, waiting with a spinner", async () => {
+        const {ballotId} = casting(receiptOf)
+        const {container} = renderScreen()
+        await waitFor(() => expect(statusButton(container)).not.toBeNull())
+        await act(async () => {
+            fireEvent.click(
+                screen.getByRole("button", {name: "confirmationScreen.saveReceiptButton"})
+            )
+        })
+        expect(mockCreateReceipt).toHaveBeenCalledTimes(1)
+        expect(mockCreateReceipt.mock.calls[0][0]).toMatchObject({
+            variables: {
+                ballot_id: ballotId,
+                election_id: ELECTION_ID,
+                ballot_tracker_url: expect.stringContaining("/ballot-locator/"),
+            },
+        })
+        expect(container.querySelector(".print-receipt-progress")).not.toBeNull()
+        expect(
+            screen.getByRole("button", {name: "confirmationScreen.saveReceiptButton"})
+        ).toBeDisabled()
+    })
+
+    it("names the election and the cast time once the receipt has it", async () => {
+        casting(receiptOf)
+        const {container} = renderScreen()
+        // The line is there before the time is, so nothing moves when it comes.
+        const meta = container.querySelector(".confirmation-meta")!
+        expect(meta).not.toBeNull()
+        await waitFor(() => expect(meta.textContent).toMatch(/\d/))
+        expect(container.querySelector(".confirmation-ticket-meta")?.textContent).toBe(
+            meta.textContent
+        )
+    })
+
+    it("says nothing about a cast email, which the portal cannot know was sent", async () => {
+        casting(receiptOf)
+        const {container} = renderScreen()
+        await waitFor(() => expect(statusButton(container)).not.toBeNull())
+        expect(container.querySelector(".cast-email-note")).toBeNull()
     })
 
     it("shows the short ID once, with no prefix for a phone, and copies the full one in groups of four", async () => {
@@ -288,7 +358,7 @@ describe("the Tracking ID on the confirmation screen", () => {
         expect(hiddenByAnyRule(label!)).toBe(false)
     })
 
-    it("follows the short ID with the tag Cast, in one row with it", async () => {
+    it("follows the short ID's chip with the tag Cast, in one row with it", async () => {
         casting(receiptOf)
         const {container, findByTestId} = renderScreen()
         const link = await findByTestId("ballot-id")
@@ -296,28 +366,24 @@ describe("the Tracking ID on the confirmation screen", () => {
         expect(tags).toHaveLength(1)
         expect(tags[0].textContent).toBe("vitrine.status.tag.cast")
         expect(tags[0].getAttribute("data-tone")).toBe("success")
-        const row = container.querySelector(".ballot-id-text")!
-        expect(Array.from(row.children)).toEqual([link, tags[0]])
-        expect(row.parentElement?.className).toContain("ballot-id-border")
+        const chip = container.querySelector(".ballot-id-border")!
+        expect(chip).toContainElement(link)
+        const row = container.querySelector(".ballot-id-line")!
+        expect(Array.from(row.children)).toEqual([chip, tags[0]])
     })
 
-    it("swaps the copy icon for a green check, with no text, when it copies", async () => {
-        casting(receiptOf)
-        Object.defineProperty(navigator, "clipboard", {
-            value: {writeText: jest.fn(async (_text: string) => undefined)},
-            configurable: true,
-        })
+    it("shows the full Tracking ID on the ticket in 13 groups, the short ID's two shaded", async () => {
+        const {ballotId} = casting(receiptOf)
         const {container} = renderScreen()
-        const copy = await screen.findByRole("button", {name: "vitrine.ballotId.copy"})
-        expect(copy.querySelector("[data-icon=copy]")).not.toBeNull()
-        await act(async () => {
-            fireEvent.click(copy)
-        })
-        const done = screen.getByRole("button", {name: "vitrine.ballotId.copied"})
-        expect(done.querySelector("[data-icon=copy]")).toBeNull()
-        expect(done.querySelector("[data-icon=check]")).not.toBeNull()
-        expect(getComputedStyle(done).color).toBe("rgb(4, 120, 87)")
-        expect(container.querySelector(".ballot-id-container")?.textContent).not.toContain("Copied")
+        await waitFor(() => expect(statusButton(container)).not.toBeNull())
+        const full = container.querySelector(".confirmation-ticket .full-tracking-id")!
+        expect(full.getAttribute("data-surface")).toBe("ticket")
+        const groups = Array.from(full.querySelectorAll(".full-tracking-id-group"))
+        expect(groups).toHaveLength(13)
+        expect(full.querySelectorAll(".full-tracking-id-short")).toHaveLength(2)
+        expect(full.querySelector(".full-tracking-id-value")?.textContent).toBe(ballotId)
+        // The short ID has no copy button of its own: the full one's is the only one.
+        expect(container.querySelector(".ballot-id-border .hash-copy-button")).toBeNull()
     })
 
     it("rounds the box's corners to 8 px", async () => {
@@ -455,21 +521,19 @@ describe("the status of the ballot just cast", () => {
     ] as const)("shows nothing for %s: the portal's own screen", async (_name, vitrine, isDemo) => {
         mockState = confirm(nextBallotId(), vitrine, isDemo)
         const {container, findAllByTestId} = renderScreen()
-        const [desktop] = await findAllByTestId("ballot-id")
-        expect(desktop.textContent).toMatch(/^[0-9a-f]{64}$/)
+        const ids = await findAllByTestId("ballot-id")
+        // The same ticket, with the whole identifier and the QR code.
+        expect(ids).toHaveLength(1)
+        expect(ids[0].textContent).toMatch(/^[0-9a-f]{64}$/)
+        expect(container.querySelector(".confirmation-ticket")).toContainElement(ids[0])
         expect(container.querySelector(".ballot-id-check-icon")).not.toBeNull()
         expect(statusButton(container)).toBeNull()
         expect(container.querySelector(".qr-container svg")).not.toBeNull()
-        // Both responsive values stay, with the label hidden on a phone.
-        expect(container.querySelector(".ballot-id-value-desktop")).not.toBeNull()
-        expect(container.querySelector(".ballot-id-value-mobile")).not.toBeNull()
-        expect(hiddenByAnyRule(container.querySelector(".ballot-id-label")!)).toBe(true)
+        expect(hiddenByAnyRule(container.querySelector(".ballot-id-label")!)).toBe(false)
         expect(container.querySelector(".status-tag")).toBeNull()
+        expect(container.querySelector(".full-tracking-id")).toBeNull()
         expect(container.querySelector(".get-updates")).toBeNull()
-        expect(container.querySelector(".ballot-id-text")).toBeNull()
-        expect(getComputedStyle(container.querySelector(".ballot-id-border")!).borderRadius).toBe(
-            "4px"
-        )
+        expect(container.querySelector(".confirmation-updates")).toBeNull()
     })
 })
 
@@ -483,8 +547,21 @@ const callout = (container: HTMLElement): HTMLElement | null =>
 const tileNames = (container: HTMLElement): string[] =>
     Array.from(container.querySelectorAll(".get-updates-hub-name")).map((e) => e.textContent ?? "")
 
+/** The optional section is gone, rule and all, and nothing else moved. */
+const expectNoUpdatesSection = (container: HTMLElement): void => {
+    expect(container.querySelector(".confirmation-updates")).toBeNull()
+    expect(container.querySelector(".confirmation-ticket .full-tracking-id")).not.toBeNull()
+    expect(container.querySelector(".confirmation-keep .finish-button")).not.toBeNull()
+    const columns = container.querySelector(".confirmation-columns")!
+    expect(Array.from(columns.children).map((child) => child.classList[0])).toEqual([
+        "confirmation-outcome",
+        "confirmation-ticket",
+        "confirmation-keep",
+    ])
+}
+
 describe("Get email updates on the confirmation screen", () => {
-    it("offers every hub that has a site as an equal tile, between the QR code and the actions", async () => {
+    it("offers every hub that has a site as an equal tile, in the optional section after the actions", async () => {
         const {s} = casting(receiptOf, {policyExtra: WITH_SITES})
         const {container} = renderScreen()
         await waitFor(() => expect(callout(container)).not.toBeNull())
@@ -499,14 +576,17 @@ describe("Get email updates on the confirmation screen", () => {
             expect(link.getAttribute("rel")).toBe("noopener noreferrer")
             expect(new URLSearchParams(link.hash.slice(1)).get("policy")).toBe(s.policyId)
         }
-        const qr = container.querySelector(".qr-container")!
         const actions = container.querySelector(".actions-container")!
-        expect(qr.compareDocumentPosition(callout(container)!)).toBe(
+        expect(actions.compareDocumentPosition(callout(container)!)).toBe(
             Node.DOCUMENT_POSITION_FOLLOWING
         )
-        expect(callout(container)!.compareDocumentPosition(actions)).toBe(
-            Node.DOCUMENT_POSITION_FOLLOWING
+        expect(container.querySelector(".confirmation-updates")).toContainElement(
+            callout(container)
         )
+        expect(callout(container)!.querySelector(".get-updates-optional")?.textContent).toBe(
+            "vitrine.updates.optional"
+        )
+        expect(container.textContent).not.toMatch(/independent/i)
     })
 
     it("carries the receipt of the ballot just cast in the links' fragments", async () => {
@@ -551,6 +631,7 @@ describe("Get email updates on the confirmation screen", () => {
         await openWithReceipt(container)
         expect(statusButton(container)).not.toBeNull()
         expect(callout(container)).toBeNull()
+        expectNoUpdatesSection(container)
     })
 
     it("is still shown when only the cast email switch is off", async () => {
@@ -572,6 +653,7 @@ describe("Get email updates on the confirmation screen", () => {
         const {container} = renderScreen()
         await openWithReceipt(container)
         expect(callout(container)).toBeNull()
+        expectNoUpdatesSection(container)
     })
 
     it("is not shown on a kiosk, which leaves nothing in the browser", async () => {
@@ -580,6 +662,7 @@ describe("Get email updates on the confirmation screen", () => {
         const {container} = renderScreen()
         await openWithReceipt(container)
         expect(callout(container)).toBeNull()
+        expectNoUpdatesSection(container)
     })
 
     it("is offered for a cast whose receipt has not come yet, with the policy only", async () => {

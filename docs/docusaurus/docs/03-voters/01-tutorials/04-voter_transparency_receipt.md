@@ -71,9 +71,9 @@ The voting portal keeps no receipts and no Tracking IDs in the browser. A Tracki
 To check your ballot later, keep your receipt and start from it, on any device:
 
 - Select **Save receipt**, in the dialog or in the ballot tracker. It saves a `.vitrine-receipt` file named after your short Tracking ID, and makes no network request.
-- Print the receipt, or keep the email with it if your election sends one.
+- Select **Save receipt (PDF)** on the confirmation screen and keep or print the PDF, or keep the email with it if your election sends one.
 - Open Ballot Tracking, or a hub's site, and enter the full Tracking ID from your receipt.
-- If the confirmation screen offers **Get email updates**, pick a hub there. That hub watches your ballot and emails you when it is confirmed or counted, or if a problem is recorded. Nothing watches your ballot unless you choose a hub.
+- If the confirmation screen offers the optional **Get email updates**, pick a hub there. That hub watches your ballot and emails you when it is confirmed or counted, or if a problem is recorded. Nothing watches your ballot unless you choose a hub.
 
 Earlier versions of the portal kept receipts in the browser. The portal removes them when it starts, and stores nothing in their place.
 

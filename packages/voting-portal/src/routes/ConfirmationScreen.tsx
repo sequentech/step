@@ -21,6 +21,7 @@ import {
     IElection,
     areAllContestsAcclaimed,
     EVotingPortalAuditButtonCfg,
+    translateFromPresentation,
 } from "@sequentech/ui-core"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
@@ -60,10 +61,10 @@ import {GET_DOCUMENT} from "../queries/GetDocument"
 import {BallotStatus} from "../components/Vitrine/BallotStatus"
 import {BallotTag} from "../components/Vitrine/BallotTag"
 import {GetUpdates} from "../components/Vitrine/GetUpdates"
-import {ID_BUTTON_SX} from "../components/Vitrine/idButtons"
+import {EFullTrackingIdSurface, FullTrackingId} from "../components/Vitrine/FullTrackingId"
 import {useCastReceipt} from "../hooks/useCastReceipt"
 import {useElectionName} from "../hooks/useElectionName"
-import {groupBallotId, shortBallotId} from "../services/vitrine/ballotId"
+import {shortBallotId} from "../services/vitrine/ballotId"
 import {EBallotTag} from "../services/vitrine/ballotStatus"
 import type {IReceiptView} from "../services/vitrine/castReceipt"
 import {EHubUpdate, offeredHubs, readHubUpdates} from "../services/vitrine/hubUpdates"
@@ -71,7 +72,7 @@ import {ETransparencyMode} from "../services/vitrine/types"
 import {selectReceivedBallot} from "../store/receivedBallots/receivedBallotsSlice"
 
 /*
- * The spinner and the printer were here, with the row they belonged to.
+ * The spinner and the Save receipt button were here, with the row they belonged to.
  *
  * Both are `ConfirmationActions` in `ui-essentials` now, so the Election Architect's
  * preview draws this screen's buttons rather than two plain ones of its own.
@@ -300,12 +301,17 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
             <VisuallyHidden className="remaining-elections-status" role="status">
                 {waitingForEligibility && !voterContext.error ? t("a11y.loading") : ""}
             </VisuallyHidden>
-            {/* `ConfirmationActions` in `ui-essentials`: the secondary Print with its
-                printer, and Finish. Here so the Election Architect's preview draws this
-                row rather than two plain buttons — what Print *does* stays with this
-                route, since it renders a receipt from a cast vote. There is no ballot
-                to receipt when nothing was cast, and no receipt to make without a
-                document or a tracker URL. */}
+            {/* `ConfirmationActions` in `ui-essentials`: the outlined Save receipt
+                (PDF), and Finish at the right end of the same row. Here so the Election
+                Architect's preview draws this row rather than two plain buttons — what
+                Save receipt *does* stays with this route, since it renders a receipt
+                from a cast vote. There is no ballot to receipt when nothing was cast,
+                and no receipt to make without a document or a tracker URL.
+
+                The cast email line stays off: the portal loads nothing that says
+                whether this election sends the BALLOT_RECEIPT email (that depends on
+                the event's report and template settings and on the voter having an
+                address), and a line that might be false is worse than none. */}
             <ConfirmationActions
                 withPrint={!isFullyAcclaimed}
                 printing={isHitPrint}
@@ -342,48 +348,33 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
 }
 
 interface ConfirmationBallotStatusProps {
-    eventId: string
-    electionId: string
     ballotId: string
     /** The receipt of the ballot just cast, as far as it has been checked. */
     view?: IReceiptView
+    electionName?: string
+    castAt?: string
     trackerUrl?: string
 }
 
-/** The check mark in the Tracking ID box: the status of the ballot just cast,
+/** The check mark in the Tracking ID chip: the status of the ballot just cast,
  * which its receipt upgrades while this page is open. */
 const ConfirmationBallotStatus: React.FC<ConfirmationBallotStatusProps> = ({
-    eventId,
-    electionId,
     ballotId,
     view,
+    electionName,
+    castAt,
     trackerUrl,
-}) => {
-    const {i18n} = useTranslation()
-    const electionName = useElectionName(electionId)
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
-    const acceptedAt = view?.own?.acceptedAt
-    const castAt =
-        acceptedAt === undefined
-            ? undefined
-            : formatVotingPortalDateTime(
-                  acceptedAt * 1000,
-                  electionEvent,
-                  i18n.resolvedLanguage || i18n.language
-              )
-
-    return (
-        <BallotStatus
-            view={view}
-            ballotId={ballotId}
-            electionName={electionName}
-            castAt={castAt}
-            trackerUrl={trackerUrl}
-            surface={theme.palette.green.light}
-            sx={{m: "-7px -4px -7px -7px"}}
-        />
-    )
-}
+}) => (
+    <BallotStatus
+        view={view}
+        ballotId={ballotId}
+        electionName={electionName}
+        castAt={castAt}
+        trackerUrl={trackerUrl}
+        surface={theme.palette.green.light}
+        sx={{width: 32, height: 32}}
+    />
+)
 
 const ConfirmationScreen: React.FC = () => {
     const {isKiosk} = useContext(AuthContext)
@@ -393,9 +384,8 @@ const ConfirmationScreen: React.FC = () => {
     const isBlankBallot = useAppSelector(selectIsBlankBallot(String(electionId)))
     const confirmationScreenData = useAppSelector(selectConfirmationScreenData(String(electionId)))
     const receivedBallot = useAppSelector(selectReceivedBallot(String(electionId)))
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
-    const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
     const [openDemoBallotUrlHelp, setDemoBallotUrlHelp] = useState(false)
     const {hashBallot, hashMultiBallot} = provideBallotService()
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
@@ -506,6 +496,22 @@ const ConfirmationScreen: React.FC = () => {
         vitrine
     )
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const language = i18n.resolvedLanguage || i18n.language
+    const electionName = useElectionName(electionId)
+    const eventName =
+        (electionEvent &&
+            translateFromPresentation(electionEvent, "name", language, {
+                defaultLanguageCode:
+                    electionEvent.presentation?.language_conf?.default_language_code,
+            })) ||
+        undefined
+    // When the ballot box accepted the cast, from the cast receipt. Left out
+    // until the receipt has it; the line keeps its height meanwhile.
+    const acceptedAt = view?.own?.acceptedAt
+    const castAt =
+        acceptedAt === undefined
+            ? undefined
+            : formatVotingPortalDateTime(acceptedAt * 1000, electionEvent, language)
     const hubs = useMemo(() => offeredHubs(view?.policy), [view?.policy])
     // Not on a kiosk: the hub's address, with the receipt in it, would stay in
     // the shared browser's history.
@@ -534,49 +540,49 @@ const ConfirmationScreen: React.FC = () => {
         // screen's own state: the breadcrumb, the dialogs, and the actions.
         <ConfirmationLayout
             steps={<Stepper selected={3} />}
-            onTitleHelp={() => setOpenConfirmationHelp(true)}
             isFullyAcclaimed={isFullyAcclaimed}
             isBlankBallot={isBlankBallot}
+            electionName={electionName}
+            eventName={eventName}
+            castAt={castAt}
             ballotId={ballotId.current ?? ""}
-            ballotIdOnPhone={t("ballotHash", {ballotId: ballotId.current})}
             {...(vitrine && eventId && electionId
                 ? {
+                      // With transparency: the short ID with the status check and
+                      // the Cast tag, and the full Tracking ID, with its own Copy,
+                      // under it.
                       shortBallotId: shortBallotId(ballotId.current ?? ""),
                       ballotIdTag: <BallotTag tag={EBallotTag.CAST} />,
-                      ballotIdCopyValue: groupBallotId(ballotId.current ?? ""),
                       ballotIdStatus: (
                           <ConfirmationBallotStatus
-                              eventId={eventId}
-                              electionId={electionId}
                               ballotId={ballotId.current ?? ""}
                               view={view}
+                              electionName={electionName}
+                              castAt={castAt}
                               trackerUrl={ballotTrackerUrl}
                           />
                       ),
-                      ballotIdButtonSx: ID_BUTTON_SX,
-                      ballotIdCopiedColor: theme.palette.green.dark,
-                      compact: true,
+                      ballotIdDetails: (
+                          <FullTrackingId
+                              ballotId={ballotId.current ?? ""}
+                              surface={EFullTrackingIdSurface.TICKET}
+                          />
+                      ),
                   }
-                : {})}
+                : {
+                      ballotIdCopyLabels:
+                          auditButtonCfg !== EVotingPortalAuditButtonCfg.NOT_SHOW
+                              ? {
+                                    copy: t("reviewScreen.copyBallotId"),
+                                    copied: t("reviewScreen.ballotIdCopied"),
+                                    error: t("reviewScreen.ballotIdCopyError"),
+                                }
+                              : undefined,
+                  })}
             ballotIdHref={isDemo ? undefined : ballotTrackerUrl}
             ballotIdTarget={isKiosk() ? null : "_blank"}
             onBallotIdClick={handleBallotIdLinkClick}
             onBallotIdHelp={() => (isDemo ? setDemoBallotIdHelp(true) : setOpenBallotIdHelp(true))}
-            ballotIdCopyLabels={
-                auditButtonCfg !== EVotingPortalAuditButtonCfg.NOT_SHOW
-                    ? {
-                          copy: t(vitrine ? "vitrine.ballotId.copy" : "reviewScreen.copyBallotId"),
-                          copied: t(
-                              vitrine ? "vitrine.ballotId.copied" : "reviewScreen.ballotIdCopied"
-                          ),
-                          error: t(
-                              vitrine
-                                  ? "vitrine.ballotId.copyByHand"
-                                  : "reviewScreen.ballotIdCopyError"
-                          ),
-                      }
-                    : undefined
-            }
             qrValue={isDemo ? t("confirmationScreen.demoQRText") : (ballotTrackerUrl ?? "")}
             actions={
                 <ActionButtons
@@ -586,47 +592,22 @@ const ConfirmationScreen: React.FC = () => {
                     isFullyAcclaimed={isFullyAcclaimed}
                 />
             }
+            // "Get email updates", the optional section under the actions. The
+            // order of the tiles is drawn when the section appears, so a new
+            // policy asks for a new draw with its key.
+            updates={
+                offersUpdates && view?.policy ? (
+                    <GetUpdates
+                        key={view.policy.id}
+                        hubs={hubs}
+                        policyId={view.policy.id}
+                        receipt={view.chain}
+                    />
+                ) : undefined
+            }
         >
-            {/* "Get email updates", between the QR code and the actions: the layout
-                renders its children there, after the QR code and before the
-                actions. The order of the tiles is drawn when the callout
-                appears, so a new policy asks for a new draw with its key. */}
-            {offersUpdates && view?.policy ? (
-                <GetUpdates
-                    key={view.policy.id}
-                    hubs={hubs}
-                    policyId={view.policy.id}
-                    receipt={view.chain}
-                />
-            ) : null}
-            {/* The four dialogs, which belong with the state that opens them.
-                They sat inside the heading and the identifier's border before;
-                MUI renders a dialog into a portal wherever it is declared, so a
-                reader cannot tell, and gathering them makes the frame liftable. */}
-            <Dialog
-                className="screen-help-dialog confirmation-help-dialog"
-                handleClose={() => setOpenConfirmationHelp(false)}
-                open={openConfirmationHelp}
-                title={t(
-                    isFullyAcclaimed
-                        ? "confirmationScreen.acclamation.helpDialog.title"
-                        : "confirmationScreen.confirmationHelpDialog.title"
-                )}
-                ok={t(
-                    isFullyAcclaimed
-                        ? "confirmationScreen.acclamation.helpDialog.ok"
-                        : "confirmationScreen.confirmationHelpDialog.ok"
-                )}
-                variant="info"
-            >
-                {stringToHtml(
-                    t(
-                        isFullyAcclaimed
-                            ? "confirmationScreen.acclamation.helpDialog.content"
-                            : "confirmationScreen.confirmationHelpDialog.content"
-                    )
-                )}
-            </Dialog>
+            {/* The dialogs, which belong with the state that opens them. MUI
+                renders a dialog into a portal wherever it is declared. */}
             <Dialog
                 className="ballot-id-help-dialog"
                 handleClose={() => setOpenBallotIdHelp(false)}

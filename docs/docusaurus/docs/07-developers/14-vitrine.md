@@ -379,10 +379,11 @@ when the portal holds the receipt, and `<hub-explorer url>#policy=<sha256:hex>&w
 when only the Tracking ID is known (the receipt PDF and the cast email). The
 payload sits in the fragment, which a browser never sends to the hub's server.
 
-- **The confirmation page** shows a "Get email updates" callout when
-  `hub_updates.confirmation` is not `off`, the event is transparent, the
-  policy has a hub with a site, and the voting portal is not the kiosk. The
-  order is drawn once for each visit. The payload is the receipt chain, once
+- **The confirmation page** shows an optional "Get email updates" section,
+  after the actions and with no box, when `hub_updates.confirmation` is not
+  `off`, the event is transparent, the policy has a hub with a site, and the
+  voting portal is not the kiosk. Each hub is an equal tile with its name and
+  who runs it. The order is drawn once for each visit. The payload is the receipt chain, once
   the browser has it; before that the link names only the policy.
 - **The ballot receipt** (the `BALLOT_RECEIPT` template) gets two variables.
   `tracking_id` is the ballot's full Tracking ID, which the default template

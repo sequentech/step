@@ -91,7 +91,7 @@ const dutchTranslation: TranslationType = {
                 "review":
                     "Deze pagina toont de keuzes die u hebt gemaakt. Controleer ze zorgvuldig. Gebruik de knop om uw stembiljet te bewerken als u iets wilt wijzigen. Ga naar de knop om uw stem uit te brengen en druk op Enter om te stemmen. Uw stembiljet-ID staat bovenaan de pagina. U kunt het kopiëren om uw stembiljet later terug te vinden.",
                 "confirmation":
-                    "Uw stem is uitgebracht. Deze pagina toont uw stembiljet-ID, waarmee u kunt controleren of uw stembiljet is geregistreerd. U kunt het kopiëren of deze pagina afdrukken. Gebruik als u klaar bent de knop onderaan de pagina om af te sluiten.",
+                    "Uw stem is uitgebracht. Deze pagina toont uw stembiljet-ID, waarmee u kunt controleren of uw stembiljet is geregistreerd. U kunt het kopiëren of uw ontvangstbewijs als pdf opslaan. Gebruik als u klaar bent de knop om af te sluiten, direct na de knop die het ontvangstbewijs opslaat.",
                 "audit":
                     "Op deze pagina kunt u uw stembiljet controleren in plaats van het uit te brengen. De pagina toont de informatie die u met de stembiljetverificatie kunt nagaan. Een gecontroleerd stembiljet wordt niet uitgebracht; ga daarna dus terug naar uw stembiljet om te stemmen.",
                 "ballot-locator":
@@ -383,35 +383,24 @@ const dutchTranslation: TranslationType = {
                 title: "Bij acclamatie beslist",
                 description:
                     "Alle stemmingen in deze verkiezing zijn bij acclamatie beslist, dus er is geen stem uitgebracht en er is geen Tracking-ID.",
-                helpDialog: {
-                    title: "Informatie: Acclamatie",
-                    content:
-                        "Alle stemmingen in deze verkiezing zijn bij acclamatie beslist: de kandidaten worden zonder stemming gekozen. Omdat er geen stem is uitgebracht, is er geen Tracking-ID, ontvangstbewijs of QR-code om te verifiëren.",
-                    ok: "OK",
-                },
             },
             title: "Uw stem is uitgebracht",
-            description:
-                "De onderstaande bevestigingscode verifieert dat <b>uw stembiljet succesvol is uitgebracht</b>. U kunt deze code gebruiken om te controleren of uw stembiljet is geteld.",
             blankBallot: {
                 description:
                     "Uw stembiljet is blanco uitgebracht, wat een geldige, weloverwogen keuze is.",
             },
             ballotId: "Tracking-ID",
-            printButton: "Afdrukken",
             finishButton: "Voltooien",
+            saveReceiptButton: "Ontvangstbewijs opslaan (pdf)",
+            receipt: "Ontvangstbewijs",
+            keepTitle: "Bewaar uw ontvangstbewijs",
+            keepLead:
+                "Deze website bewaart geen kopie. Sla het nu op om uw stembiljet later te controleren, op elk apparaat.",
+            castEmailNote: "Er is ook een kopie naar u gemaild.",
+            qrCaption: "Scan om het op een ander apparaat te controleren",
             remainingElectionsError:
                 "We konden niet controleren of u nog aan andere verkiezingen kunt deelnemen. Probeer het opnieuw.",
             retryButton: "Opnieuw proberen",
-            verifyCastTitle: "Verifieer dat uw stembiljet is uitgebracht",
-            verifyCastDescription:
-                "U kunt op elk moment verifiëren dat uw stembiljet correct is uitgebracht met behulp van de volgende QR-code:",
-            confirmationHelpDialog: {
-                title: "Over het bevestigingsscherm",
-                content:
-                    "Dit scherm toont dat uw stem succesvol is uitgebracht. U kunt verifiëren dat het stembiljet is opgeslagen in de stembus.",
-                ok: "OK",
-            },
             demoPrintDialog: {
                 title: "Stembiljet afdrukken",
                 content: "Afdrukken uitgeschakeld in demo-modus",
@@ -1182,6 +1171,7 @@ const dutchTranslation: TranslationType = {
                 },
             },
             updates: {
+                optional: "Optioneel",
                 title: "Ontvang e-mailupdates over dit stembiljet",
                 description:
                     "Wanneer het is bevestigd en wanneer het is geteld, of als er een probleem wordt vastgelegd. Kies een willekeurige hub: elke hub controleert het register zelf.",

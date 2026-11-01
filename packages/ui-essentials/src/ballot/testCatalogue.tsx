@@ -48,7 +48,7 @@ export const PORTAL_WORDS = {
         castBallotButton: "Send it",
     },
     confirmationScreen: {
-        printButton: "On paper",
+        saveReceiptButton: "Keep it safe",
         finishButton: "All done",
     },
     startScreen: {
@@ -90,7 +90,7 @@ export const OTHER_WORDS = {
         castBallotButton: "Emitir la papeleta",
     },
     confirmationScreen: {
-        printButton: "Imprimir",
+        saveReceiptButton: "Guardar recibo",
         finishButton: "Terminar",
     },
     breadcrumbSteps: {

@@ -33,6 +33,9 @@ export enum EFullTrackingIdSurface {
     GREEN = "green",
     /** A hub's page, in the hub's own colour. */
     HUB = "hub",
+    /** The receipt ticket on the confirmation screen: no box of its own, as the
+     * ticket is the box (design board ConfirmationV42B). */
+    TICKET = "ticket",
 }
 
 const COLORS = {
@@ -46,6 +49,8 @@ const COLORS = {
     selected: "#C7D7FE",
     selectedLine: "#A5B8F7",
     chipLine: "#DCE1EE",
+    chipTint: "#F8F9FE",
+    label: "#5B6474",
     buttonLine: "#CBD3E3",
     white: "#fff",
 } as const
@@ -64,7 +69,17 @@ interface ISurfaceStyle {
     buttonBackground: string
     buttonLine: string
     buttonColor: string
+    /** The label's lettering: small capitals, or a plain caption on the ticket. */
+    labelSx: Record<string, string | number>
 }
+
+const SMALL_CAPS = {
+    fontSize: "11px",
+    lineHeight: "14px",
+    fontWeight: 700,
+    letterSpacing: "0.07em",
+    textTransform: "uppercase",
+} as const
 
 const surfaceStyle = (surface: EFullTrackingIdSurface): ISurfaceStyle => {
     if (surface === EFullTrackingIdSurface.GREEN) {
@@ -82,6 +97,25 @@ const surfaceStyle = (surface: EFullTrackingIdSurface): ISurfaceStyle => {
             buttonBackground: "rgba(255, 255, 255, 0.8)",
             buttonLine: "rgba(4, 120, 87, 0.3)",
             buttonColor: COLORS.greenDark,
+            labelSx: SMALL_CAPS,
+        }
+    }
+    if (surface === EFullTrackingIdSurface.TICKET) {
+        return {
+            padding: "0",
+            border: "0",
+            borderTop: "0",
+            borderRadius: "0",
+            background: "transparent",
+            boxShadow: "none",
+            label: COLORS.label,
+            key: COLORS.navy,
+            chipBackground: COLORS.chipTint,
+            chipLine: COLORS.chipLine,
+            buttonBackground: COLORS.white,
+            buttonLine: COLORS.buttonLine,
+            buttonColor: COLORS.navy,
+            labelSx: {fontSize: "13px", lineHeight: "18px", fontWeight: 400},
         }
     }
     const tint = surface === EFullTrackingIdSurface.TINT
@@ -103,6 +137,7 @@ const surfaceStyle = (surface: EFullTrackingIdSurface): ISurfaceStyle => {
         buttonBackground: COLORS.white,
         buttonLine: COLORS.buttonLine,
         buttonColor: hub ? COLORS.hub : COLORS.navy,
+        labelSx: SMALL_CAPS,
     }
 }
 
@@ -269,14 +304,7 @@ export const FullTrackingId: React.FC<IFullTrackingIdProps> = ({
                 <Box
                     id={labelId}
                     className="full-tracking-id-label"
-                    sx={{
-                        fontSize: "11px",
-                        lineHeight: "14px",
-                        fontWeight: 700,
-                        letterSpacing: "0.07em",
-                        textTransform: "uppercase",
-                        color: look.label,
-                    }}
+                    sx={{...look.labelSx, color: look.label}}
                 >
                     {t("vitrine.ballotId.full")}
                 </Box>
