@@ -785,11 +785,13 @@ export const ContestDataForm: React.FC = () => {
                                     choices={[
                                         {
                                             id: ECandidatesLayout.LIST,
-                                            name: "contestScreen.candidatesLayout.list",
+                                            name: String(t("contestScreen.candidatesLayout.list")),
                                         },
                                         {
                                             id: ECandidatesLayout.PAPER_GRID,
-                                            name: "contestScreen.candidatesLayout.paper-grid",
+                                            name: String(
+                                                t("contestScreen.candidatesLayout.paper-grid")
+                                            ),
                                         },
                                     ]}
                                     label={String(t("contestScreen.candidatesLayout.label"))}
