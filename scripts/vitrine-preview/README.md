@@ -151,6 +151,12 @@ for a recording: it fetches the log's receipt for the voter's latest cast, saves
 only a loopback peer asking a loopback Host, answers 409 before anything is cast, and runs one at a time.
 The recorder runs in Docker and can't run host scripts, so a board's `fetch` step calls this instead.
 
+`POST http://127.0.0.1:18851/__preview/audited-ballot` (`{"content": "<the Audit screen's JSON>"}`, loopback
+only) publishes the auditable ballot of a ballot the voter has just audited, so that the ballot tracker finds it
+by its Tracking ID and decodes it, as it does the fixture's one. A board copies the JSON from the Audit screen
+(`.auditable-ballot-data`) and posts it here: the stand-in's own addition, since Step's backend does not publish
+audited ballots. It answers 422 for JSON that isn't the voter's audited ballot (matched by its ballot hash and key).
+
 ## Playwright
 
 `playwright/run.sh NAME SCRIPT OUTDIR [args]` runs a script in `mcr.microsoft.com/playwright:v1.64.1-noble`

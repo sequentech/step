@@ -20,6 +20,7 @@ import { ADMIN_ID, AREA_ID, TENANT_ID, VOTER_ID, VOTER_USERNAME, ballotBox as fi
 import { voterContext } from "./events.mjs";
 import { createBallotBox } from "./ballot-box.mjs";
 import { AUDITED_BALLOT } from "./audited-ballot.mjs";
+import { isLocal } from "./split-view.mjs";
 
 const MAX_BODY = 8 << 20;
 const BOOTH_BUDGET_MS = 600;
@@ -282,6 +283,15 @@ export function createStandIn({ live, sidecar, origin, stepPackages, electionId,
         });
       }
       if (url.pathname.startsWith("/__preview/tamper") && tamper) return tamper.handle(req, res, url, readBody, send);
+      if (url.pathname === "/__preview/audited-ballot" && req.method === "POST") {
+        if (!isLocal(req)) return send(res, 403, { ok: false, error: "from this machine only" });
+        const { content } = JSON.parse((await readBody(req)) || "{}");
+        try {
+          return send(res, 200, { ok: true, tracking: ballotBox.publishAudited(String(content ?? ""), VOTER_ID) });
+        } catch (e) {
+          return send(res, 422, { ok: false, error: String(e.message ?? e) });
+        }
+      }
       if (url.pathname === "/__preview/split-view" && splitView) return splitView.handle(req, res, url, readBody, send);
       if (url.pathname === "/__preview/dishonest-portal" && dishonest) return dishonest.handle(req, res, url, readBody, send);
       send(res, 404, { error: "not found", path: url.pathname });

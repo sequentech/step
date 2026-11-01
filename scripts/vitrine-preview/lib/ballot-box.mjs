@@ -246,12 +246,16 @@ export function createBallotBox({ live, sidecar, electionId, ids, box, audited, 
 
   const castRecords = (voter) => [...byBallot.values()].filter((r) => r.voter === voter && r.state === "cast");
 
+  /** The audited ballots the tracker can open: the fixture, and the voter's own
+   * once its auditable ballot was published (`publishAudited`). */
+  const publishedAudited = (voter) => [...byBallot.values()].filter((r) => r.voter === voter && r.state === "audited" && r.published);
+
   /** The cast ballots of the voter that the typed ID names, and the audited
-   * ballot of the fixture too when the ID names it. */
+   * ballots too (the fixture's and the voter's published ones). */
   function find(voter, typed) {
     const matches = matcher(typed);
     if (!matches) return [];
-    return [...castRecords(voter), ...(auditedRecord ? [auditedRecord] : [])].filter(matches);
+    return [...castRecords(voter), ...publishedAudited(voter), ...(auditedRecord ? [auditedRecord] : [])].filter(matches);
   }
 
   /** `get_voter_cast_votes`: the voter's cast ballots, those a typed ID names if it is given. */
@@ -315,10 +319,48 @@ export function createBallotBox({ live, sidecar, electionId, ids, box, audited, 
     log(`audited ballot: ${tracking.slice(0, 9)} recorded at ${now}`);
   }
 
+  /** Publishes the auditable ballot of a ballot the voter audited (the JSON the
+   * Audit screen shows), so the tracker can open and decode it. Step's backend
+   * doesn't publish audited ballots; this stand-in does, when a recording asks
+   * (`POST /__preview/audited-ballot`). Nothing is trusted from it: the tracker
+   * checks the ballot against the log itself. */
+  function publishAudited(content, voter) {
+    let ballot;
+    try {
+      ballot = JSON.parse(content);
+    } catch {
+      throw new GraphQLError("the audited ballot isn't JSON", "BadRequest");
+    }
+    const record = [...byBallot.values()].find((r) => r.voter === voter && r.state === "audited" && r.hash === ballot?.ballot_hash && r.voterPk === ballot?.voter_signing_pk);
+    if (!record) throw new GraphQLError("the voter has no audited ballot with this hash", "NotFound");
+    const at = new Date().toISOString();
+    record.content = content;
+    record.published = true;
+    record.castRow = {
+      id: crypto.randomUUID(),
+      ballot_id: record.hash,
+      election_id: electionId,
+      election_event_id: live.eventId,
+      tenant_id: ids.tenantId,
+      area_id: ids.areaId,
+      created_at: at,
+      last_updated_at: at,
+      labels: null,
+      annotations: null,
+      content,
+      cast_ballot_signature: null,
+      voter_id_string: voter,
+      status: "valid",
+    };
+    log(`audited ballot: ${record.tracking.slice(0, 9)} published for the tracker`);
+    return record.tracking;
+  }
+
   return {
     receive,
     cast,
     audit,
+    publishAudited,
     insert,
     castVotes,
     locate,

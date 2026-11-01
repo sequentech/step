@@ -169,3 +169,22 @@ test("a ballot made by Step's portal is received", { skip: !(() => { try { readF
   assert.equal(signer.verifyReceived(received), received.ballot_id);
   assert.equal(received.ballot_hash, variables.ballotId);
 });
+
+test("a voter's audited ballot opens in the tracker once it is published, and only then", async () => {
+  const { box } = setup();
+  const { args, hash, ballot } = signedBallot("2026-11-01");
+  const received = await box.receive(args, VOTER);
+  const tracking = trackingId(hash, voterPk);
+  const auditable = JSON.stringify({ ...ballot, ballot_hash: hash });
+  assert.throws(() => box.publishAudited(auditable, VOTER), (e) => e.code === "NotFound");
+  await box.audit({ election_id: ELECTION, ballot_id: received.ballot_id }, VOTER);
+  assert.equal(box.locate(VOTER, tracking.slice(0, 9)).status, "not-found");
+  assert.throws(() => box.publishAudited("not json", VOTER), (e) => e.code === "BadRequest");
+  assert.throws(() => box.publishAudited(auditable, "someone-else"), (e) => e.code === "NotFound");
+  assert.equal(box.publishAudited(auditable, VOTER), tracking);
+  const found = box.locate(VOTER, tracking.slice(0, 9));
+  assert.equal(found.status, "found");
+  assert.equal(found.ballot_id, tracking);
+  assert.equal(found.content, auditable);
+  assert.equal(box.castVotes(VOTER, {}).length, 0);
+});
