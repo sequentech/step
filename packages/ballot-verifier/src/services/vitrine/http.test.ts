@@ -5,10 +5,13 @@
 import {fakeResponse} from "../../fixtures/vitrine"
 import {
     EPolicyFetchProblem,
+    fetchJson,
     fetchPolicyText,
+    JsonFetchError,
     FetchLike,
     isFetchableUrl,
     isUnder,
+    MAX_JSON_BYTES,
     MAX_POLICY_BYTES,
     sdkFetch,
 } from "./http"
@@ -137,5 +140,80 @@ describe("sdkFetch", () => {
         await expect(open("http://logs.acme.example/checkpoint")).rejects.toThrow(TypeError)
         await open("https://mirror.example/ballots/checkpoint")
         expect(f).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe("fetchJson", () => {
+    const URL = "https://s3.test/public/tenant-t/event-e/election_event_config.json"
+    const failure = async (promise: Promise<unknown>) => {
+        try {
+            await promise
+        } catch (e) {
+            return e instanceof JsonFetchError ? {message: e.message, status: e.status} : e
+        }
+        throw new Error("it didn't fail")
+    }
+
+    it("fetches without credentials, referrer or redirects, and reads JSON", async () => {
+        const f = answering(fakeResponse({status: 200, body: '{"a": [1]}'}))
+        expect(await fetchJson(URL, {}, {fetch: f})).toEqual({a: [1]})
+        expect(f).toHaveBeenCalledWith(
+            URL,
+            expect.objectContaining({
+                method: "GET",
+                credentials: "omit",
+                referrerPolicy: "no-referrer",
+                redirect: "error",
+            })
+        )
+    })
+
+    it("keeps the request's method and body, but never its credentials", async () => {
+        const f = answering(fakeResponse({status: 200, body: "{}"}))
+        await fetchJson(URL, {method: "POST", body: "{}", credentials: "include"}, {fetch: f})
+        expect(f).toHaveBeenCalledWith(
+            URL,
+            expect.objectContaining({method: "POST", body: "{}", credentials: "omit"})
+        )
+    })
+
+    it("fails without an answer it can read", async () => {
+        expect(
+            await failure(
+                fetchJson(
+                    "http://s3.test/x.json",
+                    {},
+                    {fetch: answering(fakeResponse({status: 200}))}
+                )
+            )
+        ).toEqual({message: "not an https URL", status: 0})
+        expect(
+            await failure(fetchJson(URL, {}, {fetch: answering(fakeResponse({status: 404}))}))
+        ).toEqual({message: "status 404", status: 404})
+        expect(
+            await failure(
+                fetchJson(URL, {}, {fetch: answering(fakeResponse({status: 200, body: "<html>"}))})
+            )
+        ).toEqual({message: "not JSON", status: 200})
+        expect(
+            await failure(
+                fetchJson(
+                    URL,
+                    {},
+                    {
+                        fetch: answering(
+                            fakeResponse({status: 200, body: `"${"x".repeat(MAX_JSON_BYTES)}"`})
+                        ),
+                    }
+                )
+            )
+        ).toEqual({message: "answer too large", status: 413})
+        const unreachable = jest.fn<Promise<Response>, Parameters<FetchLike>>(async () => {
+            throw new TypeError("offline")
+        })
+        expect(await failure(fetchJson(URL, {}, {fetch: unreachable}))).toEqual({
+            message: "no answer",
+            status: 0,
+        })
     })
 })

@@ -186,6 +186,9 @@ pub struct Hub {
     pub operator: String,
     /// Where it publishes an explorer page that anyone can use.
     pub explorer: Option<String>,
+    /// The base URL of the ballot verifier it runs, where a voter checks an
+    /// audited ballot; the policy gets a `hub-ballot-verifier` line.
+    pub ballot_verifier: Option<String>,
     #[serde(default)]
     pub role: HubRole,
     pub witnesses: Vec<Witness>,
@@ -666,6 +669,9 @@ impl DeploymentConfig {
                 h.name
             );
             check_url("a hub URL", &h.url)?;
+            if let Some(url) = &h.ballot_verifier {
+                check_url(&format!("hub {}'s ballot verifier", h.name), url)?;
+            }
             check_name("a party", &h.operator)?;
             let key = check_vkey(&format!("hub {}", h.name), &h.vkey, ALG_ED25519)?;
             ensure!(
@@ -1147,6 +1153,37 @@ pub(crate) mod tests {
         })
         .unwrap_err();
         assert!(format!("{err:#}").contains("split cost 0"), "{err:#}");
+    }
+
+    #[test]
+    fn a_hubs_ballot_verifier_is_an_https_or_local_url() {
+        let verifier = |url: &str| {
+            let url = url.to_string();
+            with(move |t| {
+                array(t, "hubs")[1]
+                    .as_table_mut()
+                    .unwrap()
+                    .insert("ballot_verifier".into(), url.clone().into());
+            })
+        };
+        let config = verifier("http://127.0.0.1:18856/").unwrap();
+        assert_eq!(
+            config.hubs[1].ballot_verifier.as_deref(),
+            Some("http://127.0.0.1:18856/")
+        );
+        assert_eq!(dev().hubs[0].ballot_verifier, None);
+        assert!(verifier("https://verify.hub-b.example/ballots/").is_ok());
+        for url in [
+            "http://verify.hub-b.example/",
+            "ftp://localhost/",
+            "https://u@h.example/",
+        ] {
+            let err = verifier(url).unwrap_err();
+            assert!(
+                format!("{err:#}").contains("hub hub-b's ballot verifier"),
+                "{err:#}"
+            );
+        }
     }
 
     #[test]

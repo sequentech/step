@@ -321,6 +321,169 @@ const spanishTranslation: TranslationType = {
             formatError:
                 "Revise el ID de seguimiento: tiene 64 caracteres, dígitos y letras de la a a la f.",
         },
+        auditedScreen: {
+            title: "Papeleta",
+            tag: "Auditada",
+            loading: "Comprobando la papeleta en el registro público…",
+            retry: "Reintentar",
+            header: {
+                strip: {
+                    withOperator:
+                        "Un centro de transparencia, gestionado por {{operator}}. No es el sitio web de la elección y nunca le pide votar, iniciar sesión ni pagar.",
+                    noOperator:
+                        "Un centro de transparencia. No es el sitio web de la elección y nunca le pide votar, iniciar sesión ni pagar.",
+                },
+                subline: {
+                    withOperator: "Gestionado por {{operator}} · un centro Vitrine",
+                    noOperator: "Un centro Vitrine",
+                },
+                unnamed: "Centro de transparencia",
+            },
+            trackingId: {
+                full: "ID de seguimiento completo",
+                copy: "Copiar el ID de seguimiento completo",
+                copied: "ID de seguimiento copiado",
+                copyText: "Copiar",
+                copiedText: "Copiado",
+                selected: "Seleccionado. Pulsa Ctrl+C, o ⌘C en Mac, para copiarlo.",
+            },
+            checks: {
+                title: "Comprobado en su navegador",
+                record: {
+                    title: "En el registro público",
+                    text: "Entrada n.º {{index}}, auditada a las {{time}}. Nunca emitida.",
+                    waiting: "Buscando su auditoría en el registro de la elección.",
+                    failed: "La prueba del registro para esta auditoría no es válida.",
+                },
+                secret: {
+                    title: "El secreto corresponde a la papeleta",
+                    text: "Al volver a cifrar con él se obtiene la misma papeleta, byte a byte.",
+                    waiting: "Se comprueba cuando se haya comprobado el registro.",
+                    failed: "Al volver a cifrar con él no se obtiene esta papeleta.",
+                },
+                decoded: {
+                    title: "Descodificada",
+                    text: "Las opciones de la izquierda, según el diseño de papeleta publicado de la elección.",
+                    waiting: "Solo cuando el secreto corresponda.",
+                    failed: "No se pudo descodificar.",
+                },
+            },
+            note: {
+                named: "Con código que cualquiera puede inspeccionar. {{hub}} solo lo almacena y lo sirve, y nunca pregunta qué eligió. Su respuesta se queda en este navegador.",
+                unnamed:
+                    "Con código que cualquiera puede inspeccionar. Este centro solo lo almacena y lo sirve, y nunca pregunta qué eligió. Su respuesta se queda en este navegador.",
+            },
+            states: {
+                "bad-link": {
+                    title: "Este enlace no está completo",
+                    text: "Necesita el ID de seguimiento completo de la papeleta y el ID de política de la elección. Ábralo de nuevo desde el sitio de votación.",
+                },
+                "no-policy": {
+                    title: "No se encontró la política de la elección",
+                    text: "Esta página solo comprueba una papeleta con la política que indica el enlace, y no pudo obtenerla de la elección. Inténtelo más tarde.",
+                },
+                "other-election": {
+                    title: "Este enlace es de otra elección",
+                    text: "La política que indica el enlace no cubre esta elección, así que la papeleta no se puede comprobar con ella.",
+                },
+                "not-found": {
+                    title: "No hay ninguna papeleta con este ID de seguimiento",
+                    text: "El registro público de la elección no tiene ninguna papeleta con este ID de seguimiento. Compruebe que el enlace está completo o inténtelo de nuevo en un minuto.",
+                },
+                "cast": {
+                    title: "Esta papeleta se emitió, no se auditó",
+                    text: "Solo se puede descodificar una papeleta auditada. Una papeleta emitida sigue cifrada, así que nadie ve cómo se votó, ni aquí ni en ningún otro sitio.",
+                },
+                "pending": {
+                    title: "Esta papeleta aún no está auditada",
+                    text: "El registro público tiene esta papeleta, pero aún no su auditoría. Inténtelo de nuevo en un minuto.",
+                },
+                "no-content": {
+                    title: "La papeleta auditada aún no está publicada",
+                    text: "El registro público tiene la auditoría de esta papeleta, pero no la papeleta y su secreto, así que aún no se puede descodificar aquí. Inténtelo más tarde.",
+                },
+                "unavailable": {
+                    title: "No se pudo comprobar la papeleta",
+                    text: "Esta página no pudo acceder al registro público de la elección. Inténtelo más tarde.",
+                },
+                "record-failed": {
+                    title: "El registro no prueba esta auditoría",
+                    text: "El registro de la elección dio una prueba de la auditoría de esta papeleta que no es válida, así que no se descodifica nada. Avise a la autoridad electoral.",
+                },
+                "mismatch": {
+                    title: "Auditoría fallida",
+                    text: "La papeleta del registro público no es la que indica su ID de seguimiento, o el secreto que publicó el portal no la reproduce. No vote en el dispositivo desde el que auditó y avise a la autoridad electoral.",
+                },
+                "unchecked": {
+                    title: "No se pudo comprobar la auditoría",
+                    text: "Esta página no pudo comprobar esta papeleta auditada, por lo que no se muestra ninguna opción. Inténtelo más tarde o en otro dispositivo.",
+                },
+            },
+            compare: {
+                kicker: "Auditoría de la papeleta",
+                title: "Compruebe que su papeleta se cifró como usted eligió",
+                note: "Esta es la papeleta que auditó, descodificada por su navegador. Solo usted sabe lo que eligió, así que solo usted puede hacer esta comprobación.",
+                steps: {
+                    label: "Cómo funciona la comprobación",
+                    encrypted: {
+                        title: "Cifrada en su dispositivo",
+                        text: "El portal cifró sus opciones y dio a la papeleta su ID de seguimiento, antes de que usted decidiera auditarla.",
+                    },
+                    decoded: {
+                        title: "Descodificada en su navegador",
+                        text: "La papeleta y el secreto que publicó el portal vienen del registro público. Esta página descodificó una con el otro.",
+                    },
+                    compare: {
+                        title: "Usted compara",
+                        text: "Mire las opciones de abajo. ¿Son las que eligió?",
+                    },
+                },
+                choices: "Opciones descodificadas de esta papeleta",
+                question: "¿Coinciden con lo que eligió?",
+                yes: "Sí, coinciden",
+                no: "No, hay algo distinto",
+                change: "Cambiar mi respuesta",
+                match: {
+                    title: "Su papeleta se cifró como eligió",
+                    text: "Esta papeleta auditada ya está gastada: nunca se emitió y nunca se contará. Vuelva y vote. Su voto recibirá un ID de seguimiento nuevo, y si lo desea puede auditar otra vez antes.",
+                    back: "Volver al sitio de votación",
+                },
+                mismatch: {
+                    title: "No vote en este dispositivo",
+                    text: "Lo que se cifró no es lo que eligió, así que este dispositivo o el portal de votación pueden haber sido manipulados. Su navegador guardó la prueba: la papeleta cifrada del registro público, el secreto que reveló el portal y lo que descodifica.",
+                    report: "Avise a la autoridad electoral",
+                    reportNoContact: "Avise a la autoridad electoral.",
+                    fromPolicy: "De la política publicada de la elección, no de esta página.",
+                    fromSettings: "De los ajustes de la elección.",
+                    then: "Después vote desde otro dispositivo.",
+                    save: "Guardar la prueba",
+                    email: "Escribir a la autoridad",
+                    emailSubject: "Mi papeleta auditada no se descodifica en mis opciones",
+                    emailBody:
+                        "Audité una papeleta en esta elección y las opciones que descodificó mi navegador no son las que elegí.\n\nID de seguimiento: {{id}}\n\nHe guardado la prueba en un archivo y puedo enviarla.",
+                },
+                how: "¿Cómo funciona?",
+                faq: {
+                    why: {
+                        question: "¿Por qué auditar?",
+                        answer: "Su voto se cifra en su dispositivo, así que nadie puede leerlo, ni siquiera usted. Auditar le permite comprobar que el portal cifró lo que eligió antes de votar de verdad.",
+                    },
+                    catch: {
+                        question: "¿Por qué detecta el engaño?",
+                        answer: "El portal cifra antes de que usted decida auditar, así que no puede saber qué papeletas se comprobarán. Si cambiara votos, cualquier votante que audite podría descubrirlo.",
+                    },
+                    spent: {
+                        question: "¿Por qué no puede contar esta papeleta?",
+                        answer: "Con su secreto revelado, la papeleta muestra cómo votó usted. Para mantener su voto en secreto, una papeleta auditada nunca se emite.",
+                    },
+                    differ: {
+                        question: "¿Y si no coinciden?",
+                        answer: "No vote en ese dispositivo. Guarde la prueba y avise a la autoridad electoral, cuyo contacto sale de la política de la elección. Después vote desde otro dispositivo.",
+                    },
+                    tip: "Para la comprobación más sólida, abra esta página en un dispositivo distinto de aquel con el que votó, por ejemplo su móvil. Un dispositivo que cambiara su papeleta también podría cambiar lo que le muestra aquí.",
+                },
+            },
+        },
     },
 }
 

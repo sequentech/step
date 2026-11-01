@@ -316,6 +316,170 @@ const tagalogTranslation = {
             formatError:
                 "Suriin ang Tracking ID: 64 na character ito, mga digit at ang mga letrang a hanggang f.",
         },
+        auditedScreen: {
+            title: "Balota",
+            tag: "Na-audit",
+            loading: "Sinusuri ang balota sa pampublikong talaan…",
+            retry: "Subukan muli",
+            header: {
+                strip: {
+                    withOperator:
+                        "Isang transparency hub, pinapatakbo ng {{operator}}. Hindi ito ang website ng halalan, at hindi ka nito kailanman hihilingang bumoto, mag-sign in o magbayad.",
+                    noOperator:
+                        "Isang transparency hub. Hindi ito ang website ng halalan, at hindi ka nito kailanman hihilingang bumoto, mag-sign in o magbayad.",
+                },
+                subline: {
+                    withOperator: "Pinapatakbo ng {{operator}} · isang Vitrine hub",
+                    noOperator: "Isang Vitrine hub",
+                },
+                unnamed: "Transparency hub",
+            },
+            trackingId: {
+                full: "Buong Tracking ID",
+                copy: "Kopyahin ang buong Tracking ID",
+                copied: "Nakopya ang Tracking ID",
+                copyText: "Kopyahin",
+                copiedText: "Nakopya",
+                selected: "Napili na. Pindutin ang Ctrl+C, o ⌘C sa Mac, para kopyahin ito.",
+            },
+            checks: {
+                title: "Sinuri sa iyong browser",
+                record: {
+                    title: "Nasa pampublikong talaan",
+                    text: "Entry #{{index}}, na-audit nang {{time}}. Hindi kailanman naiboto.",
+                    waiting: "Hinahanap ang audit nito sa talaan ng halalan.",
+                    failed: "Hindi tumutugma ang patunay ng talaan para sa audit na ito.",
+                },
+                secret: {
+                    title: "Tugma ang lihim sa balota",
+                    text: "Kapag in-encrypt muli gamit ito, pareho ang balota, byte por byte.",
+                    waiting: "Susuriin kapag nasuri na ang talaan.",
+                    failed: "Kapag in-encrypt muli gamit ito, hindi ito ang balotang lumalabas.",
+                },
+                decoded: {
+                    title: "Na-decode",
+                    text: "Ang mga pinili sa kaliwa, ayon sa nailathalang disenyo ng balota ng halalan.",
+                    waiting: "Kapag tugma na ang lihim.",
+                    failed: "Hindi ito ma-decode.",
+                },
+            },
+            note: {
+                named: "Gamit ang code na masusuri ng sinuman. Iniimbak at ibinibigay lang ito ng {{hub}}, at hindi kailanman nagtatanong kung ano ang pinili mo. Nananatili sa browser na ito ang sagot mo.",
+                unnamed:
+                    "Gamit ang code na masusuri ng sinuman. Iniimbak at ibinibigay lang ito ng hub na ito, at hindi kailanman nagtatanong kung ano ang pinili mo. Nananatili sa browser na ito ang sagot mo.",
+            },
+            states: {
+                "bad-link": {
+                    title: "Hindi kumpleto ang link na ito",
+                    text: "Kailangan nito ang buong Tracking ID ng balota at ang policy ID ng halalan. Buksan itong muli mula sa site ng pagboto.",
+                },
+                "no-policy": {
+                    title: "Hindi mahanap ang policy ng halalan",
+                    text: "Sinusuri lang ng pahinang ito ang balota gamit ang policy na nasa link, at hindi ito makuha mula sa halalan. Subukan muli mamaya.",
+                },
+                "other-election": {
+                    title: "Para sa ibang halalan ang link na ito",
+                    text: "Hindi saklaw ng policy na nasa link ang halalang ito, kaya hindi masusuri ang balota gamit iyon.",
+                },
+                "not-found": {
+                    title: "Walang balota na may ganitong Tracking ID",
+                    text: "Walang balota na may ganitong Tracking ID sa pampublikong talaan ng halalan. Tiyaking kumpleto ang link, o subukan muli pagkalipas ng isang minuto.",
+                },
+                "cast": {
+                    title: "Naiboto ang balotang ito, hindi na-audit",
+                    text: "Balotang na-audit lang ang puwedeng i-decode. Nananatiling naka-encrypt ang naibotong balota, kaya walang nakakakita kung paano ito ibinoto, dito man o saanman.",
+                },
+                "pending": {
+                    title: "Hindi pa na-audit ang balotang ito",
+                    text: "Nasa pampublikong talaan ang balotang ito, pero wala pa ang audit nito. Subukan muli pagkalipas ng isang minuto.",
+                },
+                "no-content": {
+                    title: "Hindi pa nailalathala ang na-audit na balota",
+                    text: "Nasa pampublikong talaan ang audit ng balotang ito, pero wala pa ang balota at ang lihim nito, kaya hindi pa ito ma-decode dito. Subukan muli mamaya.",
+                },
+                "unavailable": {
+                    title: "Hindi masuri ang balota",
+                    text: "Hindi maabot ng pahinang ito ang pampublikong talaan ng halalan. Subukan muli mamaya.",
+                },
+                "record-failed": {
+                    title: "Hindi napapatunayan ng talaan ang audit na ito",
+                    text: "Nagbigay ang talaan ng halalan ng patunay ng audit ng balotang ito na hindi tumutugma, kaya walang na-decode. Ipaalam sa awtoridad ng halalan.",
+                },
+                "mismatch": {
+                    title: "Nabigo ang audit",
+                    text: "Hindi ang balota sa pampublikong talaan ang tinutukoy ng Tracking ID nito, o hindi ito nabubuo muli ng lihim na inilathala ng portal. Huwag bumoto sa device na ginamit mo sa pag-audit, at ipaalam sa awtoridad ng halalan.",
+                },
+                "unchecked": {
+                    title: "Hindi masuri ang audit",
+                    text: "Hindi masuri ng pahinang ito ang na-audit na balotang ito, kaya walang ipinapakitang pinili. Subukan muli mamaya, o sa ibang device.",
+                },
+            },
+            compare: {
+                kicker: "Audit ng balota",
+                title: "Tiyaking na-encrypt ang iyong balota ayon sa pinili mo",
+                note: "Ito ang balotang na-audit mo, na-decode ng iyong browser. Ikaw lang ang nakaaalam ng pinili mo, kaya ikaw lang ang makagagawa ng pagsusuring ito.",
+                steps: {
+                    label: "Paano gumagana ang pagsusuri",
+                    encrypted: {
+                        title: "Na-encrypt sa iyong device",
+                        text: "Ini-encrypt ng portal ang iyong mga pinili at binigyan ang balota ng Tracking ID nito, bago mo piniling i-audit ito.",
+                    },
+                    decoded: {
+                        title: "Na-decode sa iyong browser",
+                        text: "Galing sa pampublikong talaan ang balota at ang lihim na inilathala ng portal. Na-decode ng pahinang ito ang isa gamit ang isa pa.",
+                    },
+                    compare: {
+                        title: "Ikaw ang naghahambing",
+                        text: "Tingnan ang mga pinili sa ibaba. Ito ba ang mga pinili mo?",
+                    },
+                },
+                choices: "Mga pinili na na-decode mula sa balotang ito",
+                question: "Tugma ba ang mga ito sa pinili mo?",
+                yes: "Oo, tugma",
+                no: "Hindi, may kakaiba",
+                change: "Baguhin ang sagot ko",
+                match: {
+                    title: "Na-encrypt ang iyong balota ayon sa pinili mo",
+                    text: "Nagamit na ang balotang na-audit na ito: hindi ito kailanman naiboto at hindi kailanman bibilangin. Bumalik at bumoto. May bagong Tracking ID ang iyong boto, at puwede kang mag-audit muli bago iyon kung gusto mo.",
+                    back: "Bumalik sa site ng pagboto",
+                },
+                mismatch: {
+                    title: "Huwag bumoto sa device na ito",
+                    text: "Hindi ang pinili mo ang na-encrypt, kaya maaaring may nakialam sa device na ito o sa portal ng pagboto. Itinago ng iyong browser ang ebidensiya: ang naka-encrypt na balota mula sa pampublikong talaan, ang lihim na inihayag ng portal, at ang resulta ng pag-decode nito.",
+                    report: "I-ulat ito sa awtoridad ng halalan",
+                    reportNoContact: "I-ulat ito sa awtoridad ng halalan.",
+                    fromPolicy:
+                        "Mula sa nailathalang patakaran ng halalan, hindi mula sa pahinang ito.",
+                    fromSettings: "Mula sa mga setting ng halalan.",
+                    then: "Pagkatapos, bumoto mula sa ibang device.",
+                    save: "I-save ang ebidensiya",
+                    email: "I-email ang awtoridad",
+                    emailSubject: "Hindi nagde-decode sa mga pinili ko ang na-audit kong balota",
+                    emailBody:
+                        "Nag-audit ako ng balota sa halalang ito at hindi ang mga pinili ko ang na-decode ng aking browser.\n\nTracking ID: {{id}}\n\nNai-save ko ang ebidensiya sa isang file at maipapadala ko ito.",
+                },
+                how: "Paano ito gumagana?",
+                faq: {
+                    why: {
+                        question: "Bakit mag-audit?",
+                        answer: "Naka-encrypt sa iyong device ang boto mo, kaya walang makababasa nito, kahit ikaw. Pinapayagan ka ng pag-audit na tiyaking ini-encrypt ng portal ang pinili mo bago ka bumoto nang totoo.",
+                    },
+                    catch: {
+                        question: "Bakit nahuhuli nito ang pandaraya?",
+                        answer: "Nag-e-encrypt ang portal bago mo piliing mag-audit, kaya hindi nito alam kung aling mga balota ang susuriin. Kung binago nito ang mga boto, mahuhuli ito ng bawat botanteng nag-audit.",
+                    },
+                    spent: {
+                        question: "Bakit hindi mabibilang ang balotang ito?",
+                        answer: "Kapag naihayag na ang lihim nito, ipinapakita ng balota kung paano ka bumoto. Para manatiling lihim ang boto mo, ang balotang na-audit ay hindi kailanman iboboto.",
+                    },
+                    differ: {
+                        question: "Paano kung hindi tugma?",
+                        answer: "Huwag bumoto sa device na iyon. I-save ang ebidensiya at i-ulat ito sa awtoridad ng halalan, na ang contact ay mula sa patakaran ng halalan. Pagkatapos, bumoto mula sa ibang device.",
+                    },
+                    tip: "Para sa pinakamatibay na pagsusuri, buksan ang pahinang ito sa device na iba sa ginamit mong pagboto, tulad ng iyong telepono. Ang device na nagbago ng iyong balota ay maaari ring magbago ng ipinapakita nito sa iyo rito.",
+                },
+            },
+        },
     },
 }
 

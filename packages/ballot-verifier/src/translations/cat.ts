@@ -323,6 +323,170 @@ const catalanTranslation: TranslationType = {
             formatError:
                 "Reviseu l'ID de seguiment: té 64 caràcters, dígits i les lletres de la a a la f.",
         },
+        "auditedScreen": {
+            title: "Papereta",
+            tag: "Auditada",
+            loading: "S'està comprovant la papereta al registre públic…",
+            retry: "Torna-ho a provar",
+            header: {
+                strip: {
+                    withOperator:
+                        "Un centre de transparència, gestionat per {{operator}}. No és el web de l'elecció i mai us demana votar, iniciar sessió ni pagar.",
+                    noOperator:
+                        "Un centre de transparència. No és el web de l'elecció i mai us demana votar, iniciar sessió ni pagar.",
+                },
+                subline: {
+                    withOperator: "Gestionat per {{operator}} · un centre Vitrine",
+                    noOperator: "Un centre Vitrine",
+                },
+                unnamed: "Centre de transparència",
+            },
+            trackingId: {
+                full: "ID de seguiment complet",
+                copy: "Copia l'ID de seguiment complet",
+                copied: "ID de seguiment copiat",
+                copyText: "Copia",
+                copiedText: "Copiat",
+                selected: "Seleccionat. Premeu Ctrl+C, o ⌘C en un Mac, per copiar-lo.",
+            },
+            checks: {
+                title: "Comprovat al vostre navegador",
+                record: {
+                    title: "Al registre públic",
+                    text: "Entrada núm. {{index}}, auditada a les {{time}}. Mai emesa.",
+                    waiting: "S'està cercant la seva auditoria al registre de l'elecció.",
+                    failed: "La prova del registre per a aquesta auditoria no és vàlida.",
+                },
+                secret: {
+                    title: "El secret correspon a la papereta",
+                    text: "En tornar a xifrar amb ell s'obté la mateixa papereta, byte a byte.",
+                    waiting: "Es comprova quan s'hagi comprovat el registre.",
+                    failed: "En tornar a xifrar amb ell no s'obté aquesta papereta.",
+                },
+                decoded: {
+                    title: "Descodificada",
+                    text: "Les opcions de l'esquerra, segons el disseny de papereta publicat de l'elecció.",
+                    waiting: "Només quan el secret correspongui.",
+                    failed: "No s'ha pogut descodificar.",
+                },
+            },
+            note: {
+                named: "Amb codi que tothom pot inspeccionar. {{hub}} només l'emmagatzema i el serveix, i mai pregunta què vau triar. La vostra resposta es queda en aquest navegador.",
+                unnamed:
+                    "Amb codi que tothom pot inspeccionar. Aquest centre només l'emmagatzema i el serveix, i mai pregunta què vau triar. La vostra resposta es queda en aquest navegador.",
+            },
+            states: {
+                "bad-link": {
+                    title: "Aquest enllaç no és complet",
+                    text: "Necessita l'ID de seguiment complet de la papereta i l'ID de política de l'elecció. Torneu-lo a obrir des del lloc de votació.",
+                },
+                "no-policy": {
+                    title: "No s'ha trobat la política de l'elecció",
+                    text: "Aquesta pàgina només comprova una papereta amb la política que indica l'enllaç, i no l'ha pogut obtenir de l'elecció. Torneu-ho a provar més tard.",
+                },
+                "other-election": {
+                    title: "Aquest enllaç és d'una altra elecció",
+                    text: "La política que indica l'enllaç no cobreix aquesta elecció, de manera que la papereta no es pot comprovar amb ella.",
+                },
+                "not-found": {
+                    title: "No hi ha cap papereta amb aquest ID de seguiment",
+                    text: "El registre públic de l'elecció no té cap papereta amb aquest ID de seguiment. Comproveu que l'enllaç és complet o torneu-ho a provar d'aquí a un minut.",
+                },
+                "cast": {
+                    title: "Aquesta papereta es va emetre, no es va auditar",
+                    text: "Només es pot descodificar una papereta auditada. Una papereta emesa continua xifrada, de manera que ningú no veu com es va votar, ni aquí ni enlloc.",
+                },
+                "pending": {
+                    title: "Aquesta papereta encara no està auditada",
+                    text: "El registre públic té aquesta papereta, però encara no la seva auditoria. Torneu-ho a provar d'aquí a un minut.",
+                },
+                "no-content": {
+                    title: "La papereta auditada encara no està publicada",
+                    text: "El registre públic té l'auditoria d'aquesta papereta, però no la papereta i el seu secret, de manera que encara no es pot descodificar aquí. Torneu-ho a provar més tard.",
+                },
+                "unavailable": {
+                    title: "No s'ha pogut comprovar la papereta",
+                    text: "Aquesta pàgina no ha pogut accedir al registre públic de l'elecció. Torneu-ho a provar més tard.",
+                },
+                "record-failed": {
+                    title: "El registre no prova aquesta auditoria",
+                    text: "El registre de l'elecció ha donat una prova de l'auditoria d'aquesta papereta que no és vàlida, de manera que no es descodifica res. Aviseu l'autoritat electoral.",
+                },
+                "mismatch": {
+                    title: "Auditoria fallida",
+                    text: "La papereta del registre públic no és la que indica el seu ID de seguiment, o el secret que va publicar el portal no la reprodueix. No voteu al dispositiu des del qual vau auditar i aviseu l'autoritat electoral.",
+                },
+                "unchecked": {
+                    title: "No s'ha pogut comprovar l'auditoria",
+                    text: "Aquesta pàgina no ha pogut comprovar aquesta papereta auditada, de manera que no es mostra cap opció. Torneu-ho a provar més tard o en un altre dispositiu.",
+                },
+            },
+            compare: {
+                kicker: "Auditoria de la papereta",
+                title: "Comproveu que la vostra papereta es va xifrar tal com vau triar",
+                note: "Aquesta és la papereta que vau auditar, descodificada pel vostre navegador. Només vosaltres sabeu què vau triar, així que només vosaltres podeu fer aquesta comprovació.",
+                steps: {
+                    label: "Com funciona la comprovació",
+                    encrypted: {
+                        title: "Xifrada al vostre dispositiu",
+                        text: "El portal va xifrar les vostres opcions i va donar a la papereta el seu ID de seguiment, abans que decidíssiu auditar-la.",
+                    },
+                    decoded: {
+                        title: "Descodificada al vostre navegador",
+                        text: "La papereta i el secret que va publicar el portal vénen del registre públic. Aquesta pàgina ha descodificat l'una amb l'altre.",
+                    },
+                    compare: {
+                        title: "Compareu vosaltres",
+                        text: "Mireu les opcions de sota. Són les que vau triar?",
+                    },
+                },
+                choices: "Opcions descodificades d'aquesta papereta",
+                question: "Coincideixen amb el que vau triar?",
+                yes: "Sí, coincideixen",
+                no: "No, hi ha alguna cosa diferent",
+                change: "Canviar la meva resposta",
+                match: {
+                    title: "La vostra papereta es va xifrar tal com vau triar",
+                    text: "Aquesta papereta auditada ja està gastada: mai es va emetre i mai es comptarà. Torneu enrere i voteu. El vostre vot rebrà un ID de seguiment nou, i si voleu podeu auditar-ne una altra abans.",
+                    back: "Tornar al lloc de votació",
+                },
+                mismatch: {
+                    title: "No voteu en aquest dispositiu",
+                    text: "El que es va xifrar no és el que vau triar, així que aquest dispositiu o el portal de votació poden haver estat manipulats. El vostre navegador ha desat la prova: la papereta xifrada del registre públic, el secret que va revelar el portal i el que descodifica.",
+                    report: "Aviseu l'autoritat electoral",
+                    reportNoContact: "Aviseu l'autoritat electoral.",
+                    fromPolicy: "De la política publicada de l'elecció, no d'aquesta pàgina.",
+                    fromSettings: "De la configuració de l'elecció.",
+                    then: "Després voteu des d'un altre dispositiu.",
+                    save: "Desar la prova",
+                    email: "Escriure a l'autoritat",
+                    emailSubject:
+                        "La meva papereta auditada no es descodifica en les meves opcions",
+                    emailBody:
+                        "He auditat una papereta en aquesta elecció i les opcions que ha descodificat el meu navegador no són les que vaig triar.\n\nID de seguiment: {{id}}\n\nHe desat la prova en un fitxer i la puc enviar.",
+                },
+                how: "Com funciona?",
+                faq: {
+                    why: {
+                        question: "Per què auditar?",
+                        answer: "El vostre vot es xifra al vostre dispositiu, així que ningú pot llegir-lo, ni tan sols vosaltres. Auditar us permet comprovar que el portal va xifrar el que vau triar abans de votar de debò.",
+                    },
+                    catch: {
+                        question: "Per què detecta l'engany?",
+                        answer: "El portal xifra abans que decidiu auditar, així que no pot saber quines paperetes es comprovaran. Si canviés vots, qualsevol votant que auditi ho podria descobrir.",
+                    },
+                    spent: {
+                        question: "Per què no pot comptar aquesta papereta?",
+                        answer: "Amb el secret revelat, la papereta mostra com vau votar. Per mantenir secret el vostre vot, una papereta auditada no s'emet mai.",
+                    },
+                    differ: {
+                        question: "I si no coincideixen?",
+                        answer: "No voteu en aquest dispositiu. Deseu la prova i aviseu l'autoritat electoral, el contacte de la qual surt de la política de l'elecció. Després voteu des d'un altre dispositiu.",
+                    },
+                    tip: "Per a la comprovació més sòlida, obriu aquesta pàgina en un dispositiu diferent d'aquell en què vau votar, per exemple el mòbil. Un dispositiu que canviés la vostra papereta també podria canviar el que us mostra aquí.",
+                },
+            },
+        },
     },
 }
 

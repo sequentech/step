@@ -17,6 +17,8 @@ import {
 import {HomeScreen} from "./screens/HomeScreen"
 import {ConfirmationScreen} from "./screens/ConfirmationScreen"
 import {ReceiptScreen} from "./screens/ReceiptScreen"
+import {AuditedScreen} from "./screens/AuditedScreen"
+import {AUDITED_ROUTE} from "./services/vitrine/auditedBallot"
 import {APP_LANGUAGES} from "./services/i18n"
 import Stack from "@mui/material/Stack"
 import {IConfirmationBallot, provideBallotService} from "./services/BallotService"
@@ -110,6 +112,7 @@ const App = () => {
 
     const routeMatch = useMatch("/tenant/:tenantId/event/:eventId/*")
     const receiptMatch = useMatch(RECEIPT_ROUTE)
+    const auditedMatch = useMatch(AUDITED_ROUTE)
     const currentEventId = routeMatch?.params.eventId
     const ballotStyle = useAppSelector(selectBallotStyleByElectionEventId(currentEventId))
 
@@ -184,6 +187,18 @@ const App = () => {
             "",
         [confirmationBallot, ballotStyle]
     )
+
+    // An audited ballot is checked on the hub's own page: its header, not the
+    // election's, and none of the election's styles. It needs no login.
+    if (auditedMatch) {
+        return (
+            <StyledApp className="ballot-verifier app-root audited-app">
+                <Routes>
+                    <Route path={AUDITED_ROUTE} element={<AuditedScreen />} />
+                </Routes>
+            </StyledApp>
+        )
+    }
 
     return (
         <StyledAppWrapper customCss={customCss}>
