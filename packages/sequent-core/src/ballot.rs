@@ -4216,10 +4216,12 @@ mod candidates_layout_tests {
 
     #[test]
     fn an_unknown_layout_is_rejected() {
-        assert!(serde_json::from_value::<CandidatesLayout>(
-            serde_json::json!("grid")
-        )
-        .is_err());
+        assert!(
+            serde_json::from_value::<CandidatesLayout>(serde_json::json!(
+                "grid"
+            ))
+            .is_err()
+        );
         assert!("grid".parse::<CandidatesLayout>().is_err());
     }
 
