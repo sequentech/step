@@ -1037,6 +1037,8 @@ const englishTranslation = {
                     anchoredBootstrap:
                         "In the public hubs ({{count}}), and where browsers check, through a stand-in hub for now.",
                     anchoredHubs: "In the public hubs ({{count}}).",
+                    anchoredOneHub: "Anchored in 1 hub, run by {{party}}.",
+                    anchoredOneHubPlatform: "Anchored in 1 hub, run by the platform.",
                     lateNow: "It should have been done by now.",
                     lateStep: "It should have been done by {{time}}.",
                     lateAnchors: "The hubs should have anchored it by {{time}}.",
@@ -1079,6 +1081,38 @@ const englishTranslation = {
                     verified: "Verified by your browser, with code anyone can inspect.",
                     checked: "Checked by your browser, with code anyone can inspect.",
                     kept: "This device keeps the receipt and checks it again on each visit.",
+                },
+            },
+            signers: {
+                witnesses: {open: "Who signed", close: "Hide who signed"},
+                hubs: {open: "Which hubs", close: "Hide which hubs"},
+                runBy: "Run by {{party}}",
+                runByAlso: "Run by {{party}}, which also runs {{hubs}}",
+                signed: "Signed {{time}}",
+                signedNoTime: "Signed",
+                notYet: "Not yet",
+                late: "Late",
+                anchored: "Anchored {{time}}",
+                anchoredNoTime: "Anchored",
+                within: "Within {{minutes}} min",
+                check: "Check on its site",
+                checkWitness: "Check on its site: witness {{name}} (opens in a new tab)",
+                checkHub: "Check on its site: hub {{name}} (opens in a new tab)",
+                linksNote:
+                    "“Check on its site” opens the signer’s own explorer, which checks that signature there.",
+                standIn: {name: "Where browsers check", who: "A stand-in hub, for now"},
+                rule: {
+                    witnesses:
+                        "The policy needs {{needed}} of its {{total}} witnesses to sign. {{signed}} have signed.",
+                    witnessesAlone:
+                        "The policy needs {{needed}} of its {{total}} witnesses to sign, and no single party runs that many. {{signed}} have signed.",
+                    witnessesCount: "{{signed}} of the policy’s {{total}} witnesses have signed.",
+                    hubs: "All {{count}} hubs must anchor the record, and at least {{independent}} must be run by someone other than the election authority.",
+                    hubsPlatform:
+                        "All {{count}} hubs must anchor the record, and at least {{independent}} must be run by neither the election authority nor the platform.",
+                    hubsAll: "All {{count}} hubs must anchor the record.",
+                    oneHub: "The policy names one hub, run by {{party}}.",
+                    oneHubPlatform: "The policy names one hub, run by the platform.",
                 },
             },
             booth: {

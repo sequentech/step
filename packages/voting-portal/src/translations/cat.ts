@@ -930,6 +930,8 @@ const catalanTranslation: TranslationType = {
                     anchoredBootstrap:
                         "Als nodes públics ({{count}}) i on comproven els navegadors, per ara mitjançant un node substitut.",
                     anchoredHubs: "Als nodes públics ({{count}}).",
+                    anchoredOneHub: "Ancorada en 1 node, gestionat per {{party}}.",
+                    anchoredOneHubPlatform: "Ancorada en 1 node, gestionat per la plataforma.",
                     lateNow: "Ja hauria d'estar fet.",
                     lateStep: "Hauria d'estar fet a les {{time}}.",
                     lateAnchors: "Els nodes l'haurien d'haver ancorat a les {{time}}.",
@@ -974,6 +976,40 @@ const catalanTranslation: TranslationType = {
                     verified: "Verificat pel navegador, amb codi que qualsevol pot inspeccionar.",
                     checked: "Comprovat pel navegador, amb codi que qualsevol pot inspeccionar.",
                     kept: "Aquest dispositiu guarda el justificant i el torna a comprovar a cada visita.",
+                },
+            },
+            signers: {
+                witnesses: {open: "Qui ha signat", close: "Amaga qui ha signat"},
+                hubs: {open: "Quins nodes", close: "Amaga quins nodes"},
+                runBy: "Gestionat per {{party}}",
+                runByAlso: "Gestionat per {{party}}, que també gestiona {{hubs}}",
+                signed: "Ha signat a les {{time}}",
+                signedNoTime: "Ha signat",
+                notYet: "Encara no",
+                late: "Tard",
+                anchored: "Ancorat a les {{time}}",
+                anchoredNoTime: "Ancorat",
+                within: "En {{minutes}} min",
+                check: "Comprova al seu lloc",
+                checkWitness:
+                    "Comprova al seu lloc: testimoni {{name}} (s'obre en una pestanya nova)",
+                checkHub: "Comprova al seu lloc: node {{name}} (s'obre en una pestanya nova)",
+                linksNote:
+                    "«Comprova al seu lloc» obre l'explorador del mateix signant, que hi comprova aquesta signatura.",
+                standIn: {name: "On comproven els navegadors", who: "Un node substitut, de moment"},
+                rule: {
+                    witnesses:
+                        "La política exigeix que signin {{needed}} dels seus {{total}} testimonis. Han signat {{signed}}.",
+                    witnessesAlone:
+                        "La política exigeix que signin {{needed}} dels seus {{total}} testimonis, i cap part en gestiona tants. Han signat {{signed}}.",
+                    witnessesCount:
+                        "Han signat {{signed}} dels {{total}} testimonis de la política.",
+                    hubs: "Els {{count}} nodes han d'ancorar el registre, i almenys {{independent}} han d'estar gestionats per algú altre que l'autoritat electoral.",
+                    hubsPlatform:
+                        "Els {{count}} nodes han d'ancorar el registre, i almenys {{independent}} han d'estar gestionats per algú que no sigui ni l'autoritat electoral ni la plataforma.",
+                    hubsAll: "Els {{count}} nodes han d'ancorar el registre.",
+                    oneHub: "La política anomena un sol node, gestionat per {{party}}.",
+                    oneHubPlatform: "La política anomena un sol node, gestionat per la plataforma.",
                 },
             },
             booth: {

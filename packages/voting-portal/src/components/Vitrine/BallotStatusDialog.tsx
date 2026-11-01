@@ -23,7 +23,10 @@ import {shortBallotId} from "../../services/vitrine/ballotId"
 import type {IReceiptView} from "../../services/vitrine/castReceipt"
 import {receiptFileName} from "../../services/vitrine/confirmation"
 import {RECEIPT_MEDIA_TYPE, saveTextFile} from "../../services/vitrine/file"
+import {ISignerLists, signerLists} from "../../services/vitrine/signers"
+import {trackedResult} from "../../services/vitrine/ballotTracker"
 import {
+    anchorMinutes,
     clockSeconds,
     IStatusRow,
     ITranslation,
@@ -46,6 +49,7 @@ import {BallotTag} from "./BallotTag"
 import {explorersOf} from "./explorers"
 import {FindElsewhere} from "./FindElsewhere"
 import {EFullTrackingIdSurface, FullTrackingId} from "./FullTrackingId"
+import {WitnessList} from "./WitnessList"
 
 const DIALOG_COLORS = {
     navy: "#0F054C",
@@ -309,13 +313,33 @@ const Headline: React.FC<{
     </Box>
 )
 
+const listKind = (step: EStatusStep): keyof ISignerLists =>
+    step === EStatusStep.WITNESSES ? "witnesses" : "hubs"
+
 const wordColor = (state: EStepState): {color: string; fontWeight: number} => {
     if (state === EStepState.LATE) return {color: CHECK_COLORS.AMBER, fontWeight: 600}
     if (state === EStepState.FAILED) return {color: DIALOG_COLORS.redStrong, fontWeight: 600}
     return {color: DIALOG_COLORS.subtle, fontWeight: 400}
 }
 
-const Steps: React.FC<{rows: IStatusRow[]; tr: (text: ITranslation) => string}> = ({rows, tr}) => (
+/** The step titles are at this many pixels from the left of a row. */
+const STEP_TITLE_INDENT = 36
+
+/** The steps that open a list of who signed, once there is something to list. */
+const listedStates: Partial<Record<EStatusStep, EStepState[]>> = {
+    [EStatusStep.WITNESSES]: [EStepState.DONE, EStepState.LATE],
+    [EStatusStep.ANCHORS]: [EStepState.DONE, EStepState.LATE, EStepState.ACTIVE],
+}
+
+interface IStepsProps {
+    rows: IStatusRow[]
+    tr: (text: ITranslation) => string
+    lists: ISignerLists
+    /** Minutes that the hubs have, from the policy. */
+    minutes: number
+}
+
+const Steps: React.FC<IStepsProps> = ({rows, tr, lists, minutes}) => (
     <Box
         component="ol"
         className="ballot-status-steps"
@@ -335,7 +359,8 @@ const Steps: React.FC<{rows: IStatusRow[]; tr: (text: ITranslation) => string}> 
                 data-state={row.state}
                 sx={{
                     display: "flex",
-                    gap: "12px",
+                    flexWrap: "wrap",
+                    gap: "0 12px",
                     alignItems: "flex-start",
                     p: "12px 14px",
                     borderTop: n ? `1px solid ${DIALOG_COLORS.line}` : 0,
@@ -388,6 +413,18 @@ const Steps: React.FC<{rows: IStatusRow[]; tr: (text: ITranslation) => string}> 
                           ? null
                           : clockSeconds(row.doneAt)}
                 </Box>
+                {listedStates[row.step]?.includes(row.state) && lists[listKind(row.step)] ? (
+                    <Box
+                        className="ballot-status-step-signers"
+                        sx={{flex: "0 0 100%", minWidth: 0}}
+                    >
+                        <WitnessList
+                            list={lists[listKind(row.step)]}
+                            minutes={minutes}
+                            indent={STEP_TITLE_INDENT}
+                        />
+                    </Box>
+                ) : null}
             </Box>
         ))}
     </Box>
@@ -452,6 +489,12 @@ export const BallotStatusDialog: React.FC<IBallotStatusDialogProps> = ({
     const input = {status, problem, result: view?.result, policy: view?.policy, times}
     const headline = statusHeadline(input)
     const rows = statusRows(input)
+    const lists = signerLists({
+        policy: view?.policy,
+        result: trackedResult(view),
+        times: view?.signers,
+        standIn: true,
+    })
     const tr = ({key, values}: ITranslation): string => t(key, values)
     const chain = view?.chain
     // The ballot is in the record once its first check has an answer.
@@ -510,7 +553,7 @@ export const BallotStatusDialog: React.FC<IBallotStatusDialogProps> = ({
                 ) : null}
                 <IdBox ballotId={ballotId} tag={tag ?? ballotTagOf(status)} />
                 <Headline status={status} head={tr(headline.head)} sub={tr(headline.sub)} />
-                <Steps rows={rows} tr={tr} />
+                <Steps rows={rows} tr={tr} lists={lists} minutes={anchorMinutes(view?.policy)} />
                 {status === EBallotStatus.LATE ? (
                     <Box
                         className="ballot-status-late"

@@ -931,6 +931,8 @@ const dutchTranslation: TranslationType = {
                     anchoredBootstrap:
                         "In de openbare hubs ({{count}}) en waar browsers controleren, voorlopig via een vervangende hub.",
                     anchoredHubs: "In de openbare hubs ({{count}}).",
+                    anchoredOneHub: "Verankerd in 1 hub, beheerd door {{party}}.",
+                    anchoredOneHubPlatform: "Verankerd in 1 hub, beheerd door het platform.",
                     lateNow: "Het had nu klaar moeten zijn.",
                     lateStep: "Het had om {{time}} klaar moeten zijn.",
                     lateAnchors: "De hubs hadden het om {{time}} moeten verankeren.",
@@ -976,6 +978,40 @@ const dutchTranslation: TranslationType = {
                     checked:
                         "Gecontroleerd door uw browser, met code die iedereen kan inspecteren.",
                     kept: "Dit apparaat bewaart het ontvangstbewijs en controleert het bij elk bezoek opnieuw.",
+                },
+            },
+            signers: {
+                witnesses: {open: "Wie heeft getekend", close: "Verberg wie heeft getekend"},
+                hubs: {open: "Welke hubs", close: "Verberg welke hubs"},
+                runBy: "Beheerd door {{party}}",
+                runByAlso: "Beheerd door {{party}}, dat ook {{hubs}} beheert",
+                signed: "Getekend om {{time}}",
+                signedNoTime: "Getekend",
+                notYet: "Nog niet",
+                late: "Vertraagd",
+                anchored: "Verankerd om {{time}}",
+                anchoredNoTime: "Verankerd",
+                within: "Binnen {{minutes}} min",
+                check: "Controleer op zijn site",
+                checkWitness:
+                    "Controleer op zijn site: getuige {{name}} (opent in een nieuw tabblad)",
+                checkHub: "Controleer op zijn site: hub {{name}} (opent in een nieuw tabblad)",
+                linksNote:
+                    "“Controleer op zijn site” opent de eigen verkenner van de ondertekenaar, die die handtekening daar controleert.",
+                standIn: {name: "Waar browsers controleren", who: "Voorlopig een vervangende hub"},
+                rule: {
+                    witnesses:
+                        "Het beleid vereist dat {{needed}} van zijn {{total}} getuigen tekenen. {{signed}} hebben getekend.",
+                    witnessesAlone:
+                        "Het beleid vereist dat {{needed}} van zijn {{total}} getuigen tekenen, en geen enkele partij beheert er zoveel. {{signed}} hebben getekend.",
+                    witnessesCount:
+                        "{{signed}} van de {{total}} getuigen van het beleid hebben getekend.",
+                    hubs: "Alle {{count}} hubs moeten het register verankeren, en minstens {{independent}} moeten worden beheerd door iemand anders dan de verkiezingsautoriteit.",
+                    hubsPlatform:
+                        "Alle {{count}} hubs moeten het register verankeren, en minstens {{independent}} moeten worden beheerd door iemand die niet de verkiezingsautoriteit of het platform is.",
+                    hubsAll: "Alle {{count}} hubs moeten het register verankeren.",
+                    oneHub: "Het beleid noemt één hub, beheerd door {{party}}.",
+                    oneHubPlatform: "Het beleid noemt één hub, beheerd door het platform.",
                 },
             },
             booth: {

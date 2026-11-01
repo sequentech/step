@@ -933,6 +933,8 @@ const spanishTranslation: TranslationType = {
                     anchoredBootstrap:
                         "En los nodos públicos ({{count}}) y donde comprueban los navegadores, por ahora mediante un nodo sustituto.",
                     anchoredHubs: "En los nodos públicos ({{count}}).",
+                    anchoredOneHub: "Anclada en 1 nodo, gestionado por {{party}}.",
+                    anchoredOneHubPlatform: "Anclada en 1 nodo, gestionado por la plataforma.",
                     lateNow: "Ya debería estar hecho.",
                     lateStep: "Debería estar hecho a las {{time}}.",
                     lateAnchors: "Los nodos deberían haberla anclado a las {{time}}.",
@@ -981,6 +983,44 @@ const spanishTranslation: TranslationType = {
                     checked:
                         "Comprobado por su navegador, con código que cualquiera puede inspeccionar.",
                     kept: "Este dispositivo guarda el justificante y lo vuelve a comprobar en cada visita.",
+                },
+            },
+            signers: {
+                witnesses: {open: "Quién firmó", close: "Ocultar quién firmó"},
+                hubs: {open: "Qué nodos", close: "Ocultar qué nodos"},
+                runBy: "Gestionado por {{party}}",
+                runByAlso: "Gestionado por {{party}}, que también gestiona {{hubs}}",
+                signed: "Firmó a las {{time}}",
+                signedNoTime: "Firmó",
+                notYet: "Aún no",
+                late: "Con retraso",
+                anchored: "Anclado a las {{time}}",
+                anchoredNoTime: "Anclado",
+                within: "En {{minutes}} min",
+                check: "Comprobar en su sitio",
+                checkWitness:
+                    "Comprobar en su sitio: testigo {{name}} (se abre en una pestaña nueva)",
+                checkHub: "Comprobar en su sitio: nodo {{name}} (se abre en una pestaña nueva)",
+                linksNote:
+                    "«Comprobar en su sitio» abre el explorador del propio firmante, que comprueba allí esa firma.",
+                standIn: {
+                    name: "Donde comprueban los navegadores",
+                    who: "Un nodo sustituto, por ahora",
+                },
+                rule: {
+                    witnesses:
+                        "La política exige que firmen {{needed}} de sus {{total}} testigos. Han firmado {{signed}}.",
+                    witnessesAlone:
+                        "La política exige que firmen {{needed}} de sus {{total}} testigos, y ninguna parte gestiona tantos. Han firmado {{signed}}.",
+                    witnessesCount:
+                        "Han firmado {{signed}} de los {{total}} testigos de la política.",
+                    hubs: "Los {{count}} nodos deben anclar el registro, y al menos {{independent}} deben estar gestionados por alguien distinto de la autoridad electoral.",
+                    hubsPlatform:
+                        "Los {{count}} nodos deben anclar el registro, y al menos {{independent}} deben estar gestionados por alguien que no sea ni la autoridad electoral ni la plataforma.",
+                    hubsAll: "Los {{count}} nodos deben anclar el registro.",
+                    oneHub: "La política nombra un solo nodo, gestionado por {{party}}.",
+                    oneHubPlatform:
+                        "La política nombra un solo nodo, gestionado por la plataforma.",
                 },
             },
             booth: {

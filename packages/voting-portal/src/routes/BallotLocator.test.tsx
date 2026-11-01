@@ -754,6 +754,173 @@ describe("the result for an event with transparency", () => {
     })
 })
 
+describe("Who signed and Which hubs in the result for an event with transparency", () => {
+    const SIGNED_AT = NOW - 600
+    const POLICY = {
+        id: "sha256:abc123",
+        operator: "Election authority",
+        browserPeriod: 600,
+        witnesses: {
+            witnesses: new Map([
+                ["w1", {name: "w1", party: "Observer A"}],
+                ["w2", {name: "w2", party: "Observer B"}],
+            ]),
+            groups: new Map([["quorum", {k: 2, members: ["w1", "w2"]}]]),
+            quorum: "quorum",
+        },
+        monitors: new Map([
+            ["obs", {name: "obs", party: "Observer A", explorer: "https://obs.example/"}],
+        ]),
+        hubs: new Map([
+            ["hub-a", {name: "hub-a", operator: "Hub A", explorer: "https://hub-a.example/"}],
+            ["hub-b", {name: "hub-b", operator: "Election authority"}],
+        ]),
+        explorers: [],
+        anchorHubs: {min: 2, minIndependent: 1},
+    } as unknown as NonNullable<IReceiptView["policy"]>
+
+    const signers = {
+        witnesses: new Map([
+            ["w1", SIGNED_AT],
+            ["w2", SIGNED_AT + 1],
+        ]),
+        hubs: new Map([["hub-a", SIGNED_AT + 2]]),
+        size: 22,
+    }
+
+    const hubTiers = [
+        {hub: "hub-a", status: "verified"},
+        {hub: "hub-b", status: "late"},
+    ]
+
+    const withSigners = (
+        status: ChainResult["status"],
+        tiers: TierResult[],
+        extra: Partial<IReceiptView> = {}
+    ): IReceiptView => ({
+        ...viewOf({
+            ...resultOf(status, tiers),
+            policy: {hubs: ["hub-a", "hub-b"], browser: "bootstrap"},
+        } as unknown as ChainResult),
+        policy: POLICY,
+        signers,
+        ...extra,
+    })
+
+    const step = (name: string) => document.querySelector(`.tracker-step-${name}`) as HTMLElement
+    const toggleOf = (name: string) =>
+        within(step(name)).queryByRole("button", {name: /vitrine\.signers\./})
+
+    beforeEach(() => {
+        mockPresentation = TRACKER
+        mockVotes = [vote(FULL)]
+    })
+
+    it("opens a list of the witnesses under the step they confirmed, and of the hubs under theirs", () => {
+        mockTracked.mockReturnValue(
+            tracked({
+                view: withSigners("verified", [
+                    tier("record", "verified"),
+                    tier("witnesses", "verified"),
+                    tier("hubs", "verified", {hubs: hubTiers} as unknown as Partial<TierResult>),
+                    tier("browser", "verified"),
+                ]),
+            })
+        )
+        renderAt(`/${FULL}`)
+        expect(toggleOf("record")).toBeNull()
+        expect(toggleOf("witnesses")).toHaveTextContent("vitrine.signers.witnesses.open")
+        expect(toggleOf("hubs")).toHaveTextContent("vitrine.signers.hubs.open")
+        expect(toggleOf("browser")).toBeNull()
+    })
+
+    it("lists the witnesses with when each signed, and a link only where the policy names a site", async () => {
+        mockTracked.mockReturnValue(
+            tracked({
+                view: withSigners("pending", [
+                    tier("record", "verified"),
+                    tier("witnesses", "verified"),
+                    tier("hubs", "pending"),
+                    tier("browser", "pending"),
+                ]),
+            })
+        )
+        renderAt(`/${FULL}`)
+        await userEvent.click(toggleOf("witnesses")!)
+        const rows = Array.from(step("witnesses").querySelectorAll(".witness-list-row"))
+        expect(rows.map((row) => row.querySelector(".witness-list-name")?.textContent)).toEqual([
+            "w1",
+            "w2",
+        ])
+        expect(
+            Array.from(step("witnesses").querySelectorAll<HTMLAnchorElement>("a")).map((a) =>
+                a.getAttribute("href")
+            )
+        ).toEqual([
+            "https://obs.example/#policy=sha256%3Aabc123&log=ballots&checkpoint=22&cosigner=w1",
+        ])
+    })
+
+    it("lists the hubs, the late one too, and leaves out where browsers check", async () => {
+        mockTracked.mockReturnValue(
+            tracked({
+                view: withSigners("late", [
+                    tier("record", "verified"),
+                    tier("witnesses", "verified"),
+                    tier("hubs", "late", {
+                        deadline: NOW - 60,
+                        hubs: hubTiers,
+                    } as unknown as Partial<TierResult>),
+                    tier("browser", "pending"),
+                ]),
+            })
+        )
+        renderAt(`/${FULL}`)
+        await userEvent.click(toggleOf("hubs")!)
+        const rows = Array.from(step("hubs").querySelectorAll(".witness-list-row"))
+        expect(rows.map((row) => row.querySelector(".witness-list-name")?.textContent)).toEqual([
+            "hub-a",
+            "hub-b",
+        ])
+        expect(rows[1].querySelector(".witness-list-when")?.textContent).toBe(
+            "vitrine.signers.late"
+        )
+    })
+
+    it("offers no list before the witnesses have signed, or when the receipt gave no times", () => {
+        mockTracked.mockReturnValue(
+            tracked({
+                view: withSigners("pending", [
+                    tier("record", "verified"),
+                    tier("witnesses", "pending"),
+                    tier("hubs", "pending"),
+                    tier("browser", "pending"),
+                ]),
+            })
+        )
+        const {unmount} = renderAt(`/${FULL}`)
+        expect(toggleOf("witnesses")).toBeNull()
+        unmount()
+        mockTracked.mockReturnValue(
+            tracked({
+                view: withSigners(
+                    "verified",
+                    [
+                        tier("record", "verified"),
+                        tier("witnesses", "verified"),
+                        tier("hubs", "verified"),
+                        tier("browser", "verified"),
+                    ],
+                    {signers: undefined}
+                ),
+            })
+        )
+        renderAt(`/${FULL}`)
+        expect(toggleOf("witnesses")).toBeNull()
+        expect(toggleOf("hubs")).toBeNull()
+    })
+})
+
 describe("the record in the result for an event with transparency", () => {
     beforeEach(() => {
         mockPresentation = TRACKER

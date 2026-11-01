@@ -930,6 +930,8 @@ const tagalogTranslation: TranslationType = {
                     anchoredBootstrap:
                         "Sa mga pampublikong hub ({{count}}) at kung saan sumusuri ang mga browser, sa pamamagitan muna ng pamalit na hub.",
                     anchoredHubs: "Sa mga pampublikong hub ({{count}}).",
+                    anchoredOneHub: "Naka-angkla sa 1 hub, pinapatakbo ng {{party}}.",
+                    anchoredOneHubPlatform: "Naka-angkla sa 1 hub, pinapatakbo ng platform.",
                     lateNow: "Dapat tapos na ito ngayon.",
                     lateStep: "Dapat tapos na ito pagsapit ng {{time}}.",
                     lateAnchors: "Dapat naangkla na ito ng mga hub pagsapit ng {{time}}.",
@@ -975,6 +977,42 @@ const tagalogTranslation: TranslationType = {
                         "Na-verify ng iyong browser, gamit ang code na masisiyasat ng sinuman.",
                     checked: "Sinuri ng iyong browser, gamit ang code na masisiyasat ng sinuman.",
                     kept: "Itinatago ng device na ito ang resibo at muling sinusuri ito sa bawat pagbisita.",
+                },
+            },
+            signers: {
+                witnesses: {open: "Sino ang pumirma", close: "Itago kung sino ang pumirma"},
+                hubs: {open: "Aling mga hub", close: "Itago kung aling mga hub"},
+                runBy: "Pinapatakbo ng {{party}}",
+                runByAlso: "Pinapatakbo ng {{party}}, na nagpapatakbo rin ng {{hubs}}",
+                signed: "Pumirma {{time}}",
+                signedNoTime: "Pumirma",
+                notYet: "Hindi pa",
+                late: "Huli",
+                anchored: "Naka-angkla {{time}}",
+                anchoredNoTime: "Naka-angkla",
+                within: "Sa loob ng {{minutes}} min",
+                check: "Suriin sa site nito",
+                checkWitness: "Suriin sa site nito: saksing {{name}} (bubukas sa bagong tab)",
+                checkHub: "Suriin sa site nito: hub na {{name}} (bubukas sa bagong tab)",
+                linksNote:
+                    "Binubuksan ng “Suriin sa site nito” ang sariling explorer ng pumirma, na doon sinusuri ang lagdang iyon.",
+                standIn: {
+                    name: "Kung saan sumusuri ang mga browser",
+                    who: "Pamalit na hub, sa ngayon",
+                },
+                rule: {
+                    witnesses:
+                        "Hinihingi ng patakaran na pumirma ang {{needed}} sa {{total}} nitong saksi. {{signed}} ang pumirma.",
+                    witnessesAlone:
+                        "Hinihingi ng patakaran na pumirma ang {{needed}} sa {{total}} nitong saksi, at walang iisang panig na nagpapatakbo ng ganoon karami. {{signed}} ang pumirma.",
+                    witnessesCount: "{{signed}} sa {{total}} saksi ng patakaran ang pumirma.",
+                    hubs: "Dapat i-angkla ng lahat ng {{count}} hub ang talaan, at hindi bababa sa {{independent}} ang dapat patakbuhin ng iba maliban sa awtoridad ng halalan.",
+                    hubsPlatform:
+                        "Dapat i-angkla ng lahat ng {{count}} hub ang talaan, at hindi bababa sa {{independent}} ang dapat patakbuhin ng hindi awtoridad ng halalan ni ng platform.",
+                    hubsAll: "Dapat i-angkla ng lahat ng {{count}} hub ang talaan.",
+                    oneHub: "Isang hub lang ang pinangalanan ng patakaran, pinapatakbo ng {{party}}.",
+                    oneHubPlatform:
+                        "Isang hub lang ang pinangalanan ng patakaran, pinapatakbo ng platform.",
                 },
             },
             booth: {

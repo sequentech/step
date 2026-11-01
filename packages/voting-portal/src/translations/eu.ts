@@ -930,6 +930,8 @@ const basqueTranslation: TranslationType = {
                     anchoredBootstrap:
                         "Gune publikoetan ({{count}}) eta nabigatzaileek egiaztatzen duten tokian, oraingoz ordezko gune baten bidez.",
                     anchoredHubs: "Gune publikoetan ({{count}}).",
+                    anchoredOneHub: "Gune bakarrean ainguratua; kudeatzailea: {{party}}.",
+                    anchoredOneHubPlatform: "Gune bakarrean ainguratua; kudeatzailea: plataforma.",
                     lateNow: "Dagoeneko eginda egon beharko luke.",
                     lateStep: "{{time}} baino lehen eginda egon beharko luke.",
                     lateAnchors: "Guneek {{time}} baino lehen ainguratu beharko zuten.",
@@ -975,6 +977,45 @@ const basqueTranslation: TranslationType = {
                     verified: "Zure nabigatzaileak egiaztatua, edonork ikuska dezakeen kodearekin.",
                     checked: "Zure nabigatzaileak egiaztatua, edonork ikuska dezakeen kodearekin.",
                     kept: "Gailu honek ordainagiria gordetzen du eta bisita bakoitzean berriro egiaztatzen du.",
+                },
+            },
+            signers: {
+                witnesses: {open: "Nork sinatu duen", close: "Ezkutatu nork sinatu duen"},
+                hubs: {open: "Zein gune", close: "Ezkutatu zein gune"},
+                runBy: "Kudeatzailea: {{party}}",
+                runByAlso: "Kudeatzailea: {{party}}, hau ere kudeatzen du: {{hubs}}",
+                signed: "Sinatua: {{time}}",
+                signedNoTime: "Sinatua",
+                notYet: "Oraindik ez",
+                late: "Berandu",
+                anchored: "Ainguratua: {{time}}",
+                anchoredNoTime: "Ainguratua",
+                within: "{{minutes}} min barru",
+                check: "Egiaztatu bere webgunean",
+                checkWitness:
+                    "Egiaztatu bere webgunean: {{name}} lekukoa (fitxa berri batean irekitzen da)",
+                checkHub:
+                    "Egiaztatu bere webgunean: {{name}} gunea (fitxa berri batean irekitzen da)",
+                linksNote:
+                    "“Egiaztatu bere webgunean” aukerak sinatzailearen beraren esploratzailea irekitzen du, eta han egiaztatzen da sinadura hori.",
+                standIn: {
+                    name: "Nabigatzaileek egiaztatzen duten tokia",
+                    who: "Ordezko gune bat, oraingoz",
+                },
+                rule: {
+                    witnesses:
+                        "Politikak eskatzen du bere {{total}} lekukoetatik gutxienez {{needed}} sinatzea. Sinatu dutenak: {{signed}}.",
+                    witnessesAlone:
+                        "Politikak eskatzen du bere {{total}} lekukoetatik gutxienez {{needed}} sinatzea, eta ez dago hainbeste kudeatzen dituen alderik. Sinatu dutenak: {{signed}}.",
+                    witnessesCount:
+                        "Politikaren {{total}} lekukoetatik sinatu dutenak: {{signed}}.",
+                    hubs: "Gune guztiek ({{count}}) erregistroa ainguratu behar dute, eta gutxienez {{independent}} hauteskunde-agintaritzaz bestelako norbaitek kudeatuak izan behar dira.",
+                    hubsPlatform:
+                        "Gune guztiek ({{count}}) erregistroa ainguratu behar dute, eta gutxienez {{independent}} ez hauteskunde-agintaritzak ez plataformak kudeatuak izan behar dira.",
+                    hubsAll: "Gune guztiek ({{count}}) erregistroa ainguratu behar dute.",
+                    oneHub: "Politikak gune bakar bat du izendatuta; kudeatzailea: {{party}}.",
+                    oneHubPlatform:
+                        "Politikak gune bakar bat du izendatuta; kudeatzailea: plataforma.",
                 },
             },
             booth: {

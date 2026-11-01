@@ -929,6 +929,8 @@ const galegoTranslation: TranslationType = {
                     anchoredBootstrap:
                         "Nos nodos públicos ({{count}}) e onde comproban os navegadores, por agora mediante un nodo substituto.",
                     anchoredHubs: "Nos nodos públicos ({{count}}).",
+                    anchoredOneHub: "Ancorada en 1 nodo, xestionado por {{party}}.",
+                    anchoredOneHubPlatform: "Ancorada en 1 nodo, xestionado pola plataforma.",
                     lateNow: "Xa debería estar feito.",
                     lateStep: "Debería estar feito ás {{time}}.",
                     lateAnchors: "Os nodos deberían telo ancorado ás {{time}}.",
@@ -976,6 +978,42 @@ const galegoTranslation: TranslationType = {
                     checked:
                         "Comprobado polo teu navegador, con código que calquera pode inspeccionar.",
                     kept: "Este dispositivo garda o xustificante e volve comprobalo en cada visita.",
+                },
+            },
+            signers: {
+                witnesses: {open: "Quen asinou", close: "Agochar quen asinou"},
+                hubs: {open: "Que nodos", close: "Agochar que nodos"},
+                runBy: "Xestionado por {{party}}",
+                runByAlso: "Xestionado por {{party}}, que tamén xestiona {{hubs}}",
+                signed: "Asinou ás {{time}}",
+                signedNoTime: "Asinou",
+                notYet: "Aínda non",
+                late: "Con atraso",
+                anchored: "Ancorado ás {{time}}",
+                anchoredNoTime: "Ancorado",
+                within: "En {{minutes}} min",
+                check: "Comprobar no seu sitio",
+                checkWitness:
+                    "Comprobar no seu sitio: testemuña {{name}} (ábrese nunha pestana nova)",
+                checkHub: "Comprobar no seu sitio: nodo {{name}} (ábrese nunha pestana nova)",
+                linksNote:
+                    "«Comprobar no seu sitio» abre o explorador do propio asinante, que comproba alí esa sinatura.",
+                standIn: {
+                    name: "Onde comproban os navegadores",
+                    who: "Un nodo substituto, por agora",
+                },
+                rule: {
+                    witnesses:
+                        "A política esixe que asinen {{needed}} das súas {{total}} testemuñas. Asinaron {{signed}}.",
+                    witnessesAlone:
+                        "A política esixe que asinen {{needed}} das súas {{total}} testemuñas, e ningunha parte xestiona tantas. Asinaron {{signed}}.",
+                    witnessesCount: "Asinaron {{signed}} das {{total}} testemuñas da política.",
+                    hubs: "Os {{count}} nodos deben ancorar o rexistro, e polo menos {{independent}} deben estar xestionados por alguén distinto da autoridade electoral.",
+                    hubsPlatform:
+                        "Os {{count}} nodos deben ancorar o rexistro, e polo menos {{independent}} deben estar xestionados por alguén que non sexa nin a autoridade electoral nin a plataforma.",
+                    hubsAll: "Os {{count}} nodos deben ancorar o rexistro.",
+                    oneHub: "A política nomea un só nodo, xestionado por {{party}}.",
+                    oneHubPlatform: "A política nomea un só nodo, xestionado pola plataforma.",
                 },
             },
             booth: {

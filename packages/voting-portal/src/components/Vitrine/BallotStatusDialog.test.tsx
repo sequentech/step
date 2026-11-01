@@ -14,7 +14,7 @@ import type {ChainResult, TierName, TierResult, TierStatus} from "@vitrine/verif
 import theme from "../../../../ui-essentials/src/services/theme"
 import {EBallotStatus, EBallotTag} from "../../services/vitrine/ballotStatus"
 import {EReceiptNotice, IReceiptView} from "../../services/vitrine/castReceipt"
-import {clockMinutes} from "../../services/vitrine/statusRows"
+import {clockMinutes, clockSeconds} from "../../services/vitrine/statusRows"
 import {BallotStatusDialog, IBallotStatusDialogProps} from "./BallotStatusDialog"
 
 jest.mock("react-i18next", () => ({
@@ -665,5 +665,173 @@ describe("Look it up elsewhere in the ballot status dialog", () => {
             }),
         })
         expect(section()).toBeNull()
+    })
+})
+
+describe("Who signed and Which hubs in the ballot status dialog", () => {
+    const SIGNED_AT = 1_800_000_009
+    const POLICY = {
+        id: "sha256:abc123",
+        operator: "Election authority",
+        browserPeriod: 600,
+        witnesses: {
+            witnesses: new Map([
+                ["w1", {name: "w1", party: "Observer A"}],
+                ["w2", {name: "w2", party: "Observer B"}],
+                ["w3", {name: "w3", party: "Observer C"}],
+            ]),
+            groups: new Map([["quorum", {k: 2, members: ["w1", "w2", "w3"]}]]),
+            quorum: "quorum",
+        },
+        monitors: new Map([
+            [
+                "observer-a",
+                {name: "observer-a", party: "Observer A", explorer: "https://a.example/"},
+            ],
+        ]),
+        hubs: new Map([
+            ["hub-b", {name: "hub-b", operator: "Hub B", explorer: "https://hub-b.example/"}],
+            ["hub-c", {name: "hub-c", operator: "Election authority"}],
+        ]),
+        explorers: [],
+        anchorHubs: {min: 2, minIndependent: 1},
+    } as unknown as NonNullable<IReceiptView["policy"]>
+
+    const signers = {
+        witnesses: new Map([
+            ["w1", SIGNED_AT],
+            ["w2", SIGNED_AT + 1],
+        ]),
+        hubs: new Map([["hub-b", SIGNED_AT + 2]]),
+        size: 22,
+    }
+
+    const witnessed = resultOf(
+        "pending",
+        [
+            tier("record", "verified"),
+            tier("witnesses", "verified"),
+            tier("hubs", "pending", {
+                hubs: [
+                    {hub: "hub-b", status: "verified"},
+                    {hub: "hub-c", status: "pending"},
+                ],
+            } as unknown as Partial<TierResult>),
+            tier("browser", "pending"),
+        ],
+        {hubs: ["hub-b", "hub-c"]}
+    )
+
+    const steps = () => Array.from(dialog().querySelectorAll(".ballot-status-step"))
+    const toggles = () => dialog().querySelectorAll(".witness-list-toggle")
+
+    it("opens a list under the steps that have signers, and none under the others", () => {
+        renderDialog({
+            status: EBallotStatus.WITNESSED,
+            view: view(witnessed, {policy: POLICY, signers}),
+        })
+        expect(
+            steps().map((step) => step.querySelector(".witness-list-toggle")?.textContent)
+        ).toEqual([undefined, "vitrine.signers.witnesses.open", "vitrine.signers.hubs.open"])
+    })
+
+    it("lists who signed with when, and who is still to come", () => {
+        renderDialog({
+            status: EBallotStatus.WITNESSED,
+            view: view(witnessed, {policy: POLICY, signers}),
+        })
+        fireEvent.click(toggles()[0])
+        const rows = Array.from(steps()[1].querySelectorAll(".witness-list-row"))
+        expect(rows.map((row) => row.querySelector(".witness-list-name")?.textContent)).toEqual([
+            "w1",
+            "w2",
+            "w3",
+        ])
+        expect(rows.map((row) => row.querySelector(".witness-list-when")?.textContent)).toEqual([
+            `vitrine.signers.signed ${JSON.stringify({time: clockSeconds(SIGNED_AT * 1000)})}`,
+            `vitrine.signers.signed ${JSON.stringify({time: clockSeconds((SIGNED_AT + 1) * 1000)})}`,
+            "vitrine.signers.notYet",
+        ])
+        const links = Array.from(steps()[1].querySelectorAll<HTMLAnchorElement>("a"))
+        expect(links.map((a) => a.getAttribute("href"))).toEqual([
+            "https://a.example/#policy=sha256%3Aabc123&log=ballots&checkpoint=22&cosigner=w1",
+        ])
+    })
+
+    it("lists the hubs, with the one that anchored and the one with time left, and the browsers", () => {
+        renderDialog({
+            status: EBallotStatus.WITNESSED,
+            view: view(witnessed, {policy: POLICY, signers}),
+        })
+        fireEvent.click(toggles()[1])
+        const rows = Array.from(steps()[2].querySelectorAll(".witness-list-row"))
+        expect(rows.map((row) => row.querySelector(".witness-list-name")?.textContent)).toEqual([
+            "hub-b",
+            "hub-c",
+            "vitrine.signers.standIn.name",
+        ])
+        expect(rows.map((row) => row.querySelector(".witness-list-when")?.textContent)).toEqual([
+            `vitrine.signers.anchored ${JSON.stringify({time: clockSeconds((SIGNED_AT + 2) * 1000)})}`,
+            'vitrine.signers.within {"minutes":10}',
+            'vitrine.signers.within {"minutes":10}',
+        ])
+        expect(
+            Array.from(steps()[2].querySelectorAll<HTMLAnchorElement>("a")).map((a) =>
+                a.getAttribute("href")
+            )
+        ).toEqual([
+            "https://hub-b.example/#policy=sha256%3Aabc123&log=ballots&checkpoint=22&anchor=hub-b",
+        ])
+    })
+
+    it("keeps the list of a late step, with the hub that is late", () => {
+        const late = resultOf(
+            "late",
+            [
+                tier("record", "verified"),
+                tier("witnesses", "verified"),
+                tier("hubs", "late", {
+                    deadline: DEADLINE,
+                    hubs: [
+                        {hub: "hub-b", status: "verified"},
+                        {hub: "hub-c", status: "late"},
+                    ],
+                } as unknown as Partial<TierResult>),
+                tier("browser", "pending"),
+            ],
+            {hubs: ["hub-b", "hub-c"]}
+        )
+        renderDialog({status: EBallotStatus.LATE, view: view(late, {policy: POLICY, signers})})
+        fireEvent.click(toggles()[1])
+        const when = Array.from(steps()[2].querySelectorAll(".witness-list-when")).map(
+            (el) => el.textContent
+        )
+        expect(when[1]).toBe("vitrine.signers.late")
+    })
+
+    it.each([
+        ["a receipt not checked yet", EBallotStatus.CHECKING, undefined],
+        ["a record that does not match", EBallotStatus.PROBLEM, MISMATCH],
+    ] as const)("offers none for %s", (_name, status, result) => {
+        renderDialog({status, view: result ? view(result, {policy: POLICY, signers}) : undefined})
+        expect(toggles()).toHaveLength(0)
+    })
+
+    it("offers none when the receipt gave no times to list", () => {
+        renderDialog({status: EBallotStatus.WITNESSED, view: view(witnessed, {policy: POLICY})})
+        expect(toggles()).toHaveLength(0)
+    })
+
+    it("has no accessibility violations with a list open", async () => {
+        renderDialog({
+            status: EBallotStatus.WITNESSED,
+            view: view(witnessed, {policy: POLICY, signers}),
+        })
+        fireEvent.click(toggles()[0])
+        fireEvent.click(toggles()[1])
+        const {violations} = await axe.run(document.body, {
+            rules: {"color-contrast": {enabled: false}, "region": {enabled: false}},
+        })
+        expect(violations).toEqual([])
     })
 })

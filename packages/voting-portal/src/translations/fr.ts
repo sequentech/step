@@ -931,6 +931,8 @@ const frenchTranslation: TranslationType = {
                     anchoredBootstrap:
                         "Dans les nœuds publics ({{count}}) et là où les navigateurs vérifient, par un nœud de substitution pour l’instant.",
                     anchoredHubs: "Dans les nœuds publics ({{count}}).",
+                    anchoredOneHub: "Ancré dans 1 nœud, géré par {{party}}.",
+                    anchoredOneHubPlatform: "Ancré dans 1 nœud, géré par la plateforme.",
                     lateNow: "Cela devrait déjà être fait.",
                     lateStep: "Cela devrait être fait à {{time}}.",
                     lateAnchors: "Les nœuds auraient dû l’ancrer à {{time}}.",
@@ -978,6 +980,43 @@ const frenchTranslation: TranslationType = {
                     checked:
                         "Contrôlé par votre navigateur, avec un code que chacun peut inspecter.",
                     kept: "Cet appareil conserve le justificatif et le vérifie de nouveau à chaque visite.",
+                },
+            },
+            signers: {
+                witnesses: {open: "Qui a signé", close: "Masquer qui a signé"},
+                hubs: {open: "Quels nœuds", close: "Masquer quels nœuds"},
+                runBy: "Géré par {{party}}",
+                runByAlso: "Géré par {{party}}, qui gère aussi {{hubs}}",
+                signed: "Signé à {{time}}",
+                signedNoTime: "Signé",
+                notYet: "Pas encore",
+                late: "En retard",
+                anchored: "Ancré à {{time}}",
+                anchoredNoTime: "Ancré",
+                within: "Sous {{minutes}} min",
+                check: "Vérifier sur son site",
+                checkWitness:
+                    "Vérifier sur son site : témoin {{name}} (s’ouvre dans un nouvel onglet)",
+                checkHub: "Vérifier sur son site : nœud {{name}} (s’ouvre dans un nouvel onglet)",
+                linksNote:
+                    "« Vérifier sur son site » ouvre l’explorateur du signataire lui-même, qui y vérifie cette signature.",
+                standIn: {
+                    name: "Là où les navigateurs vérifient",
+                    who: "Un nœud de substitution, pour l’instant",
+                },
+                rule: {
+                    witnesses:
+                        "La politique exige que {{needed}} de ses {{total}} témoins signent. {{signed}} ont signé.",
+                    witnessesAlone:
+                        "La politique exige que {{needed}} de ses {{total}} témoins signent, et aucune partie n’en gère autant. {{signed}} ont signé.",
+                    witnessesCount: "{{signed}} des {{total}} témoins de la politique ont signé.",
+                    hubs: "Les {{count}} nœuds doivent ancrer le registre, et au moins {{independent}} doivent être gérés par quelqu’un d’autre que l’autorité électorale.",
+                    hubsPlatform:
+                        "Les {{count}} nœuds doivent ancrer le registre, et au moins {{independent}} doivent être gérés par quelqu’un qui n’est ni l’autorité électorale ni la plateforme.",
+                    hubsAll: "Les {{count}} nœuds doivent ancrer le registre.",
+                    oneHub: "La politique ne nomme qu’un seul nœud, géré par {{party}}.",
+                    oneHubPlatform:
+                        "La politique ne nomme qu’un seul nœud, géré par la plateforme.",
                 },
             },
             booth: {
