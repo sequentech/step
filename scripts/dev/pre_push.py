@@ -91,13 +91,16 @@ def changed_files(
     """Files that differ between each remote tip and the pushed one, so a
     forced push also counts what it drops, with both paths of a rename. A ref
     without a remote tip counts from its merge base with the model's default
-    base; None when that is unknown too."""
+    base; None when that base or the merge base is unknown."""
     files = set()
     for base, tip in ranges:
         if base is None:
             if not known(default_base):
                 return None
-            base = git("merge-base", default_base, tip).strip()
+            try:
+                base = git("merge-base", default_base, tip).strip()
+            except subprocess.CalledProcessError:
+                return None  # No common history with the default base.
         files.update(git("diff", "--name-only", "--no-renames", base, tip).splitlines())
     return sorted(files)
 

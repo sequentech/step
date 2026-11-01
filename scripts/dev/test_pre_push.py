@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Tests for scripts.dev.pre_push: pushed ranges and the lint checks they run."""
 
+import subprocess
 import unittest
 from unittest import mock
 
@@ -65,6 +66,14 @@ class ChangedFiles(unittest.TestCase):
                 pre_push.changed_files([("old", "a"), (None, "b")], "origin/ovcs"),
                 ["a.rs", "b.ts", "shared.rs"],
             )
+
+    def test_without_a_merge_base_the_selection_falls_back(self):
+        failure = subprocess.CalledProcessError(1, ["git", "merge-base"])
+        with (
+            mock.patch.object(pre_push, "git", side_effect=failure),
+            mock.patch.object(pre_push, "known", return_value=True),
+        ):
+            self.assertIsNone(pre_push.changed_files([(None, "b")], "origin/ovcs"))
 
     def test_without_the_default_base_the_selection_falls_back(self):
         with mock.patch.object(pre_push, "known", return_value=False):
