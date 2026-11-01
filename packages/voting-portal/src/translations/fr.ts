@@ -481,6 +481,10 @@ const frenchTranslation: TranslationType = {
                 opened: {
                     title: "Ouvert dans le registre public",
                     text: "Le portail a publié le secret avec lequel il l’a chiffré. Le registre marque le bulletin comme Audité.",
+                    publishingText: "Le portail publie le secret avec lequel il l’a chiffré.",
+                    failedTitle: "Non ouvert dans le registre public",
+                    failedText:
+                        "Le portail n’a pas pu publier le secret avec lequel il l’a chiffré : aucun nœud ne peut encore vérifier ce bulletin. Le bulletin reste audité et ne sera pas compté. Réessayez, ou votez de nouveau.",
                 },
                 compare: {
                     title: "Comparez-le sur un nœud",

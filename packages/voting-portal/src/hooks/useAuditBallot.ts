@@ -5,7 +5,7 @@ import {useApolloClient, useMutation} from "@apollo/client/react"
 import {useStore} from "react-redux"
 import type {RootState} from "../store/store"
 import type {AuditBallotMutation} from "../gql/graphql"
-import {AUDIT_BALLOT} from "../queries/AuditBallot"
+import {AUDIT_BALLOT, EAuditPublication} from "../queries/AuditBallot"
 import {provideBallotService} from "../services/BallotService"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {
@@ -27,7 +27,21 @@ import {ETransparencyMode} from "../services/vitrine/types"
 import {voterContextFor} from "../services/vitrine/voterContext"
 import {voterForward} from "../services/vitrine/forward"
 
-/** Reveal audit data only after the ballot box can no longer accept its cast. */
+/** Where the audited ballot's secret is, for anyone to decode it on a hub. */
+export enum EAuditPublishState {
+    PUBLISHING = "publishing",
+    PUBLISHED = "published",
+    /** The ballot stays audited and uncounted; publishing can be tried again. */
+    FAILED = "failed",
+}
+
+interface IPendingPublication {
+    ballotId: string
+    auditableBallot: string
+}
+
+/** Reveal audit data only after the ballot box can no longer accept its cast,
+ * then, with transparency on, publish the auditable ballot for the hubs. */
 export const useAuditBallot = (
     electionId: string,
     serverReceiptRequired: boolean,
@@ -47,10 +61,39 @@ export const useAuditBallot = (
     const [error, setError] = useState(false)
     const [loading, setLoading] = useState(false)
     const attempted = useRef<string | undefined>(undefined)
+    const [publication, setPublication] = useState<EAuditPublishState>()
+    // Kept once the received ballot is dropped, so that publishing can be tried again.
+    const toPublish = useRef<IPendingPublication | undefined>(undefined)
+    const publish = useCallback(async () => {
+        const pending = toPublish.current
+        if (!pending) return
+        setPublication(EAuditPublishState.PUBLISHING)
+        try {
+            const result = await auditBallot({
+                variables: {
+                    electionId,
+                    ballotId: pending.ballotId,
+                    auditableBallot: pending.auditableBallot,
+                },
+            })
+            const answer = result.data?.audit_ballot
+            setPublication(
+                !result.error &&
+                    answer?.ballot_id === pending.ballotId &&
+                    answer.status === "audited" &&
+                    answer.publication === EAuditPublication.PUBLISHED
+                    ? EAuditPublishState.PUBLISHED
+                    : EAuditPublishState.FAILED
+            )
+        } catch {
+            setPublication(EAuditPublishState.FAILED)
+        }
+    }, [auditBallot, electionId])
     const audit = useCallback(async () => {
         if (!ballot || status === EBallotAuditStatus.AUDITED) return
         setError(false)
         setLoading(true)
+        let audited = false
         try {
             if (serverReceiptRequired) {
                 if (!received || received.ballot_hash !== ballot.ballot_hash)
@@ -99,6 +142,20 @@ export const useAuditBallot = (
                 ballot.ballot_hash
             ) {
                 if (serverReceiptRequired && received) setReceivedAt(received.received_at)
+                // The plaintext leaves the device only now that the ballot can't be cast.
+                if (
+                    serverReceiptRequired &&
+                    received &&
+                    transparency &&
+                    transparency.mode !== ETransparencyMode.DISABLED
+                ) {
+                    toPublish.current = {
+                        ballotId: received.ballot_id,
+                        auditableBallot: JSON.stringify(ballot),
+                    }
+                    setPublication(EAuditPublishState.PUBLISHING)
+                    audited = true
+                }
                 provideBallotService().forgetVoterSigningKey(electionId)
                 dispatch(markBallotAudited({electionId, ballotHash: ballot.ballot_hash}))
                 dispatch(clearReceivedBallot(electionId))
@@ -110,12 +167,14 @@ export const useAuditBallot = (
         } finally {
             setLoading(false)
         }
+        if (audited) await publish()
     }, [
         auditBallot,
         ballot,
         client,
         dispatch,
         electionId,
+        publish,
         received,
         serverReceiptRequired,
         status,
@@ -134,6 +193,8 @@ export const useAuditBallot = (
         loading,
         error,
         retry: audit,
+        publication,
+        retryPublish: publish,
         view,
         receivedAt,
     }

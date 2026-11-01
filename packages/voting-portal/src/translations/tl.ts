@@ -479,6 +479,11 @@ const tagalogTranslation: TranslationType = {
                 opened: {
                     title: "Binuksan sa pampublikong talaan",
                     text: "Inilathala ng portal ang lihim na ginamit nito sa pag-encrypt. Minamarkahan ng talaan ang balota bilang Na-audit.",
+                    publishingText:
+                        "Inilalathala ng portal ang lihim na ginamit nito sa pag-encrypt.",
+                    failedTitle: "Hindi nabuksan sa pampublikong talaan",
+                    failedText:
+                        "Hindi nailathala ng portal ang lihim na ginamit nito sa pag-encrypt, kaya wala pang hub na makasusuri sa balotang ito. Nananatiling na-audit ang balota at hindi ito bibilangin. Subukang muli, o bumoto ulit.",
                 },
                 compare: {
                     title: "Ihambing ito sa isang hub",

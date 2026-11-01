@@ -482,6 +482,10 @@ const catalanTranslation: TranslationType = {
                 opened: {
                     title: "Oberta al registre públic",
                     text: "El portal va publicar el secret amb què la va xifrar. El registre marca la papereta com a Auditada.",
+                    publishingText: "El portal està publicant el secret amb què la va xifrar.",
+                    failedTitle: "No oberta al registre públic",
+                    failedText:
+                        "El portal no ha pogut publicar el secret amb què la va xifrar, així que cap node no pot comprovar encara aquesta papereta. La papereta continua auditada i no es comptarà. Torneu-ho a provar o torneu a votar.",
                 },
                 compare: {
                     title: "Compareu-la en un node",

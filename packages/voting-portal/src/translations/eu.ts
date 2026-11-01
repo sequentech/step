@@ -480,6 +480,10 @@ const basqueTranslation: TranslationType = {
                 opened: {
                     title: "Erregistro publikoan irekia",
                     text: "Atariak zifratzeko erabili zuen sekretua argitaratu zuen. Erregistroak boto-papera Auditatua gisa markatzen du.",
+                    publishingText: "Atariak zifratzeko erabili zuen sekretua argitaratzen ari da.",
+                    failedTitle: "Ez da erregistro publikoan ireki",
+                    failedText:
+                        "Atariak ezin izan du zifratzeko erabili zuen sekretua argitaratu, eta oraindik ez dago gunerik boto-paper hau egiaztatu dezakeenik. Boto-papera auditatuta dago eta ez da zenbatuko. Saiatu berriro, edo bozkatu berriro.",
                 },
                 compare: {
                     title: "Alderatu gune batean",

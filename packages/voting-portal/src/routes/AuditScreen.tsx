@@ -259,6 +259,8 @@ const AuditScreen: React.FC = () => {
                     electionId={electionId ?? ""}
                     electionName={electionName}
                     view={audit.view}
+                    publication={audit.publication}
+                    onPublishRetry={() => void audit.retryPublish()}
                     policy={policy}
                     receivedAt={audit.receivedAt}
                     auditedAt={auditedAt}

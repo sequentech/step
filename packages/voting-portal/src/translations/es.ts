@@ -483,6 +483,10 @@ const spanishTranslation: TranslationType = {
                 opened: {
                     title: "Abierta en el registro público",
                     text: "El portal publicó el secreto con el que la cifró. El registro marca la papeleta como Auditada.",
+                    publishingText: "El portal está publicando el secreto con el que la cifró.",
+                    failedTitle: "No abierta en el registro público",
+                    failedText:
+                        "El portal no pudo publicar el secreto con el que la cifró, así que ningún nodo puede comprobar aún esta papeleta. La papeleta sigue auditada y no se contará. Inténtelo de nuevo o vote de nuevo.",
                 },
                 compare: {
                     title: "Compárela en un nodo",
