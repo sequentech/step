@@ -87,7 +87,8 @@ jobs:
           features: gates
 
       # Every gate runs, and the step fails if any of them did. One runner,
-      # sharing compiled dependencies, instead of nine (sequentech/meta#14622).
+      # sharing compiled dependencies, instead of one per gate
+      # (sequentech/meta#14622). The list matches feature-gates:sequent-core.
       # election_config_archive,election_config_xlsx is the pair the wizard's
       # wasm builds: a spreadsheet reader and a zip writer together.
       # wasmtest,default_features is the frontends' WASM package, checked
@@ -115,7 +116,9 @@ jobs:
           election_config_xlsx
           election_config_archive,election_config_xlsx
           election_config_signing
+          monitoring
           wasmtest,default_features
+          wasmtest,default_features,monitoring
           GATES
           if [ "${#failed[@]}" -gt 0 ]; then
             printf '::error::sequent-core does not compile at %s\n' "${failed[@]}"

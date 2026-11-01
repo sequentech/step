@@ -165,23 +165,26 @@ def matrices(selection: Selection) -> dict[str, object]:
             check in selected for check in ("smoke:workbench", "types:workbench")
         ),
     }
-    # Windmill's tests, and the PostgreSQL-backed checks of other crates.
+    # Windmill's tests and its PGMQ transport contracts.
     windmill = any(
         check in selected
+        for check in ("cargo-test:windmill", "cargo-test-db:pgmq-broker")
+    )
+    # The PostgreSQL contracts of electoral-log and step-cli, and Trellis's
+    # security test, on a runner of their own.
+    database_contracts = any(
+        check in selected
         for check in (
-            "cargo-test:windmill",
             "cargo-test-db:electoral-log",
-            "cargo-test-db:pgmq-broker",
             "cargo-test-db:step-cli",
+            "cargo-test:trellis",
         )
     )
     jobs = {
         "feature-gates": "feature-gates:sequent-core" in selected,
         "run-tests": bool(rust),
         "run-windmill-tests": windmill,
-        # The other crates' PostgreSQL checks, on a runner of their own so that
-        # they don't wait for Windmill's.
-        "run-database-contracts": windmill,
+        "run-database-contracts": database_contracts,
         "run-frontend-tests": bool(node),
         "tooling": bool(python),
         "docs": bool(docs),

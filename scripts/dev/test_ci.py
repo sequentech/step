@@ -181,12 +181,12 @@ class PlanTests(unittest.TestCase):
             set(jobs) - {"small-crates"} | set(ci.SMALL_RUST),
         )
 
-    def test_database_contracts_run_with_windmill(self):
-        plan = self.full_plan()
+    def test_database_contracts_run_from_their_own_checks(self):
+        self.assertTrue(self.full_plan()["jobs"]["run-database-contracts"])
+        # step-cli's own change needs its contracts, not Windmill's job.
+        plan = self.plan("packages/step-cli/src/acceptance/hasura.rs")
         self.assertTrue(plan["jobs"]["run-database-contracts"])
-        self.assertEqual(
-            plan["jobs"]["run-database-contracts"], plan["jobs"]["run-windmill-tests"]
-        )
+        self.assertFalse(plan["jobs"]["run-windmill-tests"])
 
     def test_trellis_tests_its_upstream_service_and_postgres_consumers(self):
         plan = self.plan("packages/trellis/src/tree.rs")
@@ -196,7 +196,7 @@ class PlanTests(unittest.TestCase):
             "--features upstream-service --lib --example monitor --example post",
         )
         self.assertIn("electoral-log", rust)
-        self.assertTrue(plan["jobs"]["run-windmill-tests"])
+        self.assertTrue(plan["jobs"]["run-database-contracts"])
 
     def test_pgmq_broker_tests_its_crate_and_the_windmill_transport(self):
         plan = self.plan("packages/pgmq-broker/src/lib.rs")
@@ -205,7 +205,7 @@ class PlanTests(unittest.TestCase):
 
     def test_step_cli_acceptance_change_runs_its_database_check(self):
         plan = self.plan("packages/step-cli/src/acceptance/hasura.rs")
-        self.assertTrue(plan["jobs"]["run-windmill-tests"])
+        self.assertTrue(plan["jobs"]["run-database-contracts"])
 
     def test_step_cli_binary_follows_its_embedded_inputs(self):
         # Build Step CLI Binary only builds on PRs that select step-cli's tests.

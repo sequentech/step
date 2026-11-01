@@ -482,11 +482,11 @@ git config core.hooksPath scripts/dev/hooks
 
 The hook runs the lint and format checks that the pushed commits select (Rust
 `cargo fmt`, ESLint and Prettier per frontend package, REUSE, Ruff, Hasura),
-the same commands as `lint_prettify.yml`. It skips checks whose tools aren't
-installed, and frontend ones until `packages/` has its dependencies, saying so.
-`STEP_PRE_PUSH=tests` also runs the fast tests (`step-dev test --affected
---committed`), `STEP_PRE_PUSH=off` disables it, and `git push --no-verify` skips
-it once.
+the same commands as `lint_prettify.yml`. A new branch counts from its merge
+base with `origin/ovcs`. It skips checks whose tools aren't installed, and frontend ones until `packages/` has its dependencies, saying so.
+`STEP_PRE_PUSH=tests` runs `step-dev test --affected` over the pushed changes
+instead, which covers the fast tests and the lint checks; `STEP_PRE_PUSH=off`
+disables the hook, and `git push --no-verify` skips it once.
 
 ## Benchmarks
 
@@ -569,7 +569,8 @@ crates (`electoral-log`, `trellis`, `pgmq-broker`, `messaging`, `voting-crypto`,
 `wrap-map-err`) share a `small-crates` runner, each tested from its own
 directory; the sequent-core feature gates run in one job; and the selected Python
 suites run in one tooling job. The PostgreSQL contracts of `electoral-log`,
-`step-cli` and Trellis run beside the Windmill job, on their own runner.
+`step-cli` and Trellis run on their own runner, selected by their own checks, so
+a step-cli change no longer starts the Windmill job.
 
 `Required feedback checks` rejects failed, cancelled, missing or unexpectedly
 skipped managed jobs. It covers `Tests` and its reusable frontend UI workflow;

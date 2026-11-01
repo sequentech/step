@@ -5,8 +5,9 @@
 Enable it once per clone with ``git config core.hooksPath scripts/dev/hooks``.
 It runs the ``lint`` checks of ``scripts/dev/affected.toml`` that the pushed
 changes select, the same commands as ``lint_prettify.yml``. ``STEP_PRE_PUSH``
-chooses what runs: ``lint`` (default), ``tests`` (also the fast tests, as
-``step-dev test --affected``) or ``off``. ``git push --no-verify`` skips it.
+chooses what runs: ``lint`` (default), ``tests`` (``step-dev test --affected``
+instead: the fast tests and the lint checks) or ``off``. ``git push --no-verify``
+skips it.
 """
 
 import json
@@ -14,6 +15,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tomllib
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
@@ -43,13 +45,15 @@ def lint_checks(
     has_frontend_dependencies: bool,
     available: Callable[[str], bool] = lambda tool: shutil.which(tool) is not None,
 ) -> tuple[list[str], list[tuple[str, str]]]:
-    """Selected lint check IDs to run, and (ID, reason) for those skipped: a
-    required tool is missing, or the Yarn workspace has no dependencies."""
+    """Selected lint check IDs to run, and (ID, reason) for those skipped: the
+    command or a required tool is missing, or the Yarn workspace has no
+    dependencies."""
     run, skipped = [], []
     for check in document["checks"]:
         if not check["selected"] or check["kind"] != "lint":
             continue
-        missing = [tool for tool in check.get("requires", []) if not available(tool)]
+        tools = dict.fromkeys([check["command"].split()[0], *check.get("requires", [])])
+        missing = [tool for tool in tools if not available(tool)]
         needs_workspace = check["cwd"].startswith("packages/") and check[
             "command"
         ].startswith("yarn")
@@ -81,19 +85,24 @@ def known(sha: str) -> bool:
     )
 
 
-def selection(ranges: list[tuple[str | None, str]]) -> list[str]:
-    """``step-dev affected`` arguments for the pushed changes. Without a base
-    for every ref, the branch's own default base decides."""
-    if any(base is None for base, _ in ranges):
-        return []
-    files = sorted(
-        {
-            path
-            for base, tip in ranges
-            for path in git("diff", "--name-only", f"{base}...{tip}").splitlines()
-        }
-    )
-    return ["--files", *files] if files else []
+def changed_files(
+    ranges: list[tuple[str | None, str]], default_base: str
+) -> list[str] | None:
+    """Files the pushed commits change. A ref without a base counts from its
+    merge base with the model's default base; None when that is unknown too."""
+    files = set()
+    for base, tip in ranges:
+        if base is None:
+            if not known(default_base):
+                return None
+            base = git("merge-base", default_base, tip).strip()
+        files.update(git("diff", "--name-only", f"{base}...{tip}").splitlines())
+    return sorted(files)
+
+
+def default_base() -> str:
+    with (ROOT / "scripts/dev/affected.toml").open("rb") as model:
+        return tomllib.load(model)["default_base"]
 
 
 def step_dev(*arguments: str, **options) -> subprocess.CompletedProcess:
@@ -113,11 +122,14 @@ def main() -> int:
     ranges = pushed_ranges(sys.stdin, known)
     if mode == "off" or not ranges:
         return 0
-    arguments = selection(ranges)
-    if arguments == [] and all(base is not None for base, _ in ranges):
+    files = changed_files(ranges, default_base())
+    if files == []:
         return 0  # The pushed commits change no files.
+    # Without files, the selection falls back to HEAD and its default base.
+    arguments = ["--files", *files] if files else []
     if mode == "tests":
-        return step_dev("test", "--affected", "--committed", *arguments).returncode
+        scope = arguments or ["--committed"]
+        return step_dev("test", "--affected", *scope).returncode
     document = json.loads(
         step_dev(
             "affected", "--json", *arguments, check=True, capture_output=True, text=True

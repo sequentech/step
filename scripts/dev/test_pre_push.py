@@ -3,6 +3,7 @@
 """Tests for scripts.dev.pre_push: pushed ranges and the lint checks they run."""
 
 import unittest
+from unittest import mock
 
 from scripts.dev import pre_push
 from scripts.dev.pre_push import ZERO
@@ -44,8 +45,28 @@ class PushedRanges(unittest.TestCase):
             pre_push.pushed_ranges(lines, lambda sha: False), [(None, "1" * 40)]
         )
 
-    def test_a_ref_without_base_uses_the_default_selection(self):
-        self.assertEqual(pre_push.selection([(None, "1" * 40)]), [])
+
+class ChangedFiles(unittest.TestCase):
+    def git(self, *arguments):
+        if arguments[0] == "merge-base":
+            return "base\n"
+        return {"old...a": "a.rs\nshared.rs\n", "base...b": "b.ts\nshared.rs\n"}[
+            arguments[2]
+        ]
+
+    def test_a_new_ref_counts_from_its_own_tip(self):
+        with (
+            mock.patch.object(pre_push, "git", side_effect=self.git),
+            mock.patch.object(pre_push, "known", return_value=True),
+        ):
+            self.assertEqual(
+                pre_push.changed_files([("old", "a"), (None, "b")], "origin/ovcs"),
+                ["a.rs", "b.ts", "shared.rs"],
+            )
+
+    def test_without_the_default_base_the_selection_falls_back(self):
+        with mock.patch.object(pre_push, "known", return_value=False):
+            self.assertIsNone(pre_push.changed_files([(None, "b")], "origin/ovcs"))
 
 
 class LintChecks(unittest.TestCase):
@@ -77,8 +98,20 @@ class LintChecks(unittest.TestCase):
             "lint:ui-core",
         )
 
+    def test_checks_whose_command_is_missing_are_skipped(self):
+        document = {"checks": [check("lint:rust", command="cargo fmt --check")]}
+        self.assertEqual(
+            pre_push.lint_checks(document, True, lambda tool: tool != "cargo"),
+            ([], [("lint:rust", "needs cargo")]),
+        )
+
     def test_checks_whose_tools_are_missing_are_skipped(self):
-        document = {"checks": [check("reuse", requires=["reuse"]), check("lint:rust")]}
+        document = {
+            "checks": [
+                check("reuse", command="reuse lint", requires=["reuse"]),
+                check("lint:rust"),
+            ]
+        }
         self.assertEqual(
             pre_push.lint_checks(document, True, lambda tool: tool != "reuse"),
             (["lint:rust"], [("reuse", "needs reuse")]),
