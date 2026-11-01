@@ -807,6 +807,8 @@ const frenchTranslation: TranslationType = {
                 yours: "Votre identifiant de suivi :",
                 copy: "Copier l’identifiant de suivi complet",
                 copied: "Identifiant de suivi copié",
+                copyText: "Copier",
+                copiedText: "Copié",
                 showFull: "Afficher l’identifiant de suivi complet",
                 selected: "Sélectionné. Appuyez sur Ctrl+C, ou ⌘C sur Mac, pour le copier.",
                 copyByHand:

@@ -809,6 +809,8 @@ const catalanTranslation: TranslationType = {
                 yours: "El vostre ID de seguiment:",
                 copy: "Copia l'ID de seguiment complet",
                 copied: "ID de seguiment copiat",
+                copyText: "Copia",
+                copiedText: "Copiat",
                 showFull: "Mostra l'ID de seguiment complet",
                 selected: "Seleccionat. Premeu Ctrl+C, o ⌘C en un Mac, per copiar-lo.",
                 copyByHand:

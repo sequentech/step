@@ -45,7 +45,7 @@ import {EVitrineLog} from "../../services/vitrine/types"
 import {BallotTag} from "./BallotTag"
 import {explorersOf} from "./explorers"
 import {FindElsewhere} from "./FindElsewhere"
-import {FullTrackingId} from "./FullTrackingId"
+import {EFullTrackingIdSurface, FullTrackingId} from "./FullTrackingId"
 
 const DIALOG_COLORS = {
     navy: "#0F054C",
@@ -266,7 +266,7 @@ const IdBox: React.FC<{ballotId: string; tag: EBallotTag}> = ({ballotId, tag}) =
                     {shortBallotId(ballotId)}
                 </Box>
             </Box>
-            <FullTrackingId ballotId={ballotId} />
+            <FullTrackingId ballotId={ballotId} surface={EFullTrackingIdSurface.GREEN} />
         </Box>
     )
 }

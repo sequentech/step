@@ -806,6 +806,8 @@ const galegoTranslation: TranslationType = {
                 yours: "O teu ID de seguimento:",
                 copy: "Copiar o ID de seguimento completo",
                 copied: "ID de seguimento copiado",
+                copyText: "Copiar",
+                copiedText: "Copiado",
                 showFull: "Mostrar o ID de seguimento completo",
                 selected: "Seleccionado. Preme Ctrl+C, ou ⌘C nun Mac, para copialo.",
                 copyByHand:

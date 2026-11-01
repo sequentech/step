@@ -805,6 +805,8 @@ const basqueTranslation: TranslationType = {
                 yours: "Zure jarraipen IDa:",
                 copy: "Kopiatu jarraipen ID osoa",
                 copied: "Jarraipen IDa kopiatu da",
+                copyText: "Kopiatu",
+                copiedText: "Kopiatuta",
                 showFull: "Erakutsi jarraipen ID osoa",
                 selected: "Hautatuta. Sakatu Ctrl+C, edo ⌘C Mac-en, kopiatzeko.",
                 copyByHand:

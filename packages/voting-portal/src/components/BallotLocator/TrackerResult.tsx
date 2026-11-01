@@ -35,7 +35,7 @@ import {openVerifier} from "../../services/vitrine/handoff"
 import {BallotStatusIcon, CHECK_COLORS} from "../Vitrine/BallotStatusIcon"
 import {explorersOf} from "../Vitrine/explorers"
 import {FindElsewhere} from "../Vitrine/FindElsewhere"
-import {FullTrackingId} from "../Vitrine/FullTrackingId"
+import {EFullTrackingIdSurface, FullTrackingId} from "../Vitrine/FullTrackingId"
 import {RecordViewer} from "../Vitrine/RecordViewer"
 import {EStatusTone, StatusTag} from "../Vitrine/StatusTag"
 import {MONO, PALETTE, PHONE, TABLET} from "./trackerStyle"
@@ -708,7 +708,7 @@ export const TrackerResult: React.FC<ITrackerResultProps> = ({
                 >
                     {t("ballotLocator.result.idComment")}
                 </Typography>
-                <FullTrackingId ballotId={ballotId} />
+                <FullTrackingId ballotId={ballotId} surface={EFullTrackingIdSurface.TINT} />
                 {entry ? (
                     <Box
                         className="tracker-record-entry-line"

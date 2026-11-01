@@ -809,6 +809,8 @@ const spanishTranslation: TranslationType = {
                 yours: "Su ID de seguimiento:",
                 copy: "Copiar el ID de seguimiento completo",
                 copied: "ID de seguimiento copiado",
+                copyText: "Copiar",
+                copiedText: "Copiado",
                 showFull: "Mostrar el ID de seguimiento completo",
                 selected: "Seleccionado. Pulsa Ctrl+C, o ⌘C en Mac, para copiarlo.",
                 copyByHand:

@@ -805,6 +805,8 @@ const tagalogTranslation: TranslationType = {
                 yours: "Ang Iyong Tracking ID:",
                 copy: "Kopyahin ang buong Tracking ID",
                 copied: "Nakopya ang Tracking ID",
+                copyText: "Kopyahin",
+                copiedText: "Nakopya",
                 showFull: "Ipakita ang buong Tracking ID",
                 selected: "Napili na. Pindutin ang Ctrl+C, o ⌘C sa Mac, para kopyahin ito.",
                 copyByHand:

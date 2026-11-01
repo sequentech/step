@@ -552,6 +552,9 @@ describe("the result for an event with transparency", () => {
                 (group) => group.textContent
             )
         ).toEqual(["FTBE-", "MHRX-"])
+        expect(section().querySelector(".full-tracking-id")?.getAttribute("data-surface")).toBe(
+            "tint"
+        )
         expect(ids.getByText("b1d8 c475 6132 ··· 5a0d")).toBeVisible()
         expect(ids.getByRole("button", {name: "ballotLocator.result.save"})).toBeVisible()
     })
@@ -605,17 +608,17 @@ describe("the result for an event with transparency", () => {
         })
     })
 
-    it("copies the full ID, grouped, and swaps the copy icon for a check, without a word", async () => {
+    it("copies the full ID, grouped, and swaps the copy icon for a check and the word Copied", async () => {
         const writeText = jest.fn().mockResolvedValue(undefined)
         Object.defineProperty(navigator, "clipboard", {value: {writeText}, configurable: true})
         renderAt(`/${FULL}`)
         const copy = screen.getByRole("button", {name: "vitrine.ballotId.copy"})
-        expect(copy).toHaveTextContent("")
+        expect(copy).toHaveTextContent("vitrine.ballotId.copyText")
         await userEvent.click(copy)
         expect(writeText).toHaveBeenCalledWith(GROUPED)
         const copied = screen.getByRole("button", {name: "vitrine.ballotId.copied"})
         expect(copied).toBe(copy)
-        expect(copied).toHaveTextContent("")
+        expect(copied).toHaveTextContent("vitrine.ballotId.copiedText")
         expect(copied.querySelector(".full-tracking-id-copied-icon")).not.toBeNull()
     })
 

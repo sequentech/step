@@ -313,6 +313,7 @@ describe("the Tracking ID in the ballot status dialog", () => {
                 (group) => group.textContent
             )
         ).toEqual(["FTBE-", "MHRX-"])
+        expect(block?.getAttribute("data-surface")).toBe("green")
     })
 
     it("tags a verified ballot Cast, and a received one Not cast when it is told so", () => {
@@ -338,13 +339,13 @@ describe("the Tracking ID in the ballot status dialog", () => {
         expect(within(dialog()).getByRole("status").textContent).toBe("vitrine.ballotId.copied")
     })
 
-    it("swaps the copy icon for a check of the same size when it copies, and writes no text", async () => {
+    it("swaps the copy icon for a check of the same size when it copies, and says Copied", async () => {
         renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED)})
         const copy = screen.getByRole("button", {name: "vitrine.ballotId.copy"})
         const icon = copy.querySelector(".full-tracking-id-copy-icon")
         expect(icon).not.toBeNull()
         expect(copy.querySelector(".full-tracking-id-copied-icon")).toBeNull()
-        expect(copy.textContent).toBe("")
+        expect(copy.textContent).toBe("vitrine.ballotId.copyText")
         const size = [icon?.getAttribute("width"), icon?.getAttribute("height")]
         await act(async () => {
             fireEvent.click(copy)
@@ -354,8 +355,8 @@ describe("the Tracking ID in the ballot status dialog", () => {
         expect(done.querySelector(".full-tracking-id-copy-icon")).toBeNull()
         expect(check).not.toBeNull()
         expect([check?.getAttribute("width"), check?.getAttribute("height")]).toEqual(size)
-        expect(done.textContent).toBe("")
-        expect(getComputedStyle(done).color).toBe("rgb(4, 120, 87)")
+        expect(done.textContent).toBe("vitrine.ballotId.copiedText")
+        expect(getComputedStyle(done).backgroundColor).toBe("rgb(4, 120, 87)")
     })
 
     it("keeps its copy button visible, with no hover needed", () => {

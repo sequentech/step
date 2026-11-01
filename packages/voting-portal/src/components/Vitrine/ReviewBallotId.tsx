@@ -19,7 +19,7 @@ import type {IReceiptView} from "../../services/vitrine/castReceipt"
 import {BallotStatus, EBallotStatusTrigger} from "./BallotStatus"
 import {HEAVY_DOTS} from "./BallotStatusIcon"
 import {BallotTag} from "./BallotTag"
-import {FullTrackingId} from "./FullTrackingId"
+import {EFullTrackingIdSurface, FullTrackingId} from "./FullTrackingId"
 import {ID_BUTTON_SX} from "./idButtons"
 
 const MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
@@ -202,7 +202,13 @@ export const ReviewBallotId: React.FC<IReviewBallotIdProps> = ({
                         />
                     </Box>
                 </Box>
-                {expanded ? <FullTrackingId id={fullId} ballotId={ballotId} /> : null}
+                {expanded ? (
+                    <FullTrackingId
+                        id={fullId}
+                        ballotId={ballotId}
+                        surface={EFullTrackingIdSurface.GREEN}
+                    />
+                ) : null}
             </Box>
         </Box>
     )

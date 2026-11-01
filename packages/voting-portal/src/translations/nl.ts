@@ -807,6 +807,8 @@ const dutchTranslation: TranslationType = {
                 yours: "Uw Tracking-ID:",
                 copy: "De volledige Tracking-ID kopiëren",
                 copied: "Tracking-ID gekopieerd",
+                copyText: "Kopiëren",
+                copiedText: "Gekopieerd",
                 showFull: "De volledige Tracking-ID tonen",
                 selected: "Geselecteerd. Druk op Ctrl+C, of ⌘C op een Mac, om te kopiëren.",
                 copyByHand:

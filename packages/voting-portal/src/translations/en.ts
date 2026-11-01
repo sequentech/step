@@ -919,6 +919,8 @@ const englishTranslation = {
                 yours: "Your Tracking ID:",
                 copy: "Copy the full Tracking ID",
                 copied: "Tracking ID copied",
+                copyText: "Copy",
+                copiedText: "Copied",
                 showFull: "Show the full Tracking ID",
                 selected: "Selected. Press Ctrl+C, or ⌘C on a Mac, to copy it.",
                 copyByHand:
