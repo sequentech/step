@@ -707,10 +707,10 @@ const dutchTranslation: TranslationType = {
                 title: "Controleer uw stembiljet in het openbare register",
                 intro: "Voer de Tracking-ID van uw bevestigingsscherm of ontvangstbewijs in. Uw browser zoekt het stembiljet op en controleert zelf de bewijzen.",
                 find: "Zoeken",
-                invalid: "Een Tracking-ID bestaat alleen uit cijfers en de letters a tot en met f.",
+                invalid: "Een Tracking-ID bestaat alleen uit cijfers en letters, nooit een U.",
                 chips: {
                     short: "<b>Kort</b> FTBE-MHRX",
-                    full: "<b>Volledig</b> 16 groepen van vier",
+                    full: "<b>Volledig</b> 13 groepen van vier",
                     spaces: "Spaties optioneel",
                 },
                 features: {

@@ -708,10 +708,10 @@ const spanishTranslation: TranslationType = {
                 title: "Compruebe su papeleta en el registro público",
                 intro: "Introduzca el ID de seguimiento de su pantalla de confirmación o de su recibo. Su navegador lo busca y comprueba él mismo las pruebas.",
                 find: "Buscar",
-                invalid: "Un ID de seguimiento solo tiene dígitos y las letras de la a a la f.",
+                invalid: "Un ID de seguimiento solo tiene dígitos y letras, nunca la U.",
                 chips: {
                     short: "<b>Corto</b> FTBE-MHRX",
-                    full: "<b>Completo</b> 16 grupos de cuatro",
+                    full: "<b>Completo</b> 13 grupos de cuatro",
                     spaces: "Espacios opcionales",
                 },
                 features: {

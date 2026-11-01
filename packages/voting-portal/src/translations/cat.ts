@@ -708,10 +708,10 @@ const catalanTranslation: TranslationType = {
                 title: "Comproveu la vostra papereta al registre públic",
                 intro: "Introduïu l'ID de seguiment de la pantalla de confirmació o del rebut. El vostre navegador el cerca i comprova ell mateix les proves.",
                 find: "Cerca",
-                invalid: "Un ID de seguiment només té dígits i les lletres de la a a la f.",
+                invalid: "Un ID de seguiment només té dígits i lletres, mai la U.",
                 chips: {
                     short: "<b>Curt</b> FTBE-MHRX",
-                    full: "<b>Complet</b> 16 grups de quatre",
+                    full: "<b>Complet</b> 13 grups de quatre",
                     spaces: "Espais opcionals",
                 },
                 features: {

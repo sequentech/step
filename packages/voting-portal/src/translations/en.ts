@@ -821,10 +821,10 @@ const englishTranslation = {
                 title: "Check your ballot in the public record",
                 intro: "Enter the Tracking ID from your confirmation screen or receipt. Your browser looks it up and checks the proofs itself.",
                 find: "Find",
-                invalid: "A Tracking ID has only digits and the letters a to f.",
+                invalid: "A Tracking ID has only digits and letters, never U.",
                 chips: {
                     short: "<b>Short</b> FTBE-MHRX",
-                    full: "<b>Full</b> 16 groups of four",
+                    full: "<b>Full</b> 13 groups of four",
                     spaces: "Spaces optional",
                 },
                 features: {

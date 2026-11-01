@@ -706,10 +706,10 @@ const basqueTranslation: TranslationType = {
                 title: "Egiaztatu zure boto-txartela erregistro publikoan",
                 intro: "Sartu zure berrespen pantailako edo hartu-agiriko jarraipen IDa. Zure nabigatzaileak bilatzen du, eta frogak berak egiaztatzen ditu.",
                 find: "Bilatu",
-                invalid: "Jarraipen IDak digituak eta a-tik f-ra bitarteko letrak baino ez ditu.",
+                invalid: "Jarraipen IDak digituak eta letrak baino ez ditu, inoiz ez U letra.",
                 chips: {
                     short: "<b>Laburra</b> FTBE-MHRX",
-                    full: "<b>Osoa</b> lauko 16 talde",
+                    full: "<b>Osoa</b> lauko 13 talde",
                     spaces: "Zuriuneak aukerakoak",
                 },
                 features: {

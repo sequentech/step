@@ -706,10 +706,10 @@ const frenchTranslation: TranslationType = {
                 intro: "Saisissez l'identifiant de suivi indiqué sur votre écran de confirmation ou votre reçu. Votre navigateur le recherche et vérifie lui-même les preuves.",
                 find: "Rechercher",
                 invalid:
-                    "Un identifiant de suivi ne contient que des chiffres et les lettres de a à f.",
+                    "Un identifiant de suivi ne contient que des chiffres et des lettres, jamais de U.",
                 chips: {
                     short: "<b>Court</b> FTBE-MHRX",
-                    full: "<b>Complet</b> 16 groupes de quatre",
+                    full: "<b>Complet</b> 13 groupes de quatre",
                     spaces: "Espaces facultatifs",
                 },
                 features: {

@@ -705,10 +705,10 @@ const galegoTranslation: TranslationType = {
                 title: "Comproba a túa papeleta no rexistro público",
                 intro: "Introduce o ID de seguimento da túa pantalla de confirmación ou do teu recibo. O teu navegador búscao e comproba as probas por si mesmo.",
                 find: "Buscar",
-                invalid: "Un ID de seguimento só ten díxitos e as letras da a á f.",
+                invalid: "Un ID de seguimento só ten díxitos e letras, nunca a U.",
                 chips: {
                     short: "<b>Curto</b> FTBE-MHRX",
-                    full: "<b>Completo</b> 16 grupos de catro",
+                    full: "<b>Completo</b> 13 grupos de catro",
                     spaces: "Espazos opcionais",
                 },
                 features: {

@@ -704,10 +704,10 @@ const tagalogTranslation: TranslationType = {
                 title: "Suriin ang iyong balota sa pampublikong talaan",
                 intro: "Ilagay ang Tracking ID mula sa iyong screen ng kumpirmasyon o resibo. Hinahanap ito ng iyong browser at ang browser mismo ang sumusuri sa mga patunay.",
                 find: "Hanapin",
-                invalid: "Ang Tracking ID ay may mga digit at mga letrang a hanggang f lamang.",
+                invalid: "Ang Tracking ID ay may mga digit at mga letra lamang, walang U.",
                 chips: {
                     short: "<b>Maikli</b> FTBE-MHRX",
-                    full: "<b>Buo</b> 16 na grupo ng apat",
+                    full: "<b>Buo</b> 13 na grupo ng apat",
                     spaces: "Opsyonal ang mga espasyo",
                 },
                 features: {
