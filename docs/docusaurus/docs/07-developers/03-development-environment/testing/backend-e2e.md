@@ -60,8 +60,22 @@ The Compose overlays also work with `.env.development` alone: binaries default
 to `.cache/backend-e2e/bin` and output to `.cache/backend-e2e/default` within
 the checkout. The runner writes its per-run paths to `compose.env` and passes
 that file to Compose, so Compose does not require shell exports for these paths.
-The `Backend E2E journeys` workflow runs the same command on affected pull
-requests and uploads those artifacts, including after failures.
+The `Backend E2E journeys` workflow runs the same journeys on affected pull
+requests and uploads those artifacts, including after failures. It splits the
+build across two runners: one job builds the release binaries (`trustee`,
+`b4v6`) with `STEP_E2E_BINARIES=release scripts/e2e/run.sh --build-only`, while
+the journeys job builds the images and the debug binaries
+(`STEP_E2E_BINARIES=debug`), takes the release pair from the Actions cache and
+runs with `--skip-images --skip-build`. `--build-only` builds what
+`STEP_E2E_IMAGES` names (default: every image the stack needs) and the
+selected binaries, then stops. Pushes to `main`, `ovcs` and release branches
+seed the Cargo caches that pull requests restore.
+The service images reuse layers from GHCR (`ghcr.io/sequentech/step/backend-e2e-cache`):
+`STEP_E2E_BUILD_CACHE` names the repository, `STEP_E2E_BUILD_CACHE_READ` the
+scopes to import (the branch and its base) and `STEP_E2E_BUILD_CACHE_WRITE` the
+one to export to. Pushes and manual runs export to their branch's tags; pull
+requests only import. The export needs a buildx builder such as
+`docker buildx create --use --driver docker-container`.
 The job summary (`scripts/e2e/summary.py <output>` writes it to `summary.md`) lists each
 journey and the bootstrap check with status and duration, then the totals. The
 `backend-e2e-results-<attempt>` artifact keeps it with the JSON results.
