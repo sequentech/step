@@ -10,7 +10,7 @@ import React from "react"
 import {act, fireEvent, render, screen, within} from "@testing-library/react"
 import {ThemeProvider} from "@mui/material/styles"
 import axe from "axe-core"
-import type {ChainResult, TierName, TierResult, TierStatus} from "@vitrine/verify"
+import type {ChainResult, Policy, TierName, TierResult, TierStatus} from "@vitrine/verify"
 import theme from "../../../../ui-essentials/src/services/theme"
 import {EBallotStatus, EBallotTag} from "../../services/vitrine/ballotStatus"
 import {EReceiptNotice, IReceiptView} from "../../services/vitrine/castReceipt"
@@ -22,6 +22,15 @@ jest.mock("react-i18next", () => ({
         t: (key: string, values?: Record<string, unknown>) =>
             values ? `${key} ${JSON.stringify(values)}` : key,
     }),
+}))
+
+let mockProblems: unknown
+const mockAsk = jest.fn()
+jest.mock("../../hooks/useHubProblems", () => ({
+    useHubProblems: (_policy: unknown, enabled: boolean) => {
+        mockAsk(enabled)
+        return mockProblems
+    },
 }))
 
 const mockSaveTextFile = jest.fn()
@@ -138,6 +147,7 @@ const stepWords = () =>
 
 beforeEach(() => {
     jest.clearAllMocks()
+    mockProblems = undefined
 })
 
 describe("the headline of the ballot status dialog", () => {
@@ -840,5 +850,50 @@ describe("Who signed and Which hubs in the ballot status dialog", () => {
             rules: {"color-contrast": {enabled: false}, "region": {enabled: false}},
         })
         expect(violations).toEqual([])
+    })
+})
+
+describe("the problems that hubs list, in the ballot status dialog", () => {
+    const POLICY = {
+        id: "sha256:abc123",
+        operator: "Election authority",
+        monitors: new Map(),
+        hubs: new Map([
+            ["hub-a", {name: "hub-a", operator: "Sequent", explorer: "https://hub-a.example.org/"}],
+        ]),
+        explorers: [],
+    } as unknown as Policy
+    const problems = {
+        problems: [
+            {
+                id: `sha256:${"0".repeat(63)}1`,
+                kind: "split-view",
+                loggedAt: 1,
+                entry: 1,
+                hubs: ["hub-a"],
+            },
+        ],
+        unreachable: [],
+    }
+
+    it("shows the notice for a ballot in the record, before where to look elsewhere", () => {
+        mockProblems = problems
+        renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED, {policy: POLICY})})
+        const banner = dialog().querySelector(".hub-problems-banner")
+        expect(banner).not.toBeNull()
+        expect(banner).toHaveTextContent("vitrine.hubProblems.kind.splitView")
+        expect(mockAsk).toHaveBeenLastCalledWith(true)
+    })
+
+    it("does not ask the hubs for a ballot that is not in the record yet", () => {
+        renderDialog({status: EBallotStatus.NOT_CAST})
+        expect(mockAsk).toHaveBeenLastCalledWith(false)
+        expect(dialog().querySelector(".hub-problems-banner")).toBeNull()
+    })
+
+    it("shows nothing when the hubs list none", () => {
+        mockProblems = {problems: [], unreachable: []}
+        renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED, {policy: POLICY})})
+        expect(dialog().querySelector(".hub-problems-banner")).toBeNull()
     })
 })

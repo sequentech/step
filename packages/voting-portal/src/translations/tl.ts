@@ -890,6 +890,23 @@ const tagalogTranslation: TranslationType = {
             },
         },
         vitrine: {
+            hubProblems: {
+                title: {
+                    one: "May isang problemang inilista ng isang hub para sa halalang ito",
+                    other: "{{count}} problema ang nakalista para sa halalang ito",
+                },
+                listedBy: "Inilista ng {{hubs}}",
+                proof: "Tingnan ang patunay",
+                note: "Ang paalalang ito ay kaginhawahan lang mula sa site na ito, at ang listahan ay pahiwatig lamang: buksan ang patunay para suriin ito sa iyong browser. Sasabihin din ito sa iyo ng mga hub, sa email, sa sarili nilang site at sa extension, ginawa man o hindi ito ng site na ito.",
+                kind: {
+                    splitView: "Dalawang bersyon ng talaan",
+                    brokenPromise: "May nawawalang ipinangakong entry",
+                    breaksRules: "May entry na lumalabag sa mga patakaran",
+                    twoPolicies: "Dalawang patakaran",
+                    unloggedCode: "Code na hindi nakatala",
+                    other: "Problemang itinala ng isang hub",
+                },
+            },
             ballotId: {
                 label: "Tracking ID",
                 full: "Buong Tracking ID",

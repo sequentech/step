@@ -893,6 +893,23 @@ const spanishTranslation: TranslationType = {
             },
         },
         vitrine: {
+            hubProblems: {
+                title: {
+                    one: "Un hub lista un problema en esta elección",
+                    other: "Se listan {{count}} problemas en esta elección",
+                },
+                listedBy: "Lo lista {{hubs}}",
+                proof: "Ver la prueba",
+                note: "Este aviso es una comodidad de este sitio, y un listado es solo una referencia: abra la prueba para comprobarla en su navegador. Los hubs también se lo comunican por correo, en sus propios sitios y en la extensión, lo haga o no este sitio.",
+                kind: {
+                    splitView: "Dos versiones del registro",
+                    brokenPromise: "Falta una entrada prometida",
+                    breaksRules: "Una entrada incumple las reglas",
+                    twoPolicies: "Dos políticas",
+                    unloggedCode: "Código que no está registrado",
+                    other: "Un problema registrado por un hub",
+                },
+            },
             ballotId: {
                 label: "ID de seguimiento",
                 full: "ID de seguimiento completo",

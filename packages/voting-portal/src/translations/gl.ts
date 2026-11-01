@@ -890,6 +890,23 @@ const galegoTranslation: TranslationType = {
             },
         },
         vitrine: {
+            hubProblems: {
+                title: {
+                    one: "Un hub lista un problema nesta elección",
+                    other: "Lístanse {{count}} problemas nesta elección",
+                },
+                listedBy: "Lístao {{hubs}}",
+                proof: "Ver a proba",
+                note: "Este aviso é unha comodidade deste sitio, e un listado é só unha referencia: abre a proba para comprobala no teu navegador. Os hubs tamén cho comunican por correo, nos seus propios sitios e na extensión, o faga ou non este sitio.",
+                kind: {
+                    splitView: "Dúas versións do rexistro",
+                    brokenPromise: "Falta unha entrada prometida",
+                    breaksRules: "Unha entrada incumpre as regras",
+                    twoPolicies: "Dúas políticas",
+                    unloggedCode: "Código que non está rexistrado",
+                    other: "Un problema rexistrado por un hub",
+                },
+            },
             ballotId: {
                 label: "ID de seguimento",
                 full: "ID de seguimento completo",

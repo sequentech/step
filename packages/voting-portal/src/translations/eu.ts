@@ -890,6 +890,23 @@ const basqueTranslation: TranslationType = {
             },
         },
         vitrine: {
+            hubProblems: {
+                title: {
+                    one: "Hub batek arazo bat zerrendatzen du hauteskunde honetan",
+                    other: "{{count}} arazo zerrendatzen dira hauteskunde honetan",
+                },
+                listedBy: "Zerrendatzailea: {{hubs}}",
+                proof: "Ikusi froga",
+                note: "Abisu hau gune honen erosotasun bat da, eta zerrenda bat aipamen soila da: ireki froga zure nabigatzailean egiaztatzeko. Hub-ek ere jakinaraziko dizute, posta elektronikoz, beren guneetan eta luzapenean, gune honek egin zein ez.",
+                kind: {
+                    splitView: "Erregistroaren bi bertsio",
+                    brokenPromise: "Agindutako sarrera bat falta da",
+                    breaksRules: "Sarrera batek arauak urratzen ditu",
+                    twoPolicies: "Bi politika",
+                    unloggedCode: "Erregistratu gabeko kodea",
+                    other: "Hub batek erregistratutako arazo bat",
+                },
+            },
             ballotId: {
                 label: "Jarraipen IDa",
                 full: "Jarraipen ID osoa",

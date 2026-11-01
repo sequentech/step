@@ -891,6 +891,23 @@ const frenchTranslation: TranslationType = {
             },
         },
         vitrine: {
+            hubProblems: {
+                title: {
+                    one: "Un hub signale un problème pour cette élection",
+                    other: "{{count}} problèmes sont signalés pour cette élection",
+                },
+                listedBy: "Signalé par {{hubs}}",
+                proof: "Voir la preuve",
+                note: "Cet avis est une commodité de ce site, et une liste n'est qu'un renvoi : ouvrez la preuve pour la vérifier dans votre navigateur. Les hubs vous le disent aussi, par courriel, sur leurs propres sites et dans l'extension, que ce site le fasse ou non.",
+                kind: {
+                    splitView: "Deux versions du registre",
+                    brokenPromise: "Une entrée promise manque",
+                    breaksRules: "Une entrée enfreint les règles",
+                    twoPolicies: "Deux politiques",
+                    unloggedCode: "Du code qui n'est pas journalisé",
+                    other: "Un problème enregistré par un hub",
+                },
+            },
             ballotId: {
                 label: "Identifiant de suivi",
                 full: "Identifiant de suivi complet",

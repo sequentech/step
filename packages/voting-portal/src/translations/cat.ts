@@ -894,6 +894,23 @@ const catalanTranslation: TranslationType = {
             },
         },
         vitrine: {
+            hubProblems: {
+                title: {
+                    one: "Un hub llista un problema en aquesta elecció",
+                    other: "Es llisten {{count}} problemes en aquesta elecció",
+                },
+                listedBy: "El llista {{hubs}}",
+                proof: "Veure la prova",
+                note: "Aquest avís és una comoditat d'aquest lloc, i un llistat és només una referència: obriu la prova per comprovar-la al navegador. Els hubs també us ho comuniquen per correu, als seus propis llocs i a l'extensió, ho faci o no aquest lloc.",
+                kind: {
+                    splitView: "Dues versions del registre",
+                    brokenPromise: "Falta una entrada promesa",
+                    breaksRules: "Una entrada incompleix les regles",
+                    twoPolicies: "Dues polítiques",
+                    unloggedCode: "Codi que no està registrat",
+                    other: "Un problema registrat per un hub",
+                },
+            },
             ballotId: {
                 label: "ID de seguiment",
                 full: "ID de seguiment complet",

@@ -48,6 +48,7 @@ import {EVitrineLog} from "../../services/vitrine/types"
 import {BallotTag} from "./BallotTag"
 import {explorersOf} from "./explorers"
 import {FindElsewhere} from "./FindElsewhere"
+import {HubProblemsBanner} from "./HubProblemsBanner"
 import {EFullTrackingIdSurface, FullTrackingId} from "./FullTrackingId"
 import {WitnessList} from "./WitnessList"
 
@@ -608,6 +609,7 @@ export const BallotStatusDialog: React.FC<IBallotStatusDialogProps> = ({
                         </ButtonBase>
                     </Box>
                 ) : null}
+                <HubProblemsBanner policy={view?.policy} enabled={open && inRecord} />
                 <FindElsewhere
                     explorers={explorers}
                     policyId={view?.policy?.id}

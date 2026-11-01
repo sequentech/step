@@ -1003,6 +1003,23 @@ const englishTranslation = {
             },
         },
         vitrine: {
+            hubProblems: {
+                title: {
+                    one: "A hub lists a problem for this election",
+                    other: "{{count}} problems are listed for this election",
+                },
+                listedBy: "Listed by {{hubs}}",
+                proof: "See the proof",
+                note: "This notice is a convenience from this site, and a listing is only a pointer: open the proof to check it in your browser. The hubs also tell you, by email, on their own sites and in the extension, whether or not this site does.",
+                kind: {
+                    splitView: "Two versions of the record",
+                    brokenPromise: "A promised entry is missing",
+                    breaksRules: "An entry breaks the rules",
+                    twoPolicies: "Two policies",
+                    unloggedCode: "Code that isn’t logged",
+                    other: "A problem recorded by a hub",
+                },
+            },
             ballotId: {
                 label: "Tracking ID",
                 full: "Full Tracking ID",

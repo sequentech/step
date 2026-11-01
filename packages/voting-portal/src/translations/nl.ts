@@ -892,6 +892,23 @@ const dutchTranslation: TranslationType = {
             },
         },
         vitrine: {
+            hubProblems: {
+                title: {
+                    one: "Een hub meldt een probleem voor deze verkiezing",
+                    other: "Er worden {{count}} problemen gemeld voor deze verkiezing",
+                },
+                listedBy: "Gemeld door {{hubs}}",
+                proof: "Bekijk het bewijs",
+                note: "Deze melding is een gemak van deze site, en een vermelding is slechts een verwijzing: open het bewijs om het in uw browser te controleren. De hubs laten het u ook weten, per e-mail, op hun eigen sites en in de extensie, of deze site dat nu doet of niet.",
+                kind: {
+                    splitView: "Twee versies van het register",
+                    brokenPromise: "Een beloofde invoer ontbreekt",
+                    breaksRules: "Een invoer overtreedt de regels",
+                    twoPolicies: "Twee beleidsstukken",
+                    unloggedCode: "Code die niet is vastgelegd",
+                    other: "Een probleem vastgelegd door een hub",
+                },
+            },
             ballotId: {
                 label: "Tracking-ID",
                 full: "Volledige Tracking-ID",
