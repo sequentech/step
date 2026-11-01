@@ -111,6 +111,10 @@ class RunSafety(unittest.TestCase):
             "STEP_E2E_CARGO_HOME",
             "STEP_E2E_COVERAGE",
             "STEP_E2E_COMPOSE_OVERLAY",
+            "STEP_E2E_IMAGES",
+            "STEP_E2E_BUILD_CACHE",
+            "STEP_E2E_BUILD_CACHE_READ",
+            "STEP_E2E_BUILD_CACHE_WRITE",
         ):
             self.env.pop(name, None)
         self.env.update(
@@ -248,6 +252,51 @@ class RunSafety(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 2, result.stderr)
         self.assertIn("STEP_E2E_COMPOSE_OVERLAY", result.stderr)
+        self.assertEqual(self.calls(), [])
+
+    def test_build_cache_overlay_imports_scopes_and_exports_one(self):
+        output = self.root / "out"
+        result = self.run_script(
+            "--build-only",
+            "--skip-build",
+            STEP_E2E_OUTPUT_DIR=str(output),
+            STEP_E2E_IMAGES="minio keycloak",
+            STEP_E2E_BUILD_CACHE="ghcr.io/owner/cache",
+            STEP_E2E_BUILD_CACHE_READ="feat/x ovcs",
+            STEP_E2E_BUILD_CACHE_WRITE="release/1.2",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        [build] = self.compose_calls("build")
+        files = [build[i + 1] for i, arg in enumerate(build) if arg == "-f"]
+        self.assertEqual(files[-1], str(output / "build-cache.yml"))
+        overlay = (output / "build-cache.yml").read_text()
+        self.assertIn("type=registry,ref=ghcr.io/owner/cache:keycloak-feat-x\n", overlay)
+        self.assertIn("type=registry,ref=ghcr.io/owner/cache:minio-ovcs\n", overlay)
+        self.assertIn(
+            "type=registry,ref=ghcr.io/owner/cache:minio-release-1.2,mode=max,ignore-error=true",
+            overlay,
+        )
+
+    def test_build_cache_without_write_scope_only_imports(self):
+        output = self.root / "out"
+        result = self.run_script(
+            "--build-only",
+            "--skip-build",
+            STEP_E2E_OUTPUT_DIR=str(output),
+            STEP_E2E_BUILD_CACHE="ghcr.io/owner/cache",
+            STEP_E2E_BUILD_CACHE_READ="ovcs",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        overlay = (output / "build-cache.yml").read_text()
+        self.assertIn("cache_from", overlay)
+        self.assertNotIn("cache_to", overlay)
+
+    def test_invalid_build_cache_fails_before_docker(self):
+        result = self.run_script(
+            "--build-only", "--skip-build", STEP_E2E_BUILD_CACHE="GHCR.io/Owner cache"
+        )
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("STEP_E2E_BUILD_CACHE", result.stderr)
         self.assertEqual(self.calls(), [])
 
     def test_bash_invocation_from_the_script_directory_retains_arguments(self):

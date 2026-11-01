@@ -70,6 +70,12 @@ runs with `--skip-images --skip-build`. `--build-only` builds what
 `STEP_E2E_IMAGES` names (default: every image the stack needs) and the
 selected binaries, then stops. Pushes to `main`, `ovcs` and release branches
 seed the Cargo caches that pull requests restore.
+The service images reuse layers from GHCR (`ghcr.io/sequentech/step/backend-e2e-cache`):
+`STEP_E2E_BUILD_CACHE` names the repository, `STEP_E2E_BUILD_CACHE_READ` the
+scopes to import (the branch and its base) and `STEP_E2E_BUILD_CACHE_WRITE` the
+one to export to. Pushes and manual runs export to their branch's tags; pull
+requests only import. The export needs a buildx builder such as
+`docker buildx create --use --driver docker-container`.
 The job summary (`scripts/e2e/summary.py <output>` writes it to `summary.md`) lists each
 journey and the bootstrap check with status and duration, then the totals. The
 `backend-e2e-results-<attempt>` artifact keeps it with the JSON results.

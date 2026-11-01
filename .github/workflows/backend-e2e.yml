@@ -34,6 +34,14 @@ concurrency:
   # A cancelled push saves no cache, so only PRs cancel their older runs.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Layer caches for the service images, in GHCR: the repository's Actions cache
+# is full and evicts within hours. Every run imports its branch's tags and the
+# base branch's; pushes and manual runs export to their branch's tags.
+env:
+  STEP_E2E_BUILD_CACHE: ghcr.io/${{ github.repository }}/backend-e2e-cache
+  STEP_E2E_BUILD_CACHE_READ: ${{ github.head_ref || github.ref_name }} ${{ github.base_ref || github.event.repository.default_branch }}
+  STEP_E2E_BUILD_CACHE_WRITE: ${{ github.event_name != 'pull_request' && github.ref_name || '' }}
+
 jobs:
   # trustee and b4v6 are release builds, about a third of the compile. They
   # build on their own runner while the journeys job builds the images and the
@@ -43,6 +51,10 @@ jobs:
     name: Release binaries (trustee, b4)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    permissions:
+      contents: read
+      # The image layer cache.
+      packages: read
     env:
       CARGO_BUILD_JOBS: "4"
       STEP_E2E_PROJECT: step-e2e-release-${{ github.run_id }}-${{ github.run_attempt }}
@@ -54,6 +66,8 @@ jobs:
       STEP_E2E_BINARIES: release
       # The image the binaries build in; the journeys job builds the rest.
       STEP_E2E_IMAGES: harvest
+      # The journeys job exports harvest's layers too.
+      STEP_E2E_BUILD_CACHE_WRITE: ""
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -72,6 +86,18 @@ jobs:
             .cache/backend-e2e/cargo-home
           key: backend-e2e-release-coverage-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml', 'packages/Cargo.lock', 'packages/wbraid/Cargo.lock', 'packages/Dockerfile.cargo-packages', 'scripts/e2e/build.sh', 'scripts/e2e/coverage-rustc') }}
           restore-keys: backend-e2e-release-coverage-${{ runner.os }}-
+
+      # A builder that exports caches; the images still load into Docker.
+      - name: Set up the image builder
+        run: docker buildx create --use --name backend-e2e --driver docker-container
+
+      # Fork PRs may get no registry access: they build without the cache.
+      - name: Log in to the image layer cache
+        continue-on-error: true
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          GHCR_USER: ${{ github.actor }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USER" --password-stdin
 
       - name: Build trustee and b4v6
         run: scripts/e2e/run.sh --build-only
@@ -98,6 +124,8 @@ jobs:
       contents: read
       # To wait for the release-binaries job.
       actions: read
+      # The image layer cache; PRs never export to it (STEP_E2E_BUILD_CACHE_WRITE).
+      packages: write
     env:
       CARGO_BUILD_JOBS: "4"
       COMPOSE_PARALLEL_LIMIT: "1"
@@ -131,6 +159,18 @@ jobs:
           # Instrumented builds use their own target tree; do not restore the old one.
           key: backend-e2e-debug-coverage-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml', 'packages/Cargo.lock', 'packages/Dockerfile.cargo-packages', 'scripts/e2e/build.sh', 'scripts/e2e/coverage-rustc') }}
           restore-keys: backend-e2e-debug-coverage-${{ runner.os }}-
+
+      # A builder that exports caches; the images still load into Docker.
+      - name: Set up the image builder
+        run: docker buildx create --use --name backend-e2e --driver docker-container
+
+      # Fork PRs may get no registry access: they build without the cache.
+      - name: Log in to the image layer cache
+        continue-on-error: true
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          GHCR_USER: ${{ github.actor }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USER" --password-stdin
 
       - name: Build the images and the debug binaries
         run: scripts/e2e/run.sh --build-only
