@@ -127,7 +127,8 @@ jobs:
         working-directory: packages
 
   run-tests:
-    name: Run Rust tests
+    # The matrix carries each job's script; name the job after its service only.
+    name: Run Rust tests (${{ matrix.service }})
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     needs: plan
