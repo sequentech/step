@@ -108,6 +108,7 @@ test("persists a dragged candidate order before saving the contest", async ({pag
                 description: "Ordered ballot",
                 presentation: {
                     ...presentation,
+                    candidates_layout: "list",
                     columns: null,
                     max_selections_per_type: null,
                     i18n: {en: {name: "Mayor", description: "Ordered ballot"}},
