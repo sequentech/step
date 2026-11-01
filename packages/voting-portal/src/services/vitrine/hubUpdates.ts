@@ -59,12 +59,9 @@ export const offeredHubs = (policy: Policy | undefined): IOfferedHub[] =>
         : []
 
 /** The hub's `hub-ballot-verifier` line: the base URL of the ballot verifier
- * its operator runs, for checking audited ballots. Read through here so that
- * a vendored policy type without the field still works. */
-export const ballotVerifierOf = (hub: PolicyHub): string | undefined => {
-    const url: unknown = (hub as PolicyHub & {ballotVerifier?: unknown}).ballotVerifier
-    return typeof url === "string" && url !== "" ? url : undefined
-}
+ * its operator runs, for checking audited ballots. */
+export const ballotVerifierOf = (hub: PolicyHub): string | undefined =>
+    hub.ballotVerifier || undefined
 
 /** The hubs that the policy gives a ballot verifier, where a voter checks an
  * audited ballot, in no order that means anything: the screen shuffles them.

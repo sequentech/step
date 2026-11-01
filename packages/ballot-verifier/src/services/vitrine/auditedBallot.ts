@@ -158,13 +158,6 @@ export interface IHubIdentity {
     operator?: string
 }
 
-/** A policy hub's ballot verifier, from its `hub-ballot-verifier` line, once
- * the vendored @vitrine/verify reads it. */
-const ballotVerifierOf = (hub: unknown): string | undefined => {
-    const url = isObject(hub) ? hub.ballotVerifier : undefined
-    return typeof url === "string" ? url : undefined
-}
-
 const withSlash = (url: string): string => (url.endsWith("/") ? url : `${url}/`)
 
 /** Which hub this verifier is: the one the settings name, else the one whose
@@ -180,7 +173,7 @@ export const hubIdentity = (
     const hub = named
         ? hubs.find((h) => h.name === named)
         : hubs.find((h) => {
-              const url = ballotVerifierOf(h)
+              const url = h.ballotVerifier
               return url !== undefined && location.startsWith(withSlash(url))
           })
     const name = named || hub?.name

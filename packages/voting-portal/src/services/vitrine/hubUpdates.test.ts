@@ -189,7 +189,7 @@ describe("watchPayload", () => {
 
 // The vendored parser has no hub-ballot-verifier line yet, so the tests give a
 // parsed hub the field the way a newer parser would.
-const withVerifier = (policy: Policy, hub: string, url: unknown): Policy => {
+const withVerifier = (policy: Policy, hub: string, url: string): Policy => {
     Object.assign(policy.hubs.get(hub)!, {ballotVerifier: url})
     return policy
 }
@@ -200,11 +200,10 @@ describe("ballotVerifierOf", () => {
         expect(ballotVerifierOf(policy.hubs.get("h1")!)).toBe("https://hub1.verifier.example/")
     })
 
-    it("tolerates a policy from before the field, or a value that isn't a site", () => {
+    it("gives nothing when the hub names no ballot verifier", () => {
         const policy = parsed([])
         expect(ballotVerifierOf(policy.hubs.get("h1")!)).toBeUndefined()
         expect(ballotVerifierOf(withVerifier(policy, "h1", "").hubs.get("h1")!)).toBeUndefined()
-        expect(ballotVerifierOf(withVerifier(policy, "h1", 7).hubs.get("h1")!)).toBeUndefined()
     })
 })
 
