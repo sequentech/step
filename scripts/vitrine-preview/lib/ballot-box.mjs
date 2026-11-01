@@ -265,10 +265,26 @@ export function createBallotBox({ live, sidecar, electionId, ids, box, audited, 
     return records.map((r) => r.castRow);
   }
 
-  /** `locate_ballot`: found, not found, or ambiguous (listing the Tracking IDs when few). */
-  function locate(voter, typed) {
+  /** The audited ballots anyone may open, as a hub's ballot verifier asks with no
+   * voter's token: the fixture, and every voter's once it was published. Never a
+   * cast ballot, nor an audited one its voter didn't publish. */
+  function findPublic(typed) {
+    const matches = matcher(typed);
+    if (!matches) return [];
+    const published = [...byBallot.values()].filter((r) => r.state === "audited" && r.published);
+    return [...published, ...(auditedRecord ? [auditedRecord] : [])].filter(matches);
+  }
+
+  /** `locate_ballot` with a voter's token: found, not found, or ambiguous (listing
+   * the Tracking IDs when few). */
+  const locate = (voter, typed) => located(find(voter, typed));
+
+  /** `locate_ballot` with no token (the public locator a hub's ballot verifier
+   * asks): only the published audited ballots. */
+  const locatePublic = (typed) => located(findPublic(typed));
+
+  function located(found) {
     const none = { status: "not-found", ballot_id: null, content: null, cast_at: null, checks_available_until: null, matches: [] };
-    const found = find(voter, typed);
     if (found.length === 0) return none;
     if (found.length === 1) {
       const [only] = found;
@@ -364,6 +380,7 @@ export function createBallotBox({ live, sidecar, electionId, ids, box, audited, 
     insert,
     castVotes,
     locate,
+    locatePublic,
     recordAudited,
     stats: () => ({
       received: byReceiptKey.size,

@@ -18,14 +18,16 @@ node scripts/vitrine-preview/preview.mjs status
 
 Node 20, no dependencies. Flags: `--vitrine DIR` (default `~/vitrine`), `--step DIR`
 (default `~/step-vitrine`, the Step checkout whose webpack dev servers are run, so its
-edits show up live), `--logs DIR`, `--version V`, `--election ID`.
+edits show up live), `--logs DIR`, `--version V`, `--election ID`, `--no-verifier` (don't serve hub-b's
+ballot verifier).
 
 | Origin | What |
 |---|---|
 | `http://127.0.0.1:18850` | voting portal (the preview's own `/global-settings.json`, `/v1/graphql` forwarded to the stand-in, the rest from webpack, or a static build). The portal sends GraphQL to its own origin because the Vitrine extension reads casts only there, as a reverse proxy in front of Hasura serves them in a deployment the extension checks |
 | `http://127.0.0.1:18853` | admin portal |
+| `http://127.0.0.1:18856` | hub-b's ballot verifier: Step's ballot-verifier app (see "hub-b's ballot verifier"), `/v1/graphql` forwarded to the stand-in |
 | `http://127.0.0.1:18851` | the stand-in: GraphQL (`/v1/graphql`), a fake Keycloak (`/realms/...`), the published ballot files, `/__preview/status` |
-| 18852, 18854 | the webpack dev servers (internal) |
+| 18852, 18854, 18857 | the webpack dev servers (internal) |
 
 Voter entry: `http://127.0.0.1:18850/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/demo-2026/login`
 (signs in the fixture voter without a password). Admin: `http://127.0.0.1:18853/`, then the
@@ -59,7 +61,7 @@ stand-in plays that ballot box as Harvest and Windmill do:
 | `cast_ballot` | checks the voter's signature over the receipt key (the Cast statement), records the cast, writes the `cast` entry, signs the Cast receipt. The same request again returns the same receipt with no log answer, as Harvest does. An audited ballot, a ballot already cast with another signature, a ballot never received or a signature that doesn't verify answer 400 `PokValidationFailed` |
 | `audit_ballot` | marks the received ballot audited and writes the `audited` entry; a cast ballot is refused (409), an unknown one is not found |
 | `insert_cast_vote` | the direct path: receives the ballot, waits for the log to sequence the `received` entry (the profile's received-first rule), then writes `cast`. It has no cast signature, so it signs no Cast receipt |
-| `get_voter_cast_votes`, `locate_ballot` | the voter's cast ballots, found by the full Tracking ID, the start of one (8 or more Crockford characters, ignoring case and hyphens, with I and L read as 1 and O as 0) or the ballot's hex hash. `locate_ballot` answers found, not-found or ambiguous (listing the Tracking IDs when there are ten or fewer) |
+| `get_voter_cast_votes`, `locate_ballot` | the voter's cast ballots, found by the full Tracking ID, the start of one (8 or more Crockford characters, ignoring case and hyphens, with I and L read as 1 and O as 0) or the ballot's hex hash. `locate_ballot` answers found, not-found or ambiguous (listing the Tracking IDs when there are ten or fewer). With no token (a hub's ballot verifier) it is a public locator: it finds only the published audited ballots, the fixture's and those a recording published, whoever's they are, and never a cast ballot |
 
 The ballot box key is published in the ballot style (`ballot_eml.ballot_box_key`), the only place the
 portal reads it from, and its seed is fixed (`BALLOT_BOX_SEED` in `lib/fixtures.mjs`). This makes
@@ -156,6 +158,37 @@ only) publishes the auditable ballot of a ballot the voter has just audited, so 
 by its Tracking ID and decodes it, as it does the fixture's one. A board copies the JSON from the Audit screen
 (`.auditable-ballot-data`) and posts it here: the stand-in's own addition, since Step's backend does not publish
 audited ballots. It answers 422 for JSON that isn't the voter's audited ballot (matched by its ballot hash and key).
+
+## hub-b's ballot verifier
+
+`start` also runs Step's ballot-verifier app from the `--step` checkout (webpack dev server on 18857)
+behind a front on `http://127.0.0.1:18856/`, as the ballot verifier that hub-b runs for audited ballots
+(`preview.mjs settings verifier` prints its settings). The front serves its `/global-settings.json`
+(`HUB_NAME` `hub-b`, no sign-in, `VOTING_PORTAL_URL` the voting portal for its back button,
+`PUBLIC_BUCKET_URL` the stand-in's, whose event config carries the sealed policy) and forwards
+`/v1/graphql` to the stand-in, whose `locate_ballot` answers a request with no token with the published
+audited ballots only. Everything else it checks (the ballot's bucket on the lookup server, the receipt and
+checkpoints of the ballots log, the events log's checkpoint) it reads from the Vitrine stack itself.
+The stand-in allows its origin.
+
+The policy names it only if the stack was provisioned with it, a choice sealed with the policy:
+
+```
+cd $VITRINE_DIR && deploy/down.sh --purge
+VITRINE_HUB_B_BALLOT_VERIFIER=http://127.0.0.1:18856/ deploy/up.sh   # with VITRINE_EXPLORERS=1 for hub-b's site
+```
+
+then `provision-events` as above. The policy then has `hub-ballot-verifier hub-b http://127.0.0.1:18856/`,
+so the voting portal's audit screen offers hub-b to compare an audited ballot on, and hub-b's site links
+audited ballots to it. `start` and `status` say when the policy names no verifier or another one. A link opens
+an audited ballot on it:
+
+```
+http://127.0.0.1:18856/tenant/<tenant>/event/<event>/election/<election>/audited#id=<full Tracking ID>&policy=sha256:<hex>
+```
+
+`status` prints the link of the audited fixture. The verifier needs the audited ballot screen
+(packages/ballot-verifier, `AuditedScreen`) in the `--step` checkout.
 
 ## Playwright
 

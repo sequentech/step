@@ -12,7 +12,7 @@
 //   node preview.mjs tamper on|off    the Alert scenario's switch
 //   node preview.mjs dishonest-portal on|off   the voting portal hides hubs' problems
 //   node preview.mjs provision-events write the election's configuration into the events log
-//   node preview.mjs settings voting|admin   print the /global-settings.json served
+//   node preview.mjs settings voting|admin|verifier   print the /global-settings.json served
 
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -28,12 +28,13 @@ import { createDishonestPortal } from "./lib/dishonest-portal.mjs";
 import { createSplitView } from "./lib/split-view.mjs";
 import { provisionEvents } from "./lib/provision.mjs";
 import { TENANT_ID } from "./lib/fixtures.mjs";
+import { auditedLink, verifierInPolicy, verifierSettings } from "./lib/verifier.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const HOME = os.homedir();
 
-export const PORTS = { voting: 18850, standin: 18851, votingDev: 18852, admin: 18853, adminDev: 18854 };
-const ORIGINS = { voting: `http://127.0.0.1:${PORTS.voting}`, standin: `http://127.0.0.1:${PORTS.standin}`, admin: `http://127.0.0.1:${PORTS.admin}` };
+export const PORTS = { voting: 18850, standin: 18851, votingDev: 18852, admin: 18853, adminDev: 18854, verifier: 18856, verifierDev: 18857 };
+const ORIGINS = { voting: `http://127.0.0.1:${PORTS.voting}`, standin: `http://127.0.0.1:${PORTS.standin}`, admin: `http://127.0.0.1:${PORTS.admin}`, verifier: `http://127.0.0.1:${PORTS.verifier}` };
 const RELAY_CONTAINER = "vitrine-ui-harness-relay";
 const PLAYWRIGHT_IMAGE = "mcr.microsoft.com/playwright:v1.64.1-noble";
 const MAX_SOCKET_PATH = 100;
@@ -46,7 +47,7 @@ function parseArgs(argv) {
     if (a.startsWith("--")) {
       const [k, v] = a.slice(2).split("=");
       if (v !== undefined) flags[k] = v;
-      else if (argv[i + 1] !== undefined && !argv[i + 1].startsWith("--") && !["wait", "no-admin", "no-voting", "dry-run", "with-demo-booth"].includes(k)) flags[k] = argv[++i];
+      else if (argv[i + 1] !== undefined && !argv[i + 1].startsWith("--") && !["wait", "no-admin", "no-voting", "no-verifier", "dry-run", "with-demo-booth"].includes(k)) flags[k] = argv[++i];
       else flags[k] = true;
     } else rest.push(a);
   }
@@ -78,6 +79,8 @@ function config(flags) {
     election: flags.election,
     netContainer: flags["net-container"] ?? "vitrine-recovery-dev-net",
     only: flags["no-admin"] ? "voting" : flags["no-voting"] ? "admin" : "both",
+    // hub-b's ballot verifier (Step's ballot-verifier app), unless --no-verifier.
+    verifier: !flags["no-verifier"],
     wait: Boolean(flags.wait),
   };
 }
@@ -110,6 +113,7 @@ function releaseOf(c) {
 }
 
 function portalSettings(c, live, kind, release) {
+  if (kind === "verifier") return verifierSettings({ origins: ORIGINS, tenantId: TENANT_ID, eventId: live.eventId, release });
   const common = {
     DEFAULT_TENANT_ID: TENANT_ID,
     KEYCLOAK_URL: `${ORIGINS.standin}/`,
@@ -220,16 +224,24 @@ async function start(c) {
   if (c.only !== "voting") {
     next.adminDev = spawnDetached(c, "admin-portal", webpack, ["serve", "--config", "webpack.config.cjs", "--mode", "development", "--port", String(PORTS.adminDev), "--host", "127.0.0.1", "--no-open", "--no-client-overlay-warnings"], { NODE_OPTIONS: nodeOptions, PORT: String(PORTS.adminDev) }, path.join(c.packages, "admin-portal"));
   }
+  if (c.verifier) {
+    next.verifierDev = spawnDetached(c, "ballot-verifier", webpack, ["serve", "--config", "webpack.config.cjs", "--mode", "development", "--port", String(PORTS.verifierDev), "--host", "127.0.0.1", "--no-open", "--no-client-overlay-warnings"], { NODE_OPTIONS: nodeOptions, PORT: String(PORTS.verifierDev) }, path.join(c.packages, "ballot-verifier"));
+  }
   fs.writeFileSync(pidsFile(c), JSON.stringify(next, null, 2));
   console.log(`stand-in:       ${ORIGINS.standin}  (a local stand-in for Step's backend, with a fake Keycloak)`);
   if (c.only !== "admin") console.log(`voting portal:  ${ORIGINS.voting}/  ${c.dist ? `(static build of ${c.dist}, release ${release.package} ${release.version})` : "(webpack dev server, compiling)"}`);
   if (c.only !== "voting") console.log(`admin portal:   ${ORIGINS.admin}/  (webpack dev server, compiling)`);
+  if (c.verifier) {
+    const named = verifierInPolicy(live.policy, ORIGINS.verifier);
+    console.log(`verifier:       ${ORIGINS.verifier}/  (hub-b's ballot verifier; webpack dev server, compiling)${named.ok ? "" : `\n                ${named.hint}`}`);
+  }
   console.log(`election:       ${live.eventId} / ${election}   policy ${live.policyId}`);
   console.log(`logs:           ${c.logs}`);
   if (c.wait) {
     const targets = [];
     if (c.only !== "admin") targets.push(`${ORIGINS.voting}/`);
     if (c.only !== "voting") targets.push(`${ORIGINS.admin}/`);
+    if (c.verifier) targets.push(`${ORIGINS.verifier}/`);
     for (const t of targets) await waitFor(`${t}`, async () => (await fetch(t, { signal: AbortSignal.timeout(8000) })).status === 200, 15 * 60 * 1000, 3000);
     console.log("the portals are compiled and serving");
   } else {
@@ -260,7 +272,7 @@ async function serve() {
   });
   const standin = createStandIn({
     live, sidecar, origin: ORIGINS.standin, stepPackages: c.packages, electionId: c.election, version: release.version,
-    voterOrigin: ORIGINS.voting, adminOrigin: ORIGINS.admin, tamper, dishonest, splitView, log,
+    voterOrigin: ORIGINS.voting, adminOrigin: ORIGINS.admin, verifierOrigin: c.verifier ? ORIGINS.verifier : undefined, tamper, dishonest, splitView, log,
   });
   const listen = (server, port) => new Promise((resolve, reject) => server.once("error", reject).listen(port, "127.0.0.1", resolve));
   await listen(standin.server, PORTS.standin);
@@ -272,7 +284,12 @@ async function serve() {
     const front = createFront({ settings: portalSettings(c, live, "admin", release), upstreamPort: PORTS.adminDev, log: logFile("admin") });
     await listen(front.server, PORTS.admin);
   }
-  log(`serving: stand-in :${PORTS.standin}, voting :${PORTS.voting}, admin :${PORTS.admin}; election ${live.eventId}/${c.election}`);
+  if (c.verifier) {
+    // hub-b's ballot verifier: its GraphQL goes to the stand-in's public locator.
+    const front = createFront({ settings: portalSettings(c, live, "verifier", release), upstreamPort: PORTS.verifierDev, graphqlPort: PORTS.standin, log: logFile("verifier") });
+    await listen(front.server, PORTS.verifier);
+  }
+  log(`serving: stand-in :${PORTS.standin}, voting :${PORTS.voting}, admin :${PORTS.admin}${c.verifier ? `, verifier :${PORTS.verifier}` : ""}; election ${live.eventId}/${c.election}`);
 }
 
 // -- stop ----------------------------------------------------------------------------------
@@ -341,9 +358,18 @@ async function status(c) {
   await probe("stand-in", `${ORIGINS.standin}/healthz`);
   await probe("voting", `${ORIGINS.voting}/`);
   await probe("admin", `${ORIGINS.admin}/`);
+  if (pids.config?.verifier) await probe("verifier", `${ORIGINS.verifier}/`);
   try {
     const s = await (await fetch(`${ORIGINS.standin}/__preview/status`)).json();
     console.log(JSON.stringify(s, null, 2));
+    if (pids.config?.verifier) {
+      const named = verifierInPolicy(readStack(pids.config.vitrine ?? c.vitrine).policy, ORIGINS.verifier);
+      if (!named.ok) console.log(`verifier   ${named.hint}`);
+      if (s.ballotBox?.auditedFixture) {
+        const ids = { tenantId: TENANT_ID, eventId: s.event, electionId: s.election, trackingId: s.ballotBox.auditedFixture, policyId: s.policy };
+        console.log(`verifier   the audited fixture: ${auditedLink(ORIGINS.verifier, ids)}`);
+      }
+    }
   } catch {
     // The stand-in isn't up.
   }
@@ -377,9 +403,10 @@ try {
     }
   } else if (command === "settings") {
     const live = readStack(c.vitrine);
-    process.stdout.write(`${JSON.stringify(portalSettings(c, live, rest[1] === "admin" ? "admin" : "voting", releaseOf(c)), null, 2)}\n`);
+    const kind = ["admin", "verifier"].includes(rest[1]) ? rest[1] : "voting";
+    process.stdout.write(`${JSON.stringify(portalSettings(c, live, kind, releaseOf(c)), null, 2)}\n`);
   } else {
-    console.error("usage: preview.mjs start|stop|status|tamper on|off|dishonest-portal on|off|provision-events|settings voting|admin  [--static-dist DIR] [--release-bundle FILE] [--version V] [--wait]");
+    console.error("usage: preview.mjs start|stop|status|tamper on|off|dishonest-portal on|off|provision-events|settings voting|admin|verifier  [--no-verifier] [--static-dist DIR] [--release-bundle FILE] [--version V] [--wait]");
     process.exitCode = 2;
   }
 } catch (e) {

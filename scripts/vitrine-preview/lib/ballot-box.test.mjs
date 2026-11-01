@@ -188,3 +188,30 @@ test("a voter's audited ballot opens in the tracker once it is published, and on
   assert.equal(found.content, auditable);
   assert.equal(box.castVotes(VOTER, {}).length, 0);
 });
+
+test("the public locator opens published audited ballots only, whoever's they are", async () => {
+  const { box, audited } = setup();
+  await box.recordAudited();
+  const fixture = trackingId(audited.ballot_hash, null);
+  assert.equal(box.locatePublic(fixture).ballot_id, fixture);
+  assert.equal(box.locatePublic(fixture.replaceAll("-", "").toLowerCase()).status, "found");
+
+  const auditedBallot = signedBallot("2026-11-04");
+  const { ballot_id: auditKey } = await box.receive(auditedBallot.args, VOTER);
+  await box.audit({ election_id: ELECTION, ballot_id: auditKey }, VOTER);
+  const auditedTracking = trackingId(auditedBallot.hash, voterPk);
+  assert.equal(box.locatePublic(auditedTracking).status, "not-found");
+  const auditable = JSON.stringify({ ...auditedBallot.ballot, ballot_hash: auditedBallot.hash });
+  box.publishAudited(auditable, VOTER);
+  const found = box.locatePublic(auditedTracking);
+  assert.equal(found.status, "found");
+  assert.equal(found.content, auditable);
+
+  const castBallot = signedBallot("2026-11-05");
+  const { ballot_id: castKey } = await box.receive(castBallot.args, VOTER);
+  await box.cast({ election_id: ELECTION, ballot_id: castKey, cast_signature: signCastStatement(voterSeed, ELECTION, castKey) }, VOTER);
+  const castTracking = trackingId(castBallot.hash, voterPk);
+  assert.equal(box.locate(VOTER, castTracking).status, "found");
+  assert.equal(box.locatePublic(castTracking).status, "not-found");
+  assert.equal(box.locatePublic(castBallot.hash).status, "not-found");
+});

@@ -50,7 +50,7 @@ export function adminPermissions(stepPackages) {
   }
 }
 
-export function createStandIn({ live, sidecar, origin, stepPackages, electionId, version, voterOrigin, adminOrigin, tamper, dishonest, splitView, log }) {
+export function createStandIn({ live, sidecar, origin, stepPackages, electionId, version, voterOrigin, adminOrigin, verifierOrigin, tamper, dishonest, splitView, log }) {
   const schemaFile = path.join(stepPackages, "admin-portal/graphql.schema.json");
   const schema = new Schema(JSON.parse(fs.readFileSync(schemaFile, "utf8")));
   const policyNote = live.policy;
@@ -201,7 +201,8 @@ export function createStandIn({ live, sidecar, origin, stepPackages, electionId,
         case "audit_ballot":
           return ballotBox.audit(args, voterOf(ctx));
         case "locate_ballot":
-          return ballotBox.locate(voterOf(ctx), args.ballot_id);
+          // With no token it is the public locator a hub's ballot verifier asks.
+          return ctx.claims ? ballotBox.locate(voterOf(ctx), args.ballot_id) : ballotBox.locatePublic(args.ballot_id);
         case "get_voter_cast_votes":
           return ballotBox.castVotes(voterOf(ctx), args);
         case "get_ballot_files_urls":
@@ -230,7 +231,7 @@ export function createStandIn({ live, sidecar, origin, stepPackages, electionId,
 
   // -- HTTP ----------------------------------------------------------------------
 
-  const allowed = new Set([voterOrigin, adminOrigin]);
+  const allowed = new Set([voterOrigin, adminOrigin, verifierOrigin].filter(Boolean));
   const cors = (req, res) => {
     const from = req.headers.origin;
     if (from && allowed.has(from)) {
