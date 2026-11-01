@@ -10,6 +10,14 @@ ballot. `ballot-verifier` implements the 'cast or cancel' procedure described on
 the paper [Ballot Casting Assurance via Voter-Initiated Poll Station Auditing](https://www.usenix.org/legacy/event/evt07/tech/full_papers/benaloh/benaloh.pdf)
 by Josh Benaloh.
 
+A transparency hub can run it to check an audited ballot by its Tracking ID:
+`tenant/<t>/event/<e>/election/<el>/audited#id=<Tracking ID>&policy=sha256:<hex>`
+opens the ballot from the election's public record, with no login and no
+upload, and asks the voter to compare the decoded choices. `HUB_NAME` and
+`VOTING_PORTAL_URL` in `global-settings.json` name the hub and the voting site.
+See [A hub's ballot verifier](../../docs/docusaurus/docs/07-developers/14-vitrine.md#a-hubs-ballot-verifier).
+The upload flow stays for events without transparency.
+
 ## Storybook
 
 To run storybook, execute `yarn storybook`, then open `localhost:6006`. 

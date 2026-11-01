@@ -36,7 +36,7 @@ From the dashboard, you will see a list of ballots available to you. Note that m
 2. Select the `Click to Vote` button.
 
 :::info
-**A ballot you already cast:** Its card shows **Voted**, or **Ballot cast** with a check mark when your election has transparency enabled and this browser kept your receipt. The `Track your ballot` button opens the ballot tracker. When your election has transparency enabled and is open, and you cast every ballot it allows you, `Click to Vote` is disabled, with the hint "You already cast this ballot". The hint shows as a tooltip, and screen readers read it. See [Track your Vote](./02-voter_track_your_vote.md).
+**A ballot you already cast:** Its card shows **Voted**. The voting portal keeps no receipts in the browser, so it shows no check mark: to check your ballot, use the Tracking ID on your receipt. The `Track your ballot` button opens the ballot tracker. When your election has transparency enabled and is open, and you cast every ballot it allows you, `Click to Vote` is disabled, with the hint "You already cast this ballot". The hint shows as a tooltip, and screen readers read it. See [Track your Vote](./02-voter_track_your_vote.md).
 :::
 
 ## Step 3: Review Instructions

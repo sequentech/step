@@ -72,7 +72,7 @@ When your election has transparency enabled, the result shows the ballot's recei
 
 If a step is late, Ballot Tracking says that this is not evidence of tampering and that you can check again later, on any device. If a check fails, it explains why and offers **Save evidence** and **How to report it**.
 
-If you looked the ballot up by its short ID, Ballot Tracking adds: "Found by its short ID. To be certain it is yours, compare the full Tracking ID with your receipt." In a public election it can check the receipt on any device. In a private election only a device that kept your receipt can show it. Any other device says that it has no receipt for the ballot.
+If you looked the ballot up by its short ID, Ballot Tracking adds: "Found by its short ID. To be certain it is yours, compare the full Tracking ID with your receipt." In a public election it asks the public record for the receipt, on any device. The voting portal keeps no receipts in the browser, so in a private election the page says that no receipt could be checked here. Check the receipt file you kept in the ballot verifier instead.
 
 ## An audited ballot
 
@@ -80,7 +80,7 @@ A ballot that you audited is never cast. When the record that Ballot Tracking fi
 
 Your browser checks that the ballot's hash is its Tracking ID, and that its ciphertext reproduces from the plaintext and randomness the ballot carries. Only then does it decode the ballot, and show **Your selections, decoded**: each contest with the candidates you chose. **Print** prints them. If these are not the selections you made, contact the election authority. If a check fails, the tag is **Audit failed**, and a card with that title says not to cast from this device and to tell the election authority. If this device could not run the checks, the page shows **The audit could not be checked** and no selections.
 
-Step itself does not publish audited ballots: this view appears only when the record that Ballot Tracking finds is an audited ballot. The ballot verifier still checks the file you downloaded when you audited: see [Audit your Vote](./03-voter_audit_ballot.md).
+When you audit a ballot in an election with transparency enabled, the portal publishes the ballot and the secret it encrypted with in the public record. The audit screen then sends you to a hub's ballot verifier to compare the choices: see [Audit your Vote](./03-voter_audit_ballot.md#audit-with-transparency).
 
 ## Telephone voting ballot locator
 
@@ -92,7 +92,7 @@ After logging in to the Voting Portal, enter either the four-character locator p
 
 Because a four-character locator or a short ID is shorter than the full Tracking ID, two or more of the voter's ballots can have the same prefix. If this happens, Ballot Tracking does not select the first, last, or any other matching ballot. It says how many ballots share the short ID, lists them, each with its full Tracking ID and when it was cast, or audited, and asks the voter to choose one or to enter the full Tracking ID.
 
-When your election has transparency enabled and is public, a short ID finds ballots, but it never proves that one is yours. Ballot Tracking asks the election's public record for every ballot that starts with the first three characters, and keeps the ones that share your short ID in your browser, so that the record's servers do not learn which ballot you looked for. It lists up to five ballots, with the third group of four characters highlighted so that you can compare it with your receipt. The one your device holds a receipt for is marked **On this device** and listed first, and ballots that look like it are still listed. If more than five ballots share the short ID, Ballot Tracking asks you for the third group instead of listing them. Selecting a listed ballot does send its Tracking ID to the election's server, to show you the ballot. If the public record cannot list ballots by their start, Ballot Tracking falls back to asking the election's server with the short ID you typed, and says that the server sees that ID.
+When your election has transparency enabled and is public, a short ID finds ballots, but it never proves that one is yours. Ballot Tracking asks the election's public record for every ballot that starts with the first three characters, and keeps the ones that share your short ID in your browser, so that the record's servers do not learn which ballot you looked for. It lists up to five ballots, with the third group of four characters highlighted so that you can compare it with your receipt. Only the full Tracking ID on your receipt says which one is yours: the voting portal keeps no receipts in the browser, so it does not mark one as yours. If more than five ballots share the short ID, Ballot Tracking asks you for the third group instead of listing them. Selecting a listed ballot does send its Tracking ID to the election's server, to show you the ballot. If the public record cannot list ballots by their start, Ballot Tracking falls back to asking the election's server with the short ID you typed, and says that the server sees that ID.
 
 :::info
 **Your ballot content:** Please note that even though you have access to the content of your ballot, this is encrypted so that it's not possible to obtain the intention of the vote from it. This is a security measure intended to maintain the secrecy of the vote and preventing anyone to prove how they voted. A cast ballot stays encrypted; only a ballot that you audited, which is never cast, shows its selections.
@@ -127,7 +127,7 @@ Then follow the steps below:
 3. Click the white `Track your ballot` button.
 
 :::tip
-When your election has transparency enabled and this browser kept your receipt, an election you voted in shows **Ballot cast** with a check mark in place of **Voted**. Select it to open the **Ballot status** dialog, which links to Ballot Tracking with your ballot. With transparency enabled, once you cast every ballot the open election allows you, `Click to Vote` is disabled, with the hint "You already cast this ballot".
+An election you voted in shows **Voted**. The voting portal keeps no receipts or Tracking IDs in the browser, so after you sign in again the ballot list has no check mark for your ballot. To check it, look it up here with the Tracking ID from your receipt. With transparency enabled, once you cast every ballot the open election allows you, `Click to Vote` is disabled, with the hint "You already cast this ballot".
 :::
 
 ### Step 2.2: Search for Your Ballot
