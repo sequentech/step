@@ -189,6 +189,53 @@ test("a voter's audited ballot opens in the tracker once it is published, and on
   assert.equal(box.castVotes(VOTER, {}).length, 0);
 });
 
+test("the audit publishes the auditable ballot the portal sends with it, if it is the audited one", async () => {
+  const { box } = setup();
+  const { args, hash, ballot } = signedBallot("2026-11-06");
+  const received = await box.receive(args, VOTER);
+  const tracking = trackingId(hash, voterPk);
+  const auditable = JSON.stringify({ ...ballot, ballot_hash: hash });
+  // First the audit alone, as the portal does: nothing is published.
+  const audited = await box.audit({ election_id: ELECTION, ballot_id: received.ballot_id }, VOTER);
+  assert.equal(audited.status, "audited");
+  assert.equal(audited.publication, "not-published");
+  assert.equal(box.locatePublic(tracking).status, "not-found");
+
+  // Another ballot's JSON, or none that parses, publishes nothing; the audit stands.
+  const other = signedBallot("2026-11-07");
+  const { ballot_id: otherKey } = await box.receive(other.args, VOTER);
+  await box.audit({ election_id: ELECTION, ballot_id: otherKey }, VOTER);
+  const otherAuditable = JSON.stringify({ ...other.ballot, ballot_hash: other.hash });
+  for (const sent of [otherAuditable, "not json"]) {
+    const refused = await box.audit({ election_id: ELECTION, ballot_id: received.ballot_id, auditable_ballot: sent }, VOTER);
+    assert.equal(refused.status, "audited");
+    assert.equal(refused.publication, "not-published");
+  }
+  assert.equal(box.locatePublic(tracking).status, "not-found");
+
+  // Then again with its auditable ballot, once the box can no longer cast it.
+  const published = await box.audit({ election_id: ELECTION, ballot_id: received.ballot_id, auditable_ballot: auditable }, VOTER);
+  assert.equal(published.publication, "published");
+  const found = box.locatePublic(tracking);
+  assert.equal(found.status, "found");
+  assert.equal(found.content, auditable);
+
+  // Published content stays as first published.
+  const again = await box.audit({ election_id: ELECTION, ballot_id: received.ballot_id, auditable_ballot: JSON.stringify({ ...JSON.parse(auditable), extra: 1 }) }, VOTER);
+  assert.equal(again.publication, "published");
+  assert.equal(box.locatePublic(tracking).content, auditable);
+});
+
+test("a ballot sent with its first audit is published in the same call", async () => {
+  const { box } = setup();
+  const { args, hash, ballot } = signedBallot("2026-11-08");
+  const received = await box.receive(args, VOTER);
+  const auditable = JSON.stringify({ ...ballot, ballot_hash: hash });
+  const answer = await box.audit({ election_id: ELECTION, ballot_id: received.ballot_id, auditable_ballot: auditable }, VOTER);
+  assert.equal(answer.publication, "published");
+  assert.equal(box.locatePublic(trackingId(hash, voterPk)).content, auditable);
+});
+
 test("the public locator opens published audited ballots only, whoever's they are", async () => {
   const { box, audited } = setup();
   await box.recordAudited();

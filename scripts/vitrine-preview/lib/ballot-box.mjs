@@ -202,14 +202,17 @@ export function createBallotBox({ live, sidecar, electionId, ids, box, audited, 
 
   // -- Audit ----------------------------------------------------------------------
 
-  /** `audit_ballot`: marks a received ballot audited and writes the `audited` entry. */
-  async function audit({ election_id: requested, ballot_id: receiptKey }, voter) {
+  /** `audit_ballot`: marks a received ballot audited and writes the `audited` entry.
+   * With `auditable_ballot` (the portal sends it once the ballot is audited, as
+   * Harvest takes it) it also publishes that ballot, if it is this one
+   * (`publishAudited`). `publication` says whether the ballot is published. */
+  async function audit({ election_id: requested, ballot_id: receiptKey, auditable_ballot: auditable }, voter) {
     checkElection(requested);
     const key = normalizeBallotId(receiptKey);
     if (!key) throw new GraphQLError("Invalid Ballot ID", "BadRequest");
     const record = byReceiptKey.get(key);
     if (!record || record.voter !== voter) throw new GraphQLError("Ballot not found", "NotFound");
-    return once(`audit:${key}`, async () => {
+    const answer = await once(`audit:${key}`, async () => {
       if (record.state === "cast") throw new GraphQLError("A cast ballot cannot be audited", "Conflict");
       if (record.state === "audited") return { ballot_id: key, status: "audited", vitrine: null };
       const now = Math.floor(Date.now() / 1000);
@@ -217,6 +220,15 @@ export function createBallotBox({ live, sidecar, electionId, ids, box, audited, 
       record.state = "audited";
       return { ballot_id: key, status: "audited", vitrine };
     });
+    if (typeof auditable === "string" && !record.published) {
+      try {
+        publishAudited(auditable, voter, record);
+      } catch (e) {
+        // The audit stands; the ballot is not published.
+        log(`audited ballot: ${record.tracking.slice(0, 9)} not published: ${e.message ?? e}`);
+      }
+    }
+    return { ...answer, publication: record.published ? "published" : "not-published" };
   }
 
   // -- The direct path --------------------------------------------------------------
@@ -294,7 +306,7 @@ export function createBallotBox({ live, sidecar, electionId, ids, box, audited, 
   }
 
   // -- The audited ballot -------------------------------------------------------------
-  // Step's backend doesn't publish audited ballots. This stand-in does, for one:
+  // The fixture: an audited ballot no voter here made. The stand-in publishes it:
   // it writes the ballot's `received` and `audited` entries to the ballots log
   // under its Tracking ID, and the tracker's lookup finds it by that ID.
 
@@ -336,11 +348,12 @@ export function createBallotBox({ live, sidecar, electionId, ids, box, audited, 
   }
 
   /** Publishes the auditable ballot of a ballot the voter audited (the JSON the
-   * Audit screen shows), so the tracker can open and decode it. Step's backend
-   * doesn't publish audited ballots; this stand-in does, when a recording asks
-   * (`POST /__preview/audited-ballot`). Nothing is trusted from it: the tracker
-   * checks the ballot against the log itself. */
-  function publishAudited(content, voter) {
+   * old Audit screen showed), so the tracker and a hub's ballot verifier can open
+   * and decode it. `audit` publishes it when the portal sends it; a recording can
+   * still post it (`POST /__preview/audited-ballot`). Given `audited`, the ballot
+   * must be that record's. Nothing more is trusted from it: whoever decodes it
+   * checks it against the log. A published ballot stays as first published. */
+  function publishAudited(content, voter, audited) {
     let ballot;
     try {
       ballot = JSON.parse(content);
@@ -348,7 +361,8 @@ export function createBallotBox({ live, sidecar, electionId, ids, box, audited, 
       throw new GraphQLError("the audited ballot isn't JSON", "BadRequest");
     }
     const record = [...byBallot.values()].find((r) => r.voter === voter && r.state === "audited" && r.hash === ballot?.ballot_hash && r.voterPk === ballot?.voter_signing_pk);
-    if (!record) throw new GraphQLError("the voter has no audited ballot with this hash", "NotFound");
+    if (!record || (audited && record !== audited)) throw new GraphQLError("the voter has no audited ballot with this hash", "NotFound");
+    if (record.published) return record.tracking;
     const at = new Date().toISOString();
     record.content = content;
     record.published = true;

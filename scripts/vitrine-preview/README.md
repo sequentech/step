@@ -59,9 +59,9 @@ stand-in plays that ballot box as Harvest and Windmill do:
 |---|---|
 | `receive_ballot` | checks that the content parses, carries the voter's key and signature and that the signature covers the ballot hash, the election and the ballot; signs the Received statement with the stand-in's Ed25519 ballot box key (`receipt key` `XXXX-XXXX`); writes the `received` entry (Tracking ID digest) to the ballots log. The same ballot again answers the same receipt and writes nothing |
 | `cast_ballot` | checks the voter's signature over the receipt key (the Cast statement), records the cast, writes the `cast` entry, signs the Cast receipt. The same request again returns the same receipt with no log answer, as Harvest does. An audited ballot, a ballot already cast with another signature, a ballot never received or a signature that doesn't verify answer 400 `PokValidationFailed` |
-| `audit_ballot` | marks the received ballot audited and writes the `audited` entry; a cast ballot is refused (409), an unknown one is not found |
+| `audit_ballot` | marks the received ballot audited and writes the `audited` entry; a cast ballot is refused (409), an unknown one is not found. With `auditable_ballot` (the portal sends it in a second call, once the box has confirmed the audit) it publishes that ballot for the public locator, if its ballot hash and key are the audited ballot's; `publication` answers `published` or `not-published`, and a published ballot stays as first published |
 | `insert_cast_vote` | the direct path: receives the ballot, waits for the log to sequence the `received` entry (the profile's received-first rule), then writes `cast`. It has no cast signature, so it signs no Cast receipt |
-| `get_voter_cast_votes`, `locate_ballot` | the voter's cast ballots, found by the full Tracking ID, the start of one (8 or more Crockford characters, ignoring case and hyphens, with I and L read as 1 and O as 0) or the ballot's hex hash. `locate_ballot` answers found, not-found or ambiguous (listing the Tracking IDs when there are ten or fewer). With no token (a hub's ballot verifier) it is a public locator: it finds only the published audited ballots, the fixture's and those a recording published, whoever's they are, and never a cast ballot |
+| `get_voter_cast_votes`, `locate_ballot` | the voter's cast ballots, found by the full Tracking ID, the start of one (8 or more Crockford characters, ignoring case and hyphens, with I and L read as 1 and O as 0) or the ballot's hex hash. `locate_ballot` answers found, not-found or ambiguous (listing the Tracking IDs when there are ten or fewer). With no token (a hub's ballot verifier) it is a public locator: it finds only the published audited ballots, the fixture's and those the portal published, whoever's they are, and never a cast ballot |
 
 The ballot box key is published in the ballot style (`ballot_eml.ballot_box_key`), the only place the
 portal reads it from, and its seed is fixed (`BALLOT_BOX_SEED` in `lib/fixtures.mjs`). This makes
@@ -85,8 +85,8 @@ It also holds one audited ballot, the JSON the portal's Audit screen shows for t
 (`lib/audited-ballot.mjs`). At start-up it writes the ballot's `received` and `audited` entries to the
 ballots log under its Tracking ID (`/__preview/status` names it, `ballotBox.auditedFixture`), and a
 tracker lookup that names that ID gets the ballot back, so the tracker's audit view (the checks, then
-the decoded selections) can be shown. Step's backend does not publish audited ballots: this is the
-stand-in's own addition, and it never shows in the ballot list.
+the decoded selections) can be shown. Step's backend publishes only ballots a voter audited: the
+fixture is the stand-in's own addition, and it never shows in the ballot list.
 
 `node --test scripts/vitrine-preview/lib/` runs the unit tests: the statement and Tracking ID
 vectors of sequent-core and the ballot box against a fake log.
@@ -153,11 +153,11 @@ for a recording: it fetches the log's receipt for the voter's latest cast, saves
 only a loopback peer asking a loopback Host, answers 409 before anything is cast, and runs one at a time.
 The recorder runs in Docker and can't run host scripts, so a board's `fetch` step calls this instead.
 
-`POST http://127.0.0.1:18851/__preview/audited-ballot` (`{"content": "<the Audit screen's JSON>"}`, loopback
-only) publishes the auditable ballot of a ballot the voter has just audited, so that the ballot tracker finds it
-by its Tracking ID and decodes it, as it does the fixture's one. A board copies the JSON from the Audit screen
-(`.auditable-ballot-data`) and posts it here: the stand-in's own addition, since Step's backend does not publish
-audited ballots. It answers 422 for JSON that isn't the voter's audited ballot (matched by its ballot hash and key).
+`POST http://127.0.0.1:18851/__preview/audited-ballot` (`{"content": "<the auditable ballot's JSON>"}`, loopback
+only) publishes the auditable ballot of a ballot the voter has audited, as `audit_ballot` does when the portal
+sends it. Nothing needs it now that the portal publishes the ballot itself; it stays for older boards, which copy
+the JSON from an Audit screen with no transparency log (`.auditable-ballot-data`). It answers 422 for JSON that
+isn't the voter's audited ballot (matched by its ballot hash and key).
 
 ## hub-b's ballot verifier
 
