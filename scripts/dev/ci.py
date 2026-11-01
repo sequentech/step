@@ -56,6 +56,18 @@ RUST_EXTRA = {
     "sequent-core": f"--features {SEQUENT_CORE_FEATURES}",
     "trellis": "--features upstream-service --lib --example monitor --example post",
 }
+# Crates whose suites take about a minute run on one runner, one after another:
+# a push starts fewer jobs, which queue behind the organization's concurrency
+# limit (sequentech/meta#14622).
+SMALL_RUST = (
+    "electoral-log",
+    "trellis",
+    "pgmq-broker",
+    "messaging",
+    "voting-crypto",
+    "wrap-map-err",
+)
+SMALL_RUST_JOB = "small-crates"
 PYTHON = (
     "python:scripts-sbom",
     "python:scripts-dev",
@@ -90,6 +102,14 @@ def matrices(selection: Selection) -> dict[str, object]:
         for package in RUST
         if f"cargo-test:{package}" in selected
     ]
+    small = [row for row in rust if row["service"] in SMALL_RUST]
+    rust_jobs = [
+        {"service": row["service"], "script": test_script([row])}
+        for row in rust
+        if row not in small
+    ]
+    if small:
+        rust_jobs.append({"service": SMALL_RUST_JOB, "script": test_script(small)})
     node = [
         {"package": check.cwd.removeprefix("packages/"), "command": check.command}
         for check in selected.values()
@@ -145,19 +165,26 @@ def matrices(selection: Selection) -> dict[str, object]:
             check in selected for check in ("smoke:workbench", "types:workbench")
         ),
     }
+    # Windmill's tests and its PGMQ transport contracts.
+    windmill = any(
+        check in selected
+        for check in ("cargo-test:windmill", "cargo-test-db:pgmq-broker")
+    )
+    # The PostgreSQL contracts of electoral-log and step-cli, and Trellis's
+    # security test, on a runner of their own.
+    database_contracts = any(
+        check in selected
+        for check in (
+            "cargo-test-db:electoral-log",
+            "cargo-test-db:step-cli",
+            "cargo-test:trellis",
+        )
+    )
     jobs = {
         "feature-gates": "feature-gates:sequent-core" in selected,
         "run-tests": bool(rust),
-        # The Windmill job also hosts the PostgreSQL-backed checks of other crates.
-        "run-windmill-tests": any(
-            check in selected
-            for check in (
-                "cargo-test:windmill",
-                "cargo-test-db:electoral-log",
-                "cargo-test-db:pgmq-broker",
-                "cargo-test-db:step-cli",
-            )
-        ),
+        "run-windmill-tests": windmill,
+        "run-database-contracts": database_contracts,
         "run-frontend-tests": bool(node),
         "tooling": bool(python),
         "docs": bool(docs),
@@ -166,6 +193,7 @@ def matrices(selection: Selection) -> dict[str, object]:
     }
     return {
         "rust": rust,
+        "rust_jobs": rust_jobs,
         "node": node,
         "python": python,
         "docs": docs,
@@ -175,9 +203,31 @@ def matrices(selection: Selection) -> dict[str, object]:
         "journeys": journeys,
         "jobs": jobs,
         # Checks that build_wasm.yml runs; not jobs of the feedback workflow.
-        "wasm_builds": sorted(check for check in selected if check.startswith("wasm-build:")),
+        "wasm_builds": sorted(
+            check for check in selected if check.startswith("wasm-build:")
+        ),
         "ui_jobs": ui_jobs,
     }
+
+
+def test_script(rows: list[dict[str, str]]) -> str:
+    """Bash running each package's tests from its own directory, as Cargo
+    resolves features per package. Every package runs; any failure fails."""
+    commands = [
+        f"(cd packages/{row['service']} && "
+        + " ".join(["cargo test --locked", row["extra"]]).strip()
+        + ")"
+        for row in rows
+    ]
+    if len(commands) == 1:
+        return commands[0]
+    return "\n".join(
+        [
+            "status=0",
+            *(f"{command} || status=1" for command in commands),
+            "exit $status",
+        ]
+    )
 
 
 def check_results(

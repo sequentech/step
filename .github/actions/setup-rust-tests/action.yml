@@ -71,16 +71,29 @@ runs:
           echo 'CARGO_PROFILE_TEST_DEBUG=line-tables-only' >> "$GITHUB_ENV"
         fi
 
+    # Only what the runner image lacks, usually protoc. apt waits on an
+    # unresponsive mirror without limit, so each call is bounded and retried:
+    # one update hung for 35 minutes (sequentech/meta#14622).
     - name: Install system dependencies
       shell: bash
+      env:
+        CORE_FIXTURE: ${{ inputs.cargo-build-name == 'sequent-core' }}
       run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev
-
-    - name: Install Core database fixture dependencies
-      if: inputs.cargo-build-name == 'sequent-core'
-      shell: bash
-      run: sudo apt-get install -y postgresql libpq-dev
+        packages=(build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev)
+        # The Core database fixture.
+        if [ "$CORE_FIXTURE" = true ]; then packages+=(postgresql libpq-dev); fi
+        missing=()
+        for package in "${packages[@]}"; do
+          dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q 'ok installed' || missing+=("$package")
+        done
+        [ "${#missing[@]}" -eq 0 ] && exit 0
+        apt=(sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+        for attempt in 1 2 3; do
+          timeout 180 "${apt[@]}" update && break
+          [ "$attempt" -eq 3 ] && exit 1
+          echo "apt-get update did not finish (attempt $attempt); retrying"
+        done
+        timeout 600 "${apt[@]}" install -y "${missing[@]}"
 
     # Enforce the first production-module policy; test assertions are unrestricted.
     # Existing crate-wide lint debt remains tracked in meta #11566.

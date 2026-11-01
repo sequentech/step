@@ -474,6 +474,22 @@ reason. `--graph` prints the units and edges; `--json` prints a versioned
 document with `base`, `fallback`, `files`, `units` and `checks` (`selected`,
 `reasons`, `cost`, `cwd`, `command`, `env`, `requires`, `workflows`) for CI.
 
+### Pre-push hook
+
+```sh
+git config core.hooksPath scripts/dev/hooks
+```
+
+The hook runs the lint and format checks that the pushed commits select (Rust
+`cargo fmt`, ESLint and Prettier per frontend package, REUSE, Ruff, Hasura),
+the same commands as `lint_prettify.yml`. A new branch counts from its merge
+base with `origin/ovcs`. In this default mode it skips checks whose tools
+aren't installed, and frontend ones until `packages/` has its dependencies,
+saying so. `STEP_PRE_PUSH=tests` runs `step-dev test --affected` over the
+pushed changes instead: the fast tests and the lint checks, failing on checks
+whose tools are missing. `STEP_PRE_PUSH=off` disables the hook, and
+`git push --no-verify` skips it once.
+
 ## Benchmarks
 
 `scripts/dev/step-dev bench` times these loops for any checkout given with
@@ -550,6 +566,13 @@ reuse shared-library and portal builds from the same immutable run; every
 selected test reruns. The four admin journey shards use one production build.
 Admin-portal stories run in three shards; the first also type-checks the stories,
 checks the widget inventory and builds the catalogue.
+The org runs at most 60 jobs at once, so small jobs are grouped: the six small
+crates (`electoral-log`, `trellis`, `pgmq-broker`, `messaging`, `voting-crypto`,
+`wrap-map-err`) share a `small-crates` runner, each tested from its own
+directory; the sequent-core feature gates run in one job; and the selected Python
+suites run in one tooling job. The PostgreSQL contracts of `electoral-log`,
+`step-cli` and Trellis run on their own runner, selected by their own checks, so
+a step-cli change no longer starts the Windmill job.
 
 `Required feedback checks` rejects failed, cancelled, missing or unexpectedly
 skipped managed jobs. It covers `Tests` and its reusable frontend UI workflow;

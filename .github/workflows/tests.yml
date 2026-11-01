@@ -34,7 +34,9 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # History for the merge base, without the blobs of every revision.
           fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
       - name: Plan against the actual PR merge base
         id: plan
@@ -59,47 +61,13 @@ jobs:
   #
   # Selected with sequent-core (the `feature-gates:sequent-core` check).
   feature-gates:
-    name: sequent-core at ${{ matrix.gate }}
+    name: sequent-core feature gates
     needs: plan
     if: fromJSON(needs.plan.outputs.selection).jobs.feature-gates
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      max-parallel: 4
-      matrix:
-        include:
-          - gate: no features
-            cache: none
-            features: ""
-          - gate: default_features
-            cache: default
-            features: default_features
-          - gate: keycloak,default_features
-            cache: keycloak
-            features: keycloak,default_features
-          - gate: election_config_templates
-            cache: templates
-            features: election_config_templates
-          - gate: election_config_archive
-            cache: archive
-            features: election_config_archive
-          - gate: election_config_xlsx
-            cache: xlsx
-            features: election_config_xlsx
-          # The pair no other row covers, and the one the wizard's wasm actually
-          # builds: a spreadsheet reader *and* a zip writer together.
-          - gate: election_config_archive,election_config_xlsx
-            cache: archive-xlsx
-            features: election_config_archive,election_config_xlsx
-          - gate: election_config_signing
-            cache: signing
-            features: election_config_signing
-          # The frontends' WASM package: `election_config::wasm` without the
-          # template features. A native check catches a mis-gated import there.
-          - gate: wasmtest,default_features
-            cache: wasm
-            features: wasmtest,default_features
+    # One runner checks every gate in turn: nine jobs spent more time setting
+    # up and queueing than checking (sequentech/meta#14622).
+    timeout-minutes: 30
     steps:
       - name: Check out code
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -112,24 +80,55 @@ jobs:
         with:
           cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
           compile-cache: ${{ vars.STEP_COMPILE_CACHE }}
-          # Per gate, or the gates would evict each other's artifacts.
-          cargo-build-name: sequent-core-gate-${{ matrix.cache }}
+          cargo-build-name: sequent-core-gates
           cargo-build-path: packages/target
           cargo-lock-path: packages/Cargo.lock
           profile: dev
-          features: ${{ matrix.cache }}
+          features: gates
 
-      - name: cargo check ${{ matrix.gate }}
+      # Every gate runs, and the step fails if any of them did. One runner,
+      # sharing compiled dependencies, instead of one per gate
+      # (sequentech/meta#14622). The list matches feature-gates:sequent-core.
+      # election_config_archive,election_config_xlsx is the pair the wizard's
+      # wasm builds: a spreadsheet reader and a zip writer together.
+      # wasmtest,default_features is the frontends' WASM package, checked
+      # natively to catch a mis-gated import in election_config::wasm.
+      - name: cargo check each feature gate
         env:
           PROTOC: "/usr/bin/protoc"
-          FEATURES: ${{ matrix.features }}
         run: |
-          if [ -n "$FEATURES" ]; then set -- --features "$FEATURES"; fi
-          cargo check --locked -p sequent-core --lib "$@"
+          failed=()
+          while IFS= read -r features; do
+            label=${features:-no features}
+            echo "::group::sequent-core at $label"
+            args=()
+            if [ -n "$features" ]; then args=(--features "$features"); fi
+            if ! cargo check --locked -p sequent-core --lib "${args[@]}"; then
+              failed+=("$label")
+            fi
+            echo "::endgroup::"
+          done <<'GATES'
+
+          default_features
+          keycloak,default_features
+          election_config_templates
+          election_config_archive
+          election_config_xlsx
+          election_config_archive,election_config_xlsx
+          election_config_signing
+          monitoring
+          wasmtest,default_features
+          wasmtest,default_features,monitoring
+          GATES
+          if [ "${#failed[@]}" -gt 0 ]; then
+            printf '::error::sequent-core does not compile at %s\n' "${failed[@]}"
+            exit 1
+          fi
         working-directory: packages
 
   run-tests:
-    name: Run Rust tests
+    # The matrix carries each job's script; name the job after its service only.
+    name: Run Rust tests (${{ matrix.service }})
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     needs: plan
@@ -138,7 +137,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        include: ${{ fromJSON(needs.plan.outputs.selection).rust }}
+        include: ${{ fromJSON(needs.plan.outputs.selection).rust_jobs }}
     # Harvest's route tests create their own database on this server.
     services:
       postgres:
@@ -212,7 +211,8 @@ jobs:
           ELECTORAL_LOG_PG_DATABASE: "test"
           ELECTORAL_LOG_PG_SSLMODE: "disable"
           CARGO_BUILD_JOBS: ${{ matrix.build_jobs || 4 }}
-        run: cd packages/${{ matrix.service }} && cargo test --locked ${{ matrix.extra }}
+          TEST_SCRIPT: ${{ matrix.script }}
+        run: bash -euo pipefail -c "$TEST_SCRIPT"
 
   # Windmill has PostgreSQL-backed tests, so it uses a dedicated job with an
   # unconditional service container instead of matrix-dependent service YAML.
@@ -221,9 +221,9 @@ jobs:
     if: fromJSON(needs.plan.outputs.selection).jobs.run-windmill-tests
     name: Run Windmill tests
     runs-on: ubuntu-24.04
-    # Hosts main's PGMQ and electoral-log contracts and ovcs's database checks.
-    # Steps that select the same packages run together, so Cargo rebuilds as
-    # little as possible between them.
+    # Hosts main's PGMQ contracts and ovcs's database checks. Steps that select
+    # the same packages run together, so Cargo rebuilds as little as possible
+    # between them; run-database-contracts has the other crates'.
     timeout-minutes: 70
     env:
       RUST_BACKTRACE: "full"
@@ -243,7 +243,7 @@ jobs:
       LOW_SQL_LIMIT: "1000"
       DEFAULT_SQL_LIMIT: "20"
       DEFAULT_SQL_BATCH_SIZE: "1000"
-      CARGO_BUILD_JOBS: "2"
+      CARGO_BUILD_JOBS: "4"
       ELECTORAL_LOG_TEST_DATABASE_URL: "postgresql://test:test@127.0.0.1:3322/test?sslmode=disable"
       ELECTORAL_LOG_PG_HOST: "127.0.0.1"
       ELECTORAL_LOG_PG_PORT: "3322"
@@ -341,9 +341,81 @@ jobs:
           -- --ignored --exact
         working-directory: packages/windmill
 
-      # The steps above all select windmill. Each other package selection
-      # unifies features differently and rebuilds windmill and about 110
-      # dependencies, so those steps come last (sequentech/meta#14622).
+  # The PostgreSQL-backed checks of electoral-log, step-cli and Trellis. Each
+  # selects a different package set, so in the Windmill job they rebuilt
+  # windmill's dependencies and added about 7 minutes to the longest job of
+  # the workflow (sequentech/meta#14622).
+  run-database-contracts:
+    needs: plan
+    if: fromJSON(needs.plan.outputs.selection).jobs.run-database-contracts
+    name: Run PostgreSQL contracts (electoral-log, step-cli, Trellis)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      RUST_BACKTRACE: "full"
+      PROTOC: "/usr/bin/protoc"
+      KEYCLOAK_DB__USER: "test"
+      KEYCLOAK_DB__PASSWORD: "test"
+      KEYCLOAK_DB__HOST: "127.0.0.1"
+      KEYCLOAK_DB__PORT: "3322"
+      KEYCLOAK_DB__DBNAME: "test"
+      KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: "Verified"
+      HASURA_DB__USER: "test"
+      HASURA_DB__PASSWORD: "test"
+      HASURA_DB__HOST: "127.0.0.1"
+      HASURA_DB__PORT: "3322"
+      HASURA_DB__DBNAME: "test"
+      HASURA_DB__MANAGER__RECYCLING_METHOD: "Verified"
+      LOW_SQL_LIMIT: "1000"
+      DEFAULT_SQL_LIMIT: "20"
+      DEFAULT_SQL_BATCH_SIZE: "1000"
+      CARGO_BUILD_JOBS: "4"
+      ELECTORAL_LOG_TEST_DATABASE_URL: "postgresql://test:test@127.0.0.1:3322/test?sslmode=disable"
+      ELECTORAL_LOG_PG_HOST: "127.0.0.1"
+      ELECTORAL_LOG_PG_PORT: "3322"
+      ELECTORAL_LOG_PG_USER: "test"
+      ELECTORAL_LOG_PG_PASSWORD: "test"
+      ELECTORAL_LOG_PG_DATABASE: "test"
+      ELECTORAL_LOG_PG_SSLMODE: "disable"
+      ENV_SLUG: "electoral-log-tests"
+      # Each integration target links the service; full debug symbols exhaust runners.
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+      CARGO_INCREMENTAL: "0"
+      WBRAID_BOARD_DATABASE_URL: postgres://test:test@127.0.0.1:3322/test
+      # The ballot box seal tests post to boards of their own on this server.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 3322:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Check out code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Rust tests
+        uses: ./.github/actions/setup-rust-tests
+        with:
+          cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
+          compile-cache: ${{ vars.STEP_COMPILE_CACHE }}
+          cargo-build-name: database-contracts
+          cargo-build-path: packages/target
+          cargo-lock-path: packages/Cargo.lock
+          profile: dev
+          features: default
+
       - name: Test PostgreSQL electoral-log contract
         run: cargo test --locked -p electoral-log --lib --test postgres --test ballot_box --test events --test provisioning --test console -- --ignored --test-threads=1
         working-directory: packages
@@ -386,33 +458,40 @@ jobs:
         run: bash -euo pipefail -c "$CHECK_COMMAND"
 
   tooling:
-    name: "Tooling: ${{ matrix.check }}"
+    name: "Tooling: selected Python suites"
     needs: plan
     if: fromJSON(needs.plan.outputs.selection).jobs.tooling
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      max-parallel: 4
-      matrix:
-        include: ${{ fromJSON(needs.plan.outputs.selection).python }}
+    # One runner for every selected suite: each takes under a minute.
+    timeout-minutes: 20
+    env:
+      CHECKS: ${{ toJSON(fromJSON(needs.plan.outputs.selection).python) }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-frontend
-        if: matrix.check == 'python:scripts-coverage'
+        if: contains(env.CHECKS, '"python:scripts-coverage"')
       - name: Install the Python coverage tool
-        if: matrix.check == 'python:scripts-coverage'
+        if: contains(env.CHECKS, '"python:scripts-coverage"')
         run: python3 -m pip install coverage==7.16.0
       - name: Prepare the development Compose environment
-        if: matrix.check == 'python:scripts-dev'
+        if: contains(env.CHECKS, '"python:scripts-dev"')
         run: cp .devcontainer/.env.development .devcontainer/.env
-      - name: Run the selected tooling suite
-        env:
-          CHECK_COMMAND: ${{ matrix.command }}
-        run: bash -euo pipefail -c "$CHECK_COMMAND"
+      # Every suite runs, and the step fails if any of them did.
+      - name: Run the selected tooling suites
+        run: |
+          failed=()
+          while IFS=$'\t' read -r check command; do
+            echo "::group::$check"
+            bash -euo pipefail -c "$command" || failed+=("$check")
+            echo "::endgroup::"
+          done < <(jq -r '.[] | [.check, .command] | @tsv' <<<"$CHECKS")
+          if [ "${#failed[@]}" -gt 0 ]; then
+            printf '::error::%s failed\n' "${failed[@]}"
+            exit 1
+          fi
 
   docs:
     name: ${{ matrix.check }}
@@ -463,7 +542,7 @@ jobs:
 
   required-feedback:
     name: Required feedback checks
-    needs: [plan, feature-gates, run-tests, run-windmill-tests, run-frontend-tests, tooling, docs, wasm-freshness, frontend-ui]
+    needs: [plan, feature-gates, run-tests, run-windmill-tests, run-database-contracts, run-frontend-tests, tooling, docs, wasm-freshness, frontend-ui]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -486,7 +565,7 @@ jobs:
   # ===========================================================================
   notify-on-failure:
     name: Notify on failure
-    needs: [feature-gates, run-tests, run-windmill-tests, run-frontend-tests]
+    needs: [feature-gates, run-tests, run-windmill-tests, run-database-contracts, run-frontend-tests]
     if: failure() && github.event_name == 'push'
     runs-on: ubuntu-24.04
     steps:
