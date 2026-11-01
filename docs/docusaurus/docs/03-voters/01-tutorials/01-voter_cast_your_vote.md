@@ -85,12 +85,17 @@ This stage allows you to verify your choices before they are permanently recorde
 
 ![Voter Receipt](./assets/voter_ballot_receipt.png)
 
-Once submitted, the confirmation screen verifies that your vote was successfully cast.
+Once submitted, the confirmation screen says **Your vote has been cast**, with the election and the time your ballot was cast under the title. Your receipt is drawn as a ticket: on a wide screen it is on the right, and on a phone it is under the title.
 
-1. **Tracking ID:** A unique ID is displayed to help you track your submission. When your election has transparency enabled, it shows as the short ID, a link to Ballot Tracking, with a **Cast** tag, and a check mark next to it shows how far your browser has verified your ballot. Select the check mark to open the **Ballot status** dialog, where you can also save your receipt.
-2. **QR Code:** When scanned, the QR code takes you directly to **Ballot Tracking** to verify your ballot by its Tracking ID.
-3. Select `Finish` to return to the main election selection screen.
+1. **Tracking ID:** A unique ID is displayed on the ticket to help you track your submission. Select it to open Ballot Tracking. When your election has transparency enabled, it shows as the short ID with a **Cast** tag, the full Tracking ID is under it, and a check mark next to it shows how far your browser has verified your ballot. Select the check mark to open the **Ballot status** dialog, where you can also save your receipt file.
+2. **QR Code:** At the bottom of the ticket. When scanned, it takes you directly to **Ballot Tracking** to verify your ballot by its Tracking ID, for example from your phone.
+3. **Keep your receipt:** The website does not keep a copy of your receipt. Select `Save receipt (PDF)` to download it.
+4. Select `Finish` to return to the main election selection screen. It is at the end of the row, after `Save receipt (PDF)`.
+
+When your election has transparency enabled and offers it, an optional **Get email updates** section at the bottom lists the hubs that can watch your ballot. See [Check your transparency receipt](./04-voter_transparency_receipt.md).
+
+If every contest in the election was decided by acclamation, no ballot is cast: the screen says **Decided by acclamation**, with no Tracking ID, no ticket and no receipt to save.
 
 :::tip
-**Save Your Receipt:** You can select the `Print` button to download or print a physical copy of your vote receipt.
+**Save Your Receipt:** Select `Save receipt (PDF)` to download your vote receipt. You can print it from the PDF.
 :::

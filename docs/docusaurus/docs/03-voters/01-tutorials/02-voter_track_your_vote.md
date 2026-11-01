@@ -29,8 +29,8 @@ After casting your vote, you will reach the Confirmation Screen:
 From this screen, you can directly access Ballot Tracking prefilled to look up the vote you cast in three different ways:
 
 <ul type="a" style={{listStyleType: 'upper-alpha'}}>
-<li>You can click in the `Tracking ID` appearing highlighted with a green background in the image above.</li>
-<li>You can scan with a mobile device the QR Code appearing in the screen.</li>
+<li>You can click in the `Tracking ID` appearing highlighted with a green background on the receipt ticket.</li>
+<li>You can scan with a mobile device the QR Code at the bottom of the ticket.</li>
 <li>You can copy the Tracking ID and manually enter it in the Ballot Tracking Screen at a later stage. See the explanation for this in Option 2.</li>
 </ul>
 
@@ -38,10 +38,10 @@ When available for your election, the copy button appears next to the ID on both
 
 When your election has transparency enabled, these screens show the short Tracking ID: the first two groups of four characters, such as `FTBE-MHRX`. The full ID has 13 groups, and the copy button copies it in groups of four. A check mark next to the Tracking ID shows how far your browser has verified the ballot, and a tag shows where the ballot stands: **Not cast** on the Review screen and **Cast** on the Confirmation screen. On the Review screen, select the short ID to show the full Tracking ID in the box. Selecting the check mark opens the **Ballot status** dialog, which has the full Tracking ID and, once you cast the ballot, **Open in the ballot tracker**. See [Check your transparency receipt](./04-voter_transparency_receipt.md).
 
-With transparency enabled, the box on the Review screen reads **Your Tracking ID:** followed by the short ID. It is next to the title of the screen on a wide screen and under the title on a narrower one. On a phone it is above the steps, under a **Tracking ID** label, without "Your". On the Confirmation screen the **Tracking ID** heading is next to the box, and above it on a phone.
+With transparency enabled, the box on the Review screen reads **Your Tracking ID:** followed by the short ID. It is next to the title of the screen on a wide screen and under the title on a narrower one. On a phone it is above the steps, under a **Tracking ID** label, without "Your". On the Confirmation screen the Tracking ID is on the receipt ticket, under a **Tracking ID** heading, with the full Tracking ID under the short one.
 
 :::tip
-**Alternative:** You can also click in the `Print` button and the same options will be available but originating from the PDF you downloaded instead.
+**Alternative:** You can also select `Save receipt (PDF)` and the same options will be available but originating from the PDF you downloaded instead.
 :::
 
 ### Step 1.2: Access Ballot Tracking
