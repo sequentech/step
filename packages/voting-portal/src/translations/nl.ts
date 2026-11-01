@@ -659,9 +659,35 @@ const dutchTranslation: TranslationType = {
                 },
             },
             matches: {
-                title: "{{total}} stembiljetten delen de korte ID <b>{{shortId}}</b>. Kies het uwe, of voer de volledige Tracking-ID in.",
                 cast: "Uitgebracht op {{time}}",
                 audited: "Geauditeerd op {{time}}",
+            },
+            shortId: {
+                head: {
+                    one: "1 stembiljet begint met {{start}}",
+                    other: "{{count}} stembiljetten beginnen met {{start}}",
+                    atLeast: "{{count}} of meer stembiljetten beginnen met {{start}}",
+                    mine: "Uw stembiljet, en {{count}} andere die beginnen met {{start}}",
+                    mineAlone: "Uw stembiljet begint met {{start}}",
+                },
+                sub: {
+                    few: "Welke is van u? Vergelijk de gemarkeerde groep met uw bewijs, of typ die hieronder.",
+                    one: "Open het en vergelijk de volledige Tracking-ID met uw bewijs.",
+                    many: "Dat zijn er meer dan we tonen. Typ de derde groep van uw bewijs om het uwe te vinden.",
+                    mine: "Dit apparaat bewaart uw bewijs, dus het weet welke van u is.",
+                },
+                why: {
+                    few: "Een korte ID vindt stembiljetten. Alleen de volledige Tracking-ID, of het bewijs op uw eigen apparaat, zegt welke van u is.",
+                    many: "Zoveel betekent meestal dat iemand met opzet stembiljetten heeft gemaakt die bij deze korte ID passen. Het uwe staat nog in het register: ook drie groepen laten kloppen kost ongeveer een miljard miljard pogingen.",
+                    mine: "De andere horen bij andere kiezers. Ze worden getoond zodat een gelijkende niet voor de uwe kan doorgaan.",
+                },
+                third: "Derde groep van uw bewijs",
+                thirdOr: "Of typ de derde groep van uw bewijs",
+                find: "Zoeken",
+                onDevice: "Op dit apparaat",
+                deviceMatches: "Het bewijs op dit apparaat komt overeen met alle 13 groepen",
+                serverSees:
+                    "De servers van het register konden dit niet opzoeken zonder te weten welk stembiljet u wilt, dus de server van de verkiezing kreeg deze exacte ID te zien.",
             },
             audit: {
                 kicker: "Stembiljetaudit",

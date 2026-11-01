@@ -8,7 +8,13 @@ import {policyIdDisplay} from "@vitrine/verify"
 import {BallotBoxLog, BallotBoxLogView, type BallotBoxLogViewProps} from "./BallotBoxLog"
 
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
-jest.mock("./BallotBoxEntry", () => ({BallotBoxEntry: () => null}))
+jest.mock("./BallotBoxEntry", () => ({
+    BallotBoxEntry: ({electionId, ballotId}: {electionId: string; ballotId: string}) => (
+        <div data-testid="entry">{`${electionId}/${ballotId}`}</div>
+    ),
+}))
+let mockBucket: {status: string; result?: unknown} = {status: "off"}
+jest.mock("../hooks/useShortIdMatches", () => ({useBucketMatches: () => mockBucket}))
 jest.mock("@apollo/client/react", () => ({useQuery: (...args: unknown[]) => mockQuery(...args)}))
 const mockQuery = jest.fn()
 
@@ -301,4 +307,105 @@ test("search and page-size controls forward user choices and opening a row fires
     fireEvent.click(document.querySelector(".ballot-box-log-row")!)
     expect(input.onOpen).toHaveBeenCalledTimes(2)
     expect(input.onOpen).toHaveBeenLastCalledWith(ballot)
+})
+
+describe("a short ID searched in the log", () => {
+    const FULL_ID = `FTBEMHRX71J75ZBD${"0".repeat(36)}`
+    const listing = {
+        kind: "listed",
+        typed: "FTBEMHRX",
+        matches: [
+            {
+                ballotId: "ab".repeat(32),
+                trackingId: FULL_ID,
+                third: "71J7",
+                fourth: "5ZBD",
+                audited: false,
+                at: 1_793_270_528,
+                event: "event",
+                election: "election-9",
+                onDevice: false,
+            },
+        ],
+        total: 1,
+        truncated: false,
+    }
+    const policy = {id: POLICY_ID} as never
+
+    beforeEach(() => {
+        jest.useFakeTimers()
+        mockBucket = {status: "off"}
+        mockQuery.mockImplementation((_query, options) => ({
+            data:
+                "limit" in options.variables
+                    ? {ballot_box_log: {payload: props().page}}
+                    : {ballot_box_own: {payload: {ballots: []}}},
+            loading: false,
+        }))
+        mockQuery.mockClear()
+    })
+    afterEach(() => {
+        jest.useRealTimers()
+        mockBucket = {status: "off"}
+    })
+
+    const search = async (value: string) => {
+        fireEvent.change(screen.getByRole("textbox", {name: "ballotPrivacy.search"}), {
+            target: {value},
+        })
+        await act(async () => {
+            jest.advanceTimersByTime(400)
+        })
+    }
+    const lastLogQuery = () =>
+        mockQuery.mock.calls
+            .map(([, options]) => options)
+            .filter((options) => options?.variables && "limit" in options.variables)
+            .at(-1)
+
+    it("is listed from the buckets in place of the page, and the server is not asked", async () => {
+        mockBucket = {status: "done", result: listing}
+        render(<BallotBoxLog policy={policy} electionEventId="event" formatTime={() => "t"} />)
+        await search("FTBE-MHRX")
+        expect(lastLogQuery()?.skip).toBe(true)
+        expect(document.querySelector(".ballot-box-log-short-ids")).not.toBeNull()
+        expect(screen.getByRole("button", {name: /FTBE-MHRX/})).toBeInTheDocument()
+        expect(document.querySelector(".ballot-box-log-table-body")).toBeNull()
+        expect(screen.queryByText("ballotLocator.shortId.serverSees")).toBeNull()
+    })
+
+    it("opens the ballot it lists", async () => {
+        mockBucket = {status: "done", result: listing}
+        render(<BallotBoxLog policy={policy} electionEventId="event" formatTime={() => "t"} />)
+        await search("FTBE-MHRX")
+        fireEvent.click(screen.getByRole("button", {name: /FTBE-MHRX/}))
+        // The entry opens by the full Tracking ID, in the election it was logged for.
+        expect(screen.getByTestId("entry")).toHaveTextContent(`election-9/${FULL_ID}`)
+    })
+
+    it("waits for the bucket before it asks the server", async () => {
+        mockBucket = {status: "loading"}
+        render(<BallotBoxLog policy={policy} electionEventId="event" formatTime={() => "t"} />)
+        await search("FTBE-MHRX")
+        expect(lastLogQuery()?.skip).toBe(true)
+    })
+
+    it("goes to the server when no server lists buckets, and says it saw the ID", async () => {
+        mockBucket = {status: "done"}
+        render(<BallotBoxLog policy={policy} electionEventId="event" formatTime={() => "t"} />)
+        await search("FTBE-MHRX")
+        expect(lastLogQuery()?.skip).toBe(false)
+        expect(lastLogQuery()?.variables.prefix).toBe("FTBE-MHRX")
+        expect(screen.getByText("ballotLocator.shortId.serverSees")).toBeInTheDocument()
+    })
+
+    it("is not looked up in a bucket when it could be a pseudonym", async () => {
+        const looks: unknown[] = []
+        mockBucket = {status: "off"}
+        render(<BallotBoxLog policy={policy} electionEventId="event" formatTime={() => "t"} />)
+        await search("FTBEMHRX")
+        looks.push(lastLogQuery()?.variables.prefix)
+        expect(looks).toEqual(["FTBEMHRX"])
+        expect(screen.queryByText("ballotLocator.shortId.serverSees")).toBeNull()
+    })
 })

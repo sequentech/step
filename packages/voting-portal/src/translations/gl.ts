@@ -657,9 +657,35 @@ const galegoTranslation: TranslationType = {
                 },
             },
             matches: {
-                title: "{{total}} papeletas comparten o ID curto <b>{{shortId}}</b>. Escolle a túa ou introduce o ID de seguimento completo.",
                 cast: "Emitida o {{time}}",
                 audited: "Auditada o {{time}}",
+            },
+            shortId: {
+                head: {
+                    one: "1 papeleta comeza por {{start}}",
+                    other: "{{count}} papeletas comezan por {{start}}",
+                    atLeast: "{{count}} ou máis papeletas comezan por {{start}}",
+                    mine: "A túa papeleta e {{count}} máis que comezan por {{start}}",
+                    mineAlone: "A túa papeleta comeza por {{start}}",
+                },
+                sub: {
+                    few: "Cal é a túa? Compara o grupo resaltado co teu recibo, ou escríbeo abaixo.",
+                    one: "Ábrea e compara o seu ID de seguimento completo co teu recibo.",
+                    many: "Son máis das que mostramos. Escribe o terceiro grupo do teu recibo para atopar a túa.",
+                    mine: "Este dispositivo garda o teu recibo, así que sabe cal é a túa.",
+                },
+                why: {
+                    few: "Un ID curto atopa papeletas. Só o ID de seguimento completo, ou o recibo do teu propio dispositivo, di cal é a túa.",
+                    many: "Tantas adoita significar que alguén creou papeletas para que coincidan con este ID curto adrede. A túa segue no rexistro: acertar tamén tres grupos requiriría uns mil trillóns de intentos.",
+                    mine: "As outras pertencen a outros votantes. Móstranse para que unha parecida non poida pasar pola túa.",
+                },
+                third: "Terceiro grupo do teu recibo",
+                thirdOr: "Ou escribe o terceiro grupo do teu recibo",
+                find: "Buscar",
+                onDevice: "Neste dispositivo",
+                deviceMatches: "O recibo deste dispositivo coincide cos 13 grupos",
+                serverSees:
+                    "Os servidores do rexistro non puideron facer esta busca sen saber que papeleta buscas, así que se lle pediu ao servidor da elección este ID exacto e puido velo.",
             },
             audit: {
                 kicker: "Auditoría da papeleta",

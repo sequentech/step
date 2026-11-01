@@ -656,9 +656,35 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             matches: {
-                title: "{{total}} balota ang may parehong maikling ID na <b>{{shortId}}</b>. Piliin ang iyo, o ilagay ang buong Tracking ID.",
                 cast: "Naipasa noong {{time}}",
                 audited: "Na-audit noong {{time}}",
+            },
+            shortId: {
+                head: {
+                    one: "1 balota ang nagsisimula sa {{start}}",
+                    other: "{{count}} balota ang nagsisimula sa {{start}}",
+                    atLeast: "{{count}} o higit pang balota ang nagsisimula sa {{start}}",
+                    mine: "Ang iyong balota, at {{count}} pa na nagsisimula sa {{start}}",
+                    mineAlone: "Ang iyong balota ay nagsisimula sa {{start}}",
+                },
+                sub: {
+                    few: "Alin ang iyo? Ihambing ang naka-highlight na grupo sa iyong resibo, o i-type ito sa ibaba.",
+                    one: "Buksan ito, saka ihambing ang buong Tracking ID nito sa iyong resibo.",
+                    many: "Mas marami ito kaysa sa ipinapakita namin. I-type ang ikatlong grupo mula sa iyong resibo para mahanap ang iyo.",
+                    mine: "Itinatago ng device na ito ang iyong resibo, kaya alam nito kung alin ang iyo.",
+                },
+                why: {
+                    few: "Ang maikling ID ay naghahanap ng mga balota. Ang buong Tracking ID lang, o ang resibo sa sarili mong device, ang nagsasabi kung alin ang iyo.",
+                    many: "Kapag ganito karami, kadalasan may gumawa ng mga balota para tumugma sa maikling ID na ito nang sinasadya. Nasa talaan pa rin ang iyo: ang pagtugma rin sa tatlong grupo ay mangangailangan ng halos isang bilyong bilyong subok.",
+                    mine: "Ang iba ay pag-aari ng ibang botante. Nakalista ang mga ito para hindi mapagkamalang iyo ang kamukha.",
+                },
+                third: "Ikatlong grupo mula sa iyong resibo",
+                thirdOr: "O i-type ang ikatlong grupo mula sa iyong resibo",
+                find: "Hanapin",
+                onDevice: "Sa device na ito",
+                deviceMatches: "Tumutugma ang resibo sa device na ito sa lahat ng 13 grupo",
+                serverSees:
+                    "Hindi nagawa ng mga server ng talaan ang paghahanap na ito nang hindi sinasabi kung aling balota ang gusto mo, kaya hiniling sa server ng halalan ang eksaktong ID na ito at nakita nito iyon.",
             },
             audit: {
                 kicker: "Audit ng balota",

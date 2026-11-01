@@ -660,9 +660,35 @@ const catalanTranslation: TranslationType = {
                 },
             },
             matches: {
-                title: "{{total}} paperetes comparteixen l'ID curt <b>{{shortId}}</b>. Trieu la vostra o introduïu l'ID de seguiment complet.",
                 cast: "Emesa el {{time}}",
                 audited: "Auditada el {{time}}",
+            },
+            shortId: {
+                head: {
+                    one: "1 papereta comença per {{start}}",
+                    other: "{{count}} paperetes comencen per {{start}}",
+                    atLeast: "{{count}} o més paperetes comencen per {{start}}",
+                    mine: "La vostra papereta i {{count}} més que comencen per {{start}}",
+                    mineAlone: "La vostra papereta comença per {{start}}",
+                },
+                sub: {
+                    few: "Quina és la vostra? Compareu el grup ressaltat amb el rebut, o escriviu-lo a sota.",
+                    one: "Obriu-la i compareu el seu ID de seguiment complet amb el rebut.",
+                    many: "Són més de les que mostrem. Escriviu el tercer grup del rebut per trobar la vostra.",
+                    mine: "Aquest dispositiu guarda el vostre rebut, així que sap quina és la vostra.",
+                },
+                why: {
+                    few: "Un ID curt troba paperetes. Només l'ID de seguiment complet, o el rebut del vostre propi dispositiu, diu quina és la vostra.",
+                    many: "Tantes sol voler dir que algú ha creat paperetes perquè coincideixin amb aquest ID curt a propòsit. La vostra continua al registre: encertar també tres grups requeriria uns mil trilions d'intents.",
+                    mine: "Les altres pertanyen a altres votants. Es mostren perquè una de semblant no pugui passar per la vostra.",
+                },
+                third: "Tercer grup del rebut",
+                thirdOr: "O escriviu el tercer grup del rebut",
+                find: "Cerca",
+                onDevice: "En aquest dispositiu",
+                deviceMatches: "El rebut d'aquest dispositiu coincideix amb els 13 grups",
+                serverSees:
+                    "Els servidors del registre no han pogut fer aquesta cerca sense saber quina papereta busqueu, així que s'ha demanat al servidor de l'elecció aquest ID exacte i l'ha pogut veure.",
             },
             audit: {
                 kicker: "Auditoria de la papereta",

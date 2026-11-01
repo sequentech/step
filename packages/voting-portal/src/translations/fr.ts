@@ -658,9 +658,35 @@ const frenchTranslation: TranslationType = {
                 },
             },
             matches: {
-                title: "{{total}} bulletins partagent l'identifiant court <b>{{shortId}}</b>. Choisissez le vôtre, ou saisissez l'identifiant de suivi complet.",
                 cast: "Émis le {{time}}",
                 audited: "Audité le {{time}}",
+            },
+            shortId: {
+                head: {
+                    one: "1 bulletin commence par {{start}}",
+                    other: "{{count}} bulletins commencent par {{start}}",
+                    atLeast: "{{count}} bulletins ou plus commencent par {{start}}",
+                    mine: "Votre bulletin, et {{count}} autres qui commencent par {{start}}",
+                    mineAlone: "Votre bulletin commence par {{start}}",
+                },
+                sub: {
+                    few: "Lequel est le vôtre ? Comparez le groupe en surbrillance avec votre reçu, ou saisissez-le ci-dessous.",
+                    one: "Ouvrez-le, puis comparez son identifiant de suivi complet avec votre reçu.",
+                    many: "C'est plus que ce que nous listons. Saisissez le troisième groupe de votre reçu pour trouver le vôtre.",
+                    mine: "Cet appareil conserve votre reçu, il sait donc lequel est le vôtre.",
+                },
+                why: {
+                    few: "Un identifiant court trouve des bulletins. Seul l'identifiant de suivi complet, ou le reçu de votre propre appareil, dit lequel est le vôtre.",
+                    many: "Autant signifie souvent que quelqu'un a fabriqué des bulletins pour correspondre à cet identifiant court exprès. Le vôtre est toujours dans le registre : faire aussi correspondre trois groupes demanderait environ un milliard de milliards d'essais.",
+                    mine: "Les autres appartiennent à d'autres électeurs. Ils sont listés pour qu'un bulletin ressemblant ne puisse pas passer pour le vôtre.",
+                },
+                third: "Troisième groupe de votre reçu",
+                thirdOr: "Ou saisissez le troisième groupe de votre reçu",
+                find: "Chercher",
+                onDevice: "Sur cet appareil",
+                deviceMatches: "Le reçu de cet appareil correspond aux 13 groupes",
+                serverSees:
+                    "Les serveurs du registre n'ont pas pu faire cette recherche sans savoir quel bulletin vous voulez ; le serveur de l'élection a donc reçu cet identifiant exact et a pu le voir.",
             },
             audit: {
                 kicker: "Audit du bulletin",

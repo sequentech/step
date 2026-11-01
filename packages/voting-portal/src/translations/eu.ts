@@ -657,9 +657,35 @@ const basqueTranslation: TranslationType = {
                 },
             },
             matches: {
-                title: "{{total}} boto-txartelek ID labur bera dute: <b>{{shortId}}</b>. Aukeratu zurea, edo sartu jarraipen ID osoa.",
                 cast: "Emana: {{time}}",
                 audited: "Auditatua: {{time}}",
+            },
+            shortId: {
+                head: {
+                    one: "Boto-txartel 1ek hasiera hau du: {{start}}",
+                    other: "{{count}} boto-txartelek hasiera hau dute: {{start}}",
+                    atLeast: "{{count}} boto-txartelek edo gehiagok hasiera hau dute: {{start}}",
+                    mine: "Zure boto-txartela eta hasiera hau duten beste {{count}}: {{start}}",
+                    mineAlone: "Zure boto-txartelak hasiera hau du: {{start}}",
+                },
+                sub: {
+                    few: "Zein da zurea? Konparatu nabarmendutako taldea zure ordainagiriarekin, edo idatzi behean.",
+                    one: "Ireki eta konparatu bere jarraipen ID osoa zure ordainagiriarekin.",
+                    many: "Erakusten ditugunak baino gehiago dira. Idatzi zure ordainagiriko hirugarren taldea zurea aurkitzeko.",
+                    mine: "Gailu honek zure ordainagiria gordetzen du, beraz badaki zein den zurea.",
+                },
+                why: {
+                    few: "ID laburrak boto-txartelak aurkitzen ditu. Jarraipen ID osoak edo zure gailuko ordainagiriak soilik esaten du zein den zurea.",
+                    many: "Hainbeste izateak normalean esan nahi du norbaitek nahita sortu dituela ID labur honekin bat datozen boto-txartelak. Zurea erregistroan dago oraindik: hiru taldeak asmatzeak mila trilioi saiakera inguru beharko luke.",
+                    mine: "Besteak beste boto-emaile batzuenak dira. Zerrendatuta daude, antzeko batek zurearen lekua har ez dezan.",
+                },
+                third: "Zure ordainagiriko hirugarren taldea",
+                thirdOr: "Edo idatzi zure ordainagiriko hirugarren taldea",
+                find: "Bilatu",
+                onDevice: "Gailu honetan",
+                deviceMatches: "Gailu honetako ordainagiriak 13 taldeekin bat egiten du",
+                serverSees:
+                    "Erregistroaren zerbitzariek ezin izan dute bilaketa hau egin zein boto-txartel nahi duzun jakin gabe; beraz, hauteskundeko zerbitzariari ID zehatz hau eskatu zaio eta ikusi ahal izan du.",
             },
             audit: {
                 kicker: "Boto-paperaren auditoretza",

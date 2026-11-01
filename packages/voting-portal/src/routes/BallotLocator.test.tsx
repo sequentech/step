@@ -88,6 +88,11 @@ jest.mock("../hooks/useTrackedReceipt", () => ({
     useTrackedReceipt: (...args: unknown[]) => mockTracked(...args),
 }))
 
+let mockShort: {status: string; result?: unknown} = {status: "off"}
+jest.mock("../hooks/useShortIdMatches", () => ({
+    useShortIdMatches: () => mockShort,
+}))
+
 const mockAudit = jest.fn()
 jest.mock("../services/vitrine/ballotAudit", () => ({
     ...jest.requireActual("../services/vitrine/ballotAudit"),
@@ -104,7 +109,7 @@ interface ICastVote {
 let mockPresentation: Record<string, unknown> = {}
 let mockTelephone = false
 let mockVotes: ICastVote[] = []
-const mockQueries: {name: string; variables: Record<string, unknown>}[] = []
+const mockQueries: {name: string; variables: Record<string, unknown>; skip?: boolean}[] = []
 
 /** What the ballot box answers to a lookup, from the voter's ballots it would match. */
 const located = () =>
@@ -127,10 +132,10 @@ const located = () =>
 jest.mock("@apollo/client/react", () => ({
     useQuery: (
         query: {definitions: {kind: string; name?: {value: string}}[]},
-        options: {variables: Record<string, unknown>}
+        options: {variables: Record<string, unknown>; skip?: boolean}
     ) => {
         const name = query.definitions.find((d) => d.kind === "OperationDefinition")?.name?.value
-        mockQueries.push({name: name ?? "", variables: options.variables})
+        mockQueries.push({name: name ?? "", variables: options.variables, skip: options.skip})
         const data =
             name === "GetElectionEvent"
                 ? {sequent_backend_election_event: [{id: "event", presentation: mockPresentation}]}
@@ -311,6 +316,7 @@ beforeEach(() => {
     mockTelephone = false
     mockVotes = []
     mockQueries.length = 0
+    mockShort = {status: "off"}
     mockTracked.mockReset()
     mockTracked.mockReturnValue(tracked({view: VERIFIED}))
     mockAudit.mockReset()
@@ -516,6 +522,113 @@ describe("ballots that the ID does not tell apart", () => {
         expect(screen.getByText(/ballotLocator\.ambiguous/)).toBeVisible()
         expect(screen.queryByText(/ballotLocator\.found /)).toBeNull()
         expect(screen.getByRole("button", {name: "ballotLocator.search.find"})).toBeEnabled()
+    })
+})
+
+describe("ballots that share the short ID, listed from a bucket of the record's servers", () => {
+    const device = `${SHORT}0123${"0".repeat(36)}`
+    const listing = (extra: Record<string, unknown>) => ({
+        kind: "listed",
+        typed: SHORT,
+        matches: [],
+        total: 0,
+        truncated: false,
+        ...extra,
+    })
+    const row = (third: string, extra: Record<string, unknown> = {}) => ({
+        ballotId: "ab".repeat(32),
+        trackingId: `${SHORT}${third}5ZBD${"0".repeat(36)}`,
+        third,
+        fourth: "5ZBD",
+        audited: false,
+        at: 1_793_270_528,
+        event: "event",
+        election: "election",
+        onDevice: false,
+        ...extra,
+    })
+    const locates = () =>
+        mockQueries.filter((query) => query.name === "LocateBallot" && !query.skip)
+
+    beforeEach(() => {
+        mockPresentation = TRACKER
+    })
+
+    it("lists them without asking the election's server which ballot it is", () => {
+        mockShort = {
+            status: "done",
+            result: listing({matches: [row("71J7"), row("0WDY")], total: 2}),
+        }
+        renderAt(`/${SHORT}`)
+        const links = within(
+            document.querySelector(".short-id-matches") as HTMLElement
+        ).getAllByRole("link")
+        expect(links.map((link) => link.getAttribute("href"))).toEqual([
+            `${PATH}/${SHORT}71J75ZBD${"0".repeat(36)}`,
+            `${PATH}/${SHORT}0WDY5ZBD${"0".repeat(36)}`,
+        ])
+        expect(locates()).toHaveLength(0)
+        expect(screen.queryByText("ballotLocator.shortId.serverSees")).toBeNull()
+        expect(screen.queryByText(/ballotLocator\.notFound/)).toBeNull()
+        expect(screen.getByTestId("steps")).toHaveTextContent("0")
+    })
+
+    it("asks only for the third group when many share it", () => {
+        mockShort = {status: "done", result: listing({kind: "many", total: 28})}
+        renderAt(`/${SHORT}`)
+        expect(screen.queryAllByRole("link", {name: /FTBE-MHRX/})).toHaveLength(0)
+        expect(screen.getByLabelText("ballotLocator.shortId.third")).toBeVisible()
+    })
+
+    it("marks the receipt of this device, with the look-alikes listed", () => {
+        mockShort = {
+            status: "done",
+            result: listing({
+                matches: [row("0123", {onDevice: true, trackingId: device}), row("0WDY")],
+                total: 2,
+                mine: device,
+            }),
+        }
+        renderAt(`/${SHORT}`)
+        expect(screen.getByText("ballotLocator.shortId.onDevice")).toBeVisible()
+        expect(document.querySelectorAll(".short-id-match")).toHaveLength(2)
+    })
+
+    it("narrows by the third group the voter types", async () => {
+        mockShort = {status: "done", result: listing({kind: "many", total: 28})}
+        renderAt(`/${SHORT}`)
+        await userEvent.type(screen.getByLabelText("ballotLocator.shortId.third"), "71J7")
+        await userEvent.click(screen.getByRole("button", {name: "ballotLocator.shortId.find"}))
+        expect(router.state.location.pathname).toBe(`${PATH}/${SHORT}71J7`)
+        expect(field().value).toBe("FTBE-MHRX-71J7")
+    })
+
+    it("waits for the bucket before asking the election's server", () => {
+        mockShort = {status: "loading"}
+        renderAt(`/${SHORT}`)
+        expect(locates()).toHaveLength(0)
+        expect(screen.queryByText(/ballotLocator\.notFound/)).toBeNull()
+    })
+
+    it("falls back to the election's server when no server lists buckets, and says it saw the ID", () => {
+        mockShort = {status: "done", result: listing({kind: "unsupported"})}
+        mockVotes = [vote(FULL)]
+        renderAt(`/${SHORT}`)
+        expect(screen.getByText("ballotLocator.shortId.serverSees")).toBeVisible()
+        expect(locates().some((query) => query.variables.ballotId === SHORT)).toBe(true)
+    })
+
+    it("says the same when the event has no policy to name a server", () => {
+        mockShort = {status: "done"}
+        mockVotes = [vote(FULL)]
+        renderAt(`/${SHORT}`)
+        expect(screen.getByText("ballotLocator.shortId.serverSees")).toBeVisible()
+    })
+
+    it("says nothing about it where no bucket was tried", () => {
+        mockVotes = [vote(FULL)]
+        renderAt(`/${SHORT}`)
+        expect(screen.queryByText("ballotLocator.shortId.serverSees")).toBeNull()
     })
 })
 

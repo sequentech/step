@@ -773,9 +773,35 @@ const englishTranslation = {
                 },
             },
             matches: {
-                title: "{{total}} ballots share the short ID <b>{{shortId}}</b>. Choose yours, or enter the full Tracking ID.",
                 cast: "Cast {{time}}",
                 audited: "Audited {{time}}",
+            },
+            shortId: {
+                head: {
+                    one: "1 ballot starts with {{start}}",
+                    other: "{{count}} ballots start with {{start}}",
+                    atLeast: "{{count}} or more ballots start with {{start}}",
+                    mine: "Your ballot, and {{count}} others that start with {{start}}",
+                    mineAlone: "Your ballot starts with {{start}}",
+                },
+                sub: {
+                    few: "Which is yours? Compare the highlighted group with your receipt, or type it below.",
+                    one: "Open it, then compare its full Tracking ID with your receipt.",
+                    many: "That’s more than we list. Type the third group from your receipt to find yours.",
+                    mine: "This device keeps your receipt, so it knows which one is yours.",
+                },
+                why: {
+                    few: "A short ID finds ballots. Only the full Tracking ID, or the receipt on your own device, says which one is yours.",
+                    many: "So many usually means someone made ballots to match this short ID on purpose. Yours is still in the record: matching three groups as well would take about a billion billion tries.",
+                    mine: "The others belong to other voters. They are listed so that a look-alike can’t pass for yours.",
+                },
+                third: "Third group from your receipt",
+                thirdOr: "Or type the third group from your receipt",
+                find: "Find",
+                onDevice: "On this device",
+                deviceMatches: "The receipt on this device matches all 13 groups",
+                serverSees:
+                    "The record’s servers could not look this up without being told which ballot you want, so the election’s server was asked for this exact ID and could see it.",
             },
             audit: {
                 kicker: "Ballot audit",
