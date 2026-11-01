@@ -145,7 +145,8 @@ const catalanTranslation: TranslationType = {
                 description:
                     "Els rebuts es comproven amb la política de confiança que va publicar l'autoritat electoral. Indiqueu-la aquí, amb el seu text o la seva adreça https, tal com apareix a l'anunci oficial de l'elecció.",
                 fromLink:
-                    "L'enllaç del rebut indica on és la seva política de confiança. Abans de fixar-la en aquest dispositiu, compareu-ne les paraules i l'ID amb l'anunci oficial de l'elecció.",
+                    "L'enllaç del rebut indica on és la seva política de confiança. Abans de fixar-la en aquest dispositiu, compareu els quatre primers grups del seu ID de política amb l'anunci oficial de l'elecció.",
+                compareGroups: "Compareu els quatre primers grups, en negreta, amb l'anunci. Les eines comparen els 13.",
                 inputLabel: "Política de confiança o la seva adreça",
                 inputPlaceholder: "Enganxeu la política o la seva adreça https",
                 load: "Carrega la política",
@@ -157,7 +158,7 @@ const catalanTranslation: TranslationType = {
                     "No utilitzeu aquesta política. Aviseu l'autoritat electoral i indiqueu la política de l'anunci oficial de l'elecció.",
                 pinned: "Comprovat amb la política de confiança que vau fixar en aquest dispositiu.",
                 unpin: "Oblida aquesta política",
-                draft: "Això és un esborrany de la política, no la política segellada, així que no es pot fixar. Les seves paraules d'esborrany:",
+                draft: "Això és un esborrany de la política, no la política segellada, així que no es pot fixar. El seu ID d'esborrany:",
                 invalid: "Això no és una política de confiança vàlida.",
                 otherPolicy:
                     "Aquesta política de confiança és vàlida, però el rebut és d'una altra.",

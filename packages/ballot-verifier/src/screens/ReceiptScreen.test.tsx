@@ -201,10 +201,15 @@ describe("the receipt screen", () => {
 
         const offer = await screen.findByTestId("policy-offer")
         const policy = verify.parsePolicy(s.policy)
-        expect(within(offer).getByTestId("policy-words")).toHaveTextContent(
-            verify.policyWords(policy).join(" ")
+        // The policy ID in the 13 groups of a Tracking ID, its first four
+        // groups set apart, and no words.
+        expect(within(offer).getByTestId("policy-id")).toHaveTextContent(
+            verify.policyIdDisplay(policy.id)
         )
-        expect(within(offer).getByTestId("policy-id")).toHaveTextContent(s.policyId)
+        expect(within(offer).getByTestId("policy-short-id")).toHaveTextContent(
+            verify.shortPolicyId(policy.id)
+        )
+        expect(within(offer).queryByTestId("policy-words")).toBeNull()
         expect(offer).toHaveTextContent("acme-2026")
         expect(offer).toHaveTextContent("w2")
         // Nothing is checked or kept before the user compares it with the notice.
@@ -287,17 +292,20 @@ describe("the receipt screen", () => {
         expect(net.requests()).toContain(`GET ${MIRROR_URL}checkpoint`)
     })
 
-    it("refuses a draft policy, showing its eight draft words", async () => {
+    it("refuses a draft policy, showing its draft hash in the groups of a policy ID", async () => {
         const s = receiptScenario()
         renderScreen()
         await openPasted(s.chain)
         await loadPolicy(draftPolicyText())
 
         const draft = await screen.findByTestId("policy-draft")
-        const words = pure.policies.draftWords(
-            pure.parsePolicy(draftPolicyText(), {allowDraft: true, requireSignatures: false})
+        const parsed = pure.parsePolicy(draftPolicyText(), {
+            allowDraft: true,
+            requireSignatures: false,
+        })
+        expect(within(draft).getByTestId("policy-draft-id")).toHaveTextContent(
+            verify.policyIdDisplay(parsed.id)
         )
-        expect(within(draft).getByTestId("policy-draft-words")).toHaveTextContent(words.join(" "))
         expect(screen.queryByTestId("policy-pin")).toBeNull()
         expect(pinnedTexts()).toEqual([])
         expect(net.calls).toEqual([])
@@ -314,7 +322,7 @@ describe("the receipt screen", () => {
         expect(pinnedTexts()).toEqual([])
     })
 
-    it("asks for the policy again when its words don't match the notice", async () => {
+    it("asks for the policy again when its policy ID doesn't match the notice", async () => {
         const s = receiptScenario()
         net.serve(policyUrlOf(s), s.policy)
         renderScreen(chainLink(s.chain, s.entry, {url: policyUrlOf(s)}))

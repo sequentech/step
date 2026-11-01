@@ -131,7 +131,8 @@ const englishTranslation = {
                 description:
                     "Receipts are checked against the trust policy that the election authority published. Give it here, as its text or its https address, from the official election notice.",
                 fromLink:
-                    "The receipt's link says where its trust policy is. Before you pin it on this device, compare its words and ID with the official election notice.",
+                    "The receipt's link says where its trust policy is. Before you pin it on this device, compare the first four groups of its policy ID with the official election notice.",
+                compareGroups: "Compare the first four groups, in bold, with the notice. Tools compare all 13.",
                 inputLabel: "Trust policy or its address",
                 inputPlaceholder: "Paste the policy, or its https address",
                 load: "Load the policy",
@@ -143,7 +144,7 @@ const englishTranslation = {
                     "Don't use this policy. Tell the election authority, and give the policy from the official election notice.",
                 pinned: "Checked against the trust policy you pinned on this device.",
                 unpin: "Forget this policy",
-                draft: "This is a draft of the policy, not the sealed policy, so it can't be pinned. Its draft words:",
+                draft: "This is a draft of the policy, not the sealed policy, so it can't be pinned. Its draft ID:",
                 invalid: "This isn't a valid trust policy.",
                 otherPolicy: "This trust policy is valid, but the receipt is for another one.",
                 ambiguous:

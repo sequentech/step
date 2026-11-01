@@ -64,22 +64,24 @@ describe("examinePolicy", () => {
         expect(view.text).toBe(s.policy)
         expect(view.policy.id).toBe(s.policyId)
         expect(view.summary.id).toBe(policyIdOf(s.policy))
-        expect(view.summary.words).toEqual(verify.policyWords(view.policy))
-        expect(view.summary.words).toHaveLength(6)
+        expect(view.idDisplay).toBe(verify.policyIdDisplay(view.policy.id))
+        expect(view.idDisplay.split("-")).toHaveLength(13)
+        expect(view.shortId).toBe(view.idDisplay.split("-").slice(0, 4).join("-"))
         expect(view.summary.event).toBe("acme-2026")
         expect(view.summary.witnesses).toContainEqual(
             expect.objectContaining({name: "w2", party: "observers"})
         )
     })
 
-    it("refuses a draft, with its eight draft words", () => {
+    it("refuses a draft, with its draft hash in the groups of a policy ID", () => {
         const draft = draftPolicyText()
         const examined = examinePolicy(sdk, draft)
-        const words = pure.policies.draftWords(
-            pure.parsePolicy(draft, {allowDraft: true, requireSignatures: false})
-        )
-        expect(examined).toEqual({ok: false, refusal: EPolicyRefusal.DRAFT, draftWords: words})
-        expect(words).toHaveLength(8)
+        const parsed = pure.parsePolicy(draft, {allowDraft: true, requireSignatures: false})
+        const draftId = verify.policyIdDisplay(parsed.id)
+        expect(examined).toEqual({ok: false, refusal: EPolicyRefusal.DRAFT, draftId})
+        expect(draftId.split("-")).toHaveLength(13)
+        // It isn't the sealed policy's ID, so the two can't be mistaken.
+        expect(draftId).not.toBe(verify.policyIdDisplay(s.policyId))
     })
 
     it.each([

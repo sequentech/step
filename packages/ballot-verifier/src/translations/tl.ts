@@ -129,7 +129,8 @@ const tagalogTranslation = {
                 description:
                     "Sinusuri ang mga resibo gamit ang trust policy na inilathala ng awtoridad ng halalan. Ibigay ito dito, bilang teksto nito o https address nito, mula sa opisyal na abiso ng halalan.",
                 fromLink:
-                    "Sinasabi ng link ng resibo kung nasaan ang trust policy nito. Bago mo ito i-pin sa device na ito, ihambing ang mga salita at ID nito sa opisyal na abiso ng halalan.",
+                    "Sinasabi ng link ng resibo kung nasaan ang trust policy nito. Bago mo ito i-pin sa device na ito, ihambing ang unang apat na grupo ng policy ID nito sa opisyal na abiso ng halalan.",
+                compareGroups: "Ihambing ang unang apat na grupo, na naka-bold, sa abiso. Ang mga tool ay naghahambing ng lahat ng 13.",
                 inputLabel: "Trust policy o ang address nito",
                 inputPlaceholder: "I-paste ang policy, o ang https address nito",
                 load: "I-load ang policy",
@@ -141,7 +142,7 @@ const tagalogTranslation = {
                     "Huwag gamitin ang policy na ito. Sabihan ang awtoridad ng halalan, at ibigay ang policy mula sa opisyal na abiso ng halalan.",
                 pinned: "Sinuri gamit ang trust policy na in-pin mo sa device na ito.",
                 unpin: "Kalimutan ang policy na ito",
-                draft: "Isa itong draft ng policy, hindi ang selyadong policy, kaya hindi ito mai-pin. Ang mga draft na salita nito:",
+                draft: "Isa itong draft ng policy, hindi ang selyadong policy, kaya hindi ito mai-pin. Ang draft ID nito:",
                 invalid: "Hindi ito wastong trust policy.",
                 otherPolicy: "Wasto ang trust policy na ito, pero para sa ibang policy ang resibo.",
                 ambiguous:
