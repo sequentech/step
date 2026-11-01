@@ -7113,7 +7113,7 @@ const tagalogTranslation: TranslationType = {
         },
         transparencyTab: {
             title: "Transparency",
-            help: "Sa Vitrine, itinatala ang mga balota at mahahalagang yugto ng kaganapan sa mga log na madadagdagan lamang at nilalagdaan ng mga independiyenteng saksi, para masuri ng mga botante at tagamasid na walang inalis o binago.",
+            help: "Sa Vitrine, itinatala ang mga balota at mahahalagang yugto ng kaganapan sa mga log na madadagdagan lamang at nilalagdaan ng mga saksing pinangalanan sa patakaran ng tiwala, para masuri ng mga botante at tagamasid na walang inalis o binago.",
             loading: "Nilo-load ang transparency ng kaganapan...",
             loadError: "Hindi ma-load ang transparency ng kaganapan: {{reason}}",
             unknownError: "hindi kilalang error",
@@ -7171,8 +7171,9 @@ const tagalogTranslation: TranslationType = {
                     public: "Pampublikong talaan",
                     private: "Pribadong talaan",
                     quorum: "patakaran sa mga saksi: {{k}} sa {{n}}",
-                    hubs_one: "{{count}} angklang hub, {{independent}} malaya",
-                    hubs_other: "{{count}} angklang hub, {{independent}} malaya",
+                    hubs_one: "{{count}} angklang hub",
+                    hubs_other: "{{count}} angklang hub",
+                    hubsOutside: "{{count}} na pinapatakbo ng partidong hindi ang awtoridad ng halalan o ang platform",
                     mmd: "pinakamataas na pagkaantala sa pagsasama: {{duration}}",
                     locked: "naka-lock mula nang magbukas ang botohan",
                     explorerPublic: "Buksan ang pampublikong explorer",
@@ -7225,7 +7226,7 @@ const tagalogTranslation: TranslationType = {
                 anchoring: {
                     title: "Pag-aangkla",
                     sub: "mga hub bawat {{hubs}} · mga browser bawat {{browsers}}",
-                    independent: "Pinapatakbo ng {{party}}, malaya sa {{operator}}",
+                    rule: "Panuntunan: sa {{min}} angklang hub, hindi bababa sa {{outside}} ang dapat patakbuhin ng partidong hindi ang awtoridad ng halalan o ang platform.",
                     noAnchor: "Wala pang angkla",
                     browserLayer: "Layer ng browser",
                     browserLayerSub: "Ang mga hub ng app ay nag-aangkla sa {{hubs}}",
@@ -7270,7 +7271,7 @@ const tagalogTranslation: TranslationType = {
                     none: "Walang pinapayagang pagtatago ng datos ang patakarang ito ng tiwala.",
                 },
                 monitors: {
-                    title: "Mga malayang monitor",
+                    title: "Mga monitor",
                     list_one:
                         "Isang monitor ang pinangalanan ng patakaran ng tiwala: {{names}}. Nagpapadala rito ang mga verifier, kasama ang mga browser ng mga botante, ng gossip, mga pangako at ebidensya.",
                     list_other:
@@ -7321,9 +7322,13 @@ const tagalogTranslation: TranslationType = {
                 draftTitle: "Borador para sa Lupon ng Halalan",
                 draftHelp:
                     "I-download ang borador at ibigay ito sa Lupon ng Halalan. Sinusuri, sinisilyuhan, at nilalagdaan ito ng Lupon gamit ang command-line tool ng Vitrine, at ipinalalagda rin ito sa anumang ibang awtoridad na pinangangalanan ng sign line nito. Pagkatapos, i-upload dito ang nilagdaang patakaran.",
-                draftWords: "Ang walong salita ng borador",
-                draftWordsHelp:
-                    "Tinitiyak ng Lupon na ipinapakita ng “vitrine policy words” ang mga salitang ito para sa file na natanggap nito.",
+                draftId: "Ang hash ng borador",
+                draftIdHelp:
+                    "Tinitiyak ng Lupon na ipinapakita ng “vitrine policy id” ang hash na ito para sa file na natanggap nito. Walang ID ng patakaran ang borador hangga't hindi ito nasisilyuhan.",
+                draftTag: "Borador",
+                shortId: "ID ng patakaran, unang apat na grupo",
+                shortIdHelp:
+                    "Inihahambing ng mga tao ang mga grupong ito sa opisyal na abiso. Inihahambing ng mga kasangkapan ang lahat ng 13.",
                 download: "I-download ang borador",
                 commands: "Ang mga command ng Lupon",
                 invalidDraft: "Hindi wasto ang borador ng patakaran: {{reason}}",
@@ -7331,7 +7336,7 @@ const tagalogTranslation: TranslationType = {
                     "Nagbago ang borador ng kaganapan matapos silyuhan ang patakarang ito. Kailangang silyuhan at lagdaan ng Lupon ang bagong borador, na ia-upload bilang kahalili.",
                 sealedTitle: "Ang patakaran ng kaganapan",
                 sealedHelp:
-                    "Ilathala ang ID ng patakaran at ang anim na salita nito sa opisyal na abiso ng halalan, para makilala ng mga botante at tagamasid ang patakarang ginagamit sa pagsusuri ng kanilang mga resibo.",
+                    "Ilathala ang ID ng patakaran sa opisyal na abiso ng halalan, para makilala ng mga botante at tagamasid ang patakarang ginagamit sa pagsusuri ng kanilang mga resibo. Inihahambing ang unang apat na grupo nito.",
                 idMismatch:
                     "Iniuulat ng mga log ang ID ng patakaran na {{id}}, na hindi sa patakarang ito.",
                 invalidStored: "Hindi wasto ang nakaimbak na patakaran ng kaganapan: {{reason}}",
@@ -7345,7 +7350,7 @@ const tagalogTranslation: TranslationType = {
                 readError: "Hindi mabasa ang file.",
                 tooLarge:
                     "Mas malaki ito kaysa sa maaaring maging laki ng isang patakaran ng tiwala.",
-                draft: "Isa itong borador na hindi pa nasisilyuhan, na ang mga salita ay {{words}}. Kailangan muna itong silyuhan at lagdaan ng Lupon ng Halalan.",
+                draft: "Isa itong borador na hindi pa nasisilyuhan, na ang hash ay {{id}}. Kailangan muna itong silyuhan at lagdaan ng Lupon ng Halalan.",
                 invalid: "Hindi ito wastong nilagdaang patakaran: {{reason}}",
                 preview:
                     "Suriin ang mga detalyeng ito kasama ng Lupon ng Halalan bago i-upload ang patakaran.",
@@ -7356,7 +7361,7 @@ const tagalogTranslation: TranslationType = {
                     "Hindi sinilyuhan ang patakarang ito mula sa kasalukuyang borador ng kaganapan.",
                 submit: "I-upload ang patakaran",
                 uploaded:
-                    "Na-upload ang patakaran. Ilathala ang ID nito at ang anim na salita nito sa opisyal na abiso ng halalan.",
+                    "Na-upload ang patakaran. Ilathala ang ID nito sa opisyal na abiso ng halalan.",
                 error: "Hindi ma-upload ang patakaran: {{reason}}",
             },
             logs: {

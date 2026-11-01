@@ -7054,7 +7054,7 @@ const basqueTranslation: TranslationType = {
         },
         transparencyTab: {
             title: "Gardentasuna",
-            help: "Vitrinerekin, gertaeraren boto-txartelak eta mugarriak sarrerak gehitu besterik ezin zaizkien erregistroetan gordetzen dira, eta lekuko independenteek sinatzen dituzte; horrela, bozkatzaileek eta behatzaileek egiazta dezakete ez dela ezer kendu edo aldatu.",
+            help: "Vitrinerekin, gertaeraren boto-txartelak eta mugarriak sarrerak gehitu besterik ezin zaizkien erregistroetan gordetzen dira, eta konfiantza-politikak izendatzen dituen lekukoek sinatzen dituzte; horrela, bozkatzaileek eta behatzaileek egiazta dezakete ez dela ezer kendu edo aldatu.",
             loading: "Gertaeraren gardentasuna kargatzen...",
             loadError: "Ezin izan da gertaeraren gardentasuna kargatu: {{reason}}",
             unknownError: "errore ezezaguna",
@@ -7111,8 +7111,9 @@ const basqueTranslation: TranslationType = {
                     public: "Erregistro publikoa",
                     private: "Erregistro pribatua",
                     quorum: "lekukoen politika {{k}}/{{n}}",
-                    hubs_one: "{{count}} aingura-gune, {{independent}} independente",
-                    hubs_other: "{{count}} aingura-gune, {{independent}} independente",
+                    hubs_one: "{{count}} aingura-gune",
+                    hubs_other: "{{count}} aingura-gune",
+                    hubsOutside: "{{count}} hauteskunde-agintaritzaz eta plataformaz bestelako batek kudeatuak",
                     mmd: "gehieneko batze-atzerapena: {{duration}}",
                     locked: "bozketa ireki zenetik blokeatuta",
                     explorerPublic: "Ireki esploratzaile publikoa",
@@ -7164,7 +7165,7 @@ const basqueTranslation: TranslationType = {
                 anchoring: {
                     title: "Ainguratzea",
                     sub: "guneen maiztasuna: {{hubs}} · nabigatzaileena: {{browsers}}",
-                    independent: "Kudeatzailea: {{party}}, {{operator}}-ekiko independentea",
+                    rule: "Araua: {{min}} aingura-guneetatik, gutxienez {{outside}} hauteskunde-agintaritzaz eta plataformaz bestelako batek kudeatu behar ditu.",
                     noAnchor: "Oraindik aingurarik gabe",
                     browserLayer: "Nabigatzaileen geruza",
                     browserLayerSub: "Aplikazioaren guneak hemen ainguratzen dira: {{hubs}}",
@@ -7209,7 +7210,7 @@ const basqueTranslation: TranslationType = {
                     none: "Konfiantza-politika honek ez du datuak kentzea onartzen.",
                 },
                 monitors: {
-                    title: "Monitore independenteak",
+                    title: "Monitoreak",
                     list_one:
                         "Konfiantza-politikak monitore bat aipatzen du: {{names}}. Egiaztatzaileek, bozkatzaileen nabigatzaileak barne, gossip-a, promesak eta ebidentziak bidaltzen dizkiote.",
                     list_other:
@@ -7260,9 +7261,13 @@ const basqueTranslation: TranslationType = {
                 draftTitle: "Hauteskunde Batzordearentzako zirriborroa",
                 draftHelp:
                     "Deskargatu zirriborroa eta eman Hauteskunde Batzordeari. Batzordeak egiaztatu, zigilatu eta sinatu egiten du Vitrineren komando-lerroko tresnarekin, eta haren sign lerroak izendatzen duen beste edozein agintaritzaren sinadura ere lortzen du. Ondoren, igo hona sinatutako politika.",
-                draftWords: "Zirriborroaren zortzi hitzak",
-                draftWordsHelp:
-                    "Batzordeak egiaztatzen du «vitrine policy words» komandoak hitz hauek erakusten dituela jaso duen fitxategirako.",
+                draftId: "Zirriborroaren hasha",
+                draftIdHelp:
+                    "Batzordeak egiaztatzen du «vitrine policy id» komandoak hash hau erakusten duela jaso duen fitxategirako. Zirriborro batek ez du politikaren IDrik zigilatu arte.",
+                draftTag: "Zirriborroa",
+                shortId: "Politikaren IDa, lehen lau taldeak",
+                shortIdHelp:
+                    "Pertsonek talde hauek alderatzen dituzte deialdi ofizialarekin. Tresnek 13 taldeak alderatzen dituzte.",
                 download: "Deskargatu zirriborroa",
                 commands: "Batzordearen komandoak",
                 invalidDraft: "Politikaren zirriborroa ez da baliozkoa: {{reason}}",
@@ -7270,7 +7275,7 @@ const basqueTranslation: TranslationType = {
                     "Gertaeraren zirriborroa aldatu egin da politika hau zigilatu ondoren. Batzordeak zirriborro berria zigilatu eta sinatu behar du, eta ondorengo gisa igoko da.",
                 sealedTitle: "Gertaeraren politika",
                 sealedHelp:
-                    "Argitaratu politikaren IDa eta haren sei hitzak hauteskundeen deialdi ofizialean, bozkatzaileek eta behatzaileek ezagut dezaten zein politikaren arabera egiaztatzen diren beren hartu-agiriak.",
+                    "Argitaratu politikaren IDa hauteskundeen deialdi ofizialean, bozkatzaileek eta behatzaileek ezagut dezaten zein politikaren arabera egiaztatzen diren beren hartu-agiriak. Haren lehen lau taldeak alderatzen dira.",
                 idMismatch:
                     "Erregistroek {{id}} politika-IDa adierazten dute, eta ez da politika honena.",
                 invalidStored: "Gertaeraren gordetako politika ez da baliozkoa: {{reason}}",
@@ -7283,7 +7288,7 @@ const basqueTranslation: TranslationType = {
                 text: "Politika sinatua",
                 readError: "Ezin izan da fitxategia irakurri.",
                 tooLarge: "Hau konfiantza-politika bat izan daitekeena baino handiagoa da.",
-                draft: "Hau zigilatu gabeko zirriborro bat da, hitz hauekin: {{words}}. Hauteskunde Batzordeak zigilatu eta sinatu behar du lehenik.",
+                draft: "Hau zigilatu gabeko zirriborro bat da, {{id}} hasharekin. Hauteskunde Batzordeak zigilatu eta sinatu behar du lehenik.",
                 invalid: "Hau ez da baliozko politika sinatu bat: {{reason}}",
                 preview: "Egiaztatu datu hauek Hauteskunde Batzordearekin politika igo aurretik.",
                 otherEvent: "Politika hau beste hauteskunde gertaera batena da.",
@@ -7291,8 +7296,7 @@ const basqueTranslation: TranslationType = {
                     "Politika hau {{policy}} da, baina gertaeraren gardentasuna {{event}} da.",
                 notFromDraft: "Politika hau ez da gertaeraren uneko zirriborrotik zigilatu.",
                 submit: "Igo politika",
-                uploaded:
-                    "Politika igo da. Argitaratu haren IDa eta sei hitzak hauteskundeen deialdi ofizialean.",
+                uploaded: "Politika igo da. Argitaratu haren IDa hauteskundeen deialdi ofizialean.",
                 error: "Ezin izan da politika igo: {{reason}}",
             },
             logs: {

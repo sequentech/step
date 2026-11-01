@@ -420,10 +420,8 @@ export const HealthBanner: React.FC<IHealthBannerProps> = ({
         const parts = [
             t(`transparencyTab.overview.health.${facts.visibility}`),
             t("transparencyTab.overview.health.quorum", {k: facts.quorum.k, n: facts.quorum.n}),
-            t("transparencyTab.overview.health.hubs", {
-                count: facts.appHubs,
-                independent: facts.independentHubs,
-            }),
+            t("transparencyTab.overview.health.hubs", {count: facts.appHubs}),
+            t("transparencyTab.overview.health.hubsOutside", {count: facts.outsideHubs}),
             t("transparencyTab.overview.health.mmd", {duration: duration(facts.mmd)}),
         ]
         if (locked) parts.push(t("transparencyTab.overview.health.locked"))
@@ -766,20 +764,27 @@ export const AnchoringCard: React.FC<{
             testId="overview-anchoring"
             flush
         >
+            {facts.hubRule ? (
+                <Typography
+                    data-testid="overview-hub-rule"
+                    sx={{
+                        px: 2,
+                        py: 1.25,
+                        fontSize: "13px",
+                        color: BOARD.muted,
+                        borderBottom: `1px solid ${BOARD.border}`,
+                    }}
+                >
+                    {t(key("rule"), {min: facts.hubRule.min, outside: facts.hubRule.outside})}
+                </Typography>
+            ) : null}
             <Rows>
                 {hubs.map((hub) => (
                     <Row
                         key={hub.name}
                         testId={`overview-hub-${hub.name}`}
                         name={hub.name}
-                        sub={
-                            hub.independent
-                                ? t(key("independent"), {
-                                      party: hub.operator,
-                                      operator: facts.operator,
-                                  })
-                                : t("transparencyTab.overview.runBy", {party: hub.operator})
-                        }
+                        sub={t("transparencyTab.overview.runBy", {party: hub.operator})}
                         chip={
                             hub.lastAnchor !== undefined ? (
                                 <StatusChip

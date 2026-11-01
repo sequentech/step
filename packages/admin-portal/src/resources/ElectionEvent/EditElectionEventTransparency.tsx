@@ -6,7 +6,7 @@
 // the record's health and figures, its Vitrine mode, the trust policy the
 // Electoral Board seals, the logs with their witnesses and hubs, and the
 // witness enrolment notes. Everything Harvest and the sidecar return is shown
-// as text; the policy's ID and words are computed here with @vitrine/verify,
+// as text; the policy's ID, in groups, is computed here with @vitrine/verify,
 // and its labels come from the UI kit.
 
 import React, {ChangeEvent, useEffect, useMemo, useState} from "react"
@@ -199,6 +199,41 @@ const CopyButton: React.FC<{text: string; label: string; testId?: string}> = ({
 
 // -- Policy -------------------------------------------------------------------------
 
+/** An ID in the groups of a Tracking ID, with the first four, which people
+ * compare with the notice, in bold. */
+const PolicyIdText: React.FC<{display: string; short: string; testId: string}> = ({
+    display,
+    short,
+    testId,
+}) => (
+    <Box component="code" translate="no" sx={monospace} data-testid={testId}>
+        <strong data-testid={`${testId}-short`}>{short}</strong>
+        {display.slice(short.length)}
+    </Box>
+)
+
+/** Marks a draft's hash as a draft's: a draft has no policy ID. */
+const DraftTag: React.FC = () => {
+    const {t} = useTranslation()
+    return (
+        <Box
+            component="span"
+            data-testid="draft-tag"
+            sx={{
+                ml: 0.5,
+                px: 0.75,
+                py: 0.1,
+                border: `1px solid ${BOARD.border}`,
+                borderRadius: "4px",
+                fontSize: "11.5px",
+                fontWeight: 700,
+            }}
+        >
+            {t("transparencyTab.policy.draftTag")}
+        </Box>
+    )
+}
+
 const PolicyFacts: React.FC<{
     policy: Policy
     summary: PolicySummary
@@ -206,7 +241,8 @@ const PolicyFacts: React.FC<{
     testId: string
 }> = ({policy, summary, words, testId}) => {
     const {t} = useTranslation()
-    const sixWords = summary.words.join(" ")
+    const idDisplay = verify.policyIdDisplay(policy.id)
+    const shortId = verify.shortPolicyId(policy.id)
     return (
         <Box
             component="dl"
@@ -231,19 +267,28 @@ const PolicyFacts: React.FC<{
                 "& ul": {m: 0, pl: 2},
             }}
         >
-            <dt>{words.t("receipt-policy-words")}</dt>
-            <dd>
-                <Typography component="span" lang={summary.lang} data-testid={`${testId}-words`}>
-                    {sixWords}
-                </Typography>{" "}
-                <CopyButton text={sixWords} label={t("transparencyTab.copy")} />
-            </dd>
             <dt>{words.t("receipt-policy-id")}</dt>
             <dd>
-                <Box component="code" sx={monospace} data-testid={`${testId}-id`}>
-                    {policy.id}
+                <PolicyIdText display={idDisplay} short={shortId} testId={`${testId}-id`} />{" "}
+                <CopyButton
+                    text={idDisplay}
+                    label={t("transparencyTab.copy")}
+                    testId={`${testId}-copy-id`}
+                />
+            </dd>
+            <dt>{t("transparencyTab.policy.shortId")}</dt>
+            <dd>
+                <Box component="code" sx={monospace} data-testid={`${testId}-short-id`}>
+                    {shortId}
                 </Box>{" "}
-                <CopyButton text={policy.id} label={t("transparencyTab.copy")} />
+                <CopyButton
+                    text={shortId}
+                    label={t("transparencyTab.copy")}
+                    testId={`${testId}-copy-short-id`}
+                />
+                <Typography variant="caption" sx={{flexBasis: "100%"}}>
+                    {t("transparencyTab.policy.shortIdHelp")}
+                </Typography>
             </dd>
             <dt>{words.t("receipt-event")}</dt>
             <dd>{summary.event}</dd>
@@ -292,13 +337,16 @@ const DraftSection: React.FC<{
             <Typography variant="body2">{t("transparencyTab.policy.draftHelp")}</Typography>
             <Box>
                 <Typography variant="body2" sx={{fontWeight: 700, color: BOARD.text}}>
-                    {t("transparencyTab.policy.draftWords")}
+                    {t("transparencyTab.policy.draftId")} <DraftTag />
                 </Typography>
-                <Typography lang={examined.policy.words} data-testid="draft-words">
-                    {examined.words.join(" ")}
-                </Typography>
-                <Typography variant="caption">
-                    {t("transparencyTab.policy.draftWordsHelp")}
+                <PolicyIdText
+                    display={examined.draftId}
+                    short={examined.shortDraftId}
+                    testId="draft-id"
+                />{" "}
+                <CopyButton text={examined.draftId} label={t("transparencyTab.copy")} />
+                <Typography variant="caption" component="div">
+                    {t("transparencyTab.policy.draftIdHelp")}
                 </Typography>
             </Box>
             <Box>
@@ -414,7 +462,7 @@ const UploadForm: React.FC<IUploadFormProps> = ({
             ) : null}
             {examined?.state === EPolicyState.DRAFT ? (
                 <Alert severity="warning" data-testid="policy-is-draft">
-                    {t("transparencyTab.upload.draft", {words: examined.words.join(" ")})}
+                    {t("transparencyTab.upload.draft", {id: examined.draftId})}
                 </Alert>
             ) : null}
             {examined?.state === EPolicyState.INVALID ? (

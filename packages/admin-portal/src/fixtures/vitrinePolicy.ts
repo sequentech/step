@@ -101,6 +101,10 @@ export interface IPolicyOptions {
     bootstrap?: boolean
     /** Gives hubs h1 and h2 a `hub-explorer` site. */
     hubExplorers?: boolean
+    /** Adds a `platform` line naming that party. */
+    platform?: string
+    /** Adds the recommended `anchor-hubs 2 1` rule. */
+    anchorHubs?: boolean
 }
 
 /** The policy's lines without the seal: the draft the Board seals. */
@@ -112,6 +116,7 @@ const policyLines = (o: IPolicyOptions): string[] => {
         `visibility ${o.visibility ?? "public"}`,
         ...(isPrivate ? [`policy-salt ${"5a".repeat(32)}`] : []),
         "operator sequent",
+        ...(o.platform ? [`platform ${o.platform}`] : []),
         `authority board ${KEYS.board.vkey}`,
         "sign 1 board",
         ...(isPrivate ? [`auditor auditors ${KEYS.auditor.vkey}`] : []),
@@ -163,6 +168,7 @@ const policyLines = (o: IPolicyOptions): string[] => {
         "monitor-party observers monitorco1",
         "monitor-party observers2 monitorco2",
         "monitor-quorum 2",
+        ...(o.anchorHubs ? ["anchor-hubs 2 1"] : []),
     ]
 }
 

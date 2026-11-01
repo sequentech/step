@@ -96,24 +96,31 @@ describe("vitrineLanguage", () => {
     })
 })
 
+const GROUPS_13 = /^([0-9A-Z]{4}-){12}[0-9A-Z]{4}$/
+
 describe("examinePolicy", () => {
-    it("reads a sealed, signed policy with its ID and six words", () => {
+    it("reads a sealed, signed policy with its ID", () => {
         const text = policyText()
         const e = sealed(text)
         const parsed = verify.parsePolicy(text)
         expect(e.policy.id).toBe(parsed.id)
         expect(e.policy.id).toBe(`sha256:${policyHexOf(text)}`)
-        expect(e.summary.words).toHaveLength(6)
-        expect(e.summary.words).toEqual(verify.policySummary(parsed).words)
+        expect(verify.policyIdDisplay(e.policy.id)).toMatch(GROUPS_13)
+        expect(verify.shortPolicyId(e.policy.id)).toBe(
+            verify.policyIdDisplay(e.policy.id).split("-").slice(0, 4).join("-")
+        )
         expect(e.summary.event).toBe("acme-2026")
     })
 
-    it("reads the draft with its eight words", () => {
+    it("reads the draft with its draft hash in groups, which is not a policy ID", () => {
         const text = draftPolicyText()
         const e = draft(text)
         const parsed = verify.parsePolicy(text, {allowDraft: true, requireSignatures: false})
-        expect(e.words).toHaveLength(8)
-        expect(e.words).toEqual(verify.policyWords(parsed))
+        expect(e.draftId).toBe(verify.policyIdDisplay(parsed.id))
+        expect(e.draftId).toMatch(GROUPS_13)
+        expect(e.shortDraftId).toBe(e.draftId.split("-").slice(0, 4).join("-"))
+        // The policy sealed from the draft has another ID: it hashes the seal too.
+        expect(e.draftId).not.toBe(verify.policyIdDisplay(sealed(policyText()).policy.id))
     })
 
     it("refuses the sealed text without the Board's signature", () => {
@@ -207,12 +214,12 @@ describe("sameDraft", () => {
 })
 
 describe("the Board's commands", () => {
-    it("check the downloaded draft, print its words, then seal and sign it", () => {
+    it("check the downloaded draft, print its hash, then seal and sign it", () => {
         const name = draftFileName(EVENT_ID)
         expect(name).toBe(`vitrine-policy-draft-${EVENT_ID}.txt`)
         const commands = boardCommands(EVENT_ID)
         expect(commands[0]).toBe(`vitrine policy check ${name}`)
-        expect(commands[1]).toBe(`vitrine policy words ${name}`)
+        expect(commands[1]).toBe(`vitrine policy id ${name}`)
         expect(commands[2]).toMatch(new RegExp(`^vitrine policy seal ${name} --key `))
         expect(commands[3]).toMatch(/^vitrine policy sign /)
     })

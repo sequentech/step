@@ -7097,7 +7097,7 @@ const dutchTranslation: TranslationType = {
         },
         transparencyTab: {
             title: "Transparantie",
-            help: "Met Vitrine komen de stembiljetten en mijlpalen van het evenement in logs waaraan alleen iets kan worden toegevoegd en die onafhankelijke getuigen ondertekenen, zodat kiezers en waarnemers kunnen controleren dat er niets is verwijderd of gewijzigd.",
+            help: "Met Vitrine komen de stembiljetten en mijlpalen van het evenement in logs waaraan alleen iets kan worden toegevoegd en die de getuigen uit het vertrouwensbeleid ondertekenen, zodat kiezers en waarnemers kunnen controleren dat er niets is verwijderd of gewijzigd.",
             loading: "Transparantie van het evenement laden...",
             loadError: "De transparantie van het evenement kon niet worden geladen: {{reason}}",
             unknownError: "onbekende fout",
@@ -7155,8 +7155,9 @@ const dutchTranslation: TranslationType = {
                     public: "Openbaar register",
                     private: "Privéregister",
                     quorum: "getuigenbeleid {{k}} van {{n}}",
-                    hubs_one: "{{count}} ankerhub, {{independent}} onafhankelijk",
-                    hubs_other: "{{count}} ankerhubs, {{independent}} onafhankelijk",
+                    hubs_one: "{{count}} ankerhub",
+                    hubs_other: "{{count}} ankerhubs",
+                    hubsOutside: "{{count}} beheerd door een andere partij dan de kiesautoriteit en het platform",
                     mmd: "maximale samenvoegvertraging {{duration}}",
                     locked: "vergrendeld sinds het openen van de stemming",
                     explorerPublic: "Openbare verkenner openen",
@@ -7208,7 +7209,7 @@ const dutchTranslation: TranslationType = {
                 anchoring: {
                     title: "Verankering",
                     sub: "hubs elke {{hubs}} · browsers elke {{browsers}}",
-                    independent: "Beheerd door {{party}}, onafhankelijk van {{operator}}",
+                    rule: "Regel: van {{min}} ankerhubs moeten er minstens {{outside}} worden beheerd door een andere partij dan de kiesautoriteit en het platform.",
                     noAnchor: "Nog geen anker",
                     browserLayer: "Browserlaag",
                     browserLayerSub: "De hubs van de app verankeren in {{hubs}}",
@@ -7253,7 +7254,7 @@ const dutchTranslation: TranslationType = {
                     none: "Dit vertrouwensbeleid staat het achterhouden van gegevens niet toe.",
                 },
                 monitors: {
-                    title: "Onafhankelijke monitors",
+                    title: "Monitors",
                     list_one:
                         "Het vertrouwensbeleid noemt één monitor: {{names}}. Verificatiesystemen, ook de browsers van kiezers, sturen die gossip, beloftes en bewijs.",
                     list_other:
@@ -7303,9 +7304,13 @@ const dutchTranslation: TranslationType = {
                 draftTitle: "Concept voor de Kiescommissie",
                 draftHelp:
                     "Download het concept en geef het aan de Kiescommissie. De commissie controleert, verzegelt en ondertekent het met de opdrachtregeltool van Vitrine, en laat het ook ondertekenen door elke andere instantie die de sign-regel noemt. Upload daarna hier het ondertekende beleid.",
-                draftWords: "De acht woorden van het concept",
-                draftWordsHelp:
-                    "De commissie controleert dat ‘vitrine policy words’ deze woorden toont voor het bestand dat ze heeft ontvangen.",
+                draftId: "De hash van het concept",
+                draftIdHelp:
+                    "De commissie controleert dat ‘vitrine policy id’ deze hash toont voor het bestand dat ze heeft ontvangen. Een concept heeft geen beleids-ID totdat het is verzegeld.",
+                draftTag: "Concept",
+                shortId: "Beleids-ID, eerste vier groepen",
+                shortIdHelp:
+                    "Mensen vergelijken deze groepen met de officiële aankondiging. Hulpmiddelen vergelijken alle 13.",
                 download: "Concept downloaden",
                 commands: "De opdrachten van de commissie",
                 invalidDraft: "Het conceptbeleid is niet geldig: {{reason}}",
@@ -7313,7 +7318,7 @@ const dutchTranslation: TranslationType = {
                     "Het concept van het evenement is gewijzigd nadat dit beleid werd verzegeld. De commissie moet het nieuwe concept verzegelen en ondertekenen, dat daarna als opvolger wordt geüpload.",
                 sealedTitle: "Het beleid van het evenement",
                 sealedHelp:
-                    "Publiceer de beleids-ID en de zes woorden in de officiële verkiezingsaankondiging, zodat kiezers en waarnemers het beleid herkennen waartegen hun ontvangstbewijzen worden gecontroleerd.",
+                    "Publiceer de beleids-ID in de officiële verkiezingsaankondiging, zodat kiezers en waarnemers het beleid herkennen waartegen hun ontvangstbewijzen worden gecontroleerd. Mensen vergelijken de eerste vier groepen.",
                 idMismatch: "De logs melden de beleids-ID {{id}}, die niet van dit beleid is.",
                 invalidStored: "Het opgeslagen beleid van het evenement is niet geldig: {{reason}}",
             },
@@ -7325,7 +7330,7 @@ const dutchTranslation: TranslationType = {
                 text: "Ondertekend beleid",
                 readError: "Het bestand kon niet worden gelezen.",
                 tooLarge: "Dit is groter dan een vertrouwensbeleid kan zijn.",
-                draft: "Dit is een onverzegeld concept, met de woorden {{words}}. De Kiescommissie moet het eerst verzegelen en ondertekenen.",
+                draft: "Dit is een onverzegeld concept, met de hash {{id}}. De Kiescommissie moet het eerst verzegelen en ondertekenen.",
                 invalid: "Dit is geen geldig ondertekend beleid: {{reason}}",
                 preview:
                     "Controleer deze gegevens met de Kiescommissie voordat u het beleid uploadt.",
@@ -7336,7 +7341,7 @@ const dutchTranslation: TranslationType = {
                     "Dit beleid is niet verzegeld vanuit het huidige concept van het evenement.",
                 submit: "Beleid uploaden",
                 uploaded:
-                    "Het beleid is geüpload. Publiceer de ID en de zes woorden in de officiële verkiezingsaankondiging.",
+                    "Het beleid is geüpload. Publiceer de ID in de officiële verkiezingsaankondiging.",
                 error: "Het beleid kon niet worden geüpload: {{reason}}",
             },
             logs: {

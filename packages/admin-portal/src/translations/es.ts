@@ -7130,7 +7130,7 @@ const spanishTranslation: TranslationType = {
         },
         transparencyTab: {
             title: "Transparencia",
-            help: "Con Vitrine, las papeletas y los hitos del evento se anotan en registros a los que solo se pueden añadir entradas y que firman testigos independientes, para que votantes y observadores puedan comprobar que no se ha eliminado ni cambiado nada.",
+            help: "Con Vitrine, las papeletas y los hitos del evento se anotan en registros a los que solo se pueden añadir entradas y que firman los testigos que nombra la política de confianza, para que votantes y observadores puedan comprobar que no se ha eliminado ni cambiado nada.",
             loading: "Cargando la transparencia del evento...",
             loadError: "No se pudo cargar la transparencia del evento: {{reason}}",
             unknownError: "error desconocido",
@@ -7187,8 +7187,9 @@ const spanishTranslation: TranslationType = {
                     public: "Registro público",
                     private: "Registro privado",
                     quorum: "política de testigos {{k}} de {{n}}",
-                    hubs_one: "{{count}} centro de anclaje, {{independent}} independiente",
-                    hubs_other: "{{count}} centros de anclaje, {{independent}} independientes",
+                    hubs_one: "{{count}} centro de anclaje",
+                    hubs_other: "{{count}} centros de anclaje",
+                    hubsOutside: "{{count}} gestionados por una parte distinta de la autoridad electoral y de la plataforma",
                     mmd: "retraso máximo de fusión {{duration}}",
                     locked: "bloqueado desde que se abrió la votación",
                     explorerPublic: "Abrir el explorador público",
@@ -7242,7 +7243,7 @@ const spanishTranslation: TranslationType = {
                 anchoring: {
                     title: "Anclaje",
                     sub: "centros cada {{hubs}} · navegadores cada {{browsers}}",
-                    independent: "Gestionado por {{party}}, independiente de {{operator}}",
+                    rule: "Regla: de {{min}} centros de anclaje, al menos {{outside}} deben estar gestionados por una parte distinta de la autoridad electoral y de la plataforma.",
                     noAnchor: "Aún sin ancla",
                     browserLayer: "Capa de navegadores",
                     browserLayerSub: "Los centros de la aplicación anclan en {{hubs}}",
@@ -7287,7 +7288,7 @@ const spanishTranslation: TranslationType = {
                     none: "Esta política de confianza no permite ninguna retirada de datos.",
                 },
                 monitors: {
-                    title: "Monitores independientes",
+                    title: "Monitores",
                     list_one:
                         "La política de confianza nombra un monitor: {{names}}. Los verificadores, entre ellos los navegadores de los votantes, le envían gossip, promesas y evidencias.",
                     list_other:
@@ -7337,9 +7338,13 @@ const spanishTranslation: TranslationType = {
                 draftTitle: "Borrador para la Junta Electoral",
                 draftHelp:
                     "Descargue el borrador y entrégueselo a la Junta Electoral. La Junta lo comprueba, lo sella y lo firma con la herramienta de línea de comandos de Vitrine, y consigue la firma de cualquier otra autoridad que nombre su línea sign. Después, suba aquí la política firmada.",
-                draftWords: "Las ocho palabras del borrador",
-                draftWordsHelp:
-                    "La Junta comprueba que «vitrine policy words» muestra estas palabras para el archivo que recibió.",
+                draftId: "El hash del borrador",
+                draftIdHelp:
+                    "La Junta comprueba que «vitrine policy id» muestra este hash para el archivo que recibió. Un borrador no tiene identificador de política hasta que se sella.",
+                draftTag: "Borrador",
+                shortId: "Identificador de la política, primeros cuatro grupos",
+                shortIdHelp:
+                    "Las personas comparan estos grupos con la convocatoria oficial. Las herramientas comparan los 13.",
                 download: "Descargar el borrador",
                 commands: "Los comandos de la Junta",
                 invalidDraft: "El borrador de la política no es válido: {{reason}}",
@@ -7347,7 +7352,7 @@ const spanishTranslation: TranslationType = {
                     "El borrador del evento cambió después de sellar esta política. La Junta debe sellar y firmar el nuevo borrador, que luego se sube como sucesora.",
                 sealedTitle: "La política del evento",
                 sealedHelp:
-                    "Publique el identificador de la política y sus seis palabras en la convocatoria oficial de la elección, para que votantes y observadores reconozcan la política con la que se comprueban sus recibos.",
+                    "Publique el identificador de la política en la convocatoria oficial de la elección, para que votantes y observadores reconozcan la política con la que se comprueban sus recibos. Se comparan sus primeros cuatro grupos.",
                 idMismatch:
                     "Los registros indican el identificador de política {{id}}, que no es el de esta política.",
                 invalidStored: "La política guardada del evento no es válida: {{reason}}",
@@ -7360,7 +7365,7 @@ const spanishTranslation: TranslationType = {
                 text: "Política firmada",
                 readError: "No se pudo leer el archivo.",
                 tooLarge: "Esto es más grande de lo que puede ser una política de confianza.",
-                draft: "Esto es un borrador sin sellar, cuyas palabras son {{words}}. Primero la Junta Electoral debe sellarlo y firmarlo.",
+                draft: "Esto es un borrador sin sellar, cuyo hash es {{id}}. Primero la Junta Electoral debe sellarlo y firmarlo.",
                 invalid: "Esto no es una política firmada válida: {{reason}}",
                 preview: "Compruebe estos datos con la Junta Electoral antes de subir la política.",
                 otherEvent: "Esta política es de otro evento electoral.",
@@ -7369,7 +7374,7 @@ const spanishTranslation: TranslationType = {
                 notFromDraft: "Esta política no se selló a partir del borrador actual del evento.",
                 submit: "Subir la política",
                 uploaded:
-                    "Se subió la política. Publique su identificador y sus seis palabras en la convocatoria oficial de la elección.",
+                    "Se subió la política. Publique su identificador en la convocatoria oficial de la elección.",
                 error: "No se pudo subir la política: {{reason}}",
             },
             logs: {

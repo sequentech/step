@@ -7110,7 +7110,7 @@ const frenchTranslation: TranslationType = {
         },
         transparencyTab: {
             title: "Transparence",
-            help: "Avec Vitrine, les bulletins et les étapes de l'événement sont inscrits dans des journaux auxquels on ne peut qu'ajouter des entrées et que signent des témoins indépendants, afin que les électeurs et les observateurs puissent vérifier que rien n'a été supprimé ni modifié.",
+            help: "Avec Vitrine, les bulletins et les étapes de l'événement sont inscrits dans des journaux auxquels on ne peut qu'ajouter des entrées et que signent les témoins que nomme la politique de confiance, afin que les électeurs et les observateurs puissent vérifier que rien n'a été supprimé ni modifié.",
             loading: "Chargement de la transparence de l'événement...",
             loadError: "La transparence de l'événement n'a pas pu être chargée : {{reason}}",
             unknownError: "erreur inconnue",
@@ -7167,8 +7167,9 @@ const frenchTranslation: TranslationType = {
                     public: "Registre public",
                     private: "Registre privé",
                     quorum: "politique de témoins {{k}} sur {{n}}",
-                    hubs_one: "{{count}} pôle d'ancrage, {{independent}} indépendant",
-                    hubs_other: "{{count}} pôles d'ancrage, {{independent}} indépendants",
+                    hubs_one: "{{count}} pôle d'ancrage",
+                    hubs_other: "{{count}} pôles d'ancrage",
+                    hubsOutside: "{{count}} gérés par une partie autre que l'autorité électorale et la plateforme",
                     mmd: "délai maximal de fusion {{duration}}",
                     locked: "verrouillé depuis l'ouverture du vote",
                     explorerPublic: "Ouvrir l'explorateur public",
@@ -7221,7 +7222,7 @@ const frenchTranslation: TranslationType = {
                 anchoring: {
                     title: "Ancrage",
                     sub: "pôles toutes les {{hubs}} · navigateurs toutes les {{browsers}}",
-                    independent: "Géré par {{party}}, indépendant de {{operator}}",
+                    rule: "Règle : sur {{min}} pôles d'ancrage, au moins {{outside}} doivent être gérés par une partie autre que l'autorité électorale et la plateforme.",
                     noAnchor: "Pas encore d'ancre",
                     browserLayer: "Couche des navigateurs",
                     browserLayerSub: "Les pôles de l'application s'ancrent dans {{hubs}}",
@@ -7266,7 +7267,7 @@ const frenchTranslation: TranslationType = {
                     none: "Cette politique de confiance n'autorise aucun retrait de données.",
                 },
                 monitors: {
-                    title: "Moniteurs indépendants",
+                    title: "Moniteurs",
                     list_one:
                         "La politique de confiance nomme un moniteur : {{names}}. Les vérificateurs, dont les navigateurs des électeurs, lui envoient du gossip, des promesses et des preuves.",
                     list_other:
@@ -7316,9 +7317,13 @@ const frenchTranslation: TranslationType = {
                 draftTitle: "Brouillon pour la commission électorale",
                 draftHelp:
                     "Téléchargez le brouillon et remettez-le à la commission électorale. La commission le vérifie, le scelle et le signe avec l'outil en ligne de commande de Vitrine, et le fait aussi signer par toute autre autorité que nomme sa ligne sign. Téléversez ensuite ici la politique signée.",
-                draftWords: "Les huit mots du brouillon",
-                draftWordsHelp:
-                    "La commission vérifie que « vitrine policy words » affiche ces mots pour le fichier qu'elle a reçu.",
+                draftId: "Le hachage du brouillon",
+                draftIdHelp:
+                    "La commission vérifie que « vitrine policy id » affiche ce hachage pour le fichier qu'elle a reçu. Un brouillon n'a pas d'identifiant de politique avant d'être scellé.",
+                draftTag: "Brouillon",
+                shortId: "Identifiant de la politique, quatre premiers groupes",
+                shortIdHelp:
+                    "Les personnes comparent ces groupes avec l'avis officiel. Les outils comparent les 13.",
                 download: "Télécharger le brouillon",
                 commands: "Les commandes de la commission",
                 invalidDraft: "Le brouillon de la politique n'est pas valide : {{reason}}",
@@ -7326,7 +7331,7 @@ const frenchTranslation: TranslationType = {
                     "Le brouillon de l'événement a changé après le scellement de cette politique. La commission doit sceller et signer le nouveau brouillon, qui est ensuite téléversé comme successeur.",
                 sealedTitle: "La politique de l'événement",
                 sealedHelp:
-                    "Publiez l'identifiant de la politique et ses six mots dans l'avis officiel de l'élection, afin que les électeurs et les observateurs reconnaissent la politique selon laquelle leurs reçus sont vérifiés.",
+                    "Publiez l'identifiant de la politique dans l'avis officiel de l'élection, afin que les électeurs et les observateurs reconnaissent la politique selon laquelle leurs reçus sont vérifiés. On compare ses quatre premiers groupes.",
                 idMismatch:
                     "Les journaux indiquent l'identifiant de politique {{id}}, qui n'est pas celui de cette politique.",
                 invalidStored:
@@ -7340,7 +7345,7 @@ const frenchTranslation: TranslationType = {
                 text: "Politique signée",
                 readError: "Le fichier n'a pas pu être lu.",
                 tooLarge: "C'est plus volumineux qu'une politique de confiance ne peut l'être.",
-                draft: "C'est un brouillon non scellé, dont les mots sont {{words}}. La commission électorale doit d'abord le sceller et le signer.",
+                draft: "C'est un brouillon non scellé, dont le hachage est {{id}}. La commission électorale doit d'abord le sceller et le signer.",
                 invalid: "Ce n'est pas une politique signée valide : {{reason}}",
                 preview:
                     "Vérifiez ces informations avec la commission électorale avant de téléverser la politique.",
@@ -7351,7 +7356,7 @@ const frenchTranslation: TranslationType = {
                     "Cette politique n'a pas été scellée à partir du brouillon actuel de l'événement.",
                 submit: "Téléverser la politique",
                 uploaded:
-                    "La politique a été téléversée. Publiez son identifiant et ses six mots dans l'avis officiel de l'élection.",
+                    "La politique a été téléversée. Publiez son identifiant dans l'avis officiel de l'élection.",
                 error: "La politique n'a pas pu être téléversée : {{reason}}",
             },
             logs: {

@@ -7079,7 +7079,7 @@ const catalanTranslation: TranslationType = {
         },
         transparencyTab: {
             title: "Transparència",
-            help: "Amb Vitrine, les paperetes i les fites de l'esdeveniment s'anoten en registres als quals només es poden afegir entrades i que signen testimonis independents, perquè votants i observadors puguin comprovar que no s'ha eliminat ni canviat res.",
+            help: "Amb Vitrine, les paperetes i les fites de l'esdeveniment s'anoten en registres als quals només es poden afegir entrades i que signen els testimonis que anomena la política de confiança, perquè votants i observadors puguin comprovar que no s'ha eliminat ni canviat res.",
             loading: "S'està carregant la transparència de l'esdeveniment...",
             loadError: "No s'ha pogut carregar la transparència de l'esdeveniment: {{reason}}",
             unknownError: "error desconegut",
@@ -7136,8 +7136,9 @@ const catalanTranslation: TranslationType = {
                     public: "Registre públic",
                     private: "Registre privat",
                     quorum: "política de testimonis {{k}} de {{n}}",
-                    hubs_one: "{{count}} node d'ancoratge, {{independent}} independent",
-                    hubs_other: "{{count}} nodes d'ancoratge, {{independent}} independents",
+                    hubs_one: "{{count}} node d'ancoratge",
+                    hubs_other: "{{count}} nodes d'ancoratge",
+                    hubsOutside: "{{count}} gestionats per una part diferent de l'autoritat electoral i de la plataforma",
                     mmd: "retard màxim de fusió {{duration}}",
                     locked: "bloquejat des de l'obertura de la votació",
                     explorerPublic: "Obre l'explorador públic",
@@ -7190,7 +7191,7 @@ const catalanTranslation: TranslationType = {
                 anchoring: {
                     title: "Ancoratge",
                     sub: "nodes cada {{hubs}} · navegadors cada {{browsers}}",
-                    independent: "Gestionat per {{party}}, independent de {{operator}}",
+                    rule: "Regla: de {{min}} nodes d'ancoratge, almenys {{outside}} han d'estar gestionats per una part diferent de l'autoritat electoral i de la plataforma.",
                     noAnchor: "Encara sense àncora",
                     browserLayer: "Capa de navegadors",
                     browserLayerSub: "Els nodes de l'aplicació ancoren a {{hubs}}",
@@ -7235,7 +7236,7 @@ const catalanTranslation: TranslationType = {
                     none: "Aquesta política de confiança no permet cap retirada de dades.",
                 },
                 monitors: {
-                    title: "Monitors independents",
+                    title: "Monitors",
                     list_one:
                         "La política de confiança anomena un monitor: {{names}}. Els verificadors, entre ells els navegadors dels votants, li envien gossip, promeses i evidències.",
                     list_other:
@@ -7287,9 +7288,13 @@ const catalanTranslation: TranslationType = {
                 draftTitle: "Esborrany per a la Junta Electoral",
                 draftHelp:
                     "Baixeu l'esborrany i lliureu-lo a la Junta Electoral. La Junta el comprova, el segella i el signa amb l'eina de línia d'ordres de Vitrine, i aconsegueix la signatura de qualsevol altra autoritat que anomeni la seva línia sign. Després, pugeu aquí la política signada.",
-                draftWords: "Les vuit paraules de l'esborrany",
-                draftWordsHelp:
-                    "La Junta comprova que «vitrine policy words» mostra aquestes paraules per al fitxer que ha rebut.",
+                draftId: "El hash de l'esborrany",
+                draftIdHelp:
+                    "La Junta comprova que «vitrine policy id» mostra aquest hash per al fitxer que ha rebut. Un esborrany no té identificador de política fins que es segella.",
+                draftTag: "Esborrany",
+                shortId: "Identificador de la política, primers quatre grups",
+                shortIdHelp:
+                    "Les persones comparen aquests grups amb la convocatòria oficial. Les eines comparen els 13.",
                 download: "Baixa l'esborrany",
                 commands: "Les ordres de la Junta",
                 invalidDraft: "L'esborrany de la política no és vàlid: {{reason}}",
@@ -7297,7 +7302,7 @@ const catalanTranslation: TranslationType = {
                     "L'esborrany de l'esdeveniment ha canviat després de segellar aquesta política. La Junta ha de segellar i signar el nou esborrany, que després es puja com a successora.",
                 sealedTitle: "La política de l'esdeveniment",
                 sealedHelp:
-                    "Publiqueu l'identificador de la política i les seves sis paraules a la convocatòria oficial de l'elecció, perquè votants i observadors reconeguin la política amb què es comproven els seus comprovants.",
+                    "Publiqueu l'identificador de la política a la convocatòria oficial de l'elecció, perquè votants i observadors reconeguin la política amb què es comproven els seus comprovants. Se'n comparen els primers quatre grups.",
                 idMismatch:
                     "Els registres indiquen l'identificador de política {{id}}, que no és el d'aquesta política.",
                 invalidStored: "La política desada de l'esdeveniment no és vàlida: {{reason}}",
@@ -7310,7 +7315,7 @@ const catalanTranslation: TranslationType = {
                 text: "Política signada",
                 readError: "No s'ha pogut llegir el fitxer.",
                 tooLarge: "Això és més gran del que pot ser una política de confiança.",
-                draft: "Això és un esborrany sense segellar, amb les paraules {{words}}. Primer la Junta Electoral l'ha de segellar i signar.",
+                draft: "Això és un esborrany sense segellar, amb el hash {{id}}. Primer la Junta Electoral l'ha de segellar i signar.",
                 invalid: "Això no és una política signada vàlida: {{reason}}",
                 preview:
                     "Comproveu aquestes dades amb la Junta Electoral abans de pujar la política.",
@@ -7321,7 +7326,7 @@ const catalanTranslation: TranslationType = {
                     "Aquesta política no s'ha segellat a partir de l'esborrany actual de l'esdeveniment.",
                 submit: "Puja la política",
                 uploaded:
-                    "S'ha pujat la política. Publiqueu-ne l'identificador i les sis paraules a la convocatòria oficial de l'elecció.",
+                    "S'ha pujat la política. Publiqueu-ne l'identificador a la convocatòria oficial de l'elecció.",
                 error: "No s'ha pogut pujar la política: {{reason}}",
             },
             logs: {

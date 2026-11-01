@@ -4,7 +4,7 @@
 
 // How the Transparency tab reads Harvest's TransparencyOutput
 // (step-integration.md, section 2.8). All of it is data: the sidecar's JSON is
-// read field by field, and a policy's ID and words come from @vitrine/verify,
+// read field by field, and a policy's ID, in groups, comes from @vitrine/verify,
 // never from the server.
 
 import type * as VitrineVerify from "@vitrine/verify"
@@ -82,11 +82,12 @@ export enum EPolicyState {
 
 export type TPolicyExamination =
     | {state: EPolicyState.SEALED; policy: Policy; summary: PolicySummary}
-    | {state: EPolicyState.DRAFT; policy: Policy; words: string[]}
+    | {state: EPolicyState.DRAFT; policy: Policy; draftId: string; shortDraftId: string}
     | {state: EPolicyState.INVALID; reason: Reason}
 
 /** What `text` is: a valid sealed policy with its summary, a draft with its
- * eight words, or neither, with the verifier's reason. */
+ * draft hash in groups (a draft has no policy ID), or neither, with the
+ * verifier's reason. */
 export const examinePolicy = (verify: TVitrineVerify, text: string): TPolicyExamination => {
     try {
         const policy = verify.pinPolicy(text)
@@ -95,7 +96,12 @@ export const examinePolicy = (verify: TVitrineVerify, text: string): TPolicyExam
         try {
             const draft = verify.parsePolicy(text, {allowDraft: true, requireSignatures: false})
             if (draft.draft) {
-                return {state: EPolicyState.DRAFT, policy: draft, words: verify.policyWords(draft)}
+                return {
+                    state: EPolicyState.DRAFT,
+                    policy: draft,
+                    draftId: verify.policyIdDisplay(draft.id),
+                    shortDraftId: verify.shortPolicyId(draft.id),
+                }
             }
         } catch {
             // Not a draft either: the first error says why.
@@ -154,7 +160,7 @@ export const signedPolicyFileName = (electionEventId: string): string =>
     `vitrine-policy-${electionEventId}-signed.txt`
 
 /** The Board's commands for the draft (Vitrine's docs/operations.md, section
- * 10.2): check it, compare its words with the tab's, seal and sign it, and
+ * 10.2): check it, compare its draft hash with the tab's, seal and sign it, and
  * have any other authority the `sign` line needs sign it too. */
 export const boardCommands = (electionEventId: string): string[] => {
     const draft = draftFileName(electionEventId)
@@ -162,7 +168,7 @@ export const boardCommands = (electionEventId: string): string[] => {
     const signed = signedPolicyFileName(electionEventId)
     return [
         `vitrine policy check ${draft}`,
-        `vitrine policy words ${draft}`,
+        `vitrine policy id ${draft}`,
         `vitrine policy seal ${draft} --key <board key file> --out ${sealed}`,
         `vitrine policy sign ${sealed} --key <authority key file> --out ${signed}`,
     ]

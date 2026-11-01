@@ -7029,7 +7029,7 @@ const galegoTranslation: TranslationType = {
         },
         transparencyTab: {
             title: "Transparencia",
-            help: "Con Vitrine, as papeletas e os fitos do evento anótanse en rexistros aos que só se poden engadir entradas e que asinan testemuñas independentes, para que votantes e observadores poidan comprobar que non se eliminou nin cambiou nada.",
+            help: "Con Vitrine, as papeletas e os fitos do evento anótanse en rexistros aos que só se poden engadir entradas e que asinan as testemuñas que nomea a política de confianza, para que votantes e observadores poidan comprobar que non se eliminou nin cambiou nada.",
             loading: "Cargando a transparencia do evento...",
             loadError: "Non se puido cargar a transparencia do evento: {{reason}}",
             unknownError: "erro descoñecido",
@@ -7086,8 +7086,9 @@ const galegoTranslation: TranslationType = {
                     public: "Rexistro público",
                     private: "Rexistro privado",
                     quorum: "política de testemuñas {{k}} de {{n}}",
-                    hubs_one: "{{count}} nodo de ancoraxe, {{independent}} independente",
-                    hubs_other: "{{count}} nodos de ancoraxe, {{independent}} independentes",
+                    hubs_one: "{{count}} nodo de ancoraxe",
+                    hubs_other: "{{count}} nodos de ancoraxe",
+                    hubsOutside: "{{count}} xestionados por unha parte distinta da autoridade electoral e da plataforma",
                     mmd: "atraso máximo de fusión {{duration}}",
                     locked: "bloqueado desde que se abriu a votación",
                     explorerPublic: "Abrir o explorador público",
@@ -7139,7 +7140,7 @@ const galegoTranslation: TranslationType = {
                 anchoring: {
                     title: "Ancoraxe",
                     sub: "nodos cada {{hubs}} · navegadores cada {{browsers}}",
-                    independent: "Xestionado por {{party}}, independente de {{operator}}",
+                    rule: "Regra: de {{min}} nodos de ancoraxe, polo menos {{outside}} deben estar xestionados por unha parte distinta da autoridade electoral e da plataforma.",
                     noAnchor: "Aínda sen áncora",
                     browserLayer: "Capa de navegadores",
                     browserLayerSub: "Os nodos da aplicación ancoran en {{hubs}}",
@@ -7184,7 +7185,7 @@ const galegoTranslation: TranslationType = {
                     none: "Esta política de confianza non permite ningunha retirada de datos.",
                 },
                 monitors: {
-                    title: "Monitores independentes",
+                    title: "Monitores",
                     list_one:
                         "A política de confianza nomea un monitor: {{names}}. Os verificadores, entre eles os navegadores dos votantes, envíanlle gossip, promesas e evidencias.",
                     list_other:
@@ -7234,9 +7235,13 @@ const galegoTranslation: TranslationType = {
                 draftTitle: "Borrador para a Xunta Electoral",
                 draftHelp:
                     "Descargue o borrador e entrégueo á Xunta Electoral. A Xunta compróbao, sélao e asínao coa ferramenta de liña de comandos de Vitrine, e consegue a sinatura de calquera outra autoridade que nomee a súa liña sign. Despois, suba aquí a política asinada.",
-                draftWords: "As oito palabras do borrador",
-                draftWordsHelp:
-                    "A Xunta comproba que «vitrine policy words» amosa estas palabras para o ficheiro que recibiu.",
+                draftId: "O hash do borrador",
+                draftIdHelp:
+                    "A Xunta comproba que «vitrine policy id» amosa este hash para o ficheiro que recibiu. Un borrador non ten identificador de política ata que se sela.",
+                draftTag: "Borrador",
+                shortId: "Identificador da política, primeiros catro grupos",
+                shortIdHelp:
+                    "As persoas comparan estes grupos coa convocatoria oficial. As ferramentas comparan os 13.",
                 download: "Descargar o borrador",
                 commands: "Os comandos da Xunta",
                 invalidDraft: "O borrador da política non é válido: {{reason}}",
@@ -7244,7 +7249,7 @@ const galegoTranslation: TranslationType = {
                     "O borrador do evento cambiou despois de selar esta política. A Xunta debe selar e asinar o novo borrador, que logo se sobe como sucesora.",
                 sealedTitle: "A política do evento",
                 sealedHelp:
-                    "Publique o identificador da política e as súas seis palabras na convocatoria oficial da elección, para que votantes e observadores recoñezan a política coa que se comproban os seus recibos.",
+                    "Publique o identificador da política na convocatoria oficial da elección, para que votantes e observadores recoñezan a política coa que se comproban os seus recibos. Compáranse os seus primeiros catro grupos.",
                 idMismatch:
                     "Os rexistros indican o identificador de política {{id}}, que non é o desta política.",
                 invalidStored: "A política gardada do evento non é válida: {{reason}}",
@@ -7257,7 +7262,7 @@ const galegoTranslation: TranslationType = {
                 text: "Política asinada",
                 readError: "Non se puido ler o ficheiro.",
                 tooLarge: "Isto é máis grande do que pode ser unha política de confianza.",
-                draft: "Isto é un borrador sen selar, coas palabras {{words}}. Primeiro a Xunta Electoral debe selalo e asinalo.",
+                draft: "Isto é un borrador sen selar, co hash {{id}}. Primeiro a Xunta Electoral debe selalo e asinalo.",
                 invalid: "Isto non é unha política asinada válida: {{reason}}",
                 preview: "Comprobe estes datos coa Xunta Electoral antes de subir a política.",
                 otherEvent: "Esta política é doutro evento electoral.",
@@ -7266,7 +7271,7 @@ const galegoTranslation: TranslationType = {
                 notFromDraft: "Esta política non se selou a partir do borrador actual do evento.",
                 submit: "Subir a política",
                 uploaded:
-                    "Subiuse a política. Publique o seu identificador e as súas seis palabras na convocatoria oficial da elección.",
+                    "Subiuse a política. Publique o seu identificador na convocatoria oficial da elección.",
                 error: "Non se puido subir a política: {{reason}}",
             },
             logs: {

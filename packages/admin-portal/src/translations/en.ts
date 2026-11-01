@@ -7228,7 +7228,7 @@ const englishTranslation = {
         },
         transparencyTab: {
             title: "Transparency",
-            help: "With Vitrine, the event's ballots and milestones go into append-only logs that independent witnesses sign, so that voters and observers can check that nothing was removed or changed.",
+            help: "With Vitrine, the event's ballots and milestones go into append-only logs that the witnesses named in the trust policy sign, so that voters and observers can check that nothing was removed or changed.",
             loading: "Loading the event's transparency...",
             loadError: "The event's transparency could not be loaded: {{reason}}",
             unknownError: "unknown error",
@@ -7285,8 +7285,9 @@ const englishTranslation = {
                     public: "Public record",
                     private: "Private record",
                     quorum: "witness policy {{k}} of {{n}}",
-                    hubs_one: "{{count}} anchor hub, {{independent}} independent",
-                    hubs_other: "{{count}} anchor hubs, {{independent}} independent",
+                    hubs_one: "{{count}} anchor hub",
+                    hubs_other: "{{count}} anchor hubs",
+                    hubsOutside: "{{count}} run by neither the election authority nor the platform",
                     mmd: "maximum merge delay {{duration}}",
                     locked: "locked since voting opened",
                     explorerPublic: "Open public explorer",
@@ -7336,7 +7337,7 @@ const englishTranslation = {
                 anchoring: {
                     title: "Anchoring",
                     sub: "hubs every {{hubs}} · browsers every {{browsers}}",
-                    independent: "Run by {{party}}, independent of {{operator}}",
+                    rule: "Rule: of {{min}} anchor hubs, at least {{outside}} must be run by neither the election authority nor the platform.",
                     noAnchor: "No anchor yet",
                     browserLayer: "Browser layer",
                     browserLayerSub: "App hubs anchor in {{hubs}}",
@@ -7380,7 +7381,7 @@ const englishTranslation = {
                     none: "This trust policy allows no redaction.",
                 },
                 monitors: {
-                    title: "Independent monitors",
+                    title: "Monitors",
                     list_one:
                         "The trust policy names one monitor: {{names}}. Verifiers, voters' browsers among them, send it gossip, promises and evidence.",
                     list_other:
@@ -7430,9 +7431,13 @@ const englishTranslation = {
                 draftTitle: "Draft for the Electoral Board",
                 draftHelp:
                     "Download the draft and give it to the Electoral Board. The Board checks, seals and signs it with Vitrine's command-line tool, and has any other authority its sign line names sign it too. Then upload the signed policy here.",
-                draftWords: "The draft's eight words",
-                draftWordsHelp:
-                    "The Board checks that “vitrine policy words” prints these words for the file it received.",
+                draftId: "The draft's hash",
+                draftIdHelp:
+                    "The Board checks that “vitrine policy id” prints this hash for the file it received. A draft has no policy ID until it is sealed.",
+                draftTag: "Draft",
+                shortId: "Policy ID, first four groups",
+                shortIdHelp:
+                    "People compare these groups with the official notice. Tools compare all 13.",
                 download: "Download the draft",
                 commands: "The Board's commands",
                 invalidDraft: "The draft policy is not valid: {{reason}}",
@@ -7440,7 +7445,7 @@ const englishTranslation = {
                     "The event's draft changed after this policy was sealed. The Board must seal and sign the new draft, which is then uploaded as a successor.",
                 sealedTitle: "The event's policy",
                 sealedHelp:
-                    "Publish the policy ID and its six words in the official election notice, so that voters and observers can recognise the policy their receipts are checked against.",
+                    "Publish the policy ID in the official election notice, so that voters and observers can recognise the policy their receipts are checked against. People compare its first four groups.",
                 idMismatch: "The logs report the policy ID {{id}}, which is not this policy's.",
                 invalidStored: "The event's stored policy is not valid: {{reason}}",
             },
@@ -7452,7 +7457,7 @@ const englishTranslation = {
                 text: "Signed policy",
                 readError: "The file could not be read.",
                 tooLarge: "This is larger than a trust policy can be.",
-                draft: "This is an unsealed draft, whose words are {{words}}. The Electoral Board must seal and sign it first.",
+                draft: "This is an unsealed draft, whose hash is {{id}}. The Electoral Board must seal and sign it first.",
                 invalid: "This is not a valid signed policy: {{reason}}",
                 preview: "Check these facts with the Electoral Board before uploading the policy.",
                 otherEvent: "This policy is for another election event.",
@@ -7461,7 +7466,7 @@ const englishTranslation = {
                 notFromDraft: "This policy wasn't sealed from the event's current draft.",
                 submit: "Upload the policy",
                 uploaded:
-                    "The policy was uploaded. Publish its ID and its six words in the official election notice.",
+                    "The policy was uploaded. Publish its ID in the official election notice.",
                 error: "The policy could not be uploaded: {{reason}}",
             },
             logs: {

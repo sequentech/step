@@ -117,7 +117,7 @@ describe("policyFacts", () => {
             operator: "sequent",
             quorum: {k: 2, n: 3},
             appHubs: 2,
-            independentHubs: 2,
+            outsideHubs: 2,
             bootstrapHubs: [],
             mmd: 60,
             anchorPeriod: 10,
@@ -128,6 +128,16 @@ describe("policyFacts", () => {
             ],
             monitorQuorum: 2,
         })
+    })
+
+    it("counts the hubs run by neither the operator nor the platform", () => {
+        const facts = policyFacts(
+            verify.parsePolicy(policyText({platform: "hubco2", anchorHubs: true}))
+        )
+        expect(facts.platform).toBe("hubco2")
+        expect(facts.appHubs).toBe(2)
+        expect(facts.outsideHubs).toBe(1)
+        expect(facts.hubRule).toEqual({min: 2, outside: 1})
     })
 
     it("counts a bootstrap hub apart from the app hubs", () => {
@@ -195,8 +205,8 @@ describe("witnessRows", () => {
 describe("hubRows and recordFigures", () => {
     it("gives each app hub its operator and last anchor", () => {
         expect(hubRows(policy(), logs())).toEqual([
-            {name: "h1", operator: "hubco1", independent: true, lastAnchor: NOW - 90},
-            {name: "h2", operator: "hubco2", independent: true},
+            {name: "h1", operator: "hubco1", lastAnchor: NOW - 90},
+            {name: "h2", operator: "hubco2"},
         ])
     })
 
