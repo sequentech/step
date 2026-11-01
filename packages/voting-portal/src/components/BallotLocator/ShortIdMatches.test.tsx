@@ -26,7 +26,6 @@ const match = (third: string, extra: Partial<IShortIdMatch> = {}): IShortIdMatch
     at: 1_700_000_000,
     event: "e",
     election: "el",
-    onDevice: false,
     ...extra,
 })
 
@@ -87,22 +86,14 @@ describe("the ballots that share a short ID", () => {
         expect(screen.getByText("ballotLocator.shortId.why.many")).toBeTruthy()
     })
 
-    it("marks the ballot of this device and keeps the look-alikes listed", () => {
-        show(
-            result({
-                matches: [match("71J7", {onDevice: true}), match("0WDY")],
-                total: 2,
-                mine: match("71J7").trackingId,
-            }),
-            {hrefOf: (m) => `/${m.trackingId}`}
-        )
-        expect(screen.getByText(/shortId\.head\.mine.*"count":1/)).toBeTruthy()
-        expect(screen.getByText("ballotLocator.shortId.onDevice")).toBeTruthy()
-        expect(screen.getByText("ballotLocator.shortId.deviceMatches")).toBeTruthy()
+    it("marks no ballot as on this device, and asks for the third group from the receipt", () => {
+        const {container} = show(result({matches: [match("71J7"), match("0WDY")], total: 2}), {
+            hrefOf: (m) => `/${m.trackingId}`,
+        })
         expect(screen.getAllByRole("link")).toHaveLength(2)
-        // The device settles it: the voter is never asked to choose.
-        expect(screen.queryByLabelText("ballotLocator.shortId.thirdOr")).toBeNull()
-        expect(screen.getByText("ballotLocator.shortId.why.mine")).toBeTruthy()
+        expect(container.querySelector(".short-id-match-device")).toBeNull()
+        expect(screen.queryByText(/onDevice|deviceMatches|\.mine/)).toBeNull()
+        expect(screen.getByLabelText("ballotLocator.shortId.thirdOr")).toBeTruthy()
     })
 
     it("narrows with the third group the voter types", async () => {

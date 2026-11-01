@@ -736,25 +736,19 @@ const basqueTranslation: TranslationType = {
                     one: "Boto-txartel 1ek hasiera hau du: {{start}}",
                     other: "{{count}} boto-txartelek hasiera hau dute: {{start}}",
                     atLeast: "{{count}} boto-txartelek edo gehiagok hasiera hau dute: {{start}}",
-                    mine: "Zure boto-txartela eta hasiera hau duten beste {{count}}: {{start}}",
-                    mineAlone: "Zure boto-txartelak hasiera hau du: {{start}}",
                 },
                 sub: {
                     few: "Zein da zurea? Konparatu nabarmendutako taldea zure ordainagiriarekin, edo idatzi behean.",
                     one: "Ireki eta konparatu bere jarraipen ID osoa zure ordainagiriarekin.",
                     many: "Erakusten ditugunak baino gehiago dira. Idatzi zure ordainagiriko hirugarren taldea zurea aurkitzeko.",
-                    mine: "Gailu honek zure ordainagiria gordetzen du, beraz badaki zein den zurea.",
                 },
                 why: {
-                    few: "ID laburrak boto-txartelak aurkitzen ditu. Jarraipen ID osoak edo zure gailuko ordainagiriak soilik esaten du zein den zurea.",
+                    few: "ID laburrak boto-txartelak aurkitzen ditu. Zure ordainagiriko jarraipen ID osoak soilik esaten du zein den zurea.",
                     many: "Hainbeste izateak normalean esan nahi du norbaitek nahita sortu dituela ID labur honekin bat datozen boto-txartelak. Zurea erregistroan dago oraindik: hiru taldeak asmatzeak mila trilioi saiakera inguru beharko luke.",
-                    mine: "Besteak beste boto-emaile batzuenak dira. Zerrendatuta daude, antzeko batek zurearen lekua har ez dezan.",
                 },
                 third: "Zure ordainagiriko hirugarren taldea",
                 thirdOr: "Edo idatzi zure ordainagiriko hirugarren taldea",
                 find: "Bilatu",
-                onDevice: "Gailu honetan",
-                deviceMatches: "Gailu honetako ordainagiriak 13 taldeekin bat egiten du",
                 serverSees:
                     "Erregistroaren zerbitzariek ezin izan dute bilaketa hau egin zein boto-txartel nahi duzun jakin gabe; beraz, hauteskundeko zerbitzariari ID zehatz hau eskatu zaio eta ikusi ahal izan du.",
             },
@@ -864,9 +858,7 @@ const basqueTranslation: TranslationType = {
                 howToReportText:
                     "Gorde frogaren fitxategia eta bidali hauteskunde-agintaritzari edo behatzaile bati. Beren ordenagailuetan egiaztatu dezakete. Ez du ezer jasotzen nola bozkatu duzun.",
                 noReceipt:
-                    "Gailu honek ez du boto-txartel honen hartu-agiririk. Egiaztatu bozkatzeko erabili zenuen gailuan, edo egiaztatu hartu-agiriaren fitxategia boto-txartelen egiaztatzailean.",
-                receiptPending:
-                    "Gailu honek boto-txartel honen hartu-agiria gordetzen du, baina ez dago osorik edo ezin izan da orain egiaztatu. Saiatu berriro geroago, edo egiaztatu hartu-agiriaren fitxategia boto-txartelen egiaztatzailean.",
+                    "Ezin izan da hemen boto-txartel honen hartu-agiririk egiaztatu. Egiaztatu gorde zenuen hartu-agiriaren fitxategia boto-txartelen egiaztatzailean, edo saiatu berriro geroago.",
                 status: {
                     checking: {
                         head: "Egiaztatzen…",
@@ -1018,9 +1010,7 @@ const basqueTranslation: TranslationType = {
                     "Ez zaude ziur atariak ondo zifratu dituela zure aukerak? Auditatu boto-paper hau: atariak nola zifratu zuen agertzen du, zuk egiazta dezazun. Auditatutako boto-papera ezin da inoiz bidali, beraz gero berriro bozkatzen duzu.",
                 cast: "{{when}}(e)an eman da",
                 audited: "{{when}}(e)an auditatu da",
-                ballotCast: "Boto emana",
                 aria: "Bozketaren egoera: {{state}}. Erakutsi xehetasunak",
-                ariaCast: "Boto emana. Bozketaren egoera: {{state}}. Erakutsi xehetasunak",
                 tooltip: "{{state}} · Erakutsi xehetasunak",
                 tracker: "Ireki txartelen jarraitzailean",
                 save: "Gorde ordainagiria",
@@ -1137,10 +1127,7 @@ const basqueTranslation: TranslationType = {
                     skipped: "—",
                 },
                 callout: {
-                    late: "Normalean gune bat motela edo lineaz kanpo dagoela esan nahi du; ez da manipulazioaren froga.",
-                    lateKept:
-                        "Gailu honek berriro egiaztatzen du itzultzen zaren bakoitzean, eta txartelen jarraitzaileak edozein gailutatik egiazta dezake.",
-                    lateTracker: "Txartelen jarraitzaileak edozein gailutatik egiazta dezake.",
+                    late: "Normalean gune bat motela edo lineaz kanpo dagoela esan nahi du; ez da manipulazioaren froga. Egiaztatu berriro geroago zure ordainagiriarekin, txartelen jarraitzailean edo gune batean, edozein gailutatik.",
                     evidence:
                         "Zure nabigatzaileak frogak gorde ditu: ordainagiri hau eta erregistroaren sarrera sinatua. Bidali hauteskunde-agintaritzari edo behatzaile bati; edonork egiazta dezake.",
                     saveEvidence: "Gorde frogak",
@@ -1155,7 +1142,7 @@ const basqueTranslation: TranslationType = {
                         "Zure nabigatzaileak deszifratua, edonork ikuska dezakeen kodearekin.",
                     verified: "Zure nabigatzaileak egiaztatua, edonork ikuska dezakeen kodearekin.",
                     checked: "Zure nabigatzaileak egiaztatua, edonork ikuska dezakeen kodearekin.",
-                    kept: "Gailu honek ordainagiria gordetzen du eta bisita bakoitzean berriro egiaztatzen du.",
+                    keep: "Gorde zure ordainagiria geroago berriro egiaztatzeko, txartelen jarraitzailean edo gune batean.",
                 },
             },
             signers: {

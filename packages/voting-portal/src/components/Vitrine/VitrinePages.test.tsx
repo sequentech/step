@@ -17,7 +17,7 @@ import theme from "../../../../ui-essentials/src/services/theme"
 import {EBallotStatus} from "../../services/vitrine/ballotStatus"
 import {EReceiptNotice, IReceiptView} from "../../services/vitrine/castReceipt"
 import {clockSeconds} from "../../services/vitrine/statusRows"
-import {BallotStatus, EBallotStatusTrigger, IBallotStatusProps} from "./BallotStatus"
+import {BallotStatus, IBallotStatusProps} from "./BallotStatus"
 import {ReviewBallotId} from "./ReviewBallotId"
 
 jest.mock("react-i18next", () => ({
@@ -108,7 +108,6 @@ const renderStatus = (props: Partial<IBallotStatusProps> = {}) => {
                         path="/start"
                         element={
                             <BallotStatus
-                                trigger={EBallotStatusTrigger.ICON}
                                 ballotId={BALLOT_ID}
                                 electionName="Municipal council election"
                                 trackerUrl={TRACKER}
@@ -214,49 +213,6 @@ describe("the check mark next to a Tracking ID", () => {
         expect(link.getAttribute("target")).toBeNull()
         fireEvent.click(link)
         expect(screen.getByText("the ballot tracker")).toBeTruthy()
-    })
-})
-
-describe("the ballot cast label of the ballot list", () => {
-    it("doesn't start the vote of the card around it when the dialog is clicked", () => {
-        const onCardClick = jest.fn()
-        render(
-            <ThemeProvider theme={theme}>
-                <MemoryRouter>
-                    <div className="election-card" onClick={onCardClick}>
-                        <BallotStatus
-                            trigger={EBallotStatusTrigger.LABEL}
-                            view={WITNESSED}
-                            ballotId={BALLOT_ID}
-                        />
-                    </div>
-                </MemoryRouter>
-            </ThemeProvider>
-        )
-        fireEvent.click(screen.getByRole("button", {name: /^vitrine.status.ariaCast/}))
-        const dialog = screen.getByRole("dialog", {name: "vitrine.status.title"})
-        fireEvent.click(dialog.querySelector(".ballot-status-sub")!)
-        fireEvent.click(within(dialog).getByRole("button", {name: "vitrine.status.ok"}))
-        expect(onCardClick).toHaveBeenCalledTimes(1)
-    })
-
-    it("is the button that opens the dialog", () => {
-        renderStatus({trigger: EBallotStatusTrigger.LABEL, view: WITNESSED, kept: true})
-        const button = screen.getByRole("button", {
-            name: `vitrine.status.ariaCast ${JSON.stringify({state: stateWords(EBallotStatus.WITNESSED)})}`,
-        })
-        expect(within(button).getByText("vitrine.status.ballotCast")).toBeTruthy()
-        fireEvent.click(button)
-        expect(screen.getByRole("dialog", {name: "vitrine.status.title"})).toBeTruthy()
-    })
-
-    it("shows a ballot that is checking until its receipt is there", () => {
-        renderStatus({trigger: EBallotStatusTrigger.LABEL, view: undefined})
-        expect(
-            screen
-                .getByRole("button", {name: /^vitrine.status.ariaCast/})
-                .getAttribute("data-status")
-        ).toBe(EBallotStatus.CHECKING)
     })
 })
 
@@ -450,7 +406,7 @@ describe("the Tracking ID box of the review screen", () => {
 
 describe("the status check mark's accessibility", () => {
     // Colour contrast needs a layout engine, and the fragments aren't whole pages.
-    it("has no violations in the review screen's box, open or shut, the ballot list, or with the dialog open", async () => {
+    it("has no violations in the review screen's box, open or shut, or with the dialog open", async () => {
         const box = render(
             <ThemeProvider theme={theme}>
                 <MemoryRouter>
@@ -458,11 +414,6 @@ describe("the status check mark's accessibility", () => {
                         ballotId={BALLOT_ID}
                         helpLabel="About your Tracking ID"
                         onHelpClick={jest.fn()}
-                    />
-                    <BallotStatus
-                        trigger={EBallotStatusTrigger.LABEL}
-                        view={WITNESSED}
-                        ballotId={BALLOT_ID}
                     />
                 </MemoryRouter>
             </ThemeProvider>
@@ -476,7 +427,7 @@ describe("the status check mark's accessibility", () => {
         expect(await check()).toEqual([])
         fireEvent.click(box.container.querySelector(".vitrine-short-ballot-id")!)
         expect(await check()).toEqual([])
-        fireEvent.click(box.getAllByRole("button", {name: /^vitrine.status.ariaCast/})[0])
+        fireEvent.click(box.getByRole("button", {name: /^vitrine.status.aria/}))
         expect(await check()).toEqual([])
     })
 })

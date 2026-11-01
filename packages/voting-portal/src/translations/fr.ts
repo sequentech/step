@@ -736,25 +736,19 @@ const frenchTranslation: TranslationType = {
                     one: "1 bulletin commence par {{start}}",
                     other: "{{count}} bulletins commencent par {{start}}",
                     atLeast: "{{count}} bulletins ou plus commencent par {{start}}",
-                    mine: "Votre bulletin, et {{count}} autres qui commencent par {{start}}",
-                    mineAlone: "Votre bulletin commence par {{start}}",
                 },
                 sub: {
                     few: "Lequel est le vôtre ? Comparez le groupe en surbrillance avec votre reçu, ou saisissez-le ci-dessous.",
                     one: "Ouvrez-le, puis comparez son identifiant de suivi complet avec votre reçu.",
                     many: "C'est plus que ce que nous listons. Saisissez le troisième groupe de votre reçu pour trouver le vôtre.",
-                    mine: "Cet appareil conserve votre reçu, il sait donc lequel est le vôtre.",
                 },
                 why: {
-                    few: "Un identifiant court trouve des bulletins. Seul l'identifiant de suivi complet, ou le reçu de votre propre appareil, dit lequel est le vôtre.",
+                    few: "Un identifiant court trouve des bulletins. Seul l'identifiant de suivi complet de votre reçu dit lequel est le vôtre.",
                     many: "Autant signifie souvent que quelqu'un a fabriqué des bulletins pour correspondre à cet identifiant court exprès. Le vôtre est toujours dans le registre : faire aussi correspondre trois groupes demanderait environ un milliard de milliards d'essais.",
-                    mine: "Les autres appartiennent à d'autres électeurs. Ils sont listés pour qu'un bulletin ressemblant ne puisse pas passer pour le vôtre.",
                 },
                 third: "Troisième groupe de votre reçu",
                 thirdOr: "Ou saisissez le troisième groupe de votre reçu",
                 find: "Chercher",
-                onDevice: "Sur cet appareil",
-                deviceMatches: "Le reçu de cet appareil correspond aux 13 groupes",
                 serverSees:
                     "Les serveurs du registre n'ont pas pu faire cette recherche sans savoir quel bulletin vous voulez ; le serveur de l'élection a donc reçu cet identifiant exact et a pu le voir.",
             },
@@ -864,9 +858,7 @@ const frenchTranslation: TranslationType = {
                 howToReportText:
                     "Enregistrez le fichier de la preuve et envoyez-le à l'autorité électorale ou à un observateur. Ils peuvent le vérifier sur leurs propres ordinateurs. Il ne contient rien sur la façon dont vous avez voté.",
                 noReceipt:
-                    "Cet appareil n'a pas de reçu pour ce bulletin. Vérifiez-le sur l'appareil avec lequel vous avez voté, ou vérifiez le fichier du reçu dans le vérificateur de bulletins.",
-                receiptPending:
-                    "Cet appareil conserve un reçu pour ce bulletin, mais il n'est pas complet ou n'a pas pu être vérifié à l'instant. Réessayez plus tard, ou vérifiez le fichier du reçu dans le vérificateur de bulletins.",
+                    "Aucun reçu pour ce bulletin n'a pu être vérifié ici. Vérifiez le fichier du reçu que vous avez gardé dans le vérificateur de bulletins, ou réessayez plus tard.",
                 status: {
                     checking: {
                         head: "Vérification…",
@@ -1016,9 +1008,7 @@ const frenchTranslation: TranslationType = {
                     "Vous n’êtes pas sûr que le portail ait bien chiffré vos choix ? Auditez ce bulletin : le portail révèle comment il l’a chiffré pour que vous le vérifiiez. Un bulletin audité ne peut jamais être déposé, vous votez donc de nouveau ensuite.",
                 cast: "Émis le {{when}}",
                 audited: "Audité le {{when}}",
-                ballotCast: "Vote émis",
                 aria: "État du bulletin : {{state}}. Afficher les détails",
-                ariaCast: "Vote émis. État du bulletin : {{state}}. Afficher les détails",
                 tooltip: "{{state}} · Afficher les détails",
                 tracker: "Ouvrir dans le suivi des bulletins",
                 save: "Enregistrer le justificatif",
@@ -1132,11 +1122,7 @@ const frenchTranslation: TranslationType = {
                     skipped: "—",
                 },
                 callout: {
-                    late: "Cela signifie en général qu’un nœud est lent ou hors ligne ; ce n’est pas une preuve de falsification.",
-                    lateKept:
-                        "Cet appareil vérifie de nouveau à chaque retour, et le suivi des bulletins peut vérifier depuis n’importe quel appareil.",
-                    lateTracker:
-                        "Le suivi des bulletins peut vérifier depuis n’importe quel appareil.",
+                    late: "Cela signifie en général qu’un nœud est lent ou hors ligne ; ce n’est pas une preuve de falsification. Vérifiez de nouveau plus tard avec votre justificatif, dans le suivi des bulletins ou sur un nœud, depuis n’importe quel appareil.",
                     evidence:
                         "Votre navigateur a conservé les preuves : ce justificatif et l’entrée signée du registre. Envoyez-les à l’autorité électorale ou à un observateur ; tout le monde peut les vérifier.",
                     saveEvidence: "Enregistrer les preuves",
@@ -1154,7 +1140,7 @@ const frenchTranslation: TranslationType = {
                         "Vérifié par votre navigateur, avec un code que chacun peut inspecter.",
                     checked:
                         "Contrôlé par votre navigateur, avec un code que chacun peut inspecter.",
-                    kept: "Cet appareil conserve le justificatif et le vérifie de nouveau à chaque visite.",
+                    keep: "Gardez votre justificatif pour le vérifier de nouveau plus tard, dans le suivi des bulletins ou sur un nœud.",
                 },
             },
             signers: {

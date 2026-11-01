@@ -52,8 +52,6 @@ jest.mock("@sequentech/ui-essentials", () => ({
         </div>
     ),
 }))
-const mockKept = jest.fn(() => ({receipts: [] as unknown[], forgetAll: jest.fn()}))
-jest.mock("../hooks/useCastReceipt", () => ({useKeptReceipts: () => mockKept()}))
 jest.mock("../providers/AuthContextProvider", () => ({
     AuthContext: require("react").createContext({isKiosk: () => false}),
 }))
@@ -342,7 +340,6 @@ test.each([false, true])("preview honors skip_election_list=%s", async (skipElec
 })
 
 describe("the ballot cast label", () => {
-    const BALLOT_ID = "ab".repeat(32)
     const voterClient = () =>
         new ApolloClient({
             cache: new InMemoryCache(),
@@ -413,40 +410,16 @@ describe("the ballot cast label", () => {
         }
     }
 
-    afterEach(() => {
-        mockKept.mockReturnValue({receipts: [], forgetAll: jest.fn()})
-    })
-
-    test("is the button that opens the status of the ballot kept on this device", async () => {
-        mockKept.mockReturnValue({
-            receipts: [
-                {kept: {electionId: "election", ballotId: BALLOT_ID, acceptedAt: 1_800_000_000}},
-            ],
-            forgetAll: jest.fn(),
-        })
-        const cleanup = await renderList()
-        try {
-            fireEvent.click(await screen.findByRole("button", {name: "vitrine.status.ariaCast"}))
-            const dialog = await screen.findByRole("dialog", {name: "vitrine.status.title"})
-            expect(dialog.querySelector(".ballot-status-short-id")?.textContent).toBe("ABAB-ABAB")
-            expect(dialog.querySelector(".ballot-status-meta")?.textContent).toContain("Election")
-            expect(
-                within(dialog)
-                    .getByRole("link", {name: "vitrine.status.tracker"})
-                    .getAttribute("href")
-            ).toBe(`/tenant/tenant/event/event/election/election/ballot-locator/${BALLOT_ID}`)
-        } finally {
-            cleanup()
-        }
-    })
-
-    test("leaves the portal's own label when this device keeps no receipt", async () => {
+    test("says Ballot cast with no check mark after a new sign-in, as this device keeps nothing", async () => {
+        event.presentation = {transparency: ETransparencyMode.PUBLIC}
         const cleanup = await renderList()
         try {
             expect(await screen.findByRole("button", {name: "Already voted"})).toBeDisabled()
-            expect(screen.queryByRole("button", {name: "vitrine.status.ariaCast"})).toBeNull()
+            expect(screen.queryByRole("button", {name: /vitrine.status.aria/})).toBeNull()
+            expect(document.querySelector(".ballot-status-button")).toBeNull()
         } finally {
             cleanup()
+            event.presentation = {}
         }
     })
 

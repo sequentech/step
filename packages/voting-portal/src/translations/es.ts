@@ -738,25 +738,19 @@ const spanishTranslation: TranslationType = {
                     one: "1 papeleta empieza por {{start}}",
                     other: "{{count}} papeletas empiezan por {{start}}",
                     atLeast: "{{count}} o más papeletas empiezan por {{start}}",
-                    mine: "Su papeleta y {{count}} más que empiezan por {{start}}",
-                    mineAlone: "Su papeleta empieza por {{start}}",
                 },
                 sub: {
                     few: "¿Cuál es la suya? Compare el grupo resaltado con su recibo, o escríbalo abajo.",
                     one: "Ábrala y compare su ID de seguimiento completo con su recibo.",
                     many: "Son más de las que mostramos. Escriba el tercer grupo de su recibo para encontrar la suya.",
-                    mine: "Este dispositivo guarda su recibo, así que sabe cuál es la suya.",
                 },
                 why: {
-                    few: "Un ID corto encuentra papeletas. Solo el ID de seguimiento completo, o el recibo de su propio dispositivo, dice cuál es la suya.",
+                    few: "Un ID corto encuentra papeletas. Solo el ID de seguimiento completo de su recibo dice cuál es la suya.",
                     many: "Tantas suele significar que alguien creó papeletas para que coincidan con este ID corto a propósito. La suya sigue en el registro: acertar también tres grupos requeriría unos mil trillones de intentos.",
-                    mine: "Las demás pertenecen a otros votantes. Se muestran para que una parecida no pueda hacerse pasar por la suya.",
                 },
                 third: "Tercer grupo de su recibo",
                 thirdOr: "O escriba el tercer grupo de su recibo",
                 find: "Buscar",
-                onDevice: "En este dispositivo",
-                deviceMatches: "El recibo de este dispositivo coincide con los 13 grupos",
                 serverSees:
                     "Los servidores del registro no pudieron hacer esta búsqueda sin saber qué papeleta busca, así que se pidió al servidor de la elección este ID exacto y pudo verlo.",
             },
@@ -866,9 +860,7 @@ const spanishTranslation: TranslationType = {
                 howToReportText:
                     "Guarde el archivo de la prueba y envíelo a la autoridad electoral o a un observador. Pueden comprobarlo en sus propios ordenadores. No contiene nada sobre cómo votó.",
                 noReceipt:
-                    "Este dispositivo no tiene el recibo de esta papeleta. Compruébela en el dispositivo con el que votó, o compruebe el archivo del recibo en el verificador de papeletas.",
-                receiptPending:
-                    "Este dispositivo guarda un recibo de esta papeleta, pero no está completo o no se pudo comprobar ahora. Inténtelo de nuevo más tarde, o compruebe el archivo del recibo en el verificador de papeletas.",
+                    "Aquí no se pudo comprobar ningún recibo de esta papeleta. Compruebe el archivo del recibo que guardó en el verificador de papeletas, o inténtelo de nuevo más tarde.",
                 status: {
                     checking: {
                         head: "Comprobando…",
@@ -1019,9 +1011,7 @@ const spanishTranslation: TranslationType = {
                     "¿No estás seguro de que el portal haya cifrado bien tus opciones? Audita esta papeleta: el portal revela cómo la cifró para que lo compruebes. Una papeleta auditada nunca puede emitirse, así que después votas de nuevo.",
                 cast: "Emitida el {{when}}",
                 audited: "Auditada el {{when}}",
-                ballotCast: "Voto emitido",
                 aria: "Estado de la papeleta: {{state}}. Mostrar detalles",
-                ariaCast: "Voto emitido. Estado de la papeleta: {{state}}. Mostrar detalles",
                 tooltip: "{{state}} · Mostrar detalles",
                 tracker: "Abrir en el rastreador de papeletas",
                 save: "Guardar el justificante",
@@ -1136,11 +1126,7 @@ const spanishTranslation: TranslationType = {
                     skipped: "—",
                 },
                 callout: {
-                    late: "Suele significar que un nodo va lento o está fuera de línea; no es prueba de manipulación.",
-                    lateKept:
-                        "Este dispositivo vuelve a comprobarlo cada vez que regresa, y el rastreador de papeletas puede comprobarlo desde cualquier dispositivo.",
-                    lateTracker:
-                        "El rastreador de papeletas puede comprobarlo desde cualquier dispositivo.",
+                    late: "Suele significar que un nodo va lento o está fuera de línea; no es prueba de manipulación. Vuelva a comprobarlo más tarde con su justificante, en el rastreador de papeletas o en un nodo, desde cualquier dispositivo.",
                     evidence:
                         "Su navegador guardó la evidencia: este justificante y la entrada firmada del registro. Envíela a la autoridad electoral o a un observador; cualquiera puede comprobarla.",
                     saveEvidence: "Guardar la evidencia",
@@ -1158,7 +1144,7 @@ const spanishTranslation: TranslationType = {
                         "Verificado por su navegador, con código que cualquiera puede inspeccionar.",
                     checked:
                         "Comprobado por su navegador, con código que cualquiera puede inspeccionar.",
-                    kept: "Este dispositivo guarda el justificante y lo vuelve a comprobar en cada visita.",
+                    keep: "Guarde su justificante para volver a comprobarlo más tarde, en el rastreador de papeletas o en un nodo.",
                 },
             },
             signers: {

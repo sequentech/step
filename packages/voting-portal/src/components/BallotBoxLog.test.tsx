@@ -324,7 +324,6 @@ describe("a short ID searched in the log", () => {
                 at: 1_793_270_528,
                 event: "event",
                 election: "election-9",
-                onDevice: false,
             },
         ],
         total: 1,

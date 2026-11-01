@@ -18,7 +18,7 @@ import {BallotHashCopyButton, IconButton, theme} from "@sequentech/ui-essentials
 import {groupBallotId, shortBallotId} from "../../services/vitrine/ballotId"
 import {EBallotStatus, EBallotTag} from "../../services/vitrine/ballotStatus"
 import type {IReceiptView} from "../../services/vitrine/castReceipt"
-import {BallotStatus, EBallotStatusTrigger} from "./BallotStatus"
+import {BallotStatus} from "./BallotStatus"
 import {HEAVY_DOTS} from "./BallotStatusIcon"
 import {BallotTag} from "./BallotTag"
 import {EFullTrackingIdSurface, FullTrackingId} from "./FullTrackingId"
@@ -129,7 +129,6 @@ export const ReviewBallotId: React.FC<IReviewBallotIdProps> = ({
                     }}
                 >
                     <BallotStatus
-                        trigger={EBallotStatusTrigger.ICON}
                         {...(audited
                             ? {status: EBallotStatus.AUDITABLE, view, castAt: auditedAt, trackerUrl}
                             : view

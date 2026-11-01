@@ -737,25 +737,19 @@ const dutchTranslation: TranslationType = {
                     one: "1 stembiljet begint met {{start}}",
                     other: "{{count}} stembiljetten beginnen met {{start}}",
                     atLeast: "{{count}} of meer stembiljetten beginnen met {{start}}",
-                    mine: "Uw stembiljet, en {{count}} andere die beginnen met {{start}}",
-                    mineAlone: "Uw stembiljet begint met {{start}}",
                 },
                 sub: {
                     few: "Welke is van u? Vergelijk de gemarkeerde groep met uw bewijs, of typ die hieronder.",
                     one: "Open het en vergelijk de volledige Tracking-ID met uw bewijs.",
                     many: "Dat zijn er meer dan we tonen. Typ de derde groep van uw bewijs om het uwe te vinden.",
-                    mine: "Dit apparaat bewaart uw bewijs, dus het weet welke van u is.",
                 },
                 why: {
-                    few: "Een korte ID vindt stembiljetten. Alleen de volledige Tracking-ID, of het bewijs op uw eigen apparaat, zegt welke van u is.",
+                    few: "Een korte ID vindt stembiljetten. Alleen de volledige Tracking-ID op uw bewijs zegt welke van u is.",
                     many: "Zoveel betekent meestal dat iemand met opzet stembiljetten heeft gemaakt die bij deze korte ID passen. Het uwe staat nog in het register: ook drie groepen laten kloppen kost ongeveer een miljard miljard pogingen.",
-                    mine: "De andere horen bij andere kiezers. Ze worden getoond zodat een gelijkende niet voor de uwe kan doorgaan.",
                 },
                 third: "Derde groep van uw bewijs",
                 thirdOr: "Of typ de derde groep van uw bewijs",
                 find: "Zoeken",
-                onDevice: "Op dit apparaat",
-                deviceMatches: "Het bewijs op dit apparaat komt overeen met alle 13 groepen",
                 serverSees:
                     "De servers van het register konden dit niet opzoeken zonder te weten welk stembiljet u wilt, dus de server van de verkiezing kreeg deze exacte ID te zien.",
             },
@@ -865,9 +859,7 @@ const dutchTranslation: TranslationType = {
                 howToReportText:
                     "Sla het bewijsbestand op en stuur het naar de verkiezingsautoriteit of een waarnemer. Zij kunnen het op hun eigen computers controleren. Het bevat niets over hoe u hebt gestemd.",
                 noReceipt:
-                    "Dit apparaat heeft geen ontvangstbewijs voor dit stembiljet. Controleer het op het apparaat waarmee u hebt gestemd, of controleer het bestand van het ontvangstbewijs in de stembiljetverificatie.",
-                receiptPending:
-                    "Dit apparaat bewaart een ontvangstbewijs voor dit stembiljet, maar het is niet compleet of kon nu niet worden gecontroleerd. Probeer het later opnieuw, of controleer het bestand van het ontvangstbewijs in de stembiljetverificatie.",
+                    "Hier kon geen ontvangstbewijs voor dit stembiljet worden gecontroleerd. Controleer het bestand van het ontvangstbewijs dat u hebt bewaard in de stembiljetverificatie, of probeer het later opnieuw.",
                 status: {
                     checking: {
                         head: "Controleren…",
@@ -1018,9 +1010,7 @@ const dutchTranslation: TranslationType = {
                     "Niet zeker of het portaal je keuzes goed heeft versleuteld? Controleer deze stem: het portaal laat zien hoe hij is versleuteld, zodat je het kunt nagaan. Een gecontroleerde stem kan nooit worden uitgebracht, dus je stemt daarna opnieuw.",
                 cast: "Uitgebracht op {{when}}",
                 audited: "Geauditeerd op {{when}}",
-                ballotCast: "Stem uitgebracht",
                 aria: "Status van het stembiljet: {{state}}. Details tonen",
-                ariaCast: "Stem uitgebracht. Status van het stembiljet: {{state}}. Details tonen",
                 tooltip: "{{state}} · Details tonen",
                 tracker: "Openen in de stembiljettracker",
                 save: "Ontvangstbewijs opslaan",
@@ -1133,10 +1123,7 @@ const dutchTranslation: TranslationType = {
                     skipped: "—",
                 },
                 callout: {
-                    late: "Dit betekent meestal dat een hub traag of offline is; het is geen bewijs van knoeien.",
-                    lateKept:
-                        "Dit apparaat controleert opnieuw wanneer u terugkomt, en de stembiljettracker kan vanaf elk apparaat controleren.",
-                    lateTracker: "De stembiljettracker kan vanaf elk apparaat controleren.",
+                    late: "Dit betekent meestal dat een hub traag of offline is; het is geen bewijs van knoeien. Controleer later opnieuw met uw ontvangstbewijs, in de stembiljettracker of op een hub, vanaf elk apparaat.",
                     evidence:
                         "Uw browser heeft het bewijs bewaard: dit ontvangstbewijs en het ondertekende item van het register. Stuur het naar de verkiezingsautoriteit of een waarnemer; iedereen kan het controleren.",
                     saveEvidence: "Bewijs opslaan",
@@ -1153,7 +1140,7 @@ const dutchTranslation: TranslationType = {
                         "Geverifieerd door uw browser, met code die iedereen kan inspecteren.",
                     checked:
                         "Gecontroleerd door uw browser, met code die iedereen kan inspecteren.",
-                    kept: "Dit apparaat bewaart het ontvangstbewijs en controleert het bij elk bezoek opnieuw.",
+                    keep: "Bewaar uw ontvangstbewijs om het later opnieuw te controleren, in de stembiljettracker of op een hub.",
                 },
             },
             signers: {

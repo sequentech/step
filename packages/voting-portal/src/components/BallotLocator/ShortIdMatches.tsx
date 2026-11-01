@@ -5,9 +5,9 @@
 // The ballots that share a short ID, to choose from (design boards
 // ShortIdMatches and ShortIdStates): up to five, each with its third group
 // highlighted, its last step and when it happened; above five only a box that
-// asks for the third group. The ballot whose receipt this device keeps comes
-// first and is marked, and the look-alikes stay listed. A short ID finds
-// ballots; it never proves one is yours, so the text says so.
+// asks for the third group. Nothing on this device marks one as the voter's:
+// a short ID finds ballots, only the receipt they keep says which is theirs,
+// and the text says so.
 
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
@@ -121,69 +121,31 @@ export const ShortIdMatches: React.FC<IShortIdMatchesProps> = ({
     const thirdTyped = result.typed.slice(2 * BALLOT_ID_GROUP, 3 * BALLOT_ID_GROUP)
     const [third, setThird] = useState(thirdTyped)
     const many = result.kind === EShortIdKind.MANY
-    const mine = result.matches.find((match) => match.onDevice)
-    const others = result.total - (mine ? 1 : 0)
     const narrowed = result.typed.length >= 3 * BALLOT_ID_GROUP
     const startText = narrowed ? shortBallotId(result.typed.slice(0, 3 * BALLOT_ID_GROUP)) : start
-    // A third group is asked unless the device already settles it.
-    const asks = !mine && (many || result.matches.length > 0)
+    const asks = many || result.matches.length > 0
 
-    const head = mine
-        ? others === 0
-            ? t("ballotLocator.shortId.head.mineAlone", {start: startText})
-            : t("ballotLocator.shortId.head.mine", {count: others, start: startText})
-        : result.truncated
-          ? t("ballotLocator.shortId.head.atLeast", {count: result.total, start: startText})
-          : result.total === 1
-            ? t("ballotLocator.shortId.head.one", {start: startText})
-            : t("ballotLocator.shortId.head.other", {count: result.total, start: startText})
-    const sub = mine
-        ? t("ballotLocator.shortId.sub.mine")
-        : many
-          ? t("ballotLocator.shortId.sub.many")
-          : result.total === 1
-            ? t("ballotLocator.shortId.sub.one")
-            : t("ballotLocator.shortId.sub.few")
-    const why = mine
-        ? others > 0
-            ? t("ballotLocator.shortId.why.mine")
-            : ""
-        : many
-          ? t("ballotLocator.shortId.why.many")
-          : result.total === 1
-            ? ""
-            : t("ballotLocator.shortId.why.few")
+    const head = result.truncated
+        ? t("ballotLocator.shortId.head.atLeast", {count: result.total, start: startText})
+        : result.total === 1
+          ? t("ballotLocator.shortId.head.one", {start: startText})
+          : t("ballotLocator.shortId.head.other", {count: result.total, start: startText})
+    const sub = many
+        ? t("ballotLocator.shortId.sub.many")
+        : result.total === 1
+          ? t("ballotLocator.shortId.sub.one")
+          : t("ballotLocator.shortId.sub.few")
+    const why = many
+        ? t("ballotLocator.shortId.why.many")
+        : result.total === 1
+          ? ""
+          : t("ballotLocator.shortId.why.few")
     const label = many || narrowed ? "ballotLocator.shortId.third" : "ballotLocator.shortId.thirdOr"
 
     const row = (match: IShortIdMatch) => {
         const key = match.trackingId
         const content = (
             <>
-                {match.onDevice ? (
-                    <svg
-                        className="short-id-device-check"
-                        width="22"
-                        height="22"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#1A5FD6"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
-                        focusable="false"
-                        style={{overflow: "visible", flex: "none"}}
-                    >
-                        <path
-                            className="short-id-device-check-one"
-                            d="M1.5 12.75l4.5 4.5L16.25 7"
-                        />
-                        <path
-                            className="short-id-device-check-two"
-                            d="M10.75 15.75l1.5 1.5L22.5 7"
-                        />
-                    </svg>
-                ) : null}
                 <Box component="span" className="short-id-match-body" sx={{flex: 1, minWidth: 0}}>
                     <IdStart match={match} />
                     <Box
@@ -193,27 +155,20 @@ export const ShortIdMatches: React.FC<IShortIdMatchesProps> = ({
                             display: "block",
                             fontSize: 13,
                             lineHeight: "18px",
-                            color: match.onDevice ? "#1E3A8A" : PALETTE.quiet,
+                            color: PALETTE.quiet,
                         }}
                     >
-                        {match.onDevice
-                            ? t("ballotLocator.shortId.deviceMatches")
-                            : match.at === undefined
-                              ? ""
-                              : t(
-                                    match.audited
-                                        ? "ballotLocator.matches.audited"
-                                        : "ballotLocator.matches.cast",
-                                    {time: formatTime(match.at)}
-                                )}
+                        {match.at === undefined
+                            ? ""
+                            : t(
+                                  match.audited
+                                      ? "ballotLocator.matches.audited"
+                                      : "ballotLocator.matches.cast",
+                                  {time: formatTime(match.at)}
+                              )}
                     </Box>
                 </Box>
-                {match.onDevice ? (
-                    <StatusTag
-                        label={t("ballotLocator.shortId.onDevice")}
-                        tone={EStatusTone.INFO}
-                    />
-                ) : match.at !== undefined ? (
+                {match.at !== undefined ? (
                     <StatusTag
                         label={t(
                             match.audited ? "vitrine.status.tag.audited" : "vitrine.status.tag.cast"
@@ -224,21 +179,12 @@ export const ShortIdMatches: React.FC<IShortIdMatchesProps> = ({
                 <Arrow />
             </>
         )
-        const common = {
-            className: `short-id-match${match.onDevice ? " short-id-match-device" : ""}`,
-            style: match.onDevice ? {borderColor: "#1A5FD6", background: "#F5F9FF"} : undefined,
-        }
         return hrefOf ? (
-            <RowLink key={key} to={hrefOf(match)} className={common.className} style={common.style}>
+            <RowLink key={key} to={hrefOf(match)} className="short-id-match">
                 {content}
             </RowLink>
         ) : (
-            <RowButton
-                key={key}
-                onClick={() => onOpen?.(match)}
-                className={common.className}
-                style={common.style}
-            >
+            <RowButton key={key} onClick={() => onOpen?.(match)} className="short-id-match">
                 {content}
             </RowButton>
         )

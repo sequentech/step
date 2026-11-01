@@ -16,6 +16,10 @@ import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvi
 import {createBrowserRouter, RouterProvider} from "react-router-dom"
 import {appRoutes} from "./appRoutes"
 import {WasmWrapper} from "./providers/WasmWrapper"
+import {forgetDeviceReceipts} from "./services/vitrine/deviceReceipts"
+
+// Earlier versions kept receipts on this device; this one keeps none.
+forgetDeviceReceipts()
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 

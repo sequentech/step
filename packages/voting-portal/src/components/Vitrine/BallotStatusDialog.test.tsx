@@ -262,7 +262,7 @@ describe("the steps of the ballot status dialog", () => {
             `vitrine.status.row.lateAnchors ${JSON.stringify({time: clockMinutes(DEADLINE)})}`
         )
         expect(stepWords()[2]).toBe("vitrine.status.word.late")
-        expect(dialog().querySelector(".ballot-status-late")?.textContent).toContain(
+        expect(dialog().querySelector(".ballot-status-late")?.textContent).toBe(
             "vitrine.status.callout.late"
         )
     })
@@ -441,7 +441,7 @@ describe("what the ballot status dialog offers", () => {
         renderDialog({status: EBallotStatus.AUDITABLE, tracker})
         const caption = dialog().querySelector(".ballot-status-caption")
         expect(caption?.textContent).toContain("vitrine.status.caption.auditable")
-        expect(caption?.textContent).not.toContain("vitrine.status.caption.kept")
+        expect(caption?.textContent).not.toContain("vitrine.status.caption.keep")
         expect(
             screen.getByRole("link", {name: "vitrine.status.tracker"}).getAttribute("href")
         ).toBe(tracker.href)
@@ -518,19 +518,10 @@ describe("what the ballot status dialog offers", () => {
         expect(mockSaveTextFile.mock.calls[0][1]).toBe("the chain")
     })
 
-    it("tells a device that doesn't keep the receipt not to expect another check", () => {
-        const kept = renderDialog({
-            status: EBallotStatus.VERIFIED,
-            view: view(VERIFIED),
-            kept: true,
-        })
+    it("asks the voter to keep the receipt, as this device keeps none", () => {
+        renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED)})
         expect(dialog().querySelector(".ballot-status-caption")?.textContent).toContain(
-            "vitrine.status.caption.kept"
-        )
-        kept.unmount()
-        renderDialog({status: EBallotStatus.VERIFIED, view: view(VERIFIED), kept: false})
-        expect(dialog().querySelector(".ballot-status-caption")?.textContent).not.toContain(
-            "vitrine.status.caption.kept"
+            "vitrine.status.caption.keep"
         )
     })
 

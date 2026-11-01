@@ -851,25 +851,19 @@ const englishTranslation = {
                     one: "1 ballot starts with {{start}}",
                     other: "{{count}} ballots start with {{start}}",
                     atLeast: "{{count}} or more ballots start with {{start}}",
-                    mine: "Your ballot, and {{count}} others that start with {{start}}",
-                    mineAlone: "Your ballot starts with {{start}}",
                 },
                 sub: {
                     few: "Which is yours? Compare the highlighted group with your receipt, or type it below.",
                     one: "Open it, then compare its full Tracking ID with your receipt.",
                     many: "That’s more than we list. Type the third group from your receipt to find yours.",
-                    mine: "This device keeps your receipt, so it knows which one is yours.",
                 },
                 why: {
-                    few: "A short ID finds ballots. Only the full Tracking ID, or the receipt on your own device, says which one is yours.",
+                    few: "A short ID finds ballots. Only the full Tracking ID on your receipt says which one is yours.",
                     many: "So many usually means someone made ballots to match this short ID on purpose. Yours is still in the record: matching three groups as well would take about a billion billion tries.",
-                    mine: "The others belong to other voters. They are listed so that a look-alike can’t pass for yours.",
                 },
                 third: "Third group from your receipt",
                 thirdOr: "Or type the third group from your receipt",
                 find: "Find",
-                onDevice: "On this device",
-                deviceMatches: "The receipt on this device matches all 13 groups",
                 serverSees:
                     "The record’s servers could not look this up without being told which ballot you want, so the election’s server was asked for this exact ID and could see it.",
             },
@@ -976,9 +970,7 @@ const englishTranslation = {
                 howToReportText:
                     "Save the evidence file and send it to the election authority or to an observer. They can check it on their own computers. It contains nothing about how you voted.",
                 noReceipt:
-                    "This device has no receipt for this ballot. Check it on the device you voted on, or check the receipt file in the ballot verifier.",
-                receiptPending:
-                    "This device keeps a receipt for this ballot, but it isn’t complete or couldn’t be checked just now. Try again later, or check the receipt file in the ballot verifier.",
+                    "No receipt for this ballot could be checked here. Check the receipt file you kept in the ballot verifier, or try again later.",
                 status: {
                     checking: {
                         head: "Checking…",
@@ -1128,9 +1120,7 @@ const englishTranslation = {
                     "Not sure the portal encrypted your choices correctly? Audit this ballot: the portal reveals how it was encrypted so you can check it. An audited ballot can never be cast, so you then vote again.",
                 cast: "Cast {{when}}",
                 audited: "Audited {{when}}",
-                ballotCast: "Ballot cast",
                 aria: "Ballot status: {{state}}. Show details",
-                ariaCast: "Ballot cast. Ballot status: {{state}}. Show details",
                 tooltip: "{{state}} · Show details",
                 tracker: "Open in the ballot tracker",
                 save: "Save receipt",
@@ -1238,10 +1228,7 @@ const englishTranslation = {
                     skipped: "—",
                 },
                 callout: {
-                    late: "This usually means a hub is slow or offline; it is not evidence of tampering.",
-                    lateKept:
-                        "This device checks again each time you come back, and the ballot tracker can check from any device.",
-                    lateTracker: "The ballot tracker can check from any device.",
+                    late: "This usually means a hub is slow or offline; it is not evidence of tampering. Check again later with your receipt, in the ballot tracker or on a hub, from any device.",
                     evidence:
                         "Your browser kept the evidence: this receipt and the record’s signed entry. Send it to the election authority or an observer; anyone can check it.",
                     saveEvidence: "Save evidence",
@@ -1255,7 +1242,7 @@ const englishTranslation = {
                     auditable: "Decrypted by your browser, with code anyone can inspect.",
                     verified: "Verified by your browser, with code anyone can inspect.",
                     checked: "Checked by your browser, with code anyone can inspect.",
-                    kept: "This device keeps the receipt and checks it again on each visit.",
+                    keep: "Keep your receipt to check it again later, in the ballot tracker or on a hub.",
                 },
             },
             signers: {

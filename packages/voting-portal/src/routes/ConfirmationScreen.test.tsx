@@ -85,18 +85,6 @@ jest.mock("@apollo/client/react", () => {
         useApolloClient: () => client,
     }
 })
-// Receipts kept on the device: what the screen asks to keep, and nothing else.
-jest.mock("../services/vitrine/storage", () => {
-    const actual = jest.requireActual("../services/vitrine/storage")
-    return {
-        ...actual,
-        receiptKeeping: () => actual.EReceiptKeeping.KEEP,
-        setReceiptKeeping: jest.fn(),
-        keepReceipt: (...args: unknown[]) => mockKeepReceipt(...args),
-        forgetReceipt: jest.fn(async () => undefined),
-    }
-})
-
 // Saving a file makes no request: the page only has to ask for it.
 jest.mock("../services/vitrine/file", () => ({
     ...jest.requireActual("../services/vitrine/file"),
@@ -107,7 +95,6 @@ let mockState: RootState
 let mockIsKiosk = false
 /** The election event's `presentation` as the portal has it, when a test sets one. */
 let mockPresentation: Record<string, unknown> | undefined
-const mockKeepReceipt = jest.fn(async (..._args: unknown[]) => true)
 const mockSaveTextFile = jest.fn((..._args: unknown[]) => undefined)
 
 const WITNESSES = KEYS.witnesses.slice(0, 2)
@@ -142,7 +129,7 @@ beforeEach(() => {
     calls = []
     mockIsKiosk = false
     mockPresentation = undefined
-    mockKeepReceipt.mockClear()
+    mockSaveTextFile.mockClear()
     jest.spyOn(Date, "now").mockReturnValue(NOW * 1000)
 })
 
@@ -353,18 +340,22 @@ const openWithReceipt = async (container: HTMLElement): Promise<HTMLElement> => 
     return dialog
 }
 
+/** The receipt chain the voter saves from the dialog. */
+const savedChain = (dialog: HTMLElement): string => {
+    mockSaveTextFile.mockClear()
+    fireEvent.click(within(dialog).getByRole("button", {name: "vitrine.status.save"}))
+    return String(mockSaveTextFile.mock.calls[0][1])
+}
+
 describe("the status of the ballot just cast", () => {
     it.each([
         ["receipt", receiptOf, "issued"],
         ["promise", promiseOf, "promise"],
-    ] as const)("is checked from the %s, and kept on this device", async (_kind, answer, block) => {
+    ] as const)("is checked from the %s, in the page's memory", async (_kind, answer, block) => {
         const {cast} = casting(answer)
         const {container} = renderScreen()
-        await waitFor(() => expect(mockKeepReceipt).toHaveBeenCalled())
-        const kept = mockKeepReceipt.mock.calls[0][2] as {chain: string}
-        const chain = pure.parseChain(kept.chain)
+        const chain = pure.parseChain(savedChain(await openWithReceipt(container)))
         expect(pure.bytes.fromUtf8(chain[block] ?? new Uint8Array())).toBe(cast.text)
-        expect(kept).toMatchObject({eventId: EVENT_ID, electionId: ELECTION_ID})
         // This fake log serves no tiles, so the record is still waiting for its successors.
         expect(statusButton(container)?.getAttribute("data-status")).toBe("checking")
     })
@@ -412,9 +403,6 @@ describe("the status of the ballot just cast", () => {
             expect(dialog.querySelector(".ballot-status-head")?.textContent).toBe(
                 "vitrine.status.head.noReceipt"
             )
-            // The entry is kept until the log answers for it.
-            await waitFor(() => expect(mockKeepReceipt).toHaveBeenCalled())
-            expect(mockKeepReceipt.mock.calls[0][2]).not.toHaveProperty("chain")
             expect(
                 calls.every(
                     (c) => !c.url.includes("/receipt/") || c.url.startsWith(LOG_URLS.ballots)
@@ -425,17 +413,24 @@ describe("the status of the ballot just cast", () => {
         }
     )
 
-    it("keeps nothing on a kiosk", async () => {
-        mockIsKiosk = true
+    it.each([
+        ["a voter's own device", false],
+        ["a kiosk", true],
+    ])("writes nothing to the browser's storage on %s", async (_where, kiosk) => {
+        mockIsKiosk = kiosk
+        const setItem = jest.spyOn(Storage.prototype, "setItem")
+        localStorage.clear()
         casting(receiptOf)
         const {container} = renderScreen()
         const dialog = await openWithReceipt(container)
+        // The voter still takes the receipt away.
         expect(
             within(dialog)
                 .getByRole("button", {name: "vitrine.status.save"})
                 .hasAttribute("disabled")
         ).toBe(false)
-        expect(mockKeepReceipt).not.toHaveBeenCalled()
+        expect(setItem).not.toHaveBeenCalled()
+        expect(localStorage.length).toBe(0)
     })
 
     it("treats Harvest's text as data", async () => {
@@ -514,11 +509,10 @@ describe("Get email updates on the confirmation screen", () => {
         )
     })
 
-    it("carries the receipt that the screen keeps in the links' fragments", async () => {
+    it("carries the receipt of the ballot just cast in the links' fragments", async () => {
         casting(receiptOf, {policyExtra: WITH_SITES})
         const {container} = renderScreen()
-        await waitFor(() => expect(mockKeepReceipt).toHaveBeenCalled())
-        const kept = mockKeepReceipt.mock.calls[0][2] as {chain: string}
+        const chain = savedChain(await openWithReceipt(container))
         await waitFor(() =>
             expect(container.querySelector(".get-updates-hub")?.getAttribute("href")).toContain(
                 "watch="
@@ -528,7 +522,7 @@ describe("Get email updates on the confirmation screen", () => {
             container.querySelectorAll<HTMLAnchorElement>(".get-updates-hub")
         )) {
             const watch = new URLSearchParams(link.hash.slice(1)).get("watch") ?? ""
-            expect(pure.bytes.fromUtf8(pure.encoding.b64urlDecode(watch))).toBe(kept.chain)
+            expect(pure.bytes.fromUtf8(pure.encoding.b64urlDecode(watch))).toBe(chain)
         }
         expect(container.querySelector(".get-updates-foot")?.textContent).toBe(
             "vitrine.updates.footnote"
@@ -554,7 +548,7 @@ describe("Get email updates on the confirmation screen", () => {
         mockPresentation = {hub_updates: {confirmation: "off", cast_email: "on"}}
         casting(receiptOf, {policyExtra: WITH_SITES})
         const {container} = renderScreen()
-        await waitFor(() => expect(mockKeepReceipt).toHaveBeenCalled())
+        await openWithReceipt(container)
         expect(statusButton(container)).not.toBeNull()
         expect(callout(container)).toBeNull()
     })
@@ -576,11 +570,11 @@ describe("Get email updates on the confirmation screen", () => {
     it("is not shown when the policy gives no hub a site", async () => {
         casting(receiptOf, {policyExtra: ["monitor-explorer observers https://monitor.example/"]})
         const {container} = renderScreen()
-        await waitFor(() => expect(mockKeepReceipt).toHaveBeenCalled())
+        await openWithReceipt(container)
         expect(callout(container)).toBeNull()
     })
 
-    it("is not shown on a kiosk, which keeps no receipt and leaves nothing in the browser", async () => {
+    it("is not shown on a kiosk, which leaves nothing in the browser", async () => {
         mockIsKiosk = true
         casting(receiptOf, {policyExtra: WITH_SITES})
         const {container} = renderScreen()

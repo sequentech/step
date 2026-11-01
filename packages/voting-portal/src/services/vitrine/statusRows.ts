@@ -273,7 +273,7 @@ export const statusRows = (input: IStatusInput): IStatusRow[] => {
 }
 
 /** The caption under the steps, as keys to show one after the other. */
-export const statusCaption = (status: EBallotStatus, kept: boolean): ITranslation[] => {
+export const statusCaption = (status: EBallotStatus): ITranslation[] => {
     switch (status) {
         case EBallotStatus.NOT_CAST:
             return [text("caption.notcast")]
@@ -285,8 +285,8 @@ export const statusCaption = (status: EBallotStatus, kept: boolean): ITranslatio
         case EBallotStatus.AUDITABLE:
             return [text("caption.auditable")]
         case EBallotStatus.VERIFIED:
-            return [text("caption.verified"), ...(kept ? [text("caption.kept")] : [])]
+            return [text("caption.verified"), text("caption.keep")]
         default:
-            return [text("caption.checked"), ...(kept ? [text("caption.kept")] : [])]
+            return [text("caption.checked"), text("caption.keep")]
     }
 }

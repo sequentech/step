@@ -53,9 +53,6 @@ jest.mock("../providers/SettingsContextProvider", () => ({
         .requireActual<typeof React>("react")
         .createContext({globalSettings: {DISABLE_AUTH: false}}),
 }))
-jest.mock("../hooks/useCastReceipt", () => ({
-    useKeptReceipts: () => ({receipts: [], forgetAll: jest.fn()}),
-}))
 jest.mock("@apollo/client/react", () => ({
     useQuery: () => ({data: undefined}),
     useMutation: () => [jest.fn()],

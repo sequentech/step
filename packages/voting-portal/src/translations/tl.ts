@@ -734,25 +734,19 @@ const tagalogTranslation: TranslationType = {
                     one: "1 balota ang nagsisimula sa {{start}}",
                     other: "{{count}} balota ang nagsisimula sa {{start}}",
                     atLeast: "{{count}} o higit pang balota ang nagsisimula sa {{start}}",
-                    mine: "Ang iyong balota, at {{count}} pa na nagsisimula sa {{start}}",
-                    mineAlone: "Ang iyong balota ay nagsisimula sa {{start}}",
                 },
                 sub: {
                     few: "Alin ang iyo? Ihambing ang naka-highlight na grupo sa iyong resibo, o i-type ito sa ibaba.",
                     one: "Buksan ito, saka ihambing ang buong Tracking ID nito sa iyong resibo.",
                     many: "Mas marami ito kaysa sa ipinapakita namin. I-type ang ikatlong grupo mula sa iyong resibo para mahanap ang iyo.",
-                    mine: "Itinatago ng device na ito ang iyong resibo, kaya alam nito kung alin ang iyo.",
                 },
                 why: {
-                    few: "Ang maikling ID ay naghahanap ng mga balota. Ang buong Tracking ID lang, o ang resibo sa sarili mong device, ang nagsasabi kung alin ang iyo.",
+                    few: "Ang maikling ID ay naghahanap ng mga balota. Ang buong Tracking ID lang sa iyong resibo ang nagsasabi kung alin ang iyo.",
                     many: "Kapag ganito karami, kadalasan may gumawa ng mga balota para tumugma sa maikling ID na ito nang sinasadya. Nasa talaan pa rin ang iyo: ang pagtugma rin sa tatlong grupo ay mangangailangan ng halos isang bilyong bilyong subok.",
-                    mine: "Ang iba ay pag-aari ng ibang botante. Nakalista ang mga ito para hindi mapagkamalang iyo ang kamukha.",
                 },
                 third: "Ikatlong grupo mula sa iyong resibo",
                 thirdOr: "O i-type ang ikatlong grupo mula sa iyong resibo",
                 find: "Hanapin",
-                onDevice: "Sa device na ito",
-                deviceMatches: "Tumutugma ang resibo sa device na ito sa lahat ng 13 grupo",
                 serverSees:
                     "Hindi nagawa ng mga server ng talaan ang paghahanap na ito nang hindi sinasabi kung aling balota ang gusto mo, kaya hiniling sa server ng halalan ang eksaktong ID na ito at nakita nito iyon.",
             },
@@ -863,9 +857,7 @@ const tagalogTranslation: TranslationType = {
                 howToReportText:
                     "I-save ang file ng ebidensya at ipadala ito sa awtoridad ng halalan o sa isang tagamasid. Masusuri nila ito sa sarili nilang mga computer. Wala itong laman tungkol sa kung paano ka bumoto.",
                 noReceipt:
-                    "Walang resibo ang device na ito para sa balotang ito. Suriin ito sa device na ginamit mo sa pagboto, o suriin ang file ng resibo sa ballot verifier.",
-                receiptPending:
-                    "May itinatabing resibo ang device na ito para sa balotang ito, ngunit hindi ito kumpleto o hindi ito nasuri ngayon. Subukan muli mamaya, o suriin ang file ng resibo sa ballot verifier.",
+                    "Walang resibo para sa balotang ito ang nasuri dito. Suriin ang file ng resibo na itinago mo sa ballot verifier, o subukan muli mamaya.",
                 status: {
                     checking: {
                         head: "Sinusuri…",
@@ -1017,10 +1009,7 @@ const tagalogTranslation: TranslationType = {
                     "Hindi sigurado kung tama ang pag-encrypt ng portal sa iyong mga pinili? I-audit ang balotang ito: ipinapakita ng portal kung paano ito na-encrypt para masuri mo. Hindi na kailanman maibabato ang na-audit na balota, kaya bumoto ka ulit pagkatapos.",
                 cast: "Naiboto noong {{when}}",
                 audited: "Na-audit noong {{when}}",
-                ballotCast: "Naiboto na ang balota",
                 aria: "Katayuan ng balota: {{state}}. Ipakita ang mga detalye",
-                ariaCast:
-                    "Naiboto na ang balota. Katayuan ng balota: {{state}}. Ipakita ang mga detalye",
                 tooltip: "{{state}} · Ipakita ang mga detalye",
                 tracker: "Buksan sa ballot tracker",
                 save: "I-save ang resibo",
@@ -1133,10 +1122,7 @@ const tagalogTranslation: TranslationType = {
                     skipped: "—",
                 },
                 callout: {
-                    late: "Kadalasan, ibig sabihin nito ay mabagal o offline ang isang hub; hindi ito patunay ng pakikialam.",
-                    lateKept:
-                        "Muling sinusuri ito ng device na ito sa bawat balik mo, at masusuri rin ito ng ballot tracker mula sa anumang device.",
-                    lateTracker: "Masusuri rin ito ng ballot tracker mula sa anumang device.",
+                    late: "Kadalasan, ibig sabihin nito ay mabagal o offline ang isang hub; hindi ito patunay ng pakikialam. Suriin muli mamaya gamit ang iyong resibo, sa ballot tracker o sa isang hub, mula sa anumang device.",
                     evidence:
                         "Itinago ng iyong browser ang ebidensya: ang resibong ito at ang nilagdaang entry ng talaan. Ipadala ito sa awtoridad ng halalan o sa isang tagamasid; sinuman ay makakasuri nito.",
                     saveEvidence: "I-save ang ebidensya",
@@ -1153,7 +1139,7 @@ const tagalogTranslation: TranslationType = {
                     verified:
                         "Na-verify ng iyong browser, gamit ang code na masisiyasat ng sinuman.",
                     checked: "Sinuri ng iyong browser, gamit ang code na masisiyasat ng sinuman.",
-                    kept: "Itinatago ng device na ito ang resibo at muling sinusuri ito sa bawat pagbisita.",
+                    keep: "Itago ang iyong resibo para masuri ito muli mamaya, sa ballot tracker o sa isang hub.",
                 },
             },
             signers: {

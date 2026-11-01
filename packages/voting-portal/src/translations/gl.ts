@@ -735,25 +735,19 @@ const galegoTranslation: TranslationType = {
                     one: "1 papeleta comeza por {{start}}",
                     other: "{{count}} papeletas comezan por {{start}}",
                     atLeast: "{{count}} ou máis papeletas comezan por {{start}}",
-                    mine: "A túa papeleta e {{count}} máis que comezan por {{start}}",
-                    mineAlone: "A túa papeleta comeza por {{start}}",
                 },
                 sub: {
                     few: "Cal é a túa? Compara o grupo resaltado co teu recibo, ou escríbeo abaixo.",
                     one: "Ábrea e compara o seu ID de seguimento completo co teu recibo.",
                     many: "Son máis das que mostramos. Escribe o terceiro grupo do teu recibo para atopar a túa.",
-                    mine: "Este dispositivo garda o teu recibo, así que sabe cal é a túa.",
                 },
                 why: {
-                    few: "Un ID curto atopa papeletas. Só o ID de seguimento completo, ou o recibo do teu propio dispositivo, di cal é a túa.",
+                    few: "Un ID curto atopa papeletas. Só o ID de seguimento completo do teu recibo di cal é a túa.",
                     many: "Tantas adoita significar que alguén creou papeletas para que coincidan con este ID curto adrede. A túa segue no rexistro: acertar tamén tres grupos requiriría uns mil trillóns de intentos.",
-                    mine: "As outras pertencen a outros votantes. Móstranse para que unha parecida non poida pasar pola túa.",
                 },
                 third: "Terceiro grupo do teu recibo",
                 thirdOr: "Ou escribe o terceiro grupo do teu recibo",
                 find: "Buscar",
-                onDevice: "Neste dispositivo",
-                deviceMatches: "O recibo deste dispositivo coincide cos 13 grupos",
                 serverSees:
                     "Os servidores do rexistro non puideron facer esta busca sen saber que papeleta buscas, así que se lle pediu ao servidor da elección este ID exacto e puido velo.",
             },
@@ -863,9 +857,7 @@ const galegoTranslation: TranslationType = {
                 howToReportText:
                     "Garda o ficheiro da proba e envíao á autoridade electoral ou a un observador. Poden comprobalo nos seus propios ordenadores. Non contén nada sobre como votaches.",
                 noReceipt:
-                    "Este dispositivo non ten o recibo desta papeleta. Compróbaa no dispositivo co que votaches, ou comproba o ficheiro do recibo no verificador de papeletas.",
-                receiptPending:
-                    "Este dispositivo garda un recibo desta papeleta, pero non está completo ou non se puido comprobar agora. Téntao de novo máis tarde, ou comproba o ficheiro do recibo no verificador de papeletas.",
+                    "Aquí non se puido comprobar ningún recibo desta papeleta. Comproba o ficheiro do recibo que gardaches no verificador de papeletas, ou téntao de novo máis tarde.",
                 status: {
                     checking: {
                         head: "Comprobando…",
@@ -1015,9 +1007,7 @@ const galegoTranslation: TranslationType = {
                     "Non estás seguro de que o portal cifrase ben as túas opcións? Audita esta papeleta: o portal revela como a cifrou para que o comprobes. Unha papeleta auditada nunca pode emitirse, así que despois votas de novo.",
                 cast: "Emitida o {{when}}",
                 audited: "Auditada o {{when}}",
-                ballotCast: "Voto emitido",
                 aria: "Estado da papeleta: {{state}}. Mostrar detalles",
-                ariaCast: "Voto emitido. Estado da papeleta: {{state}}. Mostrar detalles",
                 tooltip: "{{state}} · Mostrar detalles",
                 tracker: "Abrir no rastrexador de papeletas",
                 save: "Gardar o xustificante",
@@ -1130,11 +1120,7 @@ const galegoTranslation: TranslationType = {
                     skipped: "—",
                 },
                 callout: {
-                    late: "Adoita significar que un nodo vai lento ou está fóra de liña; non é proba de manipulación.",
-                    lateKept:
-                        "Este dispositivo volve comprobalo cada vez que regresas, e o rastrexador de papeletas pode comprobalo desde calquera dispositivo.",
-                    lateTracker:
-                        "O rastrexador de papeletas pode comprobalo desde calquera dispositivo.",
+                    late: "Adoita significar que un nodo vai lento ou está fóra de liña; non é proba de manipulación. Volve comprobalo máis tarde co teu xustificante, no rastrexador de papeletas ou nun nodo, desde calquera dispositivo.",
                     evidence:
                         "O teu navegador gardou a evidencia: este xustificante e a entrada asinada do rexistro. Envíaa á autoridade electoral ou a un observador; calquera pode comprobala.",
                     saveEvidence: "Gardar a evidencia",
@@ -1152,7 +1138,7 @@ const galegoTranslation: TranslationType = {
                         "Verificado polo teu navegador, con código que calquera pode inspeccionar.",
                     checked:
                         "Comprobado polo teu navegador, con código que calquera pode inspeccionar.",
-                    kept: "Este dispositivo garda o xustificante e volve comprobalo en cada visita.",
+                    keep: "Garda o teu xustificante para volver comprobalo máis tarde, no rastrexador de papeletas ou nun nodo.",
                 },
             },
             signers: {

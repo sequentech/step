@@ -57,7 +57,7 @@ import {
     selectConfirmationScreenData,
 } from "../store/castVotes/confirmationScreenDataSlice"
 import {GET_DOCUMENT} from "../queries/GetDocument"
-import {BallotStatus, EBallotStatusTrigger} from "../components/Vitrine/BallotStatus"
+import {BallotStatus} from "../components/Vitrine/BallotStatus"
 import {BallotTag} from "../components/Vitrine/BallotTag"
 import {GetUpdates} from "../components/Vitrine/GetUpdates"
 import {ID_BUTTON_SX} from "../components/Vitrine/idButtons"
@@ -347,8 +347,6 @@ interface ConfirmationBallotStatusProps {
     ballotId: string
     /** The receipt of the ballot just cast, as far as it has been checked. */
     view?: IReceiptView
-    /** Whether this device keeps the receipt. */
-    kept: boolean
     trackerUrl?: string
 }
 
@@ -359,7 +357,6 @@ const ConfirmationBallotStatus: React.FC<ConfirmationBallotStatusProps> = ({
     electionId,
     ballotId,
     view,
-    kept,
     trackerUrl,
 }) => {
     const {i18n} = useTranslation()
@@ -377,12 +374,10 @@ const ConfirmationBallotStatus: React.FC<ConfirmationBallotStatusProps> = ({
 
     return (
         <BallotStatus
-            trigger={EBallotStatusTrigger.ICON}
             view={view}
             ballotId={ballotId}
             electionName={electionName}
             castAt={castAt}
-            kept={kept}
             trackerUrl={trackerUrl}
             surface={theme.palette.green.light}
             sx={{m: "-7px -4px -7px -7px"}}
@@ -506,14 +501,14 @@ const ConfirmationScreen: React.FC = () => {
 
     // The receipt of the ballot just cast, shared by the check mark in the
     // Tracking ID box and by the hubs' links, which carry it to their sites.
-    const {view, kept} = useCastReceipt(
+    const {view} = useCastReceipt(
         {eventId: eventId ?? "", electionId: electionId ?? "", trackingId: ballotId.current ?? ""},
         vitrine
     )
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const hubs = useMemo(() => offeredHubs(view?.policy), [view?.policy])
     // Not on a kiosk: the hub's address, with the receipt in it, would stay in
-    // the shared browser's history, and a kiosk keeps no receipts for that reason.
+    // the shared browser's history.
     const offersUpdates =
         vitrine !== undefined &&
         !isKiosk() &&
@@ -555,7 +550,6 @@ const ConfirmationScreen: React.FC = () => {
                               electionId={electionId}
                               ballotId={ballotId.current ?? ""}
                               view={view}
-                              kept={kept}
                               trackerUrl={ballotTrackerUrl}
                           />
                       ),

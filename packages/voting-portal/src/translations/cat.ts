@@ -738,25 +738,19 @@ const catalanTranslation: TranslationType = {
                     one: "1 papereta comença per {{start}}",
                     other: "{{count}} paperetes comencen per {{start}}",
                     atLeast: "{{count}} o més paperetes comencen per {{start}}",
-                    mine: "La vostra papereta i {{count}} més que comencen per {{start}}",
-                    mineAlone: "La vostra papereta comença per {{start}}",
                 },
                 sub: {
                     few: "Quina és la vostra? Compareu el grup ressaltat amb el rebut, o escriviu-lo a sota.",
                     one: "Obriu-la i compareu el seu ID de seguiment complet amb el rebut.",
                     many: "Són més de les que mostrem. Escriviu el tercer grup del rebut per trobar la vostra.",
-                    mine: "Aquest dispositiu guarda el vostre rebut, així que sap quina és la vostra.",
                 },
                 why: {
-                    few: "Un ID curt troba paperetes. Només l'ID de seguiment complet, o el rebut del vostre propi dispositiu, diu quina és la vostra.",
+                    few: "Un ID curt troba paperetes. Només l'ID de seguiment complet del vostre rebut diu quina és la vostra.",
                     many: "Tantes sol voler dir que algú ha creat paperetes perquè coincideixin amb aquest ID curt a propòsit. La vostra continua al registre: encertar també tres grups requeriria uns mil trilions d'intents.",
-                    mine: "Les altres pertanyen a altres votants. Es mostren perquè una de semblant no pugui passar per la vostra.",
                 },
                 third: "Tercer grup del rebut",
                 thirdOr: "O escriviu el tercer grup del rebut",
                 find: "Cerca",
-                onDevice: "En aquest dispositiu",
-                deviceMatches: "El rebut d'aquest dispositiu coincideix amb els 13 grups",
                 serverSees:
                     "Els servidors del registre no han pogut fer aquesta cerca sense saber quina papereta busqueu, així que s'ha demanat al servidor de l'elecció aquest ID exacte i l'ha pogut veure.",
             },
@@ -867,9 +861,7 @@ const catalanTranslation: TranslationType = {
                 howToReportText:
                     "Deseu el fitxer de la prova i envieu-lo a l'autoritat electoral o a un observador. Poden comprovar-lo als seus ordinadors. No conté res sobre com heu votat.",
                 noReceipt:
-                    "Aquest dispositiu no té el rebut d'aquesta papereta. Comproveu-la al dispositiu amb què vau votar, o comproveu el fitxer del rebut al verificador de paperetes.",
-                receiptPending:
-                    "Aquest dispositiu conserva un rebut d'aquesta papereta, però no està complet o no s'ha pogut comprovar ara. Torneu-ho a provar més tard, o comproveu el fitxer del rebut al verificador de paperetes.",
+                    "Aquí no s'ha pogut comprovar cap rebut d'aquesta papereta. Comproveu el fitxer del rebut que vau guardar al verificador de paperetes, o torneu-ho a provar més tard.",
                 status: {
                     checking: {
                         head: "S'està comprovant…",
@@ -1019,9 +1011,7 @@ const catalanTranslation: TranslationType = {
                     "No esteu segur que el portal hagi xifrat bé les vostres opcions? Auditeu aquesta papereta: el portal revela com la va xifrar perquè ho comproveu. Una papereta auditada no es pot emetre mai, així que després torneu a votar.",
                 cast: "Emesa el {{when}}",
                 audited: "Auditada el {{when}}",
-                ballotCast: "Vot emès",
                 aria: "Estat de la papereta: {{state}}. Mostra els detalls",
-                ariaCast: "Vot emès. Estat de la papereta: {{state}}. Mostra els detalls",
                 tooltip: "{{state}} · Mostra els detalls",
                 tracker: "Obre al seguiment de paperetes",
                 save: "Desa el justificant",
@@ -1133,11 +1123,7 @@ const catalanTranslation: TranslationType = {
                     skipped: "—",
                 },
                 callout: {
-                    late: "Normalment vol dir que un node va lent o està fora de línia; no és prova de manipulació.",
-                    lateKept:
-                        "Aquest dispositiu ho torna a comprovar cada vegada que hi torneu, i el seguiment de paperetes ho pot comprovar des de qualsevol dispositiu.",
-                    lateTracker:
-                        "El seguiment de paperetes ho pot comprovar des de qualsevol dispositiu.",
+                    late: "Normalment vol dir que un node va lent o està fora de línia; no és prova de manipulació. Torneu-ho a comprovar més tard amb el justificant, al seguiment de paperetes o en un node, des de qualsevol dispositiu.",
                     evidence:
                         "El navegador ha guardat l'evidència: aquest justificant i l'entrada signada del registre. Envieu-la a l'autoritat electoral o a un observador; qualsevol pot comprovar-la.",
                     saveEvidence: "Desa l'evidència",
@@ -1151,7 +1137,7 @@ const catalanTranslation: TranslationType = {
                     auditable: "Desxifrat pel navegador, amb codi que qualsevol pot inspeccionar.",
                     verified: "Verificat pel navegador, amb codi que qualsevol pot inspeccionar.",
                     checked: "Comprovat pel navegador, amb codi que qualsevol pot inspeccionar.",
-                    kept: "Aquest dispositiu guarda el justificant i el torna a comprovar a cada visita.",
+                    keep: "Guardeu el justificant per tornar-lo a comprovar més tard, al seguiment de paperetes o en un node.",
                 },
             },
             signers: {

@@ -25,7 +25,7 @@ import {
     IReceiptView,
     MAX_POLL_MS,
     runCastReceipt,
-    runKeptReceipt,
+    runTrackedReceipt,
     TForward,
 } from "./castReceipt"
 import type {THttpInit} from "./http"
@@ -403,8 +403,8 @@ describe("runCastReceipt", () => {
     })
 })
 
-describe("runKeptReceipt", () => {
-    it("asks the log once for a kept entry's receipt", async () => {
+describe("runTrackedReceipt", () => {
+    it("asks the log once for the receipt of an entry the tracker found", async () => {
         const {s, ballotId, index, receipt} = withReceipt()
         const leaf = pure.encoding.hexEncode(pure.hashes.leafHash(s.ballots.entries[index]))
         const net = new FakeNet()
@@ -414,7 +414,7 @@ describe("runKeptReceipt", () => {
                 : undefined
         )
         const views: IReceiptView[] = []
-        await runKeptReceipt({
+        await runTrackedReceipt({
             acceptedAt: ACCEPTED_AT,
             target: {eventId: EVENT_ID, electionId: ELECTION_ID, stage: "cast", ballotId},
             transparency: readTransparency(s.presentation),
