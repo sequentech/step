@@ -59,6 +59,7 @@ import {
     EBlankVotePolicy,
     EOverVotePolicy,
     ECandidatesIconCheckboxPolicy,
+    ECandidatesLayout,
     EDuplicatedRankPolicy,
     EPreferenceGapsPolicy,
     getDefaultDuplicatedRankPolicy,
@@ -391,6 +392,13 @@ export const ContestDataForm: React.FC = () => {
         return Object.values(ECandidatesIconCheckboxPolicy).map((value) => ({
             id: value,
             name: t(`contestScreen.candidatesIconCheckboxPolicy.${value.toLowerCase()}`),
+        }))
+    }
+
+    const candidatesLayoutChoices = (): Array<EnumChoice<ECandidatesLayout>> => {
+        return Object.values(ECandidatesLayout).map((value) => ({
+            id: value,
+            name: t(`contestScreen.candidatesLayout.${value}`),
         }))
     }
 
@@ -779,6 +787,15 @@ export const ContestDataForm: React.FC = () => {
                                 </FormDataConsumer>
                                 <Box sx={{marginTop: "1rem"}} />
                                 <NumberInput source="presentation.columns" min={1} />
+                                <SelectInput
+                                    source="presentation.candidates_layout"
+                                    choices={candidatesLayoutChoices()}
+                                    label={String(t("contestScreen.candidatesLayout.label"))}
+                                    helperText={String(
+                                        t("contestScreen.candidatesLayout.helperText")
+                                    )}
+                                    defaultValue={ECandidatesLayout.LIST}
+                                />
                                 <NumberInput source="winning_candidates_num" min={0} />
                                 <SelectInput
                                     source="presentation.candidates_order"

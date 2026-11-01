@@ -2928,6 +2928,13 @@ const tagalogTranslation: TranslationType = {
                 "square-checkbox": "Parisukat na checkbox",
                 "round-checkbox": "Bilog na Kahon nin Tsek",
             },
+            candidatesLayout: {
+                "label": "Ayos ng mga kandidato",
+                "helperText":
+                    "Ipinapakita ng grid ng papel na balota ang mga kandidato bilang mga may-numerong kahon na may bilog na pupunan, kolum bawat kolum, ayon sa Columns (4 kung walang laman). Laging listahan ang ginagamit ng mga paligsahang may ranggo.",
+                "list": "Listahan",
+                "paper-grid": "Grid ng papel na balota",
+            },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Mga Kandidato at Listahan",
                 "allow-selecting-candidates": "Mga Kandidato Lamang",

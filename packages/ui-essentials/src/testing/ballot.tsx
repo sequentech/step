@@ -68,6 +68,10 @@ void i18n.init({
                 },
                 contest: {
                     acclamation: {description: "Decided by acclamation"},
+                    paperBallot: {
+                        voteForNoMoreThan_one: "Vote for no more than {{count}}",
+                        voteForNoMoreThan_other: "Vote for no more than {{count}}",
+                    },
                 },
             },
         },

@@ -42,6 +42,11 @@ export enum ECandidatesIconCheckboxPolicy {
     ROUND_CHECKBOX = "round-checkbox",
 }
 
+export enum ECandidatesLayout {
+    LIST = "list",
+    PAPER_GRID = "paper-grid",
+}
+
 export enum EBlankVotePolicy {
     ALLOWED = "allowed",
     WARN = "warn",
@@ -105,4 +110,5 @@ export interface IContestPresentation {
     duplicated_rank_policy?: EDuplicatedRankPolicy
     preference_gaps_policy?: EPreferenceGapsPolicy
     columns?: number
+    candidates_layout?: ECandidatesLayout
 }

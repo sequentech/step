@@ -2929,6 +2929,13 @@ const frenchTranslation: TranslationType = {
                 "square-checkbox": "Case à cocher carrée",
                 "round-checkbox": "Case à cocher ronde",
             },
+            candidatesLayout: {
+                "label": "Disposition des candidats",
+                "helperText":
+                    "La grille de bulletin papier affiche les candidats dans des cases numérotées avec un cercle à remplir, colonne par colonne, selon Colonnes (4 si vide). Les scrutins par classement utilisent toujours la liste.",
+                "list": "Liste",
+                "paper-grid": "Grille de bulletin papier",
+            },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidats Et Listes",
                 "allow-selecting-candidates": "Seulement Candidats",

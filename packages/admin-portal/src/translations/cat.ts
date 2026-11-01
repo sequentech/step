@@ -2925,6 +2925,13 @@ const catalanTranslation: TranslationType = {
                 "square-checkbox": "Caixa de verificació quadrada",
                 "round-checkbox": "Caixa de verificació rodona",
             },
+            candidatesLayout: {
+                "label": "Disposició de les candidatures",
+                "helperText":
+                    "La graella de papereta de paper mostra les candidatures com a cel·les numerades amb un cercle per omplir, columna per columna, segons Columnes (4 si és buit). Les votacions per ordre de preferència sempre fan servir la llista.",
+                "list": "Llista",
+                "paper-grid": "Graella de papereta de paper",
+            },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidats I Llistes",
                 "allow-selecting-candidates": "Només Candidats",

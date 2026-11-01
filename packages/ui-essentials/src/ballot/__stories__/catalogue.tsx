@@ -37,6 +37,19 @@ void instance.init({
                     printButton: "Print",
                     finishButton: "Finish",
                 },
+                contest: {
+                    paperBallot: {
+                        voteForNoMoreThan_one: "Vote for no more than {{count}}",
+                        voteForNoMoreThan_other: "Vote for no more than {{count}}",
+                    },
+                },
+                a11y: {
+                    selectUpTo_one: "Select up to {{count}} option",
+                    selectUpTo_other: "Select up to {{count}} options",
+                    selectExactly_one: "Select {{count}} option",
+                    selectExactly_other: "Select {{count}} options",
+                    selectBetween: "Select between {{min}} and {{max}} options",
+                },
                 breadcrumbSteps: {
                     electionList: "Ballots",
                     ballot: "Ballot",
