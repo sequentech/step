@@ -85,6 +85,10 @@ export default function Template(props: SequentTemplateProps) {
         (kcContext.locale?.rtl ?? document.documentElement.dir === "rtl") ? "rtl" : "ltr"
     const copy = getAuthCopy(currentLanguage.languageTag)
     const accessibilityCopy = getAccessibilityCopy(currentLanguage.languageTag)
+    // Rendered after the theme's stylesheet, so the realm's rules win at equal specificity.
+    const customCss = kcContext.sequent.loginCustomCss && (
+        <style id="login-custom-css">{kcContext.sequent.loginCustomCss}</style>
+    )
 
     useEffect(() => {
         document.title = documentTitle ?? msgStr("loginTitle", realm.displayName || realm.name)
@@ -126,6 +130,7 @@ export default function Template(props: SequentTemplateProps) {
             <ThemeProvider theme={authTheme}>
                 <CssBaseline />
                 <Box className="sequent-auth" lang={currentLanguage.languageTag} dir={direction}>
+                    {customCss}
                     <Box
                         component="main"
                         className="auth-fullscreen"
@@ -142,6 +147,7 @@ export default function Template(props: SequentTemplateProps) {
         <ThemeProvider theme={authTheme}>
             <CssBaseline />
             <Box className="sequent-auth" lang={currentLanguage.languageTag} dir={direction}>
+                {customCss}
                 <Box
                     className={
                         layout === TemplateLayout.Wide ? "auth-layout auth-wide" : "auth-layout"
