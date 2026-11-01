@@ -25,6 +25,7 @@ import { Sidecar } from "./lib/sidecar.mjs";
 import { pickElection, readStack } from "./lib/stack.mjs";
 import { createTamper } from "./lib/tamper.mjs";
 import { createDishonestPortal } from "./lib/dishonest-portal.mjs";
+import { createSplitView } from "./lib/split-view.mjs";
 import { provisionEvents } from "./lib/provision.mjs";
 import { TENANT_ID } from "./lib/fixtures.mjs";
 
@@ -247,9 +248,19 @@ async function serve() {
   const release = releaseOf(c);
   const tamper = createTamper({ live, log });
   const dishonest = createDishonestPortal({ log });
+  const splitView = createSplitView({
+    vitrineDir: c.vitrine,
+    latest: tamper.latest,
+    fetchReceipt: async (leaf) => {
+      const base = live.ballots.url.endsWith("/") ? live.ballots.url : `${live.ballots.url}/`;
+      const res = await fetch(`${base}receipt/${leaf}`, { signal: AbortSignal.timeout(8000) });
+      return res.status === 200 ? res.text() : undefined;
+    },
+    log,
+  });
   const standin = createStandIn({
     live, sidecar, origin: ORIGINS.standin, stepPackages: c.packages, electionId: c.election, version: release.version,
-    voterOrigin: ORIGINS.voting, adminOrigin: ORIGINS.admin, tamper, dishonest, log,
+    voterOrigin: ORIGINS.voting, adminOrigin: ORIGINS.admin, tamper, dishonest, splitView, log,
   });
   const listen = (server, port) => new Promise((resolve, reject) => server.once("error", reject).listen(port, "127.0.0.1", resolve));
   await listen(standin.server, PORTS.standin);

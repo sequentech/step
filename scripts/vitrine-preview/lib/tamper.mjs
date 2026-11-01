@@ -66,6 +66,8 @@ export function createTamper({ live, log }) {
     remember: (cast) => {
       latest = cast;
     },
+    /** The voter's latest cast, as remembered: its entry, Tracking ID digest and time. */
+    latest: () => latest,
     status: () => ({ on, casts: latest ? 1 : 0, forged: [...forged.values()].map(({ size, index }) => ({ size, index })) }),
     async handle(req, res, url, readBody, send) {
       if (req.method === "POST") {

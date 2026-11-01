@@ -144,6 +144,13 @@ split view, records it and mails the watchers. The voter learns of it from what 
 doesn't serve: the hub's email and site, a monitor, the browser extension. The admin portal is
 not affected, so its banner shows it too.
 
+`POST http://127.0.0.1:18851/__preview/split-view` (`{}`, or `{"dryRun": true}`) stages that split view
+for a recording: it fetches the log's receipt for the voter's latest cast, saves it, runs
+`$VITRINE_DIR/deploy/split-view.sh --receipt <file>` on this machine and answers `{ok, code, output}`
+(the script's output, with the `409 evidence sha256:…` line and the addresses of the problem pages). It answers
+only a loopback peer asking a loopback Host, answers 409 before anything is cast, and runs one at a time.
+The recorder runs in Docker and can't run host scripts, so a board's `fetch` step calls this instead.
+
 ## Playwright
 
 `playwright/run.sh NAME SCRIPT OUTDIR [args]` runs a script in `mcr.microsoft.com/playwright:v1.64.1-noble`
