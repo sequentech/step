@@ -7091,6 +7091,29 @@ const catalanTranslation: TranslationType = {
             sdkLoading: "S'està carregant el verificador de Vitrine...",
             sdkError:
                 "El verificador de Vitrine no s'ha pogut iniciar en aquest navegador, de manera que aquí no es pot comprovar la política de confiança.",
+            hubUpdates: {
+                title: "Novetats dels nodes",
+                intro: "Opcional. Els votants poden demanar a un node que els escrigui per correu sobre la seva papereta. Tots els nodes de la política de confiança s'ofereixen de la mateixa manera.",
+                confirmation: {
+                    label: "Oferir «Rebre novetats per correu» a la pàgina de confirmació",
+                    help: "Després de votar, sota el codi QR. Mostra tots els nodes, i cadascun s'obre al seu propi lloc amb el rebut del votant.",
+                },
+                castEmail: {
+                    label: "Afegir els nodes al correu del vot emès",
+                    help: "El correu amb el rebut de la papereta inclou l'ID de seguiment complet i un enllaç a cada node, en ordre aleatori.",
+                },
+                readOnly: "Podeu veure aquests ajustos, però no canviar-los.",
+                saved: "S'ha desat l'ajust de les novetats dels nodes.",
+                notStored: "L'esdeveniment no té ajustos del portal de votació on desar-lo.",
+                saveError: "No s'ha pogut desar l'ajust: {{reason}}",
+                hubs: {
+                    title: "Nodes",
+                    help: "Els de la política de confiança de l'elecció. Per canviar-los, publiqueu una política nova.",
+                    none: "Cap node de la política de confiança té lloc web, així que no s'ofereixen novetats als votants.",
+                    order: "Els votants els veuen en ordre aleatori, cada vegada. L'ordre no es pot fixar i cap node pot ser el predeterminat.",
+                },
+                footer: "Tots dos estan activats per defecte quan la política anomena un node. Es desen amb els altres ajustos del portal de votació de l'esdeveniment. Desactivar-los només amaga la invitació del portal: els nodes continuen comprovant el registre i els votants poden anar a qualsevol node pel seu compte.",
+            },
             overview: {
                 notReported: "No informat",
                 ago: "fa {{duration}}",

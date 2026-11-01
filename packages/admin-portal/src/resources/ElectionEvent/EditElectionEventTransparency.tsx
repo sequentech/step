@@ -73,6 +73,7 @@ import {
     recordHealth,
     witnessRows,
 } from "@/services/TransparencyOverview"
+import {HubUpdatesSection} from "./HubUpdates"
 import {
     AnchoringCard,
     BOARD,
@@ -743,13 +744,20 @@ const LogCard: React.FC<{log: ILogView; policyId?: string; lang: string}> = ({
 
 export interface IEditElectionEventTransparencyProps {
     electionEventId?: string
-    /** Called once the event's transparency changed, so that its record is
-     * read again: the event's presentation changes with it. */
+    /** The event's `presentation`, where its "Updates from hubs" switches are
+     * stored. */
+    presentation?: unknown
+    /** Whether the admin may change those switches. */
+    canChangeHubUpdates?: boolean
+    /** Called once the event's transparency or hub updates changed, so that
+     * its record is read again: the event's presentation changes with them. */
     onChanged?: () => void
 }
 
 export const EditElectionEventTransparency: React.FC<IEditElectionEventTransparencyProps> = ({
     electionEventId,
+    presentation,
+    canChangeHubUpdates = false,
     onChanged,
 }) => {
     const {t, i18n} = useTranslation()
@@ -1047,6 +1055,15 @@ export const EditElectionEventTransparency: React.FC<IEditElectionEventTranspare
                         onUpload={upload}
                     />
                 )
+            ) : null}
+            {enabled && ready ? (
+                <HubUpdatesSection
+                    electionEventId={electionEventId}
+                    presentation={presentation}
+                    policy={sealedPolicy}
+                    canChange={canChangeHubUpdates}
+                    onChanged={onChanged}
+                />
             ) : null}
             {enabled ? (
                 <BoardSection

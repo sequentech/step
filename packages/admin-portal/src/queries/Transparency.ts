@@ -107,3 +107,33 @@ export interface UploadTransparencyPolicyMutationVariables {
 export interface UploadTransparencyPolicyMutation {
     upload_transparency_policy?: ITransparencyOutput | null
 }
+
+/** Stores the "Updates from hubs" switches with the event's other voting
+ * portal settings. `_append` replaces `hub_updates` and leaves the other keys
+ * of `presentation` (the transparency mode and the Vitrine logs among them)
+ * as they are. */
+export const SET_HUB_UPDATES = gql`
+    mutation SetHubUpdates($electionEventId: uuid!, $patch: jsonb!) {
+        update_sequent_backend_election_event_by_pk(
+            pk_columns: {id: $electionEventId}
+            _append: {presentation: $patch}
+        ) {
+            id
+            hub_updates: presentation(path: "hub_updates")
+        }
+    }
+`
+
+export interface SetHubUpdatesMutationVariables {
+    electionEventId: string
+    /** `{hub_updates: {...}}`, to append to the presentation. */
+    patch: Record<string, unknown>
+}
+
+export interface SetHubUpdatesMutation {
+    update_sequent_backend_election_event_by_pk?: {
+        id: string
+        /** The stored switches, or null if the event has no presentation. */
+        hub_updates?: unknown
+    } | null
+}

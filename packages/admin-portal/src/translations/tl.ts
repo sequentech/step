@@ -7125,6 +7125,30 @@ const tagalogTranslation: TranslationType = {
             sdkLoading: "Nilo-load ang verifier ng Vitrine...",
             sdkError:
                 "Hindi masimulan ang verifier ng Vitrine sa browser na ito, kaya hindi masusuri rito ang patakaran ng tiwala.",
+            hubUpdates: {
+                title: "Mga update mula sa mga hub",
+                intro: "Opsyonal. Maaaring hilingin ng mga botante sa isang hub na i-email sila tungkol sa kanilang balota. Ang bawat hub sa patakaran ng tiwala ay inaalok sa parehong paraan.",
+                confirmation: {
+                    label: "Mag-alok ng “Kumuha ng mga update sa email” sa pahina ng kumpirmasyon",
+                    help: "Pagkatapos bumoto, sa ilalim ng QR code. Inililista nito ang bawat hub, at bawat isa ay bumubukas sa sarili nitong site kasama ang resibo ng botante.",
+                },
+                castEmail: {
+                    label: "Idagdag ang mga hub sa email ng naiboto",
+                    help: "Ang email ng resibo ng balota ay may buong Tracking ID at link sa bawat hub, sa random na ayos.",
+                },
+                readOnly: "Makikita mo ang mga setting na ito pero hindi mo mababago.",
+                saved: "Nai-save ang setting ng mga update mula sa mga hub.",
+                notStored:
+                    "Walang mga setting ng portal ng pagboto ang kaganapan na mapag-iimbakan nito.",
+                saveError: "Hindi ma-save ang setting: {{reason}}",
+                hubs: {
+                    title: "Mga hub",
+                    help: "Mula sa patakaran ng tiwala ng halalan. Para baguhin ang mga ito, maglathala ng bagong patakaran.",
+                    none: "Walang hub sa patakaran ng tiwala na may site, kaya hindi inaalok ng mga update ang mga botante.",
+                    order: "Nakikita ng mga botante ang mga ito sa random na ayos, sa bawat pagkakataon. Hindi maitatakda ang ayos, at walang hub na maaaring gawing default.",
+                },
+                footer: "Parehong naka-on bilang default kapag may pinangalanang hub ang patakaran. Iniimbak kasama ng iba pang setting ng portal ng pagboto ng kaganapan. Ang pag-off ay nagtatago lang ng imbitasyon ng portal: patuloy na sumusuri ang mga hub sa talaan, at puwede pa ring pumunta ang mga botante sa anumang hub nang sila mismo.",
+            },
             overview: {
                 notReported: "Hindi naiulat",
                 ago: "{{duration}} na ang nakalipas",

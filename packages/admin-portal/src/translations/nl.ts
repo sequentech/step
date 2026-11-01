@@ -7109,6 +7109,30 @@ const dutchTranslation: TranslationType = {
             sdkLoading: "De Vitrine-verificatie laden...",
             sdkError:
                 "De Vitrine-verificatie kon in deze browser niet starten, dus het vertrouwensbeleid kan hier niet worden gecontroleerd.",
+            hubUpdates: {
+                title: "Updates van hubs",
+                intro: "Optioneel. Kiezers kunnen een hub vragen hen per e-mail te informeren over hun stembiljet. Elke hub in het vertrouwensbeleid wordt op dezelfde manier aangeboden.",
+                confirmation: {
+                    label: "«E-mailupdates ontvangen» aanbieden op de bevestigingspagina",
+                    help: "Na het stemmen, onder de QR-code. Het toont elke hub, en elke hub opent op zijn eigen site met het ontvangstbewijs van de kiezer.",
+                },
+                castEmail: {
+                    label: "De hubs toevoegen aan de e-mail over de uitgebrachte stem",
+                    help: "De e-mail met het ontvangstbewijs van het stembiljet bevat de volledige Tracking-ID en een link naar elke hub, in willekeurige volgorde.",
+                },
+                readOnly: "U kunt deze instellingen bekijken, maar niet wijzigen.",
+                saved: "De instelling voor updates van hubs is opgeslagen.",
+                notStored:
+                    "Het evenement heeft geen instellingen van de stemportal om dit in op te slaan.",
+                saveError: "De instelling kon niet worden opgeslagen: {{reason}}",
+                hubs: {
+                    title: "Hubs",
+                    help: "Uit het vertrouwensbeleid van de verkiezing. Publiceer een nieuw beleid om ze te wijzigen.",
+                    none: "Geen enkele hub in het vertrouwensbeleid heeft een site, dus kiezers krijgen geen updates aangeboden.",
+                    order: "Kiezers zien ze elke keer in willekeurige volgorde. De volgorde kan niet worden ingesteld en geen enkele hub kan de standaard worden.",
+                },
+                footer: "Beide staan standaard aan zodra het beleid een hub noemt. Ze worden opgeslagen met de andere instellingen van de stemportal van het evenement. Uitzetten verbergt alleen de uitnodiging van de portal: hubs controleren het register nog steeds, en kiezers kunnen zelf nog naar elke hub gaan.",
+            },
             overview: {
                 notReported: "Niet gemeld",
                 ago: "{{duration}} geleden",

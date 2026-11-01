@@ -7122,6 +7122,29 @@ const frenchTranslation: TranslationType = {
             sdkLoading: "Chargement du vérificateur Vitrine...",
             sdkError:
                 "Le vérificateur Vitrine n'a pas pu démarrer dans ce navigateur : la politique de confiance ne peut donc pas être vérifiée ici.",
+            hubUpdates: {
+                title: "Mises à jour des pôles",
+                intro: "Facultatif. Les électeurs peuvent demander à un pôle de leur écrire par e-mail à propos de leur bulletin. Chaque pôle de la politique de confiance est proposé de la même façon.",
+                confirmation: {
+                    label: "Proposer « Recevoir des mises à jour par e-mail » sur la page de confirmation",
+                    help: "Après le vote, sous le code QR. Elle liste chaque pôle, qui s'ouvre sur son propre site avec le reçu de l'électeur.",
+                },
+                castEmail: {
+                    label: "Ajouter les pôles à l'e-mail du vote déposé",
+                    help: "L'e-mail du reçu du bulletin contient l'identifiant de suivi complet et un lien vers chaque pôle, dans un ordre aléatoire.",
+                },
+                readOnly: "Vous pouvez voir ces paramètres, mais pas les modifier.",
+                saved: "Le paramètre des mises à jour des pôles a été enregistré.",
+                notStored: "L'événement n'a pas de paramètres du portail de vote où l'enregistrer.",
+                saveError: "Le paramètre n'a pas pu être enregistré : {{reason}}",
+                hubs: {
+                    title: "Pôles",
+                    help: "Ceux de la politique de confiance de l'élection. Pour les changer, publiez une nouvelle politique.",
+                    none: "Aucun pôle de la politique de confiance n'a de site, donc aucune mise à jour n'est proposée aux électeurs.",
+                    order: "Les électeurs les voient dans un ordre aléatoire, à chaque fois. L'ordre ne peut pas être fixé et aucun pôle ne peut être mis par défaut.",
+                },
+                footer: "Les deux sont activés par défaut dès que la politique nomme un pôle. Ils sont enregistrés avec les autres paramètres du portail de vote de l'événement. Les désactiver masque seulement l'invitation du portail : les pôles continuent de vérifier le registre, et les électeurs peuvent toujours aller eux-mêmes sur n'importe quel pôle.",
+            },
             overview: {
                 notReported: "Non communiqué",
                 ago: "il y a {{duration}}",

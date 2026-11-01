@@ -7066,6 +7066,29 @@ const basqueTranslation: TranslationType = {
             sdkLoading: "Vitrineren egiaztatzailea kargatzen...",
             sdkError:
                 "Vitrineren egiaztatzaileak ezin izan du nabigatzaile honetan abiarazi; beraz, ezin da hemen konfiantza-politika egiaztatu.",
+            hubUpdates: {
+                title: "Guneen berriak",
+                intro: "Aukerakoa. Bozkatzaileek gune bati eska diezaiokete boto-paperari buruz posta elektronikoz idazteko. Konfiantza-politikako gune guztiak modu berean eskaintzen dira.",
+                confirmation: {
+                    label: "Eskaini «Jaso berriak posta elektronikoz» berrespen-orrian",
+                    help: "Bozkatu ondoren, QR kodearen azpian. Gune guztiak zerrendatzen ditu, eta bakoitza bere webgunean irekitzen da bozkatzailearen ordainagiriarekin.",
+                },
+                castEmail: {
+                    label: "Gehitu guneak bozketaren mezu elektronikoan",
+                    help: "Boto-paperaren ordainagiriaren mezuak jarraipen ID osoa eta gune bakoitzerako esteka ditu, ausazko ordenan.",
+                },
+                readOnly: "Ezarpen hauek ikus ditzakezu, baina ezin dituzu aldatu.",
+                saved: "Guneen berrien ezarpena gorde da.",
+                notStored: "Gertaerak ez du bozketa-ataria ezarpenik non gordetzeko.",
+                saveError: "Ezin izan da ezarpena gorde: {{reason}}",
+                hubs: {
+                    title: "Guneak",
+                    help: "Hauteskundearen konfiantza-politikakoak. Aldatzeko, argitaratu politika berri bat.",
+                    none: "Konfiantza-politikako gune batek ere ez du webgunerik, beraz bozkatzaileei ez zaie berririk eskaintzen.",
+                    order: "Bozkatzaileek ausazko ordenan ikusten dituzte, aldi bakoitzean. Ordena ezin da finkatu, eta ezin da gune bat lehenetsi gisa ezarri.",
+                },
+                footer: "Biak aktibatuta daude lehenespenez, politikak gune bat izendatu bezain laster. Gertaerako bozketa-atariaren gainerako ezarpenekin batera gordetzen dira. Desaktibatzeak atariaren gonbidapena ezkutatzen du soilik: guneek erregistroa egiaztatzen jarraitzen dute, eta bozkatzaileak edozein gunetara joan daitezke beren kabuz.",
+            },
             overview: {
                 notReported: "Jakinarazi gabe",
                 ago: "duela {{duration}}",

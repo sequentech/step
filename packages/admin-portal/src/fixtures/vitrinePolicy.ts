@@ -29,6 +29,7 @@ export const LOG_URLS = {
     events: "https://logs.acme.example/e/events/",
 }
 const MIRROR_URL = "https://mirror.example/ballots/"
+export const HUB_EXPLORERS = {h1: "https://explorer1.example/", h2: "https://explorer2.example/"}
 export const NOW = 1_800_000_000
 
 interface ITestKey {
@@ -98,6 +99,8 @@ export interface IPolicyOptions {
     name?: string
     /** Adds the bootstrap hub h3, in which the app hubs anchor. */
     bootstrap?: boolean
+    /** Gives hubs h1 and h2 a `hub-explorer` site. */
+    hubExplorers?: boolean
 }
 
 /** The policy's lines without the seal: the draft the Board seals. */
@@ -139,11 +142,13 @@ const policyLines = (o: IPolicyOptions): string[] => {
         `hub-witness h1 w ${KEYS.hubWitness1.vkey}`,
         "hub-witness-party h1 w hub-witness-party1",
         "hub-quorum h1 w",
+        ...(o.hubExplorers ? [`hub-explorer h1 ${HUB_EXPLORERS.h1}`] : []),
         `hub h2 ${KEYS.hub2.vkey} https://hub2.example/`,
         "hub-operator h2 hubco2",
         `hub-witness h2 w ${KEYS.hubWitness2.vkey}`,
         "hub-witness-party h2 w hub-witness-party2",
         "hub-quorum h2 w",
+        ...(o.hubExplorers ? [`hub-explorer h2 ${HUB_EXPLORERS.h2}`] : []),
         ...(o.bootstrap
             ? [
                   `hub h3 ${KEYS.hub3.vkey} https://hub3.example/`,

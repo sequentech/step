@@ -41,6 +41,7 @@ const MARKUP = "<img src=x onerror=alert(1)>"
 
 const enable = jest.fn()
 const upload = jest.fn()
+const setHubUpdates = jest.fn()
 const refetch = jest.fn()
 const writeText = jest.fn()
 const createObjectURL = jest.fn()
@@ -71,7 +72,14 @@ const answer = (value: ITransparencyOutput | undefined, error?: unknown) => {
     })
 }
 
-const renderTab = async (props: {electionEventId?: string; onChanged?: () => void} = {}) => {
+const renderTab = async (
+    props: {
+        electionEventId?: string
+        presentation?: unknown
+        canChangeHubUpdates?: boolean
+        onChanged?: () => void
+    } = {}
+) => {
     const view = render(<EditElectionEventTransparency electionEventId={EVENT_ID} {...props} />)
     await act(async () => {})
     return view
@@ -95,7 +103,11 @@ beforeAll(async () => {
 beforeEach(() => {
     jest.clearAllMocks()
     ;(useMutation as jest.Mock).mockImplementation((document: string) => [
-        document.includes("EnableTransparency") ? enable : upload,
+        document.includes("EnableTransparency")
+            ? enable
+            : document.includes("SetHubUpdates")
+              ? setHubUpdates
+              : upload,
         {loading: false},
     ])
     writeText.mockResolvedValue(undefined)
@@ -740,6 +752,82 @@ describe("the overview", () => {
         expect(screen.queryByTestId("transparency-policy")).toBeNull()
         expect(screen.queryByTestId("transparency-logs")).toBeNull()
         expect(screen.getByTestId("enable-transparency")).toBeTruthy()
+    })
+})
+
+describe("updates from hubs", () => {
+    const signed = policyText({hubExplorers: true})
+
+    it("are offered once transparency is on and the policy is sealed, with the event's own settings", async () => {
+        answer(publicDraft({policy: signed, policy_id: policyHexOf(signed)}))
+        await renderTab({
+            presentation: {hub_updates: {confirmation: "off"}},
+            canChangeHubUpdates: true,
+        })
+
+        expect(screen.getByTestId("hub-updates")).toBeTruthy()
+        const confirmation = screen.getByRole("switch", {
+            name: "transparencyTab.hubUpdates.confirmation.label",
+        }) as HTMLInputElement
+        expect(confirmation.checked).toBe(false)
+        expect(confirmation.disabled).toBe(false)
+        expect(screen.getByTestId("hub-updates-hub-h1")).toBeTruthy()
+        expect(screen.getByTestId("hub-updates-hub-h2")).toBeTruthy()
+    })
+
+    it("are changed as the election-event-write role, and the record is read again", async () => {
+        const changed = jest.fn()
+        setHubUpdates.mockResolvedValue({
+            data: {
+                update_sequent_backend_election_event_by_pk: {
+                    id: EVENT_ID,
+                    hub_updates: {confirmation: "on", cast_email: "off"},
+                },
+            },
+        })
+        answer(publicDraft({policy: signed, policy_id: policyHexOf(signed)}))
+        await renderTab({canChangeHubUpdates: true, onChanged: changed})
+
+        expect(useMutation).toHaveBeenCalledWith(expect.stringContaining("SetHubUpdates"), {
+            context: {headers: {"x-hasura-role": "election-event-write"}},
+        })
+        await act(async () => {
+            fireEvent.click(
+                screen.getByRole("switch", {name: "transparencyTab.hubUpdates.castEmail.label"})
+            )
+        })
+        expect(setHubUpdates).toHaveBeenCalledWith({
+            variables: {
+                electionEventId: EVENT_ID,
+                patch: {hub_updates: {confirmation: "on", cast_email: "off"}},
+            },
+        })
+        expect(changed).toHaveBeenCalledTimes(1)
+    })
+
+    it("are locked for an admin who may not change the event", async () => {
+        answer(publicDraft({policy: signed, policy_id: policyHexOf(signed)}))
+        await renderTab()
+
+        const castEmail = screen.getByRole("switch", {
+            name: "transparencyTab.hubUpdates.castEmail.label",
+        }) as HTMLInputElement
+        expect(castEmail.disabled).toBe(true)
+        expect(screen.getByTestId("hub-updates-read-only")).toBeTruthy()
+    })
+
+    it("say there is no hub to offer while the policy has not been sealed", async () => {
+        answer(publicDraft())
+        await renderTab({canChangeHubUpdates: true})
+
+        expect(screen.getByTestId("hub-updates-no-hubs")).toBeTruthy()
+    })
+
+    it("are not offered while transparency is off", async () => {
+        answer(output())
+        await renderTab({canChangeHubUpdates: true})
+
+        expect(screen.queryByTestId("hub-updates")).toBeNull()
     })
 })
 

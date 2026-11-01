@@ -7142,6 +7142,29 @@ const spanishTranslation: TranslationType = {
             sdkLoading: "Cargando el verificador de Vitrine...",
             sdkError:
                 "El verificador de Vitrine no pudo iniciarse en este navegador, así que aquí no se puede comprobar la política de confianza.",
+            hubUpdates: {
+                title: "Novedades de los centros",
+                intro: "Opcional. Los votantes pueden pedir a un centro que les escriba por correo sobre su papeleta. Todos los centros de la política de confianza se ofrecen de la misma manera.",
+                confirmation: {
+                    label: "Ofrecer «Recibir novedades por correo» en la página de confirmación",
+                    help: "Después de votar, bajo el código QR. Muestra todos los centros, y cada uno se abre en su propio sitio con el recibo del votante.",
+                },
+                castEmail: {
+                    label: "Añadir los centros al correo del voto emitido",
+                    help: "El correo con el recibo de la papeleta incluye el ID de seguimiento completo y un enlace a cada centro, en orden aleatorio.",
+                },
+                readOnly: "Puede ver estos ajustes, pero no cambiarlos.",
+                saved: "Se guardó el ajuste de las novedades de los centros.",
+                notStored: "El evento no tiene ajustes del portal de votación donde guardarlo.",
+                saveError: "No se pudo guardar el ajuste: {{reason}}",
+                hubs: {
+                    title: "Centros",
+                    help: "Los de la política de confianza de la elección. Para cambiarlos, publique una política nueva.",
+                    none: "Ningún centro de la política de confianza tiene sitio web, así que no se ofrecen novedades a los votantes.",
+                    order: "Los votantes los ven en orden aleatorio, cada vez. El orden no se puede fijar y ningún centro puede ser el predeterminado.",
+                },
+                footer: "Ambos están activados por defecto cuando la política nombra un centro. Se guardan con los demás ajustes del portal de votación del evento. Desactivarlos solo oculta la invitación del portal: los centros siguen comprobando el registro y los votantes pueden ir a cualquier centro por su cuenta.",
+            },
             overview: {
                 notReported: "Sin informar",
                 ago: "hace {{duration}}",

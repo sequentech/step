@@ -7240,6 +7240,29 @@ const englishTranslation = {
             sdkLoading: "Loading the Vitrine verifier...",
             sdkError:
                 "The Vitrine verifier could not start in this browser, so the trust policy can't be checked here.",
+            hubUpdates: {
+                title: "Updates from hubs",
+                intro: "Optional. Voters can ask a hub to email them about their ballot. Every hub in the trust policy is offered the same way.",
+                confirmation: {
+                    label: "Offer “Get email updates” on the confirmation page",
+                    help: "After casting, below the QR code. It lists every hub, each opening on its own site with the voter’s receipt.",
+                },
+                castEmail: {
+                    label: "Add the hubs to the cast email",
+                    help: "The ballot receipt email gets the full Tracking ID and a link to each hub, in a random order.",
+                },
+                readOnly: "You can see these settings but not change them.",
+                saved: "The updates from hubs setting was saved.",
+                notStored: "The event has no voting portal settings to store it in.",
+                saveError: "The setting could not be saved: {{reason}}",
+                hubs: {
+                    title: "Hubs",
+                    help: "From the election’s trust policy. To change them, publish a new policy.",
+                    none: "No hub in the trust policy has a site, so voters are not offered updates.",
+                    order: "Voters see them in a random order, every time. The order can’t be set, and no hub can be made the default.",
+                },
+                footer: "Both on by default once the policy names a hub. Stored with the election event’s other voting portal settings. Turning them off hides only the portal’s invitation: hubs still check the record, and voters can still go to any hub themselves.",
+            },
             overview: {
                 notReported: "Not reported",
                 ago: "{{duration}} ago",

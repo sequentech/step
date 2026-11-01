@@ -7041,6 +7041,29 @@ const galegoTranslation: TranslationType = {
             sdkLoading: "Cargando o verificador de Vitrine...",
             sdkError:
                 "O verificador de Vitrine non puido iniciarse neste navegador, así que aquí non se pode comprobar a política de confianza.",
+            hubUpdates: {
+                title: "Novidades dos nodos",
+                intro: "Opcional. Os votantes poden pedir a un nodo que lles escriba por correo sobre a súa papeleta. Todos os nodos da política de confianza ofrécense do mesmo xeito.",
+                confirmation: {
+                    label: "Ofrecer «Recibir novidades por correo» na páxina de confirmación",
+                    help: "Despois de votar, baixo o código QR. Mostra todos os nodos, e cada un ábrese no seu propio sitio co recibo do votante.",
+                },
+                castEmail: {
+                    label: "Engadir os nodos ao correo do voto emitido",
+                    help: "O correo co recibo da papeleta inclúe o ID de seguimento completo e unha ligazón a cada nodo, en orde aleatoria.",
+                },
+                readOnly: "Podes ver estes axustes, pero non cambialos.",
+                saved: "Gardouse o axuste das novidades dos nodos.",
+                notStored: "O evento non ten axustes do portal de votación onde gardalo.",
+                saveError: "Non se puido gardar o axuste: {{reason}}",
+                hubs: {
+                    title: "Nodos",
+                    help: "Os da política de confianza da elección. Para cambialos, publica unha política nova.",
+                    none: "Ningún nodo da política de confianza ten sitio web, así que non se ofrecen novidades aos votantes.",
+                    order: "Os votantes véxenos en orde aleatoria, cada vez. A orde non se pode fixar e ningún nodo pode ser o predeterminado.",
+                },
+                footer: "Ambos están activados por defecto cando a política nomea un nodo. Gárdanse cos demais axustes do portal de votación do evento. Desactivalos só agocha o convite do portal: os nodos seguen comprobando o rexistro e os votantes poden ir a calquera nodo pola súa conta.",
+            },
             overview: {
                 notReported: "Sen informar",
                 ago: "hai {{duration}}",
