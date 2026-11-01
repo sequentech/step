@@ -30,7 +30,7 @@ In the Admin Portal, open a ballot entry in the event's **Logs** tab to run the 
 
 ## Auditing a ballot
 
-Auditing reveals the ballot's choices and encryption evidence so they can be checked. Before displaying or downloading that evidence, the portal asks the ballot box to permanently mark the received ballot as audited. An audited ballot cannot subsequently be cast, including by returning to Review. To vote after an audit, prepare a new ballot. A ballot that has already been cast cannot be audited; the portal discards its audit material and keeps its non-disclosing confirmation and receipts.
+Auditing reveals the ballot's choices and encryption evidence so they can be checked. Before displaying or downloading that evidence, the portal asks the ballot box to permanently mark the received ballot as audited. An audited ballot cannot subsequently be cast, including by returning to Review. To vote after an audit, prepare a new ballot. When the event has transparency enabled, the audit screen offers no download: the voter checks the audited ballot on a hub of the election's policy that runs a ballot verifier. See [Audit your Vote](../../03-voters/01-tutorials/03-voter_audit_ballot.md#audit-with-transparency). A ballot that has already been cast cannot be audited; the portal discards its audit material and keeps its non-disclosing confirmation and receipts.
 
 ## Recovering after additional authentication
 

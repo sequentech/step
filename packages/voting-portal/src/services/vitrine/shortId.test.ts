@@ -103,7 +103,6 @@ describe("shortIdResultOf", () => {
             ["0WDY", "4YJG", true],
         ])
         expect(result.matches[0].at).toBe(1_700_000_000)
-        expect(result.matches.some((m) => m.onDevice)).toBe(false)
     })
 
     it("lists nothing above five, and asks for the third group", () => {
@@ -118,28 +117,11 @@ describe("shortIdResultOf", () => {
         expect(shortIdResultOf("FTBEMHRX", answer([])).kind).toBe(EShortIdKind.NONE)
     })
 
-    it("puts the ballot of this device first and keeps the look-alikes listed", () => {
-        const result = shortIdResultOf("FTBEMHRX", answer([ballot(OTHER), ballot(ID)]), [full(ID)])
-        expect(result.kind).toBe(EShortIdKind.LISTED)
-        expect(result.mine).toBe(ID)
-        expect(result.matches.map((m) => m.onDevice)).toEqual([true, false])
-        expect(result.matches[1].trackingId).toBe(OTHER)
-    })
-
-    it("lists the ballot of this device even when many share the short ID", () => {
-        const matches = Array.from({length: MAX_LISTED}, () => ballot(OTHER))
-        const result = shortIdResultOf("FTBEMHRX", answer(matches, 40), [full(ID)])
-        expect(result.kind).toBe(EShortIdKind.LISTED)
-        expect(result.matches).toHaveLength(MAX_LISTED)
-        expect(result.matches[0]).toMatchObject({trackingId: ID, onDevice: true})
-    })
-
-    it("does not mark a receipt of another ballot", () => {
-        const result = shortIdResultOf("FTBEMHRX", answer([ballot(ID)]), [
-            full("ZZZZ" + ID.slice(4)),
-        ])
-        expect(result.mine).toBeUndefined()
-        expect(result.matches[0].onDevice).toBe(false)
+    it("marks none of the ballots as the voter's: only the receipt they keep says", () => {
+        const result = shortIdResultOf("FTBEMHRX", answer([ballot(OTHER), ballot(ID)]))
+        expect(result.matches.map((m) => m.trackingId)).toEqual([OTHER, ID])
+        expect(Object.keys(result)).not.toContain("mine")
+        for (const match of result.matches) expect(Object.keys(match)).not.toContain("onDevice")
     })
 
     it("narrows to the ballots that share the third group", () => {

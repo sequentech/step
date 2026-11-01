@@ -10,6 +10,8 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use electoral_log::adapters::ballot_box_reads;
+use electoral_log::adapters::ballot_box_received::PublishedMatch;
+use electoral_log::adapters::postgres::PostgresStore;
 use sequent_core::ballot::{checks_period_from_presentation, ChecksPeriod};
 use sequent_core::ballot_receipt::{
     normalize_tracking_id, tracking_id_starts_with,
@@ -145,7 +147,58 @@ pub async fn get_checks_period(
     checks_period_from_presentation(election_event.presentation.as_ref(), now)
 }
 
-/// Looks up one of the voter's own cast ballots, while checks are open.
+/// The published audited ballots of an election that a lookup names: anyone may
+/// read them. Their time is when they were audited.
+async fn published_audited(
+    store: &PostgresStore,
+    election_event_id: &str,
+    election_id: &str,
+    lookup: &BallotIdMatch,
+) -> Result<Vec<LocatedBallot>> {
+    let lookup = match lookup {
+        BallotIdMatch::Tracking(start) => PublishedMatch::Tracking(start),
+        BallotIdMatch::Exact(hash) => PublishedMatch::BallotHash(hash),
+    };
+    // One more than are listed, to tell a short list from a longer one.
+    let limit = i64::try_from(MAX_LISTED_MATCHES + 1)?;
+    Ok(store
+        .published_audited_ballots(election_event_id, election_id, lookup, limit)
+        .await?
+        .into_iter()
+        .map(|ballot| LocatedBallot {
+            ballot_id: ballot.tracking_id,
+            content: ballot.content,
+            cast_at: ballot.audited_at,
+        })
+        .collect())
+}
+
+/// Looks up the published audited ballots of an election, for anyone, with no
+/// voter's token, while checks are open: a hub's ballot verifier opens one by
+/// its Tracking ID. Never a cast ballot, nor anything about the voter.
+#[instrument(skip_all, err)]
+pub async fn locate_published_ballot(
+    hasura_transaction: &Transaction<'_>,
+    store: &PostgresStore,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    ballot_id: &str,
+    now: DateTime<Utc>,
+) -> Result<LocateBallotOutput> {
+    let period = get_checks_period(hasura_transaction, tenant_id, election_event_id, now).await?;
+    if matches!(period, ChecksPeriod::Ended(_)) {
+        return Ok(locate_ballot_output(&period, &[]));
+    }
+    let Some(lookup) = ballot_id_match(ballot_id) else {
+        return Ok(locate_ballot_output(&period, &[]));
+    };
+    let matches = published_audited(store, election_event_id, election_id, &lookup).await?;
+    Ok(locate_ballot_output(&period, &matches))
+}
+
+/// Looks up one of the voter's own cast ballots, or a published audited
+/// ballot, while checks are open.
 #[instrument(skip_all, err)]
 pub async fn locate_ballot(
     hasura_transaction: &Transaction<'_>,
@@ -179,7 +232,7 @@ pub async fn locate_ballot(
         BallotIdMatch::Tracking(_) => ballot_box_reads::BallotIdMatch::Any,
         BallotIdMatch::Exact(hash) => ballot_box_reads::BallotIdMatch::Exact(hash),
     };
-    let matches = get_voter_cast_votes(
+    let mut matches = get_voter_cast_votes(
         hasura_transaction,
         &scope,
         VoterCastVotes::Matching {
@@ -222,6 +275,10 @@ pub async fn locate_ballot(
         })
     })
     .collect::<Vec<_>>();
+    // Published audited ballots are anyone's to read, the voter's own among them.
+    let store = crate::services::electoral_log_board::get_event_store(election_event_id).await?;
+    matches
+        .extend(published_audited(&store, election_event_id, election_id, &ballot_id_match).await?);
 
     Ok(locate_ballot_output(&period, &matches))
 }

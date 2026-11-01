@@ -251,6 +251,14 @@ const basqueTranslation: TranslationType = {
                 ok: "Bai, nire bozketa baztertu nahi dut auditatzeko",
                 cancel: "Ezeztatu",
             },
+            auditConfirm: {
+                title: "Boto-paper hau auditatu nahi duzu, eman beharrean?",
+                text: "Atariak <Id>{{id}}</Id> nola zifratu zuen argitaratzen du, gune batean zuk aukeratutakoa duela egiazta dezazun.",
+                never: "Ez da inoiz ematen ezta zenbatzen ere: bere sekretuak nola bozkatu zenuen erakutsiko luke.",
+                again: "Gero berriro bozkatzen duzu, jarraipen-ID berri batekin.",
+                cancel: "Utzi",
+                audit: "Auditatu boto-papera",
+            },
             confirmCastVoteDialog: {
                 title: "Ziur zaude zure botoa eman nahi duzula?",
                 content: "Berretsi ondoren, zure botoa emango da.",
@@ -460,6 +468,73 @@ const basqueTranslation: TranslationType = {
             },
             bottomWarning:
                 "Segurtasun arrazoiengatik, zure bozketa audtatzen duzunean, hondatu egin behar da. Bozketa prozesuarekin jarraitzeko, beheko '<b>Hasi Bozketa</b>' sakatu behar duzu.",
+            voteAgain: "Bozkatu berriro",
+            check: {
+                title: "Egiaztatu zure boto-paper auditatua",
+                lead: "Boto-paper hau ireki egin da eman beharrean, beraz ez da inoiz zenbatuko. Egiaztatu gune batean zuk aukeratutakoa duela, eta gero bozkatu berriro.",
+                label: "Boto-paper auditatu bat egiaztatzen",
+                encrypted: {
+                    title: "Gailu honetan zifratua",
+                    text: "Bere jarraipen-IDarekin, auditatzea erabaki aurretik.",
+                },
+                opened: {
+                    title: "Erregistro publikoan irekia",
+                    text: "Atariak zifratzeko erabili zuen sekretua argitaratu zuen. Erregistroak boto-papera Auditatua gisa markatzen du.",
+                    publishingText: "Atariak zifratzeko erabili zuen sekretua argitaratzen ari da.",
+                    failedTitle: "Ez da erregistro publikoan ireki",
+                    failedText:
+                        "Atariak ezin izan du zifratzeko erabili zuen sekretua argitaratu, eta oraindik ez dago gunerik boto-paper hau egiaztatu dezakeenik. Boto-papera auditatuta dago eta ez da zenbatuko. Saiatu berriro, edo bozkatu berriro.",
+                },
+                compare: {
+                    title: "Alderatu gune batean",
+                    text: "Guneak zure nabigatzailean deszifratzen du eta dituen aukerak erakusten ditu. Zuk bakarrik dakizu zer aukeratu zenuen.",
+                },
+                entry: "#{{index}} sarrera",
+                hubsLabel:
+                    "Boto-paperak egiaztatzen dituzten guneak, hauteskundearen politikaren arabera",
+                runBy: "Kudeatzailea: {{party}}",
+                hubLabel:
+                    "{{name}} (kudeatzailea: {{party}}): egiaztatu boto-paper hau bere webgunean (fitxa berri batean irekitzen da)",
+                authorityName: "Hauteskundearen boto-paperen egiaztatzailea",
+                runByAuthority: "Kudeatzailea: hauteskunde-agintaritza",
+                authorityLabel:
+                    "Hauteskundearen boto-paperen egiaztatzailea (kudeatzailea: hauteskunde-agintaritza): egiaztatu boto-paper hau bere webgunean (fitxa berri batean irekitzen da)",
+                footnote:
+                    "Hauteskundearen politikan boto-paperak egiaztatzen dituen gune oro, aldi bakoitzean ausazko ordenan. Bakoitza bere webgunean irekitzen da, jarraipen-IDa estekan duela.",
+                footnoteAuthority:
+                    "Hauteskundearen politikako gune batek ere ez ditu oraindik boto-paperak egiaztatzen, beraz hau hauteskunde-agintaritzaren beraren boto-paperen egiaztatzailea da. Jarraipen-IDa estekan duela irekitzen da.",
+                trackerText:
+                    "Hauteskundearen politikako gune batek ere ez ditu oraindik boto-paperak egiaztatzen. Txartelen jarraitzaileak erakuts dezake: boto-papera zure nabigatzailean deszifratzen du.",
+                trackerLink: "Ireki txartelen jarraitzailean",
+                tip: "Sendoagoa da beste gailu batean, zure telefonoan adibidez: ireki edozein guneren webgunea eta itsatsi jarraipen-IDa.",
+                tipTracker:
+                    "Sendoagoa da beste gailu batean, zure telefonoan adibidez: ireki han txartelen jarraitzailea eta itsatsi jarraipen-IDa.",
+                why: "Zergatik auditatu?",
+                faq: {
+                    why: {
+                        question: "Zergatik auditatu?",
+                        answer: "Zure botoa zure gailuan zifratzen da, beraz inork ezin du irakurri, ezta zuk ere. Auditatzeak egiaztatzeko aukera ematen dizu atariak zuk aukeratutakoa zifratu duela.",
+                    },
+                    catch: {
+                        question: "Zergatik harrapatzen du iruzurra?",
+                        answer: "Atariak auditatzea erabaki aurretik zifratzen du, beraz ezin du jakin zein boto-paper egiaztatuko diren. Botoak aldatuko balitu, auditatzen duen edonor konturatu liteke.",
+                    },
+                    spent: {
+                        question: "Zergatik ezin da boto-paper hau zenbatu?",
+                        answer: "Sekretua argitaratuta dagoenez, boto-paperak nola bozkatu zenuen erakusten du. Zure botoa sekretu mantentzeko, auditatutako boto-papera ez da inoiz ematen.",
+                    },
+                    hub: {
+                        question: "Zergatik gune batean?",
+                        answer: "Zure botoa aldatu duen atari batek egiaztapen faltsu bat ere erakuts liezazuke. Gunea beste webgune bat da; boto-papera eta bere sekretua erregistro publikotik datoz, ez orri honetatik.",
+                    },
+                },
+                helpDialog: {
+                    title: "Egiaztatu zure boto-paper auditatua",
+                    content:
+                        "<p>Auditatzeak boto-paper bat ireki egiten du eman beharrean. Atariak zure aukerak zifratzeko erabili zuen sekretua argitaratzen du, beraz edonork deszifra dezake boto-papera eta zer duen ikusi.</p><p>Egiaztatu gune batean zuk aukeratutakoa duela. Gero bozkatu berriro: boto-paper berriak jarraipen-ID berri bat du, eta hori da zenbatzen dena.</p>",
+                    ok: "Ados",
+                },
+            },
         },
         electionSelectionScreen: {
             title: "Bozketak",
@@ -635,10 +710,10 @@ const basqueTranslation: TranslationType = {
                 title: "Egiaztatu zure boto-txartela erregistro publikoan",
                 intro: "Sartu zure berrespen pantailako edo hartu-agiriko jarraipen IDa. Zure nabigatzaileak bilatzen du, eta frogak berak egiaztatzen ditu.",
                 find: "Bilatu",
-                invalid: "Jarraipen IDak digituak eta a-tik f-ra bitarteko letrak baino ez ditu.",
+                invalid: "Jarraipen IDak digituak eta letrak baino ez ditu, inoiz ez U letra.",
                 chips: {
                     short: "<b>Laburra</b> FTBE-MHRX",
-                    full: "<b>Osoa</b> lauko 16 talde",
+                    full: "<b>Osoa</b> lauko 13 talde",
                     spaces: "Zuriuneak aukerakoak",
                 },
                 features: {
@@ -665,25 +740,19 @@ const basqueTranslation: TranslationType = {
                     one: "Boto-txartel 1ek hasiera hau du: {{start}}",
                     other: "{{count}} boto-txartelek hasiera hau dute: {{start}}",
                     atLeast: "{{count}} boto-txartelek edo gehiagok hasiera hau dute: {{start}}",
-                    mine: "Zure boto-txartela eta hasiera hau duten beste {{count}}: {{start}}",
-                    mineAlone: "Zure boto-txartelak hasiera hau du: {{start}}",
                 },
                 sub: {
                     few: "Zein da zurea? Konparatu nabarmendutako taldea zure ordainagiriarekin, edo idatzi behean.",
                     one: "Ireki eta konparatu bere jarraipen ID osoa zure ordainagiriarekin.",
                     many: "Erakusten ditugunak baino gehiago dira. Idatzi zure ordainagiriko hirugarren taldea zurea aurkitzeko.",
-                    mine: "Gailu honek zure ordainagiria gordetzen du, beraz badaki zein den zurea.",
                 },
                 why: {
-                    few: "ID laburrak boto-txartelak aurkitzen ditu. Jarraipen ID osoak edo zure gailuko ordainagiriak soilik esaten du zein den zurea.",
+                    few: "ID laburrak boto-txartelak aurkitzen ditu. Zure ordainagiriko jarraipen ID osoak soilik esaten du zein den zurea.",
                     many: "Hainbeste izateak normalean esan nahi du norbaitek nahita sortu dituela ID labur honekin bat datozen boto-txartelak. Zurea erregistroan dago oraindik: hiru taldeak asmatzeak mila trilioi saiakera inguru beharko luke.",
-                    mine: "Besteak beste boto-emaile batzuenak dira. Zerrendatuta daude, antzeko batek zurearen lekua har ez dezan.",
                 },
                 third: "Zure ordainagiriko hirugarren taldea",
                 thirdOr: "Edo idatzi zure ordainagiriko hirugarren taldea",
                 find: "Bilatu",
-                onDevice: "Gailu honetan",
-                deviceMatches: "Gailu honetako ordainagiriak 13 taldeekin bat egiten du",
                 serverSees:
                     "Erregistroaren zerbitzariek ezin izan dute bilaketa hau egin zein boto-txartel nahi duzun jakin gabe; beraz, hauteskundeko zerbitzariari ID zehatz hau eskatu zaio eta ikusi ahal izan du.",
             },
@@ -793,9 +862,7 @@ const basqueTranslation: TranslationType = {
                 howToReportText:
                     "Gorde frogaren fitxategia eta bidali hauteskunde-agintaritzari edo behatzaile bati. Beren ordenagailuetan egiaztatu dezakete. Ez du ezer jasotzen nola bozkatu duzun.",
                 noReceipt:
-                    "Gailu honek ez du boto-txartel honen hartu-agiririk. Egiaztatu bozkatzeko erabili zenuen gailuan, edo egiaztatu hartu-agiriaren fitxategia boto-txartelen egiaztatzailean.",
-                receiptPending:
-                    "Gailu honek boto-txartel honen hartu-agiria gordetzen du, baina ez dago osorik edo ezin izan da orain egiaztatu. Saiatu berriro geroago, edo egiaztatu hartu-agiriaren fitxategia boto-txartelen egiaztatzailean.",
+                    "Ezin izan da hemen boto-txartel honen hartu-agiririk egiaztatu. Egiaztatu gorde zenuen hartu-agiriaren fitxategia boto-txartelen egiaztatzailean, edo saiatu berriro geroago.",
                 status: {
                     checking: {
                         head: "Egiaztatzen…",
@@ -947,9 +1014,7 @@ const basqueTranslation: TranslationType = {
                     "Ez zaude ziur atariak ondo zifratu dituela zure aukerak? Auditatu boto-paper hau: atariak nola zifratu zuen agertzen du, zuk egiazta dezazun. Auditatutako boto-papera ezin da inoiz bidali, beraz gero berriro bozkatzen duzu.",
                 cast: "{{when}}(e)an eman da",
                 audited: "{{when}}(e)an auditatu da",
-                ballotCast: "Boto emana",
                 aria: "Bozketaren egoera: {{state}}. Erakutsi xehetasunak",
-                ariaCast: "Boto emana. Bozketaren egoera: {{state}}. Erakutsi xehetasunak",
                 tooltip: "{{state}} · Erakutsi xehetasunak",
                 tracker: "Ireki txartelen jarraitzailean",
                 save: "Gorde ordainagiria",
@@ -1066,10 +1131,7 @@ const basqueTranslation: TranslationType = {
                     skipped: "—",
                 },
                 callout: {
-                    late: "Normalean gune bat motela edo lineaz kanpo dagoela esan nahi du; ez da manipulazioaren froga.",
-                    lateKept:
-                        "Gailu honek berriro egiaztatzen du itzultzen zaren bakoitzean, eta txartelen jarraitzaileak edozein gailutatik egiazta dezake.",
-                    lateTracker: "Txartelen jarraitzaileak edozein gailutatik egiazta dezake.",
+                    late: "Normalean gune bat motela edo lineaz kanpo dagoela esan nahi du; ez da manipulazioaren froga. Egiaztatu berriro geroago zure ordainagiriarekin, txartelen jarraitzailean edo gune batean, edozein gailutatik.",
                     evidence:
                         "Zure nabigatzaileak frogak gorde ditu: ordainagiri hau eta erregistroaren sarrera sinatua. Bidali hauteskunde-agintaritzari edo behatzaile bati; edonork egiazta dezake.",
                     saveEvidence: "Gorde frogak",
@@ -1084,7 +1146,7 @@ const basqueTranslation: TranslationType = {
                         "Zure nabigatzaileak deszifratua, edonork ikuska dezakeen kodearekin.",
                     verified: "Zure nabigatzaileak egiaztatua, edonork ikuska dezakeen kodearekin.",
                     checked: "Zure nabigatzaileak egiaztatua, edonork ikuska dezakeen kodearekin.",
-                    kept: "Gailu honek ordainagiria gordetzen du eta bisita bakoitzean berriro egiaztatzen du.",
+                    keep: "Gorde zure ordainagiria geroago berriro egiaztatzeko, txartelen jarraitzailean edo gune batean.",
                 },
             },
             signers: {

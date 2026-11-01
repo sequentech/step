@@ -201,8 +201,12 @@ has one entry per stage, is cast or audited but not both, and that a `cast` or
   for the `cast` entry before it opens the confirmation screen. The same
   signature again is a retry and gets the same receipt.
 - **Audit** (`POST /audit-ballot`). Auditing a received ballot queues its
-  `audited` entry and stops it from ever being cast; the portal shows the
-  plaintext only after the ballot box acknowledges the audit.
+  `audited` entry and stops it from ever being cast. Once the ballot box
+  confirms the audit, and the `audited` entry checks, the portal calls
+  `audit_ballot` again with `auditable_ballot`. Windmill checks that it is the
+  audited ballot (hash, voter key, ballot style and ciphertexts) and stores it
+  once; the answer's `publication` says whether it is published, and the audit
+  screen says plainly when it isn't.
 - **A reload** drops the key that casts the ballot. The portal keeps a
   marker (no key and no choices) once the ballot box has the ballot, and after
   a reload the review screen says **Your ballot was not cast** and offers
@@ -329,17 +333,39 @@ the public record, confirmed by witnesses, verified, late or problem. The worst
 step wins, and it is blue only when every tier the policy uses is verified.
 Selecting it opens a dialog with the short and full ID and three steps: in the
 public record, confirmed by witnesses and anchored publicly. The dialog also
-has two states for an audited ballot, auditable and audit failed, but Step does
-not open it in those two states today. Contradicting signed proofs, or a
+has two states for an audited ballot: the audit screen's Tracking ID box opens
+it as auditable, tagged **Audited**, and Step doesn't use audit failed today. Contradicting signed proofs, or a
 required receipt that never came, show as a problem, and never turn an accepted
-cast into a failed one. In the election list, **Ballot cast** with the check
-mark replaces **Voted** for a ballot whose receipt this browser kept, and
+cast into a failed one. The portal keeps no receipt or Tracking ID in the
+browser, so the election list says **Voted** with no check mark, and
 **Click to Vote** is off once the voter cast every ballot an open election
 allows. The ballot tracker, Ballot Tracking, shows the whole receipt, for a
 ballot found by its short or full Tracking ID, and the ballot's record in a
-viewer that expands, copies and saves it. Step does not publish audited
-ballots; when the record that the tracker finds for a Tracking ID is an audited
-ballot, the tracker checks it in the voter's browser and shows its selections.
+viewer that expands, copies and saves it. Step publishes a ballot the voter
+audited, and when the record that the tracker finds for a Tracking ID is an
+audited ballot, the tracker checks it in the voter's browser and shows its
+selections.
+
+### A hub's ballot verifier
+
+A hub whose policy line `hub-ballot-verifier <name> <url>` names a ballot
+verifier runs Step's ballot verifier app there. The voting portal links an
+audited ballot into it as
+`<url>tenant/<tenant>/event/<event>/election/<election>/audited#id=<full Tracking ID>&policy=sha256:<hex>`
+(Windmill builds the same link with `hub_sites::audited_ballot_link`). The
+fragment never reaches the hub's server. The page needs no login or upload. It
+uses the election's policy only if it is pinned or in the event's public
+config with the link's ID. It finds the ballot in a bucket of the ballots log,
+proves its `audited` entry with the log's receipt, and reads the events log for
+successor policies. Then it takes the ballot and the secret the portal
+published from the public ballot locator (`locate_ballot` with no token,
+which finds only published audited ballots, at most one lookup every 200 ms
+per address), and checks that they give the
+Tracking ID and reproduce the ciphertext. Only then does it decode the ballot
+in the browser, for the voter to compare with what they chose. It never
+fetches or decodes a cast ballot. The verifier's `global-settings.json` can
+name the hub (`HUB_NAME`, its name in the policy) for the page's header, and
+the voting portal (`VOTING_PORTAL_URL`) for "Back to the voting site".
 
 ### Updates from the policy's hubs
 
@@ -438,7 +464,7 @@ vkeys: Ed25519 for authorities, auditors, monitors and hubs, and
 | `[[groups]]` | `name`, `threshold`, `members` | Groups of witnesses and groups, for the quorum. `threshold` is a number, `any` or `all`. Members are defined before the group and belong to one group only. |
 | `[[monitors]]` | `name`, `vkey`, `url`, `party`, `explorer` | The policy's monitors, which check the logs and collect evidence. `explorer` is optional: the URL of an explorer page the monitor publishes; the policy gets a `monitor-explorer <name> <url>` line. |
 | `[[mirrors]]` | `url`, `party`, `logs` | Mirrors of the logs' tiles. `url` has `{path}` where the log's path on the sidecar goes; `party` defaults to the operator; `logs` (`ballots`, `events`) defaults to both. A public event needs a `ballots` mirror that the operator doesn't run. |
-| `[[hubs]]` | `name`, `vkey`, `url`, `operator`, `explorer`, `role`, `witnesses`, `groups`, `quorum` | Anchor hubs for both public and private events. `explorer` is optional: the URL of an explorer page the hub publishes; the policy gets a `hub-explorer <name> <url>` line. `role` is `app` (the default: the logs anchor in it) or `bootstrap` (it stands in for the browser layer). `witnesses` and `groups` have the shapes above. |
+| `[[hubs]]` | `name`, `vkey`, `url`, `operator`, `explorer`, `ballot_verifier`, `role`, `witnesses`, `groups`, `quorum` | Anchor hubs for both public and private events. `explorer` is optional: the URL of an explorer page the hub publishes; the policy gets a `hub-explorer <name> <url>` line. `ballot_verifier` is optional: the base URL of the ballot verifier the hub runs, where a voter checks an audited ballot (https, or http on localhost); the policy gets a `hub-ballot-verifier <name> <url>` line. `role` is `app` (the default: the logs anchor in it) or `bootstrap` (it stands in for the browser layer). `witnesses` and `groups` have the shapes above. |
 
 Harvest also checks that:
 

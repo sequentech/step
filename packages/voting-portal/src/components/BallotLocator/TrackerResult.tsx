@@ -972,11 +972,7 @@ export const TrackerResult: React.FC<ITrackerResultProps> = ({
                             color: PALETTE.muted,
                         }}
                     >
-                        {t(
-                            shown === ETrackerView.NO_RECEIPT
-                                ? "ballotLocator.result.noReceipt"
-                                : "ballotLocator.result.receiptPending"
-                        )}
+                        {t("ballotLocator.result.noReceipt")}
                     </Box>
                 )}
                 <FindElsewhere

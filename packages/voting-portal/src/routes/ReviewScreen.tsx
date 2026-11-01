@@ -100,6 +100,7 @@ import {
 import {asTransparency, eventTransparency, ITransparency} from "../services/vitrine/presentation"
 import {ETransparencyMode, IVitrineCast} from "../services/vitrine/types"
 import {ReviewBallotId} from "../components/Vitrine/ReviewBallotId"
+import {AuditConfirmDialog} from "../components/Vitrine/AuditConfirmDialog"
 import {useElectionName} from "../hooks/useElectionName"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {completeAcclaimedElection, isDeclineToVoteByElectionId} from "../store/extra/extraSlice"
@@ -156,14 +157,26 @@ const AuditButton: React.FC<AuditButtonProps> = ({onClick}) => {
 interface AuditBallotHelpDialogProps {
     auditBallotHelp: boolean
     handleClose: (value: boolean) => void
+    /** The ballot's Tracking ID, for an event that keeps a transparency log:
+     * its audit is published, and the dialog says so. */
+    trackingId?: string
 }
 
 const AuditBallotHelpDialog: React.FC<AuditBallotHelpDialogProps> = ({
     auditBallotHelp,
     handleClose,
+    trackingId,
 }) => {
     const {t} = useTranslation()
 
+    if (trackingId)
+        return (
+            <AuditConfirmDialog
+                open={auditBallotHelp}
+                trackingId={trackingId}
+                onClose={handleClose}
+            />
+        )
     return (
         <Dialog
             className="audit-ballot-dialog"
@@ -315,6 +328,8 @@ interface ActionButtonProps {
     isAwaitingReceipt: boolean
     receivedBallotId?: string
     unfilledContests: Array<IUnfilledContest>
+    /** The Tracking ID to audit, for an event that keeps a transparency log. */
+    auditTrackingId?: string
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
@@ -333,6 +348,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     isAwaitingReceipt,
     receivedBallotId,
     unfilledContests,
+    auditTrackingId,
 }) => {
     const castRefused = hasInconsistentHash || isAwaitingReceipt
     const {t} = useTranslation()
@@ -596,6 +612,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 <AuditBallotHelpDialog
                     auditBallotHelp={auditBallotHelp}
                     handleClose={handleClose}
+                    trackingId={auditTrackingId}
                 />
             ) : null}
             {/* The row itself is `ReviewActions` in `ui-essentials`, so the Election
@@ -888,6 +905,8 @@ export const ReviewScreen: React.FC = () => {
     // ballot is sent. The ballot box's key for it is only what the cast names.
     const shownBallotId = isReceiptRequired ? receipt.trackingId : ballotId || ""
     const displayedErrorMsg = hashErrorMsg ?? receipt.errorMsg ?? errorMsg
+    // With a transparency log the audit is published, and its dialog says so.
+    const auditTrackingId = keepsTransparencyLog && shownBallotId ? shownBallotId : undefined
 
     const handleCloseDialogAuditHelp = (value: boolean) => {
         setAuditBallotHelp(false)
@@ -1319,6 +1338,7 @@ export const ReviewScreen: React.FC = () => {
                             isBlankBallot={isBlankBallot}
                             isFullyAcclaimed={isFullyAcclaimed}
                             unfilledContests={unfilledContests}
+                            auditTrackingId={auditTrackingId}
                         />
                     )
                 }
@@ -1353,6 +1373,7 @@ export const ReviewScreen: React.FC = () => {
                     <AuditBallotHelpDialog
                         auditBallotHelp={auditBallotHelp}
                         handleClose={handleCloseDialogAuditHelp}
+                        trackingId={auditTrackingId}
                     />
                 ) : null}
                 {/* The title's own help dialog. It sat inside the heading before,

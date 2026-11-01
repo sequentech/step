@@ -6,7 +6,9 @@
 // log (design boards Review and PhoneReview): the check mark of a ballot not
 // cast yet, the short ID with its tag, and the buttons to copy it and to ask
 // about it. The short ID opens the full one below. It is one box: on a phone it
-// takes the board's filled look, with its label above.
+// takes the board's filled look, with its label above. The audit screen shows
+// the same box for the ballot it audited (design board AuditScreen): a grey
+// double check and the tag Audited.
 
 import React, {useId, useState} from "react"
 import {Box, ButtonBase} from "@mui/material"
@@ -16,7 +18,7 @@ import {BallotHashCopyButton, IconButton, theme} from "@sequentech/ui-essentials
 import {groupBallotId, shortBallotId} from "../../services/vitrine/ballotId"
 import {EBallotStatus, EBallotTag} from "../../services/vitrine/ballotStatus"
 import type {IReceiptView} from "../../services/vitrine/castReceipt"
-import {BallotStatus, EBallotStatusTrigger} from "./BallotStatus"
+import {BallotStatus} from "./BallotStatus"
 import {HEAVY_DOTS} from "./BallotStatusIcon"
 import {BallotTag} from "./BallotTag"
 import {EFullTrackingIdSurface, FullTrackingId} from "./FullTrackingId"
@@ -36,10 +38,24 @@ const focusSx = {
     "&.Mui-focusVisible": {outline: `2px solid ${COLORS.navy}`, outlineOffset: "1px"},
 } as const
 
+/** Which ballot the box shows. */
+export enum EReviewBallotIdState {
+    /** At review: encrypted, not cast yet. */
+    NOT_CAST = "notCast",
+    /** On the audit screen: audited, so never cast. */
+    AUDITED = "audited",
+}
+
 export interface IReviewBallotIdProps {
     ballotId: string
-    /** The check of the ballot's `received` entry, once the log answered. */
+    state?: EReviewBallotIdState
+    /** The check of the ballot's `received` entry (at review) or its `audited`
+     * one (audited), once the log answered. */
     view?: IReceiptView
+    /** When the ballot was audited, as the voter reads it. */
+    auditedAt?: string
+    /** The audited ballot in the ballot tracker. */
+    trackerUrl?: string
     electionName?: string
     helpLabel: string
     onHelpClick: () => void
@@ -49,7 +65,10 @@ export interface IReviewBallotIdProps {
 
 export const ReviewBallotId: React.FC<IReviewBallotIdProps> = ({
     ballotId,
+    state = EReviewBallotIdState.NOT_CAST,
     view,
+    auditedAt,
+    trackerUrl,
     electionName,
     helpLabel,
     onHelpClick,
@@ -58,6 +77,8 @@ export const ReviewBallotId: React.FC<IReviewBallotIdProps> = ({
     const {t} = useTranslation()
     const [expanded, setExpanded] = useState(false)
     const fullId = useId()
+    const audited = state === EReviewBallotIdState.AUDITED
+    const tag = audited ? EBallotTag.AUDITED : EBallotTag.NOT_CAST
 
     return (
         <Box className="vitrine-tracking-id">
@@ -108,13 +129,16 @@ export const ReviewBallotId: React.FC<IReviewBallotIdProps> = ({
                     }}
                 >
                     <BallotStatus
-                        trigger={EBallotStatusTrigger.ICON}
-                        {...(view ? {view} : {status: EBallotStatus.NOT_CAST})}
-                        tag={EBallotTag.NOT_CAST}
+                        {...(audited
+                            ? {status: EBallotStatus.AUDITABLE, view, castAt: auditedAt, trackerUrl}
+                            : view
+                              ? {view}
+                              : {status: EBallotStatus.NOT_CAST})}
+                        tag={tag}
                         ballotId={ballotId}
                         electionName={electionName}
-                        strokeWidth={HEAVY_DOTS}
-                        onAudit={onAudit}
+                        strokeWidth={audited ? undefined : HEAVY_DOTS}
+                        onAudit={audited ? undefined : onAudit}
                         sx={{m: "-7px -4px -7px -12px", [PHONE]: {m: "-3px -3px -3px -5px"}}}
                     />
                     <Box
@@ -162,7 +186,7 @@ export const ReviewBallotId: React.FC<IReviewBallotIdProps> = ({
                                 {shortBallotId(ballotId)}
                             </ButtonBase>
                         </Box>
-                        <BallotTag tag={EBallotTag.NOT_CAST} />
+                        <BallotTag tag={tag} />
                     </Box>
                     <Box
                         className="hash-actions"

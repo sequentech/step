@@ -4,7 +4,7 @@
 
 import {getPublishedSupportMaterialsPolicy} from "../services/PublishedBallots"
 import {Box, Button, CircularProgress, Typography, Alert} from "@mui/material"
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {Trans, useTranslation} from "react-i18next"
 import {Dialog, ElectionListLayout, IconButton, SelectElection} from "@sequentech/ui-essentials"
 import {
@@ -71,8 +71,6 @@ import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {GET_SUPPORT_MATERIALS_ACKNOWLEDGMENT} from "../queries/GetSupportMaterialsAcknowledgment"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 import {useElectionClassName} from "../hooks/useElectionClassName"
-import {BallotStatus, EBallotStatusTrigger} from "../components/Vitrine/BallotStatus"
-import {IKeptReceiptView, useKeptReceipts} from "../hooks/useCastReceipt"
 import {readTransparency} from "../services/vitrine/presentation"
 import {showsAlreadyCastHint} from "../services/vitrine/ballotList"
 import {ETransparencyMode} from "../services/vitrine/types"
@@ -100,8 +98,6 @@ interface ElectionWrapperProps {
     bypassChooser: boolean
     canVoteTest: boolean
     materialsGate: boolean
-    /** The ballot cast and kept on this device, with its check. */
-    receipt?: IKeptReceiptView
 }
 
 const isElectionEventOnlineVotingOpen = (electionEvent?: IElectionEvent): boolean => {
@@ -146,7 +142,6 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     bypassChooser,
     canVoteTest,
     materialsGate,
-    receipt,
 }) => {
     const navigate = useNavigate()
     const location = useLocation()
@@ -277,34 +272,12 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const electionName = translateFromPresentation(election, "name", i18n.language, {
         defaultLanguageCode,
     })
-    const acceptedAt = receipt?.view?.own?.acceptedAt ?? receipt?.kept.acceptedAt
-    const votedStatus = receipt ? (
-        <BallotStatus
-            trigger={EBallotStatusTrigger.LABEL}
-            view={receipt.view}
-            ballotId={receipt.kept.ballotId}
-            electionName={electionName || undefined}
-            castAt={
-                acceptedAt === undefined
-                    ? undefined
-                    : formatVotingPortalDateTime(
-                          acceptedAt * 1000,
-                          electionEvent,
-                          i18n.resolvedLanguage || i18n.language
-                      )
-            }
-            kept
-            trackerUrl={`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${receipt.kept.ballotId}${isKiosk ? "?kiosk" : ""}`}
-        />
-    ) : undefined
-
     return (
         <SelectElection
             isActive={canVote()}
             isOpen={isVotingOpen()}
             title={electionName || "-"}
             hasVoted={castVotes.length > 0}
-            votedStatus={votedStatus}
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
             alreadyCast={alreadyCast}
@@ -343,11 +316,6 @@ const ElectionSelectionScreen: React.FC = () => {
         electionEvent?.presentation?.language_conf?.default_language_code
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const electionIds = useAppSelector(selectElectionIds)
-    const transparency = useMemo(
-        () => readTransparency(electionEvent?.presentation),
-        [electionEvent?.presentation]
-    )
-    const {receipts} = useKeptReceipts(eventId, transparency)
     const electionsById = useAppSelector((state) => state.elections)
     const ballotStylesById = useAppSelector((state) => state.ballotStyles)
     const dispatch = useAppDispatch()
@@ -795,7 +763,6 @@ const ElectionSelectionScreen: React.FC = () => {
                         bypassChooser={bypassChooser}
                         canVoteTest={canVoteTest || electionId === testElectionId}
                         materialsGate={materialsGate}
-                        receipt={receipts.find((r) => r.kept.electionId === electionId)}
                     />
                 ))
             ) : (

@@ -6,7 +6,7 @@
 
 ## Frontend interface decisions
 
-The three apps use the verifier and UI packed from Vitrine commit `eb7d3c8aef1dcdb90f4b9ab57c9480273709cda4` (`packages/vendor-npm/VITRINE_COMMIT`). The archive-based vendor script runs upstream builds and tests before packing and has no failed-test bypass. Repacking the installed verifier and UI produces byte-identical tarballs; their SHA-256 digests are recorded in `packages/vendor-npm/SHA256SUMS`.
+The three apps use the verifier and UI packed from Vitrine commit `5389ff35832380663768fe99fcfaf025dcd63ca8` (`packages/vendor-npm/VITRINE_COMMIT`). The archive-based vendor script runs upstream builds and tests before packing and has no failed-test bypass. Repacking the installed verifier and UI produces byte-identical tarballs; their SHA-256 digests are recorded in `packages/vendor-npm/SHA256SUMS`.
 
 New policy admission uses the SDK's `pinPolicy`, including authenticated profile meanings and election minimums. Structural parsing remains available for unsigned Board drafts. Election fixtures use `vitrine/election/ballots/v1` and `vitrine/election/events/v1` with their published meaning hashes, two app hubs, an independent hub subset and two monitor parties. Private fixtures name separate blinded subjects for both logs.
 
@@ -14,7 +14,7 @@ Private successor discovery adds `route: "policies"` to `vitrine_voter_forward`.
 
 Config observations follow the current `problem` line and receipt/key/styles/style block format. They contain configuration material, never the voter's encrypted ballot, own ballot ID or submission receipt. Public context failures can be reported using a separately admitted public policy; an unpinned private context supplies no report destinations. All monitor requests omit credentials and use independent random delays and bounded retries.
 
-Receipt requests stop reading streamed bodies above 4 MiB. Retention requires an authenticated account and a live, non-kiosk opt-in. An opt-out or unmount during an IndexedDB write is checked again before retention completes. The chooser binds its displayed receipt list to the current account, so a changed or logged-out account does not briefly see the previous account's list. Downloads, printing and QR generation remain local actions.
+Receipt requests stop reading streamed bodies above 4 MiB. The voting portal keeps no receipts and no Tracking IDs in the browser (design v41): the receipt store, its keep-or-forget choice and the ballot list's kept-receipt status are gone, and on start the portal deletes the localStorage keys and the IndexedDB database that earlier versions left. Receipt downloads, printing and QR generation remain local actions.
 
 JSONb statement contexts accept canonical chain strings and legacy objects carrying a `text` or `chain` string. Other object forms are refused as missing configuration; no JavaScript or HTML from server text or uploaded files is executed. Hand-written frontend action types remain next to their operations until the coordinator regenerates the combined schema.
 
@@ -152,9 +152,14 @@ design board. On Step's side:
   QR code behind a row. It keeps asking the log for the hub and browser
   anchors, every 2 s at first and at most every 30 s, until those tiers are
   done or due, so the last receipt steps fill in while the voter watches.
-- Kept receipts show one card per receipt with a row per tier (Revisit), and
-  the failure page builds its evidence card from the tiers that failed
-  (Alert).
+- The failure page builds its evidence card from the tiers that failed
+  (Alert). The Revisit board's kept receipts are gone with design v41: the
+  portal keeps none in the browser.
+- With design v41, an audited ballot is checked on a hub (AuditScreen,
+  HubAudit): the audit screen lists the policy's hubs that have a
+  `hub-ballot-verifier` line, and the hub's ballot verifier opens the ballot
+  by Tracking ID from the public record. An event without a log keeps the
+  download.
 - The Transparency tab derives its overview from the policy and the logs, laid
   out as the Admin board in the admin theme, with its label in eight
   languages.
@@ -163,5 +168,5 @@ design board. On Step's side:
 - `scripts/vitrine-preview` serves both portals against a local Vitrine stack,
   with a switch for the Alert scenario.
 
-The kit from `eb7d3c8aef1dcdb90f4b9ab57c9480273709cda4` says on the receipt
+The kit from `5389ff35832380663768fe99fcfaf025dcd63ca8` says on the receipt
 when a bootstrap hub stands in for the browser layer.

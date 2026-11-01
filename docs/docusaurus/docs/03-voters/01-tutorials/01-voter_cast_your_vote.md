@@ -36,7 +36,7 @@ From the dashboard, you will see a list of ballots available to you. Note that m
 2. Select the `Click to Vote` button.
 
 :::info
-**A ballot you already cast:** Its card shows **Voted**, or **Ballot cast** with a check mark when your election has transparency enabled and this browser kept your receipt. The `Track your ballot` button opens the ballot tracker. When your election has transparency enabled and is open, and you cast every ballot it allows you, `Click to Vote` is disabled, with the hint "You already cast this ballot". The hint shows as a tooltip, and screen readers read it. See [Track your Vote](./02-voter_track_your_vote.md).
+**A ballot you already cast:** Its card shows **Voted**. The voting portal keeps no receipts in the browser, so it shows no check mark: to check your ballot, use the Tracking ID on your receipt. The `Track your ballot` button opens the ballot tracker. When your election has transparency enabled and is open, and you cast every ballot it allows you, `Click to Vote` is disabled, with the hint "You already cast this ballot". The hint shows as a tooltip, and screen readers read it. See [Track your Vote](./02-voter_track_your_vote.md).
 :::
 
 ## Step 3: Review Instructions
@@ -74,7 +74,7 @@ This stage allows you to verify your choices before they are permanently recorde
 3. Select `Cast your Ballot`.
 
 :::info
-**Transparency:** When your election has transparency enabled, the box shows your Tracking ID as its first two groups of four characters, such as `30ff d314`, with a dotted check mark for a ballot that is not cast yet, a **Not cast** tag, a copy button and a help button. Select the short ID to show the full Tracking ID in the box. The copy button copies the full Tracking ID. The check mark opens the **Ballot status** dialog. See [Check your transparency receipt](./04-voter_transparency_receipt.md).
+**Transparency:** When your election has transparency enabled, the box shows your Tracking ID as its first two groups of four characters, such as `FTBE-MHRX`, with a dotted check mark for a ballot that is not cast yet, a **Not cast** tag, a copy button and a help button. Select the short ID to show the full Tracking ID in the box. The copy button copies the full Tracking ID. The check mark opens the **Ballot status** dialog. See [Check your transparency receipt](./04-voter_transparency_receipt.md).
 :::
 
 :::warning

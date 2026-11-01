@@ -142,10 +142,10 @@ export interface ICastReceiptOptions extends IReceiptRunOptions {
     checkOnly?: boolean
 }
 
-/** A receipt kept on this device: its chain, or the entry that waits for one. */
-export interface IKeptReceiptOptions extends IReceiptRunOptions {
-    chain?: string
-    acceptedAt?: number
+/** A ballot the tracker found: the entry cast at `acceptedAt`, whose receipt
+ * the log is asked for. */
+export interface ITrackedReceiptOptions extends IReceiptRunOptions {
+    acceptedAt: number
 }
 
 /** The first wait between two requests for a receipt, and the longest. */
@@ -613,24 +613,16 @@ class ReceiptRun {
         else await this.upgrade(true)
     }
 
-    /** A kept chain is shown as it verifies now; a kept entry waits for its
-     * receipt. */
-    async fromKept(chain: string | undefined, acceptedAt: number | undefined): Promise<void> {
-        const receipt = chain ? chainReceipt(this.sdk, chain) : undefined
-        const own =
-            (receipt ? receiptEntry(this.sdk, this.o.target, receipt) : undefined) ??
-            (acceptedAt === undefined ? undefined : entryAt(this.sdk, this.o.target, acceptedAt))
+    /** An entry the tracker found waits for its receipt. */
+    async fromEntry(acceptedAt: number): Promise<void> {
+        const own = entryAt(this.sdk, this.o.target, acceptedAt)
         const expect = receiptExpect(this.sdk, this.o.target, own?.acceptedAt)
-        if (chain) {
-            this.show({chain, expect, own, result: this.verify(chain, expect)})
-        } else {
-            this.waiting = own
-            this.show({
-                notice: own ? EReceiptNotice.WAITING : EReceiptNotice.UNCHECKED,
-                expect,
-                own,
-            })
-        }
+        this.waiting = own
+        this.show({
+            notice: own ? EReceiptNotice.WAITING : EReceiptNotice.UNCHECKED,
+            expect,
+            own,
+        })
         await this.upgrade(false)
     }
 }
@@ -693,12 +685,11 @@ export const runCastReceipt = async (o: ICastReceiptOptions): Promise<void> => {
     }
 }
 
-/** Checks a receipt kept on this device, after one attempt to upgrade it
- * (or to get it, for an entry that waited for one). */
-export const runKeptReceipt = async (o: IKeptReceiptOptions): Promise<void> => {
+/** Asks the log once for the receipt of a ballot the tracker found. */
+export const runTrackedReceipt = async (o: ITrackedReceiptOptions): Promise<void> => {
     try {
         const run = await start(o)
-        await run?.fromKept(o.chain, o.acceptedAt)
+        await run?.fromEntry(o.acceptedAt)
     } catch {
         // As above.
     }

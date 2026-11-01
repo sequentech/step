@@ -18,7 +18,11 @@ yarn workspace ballot-verifier test:types
 The Jest profile runs in jsdom with `?lang=en`. Besides service, store and
 provider contracts, it renders the import and confirmation screens and the event
 routes (`/tenant/:tenantId/event/:eventId/{login,start,confirmation}`), with App
-mounted in the provider tree of `src/index.tsx`. Assertions use roles, labels and
+mounted in the provider tree of `src/index.tsx`. The audited ballot route
+(`.../election/:electionId/audited`) opens without signing in;
+`src/screens/AuditedScreen.test.tsx` and the tests of
+`src/services/vitrine/auditedBallot.ts` cover its link, policy, bucket lookup,
+proof, decode and problem states, and that a cast ballot is never fetched. Assertions use roles, labels and
 visible text. App tests live in `src/App.routing.test.tsx`; `src/App.test.tsx` is
 an obsolete scaffold outside the profile. With authentication disabled, root and
 direct login links reach the appropriate event's import step, and verification

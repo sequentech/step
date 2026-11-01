@@ -287,38 +287,22 @@ describe("the rings", () => {
 
 describe("what the status block shows", () => {
     it("shows the status once there is a result", () => {
-        expect(trackerViewOf({view: viewOf(VERIFIED), kept: true, settled: true})).toBe(
-            ETrackerView.STATUS
-        )
-        expect(trackerViewOf({view: viewOf(VERIFIED), kept: false, settled: false})).toBe(
-            ETrackerView.STATUS
-        )
+        expect(trackerViewOf({view: viewOf(VERIFIED), settled: true})).toBe(ETrackerView.STATUS)
+        expect(trackerViewOf({view: viewOf(VERIFIED), settled: false})).toBe(ETrackerView.STATUS)
     })
 
     it("keeps checking until the lookup is over", () => {
-        expect(trackerViewOf({kept: false, settled: false})).toBe(ETrackerView.CHECKING)
-        expect(trackerViewOf({kept: true, settled: false})).toBe(ETrackerView.CHECKING)
+        expect(trackerViewOf({settled: false})).toBe(ETrackerView.CHECKING)
     })
 
-    it("says so when this device has no receipt and the log gave none", () => {
-        expect(trackerViewOf({kept: false, settled: true})).toBe(ETrackerView.NO_RECEIPT)
+    it("says no receipt could be checked when the log gave none, or none whole", () => {
+        expect(trackerViewOf({settled: true})).toBe(ETrackerView.NO_RECEIPT)
         const waiting = viewOf(undefined, {notice: EReceiptNotice.WAITING})
-        expect(trackerViewOf({view: waiting, kept: false, settled: true})).toBe(
-            ETrackerView.NO_RECEIPT
-        )
-    })
-
-    it("tells a kept receipt that waits from one that can't be checked", () => {
-        const waiting = viewOf(undefined, {notice: EReceiptNotice.WAITING})
-        expect(trackerViewOf({view: waiting, kept: true, settled: true})).toBe(ETrackerView.WAITING)
+        expect(trackerViewOf({view: waiting, settled: true})).toBe(ETrackerView.NO_RECEIPT)
         const unchecked = viewOf(undefined, {notice: EReceiptNotice.UNCHECKED})
-        expect(trackerViewOf({view: unchecked, kept: true, settled: true})).toBe(
-            ETrackerView.UNCHECKED
-        )
+        expect(trackerViewOf({view: unchecked, settled: true})).toBe(ETrackerView.NO_RECEIPT)
         const damaged = viewOf(resultOf("invalid", [tier("record", "invalid")]))
-        expect(trackerViewOf({view: damaged, kept: true, settled: true})).toBe(
-            ETrackerView.UNCHECKED
-        )
+        expect(trackerViewOf({view: damaged, settled: true})).toBe(ETrackerView.NO_RECEIPT)
     })
 })
 

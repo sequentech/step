@@ -8,7 +8,7 @@
 // link's fragment, which browsers never send to a server, and asks there for
 // the address and what to watch. The portal never sees an address.
 
-import {explorersOf, type Policy} from "@vitrine/verify"
+import {explorersOf, type Policy, type PolicyHub} from "@vitrine/verify"
 import {asObject} from "./presentation"
 
 /** Whether the portal offers updates from the policy's hubs. */
@@ -57,6 +57,44 @@ export const offeredHubs = (policy: Policy | undefined): IOfferedHub[] =>
                   : []
           )
         : []
+
+/** The hub's `hub-ballot-verifier` line: the base URL of the ballot verifier
+ * its operator runs, for checking audited ballots. */
+export const ballotVerifierOf = (hub: PolicyHub): string | undefined =>
+    hub.ballotVerifier || undefined
+
+/** The hubs that the policy gives a ballot verifier, where a voter checks an
+ * audited ballot, in no order that means anything: the screen shuffles them.
+ * `site` is the ballot verifier's base URL. */
+export const auditHubs = (policy: Policy | undefined): IOfferedHub[] =>
+    policy
+        ? Array.from(policy.hubs.values()).flatMap((hub) => {
+              const site = ballotVerifierOf(hub)
+              return site ? [{name: hub.name, party: hub.operator, site}] : []
+          })
+        : []
+
+/** The link to an audited ballot in a ballot verifier:
+ * `<base>tenant/<t>/event/<e>/election/<el>/audited#id=<Tracking ID>&policy=<sha256:hex>`.
+ * The Tracking ID and the policy ride in the fragment, which the browser never
+ * sends to the verifier's server. The base's own fragment, if any, is dropped;
+ * without a policy ID the link names only the ballot. */
+export const auditedBallotLink = (
+    base: string,
+    path: {tenantId: string; eventId: string; electionId: string},
+    trackingId: string,
+    policyId?: string
+): string => {
+    const hash = base.indexOf("#")
+    const bare = hash < 0 ? base : base.slice(0, hash)
+    const root = bare.endsWith("/") ? bare : `${bare}/`
+    const segment = encodeURIComponent
+    const route = `tenant/${segment(path.tenantId)}/event/${segment(path.eventId)}/election/${segment(path.electionId)}/audited`
+    // Both values are letters, digits, dashes and one colon, which a fragment
+    // takes as they are; the policy ID is left readable.
+    const policy = policyId ? `&policy=${policyId.split(":").map(segment).join(":")}` : ""
+    return `${root}${route}#id=${segment(trackingId)}${policy}`
+}
 
 /** The items in a random order (Fisher-Yates), so that no hub is first more
  * often than another, nor the default. The list given is left alone. */

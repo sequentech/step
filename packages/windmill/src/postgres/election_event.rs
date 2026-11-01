@@ -219,6 +219,21 @@ pub async fn election_event_id_exists(
     Ok(row.try_get(0)?)
 }
 
+/// The tenant of the election event with this id, in any tenant, if there is one.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_election_event_tenant(
+    hasura_transaction: &Transaction<'_>,
+    election_event_id: &str,
+) -> Result<Option<String>> {
+    let row = hasura_transaction
+        .query_opt(
+            "SELECT tenant_id::text FROM sequent_backend.election_event WHERE id = $1",
+            &[&parse_uuid_v4(election_event_id)?],
+        )
+        .await?;
+    Ok(row.map(|row| row.try_get(0)).transpose()?)
+}
+
 /// Returns all the Election events as ElectionEventDatafix
 #[instrument(err, skip_all)]
 pub async fn get_all_tenant_election_events(

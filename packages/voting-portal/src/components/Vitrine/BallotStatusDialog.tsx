@@ -460,8 +460,6 @@ export interface IBallotStatusDialogProps {
     castAt?: string
     /** When this page saw each step done, in milliseconds. */
     times?: Partial<Record<EStatusStep, number>>
-    /** Whether this device keeps the receipt and checks it on each visit. */
-    kept?: boolean
     /** The ballot in the ballot tracker. */
     tracker?: React.AnchorHTMLAttributes<HTMLAnchorElement>
     /** Audits the ballot, at review: the dialog offers it, next to OK, for a
@@ -479,7 +477,6 @@ export const BallotStatusDialog: React.FC<IBallotStatusDialogProps> = ({
     electionName,
     castAt,
     times,
-    kept = false,
     tracker,
     onAudit,
 }) => {
@@ -566,12 +563,7 @@ export const BallotStatusDialog: React.FC<IBallotStatusDialogProps> = ({
                             color: DIALOG_COLORS.amberText,
                         }}
                     >
-                        {t("vitrine.status.callout.late")}{" "}
-                        {t(
-                            kept
-                                ? "vitrine.status.callout.lateKept"
-                                : "vitrine.status.callout.lateTracker"
-                        )}
+                        {t("vitrine.status.callout.late")}
                     </Box>
                 ) : null}
                 {(problem === EBallotProblem.MISMATCH || status === EBallotStatus.AUDIT_FAILED) &&
@@ -644,7 +636,7 @@ export const BallotStatusDialog: React.FC<IBallotStatusDialogProps> = ({
                         <path className="ballot-status-caption-handle" d="M16 16l4.5 4.5" />
                     </svg>
                     <span className="ballot-status-caption-text">
-                        {statusCaption(status, kept).map(tr).join(" ")}
+                        {statusCaption(status).map(tr).join(" ")}
                         {!notCast && tracker ? (
                             <>
                                 {" "}

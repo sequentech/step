@@ -374,6 +374,14 @@ const englishTranslation = {
                 ok: "Yes, discard my ballot to audit",
                 cancel: "Cancel",
             },
+            auditConfirm: {
+                title: "Audit this ballot instead of casting it?",
+                text: "The portal publishes how it encrypted <Id>{{id}}</Id>, so you can check on a hub that it holds what you chose.",
+                never: "It is never cast or counted: its secret would show how you voted.",
+                again: "Then you vote again, with a new Tracking ID.",
+                cancel: "Cancel",
+                audit: "Audit ballot",
+            },
             confirmCastVoteDialog: {
                 title: "Are you sure you want to cast your vote?",
                 content: "After you confirm, your vote will be cast.",
@@ -577,6 +585,72 @@ const englishTranslation = {
             },
             bottomWarning:
                 "For security reasons, when you audit your ballot, it needs to be spoiled. To continue with the voting process, you need to click ‘<b>Start Voting</b>’ below.",
+            voteAgain: "Vote again",
+            check: {
+                title: "Check your audited ballot",
+                lead: "This ballot was opened instead of cast, so it will never be counted. Check on a hub that it holds what you chose, then vote again.",
+                label: "Checking an audited ballot",
+                encrypted: {
+                    title: "Encrypted on this device",
+                    text: "With its Tracking ID, before you chose to audit it.",
+                },
+                opened: {
+                    title: "Opened in the public record",
+                    text: "The portal published the secret it encrypted with. The record marks the ballot Audited.",
+                    publishingText: "The portal is publishing the secret it encrypted with.",
+                    failedTitle: "Not opened in the public record",
+                    failedText:
+                        "The portal couldn't publish the secret it encrypted with, so no hub can check this ballot yet. The ballot stays audited and won't be counted. Try again, or vote again.",
+                },
+                compare: {
+                    title: "Compare it on a hub",
+                    text: "The hub decodes it in your browser and shows the choices it holds. Only you know what you chose.",
+                },
+                entry: "entry #{{index}}",
+                hubsLabel: "Hubs that check ballots, from the election’s policy",
+                runBy: "Run by {{party}}",
+                hubLabel:
+                    "{{name}}, run by {{party}}: check this ballot on its own site (opens a new tab)",
+                authorityName: "Election ballot verifier",
+                runByAuthority: "Run by the election authority",
+                authorityLabel:
+                    "Election ballot verifier, run by the election authority: check this ballot on its own site (opens a new tab)",
+                footnote:
+                    "Every hub in the election’s policy that checks ballots, in a random order each time. Each opens on its own site with the Tracking ID in the link.",
+                footnoteAuthority:
+                    "No hub in the election’s policy checks ballots yet, so this is the election authority’s own ballot verifier. It opens with the Tracking ID in the link.",
+                trackerText:
+                    "No hub in the election’s policy checks ballots yet. The ballot tracker can show it: it decodes the ballot in your browser.",
+                trackerLink: "Open it in the ballot tracker",
+                tip: "Strongest on another device, such as your phone: open any hub’s site and paste the Tracking ID.",
+                tipTracker:
+                    "Strongest on another device, such as your phone: open the ballot tracker there and paste the Tracking ID.",
+                why: "Why audit?",
+                faq: {
+                    why: {
+                        question: "Why audit?",
+                        answer: "Your vote is encrypted on your device, so no one can read it, not even you. Auditing lets you check that the portal encrypted what you chose.",
+                    },
+                    catch: {
+                        question: "Why does it catch cheating?",
+                        answer: "The portal encrypts before you decide to audit, so it can’t know which ballots will be checked. If it changed votes, anyone who audits could catch it.",
+                    },
+                    spent: {
+                        question: "Why can’t this ballot count?",
+                        answer: "With its secret published, the ballot shows how you voted. To keep your vote secret, an audited ballot is never cast.",
+                    },
+                    hub: {
+                        question: "Why on a hub?",
+                        answer: "A portal that changed your vote could also show you a false check. A hub is another site; the ballot and its secret come from the public record, not from this page.",
+                    },
+                },
+                helpDialog: {
+                    title: "Check your audited ballot",
+                    content:
+                        "<p>Auditing opens a ballot instead of casting it. The portal publishes the secret it encrypted your choices with, so anyone can decode the ballot and see what it holds.</p><p>Check on a hub that it holds what you chose. Then vote again: your new ballot gets a new Tracking ID, and that is the one that counts.</p>",
+                    ok: "OK",
+                },
+            },
         },
         electionSelectionScreen: {
             title: "Ballot list",
@@ -751,10 +825,10 @@ const englishTranslation = {
                 title: "Check your ballot in the public record",
                 intro: "Enter the Tracking ID from your confirmation screen or receipt. Your browser looks it up and checks the proofs itself.",
                 find: "Find",
-                invalid: "A Tracking ID has only digits and the letters a to f.",
+                invalid: "A Tracking ID has only digits and letters, never U.",
                 chips: {
                     short: "<b>Short</b> FTBE-MHRX",
-                    full: "<b>Full</b> 16 groups of four",
+                    full: "<b>Full</b> 13 groups of four",
                     spaces: "Spaces optional",
                 },
                 features: {
@@ -781,25 +855,19 @@ const englishTranslation = {
                     one: "1 ballot starts with {{start}}",
                     other: "{{count}} ballots start with {{start}}",
                     atLeast: "{{count}} or more ballots start with {{start}}",
-                    mine: "Your ballot, and {{count}} others that start with {{start}}",
-                    mineAlone: "Your ballot starts with {{start}}",
                 },
                 sub: {
                     few: "Which is yours? Compare the highlighted group with your receipt, or type it below.",
                     one: "Open it, then compare its full Tracking ID with your receipt.",
                     many: "That’s more than we list. Type the third group from your receipt to find yours.",
-                    mine: "This device keeps your receipt, so it knows which one is yours.",
                 },
                 why: {
-                    few: "A short ID finds ballots. Only the full Tracking ID, or the receipt on your own device, says which one is yours.",
+                    few: "A short ID finds ballots. Only the full Tracking ID on your receipt says which one is yours.",
                     many: "So many usually means someone made ballots to match this short ID on purpose. Yours is still in the record: matching three groups as well would take about a billion billion tries.",
-                    mine: "The others belong to other voters. They are listed so that a look-alike can’t pass for yours.",
                 },
                 third: "Third group from your receipt",
                 thirdOr: "Or type the third group from your receipt",
                 find: "Find",
-                onDevice: "On this device",
-                deviceMatches: "The receipt on this device matches all 13 groups",
                 serverSees:
                     "The record’s servers could not look this up without being told which ballot you want, so the election’s server was asked for this exact ID and could see it.",
             },
@@ -906,9 +974,7 @@ const englishTranslation = {
                 howToReportText:
                     "Save the evidence file and send it to the election authority or to an observer. They can check it on their own computers. It contains nothing about how you voted.",
                 noReceipt:
-                    "This device has no receipt for this ballot. Check it on the device you voted on, or check the receipt file in the ballot verifier.",
-                receiptPending:
-                    "This device keeps a receipt for this ballot, but it isn’t complete or couldn’t be checked just now. Try again later, or check the receipt file in the ballot verifier.",
+                    "No receipt for this ballot could be checked here. Check the receipt file you kept in the ballot verifier, or try again later.",
                 status: {
                     checking: {
                         head: "Checking…",
@@ -1058,9 +1124,7 @@ const englishTranslation = {
                     "Not sure the portal encrypted your choices correctly? Audit this ballot: the portal reveals how it was encrypted so you can check it. An audited ballot can never be cast, so you then vote again.",
                 cast: "Cast {{when}}",
                 audited: "Audited {{when}}",
-                ballotCast: "Ballot cast",
                 aria: "Ballot status: {{state}}. Show details",
-                ariaCast: "Ballot cast. Ballot status: {{state}}. Show details",
                 tooltip: "{{state}} · Show details",
                 tracker: "Open in the ballot tracker",
                 save: "Save receipt",
@@ -1168,10 +1232,7 @@ const englishTranslation = {
                     skipped: "—",
                 },
                 callout: {
-                    late: "This usually means a hub is slow or offline; it is not evidence of tampering.",
-                    lateKept:
-                        "This device checks again each time you come back, and the ballot tracker can check from any device.",
-                    lateTracker: "The ballot tracker can check from any device.",
+                    late: "This usually means a hub is slow or offline; it is not evidence of tampering. Check again later with your receipt, in the ballot tracker or on a hub, from any device.",
                     evidence:
                         "Your browser kept the evidence: this receipt and the record’s signed entry. Send it to the election authority or an observer; anyone can check it.",
                     saveEvidence: "Save evidence",
@@ -1185,7 +1246,7 @@ const englishTranslation = {
                     auditable: "Decrypted by your browser, with code anyone can inspect.",
                     verified: "Verified by your browser, with code anyone can inspect.",
                     checked: "Checked by your browser, with code anyone can inspect.",
-                    kept: "This device keeps the receipt and checks it again on each visit.",
+                    keep: "Keep your receipt to check it again later, in the ballot tracker or on a hub.",
                 },
             },
             signers: {

@@ -14,7 +14,6 @@ import {EStatusTone, StatusTag} from "./StatusTag"
 const TONES: Record<EBallotTag, EStatusTone> = {
     [EBallotTag.NOT_CAST]: EStatusTone.NEUTRAL,
     [EBallotTag.CAST]: EStatusTone.SUCCESS,
-    [EBallotTag.AUDITABLE]: EStatusTone.SUCCESS,
     [EBallotTag.AUDITED]: EStatusTone.SUCCESS,
 }
 

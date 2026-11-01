@@ -253,6 +253,14 @@ const galegoTranslation: TranslationType = {
                 ok: "Si, quero descartar a miña papeleta para auditala",
                 cancel: "Cancelar",
             },
+            auditConfirm: {
+                title: "Auditar esta papeleta en lugar de emitila?",
+                text: "O portal publica como cifrou <Id>{{id}}</Id>, para que poidas comprobar nun nodo que contén o que elixiches.",
+                never: "Nunca se emite nin se conta: o seu segredo amosaría como votaches.",
+                again: "Despois votas de novo, cun novo ID de seguimento.",
+                cancel: "Cancelar",
+                audit: "Auditar a papeleta",
+            },
             confirmCastVoteDialog: {
                 title: "Estás seguro de que queres emitir o teu voto?",
                 content: "Tras confirmar, o teu voto será emitido.",
@@ -460,6 +468,72 @@ const galegoTranslation: TranslationType = {
             },
             bottomWarning:
                 "Por razóns de seguridade, ao auditar a túa papeleta, esta debe ser anulada. Para continuar co proceso de votación, necesitas facer clic en ‘<b>Comezar a votar</b>’ abaixo.",
+            voteAgain: "Votar de novo",
+            check: {
+                title: "Comproba a túa papeleta auditada",
+                lead: "Esta papeleta abriuse en lugar de emitirse, así que nunca se contará. Comproba nun nodo que contén o que elixiches e despois vota de novo.",
+                label: "Comprobación dunha papeleta auditada",
+                encrypted: {
+                    title: "Cifrada neste dispositivo",
+                    text: "Co seu ID de seguimento, antes de que decidises auditala.",
+                },
+                opened: {
+                    title: "Aberta no rexistro público",
+                    text: "O portal publicou o segredo co que a cifrou. O rexistro marca a papeleta como Auditada.",
+                    publishingText: "O portal está a publicar o segredo co que a cifrou.",
+                    failedTitle: "Non aberta no rexistro público",
+                    failedText:
+                        "O portal non puido publicar o segredo co que a cifrou, así que ningún nodo pode comprobar aínda esta papeleta. A papeleta segue auditada e non se contará. Téntao de novo ou volve votar.",
+                },
+                compare: {
+                    title: "Compárala nun nodo",
+                    text: "O nodo descífraa no teu navegador e amosa as opcións que contén. Só ti sabes o que elixiches.",
+                },
+                entry: "entrada #{{index}}",
+                hubsLabel: "Nodos que comproban papeletas, segundo a política da elección",
+                runBy: "Xestionado por {{party}}",
+                hubLabel:
+                    "{{name}}, xestionado por {{party}}: comproba esta papeleta no seu propio sitio (ábrese nunha lapela nova)",
+                authorityName: "Verificador de papeletas da elección",
+                runByAuthority: "Xestionado pola autoridade electoral",
+                authorityLabel:
+                    "Verificador de papeletas da elección, xestionado pola autoridade electoral: comproba esta papeleta no seu propio sitio (ábrese nunha lapela nova)",
+                footnote:
+                    "Todos os nodos da política da elección que comproban papeletas, nunha orde aleatoria cada vez. Cada un ábrese no seu propio sitio co ID de seguimento na ligazón.",
+                footnoteAuthority:
+                    "Ningún nodo da política da elección comproba papeletas aínda, así que este é o verificador de papeletas da propia autoridade electoral. Ábrese co ID de seguimento na ligazón.",
+                trackerText:
+                    "Ningún nodo da política da elección comproba papeletas aínda. O rastrexador de papeletas pode amosala: descifra a papeleta no teu navegador.",
+                trackerLink: "Ábrea no rastrexador de papeletas",
+                tip: "É máis sólido desde outro dispositivo, como o teu móbil: abre o sitio de calquera nodo e pega o ID de seguimento.",
+                tipTracker:
+                    "É máis sólido desde outro dispositivo, como o teu móbil: abre alí o rastrexador de papeletas e pega o ID de seguimento.",
+                why: "Por que auditar?",
+                faq: {
+                    why: {
+                        question: "Por que auditar?",
+                        answer: "O teu voto cífrase no teu dispositivo, así que ninguén pode lelo, nin sequera ti. Auditar permíteche comprobar que o portal cifrou o que elixiches.",
+                    },
+                    catch: {
+                        question: "Por que detecta o engano?",
+                        answer: "O portal cifra antes de que decidas auditar, así que non pode saber que papeletas se comprobarán. Se cambiase votos, calquera que audite podería descubrilo.",
+                    },
+                    spent: {
+                        question: "Por que non pode contar esta papeleta?",
+                        answer: "Co segredo publicado, a papeleta amosa como votaches. Para manter o teu voto en segredo, unha papeleta auditada nunca se emite.",
+                    },
+                    hub: {
+                        question: "Por que nun nodo?",
+                        answer: "Un portal que cambiase o teu voto tamén podería amosarche unha comprobación falsa. Un nodo é outro sitio; a papeleta e o seu segredo saen do rexistro público, non desta páxina.",
+                    },
+                },
+                helpDialog: {
+                    title: "Comproba a túa papeleta auditada",
+                    content:
+                        "<p>Auditar abre unha papeleta en lugar de emitila. O portal publica o segredo co que cifrou as túas opcións, así que calquera pode descifrar a papeleta e ver o que contén.</p><p>Comproba nun nodo que contén o que elixiches. Despois vota de novo: a túa nova papeleta ten un novo ID de seguimento, e é a que conta.</p>",
+                    ok: "Aceptar",
+                },
+            },
         },
         electionSelectionScreen: {
             title: "Papeletas",
@@ -635,10 +709,10 @@ const galegoTranslation: TranslationType = {
                 title: "Comproba a túa papeleta no rexistro público",
                 intro: "Introduce o ID de seguimento da túa pantalla de confirmación ou do teu recibo. O teu navegador búscao e comproba as probas por si mesmo.",
                 find: "Buscar",
-                invalid: "Un ID de seguimento só ten díxitos e as letras da a á f.",
+                invalid: "Un ID de seguimento só ten díxitos e letras, nunca a U.",
                 chips: {
                     short: "<b>Curto</b> FTBE-MHRX",
-                    full: "<b>Completo</b> 16 grupos de catro",
+                    full: "<b>Completo</b> 13 grupos de catro",
                     spaces: "Espazos opcionais",
                 },
                 features: {
@@ -665,25 +739,19 @@ const galegoTranslation: TranslationType = {
                     one: "1 papeleta comeza por {{start}}",
                     other: "{{count}} papeletas comezan por {{start}}",
                     atLeast: "{{count}} ou máis papeletas comezan por {{start}}",
-                    mine: "A túa papeleta e {{count}} máis que comezan por {{start}}",
-                    mineAlone: "A túa papeleta comeza por {{start}}",
                 },
                 sub: {
                     few: "Cal é a túa? Compara o grupo resaltado co teu recibo, ou escríbeo abaixo.",
                     one: "Ábrea e compara o seu ID de seguimento completo co teu recibo.",
                     many: "Son máis das que mostramos. Escribe o terceiro grupo do teu recibo para atopar a túa.",
-                    mine: "Este dispositivo garda o teu recibo, así que sabe cal é a túa.",
                 },
                 why: {
-                    few: "Un ID curto atopa papeletas. Só o ID de seguimento completo, ou o recibo do teu propio dispositivo, di cal é a túa.",
+                    few: "Un ID curto atopa papeletas. Só o ID de seguimento completo do teu recibo di cal é a túa.",
                     many: "Tantas adoita significar que alguén creou papeletas para que coincidan con este ID curto adrede. A túa segue no rexistro: acertar tamén tres grupos requiriría uns mil trillóns de intentos.",
-                    mine: "As outras pertencen a outros votantes. Móstranse para que unha parecida non poida pasar pola túa.",
                 },
                 third: "Terceiro grupo do teu recibo",
                 thirdOr: "Ou escribe o terceiro grupo do teu recibo",
                 find: "Buscar",
-                onDevice: "Neste dispositivo",
-                deviceMatches: "O recibo deste dispositivo coincide cos 13 grupos",
                 serverSees:
                     "Os servidores do rexistro non puideron facer esta busca sen saber que papeleta buscas, así que se lle pediu ao servidor da elección este ID exacto e puido velo.",
             },
@@ -793,9 +861,7 @@ const galegoTranslation: TranslationType = {
                 howToReportText:
                     "Garda o ficheiro da proba e envíao á autoridade electoral ou a un observador. Poden comprobalo nos seus propios ordenadores. Non contén nada sobre como votaches.",
                 noReceipt:
-                    "Este dispositivo non ten o recibo desta papeleta. Compróbaa no dispositivo co que votaches, ou comproba o ficheiro do recibo no verificador de papeletas.",
-                receiptPending:
-                    "Este dispositivo garda un recibo desta papeleta, pero non está completo ou non se puido comprobar agora. Téntao de novo máis tarde, ou comproba o ficheiro do recibo no verificador de papeletas.",
+                    "Aquí non se puido comprobar ningún recibo desta papeleta. Comproba o ficheiro do recibo que gardaches no verificador de papeletas, ou téntao de novo máis tarde.",
                 status: {
                     checking: {
                         head: "Comprobando…",
@@ -945,9 +1011,7 @@ const galegoTranslation: TranslationType = {
                     "Non estás seguro de que o portal cifrase ben as túas opcións? Audita esta papeleta: o portal revela como a cifrou para que o comprobes. Unha papeleta auditada nunca pode emitirse, así que despois votas de novo.",
                 cast: "Emitida o {{when}}",
                 audited: "Auditada o {{when}}",
-                ballotCast: "Voto emitido",
                 aria: "Estado da papeleta: {{state}}. Mostrar detalles",
-                ariaCast: "Voto emitido. Estado da papeleta: {{state}}. Mostrar detalles",
                 tooltip: "{{state}} · Mostrar detalles",
                 tracker: "Abrir no rastrexador de papeletas",
                 save: "Gardar o xustificante",
@@ -1060,11 +1124,7 @@ const galegoTranslation: TranslationType = {
                     skipped: "—",
                 },
                 callout: {
-                    late: "Adoita significar que un nodo vai lento ou está fóra de liña; non é proba de manipulación.",
-                    lateKept:
-                        "Este dispositivo volve comprobalo cada vez que regresas, e o rastrexador de papeletas pode comprobalo desde calquera dispositivo.",
-                    lateTracker:
-                        "O rastrexador de papeletas pode comprobalo desde calquera dispositivo.",
+                    late: "Adoita significar que un nodo vai lento ou está fóra de liña; non é proba de manipulación. Volve comprobalo máis tarde co teu xustificante, no rastrexador de papeletas ou nun nodo, desde calquera dispositivo.",
                     evidence:
                         "O teu navegador gardou a evidencia: este xustificante e a entrada asinada do rexistro. Envíaa á autoridade electoral ou a un observador; calquera pode comprobala.",
                     saveEvidence: "Gardar a evidencia",
@@ -1082,7 +1142,7 @@ const galegoTranslation: TranslationType = {
                         "Verificado polo teu navegador, con código que calquera pode inspeccionar.",
                     checked:
                         "Comprobado polo teu navegador, con código que calquera pode inspeccionar.",
-                    kept: "Este dispositivo garda o xustificante e volve comprobalo en cada visita.",
+                    keep: "Garda o teu xustificante para volver comprobalo máis tarde, no rastrexador de papeletas ou nun nodo.",
                 },
             },
             signers: {

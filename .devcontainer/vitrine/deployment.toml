@@ -92,6 +92,9 @@ vkey = "hub-b.localhost+fb65477d+AV5m7yBs5WBLANN+ZcOZCru0sif5MKaLuluJHLgts2E2"
 url = "http://localhost:8104/"
 operator = "hub-b-party"
 # explorer = "http://localhost:8104/explorer/"
+# The ballot verifier hub-b runs, where a voter checks an audited ballot; the
+# preview harness serves Step's ballot verifier there.
+# ballot_verifier = "http://127.0.0.1:18856/"
 quorum = "hw-b"
 witnesses = [{name = "hw-b", vkey = "hub-b-witness.localhost+927b93e5+BO7zehUpdCteYfDFbO4kJxPU3dwNffcgRMU1vjS0dqRH", party = "hub-b-witness-party"}]
 

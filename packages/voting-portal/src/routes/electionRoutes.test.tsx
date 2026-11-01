@@ -34,7 +34,7 @@ jest.mock("../store/hooks", () => ({
     useAppSelector: () => undefined,
 }))
 jest.mock("../hooks/useTrackedReceipt", () => ({
-    useTrackedReceipt: () => ({kept: false, settled: true}),
+    useTrackedReceipt: () => ({settled: true}),
 }))
 const mockVoterContext = jest.fn()
 jest.mock("./StartScreen", () => ({__esModule: true, default: () => <div>Start voting</div>}))

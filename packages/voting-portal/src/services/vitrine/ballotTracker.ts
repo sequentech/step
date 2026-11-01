@@ -288,28 +288,21 @@ export enum ETrackerView {
     STATUS = "status",
     /** Still looking for the receipt or checking it. */
     CHECKING = "checking",
-    /** This device has no receipt for the ballot, and the log gave none. */
+    /** No receipt for the ballot could be checked here: the log gave none,
+     * or none whole. This device keeps none. */
     NO_RECEIPT = "no-receipt",
-    /** A receipt kept on this device that is still waiting for the log. */
-    WAITING = "waiting",
-    /** The receipt couldn't be checked: damaged data or no verifier. */
-    UNCHECKED = "unchecked",
 }
 
 export interface ITrackerReceipt {
     view?: IReceiptView
-    /** Whether this device keeps the ballot's receipt. */
-    kept: boolean
     /** Whether the lookup has finished. */
     settled: boolean
 }
 
-export const trackerViewOf = ({view, kept, settled}: ITrackerReceipt): ETrackerView => {
+export const trackerViewOf = ({view, settled}: ITrackerReceipt): ETrackerView => {
     if (trackedResult(view)) return ETrackerView.STATUS
     if (!settled) return ETrackerView.CHECKING
-    if (!kept) return ETrackerView.NO_RECEIPT
-    if (view?.notice === EReceiptNotice.WAITING) return ETrackerView.WAITING
-    return ETrackerView.UNCHECKED
+    return ETrackerView.NO_RECEIPT
 }
 
 /** The ballot's status, from a result that is shown, else checking. */

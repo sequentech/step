@@ -17,6 +17,31 @@ Pending is distinct from a contradiction. A step that is still being checked is 
 
 The first check fetches only from policy logs. The full check can contact mirrors, hubs and monitors. It runs after a random delay of 1 to 30 minutes, at once when an anchor hub or the browser layer is late, or when you select **Check everything now**; the button then reads **Check again**. Private-event policies and upgrades are not public: obtain the policy and receipt through the authorised channel, check the included material offline, and ask the organiser for any missing opening or auditor attestation. Do not send another voter's private material to a public service.
 
+## Audited ballots on a hub's ballot verifier
+
+When an event has transparency enabled, an audited ballot is not downloaded. The voting portal publishes the ballot and the secret it encrypted with, and the voter checks it on a hub. A hub whose policy has a `hub-ballot-verifier <hub> <url>` line runs the ballot verifier at that URL. The voting portal's audit screen links each such hub, in a random order, as:
+
+```text
+<url>tenant/<tenant>/event/<event>/election/<election>/audited#id=<full Tracking ID>&policy=sha256:<hex>
+```
+
+The Tracking ID and the policy ID are in the fragment, so the hub's server never sees them. To check an audited ballot yourself, open that link, or build it from a Tracking ID and the policy ID you compared with the official notice.
+
+The page needs no login and no file. It uses the election's policy only if that policy is pinned in this browser, or is in the event's public config with the link's policy ID, and only if it covers the election. Then, in your browser, it:
+
+1. finds the ballot's entries in the policy's `ballots` log by a bucket of 3 characters of the Tracking ID, so no server learns which ballot you asked for, and keeps the entry whose full Tracking ID is the link's;
+2. proves the `audited` entry with the log's receipt and checkpoint, and reads the `events` log for successor policies;
+3. fetches the ballot and its published secret from Step's public ballot locator, and checks that the ballot's hash is its Tracking ID and that the secret reproduces the ciphertext;
+4. only then decodes the ballot with the election's published ballot design.
+
+It never fetches or decodes a cast ballot. Each other outcome has its own message instead of choices: an incomplete link, a policy it cannot get, another election, no such ballot, a cast ballot, an audit not yet in the record, a ballot not yet published, a proof that does not check out, or a ballot that does not match its Tracking ID (**Audit failed**). The last two are evidence: preserve the link and the saved evidence file, and report them to the election authority.
+
+The ballot tracker runs the same ballot checks: see [Track your Vote](../../03-voters/01-tutorials/02-voter_track_your_vote.md#an-audited-ballot). For how a hub sets up its ballot verifier, see the developers' [Vitrine page](../../07-developers/14-vitrine.md#a-hubs-ballot-verifier).
+
+An event without transparency keeps the classic audit: the voter downloads the audited ballot and imports it into the ballot verifier with its full Tracking ID. See [Audit your Vote](../../03-voters/01-tutorials/03-voter_audit_ballot.md#audit-without-transparency).
+
+## Offline checks
+
 With the Vitrine CLI installed, the equivalent offline starting points are:
 
 ```sh

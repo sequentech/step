@@ -460,6 +460,9 @@ pub fn draft(config: &DeploymentConfig, event: &DraftEvent) -> Result<String> {
             if let Some(url) = &h.explorer {
                 lines.push(&["hub-explorer", &h.name, url]);
             }
+            if let Some(url) = &h.ballot_verifier {
+                lines.push(&["hub-ballot-verifier", &h.name, url]);
+            }
             for w in &h.witnesses {
                 match &w.url {
                     Some(url) => lines.push(&["hub-witness", &h.name, &w.name, &w.vkey, url]),
@@ -661,6 +664,7 @@ pub(crate) mod tests {
             url = "https://hub.example.org/"
             operator = "example-org"
             explorer = "https://explorer.example.org/"
+            ballot_verifier = "https://verify.example.org/ballots/"
             quorum = "ew"
             witnesses = [
                 {{ name = "ew1", vkey = "{ew1}", party = "example-org" }},
@@ -821,6 +825,7 @@ pub(crate) mod tests {
             "hub",
             "hub-operator",
             "hub-explorer",
+            "hub-ballot-verifier",
             "hub-witness",
             "hub-witness",
             "hub-witness",
@@ -855,6 +860,10 @@ pub(crate) mod tests {
         assert_eq!(
             line(&text, "hub-explorer"),
             ["hub-explorer example https://explorer.example.org/"]
+        );
+        assert_eq!(
+            line(&text, "hub-ballot-verifier"),
+            ["hub-ballot-verifier example https://verify.example.org/ballots/"]
         );
         assert_eq!(
             line(&text, "explorer"),

@@ -5,14 +5,17 @@
 use crate::services::authorization::authorize_voter_election;
 use chrono::Utc;
 use rocket::http::Status;
+use rocket::request::{FromRequest, Outcome, Request};
 use rocket::serde::json::Json;
 use sequent_core::ballot::ChecksPeriod;
+use sequent_core::services::connection::UserLocation;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::VoterPermissions;
 use serde::Deserialize;
 use tracing::instrument;
 use windmill::services::ballot_checks::{
-    get_checks_period, locate_ballot as locate_voter_ballot, LocateBallotOutput,
+    get_checks_period, locate_ballot as locate_voter_ballot,
+    locate_ballot_output, locate_published_ballot, LocateBallotOutput,
 };
 use windmill::services::database::get_hasura_pool;
 
@@ -99,13 +102,114 @@ pub async fn ensure_checks_open_with_pool(
     refuse_ended_checks(&period)
 }
 
-#[instrument(skip(claims))]
+/// Who looks a ballot up: a voter, with a token, or anyone, with none, such as
+/// a hub's ballot verifier. A token that doesn't verify is refused, never taken
+/// for no token.
+pub enum LocateCaller {
+    Voter(JwtClaims),
+    Anyone,
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for LocateCaller {
+    type Error = ();
+
+    async fn from_request(
+        request: &'r Request<'_>,
+    ) -> Outcome<Self, Self::Error> {
+        if request.headers().get_one("authorization").is_none() {
+            return Outcome::Success(LocateCaller::Anyone);
+        }
+        JwtClaims::from_request(request)
+            .await
+            .map(LocateCaller::Voter)
+    }
+}
+
+fn checks_unavailable(error: anyhow::Error) -> (Status, String) {
+    tracing::error!(error = %error, "Unable to locate the ballot");
+    (
+        Status::InternalServerError,
+        CHECKS_UNAVAILABLE_MESSAGE.to_owned(),
+    )
+}
+
+/// A voter looks up one of their own cast ballots, or a published audited
+/// one; anyone else, with no token, only a published audited ballot.
+#[instrument(skip_all)]
 #[post("/locate-ballot", format = "json", data = "<body>")]
 pub async fn locate_ballot(
     body: Json<LocateBallotInput>,
+    caller: LocateCaller,
+    location: UserLocation,
+) -> Result<Json<LocateBallotOutput>, (Status, String)> {
+    match caller {
+        LocateCaller::Voter(claims) => {
+            locate_own_ballot(body.into_inner(), claims).await
+        }
+        LocateCaller::Anyone => {
+            locate_public_ballot(body.into_inner(), location).await
+        }
+    }
+}
+
+/// Published audited ballots, with no token: at most one lookup every 200
+/// milliseconds from one address. An unknown event finds nothing.
+async fn locate_public_ballot(
+    input: LocateBallotInput,
+    location: UserLocation,
+) -> Result<Json<LocateBallotOutput>, (Status, String)> {
+    let mut client = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|error| checks_unavailable(error.into()))?;
+    let transaction = client
+        .transaction()
+        .await
+        .map_err(|error| checks_unavailable(error.into()))?;
+    let tenant_id =
+        windmill::postgres::election_event::get_election_event_tenant(
+            &transaction,
+            &input.election_event_id,
+        )
+        .await
+        .map_err(checks_unavailable)?;
+    let Some(tenant_id) = tenant_id else {
+        return Ok(Json(locate_ballot_output(&ChecksPeriod::Unlimited, &[])));
+    };
+    let store = windmill::services::electoral_log_board::get_event_store(
+        &input.election_event_id,
+    )
+    .await
+    .map_err(checks_unavailable)?;
+    crate::routes::ballot_privacy::limit_session(
+        &crate::services::ballot_log_cache::public_lookup_session(location.ip),
+        &store,
+    )
+    .await?;
+    let output = locate_published_ballot(
+        &transaction,
+        &store,
+        &tenant_id,
+        &input.election_event_id,
+        &input.election_id,
+        &input.ballot_id,
+        Utc::now(),
+    )
+    .await
+    .map_err(checks_unavailable)?;
+    transaction
+        .commit()
+        .await
+        .map_err(|error| checks_unavailable(error.into()))?;
+    Ok(Json(output))
+}
+
+async fn locate_own_ballot(
+    input: LocateBallotInput,
     claims: JwtClaims,
 ) -> Result<Json<LocateBallotOutput>, (Status, String)> {
-    let input = body.into_inner();
     let area_id = voter_check_scope(
         &claims,
         &input.election_event_id,
@@ -131,13 +235,7 @@ pub async fn locate_ballot(
     }
     .await;
 
-    output.map(Json).map_err(|error| {
-        tracing::error!(error = %error, "Unable to locate the ballot");
-        (
-            Status::InternalServerError,
-            CHECKS_UNAVAILABLE_MESSAGE.to_owned(),
-        )
-    })
+    output.map(Json).map_err(checks_unavailable)
 }
 
 #[cfg(test)]
@@ -204,5 +302,34 @@ mod tests {
             refuse_ended_checks(&ChecksPeriod::Ended(until)).unwrap_err(),
             (Status::Forbidden, CHECKS_ENDED_MESSAGE.to_owned())
         );
+    }
+
+    #[rocket::get("/caller")]
+    fn caller_route(caller: LocateCaller) -> &'static str {
+        match caller {
+            LocateCaller::Voter(_) => "voter",
+            LocateCaller::Anyone => "anyone",
+        }
+    }
+
+    #[rocket::async_test]
+    async fn a_lookup_with_no_token_is_anyones_and_a_bad_token_is_refused() {
+        use rocket::local::asynchronous::Client;
+        let client = Client::tracked(
+            rocket::build().mount("/", rocket::routes![caller_route]),
+        )
+        .await
+        .unwrap();
+        let anyone = client.get("/caller").dispatch().await;
+        assert_eq!(anyone.status(), Status::Ok);
+        assert_eq!(anyone.into_string().await.unwrap(), "anyone");
+        for token in ["Bearer fixture.e30.fixture", "Bearer", ""] {
+            let refused = client
+                .get("/caller")
+                .header(rocket::http::Header::new("Authorization", token))
+                .dispatch()
+                .await;
+            assert_eq!(refused.status(), Status::Unauthorized, "{token:?}");
+        }
     }
 }

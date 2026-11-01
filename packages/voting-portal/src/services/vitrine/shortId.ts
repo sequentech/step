@@ -68,22 +68,18 @@ export interface IShortIdMatch {
     at?: number
     event: string
     election: string
-    /** The receipt this device keeps is for this ballot. */
-    onDevice: boolean
 }
 
 export interface IShortIdResult {
     kind: EShortIdKind
     /** What was looked up, as characters. */
     typed: string
-    /** The ballots to list, the one on this device first. */
+    /** The ballots to list. */
     matches: IShortIdMatch[]
     /** All the ballots that start so, listed or not. */
     total: number
     /** The server stopped at its limit: there may be more. */
     truncated: boolean
-    /** The ballot on this device, if its Tracking ID starts so. */
-    mine?: string
 }
 
 /** A server of the policy that may list a bucket. */
@@ -124,7 +120,7 @@ const shortLookupOf = (value: string): string | undefined => {
  * undefined for a full ID, which the existing lookups take, or what isn't one. */
 export const shortIdToLook = shortLookupOf
 
-const matchOf = (match: BallotMatch, mine: string | undefined): IShortIdMatch => {
+const matchOf = (match: BallotMatch): IShortIdMatch => {
     const chars = ballotIdChars(match.trackingId)
     const last = match.entries[match.entries.length - 1]
     return {
@@ -136,20 +132,14 @@ const matchOf = (match: BallotMatch, mine: string | undefined): IShortIdMatch =>
         ...(last ? {at: last.acceptedAt} : {}),
         event: match.event,
         election: match.election,
-        onDevice: mine === chars,
     }
 }
 
 /** The result of a bucket answer, for what was typed: when the third group is
- * typed, only the ballots that share it; the receipt of this device, if its ID
- * starts as typed, comes first and is marked. */
-export const shortIdResultOf = (
-    typed: string,
-    answer: BucketMatches,
-    kept: readonly string[] = []
-): IShortIdResult => {
+ * typed, only the ballots that share it. Nothing on this device says which one
+ * is the voter's: only the receipt they keep does. */
+export const shortIdResultOf = (typed: string, answer: BucketMatches): IShortIdResult => {
     const chars = ballotIdChars(typed)
-    const mine = kept.map(ballotIdChars).find((id) => id.startsWith(chars))
     const wanted = Math.floor(chars.length / BALLOT_ID_GROUP)
     // The answer lists the ballots that share at least the short ID's groups,
     // those that share more first: with more typed, only those that do.
@@ -157,28 +147,12 @@ export const shortIdResultOf = (
     // The ones the answer doesn't list share no more than the last listed.
     const total =
         listed.length === answer.matches.length ? listed.length + answer.more : listed.length
-    const matches = listed.map((match) => matchOf(match, mine))
-    if (mine && !matches.some((match) => match.onDevice)) {
-        // The device keeps this ballot: it is listed first even if the server's
-        // bucket didn't.
-        matches.unshift({
-            ballotId: "",
-            trackingId: mine,
-            third: mine.slice(SHORT_LENGTH, SHORT_LENGTH + BALLOT_ID_GROUP),
-            fourth: mine.slice(SHORT_LENGTH + BALLOT_ID_GROUP, SHORT_LENGTH + 2 * BALLOT_ID_GROUP),
-            audited: false,
-            event: "",
-            election: "",
-            onDevice: true,
-        })
-    } else if (mine) {
-        matches.sort((a, b) => Number(b.onDevice) - Number(a.onDevice))
-    }
+    const matches = listed.map(matchOf)
     const count = Math.max(total, matches.length)
     const kind =
         count === 0
             ? EShortIdKind.NONE
-            : count > MAX_LISTED && !mine
+            : count > MAX_LISTED
               ? EShortIdKind.MANY
               : EShortIdKind.LISTED
     return {
@@ -187,7 +161,6 @@ export const shortIdResultOf = (
         matches: kind === EShortIdKind.MANY ? [] : matches.slice(0, MAX_LISTED),
         total: count,
         truncated: answer.truncated,
-        ...(mine ? {mine} : {}),
     }
 }
 
@@ -201,7 +174,6 @@ export interface IShortIdLookupOptions {
 export const lookupShortId = async (
     policy: Policy,
     typed: string,
-    kept: readonly string[] = [],
     opts: IShortIdLookupOptions = {}
 ): Promise<IShortIdResult> => {
     const chars = shortLookupOf(typed)
@@ -215,7 +187,7 @@ export const lookupShortId = async (
                 ...(opts.fetch ? {fetch: opts.fetch} : {}),
                 ...(opts.signal ? {signal: opts.signal} : {}),
             })
-            if (!answer.truncated) return shortIdResultOf(chars, answer, kept)
+            if (!answer.truncated) return shortIdResultOf(chars, answer)
             // It stopped at its limit: another server may list the rest.
             partial ??= answer
         } catch (error) {
@@ -224,7 +196,7 @@ export const lookupShortId = async (
             unavailable = true
         }
     }
-    if (partial) return shortIdResultOf(chars, partial, kept)
+    if (partial) return shortIdResultOf(chars, partial)
     return {
         kind: unavailable ? EShortIdKind.UNAVAILABLE : EShortIdKind.UNSUPPORTED,
         typed: chars,

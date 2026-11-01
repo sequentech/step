@@ -252,6 +252,14 @@ const frenchTranslation: TranslationType = {
                 ok: "Oui, je veux invalider mon bulletin pour l'auditer",
                 cancel: "Annuler",
             },
+            auditConfirm: {
+                title: "Auditer ce bulletin au lieu de le déposer ?",
+                text: "Le portail publie comment il a chiffré <Id>{{id}}</Id>, pour que vous puissiez vérifier sur un nœud qu’il contient ce que vous avez choisi.",
+                never: "Il n’est jamais déposé ni compté : son secret montrerait comment vous avez voté.",
+                again: "Ensuite, vous votez de nouveau, avec un nouvel identifiant de suivi.",
+                cancel: "Annuler",
+                audit: "Auditer le bulletin",
+            },
             confirmCastVoteDialog: {
                 title: "Êtes-vous sûr de vouloir voter?",
                 content: "Après confirmation, votre vote sera émis.",
@@ -461,6 +469,72 @@ const frenchTranslation: TranslationType = {
             },
             bottomWarning:
                 "Pour des raisons de sécurité, lorsque vous auditez votre bulletin, vous devrez l'invalider. Pour continuer avec le processus de vote, cliquez sur ‘<b>Démarrer le vote</b>’.",
+            voteAgain: "Voter de nouveau",
+            check: {
+                title: "Vérifiez votre bulletin audité",
+                lead: "Ce bulletin a été ouvert au lieu d’être déposé : il ne sera jamais compté. Vérifiez sur un nœud qu’il contient ce que vous avez choisi, puis votez de nouveau.",
+                label: "Vérification d’un bulletin audité",
+                encrypted: {
+                    title: "Chiffré sur cet appareil",
+                    text: "Avec son identifiant de suivi, avant que vous choisissiez de l’auditer.",
+                },
+                opened: {
+                    title: "Ouvert dans le registre public",
+                    text: "Le portail a publié le secret avec lequel il l’a chiffré. Le registre marque le bulletin comme Audité.",
+                    publishingText: "Le portail publie le secret avec lequel il l’a chiffré.",
+                    failedTitle: "Non ouvert dans le registre public",
+                    failedText:
+                        "Le portail n’a pas pu publier le secret avec lequel il l’a chiffré : aucun nœud ne peut encore vérifier ce bulletin. Le bulletin reste audité et ne sera pas compté. Réessayez, ou votez de nouveau.",
+                },
+                compare: {
+                    title: "Comparez-le sur un nœud",
+                    text: "Le nœud le déchiffre dans votre navigateur et montre les choix qu’il contient. Vous seul savez ce que vous avez choisi.",
+                },
+                entry: "entrée n° {{index}}",
+                hubsLabel: "Nœuds qui vérifient les bulletins, selon la politique de l’élection",
+                runBy: "Géré par {{party}}",
+                hubLabel:
+                    "{{name}}, géré par {{party}} : vérifiez ce bulletin sur son propre site (s’ouvre dans un nouvel onglet)",
+                authorityName: "Vérificateur de bulletins de l’élection",
+                runByAuthority: "Géré par l’autorité électorale",
+                authorityLabel:
+                    "Vérificateur de bulletins de l’élection, géré par l’autorité électorale : vérifiez ce bulletin sur son propre site (s’ouvre dans un nouvel onglet)",
+                footnote:
+                    "Tous les nœuds de la politique de l’élection qui vérifient les bulletins, dans un ordre aléatoire à chaque fois. Chacun s’ouvre sur son propre site avec l’identifiant de suivi dans le lien.",
+                footnoteAuthority:
+                    "Aucun nœud de la politique de l’élection ne vérifie encore les bulletins : voici donc le vérificateur de bulletins de l’autorité électorale elle-même. Il s’ouvre avec l’identifiant de suivi dans le lien.",
+                trackerText:
+                    "Aucun nœud de la politique de l’élection ne vérifie encore les bulletins. Le suivi des bulletins peut le montrer : il déchiffre le bulletin dans votre navigateur.",
+                trackerLink: "L’ouvrir dans le suivi des bulletins",
+                tip: "Plus sûr depuis un autre appareil, comme votre téléphone : ouvrez le site de n’importe quel nœud et collez l’identifiant de suivi.",
+                tipTracker:
+                    "Plus sûr depuis un autre appareil, comme votre téléphone : ouvrez-y le suivi des bulletins et collez l’identifiant de suivi.",
+                why: "Pourquoi auditer ?",
+                faq: {
+                    why: {
+                        question: "Pourquoi auditer ?",
+                        answer: "Votre vote est chiffré sur votre appareil : personne ne peut le lire, pas même vous. L’audit vous permet de vérifier que le portail a chiffré ce que vous avez choisi.",
+                    },
+                    catch: {
+                        question: "Pourquoi cela détecte-t-il la triche ?",
+                        answer: "Le portail chiffre avant que vous décidiez d’auditer : il ne peut pas savoir quels bulletins seront vérifiés. S’il modifiait des votes, quiconque audite pourrait s’en apercevoir.",
+                    },
+                    spent: {
+                        question: "Pourquoi ce bulletin ne peut-il pas être compté ?",
+                        answer: "Son secret publié, le bulletin montre comment vous avez voté. Pour garder votre vote secret, un bulletin audité n’est jamais déposé.",
+                    },
+                    hub: {
+                        question: "Pourquoi sur un nœud ?",
+                        answer: "Un portail qui modifierait votre vote pourrait aussi vous montrer une fausse vérification. Un nœud est un autre site ; le bulletin et son secret viennent du registre public, pas de cette page.",
+                    },
+                },
+                helpDialog: {
+                    title: "Vérifiez votre bulletin audité",
+                    content:
+                        "<p>Auditer ouvre un bulletin au lieu de le déposer. Le portail publie le secret avec lequel il a chiffré vos choix : n’importe qui peut déchiffrer le bulletin et voir ce qu’il contient.</p><p>Vérifiez sur un nœud qu’il contient ce que vous avez choisi. Votez ensuite de nouveau : votre nouveau bulletin a un nouvel identifiant de suivi, et c’est lui qui compte.</p>",
+                    ok: "OK",
+                },
+            },
         },
         electionSelectionScreen: {
             title: "Élections",
@@ -636,10 +710,10 @@ const frenchTranslation: TranslationType = {
                 intro: "Saisissez l'identifiant de suivi indiqué sur votre écran de confirmation ou votre reçu. Votre navigateur le recherche et vérifie lui-même les preuves.",
                 find: "Rechercher",
                 invalid:
-                    "Un identifiant de suivi ne contient que des chiffres et les lettres de a à f.",
+                    "Un identifiant de suivi ne contient que des chiffres et des lettres, jamais de U.",
                 chips: {
                     short: "<b>Court</b> FTBE-MHRX",
-                    full: "<b>Complet</b> 16 groupes de quatre",
+                    full: "<b>Complet</b> 13 groupes de quatre",
                     spaces: "Espaces facultatifs",
                 },
                 features: {
@@ -666,25 +740,19 @@ const frenchTranslation: TranslationType = {
                     one: "1 bulletin commence par {{start}}",
                     other: "{{count}} bulletins commencent par {{start}}",
                     atLeast: "{{count}} bulletins ou plus commencent par {{start}}",
-                    mine: "Votre bulletin, et {{count}} autres qui commencent par {{start}}",
-                    mineAlone: "Votre bulletin commence par {{start}}",
                 },
                 sub: {
                     few: "Lequel est le vôtre ? Comparez le groupe en surbrillance avec votre reçu, ou saisissez-le ci-dessous.",
                     one: "Ouvrez-le, puis comparez son identifiant de suivi complet avec votre reçu.",
                     many: "C'est plus que ce que nous listons. Saisissez le troisième groupe de votre reçu pour trouver le vôtre.",
-                    mine: "Cet appareil conserve votre reçu, il sait donc lequel est le vôtre.",
                 },
                 why: {
-                    few: "Un identifiant court trouve des bulletins. Seul l'identifiant de suivi complet, ou le reçu de votre propre appareil, dit lequel est le vôtre.",
+                    few: "Un identifiant court trouve des bulletins. Seul l'identifiant de suivi complet de votre reçu dit lequel est le vôtre.",
                     many: "Autant signifie souvent que quelqu'un a fabriqué des bulletins pour correspondre à cet identifiant court exprès. Le vôtre est toujours dans le registre : faire aussi correspondre trois groupes demanderait environ un milliard de milliards d'essais.",
-                    mine: "Les autres appartiennent à d'autres électeurs. Ils sont listés pour qu'un bulletin ressemblant ne puisse pas passer pour le vôtre.",
                 },
                 third: "Troisième groupe de votre reçu",
                 thirdOr: "Ou saisissez le troisième groupe de votre reçu",
                 find: "Chercher",
-                onDevice: "Sur cet appareil",
-                deviceMatches: "Le reçu de cet appareil correspond aux 13 groupes",
                 serverSees:
                     "Les serveurs du registre n'ont pas pu faire cette recherche sans savoir quel bulletin vous voulez ; le serveur de l'élection a donc reçu cet identifiant exact et a pu le voir.",
             },
@@ -794,9 +862,7 @@ const frenchTranslation: TranslationType = {
                 howToReportText:
                     "Enregistrez le fichier de la preuve et envoyez-le à l'autorité électorale ou à un observateur. Ils peuvent le vérifier sur leurs propres ordinateurs. Il ne contient rien sur la façon dont vous avez voté.",
                 noReceipt:
-                    "Cet appareil n'a pas de reçu pour ce bulletin. Vérifiez-le sur l'appareil avec lequel vous avez voté, ou vérifiez le fichier du reçu dans le vérificateur de bulletins.",
-                receiptPending:
-                    "Cet appareil conserve un reçu pour ce bulletin, mais il n'est pas complet ou n'a pas pu être vérifié à l'instant. Réessayez plus tard, ou vérifiez le fichier du reçu dans le vérificateur de bulletins.",
+                    "Aucun reçu pour ce bulletin n'a pu être vérifié ici. Vérifiez le fichier du reçu que vous avez gardé dans le vérificateur de bulletins, ou réessayez plus tard.",
                 status: {
                     checking: {
                         head: "Vérification…",
@@ -946,9 +1012,7 @@ const frenchTranslation: TranslationType = {
                     "Vous n’êtes pas sûr que le portail ait bien chiffré vos choix ? Auditez ce bulletin : le portail révèle comment il l’a chiffré pour que vous le vérifiiez. Un bulletin audité ne peut jamais être déposé, vous votez donc de nouveau ensuite.",
                 cast: "Émis le {{when}}",
                 audited: "Audité le {{when}}",
-                ballotCast: "Vote émis",
                 aria: "État du bulletin : {{state}}. Afficher les détails",
-                ariaCast: "Vote émis. État du bulletin : {{state}}. Afficher les détails",
                 tooltip: "{{state}} · Afficher les détails",
                 tracker: "Ouvrir dans le suivi des bulletins",
                 save: "Enregistrer le justificatif",
@@ -1062,11 +1126,7 @@ const frenchTranslation: TranslationType = {
                     skipped: "—",
                 },
                 callout: {
-                    late: "Cela signifie en général qu’un nœud est lent ou hors ligne ; ce n’est pas une preuve de falsification.",
-                    lateKept:
-                        "Cet appareil vérifie de nouveau à chaque retour, et le suivi des bulletins peut vérifier depuis n’importe quel appareil.",
-                    lateTracker:
-                        "Le suivi des bulletins peut vérifier depuis n’importe quel appareil.",
+                    late: "Cela signifie en général qu’un nœud est lent ou hors ligne ; ce n’est pas une preuve de falsification. Vérifiez de nouveau plus tard avec votre justificatif, dans le suivi des bulletins ou sur un nœud, depuis n’importe quel appareil.",
                     evidence:
                         "Votre navigateur a conservé les preuves : ce justificatif et l’entrée signée du registre. Envoyez-les à l’autorité électorale ou à un observateur ; tout le monde peut les vérifier.",
                     saveEvidence: "Enregistrer les preuves",
@@ -1084,7 +1144,7 @@ const frenchTranslation: TranslationType = {
                         "Vérifié par votre navigateur, avec un code que chacun peut inspecter.",
                     checked:
                         "Contrôlé par votre navigateur, avec un code que chacun peut inspecter.",
-                    kept: "Cet appareil conserve le justificatif et le vérifie de nouveau à chaque visite.",
+                    keep: "Gardez votre justificatif pour le vérifier de nouveau plus tard, dans le suivi des bulletins ou sur un nœud.",
                 },
             },
             signers: {

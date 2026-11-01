@@ -263,3 +263,218 @@ fn private_received_envelope_drops_unsigned_identity_fields_without_changing_has
     assert_eq!(typed.contests, "opaque encrypted contests");
     assert!(!clean.contains("private-account"));
 }
+
+mod auditable_ballot_publication {
+    use super::*;
+    use sequent_core::ballot::{AuditableBallot, HashableBallot, SignedHashableBallot};
+    use sequent_core::encrypt::{
+        encrypt_decoded_contest, encrypt_decoded_multi_contest, hash_ballot, hash_multi_ballot,
+    };
+    use sequent_core::fixtures::ballot_codec::{
+        get_test_contest, get_test_decoded_vote_contest, get_writein_ballot_style,
+    };
+    use sequent_core::multi_ballot::{
+        AuditableMultiBallot, HashableMultiBallot, SignedHashableMultiBallot,
+    };
+    use voting_crypto::RistrettoCtx;
+
+    const SINGLE: ContestEncryptionPolicy = ContestEncryptionPolicy::SINGLE_CONTEST;
+    const MULTI: ContestEncryptionPolicy = ContestEncryptionPolicy::MULTIPLE_CONTESTS;
+
+    fn style() -> BallotStyle {
+        BallotStyle {
+            contests: vec![get_test_contest()],
+            ..get_writein_ballot_style()
+        }
+    }
+
+    fn voter_key() -> String {
+        VerificationKey::from_sk(&SigningKey::generate().unwrap())
+            .unwrap()
+            .to_b64_string()
+            .unwrap()
+    }
+
+    /// A ballot the voter signed, as the portal keeps it.
+    fn single_ballot() -> AuditableBallot {
+        let mut ballot = encrypt_decoded_contest(
+            &RistrettoCtx,
+            &vec![get_test_decoded_vote_contest()],
+            &style(),
+        )
+        .unwrap();
+        ballot.voter_signing_pk = Some(voter_key());
+        ballot.voter_ballot_signature = Some("signature".into());
+        let signed = SignedHashableBallot::try_from(&ballot).unwrap();
+        ballot.ballot_hash = hash_ballot(&HashableBallot::try_from(&signed).unwrap()).unwrap();
+        ballot
+    }
+
+    fn multi_ballot() -> AuditableMultiBallot {
+        let mut ballot = encrypt_decoded_multi_contest(
+            &RistrettoCtx,
+            &vec![get_test_decoded_vote_contest()],
+            &style(),
+        )
+        .unwrap();
+        ballot.voter_signing_pk = Some(voter_key());
+        ballot.voter_ballot_signature = Some("signature".into());
+        let signed = SignedHashableMultiBallot::try_from(&ballot).unwrap();
+        ballot.ballot_hash =
+            hash_multi_ballot(&HashableMultiBallot::try_from(&signed).unwrap()).unwrap();
+        ballot
+    }
+
+    /// The ballot box's copy of a ballot: what the portal sent to it.
+    fn stored(content: String, ballot_hash: &str, voter_signing_pk: &str) -> StoredReceivedBallot {
+        StoredReceivedBallot {
+            id: Uuid::new_v4().to_string(),
+            election_event_id: Uuid::new_v4().to_string(),
+            election_id: Uuid::new_v4().to_string(),
+            area_id: Uuid::new_v4().to_string(),
+            voter_id: "voter".into(),
+            ballot_id: "FTBE-MHRX".into(),
+            ballot_hash: ballot_hash.into(),
+            content,
+            voter_signing_pk: voter_signing_pk.into(),
+            voter_ballot_signature: "signature".into(),
+            received_at: Utc::now(),
+            key_id: "box-key".into(),
+            received_signature: "receipt".into(),
+            status: electoral_log::adapters::ballot_box_received::ReceivedStatus::Audited,
+            cast_at: None,
+            cast_signature: None,
+            cast_receipt_signature: None,
+            vitrine: None,
+        }
+    }
+
+    fn stored_single(ballot: &AuditableBallot) -> StoredReceivedBallot {
+        let signed = SignedHashableBallot::try_from(ballot).unwrap();
+        stored(
+            serde_json::to_string(&signed).unwrap(),
+            &ballot.ballot_hash,
+            ballot.voter_signing_pk.as_deref().unwrap(),
+        )
+    }
+
+    fn stored_multi(ballot: &AuditableMultiBallot) -> StoredReceivedBallot {
+        let signed = SignedHashableMultiBallot::try_from(ballot).unwrap();
+        stored(
+            serde_json::to_string(&signed).unwrap(),
+            &ballot.ballot_hash,
+            ballot.voter_signing_pk.as_deref().unwrap(),
+        )
+    }
+
+    #[test]
+    fn the_stored_ballots_auditable_ballot_is_published_with_its_tracking_id() {
+        let ballot = single_ballot();
+        let received = stored_single(&ballot);
+        let published =
+            check_auditable_ballot(&serde_json::to_string(&ballot).unwrap(), &received, &SINGLE)
+                .unwrap();
+        let read_back: AuditableBallot = serde_json::from_str(&published.content).unwrap();
+        assert_eq!(read_back, ballot);
+        assert_eq!(
+            published.tracking_id,
+            sequent_core::ballot_receipt::tracking_id(
+                &ballot.ballot_hash,
+                ballot.voter_signing_pk.as_deref()
+            )
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn a_multi_contest_ballot_is_checked_in_its_own_format() {
+        let ballot = multi_ballot();
+        let received = stored_multi(&ballot);
+        let auditable = serde_json::to_string(&ballot).unwrap();
+        let published = check_auditable_ballot(&auditable, &received, &MULTI).unwrap();
+        let read_back: AuditableMultiBallot = serde_json::from_str(&published.content).unwrap();
+        assert_eq!(read_back, ballot);
+        assert!(matches!(
+            check_auditable_ballot(&auditable, &received, &SINGLE),
+            Err(AuditableBallotRefusal::Unreadable(_))
+        ));
+    }
+
+    #[test]
+    fn what_the_portal_added_is_not_published() {
+        let ballot = single_ballot();
+        let received = stored_single(&ballot);
+        let mut sent = serde_json::to_value(&ballot).unwrap();
+        sent["voter_id"] = "private-account".into();
+        let published = check_auditable_ballot(&sent.to_string(), &received, &SINGLE).unwrap();
+        assert!(!published.content.contains("private-account"));
+    }
+
+    #[test]
+    fn another_ballot_is_not_published() {
+        let ballot = single_ballot();
+        let received = stored_single(&ballot);
+        let other = single_ballot();
+        assert_eq!(
+            check_auditable_ballot(&serde_json::to_string(&other).unwrap(), &received, &SINGLE),
+            Err(AuditableBallotRefusal::NotTheStoredBallot)
+        );
+    }
+
+    #[test]
+    fn other_ciphertexts_under_the_same_hash_are_not_published() {
+        let ballot = single_ballot();
+        let received = stored_single(&ballot);
+        // Another encryption of the same choices, claiming the stored ballot's hash and key.
+        let mut other = encrypt_decoded_contest(
+            &RistrettoCtx,
+            &vec![get_test_decoded_vote_contest()],
+            &style(),
+        )
+        .unwrap();
+        other.voter_signing_pk = ballot.voter_signing_pk.clone();
+        other.voter_ballot_signature = ballot.voter_ballot_signature.clone();
+        other.ballot_hash = ballot.ballot_hash.clone();
+        assert_ne!(other.contests, ballot.contests);
+        assert_eq!(
+            check_auditable_ballot(&serde_json::to_string(&other).unwrap(), &received, &SINGLE),
+            Err(AuditableBallotRefusal::NotTheStoredBallot)
+        );
+    }
+
+    #[test]
+    fn a_ballot_whose_hash_is_not_its_own_is_not_published() {
+        let mut ballot = single_ballot();
+        ballot.ballot_hash = "0".repeat(64);
+        let received = stored_single(&ballot);
+        assert_eq!(
+            check_auditable_ballot(&serde_json::to_string(&ballot).unwrap(), &received, &SINGLE),
+            Err(AuditableBallotRefusal::NotTheStoredBallot)
+        );
+    }
+
+    #[test]
+    fn a_ballot_of_another_voter_key_is_not_published() {
+        let ballot = single_ballot();
+        let mut received = stored_single(&ballot);
+        received.voter_signing_pk = voter_key();
+        assert_eq!(
+            check_auditable_ballot(&serde_json::to_string(&ballot).unwrap(), &received, &SINGLE),
+            Err(AuditableBallotRefusal::NotTheStoredBallot)
+        );
+    }
+
+    #[test]
+    fn an_unreadable_ballot_is_not_published() {
+        let received = stored_single(&single_ballot());
+        for sent in ["", "not json", "{}", r#"{"ballot_hash":"ballot-hash"}"#] {
+            assert!(
+                matches!(
+                    check_auditable_ballot(sent, &received, &SINGLE),
+                    Err(AuditableBallotRefusal::Unreadable(_))
+                ),
+                "{sent}"
+            );
+        }
+    }
+}

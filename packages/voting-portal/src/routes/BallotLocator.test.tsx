@@ -281,7 +281,6 @@ const PROBLEM = viewOf(
 )
 
 const tracked = (patch: Partial<ITrackerReceipt>): ITrackerReceipt => ({
-    kept: true,
     settled: true,
     ...patch,
 })
@@ -526,7 +525,6 @@ describe("ballots that the ID does not tell apart", () => {
 })
 
 describe("ballots that share the short ID, listed from a bucket of the record's servers", () => {
-    const device = `${SHORT}0123${"0".repeat(36)}`
     const listing = (extra: Record<string, unknown>) => ({
         kind: "listed",
         typed: SHORT,
@@ -544,7 +542,6 @@ describe("ballots that share the short ID, listed from a bucket of the record's 
         at: 1_793_270_528,
         event: "event",
         election: "election",
-        onDevice: false,
         ...extra,
     })
     const locates = () =>
@@ -578,20 +575,6 @@ describe("ballots that share the short ID, listed from a bucket of the record's 
         renderAt(`/${SHORT}`)
         expect(screen.queryAllByRole("link", {name: /FTBE-MHRX/})).toHaveLength(0)
         expect(screen.getByLabelText("ballotLocator.shortId.third")).toBeVisible()
-    })
-
-    it("marks the receipt of this device, with the look-alikes listed", () => {
-        mockShort = {
-            status: "done",
-            result: listing({
-                matches: [row("0123", {onDevice: true, trackingId: device}), row("0WDY")],
-                total: 2,
-                mine: device,
-            }),
-        }
-        renderAt(`/${SHORT}`)
-        expect(screen.getByText("ballotLocator.shortId.onDevice")).toBeVisible()
-        expect(document.querySelectorAll(".short-id-match")).toHaveLength(2)
     })
 
     it("narrows by the third group the voter types", async () => {
@@ -827,15 +810,15 @@ describe("the result for an event with transparency", () => {
     })
 
     it("keeps checking until the receipt has been looked for", () => {
-        mockTracked.mockReturnValue(tracked({kept: false, settled: false}))
+        mockTracked.mockReturnValue(tracked({settled: false}))
         renderAt(`/${FULL}`)
         expect(screen.getByText("ballotLocator.result.status.checking.head")).toBeVisible()
         expect(section().querySelector(".tracker-step-record")).toHaveClass("tracker-step-active")
         expect(screen.queryByRole("button", {name: "ballotLocator.result.save"})).toBeNull()
     })
 
-    it("says honestly that this device has no receipt, and shows no status, but the content", () => {
-        mockTracked.mockReturnValue(tracked({kept: false, settled: true}))
+    it("says honestly that no receipt could be checked, and shows no status, but the content", () => {
+        mockTracked.mockReturnValue(tracked({settled: true}))
         renderAt(`/${FULL}`)
         expect(screen.getByText("ballotLocator.result.noReceipt")).toBeVisible()
         expect(screen.queryByRole("img", {name: /sealLabel/})).toBeNull()
@@ -848,12 +831,12 @@ describe("the result for an event with transparency", () => {
         ).toBeVisible()
     })
 
-    it("says so when a kept receipt couldn't be completed or checked", () => {
+    it("says the same when the receipt the log gave couldn't be completed or checked", () => {
         mockTracked.mockReturnValue(
-            tracked({view: {notice: EReceiptNotice.WAITING}, kept: true, settled: true})
+            tracked({view: {notice: EReceiptNotice.WAITING} as IReceiptView, settled: true})
         )
         renderAt(`/${FULL}`)
-        expect(screen.getByText("ballotLocator.result.receiptPending")).toBeVisible()
+        expect(screen.getByText("ballotLocator.result.noReceipt")).toBeVisible()
     })
 
     it("says when no ballot has the ID, with the buttons beside the title", () => {

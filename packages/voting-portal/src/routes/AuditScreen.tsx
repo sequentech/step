@@ -23,6 +23,7 @@ import {
     IAuditableMultiBallot,
     EElectionEventContestEncryptionPolicy,
     EReceiptsPolicy,
+    formatVotingPortalDateTime,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Button from "@mui/material/Button"
@@ -37,14 +38,17 @@ import {Typography} from "@mui/material"
 import {useAppSelector} from "../store/hooks"
 import {selectBallotForAudit} from "../store/auditableBallots/auditableBallotsSlice"
 import {useAuditBallot} from "../hooks/useAuditBallot"
-import {BallotTag} from "../components/Vitrine/BallotTag"
-import {EBallotTag} from "../services/vitrine/ballotStatus"
+import {useVitrinePolicy} from "../hooks/useVitrinePolicy"
+import {useElectionName} from "../hooks/useElectionName"
+import {AuditCheck} from "../components/Vitrine/AuditCheck"
 import {eventTransparency} from "../services/vitrine/presentation"
-import {shortBallotId} from "../services/vitrine/ballotId"
+import {ballotIdChars} from "../services/vitrine/ballotId"
 import {trackingIdOf} from "../services/vitrine/trackingId"
+import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import {ETransparencyMode} from "../services/vitrine/types"
 import {provideBallotService} from "../services/BallotService"
 import {SettingsContext} from "../providers/SettingsContextProvider"
+import {AuthContext} from "../providers/AuthContextProvider"
 import {useRootBackLink} from "../hooks/root-back-link"
 import StyledLinkContainer from "../components/Link"
 import Stepper from "../components/Stepper"
@@ -120,6 +124,7 @@ const AuditScreen: React.FC = () => {
         electionId?: string
     }>()
     const {globalSettings} = useContext(SettingsContext)
+    const {isKiosk} = useContext(AuthContext)
     const auditableBallot = useAppSelector(selectBallotForAudit(String(electionId)))
     const events = useAppSelector((state) => state.electionEvent)
     const transparency = eventTransparency(
@@ -180,11 +185,26 @@ const AuditScreen: React.FC = () => {
         downloadBlob(file, fileName)
     }
 
-    // The audited ballot's Tracking ID and its tag, once the log holds the audit.
+    // The audited ballot's Tracking ID, once the log holds the audit. An event
+    // that keeps a transparency log shows the check on its hubs; one that keeps
+    // none, the ballot to take to the ballot verifier.
     const auditedTrackingId =
         audit.ready && transparency.mode !== ETransparencyMode.DISABLED
             ? trackingIdOf(ballotHash, auditableBallot?.voter_signing_pk)
             : undefined
+    const pinnedPolicy = useVitrinePolicy(transparency)
+    const policy = audit.view?.policy ?? pinnedPolicy
+    const electionName = useElectionName(electionId)
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const acceptedAt = audit.view?.own?.acceptedAt
+    const auditedAt =
+        acceptedAt === undefined
+            ? undefined
+            : formatVotingPortalDateTime(
+                  acceptedAt * 1000,
+                  electionEvent,
+                  i18n.resolvedLanguage || i18n.language
+              )
 
     if (!audit.ready)
         return (
@@ -214,29 +234,62 @@ const AuditScreen: React.FC = () => {
             </PageLimit>
         )
 
+    const ballotIdHelp = (
+        <Dialog
+            className="audit-ballot-id-help-dialog"
+            handleClose={() => setOpenBallotIdHelp(false)}
+            open={openBallotIdHelp}
+            title={t("reviewScreen.ballotIdHelpDialog.title")}
+            ok={t("reviewScreen.ballotIdHelpDialog.ok")}
+            cancel={t("reviewScreen.ballotIdHelpDialog.cancel")}
+            variant="info"
+        >
+            {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
+        </Dialog>
+    )
+
+    if (auditedTrackingId)
+        return (
+            <PageLimit maxWidth="lg" className="audit-screen screen">
+                <AuditCheck
+                    key={policy?.id ?? ""}
+                    trackingId={auditedTrackingId}
+                    tenantId={tenantId ?? ""}
+                    eventId={eventId ?? ""}
+                    electionId={electionId ?? ""}
+                    electionName={electionName}
+                    view={audit.view}
+                    publication={audit.publication}
+                    onPublishRetry={() => void audit.retryPublish()}
+                    policy={policy}
+                    receivedAt={audit.receivedAt}
+                    auditedAt={auditedAt}
+                    ballotVerifierUrl={globalSettings.BALLOT_VERIFIER_URL || undefined}
+                    trackerUrl={`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotIdChars(auditedTrackingId)}${isKiosk() ? "?kiosk" : ""}`}
+                    voteAgainTo={backLink}
+                    steps={<Stepper selected={2} />}
+                    onTitleHelp={() => setOpenStep1Help(true)}
+                    onBallotIdHelp={() => setOpenBallotIdHelp(true)}
+                />
+                {ballotIdHelp}
+                <Dialog
+                    className="screen-help-dialog audit-help-dialog"
+                    handleClose={() => setOpenStep1Help(false)}
+                    open={openStep1Help}
+                    title={t("auditScreen.check.helpDialog.title")}
+                    ok={t("auditScreen.check.helpDialog.ok")}
+                    variant="info"
+                >
+                    {stringToHtml(t("auditScreen.check.helpDialog.content"))}
+                </Dialog>
+            </PageLimit>
+        )
+
     return (
         <PageLimit maxWidth="lg" className="audit-screen screen">
             <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
-            {auditedTrackingId ? (
-                <Box className="audit-tracking-id" sx={{mt: "12px", display: "flex", gap: "10px"}}>
-                    <Box component="span" className="audit-tracking-id-short">
-                        {shortBallotId(auditedTrackingId)}
-                    </Box>
-                    <BallotTag tag={EBallotTag.AUDITED} />
-                </Box>
-            ) : null}
             <Box className="stepper-box" marginTop="24px">
-                <Dialog
-                    className="audit-ballot-id-help-dialog"
-                    handleClose={() => setOpenBallotIdHelp(false)}
-                    open={openBallotIdHelp}
-                    title={t("reviewScreen.ballotIdHelpDialog.title")}
-                    ok={t("reviewScreen.ballotIdHelpDialog.ok")}
-                    cancel={t("reviewScreen.ballotIdHelpDialog.cancel")}
-                    variant="info"
-                >
-                    {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
-                </Dialog>
+                {ballotIdHelp}
                 <Stepper selected={4} warning={true} />
             </Box>
             <StyledTitle className="screen-title" variant="h4" component="h1" fontSize="1.5rem">

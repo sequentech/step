@@ -199,21 +199,23 @@ describe("the audit states", () => {
 })
 
 describe("the caption", () => {
-    it("says an audited ballot was decrypted, and does not offer a kept receipt", () => {
-        expect(statusCaption(EBallotStatus.AUDITABLE, true).map((t) => t.key)).toEqual([
+    it("says an audited ballot was decrypted, with no receipt to keep", () => {
+        expect(statusCaption(EBallotStatus.AUDITABLE).map((t) => t.key)).toEqual([
             "vitrine.status.caption.auditable",
         ])
-        expect(statusCaption(EBallotStatus.AUDIT_FAILED, true).map((t) => t.key)).toEqual([
+        expect(statusCaption(EBallotStatus.AUDIT_FAILED).map((t) => t.key)).toEqual([
             "vitrine.status.caption.problem",
         ])
     })
 
-    it("adds that this device keeps the receipt only when it does", () => {
-        const keys = (status: EBallotStatus, kept: boolean) =>
-            statusCaption(status, kept).map((t) => t.key.split(".").pop())
-        expect(keys(EBallotStatus.VERIFIED, true)).toEqual(["verified", "kept"])
-        expect(keys(EBallotStatus.WITNESSED, false)).toEqual(["checked"])
-        expect(keys(EBallotStatus.NOT_CAST, true)).toEqual(["notcast"])
-        expect(keys(EBallotStatus.PROBLEM, true)).toEqual(["problem"])
+    it("asks the voter to keep the receipt to check again later, once it is checked", () => {
+        const keys = (status: EBallotStatus) =>
+            statusCaption(status).map((t) => t.key.split(".").pop())
+        expect(keys(EBallotStatus.VERIFIED)).toEqual(["verified", "keep"])
+        expect(keys(EBallotStatus.WITNESSED)).toEqual(["checked", "keep"])
+        expect(keys(EBallotStatus.LATE)).toEqual(["checked", "keep"])
+        expect(keys(EBallotStatus.NOT_CAST)).toEqual(["notcast"])
+        expect(keys(EBallotStatus.CHECKING)).toEqual(["checking"])
+        expect(keys(EBallotStatus.PROBLEM)).toEqual(["problem"])
     })
 })

@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
 import {renderHook, waitFor} from "@testing-library/react"
 import type {Policy} from "@vitrine/verify"
 import {EShortIdKind, EShortIdStatus} from "../services/vitrine/shortId"
@@ -12,22 +11,9 @@ import type {ITransparency} from "../services/vitrine/presentation"
 import {useShortIdMatches} from "./useShortIdMatches"
 
 const mockLookup = jest.fn()
-const mockKept = jest.fn()
 let mockPolicy: {policy?: Policy; settled: boolean} = {settled: true}
 
-jest.mock("../providers/AuthContextProvider", () => ({
-    AuthContext: jest.requireActual<typeof React>("react").createContext({
-        userId: "voter-1",
-        isKiosk: () => false,
-    }),
-}))
 jest.mock("./useVitrinePolicy", () => ({useVitrinePolicyState: () => mockPolicy}))
-jest.mock("../services/vitrine/sdk", () => ({loadVitrineSdk: async () => ({})}))
-jest.mock("../services/vitrine/storage", () => ({
-    EReceiptKeeping: {FORGET: "forget", KEEP: "keep"},
-    receiptKeeping: () => "keep",
-    keptReceipts: (...args: unknown[]) => mockKept(...args),
-}))
 jest.mock("../services/vitrine/shortId", () => ({
     ...jest.requireActual("../services/vitrine/shortId"),
     lookupShortId: (...args: unknown[]) => mockLookup(...args),
@@ -59,8 +45,6 @@ const RESULT = {
 
 beforeEach(() => {
     mockLookup.mockReset()
-    mockKept.mockReset()
-    mockKept.mockResolvedValue([{ballotId: "FTBEMHRX71J75ZBD"}])
     mockPolicy = {policy: POLICY, settled: true}
 })
 
@@ -77,7 +61,7 @@ describe("the short ID lookup hook", () => {
         expect(mockLookup).not.toHaveBeenCalled()
     })
 
-    it("waits for the policy, then looks the ID up with the receipts this device keeps", async () => {
+    it("waits for the policy, then looks the ID up, with nothing kept on this device", async () => {
         mockPolicy = {settled: false}
         mockLookup.mockResolvedValue(RESULT)
         const {result, rerender} = renderHook(() => useShortIdMatches("ftbe-mhrx", "event", PUBLIC))
@@ -88,13 +72,7 @@ describe("the short ID lookup hook", () => {
         rerender()
         await waitFor(() => expect(result.current.status).toBe(EShortIdStatus.DONE))
         expect(result.current.result).toBe(RESULT)
-        expect(mockLookup).toHaveBeenCalledWith(
-            POLICY,
-            "FTBEMHRX",
-            ["FTBEMHRX71J75ZBD"],
-            expect.anything()
-        )
-        expect(mockKept).toHaveBeenCalledWith({}, "voter-1", "event")
+        expect(mockLookup).toHaveBeenCalledWith(POLICY, "FTBEMHRX", expect.anything())
     })
 
     it("is done without a result when the policy names no server, so the other routes answer", async () => {

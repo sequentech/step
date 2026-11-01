@@ -32,14 +32,13 @@ export const isAuditStatus = (status: EBallotStatus): boolean =>
 export enum EBallotTag {
     NOT_CAST = "notCast",
     CAST = "cast",
-    AUDITABLE = "auditable",
-    /** The ballot box and the log both hold the audit of this ballot. */
+    /** The ballot was audited: never cast, and its secret is published. */
     AUDITED = "audited",
 }
 
 export const ballotTagOf = (status: EBallotStatus): EBallotTag => {
     if (status === EBallotStatus.NOT_CAST) return EBallotTag.NOT_CAST
-    return isAuditStatus(status) ? EBallotTag.AUDITABLE : EBallotTag.CAST
+    return isAuditStatus(status) ? EBallotTag.AUDITED : EBallotTag.CAST
 }
 
 /** Why a ballot shows a problem. */

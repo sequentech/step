@@ -252,6 +252,14 @@ const catalanTranslation: TranslationType = {
                 ok: "Sí, descartar la meva papereta per auditar-la",
                 cancel: "Cancel·lar",
             },
+            auditConfirm: {
+                title: "Voleu auditar aquesta papereta en lloc d'emetre-la?",
+                text: "El portal publica com va xifrar <Id>{{id}}</Id>, perquè pugueu comprovar en un node que conté el que vau triar.",
+                never: "No s'emet ni es compta mai: el seu secret mostraria com vau votar.",
+                again: "Després torneu a votar, amb un nou ID de seguiment.",
+                cancel: "Cancel·la",
+                audit: "Auditar la papereta",
+            },
             confirmCastVoteDialog: {
                 title: "Esteu segur que voleu emetre el vostre vot?",
                 content: "Un cop confirmeu, el vostre vot serà emès.",
@@ -462,6 +470,72 @@ const catalanTranslation: TranslationType = {
             },
             bottomWarning:
                 "Per motius de seguretat, quan auditeu la vostra papereta, haureu d'invalidar-la. Per continuar amb el procés de votació, feu clic a ‘<b>Iniciar votació</b>’.",
+            voteAgain: "Torna a votar",
+            check: {
+                title: "Comproveu la vostra papereta auditada",
+                lead: "Aquesta papereta es va obrir en lloc d'emetre's, així que no es comptarà mai. Comproveu en un node que conté el que vau triar i després torneu a votar.",
+                label: "Comprovació d'una papereta auditada",
+                encrypted: {
+                    title: "Xifrada en aquest dispositiu",
+                    text: "Amb el seu ID de seguiment, abans que decidíssiu auditar-la.",
+                },
+                opened: {
+                    title: "Oberta al registre públic",
+                    text: "El portal va publicar el secret amb què la va xifrar. El registre marca la papereta com a Auditada.",
+                    publishingText: "El portal està publicant el secret amb què la va xifrar.",
+                    failedTitle: "No oberta al registre públic",
+                    failedText:
+                        "El portal no ha pogut publicar el secret amb què la va xifrar, així que cap node no pot comprovar encara aquesta papereta. La papereta continua auditada i no es comptarà. Torneu-ho a provar o torneu a votar.",
+                },
+                compare: {
+                    title: "Compareu-la en un node",
+                    text: "El node la desxifra al vostre navegador i mostra les opcions que conté. Només vosaltres sabeu què vau triar.",
+                },
+                entry: "entrada #{{index}}",
+                hubsLabel: "Nodes que comproven paperetes, segons la política de l'elecció",
+                runBy: "Gestionat per {{party}}",
+                hubLabel:
+                    "{{name}}, gestionat per {{party}}: comproveu aquesta papereta al seu propi lloc (s'obre en una pestanya nova)",
+                authorityName: "Verificador de paperetes de l'elecció",
+                runByAuthority: "Gestionat per l'autoritat electoral",
+                authorityLabel:
+                    "Verificador de paperetes de l'elecció, gestionat per l'autoritat electoral: comproveu aquesta papereta al seu propi lloc (s'obre en una pestanya nova)",
+                footnote:
+                    "Tots els nodes de la política de l'elecció que comproven paperetes, en un ordre aleatori cada vegada. Cadascun s'obre al seu propi lloc amb l'ID de seguiment a l'enllaç.",
+                footnoteAuthority:
+                    "Encara cap node de la política de l'elecció no comprova paperetes, així que aquest és el verificador de paperetes de la mateixa autoritat electoral. S'obre amb l'ID de seguiment a l'enllaç.",
+                trackerText:
+                    "Encara cap node de la política de l'elecció no comprova paperetes. El seguiment de paperetes la pot mostrar: desxifra la papereta al vostre navegador.",
+                trackerLink: "Obriu-la al seguiment de paperetes",
+                tip: "És més sòlid des d'un altre dispositiu, com el mòbil: obriu el lloc de qualsevol node i enganxeu-hi l'ID de seguiment.",
+                tipTracker:
+                    "És més sòlid des d'un altre dispositiu, com el mòbil: obriu-hi el seguiment de paperetes i enganxeu-hi l'ID de seguiment.",
+                why: "Per què auditar?",
+                faq: {
+                    why: {
+                        question: "Per què auditar?",
+                        answer: "El vostre vot es xifra al vostre dispositiu, així que ningú pot llegir-lo, ni tan sols vosaltres. Auditar us permet comprovar que el portal va xifrar el que vau triar.",
+                    },
+                    catch: {
+                        question: "Per què detecta l'engany?",
+                        answer: "El portal xifra abans que decidiu auditar, així que no pot saber quines paperetes es comprovaran. Si canviés vots, qualsevol que auditi ho podria descobrir.",
+                    },
+                    spent: {
+                        question: "Per què no pot comptar aquesta papereta?",
+                        answer: "Amb el secret publicat, la papereta mostra com vau votar. Per mantenir secret el vostre vot, una papereta auditada no s'emet mai.",
+                    },
+                    hub: {
+                        question: "Per què en un node?",
+                        answer: "Un portal que canviés el vostre vot també us podria mostrar una comprovació falsa. Un node és un altre lloc; la papereta i el seu secret surten del registre públic, no d'aquesta pàgina.",
+                    },
+                },
+                helpDialog: {
+                    title: "Comproveu la vostra papereta auditada",
+                    content:
+                        "<p>Auditar obre una papereta en lloc d'emetre-la. El portal publica el secret amb què va xifrar les vostres opcions, així que qualsevol pot desxifrar la papereta i veure què conté.</p><p>Comproveu en un node que conté el que vau triar. Després torneu a votar: la nova papereta té un nou ID de seguiment, i és la que compta.</p>",
+                    ok: "D'acord",
+                },
+            },
         },
         electionSelectionScreen: {
             title: "Llista de Votacions",
@@ -638,10 +712,10 @@ const catalanTranslation: TranslationType = {
                 title: "Comproveu la vostra papereta al registre públic",
                 intro: "Introduïu l'ID de seguiment de la pantalla de confirmació o del rebut. El vostre navegador el cerca i comprova ell mateix les proves.",
                 find: "Cerca",
-                invalid: "Un ID de seguiment només té dígits i les lletres de la a a la f.",
+                invalid: "Un ID de seguiment només té dígits i lletres, mai la U.",
                 chips: {
                     short: "<b>Curt</b> FTBE-MHRX",
-                    full: "<b>Complet</b> 16 grups de quatre",
+                    full: "<b>Complet</b> 13 grups de quatre",
                     spaces: "Espais opcionals",
                 },
                 features: {
@@ -668,25 +742,19 @@ const catalanTranslation: TranslationType = {
                     one: "1 papereta comença per {{start}}",
                     other: "{{count}} paperetes comencen per {{start}}",
                     atLeast: "{{count}} o més paperetes comencen per {{start}}",
-                    mine: "La vostra papereta i {{count}} més que comencen per {{start}}",
-                    mineAlone: "La vostra papereta comença per {{start}}",
                 },
                 sub: {
                     few: "Quina és la vostra? Compareu el grup ressaltat amb el rebut, o escriviu-lo a sota.",
                     one: "Obriu-la i compareu el seu ID de seguiment complet amb el rebut.",
                     many: "Són més de les que mostrem. Escriviu el tercer grup del rebut per trobar la vostra.",
-                    mine: "Aquest dispositiu guarda el vostre rebut, així que sap quina és la vostra.",
                 },
                 why: {
-                    few: "Un ID curt troba paperetes. Només l'ID de seguiment complet, o el rebut del vostre propi dispositiu, diu quina és la vostra.",
+                    few: "Un ID curt troba paperetes. Només l'ID de seguiment complet del vostre rebut diu quina és la vostra.",
                     many: "Tantes sol voler dir que algú ha creat paperetes perquè coincideixin amb aquest ID curt a propòsit. La vostra continua al registre: encertar també tres grups requeriria uns mil trilions d'intents.",
-                    mine: "Les altres pertanyen a altres votants. Es mostren perquè una de semblant no pugui passar per la vostra.",
                 },
                 third: "Tercer grup del rebut",
                 thirdOr: "O escriviu el tercer grup del rebut",
                 find: "Cerca",
-                onDevice: "En aquest dispositiu",
-                deviceMatches: "El rebut d'aquest dispositiu coincideix amb els 13 grups",
                 serverSees:
                     "Els servidors del registre no han pogut fer aquesta cerca sense saber quina papereta busqueu, així que s'ha demanat al servidor de l'elecció aquest ID exacte i l'ha pogut veure.",
             },
@@ -797,9 +865,7 @@ const catalanTranslation: TranslationType = {
                 howToReportText:
                     "Deseu el fitxer de la prova i envieu-lo a l'autoritat electoral o a un observador. Poden comprovar-lo als seus ordinadors. No conté res sobre com heu votat.",
                 noReceipt:
-                    "Aquest dispositiu no té el rebut d'aquesta papereta. Comproveu-la al dispositiu amb què vau votar, o comproveu el fitxer del rebut al verificador de paperetes.",
-                receiptPending:
-                    "Aquest dispositiu conserva un rebut d'aquesta papereta, però no està complet o no s'ha pogut comprovar ara. Torneu-ho a provar més tard, o comproveu el fitxer del rebut al verificador de paperetes.",
+                    "Aquí no s'ha pogut comprovar cap rebut d'aquesta papereta. Comproveu el fitxer del rebut que vau guardar al verificador de paperetes, o torneu-ho a provar més tard.",
                 status: {
                     checking: {
                         head: "S'està comprovant…",
@@ -949,9 +1015,7 @@ const catalanTranslation: TranslationType = {
                     "No esteu segur que el portal hagi xifrat bé les vostres opcions? Auditeu aquesta papereta: el portal revela com la va xifrar perquè ho comproveu. Una papereta auditada no es pot emetre mai, així que després torneu a votar.",
                 cast: "Emesa el {{when}}",
                 audited: "Auditada el {{when}}",
-                ballotCast: "Vot emès",
                 aria: "Estat de la papereta: {{state}}. Mostra els detalls",
-                ariaCast: "Vot emès. Estat de la papereta: {{state}}. Mostra els detalls",
                 tooltip: "{{state}} · Mostra els detalls",
                 tracker: "Obre al seguiment de paperetes",
                 save: "Desa el justificant",
@@ -1063,11 +1127,7 @@ const catalanTranslation: TranslationType = {
                     skipped: "—",
                 },
                 callout: {
-                    late: "Normalment vol dir que un node va lent o està fora de línia; no és prova de manipulació.",
-                    lateKept:
-                        "Aquest dispositiu ho torna a comprovar cada vegada que hi torneu, i el seguiment de paperetes ho pot comprovar des de qualsevol dispositiu.",
-                    lateTracker:
-                        "El seguiment de paperetes ho pot comprovar des de qualsevol dispositiu.",
+                    late: "Normalment vol dir que un node va lent o està fora de línia; no és prova de manipulació. Torneu-ho a comprovar més tard amb el justificant, al seguiment de paperetes o en un node, des de qualsevol dispositiu.",
                     evidence:
                         "El navegador ha guardat l'evidència: aquest justificant i l'entrada signada del registre. Envieu-la a l'autoritat electoral o a un observador; qualsevol pot comprovar-la.",
                     saveEvidence: "Desa l'evidència",
@@ -1081,7 +1141,7 @@ const catalanTranslation: TranslationType = {
                     auditable: "Desxifrat pel navegador, amb codi que qualsevol pot inspeccionar.",
                     verified: "Verificat pel navegador, amb codi que qualsevol pot inspeccionar.",
                     checked: "Comprovat pel navegador, amb codi que qualsevol pot inspeccionar.",
-                    kept: "Aquest dispositiu guarda el justificant i el torna a comprovar a cada visita.",
+                    keep: "Guardeu el justificant per tornar-lo a comprovar més tard, al seguiment de paperetes o en un node.",
                 },
             },
             signers: {

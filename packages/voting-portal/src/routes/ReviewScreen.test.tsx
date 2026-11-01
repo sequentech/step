@@ -264,10 +264,35 @@ describe("Audit ballot in the status dialog of the Tracking ID box", () => {
             renderReview()
             openStatus()
             fireEvent.click(auditButton()!)
-            expect(await screen.findByText("reviewScreen.auditBallotHelpDialog.title")).toBeTruthy()
+            expect(await screen.findByText("reviewScreen.auditConfirm.title")).toBeTruthy()
+            expect(screen.queryByText("reviewScreen.auditBallotHelpDialog.title")).toBeNull()
             expect(screen.queryByRole("dialog", {name: "vitrine.status.title"})).toBeNull()
         }
     )
+
+    const confirmAudit = async () => {
+        setUpState({transparency: ETransparencyMode.PUBLIC})
+        const view = renderReview()
+        openStatus()
+        fireEvent.click(auditButton()!)
+        return {...view, confirm: await screen.findByRole("dialog", {name: /auditConfirm.title/})}
+    }
+
+    it("goes to the audit screen when the voter confirms the audit", async () => {
+        const {router, confirm} = await confirmAudit()
+        fireEvent.click(
+            within(confirm).getByRole("button", {name: "reviewScreen.auditConfirm.audit"})
+        )
+        expect(router.state.location.pathname).toMatch(/\/audit$/)
+    })
+
+    it("stays on the review screen when the voter cancels the audit", async () => {
+        const {router, confirm} = await confirmAudit()
+        fireEvent.click(
+            within(confirm).getByRole("button", {name: "reviewScreen.auditConfirm.cancel"})
+        )
+        expect(router.state.location.pathname).toMatch(/\/review$/)
+    })
 })
 
 describe("an event that keeps no transparency log", () => {

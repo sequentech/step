@@ -253,6 +253,14 @@ const dutchTranslation: TranslationType = {
                 ok: "Ja, ik wil mijn stembiljet verwerpen om het te auditen",
                 cancel: "Annuleren",
             },
+            auditConfirm: {
+                title: "Dit stembiljet auditeren in plaats van uitbrengen?",
+                text: "De portal publiceert hoe hij <Id>{{id}}</Id> heeft versleuteld, zodat u op een hub kunt controleren dat het bevat wat u koos.",
+                never: "Het wordt nooit uitgebracht of geteld: het geheim zou laten zien hoe u stemde.",
+                again: "Daarna stemt u opnieuw, met een nieuwe Tracking-ID.",
+                cancel: "Annuleren",
+                audit: "Stem controleren",
+            },
             confirmCastVoteDialog: {
                 title: "Weet u zeker dat u uw stem wilt uitbrengen?",
                 content: "Na bevestiging wordt uw stem uitgebracht.",
@@ -462,6 +470,72 @@ const dutchTranslation: TranslationType = {
             },
             bottomWarning:
                 "Om veiligheidsredenen moet uw stembiljet ongeldig worden gemaakt wanneer u het audit. Om door te gaan met het stemproces, moet u hieronder op ‘<b>Begin met stemmen</b>’ klikken.",
+            voteAgain: "Opnieuw stemmen",
+            check: {
+                title: "Controleer uw geauditeerde stembiljet",
+                lead: "Dit stembiljet is geopend in plaats van uitgebracht, dus het wordt nooit geteld. Controleer op een hub dat het bevat wat u koos en stem daarna opnieuw.",
+                label: "Een geauditeerd stembiljet controleren",
+                encrypted: {
+                    title: "Versleuteld op dit apparaat",
+                    text: "Met de Tracking-ID, voordat u besloot het te auditeren.",
+                },
+                opened: {
+                    title: "Geopend in het openbare register",
+                    text: "De portal publiceerde het geheim waarmee hij het versleutelde. Het register markeert het stembiljet als Geauditeerd.",
+                    publishingText: "De portal publiceert het geheim waarmee hij het versleutelde.",
+                    failedTitle: "Niet geopend in het openbare register",
+                    failedText:
+                        "De portal kon het geheim waarmee hij het versleutelde niet publiceren, dus geen hub kan dit stembiljet nog controleren. Het stembiljet blijft geauditeerd en wordt niet geteld. Probeer het opnieuw, of stem opnieuw.",
+                },
+                compare: {
+                    title: "Vergelijk het op een hub",
+                    text: "De hub ontsleutelt het in uw browser en toont de keuzes die het bevat. Alleen u weet wat u koos.",
+                },
+                entry: "item #{{index}}",
+                hubsLabel: "Hubs die stembiljetten controleren, uit het beleid van de verkiezing",
+                runBy: "Beheerd door {{party}}",
+                hubLabel:
+                    "{{name}}, beheerd door {{party}}: controleer dit stembiljet op de eigen site (opent in een nieuw tabblad)",
+                authorityName: "Stembiljetverificatie van de verkiezing",
+                runByAuthority: "Beheerd door de verkiezingsautoriteit",
+                authorityLabel:
+                    "Stembiljetverificatie van de verkiezing, beheerd door de verkiezingsautoriteit: controleer dit stembiljet op de eigen site (opent in een nieuw tabblad)",
+                footnote:
+                    "Elke hub in het beleid van de verkiezing die stembiljetten controleert, telkens in een willekeurige volgorde. Elke hub opent op de eigen site met de Tracking-ID in de link.",
+                footnoteAuthority:
+                    "Nog geen hub in het beleid van de verkiezing controleert stembiljetten, dus dit is de stembiljetverificatie van de verkiezingsautoriteit zelf. Die opent met de Tracking-ID in de link.",
+                trackerText:
+                    "Nog geen hub in het beleid van de verkiezing controleert stembiljetten. De stembiljettracker kan het tonen: die ontsleutelt het stembiljet in uw browser.",
+                trackerLink: "Open het in de stembiljettracker",
+                tip: "Het sterkst op een ander apparaat, zoals uw telefoon: open de site van een hub en plak de Tracking-ID.",
+                tipTracker:
+                    "Het sterkst op een ander apparaat, zoals uw telefoon: open daar de stembiljettracker en plak de Tracking-ID.",
+                why: "Waarom auditeren?",
+                faq: {
+                    why: {
+                        question: "Waarom auditeren?",
+                        answer: "Uw stem wordt op uw apparaat versleuteld, dus niemand kan hem lezen, ook u niet. Met auditeren controleert u of de portal heeft versleuteld wat u koos.",
+                    },
+                    catch: {
+                        question: "Waarom betrapt dit fraude?",
+                        answer: "De portal versleutelt voordat u besluit te auditeren, dus hij kan niet weten welke stembiljetten worden gecontroleerd. Als hij stemmen veranderde, zou iedereen die auditeert dat kunnen ontdekken.",
+                    },
+                    spent: {
+                        question: "Waarom kan dit stembiljet niet meetellen?",
+                        answer: "Met het geheim gepubliceerd laat het stembiljet zien hoe u stemde. Om uw stem geheim te houden, wordt een geauditeerd stembiljet nooit uitgebracht.",
+                    },
+                    hub: {
+                        question: "Waarom op een hub?",
+                        answer: "Een portal die uw stem veranderde, kan u ook een valse controle tonen. Een hub is een andere site; het stembiljet en het geheim komen uit het openbare register, niet van deze pagina.",
+                    },
+                },
+                helpDialog: {
+                    title: "Controleer uw geauditeerde stembiljet",
+                    content:
+                        "<p>Auditeren opent een stembiljet in plaats van het uit te brengen. De portal publiceert het geheim waarmee hij uw keuzes versleutelde, zodat iedereen het stembiljet kan ontsleutelen en zien wat het bevat.</p><p>Controleer op een hub dat het bevat wat u koos. Stem daarna opnieuw: uw nieuwe stembiljet krijgt een nieuwe Tracking-ID, en dat is het stembiljet dat telt.</p>",
+                    ok: "OK",
+                },
+            },
         },
         electionSelectionScreen: {
             title: "Stembiljetten",
@@ -637,10 +711,10 @@ const dutchTranslation: TranslationType = {
                 title: "Controleer uw stembiljet in het openbare register",
                 intro: "Voer de Tracking-ID van uw bevestigingsscherm of ontvangstbewijs in. Uw browser zoekt het stembiljet op en controleert zelf de bewijzen.",
                 find: "Zoeken",
-                invalid: "Een Tracking-ID bestaat alleen uit cijfers en de letters a tot en met f.",
+                invalid: "Een Tracking-ID bestaat alleen uit cijfers en letters, nooit een U.",
                 chips: {
                     short: "<b>Kort</b> FTBE-MHRX",
-                    full: "<b>Volledig</b> 16 groepen van vier",
+                    full: "<b>Volledig</b> 13 groepen van vier",
                     spaces: "Spaties optioneel",
                 },
                 features: {
@@ -667,25 +741,19 @@ const dutchTranslation: TranslationType = {
                     one: "1 stembiljet begint met {{start}}",
                     other: "{{count}} stembiljetten beginnen met {{start}}",
                     atLeast: "{{count}} of meer stembiljetten beginnen met {{start}}",
-                    mine: "Uw stembiljet, en {{count}} andere die beginnen met {{start}}",
-                    mineAlone: "Uw stembiljet begint met {{start}}",
                 },
                 sub: {
                     few: "Welke is van u? Vergelijk de gemarkeerde groep met uw bewijs, of typ die hieronder.",
                     one: "Open het en vergelijk de volledige Tracking-ID met uw bewijs.",
                     many: "Dat zijn er meer dan we tonen. Typ de derde groep van uw bewijs om het uwe te vinden.",
-                    mine: "Dit apparaat bewaart uw bewijs, dus het weet welke van u is.",
                 },
                 why: {
-                    few: "Een korte ID vindt stembiljetten. Alleen de volledige Tracking-ID, of het bewijs op uw eigen apparaat, zegt welke van u is.",
+                    few: "Een korte ID vindt stembiljetten. Alleen de volledige Tracking-ID op uw bewijs zegt welke van u is.",
                     many: "Zoveel betekent meestal dat iemand met opzet stembiljetten heeft gemaakt die bij deze korte ID passen. Het uwe staat nog in het register: ook drie groepen laten kloppen kost ongeveer een miljard miljard pogingen.",
-                    mine: "De andere horen bij andere kiezers. Ze worden getoond zodat een gelijkende niet voor de uwe kan doorgaan.",
                 },
                 third: "Derde groep van uw bewijs",
                 thirdOr: "Of typ de derde groep van uw bewijs",
                 find: "Zoeken",
-                onDevice: "Op dit apparaat",
-                deviceMatches: "Het bewijs op dit apparaat komt overeen met alle 13 groepen",
                 serverSees:
                     "De servers van het register konden dit niet opzoeken zonder te weten welk stembiljet u wilt, dus de server van de verkiezing kreeg deze exacte ID te zien.",
             },
@@ -795,9 +863,7 @@ const dutchTranslation: TranslationType = {
                 howToReportText:
                     "Sla het bewijsbestand op en stuur het naar de verkiezingsautoriteit of een waarnemer. Zij kunnen het op hun eigen computers controleren. Het bevat niets over hoe u hebt gestemd.",
                 noReceipt:
-                    "Dit apparaat heeft geen ontvangstbewijs voor dit stembiljet. Controleer het op het apparaat waarmee u hebt gestemd, of controleer het bestand van het ontvangstbewijs in de stembiljetverificatie.",
-                receiptPending:
-                    "Dit apparaat bewaart een ontvangstbewijs voor dit stembiljet, maar het is niet compleet of kon nu niet worden gecontroleerd. Probeer het later opnieuw, of controleer het bestand van het ontvangstbewijs in de stembiljetverificatie.",
+                    "Hier kon geen ontvangstbewijs voor dit stembiljet worden gecontroleerd. Controleer het bestand van het ontvangstbewijs dat u hebt bewaard in de stembiljetverificatie, of probeer het later opnieuw.",
                 status: {
                     checking: {
                         head: "Controleren…",
@@ -948,9 +1014,7 @@ const dutchTranslation: TranslationType = {
                     "Niet zeker of het portaal je keuzes goed heeft versleuteld? Controleer deze stem: het portaal laat zien hoe hij is versleuteld, zodat je het kunt nagaan. Een gecontroleerde stem kan nooit worden uitgebracht, dus je stemt daarna opnieuw.",
                 cast: "Uitgebracht op {{when}}",
                 audited: "Geauditeerd op {{when}}",
-                ballotCast: "Stem uitgebracht",
                 aria: "Status van het stembiljet: {{state}}. Details tonen",
-                ariaCast: "Stem uitgebracht. Status van het stembiljet: {{state}}. Details tonen",
                 tooltip: "{{state}} · Details tonen",
                 tracker: "Openen in de stembiljettracker",
                 save: "Ontvangstbewijs opslaan",
@@ -1063,10 +1127,7 @@ const dutchTranslation: TranslationType = {
                     skipped: "—",
                 },
                 callout: {
-                    late: "Dit betekent meestal dat een hub traag of offline is; het is geen bewijs van knoeien.",
-                    lateKept:
-                        "Dit apparaat controleert opnieuw wanneer u terugkomt, en de stembiljettracker kan vanaf elk apparaat controleren.",
-                    lateTracker: "De stembiljettracker kan vanaf elk apparaat controleren.",
+                    late: "Dit betekent meestal dat een hub traag of offline is; het is geen bewijs van knoeien. Controleer later opnieuw met uw ontvangstbewijs, in de stembiljettracker of op een hub, vanaf elk apparaat.",
                     evidence:
                         "Uw browser heeft het bewijs bewaard: dit ontvangstbewijs en het ondertekende item van het register. Stuur het naar de verkiezingsautoriteit of een waarnemer; iedereen kan het controleren.",
                     saveEvidence: "Bewijs opslaan",
@@ -1083,7 +1144,7 @@ const dutchTranslation: TranslationType = {
                         "Geverifieerd door uw browser, met code die iedereen kan inspecteren.",
                     checked:
                         "Gecontroleerd door uw browser, met code die iedereen kan inspecteren.",
-                    kept: "Dit apparaat bewaart het ontvangstbewijs en controleert het bij elk bezoek opnieuw.",
+                    keep: "Bewaar uw ontvangstbewijs om het later opnieuw te controleren, in de stembiljettracker of op een hub.",
                 },
             },
             signers: {

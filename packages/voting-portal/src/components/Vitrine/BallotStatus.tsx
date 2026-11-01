@@ -29,13 +29,6 @@ import {BallotStatusIcon, CHECK_SIZES} from "./BallotStatusIcon"
 const NAVY = "#0F054C"
 const TOOLTIP_GAP_PX = 8
 
-export enum EBallotStatusTrigger {
-    /** The 34 px check mark next to a Tracking ID. */
-    ICON = "icon",
-    /** The "Ballot cast" label of the ballot list. */
-    LABEL = "label",
-}
-
 type TTimes = Partial<Record<EStatusStep, number>>
 
 /** When this page saw each step done. */
@@ -57,7 +50,7 @@ const useStepTimes = (steps: Record<EStatusStep, EStepState>): TTimes => {
 
 /** The ballot tracker link: a new tab, or in this one on a kiosk, which keeps
  * its session in memory. */
-const useTrackerLink = (
+export const useTrackerLink = (
     url: string | undefined
 ): React.AnchorHTMLAttributes<HTMLAnchorElement> | undefined => {
     const {isKiosk} = useContext(AuthContext)
@@ -146,54 +139,7 @@ export const BallotStatusButton: React.FC<ITriggerProps> = ({
     )
 }
 
-/** "Ballot cast" with the check mark: the whole label opens the dialog. */
-export const BallotCastButton: React.FC<ITriggerProps> = ({status, onClick, surface}) => {
-    const {t} = useTranslation()
-    const {tooltip, state} = useStateLabels(status)
-    return (
-        <Tooltip
-            className="ballot-status-tooltip"
-            title={tooltip}
-            placement="top-start"
-            slotProps={{
-                popper: {modifiers: [{name: "offset", options: {offset: [0, -TOOLTIP_GAP_PX]}}]},
-            }}
-        >
-            <ButtonBase
-                className="ballot-status-button ballot-cast-button"
-                data-status={status}
-                aria-label={t("vitrine.status.ariaCast", {state})}
-                aria-haspopup="dialog"
-                onClick={onClick}
-                sx={[
-                    {
-                        "gap": "6px",
-                        "m": "-5px 0 -5px -5px",
-                        "p": "5px 8px 5px 5px",
-                        "borderRadius": "4px",
-                        "fontSize": "14px",
-                        "lineHeight": "16px",
-                        "color": "#047857",
-                        "&:hover": {
-                            "bgcolor": "rgba(0, 0, 0, 0.04)",
-                            "& .ballot-cast-label": {
-                                textDecoration: "underline",
-                                textUnderlineOffset: "2px",
-                            },
-                        },
-                    },
-                    focusSx,
-                ]}
-            >
-                <BallotStatusIcon status={status} size={CHECK_SIZES.LIST} surface={surface} />
-                <span className="ballot-cast-label">{t("vitrine.status.ballotCast")}</span>
-            </ButtonBase>
-        </Tooltip>
-    )
-}
-
 export interface IBallotStatusProps {
-    trigger: EBallotStatusTrigger
     /** Given when the ballot isn't cast yet; otherwise it comes from the receipt. */
     status?: EBallotStatus
     view?: IReceiptView
@@ -202,8 +148,6 @@ export interface IBallotStatusProps {
     ballotId: string
     electionName?: string
     castAt?: string
-    /** Whether this device keeps the receipt and checks it on each visit. */
-    kept?: boolean
     trackerUrl?: string
     /** Audits the ballot, at review: the dialog closes and this runs. */
     onAudit?: () => void
@@ -215,14 +159,12 @@ export interface IBallotStatusProps {
 
 /** The status check mark of a ballot, and its dialog. */
 export const BallotStatus: React.FC<IBallotStatusProps> = ({
-    trigger,
     status: given,
     view,
     tag,
     ballotId,
     electionName,
     castAt,
-    kept,
     trackerUrl,
     onAudit,
     surface,
@@ -233,10 +175,9 @@ export const BallotStatus: React.FC<IBallotStatusProps> = ({
     const status = given ?? ballotStatusOf(view)
     const times = useStepTimes(statusSteps(status, view?.result))
     const tracker = useTrackerLink(trackerUrl)
-    const Trigger = trigger === EBallotStatusTrigger.ICON ? BallotStatusButton : BallotCastButton
     return (
         <>
-            <Trigger
+            <BallotStatusButton
                 status={status}
                 onClick={() => setOpen(true)}
                 surface={surface}
@@ -253,7 +194,6 @@ export const BallotStatus: React.FC<IBallotStatusProps> = ({
                 electionName={electionName}
                 castAt={castAt}
                 times={times}
-                kept={kept}
                 tracker={tracker}
                 onAudit={
                     onAudit

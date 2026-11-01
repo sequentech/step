@@ -54,7 +54,7 @@ const MailIcon: React.FC = () => (
     </svg>
 )
 
-const ExternalIcon: React.FC = () => (
+export const ExternalIcon: React.FC = () => (
     <svg
         className="get-updates-external"
         width="16"

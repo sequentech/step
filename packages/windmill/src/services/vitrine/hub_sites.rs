@@ -4,7 +4,9 @@
 
 //! The hubs of an event's trust policy that give voters a site of their own
 //! (its `hub-explorer` lines), and the links the cast ballot receipt gives
-//! into them (design decision D7). Each link carries the policy ID and the
+//! into them (design decision D7). Also the hubs' ballot verifiers (their
+//! `hub-ballot-verifier` lines), where a voter checks an audited ballot.
+//! Each link carries the policy ID and the
 //! ballot's full Tracking ID (`watch-id`) in its fragment, which a browser never sends to the
 //! hub's server; the hub's site asks the voter for an address and for what to
 //! watch. Windmill sends nothing and learns no address.
@@ -38,37 +40,121 @@ pub struct HubLink {
     pub url: String,
 }
 
-/// The hubs of a policy note that have a site, in the order of the policy.
-/// Only the policy's text is read, not the signatures after it. A hub whose
-/// site isn't a plain HTTP(S) address, or that has no operator, is left out.
-pub fn hub_sites(note: &str) -> Vec<HubSite> {
+/// A hub's ballot verifier, as its `hub-ballot-verifier` line names it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HubBallotVerifier {
+    pub name: String,
+    /// Who runs the hub, as its `hub-operator` line says, if it does.
+    pub operator: Option<String>,
+    /// The verifier's base URL, ending with `/`.
+    pub url: Url,
+}
+
+/// The hub lines of a policy note's text, the first of each kind for a hub.
+#[derive(Default)]
+struct HubLines<'a> {
+    names: Vec<&'a str>,
+    operators: HashMap<&'a str, &'a str>,
+    explorers: HashMap<&'a str, &'a str>,
+    verifiers: HashMap<&'a str, &'a str>,
+}
+
+/// Only the policy's text is read, not the signatures after it.
+fn hub_lines(note: &str) -> HubLines<'_> {
     let text = note.split("\n\n").next().unwrap_or_default();
-    let mut names = Vec::new();
-    let mut operators = HashMap::new();
-    let mut explorers = HashMap::new();
+    let mut hubs = HubLines::default();
     for line in text.lines() {
         let words: Vec<&str> = line.split(' ').collect();
         match words.as_slice() {
-            ["hub", name, ..] => names.push(*name),
+            ["hub", name, ..] => hubs.names.push(*name),
             ["hub-operator", name, operator] => {
-                operators.entry(*name).or_insert(*operator);
+                hubs.operators.entry(*name).or_insert(*operator);
             }
             ["hub-explorer", name, site] => {
-                explorers.entry(*name).or_insert(*site);
+                hubs.explorers.entry(*name).or_insert(*site);
+            }
+            // The hub must be defined before the line.
+            ["hub-ballot-verifier", name, url] if hubs.names.contains(name) => {
+                hubs.verifiers.entry(*name).or_insert(*url);
             }
             _ => {}
         }
     }
-    names
-        .into_iter()
+    hubs
+}
+
+/// The hubs of a policy note that have a site, in the order of the policy.
+/// Only the policy's text is read, not the signatures after it. A hub whose
+/// site isn't a plain HTTP(S) address, or that has no operator, is left out.
+pub fn hub_sites(note: &str) -> Vec<HubSite> {
+    let hubs = hub_lines(note);
+    hubs.names
+        .iter()
         .filter_map(|name| {
             Some(HubSite {
                 name: name.to_string(),
-                operator: operators.get(name)?.to_string(),
-                site: plain_http_address(explorers.get(name)?)?,
+                operator: hubs.operators.get(name)?.to_string(),
+                site: plain_http_address(hubs.explorers.get(name)?)?,
             })
         })
         .collect()
+}
+
+/// The hubs of a policy note that run a ballot verifier, in the order of the
+/// policy. One whose URL isn't a plain HTTP(S) address is left out.
+pub fn hub_ballot_verifiers(note: &str) -> Vec<HubBallotVerifier> {
+    let hubs = hub_lines(note);
+    hubs.names
+        .iter()
+        .filter_map(|name| {
+            let mut url = plain_http_address(hubs.verifiers.get(name)?)?;
+            // A base URL: its own query and fragment are not the link's.
+            url.set_query(None);
+            url.set_fragment(None);
+            if !url.path().ends_with('/') {
+                url.set_path(&format!("{}/", url.path()));
+            }
+            Some(HubBallotVerifier {
+                name: name.to_string(),
+                operator: hubs.operators.get(name).map(|o| o.to_string()),
+                url,
+            })
+        })
+        .collect()
+}
+
+/// `<verifier>tenant/<t>/event/<e>/election/<el>/audited#id=<full Tracking
+/// ID>&policy=sha256:<hex>`: the link to a hub's ballot verifier for an
+/// audited ballot, as the voting portal builds it. The Tracking ID and the
+/// policy ID ride in the fragment, which a browser never sends to the hub's
+/// server.
+pub fn audited_ballot_link(
+    verifier: &Url,
+    tenant_id: &str,
+    event_id: &str,
+    election_id: &str,
+    policy_id: &str,
+    tracking_id: &str,
+) -> String {
+    let mut base = verifier.clone();
+    base.set_query(None);
+    base.set_fragment(None);
+    let mut base = String::from(base);
+    if !base.ends_with('/') {
+        base.push('/');
+    }
+    let path = [
+        "tenant",
+        tenant_id,
+        "event",
+        event_id,
+        "election",
+        election_id,
+        "audited",
+    ]
+    .map(encode_component)
+    .join("/");
+    format!("{base}{path}#id={tracking_id}&policy={policy_id}")
 }
 
 /// An address to send voters to: HTTP(S), with a host and no credentials.
@@ -266,6 +352,94 @@ mod tests {
     fn an_unreadable_note_has_no_hubs() {
         assert_eq!(hub_sites(""), []);
         assert_eq!(hub_sites("vitrine/policy/v1\n"), []);
+    }
+
+    /// The note with ballot verifiers: h1's, h3's without a slash and with a
+    /// query, a second one for h1, and one for a hub defined after it.
+    fn note_with_verifiers() -> String {
+        note()
+            .replace(
+                "hub-explorer h1 https://hub1.explorer.example/\n",
+                "hub-explorer h1 https://hub1.explorer.example/\n\
+                 hub-ballot-verifier h1 https://verify.hub1.example/\n\
+                 hub-ballot-verifier h1 https://second.hub1.example/\n\
+                 hub-ballot-verifier h2 https://before-h2.example/\n",
+            )
+            .replace(
+                "hub-operator h3 hubco3\n",
+                "hub-operator h3 hubco3\n\
+                 hub-ballot-verifier h3 http://127.0.0.1:18856/app?x=1#y\n",
+            )
+    }
+
+    #[test]
+    fn hubs_with_a_ballot_verifier_are_listed_in_policy_order() {
+        let verifiers = hub_ballot_verifiers(&note_with_verifiers());
+        let listed: Vec<(&str, Option<&str>, &str)> = verifiers
+            .iter()
+            .map(|v| (v.name.as_str(), v.operator.as_deref(), v.url.as_str()))
+            .collect();
+        // The first line for a hub, only after the hub, and a base URL.
+        assert_eq!(
+            listed,
+            [
+                ("h1", Some("hubco1"), "https://verify.hub1.example/"),
+                ("h3", Some("hubco3"), "http://127.0.0.1:18856/app/"),
+            ]
+        );
+        // A ballot verifier is not a site for updates.
+        assert_eq!(names(&hub_sites(&note_with_verifiers())), ["h1", "h2"]);
+        assert_eq!(hub_ballot_verifiers(&note()), []);
+    }
+
+    #[test]
+    fn a_ballot_verifier_that_is_not_a_plain_http_address_is_left_out() {
+        for url in [
+            "ftp://verify.hub1.example/",
+            "https://user:secret@verify.hub1.example/",
+            "/relative/",
+        ] {
+            let text = note_with_verifiers().replace("https://verify.hub1.example/", url);
+            let verifiers = hub_ballot_verifiers(&text);
+            assert!(verifiers.iter().all(|v| v.name != "h1"), "{url}");
+        }
+    }
+
+    #[test]
+    fn the_audited_ballot_link_carries_the_ids_in_the_fragment() {
+        let tenant = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
+        let event = "33f18502-a67c-4853-8333-a58630663559";
+        let election = "f2f1065e-b784-46d1-b81a-c71bfeb9ad55";
+        let expected = format!(
+            "https://verify.hub1.example/tenant/{tenant}/event/{event}/election/{election}/audited#id={TRACKING_ID}&policy={}",
+            policy_id()
+        );
+        for base in [
+            "https://verify.hub1.example/",
+            "https://verify.hub1.example",
+        ] {
+            let verifier = Url::parse(base).unwrap();
+            assert_eq!(
+                audited_ballot_link(
+                    &verifier,
+                    tenant,
+                    event,
+                    election,
+                    &policy_id(),
+                    TRACKING_ID
+                ),
+                expected
+            );
+        }
+        let verifier = &hub_ballot_verifiers(&note_with_verifiers())[1].url;
+        let link =
+            audited_ballot_link(verifier, tenant, event, election, &policy_id(), TRACKING_ID);
+        assert!(
+            link.starts_with(&format!("http://127.0.0.1:18856/app/tenant/{tenant}/")),
+            "{link}"
+        );
+        assert_eq!(link.matches('#').count(), 1);
+        assert!(!link.contains('?'));
     }
 
     #[test]

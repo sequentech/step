@@ -365,6 +365,70 @@ export const referenceOf = (s: IReceiptScenario): string =>
 export const referenceReceiptUrl = (s: IReceiptScenario): string =>
     `${LOG_URLS.ballots}receipt/${encoding.hexEncode(hashes.leafHash(s.entry))}?index=${s.index}`
 
+// -- Audited ballots ------------------------------------------------------------
+
+/** When the ballot box took the voter's audit. */
+export const AUDITED_AT = ACCEPTED_AT + 2
+/** The ballots log's own server, which lists its buckets. */
+export const LOG_SERVER = "https://logs.acme.example"
+
+export interface IAuditedScenario {
+    policy: string
+    policyId: string
+    ballots: TestLog
+    /** The `audited` entry, and its index in the log. */
+    entry: Uint8Array
+    index: number
+    /** The log's receipt for it. */
+    receipt: string
+}
+
+/** A `ballots` log where the voter's ballot was received, then audited (or
+ * cast, with `stage`), with another ballot cast between them. */
+export const auditedScenario = (
+    o: IPolicyOptions = {},
+    stage: "cast" | "audited" = "audited"
+): IAuditedScenario => {
+    const policy = policyText(o)
+    const ballots = new TestLog(KEYS.ballots, KEYS.ballotsTime, LOG_URLS.ballots)
+    ballots.add(ballotEntry(BALLOT_ID, ELECTION_ID, ACCEPTED_AT, "received"))
+    ballots.add(ballotEntry(OTHER_BALLOT_ID))
+    const entry = ballotEntry(BALLOT_ID, ELECTION_ID, AUDITED_AT, stage)
+    const index = ballots.add(entry)
+    return {
+        policy,
+        policyId: policyIdOf(policy),
+        ballots,
+        entry,
+        index,
+        receipt: ballots.receipt(index, ballots.entries.length, WITNESSES),
+    }
+}
+
+/** The bucket a Tracking ID is in: its first 3 characters. */
+export const bucketOf = (id: string = TRACKING_ID): string => id.replace(/-/g, "").slice(0, 3)
+
+/** Where `server` lists the bucket of a Tracking ID of the ballots log. */
+export const bucketUrlOf = (
+    server: string = LOG_SERVER,
+    log: string = "e/ballots",
+    id: string = TRACKING_ID
+): string => `${server}/lookup/${log}/tracking-bucket/${bucketOf(id)}`
+
+/** A bucket answer listing every entry of the log; the lookup keeps those
+ * of the bucket. */
+export const bucketAnswer = (log: TestLog, extra: {truncated?: boolean} = {}): string =>
+    JSON.stringify({
+        lookup: "tracking-bucket",
+        entries: log.entries.map((entry, index) => ({index, entry: encoding.b64encode(entry)})),
+        size: log.entries.length,
+        ...extra,
+    })
+
+/** Where the log serves the receipt of the entry at `index`. */
+export const receiptUrlOf = (entry: Uint8Array, index: number): string =>
+    `${LOG_URLS.ballots}receipt/${encoding.hexEncode(hashes.leafHash(entry))}?index=${index}`
+
 // -- The network ----------------------------------------------------------------
 
 export interface IFakeCall {
@@ -392,8 +456,13 @@ export class FakeNet {
     readonly calls: IFakeCall[] = []
     private readonly answers = new Map<string, IFakeAnswer>()
 
-    serve(url: string, body: string, status = 200): void {
-        this.answers.set(`GET ${url}`, {status, body})
+    serve(url: string, body: string, status = 200, method = "GET"): void {
+        this.answers.set(`${method} ${url}`, {status, body})
+    }
+
+    /** Forgets what `url` was served with, which then answers 404. */
+    forget(url: string, method = "GET"): void {
+        this.answers.delete(`${method} ${url}`)
     }
 
     readonly fetch = async (input: string, init?: THttpInit): Promise<Response> => {
