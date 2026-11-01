@@ -7122,6 +7122,21 @@ const frenchTranslation: TranslationType = {
             sdkLoading: "Chargement du vérificateur Vitrine...",
             sdkError:
                 "Le vérificateur Vitrine n'a pas pu démarrer dans ce navigateur : la politique de confiance ne peut donc pas être vérifiée ici.",
+            hubProblems: {
+                title_one: "Un pôle signale un problème pour cette élection",
+                title_other: "{{count}} problèmes sont signalés pour cette élection",
+                listedBy: "Signalé par {{hubs}}",
+                proof: "Voir la preuve",
+                note: "Cet avis est une commodité de ce portail, et une liste n'est qu'un renvoi : ouvrez la preuve pour la vérifier dans votre navigateur. Chaque pôle liste aussi ses problèmes sur son propre site, que ce portail les affiche ou non. Un pôle qui ne répond pas n'est pas un problème.",
+                kind: {
+                    splitView: "Deux versions du registre",
+                    brokenPromise: "Une entrée promise manque",
+                    breaksRules: "Une entrée enfreint les règles",
+                    twoPolicies: "Deux politiques",
+                    unloggedCode: "Du code qui n'est pas journalisé",
+                    other: "Un problème enregistré par un pôle",
+                },
+            },
             authorityContact: {
                 title: "Contact de l’autorité électorale",
                 intro: "Facultatif. Comment les électeurs joignent l’autorité électorale, par exemple pour signaler un écart lors d’un audit. Il figure dans la politique de confiance, et les applications des électeurs ne l’affichent qu’à partir de la politique scellée.",

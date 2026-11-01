@@ -7066,6 +7066,21 @@ const basqueTranslation: TranslationType = {
             sdkLoading: "Vitrineren egiaztatzailea kargatzen...",
             sdkError:
                 "Vitrineren egiaztatzaileak ezin izan du nabigatzaile honetan abiarazi; beraz, ezin da hemen konfiantza-politika egiaztatu.",
+            hubProblems: {
+                title_one: "Gune batek arazo bat zerrendatzen du hauteskunde honetan",
+                title_other: "{{count}} arazo zerrendatzen dira hauteskunde honetan",
+                listedBy: "Zerrendatzailea: {{hubs}}",
+                proof: "Ikusi froga",
+                note: "Abisu hau portal honen erosotasun bat da, eta zerrenda bat aipamen soila da: ireki froga zure nabigatzailean egiaztatzeko. Gune bakoitzak bere arazoak bere webgunean ere zerrendatzen ditu, portal honek erakutsi zein ez. Erantzuten ez duen gune bat ez da arazo bat.",
+                kind: {
+                    splitView: "Erregistroaren bi bertsio",
+                    brokenPromise: "Agindutako sarrera bat falta da",
+                    breaksRules: "Sarrera batek arauak urratzen ditu",
+                    twoPolicies: "Bi politika",
+                    unloggedCode: "Erregistratu gabeko kodea",
+                    other: "Gune batek erregistratutako arazo bat",
+                },
+            },
             authorityContact: {
                 title: "Hauteskunde-agintaritzaren kontaktua",
                 intro: "Aukerakoa. Bozkatzaileek hauteskunde-agintaritzarekin nola jar daitezkeen harremanetan, adibidez auditoria bateko desadostasun baten berri emateko. Konfiantza-politikan sartzen da, eta bozkatzaileen aplikazioek politika zigilatutik soilik erakusten dute.",

@@ -7240,6 +7240,21 @@ const englishTranslation = {
             sdkLoading: "Loading the Vitrine verifier...",
             sdkError:
                 "The Vitrine verifier could not start in this browser, so the trust policy can't be checked here.",
+            hubProblems: {
+                title_one: "A hub lists a problem for this election",
+                title_other: "{{count}} problems are listed for this election",
+                listedBy: "Listed by {{hubs}}",
+                proof: "See the proof",
+                note: "This notice is a convenience of this portal, and a listing is only a pointer: open the proof to check it in your browser. Each hub also lists its problems on its own site, whether or not this portal shows them. A hub that doesn’t answer is not a problem.",
+                kind: {
+                    splitView: "Two versions of the record",
+                    brokenPromise: "A promised entry is missing",
+                    breaksRules: "An entry breaks the rules",
+                    twoPolicies: "Two policies",
+                    unloggedCode: "Code that isn’t logged",
+                    other: "A problem recorded by a hub",
+                },
+            },
             authorityContact: {
                 title: "Election authority contact",
                 intro: "Optional. How voters reach the election authority, for example to report an audit mismatch. It goes into the trust policy, and voters’ apps show it only from the sealed policy.",

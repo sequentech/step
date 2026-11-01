@@ -7125,6 +7125,21 @@ const tagalogTranslation: TranslationType = {
             sdkLoading: "Nilo-load ang verifier ng Vitrine...",
             sdkError:
                 "Hindi masimulan ang verifier ng Vitrine sa browser na ito, kaya hindi masusuri rito ang patakaran ng tiwala.",
+            hubProblems: {
+                title_one: "May isang problemang inilista ng isang hub para sa halalang ito",
+                title_other: "{{count}} problema ang nakalista para sa halalang ito",
+                listedBy: "Inilista ng {{hubs}}",
+                proof: "Tingnan ang patunay",
+                note: "Ang paalalang ito ay kaginhawahan lang ng portal na ito, at ang listahan ay pahiwatig lamang: buksan ang patunay para suriin ito sa iyong browser. Inililista rin ng bawat hub ang mga problema nito sa sarili nitong site, ipakita man o hindi ng portal na ito. Ang hub na hindi sumasagot ay hindi problema.",
+                kind: {
+                    splitView: "Dalawang bersyon ng talaan",
+                    brokenPromise: "May nawawalang ipinangakong entry",
+                    breaksRules: "May entry na lumalabag sa mga patakaran",
+                    twoPolicies: "Dalawang patakaran",
+                    unloggedCode: "Code na hindi nakatala",
+                    other: "Problemang itinala ng isang hub",
+                },
+            },
             authorityContact: {
                 title: "Contact ng awtoridad sa halalan",
                 intro: "Opsyonal. Kung paano maaabot ng mga botante ang awtoridad sa halalan, halimbawa para iulat ang hindi pagkakatugma sa isang audit. Napapabilang ito sa patakaran ng tiwala, at ipinapakita lang ito ng mga app ng mga botante mula sa selyadong patakaran.",

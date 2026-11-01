@@ -74,6 +74,7 @@ import {
     witnessRows,
 } from "@/services/TransparencyOverview"
 import {AuthorityContactSection} from "./AuthorityContact"
+import {HubProblemsBanner} from "./HubProblems"
 import {HubUpdatesSection} from "./HubUpdates"
 import {
     AnchoringCard,
@@ -1036,6 +1037,7 @@ export const EditElectionEventTransparency: React.FC<IEditElectionEventTranspare
                 }
                 duration={duration}
             />
+            {enabled && sealedPolicy ? <HubProblemsBanner policy={sealedPolicy} /> : null}
             {enabled && (facts || reported) ? (
                 <>
                     <Figures

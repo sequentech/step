@@ -7142,6 +7142,21 @@ const spanishTranslation: TranslationType = {
             sdkLoading: "Cargando el verificador de Vitrine...",
             sdkError:
                 "El verificador de Vitrine no pudo iniciarse en este navegador, así que aquí no se puede comprobar la política de confianza.",
+            hubProblems: {
+                title_one: "Un centro lista un problema en esta elección",
+                title_other: "Se listan {{count}} problemas en esta elección",
+                listedBy: "Lo lista {{hubs}}",
+                proof: "Ver la prueba",
+                note: "Este aviso es una comodidad de este portal, y un listado es solo una referencia: abra la prueba para comprobarla en su navegador. Cada centro también lista sus problemas en su propio sitio, los muestre o no este portal. Un centro que no responde no es un problema.",
+                kind: {
+                    splitView: "Dos versiones del registro",
+                    brokenPromise: "Falta una entrada prometida",
+                    breaksRules: "Una entrada incumple las reglas",
+                    twoPolicies: "Dos políticas",
+                    unloggedCode: "Código que no está registrado",
+                    other: "Un problema registrado por un centro",
+                },
+            },
             authorityContact: {
                 title: "Contacto de la autoridad electoral",
                 intro: "Opcional. Cómo pueden contactar los votantes con la autoridad electoral, por ejemplo para avisar de una discrepancia en una auditoría. Se incluye en la política de confianza, y las aplicaciones de los votantes solo lo muestran a partir de la política sellada.",

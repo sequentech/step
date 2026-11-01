@@ -7041,6 +7041,21 @@ const galegoTranslation: TranslationType = {
             sdkLoading: "Cargando o verificador de Vitrine...",
             sdkError:
                 "O verificador de Vitrine non puido iniciarse neste navegador, así que aquí non se pode comprobar a política de confianza.",
+            hubProblems: {
+                title_one: "Un nodo lista un problema nesta elección",
+                title_other: "Lístanse {{count}} problemas nesta elección",
+                listedBy: "Lístao {{hubs}}",
+                proof: "Ver a proba",
+                note: "Este aviso é unha comodidade deste portal, e un listado é só unha referencia: abre a proba para comprobala no teu navegador. Cada nodo tamén lista os seus problemas no seu propio sitio, os amose ou non este portal. Un nodo que non responde non é un problema.",
+                kind: {
+                    splitView: "Dúas versións do rexistro",
+                    brokenPromise: "Falta unha entrada prometida",
+                    breaksRules: "Unha entrada incumpre as regras",
+                    twoPolicies: "Dúas políticas",
+                    unloggedCode: "Código que non está rexistrado",
+                    other: "Un problema rexistrado por un nodo",
+                },
+            },
             authorityContact: {
                 title: "Contacto da autoridade electoral",
                 intro: "Opcional. Como poden contactar os votantes coa autoridade electoral, por exemplo para avisar dunha discrepancia nunha auditoría. Inclúese na política de confianza, e as aplicacións dos votantes só o amosan a partir da política selada.",

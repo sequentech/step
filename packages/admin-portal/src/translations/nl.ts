@@ -7109,6 +7109,21 @@ const dutchTranslation: TranslationType = {
             sdkLoading: "De Vitrine-verificatie laden...",
             sdkError:
                 "De Vitrine-verificatie kon in deze browser niet starten, dus het vertrouwensbeleid kan hier niet worden gecontroleerd.",
+            hubProblems: {
+                title_one: "Een hub meldt een probleem voor deze verkiezing",
+                title_other: "Er worden {{count}} problemen gemeld voor deze verkiezing",
+                listedBy: "Gemeld door {{hubs}}",
+                proof: "Bekijk het bewijs",
+                note: "Deze melding is een gemak van dit portaal, en een vermelding is slechts een verwijzing: open het bewijs om het in uw browser te controleren. Elke hub meldt zijn problemen ook op zijn eigen site, of dit portaal ze nu toont of niet. Een hub die niet antwoordt is geen probleem.",
+                kind: {
+                    splitView: "Twee versies van het register",
+                    brokenPromise: "Een beloofde invoer ontbreekt",
+                    breaksRules: "Een invoer overtreedt de regels",
+                    twoPolicies: "Twee beleidsstukken",
+                    unloggedCode: "Code die niet is vastgelegd",
+                    other: "Een probleem vastgelegd door een hub",
+                },
+            },
             authorityContact: {
                 title: "Contact van de verkiezingsautoriteit",
                 intro: "Optioneel. Hoe kiezers de verkiezingsautoriteit bereiken, bijvoorbeeld om een afwijking bij een audit te melden. Het komt in het vertrouwensbeleid, en de apps van kiezers tonen het alleen uit het verzegelde beleid.",

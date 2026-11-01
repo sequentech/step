@@ -7091,6 +7091,21 @@ const catalanTranslation: TranslationType = {
             sdkLoading: "S'està carregant el verificador de Vitrine...",
             sdkError:
                 "El verificador de Vitrine no s'ha pogut iniciar en aquest navegador, de manera que aquí no es pot comprovar la política de confiança.",
+            hubProblems: {
+                title_one: "Un node llista un problema en aquesta elecció",
+                title_other: "Es llisten {{count}} problemes en aquesta elecció",
+                listedBy: "El llista {{hubs}}",
+                proof: "Veure la prova",
+                note: "Aquest avís és una comoditat d'aquest portal, i un llistat és només una referència: obriu la prova per comprovar-la al navegador. Cada node també llista els seus problemes al seu propi lloc, els mostri o no aquest portal. Un node que no respon no és un problema.",
+                kind: {
+                    splitView: "Dues versions del registre",
+                    brokenPromise: "Falta una entrada promesa",
+                    breaksRules: "Una entrada incompleix les regles",
+                    twoPolicies: "Dues polítiques",
+                    unloggedCode: "Codi que no està registrat",
+                    other: "Un problema registrat per un node",
+                },
+            },
             authorityContact: {
                 title: "Contacte de l'autoritat electoral",
                 intro: "Opcional. Com poden contactar els votants amb l'autoritat electoral, per exemple per avisar d'una discrepància en una auditoria. S'inclou a la política de confiança, i les aplicacions dels votants només el mostren a partir de la política segellada.",
