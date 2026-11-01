@@ -7241,6 +7241,8 @@ const tagalogTranslation: TranslationType = {
                     logAlert: "May iniuulat na alerto ang log na {{log}}: {{alert}}",
                     witnessAlert:
                         "May iniuulat na alerto ang saksing {{witness}} sa log na {{log}}.",
+                    hubProblems_one: "May problemang inililista ang isang hub para sa halalang ito: tingnan sa ibaba.",
+                    hubProblems_other: "May {{count}} problemang inililista ang mga hub para sa halalang ito: tingnan sa ibaba.",
                 },
                 figures: {
                     title: "Mga bilang ng talaan",

@@ -7237,6 +7237,8 @@ const frenchTranslation: TranslationType = {
                     logAlert: "Le journal {{log}} signale une alerte : {{alert}}",
                     witnessAlert:
                         "Le témoin {{witness}} signale une alerte sur le journal {{log}}.",
+                    hubProblems_one: "Un pôle signale un problème pour cette élection : voir ci-dessous.",
+                    hubProblems_other: "Des pôles signalent {{count}} problèmes pour cette élection : voir ci-dessous.",
                 },
                 figures: {
                     title: "Chiffres du registre",

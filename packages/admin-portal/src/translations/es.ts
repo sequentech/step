@@ -7257,6 +7257,8 @@ const spanishTranslation: TranslationType = {
                     logAlert: "El registro {{log}} informa de una alerta: {{alert}}",
                     witnessAlert:
                         "El testigo {{witness}} informa de una alerta en el registro {{log}}.",
+                    hubProblems_one: "Un centro lista un problema para esta elección: véase abajo.",
+                    hubProblems_other: "Los centros listan {{count}} problemas para esta elección: véase abajo.",
                 },
                 figures: {
                     title: "Cifras del registro",

@@ -7154,6 +7154,8 @@ const galegoTranslation: TranslationType = {
                     logAlert: "O rexistro {{log}} informa dunha alerta: {{alert}}",
                     witnessAlert:
                         "A testemuña {{witness}} informa dunha alerta no rexistro {{log}}.",
+                    hubProblems_one: "Un nodo lista un problema para esta elección: véxase abaixo.",
+                    hubProblems_other: "Os nodos listan {{count}} problemas para esta elección: véxase abaixo.",
                 },
                 figures: {
                     title: "Cifras do rexistro",

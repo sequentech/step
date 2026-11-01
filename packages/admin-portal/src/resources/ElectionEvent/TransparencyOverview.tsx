@@ -484,6 +484,7 @@ export const HealthBanner: React.FC<IHealthBannerProps> = ({
                                         log: issue.log,
                                         witness: issue.witness,
                                         alert: issue.alert,
+                                        count: issue.count,
                                     })}
                                 </li>
                             ))}

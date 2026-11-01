@@ -51,6 +51,15 @@ describe("recordHealth", () => {
         expect(health()).toEqual({health: EHealth.HEALTHY, issues: []})
     })
 
+    it("needs attention when hubs list problems, and not before they answer", () => {
+        expect(health({hubProblems: 2})).toEqual({
+            health: EHealth.ATTENTION,
+            issues: [{issue: EHealthIssue.HUB_PROBLEMS, count: 2}],
+        })
+        expect(health({hubProblems: 0}).health).toBe(EHealth.HEALTHY)
+        expect(health({hubProblems: undefined}).health).toBe(EHealth.HEALTHY)
+    })
+
     it.each([
         [ETransparencyMode.DISABLED, EPolicyCheck.SEALED, EHealth.DISABLED],
         [ETransparencyMode.PUBLIC, EPolicyCheck.CHECKING, EHealth.CHECKING],

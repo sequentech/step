@@ -37,6 +37,7 @@ export enum EHealthIssue {
     LOG_OTHER_POLICY = "logOtherPolicy",
     LOG_ALERT = "logAlert",
     WITNESS_ALERT = "witnessAlert",
+    HUB_PROBLEMS = "hubProblems",
 }
 
 export interface IHealthIssue {
@@ -44,6 +45,7 @@ export interface IHealthIssue {
     log?: string
     witness?: string
     alert?: string
+    count?: number
 }
 
 export interface IHealth {
@@ -60,6 +62,8 @@ export interface IHealthInput {
     loggedPolicyId?: string | null
     loggedPolicyHex?: string
     logs: readonly ILogView[]
+    /** How many problems the policy's hubs list, once they have answered. */
+    hubProblems?: number
 }
 
 /** The record's health: what keeps it from being checked, the alerts the
@@ -88,6 +92,9 @@ export const recordHealth = (input: IHealthInput): IHealth => {
                 issues.push({issue: EHealthIssue.WITNESS_ALERT, log: log.key, witness: w.name})
             }
         }
+    }
+    if (input.hubProblems && input.hubProblems > 0) {
+        issues.push({issue: EHealthIssue.HUB_PROBLEMS, count: input.hubProblems})
     }
     if (issues.length > 0) return {health: EHealth.ATTENTION, issues}
     if (input.logs.length === 0) return only(EHealth.UNREPORTED)

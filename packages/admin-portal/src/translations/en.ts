@@ -7352,6 +7352,8 @@ const englishTranslation = {
                     logOtherPolicy: "The {{log}} log runs under another policy.",
                     logAlert: "The {{log}} log reports an alert: {{alert}}",
                     witnessAlert: "Witness {{witness}} reports an alert on the {{log}} log.",
+                    hubProblems_one: "A hub lists a problem for this election: see below.",
+                    hubProblems_other: "Hubs list {{count}} problems for this election: see below.",
                 },
                 figures: {
                     title: "Record figures",
