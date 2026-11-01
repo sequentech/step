@@ -110,7 +110,8 @@ renames some tables and columns. It is recognized by its table names, mapped ont
 the names above and converted the same way. The summary and provenance record
 which schema was read (`sourceSchema`: `legacy` or `post-qualification`), and
 every problem names the table and column as the dump spells them. A dump that
-mixes both sets of names is refused.
+mixes both sets of table names is refused, as is a table containing both names
+of a renamed column, even when their values agree.
 
 | Post-qualification name | Read as                    |
 | ----------------------- | -------------------------- |
@@ -149,6 +150,8 @@ what the dump does not hold, and the rest is derived from the dump:
   named and aliased by its `POLLING_PLACE`.
 - **Areas**: one per precinct cluster (`pop.CLUSTERPOLLCENTER`), named by the
   historical name rule below and described by the cluster's own polling place.
+  Without its own polling center, every precinct row of that cluster must refer
+  to the same post; conflicting posts are refused.
 - **Event**: `supplement.event` — `name` and `electionEventId` are required;
   `description`, `logoUrl` and `css` are optional.
 - **Schedules**: `supplement.schedules`, each a `type` and a `date`. A schedule

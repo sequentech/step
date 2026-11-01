@@ -23,7 +23,7 @@
 //!   an event without a name or identity is refused, and an election without a
 //!   schedule is the same warning a workbook without one gives.
 
-use super::{row, rows_sheet, Data};
+use super::{problem, row, rows_sheet, Data};
 use crate::election_config::{
     problem::{Code, Problem},
     sheet::{Row, Workbook},
@@ -135,6 +135,17 @@ pub(super) fn derive(
         }
         let cluster = populations.text(pop, "CLUSTERPOLLCENTER")?;
         if let Some(&area) = area_by_cluster.get(&cluster) {
+            if !ci.contains_key(&cluster)
+                && areas[area].text("description") != Some(post.as_str())
+            {
+                return Err(problem(
+                    "pop",
+                    pop,
+                    "POLLCENTER_CODE",
+                    Code::ConflictingColumns,
+                    "cluster has no own polling center and its precinct rows reference different posts",
+                ));
+            }
             areas_by_precinct.insert(pop, area);
             continue;
         }

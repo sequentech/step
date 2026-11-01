@@ -78,8 +78,23 @@ pub fn normalize(
             dump.tables.insert((*canonical).into(), table);
         }
     }
-    for (table, source, canonical) in COLUMNS {
-        if let Some(table) = dump.tables.get_mut(*table) {
+    for (table_name, source, canonical) in COLUMNS {
+        if let Some(table) = dump.tables.get_mut(*table_name) {
+            if table
+                .columns
+                .iter()
+                .any(|column| column.as_str() == *source)
+                && table
+                    .columns
+                    .iter()
+                    .any(|column| column.as_str() == *canonical)
+            {
+                return Err(Problem::error(
+                    Code::ConflictingColumns,
+                    source_path(&format!("SQL table {table_name} column {canonical}")),
+                    format!("both {source} and {canonical} columns are present; use one source schema"),
+                ));
+            }
             rename_column(table, source, canonical);
         }
     }

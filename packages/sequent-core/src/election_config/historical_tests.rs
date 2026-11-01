@@ -2565,3 +2565,90 @@ fn a_supplement_refuses_workbook_associations_and_unreadable_dates() {
         .message
         .contains("an instant or a local date and time"));
 }
+
+#[test]
+fn a_supplement_refuses_ambiguous_cluster_posts_in_either_row_order() {
+    let sql = String::from_utf8(post_qualification_overseas()).unwrap();
+    let original = "('B06','P01','90','06','001','0001A'),('B06','P01','90','06','001','0002A')";
+    let first = "('B06','P01','90','06','001','0001A')";
+    let second = "('B06','P02','90','06','001','0002A')";
+    assert!(sql.contains(original));
+    let sql = sql.replace(",('B06','BANGKOK PE')", "").replace(
+        "('P01','Post One')",
+        "('P01','Post One'),('P02','Post Two')",
+    );
+    for rows in [format!("{first},{second}"), format!("{second},{first}")] {
+        let source = sql.replace(original, &rows);
+        let refused =
+            adapt(source.as_bytes(), None, &supplemented()).unwrap_err();
+        let problem = &refused.report.problems[0];
+        assert_eq!(problem.code, Code::ConflictingColumns);
+        assert_eq!(problem.path, "SQL table pop row 2 column POLLCENTER_CODE");
+    }
+}
+
+#[test]
+fn a_clusters_own_center_keeps_its_embassy_across_multiple_posts() {
+    let sql = String::from_utf8(post_qualification_overseas()).unwrap();
+    let original = "('B06','P01','90','06','001','0001A'),('B06','P01','90','06','001','0002A')";
+    let first = "('B06','P01','90','06','001','0001A')";
+    let second = "('B06','P02','90','06','001','0002A')";
+    assert!(sql.contains(original));
+    let sql = sql.replace(
+        "('P01','Post One')",
+        "('P01','Post One'),('P02','Post Two')",
+    );
+    for rows in [format!("{first},{second}"), format!("{second},{first}")] {
+        let source = sql.replace(original, &rows);
+        let adapted = adapt(source.as_bytes(), None, &supplemented()).unwrap();
+        assert_eq!(adapted.summary.generated_rows["Elections"], 2);
+        let area = adapted
+            .workbook
+            .rows("areas")
+            .iter()
+            .find(|row| row.text("external_id") == Some("barangay:B06"))
+            .unwrap();
+        assert_eq!(area.text("description"), Some("BANGKOK PE"));
+        let voters: Vec<_> = adapted
+            .workbook
+            .rows("voters")
+            .iter()
+            .filter(|row| row.text("area.external_id") == Some("barangay:B06"))
+            .collect();
+        assert_eq!(voters.len(), 40);
+        assert!(voters
+            .iter()
+            .all(|row| row.text("embassy") == Some("Bangkok PE")));
+    }
+}
+
+#[test]
+fn post_qualification_column_alias_collisions_are_refused() {
+    for (table, source, legacy) in [
+        ("seats", "NUM_SEAT", "ELIGIBLEAMOUNT"),
+        ("seats", "PROC_CCS_CODE", "CCS_CODE"),
+        ("pop", "VOTING_MODE", "MACHINE_TYPE"),
+        ("trans_routes", "TYPE", "MACHINE_TYPE"),
+    ] {
+        for columns in [
+            format!("`{source}` text, `{legacy}` text"),
+            format!("`{legacy}` text, `{source}` text"),
+        ] {
+            for values in ["('1','2')", "('1','1')"] {
+                let sql = format!(
+                    "CREATE TABLE contests (ID text); CREATE TABLE `{table}` ({columns}); INSERT INTO `{table}` VALUES {values};"
+                );
+                let dump = crate::election_config::sql_dump::read_mysql_dump(
+                    sql.as_bytes(),
+                )
+                .unwrap();
+                let problem = schema::normalize(dump).unwrap_err();
+                assert_eq!(problem.code, Code::ConflictingColumns);
+                assert_eq!(
+                    problem.path,
+                    format!("SQL table {table} column {source}")
+                );
+            }
+        }
+    }
+}
