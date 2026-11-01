@@ -91,7 +91,7 @@ const spanishTranslation: TranslationType = {
                 "review":
                     "Esta página muestra las opciones que ha elegido. Compruébelas con atención. Para cambiar algo, use el botón para editar su papeleta. Para emitir su voto, vaya al botón para emitir la papeleta y pulse Intro. El identificador de su papeleta está al principio de la página. Puede copiarlo para localizar su papeleta más adelante.",
                 "confirmation":
-                    "Su voto se ha emitido. Esta página muestra el identificador de su papeleta, con el que puede comprobar que se ha registrado. Puede copiarlo o imprimir esta página. Cuando termine, use el botón del final de la página para finalizar.",
+                    "Su voto se ha emitido. Esta página muestra el identificador de su papeleta, con el que puede comprobar que se ha registrado. Puede copiarlo o guardar su recibo en PDF. Cuando termine, use el botón para finalizar, que va justo después del que guarda el recibo.",
                 "audit":
                     "Esta página le permite auditar su papeleta en lugar de emitirla. Muestra la información que puede comprobar con el verificador de papeletas. Una papeleta auditada no se emite, así que vuelva después a su papeleta para votar.",
                 "ballot-locator":
@@ -384,35 +384,24 @@ const spanishTranslation: TranslationType = {
                 title: "Resuelto por aclamación",
                 description:
                     "Todas las votaciones de esta elección se han resuelto por aclamación, por lo que no se ha emitido ninguna papeleta y no hay ID de seguimiento.",
-                helpDialog: {
-                    title: "Información: Aclamación",
-                    content:
-                        "Todas las votaciones de esta elección se han resuelto por aclamación: sus candidaturas resultan elegidas sin votación. Como no se ha emitido ninguna papeleta, no hay ID de seguimiento, comprobante ni código QR que verificar.",
-                    ok: "OK",
-                },
             },
             title: "Su voto ha sido emitido",
-            description:
-                "Su papeleta fue emitida correctamente. Use el código a continuación para verificar que fue contabilizada",
             blankBallot: {
                 description:
                     "Su papeleta se emitió en blanco, lo cual es una elección válida y deliberada.",
             },
             ballotId: "ID de seguimiento",
-            printButton: "Imprimir",
             finishButton: "Finalizar",
+            saveReceiptButton: "Guardar recibo (PDF)",
+            receipt: "Recibo",
+            keepTitle: "Guarde su recibo",
+            keepLead:
+                "Este sitio web no guarda ninguna copia. Guárdelo ahora para comprobar su papeleta más adelante, en cualquier dispositivo.",
+            castEmailNote: "También le hemos enviado una copia por correo.",
+            qrCaption: "Escanéelo para comprobarla en otro dispositivo",
             remainingElectionsError:
                 "No pudimos comprobar si tiene más elecciones en las que votar. Vuelva a intentarlo.",
             retryButton: "Reintentar",
-            verifyCastTitle: "Compruebe que su voto fue emitido",
-            verifyCastDescription:
-                "Puede verificar en cualquier momento que su papeleta fue emitida correctamente usando el código QR a continuación",
-            confirmationHelpDialog: {
-                title: "Sobre la pantalla de confirmación",
-                content:
-                    "Esta pantalla confirma que su voto fue emitido correctamente. La información aquí le permite verificar que su papeleta fue almacenada en la urna, tanto durante el periodo de votación como después de su cierre",
-                ok: "OK",
-            },
             demoPrintDialog: {
                 title: "Impresión de la papeleta de votación",
                 content: "La impresión está desactivada en modo de demostración",
@@ -1190,6 +1179,7 @@ const spanishTranslation: TranslationType = {
                 },
             },
             updates: {
+                optional: "Opcional",
                 title: "Reciba actualizaciones por correo sobre esta papeleta",
                 description:
                     "Cuando se confirme y cuando se cuente, o si se registra un problema. Elija cualquier nodo: cada uno comprueba el registro por sí mismo.",

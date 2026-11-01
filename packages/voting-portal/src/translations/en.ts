@@ -211,7 +211,7 @@ const englishTranslation = {
                 "review":
                     "This page shows the choices you made. Check them carefully. To change something, use the button to edit your ballot. To cast your vote, go to the button to cast your ballot and press Enter. Your ballot ID is at the top of the page. You can copy it to find your ballot later.",
                 "confirmation":
-                    "Your vote has been cast. This page shows your ballot ID, which you can use to check that your ballot was recorded. You can copy it or print this page. When you are done, use the button at the end of the page to finish.",
+                    "Your vote has been cast. This page shows your ballot ID, which you can use to check that your ballot was recorded. You can copy it, or save your receipt as a PDF. When you are done, use the button to finish, which comes right after the one that saves the receipt.",
                 "audit":
                     "This page lets you audit your ballot instead of casting it. It shows the information that you can check with the ballot verifier. An audited ballot is not cast, so go back to your ballot afterwards to vote.",
                 "ballot-locator":
@@ -499,34 +499,23 @@ const englishTranslation = {
                 title: "Decided by acclamation",
                 description:
                     "Every contest in this election was decided by acclamation, so no ballot was cast and there is no tracking ID.",
-                helpDialog: {
-                    title: "Information: Acclamation",
-                    content:
-                        "Every contest in this election was decided by acclamation: its candidates are elected without a vote. Because no ballot was cast, there is no tracking ID, receipt or QR code to verify.",
-                    ok: "OK",
-                },
             },
             title: "Your vote has been cast",
-            description:
-                "Your ballot was cast successfully. Use the code below to verify that it was counted",
             blankBallot: {
                 description: "Your ballot was cast blank, which is a valid, deliberate choice.",
             },
             ballotId: "Tracking ID",
-            printButton: "Print",
             finishButton: "Finish",
+            saveReceiptButton: "Save receipt (PDF)",
+            receipt: "Receipt",
+            keepTitle: "Keep your receipt",
+            keepLead:
+                "This website doesn’t keep a copy. Save it now to check your ballot later, on any device.",
+            castEmailNote: "A copy was also emailed to you.",
+            qrCaption: "Scan to check it on another device",
             remainingElectionsError:
                 "We couldn’t check whether you have more elections to vote in. Please retry.",
             retryButton: "Retry",
-            verifyCastTitle: "Verify that your ballot was cast",
-            verifyCastDescription:
-                "You can verify your ballot was cast correctly at any time using the QR code below",
-            confirmationHelpDialog: {
-                title: "About the confirmation screen",
-                content:
-                    "This screen confirms that your vote was successfully cast. The information here allows you to verify that your ballot was stored in the ballot box, both during the voting period and after it has closed",
-                ok: "OK",
-            },
             demoPrintDialog: {
                 title: "Printing ballot",
                 content: "Printing is disabled in demo mode",
@@ -1282,6 +1271,7 @@ const englishTranslation = {
                 },
             },
             updates: {
+                optional: "Optional",
                 title: "Get email updates about this ballot",
                 description:
                     "When it’s confirmed and when it’s counted, or if a problem is recorded. Choose any hub: each checks the record itself.",

@@ -91,7 +91,7 @@ const frenchTranslation: TranslationType = {
                 "review":
                     "Cette page montre les choix que vous avez faits. Vérifiez-les attentivement. Pour modifier quelque chose, utilisez le bouton pour modifier votre bulletin. Pour voter, allez au bouton pour déposer votre bulletin et appuyez sur Entrée. L'identifiant de votre bulletin se trouve en haut de la page. Vous pouvez le copier pour retrouver votre bulletin plus tard.",
                 "confirmation":
-                    "Votre vote a été déposé. Cette page affiche l'identifiant de votre bulletin, qui vous permet de vérifier qu'il a été enregistré. Vous pouvez le copier ou imprimer cette page. Quand vous avez terminé, utilisez le bouton à la fin de la page pour terminer.",
+                    "Votre vote a été déposé. Cette page affiche l'identifiant de votre bulletin, qui vous permet de vérifier qu'il a été enregistré. Vous pouvez le copier ou enregistrer votre reçu en PDF. Quand vous avez terminé, utilisez le bouton pour terminer, juste après celui qui enregistre le reçu.",
                 "audit":
                     "Cette page vous permet d'auditer votre bulletin au lieu de le déposer. Elle affiche les informations que vous pouvez contrôler avec le vérificateur de bulletins. Un bulletin audité n'est pas déposé : revenez ensuite à votre bulletin pour voter.",
                 "ballot-locator":
@@ -383,34 +383,23 @@ const frenchTranslation: TranslationType = {
                 title: "Acquis par acclamation",
                 description:
                     "Tous les scrutins de cette élection ont été tranchés par acclamation : aucun bulletin n'a été déposé et il n'y a pas d'identifiant de suivi.",
-                helpDialog: {
-                    title: "Information : Acclamation",
-                    content:
-                        "Tous les scrutins de cette élection ont été tranchés par acclamation : leurs candidat(e)s sont élu(e)s sans vote. Comme aucun bulletin n'a été déposé, il n'y a ni identifiant de suivi, ni reçu, ni code QR à vérifier.",
-                    ok: "OK",
-                },
             },
             title: "Votre vote a été émis",
-            description:
-                "Le code de confirmation ci-dessous vérifie que <b>votre vote a été émis correctement</b>. Vous pouvez utiliser ce code pour vérifier que votre vote a été comptabilisé.",
             blankBallot: {
                 description: "Votre bulletin a été déposé blanc, un choix valide et délibéré.",
             },
             ballotId: "Identifiant de suivi",
-            printButton: "Imprimer",
             finishButton: "Terminer",
+            saveReceiptButton: "Enregistrer le reçu (PDF)",
+            receipt: "Reçu",
+            keepTitle: "Conservez votre reçu",
+            keepLead:
+                "Ce site ne conserve aucune copie. Enregistrez-le maintenant pour vérifier votre bulletin plus tard, sur n’importe quel appareil.",
+            castEmailNote: "Une copie vous a également été envoyée par e-mail.",
+            qrCaption: "Scannez-le pour le vérifier sur un autre appareil",
             remainingElectionsError:
                 "Nous n’avons pas pu vérifier s’il vous reste des élections auxquelles voter. Veuillez réessayer.",
             retryButton: "Réessayer",
-            verifyCastTitle: "Vérifiez que votre vote a été émis",
-            verifyCastDescription:
-                "Vous pouvez vérifier à tout moment que votre bulletin a été émis correctement en utilisant le code QR ci-dessous:",
-            confirmationHelpDialog: {
-                title: "À propos de l'écran de confirmation",
-                content:
-                    "Cet écran montre que votre vote a été émis correctement. Vous pouvez vérifier que le bulletin a été stocké dans l'urne.",
-                ok: "OK",
-            },
             demoPrintDialog: {
                 title: "Impression du bulletin de vote",
                 content: "L'impression est désactivée en mode démo",
@@ -1185,6 +1174,7 @@ const frenchTranslation: TranslationType = {
                 },
             },
             updates: {
+                optional: "Facultatif",
                 title: "Recevez des mises à jour par e-mail sur ce bulletin",
                 description:
                     "Quand il est confirmé et quand il est compté, ou si un problème est enregistré. Choisissez n’importe quel nœud : chacun vérifie le registre lui-même.",

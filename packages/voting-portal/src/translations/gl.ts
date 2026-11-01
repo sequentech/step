@@ -91,7 +91,7 @@ const galegoTranslation: TranslationType = {
                 "review":
                     "Esta páxina mostra as opcións que elixiu. Compróbeas con atención. Para cambiar algo, use o botón para editar a súa papeleta. Para emitir o seu voto, vaia ao botón para emitir a papeleta e prema Intro. O identificador da súa papeleta está ao principio da páxina. Pode copialo para localizar a súa papeleta máis adiante.",
                 "confirmation":
-                    "O seu voto foi emitido. Esta páxina mostra o identificador da súa papeleta, co que pode comprobar que se rexistrou. Pode copialo ou imprimir esta páxina. Cando remate, use o botón do final da páxina para finalizar.",
+                    "O seu voto foi emitido. Esta páxina mostra o identificador da súa papeleta, co que pode comprobar que se rexistrou. Pode copialo ou gardar o seu recibo en PDF. Cando remate, use o botón para finalizar, que vai xusto despois do que garda o recibo.",
                 "audit":
                     "Esta páxina permítelle auditar a súa papeleta en lugar de emitila. Mostra a información que pode comprobar co verificador de papeletas. Unha papeleta auditada non se emite, así que volva despois á súa papeleta para votar.",
                 "ballot-locator":
@@ -381,35 +381,24 @@ const galegoTranslation: TranslationType = {
                 title: "Resolto por aclamación",
                 description:
                     "Todas as preguntas desta elección resolvéronse por aclamación, polo que non se emitiu ningunha papeleta e non hai ID de seguimento.",
-                helpDialog: {
-                    title: "Información: Aclamación",
-                    content:
-                        "Todas as preguntas desta elección resolvéronse por aclamación: as súas candidaturas resultan elixidas sen votación. Como non se emitiu ningunha papeleta, non hai ID de seguimento, comprobante nin código QR que verificar.",
-                    ok: "Aceptar",
-                },
             },
             title: "O teu voto foi emitido",
-            description:
-                "O código de confirmación abaixo verifica que <b>o teu voto foi emitido correctamente</b>. Podes usar este código para verificar que a túa papeleta foi contada.",
             blankBallot: {
                 description:
                     "A súa papeleta emitiuse en branco, o cal é unha elección válida e deliberada.",
             },
             ballotId: "ID de seguimento",
-            printButton: "Imprimir",
             finishButton: "Rematar",
+            saveReceiptButton: "Gardar o recibo (PDF)",
+            receipt: "Recibo",
+            keepTitle: "Garde o seu recibo",
+            keepLead:
+                "Este sitio web non garda ningunha copia. Gárdeo agora para comprobar a súa papeleta máis adiante, en calquera dispositivo.",
+            castEmailNote: "Tamén lle enviamos unha copia por correo electrónico.",
+            qrCaption: "Escanéeo para comprobala noutro dispositivo",
             remainingElectionsError:
                 "Non puidemos comprobar se tes máis eleccións nas que votar. Téntao de novo.",
             retryButton: "Tentar de novo",
-            verifyCastTitle: "Verifica que o teu voto foi emitido",
-            verifyCastDescription:
-                "Podes verificar en calquera momento que o teu voto foi emitido correctamente usando o seguinte código QR:",
-            confirmationHelpDialog: {
-                title: "Sobre a pantalla de confirmación",
-                content:
-                    "Esta pantalla amosa que o teu voto foi emitido correctamente. Podes verificar que a papeleta foi almacenada na urna.",
-                ok: "Aceptar",
-            },
             demoPrintDialog: {
                 title: "Imprimindo papeleta",
                 content: "Impresión desactivada en modo de demostración",
@@ -1182,6 +1171,7 @@ const galegoTranslation: TranslationType = {
                 },
             },
             updates: {
+                optional: "Opcional",
                 title: "Recibe actualizacións por correo sobre esta papeleta",
                 description:
                     "Cando se confirme e cando se conte, ou se se rexistra un problema. Escolle calquera nodo: cada un comproba o rexistro por si mesmo.",

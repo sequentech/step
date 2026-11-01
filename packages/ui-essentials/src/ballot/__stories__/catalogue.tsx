@@ -34,7 +34,15 @@ void instance.init({
                     castBallotButton: "Cast ballot",
                 },
                 confirmationScreen: {
-                    printButton: "Print",
+                    saveReceiptButton: "Save receipt (PDF)",
+                    receipt: "Receipt",
+                    keepTitle: "Keep your receipt",
+                    keepLead:
+                        "This website doesn’t keep a copy. Save it now to check your ballot later, on any device.",
+                    castEmailNote: "A copy was also emailed to you.",
+                    qrCaption: "Scan to check it on another device",
+                    title: "Your vote has been cast",
+                    ballotId: "Tracking ID",
                     finishButton: "Finish",
                 },
                 breadcrumbSteps: {

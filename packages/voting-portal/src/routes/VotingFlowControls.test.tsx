@@ -502,7 +502,7 @@ describe("Confirmation ballot locator links", () => {
         }
         await userEvent
             .setup()
-            .click(screen.getByRole("button", {name: "confirmationScreen.printButton"}))
+            .click(screen.getByRole("button", {name: "confirmationScreen.saveReceiptButton"}))
         expect(mockInsertCastVote).toHaveBeenCalledWith({
             variables: {
                 ballot_id: BALLOT_ID,
@@ -524,6 +524,75 @@ describe("Confirmation ballot locator links", () => {
     })
 })
 
+describe("the confirmation screen's special cases (design v42)", () => {
+    it("keeps a demo's texts: the demo QR text, and the demo dialogs on Save receipt and the ID", async () => {
+        setUpState()
+        mockState.ballotStyles["election-1"]!.ballot_eml.public_key = {
+            public_key: "key",
+            is_demo: true,
+        }
+        mockState.confirmationScreenData = {"election-1": {ballotId: BALLOT_ID, isDemo: true}}
+        mockState.auditableBallots = {}
+        const user = userEvent.setup()
+        const {container} = renderRoute(<ConfirmationScreen />, "confirmation")
+
+        expect(container.querySelector(".confirmation-ticket")).not.toBeNull()
+        expect(container.querySelector(".qr-container .qr-code-svg")).not.toBeNull()
+        await user.click(screen.getByRole("button", {name: "confirmationScreen.saveReceiptButton"}))
+        expect(screen.getByTestId("open-dialog")).toHaveClass("demo-print-receipt-dialog")
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        await user.click(
+            screen.getByRole("button", {name: "confirmationScreen.demoPrintDialog.ok"})
+        )
+        await user.click(screen.getByTestId("ballot-id"))
+        expect(screen.getByTestId("open-dialog")).toHaveClass("demo-ballot-url-dialog")
+    })
+
+    it("keeps an acclamation's texts and shows no ticket, ID or Save receipt", () => {
+        setUpState({isFullyAcclaimed: true})
+        const {container} = renderRoute(<ConfirmationScreen />, "confirmation")
+
+        expect(screen.getByRole("heading", {level: 1})).toHaveTextContent(
+            "confirmationScreen.acclamation.title"
+        )
+        expect(container.querySelector(".screen-description")).toHaveTextContent(
+            "confirmationScreen.acclamation.description"
+        )
+        expect(container.querySelector(".confirmation-ticket")).toBeNull()
+        expect(screen.queryAllByTestId("ballot-id")).toHaveLength(0)
+        expect(container.querySelector(".qr-container")).toBeNull()
+        expect(container.querySelector(".print-receipt-button")).toBeNull()
+        expect(container.querySelector(".confirmation-keep .finish-button")).not.toBeNull()
+        expect(container.querySelector(".screen-help-button")).toBeNull()
+    })
+
+    it("keeps the blank ballot's sentence under the title, with the ticket", () => {
+        setUpState({storedConfirmation: true})
+        mockState.confirmationScreenData["election-1"] = {ballotId: BALLOT_ID, isDemo: false}
+        mockState.auditableBallots = {
+            "election-1": {auditableBallot: undefined, isBlankBallot: true},
+        } as unknown as typeof mockState.auditableBallots
+        const {container} = renderRoute(<ConfirmationScreen />, "confirmation")
+
+        expect(
+            container.querySelector(".confirmation-outcome .blank-ballot-description")
+        ).toHaveTextContent("confirmationScreen.blankBallot.description")
+        expect(container.querySelector(".confirmation-ticket .ballot-id-value")).toHaveTextContent(
+            BALLOT_ID
+        )
+    })
+
+    it("says nothing about an email, which the portal cannot know was sent", () => {
+        setUpState({storedConfirmation: true})
+        mockState.confirmationScreenData["election-1"] = {ballotId: BALLOT_ID, isDemo: false}
+        const {container} = renderRoute(<ConfirmationScreen />, "confirmation")
+
+        expect(container.querySelector(".print-receipt-button")).not.toBeNull()
+        expect(container.querySelector(".cast-email-note")).toBeNull()
+        expect(screen.queryByText("confirmationScreen.castEmailNote")).toBeNull()
+    })
+})
+
 describe("Tracking ID copy visibility", () => {
     it("can hide the complete receipt ID row without hiding verification or actions", async () => {
         setUpState({storedConfirmation: true})
@@ -539,8 +608,7 @@ describe("Tracking ID copy visibility", () => {
             screen.getByRole("button", {name: "reviewScreen.copyBallotId"})
         )
         expect(row.querySelector(".ballot-id-help-button")).toHaveProperty("tagName", "BUTTON")
-        expect(row.querySelector(".ballot-id-value-desktop")).toHaveTextContent(BALLOT_ID)
-        expect(row.querySelector(".ballot-id-value-mobile")).toBeInTheDocument()
+        expect(row.querySelector(".ballot-id-value")).toHaveTextContent(BALLOT_ID)
         expect(container.querySelector(".finish-button-label")).toHaveTextContent(
             "confirmationScreen.finishButton"
         )
@@ -552,9 +620,9 @@ describe("Tracking ID copy visibility", () => {
             expect(screen.queryByRole("button", {name: "reviewScreen.copyBallotId"})).toBeNull()
             const qr = container.querySelector(".qr-code-svg")!
             expect(qr).toBeVisible()
-            expect(qr).toHaveAccessibleName("confirmationScreen.verifyCastDescription")
+            expect(qr).toHaveAccessibleName("confirmationScreen.qrCaption")
             expect(
-                screen.getByRole("button", {name: "confirmationScreen.printButton"})
+                screen.getByRole("button", {name: "confirmationScreen.saveReceiptButton"})
             ).toBeVisible()
             expect(
                 screen.getByRole("button", {name: "confirmationScreen.finishButton"})
@@ -672,10 +740,14 @@ describe("Tracking ID copy visibility", () => {
             visible
         )
         expect(screen.getByText(BALLOT_ID)).toBeInTheDocument()
-        const help = within(screen.getByText(BALLOT_ID).parentElement!).getByRole("button", {
-            name: "a11y.helpAbout",
-        })
-        expect(getComputedStyle(help).marginLeft).toBe(visible ? "0px" : "16px")
+        // The Tracking ID's help sits by its label on the ticket, whether or not
+        // the copy button is there.
+        const row = document.querySelector<HTMLElement>(".ballot-id-container")!
+        const help = within(row.querySelector<HTMLElement>(".ballot-id-heading")!).getByRole(
+            "button",
+            {name: "a11y.helpAbout"}
+        )
+        expect(help).toHaveClass("ballot-id-help-button")
     })
 
     it("shows no copy control on either screen for fully acclaimed elections", () => {
@@ -1600,7 +1672,7 @@ describe("the demo ballot ID", () => {
         const user = userEvent.setup()
         const {container} = renderRoute(<ConfirmationScreen />, "confirmation")
 
-        const wide = container.querySelector<HTMLElement>(".ballot-id-value-desktop")!
+        const wide = container.querySelector<HTMLElement>(".ballot-id-value")!
         expect(wide.tagName).toBe("BUTTON")
         expect(wide).not.toHaveAttribute("href")
         wide.focus()

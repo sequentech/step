@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * The row under the confirmation screen: *Print* and *Finish*.
+ * The row under *Keep your receipt*: *Save receipt (PDF)* and *Finish* (design v42).
  *
  * Lifted out of the portal's `ConfirmationScreen` for the same reason as `ReviewActions` —
  * the Election Architect's preview drew two plain buttons with the right words and neither
@@ -22,19 +22,55 @@ const render = inAHost
 const WORDS = PORTAL_WORDS.confirmationScreen
 
 describe("the buttons under a cast ballot", () => {
-    it("offers Print and Finish, in the catalogue's words", () => {
+    it("offers Save receipt and Finish, in the catalogue's words", () => {
         render(<ConfirmationActions />)
 
-        expect(screen.getByText(WORDS.printButton)).toBeInTheDocument()
+        expect(screen.getByText(WORDS.saveReceiptButton)).toBeInTheDocument()
         expect(screen.getByText(WORDS.finishButton)).toBeInTheDocument()
     })
 
-    it("draws Print as the secondary of the two, with its printer", () => {
-        const {container} = render(<ConfirmationActions onPrint={() => undefined} />)
+    it("draws Save receipt as the outlined one, with a download arrow, and Finish filled", () => {
+        render(<ConfirmationActions onPrint={() => undefined} onFinish={() => undefined} />)
 
-        const print = screen.getByText(WORDS.printButton).closest("button")
-        expect(print?.className).toContain("secondary")
-        expect(container.querySelectorAll("svg").length).toBeGreaterThanOrEqual(1)
+        const save = screen.getByText(WORDS.saveReceiptButton).closest("button")
+        expect(save?.className).toContain("secondary")
+        expect(save?.querySelector("svg.print-receipt-icon")).not.toBeNull()
+        const finish = screen.getByText(WORDS.finishButton).closest("button")
+        expect(finish?.className).not.toContain("secondary")
+    })
+
+    it("puts Finish at the end of the same row as Save receipt", () => {
+        const {container} = render(
+            <ConfirmationActions onPrint={() => undefined} onFinish={() => undefined} />
+        )
+
+        const row = container.querySelector(".actions-container")!
+        const save = row.querySelector(".save-receipt-button")!
+        const finish = row.querySelector(".finish-button")!
+        expect(save.parentElement).toBe(row)
+        expect(finish.parentElement).toBe(row)
+        expect(save.compareDocumentPosition(finish)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+        expect(row.lastElementChild).toBe(finish)
+        expect(getComputedStyle(finish).marginLeft).toBe("auto")
+    })
+
+    it("gives neither button a fixed width, so a long translation wraps", () => {
+        render(<ConfirmationActions onPrint={() => undefined} onFinish={() => undefined} />)
+
+        for (const button of Array.from(document.querySelectorAll("button"))) {
+            expect(getComputedStyle(button).width).toBe("")
+        }
+    })
+
+    it("says a copy was emailed only when told so", () => {
+        const quiet = render(<ConfirmationActions onPrint={() => undefined} />)
+        expect(document.querySelector(".cast-email-note")).toBeNull()
+        quiet.unmount()
+
+        render(<ConfirmationActions onPrint={() => undefined} castEmailSent />)
+        expect(document.querySelector(".cast-email-note")).toHaveTextContent(
+            "confirmationScreen.castEmailNote"
+        )
     })
 
     it("carries the class name a client's stylesheet targets", () => {
@@ -47,14 +83,14 @@ describe("the buttons under a cast ballot", () => {
         render(<ConfirmationActions printing onPrint={() => undefined} />)
 
         expect(document.querySelector(".MuiCircularProgress-root")).not.toBeNull()
-        expect(screen.getByText(WORDS.printButton).closest("button")).toBeDisabled()
+        expect(screen.getByText(WORDS.saveReceiptButton).closest("button")).toBeDisabled()
     })
 
-    it("draws Print dead where there is no receipt to print", () => {
+    it("draws Save receipt dead where there is no receipt to save", () => {
         // A preview's position: the receipt comes from a cast vote.
         render(<ConfirmationActions onFinish={() => undefined} />)
 
-        expect(screen.getByText(WORDS.printButton).closest("button")).toBeDisabled()
+        expect(screen.getByText(WORDS.saveReceiptButton).closest("button")).toBeDisabled()
         expect(screen.getByText(WORDS.finishButton).closest("button")).not.toBeDisabled()
     })
 
@@ -63,7 +99,7 @@ describe("the buttons under a cast ballot", () => {
         const finish = jest.fn()
         render(<ConfirmationActions onPrint={print} onFinish={finish} />)
 
-        await userEvent.click(screen.getByText(WORDS.printButton))
+        await userEvent.click(screen.getByText(WORDS.saveReceiptButton))
         await userEvent.click(screen.getByText(WORDS.finishButton))
 
         expect(print).toHaveBeenCalled()
@@ -73,13 +109,13 @@ describe("the buttons under a cast ballot", () => {
     it("follows the catalogue into another language", () => {
         render(<ConfirmationActions />, catalogue(OTHER_WORDS, "es"))
 
-        expect(screen.getByText("Imprimir")).toBeInTheDocument()
-        expect(screen.queryByText(WORDS.printButton)).toBeNull()
+        expect(screen.getByText("Guardar recibo")).toBeInTheDocument()
+        expect(screen.queryByText(WORDS.saveReceiptButton)).toBeNull()
     })
 })
 
 describe("the ovcs fixes carried into the shared confirmation row", () => {
-    it("leaves Print out when there is nothing to print", () => {
+    it("leaves Save receipt out when there is nothing to save", () => {
         render(<ConfirmationActions withPrint={false} onFinish={() => undefined} />)
 
         expect(document.querySelector(".print-receipt-button")).toBeNull()
