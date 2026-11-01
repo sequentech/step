@@ -42,9 +42,19 @@ const LocationProbe = () => {
     return <output aria-label="Current route">{location.pathname + location.search}</output>
 }
 
+const BALLOT_LIST = "/tenant/tenant-1/event/event-1/election-chooser?preview=true"
+
 const renderStartActions = (
     election: IElection,
-    {isDeclineToVotePolicyEnabled = false, onDeclineToVoteClick = jest.fn()} = {}
+    {
+        isDeclineToVotePolicyEnabled = false,
+        onDeclineToVoteClick = jest.fn(),
+        backTo,
+    }: {
+        isDeclineToVotePolicyEnabled?: boolean
+        onDeclineToVoteClick?: () => void
+        backTo?: string
+    } = {}
 ) => {
     render(
         <MemoryRouter
@@ -60,6 +70,7 @@ const renderStartActions = (
                             election={election}
                             isDeclineToVotePolicyEnabled={isDeclineToVotePolicyEnabled}
                             onDeclineToVoteClick={onDeclineToVoteClick}
+                            backTo={backTo}
                         />
                     }
                 />
@@ -111,6 +122,38 @@ describe("StartActions navigation", () => {
             )
         }
     )
+
+    it("marks the start button with a forward icon", () => {
+        renderStartActions(buildElection())
+
+        expect(startButton().querySelector(".start-voting-button-icon:last-child")).not.toBeNull()
+    })
+
+    it("offers no back button when there is no ballot list to return to", () => {
+        renderStartActions(buildElection())
+
+        expect(screen.queryByRole("link", {name: "votingScreen.backButton"})).toBeNull()
+        expect(screen.queryByRole("button", {name: "votingScreen.backButton"})).toBeNull()
+    })
+
+    it("goes back to the ballot list before the start button, keeping the query string", async () => {
+        const user = userEvent.setup()
+        renderStartActions(buildElection(ESecurityConfirmationPolicy.MANDATORY), {
+            isDeclineToVotePolicyEnabled: true,
+            backTo: BALLOT_LIST,
+        })
+        const back = screen.getByRole("link", {name: "votingScreen.backButton"})
+
+        // The declaration gates voting, not leaving.
+        expect(startButton()).toBeDisabled()
+        expect(back).toHaveClass("back-button")
+        expect(back).toHaveAttribute("href", BALLOT_LIST)
+        expect(back.compareDocumentPosition(startButton())).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+
+        await user.click(back)
+
+        expect(screen.getByLabelText("Current route")).toHaveTextContent(BALLOT_LIST)
+    })
 
     it("does not expose a navigation target until the mandatory declaration is accepted", async () => {
         const user = userEvent.setup()

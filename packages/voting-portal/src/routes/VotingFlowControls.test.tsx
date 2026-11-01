@@ -1868,6 +1868,27 @@ describe("a ballot encrypted before the selections changed", () => {
     })
 })
 
+it("goes back from the start screen to the ballot list, keeping the query string", async () => {
+    const {router} = renderRoute(<StartScreen />, "start")
+
+    fireEvent.click(screen.getByRole("link", {name: "votingScreen.backButton"}))
+
+    await waitFor(() =>
+        expect(router.state.location.pathname).toBe(
+            "/tenant/tenant-1/event/event-1/election-chooser"
+        )
+    )
+    expect(router.state.location.search).toBe("?preview=true")
+})
+
+it("offers no way back from the start screen when the event skips the ballot list", () => {
+    mockState = {...mockState, extra: {...mockState.extra, bypassChooser: true}}
+    renderRoute(<StartScreen />, "start")
+
+    expect(screen.getByRole("button", {name: "startScreen.startButton"})).toBeEnabled()
+    expect(screen.queryByRole("link", {name: "votingScreen.backButton"})).toBeNull()
+})
+
 it("exposes the three instruction steps as a named ordered list", () => {
     renderRoute(<StartScreen />, "start")
     const instructions = screen.getByRole("list", {name: "startScreen.instructionsTitle"})

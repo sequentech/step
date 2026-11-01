@@ -26,7 +26,12 @@ import {
     selectBallotSelectionByElectionId,
     setAllBallotSelectionsDeclineToVote,
 } from "../store/ballotSelections/ballotSelectionsSlice"
-import {clearIsVoted, setDeclinedToVote, setIsVoted} from "../store/extra/extraSlice"
+import {
+    clearIsVoted,
+    selectBypassChooser,
+    setDeclinedToVote,
+    setIsVoted,
+} from "../store/extra/extraSlice"
 import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
 import {store} from "../store/store"
 
@@ -38,6 +43,7 @@ const StartScreen: React.FC = () => {
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const backLink = useRootBackLink()
+    const bypassChooser = useAppSelector(selectBypassChooser())
     const isDemo = useAppSelector(showDemo(electionId))
     const [showDemoDialog, setShowDemoDialog] = useState(isDemo)
     const [openDeclineDialog, setOpenDeclineDialog] = useState(false)
@@ -132,6 +138,11 @@ const StartScreen: React.FC = () => {
                     election={election}
                     isDeclineToVotePolicyEnabled={isDeclineToVotePolicyEnabled}
                     onDeclineToVoteClick={() => setOpenDeclineDialog(true)}
+                    backTo={
+                        bypassChooser
+                            ? undefined
+                            : `/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`
+                    }
                 />
             }
         >
