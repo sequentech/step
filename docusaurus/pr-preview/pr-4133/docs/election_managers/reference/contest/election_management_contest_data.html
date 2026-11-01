@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Data | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4133/docs/election_managers/reference/contest/election_management_contest_data"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Data | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4133/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4133/docs/election_managers/reference/contest/election_management_contest_data"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4133/docs/election_managers/reference/contest/election_management_contest_data" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4133/docs/election_managers/reference/contest/election_management_contest_data" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Data","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4133/docs/election_managers/reference/contest/election_management_contest_data"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4133/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4133/assets/js/runtime~main.14215566.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4133/assets/js/runtime~main.8068b27d.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4133/assets/js/main.a54e87df.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -142,8 +142,8 @@ verifier, tally, and results behavior.</li>
 <li class=""><strong>List</strong> (<code>list</code>, the default): one card per candidate, laid out in
 <strong>Columns</strong> columns. Contests without this setting use it.</li>
 <li class=""><strong>Paper ballot grid</strong> (<code>paper-grid</code>): the contest looks like a printed
-ballot. Its name sits in a shaded heading bar with &quot;Vote for no more than
-N&quot;, and candidates are numbered cells with a circle that fills in when
+ballot. Its name sits in a shaded heading bar with the permitted selection
+range, and candidates are numbered cells with a circle that fills in when
 selected, filled column by column. <strong>Columns</strong> sets how many columns the
 grid has on wide screens (4 when empty); tablets show at most 3 and phones
 at most 2. Rows get shorter as the contest gets longer, so a contest with
@@ -154,7 +154,12 @@ usual look, and write-in candidates get a text field inside their cell.</li>
 <li class="">Ranked (preferential) contests always use the list, because each
 candidate needs a position selector.</li>
 <li class="">The review screen keeps the paper look, showing the selected candidates
-with their ballot numbers.</li>
+with their ballot numbers. Random candidate order is remembered for the
+ballot in the browser session, so numbers stay the same on review and when
+returning to edit a vote.</li>
+<li class="">Candidates with descriptions, images or information links have a <strong>More
+information</strong> control that expands their details without selecting them.</li>
+<li class="">Read-only review and acclaimed contests do not display voting instructions.</li>
 <li class="">This is a display setting only: it does not change how ballots are
 encoded or the ballot style hash.</li>
 </ul>
