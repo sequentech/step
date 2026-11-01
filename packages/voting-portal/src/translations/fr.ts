@@ -1079,6 +1079,19 @@ const frenchTranslation: TranslationType = {
                         "La politique ne nomme qu’un seul nœud, géré par la plateforme.",
                 },
             },
+            updates: {
+                title: "Recevez des mises à jour par e-mail sur ce bulletin",
+                description:
+                    "Quand il est confirmé et quand il est compté, ou si un problème est enregistré. Choisissez n’importe quel nœud : chacun vérifie le registre lui-même.",
+                listLabel: "Nœuds de la politique de cette élection",
+                runBy: "Géré par {{party}}",
+                hubLabel:
+                    "{{name}}, géré par {{party}} : recevoir des mises à jour par e-mail sur son propre site (s’ouvre dans un nouvel onglet)",
+                footnote:
+                    "Les nœuds que nomme la politique de l’élection, dans un ordre aléatoire à chaque fois. Chacun s’ouvre sur son propre site avec votre reçu dans le lien ; rien n’est partagé tant que vous n’avez pas choisi quoi suivre là-bas.",
+                footnoteNoReceipt:
+                    "Les nœuds que nomme la politique de l’élection, dans un ordre aléatoire à chaque fois. Chacun s’ouvre sur son propre site ; rien n’est partagé tant que vous n’avez pas choisi quoi suivre là-bas.",
+            },
             booth: {
                 title: "Votre bulletin ne peut pas encore être préparé",
                 explanation:

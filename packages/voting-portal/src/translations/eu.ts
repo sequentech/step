@@ -1079,6 +1079,19 @@ const basqueTranslation: TranslationType = {
                         "Politikak gune bakar bat du izendatuta; kudeatzailea: plataforma.",
                 },
             },
+            updates: {
+                title: "Jaso posta elektronikoz eguneratzeak txartel honi buruz",
+                description:
+                    "Berretsi denean eta zenbatu denean, edo arazoren bat erregistratzen bada. Aukeratu edozein gune: bakoitzak berak egiaztatzen du erregistroa.",
+                listLabel: "Hauteskunde honen politikako guneak",
+                runBy: "Kudeatzailea: {{party}}",
+                hubLabel:
+                    "{{name}}, kudeatzailea: {{party}}: jaso eguneratzeak posta elektronikoz bere webgunean (fitxa berri batean irekitzen da)",
+                footnote:
+                    "Hauteskundearen politikak izendatzen dituen guneak, aldi bakoitzean ordena aleatorioan. Bakoitza bere webgunean irekitzen da zure ordainagiriarekin esteka barruan; ez da ezer partekatzen han zer jarraitu aukeratu arte.",
+                footnoteNoReceipt:
+                    "Hauteskundearen politikak izendatzen dituen guneak, aldi bakoitzean ordena aleatorioan. Bakoitza bere webgunean irekitzen da; ez da ezer partekatzen han zer jarraitu aukeratu arte.",
+            },
             booth: {
                 title: "Zure boto-txartela ezin da oraindik prestatu",
                 explanation:

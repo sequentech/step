@@ -1076,6 +1076,19 @@ const tagalogTranslation: TranslationType = {
                         "Isang hub lang ang pinangalanan ng patakaran, pinapatakbo ng platform.",
                 },
             },
+            updates: {
+                title: "Kumuha ng mga update sa email tungkol sa balotang ito",
+                description:
+                    "Kapag nakumpirma na ito at kapag nabilang na, o kung may naitalang problema. Pumili ng alinmang hub: sinusuri ng bawat isa ang talaan nang mag-isa.",
+                listLabel: "Mga hub sa patakaran ng halalang ito",
+                runBy: "Pinapatakbo ng {{party}}",
+                hubLabel:
+                    "{{name}}, pinapatakbo ng {{party}}: kumuha ng mga update sa email sa sarili nitong site (bubukas sa bagong tab)",
+                footnote:
+                    "Ang mga hub na pinangalanan ng patakaran ng halalan, sa random na pagkakasunod-sunod sa bawat pagkakataon. Bawat isa ay bubukas sa sarili nitong site kasama ang iyong resibo sa link; walang ibinabahagi hanggang sa pumili ka roon kung ano ang susubaybayan.",
+                footnoteNoReceipt:
+                    "Ang mga hub na pinangalanan ng patakaran ng halalan, sa random na pagkakasunod-sunod sa bawat pagkakataon. Bawat isa ay bubukas sa sarili nitong site; walang ibinabahagi hanggang sa pumili ka roon kung ano ang susubaybayan.",
+            },
             booth: {
                 title: "Hindi pa maihahanda ang iyong balota",
                 explanation:

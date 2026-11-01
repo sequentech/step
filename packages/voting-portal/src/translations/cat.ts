@@ -1073,6 +1073,19 @@ const catalanTranslation: TranslationType = {
                     oneHubPlatform: "La política anomena un sol node, gestionat per la plataforma.",
                 },
             },
+            updates: {
+                title: "Rebeu actualitzacions per correu sobre aquesta papereta",
+                description:
+                    "Quan es confirmi i quan es compti, o si es registra un problema. Trieu qualsevol node: cadascun comprova el registre per si mateix.",
+                listLabel: "Nodes de la política d'aquesta elecció",
+                runBy: "Gestionat per {{party}}",
+                hubLabel:
+                    "{{name}}, gestionat per {{party}}: rebre actualitzacions per correu al seu propi lloc (s'obre en una pestanya nova)",
+                footnote:
+                    "Els nodes que anomena la política de l'elecció, en ordre aleatori cada vegada. Cadascun s'obre al seu propi lloc amb el vostre rebut a l'enllaç; no es comparteix res fins que trieu què seguir-hi.",
+                footnoteNoReceipt:
+                    "Els nodes que anomena la política de l'elecció, en ordre aleatori cada vegada. Cadascun s'obre al seu propi lloc; no es comparteix res fins que trieu què seguir-hi.",
+            },
             booth: {
                 title: "Encara no es pot preparar la vostra papereta",
                 explanation:

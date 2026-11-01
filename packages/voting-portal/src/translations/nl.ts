@@ -1075,6 +1075,19 @@ const dutchTranslation: TranslationType = {
                     oneHubPlatform: "Het beleid noemt één hub, beheerd door het platform.",
                 },
             },
+            updates: {
+                title: "Ontvang e-mailupdates over dit stembiljet",
+                description:
+                    "Wanneer het is bevestigd en wanneer het is geteld, of als er een probleem wordt vastgelegd. Kies een willekeurige hub: elke hub controleert het register zelf.",
+                listLabel: "Hubs in het beleid van deze verkiezing",
+                runBy: "Beheerd door {{party}}",
+                hubLabel:
+                    "{{name}}, beheerd door {{party}}: e-mailupdates ontvangen op zijn eigen site (opent in een nieuw tabblad)",
+                footnote:
+                    "De hubs die het beleid van de verkiezing noemt, telkens in willekeurige volgorde. Elke hub opent op zijn eigen site met uw ontvangstbewijs in de link; er wordt niets gedeeld totdat u daar kiest wat u wilt volgen.",
+                footnoteNoReceipt:
+                    "De hubs die het beleid van de verkiezing noemt, telkens in willekeurige volgorde. Elke hub opent op zijn eigen site; er wordt niets gedeeld totdat u daar kiest wat u wilt volgen.",
+            },
             booth: {
                 title: "Uw stembiljet kan nog niet worden voorbereid",
                 explanation:

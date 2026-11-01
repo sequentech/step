@@ -1175,6 +1175,19 @@ const englishTranslation = {
                     oneHubPlatform: "The policy names one hub, run by the platform.",
                 },
             },
+            updates: {
+                title: "Get email updates about this ballot",
+                description:
+                    "When it’s confirmed and when it’s counted, or if a problem is recorded. Choose any hub: each checks the record itself.",
+                listLabel: "Hubs in this election’s policy",
+                runBy: "Run by {{party}}",
+                hubLabel:
+                    "{{name}}, run by {{party}}: get email updates on its own site (opens a new tab)",
+                footnote:
+                    "The hubs named in the election’s policy, in a random order each time. Each opens on its own site with your receipt in the link; nothing is shared until you choose what to watch there.",
+                footnoteNoReceipt:
+                    "The hubs named in the election’s policy, in a random order each time. Each opens on its own site; nothing is shared until you choose what to watch there.",
+            },
             booth: {
                 title: "Your ballot can't be prepared yet",
                 explanation:

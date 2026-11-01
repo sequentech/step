@@ -1083,6 +1083,19 @@ const spanishTranslation: TranslationType = {
                         "La política nombra un solo nodo, gestionado por la plataforma.",
                 },
             },
+            updates: {
+                title: "Reciba actualizaciones por correo sobre esta papeleta",
+                description:
+                    "Cuando se confirme y cuando se cuente, o si se registra un problema. Elija cualquier nodo: cada uno comprueba el registro por sí mismo.",
+                listLabel: "Nodos de la política de esta elección",
+                runBy: "Gestionado por {{party}}",
+                hubLabel:
+                    "{{name}}, gestionado por {{party}}: recibir actualizaciones por correo en su propio sitio (se abre en una pestaña nueva)",
+                footnote:
+                    "Los nodos que nombra la política de la elección, en orden aleatorio cada vez. Cada uno se abre en su propio sitio con su recibo en el enlace; no se comparte nada hasta que elija qué seguir allí.",
+                footnoteNoReceipt:
+                    "Los nodos que nombra la política de la elección, en orden aleatorio cada vez. Cada uno se abre en su propio sitio; no se comparte nada hasta que elija qué seguir allí.",
+            },
             booth: {
                 title: "Todavía no se puede preparar su papeleta",
                 explanation:

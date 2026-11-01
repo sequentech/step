@@ -1076,6 +1076,19 @@ const galegoTranslation: TranslationType = {
                     oneHubPlatform: "A política nomea un só nodo, xestionado pola plataforma.",
                 },
             },
+            updates: {
+                title: "Recibe actualizacións por correo sobre esta papeleta",
+                description:
+                    "Cando se confirme e cando se conte, ou se se rexistra un problema. Escolle calquera nodo: cada un comproba o rexistro por si mesmo.",
+                listLabel: "Nodos da política desta elección",
+                runBy: "Xestionado por {{party}}",
+                hubLabel:
+                    "{{name}}, xestionado por {{party}}: recibir actualizacións por correo no seu propio sitio (ábrese nunha pestana nova)",
+                footnote:
+                    "Os nodos que nomea a política da elección, en orde aleatoria cada vez. Cada un ábrese no seu propio sitio co teu recibo na ligazón; non se comparte nada ata que escollas que seguir alí.",
+                footnoteNoReceipt:
+                    "Os nodos que nomea a política da elección, en orde aleatoria cada vez. Cada un ábrese no seu propio sitio; non se comparte nada ata que escollas que seguir alí.",
+            },
             booth: {
                 title: "Aínda non se pode preparar a súa papeleta",
                 explanation:
