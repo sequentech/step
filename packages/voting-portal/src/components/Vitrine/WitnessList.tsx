@@ -73,9 +73,12 @@ const ExternalIcon: React.FC = () => (
         strokeLinejoin="round"
         aria-hidden="true"
     >
-        <path d="M14 4h6v6" />
-        <path d="M20 4l-9 9" />
-        <path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+        <path className="witness-list-external-path" d="M14 4h6v6" />
+        <path className="witness-list-external-path" d="M20 4l-9 9" />
+        <path
+            className="witness-list-external-path"
+            d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"
+        />
     </svg>
 )
 
@@ -171,7 +174,7 @@ export const WitnessList: React.FC<IWitnessListProps> = ({
                     aria-hidden="true"
                     style={{flex: "none", transform: open ? "rotate(180deg)" : "none"}}
                 >
-                    <path d="M6 9l6 6 6-6" />
+                    <path className="witness-list-chevron-path" d="M6 9l6 6 6-6" />
                 </svg>
             </ButtonBase>
             {open ? (

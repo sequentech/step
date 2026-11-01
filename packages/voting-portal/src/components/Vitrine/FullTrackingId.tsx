@@ -140,8 +140,18 @@ const CopyIcon: React.FC = () => (
         strokeLinejoin="round"
         aria-hidden="true"
     >
-        <rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2" />
-        <path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5" />
+        <rect
+            className="full-tracking-id-copy-icon-box"
+            x="8.5"
+            y="8.5"
+            width="11.5"
+            height="11.5"
+            rx="2"
+        />
+        <path
+            className="full-tracking-id-copy-icon-path"
+            d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"
+        />
     </svg>
 )
 
