@@ -1475,6 +1475,13 @@ const spanishTranslation: TranslationType = {
                             "Ofrecer ajustes de tamaño de texto, contraste, espaciado y movimiento",
                     },
                 },
+                instructionsStepPolicy: {
+                    policyLabel: "Instrucciones en la barra de pasos",
+                    options: {
+                        "merged-with-ballot": "Dentro del paso Papeleta",
+                        "own-step": "Un paso propio",
+                    },
+                },
                 audioInstructionsPolicy: {
                     policyLabel: "Instrucciones en audio",
                     options: {

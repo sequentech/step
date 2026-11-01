@@ -1409,6 +1409,13 @@ const catalanTranslation: TranslationType = {
                         enabled: "Ofereix la mida del text, el contrast, l'espaiat i el moviment",
                     },
                 },
+                instructionsStepPolicy: {
+                    policyLabel: "Instruccions a la barra de passos",
+                    options: {
+                        "merged-with-ballot": "Dins del pas Papereta",
+                        "own-step": "Un pas propi",
+                    },
+                },
                 audioInstructionsPolicy: {
                     policyLabel: "Instruccions en àudio",
                     options: {

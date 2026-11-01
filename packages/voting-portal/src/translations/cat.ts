@@ -71,6 +71,7 @@ const catalanTranslation: TranslationType = {
         },
         breadcrumbSteps: {
             electionList: "Votacions",
+            instructions: "Instruccions",
             ballot: "Papereta",
             review: "Revisió",
             confirmation: "Confirmar",

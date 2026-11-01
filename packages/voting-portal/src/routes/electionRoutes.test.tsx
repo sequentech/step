@@ -21,6 +21,7 @@ jest.mock("@sequentech/ui-essentials", () => ({
     PageLimit: ({children}: any) => <div>{children}</div>,
     InfoDataBox: ({children}: any) => <div>{children}</div>,
     BreadCrumbSteps: () => null,
+    EBallotStep: jest.requireActual("../../../ui-essentials/src/ballot/BallotSteps").EBallotStep,
     Icon: () => null,
     IconButton: () => null,
     Dialog: () => null,

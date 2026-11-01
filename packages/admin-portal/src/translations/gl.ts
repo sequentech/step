@@ -1402,6 +1402,13 @@ const galegoTranslation: TranslationType = {
                             "Ofrecer axustes de tamaño de texto, contraste, espazado e movemento",
                     },
                 },
+                instructionsStepPolicy: {
+                    policyLabel: "Instrucións na barra de pasos",
+                    options: {
+                        "merged-with-ballot": "Dentro do paso Papeleta",
+                        "own-step": "Un paso propio",
+                    },
+                },
                 audioInstructionsPolicy: {
                     policyLabel: "Instrucións en audio",
                     options: {

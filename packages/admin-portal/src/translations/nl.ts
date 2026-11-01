@@ -1408,6 +1408,13 @@ const dutchTranslation: TranslationType = {
                         enabled: "Tekstgrootte, contrast, tekstafstand en beweging aanbieden",
                     },
                 },
+                instructionsStepPolicy: {
+                    policyLabel: "Instructies in de stappenbalk",
+                    options: {
+                        "merged-with-ballot": "Onderdeel van de stap Stembiljet",
+                        "own-step": "Een eigen stap",
+                    },
+                },
                 audioInstructionsPolicy: {
                     policyLabel: "Gesproken instructies",
                     options: {

@@ -206,6 +206,10 @@ policy_contract!(audio_instructions, AudioInstructionsPolicy,
     Recorded => ("recorded", 1),
     RecordedOrSynthesized => ("recorded-or-synthesized", 2),
 );
+policy_contract!(instructions_step, InstructionsStepPolicy,
+    MergedWithBallot => ("merged-with-ballot", 0),
+    OwnStep => ("own-step", 1),
+);
 policy_contract!(lockdown, LockedDown,
     LOCKED_DOWN => ("locked-down", 0),
     NOT_LOCKED_DOWN => ("not-locked-down", 1),
