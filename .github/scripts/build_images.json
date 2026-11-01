@@ -35,6 +35,16 @@
     "file": "packages/harvest/Dockerfile.prod"
   },
   {
+    "service": "monitoring-renderer",
+    "context": "packages/monitoring-renderer",
+    "file": "packages/monitoring-renderer/Dockerfile"
+  },
+  {
+    "service": "messaging-webhooks",
+    "context": "packages",
+    "file": "packages/messaging-webhooks/Dockerfile.prod"
+  },
+  {
     "service": "b4v6",
     "context": "packages/wbraid",
     "file": "packages/wbraid/crates/b4/Dockerfile"
