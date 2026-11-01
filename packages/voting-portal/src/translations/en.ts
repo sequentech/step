@@ -238,6 +238,11 @@ const englishTranslation = {
                 description:
                     "This contest was decided by acclamation. Its candidates are elected without a vote, so no option can be selected and no vote is recorded for it.",
             },
+            paperBallot: {
+                voteForNoMoreThan_one: "Vote for no more than {{count}}",
+                voteForNoMoreThan_many: "Vote for no more than {{count}}",
+                voteForNoMoreThan_other: "Vote for no more than {{count}}",
+            },
         },
         votingScreen: {
             backButton: "Back",

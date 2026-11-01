@@ -106,6 +106,10 @@ policy_contract!(checkbox_icon, CandidatesIconCheckboxPolicy,
     SQUARE_CHECKBOX => ("square-checkbox", 0),
     ROUND_CHECKBOX => ("round-checkbox", 1),
 );
+policy_contract!(candidates_layout, CandidatesLayout,
+    List => ("list", 0),
+    PaperGrid => ("paper-grid", 1),
+);
 policy_contract!(key_ceremony, KeysCeremonyPolicy,
     ELECTION_EVENT => ("ELECTION_EVENT", 0),
     ELECTION => ("ELECTION", 1),

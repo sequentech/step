@@ -2917,6 +2917,13 @@ const dutchTranslation: TranslationType = {
                 "square-checkbox": "Vierkant Selectievakje",
                 "round-checkbox": "Rond Selectievakje",
             },
+            candidatesLayout: {
+                "label": "Indeling van kandidaten",
+                "helperText":
+                    "Het raster van het papieren stembiljet toont kandidaten als genummerde vakjes met een in te kleuren cirkel, kolom voor kolom, volgens Kolommen (4 indien leeg). Stemmingen met rangschikking gebruiken altijd de lijst.",
+                "list": "Lijst",
+                "paper-grid": "Raster van papieren stembiljet",
+            },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Kandidaten en Lijsten",
                 "allow-selecting-candidates": "Alleen Kandidaten",

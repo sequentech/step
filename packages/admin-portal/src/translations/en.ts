@@ -3109,6 +3109,13 @@ const englishTranslation = {
                 "square-checkbox": "Square Checkbox",
                 "round-checkbox": "Round Checkbox",
             },
+            candidatesLayout: {
+                "label": "Candidates layout",
+                "helperText":
+                    "Paper ballot grid shows candidates as numbered cells with a fill-in circle, filled column by column, using Columns (4 if empty). Ranked contests always use the list.",
+                "list": "List",
+                "paper-grid": "Paper ballot grid",
+            },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidates And Lists",
                 "allow-selecting-candidates": "Candidates Only",

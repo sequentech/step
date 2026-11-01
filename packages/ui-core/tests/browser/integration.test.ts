@@ -122,6 +122,22 @@ test("language cookies round-trip through the browser's actual cookie store", as
     assert.equal(value, "français = yes")
 })
 
+test("the shipped WASM sorter preserves the paper ballot layout", async () => {
+    const layout = await page.evaluate(async () => {
+        const core = window.uiCore
+        await core.initCore()
+        const sample = core.generateSampleAuditableBallot()
+        if (!sample) throw new Error("the real WASM sample generator failed")
+        const contest = sample.config.contests[0]
+        contest.presentation = {
+            ...contest.presentation,
+            candidates_layout: core.ECandidatesLayout.PAPER_GRID,
+        }
+        return core.sortContestList([contest])[0].presentation?.candidates_layout
+    })
+    assert.equal(layout, "paper-grid")
+})
+
 test("the real WebAssembly module generates, hashes and decodes its sample ballot", async () => {
     const result = await page.evaluate(async () => {
         const core = window.uiCore
