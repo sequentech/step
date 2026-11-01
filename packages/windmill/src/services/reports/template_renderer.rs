@@ -267,6 +267,18 @@ pub trait TemplateRenderer: Debug {
         is_scheduled_task || self.get_voter_id().is_some()
     }
 
+    /// The text of the email that carries the report. A report type can add
+    /// what only its own data knows; by default the template's text goes as
+    /// it is.
+    async fn email_config_for(
+        &self,
+        _hasura_transaction: &Transaction<'_>,
+        _keycloak_transaction: &Transaction<'_>,
+        email_config: EmailConfig,
+    ) -> Result<EmailConfig> {
+        Ok(email_config)
+    }
+
     // Default implementation, can be overridden in specific reports that have
     // voterId
     #[instrument(skip(self))]
@@ -1186,7 +1198,13 @@ pub trait TemplateRenderer: Debug {
                 // The e-mail a released report would send waits for the
                 // signatures with it.
                 let email = if self.should_send_email(is_scheduled_task) {
-                    let email_config = ext_cfg.communication_templates.email_config.clone();
+                    let email_config = self
+                        .email_config_for(
+                            hasura_transaction,
+                            keycloak_transaction,
+                            ext_cfg.communication_templates.email_config.clone(),
+                        )
+                        .await?;
                     Some(ReportEmail {
                         recipients: self
                             .get_email_recipients(recipients, tenant_id, election_event_id)
@@ -1346,7 +1364,13 @@ pub trait TemplateRenderer: Debug {
             .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
 
             if send_email {
-                let email_config = ext_cfg.communication_templates.email_config;
+                let email_config = self
+                    .email_config_for(
+                        hasura_transaction,
+                        keycloak_transaction,
+                        ext_cfg.communication_templates.email_config,
+                    )
+                    .await?;
                 let email_recipients = self
                     .get_email_recipients(recipients, tenant_id, election_event_id)
                     .await
@@ -1387,7 +1411,13 @@ pub trait TemplateRenderer: Debug {
             .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
 
             if send_email {
-                let email_config = ext_cfg.communication_templates.email_config;
+                let email_config = self
+                    .email_config_for(
+                        hasura_transaction,
+                        keycloak_transaction,
+                        ext_cfg.communication_templates.email_config,
+                    )
+                    .await?;
                 let email_recipients = self
                     .get_email_recipients(recipients, tenant_id, election_event_id)
                     .await

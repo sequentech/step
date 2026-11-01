@@ -22,9 +22,10 @@ use sequent_core::util::temp_path::*;
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
+use sequent_core::types::templates::EmailConfig;
 use sequent_core::util::date_time::get_date_and_time;
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
+use tracing::{instrument, warn};
 use uuid::Uuid;
 
 /// Wrapper struct for data specific to the ballot and the voter
@@ -62,6 +63,95 @@ pub struct SystemData {
     pub title: String,
     pub file_logo: String,
     pub file_qrcode_lib: String,
+}
+
+/// The text the cast email adds below the template's own: the ballot's full
+/// Tracking ID and a link to each of the policy's hubs, in the order the
+/// receipt drew. Plain text, one link to a line, with no labels that rank a
+/// hub; the PDF says the same.
+pub fn cast_email_text(tracking_id: &str, hubs: &[HubLink]) -> String {
+    let mut text = format!(
+        "Your Tracking ID: {tracking_id}\n\n\
+         Check it yourself. You don't have to trust this email or this \
+         election's website. You can check your ballot on any of the \
+         election's hubs:\n"
+    );
+    for hub in hubs {
+        text.push_str(&format!(
+            "\n{}, run by {}\n{}\n",
+            hub.name, hub.operator, hub.url
+        ));
+    }
+    text.push_str(
+        "\nOn a hub you can also choose to get an email when your ballot is \
+         confirmed and when it is counted. The links carry your Tracking ID \
+         after the #, so no server sees it until you act. This email is a \
+         pointer, not proof: a hub's page checks the record again in your \
+         browser.\n",
+    );
+    text
+}
+
+fn escape_html(text: &str) -> String {
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
+/// The same, as HTML, for an email that has an HTML body.
+fn cast_email_html(tracking_id: &str, hubs: &[HubLink]) -> String {
+    let mut html = format!(
+        "<p>Your Tracking ID: <strong>{}</strong></p>\n\
+         <p>Check it yourself. You don't have to trust this email or this \
+         election's website. You can check your ballot on any of the \
+         election's hubs:</p>\n",
+        escape_html(tracking_id)
+    );
+    for hub in hubs {
+        html.push_str(&format!(
+            "<p><a href=\"{}\">{}, run by {}</a></p>\n",
+            escape_html(&hub.url),
+            escape_html(&hub.name),
+            escape_html(&hub.operator)
+        ));
+    }
+    html.push_str(
+        "<p>On a hub you can also choose to get an email when your ballot is \
+         confirmed and when it is counted. The links carry your Tracking ID \
+         after the #, so no server sees it until you act. This email is a \
+         pointer, not proof: a hub's page checks the record again in your \
+         browser.</p>\n",
+    );
+    html
+}
+
+/// The cast email's bodies with the Tracking ID and the hubs' links added.
+/// With no hubs (the event isn't transparent, or `hub_updates.cast_email` is
+/// `off`, or no hub has a site), the email is the template's, untouched.
+pub fn with_cast_email_hubs(mut email: EmailConfig, data: &UserData) -> EmailConfig {
+    if data.hubs.is_empty() {
+        return email;
+    }
+    let tracking_id = if data.tracking_id.is_empty() {
+        data.ballot_id.as_str()
+    } else {
+        data.tracking_id.as_str()
+    };
+    let text = cast_email_text(tracking_id, &data.hubs);
+    email.plaintext_body = if email.plaintext_body.trim().is_empty() {
+        text
+    } else {
+        format!("{}\n\n{text}", email.plaintext_body.trim_end())
+    };
+    if let Some(html) = email.html_body.take() {
+        let section = cast_email_html(tracking_id, &data.hubs);
+        email.html_body = Some(match html.rfind("</body>") {
+            Some(at) => format!("{}{section}{}", &html[..at], &html[at..]),
+            None => format!("{html}\n{section}"),
+        });
+    }
+    email
 }
 
 #[derive(Debug)]
@@ -230,6 +320,27 @@ impl TemplateRenderer for BallotTemplate {
             // A UTC instant: the template prints it in the election's zone.
             timestamp: get_date_and_time(),
         })
+    }
+
+    /// The cast email carries the ballot's full Tracking ID and a link to
+    /// each hub of the policy when `hub_updates.cast_email` allows it. If
+    /// the ballot can't be read again, the email goes as the template has it.
+    async fn email_config_for(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
+        email_config: EmailConfig,
+    ) -> Result<EmailConfig> {
+        match self
+            .prepare_user_data(hasura_transaction, keycloak_transaction)
+            .await
+        {
+            Ok(data) => Ok(with_cast_email_hubs(email_config, &data)),
+            Err(error) => {
+                warn!("The cast email goes without the hubs' links: {error:?}");
+                Ok(email_config)
+            }
+        }
     }
 
     #[instrument(err, skip_all)]
@@ -419,5 +530,86 @@ mod tests {
                 hub.url
             );
         }
+    }
+
+    fn email(plaintext: &str, html: Option<&str>) -> EmailConfig {
+        EmailConfig {
+            subject: "Ballot Receipt".to_string(),
+            plaintext_body: plaintext.to_string(),
+            html_body: html.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn the_cast_email_gets_the_tracking_id_and_every_hubs_link() {
+        let hubs = vec![hub("hub-b", "Partner B"), hub("hub-a", "Partner A")];
+        let data = user_data(TRACKING_ID, hubs.clone());
+        let sent = with_cast_email_hubs(email("Thank you for voting.", None), &data);
+        assert_eq!(sent.subject, "Ballot Receipt");
+        assert!(sent.plaintext_body.starts_with("Thank you for voting.\n\n"));
+        assert!(sent
+            .plaintext_body
+            .contains(&format!("Your Tracking ID: {TRACKING_ID}\n")));
+        for h in &hubs {
+            assert!(
+                sent.plaintext_body
+                    .contains(&format!("{}, run by {}\n{}\n", h.name, h.operator, h.url)),
+                "{}",
+                sent.plaintext_body
+            );
+        }
+        // The links come in the order the receipt drew, one to a line.
+        let b = sent.plaintext_body.find("hub-b, run by").unwrap();
+        let a = sent.plaintext_body.find("hub-a, run by").unwrap();
+        assert!(b < a);
+        assert_eq!(sent.html_body, None);
+    }
+
+    #[test]
+    fn the_cast_email_is_plain_text_with_no_badges_or_claims_of_independence() {
+        let data = user_data(TRACKING_ID, vec![hub("hub-a", "Partner A")]);
+        let sent = with_cast_email_hubs(
+            email("", Some("<html><body><p>Hi</p></body></html>")),
+            &data,
+        );
+        let text = sent.plaintext_body.to_lowercase();
+        assert!(!text.contains("independent"));
+        assert!(!sent.plaintext_body.contains('<'));
+        assert!(sent.plaintext_body.starts_with("Your Tracking ID:"));
+        assert!(text.contains("pointer, not proof"));
+        let html = sent.html_body.unwrap();
+        assert!(!html.to_lowercase().contains("independent"));
+        // The hubs' section goes inside the body of the HTML.
+        assert!(html.find("Partner A").unwrap() < html.find("</body>").unwrap());
+        assert!(html.contains(&TRACKING_ID.to_string()));
+        assert!(html.contains("&amp;watch-id="), "{html}");
+    }
+
+    #[test]
+    fn the_cast_email_is_untouched_when_there_are_no_hubs() {
+        let data = user_data(TRACKING_ID, vec![]);
+        let template = email("Thank you for voting.", Some("<p>Thanks</p>"));
+        let sent = with_cast_email_hubs(template.clone(), &data);
+        assert_eq!(sent.plaintext_body, template.plaintext_body);
+        assert_eq!(sent.html_body, template.html_body);
+    }
+
+    #[test]
+    fn the_cast_email_falls_back_to_the_ballot_id_without_a_tracking_id() {
+        let data = user_data("", vec![hub("hub-a", "Partner A")]);
+        let sent = with_cast_email_hubs(email("", None), &data);
+        assert!(sent.plaintext_body.contains(&data.ballot_id));
+    }
+
+    #[test]
+    fn html_in_a_hubs_name_is_escaped_in_the_email() {
+        let mut odd = hub("hub-a", "Partner <b>A</b>");
+        odd.url = "https://hub-a.example/#policy=x&watch-id=y\"z".to_string();
+        let data = user_data(TRACKING_ID, vec![odd]);
+        let sent = with_cast_email_hubs(email("", Some("<p>x</p>")), &data);
+        let html = sent.html_body.unwrap();
+        assert!(!html.contains("<b>"), "{html}");
+        assert!(html.contains("Partner &lt;b&gt;A&lt;/b&gt;"));
+        assert!(html.contains("&quot;z"));
     }
 }
