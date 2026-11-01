@@ -261,7 +261,7 @@ class RunSafety(unittest.TestCase):
             "--skip-build",
             STEP_E2E_OUTPUT_DIR=str(output),
             STEP_E2E_IMAGES="minio keycloak",
-            STEP_E2E_BUILD_CACHE="ghcr.io/owner/cache",
+            STEP_E2E_BUILD_CACHE="ghcr.io/Owner/cache",
             STEP_E2E_BUILD_CACHE_READ="feat/x ovcs",
             STEP_E2E_BUILD_CACHE_WRITE="release/1.2",
         )

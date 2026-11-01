@@ -51,7 +51,9 @@ SERVICES=(
     trustee1 trustee2 localstack configure-localstack
 )
 read -ra IMAGES <<< "${STEP_E2E_IMAGES:-postgres postgres-b4v6 minio configure-minio keycloak harvest}"
-if [[ -n "${STEP_E2E_BUILD_CACHE:-}" && ! "$STEP_E2E_BUILD_CACHE" =~ ^[a-z0-9][a-z0-9.:/_-]*$ ]]; then
+# Registry references are lowercase; GitHub owner and repository names may not be.
+STEP_E2E_BUILD_CACHE=$(printf '%s' "${STEP_E2E_BUILD_CACHE:-}" | tr '[:upper:]' '[:lower:]')
+if [[ -n "$STEP_E2E_BUILD_CACHE" && ! "$STEP_E2E_BUILD_CACHE" =~ ^[a-z0-9][a-z0-9.:/_-]*$ ]]; then
     echo 'STEP_E2E_BUILD_CACHE must be a registry repository, e.g. ghcr.io/owner/name' >&2
     exit 2
 fi
