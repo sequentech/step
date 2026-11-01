@@ -20,6 +20,7 @@ import {EVoterAccessibilitySettingsPolicy, type KcContext} from "./KcContext"
 import {AccessibilitySettings} from "./accessibility/AccessibilitySettings"
 import {AudioInstructions} from "./accessibility/AudioInstructions"
 import {getAccessibilityCopy, isInstructionsPage} from "./accessibility/copy"
+import {sameMessage, useLoginTimeout} from "./loginTimeout"
 import "./auth.css"
 
 const MESSAGE_SEVERITY: Record<string, AlertColor> = {
@@ -73,7 +74,8 @@ export default function Template(props: SequentTemplateProps) {
         children,
     } = props
     const {msgStr, currentLanguage, enabledLanguages} = i18n
-    const {realm, message, isAppInitiatedAction, properties} = kcContext
+    const {realm, message, isAppInitiatedAction, properties, url} = kcContext
+    const restartedByTimeout = useLoginTimeout(url.ssoLoginInOtherTabsUrl, url.loginAction)
     const systemVersion = buildDetail(properties.systemVersion)
     const systemHash = buildDetail(properties.systemHash)
     const voting = kcContext.themeName === "sequent-ui-voting"
@@ -108,7 +110,8 @@ export default function Template(props: SequentTemplateProps) {
     const showMessage =
         displayMessage &&
         message !== undefined &&
-        (message.type !== "warning" || !isAppInitiatedAction)
+        (message.type !== "warning" || !isAppInitiatedAction) &&
+        !(restartedByTimeout && sameMessage(message.summary, msgStr("loginTimeout")))
 
     const feedback = showMessage && (
         <Alert
