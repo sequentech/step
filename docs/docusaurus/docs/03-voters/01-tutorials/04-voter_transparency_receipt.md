@@ -48,6 +48,7 @@ Hover over the check mark to see its state. Select it to open the **Ballot statu
 - Your **Tracking ID** with a tag: **Not cast** or **Cast**. It shows the short Tracking ID and the full Tracking ID. The copy button next to the full ID copies it in groups of four, and turns into a green check for a moment.
 - The state as a headline, and the three steps, each with what the receipt says about it and when your browser saw it done.
 - When the status is **Late** or **Problem**, what it means.
+- When one of the hubs in the election's policy lists a problem for this election, a red notice names it in plain words, such as "Two versions of the record", says which hubs list it and links to the proof on the hub's own site, where your browser checks it. The notice is a convenience of the portal, and it says so: the hubs also tell you by email, on their own sites and in the extension. A hub that does not answer is not a problem, and the notice does not appear for it.
 - **Open in the ballot tracker**, **Save receipt** and **OK**. Before you cast, the dialog has only **OK**.
 
 The headline of a **Problem** says which one it is:

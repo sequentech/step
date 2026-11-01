@@ -66,6 +66,14 @@ public events work end to end.
   them with the permission `election-event-write`, and the trigger below does
   not guard them: they only decide what voters are offered, and can change at
   any time.
+- **`presentation.authority_contact`**, in the same `presentation`, holds the
+  election authority's contact as the admin typed it in the Transparency tab:
+  up to four text values, `name`, `email`, `phone` and `url`. Windmill drafts
+  the policy's `contact` lines from it (see the draft policy below). The admin
+  portal writes it with `election-event-write`, checks each value by the
+  policy's syntax before it saves, and shows the fields read-only once voting
+  has opened. Nothing else reads it: voters see the contact only from the
+  pinned policy.
 - **`sequent_backend.vitrine_log`** holds each log as the sidecar created it:
   its name on the sidecar (`<tenant id>/<event id>/<log>`), its log ID and
   instance ID, origin, URL and keys, the `events` log's submission token, the
@@ -301,8 +309,19 @@ SHA-512 over `step/ballot-id/v2`, the ballot's hash and the voter key's DER
 hyphenated groups of four, as in `FTBE-MHRX-71J7-…`. The first two groups are
 the short ID. Voter pseudonyms use a colon instead (`K7QM:2XWD`), so the two
 never read as each other. A lookup ignores case and hyphens, reads `I` and `L`
-as `1` and `O` as `0`, and needs at least 8 characters; when a short ID fits
-up to 10 ballots it lists them, and above that it asks for more characters. On
+as `1` and `O` as `0`, and needs at least 8 characters. A short ID finds
+ballots and never proves one is the voter's: when it fits up to 5 ballots they
+are listed, each with its full ID, and above that the page asks for the third
+group (four more characters). Where the event is public, the browser asks a
+log server or monitor of the policy for the whole bucket of ballots whose
+Tracking ID starts with the first 3 characters, with
+`GET <server>/lookup/<log>/tracking-bucket/<3 characters>`, and keeps the ones
+that share the typed groups itself, so no server learns which ballot was
+looked for. A server that has no such route (404) is skipped, and when none of
+the policy's servers has it, the lookup that sends the typed ID to the
+election's server takes over, and the page says that this server sees the exact
+ID. A voter who then opens one of the listed ballots does send its ID to that
+server, to get the ballot's content. On
 the review screen the ID sits in
 a box next to the title on a wide screen. The check mark shows how far the
 receipt's check has got: not cast yet on the review screen, then checking, in
@@ -453,11 +472,45 @@ configuration's `platform` (`Sequent` by default) and sits right after
 `operator`. `anchor-hubs` is `2 1` when the configured hubs allow it, so that
 at least one hub is run by neither the operator nor the platform; a stronger
 `[anchor_hubs]` rule is kept, a weaker one is raised to it. A draft has no
-`words` line, and no `contact` lines: Step has no field for the election
-authority's contact (name, email, phone or URL), so the Board adds the
-`contact` lines to the draft before it seals the policy. Until it does, voters
-see the contact in the portal only as "From the election's settings", never as
-the policy's.
+`words` line. The `contact` lines come from the election event's
+`presentation.authority_contact`, one line for each kind that is set, right
+after `platform`, in the order `name`, `email`, `phone`, `url`. Each value
+follows rule 19 of the policy specification: a name is 1 to 128 bytes of text
+with single spaces and no line breaks, control or format characters; an email is
+an ASCII `local@domain` address of at most 254 bytes; a phone is `+` and 7 to 15
+digits, the first not `0`; a URL is an absolute `https` URL, so `http` is
+refused even on localhost. Windmill reads the stored contact tolerantly and
+leaves out a kind that is empty or breaks its syntax, with a warning in its
+log, so that the draft the Board seals is always valid; `draft` itself refuses
+a contact that breaks it. A draft without a contact has no `contact` lines. A
+successor policy may change the contact even after voting opens, but the tab
+locks the fields then. Until the policy carries a contact, voters see the
+contact in the portal only as "From the election's settings", never as the
+policy's.
+
+### Problems that the hubs list
+
+A hub lists the problems it has recorded for a policy at
+`GET <hub>/problems?policy=sha256:<hex>`, which answers
+`{hub, problems: [{id, kind, subject, policy, logged_at, entry}], more}`. Each
+row points to an evidence file that anyone can check, and the hub's site opens
+it at `<hub-explorer url>#policy=<sha256:hex>&problem=<evidence hex>`. The
+voting portal's **Ballot status** dialog and the admin Transparency tab ask
+every hub of the sealed policy once (two pages of 50 rows at most) and show a
+notice when any of them lists a problem. Each app keeps the call in one small
+module (`services/vitrine/hubProblems.ts` in the voting portal,
+`services/HubProblems.ts` in the admin portal), because the SDK has no client
+for it yet. The notice names each kind in plain words ("Two versions of the
+record" for `split-view`, "A promised entry is missing" for `broken-promise`,
+"An entry breaks the rules" for `bad-entry`, `hub-entry`, `time-regression` and
+`bad-checkpoint`, "Two policies" for `policy-equivocation` and "Code that isn't
+logged" for `unlogged-code`), never by its code, and any other kind as "A problem
+recorded by a hub". It names the hubs that list the problem and links to the
+proof on the hub's site, and it says that it is a convenience of the portal: it
+works only while the portal tells the truth, and the hubs' emails, sites and the
+extension work even if it does not. A hub that does not answer is never shown as
+a problem, and availability reports (a log or hub that stopped answering) are
+not hub evidence and are never read.
 
 ## Environment variables
 
