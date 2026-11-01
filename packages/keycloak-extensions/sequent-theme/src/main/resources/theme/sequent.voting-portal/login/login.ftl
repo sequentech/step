@@ -18,6 +18,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#assign credentialFieldError = messagesPerField.existsError('username','password')>
 <#assign structuredCredentialHasError = structuredCredential && credentialFieldError>
 <#assign honorRequired = honorUserProfileRequired??>
+<#--  The subtitle and username hint are empty in the theme bundles, so they only appear when a realm
+      sets them in its localization overrides. msg() echoes the key back when nothing defines it.  -->
+<#function optionalMsg key>
+    <#local text = msg(key)>
+    <#return (text == key)?then("", text)>
+</#function>
+<#assign loginSubtitle = optionalMsg("loginAccountSubtitle")>
+<#assign usernameHint = optionalMsg("loginUsernameHint")>
 <#--  Required markers only earn their place when some field is optional: the credential is
       always mandatory, so marking everything would tell the voter nothing. An attribute with no
       User Profile declaration stays mandatory in the authenticator (see
@@ -85,6 +93,9 @@ SPDX-License-Identifier: AGPL-3.0-only
         <#assign usernamePrefilled = (login.username!'')?has_content && !login.rememberMe??>
         <#assign usernameReadOnly = usernamePrefilled
             && (realm.attributes['loginHintUsernamePolicy']!'EDITABLE') == 'READ_ONLY'>
+        <#if loginSubtitle?has_content>
+            <p id="kc-page-subtitle">${loginSubtitle}</p>
+        </#if>
         <div id="kc-form">
           <div id="kc-form-wrapper">
             <#if realm.password>
@@ -111,7 +122,12 @@ SPDX-License-Identifier: AGPL-3.0-only
                                 <input id="username" class="${properties.kcInputClass!}" name="username" value="${(login.username!'')}" type="text" autofocus autocomplete="<#if structuredCredential>username<#else>off</#if>"
                                        <#if usernameReadOnly>readonly</#if>
                                        <#if credentialFieldError>aria-invalid="true"</#if>
+                                       <#if usernameHint?has_content>aria-describedby="username-hint"</#if>
                                 />
+
+                                <#if usernameHint?has_content>
+                                    <div id="username-hint" class="${properties.kcInputHelperTextAfterClass!}">${usernameHint}</div>
+                                </#if>
 
                                 <#if credentialFieldError && !structuredCredential>
                                     <span id="input-error" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
