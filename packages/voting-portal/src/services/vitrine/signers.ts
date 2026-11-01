@@ -33,7 +33,7 @@ export enum ESignerState {
 
 /** The party that provides the voting platform, from the policy's `platform`
  * line. The pinned verifier does not parse that line yet, so none is named;
- * when it does, this is the one place to read it from. */
+ * when it does (as `Policy.platform`, a string), return that here. */
 export const platformOf = (_policy: Policy): string | undefined => undefined
 
 /** Whether the election authority (the policy's operator) or the platform

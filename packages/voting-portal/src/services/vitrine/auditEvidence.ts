@@ -73,8 +73,10 @@ export interface IAuthorityContact {
 /** The election authority's contact for a voter whose audit does not match:
  * the pinned policy's `contact` lines, or else the election's support contact
  * from its settings. The pinned verifier does not parse `contact` lines yet
- * and the portal has no support contact to read, so there is none; this is
- * the one place to read them from when there is. */
+ * and the portal has no support contact to read, so there is none. When the
+ * verifier exposes `Policy.contact` (`{name?, email?, phone?, url?}`), return
+ * `{...policy.contact, source: EContactSource.POLICY}` here when it names an
+ * office, an address or a phone; the settings fallback goes after it. */
 export const authorityContact = (_policy: Policy | undefined): IAuthorityContact | undefined =>
     undefined
 
