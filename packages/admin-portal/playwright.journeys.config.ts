@@ -8,9 +8,10 @@ const executablePath = process.env.CHROMIUM_EXECUTABLE_PATH
 
 export default defineConfig({
     testDir: "./test/journeys",
-    // Keep local and CI memory bounded; CI also splits this suite into shards.
+    // Keep local memory bounded; CI runners have four CPUs, and CI also splits
+    // this suite into shards.
     fullyParallel: true,
-    workers: 2,
+    workers: process.env.CI ? 3 : 2,
     // The CI shards run with V8 coverage on two-core runners, where a journey takes
     // about 13s and the slower ones past 40s; the budgets leave room for that.
     timeout: 90000,

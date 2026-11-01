@@ -50,7 +50,9 @@ export const createStorybookTests = (configDir: URL) =>
                     ],
                     test: {
                         name: "storybook",
-                        maxWorkers: 1,
+                        // CI runners have four CPUs; one worker left three idle
+                        // while each story file loaded (sequentech/meta#14622).
+                        maxWorkers: process.env.CI ? 3 : 1,
                         testTimeout: 15000,
                         clearMocks: true,
                         setupFiles: [

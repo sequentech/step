@@ -35,7 +35,9 @@ jobs:
       # the base commit itself.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          # History for the merge base, without the blobs of every revision.
           fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
       - name: Plan against the actual PR merge base
         id: plan
