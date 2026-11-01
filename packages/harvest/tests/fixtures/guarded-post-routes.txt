@@ -4,6 +4,8 @@
 # Kept static: removing a guard must not silently remove its test case.
 # /messaging/callbacks takes the webhook component's relay signature instead
 # of claims, and refuses any request without it the same way.
+# /locate-ballot also answers a request with no token, for published audited
+# ballots only; a token that doesn't verify is refused like everywhere else.
 /acknowledge-support-materials
 /applications/support-reference
 /audit-ballot

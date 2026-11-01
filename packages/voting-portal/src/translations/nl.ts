@@ -482,6 +482,10 @@ const dutchTranslation: TranslationType = {
                 opened: {
                     title: "Geopend in het openbare register",
                     text: "De portal publiceerde het geheim waarmee hij het versleutelde. Het register markeert het stembiljet als Geauditeerd.",
+                    publishingText: "De portal publiceert het geheim waarmee hij het versleutelde.",
+                    failedTitle: "Niet geopend in het openbare register",
+                    failedText:
+                        "De portal kon het geheim waarmee hij het versleutelde niet publiceren, dus geen hub kan dit stembiljet nog controleren. Het stembiljet blijft geauditeerd en wordt niet geteld. Probeer het opnieuw, of stem opnieuw.",
                 },
                 compare: {
                     title: "Vergelijk het op een hub",

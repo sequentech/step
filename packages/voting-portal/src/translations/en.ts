@@ -597,6 +597,10 @@ const englishTranslation = {
                 opened: {
                     title: "Opened in the public record",
                     text: "The portal published the secret it encrypted with. The record marks the ballot Audited.",
+                    publishingText: "The portal is publishing the secret it encrypted with.",
+                    failedTitle: "Not opened in the public record",
+                    failedText:
+                        "The portal couldn't publish the secret it encrypted with, so no hub can check this ballot yet. The ballot stays audited and won't be counted. Try again, or vote again.",
                 },
                 compare: {
                     title: "Compare it on a hub",

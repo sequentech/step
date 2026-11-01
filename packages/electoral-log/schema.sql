@@ -166,6 +166,12 @@ CREATE TABLE IF NOT EXISTS ballot_box_received (
 ) PARTITION BY LIST (election_event_id);
 -- When the voter audited the ballot instead of casting it: the time of its `audited` entry.
 ALTER TABLE ballot_box_received ADD COLUMN IF NOT EXISTS audited_at TIMESTAMPTZ;
+-- What the voter's portal published once the ballot was audited: the ballot with the
+-- plaintext and randomness of its ciphertexts, checked against the stored ballot, and
+-- the ballot's Tracking ID, by which anyone may read it. Only an audited ballot has
+-- them; once set, they never change.
+ALTER TABLE ballot_box_received ADD COLUMN IF NOT EXISTS audited_content TEXT;
+ALTER TABLE ballot_box_received ADD COLUMN IF NOT EXISTS audited_tracking_id TEXT;
 -- Seals of ballot boxes, the ballots of one election's area. A box with a seal, sealed
 -- or failed, takes no more writes. A seal is stored with its record on the event's board
 -- in one transaction, and never changes.
@@ -435,6 +441,9 @@ CREATE INDEX IF NOT EXISTS ballot_box_received_log_pseudonym
     ON ballot_box_received (election_event_id, area_id, voter_id text_pattern_ops);
 CREATE INDEX IF NOT EXISTS ballot_box_received_hash
     ON ballot_box_received (election_event_id, ballot_hash);
+CREATE INDEX IF NOT EXISTS ballot_box_received_published
+    ON ballot_box_received (election_event_id, election_id, audited_tracking_id)
+    WHERE audited_content IS NOT NULL;
 
 CREATE OR REPLACE FUNCTION sequent_backend.immutable_ballot_identity() RETURNS trigger
 LANGUAGE plpgsql AS $$

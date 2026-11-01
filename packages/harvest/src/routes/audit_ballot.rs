@@ -30,7 +30,9 @@ fn unavailable(_: impl std::fmt::Display) -> ApiError {
 }
 
 /// Acknowledgement is sent only after audit wins the atomic race with cast.
-/// The browser must obtain it before exposing the auditable plaintext.
+/// The browser must obtain it before exposing the auditable plaintext: then it
+/// audits again with the auditable ballot, which is published for anyone to
+/// decode by the ballot's Tracking ID if it is the stored ballot's.
 #[tracing::instrument(skip_all)]
 #[post("/audit-ballot", format = "json", data = "<body>")]
 pub async fn audit_ballot(
@@ -75,17 +77,18 @@ pub async fn audit_ballot(
         windmill::services::electoral_log_board::get_event_store(event_id)
             .await
             .map_err(unavailable)?;
-    let (outcome, vitrine) = windmill::services::receive_ballot::audit_ballot_for_voter(
-        &store,
-        &mut tx,
-        &claims.hasura_claims.tenant_id,
-        &event,
-        &area,
-        &claims.hasura_claims.user_id,
-        &input,
-    )
-    .await
-    .map_err(unavailable)?;
+    let (outcome, vitrine, publication) =
+        windmill::services::receive_ballot::audit_ballot_for_voter(
+            &store,
+            &mut tx,
+            &claims.hasura_claims.tenant_id,
+            &event,
+            &area,
+            &claims.hasura_claims.user_id,
+            &input,
+        )
+        .await
+        .map_err(unavailable)?;
     match outcome {
         AuditOutcome::Audited => {
             let vitrine = receipts.cast(vitrine).await;
@@ -93,6 +96,7 @@ pub async fn audit_ballot(
                 audit: AuditBallotOutput {
                     ballot_id: input.ballot_id,
                     status: AuditBallotStatus::Audited,
+                    publication,
                 },
                 vitrine,
             }))

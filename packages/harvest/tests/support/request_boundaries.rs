@@ -32,6 +32,12 @@ const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
 const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 221;
+/// Guarded routes that also answer a request with no token, and what for.
+/// Each refuses a token that doesn't verify.
+const PUBLIC_WITHOUT_TOKEN: &[&str] = &[
+    // Published audited ballots, which a hub's ballot verifier opens.
+    "/locate-ballot",
+];
 
 const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
@@ -367,7 +373,17 @@ async fn sensitive_routes_require_authorization_before_reading_the_body_or_conta
         "update authorization cases when production POST routes change"
     );
     for path in paths {
-        for authorization in [None, Some("Bearer fixture.e30.fixture")] {
+        // Anyone may look up a published audited ballot with no token.
+        let tokenless: &[Option<&str>] = if PUBLIC_WITHOUT_TOKEN.contains(&path)
+        {
+            &[]
+        } else {
+            &[None]
+        };
+        for &authorization in tokenless
+            .iter()
+            .chain(&[Some("Bearer fixture.e30.fixture")])
+        {
             let mut request = client
                 .post(route_permissions::concrete(path))
                 .header(ContentType::JSON)

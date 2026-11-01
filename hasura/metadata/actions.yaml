@@ -2232,7 +2232,8 @@ actions:
               version: 2
       permissions:
           - role: user
-      comment: Look up one of the voter's own cast ballots while checks are open
+          - role: unauthorized
+      comment: Look up one of the voter's own cast ballots, or anyone a published audited ballot, while checks are open
     - name: manage_election_dates
       definition:
           kind: synchronous

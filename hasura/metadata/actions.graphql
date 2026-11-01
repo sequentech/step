@@ -3407,11 +3407,16 @@ type Query {
 }
 
 type Mutation {
-    audit_ballot(election_id: uuid!, ballot_id: String!): AuditBallotOutput!
+    audit_ballot(
+        election_id: uuid!
+        ballot_id: String!
+        auditable_ballot: String
+    ): AuditBallotOutput!
 }
 
 type AuditBallotOutput {
     ballot_id: String!
     status: String!
+    publication: String
     vitrine: VitrineCast
 }

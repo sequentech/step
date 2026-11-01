@@ -341,7 +341,18 @@ async fn limit_search(
     claims: &JwtClaims,
     store: &PostgresStore,
 ) -> Result<(), ApiError> {
-    let key = crate::services::ballot_log_cache::search_session(claims);
+    limit_session(
+        &crate::services::ballot_log_cache::search_session(claims),
+        store,
+    )
+    .await
+}
+
+/// One search every 200 milliseconds per session key, shared by every Harvest.
+pub(crate) async fn limit_session(
+    key: &[u8],
+    store: &PostgresStore,
+) -> Result<(), ApiError> {
     let client = store.client().await.map_err(unavailable)?;
     let accepted = client.query_opt(
         "WITH expired AS (

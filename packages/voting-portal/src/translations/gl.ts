@@ -480,6 +480,10 @@ const galegoTranslation: TranslationType = {
                 opened: {
                     title: "Aberta no rexistro público",
                     text: "O portal publicou o segredo co que a cifrou. O rexistro marca a papeleta como Auditada.",
+                    publishingText: "O portal está a publicar o segredo co que a cifrou.",
+                    failedTitle: "Non aberta no rexistro público",
+                    failedText:
+                        "O portal non puido publicar o segredo co que a cifrou, así que ningún nodo pode comprobar aínda esta papeleta. A papeleta segue auditada e non se contará. Téntao de novo ou volve votar.",
                 },
                 compare: {
                     title: "Compárala nun nodo",

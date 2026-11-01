@@ -17,6 +17,7 @@ import {Link as RouterLink} from "react-router-dom"
 import {faAngleRight, faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import type {Policy} from "@vitrine/verify"
 import {Icon, IconButton, theme} from "@sequentech/ui-essentials"
+import {EAuditPublishState} from "../../hooks/useAuditBallot"
 import {groupBallotId} from "../../services/vitrine/ballotId"
 import type {IReceiptView} from "../../services/vitrine/castReceipt"
 import {auditedBallotLink, auditHubs, shuffled} from "../../services/vitrine/hubUpdates"
@@ -36,6 +37,8 @@ const COLORS = {
     now: "#F7F9FE",
     tile: "#CBD3E3",
     mark: "#E9EAF6",
+    failed: "#B42318",
+    failedNow: "#FEF3F2",
 } as const
 
 const PHONE = theme.breakpoints.down("sm")
@@ -206,38 +209,61 @@ const whenSx = {
 /** What spans the step's text and time, under them; the whole row on a phone. */
 const underSx = {gridColumn: "2 / -1", [PHONE]: {gridColumn: "1 / -1"}} as const
 
+enum EStepState {
+    DONE = "done",
+    CURRENT = "current",
+    FAILED = "failed",
+    /** Not reached yet. */
+    NEXT = "next",
+}
+
+const numberStateSx = {
+    [EStepState.DONE]: {bgcolor: COLORS.navy, color: "#fff"},
+    [EStepState.CURRENT]: {
+        bgcolor: "#fff",
+        border: `1.5px solid ${COLORS.navy}`,
+        color: COLORS.navy,
+    },
+    [EStepState.FAILED]: {
+        bgcolor: "#fff",
+        border: `1.5px solid ${COLORS.failed}`,
+        color: COLORS.failed,
+    },
+    [EStepState.NEXT]: {bgcolor: "#fff", border: `1.5px solid ${COLORS.tile}`, color: COLORS.quiet},
+} as const
+
+const rowStateSx = {
+    [EStepState.DONE]: {},
+    [EStepState.CURRENT]: {bgcolor: COLORS.now},
+    [EStepState.FAILED]: {bgcolor: COLORS.failedNow},
+    [EStepState.NEXT]: {},
+} as const
+
 interface IStepProps {
     className: string
     title: string
     text: string
     when?: string
-    current?: boolean
+    state: EStepState
     number: number
     children?: React.ReactNode
 }
 
-const Step: React.FC<IStepProps> = ({className, title, text, when, current, number, children}) => (
+const Step: React.FC<IStepProps> = ({className, title, text, when, state, number, children}) => (
     <Box
         component="li"
-        className={`audit-step ${className}`}
-        aria-current={current ? "step" : undefined}
-        sx={[stepSx, current ? {bgcolor: COLORS.now} : {}, {"&:first-of-type": {borderTop: 0}}]}
+        className={`audit-step ${className} audit-step-${state}`}
+        aria-current={
+            state === EStepState.CURRENT || state === EStepState.FAILED ? "step" : undefined
+        }
+        sx={[stepSx, rowStateSx[state], {"&:first-of-type": {borderTop: 0}}]}
     >
         <Box
             component="span"
             className="audit-step-number"
-            sx={
-                current
-                    ? {
-                          ...numberSx,
-                          bgcolor: "#fff",
-                          border: `1.5px solid ${COLORS.navy}`,
-                          color: COLORS.navy,
-                      }
-                    : {...numberSx, bgcolor: COLORS.navy, color: "#fff"}
-            }
+            sx={{...numberSx, ...numberStateSx[state]}}
         >
-            {current ? number : <Done />}
+            {state === EStepState.DONE ? <Done /> : state === EStepState.FAILED ? "!" : number}
         </Box>
         <Box className="audit-step-text">
             <Box
@@ -359,6 +385,11 @@ export interface IAuditCheckProps {
     electionName?: string
     /** The check of the ballot's `audited` entry, once the log answered. */
     view?: IReceiptView
+    /** Whether the audited ballot's secret is in the public record; none when
+     * this portal publishes nothing. */
+    publication?: EAuditPublishState
+    /** Publishes it again, after a failure. */
+    onPublishRetry?: () => void
     /** The election's policy: the view's, else the one the event pins. */
     policy?: Policy
     /** When the ballot box received the encrypted ballot, ISO 8601. */
@@ -386,6 +417,8 @@ export const AuditCheck: React.FC<IAuditCheckProps> = ({
     electionId,
     electionName,
     view,
+    publication,
+    onPublishRetry,
     policy,
     receivedAt,
     auditedAt,
@@ -435,6 +468,8 @@ export const AuditCheck: React.FC<IAuditCheckProps> = ({
     ]
         .filter(Boolean)
         .join(" · ")
+    const published = publication === undefined || publication === EAuditPublishState.PUBLISHED
+    const failed = publication === EAuditPublishState.FAILED
 
     return (
         <Box className="audit-check">
@@ -514,23 +549,49 @@ export const AuditCheck: React.FC<IAuditCheckProps> = ({
                     number={1}
                     title={t(`${KEYS}.encrypted.title`)}
                     text={t(`${KEYS}.encrypted.text`)}
+                    state={EStepState.DONE}
                     when={Number.isFinite(receivedSeconds) ? clockMinutes(receivedSeconds) : ""}
                 />
                 <Step
                     className="audit-step-opened"
                     number={2}
-                    title={t(`${KEYS}.opened.title`)}
-                    text={t(`${KEYS}.opened.text`)}
-                    when={opened}
-                />
+                    state={
+                        published
+                            ? EStepState.DONE
+                            : failed
+                              ? EStepState.FAILED
+                              : EStepState.CURRENT
+                    }
+                    title={t(failed ? `${KEYS}.opened.failedTitle` : `${KEYS}.opened.title`)}
+                    text={t(
+                        published
+                            ? `${KEYS}.opened.text`
+                            : failed
+                              ? `${KEYS}.opened.failedText`
+                              : `${KEYS}.opened.publishingText`
+                    )}
+                    when={published ? opened : ""}
+                >
+                    {failed && onPublishRetry ? (
+                        <Box className="audit-publish-retry" sx={{...underSx, mt: "12px"}}>
+                            <Button
+                                className="audit-publish-retry-button"
+                                variant="secondary"
+                                onClick={onPublishRetry}
+                            >
+                                {t("ballotPrivacy.retry")}
+                            </Button>
+                        </Box>
+                    ) : null}
+                </Step>
                 <Step
                     className="audit-step-compare"
                     number={3}
-                    current
+                    state={published ? EStepState.CURRENT : EStepState.NEXT}
                     title={t(`${KEYS}.compare.title`)}
                     text={t(`${KEYS}.compare.text`)}
                 >
-                    {tiles.length > 0 ? (
+                    {!published ? null : tiles.length > 0 ? (
                         <Box
                             component="ul"
                             className="audit-hubs"
@@ -576,7 +637,7 @@ export const AuditCheck: React.FC<IAuditCheckProps> = ({
                             </Box>
                         </Box>
                     )}
-                    {footnote ? (
+                    {published && footnote ? (
                         <Box
                             component="p"
                             className="audit-hubs-foot"
@@ -591,24 +652,26 @@ export const AuditCheck: React.FC<IAuditCheckProps> = ({
                             {t(footnote)}
                         </Box>
                     ) : null}
-                    <Box
-                        className="audit-tip"
-                        sx={{
-                            ...underSx,
-                            display: "flex",
-                            gap: "10px",
-                            alignItems: "flex-start",
-                            mt: "12px",
-                            fontSize: "13px",
-                            lineHeight: "19px",
-                            color: COLORS.tip,
-                        }}
-                    >
-                        <PhoneIcon />
-                        <span className="audit-tip-text">
-                            {t(hubs.length > 0 ? `${KEYS}.tip` : `${KEYS}.tipTracker`)}
-                        </span>
-                    </Box>
+                    {!published ? null : (
+                        <Box
+                            className="audit-tip"
+                            sx={{
+                                ...underSx,
+                                display: "flex",
+                                gap: "10px",
+                                alignItems: "flex-start",
+                                mt: "12px",
+                                fontSize: "13px",
+                                lineHeight: "19px",
+                                color: COLORS.tip,
+                            }}
+                        >
+                            <PhoneIcon />
+                            <span className="audit-tip-text">
+                                {t(hubs.length > 0 ? `${KEYS}.tip` : `${KEYS}.tipTracker`)}
+                            </span>
+                        </Box>
+                    )}
                 </Step>
             </Box>
 

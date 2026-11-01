@@ -204,7 +204,14 @@ describe("an event that keeps a transparency log", () => {
             })
         )
         mockAudit.mockResolvedValue({
-            data: {audit_ballot: {ballot_id: "FTBE-MHRX", status: "audited", vitrine: null}},
+            data: {
+                audit_ballot: {
+                    ballot_id: "FTBE-MHRX",
+                    status: "audited",
+                    publication: "published",
+                    vitrine: null,
+                },
+            },
         })
     })
     const logs = (check: EStageCheck) =>
@@ -371,6 +378,108 @@ describe("an event that keeps a transparency log", () => {
         expect(container.querySelector(".audit-check")).not.toBeNull()
     })
 
+    const publishCall = () =>
+        mockAudit.mock.calls.find(
+            ([options]) => options.variables.auditableBallot !== undefined
+        )?.[0].variables
+
+    test("publishes the auditable ballot only once the box and the log hold the audit", async () => {
+        logs(EStageCheck.CHECKED)
+        const {container} = draw()
+        await waitFor(() => expect(mockAudit).toHaveBeenCalledTimes(2))
+        expect(mockAudit.mock.calls[0][0].variables).toEqual({
+            electionId: "election",
+            ballotId: "FTBE-MHRX",
+        })
+        const published = publishCall()
+        expect(published).toMatchObject({electionId: "election", ballotId: "FTBE-MHRX"})
+        expect(JSON.parse(published.auditableBallot)).toMatchObject({
+            ballot_hash: "ballot-hash",
+            voter_signing_pk: "voter-key",
+            plaintext: "private-choice-and-randomness",
+        })
+        // The first call ran the log check; the publish comes after it.
+        expect(mockRunCastReceipt.mock.invocationCallOrder[0]).toBeLessThan(
+            mockAudit.mock.invocationCallOrder[1]
+        )
+        await waitFor(() =>
+            expect(container.querySelector(".audit-step-opened")).toHaveClass("audit-step-done")
+        )
+        expect(container.querySelector(".audit-step-compare")).toHaveAttribute(
+            "aria-current",
+            "step"
+        )
+    })
+
+    test("publishes nothing while the log holds no receipt for the audit", async () => {
+        logs(EStageCheck.FAILED)
+        draw()
+        expect(await screen.findByText("auditScreen.auditUnavailable")).toBeVisible()
+        expect(mockAudit).toHaveBeenCalledTimes(1)
+        expect(publishCall()).toBeUndefined()
+    })
+
+    test("says plainly when the secret isn't published, and keeps the ballot audited", async () => {
+        logs(EStageCheck.CHECKED)
+        mockAudit
+            .mockResolvedValueOnce({
+                data: {audit_ballot: {ballot_id: "FTBE-MHRX", status: "audited", vitrine: null}},
+            })
+            .mockRejectedValueOnce(new Error("Network error"))
+        const {container} = draw()
+        await waitFor(() =>
+            expect(container.querySelector(".audit-step-opened")).toHaveClass("audit-step-failed")
+        )
+        expect(screen.getByText("auditScreen.check.opened.failedTitle")).toBeVisible()
+        expect(screen.getByText("auditScreen.check.opened.failedText")).toBeVisible()
+        expect(screen.queryByText("auditScreen.check.opened.title")).not.toBeInTheDocument()
+        // Nothing to compare on a hub yet; the voter can still vote again.
+        expect(tiles(container)).toHaveLength(0)
+        expect(container.querySelector(".audit-tracker")).toBeNull()
+        expect(container.querySelector(".audit-step-compare")).toHaveClass("audit-step-next")
+        expect(screen.getByRole("link", {name: /auditScreen.voteAgain/})).toBeVisible()
+        expect(mockForgetKey).toHaveBeenCalledWith("election")
+        expect(store.getState().receivedBallots.election).toBeUndefined()
+    })
+
+    test("counts a refused auditable ballot as not published", async () => {
+        logs(EStageCheck.CHECKED)
+        mockAudit.mockResolvedValue({
+            data: {
+                audit_ballot: {
+                    ballot_id: "FTBE-MHRX",
+                    status: "audited",
+                    publication: "not-published",
+                    vitrine: null,
+                },
+            },
+        })
+        const {container} = draw()
+        await waitFor(() =>
+            expect(container.querySelector(".audit-step-opened")).toHaveClass("audit-step-failed")
+        )
+    })
+
+    test("a retry publishes the same ballot again", async () => {
+        logs(EStageCheck.CHECKED)
+        mockAudit
+            .mockResolvedValueOnce({
+                data: {audit_ballot: {ballot_id: "FTBE-MHRX", status: "audited", vitrine: null}},
+            })
+            .mockRejectedValueOnce(new Error("Network error"))
+        const {container} = draw()
+        const retry = await screen.findByRole("button", {name: "ballotPrivacy.retry"})
+        await act(async () => retry.click())
+        await waitFor(() =>
+            expect(container.querySelector(".audit-step-opened")).toHaveClass("audit-step-done")
+        )
+        expect(mockAudit).toHaveBeenCalledTimes(3)
+        expect(mockAudit.mock.calls[2][0].variables).toEqual(mockAudit.mock.calls[1][0].variables)
+        expect(tiles(container).length + container.querySelectorAll(".audit-tracker").length).toBe(
+            1
+        )
+    })
+
     test("a retry asks the log again", async () => {
         logs(EStageCheck.FAILED)
         const {container} = draw()
@@ -387,6 +496,8 @@ test("an event with no transparency log asks the log nothing and shows no tag", 
     const {container} = draw()
     await waitFor(() => expect(mockForgetKey).toHaveBeenCalledWith("election"))
     expect(mockRunCastReceipt).not.toHaveBeenCalled()
+    // Without a public record the plaintext never leaves the device.
+    expect(mockAudit).toHaveBeenCalledTimes(1)
     // No public record or hub to check on: the download is the way to audit.
     expect(container.querySelector(".audit-check")).toBeNull()
     expect(screen.getByText(/private-choice-and-randomness/)).toBeVisible()
