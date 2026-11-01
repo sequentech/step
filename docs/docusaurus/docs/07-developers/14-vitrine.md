@@ -341,6 +341,25 @@ viewer that expands, copies and saves it. Step does not publish audited
 ballots; when the record that the tracker finds for a Tracking ID is an audited
 ballot, the tracker checks it in the voter's browser and shows its selections.
 
+### A hub's ballot verifier
+
+A hub whose policy line `hub-ballot-verifier <name> <url>` names a ballot
+verifier runs Step's ballot verifier app there. The voting portal links an
+audited ballot into it as
+`<url>tenant/<tenant>/event/<event>/election/<election>/audited#id=<full Tracking ID>&policy=sha256:<hex>`
+(Windmill builds the same link with `hub_sites::audited_ballot_link`). The
+fragment never reaches the hub's server. The page needs no login or upload. It
+uses the election's policy only if it is pinned or in the event's public
+config with the link's ID. It finds the ballot in a bucket of the ballots log,
+proves its `audited` entry with the log's receipt, and reads the events log for
+successor policies. Then it takes the ballot and the secret the portal
+published from the public ballot locator, and checks that they give the
+Tracking ID and reproduce the ciphertext. Only then does it decode the ballot
+in the browser, for the voter to compare with what they chose. It never
+fetches or decodes a cast ballot. The verifier's `global-settings.json` can
+name the hub (`HUB_NAME`, its name in the policy) for the page's header, and
+the voting portal (`VOTING_PORTAL_URL`) for "Back to the voting site".
+
 ### Updates from the policy's hubs
 
 A hub that the policy gives a site (`hub-explorer <name> <url>`) can tell a
@@ -438,7 +457,7 @@ vkeys: Ed25519 for authorities, auditors, monitors and hubs, and
 | `[[groups]]` | `name`, `threshold`, `members` | Groups of witnesses and groups, for the quorum. `threshold` is a number, `any` or `all`. Members are defined before the group and belong to one group only. |
 | `[[monitors]]` | `name`, `vkey`, `url`, `party`, `explorer` | The policy's monitors, which check the logs and collect evidence. `explorer` is optional: the URL of an explorer page the monitor publishes; the policy gets a `monitor-explorer <name> <url>` line. |
 | `[[mirrors]]` | `url`, `party`, `logs` | Mirrors of the logs' tiles. `url` has `{path}` where the log's path on the sidecar goes; `party` defaults to the operator; `logs` (`ballots`, `events`) defaults to both. A public event needs a `ballots` mirror that the operator doesn't run. |
-| `[[hubs]]` | `name`, `vkey`, `url`, `operator`, `explorer`, `role`, `witnesses`, `groups`, `quorum` | Anchor hubs for both public and private events. `explorer` is optional: the URL of an explorer page the hub publishes; the policy gets a `hub-explorer <name> <url>` line. `role` is `app` (the default: the logs anchor in it) or `bootstrap` (it stands in for the browser layer). `witnesses` and `groups` have the shapes above. |
+| `[[hubs]]` | `name`, `vkey`, `url`, `operator`, `explorer`, `ballot_verifier`, `role`, `witnesses`, `groups`, `quorum` | Anchor hubs for both public and private events. `explorer` is optional: the URL of an explorer page the hub publishes; the policy gets a `hub-explorer <name> <url>` line. `ballot_verifier` is optional: the base URL of the ballot verifier the hub runs, where a voter checks an audited ballot (https, or http on localhost); the policy gets a `hub-ballot-verifier <name> <url>` line. `role` is `app` (the default: the logs anchor in it) or `bootstrap` (it stands in for the browser layer). `witnesses` and `groups` have the shapes above. |
 
 Harvest also checks that:
 
