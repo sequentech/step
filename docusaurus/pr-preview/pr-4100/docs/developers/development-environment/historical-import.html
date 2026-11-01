@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Historical SQL and workbook import | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4100/docs/developers/development-environment/historical-import"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Historical SQL and workbook import | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4100/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4100/docs/developers/development-environment/historical-import"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4100/docs/developers/development-environment/historical-import" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4100/docs/developers/development-environment/historical-import" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Historical SQL and workbook import","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4100/docs/developers/development-environment/historical-import"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4100/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4100/assets/js/runtime~main.8d4a48ab.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4100/assets/js/runtime~main.f7eb0993.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4100/assets/js/main.0b0b6db5.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -100,7 +100,8 @@ renames some tables and columns. It is recognized by its table names, mapped ont
 the names above and converted the same way. The summary and provenance record
 which schema was read (<code>sourceSchema</code>: <code>legacy</code> or <code>post-qualification</code>), and
 every problem names the table and column as the dump spells them. A dump that
-mixes both sets of names is refused.</p>
+mixes both sets of table names is refused, as is a table containing both names
+of a renamed column, even when their values agree.</p>
 <table><thead><tr><th>Post-qualification name</th><th>Read as</th></tr></thead><tbody><tr><td><code>candidates</code></td><td><code>candidate</code></td></tr><tr><td><code>contests</code></td><td><code>contest</code></td></tr><tr><td><code>seats</code></td><td><code>seat</code></td></tr><tr><td><code>seats.NUM_SEAT</code></td><td><code>seat.ELIGIBLEAMOUNT</code></td></tr><tr><td><code>seats.PROC_CCS_CODE</code></td><td><code>seat.CCS_CODE</code></td></tr><tr><td><code>political_party</code></td><td><code>party_list</code></td></tr><tr><td><code>canvass_centers</code></td><td><code>canvass_center</code></td></tr><tr><td><code>trans_routes</code></td><td><code>trans_route</code></td></tr><tr><td><code>trans_routes.TYPE</code></td><td><code>trans_route.MACHINE_TYPE</code></td></tr><tr><td><code>pop.VOTING_MODE</code></td><td><code>pop.MACHINE_TYPE</code></td></tr><tr><td><code>jurisdictions</code></td><td><code>geographical</code></td></tr></tbody></table>
 <p><code>trans_servers</code>, new in that schema, is accepted and not read. Its voters carry a
 mail country and embassy instead of a country, embassy and precinct; see the
@@ -120,7 +121,9 @@ what the dump does not hold, and the rest is derived from the dump:</p>
 <li class=""><strong>Elections</strong>: one per polling center that a <code>pop</code> row places voters in,
 named and aliased by its <code>POLLING_PLACE</code>.</li>
 <li class=""><strong>Areas</strong>: one per precinct cluster (<code>pop.CLUSTERPOLLCENTER</code>), named by the
-historical name rule below and described by the cluster&#x27;s own polling place.</li>
+historical name rule below and described by the cluster&#x27;s own polling place.
+Without its own polling center, every precinct row of that cluster must refer
+to the same post; conflicting posts are refused.</li>
 <li class=""><strong>Event</strong>: <code>supplement.event</code> — <code>name</code> and <code>electionEventId</code> are required;
 <code>description</code>, <code>logoUrl</code> and <code>css</code> are optional.</li>
 <li class=""><strong>Schedules</strong>: <code>supplement.schedules</code>, each a <code>type</code> and a <code>date</code>. A schedule
