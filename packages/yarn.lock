@@ -6478,15 +6478,15 @@
 
 "@vitrine/ui@file:vendor-npm/vitrine-ui.tgz":
   version "0.1.0"
-  uid "182ba712af64745e2f5ac91989805ff18e436305"
-  resolved "file:vendor-npm/vitrine-ui.tgz#182ba712af64745e2f5ac91989805ff18e436305"
+  uid fc96e1baddd38e4be0394ae82237a54ab4f49684
+  resolved "file:vendor-npm/vitrine-ui.tgz#fc96e1baddd38e4be0394ae82237a54ab4f49684"
   dependencies:
     "@fluent/bundle" "^0.19.1"
     "@vitrine/verify" "0.1.0"
 
 "@vitrine/verify@0.1.0", "@vitrine/verify@file:./vendor-npm/vitrine-verify.tgz", "@vitrine/verify@file:vendor-npm/vitrine-verify.tgz":
   version "0.1.0"
-  resolved "file:./vendor-npm/vitrine-verify.tgz#6cf4337b3f127d2a2ed5bef73a466c4350df7e4c"
+  resolved "file:./vendor-npm/vitrine-verify.tgz#b43d91e200ed67955ba7b2bed64a36b7e380f75d"
   dependencies:
     "@noble/curves" "^2.4.0"
     "@noble/hashes" "^2.4.0"
