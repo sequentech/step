@@ -43,10 +43,12 @@ jobs:
         # its postinstall steps. Otherwise it installs its own versions; the
         # comparison still uses the head's locked Jest/Istanbul instrumenter.
         run: |
+          # Tracked files only: the head's postinstall has already copied
+          # packages (TinyMCE, with its package.json) into public/.
           inputs() {
-            (cd "$1" && find packages -path '*/node_modules' -prune -o \
-              \( -name package.json -o -name yarn.lock -o -path 'packages/*/rust/*.tgz' \) -type f -print \
-              | LC_ALL=C sort | xargs sha256sum)
+            git -C "$1" ls-files -z -- packages/yarn.lock \
+              ':(glob)packages/**/package.json' ':(glob)packages/*/rust/*.tgz' \
+              | (cd "$1" && xargs -0 sha256sum)
           }
           if [ "$(inputs .)" = "$(inputs base)" ]; then
             echo 'Base dependency manifests match the head: copying its installed tree.'
