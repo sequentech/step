@@ -59,7 +59,7 @@ const Arrow: React.FC = () => (
         focusable="false"
         style={{flex: "none"}}
     >
-        <path d="M9 5l7 7-7 7" />
+        <path className="short-id-arrow-path" d="M9 5l7 7-7 7" />
     </svg>
 )
 
@@ -75,7 +75,10 @@ const IdStart: React.FC<{match: IShortIdMatch}> = ({match}) => (
             overflowWrap: "normal",
         }}
     >
-        <b style={{color: PALETTE.text, fontWeight: 700}}>{shortBallotId(match.trackingId)}</b>-
+        <b className="short-id-start-groups" style={{color: PALETTE.text, fontWeight: 700}}>
+            {shortBallotId(match.trackingId)}
+        </b>
+        -
         <mark
             className="short-id-third-group"
             style={{
@@ -171,11 +174,17 @@ export const ShortIdMatches: React.FC<IShortIdMatchesProps> = ({
                         focusable="false"
                         style={{overflow: "visible", flex: "none"}}
                     >
-                        <path d="M1.5 12.75l4.5 4.5L16.25 7" />
-                        <path d="M10.75 15.75l1.5 1.5L22.5 7" />
+                        <path
+                            className="short-id-device-check-one"
+                            d="M1.5 12.75l4.5 4.5L16.25 7"
+                        />
+                        <path
+                            className="short-id-device-check-two"
+                            d="M10.75 15.75l1.5 1.5L22.5 7"
+                        />
                     </svg>
                 ) : null}
-                <Box component="span" sx={{flex: 1, minWidth: 0}}>
+                <Box component="span" className="short-id-match-body" sx={{flex: 1, minWidth: 0}}>
                     <IdStart match={match} />
                     <Box
                         component="span"
@@ -220,11 +229,16 @@ export const ShortIdMatches: React.FC<IShortIdMatchesProps> = ({
             style: match.onDevice ? {borderColor: "#1A5FD6", background: "#F5F9FF"} : undefined,
         }
         return hrefOf ? (
-            <RowLink key={key} to={hrefOf(match)} {...common}>
+            <RowLink key={key} to={hrefOf(match)} className={common.className} style={common.style}>
                 {content}
             </RowLink>
         ) : (
-            <RowButton key={key} onClick={() => onOpen?.(match)} {...common}>
+            <RowButton
+                key={key}
+                onClick={() => onOpen?.(match)}
+                className={common.className}
+                style={common.style}
+            >
                 {content}
             </RowButton>
         )
@@ -299,7 +313,7 @@ export const ShortIdMatches: React.FC<IShortIdMatchesProps> = ({
                             },
                         }}
                     >
-                        <span>{start}-</span>
+                        <span className="short-id-third-start">{start}-</span>
                         <input
                             id={THIRD_ID}
                             className="short-id-third-input"
