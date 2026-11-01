@@ -320,6 +320,169 @@ const galegoTranslation: TranslationType = {
             formatError:
                 "Revisa o ID de seguimento: ten 64 caracteres, díxitos e as letras da a á f.",
         },
+        auditedScreen: {
+            title: "Papeleta",
+            tag: "Auditada",
+            loading: "Comprobando a papeleta no rexistro público…",
+            retry: "Tentar de novo",
+            header: {
+                strip: {
+                    withOperator:
+                        "Un centro de transparencia, xestionado por {{operator}}. Non é o sitio web da elección e nunca che pide votar, iniciar sesión nin pagar.",
+                    noOperator:
+                        "Un centro de transparencia. Non é o sitio web da elección e nunca che pide votar, iniciar sesión nin pagar.",
+                },
+                subline: {
+                    withOperator: "Xestionado por {{operator}} · un centro Vitrine",
+                    noOperator: "Un centro Vitrine",
+                },
+                unnamed: "Centro de transparencia",
+            },
+            trackingId: {
+                full: "ID de seguimento completo",
+                copy: "Copiar o ID de seguimento completo",
+                copied: "ID de seguimento copiado",
+                copyText: "Copiar",
+                copiedText: "Copiado",
+                selected: "Seleccionado. Preme Ctrl+C, ou ⌘C nun Mac, para copialo.",
+            },
+            checks: {
+                title: "Comprobado no teu navegador",
+                record: {
+                    title: "No rexistro público",
+                    text: "Entrada n.º {{index}}, auditada ás {{time}}. Nunca emitida.",
+                    waiting: "Buscando a súa auditoría no rexistro da elección.",
+                    failed: "A proba do rexistro para esta auditoría non é válida.",
+                },
+                secret: {
+                    title: "O segredo corresponde á papeleta",
+                    text: "Ao volver cifrar con el obtense a mesma papeleta, byte a byte.",
+                    waiting: "Compróbase cando se comprobe o rexistro.",
+                    failed: "Ao volver cifrar con el non se obtén esta papeleta.",
+                },
+                decoded: {
+                    title: "Descodificada",
+                    text: "As opcións da esquerda, segundo o deseño de papeleta publicado da elección.",
+                    waiting: "Só cando o segredo corresponda.",
+                    failed: "Non se puido descodificar.",
+                },
+            },
+            note: {
+                named: "Con código que calquera pode inspeccionar. {{hub}} só o almacena e o serve, e nunca pregunta que elixiches. A túa resposta queda neste navegador.",
+                unnamed:
+                    "Con código que calquera pode inspeccionar. Este centro só o almacena e o serve, e nunca pregunta que elixiches. A túa resposta queda neste navegador.",
+            },
+            states: {
+                "bad-link": {
+                    title: "Esta ligazón non está completa",
+                    text: "Precisa o ID de seguimento completo da papeleta e o ID de política da elección. Ábrea de novo desde o sitio de votación.",
+                },
+                "no-policy": {
+                    title: "Non se atopou a política da elección",
+                    text: "Esta páxina só comproba unha papeleta coa política que indica a ligazón, e non puido obtela da elección. Téntao máis tarde.",
+                },
+                "other-election": {
+                    title: "Esta ligazón é doutra elección",
+                    text: "A política que indica a ligazón non cobre esta elección, así que a papeleta non se pode comprobar con ela.",
+                },
+                "not-found": {
+                    title: "Non hai ningunha papeleta con este ID de seguimento",
+                    text: "O rexistro público da elección non ten ningunha papeleta con este ID de seguimento. Comproba que a ligazón está completa ou téntao de novo nun minuto.",
+                },
+                "cast": {
+                    title: "Esta papeleta emitiuse, non se auditou",
+                    text: "Só se pode descodificar unha papeleta auditada. Unha papeleta emitida segue cifrada, así que ninguén ve como se votou, nin aquí nin noutro sitio.",
+                },
+                "pending": {
+                    title: "Esta papeleta aínda non está auditada",
+                    text: "O rexistro público ten esta papeleta, pero aínda non a súa auditoría. Téntao de novo nun minuto.",
+                },
+                "no-content": {
+                    title: "A papeleta auditada aínda non está publicada",
+                    text: "O rexistro público ten a auditoría desta papeleta, pero non a papeleta e o seu segredo, así que aínda non se pode descodificar aquí. Téntao máis tarde.",
+                },
+                "unavailable": {
+                    title: "Non se puido comprobar a papeleta",
+                    text: "Esta páxina non puido acceder ao rexistro público da elección. Téntao máis tarde.",
+                },
+                "record-failed": {
+                    title: "O rexistro non proba esta auditoría",
+                    text: "O rexistro da elección deu unha proba da auditoría desta papeleta que non é válida, así que non se descodifica nada. Avisa á autoridade electoral.",
+                },
+                "mismatch": {
+                    title: "Auditoría fallida",
+                    text: "A papeleta do rexistro público non é a que indica o seu ID de seguimento, ou o segredo que publicou o portal non a reproduce. Non votes no dispositivo desde o que auditaches e avisa á autoridade electoral.",
+                },
+                "unchecked": {
+                    title: "Non se puido comprobar a auditoría",
+                    text: "Esta páxina non puido comprobar esta papeleta auditada, polo que non se mostra ningunha opción. Téntao máis tarde ou noutro dispositivo.",
+                },
+            },
+            compare: {
+                kicker: "Auditoría da papeleta",
+                title: "Comproba que a túa papeleta se cifrou como elixiches",
+                note: "Esta é a papeleta que auditaches, descodificada polo teu navegador. Só ti sabes o que elixiches, así que só ti podes facer esta comprobación.",
+                steps: {
+                    label: "Como funciona a comprobación",
+                    encrypted: {
+                        title: "Cifrada no teu dispositivo",
+                        text: "O portal cifrou as túas opcións e deulle á papeleta o seu ID de seguimento, antes de que decidiras auditala.",
+                    },
+                    decoded: {
+                        title: "Descodificada no teu navegador",
+                        text: "A papeleta e o segredo que publicou o portal veñen do rexistro público. Esta páxina descodificou unha co outro.",
+                    },
+                    compare: {
+                        title: "Comparas ti",
+                        text: "Mira as opcións de abaixo. Son as que fixeches?",
+                    },
+                },
+                choices: "Opcións descodificadas desta papeleta",
+                question: "Coinciden co que elixiches?",
+                yes: "Si, coinciden",
+                no: "Non, hai algo diferente",
+                change: "Cambiar a miña resposta",
+                match: {
+                    title: "A túa papeleta cifrouse como elixiches",
+                    text: "Esta papeleta auditada xa está gastada: nunca se emitiu e nunca se contará. Volve e vota. O teu voto recibirá un ID de seguimento novo, e se queres podes auditar outra vez antes.",
+                    back: "Volver ao sitio de votación",
+                },
+                mismatch: {
+                    title: "Non votes neste dispositivo",
+                    text: "O que se cifrou non é o que elixiches, así que este dispositivo ou o portal de votación poden ter sido manipulados. O teu navegador gardou a proba: a papeleta cifrada do rexistro público, o segredo que revelou o portal e o que descodifica.",
+                    report: "Avisa a autoridade electoral",
+                    reportNoContact: "Avisa a autoridade electoral.",
+                    fromPolicy: "Da política publicada da elección, non desta páxina.",
+                    fromSettings: "Dos axustes da elección.",
+                    then: "Despois vota desde outro dispositivo.",
+                    save: "Gardar a proba",
+                    email: "Escribir á autoridade",
+                    emailSubject: "A miña papeleta auditada non se descodifica nas miñas opcións",
+                    emailBody:
+                        "Auditei unha papeleta nesta elección e as opcións que descodificou o meu navegador non son as que elixín.\n\nID de seguimento: {{id}}\n\nGardei a proba nun ficheiro e podo enviala.",
+                },
+                how: "Como funciona?",
+                faq: {
+                    why: {
+                        question: "Por que auditar?",
+                        answer: "O teu voto cífrase no teu dispositivo, así que ninguén pode lelo, nin sequera ti. Auditar permíteche comprobar que o portal cifrou o que elixiches antes de votar de verdade.",
+                    },
+                    catch: {
+                        question: "Por que detecta o engano?",
+                        answer: "O portal cifra antes de que decidas auditar, así que non pode saber que papeletas se comprobarán. Se cambiase votos, calquera votante que audite podería descubrilo.",
+                    },
+                    spent: {
+                        question: "Por que non pode contar esta papeleta?",
+                        answer: "Co segredo revelado, a papeleta amosa como votaches. Para manter o teu voto en segredo, unha papeleta auditada nunca se emite.",
+                    },
+                    differ: {
+                        question: "E se non coinciden?",
+                        answer: "Non votes nese dispositivo. Garda a proba e avisa a autoridade electoral, cuxo contacto sae da política da elección. Despois vota desde outro dispositivo.",
+                    },
+                    tip: "Para a comprobación máis sólida, abre esta páxina nun dispositivo distinto daquel co que votaches, por exemplo o teu móbil. Un dispositivo que cambiase a túa papeleta tamén podería cambiar o que che amosa aquí.",
+                },
+            },
+        },
     },
 }
 

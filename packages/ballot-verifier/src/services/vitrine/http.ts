@@ -46,6 +46,23 @@ export const isUnder = (url: string, base: string): boolean => {
 
 const globalFetch: FetchLike = (input, init) => globalThis.fetch(input, init)
 
+/** No JSON answer the verifier reads is larger: an event's public config, or
+ * an audited ballot with the ballot style it carries. */
+export const MAX_JSON_BYTES = 4 << 20
+
+/** A request that got no usable answer: none, a status other than 200, or
+ * one that isn't JSON. */
+export class JsonFetchError extends Error {
+    override name = "JsonFetchError"
+    constructor(
+        message: string,
+        /** The HTTP status, or 0 when there was no answer. */
+        readonly status: number
+    ) {
+        super(message)
+    }
+}
+
 export enum EPolicyFetchProblem {
     NOT_HTTPS = "not-https",
     UNREACHABLE = "unreachable",
@@ -83,6 +100,46 @@ const readLimited = async (response: Response, max: number): Promise<Uint8Array 
         at += part.length
     }
     return bytes
+}
+
+/** Fetches JSON with no credentials, no referrer and no redirects, from https
+ * or the local machine. Throws a JsonFetchError when it gets none. */
+export const fetchJson = async (
+    url: string,
+    init: THttpInit = {},
+    opts: {fetch?: FetchLike; signal?: AbortSignal} = {}
+): Promise<unknown> => {
+    if (!isFetchableUrl(url)) throw new JsonFetchError("not an https URL", 0)
+    const f = opts.fetch ?? globalFetch
+    let response: Response
+    try {
+        response = await f(url, {
+            method: "GET",
+            ...init,
+            credentials: "omit",
+            referrerPolicy: "no-referrer",
+            redirect: "error",
+            ...(opts.signal ? {signal: opts.signal} : {}),
+        })
+    } catch (e) {
+        if (opts.signal?.aborted) throw e
+        throw new JsonFetchError("no answer", 0)
+    }
+    if (response.status !== 200) {
+        throw new JsonFetchError(`status ${response.status}`, response.status)
+    }
+    let bytes: Uint8Array | undefined
+    try {
+        bytes = await readLimited(response, MAX_JSON_BYTES)
+    } catch {
+        throw new JsonFetchError("no answer", 0)
+    }
+    if (!bytes) throw new JsonFetchError("answer too large", 413)
+    try {
+        return JSON.parse(new TextDecoder("utf-8", {fatal: true}).decode(bytes)) as unknown
+    } catch {
+        throw new JsonFetchError("not JSON", response.status)
+    }
 }
 
 /** Fetches a trust policy's text. */

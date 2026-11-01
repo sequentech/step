@@ -314,6 +314,169 @@ const englishTranslation = {
             formatError:
                 "Check the Tracking ID: it has 64 characters, digits and the letters a to f.",
         },
+        auditedScreen: {
+            title: "Ballot",
+            tag: "Audited",
+            loading: "Checking the ballot in the public record…",
+            retry: "Try again",
+            header: {
+                strip: {
+                    withOperator:
+                        "A transparency hub, run by {{operator}}. It isn’t the election’s website, and never asks you to vote, sign in or pay.",
+                    noOperator:
+                        "A transparency hub. It isn’t the election’s website, and never asks you to vote, sign in or pay.",
+                },
+                subline: {
+                    withOperator: "Run by {{operator}} · a Vitrine hub",
+                    noOperator: "A Vitrine hub",
+                },
+                unnamed: "Transparency hub",
+            },
+            trackingId: {
+                full: "Full Tracking ID",
+                copy: "Copy the full Tracking ID",
+                copied: "Tracking ID copied",
+                copyText: "Copy",
+                copiedText: "Copied",
+                selected: "Selected. Press Ctrl+C, or ⌘C on a Mac, to copy it.",
+            },
+            checks: {
+                title: "Checked in your browser",
+                record: {
+                    title: "In the public record",
+                    text: "Entry #{{index}}, audited at {{time}}. Never cast.",
+                    waiting: "Looking for its audit in the election’s log.",
+                    failed: "The log’s proof of this audit doesn’t check out.",
+                },
+                secret: {
+                    title: "Secret matches the ballot",
+                    text: "Re-encrypting with it gives the same ballot, byte for byte.",
+                    waiting: "Checked once the record is.",
+                    failed: "Re-encrypting with it doesn’t give this ballot.",
+                },
+                decoded: {
+                    title: "Decoded",
+                    text: "The choices on the left, from the election’s published ballot design.",
+                    waiting: "Only once the secret matches.",
+                    failed: "It couldn’t be decoded.",
+                },
+            },
+            note: {
+                named: "With code anyone can inspect. {{hub}} only stores and serves it, and never asks what you chose. Your answer stays in this browser.",
+                unnamed:
+                    "With code anyone can inspect. This hub only stores and serves it, and never asks what you chose. Your answer stays in this browser.",
+            },
+            states: {
+                "bad-link": {
+                    title: "This link isn’t complete",
+                    text: "It needs the ballot’s full Tracking ID and the election’s policy ID. Open it again from the voting site.",
+                },
+                "no-policy": {
+                    title: "The election’s policy couldn’t be found",
+                    text: "This page checks a ballot only with the policy the link names, and couldn’t get it from the election. Try again later.",
+                },
+                "other-election": {
+                    title: "This link is for another election",
+                    text: "The policy the link names doesn’t cover this election, so the ballot can’t be checked with it.",
+                },
+                "not-found": {
+                    title: "No ballot with this Tracking ID",
+                    text: "The election’s public record has no ballot with this Tracking ID. Check that the link is complete, or try again in a minute.",
+                },
+                "cast": {
+                    title: "This ballot was cast, not audited",
+                    text: "Only an audited ballot can be decoded. A cast ballot stays encrypted, so no one sees how it was voted, here or anywhere else.",
+                },
+                "pending": {
+                    title: "This ballot isn’t audited yet",
+                    text: "The public record has this ballot, but not its audit yet. Try again in a minute.",
+                },
+                "no-content": {
+                    title: "The audited ballot isn’t published yet",
+                    text: "The public record has this ballot’s audit, but not the ballot and its secret, so it can’t be decoded here yet. Try again later.",
+                },
+                "unavailable": {
+                    title: "The ballot couldn’t be checked",
+                    text: "This page couldn’t reach the election’s public record. Try again later.",
+                },
+                "record-failed": {
+                    title: "The record doesn’t prove this audit",
+                    text: "The election’s log gave a proof of this ballot’s audit that doesn’t check out, so nothing is decoded. Tell the election authority.",
+                },
+                "mismatch": {
+                    title: "Audit failed",
+                    text: "The ballot in the public record isn’t the one its Tracking ID names, or the secret the portal published doesn’t reproduce it. Don’t vote on the device you audited from, and tell the election authority.",
+                },
+                "unchecked": {
+                    title: "The audit could not be checked",
+                    text: "This page couldn’t check this audited ballot, so no choices are shown. Try again later, or on another device.",
+                },
+            },
+            compare: {
+                kicker: "Ballot audit",
+                title: "Check that your ballot was encrypted as you chose",
+                note: "This is the ballot you audited, decoded by your browser. Only you know what you chose, so only you can do this check.",
+                steps: {
+                    label: "How the check works",
+                    encrypted: {
+                        title: "Encrypted on your device",
+                        text: "The portal encrypted your choices and gave the ballot its Tracking ID, before you chose to audit it.",
+                    },
+                    decoded: {
+                        title: "Decoded in your browser",
+                        text: "The ballot and the secret the portal published both come from the public record. This page decoded one with the other.",
+                    },
+                    compare: {
+                        title: "You compare",
+                        text: "Look at the choices below. Are they the ones you made?",
+                    },
+                },
+                choices: "Choices decoded from this ballot",
+                question: "Do these match what you chose?",
+                yes: "Yes, they match",
+                no: "No, something’s different",
+                change: "Change my answer",
+                match: {
+                    title: "Your ballot was encrypted as you chose",
+                    text: "This audited ballot is now spent: it was never cast and will never be counted. Go back and vote. Your vote gets a new Tracking ID, and you can audit again first if you like.",
+                    back: "Back to the voting site",
+                },
+                mismatch: {
+                    title: "Don’t vote on this device",
+                    text: "What was encrypted isn’t what you chose, so this device or the voting portal may have been tampered with. Your browser kept the evidence: the encrypted ballot from the public record, the secret the portal revealed, and what it decodes to.",
+                    report: "Report it to the election authority",
+                    reportNoContact: "Report it to the election authority.",
+                    fromPolicy: "From the election’s published policy, not from this page.",
+                    fromSettings: "From the election’s settings.",
+                    then: "Then vote from another device.",
+                    save: "Save evidence",
+                    email: "Email the authority",
+                    emailSubject: "My audited ballot does not decode to my choices",
+                    emailBody:
+                        "I audited a ballot in this election and the choices my browser decoded are not the ones I made.\n\nTracking ID: {{id}}\n\nI have saved the evidence as a file and can send it.",
+                },
+                how: "How does this work?",
+                faq: {
+                    why: {
+                        question: "Why audit?",
+                        answer: "Your vote is encrypted on your device, so no one can read it, not even you. Auditing lets you check that the portal encrypted what you chose before you vote for real.",
+                    },
+                    catch: {
+                        question: "Why does it catch cheating?",
+                        answer: "The portal encrypts before you decide to audit, so it can’t know which ballots will be checked. If it changed votes, every voter who audits could catch it.",
+                    },
+                    spent: {
+                        question: "Why can’t this ballot count?",
+                        answer: "With its secret revealed, the ballot shows how you voted. To keep your vote secret, an audited ballot is never cast.",
+                    },
+                    differ: {
+                        question: "What if they don’t match?",
+                        answer: "Don’t vote on that device. Save the evidence and report it to the election authority, whose contact comes from the election’s policy. Then vote from another device.",
+                    },
+                    tip: "For the strongest check, open this page on a different device from the one you voted on, such as your phone. A device that changed your ballot could also change what it shows you here.",
+                },
+            },
+        },
     },
 }
 

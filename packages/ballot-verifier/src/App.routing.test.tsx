@@ -229,9 +229,7 @@ describe("event routes", () => {
                 (_, element) =>
                     element?.tagName === "SPAN" &&
                     element.textContent === trackingId &&
-                    !Array.from(element.children).some(
-                        (child) => child.textContent === trackingId
-                    )
+                    !Array.from(element.children).some((child) => child.textContent === trackingId)
             )
         ).toHaveLength(2)
         expect(screen.queryByText("Bob Example", {exact: true})).not.toBeInTheDocument()
@@ -407,4 +405,36 @@ describe("with authentication disabled", () => {
         expect(FakeKeycloak.instances).toHaveLength(0)
         expect(services.graphql).toHaveLength(0)
     })
+})
+
+describe("the audited ballot route", () => {
+    const audited = (policy = `sha256:${"ab".repeat(32)}`) =>
+        `${voterEvent}/election/${IDS.election}/audited#id=${singleContestBallot().trackingId}&policy=${policy}`
+
+    it.each([false, true])(
+        "opens on the hub's own page, without signing in, with auth disabled=%s",
+        async (disabled) => {
+            services = serve({DISABLE_AUTH: disabled})
+            launch(audited())
+
+            // The event's config has no policy with the link's ID.
+            expect(
+                await screen.findByRole("heading", {
+                    name: "The election’s policy couldn’t be found",
+                })
+            ).toBeVisible()
+            expect(screen.getByText("Transparency hub")).toBeVisible()
+            expect(screen.getByRole("heading", {name: "Checked in your browser"})).toBeVisible()
+            expect(screen.queryByRole("heading", {name: "Page not found"})).toBeNull()
+            expect(screen.queryByRole("contentinfo")).toBeNull()
+            expect(location()).toBe(`${voterEvent}/election/${IDS.election}/audited`)
+            expect(FakeKeycloak.instances).toHaveLength(0)
+            expect(services.graphql).toHaveLength(0)
+            // It asked the event's public config for the policy.
+            expect(fetch).toHaveBeenCalledWith(
+                `https://s3.test/public/tenant-${IDS.tenant}/event-${IDS.event}/election_event_config.json`,
+                expect.objectContaining({credentials: "omit"})
+            )
+        }
+    )
 })
