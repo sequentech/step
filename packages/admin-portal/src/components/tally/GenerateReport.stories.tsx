@@ -106,7 +106,7 @@ export const GeneratedReportIsDownloaded: Story = {
                 electionEventId: EVENT_ID,
                 type: "BallotImages",
             },
-            headers: {"x-hasura-role": "report-read"},
+            headers: {"x-hasura-role": "report-generate"},
         })
         await expect(
             await within(document.body).findByText(
