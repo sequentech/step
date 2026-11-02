@@ -26,7 +26,10 @@ use crate::util::version::HISTORICAL_DEFAULT_VERSION;
 use super::report::Report;
 
 /// Everything an election event import carries.
-#[derive(Debug, Serialize, Deserialize, Clone)]
+///
+/// `Debug` is written by hand: the realm can carry authenticator integration
+/// secrets, so it is never formatted.
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ImportElectionEventSchema {
     /// The tenant the bundle was exported from.
     ///
@@ -141,6 +144,25 @@ pub struct ImportElectionEventSchema {
     /// field still import.
     #[serde(default = "default_version")]
     pub version: String,
+}
+
+impl std::fmt::Debug for ImportElectionEventSchema {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ImportElectionEventSchema")
+            .field("tenant_id", &self.tenant_id)
+            .field(
+                "keycloak_event_realm",
+                &self.keycloak_event_realm.as_ref().map(|_| "<redacted>"),
+            )
+            .field("election_event", &self.election_event.id)
+            .field("elections", &self.elections.len())
+            .field("contests", &self.contests.len())
+            .field("candidates", &self.candidates.len())
+            .field("areas", &self.areas.len())
+            .field("version", &self.version)
+            .finish_non_exhaustive()
+    }
 }
 
 fn default_version() -> String {
@@ -326,5 +348,20 @@ mod tests {
         let parsed: Result<ImportElectionEventSchema, _> =
             serde_json::from_value(tree);
         assert!(parsed.is_err());
+    }
+
+    #[test]
+    fn debug_never_formats_the_realm() {
+        let mut bundle: ImportElectionEventSchema =
+            serde_json::from_str(MINIMAL).unwrap();
+        let synthetic = "synthetic-liveness-secret-debug";
+        bundle.keycloak_event_realm = Some(serde_json::json!({
+            "authenticatorConfig": [{"alias": "scanovate-registration",
+                "config": {"liveness-secret": synthetic}}]
+        }));
+        for formatted in [format!("{bundle:?}"), format!("{bundle:#?}")] {
+            assert!(!formatted.contains(synthetic), "{formatted}");
+            assert!(formatted.contains("<redacted>"));
+        }
     }
 }

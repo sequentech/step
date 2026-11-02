@@ -1835,6 +1835,9 @@ const galegoTranslation: TranslationType = {
                 encryptWithPassword: "Cifrar con Contrasinal",
                 passwordForcedNote:
                     "O arquivo protexerase con contrasinal de todos os xeitos: os informes, as solicitudes e os datos do taboleiro cífranse sempre. Marca a caixa para incluír tamén os campos secretos de votante descifrados.",
+                integrationSecrets: "Segredos de integración (credenciais de servizo)",
+                integrationSecretsNote:
+                    "Unha vez descifrado, o arquivo conterá en claro o segredo de liveness de Scanovate. Garda en segredo o arquivo e o seu contrasinal, e impórtao só onde se deba usar ese servizo de Liveness Plus.",
                 includeVoters: "Incluir Votantes",
                 activityLogs: "Rexistros de Actividade",
                 bulletinBoard: "Taboleiro de Anuncios",
@@ -2269,6 +2272,7 @@ const galegoTranslation: TranslationType = {
                 "voter-write": "Editar Votante",
                 "voter-secret-attribute-read": "Mostrar Campos Secretos do Votante",
                 "voter-secret-attribute-write": "Editar Campos Secretos do Votante",
+                "integration-secret-read": "Exportar Segredos de Integración",
                 "user-create": "Crear Usuario",
                 "user-read": "Leer Usuario",
                 "user-write": "Editar Usuario",

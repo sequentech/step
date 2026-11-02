@@ -32,6 +32,14 @@ pub async fn get_exportable_document_ids(
         let access = annotations
             .map(serde_json::from_value::<DocumentAnnotations>)
             .transpose()?;
+        // An archive carrying integration secrets never travels inside
+        // another export: its download is gated by `integration-secret-read`.
+        if access
+            .as_ref()
+            .is_some_and(DocumentAnnotations::requires_integration_secret_read)
+        {
+            continue;
+        }
         if include_voter_secrets
             || !access.is_some_and(|value| value.requires_voter_secret_attribute_read())
         {

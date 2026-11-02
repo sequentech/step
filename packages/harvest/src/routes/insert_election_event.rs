@@ -281,7 +281,8 @@ pub(crate) fn stamp_initiators(
     });
 }
 
-#[instrument(skip(claims))]
+// The body carries the archive's password: never traced.
+#[instrument(skip(body, claims, activity))]
 #[post("/import-election-event", format = "json", data = "<body>")]
 pub async fn import_election_event_f(
     body: Json<import_election_event::ImportElectionEventBody>,
