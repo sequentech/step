@@ -17,8 +17,10 @@ use crate::services::datafix::utils::is_datafix_election_event;
 use crate::services::datafix::utils::voted_via_internet;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log_outbox::{deliver_log_event, store_log_event, PendingLogEvent};
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::users::{get_username_by_id, list_users, ListUsersFilter};
+use crate::tasks::electoral_log::LogEventInput;
 use anyhow::{anyhow, Context, Result};
 use b3::messages::message::Signer;
 use chrono::{DateTime, Duration, Local};
@@ -311,6 +313,38 @@ pub async fn try_insert_cast_vote(
         None
     };
 
+    // Everything the signed CastVote needs is read before the vote, so that it
+    // is stored in the vote's transaction.
+    let ip = format!("ip: {}", voter_ip.as_deref().unwrap_or(""),);
+    let country = format!("country: {}", voter_country.as_deref().unwrap_or(""),);
+    let realm = get_event_realm(tenant_id, election_event_id);
+    let username = get_username_by_id(&keycloak_transaction, &realm, voter_id)
+        .await
+        .map_err(|e| CastVoteError::UnknownError(format!("Error get_username_by_id {e:?}")))?;
+    let voter_electoral_log = ElectoralLog::for_voter(
+        &hasura_transaction,
+        &electoral_log.elog_database,
+        tenant_id,
+        election_event_id,
+        voter_id,
+        &voter_signing_key,
+    )
+    .await
+    .map_err(|e| CastVoteError::ElectoralLogNotFound(e.to_string()))?;
+    let audit = CastVoteAudit {
+        electoral_log: &voter_electoral_log,
+        tenant_id,
+        election_event_id,
+        election_id: &election_id_string,
+        pseudonym_h: &pseudonym_h,
+        vote_h: &vote_h,
+        ip: &ip,
+        country: &country,
+        voter_id,
+        username: &username,
+        area_id,
+    };
+
     let result = insert_cast_vote_and_commit(
         input,
         hasura_transaction,
@@ -322,28 +356,12 @@ pub async fn try_insert_cast_vote(
         voter_ip,
         voter_country,
         &voter_signing_key,
+        &audit,
     )
     .await;
 
-    let ip = format!("ip: {}", voter_ip.as_deref().unwrap_or(""),);
-    let country = format!("country: {}", voter_country.as_deref().unwrap_or(""),);
-    let realm = get_event_realm(tenant_id, election_event_id);
-    let username = get_username_by_id(&keycloak_transaction, &realm, voter_id)
-        .await
-        .map_err(|e| CastVoteError::UnknownError(format!("Error get_username_by_id {e:?}")))?;
-
     match result {
-        Ok(inserted_cast_vote) => {
-            let mut after_result_hasura_client: DbClient = get_hasura_pool()
-                .await
-                .get()
-                .await
-                .map_err(|e| CastVoteError::GetDbClientFailed(e.to_string()))?;
-            let after_result_hasura_transaction = after_result_hasura_client
-                .transaction()
-                .await
-                .map_err(|e| CastVoteError::GetTransactionFailed(e.to_string()))?;
-
+        Ok((inserted_cast_vote, pending_audit)) => {
             if is_datafix_election_event(&election_event) {
                 // If insert_cast_vote_and_commit fails then we will not send SetVoted to VoterView.
                 // However if the one failing is voterview_requests::send returning an error here would be problematic
@@ -412,41 +430,12 @@ pub async fn try_insert_cast_vote(
                         });
                 }
             }
-            let electoral_log_res = ElectoralLog::for_voter(
-                &after_result_hasura_transaction,
-                &electoral_log.elog_database,
-                tenant_id,
-                election_event_id,
-                voter_id,
-                &voter_signing_key,
-            )
-            .await;
-
-            let electoral_log = match electoral_log_res {
-                Ok(electoral_log) => electoral_log,
-                Err(err) => {
-                    error!("Error posting to the electoral log {:?}", err);
-                    return Ok(InsertCastVoteResult::Success(inserted_cast_vote));
-                }
-            };
-
-            let log_result = electoral_log
-                .post_cast_vote(
-                    tenant_id.to_string(),
-                    election_event_id.to_string(),
-                    Some(election_id_string),
-                    pseudonym_h,
-                    vote_h,
-                    ip,
-                    country,
-                    voter_id.to_string(),
-                    username.clone(),
-                    area_id.to_string().clone(),
-                )
-                .await;
-            if let Err(log_err) = log_result {
-                error!("Error posting to the electoral log {:?}", log_err);
-            }
+            // The database connections are released before waiting for the
+            // broker; the event stays in the outbox if it cannot be published.
+            drop(keycloak_transaction);
+            drop(keycloak_db_client);
+            drop(hasura_db_client);
+            deliver_log_event(&pending_audit).await;
             Ok(InsertCastVoteResult::Success(inserted_cast_vote))
         }
         Err(cast_vote_err) => {
@@ -567,7 +556,8 @@ pub async fn get_ballot_signature(
         hasura_transaction,
         election_event,
         signing_key,
-        voter_signing_key
+        voter_signing_key,
+        audit
     ),
     err
 )]
@@ -582,7 +572,8 @@ pub async fn insert_cast_vote_and_commit<'a>(
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
     voter_signing_key: &Option<StrandSignatureSk>,
-) -> Result<CastVote, CastVoteError> {
+    audit: &CastVoteAudit<'_>,
+) -> Result<(CastVote, PendingLogEvent), CastVoteError> {
     let election_id_string = input.election_id.to_string();
     let election_id = election_id_string.as_str();
     let tenant_uuid = parse_uuid_v4(ids.tenant_id)
@@ -621,6 +612,20 @@ pub async fn insert_cast_vote_and_commit<'a>(
         get_ballot_signature(&input, voter_signing_key, signing_key)
     )?;
 
+    // The signed CastVote is stored with the vote, so an accepted vote always
+    // has it; a refused vote rolls it back.
+    let audit_event = audit
+        .event()
+        .map_err(|err| CastVoteError::InsertFailed(format!("{err:#}")))?;
+    let pending_audit = store_log_event(
+        &hasura_transaction,
+        &tenant_uuid,
+        &election_event_uuid,
+        audit_event,
+    )
+    .await
+    .map_err(|err| CastVoteError::InsertFailed(format!("{err:#}")))?;
+
     let insert = postgres::cast_vote::insert_cast_vote(
         &hasura_transaction,
         &tenant_uuid,
@@ -653,7 +658,39 @@ pub async fn insert_cast_vote_and_commit<'a>(
         .await
         .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
 
-    Ok(cast_vote)
+    Ok((cast_vote, pending_audit))
+}
+
+/// What the signed CastVote of a vote is made of.
+pub(crate) struct CastVoteAudit<'a> {
+    pub electoral_log: &'a ElectoralLog,
+    pub tenant_id: &'a str,
+    pub election_event_id: &'a str,
+    pub election_id: &'a str,
+    pub pseudonym_h: &'a PseudonymHash,
+    pub vote_h: &'a CastVoteHash,
+    pub ip: &'a str,
+    pub country: &'a str,
+    pub voter_id: &'a str,
+    pub username: &'a Option<String>,
+    pub area_id: &'a str,
+}
+
+impl CastVoteAudit<'_> {
+    fn event(&self) -> Result<LogEventInput> {
+        self.electoral_log.cast_vote_event(
+            self.tenant_id.to_string(),
+            self.election_event_id.to_string(),
+            Some(self.election_id.to_string()),
+            self.pseudonym_h.clone(),
+            self.vote_h.clone(),
+            self.ip.to_string(),
+            self.country.to_string(),
+            self.voter_id.to_string(),
+            self.username.clone(),
+            self.area_id.to_string(),
+        )
+    }
 }
 
 pub(crate) fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
@@ -1025,3 +1062,7 @@ pub fn verify_ballot_id_matches_content(
 
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "insert_cast_vote_outbox_tests.rs"]
+mod outbox_tests;

@@ -292,8 +292,9 @@ impl ElectoralLog {
         ret
     }
 
+    /// The signed CastVote event of an accepted vote, ready to be delivered.
     #[instrument(skip(self, pseudonym_h, vote_h))]
-    pub async fn post_cast_vote(
+    pub fn cast_vote_event(
         &self,
         tenant_id: String,
         event_id: String,
@@ -305,7 +306,7 @@ impl ElectoralLog {
         voter_id: String,
         voter_username: Option<String>,
         area_id: String,
-    ) -> Result<()> {
+    ) -> Result<LogEventInput> {
         let event = EventIdString(event_id.clone());
         let election = ElectionIdString(election_id);
         let ip = VoterIpString(voter_ip);
@@ -337,11 +338,7 @@ impl ElectoralLog {
                     .with_context(|| "Error serializing ElectoralLogMessage")?,
             ),
         };
-        let celery_app = get_celery_app().await;
-        celery_app
-            .send_task(enqueue_electoral_log_event::new(input))
-            .await?;
-        Ok(())
+        Ok(input)
     }
 
     #[instrument(skip(self, pseudonym_h))]
