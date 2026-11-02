@@ -32,3 +32,5 @@ pub mod transmission_report;
 pub mod utils;
 pub mod vote_receipt;
 pub mod voters;
+
+mod document_visibility;
