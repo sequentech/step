@@ -38,7 +38,7 @@ pub struct ExportElectionEventOutput {
 
 /// Reading the event covers its configuration, including scheduled events.
 /// Every other kind of data needs the permission that exports or reads it on
-/// its own.
+/// its own, and the protocol manager keys need the ceremony export permission.
 fn required_export_permissions(options: &ExportOptions) -> Vec<Permissions> {
     let included = [
         (options.include_voters, Permissions::VOTER_EXPORT),
@@ -47,7 +47,10 @@ fn required_export_permissions(options: &ExportOptions) -> Vec<Permissions> {
         (options.tally, Permissions::TALLY_RESULTS_READ),
         (options.reports, Permissions::REPORT_READ),
         (options.publications, Permissions::PUBLISH_EXPORT),
-        (options.bulletin_board, Permissions::EXPORT_CEREMONY),
+        (
+            options.includes_protocol_manager_keys(),
+            Permissions::EXPORT_CEREMONY,
+        ),
         (options.s3_files, Permissions::DOCUMENT_DOWNLOAD),
         (options.include_certificates, Permissions::CA_READ),
     ];
@@ -262,12 +265,44 @@ mod tests {
     #[test]
     fn each_data_kind_is_exported_with_its_permission() {
         for (options, permission) in data_kinds() {
-            let claims = admin_claims(
+            let mut granted = vec!["election-event-read", permission];
+            if options.includes_protocol_manager_keys() {
+                granted.push("export-ceremony");
+            }
+            let claims = admin_claims(CALLER_TENANT_ID, &granted);
+            assert!(
+                authorize_export(&claims, &options).is_ok(),
+                "{permission}"
+            );
+        }
+    }
+
+    #[test]
+    fn logs_and_publications_also_need_export_ceremony_for_their_keys() {
+        let logs = ExportOptions {
+            activity_logs: true,
+            ..ExportOptions::default()
+        };
+        let publications = ExportOptions {
+            publications: true,
+            ..ExportOptions::default()
+        };
+        for (options, permission) in
+            [(logs, "logs-export"), (publications, "publish-export")]
+        {
+            let own = admin_claims(
                 CALLER_TENANT_ID,
                 &["election-event-read", permission],
             );
+            let error = authorize_export(&own, &options).unwrap_err();
+            assert_eq!(error.0, Status::Unauthorized, "{permission}");
+
+            let with_ceremony = admin_claims(
+                CALLER_TENANT_ID,
+                &["election-event-read", permission, "export-ceremony"],
+            );
             assert!(
-                authorize_export(&claims, &options).is_ok(),
+                authorize_export(&with_ceremony, &options).is_ok(),
                 "{permission}"
             );
         }
