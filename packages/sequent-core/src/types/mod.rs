@@ -8,6 +8,7 @@ pub mod dial_codes;
 pub mod error;
 #[cfg(feature = "default_features")]
 pub mod hasura;
+pub mod integration_secrets;
 pub mod keycloak;
 pub mod messaging;
 #[cfg(feature = "default_features")]

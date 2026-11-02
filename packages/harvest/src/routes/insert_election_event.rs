@@ -13,6 +13,7 @@ use rocket::serde::json::Json;
 use sequent_core::election_config::{import_problems, Problem};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::integration_secrets::IntegrationSecretImportPermission;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::util::integrity_check::{
     integrity_check, HashFileVerifyError,
@@ -275,13 +276,24 @@ pub(crate) fn stamp_initiators(
         Ok(()) => MessagingConfigPermission::PERMITTED,
         Err(_) => MessagingConfigPermission::NOT_PERMITTED,
     };
+    // An archive's integration secrets are installed only for whoever may
+    // write them; the destination's own secrets are never used instead.
+    input.integration_secret_permission = match authorize(
+        claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::INTEGRATION_SECRET_WRITE],
+    ) {
+        Ok(()) => IntegrationSecretImportPermission::PERMITTED,
+        Err(_) => IntegrationSecretImportPermission::NOT_PERMITTED,
+    };
     input.privileges = import_users_privileges(|permissions| {
         authorize(claims, true, Some(input.tenant_id.clone()), permissions)
             .is_ok()
     });
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(body, claims, activity))]
 #[post("/import-election-event", format = "json", data = "<body>")]
 pub async fn import_election_event_f(
     body: Json<import_election_event::ImportElectionEventBody>,
@@ -330,20 +342,39 @@ pub async fn import_election_event_f(
         },
     )?;
 
-    // Insert the task execution record
-    let task_execution: TasksExecution = post(
-        &tenant_id,
-        None,
-        ETasksExecution::IMPORT_ELECTION_EVENT,
-        &executer_name,
-    )
-    .await
-    .map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Failed to insert task execution record: {error:?}"),
-        )
-    })?;
+    // Insert the task execution record. The worker reads the integration
+    // secret grant back from this row, never from the queued message.
+    let task_execution: TasksExecution =
+        match input.integration_secret_permission {
+            IntegrationSecretImportPermission::PERMITTED => {
+                post_with_annotations(
+                    &tenant_id,
+                    None,
+                    ETasksExecution::IMPORT_ELECTION_EVENT,
+                    &executer_name,
+                    integration_secret_import_task_annotations(
+                        &input.tenant_id,
+                        &input.document_id,
+                    ),
+                )
+                .await
+            }
+            IntegrationSecretImportPermission::NOT_PERMITTED => {
+                post(
+                    &tenant_id,
+                    None,
+                    ETasksExecution::IMPORT_ELECTION_EVENT,
+                    &executer_name,
+                )
+                .await
+            }
+        }
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Failed to insert task execution record: {error:?}"),
+            )
+        })?;
 
     let (temp_file_path, _document, document_type, package) =
         match get_document(&hasura_transaction, input.clone(), None).await {
@@ -494,6 +525,7 @@ mod tests {
             // Forged by the caller: the token decides.
             "may_write_secret_attributes": true,
             "messaging_config_permission": "PERMITTED",
+            "integration_secret_permission": "PERMITTED",
             "importer": {"user_id": "someone-else", "username": "someone-else"},
             "privileges": {
                 "group_assignment": "AnyGroup",
@@ -543,6 +575,43 @@ mod tests {
         assert_eq!(
             input.messaging_config_permission,
             MessagingConfigPermission::PERMITTED
+        );
+        assert_eq!(
+            input.integration_secret_permission,
+            IntegrationSecretImportPermission::NOT_PERMITTED
+        );
+    }
+
+    #[test]
+    fn installing_integration_secrets_comes_from_the_token() {
+        use crate::test_claims::Claims;
+
+        // Forged by the caller, refused by the token; a voter-secret writer
+        // or an integration-secret reader is not an integration-secret writer.
+        for roles in [
+            vec![],
+            vec![Permissions::VOTER_SECRET_ATTRIBUTE_WRITE],
+            vec![Permissions::INTEGRATION_SECRET_READ],
+        ] {
+            let mut input = body("tenant");
+            let claims = Claims::new("tenant", "admin-id")
+                .roles(roles.clone())
+                .build();
+            stamp_initiators(&mut input, &claims);
+            assert_eq!(
+                input.integration_secret_permission,
+                IntegrationSecretImportPermission::NOT_PERMITTED,
+                "{roles:?}"
+            );
+        }
+        let mut input = body("tenant");
+        let writer = Claims::new("tenant", "writer-id")
+            .roles([Permissions::INTEGRATION_SECRET_WRITE])
+            .build();
+        stamp_initiators(&mut input, &writer);
+        assert_eq!(
+            input.integration_secret_permission,
+            IntegrationSecretImportPermission::PERMITTED
         );
     }
 

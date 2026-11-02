@@ -491,6 +491,7 @@ export type ExportOptions = {
   bulletin_board?: InputMaybe<Scalars['Boolean']['input']>;
   encrypt_with_password?: InputMaybe<Scalars['Boolean']['input']>;
   include_certificates?: InputMaybe<Scalars['Boolean']['input']>;
+  include_integration_secrets?: InputMaybe<Scalars['Boolean']['input']>;
   include_voters?: InputMaybe<Scalars['Boolean']['input']>;
   is_encrypted?: InputMaybe<Scalars['Boolean']['input']>;
   password?: InputMaybe<Scalars['String']['input']>;

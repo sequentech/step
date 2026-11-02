@@ -35,3 +35,38 @@ Without both safeguards, these documents are excluded. Objects without committed
 are always excluded. CSV secret exports remain plaintext downloads with an explicit warning; store
 and transfer them securely. Importing these CSV columns still requires secret-write permission and
 encrypts each value for the destination event and voter.
+
+## Integration secrets
+
+Keycloak masks the secret settings of authenticators, so an ordinary
+election-event archive carries a placeholder (`**********`) instead of the
+Scanovate authenticator's `liveness-secret`. Importing such an archive does not
+install the placeholder: the setting is left out and the import task's log says
+which configuration needs its secret set again.
+
+To carry the real secret, select **Integration secrets (service credentials)**
+in the export dialog. The option is shown only to users with the
+`integration-secret-read` permission and always encrypts the archive with a
+password. The server checks the permission again, reads the secret from
+Keycloak's own storage, and refuses the export if a Scanovate configuration has
+no usable secret or changed while it was exported. Only the Scanovate
+`liveness-secret` travels; other authenticator, identity-provider and client
+secrets never do. Downloading the archive also requires
+`integration-secret-read`, and such archives are never included in the
+**S3 Files** of later exports.
+
+The archive records, without the value, which configuration, provider
+(`scanovate-authenticator`) and `liveness-url` each secret belongs to. An import
+installs the secret only when:
+
+1. the importing user has the `integration-secret-write` permission;
+2. the configuration is used only by Scanovate executions; and
+3. its `liveness-url` and provider still match what the archive recorded.
+
+Otherwise the secret is left out and the task log explains why. Archives without
+these records (older exports, or bundles written by hand or from templates) keep
+the secret they carry only for users with `integration-secret-write`. The
+records guard against accidental mismatches, not against someone who can edit a
+decrypted archive: anyone holding the archive and its password holds the secret.
+The import never uses the destination's own secrets. Liveness Plus must be
+configured with the same secret for the imported event to work.

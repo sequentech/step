@@ -12,7 +12,7 @@ import {IPermissions} from "@/types/keycloak"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {startedTask, taskHandler} from "@/components/tally/__stories__/DownloadFixture"
 import {ExportElectionEventDrawer} from "./ExportElectionEventDrawer"
-import {useStoryGlobals} from "../../../../../ui-essentials/.storybook/globals"
+import {EStoryPermissions, useStoryGlobals} from "../../../../../ui-essentials/.storybook/globals"
 
 type Outcome = "exported" | "failure"
 
@@ -105,6 +105,7 @@ const NO_OPTIONS = {
     applications: false,
     tally: false,
     include_certificates: false,
+    include_integration_secrets: false,
 }
 
 const exportDialog = async () => {
@@ -230,5 +231,51 @@ export const ExportFailure: Story = {
         await waitFor(() => expect(args.setLoadingExport).toHaveBeenLastCalledWith(false))
         expect(graphql.calls.map(({name}) => name)).toEqual(["ExportElectionEvent"])
         await expect(await within(document.body).findByText("FAILED")).toBeVisible()
+    },
+}
+
+const INTEGRATION_SECRETS = "Integration secrets (service credentials)"
+
+export const IntegrationSecretsOptIn: Story = {
+    parameters: {
+        expectedFailure: {
+            reason: "The generated password's read-only fields have no label.",
+            a11y: ["label"],
+        },
+    },
+    play: async () => {
+        const dialog = await exportDialog()
+        const option = dialog.getByRole("checkbox", {name: INTEGRATION_SECRETS})
+        await expect(option).not.toBeChecked()
+        expect(dialog.queryByText(/Scanovate liveness secret/)).toBeNull()
+        // Choosing it forces password encryption and warns about the credential.
+        await userEvent.click(option)
+        await expect(dialog.getByRole("checkbox", {name: "Encrypt with Password"})).toBeChecked()
+        await expect(dialog.getByText(/Scanovate liveness secret/)).toBeVisible()
+        // Dropping the encryption drops the secrets with it.
+        await userEvent.click(dialog.getByRole("checkbox", {name: "Encrypt with Password"}))
+        await expect(option).not.toBeChecked()
+        await userEvent.click(option)
+        await userEvent.click(dialog.getByRole("button", {name: "Export"}))
+        const password = within(
+            await within(document.body).findByRole("dialog", {name: "Password"})
+        )
+        await expect(password.getByDisplayValue(PASSWORD)).toBeVisible()
+        expect(exportCall()?.variables.exportConfigurations).toEqual({
+            ...NO_OPTIONS,
+            is_encrypted: true,
+            encrypt_with_password: true,
+            include_integration_secrets: true,
+        })
+    },
+}
+
+export const IntegrationSecretsNeedThePermission: Story = {
+    globals: {permissions: EStoryPermissions.ADMIN_LIGHT},
+    play: async () => {
+        const dialog = await exportDialog()
+        await expect(dialog.getByRole("checkbox", {name: "Encrypt with Password"})).toBeVisible()
+        expect(dialog.queryByRole("checkbox", {name: INTEGRATION_SECRETS})).toBeNull()
+        expect(graphql.calls).toEqual([])
     },
 }

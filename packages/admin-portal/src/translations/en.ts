@@ -2049,6 +2049,9 @@ const englishTranslation = {
                 encryptWithPassword: "Encrypt with Password",
                 passwordForcedNote:
                     "The archive will be password protected anyway: reports, applications and bulletin-board data are always encrypted. Tick the box to also include decrypted secret voter fields.",
+                integrationSecrets: "Integration secrets (service credentials)",
+                integrationSecretsNote:
+                    "The archive will contain the Scanovate liveness secret in clear text once decrypted. Keep the archive and its password secret, and import it only where that Liveness Plus service is meant to be used.",
                 includeVoters: "Include Voters",
                 activityLogs: "Activity Logs",
                 bulletinBoard: "Bulletin Board",
@@ -2478,6 +2481,8 @@ const englishTranslation = {
                 "voter-write": "Edit Voter",
                 "voter-secret-attribute-read": "Reveal Secret Voter Fields",
                 "voter-secret-attribute-write": "Edit Secret Voter Fields",
+                "integration-secret-read": "Export Integration Secrets",
+                "integration-secret-write": "Import Integration Secrets",
                 "user-create": "Create User",
                 "user-read": "Read User",
                 "user-write": "Edit User",

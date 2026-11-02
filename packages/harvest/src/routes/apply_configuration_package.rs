@@ -94,6 +94,7 @@ pub async fn apply_configuration_package_route(
         secret_write_initiator: None,
         importer: None,
         messaging_config_permission: Default::default(),
+        integration_secret_permission: Default::default(),
         privileges: Default::default(),
     };
     stamp_initiators(&mut event_import, &claims);

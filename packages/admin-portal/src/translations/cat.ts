@@ -1845,6 +1845,9 @@ const catalanTranslation: TranslationType = {
                 encryptWithPassword: "Xifrar amb Contrasenya",
                 passwordForcedNote:
                     "L'arxiu es protegirà amb contrasenya igualment: els informes, les sol·licituds i les dades del tauler sempre es xifren. Marca la casella per incloure també els camps secrets de votant desxifrats.",
+                integrationSecrets: "Secrets d'integració (credencials de servei)",
+                integrationSecretsNote:
+                    "Un cop desxifrat, el fitxer contindrà en clar el secret de liveness de Scanovate. Mantén en secret el fitxer i la seva contrasenya, i importa'l només on s'hagi d'utilitzar aquest servei de Liveness Plus.",
                 includeVoters: "Incloure Votants",
                 activityLogs: "Registres d'Activitat",
                 bulletinBoard: "Tauler d'Anuncis",
@@ -2279,6 +2282,8 @@ const catalanTranslation: TranslationType = {
                 "voter-write": "Editar Votant",
                 "voter-secret-attribute-read": "Mostrar Camps Secrets del Votant",
                 "voter-secret-attribute-write": "Editar Camps Secrets del Votant",
+                "integration-secret-read": "Exportar Secrets d'Integració",
+                "integration-secret-write": "Importar Secrets d'Integració",
                 "user-create": "Crear Usuari",
                 "user-read": "Llegir Usuari",
                 "user-write": "Editar Usuari",
