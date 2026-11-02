@@ -262,16 +262,16 @@ To prepare the dashboard:
    and correlate them with the signed **PotentialAttackDetected** records in
    **Logs** before approving the election event's configuration.
 
-![Actual board confirmation before creating the monitoring layout](./assets/monitoring-preset-confirmation.png)
+![Board confirmation before creating the monitoring layout](./assets/monitoring-preset-confirmation.png)
 
-The example above was captured from the evaluator laboratory before the single
-**Reset** operation. After setup, **Not counted yet** means that the first
+The example above shows the confirmation before the single **Reset**
+operation. After setup, **Not counted yet** means that the first
 background count has not completed; wait for the displayed update before
 interpreting the figures.
 
-![Actual chart showing detections in the synthetic evaluator rehearsal](./assets/monitoring-attack-detections-rendered.png)
+![Chart showing detections in a synthetic election event](./assets/monitoring-attack-detections-rendered.png)
 
-This laboratory example shows 26 detections from a completed snapshot. The
+This example shows 26 detections from a completed snapshot. The
 chart is a record of that snapshot; check its update time before treating it
 as current. An older snapshot remains useful when reviewing an ended event.
 
