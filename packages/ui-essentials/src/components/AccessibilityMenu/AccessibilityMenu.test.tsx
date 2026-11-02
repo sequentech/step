@@ -78,6 +78,7 @@ it("is an icon named by its tooltip", async () => {
 
     const button = screen.getByRole("button", {name: "Accessibility"})
     expect(button).toHaveTextContent(/^$/)
+    expect(button).toHaveClass("MuiIconButton-root", "MuiIconButton-sizeSmall")
     await user.hover(button)
     expect(await screen.findByRole("tooltip")).toHaveTextContent("Accessibility")
 })

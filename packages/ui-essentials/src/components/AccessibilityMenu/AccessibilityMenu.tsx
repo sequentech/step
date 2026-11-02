@@ -10,6 +10,7 @@ import {
     FormControlLabel,
     FormLabel,
     GlobalStyles,
+    IconButton,
     Radio,
     RadioGroup,
     Tooltip,
@@ -90,19 +91,19 @@ const AccessibilityMenu: React.FC = () => {
         <Box className="accessibility-settings">
             <GlobalStyles styles={accessibilityStyles} />
             <Tooltip title={t("accessibility.button")}>
-                <Button
+                <IconButton
                     className="accessibility-settings-button"
-                    variant="actionbar"
+                    size="small"
+                    sx={{color: "brandColor"}}
                     aria-haspopup="dialog"
                     aria-label={t("accessibility.button")}
                     onClick={() => {
                         setAnnouncement("")
                         setOpen(true)
                     }}
-                    sx={{minWidth: 0, px: "6px"}}
                 >
                     <AccessibilityNewIcon className="accessibility-settings-icon" aria-hidden />
-                </Button>
+                </IconButton>
             </Tooltip>
             <Dialog
                 className="accessibility-settings-dialog"
