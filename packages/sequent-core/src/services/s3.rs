@@ -5,7 +5,7 @@
 use crate::util::aws::{
     build_s3_aws_config_for_endpoint, get_fetch_expiration_secs,
     get_from_env_aws_config, get_s3_aws_config, get_upload_expiration_secs,
-    AWS_S3_PRIVATE_URI_ENV, AWS_S3_PUBLIC_URI_ENV,
+    AWS_S3_PRIVATE_URI_ENV, AWS_S3_PUBLIC_BUCKET_ENV, AWS_S3_PUBLIC_URI_ENV,
 };
 use crate::util::temp_path::{
     generate_temp_file, get_public_assets_path_env_var,
@@ -319,8 +319,9 @@ pub fn get_private_bucket() -> Result<String> {
 /// plugin storage.
 #[instrument(err, skip_all)]
 pub fn get_public_bucket() -> Result<String> {
-    let s3_bucket = env::var("AWS_S3_PUBLIC_BUCKET")
-        .map_err(|err| anyhow!("AWS_S3_PUBLIC_BUCKET must be set: {err}"))?;
+    let s3_bucket = env::var(AWS_S3_PUBLIC_BUCKET_ENV).map_err(|err| {
+        anyhow!("{AWS_S3_PUBLIC_BUCKET_ENV} must be set: {err}")
+    })?;
     Ok(s3_bucket)
 }
 
@@ -458,7 +459,7 @@ pub async fn get_document_url(
 
 /// Creates a presigned upload URL and selects the endpoint that the caller can
 /// actually reach.
-#[instrument(err, ret)]
+#[instrument(err)]
 pub async fn get_upload_url(
     key: String,
     is_public: bool,
@@ -1445,5 +1446,31 @@ mod tests {
                 prefix_root: Some("election-event-documents".to_string()),
             }
         );
+    }
+
+    #[tokio::test]
+    async fn get_upload_url_logs_no_presigned_url() {
+        use crate::util::log_capture::LogCapture;
+
+        env::set_var("AWS_REGION", "us-east-1");
+        env::set_var(AWS_S3_PRIVATE_URI_ENV, "http://127.0.0.1:9000");
+        env::set_var("AWS_S3_BUCKET", "documents");
+        env::set_var("AWS_S3_UPLOAD_EXPIRATION_SECS", "60");
+        env::set_var("AWS_S3_ACCESS_KEY", "access-key");
+        env::set_var("AWS_S3_ACCESS_SECRET", "access-secret");
+        let (capture, _guard) = LogCapture::install();
+
+        let url = super::get_upload_url(
+            "tenant-t/document-d/upload.zip".to_string(),
+            false,
+            true,
+        )
+        .await
+        .expect("upload url");
+
+        assert!(url.contains("X-Amz-Signature"), "{url}");
+        let logs = capture.contents();
+        assert!(logs.contains("get_upload_url"), "{logs}");
+        assert!(!logs.contains(&url), "upload URL in logs: {logs}");
     }
 }

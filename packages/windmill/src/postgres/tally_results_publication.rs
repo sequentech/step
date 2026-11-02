@@ -9,6 +9,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ResultsWebsiteAccess, ResultsWebsiteVisibilityScope};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
+use sequent_core::types::ceremonies::{TallyExecutionStatus, TallyType};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -135,25 +136,45 @@ pub async fn validate_new_publication_source(
     let statement = tx
         .prepare(
             r#"
+                WITH publication_source AS (
+                    SELECT
+                        TRUE AS valid_execution,
+                        session.execution_status,
+                        session.is_execution_completed,
+                        session.tally_type,
+                        execution.id = (
+                            SELECT latest.id
+                            FROM sequent_backend.tally_session_execution latest
+                            WHERE latest.tenant_id = execution.tenant_id
+                              AND latest.election_event_id = execution.election_event_id
+                              AND latest.tally_session_id = execution.tally_session_id
+                            ORDER BY latest.created_at DESC
+                            LIMIT 1
+                        ) AS is_latest_execution
+                    FROM sequent_backend.tally_session_execution execution
+                    JOIN sequent_backend.tally_session session
+                      ON session.id = execution.tally_session_id
+                     AND session.tenant_id = execution.tenant_id
+                     AND session.election_event_id = execution.election_event_id
+                    JOIN sequent_backend.results_event results_event
+                      ON results_event.id = execution.results_event_id
+                     AND results_event.tenant_id = execution.tenant_id
+                     AND results_event.election_event_id = execution.election_event_id
+                    WHERE execution.id = $4
+                      AND execution.tenant_id = $1
+                      AND execution.election_event_id = $2
+                      AND execution.tally_session_id = $3
+                      AND execution.results_event_id = $5
+                      AND $6::uuid[] <@ session.election_ids
+                )
                 SELECT
-                    EXISTS (
-                        SELECT 1
-                        FROM sequent_backend.tally_session_execution execution
-                        JOIN sequent_backend.tally_session session
-                          ON session.id = execution.tally_session_id
-                         AND session.tenant_id = execution.tenant_id
-                         AND session.election_event_id = execution.election_event_id
-                        JOIN sequent_backend.results_event results_event
-                          ON results_event.id = execution.results_event_id
-                         AND results_event.tenant_id = execution.tenant_id
-                         AND results_event.election_event_id = execution.election_event_id
-                        WHERE execution.id = $4
-                          AND execution.tenant_id = $1
-                          AND execution.election_event_id = $2
-                          AND execution.tally_session_id = $3
-                          AND execution.results_event_id = $5
-                          AND $6::uuid[] <@ session.election_ids
-                    ) AS valid_execution,
+                    COALESCE(publication_source.valid_execution, FALSE) AS valid_execution,
+                    publication_source.execution_status,
+                    COALESCE(publication_source.is_execution_completed, FALSE)
+                        AS is_execution_completed,
+                    publication_source.tally_type,
+                    COALESCE(publication_source.is_latest_execution, FALSE)
+                        AS is_latest_execution,
                     (
                         SELECT COUNT(DISTINCT election.id)
                         FROM sequent_backend.election election
@@ -177,7 +198,9 @@ pub async fn validate_new_publication_source(
                           AND results.results_event_id = $5
                           AND results.election_id = ANY($6::uuid[])
                           AND results.contest_id = ANY($7::uuid[])
-                    ) AS tallied_contest_count;
+                    ) AS tallied_contest_count
+                FROM (SELECT 1) AS anchor
+                LEFT JOIN publication_source ON TRUE;
             "#,
         )
         .await?;
@@ -196,29 +219,81 @@ pub async fn validate_new_publication_source(
         )
         .await?;
 
-    let valid_execution: bool = row.try_get("valid_execution")?;
-    let election_count: i64 = row.try_get("election_count")?;
-    let contest_count: i64 = row.try_get("contest_count")?;
-    let tallied_contest_count: i64 = row.try_get("tallied_contest_count")?;
-    let expected_elections = i64::try_from(election_ids.len())?;
-    let expected_contests = i64::try_from(contest_ids.len())?;
+    let facts = PublicationSourceFacts {
+        valid_execution: row.try_get("valid_execution")?,
+        execution_status: row
+            .try_get::<_, Option<String>>("execution_status")?
+            .map(|status| status.parse::<TallyExecutionStatus>())
+            .transpose()
+            .context("Invalid tally session execution_status")?,
+        is_execution_completed: row.try_get("is_execution_completed")?,
+        tally_type: row
+            .try_get::<_, Option<String>>("tally_type")?
+            .map(|tally_type| tally_type.parse::<TallyType>())
+            .transpose()
+            .context("Invalid tally session tally_type")?
+            .unwrap_or_default(),
+        is_latest_execution: row.try_get("is_latest_execution")?,
+        election_count: row.try_get("election_count")?,
+        contest_count: row.try_get("contest_count")?,
+        tallied_contest_count: row.try_get("tallied_contest_count")?,
+    };
 
-    if !valid_execution {
+    check_publication_source(
+        &facts,
+        i64::try_from(election_ids.len())?,
+        i64::try_from(contest_ids.len())?,
+    )
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PublicationSourceFacts {
+    valid_execution: bool,
+    execution_status: Option<TallyExecutionStatus>,
+    is_execution_completed: bool,
+    tally_type: TallyType,
+    is_latest_execution: bool,
+    election_count: i64,
+    contest_count: i64,
+    tallied_contest_count: i64,
+}
+
+fn check_publication_source(
+    facts: &PublicationSourceFacts,
+    expected_elections: i64,
+    expected_contests: i64,
+) -> Result<()> {
+    if !facts.valid_execution {
         return Err(anyhow!(
             "The tally session, execution, and results event do not belong together"
         ));
     }
-    if election_count != expected_elections {
+    if facts.tally_type != TallyType::ELECTORAL_RESULTS {
+        return Err(anyhow!(
+            "Only electoral results tally sessions can be published"
+        ));
+    }
+    if facts.execution_status != Some(TallyExecutionStatus::SUCCESS)
+        || !facts.is_execution_completed
+    {
+        return Err(anyhow!("The tally session has not completed successfully"));
+    }
+    if !facts.is_latest_execution {
+        return Err(anyhow!(
+            "Only the latest tally session execution can be published"
+        ));
+    }
+    if facts.election_count != expected_elections {
         return Err(anyhow!(
             "One or more publication elections are outside the tally event"
         ));
     }
-    if contest_count != expected_contests {
+    if facts.contest_count != expected_contests {
         return Err(anyhow!(
             "One or more publication contests are outside the selected elections"
         ));
     }
-    if tallied_contest_count != expected_contests {
+    if facts.tallied_contest_count != expected_contests {
         return Err(anyhow!(
             "Every selected contest must have results in the selected tally execution"
         ));
@@ -751,4 +826,114 @@ pub async fn revoke_publication(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn final_source() -> PublicationSourceFacts {
+        PublicationSourceFacts {
+            valid_execution: true,
+            execution_status: Some(TallyExecutionStatus::SUCCESS),
+            is_execution_completed: true,
+            tally_type: TallyType::ELECTORAL_RESULTS,
+            is_latest_execution: true,
+            election_count: 1,
+            contest_count: 2,
+            tallied_contest_count: 2,
+        }
+    }
+
+    #[test]
+    fn publication_source_accepts_latest_completed_electoral_results() {
+        assert!(check_publication_source(&final_source(), 1, 2).is_ok());
+    }
+
+    #[test]
+    fn publication_source_rejects_incomplete_execution() {
+        let facts = PublicationSourceFacts {
+            execution_status: Some(TallyExecutionStatus::IN_PROGRESS),
+            is_execution_completed: false,
+            ..final_source()
+        };
+        assert!(check_publication_source(&facts, 1, 2).is_err());
+    }
+
+    #[test]
+    fn publication_source_rejects_completed_flag_without_success_status() {
+        for status in [
+            None,
+            Some(TallyExecutionStatus::STARTED),
+            Some(TallyExecutionStatus::CONNECTED),
+            Some(TallyExecutionStatus::IN_PROGRESS),
+            Some(TallyExecutionStatus::CANCELLED),
+        ] {
+            let facts = PublicationSourceFacts {
+                execution_status: status.clone(),
+                ..final_source()
+            };
+            assert!(
+                check_publication_source(&facts, 1, 2).is_err(),
+                "status {status:?} must not be publishable"
+            );
+        }
+    }
+
+    #[test]
+    fn publication_source_rejects_success_status_without_completion() {
+        let facts = PublicationSourceFacts {
+            is_execution_completed: false,
+            ..final_source()
+        };
+        assert!(check_publication_source(&facts, 1, 2).is_err());
+    }
+
+    #[test]
+    fn publication_source_rejects_awaiting_input_tie_break() {
+        let facts = PublicationSourceFacts {
+            execution_status: Some(TallyExecutionStatus::AWAITING_INPUT),
+            is_execution_completed: false,
+            ..final_source()
+        };
+        assert!(check_publication_source(&facts, 1, 2).is_err());
+    }
+
+    #[test]
+    fn publication_source_rejects_superseded_execution() {
+        let facts = PublicationSourceFacts {
+            is_latest_execution: false,
+            ..final_source()
+        };
+        assert!(check_publication_source(&facts, 1, 2).is_err());
+    }
+
+    #[test]
+    fn publication_source_rejects_initialization_report() {
+        let facts = PublicationSourceFacts {
+            tally_type: TallyType::INITIALIZATION_REPORT,
+            ..final_source()
+        };
+        assert!(check_publication_source(&facts, 1, 2).is_err());
+    }
+
+    #[test]
+    fn publication_source_rejects_unrelated_execution() {
+        let facts = PublicationSourceFacts {
+            valid_execution: false,
+            ..final_source()
+        };
+        assert!(check_publication_source(&facts, 1, 2).is_err());
+    }
+
+    #[test]
+    fn publication_source_rejects_scope_mismatch() {
+        assert!(check_publication_source(&final_source(), 2, 2).is_err());
+        assert!(check_publication_source(&final_source(), 1, 3).is_err());
+        let facts = PublicationSourceFacts {
+            tallied_contest_count: 1,
+            ..final_source()
+        };
+        assert!(check_publication_source(&facts, 1, 2).is_err());
+    }
 }

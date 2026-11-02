@@ -295,7 +295,7 @@ impl From<User> for UserRepresentation {
 }
 
 impl KeycloakAdminClient {
-    #[instrument(skip(self), err)]
+    #[instrument(skip(self, search, email), err)]
     pub async fn list_users(
         self,
         tenant_id: &str,
@@ -352,7 +352,12 @@ impl KeycloakAdminClient {
         Ok(current_user.into())
     }
 
-    #[instrument(skip(self, password), err)]
+    #[instrument(
+        skip(
+            self, attributes, email, first_name, last_name, username, password
+        ),
+        err
+    )]
     pub async fn edit_user(
         self,
         realm: &str,
@@ -400,7 +405,18 @@ impl KeycloakAdminClient {
         .await
     }
 
-    #[instrument(skip(self, credentials), err)]
+    #[instrument(
+        skip(
+            self,
+            attributes,
+            email,
+            first_name,
+            last_name,
+            username,
+            credentials
+        ),
+        err
+    )]
     pub async fn edit_user_with_credentials(
         self,
         realm: &str,
@@ -909,5 +925,92 @@ mod tests {
         });
 
         assert!(!is_keycloak_bad_request(&error));
+    }
+
+    #[rocket::async_test]
+    async fn keycloak_user_spans_record_no_voter_data() {
+        use crate::util::http_stub::HttpStub;
+        use crate::util::log_capture::LogCapture;
+        use keycloak::{KeycloakAdmin, KeycloakAdminToken};
+        use std::collections::HashMap;
+
+        const SEARCH: &str = "SearchValue3e9a";
+        const EMAIL: &str = "email-value-6b2d@example.test";
+        const FIRST_NAME: &str = "FirstNameValue1f8c";
+        const LAST_NAME: &str = "LastNameValue7a4e";
+        const USERNAME: &str = "UsernameValue5d0b";
+        const ATTRIBUTE_VALUE: &str = "AttributeValue9c3f";
+
+        let keycloak = HttpStub::start(|request_line| {
+            let body = if request_line.contains("/users/count") {
+                "0"
+            } else if request_line.starts_with("GET")
+                && request_line.contains("/users?")
+            {
+                "[]"
+            } else if request_line.starts_with("GET") {
+                "{}"
+            } else {
+                ""
+            };
+            (200, body.to_string())
+        })
+        .expect("keycloak stub");
+        let token: KeycloakAdminToken = serde_json::from_str(
+            r#"{"access_token":"opaque","expires_in":60,"scope":"openid","token_type":"Bearer"}"#,
+        )
+        .expect("token");
+        let admin_client = || KeycloakAdminClient {
+            client: KeycloakAdmin::new(
+                keycloak.url(),
+                token.clone(),
+                reqwest::Client::new(),
+            ),
+        };
+        let (capture, _guard) = LogCapture::install();
+
+        admin_client()
+            .list_users(
+                "tenant",
+                "event",
+                "realm",
+                Some(SEARCH.to_string()),
+                Some(EMAIL.to_string()),
+                Some(10),
+                Some(0),
+            )
+            .await
+            .expect("list users");
+        admin_client()
+            .edit_user(
+                "realm",
+                "user-id",
+                Some(true),
+                Some(HashMap::from([(
+                    "national-id".to_string(),
+                    vec![ATTRIBUTE_VALUE.to_string()],
+                )])),
+                Some(EMAIL.to_string()),
+                Some(FIRST_NAME.to_string()),
+                Some(LAST_NAME.to_string()),
+                Some(USERNAME.to_string()),
+                None,
+                None,
+            )
+            .await
+            .expect("edit user");
+
+        let logs = capture.contents();
+        assert!(logs.contains("edit_user_with_credentials"), "{logs}");
+        for value in [
+            SEARCH,
+            EMAIL,
+            FIRST_NAME,
+            LAST_NAME,
+            USERNAME,
+            ATTRIBUTE_VALUE,
+        ] {
+            assert!(!logs.contains(value), "{value} in logs: {logs}");
+        }
     }
 }
