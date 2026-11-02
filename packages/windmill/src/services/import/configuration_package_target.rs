@@ -16,7 +16,7 @@ use super::configuration_package_sections::{
     tenant_settings_changes, trustee_changes,
 };
 use super::configuration_package_sections::{
-    admission_problem, census_usernames, event_document, messaging_problem,
+    admission_problem, carries_messaging, census_usernames, event_document, messaging_problem,
     trustee_reference_problems, EventState,
 };
 use crate::postgres::election_event::get_election_event_by_id_if_exist;
@@ -389,7 +389,15 @@ impl PlatformTarget {
                         // The importer skips a messaging configuration its caller
                         // may not write and still reports the event imported.
                         problems.extend(messaging_problem(
-                            schema.messaging_config.is_some(),
+                            carries_messaging(
+                                schema.messaging_config.as_ref(),
+                                schema.keycloak_event_realm.as_ref(),
+                                &schema
+                                    .elections
+                                    .iter()
+                                    .map(|election| election.id.clone())
+                                    .collect::<Vec<_>>(),
+                            ),
                             &self.context.event_import.messaging_config_permission,
                         ));
                         let referenced: Vec<String> = schema
