@@ -206,3 +206,9 @@ body.home .navbar__brand .navbar__title {
 }
 .markdown :is(td, th) li + li { margin-top: 0.4em; }
 .markdown :is(td, th) li:last-child { margin-bottom: 0; }
+
+/* Handbook texts in quotation marks are exactly what the screen shows. */
+.markdown .screen-text {
+  font-family: Georgia, 'Liberation Serif', 'Times New Roman', serif;
+  font-style: italic;
+}

@@ -132,6 +132,5 @@ report the warning to the election organizer.
   your session ends and you must log in again (see
   [Your Voting Session](09-voting_session.md)).
 - If you want to check after the election that your vote was counted, copy
-  your encrypted ballot from the ballot locator before the end of the election
-  period (see
+  your encrypted ballot from the ballot locator before voting ends (see
   [Checking That Your Vote Was Stored and Counted](07-checking_storage.md)).

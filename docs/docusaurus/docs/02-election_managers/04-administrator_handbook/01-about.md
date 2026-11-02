@@ -117,9 +117,9 @@ accounts, election names, identifiers, hashes and dates are not values to copy
 into an election. Follow the steps and required values in the text; a pictured
 screen is not evidence that your own operation completed.
 
-- Names in quotation marks, such as "Users and Roles", are the exact texts of
-  the admin portal in English: menu entries, tabs, buttons, fields, options,
-  dialogs and messages.
+- Names in quotation marks and italics, such as "Users and Roles", are the exact
+  texts of the admin portal in English: menu entries, tabs, buttons, fields,
+  options, dialogs and messages.
 - A path such as Settings > "Backup / Restore" means: open Settings in the side
   menu, then the tab named "Backup / Restore".
 - Permissions are given with their label in Users and Roles and their
@@ -138,4 +138,4 @@ screen is not evidence that your own operation completed.
 | Version | Date | Changes |
 |---|---|---|
 | 1.0 | 2026-10-27 | First edition for the evaluated configuration of v10.0.0. |
-| 1.1 | 2026-11-02 | Introductions to numbered steps; Users and Roles, Self-Tests and Audit and Monitoring revised; new screenshots. |
+| 1.1 | 2026-11-02 | Introductions to numbered steps; About, Users and Roles, Self-Tests and Audit and Monitoring revised; new screenshots. |

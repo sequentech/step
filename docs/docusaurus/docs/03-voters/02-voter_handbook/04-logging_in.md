@@ -48,19 +48,23 @@ For each ballot, the "Ballot list" shows:
 | "Closed" | You cannot vote in this ballot now: voting has not started, is paused, or has ended. |
 | "Voted" or "Not voted" | Whether a vote of yours has been cast in this ballot. |
 | "Open:" and "Close:" with dates | When voting in this ballot starts and ends. |
-| "Election Begins in" with the time left | Shown before voting starts. |
+| "Election Begins in" with the time left | Shown before voting in this ballot starts. |
 | "Click to Vote" | Opens the ballot. Shown only while voting is open. |
 | "Locate your ballot" | Opens the ballot locator, where you can find a ballot you have cast. |
+
+Before voting starts, after it has ended in all ballots, and during
+maintenance, the voting portal shows no ballots but "There was a problem
+fetching the data. Please try again later or contact support for assistance."
+(see [Election States and Problems for Voters](10-states_and_problems.md)).
 
 ## If you cannot log in
 
 | What happens | What it means | What to do |
 |---|---|---|
 | Your login is refused several times in a row | After a number of failed logins in a row, the voting system locks your account for a while. The administrator sets this number. | Wait, then try again with the correct login details. If you still cannot log in, contact the election organizer. |
-| Your login is refused although your details are correct | You may not be in the voters' register of this election, or the voting system may be refusing new voter logins for a while to protect its records. | Try again later. If it still fails, contact the election organizer. |
-| "Voting is temporarily unavailable. Please try again later." | The voting system is refusing new voter logins for a while to protect its records (see [Logins refused to protect the records](10-states_and_problems.md#logins-refused-to-protect-the-records)). | Try again later. If it lasts, contact the election organizer. |
+| Your login is refused although your details are correct | You may not be in the voters' register of this election. | Try again later. If it still fails, contact the election organizer. |
 | "You are not listed as a voter in this election. Please contact support." | The voting system does not find you as a voter of this election. | Contact the election organizer. |
-| "The voting portal could not start. Please try again." | The voting portal could not load. | Select "Try again". If it keeps happening, contact the election organizer. |
+| "The voting portal could not start. Please try again." | The voting portal could not load, for example because the voting system is refusing voter logins for a while to protect its records (see [Logins refused to protect the records](10-states_and_problems.md#logins-refused-to-protect-the-records)). | Select "Try again". If it keeps happening, contact the election organizer. |
 | A certificate or security warning, or an address you do not recognise | You may not be on the real voting portal. The real voting portal never causes a certificate warning. | Stop. Do not continue, and do not try another address or link. Close the page and tell the election organizer. |
 
 When a message on the screen says "contact support", contact your election

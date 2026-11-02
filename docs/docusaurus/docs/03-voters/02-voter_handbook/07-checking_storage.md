@@ -36,18 +36,31 @@ ballot in the "Ballot list" and with "Locate your ballot".
 *Test capture with a synthetic voter. Use the Ballot ID from your own
 confirmed vote.*
 
-The Ballot ID lets you find your encrypted ballot in the ballot box. With
-signed ballot receipts, the confirmation shows a short code in two groups of
-four characters, such as `G5AT-12SZ`. Other configurations may show the full
-hash of the encrypted ballot. Use the complete code from your own confirmation;
-it does not reveal your selections.
+The Ballot ID lets you find your encrypted ballot in the ballot box. It does
+not reveal your selections. It has two forms:
 
-The full identifier on **Check your ballot** is for auditing a discarded
-ballot's encryption. To locate a cast ballot, use its confirmation code instead.
+- **The short code**, in two groups of four characters, such as `G5AT-12SZ`.
+  The review and confirmation screens show it, and the link and the QR code of
+  the confirmation screen contain it.
+- **The full Ballot ID**, 64 characters long (digits and the letters a to f).
+  It is the hash of your encrypted ballot. The copy icon next to the short
+  code, on the review and the confirmation screen, copies it. The audit screen
+  "Check your ballot" shows it.
 
-- Keep the Ballot ID of your cast ballot. You can copy it, write it down,
-  select "Print" on the confirmation screen to save the receipt, or scan the QR
-  code.
+:::warning
+
+**The short code is not proof.** It is calculated from the full Ballot ID and
+the confirmation of the intermediate ballot box, but has only eight characters.
+With enough computing power, someone who controls
+the voting system could make a different ballot with the same short code. A
+matching short code therefore does not prove that a ballot is yours. To check
+your ballot, and to compare Ballot IDs, always use the full Ballot ID.
+
+:::
+
+- Keep the full Ballot ID of your cast ballot: copy it on the confirmation
+  screen and paste it into a text file that you keep. "Print" on the
+  confirmation screen saves a receipt with the short code.
 - The Ballot ID does not show how you voted. The ballot locator finds a ballot
   only for the voter who cast it, while that voter is logged in.
 - If you vote more than once (only where your election allows it), each cast
@@ -56,18 +69,18 @@ ballot's encryption. To locate a cast ballot, use its confirmation code instead.
 ## Find your ballot with the ballot locator
 
 You can check that your cast ballot is stored in the intermediate ballot box
-until the end of the election period. To find it:
+while voting is open, at the latest until the end of the election period. To
+find it:
 
-1. Open the ballot locator in one of these ways:
-   - select the Ballot ID on the confirmation screen;
-   - scan the QR code on the confirmation screen;
-   - log in to the voting portal and select "Locate your ballot" for the ballot
-     in the "Ballot list".
+1. Log in to the voting portal and select "Locate your ballot" for the ballot
+   in the "Ballot list". The link and the QR code of the confirmation screen
+   also open the ballot locator, but they look up the short code; to check
+   with the full Ballot ID, select "Find another Ballot" there.
 2. The voting portal shows "Find your Ballot". Under the title it says "You can
    check your ballot until" followed by the date and time when checks end.
-3. If the Ballot ID is not filled in already, type or paste it into the field
-   (it shows "Confirm your ballot was cast correctly" while empty). If the
-   voting portal shows "Invalid Ballot ID format", check what you typed.
+3. Paste the full Ballot ID into the field (it shows "Confirm your ballot was
+   cast correctly" while empty). If the voting portal shows "Invalid Ballot ID
+   format", check what you pasted.
 4. Select "Find your Ballot".
 5. The voting portal shows "Your Ballot Lookup Results" with one of the results
    below.
@@ -76,10 +89,10 @@ until the end of the election period. To find it:
 | Result | What it means | What to do |
 |---|---|---|
 | "Your ballot ID" followed by the code and "has been found" | Your ballot is stored. The voting portal also shows "Cast on" with the time it was cast, and "This is your Ballot content:" with your encrypted ballot. | Check that the time matches when you cast your vote. To check later that it was counted, copy the encrypted ballot (see below). |
-| "Your ballot ID" followed by the code and "was not found" | No cast ballot of yours has this Ballot ID. | Check that you typed it correctly. If it is correct, tell the election organizer. |
-| "More than one of your ballots matches" followed by "Use the full ballot ID." | The code you typed is too short to identify one ballot. | Type the full Ballot ID. |
-| "Something went wrong." | The lookup could not be done, for example because the election is in maintenance mode (see [Election States and Problems for Voters](10-states_and_problems.md)). | Try again later. If it keeps happening, tell the election organizer. |
-| "Checks ended on" followed by a date | The time for checking ballots is over. | Nothing can be checked any more. |
+| "Your ballot ID" followed by the code and "was not found" | No cast ballot of yours has this Ballot ID. | Check that you entered the full Ballot ID of your cast ballot. If it is correct, tell the election organizer. |
+| "More than one of your ballots matches" followed by "Use the full ballot ID." | The code you entered matches more than one of your cast ballots. | Enter the full Ballot ID. |
+| "Something went wrong." | The lookup could not be done, for example because the election is in maintenance mode or voting has ended (see [Election States and Problems for Voters](10-states_and_problems.md)). | Try again later. If it keeps happening, tell the election organizer. |
+| "Checks ended on" followed by a date | The period for checking cast ballots is over. The ballot locator no longer looks up ballots. | Nothing. A copy of your encrypted ballot still lets you check after the election that your vote was counted (see below). |
 
 ![Ballot locator showing a found ballot, its cast time and complete encrypted ballot content](./assets/voter-locator-current.png)
 
@@ -87,16 +100,16 @@ until the end of the election period. To find it:
 vote.*
 
 The ballot content is the encrypted ballot that the ballot box stored under
-your Ballot ID. It is shown so that you can see that ballot: your Ballot ID is
-calculated from its hash, so it stands for this ballot and no other. The ballot
+your Ballot ID. It is shown so that you can see that ballot: your full Ballot
+ID is calculated from it, so it stands for this ballot and no other. The ballot
 content is encrypted. It does not show your selections.
 
 :::warning
 
 **Tell the election organizer at once** if your ballot is not found although
-you saw "Your vote has been cast" and typed the Ballot ID correctly, if the
-cast time is not when you voted, or if the ballot locator finds a ballot you did
-not cast.
+you saw "Your vote has been cast" and entered the full Ballot ID correctly, if
+the cast time is not when you voted, or if the ballot locator finds a ballot
+you did not cast.
 
 :::
 
@@ -110,16 +123,16 @@ itself. If you voted again, use the Ballot ID of the last
 vote you cast and copy that ballot: only your last vote is counted. Earlier
 ballots can still be found by the locator but are absent from the counted
 ballots, so checking one of them does not verify your final vote. You can copy
-the final ballot only while the ballot locator shows it, and at the latest
-until the end of the election period. To copy it:
+the final ballot only while the ballot locator shows it: while voting is open,
+at the latest until the end of the election period. To copy it:
 
 1. Find your ballot with the ballot locator, as described above.
 2. Select all the text shown under "This is your Ballot content:" and copy it,
    including the opening `{` and closing `}`. This is the complete JSON ballot;
    keep every field, not just the long encrypted value inside `contests`.
 3. Paste it, exactly as shown and without any change, into an empty text file,
-   and save the file. Put nothing else into this file. Keep your Ballot ID
-   separately, for example written down.
+   and save the file. Put nothing else into this file. Keep your full Ballot
+   ID separately.
 4. Open the file again and check that it contains the whole text shown by the
    ballot locator, from its first to its last character.
 
@@ -172,5 +185,5 @@ the election verifier reported and tell the election organizer. You can also rep
 
 The confirmation screen says "Use the code below to verify that it was
 counted". The code is your Ballot ID. With it you find your ballot with the
-ballot locator during the election period, and copy the encrypted ballot that
+ballot locator while voting is open, and copy the encrypted ballot that
 you need for the check after the election.

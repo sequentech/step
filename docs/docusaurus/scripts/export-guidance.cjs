@@ -97,7 +97,7 @@ function exportGuidance({site, selection, out}) {
     'td ul,td ol,th ul,th ol{margin:.2em 0;padding-left:.25em}td li,th li{margin-bottom:.4em}td li:last-child,th li:last-child{margin-bottom:0}'+
     '.theme-admonition{border-left:3px solid #777;padding:.6em 1em;margin:1em 0}.guidance-admonition-heading{font-weight:bold;break-after:avoid}'+
     '.guidance-admonition-icon{display:inline-block;margin-right:.4em}.guidance-admonition-icon svg{width:1.1em;height:1.1em}'+
-    '.hash-link{display:none}aside{border-left:4px solid #777;padding-left:1em}@page{size:A4;margin:18mm;@bottom-center{content:counter(page)}}'+
+    '.screen-text{font-family:Liberation Serif,serif;font-style:italic}.hash-link{display:none}aside{border-left:4px solid #777;padding-left:1em}@page{size:A4;margin:18mm;@bottom-center{content:counter(page)}}'+
     '</style><body>'+content+'</body></html>';
   for (const item of prepared) {
     const {doc, page, filename} = item;

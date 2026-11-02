@@ -25,8 +25,8 @@ If your election allows it, to vote again:
 2. Select "Click to Vote" for the ballot.
 3. Fill in, review and cast your ballot as described in
    [Casting Your Vote](05-casting_your_vote.md).
-4. Keep the new Ballot ID. You can find each of your cast ballots with the
-   ballot locator. If you want to verify the count later, copy the encrypted
+4. Keep the new full Ballot ID. You can find each of your cast ballots with
+   the ballot locator. If you want to verify the count later, copy the encrypted
    ballot for this new Ballot ID before voting ends, as described in
    [Checking That Your Vote Was Stored and Counted](07-checking_storage.md).
    Use this copy for the election-verifier; an earlier vote is not counted.

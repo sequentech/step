@@ -36,7 +36,10 @@ const config = {
       ({
         docs: {
           path: 'docs',
-          remarkPlugins: [require('./plugins/remark-code-tabs')],
+          remarkPlugins: [
+            require('./plugins/remark-code-tabs'),
+            require('./plugins/remark-screen-text'),
+          ],
           sidebarPath: require.resolve('./sidebars.js'),
           editUrl:
             'https://github.com/sequentech/step/edit/main/docs/docusaurus',

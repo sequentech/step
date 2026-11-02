@@ -89,9 +89,9 @@ accounts, election names, identifiers, hashes and dates are not values to copy
 into an election. Follow the steps and required values in the text; a pictured
 screen is not evidence that your own operation completed.
 
-- Text in double quotes, such as "Cast ballot", is exactly what the screen shows
-  in English. If you use the voting portal in another language, the same items
-  appear in that language.
+- Text in double quotes and italics, such as "Cast ballot", is exactly what the
+  screen shows in English. If you use the voting portal in another language, the
+  same items appear in that language.
 - Numbered steps must be done in the order given.
 - Boxes marked **warning** or **danger** are security warnings. Follow them.
 - These terms have a fixed meaning in this handbook:
@@ -114,8 +114,9 @@ screen is not evidence that your own operation completed.
     the voting system takes the last valid vote of each voter from the
     intermediate ballot box, without the voter's name, into the ballot box,
     which is then mixed and decrypted.
-  - **Ballot ID**: the code that identifies your encrypted ballot. You use it to
-    check your ballot.
+  - **Ballot ID**: the code that identifies your encrypted ballot. The screens
+    show a short code of eight characters; the full Ballot ID has 64. You check
+    your ballot with the full Ballot ID.
   - **cast**: to send your vote so that it counts. Until you cast it, your
     vote does not count.
 
@@ -124,4 +125,4 @@ screen is not evidence that your own operation completed.
 | Version | Date | Changes |
 |---|---|---|
 | 1.0 | 2026-10-27 | First edition for the evaluated configuration of v10.0.0. |
-| 1.1 | 2026-11-02 | Introductions to numbered steps; Your Role, Casting Your Vote, Auditing, Checking Storage and States revised; new screenshots. |
+| 1.1 | 2026-11-02 | Introductions to numbered steps; all sections revised; new screenshots. |

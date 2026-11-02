@@ -20,9 +20,12 @@ Your election name, candidates, branding and Ballot IDs will differ.
 
 ![Ballot list with the available synthetic test ballot](./assets/voter-chooser-current.png)
 
-If your election offers instructions for each screen, the question-mark icon at
-the top right of the screen shows them, and the speaker icon next to it, where
-your browser has a voice for your language, reads them aloud.
+If your election offers instructions for each screen, they are in the bar at the
+top of the screen: the question-mark icon shows them, and the speaker icon next
+to it reads them aloud where your election has recorded them or your browser
+has a voice for your language. If your election offers it, the accessibility
+icon there changes how the voting portal looks on your device, for example its
+text size or contrast.
 
 To open your ballot:
 
@@ -73,21 +76,19 @@ voting portal opens the review screen. Nothing is cast at this step.
 
 The voting portal shows "Review your ballot" with your selections. Your ballot is
 already encrypted: at the top, the screen shows "Your Ballot ID:" followed by
-the code of this encrypted ballot. You can now cast this ballot, or audit it to
-check that it contains your selections.
-
-With signed ballot receipts, this is a short code in two groups of four
-characters, such as `G5AT-12SZ`. Copy your own code exactly. The audit screen
-uses a separate, longer identifier for checking the encryption; follow the
-instructions in [Auditing Your Ballot](06-auditing_your_ballot.md).
+the short code of this encrypted ballot, such as `G5AT-12SZ`. The copy icon
+next to it copies the full Ballot ID. Compare ballots only with the full Ballot
+ID; the short code is not proof (see
+[Your Ballot ID](07-checking_storage.md#your-ballot-id)). You can now cast this
+ballot, or audit it to check that it contains your selections.
 
 :::info
 
 **Your vote has not been cast yet.** When this screen opens, the voting portal
 sends your encrypted ballot to the intermediate ballot box. The ballot box
 stores it as received, not as cast, and confirms this with its signature, which
-your browser checks. The Ballot ID is calculated from your encrypted ballot and
-this confirmation. A received ballot is never counted; only casting it makes it
+your browser checks. The short code is calculated from your encrypted ballot
+and this confirmation. A received ballot is never counted; only casting it makes it
 count. Until you cast it, the ballot locator does not find this Ballot ID.
 
 :::
@@ -100,7 +101,7 @@ To finish the review:
 | Button | What happens next |
 |---|---|
 | **Edit ballot** | Return to your selections and change them. |
-| **Audit ballot** | Check this ballot’s encryption. It is spoiled and can never be cast; voting again creates a new encrypted ballot and Ballot ID. See [Auditing Your Ballot](06-auditing_your_ballot.md). |
+| **Audit ballot** | Check this ballot’s encryption. The voting portal then discards this ballot and does not let you cast it; to vote, you start again with a new encrypted ballot and a new Ballot ID. See [Auditing Your Ballot](06-auditing_your_ballot.md). |
 | **Cast ballot** | Submit the ballot. Continue with step 5 and wait for confirmation. |
 
 If you left a contest unfilled, the voting portal shows "Some selections are
@@ -131,8 +132,10 @@ To cast your vote:
 :::warning
 
 **Cast only a ballot that shows exactly your selections.** If you have audited
-a ballot, check that the ballot you cast has a new Ballot ID: an audited ballot
-can never be cast. Once cast, a vote cannot be changed. If your election allows
+a ballot, check that the ballot you cast has a different full Ballot ID. The
+audit takes place only on your device, so the voting system cannot recognise
+an audited ballot; only your check shows that you do not cast it. Once cast, a
+vote cannot be changed. If your election allows
 you to vote again, a new vote replaces it in the count (see
 [Voting Again](08-voting_again.md)).
 
@@ -146,23 +149,21 @@ The confirmation screen "Your vote has been cast" appears only after the
 intermediate ballot box has confirmed with its signature that it stored your
 encrypted vote, and your browser has checked that signature. It shows:
 
-- "Ballot ID" with the code of your cast ballot. Selecting the code opens the
-  ballot locator, where you can find your ballot later.
+- "Ballot ID" with the short code of your cast ballot. Selecting the code opens
+  the ballot locator, where you can find your ballot later. The copy icon next
+  to it copies the full Ballot ID.
 - "Verify that your ballot was cast" with a QR code that also opens the ballot
   locator. Although the screen says "at any time", the ballot locator lets you
-  check your ballot only until the end of the election period.
+  check your ballot only while voting is open, at the latest until the end of
+  the election period.
 - "Print": saves a receipt for your vote as a PDF file. If this fails, the
   voting portal shows "Error" with "An error occurred. Please try again".
-- "Finish": takes you back to the "Ballot list" if you have more ballots to vote
-  on. Otherwise it logs you out.
+- "Finish": takes you back to the "Ballot list" if there is a ballot you can
+  still vote in, including voting again where your election allows it.
+  Otherwise it logs you out.
 
-For a blank ballot, the screen says "Your ballot was cast blank, which is a
-valid, deliberate choice." If the screen shows "We couldn’t check whether you
-have more elections to vote in. Please retry.", select "Retry". Your vote has
-been cast all the same.
-
-Write down or copy the Ballot ID, or save the receipt, if you want to check your
-ballot later. How to check it:
+If you want to check your ballot later, copy the full Ballot ID with the copy
+icon and paste it into a text file that you keep. How to check it:
 [Checking That Your Vote Was Stored and Counted](07-checking_storage.md).
 
 ## If you stop before casting

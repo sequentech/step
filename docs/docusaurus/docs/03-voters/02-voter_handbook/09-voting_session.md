@@ -41,8 +41,8 @@ To log out:
 
 Your session ends at once.
 
-On the confirmation screen, "Finish" also logs you out when you have no more
-ballots to vote on.
+On the confirmation screen, "Finish" also logs you out when there is no ballot
+you can still vote in.
 
 ## When you have finished
 
