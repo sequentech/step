@@ -47,7 +47,10 @@ import {styled} from "@mui/material/styles"
 import {faAngleLeft, faFire} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
-import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
+import {
+    selectAuditableBallot,
+    selectIsBallotAudited,
+} from "../store/auditableBallots/auditableBallotsSlice"
 import {useMutation, useQuery} from "@apollo/client/react"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {GetElectionEventQuery, InsertCastVoteMutation, GetElectionsQuery} from "../gql/graphql"
@@ -257,6 +260,8 @@ interface ActionButtonProps {
     hasInconsistentHash: boolean
     // The ballot box has not yet stored and signed this ballot.
     isAwaitingReceipt: boolean
+    // The audit screen showed this ballot's secret values.
+    isAudited: boolean
     receivedBallotId?: string
     unfilledContests: Array<IUnfilledContest>
 }
@@ -275,10 +280,11 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     isFullyAcclaimed,
     hasInconsistentHash,
     isAwaitingReceipt,
+    isAudited,
     receivedBallotId,
     unfilledContests,
 }) => {
-    const castRefused = hasInconsistentHash || isAwaitingReceipt
+    const castRefused = hasInconsistentHash || isAwaitingReceipt || isAudited
     const {t} = useTranslation()
     const navigate = useNavigate()
     const location = useLocation()
@@ -490,10 +496,12 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 isFullyAcclaimed={isFullyAcclaimed}
                 backComponent={RouterLink}
                 backTo={backNavigateTo}
-                onAudit={() => setAuditBallotHelp(true)}
+                // Auditing shows the ballot's secret values, so it waits while
+                // that ballot is being cast.
+                onAudit={isCasting ? undefined : () => setAuditBallotHelp(true)}
                 // A detected hash mismatch refuses the cast, and so does a ballot
-                // the ballot box has not received; leaving the handler out is
-                // what disables the button.
+                // the ballot box has not received or one that was audited;
+                // leaving the handler out is what disables the button.
                 onCast={castRefused ? undefined : onCast}
             />
             <UnfilledContestsDialog
@@ -654,22 +662,26 @@ export const ReviewScreen: React.FC = () => {
         }
     }, [auditableBallot, selectionState, isMultiContest])
 
+    // An audited ballot is never cast either. The voter goes back to the
+    // ballot, and reviewing it again encrypts a new one.
+    const isAudited = useAppSelector(selectIsBallotAudited(String(electionId)))
+
     const votePath = `/tenant/${tenantId}/event/${eventId}/election/${electionId}/vote${location.search}`
 
     useEffect(() => {
-        if (hasStaleBallot) {
+        if (hasStaleBallot || isAudited) {
             navigate(votePath, {replace: true})
         }
-    }, [hasStaleBallot, navigate, votePath])
+    }, [hasStaleBallot, isAudited, navigate, votePath])
 
     const errorSelectionState = useMemo(() => {
-        if (!selectionState || !ballotStyle || isFullyAcclaimed || hasStaleBallot) {
+        if (!selectionState || !ballotStyle || isFullyAcclaimed || hasStaleBallot || isAudited) {
             return []
         }
         return isMultiContest
             ? interpretMultiContestSelection(selectionState, ballotStyle.ballot_eml)
             : interpretContestSelection(selectionState, ballotStyle.ballot_eml)
-    }, [selectionState, isMultiContest, ballotStyle?.ballot_eml, hasStaleBallot])
+    }, [selectionState, isMultiContest, ballotStyle?.ballot_eml, hasStaleBallot, isAudited])
 
     const reviewSummary = useMemo(
         () =>
@@ -704,7 +716,8 @@ export const ReviewScreen: React.FC = () => {
             !!ballotStyle?.ballot_eml?.public_key?.is_demo ||
             globalSettings.DISABLE_AUTH ||
             isFullyAcclaimed ||
-            hasInconsistentHash,
+            hasInconsistentHash ||
+            isAudited,
     })
     const isReceiptRequired = receipt.status !== EReceiveBallotStatus.NOT_REQUIRED
     const isAwaitingReceipt = isReceiptRequired && receipt.status !== EReceiveBallotStatus.RECEIVED
@@ -766,7 +779,7 @@ export const ReviewScreen: React.FC = () => {
 
     // Cast the ballot automatically after reauth with golden user
     const goldenUserCastBallotAction = async () => {
-        if (castingRef.current || hasInconsistentHash) {
+        if (castingRef.current || hasInconsistentHash || isAudited) {
             return
         }
         setCasting(true)
@@ -843,7 +856,7 @@ export const ReviewScreen: React.FC = () => {
         }
     }, [ballotStyle, selectionState, auditableBallot, isGoldenPolicy, isFullyAcclaimed])
 
-    if (hasStaleBallot) {
+    if (hasStaleBallot || isAudited) {
         return <CircularProgress className="review-progress" aria-label={t("a11y.loading")} />
     }
 
@@ -907,6 +920,7 @@ export const ReviewScreen: React.FC = () => {
                         ? undefined
                         : shownBallotId
                 }
+                ballotIdCopyValue={ballotId}
                 onBallotIdHelp={() => setOpenBallotIdHelp(true)}
                 steps={<Stepper selected={2} />}
                 onTitleHelp={() => setReviewScreenHelp(true)}
@@ -949,6 +963,7 @@ export const ReviewScreen: React.FC = () => {
                             setErrorMsg={setErrorMsg}
                             hasInconsistentHash={hasInconsistentHash}
                             isAwaitingReceipt={isAwaitingReceipt}
+                            isAudited={isAudited}
                             receivedBallotId={receipt.ballotId}
                             isGoldenPolicy={isGoldenPolicy ?? false}
                             isMultiContest={isMultiContest}

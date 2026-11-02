@@ -38,6 +38,11 @@ export interface IReviewLayoutProps {
      * what a preview needs, because no ballot has been cast to have one.
      */
     ballotId?: string
+    /**
+     * What the identifier's copy button copies, when it is not `ballotId`: the full
+     * Ballot ID, beside a receipt code that stands for it.
+     */
+    ballotIdCopyValue?: string
     /** Named as `BallotHash` names it, since that is where they end up. */
     onBallotIdHelp?: () => void
 
@@ -124,6 +129,7 @@ export interface IReviewLayoutProps {
  */
 export const ReviewLayout: React.FC<IReviewLayoutProps> = ({
     ballotId,
+    ballotIdCopyValue,
     onBallotIdHelp,
     steps,
     onTitleHelp,
@@ -163,6 +169,7 @@ export const ReviewLayout: React.FC<IReviewLayoutProps> = ({
             {ballotId === undefined ? null : (
                 <BallotHash
                     hash={ballotId}
+                    copyValue={ballotIdCopyValue}
                     copyLabels={{
                         copy: t("reviewScreen.copyBallotId"),
                         copied: t("reviewScreen.ballotIdCopied"),

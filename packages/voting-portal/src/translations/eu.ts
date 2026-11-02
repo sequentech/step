@@ -314,10 +314,6 @@ const basqueTranslation: TranslationType = {
             title: "Zure botoa eman da",
             description:
                 "Beheko berrespen kodeak egiaztatzen du <b>zure bozketa arrakastaz eman dela</b>. Kode hau erabil dezakezu zure bozketa kontatu dela egiaztatzeko.",
-            blankBallot: {
-                description:
-                    "Zure boto-txartela zuri gisa aurkeztu da, aukera baliozko eta nahitakoa da.",
-            },
             ballotId: "Bozketa IDa",
             printButton: "Inprimatu",
             finishButton: "Amaitu",

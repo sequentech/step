@@ -315,10 +315,6 @@ const spanishTranslation: TranslationType = {
             title: "Su voto ha sido emitido",
             description:
                 "Su papeleta fue emitida correctamente. Use el código a continuación para verificar que fue contabilizada",
-            blankBallot: {
-                description:
-                    "Su papeleta se emitió en blanco, lo cual es una elección válida y deliberada.",
-            },
             ballotId: "Localizador del Voto",
             printButton: "Imprimir",
             finishButton: "Finalizar",

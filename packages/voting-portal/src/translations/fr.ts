@@ -314,9 +314,6 @@ const frenchTranslation: TranslationType = {
             title: "Votre vote a été émis",
             description:
                 "Le code de confirmation ci-dessous vérifie que <b>votre vote a été émis correctement</b>. Vous pouvez utiliser ce code pour vérifier que votre vote a été comptabilisé.",
-            blankBallot: {
-                description: "Votre bulletin a été déposé blanc, un choix valide et délibéré.",
-            },
             ballotId: "Localisateur de Vote",
             printButton: "Imprimer",
             finishButton: "Terminer",

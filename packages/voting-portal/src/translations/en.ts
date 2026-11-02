@@ -308,9 +308,6 @@ const englishTranslation = {
             title: "Your vote has been cast",
             description:
                 "Your ballot was cast successfully. Use the code below to verify that it was counted",
-            blankBallot: {
-                description: "Your ballot was cast blank, which is a valid, deliberate choice.",
-            },
             ballotId: "Ballot ID",
             printButton: "Print",
             finishButton: "Finish",

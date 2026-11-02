@@ -18,7 +18,7 @@
  */
 
 import {ThemeProvider} from "@mui/material/styles"
-import {render as mount, screen} from "@testing-library/react"
+import {act, fireEvent, render as mount, screen} from "@testing-library/react"
 import React from "react"
 
 import theme from "../services/theme"
@@ -99,6 +99,24 @@ describe("the review screen's arrangement", () => {
         render(<ReviewLayout {...props} ballotId="ballot-42" />)
 
         expect(screen.getByText(/ballot-42/)).toBeInTheDocument()
+    })
+
+    it("copies the value it is given for copying, not the identifier it shows", async () => {
+        // With receipts the identifier shown is the ballot box's short code, and
+        // the full Ballot ID is what the voter copies.
+        const writeText = jest.fn().mockResolvedValue(undefined)
+        Object.defineProperty(navigator, "clipboard", {configurable: true, value: {writeText}})
+        try {
+            render(<ReviewLayout {...props} ballotId="FTBE-MHRX" ballotIdCopyValue="ballot-42" />)
+
+            expect(screen.getByText(/FTBE-MHRX/)).toBeInTheDocument()
+            await act(async () =>
+                fireEvent.click(screen.getByRole("button", {name: "reviewScreen.copyBallotId"}))
+            )
+            expect(writeText).toHaveBeenCalledWith("ballot-42")
+        } finally {
+            Reflect.deleteProperty(navigator, "clipboard")
+        }
     })
 
     it("offers no help button unless somebody can answer it", () => {

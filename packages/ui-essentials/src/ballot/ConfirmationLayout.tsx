@@ -86,21 +86,6 @@ export interface IConfirmationLayoutProps {
 
     onTitleHelp?: () => void
     /**
-     * A second paragraph under the description, when there is something to add.
-     *
-     * The portal says here that a ballot was cast blank. Its own slot rather than
-     * more `description`, because that one is wrapped in a `Typography` and a
-     * paragraph inside a paragraph is not markup a browser will keep.
-     */
-    /**
-     * Whether the ballot was cast blank, which the screen says out loud.
-     *
-     * A flag rather than the sentence: the sentence is
-     * `confirmationScreen.blankBallot.description`, which belongs in the catalogue with
-     * everything else on this screen. `EA-F3-015`.
-     */
-    isBlankBallot?: boolean
-    /**
      * Every contest was acclaimed, so nothing was cast: the screen says
      * `confirmationScreen.acclamation.*` and has no identifier, link or QR to show.
      */
@@ -111,6 +96,11 @@ export interface IConfirmationLayoutProps {
      * (`EVotingPortalAuditButtonCfg.NOT_SHOW`).
      */
     ballotIdCopyLabels?: {copy: string; copied: string; error: string}
+    /**
+     * What the copy button copies, when it is not `ballotId`: the full Ballot ID,
+     * beside a receipt code that stands for it.
+     */
+    ballotIdCopyValue?: string
 
     /**
      * The identifier itself, as the wide layout shows it.
@@ -158,9 +148,9 @@ export interface IConfirmationLayoutProps {
 export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
     steps,
     onTitleHelp,
-    isBlankBallot = false,
     isFullyAcclaimed = false,
     ballotIdCopyLabels,
+    ballotIdCopyValue,
     ballotId,
     ballotIdOnPhone,
     ballotIdHref,
@@ -229,16 +219,6 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
                     )
                 )}
             </Typography>
-            {!isBlankBallot ? null : (
-                <Typography
-                    className="blank-ballot-description"
-                    variant="body2"
-                    component="div"
-                    sx={{color: theme.palette.customGrey.main}}
-                >
-                    {stringToHtml(t("confirmationScreen.blankBallot.description"))}
-                </Typography>
-            )}
             {/* A fully acclaimed election casts no ballot, so it has no
                 ballot id, tracker link or QR code to show. */}
             {isFullyAcclaimed ? null : (
@@ -299,7 +279,7 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
                             </BallotIdLink>
                             {ballotIdCopyLabels === undefined ? null : (
                                 <BallotHashCopyButton
-                                    hash={ballotId}
+                                    hash={ballotIdCopyValue ?? ballotId}
                                     copyLabels={ballotIdCopyLabels}
                                 />
                             )}

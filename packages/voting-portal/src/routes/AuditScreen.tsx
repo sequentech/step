@@ -33,8 +33,12 @@ import {
 } from "@fortawesome/free-solid-svg-icons"
 import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
 import {Typography} from "@mui/material"
-import {useAppSelector} from "../store/hooks"
-import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
+import {useAppDispatch, useAppSelector} from "../store/hooks"
+import {
+    markBallotAudited,
+    selectAuditableBallot,
+} from "../store/auditableBallots/auditableBallotsSlice"
+import {clearSessionStorageBallotData} from "../store/castVotes/sessionBallotData"
 import {provideBallotService} from "../services/BallotService"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {useRootBackLink} from "../hooks/root-back-link"
@@ -132,6 +136,7 @@ const AuditScreen: React.FC = () => {
     const backLink = useRootBackLink()
     const navigate = useNavigate()
     const location = useLocation()
+    const dispatch = useAppDispatch()
 
     if (ballotHash && auditableBallot?.ballot_hash && ballotHash !== auditableBallot.ballot_hash) {
         console.log(
@@ -145,6 +150,16 @@ const AuditScreen: React.FC = () => {
             navigate(backLink)
         }
     })
+
+    // This screen shows the ballot's secret values, so the ballot can no
+    // longer be cast: not from the review screen, and not from the session
+    // data a re-authentication would cast it from.
+    useEffect(() => {
+        if (ballotHash) {
+            dispatch(markBallotAudited(String(electionId)))
+            clearSessionStorageBallotData()
+        }
+    }, [ballotHash, electionId, dispatch])
 
     const verifierSearchParams = new URLSearchParams(location.search)
     verifierSearchParams.set("lang", i18n.language)

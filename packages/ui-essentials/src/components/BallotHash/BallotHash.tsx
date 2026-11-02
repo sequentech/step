@@ -69,6 +69,8 @@ export interface BallotHashProps {
     onHelpClick?: () => void
     helpButtonLabel?: string
     copyLabels?: BallotHashCopyLabels
+    /** What the copy button copies when not `hash`: the full Ballot ID behind a receipt code. */
+    copyValue?: string
 }
 
 export enum CopyBallotHashStatus {
@@ -161,6 +163,7 @@ const BallotHash: React.FC<BallotHashProps> = ({
     onHelpClick,
     helpButtonLabel,
     copyLabels,
+    copyValue,
 }) => {
     const {t} = useTranslation()
 
@@ -177,7 +180,7 @@ const BallotHash: React.FC<BallotHashProps> = ({
                 {t("ballotHash", {ballotId: hash})}
             </BallotHashText>
             <HashActions className="hash-actions">
-                <BallotHashCopyButton hash={hash} copyLabels={copyLabels} />
+                <BallotHashCopyButton hash={copyValue ?? hash} copyLabels={copyLabels} />
                 <IconButton
                     buttonClassName="hash-help-button"
                     icon={faCircleQuestion}

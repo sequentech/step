@@ -314,10 +314,6 @@ const galegoTranslation: TranslationType = {
             title: "O teu voto foi emitido",
             description:
                 "O código de confirmación abaixo verifica que <b>o teu voto foi emitido correctamente</b>. Podes usar este código para verificar que a túa papeleta foi contada.",
-            blankBallot: {
-                description:
-                    "A súa papeleta emitiuse en branco, o cal é unha elección válida e deliberada.",
-            },
             ballotId: "ID da Papeleta",
             printButton: "Imprimir",
             finishButton: "Rematar",

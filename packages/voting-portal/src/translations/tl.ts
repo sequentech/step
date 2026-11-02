@@ -313,10 +313,6 @@ const tagalogTranslation: TranslationType = {
             title: "Ang iyong boto ay nai-submit na",
             description:
                 "Ang code ng kumpirmasyon sa ibaba ay nagpapatunay na <b>ang iyong balota ay matagumpay na nai-submit</b>. Maaari mong gamitin ang code na ito upang tiyakin na ang iyong balota ay nabilang.",
-            blankBallot: {
-                description:
-                    "Ang iyong balota ay naisumite bilang blangko, na isang wasto at sinasadyang pagpili.",
-            },
             ballotId: "ID ng Balota",
             printButton: "I-print",
             finishButton: "Tapos na",

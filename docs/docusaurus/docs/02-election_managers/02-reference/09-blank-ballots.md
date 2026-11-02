@@ -67,9 +67,9 @@ Unlike Decline to Vote, there is **no explicit "cast a blank ballot" button**. A
 2. When the voter clicks **Next** to proceed to review, a confirmation dialog explains that the ballot will be cast blank and asks the voter to confirm before continuing.
 3. On the **Review Screen**, every contest shows a **Blank ballot** label instead of candidate selections.
 4. If ballot casting is configured to show a confirmation dialog before the final cast, that dialog's copy is also blank-ballot specific.
-5. After casting, the confirmation/receipt screen shows blank-specific copy alongside the usual Ballot ID, explaining that the ballot was cast blank as a valid, deliberate choice.
+5. After casting, the confirmation screen and the receipt show the same copy as for any other ballot: they never say how the vote was cast.
 
-If the voter selects at least one candidate in any contest, or marks any contest explicitly invalid, the ballot is not blank — normal review and receipt copy apply, even if other contests were left empty.
+If the voter selects at least one candidate in any contest, or marks any contest explicitly invalid, the ballot is not blank — normal review copy applies, even if other contests were left empty.
 
 ### Ballot Verifier
 

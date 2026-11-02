@@ -134,6 +134,20 @@ describe("BallotHash", () => {
         expect(screen.getByRole("button", {name: copyLabels.copy})).toBeInTheDocument()
     })
 
+    it("shows the hash and copies the copy value when it is given one", async () => {
+        const writeText = jest.fn().mockResolvedValue(undefined)
+        Object.defineProperty(navigator, "clipboard", {configurable: true, value: {writeText}})
+        render(
+            <ThemeProvider theme={theme}>
+                <BallotHash hash="FTBE-MHRX" copyValue="abc123" copyLabels={copyLabels} />
+            </ThemeProvider>
+        )
+
+        expect(screen.getByText("Your Ballot ID: FTBE-MHRX")).toBeInTheDocument()
+        await act(async () => fireEvent.click(screen.getByRole("button", {name: copyLabels.copy})))
+        expect(writeText).toHaveBeenCalledWith("abc123")
+    })
+
     it.each([undefined, {writeText: jest.fn().mockRejectedValue(new Error("denied"))}])(
         "announces clipboard failures (%j)",
         async (clipboard) => {

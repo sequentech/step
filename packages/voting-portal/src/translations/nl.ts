@@ -314,10 +314,6 @@ const dutchTranslation: TranslationType = {
             title: "Uw stem is uitgebracht",
             description:
                 "De onderstaande bevestigingscode verifieert dat <b>uw stembiljet succesvol is uitgebracht</b>. U kunt deze code gebruiken om te controleren of uw stembiljet is geteld.",
-            blankBallot: {
-                description:
-                    "Uw stembiljet is blanco uitgebracht, wat een geldige, weloverwogen keuze is.",
-            },
             ballotId: "Stembiljet ID",
             printButton: "Afdrukken",
             finishButton: "Voltooien",

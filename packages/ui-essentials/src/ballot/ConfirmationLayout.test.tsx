@@ -17,7 +17,7 @@
  */
 
 import {ThemeProvider} from "@mui/material/styles"
-import {render as mount, screen} from "@testing-library/react"
+import {act, fireEvent, render as mount, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import React from "react"
 
@@ -154,15 +154,11 @@ describe("where this screen's words come from", () => {
         }
     })
 
-    it("says a ballot was cast blank only when it was", () => {
-        // A flag, not the sentence: the sentence belongs in the catalogue with the rest of
-        // the screen.
-        const plain = render(<ConfirmationLayout {...props} />)
-        expect(plain.queryByText("confirmationScreen.blankBallot.description")).toBeNull()
-        plain.unmount()
+    it("says that a ballot was cast, not what was on it", () => {
+        // A blank ballot is confirmed in the same words as any other.
+        render(<ConfirmationLayout {...props} qrValue="https://verify.example/abc" />)
 
-        render(<ConfirmationLayout {...props} isBlankBallot />)
-        expect(screen.getByText("confirmationScreen.blankBallot.description")).toBeInTheDocument()
+        expect(screen.queryByText(/blankBallot/)).toBeNull()
     })
 })
 
@@ -199,6 +195,29 @@ describe("the ovcs fixes carried into the shared confirmation screen", () => {
         render(<ConfirmationLayout {...props} ballotIdCopyLabels={labels} />)
 
         expect(screen.getByRole("button", {name: "Copy"})).toBeInTheDocument()
+    })
+
+    it("copies the value it is given for copying, not the identifier it shows", async () => {
+        // With receipts the identifier shown is the ballot box's short code, and
+        // the full Ballot ID is what the voter copies.
+        const writeText = jest.fn().mockResolvedValue(undefined)
+        Object.defineProperty(navigator, "clipboard", {configurable: true, value: {writeText}})
+        const labels = {copy: "Copy", copied: "Copied", error: "Failed"}
+        try {
+            render(
+                <ConfirmationLayout
+                    ballotId="FTBE-MHRX"
+                    ballotIdCopyValue="abc123"
+                    ballotIdCopyLabels={labels}
+                />
+            )
+
+            expect(screen.getAllByText("FTBE-MHRX")).toHaveLength(2)
+            await act(async () => fireEvent.click(screen.getByRole("button", {name: "Copy"})))
+            expect(writeText).toHaveBeenCalledWith("abc123")
+        } finally {
+            Reflect.deleteProperty(navigator, "clipboard")
+        }
     })
 
     it("names its help buttons", () => {

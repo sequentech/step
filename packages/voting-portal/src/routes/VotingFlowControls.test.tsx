@@ -27,6 +27,7 @@ import {ELECTION_WITH_INVALID} from "../fixtures/election"
 import {RootState, store, clearVoterSession} from "../store/store"
 import {setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {clearIsVoted} from "../store/extra/extraSlice"
+import {markBallotAudited} from "../store/auditableBallots/auditableBallotsSlice"
 import confirmationScreenDataReducer, {
     setConfirmationScreenData,
 } from "../store/castVotes/confirmationScreenDataSlice"
@@ -991,6 +992,26 @@ describe("ballot received by the ballot box at review", () => {
         expect(screen.getByText(BALLOT_ID)).toBeInTheDocument()
         expect(screen.queryByText(RECEIVED_BALLOT_ID)).toBeNull()
     })
+
+    it("shows the ballot box's Ballot ID and copies the full one on both screens", async () => {
+        receiveAtReview()
+        const user = userEvent.setup()
+        const writeText = jest.spyOn(navigator.clipboard, "writeText").mockResolvedValue()
+        const review = renderRoute(<ReviewScreen />, "review")
+
+        expect(review.container.querySelector(".hash-text")).toHaveTextContent(
+            `Ballot ID: ${RECEIVED_BALLOT_ID.slice(0, 8)}`
+        )
+        await user.click(screen.getByRole("button", {name: "reviewScreen.copyBallotId"}))
+        expect(writeText).toHaveBeenLastCalledWith(BALLOT_ID)
+        review.unmount()
+
+        renderRoute(<ConfirmationScreen />, "confirmation")
+        expect(screen.getByText(RECEIVED_BALLOT_ID)).toBeInTheDocument()
+        await user.click(screen.getByRole("button", {name: "reviewScreen.copyBallotId"}))
+        expect(writeText).toHaveBeenLastCalledWith(BALLOT_ID)
+        expect(writeText).toHaveBeenCalledTimes(2)
+    })
 })
 
 describe("unfilled positions", () => {
@@ -1557,6 +1578,83 @@ describe("a ballot encrypted before the selections changed", () => {
         const {router} = renderRoute(<ReviewScreen />, "review")
 
         expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/review`)
+    })
+})
+
+describe("an audited ballot", () => {
+    const storeBallotForReauthentication = () => {
+        const ballotData: SessionBallotData = {
+            ballotId: BALLOT_ID,
+            electionId: "election-1",
+            isDemo: false,
+            ballot: "{}",
+        }
+        sessionStorage.setItem(BALLOT_DATA_KEY, JSON.stringify(ballotData))
+        sessionStorage.setItem(BALLOT_DATA_EXPIRATION_KEY, String(Date.now() + 60_000))
+    }
+
+    it("is marked as audited once the audit screen shows it", () => {
+        storeBallotForReauthentication()
+        renderRoute(<AuditScreen />, "audit")
+
+        expect(screen.getByText(/"ballot_hash":/)).toBeInTheDocument()
+        expect(mockDispatch).toHaveBeenCalledWith(markBallotAudited("election-1"))
+        // A re-authentication in progress finds nothing left to cast.
+        expect(sessionStorage.getItem(BALLOT_DATA_KEY)).toBeNull()
+        expect(sessionStorage.getItem(BALLOT_DATA_EXPIRATION_KEY)).toBeNull()
+    })
+
+    it("is not offered for casting: the voter continues from the voting screen", async () => {
+        mockDisableAuth = false
+        mockState.ballotStyles["election-1"]!.ballot_eml.public_key = {
+            public_key: "key",
+            is_demo: false,
+        }
+        mockState.auditableBallots["election-1"]!.isAudited = true
+        const {router} = renderRoute(<ReviewScreen />, "review")
+
+        await waitFor(() => expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/vote`))
+        expect(router.state.location.search).toBe("?preview=true")
+        expect(router.state.historyAction).toBe("REPLACE")
+        expect(screen.queryByRole("button", {name: "reviewScreen.castBallotButton"})).toBeNull()
+        expect(mockReceiveBallotParams).toHaveBeenLastCalledWith(
+            expect.objectContaining({skip: true})
+        )
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        expect(routeAction).not.toHaveBeenCalled()
+    })
+
+    it("is not cast automatically after a gold reauthentication", async () => {
+        mockDisableAuth = false
+        mockIsGoldUser = true
+        mockState.elections["election-1"]!.presentation!.cast_vote_gold_level =
+            ECastVoteGoldLevelPolicy.GOLD_LEVEL
+        // The stored ballot is cast only when some ballot state is missing.
+        mockState = {...mockState, ballotSelections: {}}
+        mockState.auditableBallots["election-1"]!.isAudited = true
+        storeBallotForReauthentication()
+        const {router} = renderRoute(<ReviewScreen />, "review")
+
+        await waitFor(() => expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/vote`))
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        expect(mockDispatch).not.toHaveBeenCalledWith(
+            expect.objectContaining({type: "castVotes/addCastVotes"})
+        )
+        expect(routeAction).not.toHaveBeenCalled()
+    })
+
+    it("cannot be started while the ballot is being cast", async () => {
+        mockDisableAuth = false
+        const resolveCastVote = deferCastVote()
+        const user = userEvent.setup()
+        renderRoute(<ReviewScreen />, "review")
+        const audit = screen.getByRole("button", {name: "reviewScreen.auditButton"})
+        expect(audit).toBeEnabled()
+
+        await user.click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+        expect(audit).toBeDisabled()
+        resolveCastVote()
+        await waitFor(() => expect(routeAction).toHaveBeenCalledTimes(1))
     })
 })
 

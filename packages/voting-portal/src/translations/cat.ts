@@ -316,10 +316,6 @@ const catalanTranslation: TranslationType = {
             title: "El vostre vot ha estat emès",
             description:
                 "La vostra papereta va ser emesa correctament. Utilitzeu el codi a continuació per verificar que va ser comptabilitzada",
-            blankBallot: {
-                description:
-                    "La vostra papereta s'ha emès en blanc, que és una elecció vàlida i deliberada.",
-            },
             ballotId: "Localitzador del Vot",
             printButton: "Imprimir",
             finishButton: "Finalitzar",

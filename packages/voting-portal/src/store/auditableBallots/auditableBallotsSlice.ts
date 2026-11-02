@@ -8,6 +8,8 @@ import {IAuditableBallot} from "@sequentech/ui-core"
 export interface AuditableBallotEntry {
     auditableBallot: IAuditableBallot
     isBlankBallot: boolean
+    // Its secret values were shown to audit it, so it can no longer be cast.
+    isAudited?: boolean
 }
 
 export interface AuditableBallotsState {
@@ -35,15 +37,25 @@ export const auditableBallotsSlice = createSlice({
 
             return state
         },
+        // Only a newly encrypted ballot, which setAuditableBallot stores
+        // without this mark, can be cast after an audit.
+        markBallotAudited: (state, action: PayloadAction<string>): AuditableBallotsState => {
+            const entry = state[action.payload]
+            if (entry) {
+                entry.isAudited = true
+            }
+
+            return state
+        },
     },
 })
 
-export const {setAuditableBallot} = auditableBallotsSlice.actions
+export const {setAuditableBallot, markBallotAudited} = auditableBallotsSlice.actions
 
 export const selectAuditableBallot = (electionId: string) => (state: RootState) =>
     state.auditableBallots[electionId]?.auditableBallot
 
-export const selectIsBlankBallot = (electionId: string) => (state: RootState) =>
-    state.auditableBallots[electionId]?.isBlankBallot ?? false
+export const selectIsBallotAudited = (electionId: string) => (state: RootState) =>
+    state.auditableBallots[electionId]?.isAudited ?? false
 
 export default auditableBallotsSlice.reducer

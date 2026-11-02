@@ -23,10 +23,7 @@ import {
 } from "@sequentech/ui-core"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {
-    selectAuditableBallot,
-    selectIsBlankBallot,
-} from "../store/auditableBallots/auditableBallotsSlice"
+import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {canVoteElection} from "../store/castVotes/castVotesSlice"
 import {useVoterContext} from "../hooks/useVoterContext"
 import {isElectionOpenForVoting} from "../services/VotingAvailability"
@@ -343,7 +340,6 @@ const ConfirmationScreen: React.FC = () => {
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {electionId} = useParams<{electionId?: string}>()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
-    const isBlankBallot = useAppSelector(selectIsBlankBallot(String(electionId)))
     const confirmationScreenData = useAppSelector(selectConfirmationScreenData(String(electionId)))
     const receivedBallot = useAppSelector(selectReceivedBallot(String(electionId)))
     const {t} = useTranslation()
@@ -461,7 +457,6 @@ const ConfirmationScreen: React.FC = () => {
             steps={<Stepper selected={3} />}
             onTitleHelp={() => setOpenConfirmationHelp(true)}
             isFullyAcclaimed={isFullyAcclaimed}
-            isBlankBallot={isBlankBallot}
             ballotId={ballotId.current ?? ""}
             ballotIdOnPhone={t("ballotHash", {ballotId: ballotId.current})}
             ballotIdHref={isDemo ? undefined : ballotTrackerUrl}
@@ -477,6 +472,7 @@ const ConfirmationScreen: React.FC = () => {
                       }
                     : undefined
             }
+            ballotIdCopyValue={ballotHash.current}
             qrValue={isDemo ? t("confirmationScreen.demoQRText") : (ballotTrackerUrl ?? "")}
             actions={
                 <ActionButtons
