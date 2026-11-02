@@ -2343,13 +2343,21 @@ async fn get_cast_vote_configuration_reports_absent_dates_without_a_voting_windo
             .await
             .unwrap();
 
+    // An election inserted without channels stores the online-only default.
+    let voting_channels = json!({
+        "online": true,
+        "kiosk": null,
+        "telephone": null,
+        "paper": null,
+        "early_voting": null,
+    });
     assert_eq!(
         (
             configuration.presentation,
             configuration.status,
             configuration.voting_channels
         ),
-        (None, None, None)
+        (None, None, Some(voting_channels))
     );
     assert_eq!(
         (configuration.dates.start_date, configuration.dates.end_date),

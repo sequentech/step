@@ -84,6 +84,11 @@ const basqueTranslation: TranslationType = {
                 description:
                     "Galdera hau aklamazioz erabaki da. Bere hautagaiak bozketarik gabe hautatzen dira, beraz, ezin da aukerarik hautatu eta ez da bozkarik erregistratzen.",
             },
+            paperBallot: {
+                voteForNoMoreThan_one: "Bozkatu gehienez {{count}} aukera",
+                voteForNoMoreThan_many: "Bozkatu gehienez {{count}} aukera",
+                voteForNoMoreThan_other: "Bozkatu gehienez {{count}} aukera",
+            },
         },
         votingScreen: {
             backButton: "Atzera",

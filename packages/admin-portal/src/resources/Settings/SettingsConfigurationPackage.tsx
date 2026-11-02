@@ -270,7 +270,7 @@ export const SettingsConfigurationPackage: React.FC = () => {
 
     return (
         <Box sx={{p: 1}}>
-            <Typography className="title" variant="h4">
+            <Typography className="title" variant="h4" component="h2">
                 {t("configurationPackage.title")}
             </Typography>
             <Typography variant="body1" paragraph>
@@ -281,7 +281,9 @@ export const SettingsConfigurationPackage: React.FC = () => {
             </Typography>
 
             <Divider sx={{my: 2}} />
-            <Typography variant="h6">{t("configurationPackage.requirements")}</Typography>
+            <Typography variant="h6" component="h3">
+                {t("configurationPackage.requirements")}
+            </Typography>
             {PACKAGE_SECTIONS.map((section) => (
                 <FormControlLabel
                     key={section}
@@ -369,7 +371,7 @@ export const SettingsConfigurationPackage: React.FC = () => {
 
             {submitted && (
                 <Box sx={{mt: 2}} data-testid="package-run">
-                    <Typography variant="h6">
+                    <Typography variant="h6" component="h3">
                         {t(`configurationPackage.mode.${submitted.mode}`)}
                     </Typography>
                     <Typography variant="body2" data-testid="package-task">
@@ -413,7 +415,9 @@ export const SettingsConfigurationPackage: React.FC = () => {
             )}
 
             <Divider sx={{my: 2}} />
-            <Typography variant="h6">{t("configurationPackage.history")}</Typography>
+            <Typography variant="h6" component="h3">
+                {t("configurationPackage.history")}
+            </Typography>
             <List dense data-testid="package-history">
                 {(historyData?.sequent_backend_tasks_execution ?? []).map((row: any) => {
                     const record = readApplication(row.annotations)
@@ -508,7 +512,9 @@ const ProposedChanges: React.FC<{view: ApplicationView}> = ({view}) => {
     const changing = view.sections.filter((section) => section.preview?.needsApply)
     return (
         <Box data-testid="package-proposed-changes">
-            <Typography variant="subtitle2">{t("configurationPackage.proposedChanges")}</Typography>
+            <Typography variant="subtitle2" component="h3">
+                {t("configurationPackage.proposedChanges")}
+            </Typography>
             {changing.length === 0 ? (
                 <Typography variant="body2">{t("configurationPackage.nothingToChange")}</Typography>
             ) : (
@@ -594,7 +600,7 @@ const ApplicationTable: React.FC<{view: ApplicationView}> = ({view}) => {
                     ))}
                 </TableBody>
             </Table>
-            <Typography variant="subtitle2" sx={{mt: 1}}>
+            <Typography variant="subtitle2" component="h4" sx={{mt: 1}}>
                 {t("configurationPackage.members")}
             </Typography>
             <List dense data-testid="package-members">

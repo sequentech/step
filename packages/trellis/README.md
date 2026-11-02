@@ -706,3 +706,7 @@ Built with:
 - [Axum](https://crates.io/crates/axum) - Web framework
 - [deadpool-postgres](https://crates.io/crates/deadpool-postgres) - Connection pooling
 - [tokio](https://crates.io/crates/tokio) - Async runtime
+
+## License and provenance
+
+Trellis is Sequent-owned code, licensed under AGPL-3.0-only. Sequent confirmed ownership on 29 October 2026; see https://github.com/sequentech/meta/issues/14601. The original development source was `ruescasd/mrkl`, branch `trellis`, revision `57ddd6d171ae6fc9f1545a1302f2d1e82f2defb7`. David Ruescas is credited as its original author. External dependencies retain their respective licenses.

@@ -84,6 +84,11 @@ const catalanTranslation: TranslationType = {
                 description:
                     "Aquesta votació s'ha resolt per aclamació. Les seves candidatures resulten elegides sense votació, per la qual cosa no es pot seleccionar cap opció ni es registra cap vot.",
             },
+            paperBallot: {
+                voteForNoMoreThan_one: "Voteu per no més de {{count}}",
+                voteForNoMoreThan_many: "Voteu per no més de {{count}}",
+                voteForNoMoreThan_other: "Voteu per no més de {{count}}",
+            },
         },
         votingScreen: {
             backButton: "Enrere",
