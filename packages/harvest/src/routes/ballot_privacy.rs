@@ -569,29 +569,33 @@ pub async fn ballot_box_own(
         voter_scope(services, &claims, &event, body.election_id.as_deref())
             .await?;
     let store = get_event_store(&event.id).await.map_err(unavailable)?;
-    if store
+    // The ballot box knows the voter's ballots by the identity they were
+    // received under, as it does to find an earlier ballot when the voter
+    // votes again: the voter's ID, or their pseudonym.
+    let identity: String = match store
         .ballot_identity(&event.id)
         .await
         .map_err(unavailable)?
-        != BallotIdentity::Pseudonym
     {
-        return Err(forbidden());
-    }
-    let mapping = store.client().await.map_err(unavailable)?.query_opt(
-        "SELECT i.mapping_purged_at IS NOT NULL, m.pseudonym FROM sequent_backend.ballot_identity i \
-         LEFT JOIN sequent_backend.voter_pseudonym m ON m.election_event_id=i.election_event_id AND m.voter_id=$2 \
-         WHERE i.election_event_id=$1::text::uuid",
-        &[&event.id, &claims.hasura_claims.user_id],
-    ).await.map_err(unavailable)?.ok_or_else(|| unavailable("Identity mode unavailable"))?;
-    if mapping.try_get::<_, bool>(0).map_err(unavailable)? {
-        return payload(json!({"ballots":[]}));
-    }
-    let identity: String = mapping
-        .try_get::<_, Option<String>>(1)
-        .map_err(unavailable)?
-        .ok_or_else(|| {
-            unavailable("Voter privacy registration is not ready")
-        })?;
+        BallotIdentity::VoterId => claims.hasura_claims.user_id.clone(),
+        BallotIdentity::Pseudonym => {
+            let mapping = store.client().await.map_err(unavailable)?.query_opt(
+                "SELECT i.mapping_purged_at IS NOT NULL, m.pseudonym FROM sequent_backend.ballot_identity i \
+                 LEFT JOIN sequent_backend.voter_pseudonym m ON m.election_event_id=i.election_event_id AND m.voter_id=$2 \
+                 WHERE i.election_event_id=$1::text::uuid",
+                &[&event.id, &claims.hasura_claims.user_id],
+            ).await.map_err(unavailable)?.ok_or_else(|| unavailable("Identity mode unavailable"))?;
+            if mapping.try_get::<_, bool>(0).map_err(unavailable)? {
+                return payload(json!({"ballots":[]}));
+            }
+            mapping
+                .try_get::<_, Option<String>>(1)
+                .map_err(unavailable)?
+                .ok_or_else(|| {
+                    unavailable("Voter privacy registration is not ready")
+                })?
+        }
+    };
     // The voter's own ballots at every stage, newest last step first, in the
     // shape of the log's rows.
     let rows = store.client().await.map_err(unavailable)?.query(

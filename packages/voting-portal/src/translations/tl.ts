@@ -1003,7 +1003,10 @@ const tagalogTranslation: TranslationType = {
                     "Hindi sigurado kung tama ang pag-encrypt ng portal sa iyong mga pinili? I-audit ang balotang ito: ipinapakita ng portal kung paano ito na-encrypt para masuri mo. Hindi na kailanman maibabato ang na-audit na balota, kaya bumoto ka ulit pagkatapos.",
                 cast: "Naiboto noong {{when}}",
                 audited: "Na-audit noong {{when}}",
+                ballotCast: "Naiboto na ang balota",
                 aria: "Katayuan ng balota: {{state}}. Ipakita ang mga detalye",
+                ariaCast:
+                    "Naiboto na ang balota. Katayuan ng balota: {{state}}. Ipakita ang mga detalye",
                 tooltip: "{{state}} · Ipakita ang mga detalye",
                 tracker: "Buksan sa ballot tracker",
                 save: "I-save ang resibo",

@@ -337,8 +337,11 @@ has two states for an audited ballot: the audit screen's Tracking ID box opens
 it as auditable, tagged **Audited**, and Step doesn't use audit failed today. Contradicting signed proofs, or a
 required receipt that never came, show as a problem, and never turn an accepted
 cast into a failed one. The portal keeps no receipt or Tracking ID in the
-browser, so the election list says **Voted** with no check mark, and
-**Click to Vote** is off once the voter cast every ballot an open election
+browser. In an event with public transparency the election list asks Harvest
+for the voter's own ballots (`ballot_box_own`, by the voter's ID or pseudonym,
+as a revote finds the earlier ballot) and checks the cast one against the log,
+so it says **Ballot cast** with the check mark, which opens the same dialog;
+otherwise it says **Voted**. **Click to Vote** is off once the voter cast every ballot an open election
 allows. The ballot tracker, Ballot Tracking, shows the whole receipt, for a
 ballot found by its short or full Tracking ID, and the ballot's record in a
 viewer that expands, copies and saves it. Step publishes a ballot the voter

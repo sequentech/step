@@ -52,6 +52,10 @@ jest.mock("@sequentech/ui-essentials", () => ({
         </div>
     ),
 }))
+// The ballot list checks the voter's ballot against the log; here it is still checking.
+jest.mock("../hooks/useTrackedReceipt", () => ({
+    useTrackedReceipt: () => ({view: undefined, settled: false}),
+}))
 jest.mock("../providers/AuthContextProvider", () => ({
     AuthContext: require("react").createContext({isKiosk: () => false}),
 }))
@@ -340,6 +344,9 @@ test.each([false, true])("preview honors skip_election_list=%s", async (skipElec
 })
 
 describe("the ballot cast label", () => {
+    const TRACKING_ID = "FTBE-MHRX-0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ-0123-4567-89AB"
+    /** The voter's ballots, as the ballot box knows them. */
+    let ownBallots: unknown[] = []
     const voterClient = () =>
         new ApolloClient({
             cache: new InMemoryCache(),
@@ -371,6 +378,7 @@ describe("the ballot cast label", () => {
                                             __typename: "VoterCastVote",
                                         },
                                     ],
+                                    ballot_box_own: {payload: {ballots: ownBallots}},
                                 },
                             })
                             observer.complete()
@@ -410,7 +418,37 @@ describe("the ballot cast label", () => {
         }
     }
 
-    test("says Ballot cast with no check mark after a new sign-in, as this device keeps nothing", async () => {
+    test("is the button that opens the status of the ballot the ballot box knows is the voter's", async () => {
+        event.presentation = {transparency: ETransparencyMode.PUBLIC}
+        ownBallots = [
+            {
+                tracking_id: TRACKING_ID,
+                pseudonym: "voter",
+                stage: "cast",
+                last_step_at: "2027-01-15T08:00:00+00:00",
+                voting_channel: "ONLINE",
+                election_id: "election",
+            },
+        ]
+        const cleanup = await renderList()
+        try {
+            fireEvent.click(await screen.findByRole("button", {name: "vitrine.status.ariaCast"}))
+            const dialog = await screen.findByRole("dialog", {name: "vitrine.status.title"})
+            expect(dialog.querySelector(".ballot-status-short-id")?.textContent).toBe("FTBE-MHRX")
+            expect(dialog.querySelector(".ballot-status-meta")?.textContent).toContain("Election")
+            expect(
+                within(dialog)
+                    .getByRole("link", {name: "vitrine.status.tracker"})
+                    .getAttribute("href")
+            ).toBe(`/tenant/tenant/event/event/election/election/ballot-locator/${TRACKING_ID}`)
+        } finally {
+            cleanup()
+            event.presentation = {}
+            ownBallots = []
+        }
+    })
+
+    test("says Ballot cast with no check mark when the ballot box knows no cast ballot of the voter", async () => {
         event.presentation = {transparency: ETransparencyMode.PUBLIC}
         const cleanup = await renderList()
         try {

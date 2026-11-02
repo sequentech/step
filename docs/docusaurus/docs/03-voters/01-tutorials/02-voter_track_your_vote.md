@@ -127,7 +127,7 @@ Then follow the steps below:
 3. Click the white `Track your ballot` button.
 
 :::tip
-An election you voted in shows **Voted**. The voting portal keeps no receipts or Tracking IDs in the browser, so after you sign in again the ballot list has no check mark for your ballot. To check it, look it up here with the Tracking ID from your receipt. With transparency enabled, once you cast every ballot the open election allows you, `Click to Vote` is disabled, with the hint "You already cast this ballot".
+An election you voted in shows **Ballot cast** with your ballot's check mark when the election has public transparency, and **Voted** otherwise. The voting portal keeps no receipts or Tracking IDs in the browser: it asks the election's server which ballot is yours, as it does when you vote again, and checks it against the log each time. To check a ballot on another device, look it up here with the Tracking ID from your receipt. With transparency enabled, once you cast every ballot the open election allows you, `Click to Vote` is disabled, with the hint "You already cast this ballot".
 :::
 
 ### Step 2.2: Search for Your Ballot
