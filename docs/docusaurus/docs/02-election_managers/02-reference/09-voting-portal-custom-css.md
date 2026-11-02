@@ -42,7 +42,7 @@ sections only render when enabled by the election configuration.
 
 | Area                 | Supported hooks                                                                                                                                                                          |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Header               | `.header-class`, `.header-logo-link`, `.header-logo`, `.header-actions`, `.app-version` (version and hash)                                                                               |
+| Header               | `.header-class`, `.header-logo-link`, `.header-logo`, `.header-actions`, `.app-version` (version)                                                                                        |
 | Language menu        | `.language-selector`, `.language-selector-button`, `.language-selector-menu`, `.language-option`                                                                                         |
 | Profile menu         | `.profile-menu-container`, `.profile-menu-button`, `.profile-menu`, `.user-details`, `.profile`, `.logout-button`                                                                        |
 | Footer               | `.footer-class`, `.footer-link`                                                                                                                                                          |

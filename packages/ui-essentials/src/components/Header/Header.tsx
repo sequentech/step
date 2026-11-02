@@ -138,6 +138,7 @@ export interface IExpiryCountdown {
 export interface HeaderProps {
     logoutFn?: () => void
     appVersion?: ApplicationVersion
+    /** Absent, the header shows no hash. */
     appHash?: ApplicationVersion
     logoLink?: string
     userProfile?: UserProfile
@@ -207,7 +208,7 @@ export default function Header({
                             sx={{gap: {xs: "11px", lg: "31px"}}}
                         >
                             <Version version={appVersion ?? {main: "0.0.0"}} />
-                            <Version header="hash.header" version={appHash ?? {main: "-"}} />
+                            {appHash ? <Version header="hash.header" version={appHash} /> : null}
                             {accessibilitySettingsPolicy ===
                             EVoterAccessibilitySettingsPolicy.ENABLED ? (
                                 <AccessibilityMenu />

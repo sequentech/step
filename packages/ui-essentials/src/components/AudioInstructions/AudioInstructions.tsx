@@ -2,10 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useCallback, useEffect, useId, useRef, useState} from "react"
+import CloseIcon from "@mui/icons-material/Close"
+import HelpIcon from "@mui/icons-material/Help"
 import PauseIcon from "@mui/icons-material/Pause"
 import StopIcon from "@mui/icons-material/Stop"
 import VolumeUpIcon from "@mui/icons-material/VolumeUp"
-import {Box, Button, Typography} from "@mui/material"
+import {Box, IconButton, Tooltip, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {
     EAudioInstructionsPolicy,
@@ -65,6 +67,7 @@ const useSpeechVoices = (): SpeechSynthesisVoice[] => {
  *
  * It plays the event's recording where there is one and the browser's speech synthesis
  * otherwise. It never starts by itself: a voter using a screen reader would hear both at once.
+ * Its controls are small icon buttons at the top right of the screen, named by their tooltips.
  */
 const AudioInstructions: React.FC<AudioInstructionsProps> = ({
     policy,
@@ -165,6 +168,9 @@ const AudioInstructions: React.FC<AudioInstructionsProps> = ({
             icon: VolumeUpIcon,
         },
     }[playback]
+    const transcriptLabel = transcriptOpen
+        ? t("audioInstructions.hideTranscript")
+        : t("audioInstructions.showTranscript")
 
     return (
         <PageLimit className="audio-instructions" maxWidth="lg">
@@ -172,40 +178,55 @@ const AudioInstructions: React.FC<AudioInstructionsProps> = ({
                 className="audio-instructions-region"
                 component="section"
                 aria-label={t("audioInstructions.label")}
-                sx={{display: "flex", flexWrap: "wrap", gap: "8px", paddingTop: "16px"}}
+                sx={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    justifyContent: "flex-end",
+                    alignItems: "center",
+                    gap: "4px",
+                    paddingTop: "8px",
+                }}
             >
                 {canPlay ? (
-                    <Button
-                        className="audio-instructions-play"
-                        variant="secondary"
-                        onClick={toggle.action}
-                        startIcon={<toggle.icon aria-hidden />}
-                    >
-                        {toggle.label}
-                    </Button>
+                    <Tooltip title={toggle.label}>
+                        <IconButton
+                            className="audio-instructions-play"
+                            size="small"
+                            sx={{color: "text.primary"}}
+                            aria-label={toggle.label}
+                            onClick={toggle.action}
+                        >
+                            <toggle.icon aria-hidden />
+                        </IconButton>
+                    </Tooltip>
                 ) : null}
                 {canPlay && playback !== EPlayback.IDLE ? (
-                    <Button
-                        className="audio-instructions-stop"
-                        variant="secondary"
-                        onClick={stop}
-                        startIcon={<StopIcon aria-hidden />}
-                    >
-                        {t("audioInstructions.stop")}
-                    </Button>
+                    <Tooltip title={t("audioInstructions.stop")}>
+                        <IconButton
+                            className="audio-instructions-stop"
+                            size="small"
+                            sx={{color: "text.primary"}}
+                            aria-label={t("audioInstructions.stop")}
+                            onClick={stop}
+                        >
+                            <StopIcon aria-hidden />
+                        </IconButton>
+                    </Tooltip>
                 ) : null}
                 {text === "" ? null : (
-                    <Button
-                        className="audio-instructions-transcript-toggle"
-                        variant="secondary"
-                        aria-expanded={transcriptOpen}
-                        aria-controls={transcriptId}
-                        onClick={() => setTranscriptOpen((open) => !open)}
-                    >
-                        {transcriptOpen
-                            ? t("audioInstructions.hideTranscript")
-                            : t("audioInstructions.showTranscript")}
-                    </Button>
+                    <Tooltip title={transcriptLabel}>
+                        <IconButton
+                            className="audio-instructions-transcript-toggle"
+                            size="small"
+                            sx={{color: "text.primary"}}
+                            aria-label={transcriptLabel}
+                            aria-expanded={transcriptOpen}
+                            aria-controls={transcriptId}
+                            onClick={() => setTranscriptOpen((open) => !open)}
+                        >
+                            {transcriptOpen ? <CloseIcon aria-hidden /> : <HelpIcon aria-hidden />}
+                        </IconButton>
+                    </Tooltip>
                 )}
                 <Box
                     className="audio-instructions-transcript"

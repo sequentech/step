@@ -410,13 +410,9 @@
 .sequent-auth .auth-audio-instructions {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 20px;
-}
-.sequent-auth .auth-audio-instructions .MuiButton-root {
-    min-height: 44px;
-    padding: 8px 14px;
-    font-size: 0.875rem;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-bottom: 8px;
 }
 .sequent-auth .auth-audio-instructions-transcript {
     flex-basis: 100%;

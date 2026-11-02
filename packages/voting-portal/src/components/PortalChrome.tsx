@@ -132,12 +132,13 @@ const HeaderWithContext: React.FC = () => {
         return presentation?.voting_portal_countdown_policy
     }, [presentation])
 
+    // An event without its own logo has a null or an empty logo_url.
     const logoImg =
         presentation?.logo_url === undefined
             ? BlankLogoImg
-            : presentation?.logo_url === null
-              ? SequentLogo
-              : presentation?.logo_url
+            : presentation?.logo_url?.trim()
+              ? presentation.logo_url
+              : SequentLogo
 
     const onChangeLanguage = (lang: string) => {
         if (getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) !== lang) {
@@ -148,7 +149,6 @@ const HeaderWithContext: React.FC = () => {
     return (
         <Header
             appVersion={{main: globalSettings.APP_VERSION}}
-            appHash={{main: globalSettings.APP_HASH}}
             userProfile={{
                 firstName: authContext.firstName,
                 username: authContext.username,

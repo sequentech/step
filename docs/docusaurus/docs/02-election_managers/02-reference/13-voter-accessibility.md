@@ -79,10 +79,11 @@ or `em`.
 
 ## Audio instructions
 
-When enabled, every voter screen starts with a **Listen to the instructions** button. It
-explains, for that screen, what the screen is for and how to use it with a keyboard: how to
-move, select, continue and go back. It is meant for blind and low-vision voters, and for
-anyone who prefers to listen.
+When enabled, every voter screen has small icon buttons at its top right: a speaker icon,
+**Listen to the instructions**, and a question-mark icon, **Read the instructions**; their
+names show as tooltips and are read by screen readers. The audio explains, for that screen,
+what the screen is for and how to use it with a keyboard: how to move, select, continue and
+go back. It is meant for blind and low-vision voters, and for anyone who prefers to listen.
 
 The screens that have instructions are the election list, start, ballot, review, confirmation,
 audit, ballot locator and support materials.
@@ -90,7 +91,8 @@ audit, ballot locator and support materials.
 The voter can pause, resume and stop the audio. It never starts by itself, because a voter
 using a screen reader would hear two voices at once, and it stops when the voter leaves the
 screen or changes the language. **Read the instructions** shows the same text on screen, so it
-also reaches braille displays.
+also reaches braille displays. Without a recording or a browser voice for the language, only
+the question-mark icon is shown.
 
 ### Where the audio comes from
 
@@ -154,8 +156,8 @@ offered there too:
 - The **Accessibility** button, with the same four settings. A choice made at sign-in is
   still applied in the Voting Portal, and the other way round, because both read the same
   cookie.
-- **Listen to the instructions**, with a text for the sign-in page, the username page and the
-  code entry page. The login pages have no recordings: the browser's voice reads the text
+- **Listen to the instructions** and **Read the instructions**, as the same small icon
+  buttons, with a text for the sign-in page, the username page and the code entry page. The login pages have no recordings: the browser's voice reads the text
   where it has one for the language, and the text can always be read on screen. With the
   **Uploaded recordings only** policy the login pages have no audio control.
 
