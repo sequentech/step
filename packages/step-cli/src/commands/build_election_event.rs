@@ -632,6 +632,25 @@ mod tests {
     }
 
     #[test]
+    fn a_sheet_nothing_reads_is_noted_and_still_builds() {
+        let fixture = Fixture::new(&workbook(vec![("Candidatez", vec![vec![text("name")]])]));
+
+        fixture.command.build().unwrap();
+
+        assert!(fixture.directory().join("event.zip").is_file());
+    }
+
+    #[test]
+    fn an_output_directory_that_cannot_be_created_is_an_error() {
+        let mut fixture = Fixture::new(&workbook(vec![]));
+        fixture.command.out = fixture.file("not-a-directory", b"");
+
+        let error = fixture.error();
+
+        assert!(error.contains("could not create"), "{error}");
+    }
+
+    #[test]
     fn check_only_validates_and_writes_nothing() {
         let mut fixture = Fixture::new(&workbook(vec![]));
         fixture.command.check_only = true;
