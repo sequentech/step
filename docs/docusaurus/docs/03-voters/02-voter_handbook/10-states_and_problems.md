@@ -34,10 +34,10 @@ also unavailable during maintenance; this does not mean your stored vote has
 been lost. Only the election board can resume voting, and the voting system
 first checks itself before it allows that.
 
-![Actual voting portal refusing to load ballots during maintenance](assets/voter-maintenance-unavailable.png)
+![Voting portal refusing to load ballots during maintenance](assets/voter-maintenance-unavailable.png)
 
-*The deployed voting portal during a recoverable maintenance state. The voter
-has logged in, but cannot load a ballot or start voting.*
+*The voting portal during a recoverable maintenance state, with test data. The
+voter has logged in, but cannot load a ballot or start voting.*
 
 If you see "There was a problem fetching the data. Please try again later or
 contact support for assistance.", wait and try again later. If it continues,

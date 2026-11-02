@@ -12,14 +12,13 @@ You can vote only while the ballot shows "Open" in the "Ballot list". Your vote
 counts only after you have cast it and the voting portal shows "Your vote has
 been cast".
 
-The screenshots were taken during an actual rehearsal on the installed system,
-using a synthetic election and voter. They show a real test ballot being
-reviewed, cast and located. Your election name, candidates, branding and Ballot
-IDs will differ.
+The screenshots show the voting portal with a synthetic test election and
+voter, not a real election: a test ballot being reviewed, cast and located.
+Your election name, candidates, branding and Ballot IDs will differ.
 
 ## Step 1: Open the ballot
 
-![Actual ballot list with the available synthetic rehearsal ballot](./assets/voter-chooser-current.png)
+![Ballot list with the available synthetic test ballot](./assets/voter-chooser-current.png)
 
 If your election offers instructions for each screen, the question-mark icon at
 the top right of the screen shows them, and the speaker icon next to it, where
@@ -47,7 +46,7 @@ cast it in the same way as any other ballot.
 
 ## Step 3: Make your selections
 
-![Actual candidate selection with Option A checked](./assets/voter-vote-current.png)
+![Candidate selection with Option A checked](./assets/voter-vote-current.png)
 
 To make your selections:
 
@@ -141,7 +140,7 @@ you to vote again, a new vote replaces it in the count (see
 
 ## Step 6: The confirmation
 
-![Actual test-vote confirmation with Ballot ID, QR code, Print and Finish](./assets/voter-confirmation-current.png)
+![Test-vote confirmation with Ballot ID, QR code, Print and Finish](./assets/voter-confirmation-current.png)
 
 The confirmation screen "Your vote has been cast" appears only after the
 intermediate ballot box has confirmed with its signature that it stored your

@@ -31,10 +31,10 @@ ballot in the "Ballot list" and with "Locate your ballot".
 
 ## Your Ballot ID
 
-![Actual test-vote confirmation showing where to copy the Ballot ID or scan its QR code](./assets/voter-confirmation-current.png)
+![Test-vote confirmation showing where to copy the Ballot ID or scan its QR code](./assets/voter-confirmation-current.png)
 
-*Actual installed-system capture with a synthetic voter. Use the Ballot ID
-from your own confirmed vote.*
+*Test capture with a synthetic voter. Use the Ballot ID from your own
+confirmed vote.*
 
 The Ballot ID lets you find your encrypted ballot in the ballot box. With
 signed ballot receipts, the confirmation shows a short code in two groups of
@@ -81,10 +81,10 @@ until the end of the election period. To find it:
 | "Something went wrong." | The lookup could not be done, for example because the election is in maintenance mode (see [Election States and Problems for Voters](10-states_and_problems.md)). | Try again later. If it keeps happening, tell the election organizer. |
 | "Checks ended on" followed by a date | The time for checking ballots is over. | Nothing can be checked any more. |
 
-![Actual ballot locator showing a found ballot, its cast time and complete encrypted ballot content](./assets/voter-locator-current.png)
+![Ballot locator showing a found ballot, its cast time and complete encrypted ballot content](./assets/voter-locator-current.png)
 
-*Actual rehearsal screen with a synthetic voter. The example receipt identifies
-an earlier vote; use the receipt of your own latest vote.*
+*Test capture with a synthetic voter. Use the Ballot ID of your own latest
+vote.*
 
 The ballot content is the encrypted ballot that the ballot box stored under
 your Ballot ID. It is shown so that you can see that ballot: your Ballot ID is
