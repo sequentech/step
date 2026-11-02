@@ -1274,6 +1274,25 @@ fn check_bundle(data: &ImportElectionEventSchema) -> Result<()> {
     Ok(())
 }
 
+/// Whether `document`, a bundle as uploaded, was exported from `tenant_id`:
+/// read before `replace_ids` rewrites its tenant.
+fn import_tenancy(
+    document: &str,
+    tenant_id: &str,
+) -> Result<sequent_core::types::messaging::ImportTenancy> {
+    use sequent_core::types::messaging::ImportTenancy;
+    #[derive(Deserialize)]
+    struct BundleTenant {
+        tenant_id: String,
+    }
+    let bundle: BundleTenant = serde_json::from_str(document)?;
+    Ok(if bundle.tenant_id == tenant_id {
+        ImportTenancy::SAME_TENANT
+    } else {
+        ImportTenancy::OTHER_TENANT
+    })
+}
+
 #[instrument(err, skip_all)]
 pub async fn process_election_event_file(
     hasura_transaction: &Transaction<'_>,
@@ -1369,6 +1388,16 @@ pub async fn process_election_event_file(
         .map(deserialize_value)
         .transpose()
         .with_context(|| "Error deserializing keycloak_event_realm")?;
+    // The realm's published channels, which the realm import drops and the
+    // channels' own import below publishes again.
+    let exported_channels: Option<String> = keycloak_event_realm
+        .as_ref()
+        .and_then(|realm| realm.attributes.as_ref())
+        .and_then(|attributes| {
+            attributes
+                .get(sequent_core::types::messaging::REALM_ATTR_MESSAGING)
+                .cloned()
+        });
 
     crate::postgres::scheduled_event::lock_scheduling_event(
         hasura_transaction,
@@ -1553,6 +1582,105 @@ pub async fn process_election_event_file(
                 warn!(%tenant_id, %election_event_id, "{reason}");
                 notes.push(reason);
             }
+        }
+    }
+
+    // An event whose channels exist only in its realm exports no messaging
+    // configuration: its channels are published as exported, for whoever may
+    // save a configuration, or the import says why not.
+    {
+        use crate::services::messaging::config::{account_summary, MessagingConfigPermission};
+        use sequent_core::types::messaging::{
+            imported_realm_channels, ImportTenancy, ImportedRealmChannels, MessageChannel,
+            MessengerPage, RealmChannelsAdjustment, REALM_CHANNELS_NOT_IMPORTED,
+            REALM_CHANNELS_PUBLISHED,
+        };
+        // The importing tenant's own accounts, never the bundle's, read only
+        // when realm-only channels may be published.
+        let publishes_realm_channels = exported_channels.is_some()
+            && data.messaging_config.is_none()
+            && object.messaging_config_permission == MessagingConfigPermission::PERMITTED;
+        let tenancy = if publishes_realm_channels {
+            import_tenancy(file_election_event_schema, &tenant_id)
+                .with_context(|| "Error reading the bundle's tenant")?
+        } else {
+            ImportTenancy::SAME_TENANT
+        };
+        let tenant_pages: Vec<MessengerPage> = if !publishes_realm_channels {
+            vec![]
+        } else {
+            crate::postgres::messaging::list_messaging_accounts(
+                hasura_transaction,
+                &Uuid::parse_str(&tenant_id).with_context(|| "Error parsing the tenant id")?,
+            )
+            .await?
+            .iter()
+            .map(account_summary)
+            .filter(|account| account.channel == MessageChannel::MESSENGER)
+            .filter_map(|account| account.messenger_page)
+            .collect()
+        };
+        match imported_realm_channels(
+            exported_channels.as_deref(),
+            data.messaging_config.as_ref(),
+            &election_ids,
+            tenancy,
+            &tenant_pages,
+        ) {
+            ImportedRealmChannels::REALM_ONLY(projection, adjustments)
+                if object.messaging_config_permission == MessagingConfigPermission::PERMITTED =>
+            {
+                sequent_core::services::keycloak::update_realm_attributes(
+                    &tenant_id,
+                    &election_event_id,
+                    HashMap::from([(
+                        sequent_core::types::messaging::REALM_ATTR_MESSAGING.to_string(),
+                        serde_json::to_string(&projection)?,
+                    )]),
+                )
+                .await
+                .with_context(|| "Error publishing the exported realm's messaging channels")?;
+                let mut warnings = vec![format!(
+                    "{REALM_CHANNELS_PUBLISHED}: the bundle has no messaging configuration, so the channels its realm offered are offered as exported"
+                )];
+                let unconfigured = projection.needing_configuration();
+                if !unconfigured.is_empty() {
+                    warnings.push(format!(
+                        "{REALM_CHANNELS_PUBLISHED}: voters are offered {} as exported, but the event has no messaging configuration, so codes and notices on them are refused until one is saved; email and SMS use the deployment's configured providers, as for events without one",
+                        unconfigured
+                            .iter()
+                            .map(ToString::to_string)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ));
+                }
+                for adjustment in adjustments {
+                    warnings.push(match adjustment {
+                        RealmChannelsAdjustment::SENDER_NAMES_REMOVED => format!(
+                            "{REALM_CHANNELS_PUBLISHED}: without the source tenant's sender names"
+                        ),
+                        RealmChannelsAdjustment::MESSENGER_PAGE_REMOVED => format!(
+                            "{REALM_CHANNELS_PUBLISHED}: without the exported Messenger Page, which none of this tenant's Messenger accounts sends from"
+                        ),
+                    });
+                }
+                for warning in warnings {
+                    warn!(%tenant_id, %election_event_id, "{warning}");
+                    notes.push(warning);
+                }
+            }
+            ImportedRealmChannels::REALM_ONLY(..) => {
+                let reason = format!(
+                    "{REALM_CHANNELS_NOT_IMPORTED}: importing them needs the messaging-config-write permission"
+                );
+                warn!(%tenant_id, %election_event_id, "{reason}");
+                notes.push(reason);
+            }
+            ImportedRealmChannels::NOT_IMPORTED(reason) => {
+                warn!(%tenant_id, %election_event_id, "{reason}");
+                notes.push(reason);
+            }
+            ImportedRealmChannels::NONE | ImportedRealmChannels::FROM_CONFIGURATION => {}
         }
     }
 
@@ -3305,6 +3433,68 @@ mod import_scope_tests {
             tenant_id.to_string(),
         )
         .map(|(data, _)| data)
+    }
+
+    #[test]
+    fn realm_only_channels_follow_the_imported_elections_and_tenant() {
+        use sequent_core::types::messaging::{
+            imported_realm_channels, ImportTenancy, ImportedRealmChannels, RealmChannelsAdjustment,
+            REALM_ATTR_MESSAGING,
+        };
+        let source = new_id();
+        let mut input = bundle(&source, &new_id());
+        let election = input["elections"][0]["id"].as_str().unwrap().to_string();
+        let published = format!(
+            r#"{{"version":1,"channels":[{{"channel":"WHATSAPP","purposes":["OTP"],"sender_label":"Source Org","messenger_page":null}}],"election_labels":{{"{election}":["Embassy"]}},"election_channels":{{"{election}":["WHATSAPP"]}}}}"#
+        );
+        input["keycloak_event_realm"] = json!({"attributes": {"sequent.messaging": published}});
+        let document = input.to_string();
+        for (target, expected) in [
+            (source.clone(), ImportTenancy::SAME_TENANT),
+            (new_id(), ImportTenancy::OTHER_TENANT),
+        ] {
+            let tenancy = import_tenancy(&document, &target).unwrap();
+            assert_eq!(tenancy, expected);
+            let imported = import(&input, None, &target).unwrap();
+            let imported_election = imported.elections[0].id.clone();
+            assert_ne!(imported_election, election);
+            let realm: RealmRepresentation =
+                serde_json::from_value(imported.keycloak_event_realm.clone().unwrap()).unwrap();
+            let attribute = realm.attributes.unwrap().get(REALM_ATTR_MESSAGING).cloned();
+            let ImportedRealmChannels::REALM_ONLY(projection, adjustments) =
+                imported_realm_channels(
+                    attribute.as_deref(),
+                    imported.messaging_config.as_ref(),
+                    std::slice::from_ref(&imported_election),
+                    tenancy,
+                    &[],
+                )
+            else {
+                panic!("{expected:?}: realm-only channels not kept");
+            };
+            assert_eq!(
+                projection.election_channels.keys().collect::<Vec<_>>(),
+                vec![&imported_election]
+            );
+            assert_eq!(
+                projection.election_labels.keys().collect::<Vec<_>>(),
+                vec![&imported_election]
+            );
+            let sender = projection.channels[0].sender_label.as_deref();
+            match expected {
+                ImportTenancy::SAME_TENANT => {
+                    assert_eq!(sender, Some("Source Org"));
+                    assert!(adjustments.is_empty());
+                }
+                ImportTenancy::OTHER_TENANT => {
+                    assert_eq!(sender, None);
+                    assert_eq!(
+                        adjustments,
+                        vec![RealmChannelsAdjustment::SENDER_NAMES_REMOVED]
+                    );
+                }
+            }
+        }
     }
 
     #[test]

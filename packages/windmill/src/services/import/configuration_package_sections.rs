@@ -638,14 +638,39 @@ pub fn admission_problem(
     }
 }
 
-/// The importer skips a messaging configuration its caller may not write and
-/// still reports the event imported, so that is a blocker beforehand.
+/// Whether the event brings messaging settings that need messaging-config-write:
+/// a messaging configuration, or channels its realm publishes without one that
+/// the import would publish (`election_ids` are the event's elections).
+pub fn carries_messaging(
+    messaging_config: Option<&serde_json::Value>,
+    keycloak_event_realm: Option<&serde_json::Value>,
+    election_ids: &[String],
+) -> bool {
+    use sequent_core::types::messaging::{
+        imported_realm_channels, ImportTenancy, ImportedRealmChannels, REALM_ATTR_MESSAGING,
+    };
+    messaging_config.is_some()
+        || matches!(
+            imported_realm_channels(
+                keycloak_event_realm
+                    .and_then(|realm| realm["attributes"][REALM_ATTR_MESSAGING].as_str()),
+                None,
+                election_ids,
+                ImportTenancy::SAME_TENANT,
+                &[],
+            ),
+            ImportedRealmChannels::REALM_ONLY(..)
+        )
+}
+
+/// The importer skips messaging settings its caller may not write and still
+/// reports the event imported, so that is a blocker beforehand.
 pub fn messaging_problem(
     carries_messaging_config: bool,
     permission: &crate::services::messaging::config::MessagingConfigPermission,
 ) -> Option<String> {
     use crate::services::messaging::config::MessagingConfigPermission;
     (carries_messaging_config && *permission != MessagingConfigPermission::PERMITTED).then(|| {
-        "the event carries a messaging configuration, which the import would skip without messaging-config-write".to_string()
+        "the event carries messaging settings, which the import would skip without messaging-config-write".to_string()
     })
 }
