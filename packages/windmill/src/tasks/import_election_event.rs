@@ -185,6 +185,7 @@ pub async fn execute(
                         &task,
                         &tenant_id,
                         &object.document_id,
+                        &election_event_id,
                     )
                 })
                 .unwrap_or_default();

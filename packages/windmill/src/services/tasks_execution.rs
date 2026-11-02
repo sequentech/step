@@ -103,38 +103,76 @@ pub fn validate_integration_secrets_grant(
 const INTEGRATION_SECRET_IMPORT_AUTHORIZATION_KEY: &str = "integration_secret_import_authorization";
 
 /// The persisted grant that lets one import task install the integration
-/// secrets of one uploaded archive. Written by harvest for a caller holding
-/// `integration-secret-write`; read back by the worker from the task row.
+/// secrets of one uploaded archive into one new event. harvest writes it on
+/// the task row only after admitting a real (not check-only) import by a
+/// holder of `integration-secret-write`; the worker reads it back.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct IntegrationSecretImportAuthorization {
     tenant_id: String,
     document_id: String,
+    election_event_id: String,
     expires_at: chrono::DateTime<Utc>,
 }
 
 pub fn integration_secret_import_task_annotations(
     tenant_id: &str,
     document_id: &str,
+    election_event_id: &str,
 ) -> serde_json::Value {
     serde_json::json!({
         INTEGRATION_SECRET_IMPORT_AUTHORIZATION_KEY: IntegrationSecretImportAuthorization {
             tenant_id: tenant_id.to_string(),
             document_id: document_id.to_string(),
+            election_event_id: election_event_id.to_string(),
             expires_at: Utc::now() + secret_export_grant_ttl(),
         }
     })
 }
 
+/// Records on the import task row that it may install the archive's
+/// integration secrets into `election_event_id`.
+#[instrument(skip(task), err)]
+pub async fn grant_integration_secret_import(
+    task: &TasksExecution,
+    tenant_id: &str,
+    document_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
+    let mut client = crate::services::database::get_hasura_pool()
+        .await
+        .get()
+        .await
+        .context("Failed to get a Hasura DB client")?;
+    let transaction = client
+        .transaction()
+        .await
+        .context("Failed to start the task grant transaction")?;
+    crate::postgres::tasks_execution::merge_task_execution_annotations(
+        &transaction,
+        &task.tenant_id,
+        &task.id,
+        &integration_secret_import_task_annotations(tenant_id, document_id, election_event_id),
+    )
+    .await?;
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit the task grant")
+}
+
 /// Whether the persisted import task may install integration secrets from
-/// this document: only with its own unexpired grant for the same tenant and
-/// document, on an import task. Whatever the queue message says is ignored.
+/// this document into this event: only an in-progress import task of the
+/// tenant, with its own unexpired grant for the same document and event.
+/// Whatever the queue message says is ignored.
 pub fn persisted_integration_secret_import_permission(
     task: &TasksExecution,
     tenant_id: &str,
     document_id: &str,
+    election_event_id: &str,
 ) -> IntegrationSecretImportPermission {
     let granted = task.tenant_id == tenant_id
         && task.task_type == ETasksExecution::IMPORT_ELECTION_EVENT.to_string()
+        && task.execution_status == TasksExecutionStatus::IN_PROGRESS.to_string()
         && task
             .annotations
             .as_ref()
@@ -146,6 +184,7 @@ pub fn persisted_integration_secret_import_permission(
             .is_some_and(|grant| {
                 grant.tenant_id == tenant_id
                     && grant.document_id == document_id
+                    && grant.election_event_id == election_event_id
                     && Utc::now() < grant.expires_at
             });
     if granted {
@@ -398,42 +437,103 @@ mod secret_export_tests {
         let granted = import_task(Some(integration_secret_import_task_annotations(
             "tenant-id",
             "document-id",
+            "event-id",
         )));
         assert_eq!(
-            persisted_integration_secret_import_permission(&granted, "tenant-id", "document-id"),
+            persisted_integration_secret_import_permission(
+                &granted,
+                "tenant-id",
+                "document-id",
+                "event-id"
+            ),
             permitted
         );
-        // No grant (the queue message alone), another document or tenant,
-        // another task type, or an expired grant.
-        let not_permitted = |task: &TasksExecution, tenant: &str, document: &str| {
-            persisted_integration_secret_import_permission(task, tenant, document)
+        let not_permitted = |task: &TasksExecution, tenant: &str, document: &str, event: &str| {
+            persisted_integration_secret_import_permission(task, tenant, document, event)
                 == IntegrationSecretImportPermission::NOT_PERMITTED
         };
+        // No grant (the queue message alone) or another kind of grant.
         assert!(not_permitted(
             &import_task(None),
             "tenant-id",
-            "document-id"
+            "document-id",
+            "event-id"
         ));
         assert!(not_permitted(
             &import_task(Some(secret_export_task_annotations("document-id", true))),
             "tenant-id",
-            "document-id"
+            "document-id",
+            "event-id"
         ));
-        assert!(not_permitted(&granted, "tenant-id", "other-document"));
-        assert!(not_permitted(&granted, "other-tenant", "document-id"));
+        // Another document, tenant or destination event.
+        assert!(not_permitted(
+            &granted,
+            "tenant-id",
+            "other-document",
+            "event-id"
+        ));
+        assert!(not_permitted(
+            &granted,
+            "other-tenant",
+            "document-id",
+            "event-id"
+        ));
+        assert!(not_permitted(
+            &granted,
+            "tenant-id",
+            "document-id",
+            "other-event"
+        ));
+        // A finished task (a completed check-only run, a failed or a
+        // completed import) can't be replayed with a new message.
+        for status in [TasksExecutionStatus::SUCCESS, TasksExecutionStatus::FAILED] {
+            let finished = TasksExecution {
+                execution_status: status.to_string(),
+                ..granted.clone()
+            };
+            assert!(
+                not_permitted(&finished, "tenant-id", "document-id", "event-id"),
+                "{status:?}"
+            );
+        }
         let package = TasksExecution {
             task_type: ETasksExecution::APPLY_CONFIGURATION_PACKAGE.to_string(),
             ..granted.clone()
         };
-        assert!(not_permitted(&package, "tenant-id", "document-id"));
+        assert!(not_permitted(
+            &package,
+            "tenant-id",
+            "document-id",
+            "event-id"
+        ));
         let expired = import_task(Some(serde_json::json!({
             INTEGRATION_SECRET_IMPORT_AUTHORIZATION_KEY: IntegrationSecretImportAuthorization {
                 tenant_id: "tenant-id".to_string(),
                 document_id: "document-id".to_string(),
+                election_event_id: "event-id".to_string(),
                 expires_at: Utc::now() - Duration::seconds(1),
             }
         })));
-        assert!(not_permitted(&expired, "tenant-id", "document-id"));
+        assert!(not_permitted(
+            &expired,
+            "tenant-id",
+            "document-id",
+            "event-id"
+        ));
+        // A grant written without the event binding is not a grant.
+        let unbound = import_task(Some(serde_json::json!({
+            INTEGRATION_SECRET_IMPORT_AUTHORIZATION_KEY: {
+                "tenant_id": "tenant-id",
+                "document_id": "document-id",
+                "expires_at": Utc::now() + Duration::hours(1),
+            }
+        })));
+        assert!(not_permitted(
+            &unbound,
+            "tenant-id",
+            "document-id",
+            "event-id"
+        ));
     }
 
     #[test]

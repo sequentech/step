@@ -342,39 +342,20 @@ pub async fn import_election_event_f(
         },
     )?;
 
-    // Insert the task execution record. The worker reads the integration
-    // secret grant back from this row, never from the queued message.
-    let task_execution: TasksExecution =
-        match input.integration_secret_permission {
-            IntegrationSecretImportPermission::PERMITTED => {
-                post_with_annotations(
-                    &tenant_id,
-                    None,
-                    ETasksExecution::IMPORT_ELECTION_EVENT,
-                    &executer_name,
-                    integration_secret_import_task_annotations(
-                        &input.tenant_id,
-                        &input.document_id,
-                    ),
-                )
-                .await
-            }
-            IntegrationSecretImportPermission::NOT_PERMITTED => {
-                post(
-                    &tenant_id,
-                    None,
-                    ETasksExecution::IMPORT_ELECTION_EVENT,
-                    &executer_name,
-                )
-                .await
-            }
-        }
-        .map_err(|error| {
-            (
-                Status::InternalServerError,
-                format!("Failed to insert task execution record: {error:?}"),
-            )
-        })?;
+    // Insert the task execution record
+    let task_execution: TasksExecution = post(
+        &tenant_id,
+        None,
+        ETasksExecution::IMPORT_ELECTION_EVENT,
+        &executer_name,
+    )
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Failed to insert task execution record: {error:?}"),
+        )
+    })?;
 
     let (temp_file_path, _document, document_type, package) =
         match get_document(&hasura_transaction, input.clone(), None).await {
@@ -452,6 +433,28 @@ pub async fn import_election_event_f(
             task_execution: Some(task_execution),
             problems: None,
         }));
+    }
+
+    // Only an admitted, real import of this archive into this event may
+    // install its integration secrets. The worker reads the grant back from
+    // the task row, never from the queued message.
+    if input.integration_secret_permission
+        == IntegrationSecretImportPermission::PERMITTED
+    {
+        if let Err(error) = grant_integration_secret_import(
+            &task_execution,
+            &input.tenant_id,
+            &input.document_id,
+            &id,
+        )
+        .await
+        {
+            let message = format!(
+                "Failed to record the integration secret grant: {error:#}"
+            );
+            let _res = update_fail(&task_execution, &message).await;
+            return Err((Status::InternalServerError, message));
+        }
     }
 
     let celery_app = get_celery_app().await;
