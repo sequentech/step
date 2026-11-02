@@ -205,6 +205,8 @@ export function createStandIn({ live, sidecar, origin, stepPackages, electionId,
           return ctx.claims ? ballotBox.locate(voterOf(ctx), args.ballot_id) : ballotBox.locatePublic(args.ballot_id);
         case "get_voter_cast_votes":
           return ballotBox.castVotes(voterOf(ctx), args);
+        case "ballot_box_own":
+          return ballotBox.ownBallots(voterOf(ctx), args);
         case "get_ballot_files_urls":
           return publication();
         case "vitrine_voter_context":

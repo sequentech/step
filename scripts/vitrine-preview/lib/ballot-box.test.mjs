@@ -108,6 +108,9 @@ test("a ballot is received once, then cast on the voter's signed request", async
   assert.equal(box.locate(VOTER, hash).ballot_id, tracking);
   assert.equal(box.locate(VOTER, tracking.slice(0, 4)).status, "not-found");
   assert.equal(box.castVotes("someone-else", {}).length, 0);
+  const own = box.ownBallots(VOTER, {}).payload.ballots;
+  assert.deepEqual(own.map((b) => [b.tracking_id, b.stage]), [[tracking, "cast"]]);
+  assert.deepEqual(box.ownBallots("someone-else", {}).payload.ballots, []);
 });
 
 test("a ballot the voter did not sign is refused", async () => {

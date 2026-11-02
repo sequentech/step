@@ -277,6 +277,24 @@ export function createBallotBox({ live, sidecar, electionId, ids, box, audited, 
     return records.map((r) => r.castRow);
   }
 
+  /** `ballot_box_own`: the voter's own ballots at every stage, newest first, as
+   * the ballot box knows them by the voter it received them from (Harvest's
+   * voter ID or pseudonym). The ballot list checks the cast one. */
+  function ownBallots(voter, { election_id: requested } = {}) {
+    const ballots = [...byBallot.values()]
+      .filter((r) => r.voter === voter && (!requested || requested === electionId))
+      .map((r) => ({
+        tracking_id: r.tracking,
+        pseudonym: voter,
+        stage: r.state,
+        last_step_at: r.state === "cast" ? r.castRow.created_at : r.received.received_at,
+        voting_channel: r.state === "cast" ? "ONLINE" : "",
+        election_id: electionId,
+      }))
+      .sort((a, b) => Date.parse(b.last_step_at) - Date.parse(a.last_step_at));
+    return { payload: { ballots } };
+  }
+
   /** The audited ballots anyone may open, as a hub's ballot verifier asks with no
    * voter's token: the fixture, and every voter's once it was published. Never a
    * cast ballot, nor an audited one its voter didn't publish. */
@@ -393,6 +411,7 @@ export function createBallotBox({ live, sidecar, electionId, ids, box, audited, 
     publishAudited,
     insert,
     castVotes,
+    ownBallots,
     locate,
     locatePublic,
     recordAudited,
