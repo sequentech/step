@@ -1840,6 +1840,9 @@ const dutchTranslation: TranslationType = {
                 encryptWithPassword: "Versleutelen met wachtwoord",
                 passwordForcedNote:
                     "Het archief wordt hoe dan ook met een wachtwoord beveiligd: rapporten, aanvragen en bulletinboardgegevens worden altijd versleuteld. Vink het vakje aan om ook ontsleutelde geheime kiezersvelden op te nemen.",
+                integrationSecrets: "Integratiegeheimen (servicereferenties)",
+                integrationSecretsNote:
+                    "Na ontsleuteling bevat het archief het liveness-geheim van Scanovate in leesbare tekst. Houd het archief en het wachtwoord geheim en importeer het alleen waar die Liveness Plus-dienst gebruikt moet worden.",
                 includeVoters: "Kiezers Opnemen",
                 activityLogs: "Activiteitenlogs",
                 bulletinBoard: "Prikbord",
@@ -2277,6 +2280,7 @@ const dutchTranslation: TranslationType = {
                 "voter-write": "Kiezer Bewerken",
                 "voter-secret-attribute-read": "Geheime Kiezersvelden Tonen",
                 "voter-secret-attribute-write": "Geheime Kiezersvelden Bewerken",
+                "integration-secret-read": "Integratiegeheimen Exporteren",
                 "user-create": "Gebruiker Aanmaken",
                 "user-read": "Gebruiker Lezen",
                 "user-write": "Gebruiker Bewerken",

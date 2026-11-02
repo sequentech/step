@@ -1848,6 +1848,9 @@ const frenchTranslation: TranslationType = {
                 encryptWithPassword: "Chiffrer avec Mot de Passe",
                 passwordForcedNote:
                     "L'archive sera protégée par mot de passe de toute façon : les rapports, les demandes et les données du tableau d'affichage sont toujours chiffrés. Cochez la case pour inclure aussi les champs secrets des électeurs déchiffrés.",
+                integrationSecrets: "Secrets d'intégration (identifiants de service)",
+                integrationSecretsNote:
+                    "Une fois déchiffrée, l'archive contiendra en clair le secret de liveness de Scanovate. Gardez l'archive et son mot de passe secrets, et ne l'importez que là où ce service Liveness Plus doit être utilisé.",
                 includeVoters: "Inclure les Électeurs",
                 activityLogs: "Journaux d'Activité",
                 bulletinBoard: "Tableau d'Affichage",
@@ -2285,6 +2288,7 @@ const frenchTranslation: TranslationType = {
                 "voter-write": "Éditer Électeur",
                 "voter-secret-attribute-read": "Afficher les Champs Secrets de l'Électeur",
                 "voter-secret-attribute-write": "Éditer les Champs Secrets de l'Électeur",
+                "integration-secret-read": "Exporter les Secrets d'Intégration",
                 "user-create": "Créer Utilisateur",
                 "user-read": "Lire Utilisateur",
                 "user-write": "Éditer Utilisateur",

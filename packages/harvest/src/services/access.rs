@@ -234,13 +234,18 @@ pub fn edit_user_access(
 pub fn document_extra_permissions(
     annotations: Option<&DocumentAnnotations>,
 ) -> Vec<Permissions> {
+    let mut permissions = vec![];
     if annotations
         .is_some_and(DocumentAnnotations::requires_voter_secret_attribute_read)
     {
-        vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ]
-    } else {
-        vec![]
+        permissions.push(Permissions::VOTER_SECRET_ATTRIBUTE_READ);
     }
+    if annotations
+        .is_some_and(DocumentAnnotations::requires_integration_secret_read)
+    {
+        permissions.push(Permissions::INTEGRATION_SECRET_READ);
+    }
+    permissions
 }
 
 /// Grants access when either check passed. Both checks have already run, so

@@ -1831,6 +1831,9 @@ const basqueTranslation: TranslationType = {
                 encryptWithPassword: "Zifratu Pasahitzarekin",
                 passwordForcedNote:
                     "Artxiboa pasahitzarekin babestuko da nolanahi ere: txostenak, eskaerak eta iragarki-taulako datuak beti zifratzen dira. Markatu laukia bozkatzaileen eremu sekretu deszifratuak ere sartzeko.",
+                integrationSecrets: "Integrazio sekretuak (zerbitzu kredentzialak)",
+                integrationSecretsNote:
+                    "Deszifratu ondoren, artxiboak Scanovate-ren liveness sekretua testu argian izango du. Gorde artxiboa eta haren pasahitza ezkutuan, eta inportatu soilik Liveness Plus zerbitzu hori erabili behar den lekuan.",
                 includeVoters: "Sartu Bozkatzaileak",
                 activityLogs: "Jarduera Egunkariak",
                 bulletinBoard: "Iragarki Taula",
@@ -2263,6 +2266,7 @@ const basqueTranslation: TranslationType = {
                 "voter-write": "Editatu Bozkatzailea",
                 "voter-secret-attribute-read": "Erakutsi Bozkatzailearen Eremu Sekretuak",
                 "voter-secret-attribute-write": "Editatu Bozkatzailearen Eremu Sekretuak",
+                "integration-secret-read": "Esportatu Integrazio Sekretuak",
                 "user-create": "Sortu Erabiltzailea",
                 "user-read": "Irakurri Erabiltzailea",
                 "user-write": "Editatu Erabiltzailea",

@@ -62,11 +62,12 @@ pub struct BallotsStatus<'a> {
 impl BallotsStatus<'_> {
     /// Set initial statuses for all the ballots depending on if they are valid, invalid or blank.
     /// Set the metrics and counts.
+    /// Fails if the summed weight of the valid ballots does not fit in a u64.
     #[instrument(skip_all)]
     pub fn initialize_ballots_status<'a>(
         votes: &'a Vec<(DecodedVoteContest, Weight)>,
         contest: &Contest,
-    ) -> BallotsStatus<'a> {
+    ) -> Result<BallotsStatus<'a>> {
         let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(contest);
         let mut count_invalid_votes = InvalidVotes::default();
         let mut blank_votes = BlankVotes::default();
@@ -75,6 +76,9 @@ impl BallotsStatus<'_> {
 
         let mut count_declined_to_vote: u64 = 0;
         let mut count_blank_ballots: u64 = 0;
+        // Every round sums the weights of some of these ballots, so no round
+        // or candidate total can exceed it.
+        let mut valid_weight: u64 = 0;
 
         for (vote, weight) in votes {
             if vote.is_blank_ballot {
@@ -102,7 +106,17 @@ impl BallotsStatus<'_> {
                     blank_votes.implicit += 1;
                     BallotStatus::Blank
                 }
-                BallotClass::Valid => BallotStatus::Valid,
+                BallotClass::Valid => {
+                    valid_weight = valid_weight
+                        .checked_add(weight.unwrap_or_default())
+                        .ok_or_else(|| {
+                            Error::UnexpectedError(
+                                "The summed weight of the valid ballots does not fit in a u64"
+                                    .to_string(),
+                            )
+                        })?;
+                    BallotStatus::Valid
+                }
             };
             extended_metrics = update_extended_metrics(
                 vote,
@@ -117,17 +131,18 @@ impl BallotsStatus<'_> {
         let count_blank = blank_votes.total();
         extended_metrics.total_declined_to_vote = count_declined_to_vote;
         extended_metrics.total_blank_ballots = count_blank_ballots;
+        extended_metrics.total_weight = valid_weight;
         let count_valid = total_ballots
             - count_invalid_votes.explicit
             - count_invalid_votes.implicit
             - count_declined_to_vote;
-        BallotsStatus {
+        Ok(BallotsStatus {
             ballots,
             count_valid,
             count_invalid_votes,
             extended_metrics,
             blank_votes,
-        }
+        })
     }
 }
 
@@ -545,6 +560,8 @@ impl RunoffStatus {
         let act_candidate_ids = self.candidates_status.get_active_candidate_ids();
         let act_candidates_count = act_candidate_ids.len() as u64;
         let mut act_ballots = 0;
+        // At most the valid weight, which initialize_ballots_status checked fits in a u64.
+        let mut act_weight: u64 = 0;
         let mut exhausted_ballots = self
             .get_last_round()
             .unwrap_or_default()
@@ -561,6 +578,7 @@ impl RunoffStatus {
                     outcome.wins += w;
                 }
                 act_ballots += 1;
+                act_weight += w;
             } else {
                 *ballot_st = BallotStatus::Exhausted;
                 exhausted_ballots += 1;
@@ -569,15 +587,16 @@ impl RunoffStatus {
 
         candidates_wins = self.calculate_transferences(&candidates_wins);
 
-        // Calculate percentages using act_ballots as denominator
-        let act_ballots_f64 = cmp::max(1, act_ballots) as f64;
+        // Calculate percentages using act_weight as denominator, as wins are weighted
+        let act_weight_f64 = cmp::max(1, act_weight) as f64;
         for outcome in candidates_wins.values_mut() {
-            outcome.percentage = ((outcome.wins as f64) / act_ballots_f64).clamp(0.0, 1.0);
+            outcome.percentage = ((outcome.wins as f64) / act_weight_f64).clamp(0.0, 1.0);
         }
 
         // Check if there is a winner
         let max_wins = candidates_wins.values().map(|o| o.wins).max().unwrap_or(0);
-        if 2 * max_wins > act_ballots {
+        // A majority, 2 * max_wins > act_weight, without the multiplication.
+        if max_wins > act_weight / 2 {
             let winner_id = self
                 .filter_candidates_by_number_of_wins(&candidates_wins, max_wins)
                 .first()
@@ -685,7 +704,7 @@ impl InstantRunoff {
         let contest = &self.tally.contest;
         let votes: &Vec<(DecodedVoteContest, Weight)> = &self.tally.ballots;
 
-        let mut ballots_status = BallotsStatus::initialize_ballots_status(votes, contest);
+        let mut ballots_status = BallotsStatus::initialize_ballots_status(votes, contest)?;
         let blank_votes = ballots_status.blank_votes;
         let count_blank = blank_votes.total();
         let count_valid = ballots_status.count_valid;
@@ -693,7 +712,8 @@ impl InstantRunoff {
         let count_invalid = count_invalid_votes.explicit + count_invalid_votes.implicit;
         let extended_metrics = ballots_status.extended_metrics.clone();
         debug_assert!(count_blank <= count_valid);
-        let percentage_votes_denominator = count_valid.saturating_sub(count_blank);
+        // Weighted like the candidate wins; with every weight 1 it is count_valid - count_blank.
+        let percentage_votes_denominator = extended_metrics.total_weight;
 
         let (candidate_result, process_results) = match op {
             TallyOperation::SkipCandidateResults => (vec![], None),
@@ -893,7 +913,8 @@ mod tests {
         let contest = contest();
         let votes = vec![(mixed_explicit_blank_vote(), Weight::default())];
 
-        let status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+        let status = BallotsStatus::initialize_ballots_status(&votes, &contest)
+            .expect("ballots should initialize");
 
         assert_eq!(status.count_valid, 0);
         assert_eq!(status.count_invalid_votes.explicit, 0);
@@ -931,7 +952,8 @@ mod tests {
         let contest = contest();
         let votes = vec![(blank_ballot_vote(), Weight::default())];
 
-        let status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+        let status = BallotsStatus::initialize_ballots_status(&votes, &contest)
+            .expect("ballots should initialize");
 
         assert_eq!(status.extended_metrics.total_blank_ballots, 1);
         assert_eq!(status.extended_metrics.total_declined_to_vote, 0);
@@ -1004,6 +1026,7 @@ mod tests {
             }],
             extended_metrics: Some(ExtendedMetricsContest {
                 votes_by_channel: VotesByChannel::from([(VotingChannel::PAPER.into(), 2)]),
+                total_weight: 2,
                 ..Default::default()
             }),
             ..Default::default()
@@ -1030,5 +1053,263 @@ mod tests {
                 .and_then(|metrics| { metrics.votes_by_channel.get(&VotingChannel::PAPER.into()) }),
             Some(&2)
         );
+    }
+
+    fn ranked_contest() -> Contest {
+        Contest {
+            id: "contest".to_string(),
+            max_votes: 3,
+            candidates: vec![
+                candidate("x", false),
+                candidate("y", false),
+                candidate("z", false),
+            ],
+            ..Contest::default()
+        }
+    }
+
+    fn ranked_vote(ranking: &[&str]) -> DecodedVoteContest {
+        let selected = |candidate_id: &str| {
+            ranking
+                .iter()
+                .position(|id| *id == candidate_id)
+                .map_or(-1, |position| position as i64)
+        };
+
+        DecodedVoteContest {
+            contest_id: "contest".to_string(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: ["x", "y", "z"]
+                .iter()
+                .map(|id| DecodedVoteChoice {
+                    id: id.to_string(),
+                    selected: selected(id),
+                    write_in_text: None,
+                })
+                .collect(),
+        }
+    }
+
+    fn area_weight(weight: u64) -> Weight {
+        serde_json::from_value(serde_json::json!(weight)).expect("weight parses")
+    }
+
+    fn run_ranked(votes: &Vec<(DecodedVoteContest, Weight)>) -> RunoffStatus {
+        let contest = ranked_contest();
+        let mut ballots_status = BallotsStatus::initialize_ballots_status(votes, &contest)
+            .expect("ballots should initialize");
+        let mut runoff = RunoffStatus::initialize_runoff(&contest);
+        runoff.run(&mut ballots_status);
+        runoff
+    }
+
+    fn ranked_votes(weight_of_x_ballot: Weight) -> Vec<(DecodedVoteContest, Weight)> {
+        let mut votes = vec![(ranked_vote(&["x"]), weight_of_x_ballot)];
+        for _ in 0..4 {
+            votes.push((ranked_vote(&["y", "z"]), Weight::default()));
+        }
+        for _ in 0..2 {
+            votes.push((ranked_vote(&["z", "y"]), Weight::default()));
+        }
+        votes
+    }
+
+    fn unweighted_votes(ranking: &[&str], count: usize) -> Vec<(DecodedVoteContest, Weight)> {
+        (0..count)
+            .map(|_| (ranked_vote(ranking), Weight::default()))
+            .collect()
+    }
+
+    fn percentage(round: &Round, candidate_id: &str) -> f64 {
+        round
+            .candidates_wins
+            .get(candidate_id)
+            .map(|outcome| outcome.percentage)
+            .expect("candidate outcome should exist")
+    }
+
+    fn assert_close(actual: f64, expected: f64) {
+        assert!(
+            (actual - expected).abs() < 1e-9,
+            "expected {expected}, got {actual}"
+        );
+    }
+
+    #[test]
+    fn irv_majority_uses_weighted_total_with_area_weights() {
+        let runoff = run_ranked(&ranked_votes(area_weight(5)));
+
+        let first_round = runoff.rounds.first().expect("first round should exist");
+        assert!(first_round.winner.is_none());
+        assert_eq!(first_round.active_ballots_count, 7);
+        assert_eq!(
+            first_round
+                .eliminated_candidates
+                .as_ref()
+                .map(|eliminated| eliminated.iter().map(|c| c.id.as_str()).collect::<Vec<_>>()),
+            Some(vec!["z"])
+        );
+        assert_close(percentage(first_round, "x"), 5.0 / 11.0);
+        assert_close(percentage(first_round, "y"), 4.0 / 11.0);
+        assert_close(percentage(first_round, "z"), 2.0 / 11.0);
+
+        let last_round = runoff.rounds.last().expect("last round should exist");
+        assert_eq!(runoff.rounds.len(), 2);
+        assert_eq!(
+            last_round.winner.as_ref().map(|winner| winner.id.as_str()),
+            Some("y")
+        );
+        assert_close(percentage(last_round, "x"), 5.0 / 11.0);
+        assert_close(percentage(last_round, "y"), 6.0 / 11.0);
+    }
+
+    #[test]
+    fn irv_unweighted_results_unchanged() {
+        let runoff = run_ranked(&ranked_votes(Weight::default()));
+
+        assert_eq!(runoff.rounds.len(), 1);
+        let first_round = runoff.rounds.first().expect("first round should exist");
+        assert_eq!(
+            first_round.winner.as_ref().map(|winner| winner.id.as_str()),
+            Some("y")
+        );
+        assert_eq!(first_round.active_ballots_count, 7);
+        assert_close(percentage(first_round, "x"), 1.0 / 7.0);
+        assert_close(percentage(first_round, "y"), 4.0 / 7.0);
+        assert_close(percentage(first_round, "z"), 2.0 / 7.0);
+    }
+
+    #[test]
+    fn irv_exhausted_weighted_ballot_leaves_the_active_weight() {
+        let mut votes = vec![
+            (ranked_vote(&["z"]), area_weight(4)),
+            (ranked_vote(&["x"]), area_weight(5)),
+        ];
+        votes.extend(unweighted_votes(&["y"], 6));
+        let runoff = run_ranked(&votes);
+
+        let first_round = runoff.rounds.first().expect("first round should exist");
+        assert!(first_round.winner.is_none());
+        assert_close(percentage(first_round, "x"), 5.0 / 15.0);
+        assert_close(percentage(first_round, "y"), 6.0 / 15.0);
+        assert_close(percentage(first_round, "z"), 4.0 / 15.0);
+
+        let last_round = runoff.rounds.last().expect("last round should exist");
+        assert_eq!(runoff.rounds.len(), 2);
+        assert_eq!(last_round.active_ballots_count, 7);
+        assert_eq!(last_round.exhausted_ballots_count, 1);
+        assert_eq!(
+            last_round.winner.as_ref().map(|winner| winner.id.as_str()),
+            Some("y")
+        );
+        assert_close(percentage(last_round, "x"), 5.0 / 11.0);
+        assert_close(percentage(last_round, "y"), 6.0 / 11.0);
+    }
+
+    #[test]
+    fn irv_transferred_ballot_keeps_its_area_weight() {
+        let mut votes = vec![(ranked_vote(&["z", "x"]), area_weight(3))];
+        votes.extend(unweighted_votes(&["x"], 4));
+        votes.extend(unweighted_votes(&["y"], 6));
+        let runoff = run_ranked(&votes);
+
+        let first_round = runoff.rounds.first().expect("first round should exist");
+        assert!(first_round.winner.is_none());
+        assert_close(percentage(first_round, "z"), 3.0 / 13.0);
+
+        let last_round = runoff.rounds.last().expect("last round should exist");
+        assert_eq!(runoff.rounds.len(), 2);
+        let x = last_round
+            .candidates_wins
+            .get("x")
+            .expect("candidate outcome should exist");
+        assert_eq!(x.wins, 7);
+        assert_eq!(x.transference, 3);
+        assert_eq!(
+            last_round.winner.as_ref().map(|winner| winner.id.as_str()),
+            Some("x")
+        );
+        assert_close(percentage(last_round, "x"), 7.0 / 13.0);
+        assert_close(percentage(last_round, "y"), 6.0 / 13.0);
+    }
+
+    fn ranked_instant_runoff(votes: Vec<(DecodedVoteContest, Weight)>) -> InstantRunoff {
+        InstantRunoff {
+            tally: Tally {
+                id: sequent_core::types::ceremonies::CountingAlgType::InstantRunoff,
+                scope_operation: ScopeOperation::Contest(TallyOperation::ProcessBallotsAll),
+                contest: ranked_contest(),
+                ballots: votes,
+                census: 10,
+                auditable_votes: 0,
+                tally_sheet_results: vec![],
+                tally_results: vec![],
+            },
+        }
+    }
+
+    fn candidate_percentage(result: &ContestResult, candidate_id: &str) -> f64 {
+        result
+            .candidate_result
+            .iter()
+            .find(|candidate| candidate.candidate.id == candidate_id)
+            .map(|candidate| candidate.percentage_votes)
+            .expect("candidate result should exist")
+    }
+
+    #[test]
+    fn irv_contest_percentages_use_the_valid_weight() {
+        let result = ranked_instant_runoff(ranked_votes(area_weight(5)))
+            .process_ballots(TallyOperation::ProcessBallotsAll)
+            .expect("weighted contest should tally");
+
+        // The last round is y 6, x 5 out of a valid weight of 11.
+        assert_eq!(
+            result
+                .extended_metrics
+                .as_ref()
+                .map(|metrics| metrics.total_weight),
+            Some(11)
+        );
+        assert_close(candidate_percentage(&result, "y"), 600.0 / 11.0);
+        assert_close(candidate_percentage(&result, "x"), 500.0 / 11.0);
+
+        // Aggregation recomputes the percentages over total_weight.
+        let recomputed = result.calculate_percentages();
+        assert_close(candidate_percentage(&recomputed, "y"), 600.0 / 11.0);
+        assert_close(candidate_percentage(&recomputed, "x"), 500.0 / 11.0);
+    }
+
+    #[test]
+    fn irv_contest_percentages_unchanged_without_weights() {
+        let result = ranked_instant_runoff(ranked_votes(Weight::default()))
+            .process_ballots(TallyOperation::ProcessBallotsAll)
+            .expect("unweighted contest should tally");
+
+        assert_close(candidate_percentage(&result, "y"), 400.0 / 7.0);
+        assert_close(candidate_percentage(&result, "x"), 100.0 / 7.0);
+        assert_close(candidate_percentage(&result, "z"), 200.0 / 7.0);
+    }
+
+    #[test]
+    fn irv_weight_past_u64_max_fails_the_tally() {
+        // One candidate's total, and then only the sum, past u64::MAX.
+        for second_choice in ["x", "y"] {
+            let votes = vec![
+                (ranked_vote(&["x"]), area_weight(1 << 63)),
+                (ranked_vote(&[second_choice]), area_weight(1 << 63)),
+            ];
+            let result =
+                ranked_instant_runoff(votes).process_ballots(TallyOperation::ProcessBallotsAll);
+
+            assert!(
+                matches!(result, Err(Error::UnexpectedError(_))),
+                "{second_choice}: {result:?}"
+            );
+        }
     }
 }
