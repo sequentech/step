@@ -476,6 +476,7 @@ pub fn get_contest_plurality(
             preference_gaps_policy: None,
             pagination_policy: None,
             columns: None,
+            candidates_layout: None,
         }),
         tie_breaking_policy: None,
     }

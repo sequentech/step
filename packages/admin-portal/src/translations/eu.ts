@@ -2777,6 +2777,9 @@ const basqueTranslation: TranslationType = {
                         delete: "Ziur zaude elementu hau ezabatu nahi duzula?",
                         sealsUnknown:
                             "Ezin izan dira hautestontzien zigiluak egiaztatu: hautestontzi zigilaturik badu, ezabaketa baztertu egingo da.",
+                        archiveNamed: 'Ziur zaude "{{name}}" artxibatu nahi duzula?',
+                        unarchiveNamed: 'Ziur zaude "{{name}}" desartxibatu nahi duzula?',
+                        deleteNamed: 'Ziur zaude "{{name}}" ezabatu nahi duzula?',
                     },
                     notification: {
                         success: {
@@ -2898,6 +2901,13 @@ const basqueTranslation: TranslationType = {
                 "label": "Hautagaien kontrol-laukiaren ikono forma",
                 "square-checkbox": "Kontrol-lauki Karratua",
                 "round-checkbox": "Kontrol-lauki Biribila",
+            },
+            candidatesLayout: {
+                "label": "Hautagaien antolaketa",
+                "helperText":
+                    "Paperezko txartelaren saretak hautagaiak zenbakidun gelaxka gisa erakusten ditu, betetzeko zirkulu batekin, zutabez zutabe, Zutabeak erabiliz (4 hutsik badago). Lehentasunezko bozketek zerrenda erabiltzen dute beti.",
+                "list": "Zerrenda",
+                "paper-grid": "Paperezko txartelaren sareta",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Hautagaiak eta Zerrendak",
@@ -4367,6 +4377,8 @@ const basqueTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Aginte-panel konfiguragarriak",
+            modeChangeError: "Ezin izan da aginte-panelaren modua aldatu. Saiatu berriro.",
             title: "Monitorizazio-panelak",
             loading: "Monitorizazioa kargatzen",
             unavailableAlert:

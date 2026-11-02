@@ -59,6 +59,7 @@ import {
     EBlankVotePolicy,
     EOverVotePolicy,
     ECandidatesIconCheckboxPolicy,
+    ECandidatesLayout,
     EDuplicatedRankPolicy,
     EPreferenceGapsPolicy,
     getDefaultDuplicatedRankPolicy,
@@ -779,6 +780,26 @@ export const ContestDataForm: React.FC = () => {
                                 </FormDataConsumer>
                                 <Box sx={{marginTop: "1rem"}} />
                                 <NumberInput source="presentation.columns" min={1} />
+                                <SelectInput
+                                    source="presentation.candidates_layout"
+                                    choices={[
+                                        {
+                                            id: ECandidatesLayout.LIST,
+                                            name: String(t("contestScreen.candidatesLayout.list")),
+                                        },
+                                        {
+                                            id: ECandidatesLayout.PAPER_GRID,
+                                            name: String(
+                                                t("contestScreen.candidatesLayout.paper-grid")
+                                            ),
+                                        },
+                                    ]}
+                                    label={String(t("contestScreen.candidatesLayout.label"))}
+                                    helperText={String(
+                                        t("contestScreen.candidatesLayout.helperText")
+                                    )}
+                                    defaultValue={ECandidatesLayout.LIST}
+                                />
                                 <NumberInput source="winning_candidates_num" min={0} />
                                 <SelectInput
                                     source="presentation.candidates_order"

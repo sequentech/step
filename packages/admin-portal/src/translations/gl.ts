@@ -2786,6 +2786,9 @@ const galegoTranslation: TranslationType = {
                         delete: "¿Estás seguro de que queres eliminar este elemento?",
                         sealsUnknown:
                             "Non se puideron comprobar os selos das urnas: se ten urnas seladas, rexeitarase a eliminación.",
+                        archiveNamed: '¿Estás seguro de que queres arquivar "{{name}}"?',
+                        unarchiveNamed: '¿Estás seguro de que queres desarquivar "{{name}}"?',
+                        deleteNamed: '¿Estás seguro de que queres eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2906,6 +2909,13 @@ const galegoTranslation: TranslationType = {
                 "label": "Forma do Icono de Caixa de Selección dos Candidatos",
                 "square-checkbox": "Caixa de Selección Cadrada",
                 "round-checkbox": "Caixa de Selección Redonda",
+            },
+            candidatesLayout: {
+                "label": "Disposición das candidaturas",
+                "helperText":
+                    "A grade de papeleta en papel mostra as candidaturas como celas numeradas cun círculo para encher, columna a columna, segundo Columnas (4 se está baleiro). As votacións por orde de preferencia sempre usan a lista.",
+                "list": "Lista",
+                "paper-grid": "Grade de papeleta en papel",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidatos e Listas",
@@ -4373,6 +4383,8 @@ const galegoTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Paneis configurables",
+            modeChangeError: "Non se puido cambiar o modo do panel. Ténteo de novo.",
             title: "Monitorización",
             loading: "Cargando a monitorización",
             unavailableAlert:

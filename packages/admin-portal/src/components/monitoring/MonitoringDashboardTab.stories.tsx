@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
+import type {Operation} from "@apollo/client"
+import {EMonitoringMode} from "./types"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
 import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
@@ -10,7 +12,12 @@ import {STORY_IDS} from "@/__stories__/fixtures"
 import {EStoryPermissions} from "../../../../ui-essentials/.storybook/globals"
 import {EMonitoringLock} from "./useMonitoringPermissions"
 import {MonitoringDashboardTab} from "./MonitoringDashboardTab"
-import {EMonitoringListScenario, POSTS, monitoringHandlers} from "./__stories__/MonitoringFixture"
+import {
+    EMonitoringListScenario,
+    POSTS,
+    listDashboardsResponse,
+    monitoringHandlers,
+} from "./__stories__/MonitoringFixture"
 import type {IMonitoringEditorApi} from "./editor/api"
 import {EMonitoringConfigKind} from "./editor/types"
 import {THEME_YAML, WIDGET_YAML, fakeEditorApi} from "./editor/storyFixtures"
@@ -270,5 +277,49 @@ export const EditorDuplicatesAWidget: Story = {
             })
         )
         await waitFor(() => expect(loads()).toBeGreaterThan(before))
+    },
+}
+
+export const ToggleConfiguredDashboards: Story = {
+    args: {list: EMonitoringListScenario.LEGACY},
+    beforeEach: async () => {
+        let mode = EMonitoringMode.LEGACY
+        let generation = 0
+        graphql = graphqlBoundary(
+            {
+                ...monitoringHandlers(),
+                MonitoringListDashboards: () => ({
+                    data: {monitoringListDashboards: listDashboardsResponse(mode)},
+                }),
+                MonitoringSetMode: (operation: Operation) => {
+                    mode = operation.variables.mode as EMonitoringMode
+                    generation += 1
+                    return {data: {monitoringSetMode: {mode, generation}}}
+                },
+            },
+            {schema: true}
+        )
+        await graphql.ready
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const control = await canvas.findByRole("switch", {name: "Configurable dashboards"})
+        await expect(control).not.toBeChecked()
+        await userEvent.click(control)
+        await expect(await canvas.findByRole("combobox", {name: "Dashboard"})).toBeVisible()
+        await expect(control).toBeChecked()
+        await userEvent.click(control)
+        await expect(await canvas.findByText(LEGACY)).toBeVisible()
+        await expect(control).not.toBeChecked()
+        await userEvent.click(control)
+        await expect(await canvas.findByRole("combobox", {name: "Dashboard"})).toHaveTextContent(
+            "Monitoring overview"
+        )
+        expect(
+            graphql.calls
+                .filter(({name}) => name === "MonitoringSetMode")
+                .map(({variables}) => variables.mode)
+        ).toEqual(["CONFIGURED", "LEGACY", "CONFIGURED"])
+        expect(graphql.calls.some(({name}) => name.includes("ResetToPreset"))).toBe(false)
     },
 }

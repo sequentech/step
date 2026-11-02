@@ -2012,7 +2012,14 @@ async fn get_published_ballot_styles_maps_the_object_root_and_the_live_election_
                 root: None,
                 status: None,
                 num_allowed_revotes: None,
-                voting_channels: None,
+                // An election inserted without channels stores the online-only default.
+                voting_channels: Some(json!({
+                    "online": true,
+                    "kiosk": null,
+                    "telephone": null,
+                    "paper": null,
+                    "early_voting": null,
+                })),
             },
         ]
     );

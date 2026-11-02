@@ -510,7 +510,8 @@ pub fn historical_import_info() -> Result<JsValue, JsError> {
 #[wasm_bindgen(js_name = buildFromHistorical)]
 pub fn build_from_historical(
     sql: &[u8],
-    workbook: &[u8],
+    // Absent: the decisions' `supplement` stands in for it.
+    workbook: Option<Box<[u8]>>,
     decisions: JsValue,
     options: JsValue,
     // Optional `{ tenantPackage?, requirements? }`. Given, the output also
@@ -553,7 +554,7 @@ pub fn build_from_historical(
                 |error| JsError::new(&format!("bad package request: {error}")),
             )?)
         };
-    let adapted = match adapt(sql, workbook, &decisions) {
+    let adapted = match adapt(sql, workbook.as_deref(), &decisions) {
         Ok(adapted) => adapted,
         Err(refused) => {
             return to_js(&HistoricalOutput {
