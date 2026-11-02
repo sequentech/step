@@ -18,27 +18,31 @@ Step can't store as they are:
 - The value has to be **translated** into a Step value. For example, the IdP sends a region and a
   precinct, and Step needs the voter's area.
 
-The **Attribute Transform and Lookup** identity provider mapper handles both. It works with SAML
-and OIDC identity providers and runs these steps on every login:
+Two pieces handle this, each with one job:
 
-1. **Source:** reads one or more SAML attributes or OIDC claims.
-2. **Extract:** keeps part of each value, using a regular expression (optional).
-3. **Normalize:** trims each value and sets its case.
-4. **Join:** joins the values with a separator when there are several sources.
-5. **Validate:** checks the joined value against a regular expression (optional).
-6. **Lookup:** translates the value through a table (optional).
-7. **Target:** stores the result in a user attribute, or in the username of a new user.
+- The **Attribute Transform and Lookup** identity provider mapper computes the value. It works
+  with SAML and OIDC identity providers and runs these steps on every login:
 
-If a step produces no value, the mapper leaves the target unset, stores a default value, or
-rejects the login, as configured.
+  1. **Source:** reads one or more SAML attributes or OIDC claims.
+  2. **Extract:** keeps part of each value, using a regular expression (optional).
+  3. **Normalize:** trims each value and sets its case.
+  4. **Join:** joins the values with a separator when there are several sources.
+  5. **Lookup:** translates the value through a table (optional).
+  6. **Target:** stores the result in a user attribute, or in the username of a new user.
+
+  If a step produces no value, the mapper leaves the target unset or stores a default value.
+
+- The **Condition - Brokered Value** condition checks the result in the identity provider's login
+  flows. Together with Keycloak's **Deny access** step, it rejects logins whose values are missing
+  or invalid, before the user is created (see [Rejecting logins](#rejecting-logins)).
 
 ---
 
 ## Prerequisites
 
 - Access to the Keycloak Admin Console.
-- The `sequent.idp-attribute-mapper.jar` extension in Keycloak's `providers/` directory (included
-  in the Sequent Keycloak Docker image).
+- The `sequent.idp-attribute-mapper.jar` and `sequent.conditional-authenticators.jar` extensions
+  in Keycloak's `providers/` directory (included in the Sequent Keycloak Docker image).
 - A SAML or OpenID Connect identity provider configured in the election event realm.
 
 ---
@@ -64,13 +68,11 @@ Add one mapper for each value you need, for example one for the username and one
 | **Extract regex** | Applied to each source value. The first capture group is kept, or the whole match if the expression has no group. A value that doesn't match is a miss. | none |
 | **Separator** | Joins the values when there are several sources. | `:` |
 | **Case** | `NONE`, `LOWER` or `UPPER`, applied to each value after trimming it. Lookup table keys get the same case. | `NONE` |
-| **Validation regex** | The joined value must match it entirely, before the lookup. Otherwise it is a miss. | none |
 | **Lookup table** | Translates the joined value (see [Lookup table format](#lookup-table-format)). A value with no row is a miss. Without a table, the joined value is stored. | none |
 | **Target** | `USER_ATTRIBUTE` stores the value in **Target attribute**. `USERNAME` sets the username of users created on first login; existing usernames never change. | `USER_ATTRIBUTE` |
 | **Target attribute** | User attribute to store the value in. `email`, `firstName` and `lastName` set those user properties. | — |
-| **On miss** | What to do when a source is missing, extraction or validation fails, or the table has no row (see [Behavior summary](#behavior-summary)). | `UNSET` |
+| **On miss** | What to do when a source is missing, extraction fails, or the table has no row (see [Behavior summary](#behavior-summary)). | `UNSET` |
 | **Default value** | Value stored on a miss when **On miss** is `DEFAULT`. | — |
-| **Error message** | Message key or text shown to the voter when **On miss** is `REJECT`. | Generic IdP error |
 
 :::note
 Step reads the voter's area from the user attribute `area-id`. Use that name as the
@@ -118,10 +120,51 @@ table included, from its database on every login, so keep large tables compact (
 |---|---|---|
 | `UNSET` | The target stays empty. | The attribute is removed. |
 | `DEFAULT` | The default value is stored. | The default value is stored. |
-| `REJECT` | The login stops and the voter sees the error message. No user is created. | The login stops and the voter sees the error message. |
 
-The mapper checks the values on every login, whatever the sync mode, so `REJECT` also applies to
-returning voters.
+The mapper never stops a login. To reject a login on a miss, leave **On miss** as `UNSET` and add a
+check to the login flows (see [Rejecting logins](#rejecting-logins)).
+
+---
+
+## Rejecting Logins
+
+The mappers run before the identity provider's login flows, and they store their results in the
+login's brokered identity. The **Condition - Brokered Value** condition reads those results, so a
+flow can check them and stop the login with Keycloak's **Deny access** step.
+
+| Parameter | Description | Default |
+|---|---|---|
+| **Target** | `USERNAME` checks the username. `USER_ATTRIBUTE` checks **Attribute**. | `USER_ATTRIBUTE` |
+| **Attribute** | User attribute to check. `email`, `firstName` and `lastName` check those user properties. | — |
+| **Regex** | The value must match it entirely. Without a regex, any non-empty value matches. | none |
+| **Negate output** | Inverts the result. Set it to deny access when the value does **not** match. | off |
+
+Add each check to two flows:
+
+- **First broker login flow:** runs only on a voter's first login, before the user is created. A
+  rejected voter gets no account.
+- **Post login flow:** runs on every login through the identity provider, after the mappers have
+  updated the user. It catches returning voters whose values stopped being valid, for example a
+  precinct that left the election.
+
+### Set up a check
+
+1. In **Authentication**, duplicate the **first broker login** flow, for example as
+   `voter first broker login`.
+2. Click **Add sub-flow**, name it after the check (for example `invalid voter ID`), and move it to
+   the top of the flow. Set its requirement to **Conditional**.
+3. In the sub-flow, add the condition **Condition - Brokered Value** with requirement
+   **Required**, and configure it (see the examples below).
+4. In the sub-flow, add the step **Deny access** with requirement **Required**. In its settings, set
+   **Error message** to the message key or text the voter should see.
+5. Repeat steps 2–4 for each check.
+6. Create a flow for the post login checks, for example `voter post login`, with the same sub-flows
+   for the checks that apply to returning voters. End it with the step **Allow access** with
+   requirement **Required**: a flow whose only steps are skipped conditions fails every login.
+7. In **Identity providers**, select the identity provider and set **First login flow override**
+   and **Post login flow** to the two flows.
+
+Test every check with a login before voting opens.
 
 ---
 
@@ -130,20 +173,35 @@ returning voters.
 The IdP sends a NameID such as `3f2b8c1a-9d4e-8a7b-b1c2-0d9e8f7a6b5c@idp.example.org`. The
 username must be the part before `@`, and it must be a UUID version 8.
 
+Mapper:
+
 | Parameter | Value |
 |---|---|
 | Sync mode override | `import` |
 | Sources | `$nameid` |
 | Extract regex | `^([^@]+)@` |
 | Case | `LOWER` |
-| Validation regex | `^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$` |
 | Target | `USERNAME` |
-| On miss | `REJECT` |
-| Error message | `Your voter ID is not valid. Contact your identity provider.` |
+| On miss | `UNSET` |
+
+Check in the first broker login flow:
+
+| Step | Setting | Value |
+|---|---|---|
+| Condition - Brokered Value | Target | `USERNAME` |
+| | Regex | `^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$` |
+| | Negate output | on |
+| Deny access | Error message | `Your voter ID is not valid. Contact your identity provider.` |
+
+If the NameID has no `@`, the mapper leaves the username as the identity provider sent it, and the
+check rejects it because it doesn't match the regex. The username of an existing user never
+changes, so this check only belongs in the first broker login flow.
 
 ## Example – SAML: Area from Region and Precinct
 
 The IdP sends the attributes `region` (`09`) and `precinct` (`0150`).
+
+Mapper:
 
 | Parameter | Value |
 |---|---|
@@ -153,14 +211,24 @@ The IdP sends the attributes `region` (`09`) and `precinct` (`0150`).
 | Lookup table | The table from [Lookup table format](#lookup-table-format) |
 | Target | `USER_ATTRIBUTE` |
 | Target attribute | `area-id` |
-| On miss | `REJECT` |
-| Error message | `Your precinct is not part of this election.` |
+| On miss | `UNSET` |
 
-With `force`, a voter whose precinct changes at the IdP gets the new area on the next login.
+Check in both the first broker login flow and the post login flow:
+
+| Step | Setting | Value |
+|---|---|---|
+| Condition - Brokered Value | Target | `USER_ATTRIBUTE` |
+| | Attribute | `area-id` |
+| | Negate output | on |
+| Deny access | Error message | `Your precinct is not part of this election.` |
+
+With `force`, a voter whose precinct changes at the IdP gets the new area on the next login. If the
+new precinct isn't in the table, the mapper removes `area-id` and the post login check rejects the
+login.
 
 ## Example – OIDC
 
-The same mappers work with an OpenID Connect identity provider. Use claim names as **Sources**,
+The same mappers and checks work with an OpenID Connect identity provider. Use claim names as **Sources**,
 for example `region` and `precinct`, or a dotted path such as `address.region`. The mapper looks
 for each claim in the access token, then the ID token, then the user info response. Request the
 scopes that release those claims in the identity provider's **Scopes** setting.
@@ -210,4 +278,4 @@ login about 30 ms slower in testing, and the grouped table about 10 ms.
    time, or the line that makes the table invalid.
 
 Test the new table with a login before voting opens: an invalid table fails every login through
-the identity provider.
+the identity provider, and a table that misses precincts makes the area check reject those voters.
