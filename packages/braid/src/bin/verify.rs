@@ -3,15 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // cargo run --bin verify -- --b3-url http://[::1]:50051 --board testboard
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use clap::Parser;
 use tracing::info;
 use tracing::instrument;
 
-use b3::messages::newtypes::ConfigurationHash;
 use braid::protocol::board::grpc_m::GrpcB3;
 use braid::protocol::trustee2::Trustee;
-use braid::verify::verifier::{VerificationOutcome, Verifier};
+use braid::verify::verifier::Verifier;
+
+use b3::messages::newtypes::{BatchNumber, ConfigurationHash};
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
@@ -26,6 +27,13 @@ struct Cli {
     /// Name of the board to audit
     #[arg(long)]
     board: String,
+
+    /// Comma-separated batch numbers that must be verified
+    ///
+    /// Verification fails if any of these batches is not verified,
+    /// or if a batch not in this list is verified.
+    #[arg(long, value_delimiter = ',')]
+    batches: Option<Vec<BatchNumber>>,
 
     /// Hex encoded hash of the configuration the board must use
     #[arg(long, value_parser = parse_cfg_hash)]
@@ -64,12 +72,14 @@ async fn main() -> Result<()> {
         None,
     );
     let board = GrpcB3::new(&args.server_url);
-    let mut session = Verifier::new(trustee, board, &args.board, args.expected_cfg_hash);
-
-    match session.run().await? {
-        VerificationOutcome::Passed => Ok(()),
-        VerificationOutcome::Failed => {
-            Err(anyhow!("Verification of board '{}' failed", args.board))
-        }
+    let mut session = Verifier::new(trustee, board, &args.board);
+    if let Some(batches) = args.batches {
+        session = session.with_expected_batches(batches);
     }
+    if let Some(cfg_h) = args.expected_cfg_hash {
+        session = session.with_expected_cfg_hash(cfg_h);
+    }
+    session.run().await?;
+
+    Ok(())
 }
