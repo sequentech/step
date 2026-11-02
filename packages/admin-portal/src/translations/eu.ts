@@ -4136,6 +4136,7 @@ const basqueTranslation: TranslationType = {
                     "insufficient-information": "Datuak falta dira",
                     "no-matching-voter": "Ez dago bat datorren bozkatzailerik",
                     "voter-already-approved": "Dagoeneko onartua",
+                    "EMAIL_IN_USE": "Beste hautesle batek erabilitako posta",
                     "other": "Bestelakoa",
                 },
                 hint: {

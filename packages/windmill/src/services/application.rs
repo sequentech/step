@@ -6,7 +6,7 @@ use super::approval_matrix::evaluate::{
 };
 use super::approval_matrix::store::get_current_approval_matrix;
 use super::approval_matrix::{FieldMatch, IdentityMethod};
-use super::users::{lookup_users, FilterOption, ListUsersFilter};
+use super::users::{get_user_ids_by_email, lookup_users, FilterOption, ListUsersFilter};
 use crate::postgres::application::get_permission_label_from_post;
 use crate::postgres::area::get_elections_by_area;
 use crate::postgres::area::get_event_areas;
@@ -67,6 +67,7 @@ use sequent_core::types::templates::TemplateMethod::{EMAIL, SMS};
 use unicode_normalization::char::decompose_canonical;
 
 const ID_CARD_TYPE_FIELD: &str = "sequent.read-only.id-card-type";
+const EMAIL_FIELD: &str = "email";
 const FIRST_NAME_FIELD: &str = "firstName";
 const FIRST_AND_MIDDLE_NAME_FIELD: &str = "firstName.middleName";
 const SEVERAL_VOTERS_MATCH_REASON: &str = "Several registry voters match";
@@ -151,7 +152,7 @@ pub async fn verify_application(
         Some(election_event_id.to_string()),
         None,
         None,
-        realm,
+        realm.clone(),
         None,
         &matrix.matrix.compared_fields,
         applicant_data,
@@ -164,6 +165,13 @@ pub async fn verify_application(
     // Decides the enrollment from the list of found possible users
     let (result, decision) =
         automatic_verification(users.clone(), &matrix, &annotations, applicant_data)?;
+    let result = match applicant_data.get(EMAIL_FIELD) {
+        Some(email) if result.application_status == ApplicationStatus::ACCEPTED => {
+            let holders = get_user_ids_by_email(keycloak_transaction, &realm, email).await?;
+            reject_duplicate_email(result, &holders)
+        }
+        _ => result,
+    };
     info!("Verification result: {:?}", result);
 
     // Set the annotations
@@ -586,6 +594,26 @@ fn automatic_verification(
     };
 
     Ok((result, record))
+}
+
+/// Rejects an accepted enrollment whose email another voter already has:
+/// Keycloak keeps emails unique, so the voter couldn't be updated.
+fn reject_duplicate_email(
+    result: ApplicationVerificationResult,
+    email_holders: &[String],
+) -> ApplicationVerificationResult {
+    let held_by_another = email_holders
+        .iter()
+        .any(|holder| Some(holder) != result.user_id.as_ref());
+    if result.application_status != ApplicationStatus::ACCEPTED || !held_by_another {
+        return result;
+    }
+    ApplicationVerificationResult {
+        application_status: ApplicationStatus::REJECTED,
+        application_type: ApplicationType::AUTOMATIC,
+        rejection_reason: Some(ApplicationRejectReason::EMAIL_IN_USE),
+        ..result
+    }
 }
 
 #[instrument(err)]
@@ -1632,6 +1660,68 @@ mod tests {
 
         assert_eq!(result.application_status, ApplicationStatus::ACCEPTED);
         assert_eq!(result.user_id, Some("voter-id".to_string()));
+    }
+
+    fn accepted_census_result() -> ApplicationVerificationResult {
+        let (result, _) = automatic_verification(
+            vec![census_voter()],
+            &census_matrix(),
+            &census_annotations(None),
+            &census_applicant("1980-01-01"),
+        )
+        .unwrap();
+        result
+    }
+
+    #[test]
+    fn accepted_enrollment_with_another_voters_email_is_rejected() {
+        let result = reject_duplicate_email(accepted_census_result(), &["other-voter".to_string()]);
+
+        assert_eq!(result.application_status, ApplicationStatus::REJECTED);
+        assert_eq!(result.application_type, ApplicationType::AUTOMATIC);
+        assert_eq!(
+            result.rejection_reason,
+            Some(ApplicationRejectReason::EMAIL_IN_USE)
+        );
+    }
+
+    #[test]
+    fn accepted_enrollment_with_an_unused_email_stays_accepted() {
+        let result = reject_duplicate_email(accepted_census_result(), &[]);
+
+        assert_eq!(result.application_status, ApplicationStatus::ACCEPTED);
+        assert_eq!(result.rejection_reason, None);
+    }
+
+    #[test]
+    fn accepted_enrollment_with_the_matched_voters_own_email_stays_accepted() {
+        let result = reject_duplicate_email(accepted_census_result(), &["voter-id".to_string()]);
+
+        assert_eq!(result.application_status, ApplicationStatus::ACCEPTED);
+    }
+
+    #[test]
+    fn pending_enrollment_with_another_voters_email_stays_pending() {
+        let (pending, _) = automatic_verification(
+            vec![census_voter()],
+            &census_matrix(),
+            &census_annotations(None),
+            &census_applicant("1990-02-02"),
+        )
+        .unwrap();
+
+        let result = reject_duplicate_email(pending, &["other-voter".to_string()]);
+
+        assert_eq!(result.application_status, ApplicationStatus::PENDING);
+    }
+
+    #[test]
+    fn email_in_use_reason_has_a_stable_name() {
+        assert_eq!(
+            serde_json::to_string(&ApplicationRejectReason::EMAIL_IN_USE).unwrap(),
+            r#""EMAIL_IN_USE""#
+        );
+        assert_eq!(ApplicationRejectReason::EMAIL_IN_USE.to_string(), "email-in-use");
     }
 
     #[test]

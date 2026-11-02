@@ -43,7 +43,9 @@ describes the feature for election managers.
 | `fields` | `{"<field>": "MATCHES" \| "DIFFERS"}` | A compared field's result |
 
 `then.decision` is `ACCEPTED`, `PENDING` or `REJECTED`; `then.reason` is `NO_VOTER`,
-`ALREADY_APPROVED`, `INSUFFICIENT_INFORMATION`, `IDENTITY_NOT_VERIFIED` or `OTHER`.
+`ALREADY_APPROVED`, `INSUFFICIENT_INFORMATION`, `IDENTITY_NOT_VERIFIED` or `OTHER`. `EMAIL_IN_USE` is
+not a rule's: `verify_application` rejects an accepted enrollment with it when another voter of the
+realm already has the email, since Keycloak keeps emails unique.
 
 Unknown keys and values fail deserialization. `ApprovalMatrix::validate` returns the errors that keep
 a matrix from being saved: `NO_COMPARED_FIELDS`, `DUPLICATE_COMPARED_FIELD`, `UNKNOWN_FIELD` (a rule

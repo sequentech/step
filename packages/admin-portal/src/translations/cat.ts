@@ -4162,6 +4162,7 @@ const catalanTranslation: TranslationType = {
                     "insufficient-information": "Dades insuficients",
                     "no-matching-voter": "Votant no trobat",
                     "voter-already-approved": "Ja aprovat",
+                    "EMAIL_IN_USE": "Correu usat per un altre votant",
                     "other": "Altre",
                 },
                 hint: {

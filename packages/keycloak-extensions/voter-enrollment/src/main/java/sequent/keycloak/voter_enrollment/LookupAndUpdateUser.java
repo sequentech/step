@@ -121,6 +121,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     NO_VOTER,
     ALREADY_APPROVED,
     IDENTITY_NOT_VERIFIED,
+    EMAIL_IN_USE,
     OTHER,
     NO_REASON_GIVEN;
 
@@ -136,10 +137,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       return NO_REASON_GIVEN;
     }
 
-    // Java self method.
-    // Self Method to check if the rejection reason is ALREADY_APPROVED
-    public boolean isAlreadyApproved() {
-      return this == ALREADY_APPROVED;
+    // Rejections that aren't about the applicant's data, so there are no mismatches to show
+    public boolean hidesMismatches() {
+      return this == ALREADY_APPROVED || this == EMAIL_IN_USE;
     }
   }
 
@@ -461,13 +461,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
         if ("REJECTED".equals(verificationStatus)) {
 
-          // Do not show the mismatches details if the rejection reason is that it was alrady
-          // approved
-          if (!VerificationRejectionReason.fromString(rejectionReason).isAlreadyApproved()) {
-            log.infov("Application was not already approved.");
+          if (!VerificationRejectionReason.fromString(rejectionReason).hidesMismatches()) {
             context.form().setAttribute("mismatchedFields", mismatchedFields);
           } else {
-            log.infov("Application was already approved, not showing mismatches.");
+            log.infov("Rejected as {0}, not showing mismatches.", rejectionReason);
           }
 
           Response form =
@@ -531,6 +528,25 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               .form()
               .setError(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET_ERROR, sessionId)
               .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+      return;
+    }
+
+    // Keycloak keeps emails unique: setting another voter's email would fail
+    // and roll back the whole update
+    List<String> newEmail = Utils.getAttributeValuesFromAuthNote(context, "email");
+    if (emailInUse(
+        context.getSession(),
+        context.getRealm(),
+        user,
+        updateAttributesList,
+        newEmail == null || newEmail.isEmpty() ? null : newEmail.get(0))) {
+      log.error("authenticate(): the email belongs to another user");
+      context.getEvent().error(VerificationRejectionReason.EMAIL_IN_USE.name());
+      context.challenge(
+          context
+              .form()
+              .setAttribute("rejectReason", VerificationRejectionReason.EMAIL_IN_USE.name())
+              .createForm("registration-rejected-finish.ftl"));
       return;
     }
 
@@ -858,6 +874,20 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       }
     }
     return Optional.empty();
+  }
+
+  /** Whether the enrollment would set an email another user of the realm has. */
+  static boolean emailInUse(
+      KeycloakSession session,
+      RealmModel realm,
+      UserModel user,
+      List<String> updateAttributes,
+      String email) {
+    if (email == null || email.isBlank() || !updateAttributes.contains("email")) {
+      return false;
+    }
+    UserModel holder = session.users().getUserByEmail(realm, email.trim());
+    return holder != null && !holder.getId().equals(user.getId());
   }
 
   private void updateUserAttributes(

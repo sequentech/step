@@ -4223,6 +4223,7 @@ const spanishTranslation: TranslationType = {
                     "insufficient-information": "Datos faltantes",
                     "no-matching-voter": "Votante no coincidente",
                     "voter-already-approved": "Ya aprobado",
+                    "EMAIL_IN_USE": "Correo usado por otro votante",
                     "other": "Otro",
                 },
                 hint: {

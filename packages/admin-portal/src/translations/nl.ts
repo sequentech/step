@@ -4156,6 +4156,7 @@ const dutchTranslation: TranslationType = {
                     "insufficient-information": "Ontbrekende gegevens",
                     "no-matching-voter": "Geen overeenkomende kiezer",
                     "voter-already-approved": "Al goedgekeurd",
+                    "EMAIL_IN_USE": "E-mail gebruikt door een andere kiezer",
                     "other": "Anders",
                 },
                 hint: {
