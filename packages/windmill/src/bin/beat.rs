@@ -13,7 +13,7 @@ use sequent_core::util::init_log::init_log;
 use tokio::time::Duration;
 use windmill::services::celery_app::{set_is_app_active, Queue};
 use windmill::services::probe::{setup_probe, AppName};
-use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
+use windmill::tasks::electoral_log::{electoral_log_batch_dispatcher, relay_electoral_log_outbox};
 use windmill::tasks::review_boards::review_boards;
 use windmill::tasks::review_cast_votes::review_cast_votes;
 use windmill::tasks::scheduled_events::scheduled_events;
@@ -69,6 +69,11 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().electoral_log_interval)),
                 args = (),
             },
+            relay_electoral_log_outbox::NAME => {
+                relay_electoral_log_outbox,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().electoral_log_interval)),
+                args = (),
+            },
         ],
         task_routes = [
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
@@ -76,6 +81,7 @@ async fn main() -> Result<()> {
             scheduled_reports::NAME => &Queue::Beat.queue_name(&slug),
             review_cast_votes::NAME => &Queue::Beat.queue_name(&slug),
             electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
+            relay_electoral_log_outbox::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
         ],
     ).await?;
 
