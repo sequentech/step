@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Scanovate On-Premise Services | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3967/docs/integrations/scanovate_on_premise_guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Scanovate On-Premise Services | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3967/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3967/docs/integrations/scanovate_on_premise_guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3967/docs/integrations/scanovate_on_premise_guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3967/docs/integrations/scanovate_on_premise_guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Scanovate On-Premise Services","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3967/docs/integrations/scanovate_on_premise_guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3967/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3967/assets/js/runtime~main.6ddc7703.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-3967/assets/js/main.96c7e092.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3967/assets/js/runtime~main.68805118.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3967/assets/js/main.8cb37775.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -22,8 +22,10 @@ It runs Presentation Attack Detection (PAD, including deepfake detection) on
 the face photos our capture page sends to its API, and posts the verdict to
 Keycloak.</li>
 <li class=""><strong>Face Match</strong> compares two face images (1:1) and returns their similarity.
-It finds the face in each image itself, so it can compare a photo of a whole
-document with a photo of the voter.</li>
+It finds the face in each image itself, so it can compare a photo of a
+document with a photo of the voter. It misses a face that is a small part of
+the image, so the capture page uploads the document cropped to it and a
+margin, not the whole camera frame.</li>
 <li class=""><strong>OCR</strong> reads the fields of a photo of an identity document and validates its
 machine readable zone (MRZ).</li>
 </ul>
