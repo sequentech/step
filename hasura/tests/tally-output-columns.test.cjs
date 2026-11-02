@@ -17,9 +17,10 @@ const loadTable = (table) =>
         )
     )
 
+// A role without a permission entry can write no columns.
 const columnsFor = (metadata, operation, role) =>
-    metadata[`${operation}_permissions`].find((entry) => entry.role === role)
-        .permission.columns
+    metadata[`${operation}_permissions`]?.find((entry) => entry.role === role)
+        ?.permission.columns ?? []
 
 const windmillOnlyColumns = [
     {table: "sequent_backend_tally_session", column: "annotations"},

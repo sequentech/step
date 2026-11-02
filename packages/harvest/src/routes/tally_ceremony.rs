@@ -23,7 +23,9 @@ use tracing::{event, instrument, Level};
 use windmill::postgres::tally_session::get_tally_session_by_id;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::ceremonies::tally_ceremony::{self};
-use windmill::services::ceremonies::tally_resolution;
+use windmill::services::ceremonies::tally_resolution::{
+    self, ResolutionSubmission, ResolutionSubmissionNotPermitted,
+};
 use windmill::services::ceremonies::tally_validation::TallyValidationError;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
@@ -43,6 +45,38 @@ fn tally_response_error((status, message): (Status, String)) -> JsonError {
         );
     };
     ErrorResponse::new(status, &message, code)
+}
+
+/// Kinds of tie-break submission the caller may make. Changing a decision on
+/// a completed tally recounts it, so it also needs the recount permission.
+fn permitted_resolution_submissions(
+    claims: &JwtClaims,
+) -> Vec<ResolutionSubmission> {
+    let mut permitted = vec![ResolutionSubmission::ResumePausedTally];
+    if authorize(
+        claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::TALLY_RECOUNT_EXECUTE],
+    )
+    .is_ok()
+    {
+        permitted.push(ResolutionSubmission::RecountCompletedTally);
+    }
+    permitted
+}
+
+fn tally_resolution_error(error: anyhow::Error) -> (Status, String) {
+    if error
+        .downcast_ref::<ResolutionSubmissionNotPermitted>()
+        .is_some()
+    {
+        (Status::Unauthorized, error.to_string())
+    } else if error.downcast_ref::<TallyValidationError>().is_some() {
+        (Status::BadRequest, error.to_string())
+    } else {
+        (Status::InternalServerError, format!("{error:?}"))
+    }
 }
 
 fn tally_service_error(error: anyhow::Error) -> (Status, String) {
@@ -499,9 +533,10 @@ pub async fn submit_tally_resolution(
         &input.resolutions,
         &user_id,
         claims.preferred_username.clone(),
+        &permitted_resolution_submissions(&claims),
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    .map_err(tally_resolution_error)?;
 
     hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
@@ -552,6 +587,63 @@ mod tally_error_tests {
             "Election selected: end its voting period before tallying."
         );
         assert_eq!(body["extensions"]["code"], "TallyValidation");
+    }
+
+    fn claims_with_roles(roles: &[Permissions]) -> JwtClaims {
+        let roles: Vec<String> =
+            roles.iter().map(|role| role.to_string()).collect();
+        serde_json::from_value(serde_json::json!({
+            "exp": 1, "iat": 0, "jti": "test", "iss": "test",
+            "sub": "admin", "typ": "Bearer", "azp": "admin-portal",
+            "acr": "1", "allowed-origins": [], "scope": "openid",
+            "email_verified": false,
+            "https://hasura.io/jwt/claims": {
+                "x-hasura-default-role": "admin-user",
+                "x-hasura-tenant-id": "tenant",
+                "x-hasura-user-id": "admin",
+                "x-hasura-allowed-roles": roles
+            }
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn completed_tally_resolution_requires_recount_permission() {
+        let submit_only =
+            claims_with_roles(&[Permissions::TALLY_RESOLUTION_SUBMIT]);
+        assert_eq!(
+            permitted_resolution_submissions(&submit_only),
+            vec![ResolutionSubmission::ResumePausedTally]
+        );
+
+        let submit_and_recount = claims_with_roles(&[
+            Permissions::TALLY_RESOLUTION_SUBMIT,
+            Permissions::TALLY_RECOUNT_EXECUTE,
+        ]);
+        assert_eq!(
+            permitted_resolution_submissions(&submit_and_recount),
+            vec![
+                ResolutionSubmission::ResumePausedTally,
+                ResolutionSubmission::RecountCompletedTally,
+            ]
+        );
+    }
+
+    #[test]
+    fn resolution_submission_errors_map_to_client_statuses() {
+        let not_permitted = tally_resolution_error(
+            ResolutionSubmissionNotPermitted(
+                ResolutionSubmission::RecountCompletedTally,
+            )
+            .into(),
+        );
+        assert_eq!(not_permitted.0, Status::Unauthorized);
+
+        let invalid = tally_resolution_error(
+            TallyValidationError::new("Tally session is not awaiting input")
+                .into(),
+        );
+        assert_eq!(invalid.0, Status::BadRequest);
     }
 
     #[test]

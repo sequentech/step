@@ -359,6 +359,70 @@ pub async fn handle_election_allow_tally(
     Ok(())
 }
 
+pub async fn dispatch(celery_app: Arc<Celery>, scheduled_event: &ScheduledEvent) -> Result<()> {
+    let Some(event_processor) = scheduled_event.event_processor.clone() else {
+        return Ok(());
+    };
+    match event_processor {
+        EventProcessors::ALLOW_INIT_REPORT => {
+            handle_allow_init_report(celery_app, scheduled_event).await
+        }
+        EventProcessors::ALLOW_VOTING_PERIOD_END => {
+            handle_allow_voting_period_end(celery_app, scheduled_event).await
+        }
+        EventProcessors::START_VOTING_PERIOD | EventProcessors::END_VOTING_PERIOD => {
+            handle_voting_event(celery_app, scheduled_event).await
+        }
+        EventProcessors::START_ENROLLMENT_PERIOD | EventProcessors::END_ENROLLMENT_PERIOD => {
+            handle_election_event_enrollment(celery_app, scheduled_event).await
+        }
+        EventProcessors::START_LOCKDOWN_PERIOD | EventProcessors::END_LOCKDOWN_PERIOD => {
+            handle_election_lockdown(celery_app, scheduled_event).await
+        }
+        EventProcessors::ALLOW_TALLY => {
+            handle_election_allow_tally(celery_app, scheduled_event).await
+        }
+        EventProcessors::CREATE_REPORT | EventProcessors::SEND_TEMPLATE => {
+            // Nothing to do for these event processors.  Avoid a
+            // catch all to ignore unknown events, this way when
+            // new variants are added to `EventProcessors`, a
+            // compile time error will happen notifying about the
+            // missing logic for handling that new variant.
+            Ok(())
+        }
+    }
+}
+
+/// Dispatches every due event and returns how many failed.
+pub async fn run_due<'a, I, F, Fut>(events: I, mut dispatch: F) -> usize
+where
+    I: IntoIterator<Item = &'a ScheduledEvent>,
+    F: FnMut(&'a ScheduledEvent) -> Fut,
+    Fut: std::future::Future<Output = Result<()>>,
+{
+    let mut failed = 0;
+    for scheduled_event in events {
+        match dispatch(scheduled_event).await {
+            Ok(()) => event!(
+                Level::INFO,
+                "Event {} dispatched successfully",
+                scheduled_event.id,
+            ),
+            Err(err) => {
+                failed += 1;
+                event!(
+                    Level::ERROR,
+                    "Event {} ({:?}) failed with error {}",
+                    scheduled_event.id,
+                    scheduled_event.event_processor,
+                    err,
+                );
+            }
+        }
+    }
+    failed
+}
+
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
@@ -390,51 +454,17 @@ pub async fn scheduled_events(rate_seconds: u64) -> Result<()> {
         })
         .collect::<Vec<_>>();
     info!("Found {} events to be run now", to_be_run_now.len());
-    for scheduled_event in to_be_run_now {
-        let Some(event_processor) = scheduled_event.event_processor.clone() else {
-            continue;
-        };
-        match event_processor {
-            EventProcessors::ALLOW_INIT_REPORT => {
-                handle_allow_init_report(celery_app.clone(), scheduled_event).await?;
-            }
-            EventProcessors::ALLOW_VOTING_PERIOD_END => {
-                handle_allow_voting_period_end(celery_app.clone(), scheduled_event).await?;
-            }
-            EventProcessors::START_VOTING_PERIOD | EventProcessors::END_VOTING_PERIOD => {
-                if let Err(err) = handle_voting_event(celery_app.clone(), &scheduled_event).await {
-                    event!(
-                        Level::ERROR,
-                        "Event {} failed with error {}",
-                        scheduled_event.id,
-                        err,
-                    );
-                } else {
-                    event!(
-                        Level::INFO,
-                        "Event {} executed successfully",
-                        scheduled_event.id,
-                    );
-                }
-            }
-            EventProcessors::START_ENROLLMENT_PERIOD | EventProcessors::END_ENROLLMENT_PERIOD => {
-                handle_election_event_enrollment(celery_app.clone(), scheduled_event).await?;
-            }
-            EventProcessors::START_LOCKDOWN_PERIOD | EventProcessors::END_LOCKDOWN_PERIOD => {
-                handle_election_lockdown(celery_app.clone(), scheduled_event).await?;
-            }
-            EventProcessors::ALLOW_TALLY => {
-                handle_election_allow_tally(celery_app.clone(), scheduled_event).await?;
-            }
-            EventProcessors::CREATE_REPORT | EventProcessors::SEND_TEMPLATE => {
-                // Nothing to do for these event processors.  Avoid a
-                // catch all to ignore unknown events, this way when
-                // new variants are added to `EventProcessors`, a
-                // compile time error will happen notifying about the
-                // missing logic for handling that new variant.
-            }
-        }
+    let failed = run_due(to_be_run_now, |scheduled_event| {
+        dispatch(celery_app.clone(), scheduled_event)
+    })
+    .await;
+    if failed > 0 {
+        event!(Level::WARN, "{failed} scheduled events failed this tick");
     }
 
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "scheduled_events_tests.rs"]
+mod scheduled_events_tests;

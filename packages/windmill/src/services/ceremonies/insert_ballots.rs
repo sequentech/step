@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 // use crate::hasura::trustee::get_trustees_by_name;
-use crate::postgres::cast_vote::count_unresolved_cast_votes;
+use crate::postgres::cast_vote::{count_unresolved_cast_votes, has_area_cast_votes};
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::trustee::get_trustees_by_name;
@@ -45,6 +45,7 @@ use sequent_core::serialization::deserialize_with_path::{deserialize_str, deseri
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
+use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
 use sequent_core::types::keycloak::{
     MAX_TOTAL_VOTE_WEIGHT, MIN_WEIGHT_BATCH_ANONYMITY, VOTE_WEIGHT_BATCHES,
@@ -76,6 +77,7 @@ pub async fn insert_ballots_messages(
     contest_encryption_policy: ContestEncryptionPolicy,
     delegated_voting_policy: DelegatedVotingPolicy,
     weighted_voting_policy: WeightedVotingPolicy,
+    tally_type: TallyType,
 ) -> Result<Vec<TallySessionContest>> {
     // A delegate's ballot has no defined weighted semantics, so refuse rather
     // than silently computing weight * (1 + delegate_count). This is a backstop:
@@ -155,6 +157,7 @@ pub async fn insert_ballots_messages(
             let election_ids_alias_clone = election_ids_alias.clone();
             let contest_encryption_policy_clone = contest_encryption_policy.clone();
             let realm_clone = realm.clone();
+            let tally_type_clone = tally_type.clone();
             let board_messages_clone = Arc::clone(&board_messages); // board_messages also needs to be cloned if it's not Sync + Send
             let multiplicity_column = if delegated_voting_policy == DelegatedVotingPolicy::ENABLED {
                 VoterMultiplicityColumn::DelegateCount
@@ -225,6 +228,24 @@ pub async fn insert_ballots_messages(
                         return Err(anyhow!(
                             "Refusing to extract ballots for election {} area {}: \
                              {unresolved_count} cast vote(s) have an unresolved Datafix outcome",
+                            tally_session_contest.election_id,
+                            tally_session_contest.area_id,
+                        ));
+                    }
+
+                    if tally_type_clone == TallyType::INITIALIZATION_REPORT
+                        && has_area_cast_votes(
+                            &hasura_transaction_clone,
+                            &tenant_uuid,
+                            &election_event_uuid,
+                            &election_uuid,
+                            &area_uuid,
+                        )
+                        .await?
+                    {
+                        return Err(anyhow!(
+                            "Refusing to extract ballots for the initialization report of \
+                             election {} area {}: the area already has cast votes",
                             tally_session_contest.election_id,
                             tally_session_contest.area_id,
                         ));

@@ -32,7 +32,8 @@ use crate::services::datafix::reconciliation::diff::DiffItem;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::keycloak::{
-    AREA_ID_ATTR_NAME, DATE_OF_BIRTH, DISABLE_COMMENT, TENANT_ID_ATTR_NAME, VOTED_CHANNEL,
+    normalize_username, AREA_ID_ATTR_NAME, DATE_OF_BIRTH, DISABLE_COMMENT, TENANT_ID_ATTR_NAME,
+    VOTED_CHANNEL,
 };
 use std::collections::{HashMap, HashSet};
 use tracing::{instrument, warn};
@@ -262,7 +263,7 @@ pub async fn apply_voters_added_bulk(
         {
             Ok(inserted_usernames) => {
                 for (candidate, _area_id) in batch {
-                    if inserted_usernames.contains(&candidate.voter_username) {
+                    if inserted_usernames.contains(&normalize_username(&candidate.voter_username)) {
                         if let Some(items) = voters.get(&candidate.voter_username) {
                             applied_items.extend(items.clone());
                         }
@@ -314,9 +315,12 @@ async fn get_group_id(
 
 /// Inserts one batch of ready-to-write voters in three statements (users,
 /// attributes, group membership) instead of one round trip per voter.
-/// Duplicate usernames are skipped via `ON CONFLICT DO NOTHING` rather than
-/// aborting the batch — the caller reports any skipped username as a row
-/// failure. Returns the usernames that were actually inserted.
+/// Usernames are stored the way Keycloak stores them (`normalize_username`),
+/// so a VoterID that only differs in letter case from an existing voter's
+/// conflicts with it. Duplicate usernames are skipped via
+/// `ON CONFLICT DO NOTHING` rather than aborting the batch — the caller
+/// reports any skipped username as a row failure. Returns the usernames that
+/// were actually inserted, as stored.
 #[instrument(skip(keycloak_transaction, batch), fields(batch_size = batch.len()), err)]
 async fn insert_voter_batch(
     keycloak_transaction: &Transaction<'_>,
@@ -327,7 +331,7 @@ async fn insert_voter_batch(
 ) -> Result<HashSet<String>> {
     let usernames: Vec<String> = batch
         .iter()
-        .map(|(candidate, _)| candidate.voter_username.clone())
+        .map(|(candidate, _)| normalize_username(&candidate.voter_username))
         .collect();
     let enabled_flags: Vec<bool> = batch
         .iter()
@@ -337,9 +341,9 @@ async fn insert_voter_batch(
     let mut attr_usernames: Vec<String> = Vec::new();
     let mut attr_names: Vec<String> = Vec::new();
     let mut attr_values: Vec<String> = Vec::new();
-    for (candidate, area_id) in batch {
+    for ((candidate, area_id), username) in batch.iter().zip(&usernames) {
         let mut push_attr = |name: &str, value: String| {
-            attr_usernames.push(candidate.voter_username.clone());
+            attr_usernames.push(username.clone());
             attr_names.push(name.to_string());
             attr_values.push(value);
         };

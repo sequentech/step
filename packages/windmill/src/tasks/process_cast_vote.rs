@@ -396,7 +396,7 @@ async fn transition_cast_vote(
 /// Promotes an in-progress vote and then records the Internet channel. A
 /// Keycloak failure is only traced: it does not roll back the terminal Hasura
 /// status, and nothing records the channel afterwards unless the voter votes
-/// again. Until then a disable discards the ballot without owing `SetNotVoted`.
+/// again. A disable still owes `SetNotVoted` because the ballot is valid.
 #[instrument(
     skip(cast_vote),
     fields(cast_vote_id = %cast_vote.id),

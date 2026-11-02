@@ -348,7 +348,11 @@ impl Message {
         let artifact_hash = strand::hash::hash_to_array(&artifact)?;
         // If the cfg_h field matches the artifact, the artifact must be Configuration
         if st_cfg_h == artifact_hash {
-            assert!(kind == StatementType::Configuration);
+            if kind != StatementType::Configuration {
+                return Err(anyhow!(
+                    "A configuration artifact requires a Configuration statement"
+                ));
+            }
             if trustee != PROTOCOL_MANAGER_INDEX {
                 return Err(anyhow!("Configuration must be signed by protocol manager"));
             }
@@ -362,7 +366,9 @@ impl Message {
             ))
         } else {
             // If the statement type were configuration, cfg_hash should have matched the artifact above
-            assert!(kind != StatementType::Configuration);
+            if kind == StatementType::Configuration {
+                return Err(anyhow!("Mismatched configuration artifact hash"));
+            }
 
             if kind == StatementType::Ballots {
                 if trustee != PROTOCOL_MANAGER_INDEX {
@@ -503,5 +509,101 @@ impl std::fmt::Debug for VerifiedMessage {
             self.statement,
             self.artifact.is_some()
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::messages::protocol_manager::ProtocolManager;
+    use std::marker::PhantomData;
+    use strand::backend::ristretto::RistrettoCtx;
+
+    struct TestTrustee {
+        signing_key: StrandSignatureSk,
+    }
+
+    impl Signer for TestTrustee {
+        fn get_signing_key(&self) -> &StrandSignatureSk {
+            &self.signing_key
+        }
+        fn get_name(&self) -> String {
+            "Test trustee".to_string()
+        }
+    }
+
+    struct TestSetup {
+        cfg: Configuration<RistrettoCtx>,
+        cfg_bytes: Vec<u8>,
+        cfg_h: ConfigurationHash,
+        pm: ProtocolManager<RistrettoCtx>,
+        trustee: TestTrustee,
+    }
+
+    fn setup() -> TestSetup {
+        let pm = ProtocolManager::<RistrettoCtx>::new(StrandSignatureSk::gen().unwrap());
+        let trustees: Vec<TestTrustee> = (0..2)
+            .map(|_| TestTrustee {
+                signing_key: StrandSignatureSk::gen().unwrap(),
+            })
+            .collect();
+        let trustee_pks = trustees
+            .iter()
+            .map(|t| StrandSignaturePk::from_sk(&t.signing_key).unwrap())
+            .collect();
+        let cfg = Configuration::<RistrettoCtx>::new(
+            0,
+            StrandSignaturePk::from_sk(&pm.signing_key).unwrap(),
+            trustee_pks,
+            2,
+            PhantomData,
+        );
+        let cfg_bytes = cfg.strand_serialize().unwrap();
+        let cfg_h = ConfigurationHash(strand::hash::hash_to_array(&cfg_bytes).unwrap());
+        let trustee = trustees.into_iter().next().unwrap();
+
+        TestSetup {
+            cfg,
+            cfg_bytes,
+            cfg_h,
+            pm,
+            trustee,
+        }
+    }
+
+    #[test]
+    fn verify_accepts_configuration_signed_by_protocol_manager() {
+        let setup = setup();
+        let message = Message::bootstrap_msg(&setup.cfg, &setup.pm).unwrap();
+
+        let verified = message.verify(&setup.cfg).unwrap();
+
+        assert_eq!(verified.signer_position, PROTOCOL_MANAGER_INDEX);
+        assert_eq!(verified.artifact, Some(setup.cfg_bytes));
+    }
+
+    #[test]
+    fn verify_rejects_non_configuration_statement_with_configuration_artifact() {
+        let setup = setup();
+        let statement = Statement::channel_stmt(setup.cfg_h, ChannelHash(setup.cfg_h.0));
+        let message = setup
+            .trustee
+            .sign(statement, Some(setup.cfg_bytes.clone()))
+            .unwrap();
+
+        let result = message.verify(&setup.cfg);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn verify_rejects_configuration_statement_with_other_artifact() {
+        let setup = setup();
+        let statement = Statement::configuration_stmt(setup.cfg_h);
+        let message = setup.pm.sign(statement, Some(vec![1, 2, 3])).unwrap();
+
+        let result = message.verify(&setup.cfg);
+
+        assert!(result.is_err());
     }
 }
