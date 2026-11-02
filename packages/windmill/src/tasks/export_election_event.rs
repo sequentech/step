@@ -31,6 +31,13 @@ pub struct ExportOptions {
     pub include_certificates: bool,
 }
 
+impl ExportOptions {
+    /// The export holds the protocol manager signing keys of the event's boards.
+    pub fn includes_protocol_manager_keys(&self) -> bool {
+        self.bulletin_board || self.activity_logs || self.publications
+    }
+}
+
 fn validate_voter_secret_export(export_config: &ExportOptions) -> Result<()> {
     if !export_config.contains_voter_secrets {
         return Ok(());
