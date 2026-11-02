@@ -89,6 +89,23 @@ ha iniciado sesión. Las filas con un ID de tenant no válido se omiten. Importe
 el tenant donde lo exportó.
 :::
 
+## Imágenes, estilos y scripts en documentos PDF {#images-styles-and-scripts-in-pdf-documents}
+
+Cuando una plantilla se genera como PDF, el documento puede cargar:
+
+- Archivos del bucket público de la plataforma, como los recursos públicos y los documentos que
+  se suben como públicos.
+- Los recursos incluidos en el generador de documentos, en `/assets`.
+- URL `data:` y `blob:` incluidas en el documento.
+
+El documento no carga otras direcciones, y los marcos como `<iframe>` no cargan ninguna dirección.
+Para usar una imagen, una fuente o una hoja de estilos alojada en otro sitio, súbala como documento
+público o inclúyala en la plantilla como URL `data:`.
+
+Los scripts de una plantilla se ejecutan, pero solo pueden conectarse al bucket público de la
+plataforma. Los web workers, los formularios y las ventanas emergentes no están disponibles. Los
+documentos de más de 48 MiB se generan con JavaScript desactivado.
+
 ## Si hay un problema {#if-there-is-a-problem}
 
 | Problema | Acción |

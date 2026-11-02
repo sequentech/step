@@ -86,6 +86,23 @@ signed in to. Rows with a tenant ID that is not valid are skipped. Import a file
 tenant where you exported it.
 :::
 
+## Images, styles and scripts in PDF documents
+
+When a template is rendered to PDF, the document can load:
+
+- Files in the public bucket of the platform, such as the public assets and the documents that
+  are uploaded as public.
+- The assets that are bundled with the document renderer, under `/assets`.
+- Inline `data:` and `blob:` URLs.
+
+The document does not load other addresses, and frames such as `<iframe>` do not load any address.
+To use an image, font or stylesheet that is hosted elsewhere, upload it as a public document or put
+it in the template as a `data:` URL.
+
+Scripts in a template run, but they can connect only to the public bucket of the platform. Web
+workers, forms and pop-up windows are not available. Documents larger than 48 MiB are rendered
+with JavaScript disabled.
+
 ## If there is a problem
 
 | Problem | Action |
