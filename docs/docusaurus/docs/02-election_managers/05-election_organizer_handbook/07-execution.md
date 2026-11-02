@@ -25,7 +25,7 @@ contain the scheduled event "Start Voting Period" for the election period
 start time. When it is reached, the TOE requests the scheduled-start tests. It opens voting
 after they pass and the other opening prerequisites hold. If a test fails, the
 board must investigate and authorize recovery; a later pass does not silently
-resume the election.
+resume the election event.
 
 **With "Start Voting".** If the electoral regulation has the election board
 open voting itself:
@@ -46,7 +46,7 @@ open voting itself:
    and authorize a fresh opening request. A missing or expired test cannot
    be bypassed with an earlier signature.
 
-Opening checks are short-lived and bound to the current election state.
+Opening checks are short-lived and bound to the current election event state.
 Changing that state or waiting more than five minutes requires a fresh check.
 
 After the start, check that:
@@ -62,9 +62,9 @@ After the start, check that:
 If the election event enters maintenance mode instead, follow
 [Maintenance mode](12-modes-and-failures.md#maintenance-mode).
 
-## Monitoring the election
+## Monitoring the election event
 
-At least one board member watches the election throughout the execution
+At least one board member watches the election event throughout the execution
 phase, and checks the following at least once in every configured self-test interval:
 
 | Where | What to look at | Act when |
@@ -147,17 +147,17 @@ Steps:
 1. Review the reason and investigation record. In **Security and self-tests**,
    select **Before resuming voting** and **Run self-tests**. Wait for all six
    results to show **Passed** for the current state.
-2. Select the individual election (Post), open **Publish**, and choose
+2. Select the individual election, open **Publish**, and choose
    **Start Voting → Start Online Voting**. The same control resumes a paused
    channel. Review the confirmation and confirm once.
 3. The TOE creates a signing request for "Open voting". Each required board
    member authenticates again at the external authentication server and
    signs.
 4. Check **Election execution** and **Operational**, and confirm that both the
-   event's online status and the selected Post's online status are **Open**.
-   The approved Post's restart restores the event gate; other paused Posts
+   event's online status and the selected election's online status are **Open**.
+   The approved election's restart restores the event gate; other paused elections
    remain paused until separately authorized. Confirm that the voter interface
-   offers voting for the resumed Post. Review `MaintenanceModeLeft` when leaving recovery. A further
+   offers voting for the resumed election. Review `MaintenanceModeLeft` when leaving recovery. A further
    **After maintenance** suite runs automatically; investigate any failure.
 
 If the time frame for continuing has passed, do not resume: terminate the

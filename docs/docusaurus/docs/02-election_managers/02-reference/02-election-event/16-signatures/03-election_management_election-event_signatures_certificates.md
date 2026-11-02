@@ -41,10 +41,10 @@ Changing the checks needs `signing-checks-write`.
 | **Check revocation lists** | On: each signer's certificate is checked against its issuer's revocation list. The lists are downloaded from the addresses in the certificates every hour, and each list shows when it was last downloaded or that it couldn't be. |
 | **When a list can't be downloaded** | **Don't accept signatures**, or **Accept and mark the signature as unchecked**. An unchecked signature is recorded as such. |
 | **Registering a certificate to a person** | **When its holder first signs with it**, or **Only when someone who can register certificates registers it**. |
-| **A certificate signs for one Post only** | On: once a certificate has signed for a Post, it can't sign for another Post of the event. Event-level actions don't count. |
+| **A certificate signs for one election only** | On: once a certificate has signed for an election, it can't sign for another election of the event. Event-level actions don't count. |
 
 The defaults are: check revocation lists, don't accept signatures without a list, register
-on first use, one Post per certificate.
+on first use, one election per certificate.
 
 ### What every signature is checked for
 
@@ -60,7 +60,7 @@ signing dialog before signing.
 | Registered to you | It is registered to the signer, or will be on first use. |
 | Not registered to anyone else | Neither the certificate, its key nor its holder's name is registered to another account in the tenant. |
 | Not used for this request yet | Neither the signer, the certificate, its key nor its holder has already signed this request. |
-| Registered for this Post | With **one Post only**, it hasn't signed for another Post. |
+| Registered for this election | With **one election only**, it hasn't signed for another election. |
 | The signature covers this request | The signature is over exactly what the request signs. |
 
 A request needs that many **different people**: the same person can't fill two places,
@@ -70,16 +70,16 @@ account.
 ## Registered certificates
 
 The list shows every certificate registered to a person in this election event: the
-**Person** (name, username and role), the **Post** (or **All** for event-level signers),
+**Person** (name, username and role), the **Election** (or **All** for event-level signers),
 the **Certificate** (its name and a short fingerprint), the **Issuer**, **Valid until**, how
 it was **Registered** (**On first signature**, or by whom) and its **Status**: Active,
 **Expires soon** (within 30 days), Expired or Revoked with the date. Search by person,
-certificate or Post, and filter by status.
+certificate or election, and filter by status.
 
 ### Registering a certificate
 
 **Register a certificate** (`signing-certificates-register`): find the person by username,
-choose the Post (or none, for someone who signs event-level actions), and paste the
+choose the election (or none, for someone who signs event-level actions), and paste the
 certificate as PEM. The certificate is refused when its issuer isn't trusted, when it
 isn't valid today, or when it isn't made for signing.
 

@@ -30,9 +30,11 @@ their trustee workstation (see
 
 To sign in to the admin portal:
 
-1. Open the admin portal at its address followed by `/tenant`. Under
-   "Select Tenant", enter in "Tenant Name" the tenant name that the
-   administrators give you, and select "Continue".
+1. Open the admin portal at its address followed by "`/tenant`". For example,
+   if its address is `https://admin.example.org`, open
+   `https://admin.example.org/tenant`. Under "Select Tenant", enter in
+   "Tenant Name" the tenant name that the administrators give you, and select
+   "Continue".
 2. The login page of the TOE sends you on to the external authentication
    server of your organisation.
 3. Authenticate there with your two factors.

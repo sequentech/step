@@ -163,7 +163,7 @@ the execution phase. It applies also when a board member changes function:
    roles. Disabling the account stops new sign-ins with it. Ask the person to
    log out; a session also ends after 15 minutes without interaction. The
    account itself is deleted only after the retention period of the election
-   records, so that the records still name the person.
+   event's records, so that the records still name the person.
 3. On the Signatures tab under "Certificates", the administrators revoke the
    registration of the person's signing certificate with "Revoke" and enter
    the "Reason". A registration is never deleted. A revoked certificate cannot sign any more;

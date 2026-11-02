@@ -8,7 +8,7 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-This page is for the people who sign protected actions: a Post's board members, officials
+This page is for the people who sign protected actions: an election's board members, officials
 who approve voters or configuration versions, and trustees. Every action is signed the
 same way, with the request panel and the signing dialog.
 
@@ -17,7 +17,7 @@ same way, with the request panel and the signing dialog.
 You need:
 
 - your own account in the Admin Portal, with the permission to sign the action (shown in
-  **Users and Roles** as "Sign: *action*") and access to your Post;
+  **Users and Roles** as "Sign: *action*") and access to your election;
 - your **security token**, the USB drive with your certificate file (`.p12` or `.pfx`),
   and the file's password;
 - a certificate from an issuer the election event trusts. Depending on the event, it is
@@ -30,10 +30,10 @@ dialog repeats this on every step.
 
 ## Starting a protected action
 
-Start the action where you always do, for example **Start voting** in a Post's **Publish**
+Start the action where you always do, for example **Start voting** in an election's **Publish**
 tab or **Generate** in **Reports**. If the action needs signatures, it doesn't run yet: a
 signing request is created and its panel opens. If the same action is already waiting for
-the same Post and the same content, you get that request instead of a new one.
+the same election and the same content, you get that request instead of a new one.
 
 The person who started a request can sign it too, unless the action's rule says
 otherwise.
@@ -42,11 +42,11 @@ otherwise.
 
 The panel opens on the right. It shows:
 
-- the action, the Post and the country, for example "Election returns · Post A · Country
+- the action, the election and the country, for example "Election returns · Election A · Country
   B";
 - the status and the expiry time, for example "Waiting · 1 of 3 · Expires at 20:08", and a
   progress bar;
-- the rule in words, for example "Needs 3 signatures from Post A's signers, each with
+- the rule in words, for example "Needs 3 signatures from Election A's signers, each with
   their digital certificate.";
 - what is signed: a document card (name, SHA-256 hash and **Open the document**), or a
   details table for actions without a document;
@@ -61,7 +61,7 @@ To find a request later, use **Waiting for my signature** in the top header bar 
 viewing an election event: anyone who can sign an action sees it, with the number of
 requests left to sign. It appears as a signing icon with a badge when signatures are
 pending; its tooltip names the action and the count.
-It lists the event's requests waiting for the actions you can sign, in your Posts, with
+It lists the event's requests waiting for the actions you can sign, in your elections, with
 their code, how many have signed, when they expire and whether you already signed. Choose
 one to open its panel. A trustee confirms custody in the ceremony instead. With the
 permission, **Signatures** > **Requests** lists every request.
@@ -76,7 +76,7 @@ changes made by other users. Open the icon or refresh the page to update it.
 
 ### 1. Check
 
-The dialog says who is signing ("You are signing as *name* · *title*, *Post*") and what is
+The dialog says who is signing ("You are signing as *name* · *title*, *election*") and what is
 signed: the document with its hash, or the details table. It shows the signing code;
 everyone who signs sees the same code. For a document, check it and tick "I have checked
 the *document*" before continuing.
@@ -132,7 +132,7 @@ Most problems appear on the **Certificate** step, before you sign.
 | Revoked, or no current revocation list to check it | The certificate was revoked, or its issuer's list couldn't be downloaded and the event doesn't accept unchecked signatures. | Ask the officer who manages certificates. |
 | Registered to *name*, with "This certificate can't sign for you. Use the certificate on your own security token." | The certificate, its key or its holder is registered to someone else. | Use your own certificate. |
 | Not registered to you | The event registers certificates only through an officer, and yours isn't registered. | Ask the officer to register it. |
-| Registered for another Post | With one Post per certificate, it already signed for another Post. | Use the certificate for this Post. |
+| Registered for another election | With one election per certificate, it already signed for another election. | Use the certificate for this election. |
 | Already used for this request / You have already signed this request. | You, or this certificate, already signed it. | Nothing: the next signer signs. |
 | The document changed while you were signing. Sign again. | Someone else signed the document at the same moment. | Sign again; the dialog prepares the current version. |
 | This request changed after you opened it. | The request changed meanwhile, for example someone cancelled it. | Close the dialog and open the request again. |
@@ -144,15 +144,15 @@ Every refused signature is logged as `SigningSignatureRefused` with the failed c
 
 ## Notes per action
 
-**Initialize voting.** Started with **Generate Initialization Report** in a Post's **Publish**
+**Initialize voting.** Started with **Generate Initialization Report** in an election's **Publish**
 tab. When
-enough members have signed, the Post is initialized and its Initialization Report is
+enough members have signed, the election is initialized and its Initialization Report is
 generated. Whether that report also needs its own signatures is decided by **Generate
 other election reports**.
 
-**Open voting and Close voting.** Started with **Start voting** and **Stop voting** in a
-Post's **Publish** tab. When enough members have signed, voting opens or closes at the
-Post. After closing, the panel shows the closing time, the closing signatures and the
+**Open voting and Close voting.** Started with **Start voting** and **Stop voting** in an
+election's **Publish** tab. When enough members have signed, voting opens or closes in the
+election. After closing, the panel shows the closing time, the closing signatures and the
 code; this closing record goes into the log. Pausing and whole-event manual controls
 do not open this signing dialog. Scheduled opening or closing is refused and logged
 when the corresponding action requires signatures; people must complete the protected
@@ -160,7 +160,7 @@ transition instead.
 
 **Generate election returns and other reports.** In **Reports**, the **Signatures** column
 says how many signatures each report needs ("Needs 3") or **Off**. The tally produces
-election returns per Post and country and Initialization Reports per Post; when signatures
+election returns per election and country and Initialization Reports per election; when signatures
 are required, these are signed through their requests rather than regenerated in Reports.
 Participation reports are generated from Reports. Their held PDFs have a final page with
 one field per required signer. Signers can inspect the document, but its released copy
@@ -186,12 +186,12 @@ Initialization Reports. Per-voter manual verification and activity logs have no 
 integration and continue through their existing unsigned generation paths.
 
 A participation report can cover the whole election event when **Generate other election
-reports** is Off. When signatures are required, select a Post in the report's **Election**
-field. An existing event-wide report must be edited to select a Post before generating it;
+reports** is Off. When signatures are required, select an election in the report's **Election**
+field. An existing event-wide report must be edited to select an election before generating it;
 the Reports screen explains this without starting a task. Preview remains available.
 
 **Transmit results.** In **Tally** > **Transmission**, creating the package starts a signing
-request for the Post and country instead of asking for a certificate file upload. Each
+request for the election and country instead of asking for a certificate file upload. Each
 signer signs the package's results. When everyone has signed, the package carries their
 signatures, and **Send to *n* destinations** becomes available: sending stays a separate
 step. With the rule off, transmission works as before.

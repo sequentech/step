@@ -82,12 +82,12 @@ To set and verify the two rates:
 
 *Actual VM rehearsal: the administrator saved and read back the lab's rates.
 The numbers shown are examples for that lab, not a recommendation for a live
-election.*
+election event.*
 
 If a value is outside the accepted range, correct it and save again. If saving
 or verification fails, do not assume the new values took effect: reopen this
 section, inspect the stored values and resolve the displayed cause. Rates
-cannot be changed while an election is executing. These thresholds detect
+cannot be changed while an election event is executing. These thresholds detect
 patterns; they do not rate-limit requests or disable per-account lockout.
 
 When the election board tells you of an attack detection, treat it as a

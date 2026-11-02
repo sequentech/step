@@ -42,7 +42,7 @@ Auditing is optional. You can audit as many times as you like before you cast.
 
 :::
 
-## Step 1: Start the audit
+## Start the audit
 
 ![Audit confirmation warning and the explicit discard-to-audit button](./assets/voter-audit-confirmation.png)
 
@@ -62,7 +62,7 @@ To start the audit:
 4. Select "Yes, discard my ballot to audit". To return to the review screen
    instead, select "Cancel".
 
-## Step 2: Save the audit details
+## Save the audit details
 
 The voting portal shows "Check your ballot" with "To check your ballot, follow
 the steps below:". To save the audit details:
@@ -75,7 +75,7 @@ the steps below:". To save the audit details:
    values used to encrypt it, as a text file. The screen also shows the same
    data as text below the button.
 
-## Step 3: Open the ballot verifier
+## Open the ballot verifier
 
 To open the ballot verifier:
 
@@ -86,7 +86,7 @@ To open the ballot verifier:
 3. If the ballot verifier asks you to log in, log in in the same way as for the
    voting portal.
 
-## Step 4: Check your ballot in the ballot verifier
+## Check your ballot in the ballot verifier
 
 ![Ballot verifier import screen with Browse, an empty Ballot ID field and disabled Next](assets/ballot-verifier-current.png)
 
@@ -101,7 +101,7 @@ To check your ballot:
    supported format is txt. If the ballot verifier shows "Could not import this
    file. Please try again.", or "Error" with "There was a problem importing the
    auditable ballot. Did you choose the right file?", choose the file you
-   downloaded in step 2.
+   downloaded in section 6.3.
 2. Under "Step 2: Insert your ballot ID", paste the full Ballot ID you copied
    on the review screen into the field "Ballot ID".
 3. Select "Next".
@@ -124,7 +124,7 @@ about your ballot.
 
 :::
 
-## Step 5: Vote
+## Vote
 
 To vote after the audit:
 

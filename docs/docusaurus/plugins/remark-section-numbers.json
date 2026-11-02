@@ -1,0 +1,56 @@
+{
+  "AGD-01": [
+    "docs/03-voters/02-voter_handbook/01-about.md",
+    "docs/03-voters/02-voter_handbook/02-voter_role.md",
+    "docs/03-voters/02-voter_handbook/03-before_you_vote.md",
+    "docs/03-voters/02-voter_handbook/04-logging_in.md",
+    "docs/03-voters/02-voter_handbook/05-casting_your_vote.md",
+    "docs/03-voters/02-voter_handbook/06-auditing_your_ballot.md",
+    "docs/03-voters/02-voter_handbook/07-checking_storage.md",
+    "docs/03-voters/02-voter_handbook/08-voting_again.md",
+    "docs/03-voters/02-voter_handbook/09-voting_session.md",
+    "docs/03-voters/02-voter_handbook/10-states_and_problems.md"
+  ],
+  "AGD-02": [
+    "docs/02-election_managers/04-administrator_handbook/01-about.md",
+    "docs/02-election_managers/04-administrator_handbook/02-administrator_role.md",
+    "docs/02-election_managers/04-administrator_handbook/03-admin_portal.md",
+    "docs/02-election_managers/04-administrator_handbook/04-users_and_roles.md",
+    "docs/02-election_managers/04-administrator_handbook/05-tenant_and_event_settings.md",
+    "docs/02-election_managers/04-administrator_handbook/06-signing_rules.md",
+    "docs/02-election_managers/04-administrator_handbook/07-self_tests.md",
+    "docs/02-election_managers/04-administrator_handbook/08-authentication_and_sessions.md",
+    "docs/02-election_managers/04-administrator_handbook/09-audit_and_monitoring.md",
+    "docs/02-election_managers/04-administrator_handbook/10-modes_of_operation.md",
+    "docs/02-election_managers/04-administrator_handbook/11-security_relevant_events.md",
+    "docs/02-election_managers/04-administrator_handbook/12-environment_and_security_problems.md"
+  ],
+  "AGD-03": [
+    "docs/02-election_managers/05-election_organizer_handbook/01-about.md",
+    "docs/02-election_managers/05-election_organizer_handbook/02-organizer-duties.md",
+    "docs/02-election_managers/05-election_organizer_handbook/03-board-roles-and-permissions.md",
+    "docs/02-election_managers/05-election_organizer_handbook/04-secure-use.md",
+    "docs/02-election_managers/05-election_organizer_handbook/05-electoral-phases.md",
+    "docs/02-election_managers/05-election_organizer_handbook/06-preparation.md",
+    "docs/02-election_managers/05-election_organizer_handbook/07-execution.md",
+    "docs/02-election_managers/05-election_organizer_handbook/08-evaluation-and-post-processing.md",
+    "docs/02-election_managers/05-election_organizer_handbook/09-trustee-procedures.md",
+    "docs/02-election_managers/05-election_organizer_handbook/10-election-verifier.md",
+    "docs/02-election_managers/05-election_organizer_handbook/11-security-relevant-events.md",
+    "docs/02-election_managers/05-election_organizer_handbook/12-modes-and-failures.md"
+  ],
+  "AGD-04": [
+    "docs/05-reference/06-deployment_guide/01-about.md",
+    "docs/05-reference/08-delivery_verification.md",
+    "docs/05-reference/06-deployment_guide/02-operational_environment.md",
+    "docs/05-reference/06-deployment_guide/03-installation_kit.md",
+    "docs/05-reference/06-deployment_guide/04-hosts_network_time.md",
+    "docs/05-reference/06-deployment_guide/05-certificates_tls.md",
+    "docs/05-reference/06-deployment_guide/06-authentication_server.md",
+    "docs/05-reference/06-deployment_guide/07-hardening.md",
+    "docs/05-reference/06-deployment_guide/08-installing_toe.md",
+    "docs/05-reference/06-deployment_guide/09-accounts.md",
+    "docs/05-reference/06-deployment_guide/10-verification.md",
+    "docs/05-reference/06-deployment_guide/11-selftest_handover.md"
+  ]
+}

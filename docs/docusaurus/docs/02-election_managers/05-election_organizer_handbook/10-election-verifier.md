@@ -9,8 +9,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 The election-verifier is the part of the TOE that checks the counting of an
-election independently of the running system. It needs no key, no account and
-no network connection. It checks the public record of the election:
+election event independently of the running system. It needs no key, no account and
+no network connection. It checks the public record of the election event:
 
 - the key generation by the trustees, with every trustee's proofs and the
   joint election key;
@@ -192,7 +192,7 @@ observer they trust to run it for them.
 
 ## Publishing the verification data
 
-In the post-processing phase the election organizer, for each election:
+In the post-processing phase the election organizer, for each election event:
 
 1. obtains every batch's verification data file and the separately recorded
    anchors from the election board, using

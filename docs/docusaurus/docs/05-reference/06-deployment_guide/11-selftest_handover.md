@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 This chapter records the remaining human checks and the separate maintenance
 procedures. Passing installation checks alone does not establish PP/CC conformance.
-Complete the current election self-tests, board procedures and release
+Complete the current election-event self-tests, board procedures and release
 acceptance checks before handover; a successful command is not a substitute
 for the evaluator's assessment.
 
@@ -19,7 +19,7 @@ for the evaluator's assessment.
 :::warning
 The TOE refuses every import of election data until the tenant's rules for
 signed configuration packages are set. Set them before the first import.
-Afterwards only a staff CA is replaced, between elections, as the
+Afterwards only a staff CA is replaced, between election events, as the
 Handbook for Election Administrators describes.
 :::
 
@@ -79,7 +79,7 @@ preparation phase:
 5. A board member selects **On request**, then **Run self-tests**. Wait for
    all six results and check their details. Before opening or resuming voting,
    repeat with the required **Before starting voting** or **Before resuming
-   voting** purpose. A passing run does not itself open or resume the election.
+   voting** purpose. A passing run does not itself open or resume voting.
 6. The operator gives the administrators the confirmation of
    [Confirm the server settings to the administrator](#confirm-the-server-settings-to-the-administrator)
    again, before the election board approves the configuration version of
@@ -87,18 +87,22 @@ preparation phase:
 
 ## Confirm the server settings to the administrator
 
-The admin portal shows no plugins, no telephone provider and no other
-tenants. The administrators therefore rely on the operator's written
-confirmation of these settings. The operator gives it after the installation
+The admin portal does not show which images run, and shows no plugins, no
+telephone provider and no other tenants. The administrators therefore rely on
+the operator's written confirmation of these settings. The operator gives it after the installation
 and again for each new election event, before the election board approves its
 configuration version. To confirm the server settings:
 
-1. Make every check of
+1. Run the
+   [complete TSF software integrity check](10-verification.md#repeat-the-complete-tsf-software-integrity-check),
+   and make every check of
    [Data correction, telephone channel, plugins and tenants](10-verification.md#data-correction-telephone-channel-plugins-and-tenants)
    and of [No smart-link sign-in](10-verification.md#no-smart-link-sign-in).
 2. If every check gave the result stated there, give the administrators a
    written confirmation, with the date, the time and your name, through a
    channel that protects its integrity. It states that:
+   - the running images are those of the accepted TOE delivery: the complete
+     TSF software integrity check gave its four `PASS` lines;
    - no plugin is installed;
    - no telephone provider and no credentials for the telephone channel's
      endpoints are configured;
@@ -161,7 +165,7 @@ test prevents voter admission. A successful service rollout does not clear
 
 ### Restart an authorized failed component
 
-A restart interrupts service. During an election, obtain the board's operational
+A restart interrupts service. During an election event, obtain the board's operational
 decision with the administrator first. If Keycloak is the agreed failed component:
 
 ```bash
@@ -212,7 +216,7 @@ queries, request bodies and credentials. The administrator configures detection
 thresholds in the portal; the election board reviews the resulting detections.
 
 **If unavailable:** inform the administrator and board. Voting remains blocked
-and an operational election enters recovery; staff access stays available.
+and an operational election event enters recovery; staff access stays available.
 An unavailable, stale, truncated or discontinuous source must never be treated
 as zero activity. A successful Nginx restart alone does not repair a lost cursor
 or missing observations.
@@ -370,12 +374,12 @@ identity. It keeps a private copy of the encrypted bytes so a changed removable
 medium cannot exchange the archive after validation.
 
 After services stop, the helper compares the archive's electoral safety record
-with the final current record. Both must contain the same elections in the same
-phases. A restore that would remove or resurrect an election, change an electoral
+with the final current record. Both must contain the same election events in the same
+phases. A restore that would remove or resurrect an election event, change an electoral
 phase, or undo an unrecoverable security failure is refused. In particular,
 **ended voting cannot reopen**.
 
-The generic restore also refuses an election in **Execution**, even when the
+The generic restore also refuses an election event in **Execution**, even when the
 older archive has the same phase: it could omit ballots or audit records accepted
 after that backup. Execution recovery requires a separately reviewed procedure
 that preserves all accepted records. Keep services stopped for that review when
@@ -385,7 +389,7 @@ During replacement, the maintenance record remains outside the restored
 directories. Only PostgreSQL starts first. The helper checks the actual restored
 safety records, invalidates prior service admissions and successful test generations,
 and records the restoration before starting other services. Each recoverable
-election requires current self-tests and the board's recovery decision.
+election event requires current self-tests and the board's recovery decision.
 
 **Expected result:** `BACKUP CONTENTS VERIFIED: system`,
 `APPLICATIONS STOPPED: backup may begin`, the deployment `READY:` messages,
@@ -415,4 +419,4 @@ and restored protocol state must agree. Run
 parts. Recovery from an execution-time incident requires its separate approved
 procedure, a fresh successful **Before resuming voting** suite and the board's
 protected resumption within the approved period. Never resume an unrecoverable
-election.
+election event.

@@ -22,7 +22,7 @@ This handbook is the operational user guidance for the election organizer and
 for the election board, including the trustees. It applies to the evaluated
 configuration of the TOE only: one configuration, set up as the Deployment
 Guide describes and configured as the Handbook for Election Administrators
-describes. Do not run an election with any other configuration.
+describes. Do not run an election event with any other configuration.
 
 The admin portal is a supporting component outside the TOE. Its screens guide
 the workflow; displaying or hiding a control is not a security boundary or
@@ -33,7 +33,7 @@ completion evidence in this handbook, including required authorisations.
 
 | Reader | What they do with the TOE | Pages |
 |---|---|---|
-| Election organizer | Hosts the election. Appoints the election board and the administrators, issues and distributes credentials, instructs voters, sets the electoral regulation. Acts in the TOE only through the administrators and the election board it appoints. | [Duties of the Election Organizer](02-organizer-duties.md) |
+| Election organizer | Hosts the election event. Appoints the election board and the administrators, issues and distributes credentials, instructs voters, sets the electoral regulation. Acts in the TOE only through the administrators and the election board it appoints. | [Duties of the Election Organizer](02-organizer-duties.md) |
 | Election board member | Approves the configuration packages of the election data and imports them; publishes and approves the configuration version and sets the lockdown period; starts, interrupts, resumes and ends the election execution; checks the audit records, counts the votes, exports the election execution data, archives a wrong import and deletes an election event after its export; each security-critical action needs the required authorisations. | All pages |
 | Trustee | A board member who holds a share of the election key and takes part in the key ceremony and the counting. | [Trustee Procedures](09-trustee-procedures.md) |
 | Observer | Checks the result independently with the election-verifier. | [Verifying the Result with the Election Verifier](10-election-verifier.md) |
@@ -52,12 +52,14 @@ completion evidence in this handbook, including required authorisations.
 
 ## Terms
 
-This handbook uses the following terms. Where the admin portal uses another
-name for the same thing, the table gives it.
+This handbook uses the following terms. What the Security Target calls an
+election is called an election event here, as in the admin portal: an election
+event contains elections, an election contains contests, and a contest contains
+candidates. Where the admin portal uses another name for the same thing, the
+table gives it.
 
 | Term in this handbook | Name in the admin portal |
 |---|---|
-| election | election event (an election event contains elections, an election contains contests, a contest contains candidates); the Signatures tab calls an election a "Post" |
 | election data | the voters' register (the voters of the election event, with its areas), the candidate list and the display data of the ballot, the set of election rules (the counting and voting rules of the contests) and the election dates (the scheduled opening and closing of voting, with the end of the election period). The signed package also contains event and election Data-tab settings, including presentation and re-voting settings, which administrators verify after import. Some of these settings affect the approved ballot design and must not be changed to repair an imported package. Administrators separately configure the rules and required authorisations of the Signatures tab, certificate registrations, background audit policy and realm authentication and session settings |
 | election execution data | the cast votes, the electoral log (Logs tab), the tally and results data, and the voting records |
 | intermediate ballot box | the ballot boxes that receive the cast votes during the execution phase |
@@ -82,7 +84,7 @@ administrators and the election board it appoints. Trustees are members of the e
 
 Screenshots illustrate real interfaces from a synthetic rehearsal. Sample
 accounts, election names, identifiers, hashes and dates are not values to copy
-into an election. Follow the steps and required values in the text; a pictured
+into an election event. Follow the steps and required values in the text; a pictured
 screen is not evidence that your own operation completed.
 
 - Names in quotation marks and italics, such as "Stop Voting", are the exact
@@ -104,4 +106,4 @@ screen is not evidence that your own operation completed.
 | Version | Date | Changes |
 |---|---|---|
 | 1.0 | 2026-10-27 | First edition for the evaluated configuration of v10.0.0. |
-| 1.1 | 2026-11-02 | Introductions to numbered steps; About, Preparation, Execution, Evaluation and Election Verifier revised; new screenshots. |
+| 1.1 | 2026-11-02 | Numbered sections; consistent use of election event; most chapters revised; new screenshots. |

@@ -22,7 +22,7 @@ This handbook is the operational user guidance for the **administrator** role
 of the TOE. It applies to the evaluated configuration only: the one
 configuration in which all components of the TOE are deployed as the
 Deployment Guide describes and configured as this handbook describes. Do not
-run an election with any other configuration.
+run an election event with any other configuration.
 
 The administrator's work starts when the deployment is complete: the delivery
 has been accepted, the operational environment and the TOE have been installed
@@ -65,7 +65,7 @@ Election Organizers describes them.
 | Page | Content |
 |---|---|
 | [The Administrator Role](02-administrator_role.md) | What the administrator may and may not do; the TOE and its supporting components; the privileges to control |
-| [Secure Use of the Admin Portal](03-admin_portal.md) | Signing in, confirming sensitive actions, sessions and logout, the version display and the image check |
+| [Secure Use of the Admin Portal](03-admin_portal.md) | Signing in, confirming sensitive actions, sessions and logout, and the version check |
 | [Users, Roles and Role Separation](04-users_and_roles.md) | Accounts, the administrator role, the election board role, the trustee role, and what to do when a person leaves |
 | [Tenant and Election Event Settings](05-tenant_and_event_settings.md) | Signed configuration packages, the administrator's part around the election board's import, each security setting of the election event and its elections with the required values, and the hand-over to the board for the publication of the configuration version |
 | [Configuring Protected Actions](06-signing_rules.md) | Security-critical actions, required authorisations, trusted issuers and certificate checks |
@@ -92,12 +92,14 @@ Election Organizers describes them.
 
 ## Terms
 
-This handbook uses the terms of the Security Target. Where the admin portal
-uses another name, the table gives it.
+This handbook uses the terms of the Security Target, with one exception: what
+the Security Target calls an election is called an election event here, as in
+the admin portal. An election event contains elections, an election contains
+contests, and a contest contains candidates. Where the admin portal uses
+another name for a term, the table gives it.
 
 | Term in this handbook | Name in the admin portal |
 |---|---|
-| election | election event (an election event contains elections, an election contains contests, a contest contains candidates); the Signatures tab calls an election a "Post" |
 | tenant | the organisation's space in the TOE; it holds the administrators', board members' and trustees' accounts and the election events |
 | election data | the voters' register (the voters of the election event, with its areas), the candidate list and the display data of the ballot, the set of election rules (the counting and voting rules of the contests) and the election dates (the scheduled opening and closing of voting, with the end of the election period). The signed package also contains event and election Data-tab settings, including presentation and re-voting settings, which administrators verify after import. Some of these settings affect the approved ballot design and must not be changed to repair an imported package. Administrators separately configure the rules and required authorisations of the Signatures tab, certificate registrations, background integrity audit policy and realm authentication and session settings |
 | election execution data | the cast votes, the electoral log (Logs tab, Electoral Log console), the tally and results data, and the voting records |
@@ -113,8 +115,8 @@ uses another name, the table gives it.
 ## Conventions
 
 Screenshots illustrate real interfaces from a synthetic rehearsal. Sample
-accounts, election names, identifiers, hashes and dates are not values to copy
-into an election. Follow the steps and required values in the text; a pictured
+accounts, election event and election names, identifiers, hashes and dates are not values to copy
+into an election event. Follow the steps and required values in the text; a pictured
 screen is not evidence that your own operation completed.
 
 - Names in quotation marks and italics, such as "Users and Roles", are the exact
@@ -138,4 +140,4 @@ screen is not evidence that your own operation completed.
 | Version | Date | Changes |
 |---|---|---|
 | 1.0 | 2026-10-27 | First edition for the evaluated configuration of v10.0.0. |
-| 1.1 | 2026-11-02 | Introductions to numbered steps; About, Users and Roles, Self-Tests and Audit and Monitoring revised; new screenshots. |
+| 1.1 | 2026-11-02 | Numbered sections; consistent use of election event; most chapters revised; new screenshots. |

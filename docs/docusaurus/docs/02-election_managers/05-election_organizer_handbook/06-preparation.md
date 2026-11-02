@@ -231,7 +231,7 @@ actions and certificates. The election board checks these settings with them:
 | Election event, Signatures tab, "Certificates" | "Check revocation lists" and "When a list can't be downloaded" | If the election organizer's certification authority publishes revocation lists that the server can download: on, with "Don't accept signatures". Otherwise certificates are withdrawn with "Revoke" |
 | Users and Roles | "Signatures: register certificates" (`signing-certificates-register`) | Held by administrators only |
 | **Security and self-tests** | Automatic self-test interval, time limit and six results | The interval as the electoral regulation fixes it, and all three additional conditions selected (see [Self-test intervals](11-security-relevant-events.md#self-test-intervals)) |
-| Header of the admin portal | "Version" | `Sequent Voting Platform - uniWAHL Version, v10.0.0` |
+| Header of the admin portal | "Version:" | `10.0.0` |
 
 :::warning
 If any setting differs from this table, the TOE is not in its evaluated
@@ -260,7 +260,7 @@ To prepare the dashboard:
    **Attack detections**, under **Access and security**.
 4. Check that the figures have a current update time. Inspect any detections
    and correlate them with the signed **PotentialAttackDetected** records in
-   **Logs** before approving the election configuration.
+   **Logs** before approving the election event's configuration.
 
 ![Actual board confirmation before creating the monitoring layout](./assets/monitoring-preset-confirmation.png)
 
@@ -321,7 +321,7 @@ approves it:
 ![Publish tab comparing Current with Changes to Publish and the Publish Changes button](assets/publication-review.png)
 
 *Illustration: a generated v10.0.0 publication awaiting review in a synthetic
-election. The green comparison is proposed content, not evidence of approval.
+election event. The green comparison is proposed content, not evidence of approval.
 Review your own complete changes before requesting the board’s signatures.*
 
 The approved configuration version also fixes the signing rules. After the
@@ -330,7 +330,7 @@ publishes and approves in the same way.
 
 ## Setting the lockdown period
 
-Lockdown protects the approved configuration while the election takes place.
+Lockdown protects the approved configuration while the election event takes place.
 While the election event is locked down, the TOE refuses a new publication,
 changes of the signing rules, changes of voters and the deletion of the
 election event (the Handbook for Election Administrators lists what it
@@ -438,7 +438,7 @@ Hold the generation in front of the witnesses that the electoral regulation
 names:
 
 1. Check that the configuration is approved and the key ceremony is complete.
-2. On the election event's Publish tab, select "Generate Initialization
+2. On an election's Publish tab, select "Generate Initialization
    Report" and confirm "You are about to generate initialization report. Are
    you sure you want to continue?".
 3. The TOE creates a signing request for "Initialize voting". Read its
@@ -477,7 +477,7 @@ To run the self-test before voting starts:
    baseline is present; otherwise complete publication first.
 2. Select **Before starting voting**, then **Run self-tests** once.
 3. Wait for the background run to finish. Expand it and verify that all six
-   checks show **Passed**, for the current election state.
+   checks show **Passed**, for the current election event state.
 4. Keep the run identifier and result with the board's record. Start within the
    five-minute validity of the opening check and the approved election period.
    If either state or validity has changed, run the required check again.

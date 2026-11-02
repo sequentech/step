@@ -125,4 +125,4 @@ screen is not evidence that your own operation completed.
 | Version | Date | Changes |
 |---|---|---|
 | 1.0 | 2026-10-27 | First edition for the evaluated configuration of v10.0.0. |
-| 1.1 | 2026-11-02 | Introductions to numbered steps; all sections revised; new screenshots. |
+| 1.1 | 2026-11-02 | Numbered sections; introductions to numbered steps; all sections revised; new screenshots. |

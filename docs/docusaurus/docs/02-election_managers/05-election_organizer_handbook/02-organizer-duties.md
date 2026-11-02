@@ -8,8 +8,8 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-The election organizer is the group of people hosting the election. The TOE
-protects the election only if the election organizer, the election board and
+The election organizer is the group of people hosting the election event. The TOE
+protects the election event only if the election organizer, the election board and
 the administrators carry out the measures on this page. They are the security
 measures that the operational environment of the TOE must provide.
 
@@ -21,7 +21,7 @@ Set down, before the preparation phase starts, the rules the election board
 applies. The TOE enforces the rules it can enforce; the board applies the
 rest. The regulation states at least:
 
-- the election and its elections, contests and candidates, and who is entitled
+- the election event and its elections, contests and candidates, and who is entitled
   to vote;
 - the election period: the start time and the end of election time of each
   election;
@@ -36,7 +36,7 @@ rest. The regulation states at least:
 - the interval of the available background audits and the unresolved complete
   self-test requirements (see
   [Self-test intervals](11-security-relevant-events.md#self-test-intervals));
-- who may observe the election and verify the result;
+- who may observe the election event and verify the result;
 - how long exported election execution data is kept, who keeps it, and when it
   is deleted.
 
@@ -57,7 +57,7 @@ To appoint the administrators, the election board and the trustees:
 2. Appoint the election board: at least the minimum number of members the
    regulation fixes, and at least as many as the highest number of required
    authorisations, plus a reserve for absence. A smaller board cannot reach the
-   required authorisations and blocks the election.
+   required authorisations and blocks the election event.
 3. Choose two trustees among the board members. The evaluated configuration
    has two instances of the trustee server, `trustee1` and `trustee2`, as the
    Deployment Guide installs them. Each trustee holds one share of the
@@ -87,7 +87,7 @@ person.
   factors, and that only the accounts in the TOE's user lists can log in.
 - **Voters' credentials.** Before the election period starts, distribute the
   voters' credentials of the external authentication server to all eligible
-  voters, by a channel suited to the protection needs of the election, so that
+  voters, by a channel suited to the protection needs of the election event, so that
   only the entitled voter receives them. Tell voters never to disclose them.
 - **Signing certificates.** Each board member signs security-critical actions
   with their own signing certificate on a personal security token. Issue these
@@ -142,7 +142,7 @@ organizer's own channels:
 - the address of the voting portal, and what the login page of the external
   authentication server looks like, so that voters can recognise a false one;
 - the election period: the start time and the end of election time;
-- how many times they may vote (the "Number of allowed votes" of the
+- how many times they may vote (the "Number of allowed votes" of each
   election), and that only the last vote they cast counts;
 - that the voting portal offers "Audit ballot", with which they can check that
   their ballot was encrypted as they chose;
@@ -230,7 +230,7 @@ to Sequent's security contact,
   - the steps that lead to it;
   - how to contact you.
 - **Never include** passwords, one-time codes, private keys, key shares, or how
-  a voter voted. Do not try to exploit the problem further on a live election.
+  a voter voted. Do not try to exploit the problem further on a live election event.
 - **Acknowledgement.** Sequent acknowledges a report within five business days
   and gives the reference of the flaw record. Use that reference for status
   enquiries.

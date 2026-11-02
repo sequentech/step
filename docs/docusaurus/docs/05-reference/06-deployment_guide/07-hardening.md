@@ -80,7 +80,8 @@ or query parameters from its URL. Use the storage and cross-origin checks in
 **Automatic installation stage.** The installer writes `APP_VERSION` and
 `APP_HASH` from `release.version` and `release.step_commit` in `site.json`, checked
 against the accepted delivery. For this TOE the version is `10.0.0`; the hash is
-the exact 40-character Step revision that produced the accepted images.
+the exact 40-character Step revision that produced the accepted images. The
+header shows the version and the first eight characters of the hash.
 
 Check the visible header using [Version](10-verification.md#version). Do not
 choose another version or hash merely to match a screen or example.
@@ -205,8 +206,9 @@ The required sign-in policy is:
   administrator groups. Give no group `publish-results-write`, `datafix-account`
   or `voter-manually-verify`. The remaining table-permission limitations documented
   in ADV are not resolved merely by hiding portal controls or removing a named role.
-- In event realms, disable voter sign-in codes, messaging channels, offline access,
-  the account console and the unused channel/results clients.
+- Disable the account console (client `account-console`) in every realm. In
+  event realms, also disable voter sign-in codes, messaging channels, offline
+  access and the unused channel/results clients.
 
 The relevant permissions and values are described in
 [Users, Roles and Role Separation](../../02-election_managers/04-administrator_handbook/04-users_and_roles.md)

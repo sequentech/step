@@ -16,7 +16,7 @@ The screenshots show the voting portal with a synthetic test election and
 voter, not a real election: a test ballot being reviewed, cast and located.
 Your election name, candidates, branding and Ballot IDs will differ.
 
-## Step 1: Open the ballot
+## Open the ballot
 
 ![Ballot list with the available synthetic test ballot](./assets/voter-chooser-current.png)
 
@@ -32,7 +32,7 @@ To open your ballot:
 1. In the "Ballot list", find the ballot you want to vote on.
 2. Select "Click to Vote".
 
-## Step 2: Start voting
+## Start voting
 
 ![How to vote screen with the Start Voting button](./assets/voter-start-current.png)
 
@@ -47,7 +47,7 @@ select it and confirm with "Decline to vote", the voting portal goes directly
 to the review screen with a ballot that records that you declined to vote. You
 cast it in the same way as any other ballot.
 
-## Step 3: Make your selections
+## Make your selections
 
 ![Candidate selection with Option A checked](./assets/voter-vote-current.png)
 
@@ -70,7 +70,7 @@ selections:
 When you continue, your browser encrypts your ballot on your device and the
 voting portal opens the review screen. Nothing is cast at this step.
 
-## Step 4: Review your ballot
+## Review your ballot
 
 ![Review screen with the selection, Ballot ID, edit, audit and cast buttons](./assets/voter-review-current.png)
 
@@ -102,7 +102,7 @@ To finish the review:
 |---|---|
 | **Edit ballot** | Return to your selections and change them. |
 | **Audit ballot** | Check this ballot’s encryption. The voting portal then discards this ballot and does not let you cast it; to vote, you start again with a new encrypted ballot and a new Ballot ID. See [Auditing Your Ballot](06-auditing_your_ballot.md). |
-| **Cast ballot** | Submit the ballot. Continue with step 5 and wait for confirmation. |
+| **Cast ballot** | Submit the ballot. Continue with section 5.5 and wait for the confirmation. |
 
 If you left a contest unfilled, the voting portal shows "Some selections are
 unfilled". Select "Review selections" to go back, or "Continue with these
@@ -112,7 +112,7 @@ If you reload the page before you cast, the voting portal may take you back to
 your ballot when you select "Cast ballot", and encrypt it again. Check your
 selections and continue as before.
 
-## Step 5: Cast your vote
+## Cast your vote
 
 To cast your vote:
 
@@ -141,7 +141,7 @@ you to vote again, a new vote replaces it in the count (see
 
 :::
 
-## Step 6: The confirmation
+## The confirmation
 
 ![Test-vote confirmation with Ballot ID, QR code, Print and Finish](./assets/voter-confirmation-current.png)
 
@@ -171,7 +171,7 @@ icon and paste it into a text file that you keep. How to check it:
 You can stop at any time before you cast: close the browser, log out, or leave
 the voting portal. A technical problem can also interrupt you. In all these
 cases, nothing is cast, and you keep your right to vote. While voting is open,
-log in again and start again from step 1.
+log in again and start again from section 5.1.
 
 ## If casting fails
 
@@ -180,7 +180,7 @@ vote may or may not have been cast. Do not assume either. To find out:
 
 1. Log in again, if needed, and open the "Ballot list".
 2. If the ballot shows "Not voted" and voting is still open, vote again from
-   step 1.
+   section 5.1.
 3. If the ballot shows "Voted", use "Locate your ballot" to find your ballot
    (see [Checking That Your Vote Was Stored and Counted](07-checking_storage.md)).
 4. If you are unsure, or the error keeps coming back, contact the election

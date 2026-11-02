@@ -19,7 +19,7 @@ describes the election organizer's and the election board's measures.
 | Objective | What it requires | What the administrator does |
 |---|---|---|
 | Personnel (OE.Personnel) | Administrators and board members are trustworthy and instructed, close their sessions when they are not working with the TOE, and administrators do not misuse the TOE's security functions | Read and follow this handbook. Log out whenever you stop working ([Secure Use of the Admin Portal](03-admin_portal.md#sessions-and-logout)). Never hold or give yourself a board permission, never sign, and use your permissions only as this handbook and the election organizer's instructions say. Keep a written record of your changes. |
-| Servers (OE.Server) | The servers are free of malware, protected against unauthorised software access, and physically protected | Install and harden the servers only as the Deployment Guide describes, run the TOE only from the images of the verified TOE delivery and other software only from Sequent's installation kit, and check the image digests after each change. Keep the servers in a locked room with access only for the persons the election organizer names. Do not install other software on them. Change the operating system and the cluster software only with a new installation kit from Sequent, outside the execution phase, as the section "Operating the servers" of the Deployment Guide describes. |
+| Servers (OE.Server) | The servers are free of malware, protected against unauthorised software access, and physically protected | Install and harden the servers only as the Deployment Guide describes, run the TOE only from the images of the verified TOE delivery and other software only from Sequent's installation kit, and have the person who runs the servers check the images after each change, as the Deployment Guide describes. Keep the servers in a locked room with access only for the persons the election organizer names. Do not install other software on them. Change the operating system and the cluster software only with a new installation kit from Sequent, outside the execution phase, as the section "Operating the servers" of the Deployment Guide describes. |
 | Network (OE.Network) | The servers are protected against attacks from the network by a security concept for the network connection, with sufficient quality of service and availability | Expose only the interfaces the Deployment Guide names, through the TLS endpoint. Keep the bulletin board of the trustees and the internal services unreachable from outside. Report every change of the network to the election board. |
 | Remote endpoints (OE.RemoteEndpoint) | The remote endpoint lets the user verify the authenticity of the TOE | Use a managed, up-to-date workstation and a browser profile without extensions, and check the HTTPS connection of the admin portal and of the external authentication server before you sign in ([Secure Use of the Admin Portal](03-admin_portal.md#your-workstation-and-browser)). Stop at any certificate warning. Keep the TLS certificates of the TOE's addresses valid, as the Deployment Guide describes. |
 | Authentication server (OE.AuthServer) | The external authentication server manages credentials securely and returns verifiable assertions over a protected channel | Agree with the organisation that runs it that administrators and board members authenticate with two factors, that it withdraws a leaver's credentials on the same day, and that it reports suspected compromises to you. Keep the TOE's connection to it as the Deployment Guide sets it. |
@@ -46,14 +46,15 @@ to Sequent's security contact,
   https://docs.sequentech.io/docusaurus/main/docs/technology/vulnerability-disclosure-policy.
   Unencrypted reports are accepted and handled the same way.
 - **Contents of a report:**
-  - the TOE reference and version as the admin portal shows it under "Version";
+  - the TOE reference, and the version and hash that the header of the admin
+    portal shows after "Version:" and "Hash:";
   - what happened and its effect;
   - the date, time and time zone;
   - the steps that lead to it;
   - how to contact you.
 - **Never include** passwords, one-time codes, private keys, key shares, or how
   the voter voted, and no other personal data of voters. Do not try to exploit
-  the problem further on a live election.
+  the problem further on a live election event.
 - **Acknowledgement.** Sequent acknowledges a report within five business days
   and gives the reference of the flaw record. Use that reference for status
   enquiries.

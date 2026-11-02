@@ -132,7 +132,7 @@ configuration.
 | A certificate-file error | Obtain the correct public PEM CA file. Do not bypass a fingerprint mismatch or use a private key. An expired saved package-signing CA remains fixed: escalate to the organizer and provision a new approved tenant configuration; this screen cannot replace it. |
 | **Settings were not confirmed** | Reload before retrying. Check your role and tenant, and whether another administrator changed the settings. Do not tell the board that configuration succeeded. |
 | Package-signing CAs or the approval count are disabled | They were already configured. Do not try to change them through a backup or a direct API call. |
-| Staff CA replacement is refused | Every tenant election event must be archived before staff CA trust can change. Confirm this with the election board; never archive an ongoing election just to enable a certificate change. |
+| Staff CA replacement is refused | Every tenant election event must be archived before staff CA trust can change. Confirm this with the election board; never archive an ongoing election event just to enable a certificate change. |
 
 The database enforces the required policy, approval-count bounds, public PEM
 format and change restrictions for direct mutations and tenant restores too.
@@ -140,9 +140,9 @@ The TOE performs the authoritative X.509 trust-chain and signature checks when
 it imports a package. The browser's successful certificate preview alone does
 not authorize an election-data import.
 
-Set this configuration once before the first election. Include the approved
+Set this configuration once before the first election event. Include the approved
 current and successor staff CAs from the start. Replace staff CAs only between
-elections, after all of this tenant's election events have been archived.
+election events, after all of this tenant's election events have been archived.
 
 ## Import of election data
 
@@ -176,7 +176,7 @@ Before the first import, the board creates an empty preparation event as an
 action, trusted issuers and registered board certificates. The board selects
 this event in **Board approval for import**. The exact uploaded file then needs
 the context's distinct board approvals as well as the signed-package checks.
-The empty context itself is not a configured election ready for voting.
+The empty context itself is not a configured election event ready for voting.
 
 Use the complete signed-package procedure for the evaluated configuration.
 The server also gates individual voter, area, candidate and schedule imports

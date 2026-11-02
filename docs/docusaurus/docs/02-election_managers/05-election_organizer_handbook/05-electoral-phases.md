@@ -18,7 +18,7 @@ directly. The phase decides which functions the TOE allows.
 | Electoral phase | Begins when | What happens | Pages |
 |---|---|---|---|
 | Preparation | An empty approval event is created, or signed election data is imported | The election board approves and imports the election data; the administrators make the settings; the key ceremony is held; the board publishes and approves the configuration version and sets the lockdown period; the initialization report is generated. Voters cannot vote. | [Preparation Phase Procedures](06-preparation.md) |
-| Execution | The election period start time is reached (scheduled start), or the election board selects "Start Voting" at or after that time | Voters cast their votes. The election board monitors the election, interrupts and resumes it when needed. | [Execution Phase Procedures](07-execution.md) |
+| Execution | The election period start time is reached (scheduled start), or the election board selects "Start Voting" at or after that time | Voters cast their votes. The election board monitors the election event, interrupts and resumes it when needed. | [Execution Phase Procedures](07-execution.md) |
 | Evaluation | The end of election time is reached (scheduled end), or the election board terminates the election execution with "Stop Voting" | The ballot boxes are sealed. The election board checks the audit records, counts the votes and determines the result. | [Evaluation and Post-Processing Procedures](08-evaluation-and-post-processing.md) |
 | Post-processing | The election board selects "Start post-processing" in **Security and self-tests** after the result has been determined | The election board exports and keeps the election execution data, publishes the verification data, and deletes the data when the regulation allows. | [Evaluation and Post-Processing Procedures](08-evaluation-and-post-processing.md) |
 
@@ -92,13 +92,13 @@ The following table identifies the protected operations and permitted phases.
 | Import of the set of election rules | A board member selects "Import Election Event" with a signed configuration package; with valid package approvals and a completed **Import election data** signing request | Preparation |
 | Import of the election dates | A board member selects "Import Election Event" with a signed configuration package; with valid package approvals and a completed **Import election data** signing request | Preparation |
 | Termination of the election execution | "Stop Voting" (protected action "Close voting") | Execution |
-| Resumption of the election execution | **Start Voting → Start Online Voting** on the paused Post (protected action "Open voting") | Execution |
+| Resumption of the election execution | **Start Voting → Start Online Voting** on the paused election (protected action "Open voting") | Execution |
 | Start of counting votes with determination of the election result | "Start Tally Ceremony" and "Start Tally" on the Tally tab | Evaluation |
 | Export of election execution data | "Export" on the Data tab | Post-processing |
 | Read of the voters' register by the election board | Voters tab of the election event | Post-processing |
 | Deletion of election execution data | "Remove this Election Event" in the election event's menu | Post-processing |
 
-The board's authorization is bound to the requested operation, election and
+The board's authorization is bound to the requested operation, election event or election, and
 input. Changing the input, phase or applicable data invalidates the authorization;
 a signature from an earlier request does not approve a retry with different data.
 Trustee custody and report signatures remain separate approvals.

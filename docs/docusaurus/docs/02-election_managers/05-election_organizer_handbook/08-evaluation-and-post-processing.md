@@ -18,7 +18,7 @@ election execution data.
 
 At the beginning of the evaluation phase, before the votes are counted, the
 election board (or a person it appoints) checks the audit records of the whole
-election. To check the audit records:
+election event. To check the audit records:
 
 1. On the election event's Logs tab, select "Audit". The dialog "Audit
    electoral log" says: "The audit checks every log entry against its Merkle
@@ -36,7 +36,7 @@ election. To check the audit records:
      decision; correlate `MaintenanceModeEntered`, `MaintenanceModeLeft` and
      `ElectoralPhaseChanged` with the security state and operational record;
    - the required six-check runs completed successfully for the relevant
-     election state, and every failed, missing, delayed or expired run was
+     election event state, and every failed, missing, delayed or expired run was
      investigated; check the separate electoral-log audits as well;
    - every ballot box has a `BallotBoxSealed` record, and there is no
      `BallotBoxSealFailed`;
@@ -60,7 +60,7 @@ election. To check the audit records:
 :::warning
 If the audit task fails or a record shows an event that the board cannot
 explain, do not count the votes yet. Treat it as a security-relevant event and
-decide under the electoral regulation whether the election can be evaluated.
+decide under the electoral regulation whether the election event can be evaluated.
 The export of the records contains personal data of voters and board members:
 keep it confidential.
 :::
@@ -76,7 +76,7 @@ signatures do not replace the board's authorization to start counting.
 Before you start, check that:
 
 - the election event is in the evaluation phase;
-- on the Dashboard, every ballot box of the election is "Sealed" ("An
+- on the Dashboard of each election to count, every ballot box is "Sealed" ("An
   election can be tallied once every ballot box is sealed and its seal record
   is published.");
 - the audit records have been checked;
@@ -157,7 +157,7 @@ To check and publish the result:
 
 ![Actual VM rehearsal: completed result with five voters and separate downloadable election and area PDFs](./assets/results-released-reports.png)
 
-The example shows a synthetic election. The election and area PDFs became
+The example shows a synthetic election event. The election and area PDFs became
 available after their separate approvals; use your election's expected totals
 and authorised signers when checking your own reports.
 
@@ -181,7 +181,7 @@ To start post-processing:
 After an **Unrecoverable failure**, first terminate execution under the board
 procedure. The same control permits investigation export from evaluation
 without a completed result. This exception is recorded; it does not turn a
-failed election into a valid result or allow it to resume.
+failed election event into a valid result or allow it to resume.
 
 ## Reading the cast votes and the voters' register
 
@@ -241,8 +241,8 @@ current election data. To export the election execution data:
    from them.
 
 :::warning
-The export contains everything needed to reconstruct the election, including
-confidential data of the election event. Whoever has the file and its
+The export contains everything needed to reconstruct the election event, including
+its confidential data. Whoever has the file and its
 password has that data. Never send the file or the password by email or chat,
 never keep them together, and destroy the copies when the electoral regulation
 says so.

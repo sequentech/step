@@ -113,8 +113,8 @@ execution phase needs its authorisations:
 | Protected action | Applies to | Required setting | Why |
 |---|---|---|---|
 | "Approve a configuration version" | The election event | "Needs signatures" on | No configuration version, with its settings and signing rules, becomes valid without the board's approval. Set it before the first "Publish Changes". |
-| "Initialize voting" | Each Post | "Needs signatures" on | The initialization report, in which witnesses see that the ballot boxes are empty, is authorised by the board. |
-| "Generate other election reports" | Each Post | "Needs signatures" on | Covers the initialization report. |
+| "Initialize voting" | Each election | "Needs signatures" on | The initialization report, in which witnesses see that the ballot boxes are empty, is authorised by the board. |
+| "Generate other election reports" | Each election | "Needs signatures" on | Covers the initialization report. |
 | "Confirm custody (key ceremony)" | Each trustee | "Trustees sign this step" on | Each trustee confirms custody of their key share with their own certificate. |
 | "Authorize tally custody (tally)" | Each trustee | "Trustees sign this step" on | The tally ceremony starts only with the trustees' authorisations. |
 
@@ -133,7 +133,7 @@ returns.
 ![Protected actions table showing configured signature counts and a read-only lockdown notice](assets/protected-actions-current.png)
 
 *Illustration: the v10.0.0 Signatures tab after configuration and lockdown in a
-synthetic election. This view is read-only; set the required rules during
+synthetic election event. This view is read-only; set the required rules during
 preparation, then check their readback. The example is not a list of every
 authorisation requirement in the Security Target.*
 
@@ -158,7 +158,7 @@ election board approves the configuration version. To set a signing rule:
 | Field | Required value |
 |---|---|
 | "Needs signatures" | on |
-| "Who can sign" | only "Election board". Never the administrator role. Its help text says: "These roles get the permission “Sign: …” in Users and Roles, for every election event. Signers must also have access to the Post." |
+| "Who can sign" | only "Election board". Never the administrator role. Its help text says: "These roles get the permission “Sign: …” in Users and Roles, for every election event. Signers must also have access to the election." |
 | "Signatures needed" | the number the electoral regulation fixes, at least 2 |
 | "The person who starts it can also sign" | off, unless the electoral regulation counts the person who starts the action as one of the authorising members |
 | "A request expires after" | "30 minutes", "1 hour", "2 hours" or "24 hours", long enough for the board members to sign; never "No limit" |
@@ -170,7 +170,7 @@ Messages of the drawer:
 | Message | Meaning |
 |---|---|
 | A minimum or maximum signature-count error | The number is outside the permitted range. Mandatory board actions require at least two; keep the evaluated configuration at the organizer's approved count. |
-| "No Post has … people who can sign. The most is …" | Fewer people can sign than the number you entered. Give the role to more board members, or ask the election organizer. |
+| "No election has … people who can sign. The most is …" | Fewer people can sign than the number you entered. Give the role to more board members, or ask the election organizer. |
 | "N requests are waiting for signatures under the current rule. Saving cancels them; the people who started them start again." | Saving a changed rule cancels its waiting requests. |
 | "The election event is locked down: signing rules change only through a new configuration version." | The election event is in a lockdown period; the TOE refuses the change. |
 | "You don't have the permission for this change." | Your account lacks a permission of the table above. |
@@ -207,7 +207,7 @@ Open the tab "Signatures", area "Certificates".
 
 *Illustration: a synthetic v10.0.0 issuer and certificate policy. The displayed
 SHA-256 is abbreviated: compare the complete fingerprint independently as
-described below. Use your election’s actual issuers and revocation policy.*
+described below. Use your election event’s actual issuers and revocation policy.*
 
 ### Trusted issuers
 
@@ -251,7 +251,7 @@ saved."):
 | "Check revocation lists" ("Downloaded from each issuer every hour.") | on | on, where the election organizer's CA publishes revocation lists that the server can download |
 | "When a list can't be downloaded": "Don't accept signatures" / "Accept and mark the signature as unchecked" | "Don't accept signatures" | "Don't accept signatures" |
 | "Registering a certificate to a person": "When its holder first signs with it" / "Only when someone who can register certificates registers it" | "When its holder first signs with it" | "Only when someone who can register certificates registers it" |
-| "A certificate signs for one Post only" | on | on |
+| "A certificate signs for one election only" | on | on |
 
 If the election organizer's CA publishes no revocation lists that the server
 can download, revocation is done only by revoking the registration in the TOE
@@ -286,7 +286,7 @@ To register a board member's certificate:
 The list shows each registration with its status: "Active", "Expires soon",
 "Expired" or "Revoked". Before each security-critical action, make sure that
 enough signers have unrevoked registrations and that their certificates and
-issuing certificates remain valid throughout the election and its required
+issuing certificates remain valid throughout the election event and its required
 signing actions. Check "Valid until" against the planned completion date.
 
 "Expires soon" warns that an otherwise unexpired, unrevoked personal

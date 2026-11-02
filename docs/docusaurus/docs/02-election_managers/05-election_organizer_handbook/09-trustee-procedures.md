@@ -269,7 +269,7 @@ To handle the loss or exposure:
    key ceremony with new keys for every trustee. After the start, the board
    weighs whether enough shares may be known to others to reach the threshold.
 
-## At the end of the election
+## At the end of the election event
 
 When the electoral regulation's retention period has ended and the election
 execution data has been deleted, each trustee destroys their keys file and all

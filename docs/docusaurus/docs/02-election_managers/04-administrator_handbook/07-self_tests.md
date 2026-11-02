@@ -25,7 +25,7 @@ To run the checks:
 
 1. Select the **Purpose of the test**:
    - **On request** for an additional diagnostic run.
-   - **Before starting voting** before the board starts the election.
+   - **Before starting voting** before the board starts the election execution.
    - **Before resuming voting** after a pause or a recoverable failure.
    - **Before counting** when the administrator has enabled that additional condition.
 2. Select **Run self-tests**. The button changes to **Tests queued or running**.
@@ -39,7 +39,7 @@ To run the checks:
 
 This laboratory run completed with all six checks **Passed**. The displayed
 result records that run; it does not open voting or authorize a later operation
-after its configuration or election state changes.
+after its configuration or election event state changes.
 
 A result marked **Earlier election state** cannot authorize a later transition.
 Changes to the configuration or security state invalidate earlier evidence.
@@ -80,10 +80,10 @@ execute for an event at a time.
 Choose the interval with the organizer. Measure the suite on representative
 election data before voting opens.
 
-| Election conditions | Starting interval | Check before opening |
+| Election event conditions | Starting interval | Check before opening |
 | --- | --- | --- |
-| One-day election or high activity | 5–15 minutes | Every run finishes within its timeout, leaving time for the next run. |
-| Multi-day election | 15–30 minutes | Results are checked throughout the election, including quieter periods. |
+| One-day election event or high activity | 5–15 minutes | Every run finishes within its timeout, leaving time for the next run. |
+| Multi-day election event | 15–30 minutes | Results are checked throughout the election event, including quieter periods. |
 | Additional sensitive operation | Enable its additional condition | Its purpose-specific check passes before the board authorizes the operation. |
 
 Never exceed 60 minutes. If a suite cannot finish in time, provide adequate

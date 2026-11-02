@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 Run this chapter **after customer and trustee commissioning** and before handing
 the installation over. It groups the server checks into one command, then lists
-the browser, network and election-specific checks that still need a person.
+the browser, network and election-event checks that still need a person.
 
 ## Run the platform inspection
 
@@ -24,13 +24,13 @@ C1 available for the image check.
 ```
 
 The command connects to C1, checks the running configuration and makes HTTPS
-requests from the workstation. It does not import an election, alter an account
+requests from the workstation. It does not import an election event, alter an account
 or authorize handover. The storage check creates a temporary check pod and removes
 it afterwards; it refuses to replace an existing pod with that name.
 
 **Expected result.** Each completed group prints `PASS: ...`. The final line is
 `PLATFORM INSPECTION COMPLETE — browser/MFA, client-network, event checks and board handover remain separate.`
-Before the first election import, it also prints
+Before the first election-event import, it also prints
 `PENDING: no election event exists; repeat inspection and event checks after each import`.
 That pending result does not waive the checks required after an import.
 
@@ -96,7 +96,7 @@ and whenever the integrity of the software is in doubt.
 **If the result differs:** keep voting unavailable and preserve the failed
 result. Restore the complete accepted software through the controlled recovery
 procedure, then repeat this command. Never copy an observed digest into the
-expected delivery manifest to make a mismatch pass. The background election
+expected delivery manifest to make a mismatch pass. The background election-event
 self-tests and their data checks do not replace this seven-component software
 verification.
 
@@ -109,9 +109,10 @@ hash in the portal's header:
 2. Find **VERSION** in the administration portal's header. It must show
    `10.0.0`, matching `release.version` in the accepted installation configuration.
    This is the displayed release number for the TOE identified in this guide.
-3. Compare the complete **HASH** beside it with `release.step_commit` and the
-   independently accepted delivery record. Letter case of a hexadecimal revision
-   does not change its value.
+3. Compare the **HASH** beside it with the first eight characters of
+   `release.step_commit` and of the independently accepted delivery record. The
+   header shows them in the form `1A2B-3C4D`, and only in a wide window. Letter
+   case does not change the value.
 
 ![Actual VM administration portal showing VERSION and HASH in its header](./assets/installation/trustees-registered.png)
 
@@ -250,7 +251,7 @@ enable a password grant.
 **Included in the platform inspection.** The checks require:
 
 - exactly the initial installation tenant and configured customer tenant;
-- no election in the installation tenant and no enabled personal installation
+- no election event in the installation tenant and no enabled personal installation
   account;
 - no assigned `datafix-account` or `voter-manually-verify` permission;
 - disabled telephone-channel clients and no telephone provider credentials;
@@ -268,5 +269,5 @@ administrator the written result using
 [Confirm the server settings to the administrator](11-selftest_handover.md#confirm-the-server-settings-to-the-administrator).
 
 The platform inspection, browser checks and network checks are prerequisites for
-handover. They do not replace the six current election self-tests, the protected board
+handover. They do not replace the six current election-event self-tests, the protected board
 procedures or the evaluation of the accepted release.

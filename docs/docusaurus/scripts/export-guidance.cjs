@@ -81,7 +81,7 @@ function exportGuidance({site, selection, out}) {
     const bytes = fs.readFileSync(inside(build,page.output));
     if (sha(bytes) !== page.sha256) throw Error('Built article changed: '+source);
     const filename = `${doc.id}/${String(index+1).padStart(3,'0')}.html`;
-    const item = {doc, page, filename, bytes, source_sha256:sha(sourceText)};
+    const item = {doc, page, filename, bytes, chapter:index+1, source_sha256:sha(sourceText)};
     prepared.push(item);
     if (!routeTargets.has(page.permalink.replace(/\/$/,''))) routeTargets.set(page.permalink.replace(/\/$/,''),[]);
     routeTargets.get(page.permalink.replace(/\/$/,'')).push(item);
@@ -103,7 +103,8 @@ function exportGuidance({site, selection, out}) {
     const {doc, page, filename} = item;
     const $ = cheerio.load(item.bytes);
     const article = $('article .markdown');
-    if (article.length !== 1 || article.find('h1').first().text() !== page.title) throw Error('Rendered article identity differs: '+page.source);
+    // The site numbers each chapter (plugins/remark-section-numbers.json): its position here.
+    if (article.length !== 1 || article.find('h1').first().text() !== `${item.chapter} ${page.title}`) throw Error('Rendered article identity differs: '+page.source);
     if (article.find('script, iframe, object, embed, video, audio, canvas, link, form, input, select, textarea, .katex, [role="tablist"], .docusaurus-mermaid-container').length)
       throw Error(page.source+': interactive or embedded content needs an explicit offline rendering adapter');
     article.find('button').remove();

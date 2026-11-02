@@ -56,7 +56,7 @@ and the voters' guidance is the
 | windmill | Worker for the asynchronous tasks |
 | keycloak | Identities, sessions and tokens; the link to the external authentication server |
 | ballot-verifier | The voter's check that a ballot was cast as intended |
-| election-verifier | Verifies the shuffle and decryption proofs of an election |
+| election-verifier | Verifies the shuffle and decryption proofs of an election event's tally |
 | braid | The trustee: key generation, mixing and threshold decryption |
 | b4 | The bulletin board of the trustees |
 
@@ -377,7 +377,7 @@ After customer and trustee commissioning, use the broader
 ```
 
 That section shows its actual output and remaining browser, client-network and
-election checks. The storage probe creates and removes a temporary check pod.
+election-event checks. The storage probe creates and removes a temporary check pod.
 
 Backup, restore and trustee-key removal are later lifecycle operations. They are
 not performed by the installation command. Their explicit commands remain in the
@@ -414,4 +414,4 @@ their example addresses and identifiers are not values to enter at your site.
 | Version | Date | Changes |
 | --- | --- | --- |
 | 1.0 | 2026-10-27 | First edition for the evaluated configuration of v10.0.0. |
-| 1.1 | 2026-11-02 | Introductions to numbered steps; Installing the TOE, Verifying the Installation and Self-Test revised; new screenshots. |
+| 1.1 | 2026-11-02 | Numbered sections; introductions to numbered steps; most chapters revised; new screenshots. |

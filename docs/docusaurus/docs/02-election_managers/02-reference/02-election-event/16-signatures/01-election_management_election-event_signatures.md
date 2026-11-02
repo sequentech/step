@@ -28,10 +28,10 @@ to both the person's account and their certificate.
 
 | Term | Meaning |
 |---|---|
-| Post | An election of the election event. The screens say "Post" by default; an organization can rename it, and the actions, with its translation overrides (**Settings** > **Localization**). |
+| Election | An election of the election event. The screens say "election" by default; an organization can rename it, and the actions, with its translation overrides (**Settings** > **Localization**). In the Certificates sub-tab, the **Election** column header doesn't follow the term: it has its own override, `signing.certificates.columns.post`. |
 | Protected action | One of the actions in the table below. The list is part of the product; whether each needs signatures is the election event's configuration. |
 | Rule | An action's settings in this election event: whether it needs signatures, how many, whether the person who starts it can also sign, and when a request expires. |
-| Signing request | One run of a protected action waiting for its signatures. It names the Post (and country, where it applies), exactly what is signed, who started it and when it expires. |
+| Signing request | One run of a protected action waiting for its signatures. It names the election (and country, where it applies), exactly what is signed, who started it and when it expires. |
 | Signing code | A short code such as `7F3A-91C2` that every signer of a request sees, so the people signing together can compare it aloud. |
 | Trusted issuer | A certificate authority whose certificates may sign. Staff issuers are separate from the certificate authorities voters sign in with ([Certificates](../15-election_management_election-event_certificates.md)). |
 
@@ -39,12 +39,12 @@ to both the person's account and their certificate.
 
 | Action | Started in | What is signed | When enough people have signed |
 |---|---|---|---|
-| Initialize voting | Post > **Publish**, **Generate Initialization Report** | The Post and its published configuration | Initializes the Post and generates its Initialization Report. |
-| Open voting | Post > **Publish**, **Start voting** | The Post and the channel | Opens voting at the Post. |
-| Close voting | Post > **Publish**, **Stop voting** | The Post and its channels | Closes voting. The closing record lists the closing signatures. |
-| Generate election returns | **Reports** | The election returns PDF of a Post and country | Releases the signed PDF for download, printing and transmission. |
+| Initialize voting | Election > **Publish**, **Generate Initialization Report** | The election and its published configuration | Initializes the election and generates its Initialization Report. |
+| Open voting | Election > **Publish**, **Start voting** | The election and the channel | Opens voting in the election. |
+| Close voting | Election > **Publish**, **Stop voting** | The election and its channels | Closes voting. The closing record lists the closing signatures. |
+| Generate election returns | **Reports** | The election returns PDF of an election and country | Releases the signed PDF for download, printing and transmission. |
 | Generate other election reports | **Reports** | The Initialization Report or participation report PDF; per-voter manual verification and activity logs are not integrated | Releases the signed report. |
-| Transmit results | **Tally** > **Transmission** | The results package of a Post and country, and its destinations | Builds the signed package; it can then be sent. |
+| Transmit results | **Tally** > **Transmission** | The results package of an election and country, and its destinations | Builds the signed package; it can then be sent. |
 | Approve a voter manually | **Approvals** | The application, the registry record and the decision | Approves the voter and issues their credentials. |
 | Approve a configuration version | **Publish** | The changes in the version and their digest | Publishes the version. |
 | Confirm a key share (key ceremony) | **Keys**, by each trustee | The ceremony, the trustee and the public custody proof's hash | Records the trustee's custody confirmation and approval signature. |
@@ -80,10 +80,10 @@ down, rules can't be edited.
 
 The rules and the certificate checks travel with the election event when it is exported
 and imported. The export also carries the staff issuers in their own PEM file, apart from
-the voters' certificate authorities. Importing an event whose Posts carry the older
-per-Post transmission threshold (`miru:area-threshold`) and no Transmit results rule
-creates that rule when every Post has the same threshold; when they differ, no rule is
-created, each Post keeps its own threshold, and the import says which Posts differ.
+the voters' certificate authorities. Importing an event whose areas carry the older
+per-area transmission threshold (`miru:area-threshold`) and no Transmit results rule
+creates that rule when every area has the same threshold; when they differ, no rule is
+created, each area keeps its own threshold, and the import says which areas differ.
 
 ## What is logged
 
@@ -96,7 +96,7 @@ same statement kind:
 - a **SYSTEM** entry, with what the system checked or did. A refusal or a failure is
   logged with log type ERROR.
 
-Request entries carry the Post, the country, the action, the request and its signing
+Request entries carry the election, the country, the action, the request and its signing
 code. Signature entries also carry the certificate (subject, issuer, serial, fingerprint)
 and the signature itself, so the log alone shows who authorized each action. The Logs
 tab's **Event type** column tells USER and SYSTEM entries apart; its filters and its export

@@ -33,7 +33,7 @@ election event to an earlier phase.
 ## Maintenance mode
 
 Read the current state in **Security and self-tests**. **Recovery required**
-means that the election cannot continue until the cause has been removed,
+means that the election event cannot continue until the cause has been removed,
 current checks pass and the board authorizes recovery.
 
 ### When the TOE enters maintenance mode
@@ -41,7 +41,7 @@ current checks pass and the board authorizes recovery.
 A recoverable self-test failure, a missing or expired current test, or a required
 backend service stopping or restarting prevents continued voter access.
 A missing heartbeat becomes a refusal when its 45-second validity expires;
-a late heartbeat cannot silently reopen the election. An orderly shutdown
+a late heartbeat cannot silently reopen the election event. An orderly shutdown
 removes admission before attempting the per-event state updates.
 
 ### What the TOE does in maintenance mode
@@ -64,12 +64,12 @@ To return the election event to a secure state:
    **Run self-tests**. Wait for all six current results to show **Passed**.
 4. Decide whether the electoral regulation permits continuation within the
    remaining approved voting period.
-5. Select the individual election (Post), then **Publish → Start Voting →
+5. Select the individual election, then **Publish → Start Voting →
    Start Online Voting**, and obtain the required fresh board authorizations.
    This resumes that paused channel. A passing test by itself never resumes voting.
-6. Check **Operational**, **Open** for both the event and the resumed Post,
+6. Check **Operational**, **Open** for both the event and the resumed election,
    `MaintenanceModeLeft` and the automatic **After maintenance** result.
-   Other paused Posts remain paused. Verify the resumed Post is available in
+   Other paused elections remain paused. Verify the resumed election is available in
    the voter interface. A new failure blocks access again.
 
 ### Maintenance mode at the start
@@ -119,7 +119,7 @@ The election board:
 
 1. records the time of the email in the minutes;
 2. has the administrators and the operators provide more storage at once; when
-   fresh observations show sufficient space, check the election safety state
+   fresh observations show sufficient space, check the election event's safety state
    and complete board recovery if it shows **Recovery required**;
 3. decides under the electoral regulation whether to interrupt the election
    execution with "Pause Voting" until the storage is extended, and whether the
@@ -216,7 +216,7 @@ board of every restore.
 After every restore, the election board checks the Logs tab of each election
 event concerned against its minutes and records the restore in them. A restore
 in the execution phase removes the votes cast since the backup: decide under
-the electoral regulation what happens to the election.
+the electoral regulation what happens to the election event.
 
 ## A signing request that does not complete
 

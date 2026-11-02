@@ -97,7 +97,7 @@ administration portal and the ballot verifier) resolve to the address of C1.
 
 The servers take their time from the site's time servers, given in the site
 file by IP address. A time server must offer NTS (Network Time Security), so
-that the servers accept only authenticated time. Election phases, token
+that the servers accept only authenticated time. Electoral phases, token
 lifetimes and the timestamps in the electoral log depend on it.
 
 The time server’s NTS certificate must cover that IP address and chain to a CA

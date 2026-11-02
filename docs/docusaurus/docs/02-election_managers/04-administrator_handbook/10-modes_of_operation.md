@@ -19,7 +19,7 @@ Only the election board has access to election execution data and audit records.
 | --- | --- | --- |
 | Preparation | The board creates an authorization context or imports an approved election event. | Configure administrator settings, approved imports, signing rules, the key ceremony and initialization. The board approves and publishes the configuration. |
 | Execution | The board or the approved schedule opens voting after the required checks pass. | Voters cast ballots within the approved period. The board may pause, resume or close voting with the required approvals. |
-| Evaluation | The approved period ends or the board closes all elections. | Voting cannot reopen. The board checks the audit and authorizes counting. |
+| Evaluation | The approved period ends or the board closes all elections of the election event. | Voting cannot reopen. The board checks the audit and authorizes counting. |
 | Post-processing | The board selects **Start post-processing** in **Security and self-tests** and authenticates again. | Completed counting permits normal post-processing. An unrecoverable failure permits investigation. Board-approved read-out and export precede deletion. |
 
 The first opening requires the approved time window, an empty ballot box,
@@ -43,7 +43,7 @@ when a new configuration version is needed.
 ## Voting paused by the election board
 
 A pause stops voting and invalidates the previous transition evidence. The board
-records why it paused the election and decides whether resumption is allowed
+records why it paused voting and decides whether resumption is allowed
 under the electoral regulation. An administrator does not take that decision.
 To resume voting:
 
@@ -87,13 +87,14 @@ execution data to clear the state.
 
 Preserve the evidence and notify the election board. The board follows the
 electoral regulation and may enter post-processing for an authorized
-investigation and export. This does not turn an incomplete or failed election
-into a successfully counted election.
+investigation and export. This does not turn an incomplete or failed election event
+into a successfully counted election event.
 
 ## A crash or shutdown of a server component
 
 During execution, obtain the board's decision before an operator restarts a
-component. Follow AGD-04 and verify the accepted image digests and service state.
+component. The operator follows AGD-04 and verifies the accepted image digests
+and service state.
 An absent or expired required-service lease prevents voter operations.
 
 Startup records the recovery requirement for an executing event. Follow the
@@ -115,5 +116,5 @@ refusal, but every other lifecycle and self-test gate still applies. See
 
 The operational environment provides protected, tested backups. Follow AGD-04.
 A restoration replaces current data with an older state and is not a normal way
-to recover an executing election. Obtain the board's decision, preserve the
+to recover an executing election event. Obtain the board's decision, preserve the
 incident evidence and investigate the audit sequence before any resumption.

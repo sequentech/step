@@ -59,6 +59,7 @@ def password(v): [{type: "password", value: v, temporary: false}];
     | client("voting-portal"; portal(["https://\($p)/*", "https://\($v)/*"]))
     | client("api-key-client"; del(.authenticationFlowBindingOverrides))
     | client("cli-account-admin"; .enabled = false | .directAccessGrantsEnabled = false)
+    | client("account-console"; .enabled = false)
     | .adminEventsEnabled = true | .adminEventsDetailsEnabled = true
     | .groups |= map(drop(.realmRoles; "publish-results-write")
         | drop(.realmRoles; "datafix-account")

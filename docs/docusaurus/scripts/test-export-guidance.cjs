@@ -15,7 +15,7 @@ function fixture() {
   const docs = [1,2,3,4].map(n => ({id:`AGD-0${n}`,title:`Synthetic handbook ${n}`,version:'test-only',sources:[`docs/docusaurus/docs/03-voters/page${n}.md`]}));
   for (const [i,doc] of docs.entries()) {
     write(doc.sources[0],`# Page ${i+1}\n\nSynthetic fixture only.`);
-    write(`docs/docusaurus/build/docs/page${i+1}.html`,`<html><nav>PRIVATE NAVIGATION</nav><article><div class="markdown"><h1>Page ${i+1}</h1><h2 id="detail">Details</h2><img src="/manual/assets/image.png"><a href="/manual/docs/page${(i+1)%4+1}#detail">Next</a><a href="https://example.invalid/reference">Reference</a><pre><button>Copy</button>Example</pre></div></article><script>SECRET SEARCH PAYLOAD</script></html>`);
+    write(`docs/docusaurus/build/docs/page${i+1}.html`,`<html><nav>PRIVATE NAVIGATION</nav><article><div class="markdown"><h1>1 Page ${i+1}</h1><h2 id="detail">Details</h2><img src="/manual/assets/image.png"><a href="/manual/docs/page${(i+1)%4+1}#detail">Next</a><a href="https://example.invalid/reference">Reference</a><pre><button>Copy</button>Example</pre></div></article><script>SECRET SEARCH PAYLOAD</script></html>`);
   }
   write('docs/docusaurus/build/assets/image.png',Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6tXsAAAAASUVORK5CYII=','base64'));
   write('docs/docusaurus/build/internal.html','NEVER INCLUDE');
@@ -61,7 +61,7 @@ test('refuses dirty source even when timestamps are restored',()=>using(f=>{
   const p=path.join(f.root,f.selection.documents[0].sources[0]);const stat=fs.statSync(p);fs.appendFileSync(p,'changed');fs.utimesSync(p,stat.atime,stat.mtime);assert.throws(f.run,/clean selected source/);
 }));
 function changeArticle(f, content) {
-  const p=path.join(f.build,'docs/page1.html');fs.writeFileSync(p,`<article><div class="markdown"><h1>Page 1</h1><h2 id="detail">Details</h2>${content}</div></article>`);
+  const p=path.join(f.build,'docs/page1.html');fs.writeFileSync(p,`<article><div class="markdown"><h1>1 Page 1</h1><h2 id="detail">Details</h2>${content}</div></article>`);
   f.manifest.pages[0].sha256=sha(fs.readFileSync(p));f.record();
 }
 test('refuses unselected local links, absent fragments and remote images',()=>using(f=>{
@@ -110,8 +110,26 @@ test('refuses omitted text, overflowing layout and undecodable local images',()=
   assert.throws(f.run,/rendering warning/);assert.equal(fs.existsSync(f.out),false);
 }));
 
-test('retains repeated source pages in distinct handbooks without anchor collisions',()=>using(f=>{
+test('refuses an article whose chapter number differs from its selected position',()=>using(f=>{
+  for (const title of ['Page 1','2 Page 1','1.1 Page 1']) {
+    const p=path.join(f.build,'docs/page1.html');fs.writeFileSync(p,`<article><div class="markdown"><h1>${title}</h1></div></article>`);
+    f.manifest.pages[0].sha256=sha(fs.readFileSync(p));f.record();
+    assert.throws(f.run,/identity differs/);assert.equal(fs.existsSync(f.out),false);
+  }
+  changeArticle(f,'');
+  // A page renders one chapter number; as chapter 2 of AGD-01 it would still read "1 Page 2".
   f.selection.documents[0].sources.push(f.selection.documents[1].sources[0]);
+  assert.throws(f.run,/identity differs/);assert.equal(fs.existsSync(f.out),false);
+}));
+test('retains repeated source pages in distinct handbooks without anchor collisions',()=>using(f=>{
+  // A repeated page has the same chapter position in each handbook that selects it.
+  const source='docs/docusaurus/docs/03-voters/shared.md';f.write(source,'# Shared\n\nSynthetic fixture only.');
+  f.git('add',source);f.git('-c','user.name=Test','-c','user.email=test@example.invalid','-c','commit.gpgSign=false','commit','-qm','Synthetic shared page');
+  f.selection.commit=f.git('rev-parse','HEAD');f.manifest.source_commit=f.selection.commit;
+  f.manifest.files[source]=sha(fs.readFileSync(path.join(f.root,source)));
+  f.write('docs/docusaurus/build/docs/shared.html','<article><div class="markdown"><h1>2 Shared</h1><p>Shared guidance.</p></div></article>');
+  f.manifest.pages.push({source,title:'Shared',permalink:'/manual/docs/shared',output:'docs/shared.html',sha256:sha(fs.readFileSync(path.join(f.build,'docs/shared.html')))});f.record();
+  f.selection.documents[0].sources.push(source);f.selection.documents[1].sources.push(source);
   const m=f.run();
   assert.equal(m.documents[0].pages.length,2);
   assert.equal(m.documents[0].pages[1].anchor,'source-002');

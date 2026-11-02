@@ -14,12 +14,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 |---|---|
 | Admin portal, in your browser over HTTPS | every configuration and monitoring task of this handbook |
 | Login page of the TOE, which sends you on to the external authentication server | signing in and confirming sensitive actions |
-| The server procedures of the Deployment Guide | deployment, hardening, operation, backups and the image check |
+| The server procedures of the Deployment Guide, used by the person who runs the servers | deployment, hardening, operation, backups and the image check |
 
 There is no other interface for administrators in the evaluated configuration.
-The administration console of the identity and access management component is
-not reachable through the network, and the TOE's programming interfaces are
-used only through the admin portal.
+Over HTTPS, the identity and access management component offers only its
+sign-in services: its administration console is not routed, so it cannot be
+reached from outside the servers, and its account console is switched off. Use
+the TOE's programming interfaces only through the admin portal.
 
 :::warning
 Do not use scripts, command-line clients or other tools against the TOE's
@@ -46,9 +47,10 @@ portal, and this handbook gives no secure way to use them.
 
 To sign in to the admin portal:
 
-1. Open the admin portal at its address followed by `/tenant`. Under
-   "Select Tenant", enter your organisation's tenant name in "Tenant Name"
-   and select "Continue". After five failed attempts the admin portal shows "Too many attempts. Please try
+1. Open the admin portal at its address followed by "`/tenant`". For example,
+   if its address is `https://admin.example.org`, open
+   `https://admin.example.org/tenant`. Under "Select Tenant", enter your
+   organisation's tenant name in "Tenant Name" and select "Continue". After five failed attempts the admin portal shows "Too many attempts. Please try
    again later."
 2. The admin portal sends you to the login page of the TOE, which sends you to
    the external authentication server of your organisation.
@@ -103,25 +105,22 @@ their sessions while they are not actively working with the TOE.
 
 ## Checking the version of the TOE
 
-The header of the admin portal shows "Version" with the TOE reference as the
-TOE reports it:
+The header of the admin portal shows "Version:" followed by the software
+release. In a wide window it also shows "Hash:" followed by the first eight
+characters of the source revision of the TOE, in the form `1A2B-3C4D`.
 
-```
-Sequent Voting Platform - uniWAHL Version, v10.0.0
-```
+Check after the deployment, after every update and at the start of each
+election event's preparation phase that the version is exactly `10.0.0`.
 
-Check it after the deployment, after every update and at the start of each
-election event's preparation phase. It must be exactly this text.
-
-The version text alone does not prove which images are running. Also compare
-the image digests of the running containers with the `image-digests.txt` file
-of the verified TOE delivery, with the command the Deployment Guide gives.
-Every digest must match.
+The header alone does not prove which images are running. The person who runs the
+servers checks the running images against the verified TOE delivery, as the
+Deployment Guide describes, and confirms the result to you in writing after
+the installation and for each new election event.
 
 :::warning
-If the version text differs, or any running image digest is not in
-`image-digests.txt`, the system is not the evaluated TOE. Do not start or
-continue an election on it. Inform the election board and the election
+If the version differs, or the person who runs the servers reports that the
+image check failed, the system is not the evaluated TOE. Do not start or
+continue an election event on it. Inform the election board and the election
 organizer, and report it as a security problem
 ([Environment Measures and Security Problems](12-environment_and_security_problems.md#reporting-a-security-problem)).
 :::

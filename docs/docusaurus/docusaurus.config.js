@@ -36,6 +36,15 @@ const config = {
       ({
         docs: {
           path: 'docs',
+          // Chapter and section numbers of the AGD manuals, in the chapter
+          // order of remark-section-numbers.json. Runs before the Docusaurus
+          // plugins that take the page title, the anchors and the TOC.
+          beforeDefaultRemarkPlugins: [
+            [
+              require('./plugins/remark-section-numbers'),
+              {documents: require('./plugins/remark-section-numbers.json')},
+            ],
+          ],
           remarkPlugins: [
             require('./plugins/remark-code-tabs'),
             require('./plugins/remark-screen-text'),

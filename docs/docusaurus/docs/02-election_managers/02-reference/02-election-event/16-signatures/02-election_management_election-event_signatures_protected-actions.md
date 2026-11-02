@@ -21,7 +21,7 @@ The actions are grouped as **Voting**, **Results and reports**, **Enrollment**, 
 | Column | Shows |
 |---|---|
 | Action | The action's name. An organization can rename it with its translation overrides. |
-| Applies to | What one request covers: each Post, each Post and country, the voter's Post, the election event, or each trustee. |
+| Applies to | What one request covers: each election, each election and country, the voter's election, the election event, or each trustee. |
 | Who can sign | The roles that hold the action's sign permission, as chips. |
 | Signatures needed | The number of signatures, **Each trustee** for the trustees' key steps, or **Off**. Every signature is made with a certificate, so the number of signatures is also the number of certificates. |
 | Request expires | How long a request waits for its signatures: 30 minutes, 1 hour, 2 hours, 24 hours or **No limit**. |
@@ -38,7 +38,7 @@ The drawer shows the action, where it is started and what it does, then:
 - **Needs signatures**: on or off. Off, the action runs as it does without signatures.
 - **Who can sign**: the roles that hold the permission "Sign: *action*". See
   [Who can sign](#who-can-sign).
-- **Signatures needed**: at least 1. The helper says how many people every Post has who
+- **Signatures needed**: at least 1. The helper says how many people every election has who
   can sign.
 - **The person who starts it can also sign**: when unchecked, the person who started a
   request can't count as one of its signers.
@@ -68,11 +68,11 @@ changed"), their signatures no longer count, and the people who started them sta
 
 The number is checked against the people who can actually sign:
 
-- More signatures than the Post with most signers can give is refused: "No Post has *n*
+- More signatures than the election with most signers can give is refused: "No election has *n*
   people who can sign. The most is *max*." For an event-level action, the limit is the
   number of people who can sign it.
-- Posts that can't reach the number are named, with how many signers they have: add a
-  signer there or lower the number. The rule can still be saved; requests at those Posts
+- Elections that can't reach the number are named, with how many signers they have: add a
+  signer there or lower the number. The rule can still be saved; requests in those elections
   can't complete until someone is added.
 - When the person who starts a request can't sign, the check counts one signer less.
 
@@ -81,11 +81,11 @@ The number is checked against the people who can actually sign:
 Who can sign an action is a permission on roles: each action has a `sign-<action>`
 permission, the same one **Users and Roles** shows as "Sign: *action*". It applies to the
 role in every election event of the tenant. A signer also needs access to the request's
-Post: staff whose roles carry permission labels sign only for the Posts those labels
-allow; staff without labels can sign for any Post.
+election: staff whose roles carry permission labels sign only for the elections those labels
+allow; staff without labels can sign for any election.
 
 In the drawer, someone who also holds `role-write` can add or remove roles; the change is
-checked against the Posts' capacity before it is applied, and logged as
+checked against the elections' capacity before it is applied, and logged as
 `SigningPermissionChanged` in every election event that has a rule for that action.
 Without `role-write`, the roles are shown read only. So one role can set the numbers while
 another decides who signs. See
@@ -97,16 +97,16 @@ permission.
 
 ## Example
 
-An organization wants two of the three board members of each Post to open and close
+An organization wants two of the three board members of each election to open and close
 voting, and all three to sign the election returns:
 
 1. In **Users and Roles**, give the board members' role `sign-open-voting`,
    `sign-close-voting` and `sign-generate-election-returns`, and give each member the
-   permission label of their Post.
+   permission label of their election.
 2. Edit **Open voting**: switch **Needs signatures** on, set **Signatures needed** to 2,
    keep **The person who starts it can also sign**, and choose an expiry such as 30
    minutes. Do the same for **Close voting**.
-3. Edit **Generate election returns** with 3 signatures. If a Post has only two members
+3. Edit **Generate election returns** with 3 signatures. If an election has only two members
    with the permission, the drawer names it.
 4. Make sure the [Certificates](./03-election_management_election-event_signatures_certificates.md)
    sub-tab trusts the issuer of the members' certificates.

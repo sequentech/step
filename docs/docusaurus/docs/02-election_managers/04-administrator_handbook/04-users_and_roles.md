@@ -214,7 +214,7 @@ To verify the role's permissions:
      (`monitoring-view`); `self-test-read` and `self-test-run`.
    - for the board members who prepare the security dashboard, "Configure
      Monitoring Dashboards" (`monitoring-configure`). Add this permission
-     before the board approves the election configuration. It enables the
+     before the board approves the election event's configuration. It enables the
      [dashboard setup procedure](../05-election_organizer_handbook/06-preparation.md#preparing-the-security-dashboard);
      viewing a dashboard alone does not allow its initial setup.
 3. Give "Read Electoral Log Personal Data" (`electoral-log-personal-data-read`),

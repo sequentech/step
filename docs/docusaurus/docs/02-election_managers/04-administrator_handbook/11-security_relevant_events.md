@@ -29,7 +29,7 @@ For every event on this page:
 | An account holds a board permission and is not a board member's account, or an administrator account holds a board permission | your check of Users and Roles, or the election board tells you | Remove the permission, tell the election board and the election organizer; the board checks the electoral log for actions of that account. Explain your changes from your written record. |
 | An account reached the authentication failure threshold | the person cannot sign in and tells you, or the election board tells you | Find out with the person whether the attempts were theirs. If not, tell the election board and the organisation that runs the external authentication server. |
 | An attack detection matched | the election board tells you | Tell the person who runs the servers and the network, and agree the measures with the board ([Audit, Monitoring and Notifications](09-audit_and_monitoring.md#attack-detections)). |
-| The "Version" or an image digest differs from the TOE delivery | your check ([Secure Use of the Admin Portal](03-admin_portal.md)) | The system is not the evaluated TOE: do not start or continue an election; tell the election board and the election organizer; report it. |
+| The header's "Version:" is not `10.0.0`, or the person who runs the servers reports a failed image check | your check, or that person ([Secure Use of the Admin Portal](03-admin_portal.md#checking-the-version-of-the-toe)) | The system is not the evaluated TOE: do not start or continue an election event; tell the election board and the election organizer; report it. |
 | The audit storage threshold is exceeded | email and **Security email delivery** | Extend storage as AGD-04 describes; never delete records. A fresh healthy observation removes this refusal; other lifecycle checks still apply. |
 | A server component crashed or was shut down | **Security and self-tests** shows recovery required; AGD-04 service checks identify the component | Preserve the reason and logs. Obtain the board's decision before restarting during execution, verify image integrity, then complete the six-check recovery and board resumption procedure in [Modes of Operation and Failure Handling](10-modes_of_operation.md). |
 | The browser reports a certificate problem for the admin portal or the external authentication server | the browser | Do not sign in; tell the person who runs the servers. |
@@ -71,18 +71,18 @@ version you checked. A tick records a completed check, not an approval: the
 election board approves the configuration version after reviewing the evidence.
 If a check fails, stop and resolve it before asking for approval.
 
-### 1. Verify the delivery and imported configuration
+### Verify the delivery and imported configuration {#1-verify-the-delivery-and-imported-configuration}
 
-- ☐ The header shows `Sequent Voting Platform - uniWAHL Version, v10.0.0`.
-- ☐ Every running image digest matches `image-digests.txt`.
+- ☐ The header shows "Version:" `10.0.0`.
 - ☐ Signed configuration packages are required, with the organizer's checked
   CA certificates and at least two approvals.
 - ☐ The board confirms that a board member used **Import Election Event** and
   checked the digest received from the organizer.
-- ☐ The operator confirms in writing that election work uses only the
-  customer's tenant, no plugin is installed, and no telephone provider is configured.
+- ☐ The operator confirms in writing that the running images are those of the
+  verified TOE delivery, election work uses only the customer's tenant, no
+  plugin is installed, and no telephone provider is configured.
 
-### 2. Check the accounts and permissions
+### Check the accounts and permissions {#2-check-the-accounts-and-permissions}
 
 - ☐ No account combines an administrator role with a board permission.
 - ☐ The administrator has none of the
@@ -94,7 +94,7 @@ If a check fails, stop and resolve it before asking for approval.
   requests**, **Export Logs**, **Edit Reports**, and read-only user/role access.
 - ☐ Each administrator and board member has a tested notification email address.
 
-### 3. Check the event settings with the board
+### Check the event settings with the board {#3-check-the-event-settings-with-the-board}
 
 Compare the controls visible in **Data → Security settings**. For the other
 rows, obtain the board's confirmation from its read-only Data view. Tick a row
@@ -115,7 +115,7 @@ only after recording that check; do not add board data permissions to your accou
 | ☐ | Show Cast Vote Logs Tab | Hide Cast Vote Logs Tab |
 | ☐ | Voting Channels Allowed | Online only |
 
-### 4. Obtain the board's checks for every election
+### Obtain the board's checks for every election {#4-obtain-the-boards-checks-for-every-election}
 
 | Checked | Setting | Required value |
 |---|---|---|
@@ -126,7 +126,7 @@ only after recording that check; do not add board data permissions to your accou
 | ☐ | Allow Tally | Requires Voting Period End |
 | ☐ | Voting Channels Allowed | Online only |
 
-### 5. Check protected actions and certificates
+### Check protected actions and certificates {#5-check-protected-actions-and-certificates}
 
 - ☐ Each non-trustee protected action, including **Open voting** and **Close
   voting**, requires at least two signatures and allows only **Election board**.
@@ -142,10 +142,10 @@ only after recording that check; do not add board data permissions to your accou
   certificates registers it**.
 - ☐ **Check revocation lists** is on with **Don't accept signatures** where
   the CA publishes lists.
-- ☐ **A certificate signs for one Post only** is on.
+- ☐ **A certificate signs for one election only** is on.
 - ☐ Every board member's certificate is registered and **Active**.
 
-### 6. Check monitoring and authentication
+### Check monitoring and authentication {#6-check-monitoring-and-authentication}
 
 - ☐ Configure [Security and Self-Tests](07-self_tests.md): interval, timeout
   and additional conditions. Confirm that all six checks can finish in time.

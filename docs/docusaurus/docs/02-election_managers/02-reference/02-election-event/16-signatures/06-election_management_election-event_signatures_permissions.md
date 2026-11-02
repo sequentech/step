@@ -26,7 +26,7 @@ for these permissions, and how existing tenants get them, are in
 | `signing-checks-write` | Signatures: edit certificate checks | Change the certificate checks. |
 | `signing-certificates-register` | Signatures: register certificates | Register a certificate to a person, or link it to a second account of the same person. |
 | `signing-certificates-revoke` | Signatures: revoke certificates | Revoke a registered certificate (and its key). |
-| `signing-requests-read` | Signatures: read requests | See the Requests sub-tab. Staff with permission labels see their Posts' requests. |
+| `signing-requests-read` | Signatures: read requests | See the Requests sub-tab. Staff with permission labels see their elections' requests. |
 | `signing-requests-cancel` | Signatures: cancel requests | Cancel someone else's waiting request. The person who started a request can always cancel it. |
 | `signing-requests-export` | Signatures: export requests | Export the requests as CSV. |
 | `sign-initialize-voting` | Sign: initialize voting | Sign Initialize voting. |
@@ -41,8 +41,8 @@ for these permissions, and how existing tenants get them, are in
 | `sign-tally-key` | Sign: contribute a key share | Approve one's own public custody proof bound to the tally session. |
 
 A `sign-<action>` permission is what **Who can sign** shows for the action. Signing also
-needs access to the request's Post through the user's permission labels (an unlabelled
-Post is accessible without a label; a labelled Post requires a matching label), and, for the trustees' steps, being the request's trustee.
+needs access to the request's election through the user's permission labels (an unlabelled
+election is accessible without a label; a labelled election requires a matching label), and, for the trustees' steps, being the request's trustee.
 Signers need no permission on the Signatures tab: the request panel gives them what they
 need.
 
@@ -92,7 +92,7 @@ it**; adjust the groups and rules to the organization's own roles.
 
 So the Configuration Manager sees only Protected actions, the Security Officer only
 Certificates, the requests operators (`ofov`) only Requests, and the Auditor all three read
-only. The template's Post board members (`sbei`) sign the Post actions and voter approvals,
+only. The template's election board members (`sbei`) sign the election actions and voter approvals,
 and its trustees their own key steps. The `admin` group holds all 21. The four settings groups also get
 `election-event-read`, to reach an election event; the Security Officer also gets what
 opening **Users and Roles** and finding a person take.
@@ -101,7 +101,7 @@ The sample template's rules and checks, imported with its election events:
 
 | Action | Signatures | Expires after |
 |---|---|---|
-| Initialize, open and close voting | 2 of the Post's board members | 30 minutes |
+| Initialize, open and close voting | 2 of the election's board members | 30 minutes |
 | Generate election returns | 3 | 2 hours |
 | Generate other election reports, transmit results | 2 | 2 hours |
 | Approve a voter manually | 1 | No limit |
@@ -109,6 +109,6 @@ The sample template's rules and checks, imported with its election events:
 | Confirm and contribute a key share | Each trustee | 1 hour |
 
 The person who starts a request can sign it. Certificates are checked against revocation
-lists (no signature without a list), registered on first use, and sign for one Post only.
+lists (no signature without a list), registered on first use, and sign for one election only.
 Each board member has a title (Chairperson, Poll Clerk, Third Member) shown in the request
 panel.

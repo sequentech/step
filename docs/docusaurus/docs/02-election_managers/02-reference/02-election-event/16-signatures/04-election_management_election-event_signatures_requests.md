@@ -9,14 +9,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 **Signatures** > **Requests** lists every signing request of the election event, for
-whoever follows the signing of all Posts. It needs `signing-requests-read`. Staff whose
-roles carry permission labels see only the requests of their Posts.
+whoever follows the signing of all elections. It needs `signing-requests-read`. Staff whose
+roles carry permission labels see only the requests of their elections.
 
 ## The list
 
 | Column | Shows |
 |---|---|
-| Request | The action, the Post and the country, for example "Election returns · Post A · Country B". |
+| Request | The action, the election and the country, for example "Election returns · Election A · Country B". |
 | Status | The status and the count, for example "Waiting · 1 of 3" with the expiry time, "Signed · 2 of 2", "Expired · 1 of 2", or "Cancelled" with the reason. |
 | Started | When the request was started. |
 | By | Who started it. |
@@ -46,7 +46,7 @@ A request is cancelled when:
 | An operator cancelled it | Someone with `signing-requests-cancel` used **Cancel request**. |
 | The action's signing rule changed | Someone saved the action's rule while it was waiting. |
 | What it signs changed | For example a recount changed the election returns, or a new configuration version was generated. |
-| A newer request replaced it | The same action was started again for the same Post and subject. |
+| A newer request replaced it | The same action was started again for the same election and subject. |
 | The certificate that signed it was revoked | A certificate counted in it was revoked. |
 
 ## Cancelling a request

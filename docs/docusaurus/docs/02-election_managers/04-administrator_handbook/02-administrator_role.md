@@ -56,7 +56,7 @@ whatever the admin portal shows.
 
 | Task | When | Page |
 |---|---|---|
-| Set up the tenant's signed configuration packages | once, before the first election event is imported; afterwards only a staff CA is replaced, between elections | [Tenant and Election Event Settings](05-tenant_and_event_settings.md) |
+| Set up the tenant's signed configuration packages | once, before the first election event is imported; afterwards only a staff CA is replaced, between election events | [Tenant and Election Event Settings](05-tenant_and_event_settings.md) |
 | Create the administrator, election board and trustee roles and the personal accounts; delete the seeded account `admin` | after deployment; whenever a person joins or leaves | [Users, Roles and Role Separation](04-users_and_roles.md) |
 | Verify the imported event and election Data-tab settings against the required values; complete the separate administrator settings and tell the board when it can publish the configuration version | preparation phase, after each import | [Tenant and Election Event Settings](05-tenant_and_event_settings.md) |
 | Set the protected actions and their required authorisations | preparation phase | [Configuring Protected Actions](06-signing_rules.md) |
@@ -66,18 +66,18 @@ whatever the admin portal shows.
 | Set the authentication failure threshold and check the session and login settings | after deployment, and for each new election event | [Authentication and Session Settings](08-authentication_and_sessions.md) |
 | Act on the TOE's notifications and on what the election board reports, and support the board's audit review | every phase, especially the execution phase | [Audit, Monitoring and Notifications](09-audit_and_monitoring.md) |
 | Support the election board in maintenance mode and after failures | when they occur | [Modes of Operation and Failure Handling](10-modes_of_operation.md) |
-| Check the version of the TOE and its images | after deployment and after each update | [Secure Use of the Admin Portal](03-admin_portal.md) |
-| Operate and back up the servers | every phase | the Deployment Guide |
+| Check the version of the TOE | after deployment and after each update | [Secure Use of the Admin Portal](03-admin_portal.md) |
+| Operate and back up the servers, and check their images against the TOE delivery | every phase | the Deployment Guide |
 
 ## Functions and privileges to control
 
 The administrator's permissions are powerful. The following functions change
-the security of the election. Use them only for the purpose stated, only in the
+the security of the election event. Use them only for the purpose stated, only in the
 phase stated, and only as the election organizer has decided.
 
 | Function | Permissions | Why it must be controlled |
 |---|---|---|
-| Accounts and roles | <ul><li>"Create User" (<code>user-create</code>)</li><li>"Edit User" (<code>user-write</code>)</li><li>"Create Role" (<code>role-create</code>)</li><li>"Edit Role" (<code>role-write</code>)</li><li>"Edit User Permission" (<code>user-permission-write</code>)</li></ul> | Use these permissions only for authorized account administration. The server restricts administrator tokens and refuses self-membership changes; independently review role assignments and certificate ownership. |
+| Accounts and roles | <ul><li>"Create User" (<code>user-create</code>)</li><li>"Edit User" (<code>user-write</code>)</li><li>"Create Role" (<code>role-create</code>)</li><li>"Edit Role" (<code>role-write</code>)</li><li>"Edit User Permission" (<code>user-permission-write</code>)</li></ul> | Use these permissions only for authorized account administration. The TOE refuses changes to your own role memberships and to roles that affect your own account, and an account with an administrator permission receives only administrator permissions in its tokens. The TOE cannot tell whether a change is authorized or whose a certificate is: have a second person check every change of roles, permissions and certificate registrations. |
 | Protected actions | "Signatures: edit protected actions" (`signing-rules-write`) | Sets which actions need the election board's authorisations and how many. |
 | Trusted issuers and certificate checks | <ul><li>"Signatures: import and remove trusted issuers" (<code>signing-issuers-write</code>)</li><li>"Signatures: edit certificate checks" (<code>signing-checks-write</code>)</li><li>"Signatures: register certificates" (<code>signing-certificates-register</code>)</li><li>"Signatures: revoke certificates" (<code>signing-certificates-revoke</code>)</li></ul> | Decide whose signatures the TOE accepts for protected actions. |
 | Tenant configuration | "Edit Tenant" (`tenant-write`) | Includes the rules for signed configuration packages, which protect the integrity and authenticity of imported election data. |
@@ -99,7 +99,7 @@ recorded in the electoral log, which the election board checks.
 Change the security settings of an election event only in the preparation
 phase. Several of them are locked once voting has started, and the TOE refuses
 configuration changes while the election event is locked down; a change that is
-still possible later can change the rules of an election that is running.
+still possible later can change the rules of an election event that is running.
 :::
 
 :::warning
