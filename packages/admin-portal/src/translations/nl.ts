@@ -2281,7 +2281,6 @@ const dutchTranslation: TranslationType = {
                 "voter-secret-attribute-read": "Geheime Kiezersvelden Tonen",
                 "voter-secret-attribute-write": "Geheime Kiezersvelden Bewerken",
                 "integration-secret-read": "Integratiegeheimen Exporteren",
-                "integration-secret-write": "Integratiegeheimen Importeren",
                 "user-create": "Gebruiker Aanmaken",
                 "user-read": "Gebruiker Lezen",
                 "user-write": "Gebruiker Bewerken",

@@ -138,16 +138,6 @@ pub struct ImportElectionEventSchema {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub messaging_config: Option<Value>,
 
-    /// Where each authenticator integration secret the realm carries belongs.
-    ///
-    /// Absent in ordinary exports, older bundles and hand-authored ones;
-    /// present (possibly empty) in an export made with integration secrets.
-    /// See `crate::types::integration_secrets`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub integration_secret_bindings: Option<
-        Vec<crate::types::integration_secrets::IntegrationSecretBinding>,
-    >,
-
     /// The platform version that wrote the bundle.
     ///
     /// Defaults to the first version that recorded one, so bundles predating the
@@ -170,10 +160,6 @@ impl std::fmt::Debug for ImportElectionEventSchema {
             .field("contests", &self.contests.len())
             .field("candidates", &self.candidates.len())
             .field("areas", &self.areas.len())
-            .field(
-                "integration_secret_bindings",
-                &self.integration_secret_bindings,
-            )
             .field("version", &self.version)
             .finish_non_exhaustive()
     }
@@ -365,29 +351,17 @@ mod tests {
     }
 
     #[test]
-    fn debug_never_formats_the_realm_and_bindings_are_optional() {
+    fn debug_never_formats_the_realm() {
         let mut bundle: ImportElectionEventSchema =
             serde_json::from_str(MINIMAL).unwrap();
-        assert_eq!(bundle.integration_secret_bindings, None);
-        assert!(serde_json::to_value(&bundle)
-            .unwrap()
-            .get("integration_secret_bindings")
-            .is_none());
-
         let synthetic = "synthetic-liveness-secret-debug";
         bundle.keycloak_event_realm = Some(serde_json::json!({
             "authenticatorConfig": [{"alias": "scanovate-registration",
                 "config": {"liveness-secret": synthetic}}]
         }));
-        bundle.integration_secret_bindings = Some(vec![]);
         for formatted in [format!("{bundle:?}"), format!("{bundle:#?}")] {
             assert!(!formatted.contains(synthetic), "{formatted}");
             assert!(formatted.contains("<redacted>"));
         }
-        let written = serde_json::to_value(&bundle).unwrap();
-        assert_eq!(
-            written["integration_secret_bindings"],
-            serde_json::json!([])
-        );
     }
 }

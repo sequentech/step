@@ -2289,7 +2289,6 @@ const frenchTranslation: TranslationType = {
                 "voter-secret-attribute-read": "Afficher les Champs Secrets de l'Électeur",
                 "voter-secret-attribute-write": "Éditer les Champs Secrets de l'Électeur",
                 "integration-secret-read": "Exporter les Secrets d'Intégration",
-                "integration-secret-write": "Importer les Secrets d'Intégration",
                 "user-create": "Créer Utilisateur",
                 "user-read": "Lire Utilisateur",
                 "user-write": "Éditer Utilisateur",

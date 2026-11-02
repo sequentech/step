@@ -2273,7 +2273,6 @@ const galegoTranslation: TranslationType = {
                 "voter-secret-attribute-read": "Mostrar Campos Secretos do Votante",
                 "voter-secret-attribute-write": "Editar Campos Secretos do Votante",
                 "integration-secret-read": "Exportar Segredos de Integración",
-                "integration-secret-write": "Importar Segredos de Integración",
                 "user-create": "Crear Usuario",
                 "user-read": "Leer Usuario",
                 "user-write": "Editar Usuario",

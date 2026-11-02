@@ -519,7 +519,6 @@ fn an_integration_secret_archive_is_downloaded_only_with_its_permission() {
         VOTER_SECRET_ATTRIBUTE_READ,
         ELECTION_EVENT_READ
     ]));
-    assert!(!allowed(&[INTEGRATION_SECRET_WRITE]));
 }
 
 #[test]

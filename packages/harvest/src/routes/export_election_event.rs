@@ -13,7 +13,6 @@ use rocket::State;
 use sequent_core::services::jwt;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
-use sequent_core::types::integration_secrets::IntegrationSecretsExport;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
@@ -23,6 +22,7 @@ use windmill::services::electoral_log::{
     post_voter_secret_attribute_audit, ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
 };
+use windmill::services::export::integration_secrets::IntegrationSecretsExport;
 use windmill::services::participation_authorization::{
     ParticipationAuthorization, ParticipationCommand,
     PARTICIPATION_AUTHORIZATION,
@@ -348,14 +348,16 @@ mod tests {
         );
 
         // Requested without the permission, including by holders of the
-        // voter-secret or the integration-secret write permission.
+        // event-read, voter-secret or realm-attribute read permissions.
         for claims in [
-            Claims::new("tenant", "admin").build(),
+            Claims::new("tenant", "admin")
+                .roles([
+                    Permissions::ELECTION_EVENT_READ,
+                    Permissions::KEYCLOAK_REALM_ATTRIBUTES_READ,
+                ])
+                .build(),
             Claims::new("tenant", "voters")
                 .roles([Permissions::VOTER_SECRET_ATTRIBUTE_READ])
-                .build(),
-            Claims::new("tenant", "writer")
-                .roles([Permissions::INTEGRATION_SECRET_WRITE])
                 .build(),
         ] {
             let denied = integration_secrets_export(&claims, &requested(true));

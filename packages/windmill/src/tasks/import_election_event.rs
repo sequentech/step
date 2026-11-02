@@ -11,10 +11,7 @@ use crate::services::import::import_users::ImportUsersPrivileges;
 use crate::services::import::rejection::problems_of;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::task_audit;
-use crate::services::tasks_execution::{
-    persisted_integration_secret_import_permission, update_complete, update_fail,
-    update_fail_with_problems,
-};
+use crate::services::tasks_execution::{update_complete, update_fail, update_fail_with_problems};
 use crate::tasks::audit_log_outbox::kick_audit_log_outbox;
 use crate::tasks::insert_election_event::ELECTION_EVENT;
 use crate::{
@@ -52,11 +49,6 @@ pub struct ImportElectionEventBody {
     /// server: a bundle's messaging configuration is imported only then.
     #[serde(default)]
     pub messaging_config_permission: crate::services::messaging::config::MessagingConfigPermission,
-    /// Whether the importer holds `integration-secret-write`, set by the
-    /// server: only then are the archive's integration secrets installed.
-    #[serde(default)]
-    pub integration_secret_permission:
-        sequent_core::types::integration_secrets::IntegrationSecretImportPermission,
     /// What the importing user may grant through the voters file, derived by
     /// the server from that user's permissions.
     #[serde(default)]
@@ -72,18 +64,6 @@ impl std::fmt::Debug for ImportElectionEventBody {
             .field("password", &self.password.as_ref().map(|_| "<redacted>"))
             .field("check_only", &self.check_only)
             .field("sha256", &self.sha256)
-            .field(
-                "may_write_secret_attributes",
-                &self.may_write_secret_attributes,
-            )
-            .field(
-                "messaging_config_permission",
-                &self.messaging_config_permission,
-            )
-            .field(
-                "integration_secret_permission",
-                &self.integration_secret_permission,
-            )
             .finish_non_exhaustive()
     }
 }
@@ -159,36 +139,13 @@ pub async fn execute(
 ) -> Result<()> {
     // What the import left out, with its reason, for the task's log.
     let notes = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
-    let task_id = task_execution.id.clone();
     let result = provide_hasura_transaction(|hasura_transaction| {
         let object = object.clone();
-        let task_id = task_id.clone();
         let tenant_id = tenant_id.clone();
         let election_event_id = election_event_id.clone();
         let notes = notes.clone();
 
         Box::pin(async move {
-            // Only the task row harvest wrote can let this import install
-            // integration secrets; the message's own claim is replaced.
-            // A task row that can't be read grants nothing.
-            let persisted_task = crate::postgres::tasks_execution::get_task_by_id_with_transaction(
-                hasura_transaction,
-                &tenant_id,
-                &task_id,
-            )
-            .await
-            .ok();
-            let mut object = object.clone();
-            object.integration_secret_permission = persisted_task
-                .map(|task| {
-                    persisted_integration_secret_import_permission(
-                        &task,
-                        &tenant_id,
-                        &object.document_id,
-                        &election_event_id,
-                    )
-                })
-                .unwrap_or_default();
             let imported = import_election_event_service::process_document(
                 hasura_transaction,
                 object.clone(),
@@ -277,12 +234,10 @@ mod tests {
             "tenant_id": TENANT_ID,
             "document_id": "document",
             "password": synthetic,
-            "integration_secret_permission": "PERMITTED",
         }));
-        for formatted in [format!("{object:?}"), format!("{object:#?}")] {
-            assert!(!formatted.contains(synthetic), "{formatted}");
-            assert!(formatted.contains("<redacted>"));
-        }
+        let formatted = format!("{object:?}");
+        assert!(!formatted.contains(synthetic), "{formatted}");
+        assert!(formatted.contains("<redacted>"));
     }
 
     /// The name is read from the presentation, in the default language: the

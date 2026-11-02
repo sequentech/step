@@ -2267,7 +2267,6 @@ const basqueTranslation: TranslationType = {
                 "voter-secret-attribute-read": "Erakutsi Bozkatzailearen Eremu Sekretuak",
                 "voter-secret-attribute-write": "Editatu Bozkatzailearen Eremu Sekretuak",
                 "integration-secret-read": "Esportatu Integrazio Sekretuak",
-                "integration-secret-write": "Inportatu Integrazio Sekretuak",
                 "user-create": "Sortu Erabiltzailea",
                 "user-read": "Irakurri Erabiltzailea",
                 "user-write": "Editatu Erabiltzailea",

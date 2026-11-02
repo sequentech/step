@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_election_event::process_export_zip;
+use crate::services::export::integration_secrets::IntegrationSecretsExport;
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
 use anyhow::Context;
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::types::hasura::core::TasksExecution;
-use sequent_core::types::integration_secrets::IntegrationSecretsExport;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 

@@ -2291,7 +2291,6 @@ const tagalogTranslation: TranslationType = {
                 "voter-secret-attribute-read": "Ipakita ang mga Lihim na Field ng Botante",
                 "voter-secret-attribute-write": "I-edit ang mga Lihim na Field ng Botante",
                 "integration-secret-read": "I-export ang mga Lihim ng Integrasyon",
-                "integration-secret-write": "I-import ang mga Lihim ng Integrasyon",
                 "user-create": "Lumikha ng Tagagamit",
                 "user-read": "Basahin ang Tagagamit",
                 "user-write": "I-edit ang Tagagamit",

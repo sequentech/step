@@ -2482,7 +2482,6 @@ const englishTranslation = {
                 "voter-secret-attribute-read": "Reveal Secret Voter Fields",
                 "voter-secret-attribute-write": "Edit Secret Voter Fields",
                 "integration-secret-read": "Export Integration Secrets",
-                "integration-secret-write": "Import Integration Secrets",
                 "user-create": "Create User",
                 "user-read": "Read User",
                 "user-write": "Edit User",

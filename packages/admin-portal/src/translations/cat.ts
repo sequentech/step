@@ -2283,7 +2283,6 @@ const catalanTranslation: TranslationType = {
                 "voter-secret-attribute-read": "Mostrar Camps Secrets del Votant",
                 "voter-secret-attribute-write": "Editar Camps Secrets del Votant",
                 "integration-secret-read": "Exportar Secrets d'Integració",
-                "integration-secret-write": "Importar Secrets d'Integració",
                 "user-create": "Crear Usuari",
                 "user-read": "Llegir Usuari",
                 "user-write": "Editar Usuari",

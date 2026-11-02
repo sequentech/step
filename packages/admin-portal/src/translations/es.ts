@@ -2346,7 +2346,6 @@ const spanishTranslation: TranslationType = {
                 "voter-secret-attribute-read": "Mostrar Campos Secretos del Votante",
                 "voter-secret-attribute-write": "Editar Campos Secretos del Votante",
                 "integration-secret-read": "Exportar Secretos de Integración",
-                "integration-secret-write": "Importar Secretos de Integración",
                 "user-create": "Crear Usuario",
                 "user-read": "Leer Usuario",
                 "user-write": "Editar Usuario",

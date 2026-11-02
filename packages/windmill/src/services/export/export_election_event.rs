@@ -31,6 +31,7 @@ use crate::services::signing::issuers::staff_issuers_pem_bundle;
 use crate::tasks::export_election_event::ExportOptions;
 use crate::types::documents::EDocuments;
 
+use super::integration_secrets::{embed_integration_secrets, IntegrationSecretsExport};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
@@ -42,9 +43,6 @@ use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::temp_path::generate_temp_file;
 use sequent_core::types::hasura::core::{
     Candidate, Contest, DocumentAnnotations, Election, KeysCeremony, SupportMaterial,
-};
-use sequent_core::types::integration_secrets::{
-    embed_integration_secrets, IntegrationSecretBinding, IntegrationSecretsExport,
 };
 use sequent_core::util::version::{DEV_APP_VERSION, ENV_VAR_APP_VERSION};
 use std::collections::HashMap;
@@ -187,12 +185,9 @@ pub async fn read_export_data(
     let mut keycloak_event_realm = serde_json::to_value(realm)?;
     // Keycloak's partial export masks the integration secrets. An export
     // granted them reads the designated ones from Keycloak's storage.
-    let integration_secret_bindings = match export_config.integration_secrets {
-        IntegrationSecretsExport::OMITTED => None,
-        IntegrationSecretsExport::INCLUDED => {
-            Some(embed_stored_integration_secrets(&board_name, &mut keycloak_event_realm).await?)
-        }
-    };
+    if export_config.integration_secrets == IntegrationSecretsExport::INCLUDED {
+        embed_stored_integration_secrets(&board_name, &mut keycloak_event_realm).await?;
+    }
 
     let mut import_election_event_schema = ImportElectionEventSchema {
         // parse_uuid_v4 still runs: the schema now carries a String, but an
@@ -229,7 +224,6 @@ pub async fn read_export_data(
         signing_checks: None,
         approval_matrix,
         messaging_config,
-        integration_secret_bindings,
         version,
     };
 
@@ -248,14 +242,14 @@ pub async fn read_export_data(
 }
 
 /// Replaces the masked Scanovate `liveness-secret` of the exported realm with
-/// the value Keycloak stores, and returns the bindings to record. Reads one
-/// snapshot of the realm's Scanovate configurations; fails when it no longer
-/// matches the realm export. The value is never logged.
+/// the value Keycloak stores. Reads one snapshot of the realm's Scanovate
+/// configurations; fails when it no longer matches the realm export. The
+/// value is never logged.
 #[instrument(err, skip(keycloak_event_realm))]
 async fn embed_stored_integration_secrets(
     realm_name: &str,
     keycloak_event_realm: &mut serde_json::Value,
-) -> Result<Vec<IntegrationSecretBinding>> {
+) -> Result<()> {
     let mut keycloak_db_client = get_keycloak_pool()
         .await
         .get()

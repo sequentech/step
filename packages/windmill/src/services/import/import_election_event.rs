@@ -121,10 +121,6 @@ use crate::types::documents::EDocuments;
 use electoral_log::ports::ElectoralLogStore;
 use regex::Regex;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
-use sequent_core::types::integration_secrets::{
-    reconcile_imported_integration_secrets, IntegrationSecretBinding,
-    IntegrationSecretImportPermission,
-};
 use sequent_core::types::keycloak::{
     CERTIFICATES_IDP_ALIAS, DEFAULT_IVR_SERVICE_CLIENT_ID, IVR_VOTING_CLIENT_ID,
 };
@@ -758,17 +754,13 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
     Ok(realm_copy)
 }
 
-/// Creates or updates the event realm. For an imported realm, returns the
-/// task-log notes of what happened to its integration secrets.
-#[instrument(err, skip(keycloak_event_realm, integration_secret_bindings))]
+#[instrument(err, skip(keycloak_event_realm))]
 pub async fn upsert_keycloak_realm(
     tenant_id: &str,
     election_event_id: &str,
     keycloak_event_realm: Option<RealmRepresentation>,
     default_locale: Option<String>,
-    integration_secret_bindings: Option<&[IntegrationSecretBinding]>,
-    integration_secret_permission: IntegrationSecretImportPermission,
-) -> Result<Vec<String>> {
+) -> Result<()> {
     let mut realm = if let Some(uploaded) = keycloak_event_realm.clone() {
         let template = read_default_election_event_realm().await?;
         sanitize_imported_event_realm(&uploaded, &template, ImportedRealmReconciliation::default())?
@@ -818,26 +810,7 @@ pub async fn upsert_keycloak_realm(
         &mut realm,
         registration_allowed,
     );
-    // Last, on the realm exactly as it is sent: decide what becomes of the
-    // archive's designated integration secrets (never the destination's).
-    // A realm built from the platform template is not an archive's.
-    let mut realm_config = serde_json::to_value(&realm)?;
-    let integration_secret_notes: Vec<String> = if keycloak_event_realm.is_some() {
-        reconcile_imported_integration_secrets(
-            &mut realm_config,
-            integration_secret_bindings,
-            integration_secret_permission,
-        )
-        .iter()
-        .map(ToString::to_string)
-        .collect()
-    } else {
-        vec![]
-    };
-    for note in &integration_secret_notes {
-        tracing::info!(%tenant_id, %election_event_id, "{note}");
-    }
-    let realm_config = serde_json::to_string(&realm_config)?;
+    let realm_config = serde_json::to_string(&realm)?;
     client
         .upsert_realm(
             realm_name.as_str(),
@@ -865,7 +838,7 @@ pub async fn upsert_keycloak_realm(
     upsert_realm_jwks(realm_name.as_str()).await?;
     crate::tasks::migrate_registration_flows::finish_registration_setup(&client, &realm_name)
         .await?;
-    Ok(integration_secret_notes)
+    Ok(())
 }
 
 /// Fails when an election event with this id already exists in any tenant, so
@@ -1432,17 +1405,14 @@ pub async fn process_election_event_file(
 
     ensure_new_election_event(hasura_transaction, &election_event_id).await?;
 
-    let integration_secret_notes = upsert_keycloak_realm(
+    upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,
         keycloak_event_realm,
-        default_language,
-        data.integration_secret_bindings.as_deref(),
-        object.integration_secret_permission,
+        default_language
     )
     .await
     .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
-    notes.extend(integration_secret_notes);
 
     // The import keeps an exported lockdown, which only the server may set.
     trusted_write(hasura_transaction).await?;

@@ -4264,18 +4264,6 @@
             "deprecationReason": null
           },
           {
-            "name": "include_integration_secrets",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Boolean",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "include_voters",
             "description": null,
             "type": {

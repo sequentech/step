@@ -24,7 +24,6 @@ export enum IPermissions {
     VOTER_SECRET_ATTRIBUTE_READ = "voter-secret-attribute-read",
     VOTER_SECRET_ATTRIBUTE_WRITE = "voter-secret-attribute-write",
     INTEGRATION_SECRET_READ = "integration-secret-read",
-    INTEGRATION_SECRET_WRITE = "integration-secret-write",
     USER_CREATE = "user-create",
     USER_READ = "user-read",
     USER_WRITE = "user-write",

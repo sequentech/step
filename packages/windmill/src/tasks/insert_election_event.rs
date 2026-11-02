@@ -127,16 +127,7 @@ pub async fn insert_election_event_anyhow(
 
     crate::postgres::scheduled_event::lock_scheduling_event(&hasura_transaction, &tenant_id, &id)
         .await?;
-    match upsert_keycloak_realm(
-        tenant_id.as_str(),
-        &id.as_ref(),
-        None,
-        None,
-        None,
-        Default::default(),
-    )
-    .await
-    {
+    match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None, None).await {
         Ok(realm) => Some(realm),
         Err(err) => {
             update_fail(
