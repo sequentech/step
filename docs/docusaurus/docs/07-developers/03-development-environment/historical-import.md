@@ -141,29 +141,30 @@ The workbook contains `ElectionEvent`, `Elections`, `Areas`,
 Election aliases must be unique because schedules refer to aliases. Several
 election rows may share a post; they remain separate contexts.
 
-### Without the workbook
+### Defaults workbook
 
-The workbook is optional. Without it, the decisions carry a `supplement` with
-what the dump does not hold, and the rest is derived from the dump:
+A full workbook names one election per post and one area per cluster, so it fits
+one dump. A workbook without an `Elections` sheet is a **defaults workbook**: it
+carries only what the dump does not hold, and the elections and areas are
+derived from the dump, so the same workbook serves any dump of that source.
 
 - **Elections**: one per polling center that a `pop` row places voters in,
   named and aliased by its `POLLING_PLACE`.
 - **Areas**: one per precinct cluster (`pop.CLUSTERPOLLCENTER`), named by the
   historical name rule below and described by the cluster's own polling place.
   Without its own polling center, every precinct row of that cluster must refer
-  to the same post; conflicting posts are refused.
-- **Event**: `supplement.event` — `name` and `electionEventId` are required;
-  `description`, `logoUrl` and `css` are optional.
-- **Schedules**: `supplement.schedules`, each a `type` and a `date`. A schedule
-  with no `election` (the post) applies to every election. Dates are RFC 3339
-  instants, or local date-times read at `scheduleOffsetMinutes`.
-- **CCS servers and trustees**: `supplement.ccsServers`, and the
-  `areaCcsServerTags` and `areaTrusteeServers` every area carries.
+  to the same post; conflicting posts are refused. An `Areas` row without a
+  `name` gives its other columns (CCS server tags, trustee servers, station id)
+  to every area; a row with a `name` gives them to that area only, after the
+  defaults. A named row that matches no derived area, and a second row for the
+  same area or for every area, are refused.
+- **Schedules**: a `ScheduledEvents` row without an `election_alias` applies to
+  every election; one with an alias (the post) to that election only.
+- **Event and CCS servers**: the `ElectionEvent` and `CcsServers` sheets, read
+  as in a full workbook.
 
-A workbook and a supplement together are refused, as is neither. Election and
-area associations name workbook rows, so they are refused without one. The
-summary and provenance then have no `workbookSha256`, and `sourceDigests`
-binds the SQL alone.
+Election and area associations name workbook rows, so they are refused with a
+defaults workbook. The summary and provenance record `defaultsWorkbook: true`.
 
 Names and descriptions are kept per language in `presentation.i18n.<lang>`.
 `<lang>` is the row's `presentation.language_conf.default_language_code`, or
@@ -284,9 +285,9 @@ step-cli step build-election-event \
 ```
 
 Run without `--check-only` to write a validated package. `--strict` also refuses
-warnings. The existing workbook-only command remains available. With
-`--historical-sql`, `--workbook` may be left out when the decisions file carries
-a `supplement`:
+warnings. The existing workbook-only command remains available. `--workbook` may
+be a defaults workbook (no `Elections` sheet), with the voter area join in the
+decisions when voters are preserved:
 
 ```json
 {
@@ -294,24 +295,7 @@ a `supplement`:
   "voterAreaJoin": "mail-country-embassy",
   "ballot": "seat-plurality-at-large",
   "scope": "configured-seats-only",
-  "scheduleOffsetMinutes": 480,
-  "supplement": {
-    "event": { "name": "Example Event", "electionEventId": "1" },
-    "schedules": [
-      { "type": "START_VOTING_PERIOD", "date": "2027-01-01T08:00" },
-      { "type": "END_VOTING_PERIOD", "date": "2027-01-02T08:00" }
-    ],
-    "ccsServers": [
-      {
-        "name": "Example CCS",
-        "tag": "1",
-        "address": "https://ccs.example.org",
-        "publicKey": "<PEM public key>",
-        "sendLogs": false
-      }
-    ],
-    "areaCcsServerTags": "1"
-  }
+  "scheduleOffsetMinutes": 480
 }
 ```
 

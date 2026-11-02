@@ -7,8 +7,9 @@
 //! census eligibility and which records outside configured seats are in scope.
 //!
 //! The SQL may be in the legacy or the documented post-qualification schema
-//! ([`SourceSchema`]). The workbook is optional: without one, its sheets are
-//! derived from the SQL and a reviewed [`Supplement`] in the decisions.
+//! ([`SourceSchema`]). The workbook may be a full one, for one dump, or a
+//! defaults workbook without an `Elections` sheet, whose elections and areas are
+//! derived from the SQL so that one workbook serves any dump.
 
 use super::{
     problem::{Code, Problem, Report},
@@ -22,14 +23,11 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
+#[path = "historical_defaults.rs"]
+mod defaults;
 #[path = "historical_schema.rs"]
 mod schema;
-#[path = "historical_supplement.rs"]
-mod supplement;
 pub use schema::SourceSchema;
-pub use supplement::{
-    Supplement, SupplementCcsServer, SupplementEvent, SupplementSchedule,
-};
 
 pub const PROFILE: &str = "legacy-seat-v1";
 /// The default language of the built-in event and election templates, used for
@@ -127,9 +125,7 @@ pub enum VoterAreaJoin {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct SourceDigests {
     pub sql_sha256: String,
-    /// Absent when the conversion has no workbook.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub workbook_sha256: Option<String>,
+    pub workbook_sha256: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -189,10 +185,6 @@ pub struct HistoricalOptions {
     pub affiliation: AffiliationPolicy,
     /// Offset for timezone-less historical Excel dates. No implicit local timezone.
     pub schedule_offset_minutes: Option<i32>,
-    /// What the workbook would add, when there is none. Exactly one of the two
-    /// is given.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub supplement: Option<Supplement>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -201,9 +193,11 @@ pub struct Summary {
     pub profile: String,
     pub source_schema: SourceSchema,
     pub sql_sha256: String,
-    /// Absent when the conversion has no workbook.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub workbook_sha256: Option<String>,
+    pub workbook_sha256: String,
+    /// The workbook was a defaults workbook: elections and areas came from the
+    /// SQL.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub defaults_workbook: bool,
     pub source_rows: BTreeMap<String, usize>,
     pub generated_rows: BTreeMap<String, usize>,
     pub selected_candidates: usize,
@@ -255,13 +249,13 @@ fn fail(summary: Summary, p: Problem) -> Refused {
 /// same `build`, `validate` and `archive::zip` as every other native import.
 pub fn adapt(
     sql: &[u8],
-    xlsx: Option<&[u8]>,
+    xlsx: &[u8],
     options: &HistoricalOptions,
 ) -> Result<Adapted, Refused> {
     let mut summary = Summary {
         profile: PROFILE.into(),
         sql_sha256: format!("{:x}", Sha256::digest(sql)),
-        workbook_sha256: xlsx.map(|xlsx| format!("{:x}", Sha256::digest(xlsx))),
+        workbook_sha256: format!("{:x}", Sha256::digest(xlsx)),
         ..Summary::default()
     };
     let dump = read_mysql_dump(sql).map_err(|e| {
@@ -293,43 +287,23 @@ pub fn adapt(
     let (dump, source_schema) =
         schema::normalize(dump).map_err(|p| fail(summary.clone(), p))?;
     summary.source_schema = source_schema;
-    let (workbook, derived, schedules) = match (xlsx, &options.supplement) {
-        (Some(xlsx), None) => (read_workbook(xlsx, &summary)?, None, vec![]),
-        (None, Some(supplement)) => {
-            let derived = supplement::derive(&dump, supplement).map_err(|p| {
-                fail(
-                    summary.clone(),
-                    schema::source_names(p.into(), source_schema)
-                        .problems
-                        .remove(0),
-                )
-            })?;
-            (
-                derived.workbook,
-                Some(derived.areas_by_precinct),
-                derived.schedules,
+    let workbook = read_workbook(xlsx, &summary)?;
+    let (workbook, derived) = if defaults::is_defaults(&workbook) {
+        summary.defaults_workbook = true;
+        let derived = defaults::derive(&dump, &workbook).map_err(|p| {
+            fail(
+                summary.clone(),
+                schema::source_names(p.into(), source_schema)
+                    .problems
+                    .remove(0),
             )
-        }
-        (Some(_), Some(_)) => {
-            return Err(fail(
-                summary,
-                Problem::error(
-                    Code::ConflictingColumns,
-                    "historical decisions supplement",
-                    "a supplement replaces the workbook; give one or the other",
-                ),
-            ))
-        }
-        (None, None) => {
-            return Err(fail(
-                summary,
-                Problem::error(
-                    Code::NotApproved,
-                    "historical decisions supplement",
-                    "without a workbook, the decisions must supply the event and its schedule",
-                ),
-            ))
-        }
+        })?;
+        (
+            derived.workbook,
+            Some((derived.areas_by_precinct, derived.schedule_rows)),
+        )
+    } else {
+        (workbook, None)
     };
     summary.decisions_sha256 = format!(
         "{:x}",
@@ -342,15 +316,25 @@ pub fn adapt(
             )
         ))?)
     );
-    let dates = || match xlsx {
-        Some(xlsx) => historical_dates(xlsx, options.schedule_offset_minutes),
-        None => supplement_dates(&schedules, options.schedule_offset_minutes),
+    let dates = || {
+        let dates = historical_dates(xlsx, options.schedule_offset_minutes)?;
+        Ok(match &derived {
+            // A derived schedule row takes the date of the row it came from.
+            Some((_, rows)) => rows
+                .iter()
+                .enumerate()
+                .filter_map(|(i, source)| {
+                    dates.get(source).map(|date| (i + 2, date.clone()))
+                })
+                .collect(),
+            None => dates,
+        })
     };
     let result = map(
         &dump,
         &workbook,
         dates,
-        derived.as_ref(),
+        derived.as_ref().map(|(areas, _)| areas),
         options,
         &mut summary,
     );
@@ -605,8 +589,14 @@ fn rows_sheet(name: &str, rows: Vec<Row>) -> Sheet {
     Sheet {
         name: name.into(),
         key: super::sheet::normalise_sheet_name(name),
-        headers: rows.first().map_or(Vec::new(), |r| {
-            r.cells.iter().map(|(k, _)| k.clone()).collect()
+        // Every row's columns: a derived area may carry one the first lacks.
+        headers: rows.iter().fold(Vec::new(), |mut headers, r| {
+            for (k, _) in &r.cells {
+                if !headers.contains(k) {
+                    headers.push(k.clone());
+                }
+            }
+            headers
         }),
         rows,
     }
@@ -1127,7 +1117,7 @@ fn map(
         return Err(Problem::error(
             Code::InvalidValue,
             "historical decisions electionMappings + areaMappings",
-            "associations name workbook rows, and without a workbook there are none",
+            "associations name workbook rows, and a defaults workbook has no election or area rows",
         )
         .into());
     }
@@ -1708,6 +1698,7 @@ fn map(
         "sourceSchema": summary.source_schema,
         "sqlSha256": summary.sql_sha256,
         "workbookSha256": summary.workbook_sha256,
+        "defaultsWorkbook": summary.defaults_workbook,
         "decisionsSha256": summary.decisions_sha256,
         "sourceRows": summary.source_rows,
         "selectedCandidates": summary.selected_candidates,
@@ -2101,51 +2092,6 @@ fn compose_date_of_birth(
             .ok_or(()),
         _ => Err(()),
     }
-}
-
-/// The supplement's schedule instants, by the row number each derived schedule row
-/// carries. Read as the workbook's text dates are; a problem names the supplement
-/// schedule the row came from.
-fn supplement_dates(
-    schedules: &[(usize, SupplementSchedule)],
-    offset: Option<i32>,
-) -> Result<BTreeMap<usize, String>, Problem> {
-    schedules
-        .iter()
-        .enumerate()
-        .map(|(i, (source, schedule))| {
-            let at = format!(
-                "historical decisions supplement schedules[{source}].date"
-            );
-            let instant = match DateTime::parse_from_rfc3339(&schedule.date) {
-                Ok(date) => date.to_rfc3339(),
-                Err(_) => {
-                    // With or without seconds: a browser's local date-time
-                    // field gives none.
-                    let naive = [
-                        "%Y-%m-%d %H:%M:%S",
-                        "%Y-%m-%dT%H:%M:%S",
-                        "%Y-%m-%d %H:%M",
-                        "%Y-%m-%dT%H:%M",
-                    ]
-                    .iter()
-                    .find_map(|f| {
-                        NaiveDateTime::parse_from_str(&schedule.date, f).ok()
-                    })
-                    .ok_or_else(|| {
-                        Problem::error(
-                            Code::InvalidValue,
-                            &at,
-                            "date must be an instant or a local date and time",
-                        )
-                    })?;
-                    offset_instant(naive, offset, &at)?
-                }
-            };
-            // `row` numbers rows from 2, as a spreadsheet below its header does.
-            Ok((i + 2, instant))
-        })
-        .collect()
 }
 
 /// A timezone-less date at the reviewed UTC offset. There is no implicit one.
