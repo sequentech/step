@@ -510,16 +510,45 @@ mod tests {
             reader.header().columns,
             vec!["username", "email", "custom"]
         );
-        assert_eq!(reader.header().notes.len(), 1);
-        assert!(
-            reader.header().notes[0].contains("2 election participation"),
-            "{:?}",
-            reader.header().notes
+        assert_eq!(
+            reader.header().notes,
+            vec![
+                "Ignoring 2 election participation column(s) (election__…) — \
+                 they only report who voted and are not imported as voter \
+                 attributes or voting history."
+            ]
         );
         assert_eq!(
             all(text)[0],
             vec!["ada".to_owned(), "a@b.org".to_owned(), "kept".to_owned()]
         );
+    }
+
+    #[test]
+    fn a_row_of_blank_cells_is_not_a_voter_and_ignored_columns_stay_out() {
+        // A spreadsheet row whose cells are all blank keeps its commas, so the
+        // csv reader returns it as a record; only the census reader's own check
+        // stops it becoming a voter. The dropped platform and participation
+        // columns around it, empty or not, must not shift the kept values.
+        let text =
+            "username,id,enabled,email_verified,authorized-election-ids,\
+             election__General_Election,election__external_id__6e,custom\n\
+             ada,7,false,true,x,true,,first\n\
+             ,  ,,\t, ,,,\n\
+             bob,8,true,false,y,,true,second\n";
+        let reader = CensusCsv::new(text).expect("header");
+        assert_eq!(
+            reader.header().columns,
+            vec!["username", "enabled", "email_verified", "custom"]
+        );
+        let voters: Vec<Vec<String>> = [
+            ["ada", "false", "true", "first"],
+            ["bob", "true", "false", "second"],
+        ]
+        .iter()
+        .map(|row| row.iter().map(|value| value.to_string()).collect())
+        .collect();
+        assert_eq!(all(text), voters);
     }
 
     #[test]
