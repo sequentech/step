@@ -479,6 +479,17 @@ fn only_documents_holding_voter_secrets_need_the_secret_read_permission() {
             Some(DocumentAnnotations::voter_secret_export()),
             vec![VOTER_SECRET_ATTRIBUTE_READ],
         ),
+        (
+            Some(DocumentAnnotations::default().with_integration_secrets()),
+            vec![INTEGRATION_SECRET_READ],
+        ),
+        (
+            Some(
+                DocumentAnnotations::voter_secret_export()
+                    .with_integration_secrets(),
+            ),
+            vec![VOTER_SECRET_ATTRIBUTE_READ, INTEGRATION_SECRET_READ],
+        ),
     ] {
         assert_eq!(
             document_extra_permissions(annotations.as_ref()),
@@ -486,6 +497,28 @@ fn only_documents_holding_voter_secrets_need_the_secret_read_permission() {
             "{annotations:?}"
         );
     }
+}
+
+#[test]
+fn an_integration_secret_archive_is_downloaded_only_with_its_permission() {
+    let annotations = DocumentAnnotations::default().with_integration_secrets();
+    let required = document_extra_permissions(Some(&annotations));
+    let allowed =
+        |roles: &[sequent_core::types::permissions::Permissions]| {
+            authorize(
+                &Claims::new("tenant", "user").roles(roles.to_vec()).build(),
+                true,
+                Some("tenant".to_string()),
+                required.clone(),
+            )
+            .is_ok()
+        };
+    assert!(allowed(&[INTEGRATION_SECRET_READ]));
+    assert!(!allowed(&[]));
+    assert!(!allowed(&[
+        VOTER_SECRET_ATTRIBUTE_READ,
+        ELECTION_EVENT_READ
+    ]));
 }
 
 #[test]

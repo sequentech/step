@@ -1909,6 +1909,9 @@ const spanishTranslation: TranslationType = {
                 encryptWithPassword: "Cifrar con Contraseña",
                 passwordForcedNote:
                     "El archivo se protegerá con contraseña de todos modos: los informes, las solicitudes y los datos del tablón se cifran siempre. Marca la casilla para incluir también los campos secretos de votante descifrados.",
+                integrationSecrets: "Secretos de integración (credenciales de servicio)",
+                integrationSecretsNote:
+                    "Una vez descifrado, el archivo contendrá en claro el secreto de liveness de Scanovate. Mantén en secreto el archivo y su contraseña, e impórtalo solo donde deba usarse ese servicio de Liveness Plus.",
                 includeVoters: "Incluir Votantes",
                 activityLogs: "Registros de Actividad",
                 bulletinBoard: "Tablón de Anuncios",
@@ -2342,6 +2345,7 @@ const spanishTranslation: TranslationType = {
                 "voter-write": "Editar Votante",
                 "voter-secret-attribute-read": "Mostrar Campos Secretos del Votante",
                 "voter-secret-attribute-write": "Editar Campos Secretos del Votante",
+                "integration-secret-read": "Exportar Secretos de Integración",
                 "user-create": "Crear Usuario",
                 "user-read": "Leer Usuario",
                 "user-write": "Editar Usuario",

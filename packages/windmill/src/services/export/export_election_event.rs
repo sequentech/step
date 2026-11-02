@@ -15,7 +15,7 @@ use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::approval_matrix::store::get_latest_approval_matrix;
-use crate::services::database::get_hasura_pool;
+use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::electoral_log_transfer::{
     export_electoral_log, manifest_file_name, records_file_name,
 };
@@ -31,6 +31,7 @@ use crate::services::signing::issuers::staff_issuers_pem_bundle;
 use crate::tasks::export_election_event::ExportOptions;
 use crate::types::documents::EDocuments;
 
+use super::integration_secrets::{embed_integration_secrets, IntegrationSecretsExport};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
@@ -181,11 +182,18 @@ pub async fn read_export_data(
     .await?
     .map(|stored| stored.config);
 
+    let mut keycloak_event_realm = serde_json::to_value(realm)?;
+    // Keycloak's partial export masks the integration secrets. An export
+    // granted them reads the designated ones from Keycloak's storage.
+    if export_config.integration_secrets == IntegrationSecretsExport::INCLUDED {
+        embed_stored_integration_secrets(&board_name, &mut keycloak_event_realm).await?;
+    }
+
     let mut import_election_event_schema = ImportElectionEventSchema {
         // parse_uuid_v4 still runs: the schema now carries a String, but an
         // export must not emit a tenant id that is not a UUID.
         tenant_id: parse_uuid_v4(&tenant_id)?.to_string(),
-        keycloak_event_realm: Some(serde_json::to_value(realm)?),
+        keycloak_event_realm: Some(keycloak_event_realm),
         election_event: election_event,
         elections: export_elections,
         contests: contests.clone(),
@@ -231,6 +239,33 @@ pub async fn read_export_data(
         process_event_images(&transaction, tenant_id, elections, contests, candidates).await?;
 
     Ok((import_election_event_schema, images_files_path))
+}
+
+/// Replaces the masked Scanovate `liveness-secret` of the exported realm with
+/// the value Keycloak stores. Reads one snapshot of the realm's Scanovate
+/// configurations; fails when it no longer matches the realm export. The
+/// value is never logged.
+#[instrument(err, skip(keycloak_event_realm))]
+async fn embed_stored_integration_secrets(
+    realm_name: &str,
+    keycloak_event_realm: &mut serde_json::Value,
+) -> Result<()> {
+    let mut keycloak_db_client = get_keycloak_pool()
+        .await
+        .get()
+        .await
+        .context("Error acquiring Keycloak DB pool")?;
+    let keycloak_transaction = keycloak_db_client
+        .transaction()
+        .await
+        .context("Error starting Keycloak transaction")?;
+    let stored = crate::postgres::keycloak_realm::get_scanovate_liveness_secrets(
+        &keycloak_transaction,
+        realm_name,
+    )
+    .await?;
+    drop(keycloak_transaction);
+    Ok(embed_integration_secrets(keycloak_event_realm, &stored)?)
 }
 
 /// The support material rows of the event, for the archive's JSON.
@@ -467,6 +502,7 @@ pub async fn process_export_zip(
     permitted_election_ids: &[String],
 ) -> Result<()> {
     export_config.validate_protocol_archive()?;
+    export_config.validate_integration_secrets()?;
     let contains_voter_secrets = export_config.contains_voter_secrets;
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -491,7 +527,9 @@ pub async fn process_export_zip(
     );
     info!(
         include_voters = export_config.include_voters,
-        contains_voter_secrets, "exporting election event"
+        contains_voter_secrets,
+        integration_secrets = ?export_config.integration_secrets,
+        "exporting election event"
     );
     // A task-private 0700 directory prevents same-event exports from racing
     // over a predictable filename and removes plaintext on every return path.
@@ -1004,6 +1042,9 @@ pub async fn process_export_zip(
     } else {
         DocumentAnnotations::default()
     };
+    if export_config.integration_secrets == IntegrationSecretsExport::INCLUDED {
+        document_annotations = document_annotations.with_integration_secrets();
+    }
     document_annotations.participation_scope = Some(
         sequent_core::types::hasura::core::DocumentParticipationScope {
             election_event_id: election_event_id.to_string(),
