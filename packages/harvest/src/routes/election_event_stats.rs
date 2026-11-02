@@ -10,9 +10,11 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use uuid::Uuid;
 use windmill::services::cast_votes::{
     get_count_distinct_voters_by_channel, get_count_votes_per_day,
     get_top_count_votes_by_ip, CastVoteCountByIp, CastVotesPerDay,
@@ -178,13 +180,25 @@ pub struct GetTopCastVotesByIp {
     election_id: Option<String>,
 }
 
+/// The election filter decides which IP permission applies and which rows the
+/// query returns, so a value that is not an election id has to fail: read as
+/// no filter, it would list the whole event.
+fn parse_election_filter(
+    election_id: Option<&str>,
+) -> Result<Option<Uuid>, (Status, String)> {
+    election_id
+        .map(parse_uuid_v4)
+        .transpose()
+        .map_err(|_| (Status::BadRequest, "Invalid election_id".to_string()))
+}
+
 /// The list shows voter IPs and ids, so the dashboard permission is not
 /// enough. The event-wide list needs ADMIN_IP_ADDRESS_VIEW; a list filtered to
 /// one election also accepts ELECTION_IP_ADDRESS_VIEW, as the election
 /// dashboard does.
 fn authorize_top_votes_by_ip(
     claims: &JwtClaims,
-    election_id: Option<&str>,
+    election_id: Option<Uuid>,
 ) -> Result<(), (Status, String)> {
     let ip_view = |permission| {
         authorize(
@@ -209,7 +223,8 @@ pub async fn get_election_event_top_votes_by_ip(
     body: Json<GetTopCastVotesByIp>,
 ) -> Result<Json<DataList<CastVoteCountByIp>>, (Status, String)> {
     let input = body.into_inner();
-    authorize_top_votes_by_ip(&claims, input.election_id.as_deref())?;
+    let election_id = parse_election_filter(input.election_id.as_deref())?;
+    authorize_top_votes_by_ip(&claims, election_id)?;
 
     let tenant_id: String = claims.hasura_claims.tenant_id.clone();
 
@@ -228,7 +243,7 @@ pub async fn get_election_event_top_votes_by_ip(
             )
         })?;
     let filter = ListCastVotesByIpFilter {
-        election_id: input.election_id.clone(),
+        election_id,
         limit: input.limit,
         offset: input.offset,
         ip: input.ip,
@@ -266,7 +281,27 @@ mod tests {
         admin_claims, CALLER_TENANT_ID,
     };
 
-    const ELECTION_ID: Option<&str> = Some("election");
+    const ELECTION_UUID: &str = "6c8e4f1a-2b3d-4c5e-8f90-1a2b3c4d5e6f";
+    const ELECTION_ID: Option<Uuid> =
+        Some(Uuid::from_u128(0x6c8e4f1a_2b3d_4c5e_8f90_1a2b3c4d5e6f));
+
+    #[test]
+    fn election_filter_keeps_an_election_id_or_no_filter() {
+        assert_eq!(parse_election_filter(None), Ok(None));
+        assert_eq!(parse_election_filter(Some(ELECTION_UUID)), Ok(ELECTION_ID));
+    }
+
+    #[test]
+    fn election_filter_refuses_anything_else() {
+        let not_v4 = "6c8e4f1a-2b3d-1c5e-8f90-1a2b3c4d5e6f";
+        for election_id in ["", "election", "6c8e4f1a", not_v4] {
+            assert_eq!(
+                parse_election_filter(Some(election_id)).unwrap_err().0,
+                Status::BadRequest,
+                "{election_id:?}"
+            );
+        }
+    }
 
     #[test]
     fn dashboard_view_alone_does_not_list_voter_ips() {

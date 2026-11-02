@@ -788,7 +788,7 @@ pub struct ListCastVotesByIpFilter {
     pub offset: Option<i32>,
     pub ip: Option<String>,
     pub country: Option<String>,
-    pub election_id: Option<String>,
+    pub election_id: Option<Uuid>,
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -816,14 +816,6 @@ pub async fn get_top_count_votes_by_ip(
 
     let country_pattern: Option<String> = if let Some(country_val) = filter.country {
         Some(format!("%{country_val}%"))
-    } else {
-        None
-    };
-    let election_id_pattern: Option<Uuid> = if let Some(election_id_val) = filter.election_id {
-        match parse_uuid_v4(&election_id_val) {
-            Ok(uuid) => Some(uuid),
-            Err(e) => None,
-        }
     } else {
         None
     };
@@ -874,7 +866,7 @@ pub async fn get_top_count_votes_by_ip(
                 &parse_uuid_v4(election_event_id)?,
                 &ip_pattern,
                 &country_pattern,
-                &election_id_pattern,
+                &filter.election_id,
                 &query_limit,
                 &query_offset,
                 &status,
