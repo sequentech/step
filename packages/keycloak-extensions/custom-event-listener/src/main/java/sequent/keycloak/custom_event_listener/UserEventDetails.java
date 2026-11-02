@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 import org.keycloak.events.Event;
+import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics;
 
 /** The {@code details} object sent with every user event. */
 final class UserEventDetails {
@@ -58,6 +59,19 @@ final class UserEventDetails {
   static Map<String, Object> of(Event event, Account account) {
     Map<String, String> keycloakDetails =
         event.getDetails() != null ? event.getDetails() : Map.of();
+    if (ScanovateDiagnostics.EVENT_ERROR.equals(event.getError())) {
+      // The producer and durable listener share the bounded contract. This also admits the
+      // boolean barcode check without weakening the general secret-name filter for "code".
+      Map<String, String> diagnostic = ScanovateDiagnostics.filter(keycloakDetails);
+      if (event.getTime() > 0) {
+        diagnostic.put(
+            "scanovate_occurred_at", java.time.Instant.ofEpochMilli(event.getTime()).toString());
+      }
+      Map<String, Object> result = new LinkedHashMap<>();
+      result.put("error", ScanovateDiagnostics.EVENT_ERROR);
+      result.put("details", diagnostic);
+      return result;
+    }
     Map<String, Object> details = new LinkedHashMap<>();
     details.put("client_id", event.getClientId());
     details.put("error", safeError(event.getError()));

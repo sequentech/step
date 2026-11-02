@@ -2501,7 +2501,7 @@
     "custom-event-listener"
   ],
   "enabledEventTypes": [],
-  "adminEventsEnabled": false,
+  "adminEventsEnabled": true,
   "adminEventsDetailsEnabled": false,
   "identityProviders": [
     {

@@ -29,6 +29,7 @@ import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics;
 
 @JBossLog
 public class CustomEventListenerProvider implements EventListenerProvider {
@@ -110,7 +111,10 @@ public class CustomEventListenerProvider implements EventListenerProvider {
           case UNKNOWN -> null;
           case KNOWN ->
               accountUsername.orElseGet(
-                  () -> Optional.ofNullable(details.get("username")).orElse("unknown"));
+                  () ->
+                      ScanovateDiagnostics.EVENT_ERROR.equals(event.getError())
+                          ? "unknown"
+                          : Optional.ofNullable(details.get("username")).orElse("unknown"));
         };
 
     // Prepare message body based on event type.
@@ -163,6 +167,12 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     if (!Utils.isCommunication(details)) {
       body = UserEventDetails.safeDetailValue(body);
     }
+    Map<String, Object> eventDetails = UserEventDetails.of(event, account);
+    if (ScanovateDiagnostics.EVENT_ERROR.equals(event.getError())) {
+      // Election boards persist body, whereas the tenant fallback persists details. Give both
+      // the same allowlisted diagnostic object; never persist legacy profile/request fields.
+      body = om.valueToTree(eventDetails).toString();
+    }
     // Publish the event to PGMQ with the complete JSON structure.
     logEvent(
         taskMessage(
@@ -173,7 +183,7 @@ public class CustomEventListenerProvider implements EventListenerProvider {
             realm.tenantId(),
             username,
             event.getTime(),
-            Map.of("details", UserEventDetails.of(event, account))));
+            Map.of("details", eventDetails)));
 
     if (signinNetworkDispatcher != null && SigninNetworkSender.eligible(realm, event)) {
       // A rollback must not publish successful sign-in attribution. The callback is request-local;

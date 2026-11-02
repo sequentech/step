@@ -5,6 +5,79 @@ import englishTranslation, {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        configurationPackage: {
+            tab: "Paquete de configuración",
+            title: "Importar un paquete de configuración",
+            description:
+                "Aplica una entrega completa exportada por Election Architect: configuración y ajustes del cliente, roles, administradores, autoridades y el evento electoral con su censo. Nada cambia hasta que se aplica la vista previa.",
+            tenant: "Cliente: {{tenantId}}",
+            notPermitted:
+                "Importar un paquete de configuración requiere tenant-write, user-write, role-write, trustee-create, trustee-write y election-event-create en este cliente.",
+            requirements: "El paquete debe incluir",
+            censusRequired: "El censo del evento electoral",
+            sections: {
+                "tenant-configuration": "Configuración del cliente",
+                "tenant-settings": "Ajustes del cliente",
+                "role-permissions": "Permisos de roles",
+                "admin-accounts": "Cuentas de administración",
+                "trustees": "Autoridades",
+                "election-event": "Evento electoral",
+            },
+            upload: "Subir paquete",
+            uploadTitle: "Subir un paquete de configuración",
+            uploadSubtitle: "El zip de la entrega, desde un medio extraíble",
+            uploadParagraph: "Primero se previsualiza; la subida por sí sola no aplica nada.",
+            documentId: "O el id de un documento ya subido",
+            preview: "Vista previa",
+            apply: "Aplicar",
+            blocked:
+                "La vista previa encontró bloqueos: corrige el paquete o el cliente y vuelve a previsualizar.",
+            noTask: "La plataforma no devolvió ninguna tarea.",
+            mode: {preview: "Vista previa", apply: "Aplicación"},
+            task: "Tarea {{taskId}}",
+            running: "En curso…",
+            toChange: "Solo vista previa, nada ha cambiado: {{count}} sección(es) cambiarían.",
+            outcome: {
+                running: "En curso",
+                previewed: "Previsualizado: no se cambió nada",
+                applied: "Aplicado: el cliente coincide con el paquete",
+                refused:
+                    "Rechazado antes de que esta ejecución aplicara nada; las secciones que aplicó una ejecución anterior siguen aplicadas, según su estado",
+                failed: "Falló a mitad: las secciones anteriores pueden estar aplicadas, según su estado",
+                unknown:
+                    "Desconocido: una sección no pudo resolverse y no se envió nada más; compruébela antes de reintentar",
+            },
+            columns: {section: "Sección", state: "Estado", task: "Tarea", details: "Detalles"},
+            reconciled: "conciliado",
+            blocker: "Bloqueado",
+            needsApply: "Cambiaría",
+            members: "Miembros",
+            history: "Aplicaciones anteriores",
+            applyRechecks:
+                "Aplicar vuelve a previsualizar el paquete en la plataforma antes de cambiar nada, y se detiene ante cualquier bloqueo.",
+            earlierApplied: "Aplicado por una ejecución anterior",
+            earlierTasks: "Tareas iniciadas para esta sección: {{tasks}}",
+            inFlight: "Hay un envío sin resolver (tarea {{taskId}})",
+            stoppedWithoutRecord:
+                "Detenido sin registro: esta ejecución o una anterior pueden haber aplicado secciones; previsualice de nuevo para ver el estado del cliente",
+            lastLog: "Último mensaje: {{message}}",
+            unreadable:
+                "No se puede leer la tarea ({{reason}}). Puede seguir en curso: compruebe las aplicaciones anteriores o deje de seguirla",
+            notFound: "no encontrada en este cliente",
+            stopFollowing: "Dejar de seguir",
+            mayHaveTask:
+                "Se desconoce el resultado de la petición, así que puede haberse creado una tarea: compruebe las aplicaciones anteriores antes de reintentar.",
+            shaMismatch:
+                "El paquete previsualizado no es el del SHA-256 introducido ({{expected}}); no se puede aplicar.",
+            confirmTitle: "¿Aplicar este paquete?",
+            confirmBody:
+                "Esto aplica el paquete previsualizado al cliente {{tenantId}}. La plataforma lo vuelve a previsualizar primero y se detiene ante cualquier bloqueo.",
+            cancel: "Cancelar",
+            proposedChanges: "Lo que cambiaría al aplicar",
+            shaMalformed:
+                "El SHA-256 introducido no tiene 64 caracteres hexadecimales, así que el paquete no se ha previsualizado. Introduzca el resumen exacto o déjelo en blanco.",
+            nothingToChange: "Nada: el cliente ya coincide con el paquete.",
+        },
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Cerrar",
@@ -28,6 +101,75 @@ const spanishTranslation: TranslationType = {
             snapshot:
                 "Este informe es una instantánea. Repita tras cambios relevantes; no bloquea el evento ni sustituye la aprobación operativa.",
             results: "Resultados de la verificación",
+            condition: "Condición comprobada por el servidor",
+            noDetail: "El servidor no dio más detalle sobre esta comprobación.",
+            reasons: "Por qué falló",
+            noArea: "ninguna área o un área desconocida",
+            eventRoles: {
+                official: "oficial",
+                tested: "de prueba",
+                both: "ambos",
+            },
+            scope: {
+                event: "El evento {{event}}",
+                election: "La elección {{election}}",
+            },
+            certification: {
+                declared_sha256_missing: "no se indicó el SHA-256",
+                declared_sha256_mismatch: "el SHA-256 indicado no coincide con el del archivo",
+                no_counts: "no tiene votantes por área",
+                blank_area: "hay votantes sin área",
+                invalid_sha256: "su SHA-256 no es válido",
+            },
+            findings: {
+                same_event: "El evento oficial y el de prueba son el mismo evento.",
+                configuration_missing:
+                    "El evento {{event}} no se importó desde un paquete de configuración firmado.",
+                configuration_incomplete:
+                    "La configuración firmada del evento oficial no tiene un valor válido para «{{field}}».",
+                external_id_mismatch:
+                    "Los eventos proceden de configuraciones distintas: {{official}} (oficial) y {{tested}} (de prueba).",
+                content_mismatch:
+                    "El contenido firmado es distinto: SHA-256 {{official}} (oficial) y {{tested}} (de prueba).",
+                approvers_mismatch:
+                    "Los aprobadores verificados son distintos: {{only_official}} solo en el evento oficial y {{only_tested}} solo en el de prueba.",
+                areas_mismatch: "{{area}} solo está en el contenido firmado del evento {{event}}.",
+                voter_import_missing:
+                    "El evento {{event}} no tiene una importación certificada de votantes.",
+                voter_import_in_progress:
+                    "Todavía hay una importación de votantes en curso en el evento {{event}}.",
+                voter_file_not_certified:
+                    "La última importación de votantes del evento {{event}} no está certificada: {{reason}}.",
+                voter_receipt_not_signed:
+                    "El registro del evento {{event}} no tiene una entrada firmada que corresponda a la importación de votantes {{import_id}}.",
+                registry_count_changed:
+                    "El evento {{event}} tiene ahora {{current}} votantes en {{area}}, pero su importación certificada tiene {{imported}}.",
+                voter_area_not_configured:
+                    "Los votantes certificados del evento {{event}} incluyen {{area}}, que no está en su contenido firmado.",
+                voter_file_mismatch:
+                    "Los archivos certificados de votantes son distintos: SHA-256 {{official}} (oficial) y {{tested}} (de prueba).",
+                voter_count_mismatch:
+                    "Los archivos certificados difieren en {{area}}: {{official}} votantes (oficial) y {{tested}} (de prueba).",
+                ballots_present: "El evento oficial tiene {{count}} papeletas almacenadas.",
+                received_ballots_present:
+                    "El evento oficial tiene {{count}} papeletas recibidas para revisión.",
+                tally_sessions_present: "El evento oficial tiene {{count}} sesiones de recuento.",
+                status_missing: "{{scope}} no tiene estado de votación.",
+                voting_started: "{{scope}}: el canal {{channel}} está en {{status}}.",
+                voting_dates_recorded:
+                    "{{scope}}: el canal {{channel}} tiene fechas de votación registradas.",
+                no_elections: "El evento {{event}} no tiene elecciones.",
+                publication_missing: "El evento {{event}} no tiene ninguna publicación activa.",
+                publication_mismatch:
+                    "Los {{design_count}} diseños de papeleta publicados del evento {{event}} no coinciden con todos los diseños de su configuración firmada.",
+                publication_empty:
+                    "Los diseños de papeleta publicados del evento {{event}} no se pudieron comprobar con una configuración firmada.",
+                channels_open: "El evento de prueba todavía tiene canales de votación sin cerrar.",
+                seal_at_close_off: "El evento de prueba no sella las urnas al cierre.",
+                no_expected_boxes: "La publicación del evento de prueba no espera ninguna urna.",
+                boxes_unsealed:
+                    "La elección {{election}} del evento de prueba tiene {{unsealed}} urnas sin sellar.",
+            },
         },
         plugins: {
             title: "Complementos",
@@ -460,6 +602,8 @@ const spanishTranslation: TranslationType = {
                 passed: "Superado",
                 failed: "Fallido",
                 checkResult: "{{outcome}}: {{description}}",
+                checkResultWithMessage:
+                    "{{outcome}}: {{description}} Condición registrada: «{{message}}»",
                 description: {
                     VotersImported: "Archivo de votantes importado.",
                     ReadinessVerified:
@@ -873,6 +1017,7 @@ const spanishTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exportar Solicitudes",
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
+                APPLY_CONFIGURATION_PACKAGE: "Aplicar Paquete de Configuración",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
                 CREATE_TENANT: "Crear Inquilino",
                 EXPORT_TEMPLATES: "Exportar Plantillas",
@@ -2714,6 +2859,9 @@ const spanishTranslation: TranslationType = {
                         delete: "¿Está seguro de que desea eliminar este elemento?",
                         sealsUnknown:
                             "No se pudieron comprobar los sellos de las urnas: si tiene urnas selladas, se rechazará el borrado.",
+                        archiveNamed: '¿Está seguro de que desea archivar "{{name}}"?',
+                        unarchiveNamed: '¿Está seguro de que desea desarchivar "{{name}}"?',
+                        deleteNamed: '¿Está seguro de que desea eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2834,6 +2982,13 @@ const spanishTranslation: TranslationType = {
                 "label": "Forma del icono de la casilla de verificación de los candidatos",
                 "square-checkbox": "Casilla de verificación cuadrada",
                 "round-checkbox": "Casilla de verificación redonda",
+            },
+            candidatesLayout: {
+                "label": "Disposición de las candidaturas",
+                "helperText":
+                    "La cuadrícula de papeleta en papel muestra las candidaturas como celdas numeradas con un círculo para rellenar, columna a columna, según Columnas (4 si está vacío). Las votaciones por orden de preferencia siempre usan la lista.",
+                "list": "Lista",
+                "paper-grid": "Cuadrícula de papeleta en papel",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidatos Y Listas",
@@ -4308,6 +4463,8 @@ const spanishTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Paneles configurables",
+            modeChangeError: "No se pudo cambiar el modo del panel. Inténtelo de nuevo.",
             title: "Monitorización",
             loading: "Cargando la monitorización",
             unavailableAlert:

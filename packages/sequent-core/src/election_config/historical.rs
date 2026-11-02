@@ -5,6 +5,10 @@
 //! This versioned profile is deterministic, local and data-only. It deliberately
 //! requires decisions the historical files cannot establish: ballot policy,
 //! census eligibility and which records outside configured seats are in scope.
+//!
+//! The SQL may be in the legacy or the documented post-qualification schema
+//! ([`SourceSchema`]). The workbook is optional: without one, its sheets are
+//! derived from the SQL and a reviewed [`Supplement`] in the decisions.
 
 use super::{
     problem::{Code, Problem, Report},
@@ -12,13 +16,27 @@ use super::{
     sql_dump::{read_mysql_dump, SqlDump, SqlTable, SqlValue},
     xlsx::read_xlsx,
 };
-use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone};
+use chrono::{DateTime, FixedOffset, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
+#[path = "historical_schema.rs"]
+mod schema;
+#[path = "historical_supplement.rs"]
+mod supplement;
+pub use schema::SourceSchema;
+pub use supplement::{
+    Supplement, SupplementCcsServer, SupplementEvent, SupplementSchedule,
+};
+
 pub const PROFILE: &str = "legacy-seat-v1";
+/// The default language of the built-in event and election templates, used for
+/// a row whose workbook sets none.
+const TEMPLATE_LANGUAGE: &str = "en";
+const DEFAULT_LANGUAGE: &str =
+    "presentation.language_conf.default_language_code";
 const TABLES: &[&str] = &[
     "allbgy",
     "allmun",
@@ -45,6 +63,11 @@ pub enum CensusPolicy {
     #[default]
     RequireReviewedMapping,
     ConfigurationOnly,
+    /// Import every source voter as the event census, joining each voter to an
+    /// in-scope area through the same precinct crosswalk the areas are built from.
+    /// Raw source location and status are preserved verbatim; no eligibility is
+    /// inferred from them.
+    PreserveSourceVoters,
 }
 #[derive(
     Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq,
@@ -82,11 +105,31 @@ pub enum AffiliationPolicy {
     RequireKnownParty,
     PreserveUnresolvedCode,
 }
+/// How a preserved source voter is joined to the area it votes in.
+///
+/// The join is a named contract rather than an implicit assumption, and the
+/// chosen variant is recorded in the event's `import:provenance` decisions.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum VoterAreaJoin {
+    /// `voters.(COUNTRY, EMBASSY, PRECINCT)` equals
+    /// `pop.(PROV_CODE, MUN_CODE, PRECINCT)` of exactly one in-scope polling row.
+    /// A voter matching no in-scope row, or a key shared by rows with different
+    /// outcomes, is a visible per-row problem.
+    PopulationPrecinctTuple,
+    /// `voters.(MAILCOUNTRY, MAILEMBASSY)` equals `pop.(PROV_CODE, MUN_CODE)`,
+    /// for the post-qualification schema, whose voters carry no precinct. Every
+    /// in-scope polling row with that location must resolve to the same area;
+    /// a location shared by two areas is a conflict, never a choice.
+    MailCountryEmbassy,
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct SourceDigests {
     pub sql_sha256: String,
-    pub workbook_sha256: String,
+    /// Absent when the conversion has no workbook.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workbook_sha256: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -125,6 +168,10 @@ pub struct SeatSummary {
 pub struct HistoricalOptions {
     #[serde(default)]
     pub census: CensusPolicy,
+    /// Required when `census` preserves source voters; absent otherwise, so
+    /// earlier reviewed decisions keep their exact encoding and digest.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub voter_area_join: Option<VoterAreaJoin>,
     #[serde(default)]
     pub ballot: BallotPolicy,
     #[serde(default)]
@@ -142,19 +189,27 @@ pub struct HistoricalOptions {
     pub affiliation: AffiliationPolicy,
     /// Offset for timezone-less historical Excel dates. No implicit local timezone.
     pub schedule_offset_minutes: Option<i32>,
+    /// What the workbook would add, when there is none. Exactly one of the two
+    /// is given.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub supplement: Option<Supplement>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Summary {
     pub profile: String,
+    pub source_schema: SourceSchema,
     pub sql_sha256: String,
-    pub workbook_sha256: String,
+    /// Absent when the conversion has no workbook.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workbook_sha256: Option<String>,
     pub source_rows: BTreeMap<String, usize>,
     pub generated_rows: BTreeMap<String, usize>,
     pub selected_candidates: usize,
     pub outside_scope_candidates: usize,
     pub excluded_voters: usize,
+    pub preserved_voters: usize,
     pub excluded_polling_centers: usize,
     pub excluded_precinct_rows: usize,
     pub election_contexts: Vec<ElectionContext>,
@@ -200,13 +255,13 @@ fn fail(summary: Summary, p: Problem) -> Refused {
 /// same `build`, `validate` and `archive::zip` as every other native import.
 pub fn adapt(
     sql: &[u8],
-    xlsx: &[u8],
+    xlsx: Option<&[u8]>,
     options: &HistoricalOptions,
 ) -> Result<Adapted, Refused> {
     let mut summary = Summary {
         profile: PROFILE.into(),
         sql_sha256: format!("{:x}", Sha256::digest(sql)),
-        workbook_sha256: format!("{:x}", Sha256::digest(xlsx)),
+        workbook_sha256: xlsx.map(|xlsx| format!("{:x}", Sha256::digest(xlsx))),
         ..Summary::default()
     };
     let dump = read_mysql_dump(sql).map_err(|e| {
@@ -235,9 +290,86 @@ pub fn adapt(
                 .count()
         })
         .sum();
+    let (dump, source_schema) =
+        schema::normalize(dump).map_err(|p| fail(summary.clone(), p))?;
+    summary.source_schema = source_schema;
+    let (workbook, derived, schedules) = match (xlsx, &options.supplement) {
+        (Some(xlsx), None) => (read_workbook(xlsx, &summary)?, None, vec![]),
+        (None, Some(supplement)) => {
+            let derived = supplement::derive(&dump, supplement).map_err(|p| {
+                fail(
+                    summary.clone(),
+                    schema::source_names(p.into(), source_schema)
+                        .problems
+                        .remove(0),
+                )
+            })?;
+            (
+                derived.workbook,
+                Some(derived.areas_by_precinct),
+                derived.schedules,
+            )
+        }
+        (Some(_), Some(_)) => {
+            return Err(fail(
+                summary,
+                Problem::error(
+                    Code::ConflictingColumns,
+                    "historical decisions supplement",
+                    "a supplement replaces the workbook; give one or the other",
+                ),
+            ))
+        }
+        (None, None) => {
+            return Err(fail(
+                summary,
+                Problem::error(
+                    Code::NotApproved,
+                    "historical decisions supplement",
+                    "without a workbook, the decisions must supply the event and its schedule",
+                ),
+            ))
+        }
+    };
+    summary.decisions_sha256 = format!(
+        "{:x}",
+        Sha256::digest(serde_json::to_vec(options).map_err(|_| fail(
+            summary.clone(),
+            Problem::error(
+                Code::InvalidValue,
+                "historical decisions",
+                "could not encode decisions"
+            )
+        ))?)
+    );
+    let dates = || match xlsx {
+        Some(xlsx) => historical_dates(xlsx, options.schedule_offset_minutes),
+        None => supplement_dates(&schedules, options.schedule_offset_minutes),
+    };
+    let result = map(
+        &dump,
+        &workbook,
+        dates,
+        derived.as_ref(),
+        options,
+        &mut summary,
+    );
+    result
+        .map(|workbook| Adapted {
+            workbook,
+            summary: summary.clone(),
+        })
+        .map_err(|report| Refused {
+            summary,
+            report: schema::source_names(report, source_schema),
+        })
+}
+
+/// Read a supplemental workbook within the source limits.
+fn read_workbook(xlsx: &[u8], summary: &Summary) -> Result<Workbook, Refused> {
     if xlsx.len() > 32 * 1024 * 1024 {
         return Err(fail(
-            summary,
+            summary.clone(),
             Problem::error(
                 Code::Unreadable,
                 "workbook",
@@ -258,7 +390,7 @@ pub fn adapt(
         })?;
     if zipped.len() > 1024 {
         return Err(fail(
-            summary,
+            summary.clone(),
             Problem::error(
                 Code::Unreadable,
                 "workbook",
@@ -292,25 +424,7 @@ pub fn adapt(
                 )
             })?;
     }
-    let workbook = read_xlsx(xlsx).map_err(|p| fail(summary.clone(), p))?;
-    summary.decisions_sha256 = format!(
-        "{:x}",
-        Sha256::digest(serde_json::to_vec(options).map_err(|_| fail(
-            summary.clone(),
-            Problem::error(
-                Code::InvalidValue,
-                "historical decisions",
-                "could not encode decisions"
-            )
-        ))?)
-    );
-    let result = map(&dump, &workbook, xlsx, options, &mut summary);
-    result
-        .map(|workbook| Adapted {
-            workbook,
-            summary: summary.clone(),
-        })
-        .map_err(|p| fail(summary, p))
+    read_xlsx(xlsx).map_err(|p| fail(summary.clone(), p))
 }
 
 struct Data<'a> {
@@ -344,6 +458,21 @@ impl<'a> Data<'a> {
             }
         }
         Ok(Self { name, table })
+    }
+    /// A name as the ballot shows it, unchanged; a blank one is refused rather
+    /// than shown as `-`.
+    fn name(&self, row: usize, column: &str) -> Result<String, Problem> {
+        let name = self.text(row, column)?;
+        if name.trim().is_empty() {
+            return Err(problem(
+                self.name,
+                row,
+                column,
+                Code::MissingField,
+                "source name is blank",
+            ));
+        }
+        Ok(name)
     }
     fn text(&self, row: usize, column: &str) -> Result<String, Problem> {
         let index = self
@@ -505,6 +634,58 @@ fn text(row: &Row, column: &str) -> Result<String, Problem> {
         .at(&row.origin(Some(column)))),
     }
 }
+/// Where the importer keeps a text in one language: event, election, contest
+/// and candidate rows have no plain `name` column since names moved into
+/// `presentation`, and the Admin Portal edits descriptions there too.
+fn localized(language: &str, field: &str) -> String {
+    format!("presentation.i18n.{language}.{field}")
+}
+/// The language a row's portals fall back to.
+fn default_language(row: &Row) -> String {
+    text(row, DEFAULT_LANGUAGE).unwrap_or_else(|_| TEMPLATE_LANGUAGE.into())
+}
+/// Moves a workbook row's plain `name` into its default language and copies its
+/// plain `description` there, keeping translations the row already has. A row
+/// may carry both forms of either only when they agree, and must end up with a
+/// name in its default language.
+fn localize(row: &mut Row) -> Result<String, Problem> {
+    let language = default_language(row);
+    let name = localized(&language, "name");
+    let origin = row.origin(Some("name"));
+    adopt(row, "name", &name)?;
+    row.cells.retain(|(column, _)| column != "name");
+    if text(row, &name).is_err() {
+        return Err(Problem::error(
+            Code::MissingField,
+            origin.to_string(),
+            format!("a name is required in name or {name}"),
+        )
+        .at(&origin));
+    }
+    adopt(row, "description", &localized(&language, "description"))?;
+    Ok(language)
+}
+fn adopt(row: &mut Row, plain: &str, column: &str) -> Result<(), Problem> {
+    let Ok(value) = text(row, plain) else {
+        return Ok(());
+    };
+    match text(row, column) {
+        Ok(localized) if localized != value => {
+            let origin = row.origin(Some(plain));
+            Err(Problem::error(
+                Code::ConflictingColumns,
+                origin.to_string(),
+                format!("{plain} and {column} differ; make them agree"),
+            )
+            .at(&origin))
+        }
+        Ok(_) => Ok(()),
+        Err(_) => {
+            set(row, column, json!(value));
+            Ok(())
+        }
+    }
+}
 fn workbook_index(
     rows: &[Row],
     column: &str,
@@ -550,23 +731,104 @@ fn sheet_row<'a>(
         )
     })
 }
+/// Resolve every candidate's contest and seat against the whole source, before
+/// any seat is selected. Scope policy filters valid rows; it must never be what
+/// a broken reference hides behind. Codes are source configuration, not personal
+/// records, so the offending reference is named.
+fn check_candidate_references(
+    candidates: &Data,
+    seats: &Data,
+    seats_by_district: &BTreeMap<String, usize>,
+    contests: &Data,
+    contests_by_name: &BTreeMap<String, usize>,
+) -> Result<(), Problem> {
+    let unresolved =
+        |row: usize, column: &str, value: &str, target: &str, message: &str| {
+            problem("candidate", row, column, Code::DanglingReference, message)
+                .detail("reference", value)
+                .detail("target", target)
+        };
+    // By contest row, so a seat's contest is read once and cannot fail later.
+    let postcodes = (0..contests.table.rows.len())
+        .map(|i| contests.text(i, "POSTCODE"))
+        .collect::<Result<Vec<_>, _>>()?;
+    for candidate in 0..candidates.table.rows.len() {
+        let postcode = candidates.text(candidate, "POST_CODE")?;
+        if !postcodes.contains(&postcode) {
+            return Err(unresolved(
+                candidate,
+                "POST_CODE",
+                &postcode,
+                "contest.POSTCODE",
+                &format!("contest {postcode} does not exist in the source contest table"),
+            ));
+        }
+        let district = candidates.text(candidate, "DISTRICTCODE")?;
+        let Some(&seat) = seats_by_district.get(&district) else {
+            return Err(unresolved(
+                candidate,
+                "DISTRICTCODE",
+                &district,
+                "seat.DISTRICTCODE",
+                &format!(
+                    "seat {district} does not exist in the source seat table"
+                ),
+            ));
+        };
+        let name = seats.text(seat, "CONTEST")?;
+        let contest = contests_by_name.get(&name).copied().ok_or_else(|| {
+            problem(
+                "seat",
+                seat,
+                "CONTEST",
+                Code::DanglingReference,
+                &format!("seat contest {name} does not exist in the source contest table, so candidate row {} cannot be placed", candidate + 1),
+            )
+            .detail("reference", &name)
+            .detail("target", "contest.POSTNAME")
+        })?;
+        let seat_postcode = &postcodes[contest];
+        if *seat_postcode != postcode {
+            return Err(problem(
+                "candidate",
+                candidate,
+                "DISTRICTCODE",
+                Code::ConflictingColumns,
+                &format!("seat {district} belongs to contest {seat_postcode}, not to the candidate's POST_CODE {postcode}"),
+            )
+            .detail("reference", &district)
+            .detail("target", "seat.DISTRICTCODE")
+            .detail("contest", &postcode)
+            .detail("seatContest", &seat_postcode));
+        }
+    }
+    Ok(())
+}
 
+/// `dates` reads the schedule's instants, by schedule row number. `derived` is the
+/// area row of each `pop` row when the workbook was derived from the SQL; its
+/// areas are then joined by row, since a derived area's name need not be unique.
 fn map(
     dump: &SqlDump,
     workbook: &Workbook,
-    xlsx: &[u8],
+    dates: impl FnOnce() -> Result<BTreeMap<usize, String>, Problem>,
+    derived: Option<&BTreeMap<usize, usize>>,
     options: &HistoricalOptions,
     summary: &mut Summary,
-) -> Result<Workbook, Problem> {
+) -> Result<Workbook, Report> {
     for name in TABLES {
         Data::new(dump, name, &[])?;
     }
-    if dump.tables.keys().any(|n| !TABLES.contains(&n.as_str())) {
+    if dump.tables.keys().any(|n| {
+        !TABLES.contains(&n.as_str())
+            && !schema::OPTIONAL_TABLES.contains(&n.as_str())
+    }) {
         return Err(Problem::error(
             Code::InvalidValue,
             "SQL schema",
             "unrecognized table in the declared source profile",
-        ));
+        )
+        .into());
     }
     // Verify every declared primary/unique key without emitting its contents.
     for (name, table) in &dump.tables {
@@ -591,7 +853,8 @@ fn map(
                         column,
                         Code::MissingField,
                         "primary key is null",
-                    ));
+                    )
+                    .into());
                 }
             }
         }
@@ -626,18 +889,32 @@ fn map(
                         "key",
                         Code::DuplicateId,
                         "declared source key is duplicated",
-                    ));
+                    )
+                    .into());
                 }
             }
         }
     }
-    let voters = dump.tables.get("voters").map_or(0, |t| t.rows.len());
-    if voters > 0 && options.census != CensusPolicy::ConfigurationOnly {
-        return Err(Problem::error(Code::NotApproved,"SQL table voters","this profile does not define historical eligibility; explicitly choose configuration-only and use an independently reviewed census workflow"));
+    let voter_count = dump.tables.get("voters").map_or(0, |t| t.rows.len());
+    match options.census {
+        // Voters are imported as the census below (see build_source_voter_rows);
+        // none are excluded.
+        CensusPolicy::PreserveSourceVoters => {
+            if options.voter_area_join.is_none() {
+                return Err(Problem::error(Code::NotApproved,"historical voter area join","preserving source voters requires an explicit voter area join decision").into());
+            }
+        }
+        CensusPolicy::ConfigurationOnly => {
+            summary.excluded_voters = voter_count
+        }
+        CensusPolicy::RequireReviewedMapping => {
+            if voter_count > 0 {
+                return Err(Problem::error(Code::NotApproved,"SQL table voters","this profile does not define historical eligibility; explicitly choose configuration-only to drop them, or preserve-source-voters to import them through an independently reviewed census workflow").into());
+            }
+        }
     }
-    summary.excluded_voters = voters;
     if options.ballot != BallotPolicy::SeatPluralityAtLarge {
-        return Err(Problem::error(Code::NotApproved,"historical ballot policy","review and explicitly select seat-plurality-at-large semantics before generating ballots"));
+        return Err(Problem::error(Code::NotApproved,"historical ballot policy","review and explicitly select seat-plurality-at-large semantics before generating ballots").into());
     }
     for sheet in workbook.sheets() {
         if ![
@@ -653,7 +930,8 @@ fn map(
                 Code::InvalidValue,
                 format!("sheet {}", sheet.name),
                 "unrecognized supplemental sheet",
-            ));
+            )
+            .into());
         }
     }
     if workbook.rows("electionevent").len() != 1 {
@@ -661,9 +939,11 @@ fn map(
             Code::InvalidValue,
             "sheet ElectionEvent",
             "exactly one event row is required",
-        ));
+        )
+        .into());
     }
     let mut event = workbook.rows("electionevent")[0].clone();
+    localize(&mut event)?;
     let event_key = text(&event, "annotations.miru_election_event_id")?;
     set(
         &mut event,
@@ -734,8 +1014,9 @@ fn map(
     let ti = contests.index("POSTNAME")?;
     let pi = parties.index("CODE_PARTY")?;
     let gi = geography.index("GEOCODE")?;
-    seats.index("DISTRICTCODE")?;
+    let si = seats.index("DISTRICTCODE")?;
     candidates.index("CAND_CODE")?;
+    check_candidate_references(&candidates, &seats, &si, &contests, &ti)?;
     let erows = workbook.rows("elections");
     workbook_index(erows, "alias")?;
     let mut ei: BTreeMap<String, Vec<usize>> = BTreeMap::new();
@@ -763,7 +1044,7 @@ fn map(
         .iter()
         .any(|context| context.center_rows.len() > 1)
     {
-        return Err(Problem::error(Code::NotApproved,"sheet Elections election_post","one workbook context matches multiple SQL centers; provide unambiguous post identities before associating schedules"));
+        return Err(Problem::error(Code::NotApproved,"sheet Elections election_post","one workbook context matches multiple SQL centers; provide unambiguous post identities before associating schedules").into());
     }
     summary.seats = (0..seats.table.rows.len())
         .map(|i| {
@@ -788,7 +1069,10 @@ fn map(
         .filter(|p| !ei.contains_key(*p))
         .count();
     let arows = workbook.rows("areas");
-    let ai = workbook_index(arows, "name")?;
+    let ai = match derived {
+        Some(_) => BTreeMap::new(),
+        None => workbook_index(arows, "name")?,
+    };
     summary.area_workbook_rows = arows.iter().map(|r| r.number).collect();
     summary.precincts = (0..populations.table.rows.len())
         .map(|pop| {
@@ -817,11 +1101,17 @@ fn map(
             } else {
                 barangay
             };
-            let workbook_area_rows = arows
-                .iter()
-                .filter(|r| r.text("name") == Some(&name))
-                .map(|r| r.number)
-                .collect();
+            let workbook_area_rows = match derived {
+                Some(areas) => areas
+                    .get(&pop)
+                    .map(|&i| vec![arows[i].number])
+                    .unwrap_or_default(),
+                None => arows
+                    .iter()
+                    .filter(|r| r.text("name") == Some(&name))
+                    .map(|r| r.number)
+                    .collect(),
+            };
             Ok(PrecinctSummary {
                 source_row: pop + 1,
                 center_row: center + 1,
@@ -830,6 +1120,17 @@ fn map(
         })
         .collect::<Result<_, Problem>>()?;
     let mut associations: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+    if derived.is_some()
+        && (!options.election_mappings.is_empty()
+            || !options.area_mappings.is_empty())
+    {
+        return Err(Problem::error(
+            Code::InvalidValue,
+            "historical decisions electionMappings + areaMappings",
+            "associations name workbook rows, and without a workbook there are none",
+        )
+        .into());
+    }
     if !options.election_mappings.is_empty()
         || !options.area_mappings.is_empty()
         || options.post_coverage == PostCoverage::WorkbookPostsOnly
@@ -844,7 +1145,8 @@ fn map(
                 Code::IntegrityMismatch,
                 "historical decisions sourceDigests",
                 "decisions describe different source bytes",
-            ));
+            )
+            .into());
         }
     }
     for mapping in &options.election_mappings {
@@ -855,7 +1157,7 @@ fn map(
                 Code::InvalidValue,
                 "historical decisions electionMappings",
                 "each mapping must name an existing workbook row and at least one SQL seat row",
-            ));
+            ).into());
         }
         let mut seen = BTreeSet::new();
         let mut indices = Vec::new();
@@ -865,7 +1167,8 @@ fn map(
                     Code::InvalidValue,
                     "historical decisions electionMappings",
                     "seat row is out of range or repeated",
-                ));
+                )
+                .into());
             }
             indices.push(n - 1);
         }
@@ -874,27 +1177,32 @@ fn map(
                 Code::DuplicateId,
                 "historical decisions electionMappings",
                 "workbook row is mapped twice",
-            ));
+            )
+            .into());
         }
     }
     if associations.is_empty() && ei.values().any(|group| group.len() > 1) {
-        return Err(Problem::error(Code::NotApproved,"sheet Elections election_post + alias","distinct election contexts share a post; specify the SQL seat rows for each workbook row, bound to source hashes"));
+        return Err(Problem::error(Code::NotApproved,"sheet Elections election_post + alias","distinct election contexts share a post; specify the SQL seat rows for each workbook row, bound to source hashes").into());
     }
     if !associations.is_empty() && associations.len() != erows.len() {
         return Err(Problem::error(
             Code::BallotCoverage,
             "historical decisions electionMappings",
             "every workbook election row must have an explicit association",
-        ));
+        )
+        .into());
     }
+    // A derived workbook has a context for every center a precinct uses, so the
+    // centers it leaves out place no voters and are only counted.
     if summary.excluded_polling_centers > 0
+        && derived.is_none()
         && options.post_coverage != PostCoverage::WorkbookPostsOnly
     {
-        return Err(Problem::error(Code::BallotCoverage,"sheet Elections election_post","SQL polling centers have no workbook context; provide coverage or explicitly choose workbook-posts-only with source hashes"));
+        return Err(Problem::error(Code::BallotCoverage,"sheet Elections election_post","SQL polling centers have no workbook context; provide coverage or explicitly choose workbook-posts-only with source hashes").into());
     }
     let mut used_workbook_rows = BTreeSet::new();
 
-    let mut area_associations = BTreeMap::new();
+    let mut area_associations = derived.cloned().unwrap_or_default();
     for mapping in &options.area_mappings {
         let workbook_index = arows
             .iter()
@@ -911,7 +1219,8 @@ fn map(
                 Code::InvalidValue,
                 "historical decisions areaMappings",
                 "area mapping has no precinct rows",
-            ));
+            )
+            .into());
         }
         for &n in &mapping.precinct_rows {
             if n == 0
@@ -922,7 +1231,8 @@ fn map(
                     Code::InvalidValue,
                     "historical decisions areaMappings",
                     "precinct row is out of range or mapped twice",
-                ));
+                )
+                .into());
             }
         }
     }
@@ -935,7 +1245,32 @@ fn map(
     let mut output_links = BTreeMap::new();
     let mut used_candidates = BTreeSet::new();
     let mut unresolved_affiliations = BTreeSet::new();
+    // (PROV_CODE, MUN_CODE, PRECINCT) -> area external_id for an in-scope pop row,
+    // or None for an out-of-scope one, recorded from the same crosswalk the areas
+    // are built from so source voters can join to an area. EVERY pop row is recorded
+    // (before the scope filters) so a key shared by an excluded row is caught as a
+    // conflict instead of silently assigning its voters to the in-scope area.
+    let mut precinct_area_index: BTreeMap<
+        (String, String, String),
+        Option<VoterArea>,
+    > = BTreeMap::new();
     for pop in 0..populations.table.rows.len() {
+        // Only the voter-preserving census needs this crosswalk (and, for the
+        // precinct join, the source PRECINCT column); other policies leave the
+        // pop schema untouched.
+        let precinct_key = match (options.census, options.voter_area_join) {
+            (CensusPolicy::PreserveSourceVoters, Some(join)) => Some((
+                populations.text(pop, "PROV_CODE")?,
+                populations.text(pop, "MUN_CODE")?,
+                match join {
+                    VoterAreaJoin::PopulationPrecinctTuple => {
+                        populations.text(pop, "PRECINCT")?
+                    }
+                    VoterAreaJoin::MailCountryEmbassy => String::new(),
+                },
+            )),
+            _ => None,
+        };
         let center = centers.lookup(
             &ci,
             &populations.text(pop, "POLLCENTER_CODE")?,
@@ -966,6 +1301,9 @@ fn map(
             barangay
         };
         let Some(contexts) = ei.get(&post) else {
+            if let Some(key) = &precinct_key {
+                record_precinct_area(&mut precinct_area_index, key, None, pop)?;
+            }
             summary.excluded_precinct_rows += 1;
             continue;
         };
@@ -973,6 +1311,9 @@ fn map(
             && !ai.contains_key(&area_name)
             && options.precinct_coverage == PostCoverage::WorkbookPostsOnly
         {
+            if let Some(key) = &precinct_key {
+                record_precinct_area(&mut precinct_area_index, key, None, pop)?;
+            }
             summary.excluded_precinct_rows += 1;
             continue;
         }
@@ -985,6 +1326,19 @@ fn map(
         let area_id =
             format!("barangay:{}", barangays.text(bgy, "ID_BARANGAY")?);
         set(&mut area, "external_id", json!(area_id));
+        if let Some(key) = &precinct_key {
+            let (country, embassy) = voter_location(&area);
+            record_precinct_area(
+                &mut precinct_area_index,
+                key,
+                Some(VoterArea {
+                    external_id: area_id.clone(),
+                    country,
+                    embassy,
+                }),
+                pop,
+            )?;
+        }
         set(
             &mut area,
             "annotations.miru:area-station-id",
@@ -1005,7 +1359,8 @@ fn map(
                         area.origin(Some("annotations.miru_ccs_server_tags"))
                             .to_string(),
                         "CCS tags must be scalar references",
-                    ))
+                    )
+                    .into())
                 }
             };
             let mut resolved = Vec::new();
@@ -1028,7 +1383,8 @@ fn map(
                             Code::InvalidValue,
                             server.origin(Some("send_logs")).to_string(),
                             "send_logs must be true or false",
-                        ))
+                        )
+                        .into())
                     }
                 };
                 resolved.push(json!({"name":text(server,"name")?,"tag":tag.parse::<i64>().map_err(|_|Problem::error(Code::InvalidValue,"sheet CcsServers column tag","CCS tag must be an integer"))?.to_string(),"address":text(server,"address")?,"public_key_pem":text(server,"public_key")?,"send_logs":send_logs}));
@@ -1082,7 +1438,8 @@ fn map(
                     Code::ConflictingColumns,
                     "sheet Areas",
                     "precinct rows provide conflicting area metadata",
-                ));
+                )
+                .into());
             }
         }
         for &context_index in contexts {
@@ -1094,6 +1451,7 @@ fn map(
                 text(original_election, "alias")?
             );
             let mut election = original_election.clone();
+            let language = localize(&mut election)?;
             election.cells.retain(|(c, _)| c != "election_post");
             set(&mut election, "external_id", json!(election_id));
             historical_annotations(
@@ -1149,7 +1507,8 @@ fn map(
                         "ELIGIBLEAMOUNT",
                         Code::InvalidValue,
                         "seat count must be positive",
-                    ));
+                    )
+                    .into());
                 }
                 let order = contests
                     .text(contest, "SORT_ORDER")?
@@ -1171,7 +1530,10 @@ fn map(
                         vec![
                             ("external_id", json!(contest_id)),
                             ("election.external_id", json!(election_id)),
-                            ("name", json!(seats.text(seat, "CONTEST")?)),
+                            (
+                                &localized(&language, "name"),
+                                json!(seats.name(seat, "CONTEST")?),
+                            ),
                             ("min_votes", json!(0)),
                             ("max_votes", json!(eligible)),
                             ("winning_candidates_num", json!(eligible)),
@@ -1218,9 +1580,9 @@ fn map(
                             ),
                             ("contest.external_id", json!(contest_id)),
                             (
-                                "name",
+                                &localized(&language, "name"),
                                 json!(candidates
-                                    .text(candidate, "NAMEONBALLOT")?),
+                                    .name(candidate, "NAMEONBALLOT")?),
                             ),
                             ("presentation.sort_order", json!(candidate_order)),
                             ("annotations.miru:candidate-id", json!(code)),
@@ -1262,7 +1624,7 @@ fn map(
                             if options.affiliation
                                 != AffiliationPolicy::PreserveUnresolvedCode
                             {
-                                return Err(problem("candidate",candidate,"NOMINATEDBY",Code::DanglingReference,"affiliation has no party row; explicitly preserve the unresolved code or provide an authoritative reference"));
+                                return Err(problem("candidate",candidate,"NOMINATEDBY",Code::DanglingReference,"affiliation has no party row; explicitly preserve the unresolved code or provide an authoritative reference").into());
                             }
                             set(
                                 &mut candidate_row,
@@ -1289,7 +1651,7 @@ fn map(
             Code::NotApproved,
             "SQL table candidate",
             "candidate rows lie outside configured seats; review source scope explicitly",
-        ));
+        ).into());
     }
     if used_workbook_rows.len() != erows.len()
         || output_areas.len() != arows.len()
@@ -1298,9 +1660,10 @@ fn map(
             Code::BallotCoverage,
             "supplemental workbook",
             "election/area workbook rows and source-derived coverage differ",
-        ));
+        )
+        .into());
     }
-    let dates = historical_dates(xlsx, options.schedule_offset_minutes)?;
+    let dates = dates()?;
     let mut schedules = Vec::new();
     for (i, original) in workbook.rows("scheduledevents").iter().enumerate() {
         let alias = text(original, "election_alias")?;
@@ -1334,14 +1697,22 @@ fn map(
             ],
         ));
     }
+    let voter_rows = match (options.census, options.voter_area_join) {
+        (CensusPolicy::PreserveSourceVoters, Some(join)) => {
+            build_source_voter_rows(dump, join, &precinct_area_index, summary)?
+        }
+        _ => Vec::new(),
+    };
     let provenance = json!({
         "profile": PROFILE,
+        "sourceSchema": summary.source_schema,
         "sqlSha256": summary.sql_sha256,
         "workbookSha256": summary.workbook_sha256,
         "decisionsSha256": summary.decisions_sha256,
         "sourceRows": summary.source_rows,
         "selectedCandidates": summary.selected_candidates,
         "excludedVoters": summary.excluded_voters,
+        "preservedVoters": summary.preserved_voters,
         "excludedPollingCenters": summary.excluded_polling_centers,
         "excludedPrecinctRows": summary.excluded_precinct_rows,
         "unresolvedAffiliations": summary.unresolved_affiliations,
@@ -1360,7 +1731,7 @@ fn map(
         "annotations.import:provenance",
         json!(provenance),
     );
-    let sheets = vec![
+    let mut sheets = vec![
         rows_sheet("ElectionEvent", vec![event]),
         rows_sheet("Elections", output_elections.into_values().collect()),
         rows_sheet("Areas", output_areas.into_values().collect()),
@@ -1369,11 +1740,436 @@ fn map(
         rows_sheet("AreaContests", output_links.into_values().collect()),
         rows_sheet("ScheduledEvents", schedules),
     ];
+    if !voter_rows.is_empty() {
+        sheets.push(rows_sheet("Voters", voter_rows));
+    }
     summary.generated_rows = sheets
         .iter()
         .map(|s| (s.name.clone(), s.rows.len()))
         .collect();
-    Workbook::new(sheets)
+    Ok(Workbook::new(sheets)?)
+}
+
+/// The area a source voter joins, with the canonical COMELEC location values the
+/// registration selects and the enrollment approval matrix compare, derived from
+/// the area the same way the registration option lists are (see `format_embassy`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct VoterArea {
+    external_id: String,
+    /// The `country` attribute value: `"<country>/<embassy>"`, matching a
+    /// `country_list` option.
+    country: String,
+    /// The `embassy` attribute value, matching an `embassy_list` option.
+    embassy: String,
+}
+
+/// Title-case one word the way Python's `str.title()` does: the first letter after
+/// any non-letter is upper-cased, the rest lower-cased.
+fn title_word(word: &str) -> String {
+    let mut out = String::with_capacity(word.len());
+    let mut prev_alpha = false;
+    for c in word.chars() {
+        if c.is_alphabetic() {
+            if prev_alpha {
+                out.extend(c.to_lowercase());
+            } else {
+                out.extend(c.to_uppercase());
+            }
+            prev_alpha = true;
+        } else {
+            out.push(c);
+            prev_alpha = false;
+        }
+    }
+    out
+}
+
+/// Format a country/embassy label exactly as the janitor's `get_embassy` does, so a
+/// derived voter attribute matches the registration option list built from the same
+/// areas: drop parenthetical segments, title-case every word, upper-case the last
+/// word when it is at most three characters, and keep `D.C./DC/SAR/ROC` upper-cased.
+fn format_embassy(value: &str) -> String {
+    let mut without_parens = String::with_capacity(value.len());
+    let mut depth = 0u32;
+    for c in value.chars() {
+        match c {
+            '(' => depth += 1,
+            ')' if depth > 0 => depth -= 1,
+            _ if depth == 0 => without_parens.push(c),
+            _ => {}
+        }
+    }
+    let words: Vec<&str> = without_parens.split_whitespace().collect();
+    let Some((last, head)) = words.split_last() else {
+        return String::new();
+    };
+    const SPECIAL: [&str; 4] = ["D.C.", "DC", "SAR", "ROC"];
+    let mut out: Vec<String> = head
+        .iter()
+        .map(|w| {
+            if SPECIAL.contains(&w.to_uppercase().as_str()) {
+                w.to_uppercase()
+            } else {
+                title_word(w)
+            }
+        })
+        .collect();
+    out.push(if last.chars().count() <= 3 {
+        last.to_uppercase()
+    } else {
+        title_word(last)
+    });
+    out.join(" ")
+}
+
+/// Derive the canonical `(country, embassy)` attribute values from a resolved area
+/// row, matching the registration option lists (`gen_keycloak_context`): the embassy
+/// is `format_embassy(area.description)` and the country is
+/// `format_embassy(area.name)` up to a dash, joined to the embassy with `/`.
+fn voter_location(area: &Row) -> (String, String) {
+    let embassy = format_embassy(
+        area.get("description")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    let country_head =
+        format_embassy(area.get("name").and_then(Value::as_str).unwrap_or(""));
+    let country_head = country_head.split('-').next().unwrap_or("").trim();
+    (format!("{country_head}/{embassy}"), embassy)
+}
+
+/// Record a pop row's `(PROV_CODE, MUN_CODE, PRECINCT)` key against the area it
+/// resolves to (`Some`) or against being out of scope (`None`). Every pop row is
+/// recorded, so a key that two rows share with different outcomes (two areas, or an
+/// in-scope and an out-of-scope row) is a conflict rather than a silent
+/// misassignment.
+fn record_precinct_area(
+    index: &mut BTreeMap<(String, String, String), Option<VoterArea>>,
+    key: &(String, String, String),
+    area: Option<VoterArea>,
+    row: usize,
+) -> Result<(), Problem> {
+    match index.get(key) {
+        Some(existing) if *existing != area => Err(problem(
+            "pop",
+            row,
+            "PRECINCT",
+            Code::DuplicateId,
+            "a voter location (province, municipality and, by precinct, the precinct) maps to two different areas or scopes",
+        )),
+        _ => {
+            index.insert(key.clone(), area);
+            Ok(())
+        }
+    }
+}
+
+/// Build the census rows for `CensusPolicy::PreserveSourceVoters`.
+///
+/// Every source voter is preserved and written under the canonical COMELEC user
+/// attribute keys that enrollment matching reads (the registration user profile in
+/// keycloak.hbs and `approvalMatrix.json`, which compares
+/// firstName/middleName/lastName/dateOfBirth/embassy):
+/// - `username` ← source `ID`; `first_name`/`last_name` ← `FIRSTNAME`/`LASTNAME`
+///   (build_voters maps these to Keycloak `firstName`/`lastName`);
+/// - `middleName` ← `MATERNALNAME` (Philippine naming: the mother's maiden surname
+///   is the middle name — an explicit, documented mapping);
+/// - `suffix` ← `SUFFIX`;
+/// - `dateOfBirth` ← `DOBYEAR`/`DOBMONTH`/`DOBDAY` composed as `yyyy-MM-dd` (the
+///   Scanovate store format); a partial date stays blank, never guessed;
+/// - `country`/`embassy` are the display values the registration selects use and the
+///   matrix compares, derived from the voter's resolved area the same way the option
+///   lists are (`embassy = format_embassy(area.description)`,
+///   `country = format_embassy(area.name)` up to a dash, joined to the embassy) — so
+///   they match. The raw source post/country codes are kept as
+///   `source_country`/`source_embassy` for audit.
+/// Alongside the canonical fields, the raw source values are kept for audit:
+/// `source_maternal_name`, `source_suffix`, `source_dob_year`/`_month`/`_day`,
+/// `source_country`/`source_embassy` (the SQL codes) and `source_precinct`. The
+/// abroad status is kept raw as `source_abroad_status` with no eligibility inference.
+/// A supplied date of birth that is incomplete or not a real calendar date, and an
+/// area with no embassy/country label, each raise a visible per-row problem rather
+/// than a silent blank. Email, mobile and password are intentionally left unset;
+/// enrollment collects them later. Source columns outside this mapping are not carried.
+///
+/// Each voter joins to an area through the crosswalk recorded while the areas were
+/// built, keyed as the join decides: `(COUNTRY, EMBASSY, PRECINCT)` against
+/// `(PROV_CODE, MUN_CODE, PRECINCT)`, or the post-qualification
+/// `(MAILCOUNTRY, MAILEMBASSY)` against `(PROV_CODE, MUN_CODE)`. A voter whose
+/// location has no in-scope area raises a visible per-row error rather than being
+/// silently dropped.
+fn build_source_voter_rows(
+    dump: &SqlDump,
+    join: VoterAreaJoin,
+    precinct_area_index: &BTreeMap<(String, String, String), Option<VoterArea>>,
+    summary: &mut Summary,
+) -> Result<Vec<Row>, Report> {
+    let columns: &[&str] = match join {
+        VoterAreaJoin::PopulationPrecinctTuple => &[
+            "ID",
+            "FIRSTNAME",
+            "LASTNAME",
+            "COUNTRY",
+            "EMBASSY",
+            "PRECINCT",
+            "ABROADSTATUS",
+        ],
+        VoterAreaJoin::MailCountryEmbassy => {
+            &["ID", "FIRSTNAME", "LASTNAME", "MAILCOUNTRY", "MAILEMBASSY"]
+        }
+    };
+    let voters = Data::new(dump, "voters", columns)?;
+    let mut rows = Vec::with_capacity(voters.table.rows.len());
+    let mut report = Report::default();
+    let mut usernames = BTreeSet::new();
+    // Every row is checked, so the refusal names each failing voter rather than
+    // only the first one.
+    for v in 0..voters.table.rows.len() {
+        match source_voter_row(
+            &voters,
+            v,
+            join,
+            precinct_area_index,
+            &mut usernames,
+        ) {
+            Ok(voter) => rows.push(voter),
+            Err(p) => report.push(p),
+        }
+    }
+    if report.has_errors() {
+        return Err(report);
+    }
+    summary.preserved_voters = rows.len();
+    Ok(rows)
+}
+
+/// One source voter as a census row, or the first problem in that row.
+fn source_voter_row(
+    voters: &Data<'_>,
+    v: usize,
+    join: VoterAreaJoin,
+    precinct_area_index: &BTreeMap<(String, String, String), Option<VoterArea>>,
+    usernames: &mut BTreeSet<String>,
+) -> Result<Row, Problem> {
+    {
+        let username = voters.name(v, "ID")?;
+        if !usernames.insert(username.clone()) {
+            return Err(problem(
+                "voters",
+                v,
+                "ID",
+                Code::DuplicateId,
+                "voter id is duplicated",
+            ));
+        }
+        let (country_column, embassy_column, precinct_column, message) =
+            match join {
+                VoterAreaJoin::PopulationPrecinctTuple => (
+                    "COUNTRY",
+                    "EMBASSY",
+                    Some("PRECINCT"),
+                    "voter (country, embassy, precinct) has no in-scope area; the matching source polling row is absent or out of scope",
+                ),
+                VoterAreaJoin::MailCountryEmbassy => (
+                    "MAILCOUNTRY",
+                    "MAILEMBASSY",
+                    None,
+                    "voter (mail country, mail embassy) has no in-scope area; the matching source polling row is absent or out of scope",
+                ),
+            };
+        let country = voters.text(v, country_column)?;
+        let embassy = voters.text(v, embassy_column)?;
+        let precinct = precinct_column
+            .map(|column| voters.text(v, column))
+            .transpose()?
+            .unwrap_or_default();
+        let area = match precinct_area_index.get(&(
+            country.clone(),
+            embassy.clone(),
+            precinct.clone(),
+        )) {
+            Some(Some(area)) => area,
+            // Absent key or an out-of-scope (None) row: surface, never guess.
+            _ => {
+                return Err(problem(
+                    "voters",
+                    v,
+                    precinct_column.unwrap_or(embassy_column),
+                    Code::DanglingReference,
+                    message,
+                ))
+            }
+        };
+        // The area must carry a usable embassy/country label, or enrollment matching
+        // would compare against a blank value. Surface it instead of emitting one.
+        if area.embassy.is_empty()
+            || area.country.split('/').next().unwrap_or("").is_empty()
+        {
+            return Err(problem(
+                "voters",
+                v,
+                "EMBASSY",
+                Code::MissingField,
+                "the voter's area has no embassy/country label (its source name or description is blank)",
+            ));
+        }
+        // Optional source columns: carry the value when present, blank when the row
+        // (or, for other clients, the whole column) is absent. build_voters drops a
+        // column that is blank for every voter.
+        let optional = |column: &str| -> Result<String, Problem> {
+            if voters.table.columns.iter().any(|c| c == column) {
+                Ok(voters.optional(v, column)?.unwrap_or_default())
+            } else {
+                Ok(String::new())
+            }
+        };
+        let (dob_year, dob_month, dob_day) = (
+            optional("DOBYEAR")?,
+            optional("DOBMONTH")?,
+            optional("DOBDAY")?,
+        );
+        let date_of_birth = compose_date_of_birth(&dob_year, &dob_month, &dob_day)
+            .map_err(|()| {
+                problem(
+                    "voters",
+                    v,
+                    "DOBYEAR",
+                    Code::InvalidValue,
+                    "voter date of birth is incomplete or is not a real calendar date",
+                )
+            })?
+            .unwrap_or_default();
+        Ok(row(
+            "Voters",
+            v,
+            vec![
+                ("username", json!(username)),
+                ("area.external_id", json!(area.external_id)),
+                // Canonical COMELEC identity attributes, named exactly as the
+                // registration user profile and the enrollment approval matrix read
+                // them (keycloak.hbs user profile; approvalMatrix.json compares
+                // firstName/middleName/lastName/dateOfBirth/embassy). first_name and
+                // last_name become Keycloak firstName/lastName in build_voters.
+                ("first_name", json!(voters.text(v, "FIRSTNAME")?)),
+                ("last_name", json!(voters.text(v, "LASTNAME")?)),
+                ("middleName", json!(optional("MATERNALNAME")?)),
+                ("suffix", json!(optional("SUFFIX")?)),
+                ("dateOfBirth", json!(date_of_birth)),
+                // Location under the canonical keys the registration selects and the
+                // matrix compare. The values are derived from the voter's resolved
+                // area the same way the registration option lists are, so they match.
+                ("country", json!(area.country)),
+                ("embassy", json!(area.embassy)),
+                // Raw source values kept for audit (parent asked for raw preservation):
+                // the identity components as supplied, the post/country codes and
+                // precinct as they appear in the SQL, and the abroad status verbatim
+                // (never turned into eligibility). build_voters drops any all-blank one.
+                ("source_maternal_name", json!(optional("MATERNALNAME")?)),
+                ("source_suffix", json!(optional("SUFFIX")?)),
+                ("source_dob_year", json!(dob_year)),
+                ("source_dob_month", json!(dob_month)),
+                ("source_dob_day", json!(dob_day)),
+                ("source_country", json!(country)),
+                ("source_embassy", json!(embassy)),
+                ("source_precinct", json!(precinct)),
+                // Legacy only; the post-qualification voters have no status.
+                ("source_abroad_status", json!(optional("ABROADSTATUS")?)),
+            ],
+        ))
+    }
+}
+
+/// Compose a `dateOfBirth` in the `yyyy-MM-dd` form the Scanovate authenticator
+/// stores (`storeDateFormat`) and the approval matrix compares.
+///
+/// `Ok(None)` when no part is supplied (the census leaves it unset); `Ok(Some(..))`
+/// for a real calendar date validated by `chrono`; `Err(())` when the source supplies
+/// an incomplete or impossible date (e.g. month 99), so the caller raises a visible
+/// per-row problem rather than silently emitting a blank or wrong identity value.
+fn compose_date_of_birth(
+    year: &str,
+    month: &str,
+    day: &str,
+) -> Result<Option<String>, ()> {
+    let (y, m, d) = (year.trim(), month.trim(), day.trim());
+    if y.is_empty() && m.is_empty() && d.is_empty() {
+        return Ok(None);
+    }
+    match (y.parse::<i32>(), m.parse::<u32>(), d.parse::<u32>()) {
+        (Ok(y), Ok(m), Ok(d)) => chrono::NaiveDate::from_ymd_opt(y, m, d)
+            .map(|date| Some(date.format("%Y-%m-%d").to_string()))
+            .ok_or(()),
+        _ => Err(()),
+    }
+}
+
+/// The supplement's schedule instants, by the row number each derived schedule row
+/// carries. Read as the workbook's text dates are; a problem names the supplement
+/// schedule the row came from.
+fn supplement_dates(
+    schedules: &[(usize, SupplementSchedule)],
+    offset: Option<i32>,
+) -> Result<BTreeMap<usize, String>, Problem> {
+    schedules
+        .iter()
+        .enumerate()
+        .map(|(i, (source, schedule))| {
+            let at = format!(
+                "historical decisions supplement schedules[{source}].date"
+            );
+            let instant = match DateTime::parse_from_rfc3339(&schedule.date) {
+                Ok(date) => date.to_rfc3339(),
+                Err(_) => {
+                    // With or without seconds: a browser's local date-time
+                    // field gives none.
+                    let naive = [
+                        "%Y-%m-%d %H:%M:%S",
+                        "%Y-%m-%dT%H:%M:%S",
+                        "%Y-%m-%d %H:%M",
+                        "%Y-%m-%dT%H:%M",
+                    ]
+                    .iter()
+                    .find_map(|f| {
+                        NaiveDateTime::parse_from_str(&schedule.date, f).ok()
+                    })
+                    .ok_or_else(|| {
+                        Problem::error(
+                            Code::InvalidValue,
+                            &at,
+                            "date must be an instant or a local date and time",
+                        )
+                    })?;
+                    offset_instant(naive, offset, &at)?
+                }
+            };
+            // `row` numbers rows from 2, as a spreadsheet below its header does.
+            Ok((i + 2, instant))
+        })
+        .collect()
+}
+
+/// A timezone-less date at the reviewed UTC offset. There is no implicit one.
+fn offset_instant(
+    naive: NaiveDateTime,
+    offset: Option<i32>,
+    at: &str,
+) -> Result<String, Problem> {
+    // Within ±14 hours every offset is valid and every local time has exactly
+    // one instant, so the reviewed offset is the only thing that can be missing.
+    let zone = offset
+        .filter(|n| (-840..=840).contains(n))
+        .and_then(|n| FixedOffset::east_opt(n * 60))
+        .ok_or_else(|| {
+            Problem::error(
+                Code::NotApproved,
+                at,
+                "timezone-less dates require an explicit UTC offset in minutes",
+            )
+        })?;
+    Ok(
+        DateTime::<FixedOffset>::from_naive_utc_and_offset(naive - zone, zone)
+            .to_rfc3339(),
+    )
 }
 
 fn historical_dates(
@@ -1449,26 +2245,7 @@ fn historical_dates(
                 "date must be an instant or an Excel date",
             )
         })?;
-        let minutes =
-            offset.filter(|n| (-840..=840).contains(n)).ok_or_else(|| {
-                Problem::error(
-                Code::NotApproved,
-                &at,
-                "timezone-less dates require an explicit UTC offset in minutes",
-            )
-            })?;
-        let zone = FixedOffset::east_opt(minutes * 60).ok_or_else(|| {
-            Problem::error(Code::InvalidValue, &at, "invalid UTC offset")
-        })?;
-        let instant =
-            zone.from_local_datetime(&naive).single().ok_or_else(|| {
-                Problem::error(
-                    Code::InvalidValue,
-                    &at,
-                    "date cannot be resolved",
-                )
-            })?;
-        dates.insert(i + 1, instant.to_rfc3339());
+        dates.insert(i + 1, offset_instant(naive, offset, &at)?);
     }
     Ok(dates)
 }

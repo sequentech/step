@@ -62,7 +62,7 @@ it("uses stable check kinds and tenant label overrides for legacy signed reports
     expect(rows?.[0].value).not.toContain("counts_by_post")
     expect(rows?.[0].value).not.toContain("Legacy English")
     expect(readinessCheckLines(t, signed)).toEqual([
-        "Passed: Both events match the certified district registry.",
+        "Passed: Both events match the certified district registry. Recorded condition: “Legacy English counts per Post”",
     ])
     expect(JSON.stringify(signed)).toBe(original)
 })
@@ -116,4 +116,34 @@ it("shows every contributing publication with translated labels alongside the le
     expect(rows?.[0].value).toContain("Publication ID: latest")
     expect(rows?.[0].value).toContain("Publication IDs: latest, earlier")
     expect(JSON.stringify(signed)).toBe(original)
+})
+
+it("keeps each check's recorded condition and failure detail visible, as text", async () => {
+    const t = await translate()
+    const signed = message({
+        actor: {user_id: "admin-id", username: "ada"},
+        report: {
+            checks: [
+                {kind: "official_zero", passed: true, message: "Never opened <b>voting</b>"},
+                {
+                    kind: "future_kind",
+                    passed: false,
+                    message: "A check this portal does not know",
+                    findings: [
+                        {
+                            code: "ballots_present",
+                            event: "official",
+                            values: {count: "2"},
+                            message: "x",
+                        },
+                    ],
+                },
+            ],
+        },
+    })
+    expect(readinessCheckLines(t, signed)).toEqual([
+        "Passed: The official event has never opened voting and has no ballots or tally sessions. Recorded condition: “Never opened <b>voting</b>”",
+        "Failed: future_kind Recorded condition: “A check this portal does not know”",
+        "The official event has 2 stored ballots.",
+    ])
 })

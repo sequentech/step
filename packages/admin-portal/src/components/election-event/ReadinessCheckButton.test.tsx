@@ -144,6 +144,68 @@ it("shows failed checks and retains their evidence for download", async () => {
     expect(screen.queryByText("readiness.success")).not.toBeInTheDocument()
     expect(mockRefresh).not.toHaveBeenCalled()
 })
+it("explains each failed check beside the server's own condition", async () => {
+    const failed = report(false)
+    failed.checks = failed.checks.map((check) =>
+        check.kind === "certified_voters"
+            ? {
+                  ...check,
+                  findings: [
+                      {
+                          code: "registry_count_changed",
+                          event: "official",
+                          area: "Area A",
+                          values: {imported: "3", current: "4"},
+                          message: "The official event's registry has 4 voters in area Area A",
+                      },
+                      {code: "future_check", event: "tested", message: "A newer server detail"},
+                  ],
+              }
+            : check.kind === "official_zero"
+              ? {...check, passed: false}
+              : check
+    )
+    failed.checks.forEach((check, index) => (check.message = `Server condition ${index}`))
+    mockRun.mockResolvedValue({data: {readiness_check: failed}})
+    open()
+    select()
+    fireEvent.click(screen.getByRole("button", {name: "readiness.run"}))
+    expect(await screen.findByText("readiness.failed")).toBeVisible()
+    for (let index = 0; index < 5; index++)
+        expect(screen.getByText(`Server condition ${index}`)).toBeVisible()
+    expect(screen.getByText("readiness.findings.registry_count_changed")).toBeVisible()
+    expect(screen.getByText("A newer server detail")).toBeVisible()
+    // An older server's failure has no findings: say so rather than invent one.
+    expect(screen.getByText("readiness.noDetail")).toBeVisible()
+})
+it("shows the server's message when the check could not be completed", async () => {
+    mockRun.mockResolvedValueOnce({
+        data: null,
+        errors: [
+            {
+                message:
+                    "Readiness check could not be completed: the official event's evidence could not be read",
+            },
+        ],
+    })
+    open()
+    select()
+    fireEvent.click(screen.getByRole("button", {name: "readiness.run"}))
+    expect(await screen.findByText("readiness.error")).toBeVisible()
+    expect(
+        screen.getByText(
+            "Readiness check could not be completed: the official event's evidence could not be read"
+        )
+    ).toBeVisible()
+    mockRun.mockRejectedValueOnce(
+        Object.assign(new Error("Response not successful"), {
+            graphQLErrors: [{message: "The official and tested events must differ"}],
+        })
+    )
+    fireEvent.click(screen.getByRole("button", {name: "readiness.run"}))
+    expect(await screen.findByText("The official and tested events must differ")).toBeVisible()
+    expect(screen.queryByText("readiness.success")).not.toBeInTheDocument()
+})
 it.each([
     ["transport failure", () => Promise.reject(new Error("Network unavailable"))],
     [

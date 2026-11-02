@@ -214,17 +214,27 @@ actions are unavailable. Users without readiness permission do not get this
 lockdown Data view. Running the check does not require access to the Logs tab.
 
 The dialog shows every check's outcome, the check time and, on success, the signed
-log entry reference. Select **Download JSON report** to retain the complete report,
+log entry reference. Under each check's label it shows the condition the server
+checked, in the server's own words. Under a failed check it lists why it failed,
+as the server observed it: which event, area or election, and the values that
+did not match, for example "The official event now has 4 voters in Area A, but
+its certified import has 3." A report from an older server has no such detail and
+says so. Select **Download JSON report** to retain the complete report,
 including evidence for failed checks. Changing the tested event clears the previous
-result. If a request fails, check the official event's Logs before retrying: the
-server may have recorded evidence before the response was lost.
+result. If a request fails, the dialog shows the server's message, which names
+the step that stopped the check (locking the events, reading either event's
+evidence, or confirming the signed entry). Check the official event's Logs before
+retrying: the server may have recorded evidence before the response was lost.
 
 Run this check after FTL closes and again when scheduled lockdown starts, as above.
 The CLI alternative is
 `step-cli step readiness-check`. Each successful invocation records a separate
-signed `ReadinessVerified` entry in the official event's existing **Logs**. Retain
-the JSON report and returned log entry reference, and correlate them with the
-exported event log.
+signed `ReadinessVerified` entry in the official event's existing **Logs**. The
+entry is a `USER` event under the account that ran the check, from the Admin
+Portal or the CLI, and keeps the complete report. Entries recorded before this
+classification are `SYSTEM` events; they stay as signed and still name the
+operator in their details. Retain the JSON report and returned log entry
+reference, and correlate them with the exported event log.
 
 The report compares approved content and approvers, certified voter hashes and
 area counts, official zero state, publication designs and tested close/seal state.

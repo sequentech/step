@@ -5,6 +5,12 @@ import React from "react"
 import {fireEvent, render, screen, waitFor} from "@testing-library/react"
 import "@testing-library/jest-dom"
 import {HistoricalSourcePanel} from "./HistoricalSourcePanel"
+jest.mock("@/providers/SettingsContextProvider", () => ({
+    SettingsContext: require("react").createContext({
+        loaded: true,
+        globalSettings: {APP_VERSION: "v11.0.0-rc.0"},
+    }),
+}))
 const mockBuild = jest.fn()
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({
@@ -61,6 +67,47 @@ it("shows rejected source counts and diagnostics without calling upload", async 
     )
     await waitFor(() => expect(mockBuild).toHaveBeenCalled())
     expect(await screen.findByText("Duplicate workbook post key")).toBeInTheDocument()
+    expect(accepted).not.toHaveBeenCalled()
+})
+
+it("names the source row, field and dangling reference, and never accepts the conversion", async () => {
+    const accepted = jest.fn()
+    mockBuild.mockResolvedValue({
+        summary: {
+            sourceRows: {candidate: 2},
+            generatedRows: {},
+            excludedVoters: 0,
+            outsideScopeCandidates: 0,
+            opaqueBinaryValues: 0,
+        },
+        output: {
+            report: {
+                problems: [
+                    {
+                        severity: "error",
+                        code: "dangling_reference",
+                        path: "SQL table candidate row 2 column POST_CODE",
+                        message: "contest C99 does not exist in the source contest table",
+                        details: {reference: "C99", target: "contest.POSTCODE"},
+                    },
+                ],
+            },
+        },
+    })
+    render(
+        <HistoricalSourcePanel
+            droppedFiles={inputs()}
+            api={{buildFromHistorical: mockBuild}}
+            disabled={false}
+            onPrepare={jest.fn()}
+            onAccepted={accepted}
+        />
+    )
+    expect(
+        await screen.findByText(
+            "SQL table candidate row 2 column POST_CODE: contest C99 does not exist in the source contest table"
+        )
+    ).toBeInTheDocument()
     expect(accepted).not.toHaveBeenCalled()
 })
 

@@ -4,6 +4,7 @@
 import type {TFunction} from "i18next"
 import {logDetails, type ILogMessage} from "./logMessage"
 import {STATEMENT_KIND_READINESS_VERIFIED, STATEMENT_KIND_VOTERS_IMPORTED} from "./logEntryDetails"
+import {findingText, validFindings, type IReadinessFinding} from "@/services/readinessFindings"
 
 const CHECK_KINDS = [
     "configuration",
@@ -77,12 +78,16 @@ const isReadiness = (kind?: string | null): boolean =>
 export const readinessDescription = (t: TFunction, kind?: string | null): string | null =>
     isReadiness(kind) ? String(t(`logsScreen.readiness.description.${kind}`)) : null
 
-/** CheckKind is the stable language-independent contract, including in old reports. */
+/**
+ * CheckKind is the stable language-independent contract, including in old
+ * reports. The signed condition text stays visible beside its translation,
+ * followed by any failure detail the report carries.
+ */
 export const readinessCheckLines = (t: TFunction, message: ILogMessage | null): string[] | null => {
     const details = logDetails(message)
     const report = isObject(details?.report) ? details.report : details
     if (!Array.isArray(report?.checks)) return null
-    return report.checks.filter(isObject).map((check) => {
+    return report.checks.filter(isObject).flatMap((check) => {
         const kind = typeof check.kind === "string" ? check.kind : String(check.name ?? "")
         const description = CHECK_KINDS.some((known) => known === kind)
             ? String(t(`logsScreen.readiness.checks.${kind}`))
@@ -90,7 +95,20 @@ export const readinessCheckLines = (t: TFunction, message: ILogMessage | null): 
         const outcome = String(
             t(check.passed === true ? "logsScreen.readiness.passed" : "logsScreen.readiness.failed")
         )
-        return String(t("logsScreen.readiness.checkResult", {outcome, description}))
+        const line =
+            typeof check.message === "string" && check.message.trim()
+                ? t("logsScreen.readiness.checkResultWithMessage", {
+                      outcome,
+                      description,
+                      message: check.message,
+                      interpolation: {escapeValue: false},
+                  })
+                : t("logsScreen.readiness.checkResult", {outcome, description})
+        const findings =
+            Array.isArray(check.findings) && validFindings(check.findings)
+                ? (check.findings as IReadinessFinding[]).map((finding) => findingText(t, finding))
+                : []
+        return [String(line), ...findings]
     })
 }
 

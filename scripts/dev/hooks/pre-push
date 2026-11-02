@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Enabled by `git config core.hooksPath scripts/dev/hooks`; see scripts/dev/pre_push.py.
+set -euo pipefail
+exec "$(git rev-parse --show-toplevel)/scripts/dev/step-dev" pre_push "$@"

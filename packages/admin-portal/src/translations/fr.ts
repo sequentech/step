@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        configurationPackage: englishTranslation.translations.configurationPackage,
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Fermer",
@@ -28,6 +29,77 @@ const frenchTranslation: TranslationType = {
             snapshot:
                 "Ce rapport est un instantané. Répétez après toute modification pertinente ; il ne fige pas l’événement et ne remplace pas l’approbation opérationnelle.",
             results: "Résultats des contrôles",
+            condition: "Condition vérifiée par le serveur",
+            noDetail: "Le serveur n’a donné aucun autre détail pour ce contrôle.",
+            reasons: "Pourquoi il a échoué",
+            noArea: "aucune zone ou une zone inconnue",
+            eventRoles: {
+                official: "officiel",
+                tested: "de test",
+                both: "les deux",
+            },
+            scope: {
+                event: "L’événement {{event}}",
+                election: "L’élection {{election}}",
+            },
+            certification: {
+                declared_sha256_missing: "aucun SHA-256 n’a été déclaré",
+                declared_sha256_mismatch: "le SHA-256 déclaré diffère de celui du fichier",
+                no_counts: "il n’a aucun électeur par zone",
+                blank_area: "des électeurs n’ont pas de zone",
+                invalid_sha256: "son SHA-256 n’est pas valide",
+            },
+            findings: {
+                same_event: "L’événement officiel et l’événement de test sont le même événement.",
+                configuration_missing:
+                    "L’événement {{event}} n’a pas été importé depuis un paquet de configuration signé.",
+                configuration_incomplete:
+                    "La configuration signée de l’événement officiel n’a pas de valeur valide pour « {{field}} ».",
+                external_id_mismatch:
+                    "Les événements proviennent de configurations différentes : {{official}} (officiel) et {{tested}} (de test).",
+                content_mismatch:
+                    "Le contenu signé diffère : SHA-256 {{official}} (officiel) et {{tested}} (de test).",
+                approvers_mismatch:
+                    "Les approbateurs vérifiés diffèrent : {{only_official}} uniquement sur l’événement officiel et {{only_tested}} uniquement sur l’événement de test.",
+                areas_mismatch:
+                    "{{area}} ne figure que dans le contenu signé de l’événement {{event}}.",
+                voter_import_missing:
+                    "L’événement {{event}} n’a aucune importation certifiée d’électeurs.",
+                voter_import_in_progress:
+                    "Une importation d’électeurs est encore en cours sur l’événement {{event}}.",
+                voter_file_not_certified:
+                    "La dernière importation d’électeurs de l’événement {{event}} n’est pas certifiée : {{reason}}.",
+                voter_receipt_not_signed:
+                    "Le journal de l’événement {{event}} n’a aucune entrée signée correspondant à l’importation d’électeurs {{import_id}}.",
+                registry_count_changed:
+                    "L’événement {{event}} compte maintenant {{current}} électeurs dans {{area}}, mais son importation certifiée en compte {{imported}}.",
+                voter_area_not_configured:
+                    "Les électeurs certifiés de l’événement {{event}} incluent {{area}}, qui ne figure pas dans son contenu signé.",
+                voter_file_mismatch:
+                    "Les fichiers d’électeurs certifiés diffèrent : SHA-256 {{official}} (officiel) et {{tested}} (de test).",
+                voter_count_mismatch:
+                    "Les fichiers certifiés diffèrent dans {{area}} : {{official}} électeurs (officiel) et {{tested}} (de test).",
+                ballots_present: "L’événement officiel contient {{count}} bulletins enregistrés.",
+                received_ballots_present:
+                    "L’événement officiel contient {{count}} bulletins reçus pour vérification.",
+                tally_sessions_present:
+                    "L’événement officiel a {{count}} sessions de dépouillement.",
+                status_missing: "{{scope}} n’a pas de statut de vote.",
+                voting_started: "{{scope}} : le canal {{channel}} est {{status}}.",
+                voting_dates_recorded:
+                    "{{scope}} : le canal {{channel}} a des dates de vote enregistrées.",
+                no_elections: "L’événement {{event}} n’a aucune élection.",
+                publication_missing: "L’événement {{event}} n’a aucune publication active.",
+                publication_mismatch:
+                    "Les {{design_count}} modèles de bulletin publiés de l’événement {{event}} ne correspondent pas à tous les modèles de sa configuration signée.",
+                publication_empty:
+                    "Les modèles de bulletin publiés de l’événement {{event}} n’ont pas pu être vérifiés par rapport à une configuration signée.",
+                channels_open: "L’événement de test a encore des canaux de vote non fermés.",
+                seal_at_close_off: "L’événement de test ne scelle pas les urnes à la clôture.",
+                no_expected_boxes: "La publication de l’événement de test n’attend aucune urne.",
+                boxes_unsealed:
+                    "L’élection {{election}} de l’événement de test a {{unsealed}} urnes non scellées.",
+            },
         },
         plugins: {
             title: "Extensions",
@@ -462,6 +534,8 @@ const frenchTranslation: TranslationType = {
                 passed: "Réussi",
                 failed: "Échoué",
                 checkResult: "{{outcome}}: {{description}}",
+                checkResultWithMessage:
+                    "{{outcome}} : {{description}} Condition enregistrée : « {{message}} »",
                 description: {
                     VotersImported: "Fichier des électeurs importé.",
                     ReadinessVerified:
@@ -876,6 +950,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exporter les Demandes",
                 EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
                 IMPORT_TENANT_CONFIG: "Importer la Configuration du Locataire",
+                APPLY_CONFIGURATION_PACKAGE: "Appliquer le Paquet de Configuration",
                 RENDER_DOCUMENT_PDF: "Générer le document PDF",
                 CREATE_TENANT: "Créer un locataire",
                 EXPORT_TEMPLATES: "Exporter les Modèles",
@@ -2732,6 +2807,9 @@ const frenchTranslation: TranslationType = {
                         delete: "Êtes-vous sûr de vouloir supprimer cet élément ?",
                         sealsUnknown:
                             "Les scellés des urnes n'ont pas pu être vérifiés : si l'élément a des urnes scellées, la suppression est refusée.",
+                        archiveNamed: 'Êtes-vous sûr de vouloir archiver "{{name}}" ?',
+                        unarchiveNamed: 'Êtes-vous sûr de vouloir désarchiver "{{name}}" ?',
+                        deleteNamed: 'Êtes-vous sûr de vouloir supprimer "{{name}}" ?',
                     },
                     notification: {
                         success: {
@@ -2853,6 +2931,13 @@ const frenchTranslation: TranslationType = {
                 "label": "Forme d’icône de case à cocher pour les candidats",
                 "square-checkbox": "Case à cocher carrée",
                 "round-checkbox": "Case à cocher ronde",
+            },
+            candidatesLayout: {
+                "label": "Disposition des candidats",
+                "helperText":
+                    "La grille de bulletin papier affiche les candidats dans des cases numérotées avec un cercle à remplir, colonne par colonne, selon Colonnes (4 si vide). Les scrutins par classement utilisent toujours la liste.",
+                "list": "Liste",
+                "paper-grid": "Grille de bulletin papier",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidats Et Listes",
@@ -4340,6 +4425,8 @@ const frenchTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Tableaux de bord configurables",
+            modeChangeError: "Impossible de changer le mode du tableau de bord. Réessayez.",
             title: "Suivi",
             loading: "Chargement du suivi",
             unavailableAlert:

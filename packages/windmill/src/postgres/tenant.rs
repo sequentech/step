@@ -410,3 +410,43 @@ pub async fn get_tenant_ids(hasura_transaction: &Transaction<'_>) -> Result<Vec<
         .map(|row| Ok(row.try_get::<_, Uuid>("id")?.to_string()))
         .collect()
 }
+
+/// The tenant row, locked for update until the transaction ends.
+#[instrument(err, skip(hasura_transaction))]
+pub async fn lock_tenant(hasura_transaction: &Transaction<'_>, tenant_id: &str) -> Result<Tenant> {
+    let row = hasura_transaction
+        .query_one(
+            "SELECT * FROM sequent_backend.tenant WHERE id = $1 FOR UPDATE",
+            &[&parse_uuid_v4(tenant_id)?],
+        )
+        .await
+        .with_context(|| format!("Error locking tenant {tenant_id}"))?;
+    let tenant: TenantWrapper = row.try_into()?;
+    Ok(tenant.0)
+}
+
+/// Write only the tenant record's presentation and offering fields; its id,
+/// slug, active state and test flag are left as they are.
+#[instrument(err, skip(hasura_transaction, tenant))]
+pub async fn update_tenant_configuration(
+    hasura_transaction: &Transaction<'_>,
+    tenant: &Tenant,
+) -> Result<()> {
+    hasura_transaction
+        .execute(
+            "UPDATE sequent_backend.tenant
+             SET labels = $1, annotations = $2, voting_channels = $3, settings = $4,
+                 updated_at = now()
+             WHERE id = $5",
+            &[
+                &tenant.labels,
+                &tenant.annotations,
+                &tenant.voting_channels,
+                &tenant.settings,
+                &parse_uuid_v4(&tenant.id)?,
+            ],
+        )
+        .await
+        .with_context(|| format!("Error updating tenant {}", tenant.id))?;
+    Ok(())
+}

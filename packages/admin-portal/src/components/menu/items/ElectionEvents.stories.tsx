@@ -23,6 +23,7 @@ interface Scenario {
     reads: ReadState
     sidebarOpen: boolean
     roles?: string[]
+    onlyLanguage?: string
 }
 
 let services: TreeServices
@@ -53,7 +54,7 @@ const meta = {
     parameters: {expectedFailure: menuDefect()},
     beforeEach: async ({args}) => {
         await initCore()
-        services = treeServices({reads: args.reads})
+        services = treeServices({reads: args.reads, onlyLanguage: args.onlyLanguage})
         await services.graphql.ready
     },
     render: (args) => <Fixture {...args} />,
@@ -145,6 +146,21 @@ export const OnAContestPage: Story = {
             tenantId: TENANT_ID,
             contestId: STORY_IDS.contest,
         })
+    },
+}
+
+export const SpanishDefaultEvent: Story = {
+    args: {onlyLanguage: "es"},
+    parameters: OnAContestPage.parameters,
+    play: async ({canvasElement}) => {
+        // Every text is only in Spanish, the event's default: an English interface
+        // shows the Spanish names rather than "-".
+        await expect(await item(canvasElement, "Consejo")).toBeVisible()
+        await expect(await item(canvasElement, "Seats")).toBeVisible()
+        await expect(await item(canvasElement, "Miembros")).toBeVisible()
+        await expect(await item(canvasElement, "Alice")).toBeVisible()
+        await expect(await item(canvasElement, "Bob")).toBeVisible()
+        expect(within(canvasElement).queryByRole("link", {name: "-"})).toBeNull()
     },
 }
 

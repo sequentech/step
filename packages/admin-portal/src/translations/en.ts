@@ -4,6 +4,79 @@
 
 const englishTranslation = {
     translations: {
+        configurationPackage: {
+            tab: "Configuration package",
+            title: "Import a configuration package",
+            description:
+                "Apply a complete delivery exported by Election Architect: tenant configuration and settings, roles, administrators, trustees and the election event with its census. Nothing changes until the preview is applied.",
+            tenant: "Tenant: {{tenantId}}",
+            notPermitted:
+                "Importing a configuration package needs tenant-write, user-write, role-write, trustee-create, trustee-write and election-event-create on this tenant.",
+            requirements: "The package must carry",
+            censusRequired: "The election event's census",
+            sections: {
+                "tenant-configuration": "Tenant configuration",
+                "tenant-settings": "Tenant settings",
+                "role-permissions": "Role permissions",
+                "admin-accounts": "Administrator accounts",
+                "trustees": "Trustees",
+                "election-event": "Election event",
+            },
+            upload: "Upload package",
+            uploadTitle: "Upload a configuration package",
+            uploadSubtitle: "The delivery zip from removable media",
+            uploadParagraph: "It is previewed first; nothing is applied from the upload itself.",
+            documentId: "Or an uploaded document id",
+            preview: "Preview",
+            apply: "Apply",
+            blocked:
+                "The preview found blockers: fix the package or the tenant, then preview again.",
+            noTask: "The platform returned no task.",
+            mode: {preview: "Preview", apply: "Application"},
+            task: "Task {{taskId}}",
+            running: "Running…",
+            toChange: "Preview only, nothing changed: {{count}} section(s) would change.",
+            outcome: {
+                running: "Running",
+                previewed: "Previewed: nothing was changed",
+                applied: "Applied: the tenant matches the package",
+                refused:
+                    "Refused before this run applied anything; sections an earlier run applied stay applied, as their states say",
+                failed: "Failed part-way: the sections before it may be applied, as their states say",
+                unknown:
+                    "Unknown: a section could not be settled, and nothing further was submitted; check it again before retrying",
+            },
+            columns: {section: "Section", state: "State", task: "Task", details: "Details"},
+            reconciled: "reconciled",
+            blocker: "Blocked",
+            needsApply: "Would change",
+            members: "Members",
+            history: "Earlier applications",
+            applyRechecks:
+                "Applying previews the package again on the platform before anything changes, and stops at any blocker.",
+            earlierApplied: "Applied by an earlier run",
+            earlierTasks: "Tasks begun for this section: {{tasks}}",
+            inFlight: "A submission is not settled yet (task {{taskId}})",
+            stoppedWithoutRecord:
+                "Stopped without a record: sections may have been applied by this or earlier runs; preview again to see the tenant's state",
+            lastLog: "Last message: {{message}}",
+            unreadable:
+                "The task cannot be read ({{reason}}). It may still be running: check the earlier applications, or stop following it",
+            notFound: "not found in this tenant",
+            stopFollowing: "Stop following",
+            mayHaveTask:
+                "The outcome of the request is unknown, so a task may have been created: check the earlier applications before retrying.",
+            shaMismatch:
+                "The previewed package is not the one whose SHA-256 was entered ({{expected}}); it cannot be applied.",
+            confirmTitle: "Apply this package?",
+            confirmBody:
+                "This applies the previewed package to tenant {{tenantId}}. The platform previews it again first and stops at any blocker.",
+            cancel: "Cancel",
+            proposedChanges: "What applying would change",
+            shaMalformed:
+                "The SHA-256 entered is not 64 hexadecimal characters, so the package was not previewed. Enter the digest exactly, or leave it blank.",
+            nothingToChange: "Nothing: the tenant already matches the package.",
+        },
         ballotPrivacy: {
             title: "Ballot box log",
             subtitle:
@@ -182,6 +255,73 @@ const englishTranslation = {
             snapshot:
                 "This report is a snapshot. Repeat after relevant changes; it does not freeze the event or replace operational approval.",
             results: "Check results",
+            condition: "Condition checked by the server",
+            noDetail: "The server reported no further detail for this check.",
+            reasons: "Why it failed",
+            noArea: "no or an unknown area",
+            eventRoles: {
+                official: "official",
+                tested: "tested",
+                both: "both",
+            },
+            scope: {
+                event: "The {{event}} event",
+                election: "Election {{election}}",
+            },
+            certification: {
+                declared_sha256_missing: "no declared SHA-256 was given",
+                declared_sha256_mismatch: "the declared SHA-256 differs from the file",
+                no_counts: "it has no voters by area",
+                blank_area: "some voters have no area",
+                invalid_sha256: "its SHA-256 is invalid",
+            },
+            findings: {
+                same_event: "The official and tested events are the same event.",
+                configuration_missing:
+                    "The {{event}} event was not imported from a signed configuration package.",
+                configuration_incomplete:
+                    "The official event’s signed configuration has no valid value for “{{field}}”.",
+                external_id_mismatch:
+                    "The events come from different configurations: {{official}} (official) and {{tested}} (tested).",
+                content_mismatch:
+                    "The signed content differs: SHA-256 {{official}} (official) and {{tested}} (tested).",
+                approvers_mismatch:
+                    "The verified approvers differ: {{only_official}} only on the official event and {{only_tested}} only on the tested event.",
+                areas_mismatch: "{{area}} is only in the {{event}} event’s signed content.",
+                voter_import_missing: "The {{event}} event has no certified voter import.",
+                voter_import_in_progress: "A voter import is still running on the {{event}} event.",
+                voter_file_not_certified:
+                    "The {{event}} event’s last voter import is not certified: {{reason}}.",
+                voter_receipt_not_signed:
+                    "The {{event}} event’s log has no matching signed record of voter import {{import_id}}.",
+                registry_count_changed:
+                    "The {{event}} event now has {{current}} voters in {{area}}, but its certified import has {{imported}}.",
+                voter_area_not_configured:
+                    "The {{event}} event’s certified voters include {{area}}, which is not in its signed content.",
+                voter_file_mismatch:
+                    "The certified voter files differ: SHA-256 {{official}} (official) and {{tested}} (tested).",
+                voter_count_mismatch:
+                    "The certified files differ in {{area}}: {{official}} voters (official) and {{tested}} (tested).",
+                ballots_present: "The official event has {{count}} stored ballots.",
+                received_ballots_present:
+                    "The official event has {{count}} ballots received for review.",
+                tally_sessions_present: "The official event has {{count}} tally sessions.",
+                status_missing: "{{scope}} has no voting status.",
+                voting_started: "{{scope}}: the {{channel}} channel is {{status}}.",
+                voting_dates_recorded:
+                    "{{scope}}: the {{channel}} channel has recorded voting dates.",
+                no_elections: "The {{event}} event has no elections.",
+                publication_missing: "The {{event}} event has no active publication.",
+                publication_mismatch:
+                    "The {{event}} event’s {{design_count}} published ballot designs do not match every design of its signed configuration.",
+                publication_empty:
+                    "The {{event}} event’s published ballot designs could not be checked against a signed configuration.",
+                channels_open: "The tested event still has voting channels that have not closed.",
+                seal_at_close_off: "The tested event does not seal ballot boxes at close.",
+                no_expected_boxes: "The tested event’s publication expects no ballot boxes.",
+                boxes_unsealed:
+                    "Election {{election}} of the tested event has {{unsealed}} unsealed ballot boxes.",
+            },
         },
         plugins: {
             title: "Plugins",
@@ -622,6 +762,8 @@ const englishTranslation = {
                 passed: "Passed",
                 failed: "Failed",
                 checkResult: "{{outcome}}: {{description}}",
+                checkResultWithMessage:
+                    "{{outcome}}: {{description}} Recorded condition: “{{message}}”",
                 description: {
                     VotersImported: "Voter file imported.",
                     ReadinessVerified:
@@ -1031,6 +1173,7 @@ const englishTranslation = {
                 EXPORT_APPLICATION: "Export Applications",
                 EXPORT_TENANT_CONFIG: "Export Tenant Config",
                 IMPORT_TENANT_CONFIG: "Import Tenant Config",
+                APPLY_CONFIGURATION_PACKAGE: "Apply Configuration Package",
                 RENDER_DOCUMENT_PDF: "Render Document PDF",
                 CREATE_TENANT: "Create Tenant",
                 EXPORT_TEMPLATES: "Export Templates",
@@ -2842,6 +2985,9 @@ const englishTranslation = {
                         delete: "Are you sure to delete this item?",
                         sealsUnknown:
                             "The ballot box seals could not be checked: if it has sealed ballot boxes, the delete is refused.",
+                        archiveNamed: 'Are you sure you want to archive "{{name}}"?',
+                        unarchiveNamed: 'Are you sure you want to unarchive "{{name}}"?',
+                        deleteNamed: 'Are you sure you want to delete "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2962,6 +3108,13 @@ const englishTranslation = {
                 "label": "Candidates checkbox icon shape",
                 "square-checkbox": "Square Checkbox",
                 "round-checkbox": "Round Checkbox",
+            },
+            candidatesLayout: {
+                "label": "Candidates layout",
+                "helperText":
+                    "Paper ballot grid shows candidates as numbered cells with a fill-in circle, filled column by column, using Columns (4 if empty). Ranked contests always use the list.",
+                "list": "List",
+                "paper-grid": "Paper ballot grid",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidates And Lists",
@@ -4444,6 +4597,8 @@ const englishTranslation = {
             },
         },
         monitoring: {
+            configuredDashboards: "Configurable dashboards",
+            modeChangeError: "Could not change the dashboard mode. Try again.",
             title: "Monitoring",
             loading: "Loading monitoring",
             unavailableAlert:

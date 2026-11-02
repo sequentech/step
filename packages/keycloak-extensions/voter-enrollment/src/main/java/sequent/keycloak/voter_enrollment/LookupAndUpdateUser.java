@@ -85,7 +85,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
   /**
    * Auth note an identity verification step sets to say how the applicant's identity was
-   * established: VERIFIED or MANUAL_ENTRY. The approval matrix decides with it.
+   * established, see {@link IdentityMethod}. The approval matrix decides with it. A form can't set
+   * it, see {@link Utils#isFormNote(String, java.util.Set)}.
    */
   public static final String IDENTITY_METHOD = "identity-method";
 
@@ -259,10 +260,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     annotationsMap.put(UNSET_ATTRIBUTES, unsetAttributes);
     annotationsMap.put("credentials", credentials);
     annotationsMap.put("sessionId", sessionId);
-    String identityMethod = context.getAuthenticationSession().getAuthNote(IDENTITY_METHOD);
-    if (identityMethod != null) {
-      annotationsMap.put(IDENTITY_METHOD, identityMethod);
-    }
+    putIdentityMethod(annotationsMap, context.getAuthenticationSession());
     annotationsMap.put(
         NO_MATCHING_VOTER_POLICY,
         NoMatchingVoterPolicy.fromConfig(config.getConfig().get(NO_MATCHING_VOTER_POLICY)).name());
@@ -666,6 +664,26 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       Response form = context.form().createForm("registration-finish.ftl");
       context.challenge(form);
     }
+  }
+
+  /** The identity method a verification step established, empty when none did. */
+  public static Optional<IdentityMethod> identityMethod(AuthenticationSessionModel authSession) {
+    String note = authSession.getAuthNote(IDENTITY_METHOD);
+    Optional<IdentityMethod> method = IdentityMethod.fromNote(note);
+    if (note != null && method.isEmpty()) {
+      log.warnv("identityMethod(): ignoring the unknown identity method {0}", note);
+    }
+    return method;
+  }
+
+  /**
+   * Adds the identity method to the application's annotations, only when a verification step
+   * established a known one.
+   */
+  static void putIdentityMethod(
+      Map<String, Object> annotations, AuthenticationSessionModel authSession) {
+    identityMethod(authSession)
+        .ifPresent(method -> annotations.put(IDENTITY_METHOD, method.name()));
   }
 
   private static String telUserAttribute(AuthenticationFlowContext context) {

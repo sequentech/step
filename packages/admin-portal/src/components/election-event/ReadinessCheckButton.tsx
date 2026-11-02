@@ -40,9 +40,21 @@ import {
     READINESS_CHECK_KINDS,
     type IReadinessReport,
 } from "@/services/readinessReport"
+import {findingText} from "@/services/readinessFindings"
 
 type Event = Pick<Sequent_Backend_Election_Event, "id" | "presentation">
 type TestedEvent = GetReadinessEventsQuery["sequent_backend_election_event"][number]
+
+/** The server's own message for a check that could not be completed. */
+const serverMessage = (errors: unknown): string | null => {
+    if (!Array.isArray(errors)) return null
+    const messages = errors
+        .map((error) => (error && typeof error.message === "string" ? error.message : ""))
+        .filter((message) => message.trim())
+    return messages.length ? messages.join("; ") : null
+}
+
+const knownKind = (kind: string): boolean => READINESS_CHECK_KINDS.some((known) => known === kind)
 
 export function ReadinessDialog({
     event,
@@ -60,6 +72,7 @@ export function ReadinessDialog({
     const [report, setReport] = useState<IReadinessReport | null>(null)
     const [pending, setPending] = useState(false)
     const [failure, setFailure] = useState<string | null>(null)
+    const [failureDetail, setFailureDetail] = useState<string | null>(null)
     const {data, loading, error, refetch} = useQuery<
         GetReadinessEventsQuery,
         GetReadinessEventsQueryVariables
@@ -87,6 +100,7 @@ export function ReadinessDialog({
         setPending(true)
         setReport(null)
         setFailure(null)
+        setFailureDetail(null)
         try {
             const response = await check({
                 variables: {official_event_id: event.id, tested_event_id: tested.id},
@@ -95,12 +109,14 @@ export function ReadinessDialog({
             const result = readinessReport(response.data?.readiness_check, event.id, tested.id)
             if (response.errors?.length || !result) {
                 setFailure(t("readiness.error"))
+                setFailureDetail(serverMessage(response.errors))
                 return
             }
             setReport(result)
             if (result.passed) refresh()
-        } catch {
+        } catch (error) {
             setFailure(t("readiness.error"))
+            setFailureDetail(serverMessage((error as {graphQLErrors?: unknown})?.graphQLErrors))
         } finally {
             setPending(false)
         }
@@ -154,6 +170,7 @@ export function ReadinessDialog({
                             setTested(value)
                             setReport(null)
                             setFailure(null)
+                            setFailureDetail(null)
                         }}
                         noOptionsText={t("readiness.noEvents")}
                         loadingText={t("common.label.loadingData")}
@@ -176,7 +193,16 @@ export function ReadinessDialog({
                             {t("readiness.eventsError")}
                         </Alert>
                     )}
-                    {failure && <Alert severity="error">{failure}</Alert>}
+                    {failure && (
+                        <Alert severity="error">
+                            <Typography>{failure}</Typography>
+                            {failureDetail && (
+                                <Typography variant="body2" sx={{overflowWrap: "anywhere"}}>
+                                    {failureDetail}
+                                </Typography>
+                            )}
+                        </Alert>
+                    )}
                     {pending && (
                         <Stack direction="row" spacing={1} alignItems="center" role="status">
                             <CircularProgress size={20} aria-label={t("readiness.running")} />
@@ -208,13 +234,45 @@ export function ReadinessDialog({
                                                     : "logsScreen.readiness.failed"
                                             )}
                                         />
-                                        <Typography sx={{m: 0}}>
-                                            {READINESS_CHECK_KINDS.some(
-                                                (kind) => kind === check.kind
-                                            )
-                                                ? t(`logsScreen.readiness.checks.${check.kind}`)
-                                                : check.message}
-                                        </Typography>
+                                        <Box sx={{minWidth: 0, overflowWrap: "anywhere"}}>
+                                            <Typography sx={{m: 0}}>
+                                                {knownKind(check.kind)
+                                                    ? t(`logsScreen.readiness.checks.${check.kind}`)
+                                                    : check.message}
+                                            </Typography>
+                                            {knownKind(check.kind) && (
+                                                <Typography
+                                                    variant="body2"
+                                                    color="text.secondary"
+                                                    sx={{m: 0}}
+                                                >
+                                                    {t("readiness.condition")}:{" "}
+                                                    <span>{check.message}</span>
+                                                </Typography>
+                                            )}
+                                            {!check.passed &&
+                                                (check.findings?.length ? (
+                                                    <Box
+                                                        component="ul"
+                                                        aria-label={t("readiness.reasons")}
+                                                        sx={{m: 0, pl: 2}}
+                                                    >
+                                                        {check.findings.map((finding, index) => (
+                                                            <Typography
+                                                                component="li"
+                                                                variant="body2"
+                                                                key={index}
+                                                            >
+                                                                {findingText(t, finding)}
+                                                            </Typography>
+                                                        ))}
+                                                    </Box>
+                                                ) : (
+                                                    <Typography variant="body2" sx={{m: 0}}>
+                                                        {t("readiness.noDetail")}
+                                                    </Typography>
+                                                ))}
+                                        </Box>
                                     </ListItem>
                                 ))}
                             </List>

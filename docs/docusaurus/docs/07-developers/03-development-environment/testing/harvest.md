@@ -31,9 +31,9 @@ report without recording a success. That control runs in an isolated child so
 Windmill's global voter-registry pool can use the private fixture database; its
 event ballot boxes live on the synthetic electoral-log PostgreSQL server.
 
-`support/request_logging.rs` checks that routine `GET /trustee/boards` polls,
-including Rocket request logs and shared helper spans, are visible only with
-`LOG_LEVEL=debug` or `trace`. Warnings, errors and failed polls remain visible;
+`support/request_logging.rs` checks that routine `GET /trustee/boards` polls and
+successful `GET /b4/boards/<board>/messages` reads, including Rocket request logs
+and shared helper spans, are visible only with `LOG_LEVEL=debug` or `trace`. Warnings, errors and failed polls remain visible;
 other endpoints, including trustee reports, retain their existing logging.
 The test dispatches concurrent requests and isolates the process-global logger.
 

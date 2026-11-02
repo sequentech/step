@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //! Real-time metrics dashboard for Trellis
 //!
 //! A terminal-based dashboard that displays live metrics from the Trellis server,

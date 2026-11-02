@@ -79,6 +79,22 @@ An identity verification step reports how it established the identity by setting
 `identity-method` auth note to `VERIFIED` or `MANUAL_ENTRY`. `LookupAndUpdateUser` forwards it in the
 annotations of the application. When no step sets it, `identity` conditions don't apply.
 
+Only Keycloak sets the note:
+
+- The registration form can't: `identity-method` is a reserved note, and submitting the form again
+  removes the note an earlier verification set.
+- The Scanovate step sets `VERIFIED` only when it completes a verification: after the voter confirms
+  the attributes it read, or right away when it stores none. Starting the step over (a reload, a
+  retry, the attempt limit), a failed check or a service error removes it, so a verification never
+  carries over to a later failed attempt.
+- A voter whose status attribute says they were verified before skips the Scanovate step without a
+  method: the attribute is not proof of a verification in this session.
+- `LookupAndUpdateUser` forwards only `VERIFIED` or `MANUAL_ENTRY`; it ignores any other value with a
+  warning, and windmill refuses an application whose annotations carry one.
+
+No step of the platform sets `MANUAL_ENTRY` yet: an enrollment without a verification step carries
+no method.
+
 ## Versions
 
 Table `sequent_backend.approval_matrix` (`tenant_id`, `election_event_id`, `version`,

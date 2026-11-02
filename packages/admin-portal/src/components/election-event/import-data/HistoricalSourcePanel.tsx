@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useRef, useState} from "react"
+import React, {useContext, useEffect, useRef, useState} from "react"
 import {Box, Button, Typography} from "@mui/material"
 import {ProblemList, type Problem} from "@sequentech/ui-essentials"
 import type {BuildOutput} from "sequent-election-config"
 import {HistoricalImportRuntimeError} from "@/services/HistoricalImportWorkerClient"
 import type {HistoricalImportConverterApi} from "@/services/HistoricalImportConverter"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 import defaults from "@/services/historical-profile-defaults.json"
 import {useTranslation} from "react-i18next"
 
@@ -46,6 +47,8 @@ export const HistoricalSourcePanel: React.FC<Props> = (props) => {
     const {api, disabled, droppedFiles} = props
     const callbacks = useRef(props)
     callbacks.current = props
+    const {loaded, globalSettings} = useContext(SettingsContext)
+    const appVersion = globalSettings.APP_VERSION
     const {t} = useTranslation()
     const label = (key: string, fallback: string) =>
         String(t(`electionEventScreen.import.historical.${key}`, {defaultValue: fallback}))
@@ -62,7 +65,19 @@ export const HistoricalSourcePanel: React.FC<Props> = (props) => {
         setError("")
         setWorking(false)
         callbacks.current.onPrepare()
-        if (!sql || !workbook) return
+        if (!sql || !workbook || !loaded) return
+        // The converter's standalone default may target a different platform major.
+        // Runtime JSON can be incomplete even though GlobalSettings is typed.
+        if (
+            typeof appVersion !== "string" ||
+            (appVersion !== "dev" &&
+                !/^[vV]?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(appVersion))
+        ) {
+            setError(
+                "The application version is unavailable or invalid. Reload the page to reload application settings, or ask your administrator to check APP_VERSION. The selected files have not been uploaded."
+            )
+            return
+        }
         setWorking(true)
         const convert = async () => {
             try {
@@ -88,7 +103,7 @@ export const HistoricalSourcePanel: React.FC<Props> = (props) => {
                     new Uint8Array(sqlBytes),
                     new Uint8Array(workbookBytes),
                     defaults,
-                    {}
+                    {baseExport: {version: appVersion}}
                 )) as HistoricalOutput
                 if (!active) return
                 setResult(prepared)
@@ -122,7 +137,7 @@ export const HistoricalSourcePanel: React.FC<Props> = (props) => {
         return () => {
             active = false
         }
-    }, [api, droppedFiles, attempt])
+    }, [api, droppedFiles, attempt, loaded, appVersion])
 
     const problems = result?.output.report.problems.map((problem) => ({
         ...problem,
@@ -146,6 +161,11 @@ export const HistoricalSourcePanel: React.FC<Props> = (props) => {
                         : "Drop the supplemental XLSX workbook into the same zone to complete the source pair."}
                 </Typography>
             ) : null}
+            {sql && workbook && !loaded && (
+                <Typography role="status">
+                    Waiting for application settings before validating the source files.
+                </Typography>
+            )}
             {working && (
                 <Typography role="status">
                     Validating SQL and workbook locally… No files have been uploaded.

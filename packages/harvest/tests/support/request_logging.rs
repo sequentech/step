@@ -217,3 +217,93 @@ async fn only_trustee_checks_require_debug_logging() {
         );
     }
 }
+
+#[get("/b4/boards/<_board>/messages?<fail>")]
+async fn board_messages(_board: &str, fail: Option<bool>) -> Status {
+    if fail == Some(true) {
+        return Status::NotFound;
+    }
+    shared_lookup();
+    Status::Ok
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn b4_board_reads_require_debug_logging() {
+    const TEST: &str =
+        "services::request_logging::tests::b4_board_reads_require_debug_logging";
+    if !crate::request_boundaries::is_isolated_child() {
+        crate::request_boundaries::run_isolated(TEST, "http://127.0.0.1:9");
+        return;
+    }
+    tracing_log::LogTracer::init().unwrap();
+    let client = Arc::new(
+        Client::tracked(
+            rocket::build()
+                .attach(fairing())
+                .mount("/", routes![board_messages]),
+        )
+        .await
+        .unwrap(),
+    );
+    const BOARD: &str = "/b4/boards/dkg_d9792af071b849528aac94bc0fead5f7";
+
+    for (level, read_visible) in
+        [(LevelFilter::INFO, false), (LevelFilter::DEBUG, true)]
+    {
+        let logs = Events::default();
+        let subscriber = tracing_subscriber::registry().with(level).with(
+            logs.clone().with_filter(
+                tracing_subscriber::filter::dynamic_filter_fn(
+                    move |metadata, _| enabled(metadata, level),
+                ),
+            ),
+        );
+        let dispatch = tracing::Dispatch::new(subscriber);
+        // Each request on its own task, as Rocket serves network requests.
+        for (query, status) in
+            [("?last_id=7", Status::Ok), ("?fail=true", Status::NotFound)]
+        {
+            let client = client.clone();
+            tokio::spawn(
+                async move {
+                    let response = client
+                        .get(format!("{BOARD}/messages{query}"))
+                        .dispatch()
+                        .await;
+                    assert_eq!(response.status(), status);
+                }
+                .with_subscriber(dispatch.clone()),
+            )
+            .await
+            .unwrap();
+        }
+        let messages = logs.0.lock().unwrap();
+        assert_eq!(
+            messages
+                .iter()
+                .any(|message| message.as_str() == "span:shared_lookup"),
+            read_visible,
+            "{messages:?}"
+        );
+        assert_eq!(
+            messages
+                .iter()
+                .any(|message| message.contains("routine lookup")),
+            read_visible,
+            "{messages:?}"
+        );
+        assert_eq!(
+            messages.iter().any(|message| message
+                .starts_with(&format!("GET {BOARD}/messages?last_id="))),
+            read_visible,
+            "{messages:?}"
+        );
+        assert!(
+            messages
+                .iter()
+                .any(|message| message == "board messages read failed"),
+            "{messages:?}"
+        );
+        assert!(CHECKS.lock().unwrap().is_empty());
+    }
+}

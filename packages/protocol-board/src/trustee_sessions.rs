@@ -21,6 +21,8 @@ use std::collections::BTreeMap;
 use std::fs;
 #[cfg(feature = "native")]
 use std::path::PathBuf;
+#[cfg(feature = "native")]
+use std::sync::Arc;
 
 use crate::{
     BoardName, Ctx, ProtocolBoardKind, TrusteeBoard, TrusteeReport,
@@ -30,6 +32,9 @@ use anyhow::{anyhow, bail, ensure, Context as _, Result};
 use tracing::{error, info, warn};
 use uuid::Uuid;
 use wbraid::board::persistence::Persistence;
+/// What an embedder implements to add headers, such as a platform access
+/// token, to the requests to the board service.
+pub use wbraid::board::transport::RequestHeaders;
 use wbraid::board::transport::Transport;
 use wbraid::board::BoardClient;
 use wbraid::messages::newtypes::ConfigurationHash;
@@ -64,12 +69,30 @@ pub trait BoardAccess {
 pub struct B4Boards {
     b4_url: String,
     stores: SessionStores,
+    /// Headers for every request to the board service; none when absent.
+    headers: Option<Arc<dyn RequestHeaders + Send + Sync>>,
 }
 
 #[cfg(feature = "native")]
 impl B4Boards {
     pub fn new(b4_url: String, stores: SessionStores) -> B4Boards {
-        B4Boards { b4_url, stores }
+        B4Boards {
+            b4_url,
+            stores,
+            headers: None,
+        }
+    }
+
+    /// Send `headers` with every request to the board service, as a gateway
+    /// in front of it requires. Presigned storage URLs never get them.
+    pub fn with_headers(
+        self,
+        headers: Arc<dyn RequestHeaders + Send + Sync>,
+    ) -> B4Boards {
+        B4Boards {
+            headers: Some(headers),
+            ..self
+        }
     }
 }
 
@@ -80,7 +103,11 @@ impl BoardAccess for B4Boards {
     type Persistence = SqlitePersistence;
 
     fn transport(&self, board: &BoardName) -> HttpTransport {
-        HttpTransport::new(&self.b4_url, board.as_str())
+        let transport = HttpTransport::new(&self.b4_url, board.as_str());
+        match &self.headers {
+            Some(headers) => transport.with_headers(Arc::clone(headers)),
+            None => transport,
+        }
     }
 
     async fn store(&self, board: &BoardName) -> Result<SqlitePersistence> {
@@ -481,4 +508,107 @@ async fn cycle<T: Transport<Ctx>, P: Persistence>(
     session.update().await.context("updating from the board")?;
     let messages = session.step().context("running the protocol")?;
     session.post(messages).await.context("posting to the board")
+}
+
+#[cfg(all(test, feature = "native"))]
+mod header_tests {
+    use std::io::{BufRead, BufReader, Write};
+    use std::net::TcpListener;
+    use std::thread::{self, JoinHandle};
+    use std::time::{Duration, Instant};
+
+    use super::*;
+
+    struct FixedHeaders;
+
+    #[async_trait::async_trait(?Send)]
+    impl RequestHeaders for FixedHeaders {
+        async fn headers(&self) -> Result<Vec<(String, String)>> {
+            Ok(vec![("Authorization".into(), "Bearer board-token".into())])
+        }
+    }
+
+    /// A board service that answers one request with HTTP 503 and returns
+    /// its request line and headers, lowercased.
+    fn board_service() -> (String, JoinHandle<Vec<String>>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let url = format!("http://{}/b4/", listener.local_addr().unwrap());
+        let server = thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(5);
+            let (mut stream, _) = loop {
+                match listener.accept() {
+                    Ok(connection) => break connection,
+                    Err(error)
+                        if error.kind() == std::io::ErrorKind::WouldBlock =>
+                    {
+                        assert!(Instant::now() < deadline, "no request");
+                        thread::sleep(Duration::from_millis(5));
+                    }
+                    Err(error) => panic!("accept failed: {error}"),
+                }
+            };
+            stream.set_nonblocking(false).unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            let mut reader = BufReader::new(&stream);
+            let mut head = Vec::new();
+            loop {
+                let mut line = String::new();
+                reader.read_line(&mut line).unwrap();
+                if line == "\r\n" {
+                    break;
+                }
+                head.push(line.trim_end().to_lowercase());
+            }
+            write!(
+                stream,
+                "HTTP/1.1 503 Fixture\r\nContent-Length: 0\r\n\
+                 Connection: close\r\n\r\n"
+            )
+            .unwrap();
+            head
+        });
+        (url, server)
+    }
+
+    async fn request_head(boards: impl Fn(String) -> B4Boards) -> Vec<String> {
+        let (url, server) = board_service();
+        let board =
+            BoardName::parse("dkg_d9792af071b849528aac94bc0fead5f7").unwrap();
+        let error =
+            boards(url).transport(&board).fetch_raw().await.unwrap_err();
+        assert!(format!("{error:#}").contains("503"), "{error:#}");
+        server.join().unwrap()
+    }
+
+    #[tokio::test]
+    async fn b4_boards_send_their_headers_to_the_board_service_under_its_path()
+    {
+        let directory = tempfile::tempdir().unwrap();
+        let stores = || SessionStores::new(directory.path().to_path_buf());
+        let with = request_head(|url| {
+            B4Boards::new(url, stores().unwrap())
+                .with_headers(Arc::new(FixedHeaders))
+        })
+        .await;
+        assert_eq!(
+            with[0],
+            "get /b4/boards/dkg_d9792af071b849528aac94bc0fead5f7/messages \
+             http/1.1"
+        );
+        assert!(
+            with.contains(&"authorization: bearer board-token".to_owned()),
+            "{with:?}"
+        );
+        let without =
+            request_head(|url| B4Boards::new(url, stores().unwrap())).await;
+        assert!(
+            !without
+                .iter()
+                .any(|line| line.starts_with("authorization:")),
+            "{without:?}"
+        );
+    }
 }

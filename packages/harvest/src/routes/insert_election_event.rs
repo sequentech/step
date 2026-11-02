@@ -249,7 +249,7 @@ async fn refuse(
 /// request body: whether they may write encrypted voter attributes (and who
 /// does), what the voters file may grant, and who started the import, whom its
 /// log entries name.
-fn stamp_initiators(
+pub(crate) fn stamp_initiators(
     input: &mut import_election_event::ImportElectionEventBody,
     claims: &JwtClaims,
 ) {

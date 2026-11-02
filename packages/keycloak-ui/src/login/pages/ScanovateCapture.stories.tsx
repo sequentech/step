@@ -464,6 +464,44 @@ export const AutomaticCapture: Story = {
     },
 }
 
+const croppedUploads: CaptureUpload[] = []
+
+/**
+ * The photo of the document is cropped to it and a margin, at full resolution: Face Match misses
+ * the portrait of a document that is a small part of the camera frame.
+ */
+export const FrontPhotoIsCropped: Story = {
+    args: {
+        kcContext: {scanovate: {videoSeconds: 1, sides: [ScanovateSide.Front]}},
+        services: fakeServices({
+            uploads: fakeUploads(croppedUploads),
+            document: {statuses: [DocumentStatus.Ready]},
+            // A document 500 × 320 px, inside the synthetic camera frame in both orientations
+            stillCorners: [
+                [100, 200],
+                [600, 200],
+                [600, 520],
+                [100, 520],
+            ],
+            face: {statuses: [FaceStatus.Ready]},
+        }),
+    },
+    beforeEach: () => {
+        croppedUploads.length = 0
+        return keepSubmissions()
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.click(await canvas.findByRole("button", {name: "Start"}))
+        await waitFor(() => expect(croppedUploads.length).toBeGreaterThan(0), {timeout: 12000})
+        const front = croppedUploads.find(({part}) => part === CapturePart.Front)
+        await expect(front?.blob.type).toBe("image/jpeg")
+        const photo = await createImageBitmap(front!.blob)
+        // 10% of the document's size around it: 50 px across and 32 px down on each side
+        await expect({width: photo.width, height: photo.height}).toEqual({width: 600, height: 384})
+    },
+}
+
 export const UploadFailed: Story = {
     args: {
         startAt: CaptureStep.Video,

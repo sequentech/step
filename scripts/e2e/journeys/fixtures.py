@@ -24,7 +24,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 TEMPLATE = ROOT / "packages/voting-load/fixtures/election.json"
 
-VOTER_PASSWORD = "E2e-voter-2026!"
 # num_allowed_revotes counts every vote: a first vote and one revote.
 MAIN_ALLOWED_VOTES = 2
 GRACE_PERIOD_SECONDS = 900
@@ -202,7 +201,7 @@ def write_census(path, voters, authorization, *, weights=None):
                     AREA[voter.area].name,
                     f"{voter.username}@example.invalid",
                     "true",
-                    VOTER_PASSWORD,
+                    voter.username,
                     authorization[voter.area],
                 ]
                 + ([weights[voter.username]] if weights is not None else [])

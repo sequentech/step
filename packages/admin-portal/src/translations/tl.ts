@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        configurationPackage: englishTranslation.translations.configurationPackage,
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Isara",
@@ -28,6 +29,79 @@ const tagalogTranslation: TranslationType = {
             snapshot:
                 "Ang ulat na ito ay kalagayan sa isang sandali. Ulitin pagkatapos ng mahahalagang pagbabago; hindi nito pinipirmi ang kaganapan o pinapalitan ang pag-apruba sa operasyon.",
             results: "Mga resulta ng pagsusuri",
+            condition: "Kundisyong sinuri ng server",
+            noDetail: "Walang ibinigay na karagdagang detalye ang server para sa pagsusuring ito.",
+            reasons: "Bakit ito pumalya",
+            noArea: "walang area o hindi kilalang area",
+            eventRoles: {
+                official: "opisyal",
+                tested: "sinubukang",
+                both: "pareho",
+            },
+            scope: {
+                event: "Ang {{event}} na event",
+                election: "Ang halalang {{election}}",
+            },
+            certification: {
+                declared_sha256_missing: "walang ibinigay na SHA-256",
+                declared_sha256_mismatch: "iba ang ibinigay na SHA-256 sa SHA-256 ng file",
+                no_counts: "wala itong botante ayon sa area",
+                blank_area: "may mga botanteng walang area",
+                invalid_sha256: "hindi wasto ang SHA-256 nito",
+            },
+            findings: {
+                same_event: "Iisang event ang opisyal at ang sinubukang event.",
+                configuration_missing:
+                    "Ang {{event}} na event ay hindi na-import mula sa isang pinirmahang configuration package.",
+                configuration_incomplete:
+                    "Walang wastong halaga para sa “{{field}}” ang pinirmahang configuration ng opisyal na event.",
+                external_id_mismatch:
+                    "Galing sa magkaibang configuration ang mga event: {{official}} (opisyal) at {{tested}} (sinubukan).",
+                content_mismatch:
+                    "Magkaiba ang pinirmahang nilalaman: SHA-256 {{official}} (opisyal) at {{tested}} (sinubukan).",
+                approvers_mismatch:
+                    "Magkaiba ang mga beripikadong approver: {{only_official}} sa opisyal na event lamang at {{only_tested}} sa sinubukang event lamang.",
+                areas_mismatch:
+                    "Ang {{area}} ay nasa pinirmahang nilalaman lamang ng {{event}} na event.",
+                voter_import_missing:
+                    "Walang sertipikadong pag-import ng botante ang {{event}} na event.",
+                voter_import_in_progress:
+                    "May pag-import pa ng botante na tumatakbo sa {{event}} na event.",
+                voter_file_not_certified:
+                    "Hindi sertipikado ang huling pag-import ng botante ng {{event}} na event: {{reason}}.",
+                voter_receipt_not_signed:
+                    "Walang katugmang pinirmahang tala ng pag-import ng botante {{import_id}} ang log ng {{event}} na event.",
+                registry_count_changed:
+                    "May {{current}} botante na ngayon ang {{event}} na event sa {{area}}, pero {{imported}} ang nasa sertipikadong import nito.",
+                voter_area_not_configured:
+                    "Kasama sa mga sertipikadong botante ng {{event}} na event ang {{area}}, na wala sa pinirmahang nilalaman nito.",
+                voter_file_mismatch:
+                    "Magkaiba ang mga sertipikadong file ng botante: SHA-256 {{official}} (opisyal) at {{tested}} (sinubukan).",
+                voter_count_mismatch:
+                    "Magkaiba ang mga sertipikadong file sa {{area}}: {{official}} botante (opisyal) at {{tested}} (sinubukan).",
+                ballots_present: "May {{count}} nakaimbak na balota ang opisyal na event.",
+                received_ballots_present:
+                    "May {{count}} balotang natanggap para sa pagsusuri ang opisyal na event.",
+                tally_sessions_present: "May {{count}} tally session ang opisyal na event.",
+                status_missing: "{{scope}}: walang voting status.",
+                voting_started: "{{scope}}: ang channel na {{channel}} ay {{status}}.",
+                voting_dates_recorded:
+                    "{{scope}}: may naitalang petsa ng pagboto ang channel na {{channel}}.",
+                no_elections: "Walang halalan ang {{event}} na event.",
+                publication_missing: "Walang aktibong publikasyon ang {{event}} na event.",
+                publication_mismatch:
+                    "Hindi tumutugma ang {{design_count}} nailathalang disenyo ng balota ng {{event}} na event sa lahat ng disenyo ng pinirmahang configuration nito.",
+                publication_empty:
+                    "Hindi masuri ang mga nailathalang disenyo ng balota ng {{event}} na event laban sa isang pinirmahang configuration.",
+                channels_open:
+                    "May mga channel pa ng pagboto ang sinubukang event na hindi pa sarado.",
+                seal_at_close_off:
+                    "Hindi sinesilyuhan ng sinubukang event ang mga ballot box sa pagsasara.",
+                no_expected_boxes:
+                    "Walang inaasahang ballot box ang publikasyon ng sinubukang event.",
+                boxes_unsealed:
+                    "May {{unsealed}} hindi nasesilyuhang ballot box ang halalang {{election}} ng sinubukang event.",
+            },
         },
         plugins: {
             title: "Mga plugin",
@@ -465,6 +539,8 @@ const tagalogTranslation: TranslationType = {
                 passed: "Pumasa",
                 failed: "Nabigo",
                 checkResult: "{{outcome}}: {{description}}",
+                checkResultWithMessage:
+                    "{{outcome}}: {{description}} Naitalang kundisyon: “{{message}}”",
                 description: {
                     VotersImported: "Na-import ang file ng mga botante.",
                     ReadinessVerified:
@@ -882,6 +958,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_APPLICATION: "I-export ang Mga Aplikasyon",
                 EXPORT_TENANT_CONFIG: "I-export ang Configurasyon ng Tenant",
                 IMPORT_TENANT_CONFIG: "I-import ang Configurasyon ng Tenant",
+                APPLY_CONFIGURATION_PACKAGE: "Ilapat ang Configuration Package",
                 RENDER_DOCUMENT_PDF: "I-render ang dokumento bilang PDF",
                 CREATE_TENANT: "Lumikha ng Tenant",
                 EXPORT_TEMPLATES: "I-export ang mga Template",
@@ -2728,6 +2805,9 @@ const tagalogTranslation: TranslationType = {
                         delete: "Sigurado ka bang tanggalin ang item na ito?",
                         sealsUnknown:
                             "Hindi masuri ang mga seal ng ballot box: kung may naka-seal itong mga ballot box, tatanggihan ang pagbura.",
+                        archiveNamed: 'Sigurado ka bang i-archive ang "{{name}}"?',
+                        unarchiveNamed: 'Sigurado ka bang i-unarchive ang "{{name}}"?',
+                        deleteNamed: 'Sigurado ka bang tanggalin ang "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2850,6 +2930,13 @@ const tagalogTranslation: TranslationType = {
                 "label": "An porma kan icon kan kahon kan mga kandidato",
                 "square-checkbox": "Parisukat na checkbox",
                 "round-checkbox": "Bilog na Kahon nin Tsek",
+            },
+            candidatesLayout: {
+                "label": "Ayos ng mga kandidato",
+                "helperText":
+                    "Ipinapakita ng grid ng papel na balota ang mga kandidato bilang mga may-numerong kahon na may bilog na pupunan, kolum bawat kolum, ayon sa Columns (4 kung walang laman). Laging listahan ang ginagamit ng mga paligsahang may ranggo.",
+                "list": "Listahan",
+                "paper-grid": "Grid ng papel na balota",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Mga Kandidato at Listahan",
@@ -4333,6 +4420,8 @@ const tagalogTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Mga nako-configure na dashboard",
+            modeChangeError: "Hindi mabago ang mode ng dashboard. Subukan muli.",
             title: "Pagsubaybay",
             loading: "Nilo-load ang pagsubaybay",
             unavailableAlert:
