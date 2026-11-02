@@ -274,7 +274,10 @@ export const IntegrationSecretsNeedThePermission: Story = {
     globals: {permissions: EStoryPermissions.ADMIN_LIGHT},
     play: async () => {
         const dialog = await exportDialog()
-        await expect(dialog.getByRole("checkbox", {name: "Encrypt with Password"})).toBeVisible()
+        // The rest of the dialog renders; only the option is withheld.
+        await expect(
+            dialog.getByRole("checkbox", {name: "Encrypt with Password"})
+        ).not.toBeChecked()
         expect(dialog.queryByRole("checkbox", {name: INTEGRATION_SECRETS})).toBeNull()
         expect(graphql.calls).toEqual([])
     },
