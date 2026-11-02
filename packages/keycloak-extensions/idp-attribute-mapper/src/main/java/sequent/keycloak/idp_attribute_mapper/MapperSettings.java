@@ -21,16 +21,13 @@ public final class MapperSettings {
   public static final String EXTRACT_REGEX = "extract.regex";
   public static final String SEPARATOR = "separator";
   public static final String CASE = "case";
-  public static final String VALIDATION_REGEX = "validation.regex";
   public static final String LOOKUP_TABLE = "lookup.table";
   public static final String TARGET = "target";
   public static final String TARGET_ATTRIBUTE = "target.attribute";
   public static final String ON_MISS = "on.miss";
   public static final String DEFAULT_VALUE = "default.value";
-  public static final String ERROR_MESSAGE = "error.message";
 
   public static final String DEFAULT_SEPARATOR = ":";
-  public static final String DEFAULT_ERROR_MESSAGE = "identityProviderUnexpectedErrorMessage";
 
   /** Source name for the SAML subject NameID. */
   public static final String SOURCE_NAME_ID = "$nameid";
@@ -59,15 +56,13 @@ public final class MapperSettings {
 
   public enum MissPolicy {
     UNSET,
-    DEFAULT,
-    REJECT
+    DEFAULT
   }
 
   /** Why the pipeline produced no value. */
   public enum MissReason {
     SOURCE_MISSING,
     EXTRACT_FAILED,
-    VALIDATION_FAILED,
     NOT_IN_TABLE
   }
 
@@ -90,13 +85,11 @@ public final class MapperSettings {
   private final Pattern extract;
   private final String separator;
   private final CaseMode caseMode;
-  private final Pattern validation;
   private final LookupTable table;
   private final Target target;
   private final String targetAttribute;
   private final MissPolicy missPolicy;
   private final String defaultValue;
-  private final String errorMessage;
 
   private MapperSettings(Map<String, String> config) {
     this.sources =
@@ -110,7 +103,6 @@ public final class MapperSettings {
     this.extract = compile(config.get(EXTRACT_REGEX), EXTRACT_REGEX);
     this.separator = get(config, SEPARATOR, DEFAULT_SEPARATOR);
     this.caseMode = parseEnum(CaseMode.class, config.get(CASE), CaseMode.NONE);
-    this.validation = compile(config.get(VALIDATION_REGEX), VALIDATION_REGEX);
     String tableText = config.get(LOOKUP_TABLE);
     this.table =
         tableText == null || tableText.isBlank()
@@ -126,7 +118,6 @@ public final class MapperSettings {
     if (missPolicy == MissPolicy.DEFAULT && (defaultValue == null || defaultValue.isEmpty())) {
       throw new IllegalArgumentException("Default value is required for policy DEFAULT");
     }
-    this.errorMessage = get(config, ERROR_MESSAGE, DEFAULT_ERROR_MESSAGE);
   }
 
   /**
@@ -166,7 +157,7 @@ public final class MapperSettings {
   }
 
   /**
-   * Runs extract, normalize, validate and lookup over the source values.
+   * Runs extract, normalize, join and lookup over the source values.
    *
    * @param sourceValue returns the value of a source, or {@code null} when it is absent
    */
@@ -194,9 +185,6 @@ public final class MapperSettings {
       joined.append(caseMode.apply(part.strip()));
     }
     String input = joined.toString();
-    if (validation != null && !validation.matcher(input).matches()) {
-      return Resolution.miss(MissReason.VALIDATION_FAILED, input);
-    }
     if (table == null) {
       return Resolution.hit(input, input);
     }
@@ -224,10 +212,6 @@ public final class MapperSettings {
 
   public String defaultValue() {
     return defaultValue;
-  }
-
-  public String errorMessage() {
-    return errorMessage;
   }
 
   public LookupTable table() {

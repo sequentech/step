@@ -38,9 +38,10 @@ import sequent.keycloak.idp_attribute_mapper.MapperSettings.Resolution;
 import sequent.keycloak.idp_attribute_mapper.MapperSettings.Target;
 
 /**
- * Identity provider mapper that reads one or more SAML attributes or OIDC claims, extracts,
- * normalizes and validates them, optionally translates them through a lookup table, and stores the
- * result in a user attribute or the username.
+ * Identity provider mapper that reads one or more SAML attributes or OIDC claims, extracts and
+ * normalizes them, optionally translates them through a lookup table, and stores the result in a
+ * user attribute or the username. It only transforms values: rejecting a login is left to the login
+ * flows.
  */
 @JBossLog
 @AutoService(IdentityProviderMapper.class)
@@ -59,6 +60,9 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
   private static final String EMAIL = "email";
   private static final String FIRST_NAME = "firstName";
   private static final String LAST_NAME = "lastName";
+
+  /** Shown when the mapper configuration is invalid. */
+  private static final String CONFIG_ERROR_MESSAGE = "identityProviderUnexpectedErrorMessage";
 
   private static final List<ProviderConfigProperty> CONFIG_PROPERTIES = buildConfigProperties();
 
@@ -103,14 +107,6 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
             MapperSettings.CaseMode.NONE.name(),
             names(MapperSettings.CaseMode.values())),
         property(
-            MapperSettings.VALIDATION_REGEX,
-            "Validation regex",
-            "Optional. The joined value must match it entirely, before the lookup; otherwise it is"
-                + " a miss.",
-            ProviderConfigProperty.STRING_TYPE,
-            null,
-            null),
-        property(
             MapperSettings.LOOKUP_TABLE,
             "Lookup table",
             "Optional. One row per line: '<value> = <key>, <key>, <from>..<to>' or '<key>,<value>'."
@@ -138,10 +134,9 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
         property(
             MapperSettings.ON_MISS,
             "On miss",
-            "What to do when a source is missing, extraction or validation fails, or the table has"
-                + " no row. UNSET leaves the target without a value (and removes it on update)."
-                + " DEFAULT stores the default value. REJECT stops the login with the error"
-                + " message.",
+            "What to do when a source is missing, extraction fails, or the table has no row. UNSET"
+                + " leaves the target without a value (and removes it on update). DEFAULT stores the"
+                + " default value.",
             ProviderConfigProperty.LIST_TYPE,
             MissPolicy.UNSET.name(),
             names(MissPolicy.values())),
@@ -151,13 +146,6 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
             "Value stored on a miss when 'On miss' is DEFAULT.",
             ProviderConfigProperty.STRING_TYPE,
             null,
-            null),
-        property(
-            MapperSettings.ERROR_MESSAGE,
-            "Error message",
-            "Message key or text shown when 'On miss' is REJECT.",
-            ProviderConfigProperty.STRING_TYPE,
-            MapperSettings.DEFAULT_ERROR_MESSAGE,
             null));
   }
 
@@ -208,9 +196,9 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
 
   @Override
   public String getHelpText() {
-    return "Reads SAML attributes or OIDC claims, extracts, normalizes and validates them,"
-        + " optionally translates them through a lookup table, and stores the result in a user"
-        + " attribute or the username.";
+    return "Reads SAML attributes or OIDC claims, extracts and normalizes them, optionally"
+        + " translates them through a lookup table, and stores the result in a user attribute or"
+        + " the username.";
   }
 
   @Override
@@ -304,7 +292,7 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
     return value == null ? null : value.toString();
   }
 
-  /** Value to store, or {@code null} to leave the target unset. Rejects the login if configured. */
+  /** Value to store, or {@code null} to leave the target unset. */
   private String resolve(
       KeycloakSession session,
       IdentityProviderMapperModel mapperModel,
@@ -314,10 +302,7 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
       settings = settings(mapperModel);
     } catch (RuntimeException e) {
       throw rejection(
-          session,
-          context,
-          Response.Status.INTERNAL_SERVER_ERROR,
-          MapperSettings.DEFAULT_ERROR_MESSAGE);
+          session, context, Response.Status.INTERNAL_SERVER_ERROR, CONFIG_ERROR_MESSAGE);
     }
     Resolution resolution = settings.resolve(source -> sourceValue(context, source));
     if (resolution.isHit()) {
@@ -329,12 +314,6 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
     return switch (settings.missPolicy()) {
       case UNSET -> null;
       case DEFAULT -> settings.defaultValue();
-      case REJECT -> {
-        log.infof(
-            "Mapper %s rejected a login from %s: %s",
-            mapperModel.getName(), mapperModel.getIdentityProviderAlias(), resolution.missReason());
-        throw rejection(session, context, Response.Status.FORBIDDEN, settings.errorMessage());
-      }
     };
   }
 
@@ -351,7 +330,10 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
     return RESOLUTION_KEY_PREFIX + mapperModel.getId() + "." + mapperModel.getName();
   }
 
-  /** Runs on every login, before the user is looked up, so it is where a login is rejected. */
+  /**
+   * Runs on every login, before the user is looked up. The value is stored in the brokered context,
+   * so login flow conditions can check it before the user is created.
+   */
   @Override
   public void preprocessFederatedIdentity(
       KeycloakSession session,
