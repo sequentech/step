@@ -646,9 +646,8 @@ pub fn carries_messaging(
     keycloak_event_realm: Option<&serde_json::Value>,
     election_ids: &[String],
 ) -> bool {
-    use sequent_core::types::messaging::{
-        imported_realm_channels, ImportTenancy, ImportedRealmChannels, REALM_ATTR_MESSAGING,
-    };
+    use super::realm_channels::{imported_realm_channels, ImportTenancy, ImportedRealmChannels};
+    use sequent_core::types::messaging::REALM_ATTR_MESSAGING;
     messaging_config.is_some()
         || matches!(
             imported_realm_channels(

@@ -1276,11 +1276,8 @@ fn check_bundle(data: &ImportElectionEventSchema) -> Result<()> {
 
 /// Whether `document`, a bundle as uploaded, was exported from `tenant_id`:
 /// read before `replace_ids` rewrites its tenant.
-fn import_tenancy(
-    document: &str,
-    tenant_id: &str,
-) -> Result<sequent_core::types::messaging::ImportTenancy> {
-    use sequent_core::types::messaging::ImportTenancy;
+fn import_tenancy(document: &str, tenant_id: &str) -> Result<super::realm_channels::ImportTenancy> {
+    use super::realm_channels::ImportTenancy;
     #[derive(Deserialize)]
     struct BundleTenant {
         tenant_id: String,
@@ -1589,12 +1586,12 @@ pub async fn process_election_event_file(
     // configuration: its channels are published as exported, for whoever may
     // save a configuration, or the import says why not.
     {
-        use crate::services::messaging::config::{account_summary, MessagingConfigPermission};
-        use sequent_core::types::messaging::{
-            imported_realm_channels, ImportTenancy, ImportedRealmChannels, MessageChannel,
-            MessengerPage, RealmChannelsAdjustment, REALM_CHANNELS_NOT_IMPORTED,
-            REALM_CHANNELS_PUBLISHED,
+        use super::realm_channels::{
+            imported_realm_channels, needing_configuration, ImportTenancy, ImportedRealmChannels,
+            RealmChannelsAdjustment, REALM_CHANNELS_NOT_IMPORTED, REALM_CHANNELS_PUBLISHED,
         };
+        use crate::services::messaging::config::{account_summary, MessagingConfigPermission};
+        use sequent_core::types::messaging::{MessageChannel, MessengerPage};
         // The importing tenant's own accounts, never the bundle's, read only
         // when realm-only channels may be published.
         let publishes_realm_channels = exported_channels.is_some()
@@ -1643,7 +1640,7 @@ pub async fn process_election_event_file(
                 let mut warnings = vec![format!(
                     "{REALM_CHANNELS_PUBLISHED}: the bundle has no messaging configuration, so the channels its realm offered are offered as exported"
                 )];
-                let unconfigured = projection.needing_configuration();
+                let unconfigured = needing_configuration(&projection);
                 if !unconfigured.is_empty() {
                     warnings.push(format!(
                         "{REALM_CHANNELS_PUBLISHED}: voters are offered {} as exported, but the event has no messaging configuration, so codes and notices on them are refused until one is saved; email and SMS use the deployment's configured providers, as for events without one",
@@ -3437,10 +3434,10 @@ mod import_scope_tests {
 
     #[test]
     fn realm_only_channels_follow_the_imported_elections_and_tenant() {
-        use sequent_core::types::messaging::{
+        use super::super::realm_channels::{
             imported_realm_channels, ImportTenancy, ImportedRealmChannels, RealmChannelsAdjustment,
-            REALM_ATTR_MESSAGING,
         };
+        use sequent_core::types::messaging::REALM_ATTR_MESSAGING;
         let source = new_id();
         let mut input = bundle(&source, &new_id());
         let election = input["elections"][0]["id"].as_str().unwrap().to_string();
