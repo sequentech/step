@@ -3,7 +3,8 @@
 
 -- Signed electoral log events of accepted votes, stored in the vote's
 -- transaction and removed once they are published to the electoral log
--- queue. Internal to Windmill; not tracked by Hasura.
+-- queue. Tracked by Hasura for administrators to inspect, with no
+-- permissions for any other role.
 CREATE TABLE sequent_backend.electoral_log_outbox (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id uuid NOT NULL,
