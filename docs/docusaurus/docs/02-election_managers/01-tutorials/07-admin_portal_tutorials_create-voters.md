@@ -55,13 +55,14 @@ Select **Export** from the Voters tab to generate a CSV.
 - Treat a decrypted export as sensitive data. The generated document remains protected by the
   secret-read permission when it is downloaded.
 - Each election adds a participation column named `election__` followed by its alias, or its name
-  when it has no alias. Characters other than letters, digits, `.`, `_` and `-` become `_`. Import
-  ignores these columns.
+  when it has no alias. Characters other than ASCII letters (`a`–`z`, `A`–`Z`), digits, `.`, `_`
+  and `-` become `_`. Import ignores these columns.
 - Import column names ignore case, treat `.` and `-` as `_`, and keep only their first 63
-  characters. When two elections would give the same column under those rules, the first keeps
-  its name and the others end in `__2`, `__3`, and so on, shortened to fit 63 characters.
+  characters. When an election would give the same column as a voter field or an earlier
+  election under those rules, its column ends in the first unused `__2`, `__3`, and so on,
+  shortened to fit 63 characters. Numbering follows the elections' order in the export.
 - An export made before this numbering can repeat a participation column, which import rejects
-  as a duplicate. Export the voters again, or rename the repeated column, before importing it.
+  as a duplicate. Export the voters again, or delete the repeated column, before importing it.
 
 For the complete permission combinations, see
 [Permissions](../02-reference/user-manual/users-and-roles/users-and-roles_permissions.md#secret-voter-field-permissions).

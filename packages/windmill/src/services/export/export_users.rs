@@ -122,14 +122,15 @@ fn election_headers(elections: &[ElectionHead], user_headers: &[String]) -> Vec<
             format!("{ELECTION_HEADER_PREFIX}{}", sanitize_name(label))
         })
         .collect();
-    let mut headers: Vec<Option<String>> = labels
-        .iter()
-        .map(|label| {
-            taken
-                .insert(import_column_key(label))
-                .then(|| label.clone())
-        })
-        .collect();
+    // First pass: every label whose column is still free keeps its header,
+    // so a later label such as `X__2` is not displaced by a repeated `X`.
+    let mut headers: Vec<Option<String>> = Vec::with_capacity(labels.len());
+    for label in &labels {
+        let header = taken
+            .insert(import_column_key(label))
+            .then(|| label.clone());
+        headers.push(header);
+    }
     for (header, label) in headers.iter_mut().zip(&labels) {
         if header.is_some() {
             continue;
