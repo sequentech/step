@@ -118,7 +118,12 @@ pub enum IntegrationSecretOmission {
     NotAuthorized,
     /// The archive binds a secret that its realm no longer carries.
     Missing,
+    /// The configuration has no alias, so no execution can use it.
+    Unnamed,
 }
+
+/// How a note names a configuration without an alias.
+pub const UNNAMED_CONFIG: &str = "(no alias)";
 
 /// What an import did with one designated secret. Its `Display` is the
 /// task-log note; it names the configuration and setting, never the value.
@@ -168,6 +173,9 @@ impl fmt::Display for ImportedIntegrationSecret {
                     }
                     IntegrationSecretOmission::Unbound => {
                         "the archive carries it without a binding"
+                    }
+                    IntegrationSecretOmission::Unnamed => {
+                        "the configuration has no alias"
                     }
                     IntegrationSecretOmission::Missing => {
                         "the archive's realm no longer carries it"
@@ -230,10 +238,12 @@ fn is_exclusively_scanovate(providers: Option<&BTreeSet<String>>) -> bool {
     })
 }
 
-/// The realm's authenticator configurations: alias, id and settings.
+/// The realm's authenticator configurations: alias (if any), id and
+/// settings. One without a string alias is still returned, so the import
+/// can't miss a secret it carries.
 fn configs_mut(
     realm: &mut Value,
-) -> Vec<(String, Option<String>, &mut Map<String, Value>)> {
+) -> Vec<(Option<String>, Option<String>, &mut Map<String, Value>)> {
     let Some(configs) = realm
         .get_mut(AUTHENTICATOR_CONFIG)
         .and_then(Value::as_array_mut)
@@ -244,7 +254,10 @@ fn configs_mut(
         .iter_mut()
         .filter_map(|config| {
             let object = config.as_object_mut()?;
-            let alias = object.get(ALIAS)?.as_str()?.to_string();
+            let alias = object
+                .get(ALIAS)
+                .and_then(Value::as_str)
+                .map(str::to_string);
             let id =
                 object.get("id").and_then(Value::as_str).map(str::to_string);
             let settings = object.get_mut(CONFIG)?.as_object_mut()?;
@@ -315,6 +328,10 @@ pub fn embed_integration_secrets(
     let providers = config_providers(realm);
     let mut bindings = vec![];
     for (alias, id, settings) in configs_mut(realm) {
+        // No execution can name a configuration without an alias.
+        let Some(alias) = alias else {
+            continue;
+        };
         let Some(alias_providers) = providers.get(&alias) else {
             continue;
         };
@@ -410,6 +427,17 @@ pub fn reconcile_imported_integration_secrets(
     let providers = config_providers(realm);
     let mut outcomes = vec![];
     for (alias, _id, settings) in configs_mut(realm) {
+        // No execution can use a configuration without an alias: whatever
+        // it carries under the Scanovate key is never installed.
+        let Some(alias) = alias else {
+            if settings.remove(SCANOVATE_LIVENESS_SECRET_KEY).is_some() {
+                outcomes.push(ImportedIntegrationSecret::Omitted {
+                    config_alias: UNNAMED_CONFIG.to_string(),
+                    reason: IntegrationSecretOmission::Unnamed,
+                });
+            }
+            continue;
+        };
         let alias_providers = providers.get(&alias);
         let bound: Vec<&IntegrationSecretBinding> = bindings
             .into_iter()
@@ -1029,6 +1057,56 @@ mod tests {
                 "{alias}"
             );
         }
+    }
+
+    #[test]
+    fn import_removes_the_secret_of_a_configuration_without_an_alias() {
+        // Absent, null and non-string aliases, with a real and a masked
+        // value, whatever the importer's permission.
+        for alias in [None, Some(json!(null)), Some(json!(7)), Some(json!({}))]
+        {
+            for value in [SYNTHETIC_SECRET, KEYCLOAK_MASKED_SECRET] {
+                for permission in [
+                    IntegrationSecretImportPermission::PERMITTED,
+                    IntegrationSecretImportPermission::NOT_PERMITTED,
+                ] {
+                    let mut config = json!({"config": {
+                        "liveness-url": SOURCE_ENDPOINT,
+                        "liveness-secret": value,
+                        "max-attempts": "3"
+                    }});
+                    if let Some(alias) = alias.clone() {
+                        config["alias"] = alias;
+                    }
+                    let mut imported = json!({"authenticatorConfig": [config]});
+                    let outcome = reconcile_imported_integration_secrets(
+                        &mut imported,
+                        None,
+                        permission,
+                    );
+                    assert_eq!(
+                        outcome,
+                        vec![ImportedIntegrationSecret::Omitted {
+                            config_alias: UNNAMED_CONFIG.to_string(),
+                            reason: IntegrationSecretOmission::Unnamed,
+                        }],
+                        "{alias:?} {permission:?}"
+                    );
+                    let settings =
+                        &imported["authenticatorConfig"][0]["config"];
+                    assert_eq!(settings.get("liveness-secret"), None);
+                    // Only the secret goes; the note never carries the value.
+                    assert_eq!(settings["max-attempts"], json!("3"));
+                    assert!(!outcome[0].to_string().contains(SYNTHETIC_SECRET));
+                }
+            }
+        }
+        // Control: an alias-less configuration without the key is untouched.
+        let mut imported =
+            json!({"authenticatorConfig": [{"config": {"x": "y"}}]});
+        let before = imported.clone();
+        assert_eq!(reconcile(&mut imported, None), vec![]);
+        assert_eq!(imported, before);
     }
 
     #[test]
