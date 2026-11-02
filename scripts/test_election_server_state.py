@@ -19,6 +19,9 @@ from database import MIGRATIONS, local_database
 from fixtures import Election
 
 GUARD_MIGRATION = MIGRATIONS / "1791530000000_guard_election_server_state"
+DEFAULT_CHANNELS_MIGRATION = MIGRATIONS / "1793441875491_default_election_voting_channels"
+# VotingChannels::default(), as the server serializes it.
+DEFAULT_CHANNELS = {"online": True, "kiosk": None, "telephone": None, "paper": None, "early_voting": None}
 EDITOR_ROLES = [
     "admin-user",
     "election-edit",
@@ -30,6 +33,8 @@ EDITOR_ROLES = [
 
 class ElectionServerStateTests(unittest.TestCase):
     database = None
+    # Imported without voting_channels before the migrations, with kiosk voting started.
+    unset_channels_election = None
 
     def setUp(self):
         self.connection = self.database.connection
@@ -37,8 +42,8 @@ class ElectionServerStateTests(unittest.TestCase):
         self.election = Election()
         self.election.create(self.connection)
 
-    def update(self, assignments, parameters=(), role=None):
-        """Update the fixture election, as a Hasura role when one is given."""
+    def update(self, assignments, parameters=(), role=None, election=None):
+        """Update the fixture election (or another one), as a Hasura role when one is given."""
         with self.connection.transaction():
             if role is not None:
                 self.connection.execute(
@@ -47,11 +52,12 @@ class ElectionServerStateTests(unittest.TestCase):
                 )
             self.connection.execute(
                 f"UPDATE sequent_backend.election SET {assignments} WHERE id = %s",
-                (*parameters, self.election.election),
+                (*parameters, election or self.election.election),
             )
 
     def insert(self, role, status=None, keys_ceremony_id=None):
-        """Insert a new election as a Hasura role."""
+        """Insert a new election as a Hasura role and return its id."""
+        election = uuid4()
         with self.connection.transaction():
             self.connection.execute(
                 "SELECT set_config('hasura.user', %s, true)",
@@ -63,13 +69,14 @@ class ElectionServerStateTests(unittest.TestCase):
                     (id, tenant_id, election_event_id, status, keys_ceremony_id)
                 VALUES (%s, %s, %s, %s, %s)
                 """,
-                (uuid4(), self.election.tenant, self.election.event, status, keys_ceremony_id),
+                (election, self.election.tenant, self.election.event, status, keys_ceremony_id),
             )
+        return election
 
-    def column(self, name):
+    def column(self, name, election=None):
         return self.connection.execute(
             f"SELECT {name} FROM sequent_backend.election WHERE id = %s",
-            (self.election.election,),
+            (election or self.election.election,),
         ).fetchone()[0]
 
     def test_editor_roles_cannot_change_voting_status(self):
@@ -132,6 +139,20 @@ class ElectionServerStateTests(unittest.TestCase):
         with self.assertRaises(psycopg.errors.InsufficientPrivilege):
             self.update("voting_channels = NULL", role="election-write")
 
+    def test_unset_voting_channels_store_the_default(self):
+        self.update("voting_channels = NULL")
+        self.assertEqual(self.column("voting_channels"), DEFAULT_CHANNELS)
+        self.assertEqual(self.column("voting_channels", self.insert("admin-user")), DEFAULT_CHANNELS)
+
+    def test_existing_unset_voting_channels_resave_after_kiosk_voting_started(self):
+        election = self.unset_channels_election
+        self.assertEqual(self.column("voting_channels", election), DEFAULT_CHANNELS)
+        # The election form sends back the channels it loaded; a cleared switch is false.
+        cleared = {channel: channel == "online" for channel in DEFAULT_CHANNELS}
+        for channels in [DEFAULT_CHANNELS, cleared]:
+            with self.subTest(channels=channels):
+                self.update("voting_channels = %s", (Jsonb(channels),), "election-write", election)
+
     def test_channels_and_revote_limit_change_before_voting_starts(self):
         self.update("voting_channels = %s", (Jsonb({"online": True, "kiosk": True}),), "election-write")
         self.update("status = %s", (Jsonb({"voting_status": "NOT_STARTED", "kiosk_voting_status": "NOT_STARTED"}),))
@@ -153,11 +174,20 @@ class ElectionServerStateTests(unittest.TestCase):
 if __name__ == "__main__":
     with local_database() as database:
         database.connection.execute("ALTER TABLE sequent_backend.election ADD COLUMN keys_ceremony_id uuid")
+        unset_channels = Election()
+        unset_channels.create(database.connection)
+        database.connection.execute(
+            "UPDATE sequent_backend.election SET voting_channels = NULL, status = %s WHERE id = %s",
+            (Jsonb({"voting_status": "OPEN", "kiosk_voting_status": "OPEN"}), unset_channels.election),
+        )
         database.apply(GUARD_MIGRATION)
+        database.apply(DEFAULT_CHANNELS_MIGRATION)
         ElectionServerStateTests.database = database
+        ElectionServerStateTests.unset_channels_election = unset_channels.election
         result = unittest.TextTestRunner(verbosity=2).run(
             unittest.defaultTestLoader.loadTestsFromTestCase(ElectionServerStateTests)
         )
+        database.apply(DEFAULT_CHANNELS_MIGRATION, "down")
         database.apply(GUARD_MIGRATION, "down")
         election = Election()
         election.create(database.connection)
@@ -166,7 +196,12 @@ if __name__ == "__main__":
                 "SELECT set_config('hasura.user', %s, true)", (json.dumps({"x-hasura-role": "admin-user"}),)
             )
             database.connection.execute(
-                "UPDATE sequent_backend.election SET status = NULL WHERE id = %s", (election.election,)
+                "UPDATE sequent_backend.election SET status = NULL, voting_channels = NULL WHERE id = %s",
+                (election.election,),
             )
+        if database.scalar(
+            "SELECT voting_channels FROM sequent_backend.election WHERE id = %s", (election.election,)
+        ) is not None:
+            raise SystemExit("down.sql left the voting_channels default in place")
         if not result.wasSuccessful():
             raise SystemExit(1)
