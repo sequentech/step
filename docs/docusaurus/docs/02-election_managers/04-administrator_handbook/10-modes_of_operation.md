@@ -29,8 +29,9 @@ does not substitute for either. See [Security and Self-Tests](07-self_tests.md).
 
 ## Lockdown
 
-Lockdown protects configuration settings during the agreed period. It is shown
-as **Lockdown Status** on **Data** and is separate from the security state.
+Lockdown protects configuration settings during the agreed period. While it
+lasts, **Data** shows **Lockdown Status** as **Locked Down**. It is separate
+from the security state.
 Lockdown alone does not stop voting.
 
 The board configures the lockdown schedule before approval. The server also

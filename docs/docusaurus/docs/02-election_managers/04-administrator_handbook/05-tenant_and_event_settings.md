@@ -212,11 +212,12 @@ with the required authorisations; the TOE refuses every other deletion.
 
 ## Settings of the election event
 
-![Advanced Configurations showing Lockdown Status, Ballot Box Seal Policy and Ballot Box Seal Record](assets/event-advanced-settings.png)
+![Security settings on the Data tab, from Key ceremony scope to Seal record access](assets/event-advanced-settings.png)
 
-*Illustration: the Data tab’s Advanced Configurations in a synthetic v10.0.0
-event. Use the required values below, and verify the signed package’s settings;
-do not copy a sample event’s state or identifiers.*
+*Illustration: the administrator’s Security settings on the Data tab in a
+synthetic v10.0.0 election event. Use the required values below, and verify the
+signed package’s settings; do not copy a sample election event’s state or
+identifiers.*
 
 Open the election event and select **Data → Security settings**. This
 administrator form is writable only during preparation. It exposes these

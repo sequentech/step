@@ -78,11 +78,10 @@ To set and verify the two rates:
    fields still show the agreed values. The board must approve the updated
    configuration before execution.
 
-![Actual administrator settings after saving and verifying the agreed rates](assets/attack-detection-settings.png)
+![Administrator settings after saving and verifying the agreed rates](assets/attack-detection-settings.png)
 
-*Actual VM rehearsal: the administrator saved and read back the lab's rates.
-The numbers shown are examples for that lab, not a recommendation for a live
-election event.*
+*Illustration: the administrator saved and read back the rates. The numbers
+shown are examples, not a recommendation for a live election event.*
 
 If a value is outside the accepted range, correct it and save again. If saving
 or verification fails, do not assume the new values took effect: reopen this

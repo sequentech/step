@@ -35,9 +35,9 @@ To run the checks:
 4. Return to the board operation after its required test passes. A test does not
    authorize the operation or replace the required board signatures.
 
-![Actual background run showing all six completed security checks](./assets/six-self-tests-passed.png)
+![Background run showing all six completed security checks](./assets/six-self-tests-passed.png)
 
-This laboratory run completed with all six checks **Passed**. The displayed
+In this example run, all six checks completed with **Passed**. The displayed
 result records that run; it does not open voting or authorize a later operation
 after its configuration or election event state changes.
 

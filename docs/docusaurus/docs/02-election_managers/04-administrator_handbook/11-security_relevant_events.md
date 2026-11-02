@@ -102,12 +102,13 @@ only after recording that check; do not add board data permissions to your accou
 
 | Checked | Setting | Required value |
 |---|---|---|
-| ☐ | Ballot Box Seal Policy | Seal at close |
-| ☐ | Ballot Box Seal Record | Restricted |
+| ☐ | Ballot box sealing | Seal when voting closes |
+| ☐ | Seal record access | Election board only |
+| ☐ | Decoded ballots in results | Do not include |
 | ☐ | Receipts signed by the ballot box | Signed by the ballot box |
 | ☐ | Period for checking cast ballots | Until a date: the end of the election period |
 | ☐ | Scheduled close without signatures | Refuse |
-| ☐ | Keys/Tally Ceremonies Policy | Manual Ceremonies |
+| ☐ | Trustee participation | Trustees participate |
 | ☐ | Batch Anonymity Policy | Refuse |
 | ☐ | Voter Digital Certificate Policy | Disabled |
 | ☐ | Enrollment; OTP | Both Disabled |

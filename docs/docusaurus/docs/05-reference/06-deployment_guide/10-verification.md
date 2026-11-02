@@ -114,10 +114,10 @@ hash in the portal's header:
    header shows them in the form `1A2B-3C4D`, and only in a wide window. Letter
    case does not change the value.
 
-![Actual VM administration portal showing VERSION and HASH in its header](./assets/installation/trustees-registered.png)
+![Administration portal showing VERSION and HASH in its header](./assets/installation/trustees-registered.png)
 
-*Actual VM portal capture after customer commissioning. VERSION and HASH appear
-at the top. The laboratory tenant, account and source revision are examples;
+*Admin portal capture from a local build with test data. VERSION and HASH appear at the
+top. The tenant, account and source revision are examples;
 compare your running header with your independently accepted delivery record.*
 
 **If different:** stop handover and reconcile the accepted delivery, running

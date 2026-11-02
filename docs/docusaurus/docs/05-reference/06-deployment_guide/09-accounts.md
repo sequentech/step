@@ -55,9 +55,9 @@ platform inspection, including the [Version](10-verification.md#version) check:
 4. The browser returns to the administration portal, signed in to the account
    added in [Create the customer's tenant](08-installing_toe.md#create-the-customers-tenant).
 
-![Actual customer administration portal after external sign-in](./assets/installation/trustees-registered.png)
+![Customer administration portal after external sign-in](./assets/installation/trustees-registered.png)
 
-*Actual VM portal capture after customer sign-in. This example is on Settings →
+*Admin portal capture from a local build with test data. This example is on Settings →
 Trustees; the customer name and logged-in identity must be your own. The screenshot
 shows the return to the customer portal, not proof that your provider enforced MFA.*
 

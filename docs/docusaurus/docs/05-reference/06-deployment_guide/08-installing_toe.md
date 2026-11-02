@@ -110,13 +110,13 @@ before the trustee keys are installed. `ADMIN_HOST` below means the value of
    hardened, with the service accounts and a seeded `admin` account without a
    password.
 
-   ![Actual portal showing the customer-creation task in progress](./assets/installation/customer-creation-in-progress.png)
+   ![Portal showing the customer-creation task in progress](./assets/installation/customer-creation-in-progress.png)
 
-   *Actual portal capture from the final VM rehearsal. The **Create Tenant** task
+   *Admin portal capture from a local build with test data. The **Create Tenant** task
    can remain **IN_PROGRESS** while the customer is provisioned. Wait for it to
    finish and confirm the agreed customer slug exists before commissioning; do
    not submit another creation request while this task is running. The displayed
-   installation account and site values are laboratory examples.*
+   installation account and site values are examples.*
 
 3. Put the customer slug and administrator identity in `commissioning` in
    `site.json`, then run `./deploy commission site.json` from the administration
@@ -192,11 +192,11 @@ either file, the command compares its public-key pair with the registered truste
 record. It changes only the native account's trustee binding; personal trustee
 accounts remain separate and receive no local password.
 
-![Actual customer portal listing the two registered laboratory trustees](./assets/installation/trustees-registered.png)
+![Customer portal listing two registered example trustees](./assets/installation/trustees-registered.png)
 
-*Actual customer portal from the final VM rehearsal. Open each registered trustee
+*Admin portal capture from a local build with test data. Open each registered trustee
 record and check both public keys against that trustee's own keys before
-continuing. The customer and trustee names shown here are laboratory examples.*
+continuing. The customer and trustee names shown here are examples.*
 
 <!-- deployment-step: 08-009 -->
 

@@ -114,7 +114,7 @@ another name for a term, the table gives it.
 
 ## Conventions
 
-Screenshots illustrate real interfaces from a synthetic rehearsal. Sample
+Screenshots illustrate real interfaces with synthetic test data. Sample
 accounts, election event and election names, identifiers, hashes and dates are not values to copy
 into an election event. Follow the steps and required values in the text; a pictured
 screen is not evidence that your own operation completed.

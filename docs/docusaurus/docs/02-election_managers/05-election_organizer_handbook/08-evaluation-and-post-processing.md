@@ -155,7 +155,7 @@ To check and publish the result:
    website" is never available. If it is offered, do not use it, and treat it as a
    security-relevant event.
 
-![Actual VM rehearsal: completed result with five voters and separate downloadable election and area PDFs](./assets/results-released-reports.png)
+![Completed result with five voters and separate downloadable election and area PDFs](./assets/results-released-reports.png)
 
 The example shows a synthetic election event. The election and area PDFs became
 available after their separate approvals; use your election's expected totals

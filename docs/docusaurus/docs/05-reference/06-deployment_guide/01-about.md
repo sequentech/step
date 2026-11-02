@@ -386,7 +386,8 @@ relevant reference sections for use at the authorized lifecycle stage.
 ## Detailed operations and acceptance criteria
 
 The following chapters explain the configuration requirements, complete commands,
-expected outputs and fault handling. Their screenshots show actual executions.
+expected outputs and fault handling. Their terminal screenshots show actual
+executions; the admin portal screenshots come from a local build with test data.
 Run a command where its section specifies; a server name or internal operation
 number by itself is never an instruction to execute. Installation is automated;
 the explicit acceptance checks establish conditions that still require the
