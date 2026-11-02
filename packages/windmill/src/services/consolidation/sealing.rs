@@ -360,14 +360,13 @@ mod tests {
     }
 
     #[test]
-    fn openssl_enc_round_trips_and_refuses_another_password() {
+    fn openssl_enc_round_trips_and_rejects_malformed_headers() {
         let sealed = openssl_enc_encrypt(b"pass", b"compressed returns").unwrap();
         assert!(sealed.starts_with(OPENSSL_SALTED_MAGIC));
         assert_eq!(
             openssl_enc_decrypt(b"pass", &sealed).unwrap(),
             b"compressed returns"
         );
-        assert!(openssl_enc_decrypt(b"other", &sealed).is_err());
         assert_eq!(
             openssl_enc_decrypt(b"pass", b"Salted_"),
             Err(SealingError::NotSalted)
@@ -386,5 +385,12 @@ mod tests {
         let ciphertext = hex::decode("4536e003fedaedf3309133573bd423ce").unwrap();
         let data = [OPENSSL_SALTED_MAGIC.as_slice(), &salt, &ciphertext].concat();
         assert_eq!(openssl_enc_decrypt(b"pw", &data).unwrap(), b"hello");
+        // This fixed vector has invalid padding under this wrong password.
+        // Unauthenticated CBC does not guarantee rejection for every wrong
+        // password.
+        assert_eq!(
+            openssl_enc_decrypt(b"other", &data),
+            Err(SealingError::WrongPassword)
+        );
     }
 }
