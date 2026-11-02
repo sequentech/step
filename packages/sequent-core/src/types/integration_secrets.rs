@@ -416,9 +416,17 @@ pub fn reconcile_imported_integration_secrets(
             .flatten()
             .filter(|binding| binding.config_alias == alias)
             .collect();
+        // A usable value under the Scanovate key anywhere is in scope too: a
+        // configuration no Scanovate execution uses now (orphan, or another
+        // provider's) could be wired to one later.
+        let carries_usable_secret = settings
+            .get(SCANOVATE_LIVENESS_SECRET_KEY)
+            .and_then(Value::as_str)
+            .is_some_and(is_usable_secret);
         let designated = alias_providers.is_some_and(|providers| {
             providers.contains(SCANOVATE_AUTHENTICATOR_PROVIDER)
-        }) || !bound.is_empty();
+        }) || !bound.is_empty()
+            || carries_usable_secret;
         if !designated {
             continue;
         }
@@ -985,6 +993,42 @@ mod tests {
             setting(&imported, ALIAS_SCANOVATE, "liveness-secret"),
             None
         );
+    }
+
+    #[test]
+    fn import_removes_a_usable_secret_from_configurations_scanovate_does_not_use(
+    ) {
+        // An orphan configuration and another provider's, each carrying a
+        // real value under the Scanovate key, even for a permitted importer.
+        let mut imported = realm(KEYCLOAK_MASKED_SECRET, SOURCE_ENDPOINT);
+        let configs = imported["authenticatorConfig"].as_array_mut().unwrap();
+        configs.push(json!({"alias": "orphan", "config": {
+            "liveness-url": SOURCE_ENDPOINT, "liveness-secret": SYNTHETIC_SECRET}}));
+        configs[1]["config"]["liveness-secret"] = json!(SYNTHETIC_SECRET);
+        let outcome = reconcile(&mut imported, None);
+        let omitted =
+            |alias: &str, reason| ImportedIntegrationSecret::Omitted {
+                config_alias: alias.to_string(),
+                reason,
+            };
+        assert_eq!(
+            outcome,
+            vec![
+                omitted(ALIAS_SCANOVATE, IntegrationSecretOmission::Masked),
+                omitted(
+                    "has-temporary-password",
+                    IntegrationSecretOmission::ProviderMismatch
+                ),
+                omitted("orphan", IntegrationSecretOmission::ProviderMismatch),
+            ]
+        );
+        for alias in ["has-temporary-password", "orphan"] {
+            assert_eq!(
+                setting(&imported, alias, "liveness-secret"),
+                None,
+                "{alias}"
+            );
+        }
     }
 
     #[test]

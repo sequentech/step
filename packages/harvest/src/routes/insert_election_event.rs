@@ -278,15 +278,22 @@ pub(crate) fn stamp_initiators(
     };
     // An archive's integration secrets are installed only for whoever may
     // write them; the destination's own secrets are never used instead.
-    input.integration_secret_permission = match authorize(
-        claims,
-        true,
-        Some(input.tenant_id.clone()),
-        vec![Permissions::INTEGRATION_SECRET_WRITE],
-    ) {
-        Ok(()) => IntegrationSecretImportPermission::PERMITTED,
-        Err(_) => IntegrationSecretImportPermission::NOT_PERMITTED,
-    };
+    // Only within the caller's own tenant: the worker checks the grant
+    // against the task row, which belongs to the caller's tenant.
+    input.integration_secret_permission =
+        if input.tenant_id != claims.hasura_claims.tenant_id {
+            IntegrationSecretImportPermission::NOT_PERMITTED
+        } else {
+            match authorize(
+                claims,
+                true,
+                Some(input.tenant_id.clone()),
+                vec![Permissions::INTEGRATION_SECRET_WRITE],
+            ) {
+                Ok(()) => IntegrationSecretImportPermission::PERMITTED,
+                Err(_) => IntegrationSecretImportPermission::NOT_PERMITTED,
+            }
+        };
     input.privileges = import_users_privileges(|permissions| {
         authorize(claims, true, Some(input.tenant_id.clone()), permissions)
             .is_ok()
@@ -615,6 +622,13 @@ mod tests {
         assert_eq!(
             input.integration_secret_permission,
             IntegrationSecretImportPermission::PERMITTED
+        );
+        // A writer importing into another tenant (super admin) installs none.
+        let mut input = body("other-tenant");
+        stamp_initiators(&mut input, &writer);
+        assert_eq!(
+            input.integration_secret_permission,
+            IntegrationSecretImportPermission::NOT_PERMITTED
         );
     }
 

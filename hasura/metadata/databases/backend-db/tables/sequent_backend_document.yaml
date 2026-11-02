@@ -266,6 +266,14 @@ update_permissions:
                                         _contains:
                                             access:
                                                 voter_secret_attributes: true
+                        - _or:
+                              - annotations:
+                                    _is_null: true
+                              - _not:
+                                    annotations:
+                                        _contains:
+                                            access:
+                                                integration_secrets: true
                   - _and:
                         - _or:
                               - name:
@@ -332,6 +340,14 @@ update_permissions:
                                         _contains:
                                             access:
                                                 voter_secret_attributes: true
+                        - _or:
+                              - annotations:
+                                    _is_null: true
+                              - _not:
+                                    annotations:
+                                        _contains:
+                                            access:
+                                                integration_secrets: true
                   - _and:
                         - _or:
                               - name:
@@ -428,6 +444,14 @@ delete_permissions:
                                         _contains:
                                             access:
                                                 voter_secret_attributes: true
+                        - _or:
+                              - annotations:
+                                    _is_null: true
+                              - _not:
+                                    annotations:
+                                        _contains:
+                                            access:
+                                                integration_secrets: true
                   - _and:
                         - _or:
                               - name:
@@ -479,6 +503,14 @@ delete_permissions:
                                         _contains:
                                             access:
                                                 voter_secret_attributes: true
+                        - _or:
+                              - annotations:
+                                    _is_null: true
+                              - _not:
+                                    annotations:
+                                        _contains:
+                                            access:
+                                                integration_secrets: true
                   - _and:
                         - _or:
                               - name:

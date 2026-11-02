@@ -171,11 +171,21 @@ pub async fn get_scanovate_liveness_secrets(
         .await
         // The statement's error never carries row values.
         .map_err(|err| anyhow!("Error reading the realm's Scanovate configurations: {err}"))?;
+    // A configuration without an alias can't be matched to the realm export;
+    // the export then reports the aliased one it lacks as unavailable.
     rows.into_iter()
+        .filter_map(
+            |row| match row.try_get::<_, Option<String>>("config_alias") {
+                Ok(Some(alias)) => Some(Ok((row, alias))),
+                Ok(None) => None,
+                Err(error) => Some(Err(anyhow::Error::from(error))),
+            },
+        )
         .map(|row| -> Result<StoredIntegrationSecret> {
+            let (row, config_alias) = row?;
             Ok(StoredIntegrationSecret {
                 config_id: row.try_get("config_id")?,
-                config_alias: row.try_get("config_alias")?,
+                config_alias,
                 provider_id: row.try_get("provider_id")?,
                 secret_key: SCANOVATE_LIVENESS_SECRET_KEY.to_string(),
                 value: IntegrationSecretValue::new(
