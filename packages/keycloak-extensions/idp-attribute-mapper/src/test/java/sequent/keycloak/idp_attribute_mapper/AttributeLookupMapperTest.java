@@ -133,8 +133,7 @@ class AttributeLookupMapperTest {
         MapperSettings.TARGET_ATTRIBUTE, "area-id",
         MapperSettings.LOOKUP_TABLE, TABLE,
         MapperSettings.ON_MISS, onMiss,
-        MapperSettings.DEFAULT_VALUE, "area-default",
-        MapperSettings.ERROR_MESSAGE, "unknownPrecinct");
+        MapperSettings.DEFAULT_VALUE, "area-default");
   }
 
   @Test
@@ -143,8 +142,7 @@ class AttributeLookupMapperTest {
         mapperModel(
             MapperSettings.SOURCES, MapperSettings.SOURCE_NAME_ID,
             MapperSettings.EXTRACT_REGEX, "^([^@]+)@",
-            MapperSettings.TARGET, "USERNAME",
-            MapperSettings.ON_MISS, "REJECT");
+            MapperSettings.TARGET, "USERNAME");
     BrokeredIdentityContext context = samlContext("abc-123@example.org");
     mapper.preprocessFederatedIdentity(session, realm, model, context);
     assertEquals("abc-123", context.getModelUsername());
@@ -177,7 +175,7 @@ class AttributeLookupMapperTest {
 
   @Test
   void lookupSetsAttributeOnImport() {
-    IdentityProviderMapperModel model = areaMapper("REJECT");
+    IdentityProviderMapperModel model = areaMapper("UNSET");
     BrokeredIdentityContext context = samlContext("id", "region", "09", "precinct", "0150");
     mapper.preprocessFederatedIdentity(session, realm, model, context);
     assertEquals(List.of("area-2"), context.getAttributes().get("area-id"));
@@ -190,7 +188,7 @@ class AttributeLookupMapperTest {
 
   @Test
   void oidcLookupWorksTheSameWay() {
-    IdentityProviderMapperModel model = areaMapper("REJECT");
+    IdentityProviderMapperModel model = areaMapper("UNSET");
     BrokeredIdentityContext context =
         oidcContext("sub-1", Map.of("region", "09", "precinct", "0001"));
     mapper.preprocessFederatedIdentity(session, realm, model, context);
@@ -201,15 +199,19 @@ class AttributeLookupMapperTest {
   }
 
   @Test
-  void rejectStopsLoginOnMiss() {
-    IdentityProviderMapperModel model = areaMapper("REJECT");
+  void valueIsInBrokeredContextBeforeUserExists() {
+    IdentityProviderMapperModel model = areaMapper("UNSET");
+    BrokeredIdentityContext hit = samlContext("id", "region", "09", "precinct", "0150");
+    mapper.preprocessFederatedIdentity(session, realm, model, hit);
+    assertEquals("area-2", hit.getUserAttribute("area-id"));
+  }
+
+  @Test
+  void missLeavesBrokeredContextUnsetWithoutFailing() {
+    IdentityProviderMapperModel model = areaMapper("UNSET");
     BrokeredIdentityContext context = samlContext("id", "region", "09", "precinct", "0999");
-    Rejected rejected =
-        assertThrows(
-            Rejected.class,
-            () -> mapper.preprocessFederatedIdentity(session, realm, model, context));
-    assertEquals(Response.Status.FORBIDDEN, rejected.status);
-    assertEquals("unknownPrecinct", rejected.getMessage());
+    mapper.preprocessFederatedIdentity(session, realm, model, context);
+    assertNull(context.getUserAttribute("area-id"));
   }
 
   @Test
@@ -240,7 +242,7 @@ class AttributeLookupMapperTest {
 
   @Test
   void updateChangesAttributeOnlyWhenDifferent() {
-    IdentityProviderMapperModel model = areaMapper("REJECT");
+    IdentityProviderMapperModel model = areaMapper("UNSET");
     BrokeredIdentityContext moved = samlContext("id", "region", "09", "precinct", "0001");
     mapper.preprocessFederatedIdentity(session, realm, model, moved);
     UserModel user = mock(UserModel.class);
@@ -256,7 +258,7 @@ class AttributeLookupMapperTest {
 
   @Test
   void updateWithoutPreprocessResolvesAgain() {
-    IdentityProviderMapperModel model = areaMapper("REJECT");
+    IdentityProviderMapperModel model = areaMapper("UNSET");
     BrokeredIdentityContext context = samlContext("id", "region", "09", "precinct", "0150");
     UserModel user = mock(UserModel.class);
     when(user.getAttributes()).thenReturn(Map.of());
@@ -296,7 +298,7 @@ class AttributeLookupMapperTest {
 
   @Test
   void settingsAreCachedUntilConfigChanges() {
-    IdentityProviderMapperModel model = areaMapper("REJECT");
+    IdentityProviderMapperModel model = areaMapper("UNSET");
     MapperSettings first = AttributeLookupMapper.settings(model);
     assertSame(first, AttributeLookupMapper.settings(model));
     model.getConfig().put(MapperSettings.LOOKUP_TABLE, "area-3 = 09:0001");
