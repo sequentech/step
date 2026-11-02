@@ -271,7 +271,7 @@ const frenchTranslation: TranslationType = {
                     "ballot-box-seal-policy":
                         "Maintenu clos : avec Sceller à la clôture, un vote clôturé reste clos.",
                     "never-opened-kept-open":
-                        "Rien à clôturer selon le programme : le Poste n'a jamais ouvert, il reste donc en l'état.",
+                        "Rien à clôturer selon le programme : l'élection n'a jamais été ouverte, elle reste donc en l'état.",
                 },
             },
             column: {
@@ -2797,12 +2797,12 @@ const frenchTranslation: TranslationType = {
         publish: {
             initialization: {
                 countryInfo:
-                    "Générez le rapport pour tout le poste ou pour un pays. Le vote reste bloqué tant que toutes les initialisations requises par pays et pour l’événement entier ne sont pas terminées.",
+                    "Générez le rapport pour toute l’élection ou pour un pays. Le vote reste bloqué tant que toutes les initialisations requises par pays et pour l’événement entier ne sont pas terminées.",
                 countriesError: "Impossible de charger les pays admissibles. Fermez et réessayez.",
                 noCountries:
-                    "Ce poste n’a aucun pays admissible avec des modèles de bulletin actifs. Vérifiez ses zones et sa publication avant l’initialisation.",
+                    "Cette élection n’a aucun pays admissible avec des modèles de bulletin actifs. Vérifiez ses zones et sa publication avant l’initialisation.",
                 country: "Pays",
-                entirePost: "Poste entier",
+                entirePost: "Toute l’élection",
             },
             preview: {
                 publicationAreas: "Sélectionnez la zone pour l'aperçu",
@@ -2935,7 +2935,7 @@ const frenchTranslation: TranslationType = {
                 startKeptChannels_other: "{{post}} : {{channels}} restent clos",
                 startKeptSealed: "{{post}} reste clos, car ses urnes sont scellées",
                 startNotEnabledList:
-                    "Avec Sceller à la clôture, un démarrage n'ouvre un canal que dans les Posts qui l'activent : {{items}}.",
+                    "Avec Sceller à la clôture, un démarrage n'ouvre un canal que dans les élections qui l'activent : {{items}}.",
                 startNotEnabledChannels_one:
                     "{{post}} : {{channels}} n'y est pas activé et reste Non commencé",
                 startNotEnabledChannels_other:
@@ -4324,8 +4324,8 @@ const frenchTranslation: TranslationType = {
         },
         signing: {
             terms: {
-                post: "Poste",
-                posts: "Postes",
+                post: "élection",
+                posts: "élections",
             },
             tab: {
                 title: "Signatures",
@@ -4372,7 +4372,7 @@ const frenchTranslation: TranslationType = {
                     object: "initialisation du vote",
                     appliesTo: "Chaque $t(signing.terms.post)",
                     description:
-                        "Lancée dans Publier. Initialise le $t(signing.terms.post) et génère son Rapport d'Initialisation.",
+                        "Lancée dans Publier. Initialise l'$t(signing.terms.post) et génère son Rapport d'Initialisation.",
                 },
                 "open-voting": {
                     label: "Ouvrir le vote",
@@ -4381,7 +4381,7 @@ const frenchTranslation: TranslationType = {
                     object: "ouverture du vote",
                     appliesTo: "Chaque $t(signing.terms.post)",
                     description:
-                        "Lancée dans Publier avec Commencer la période de vote. Ouvre le vote au $t(signing.terms.post).",
+                        "Lancée dans Publier avec Commencer la période de vote. Ouvre le vote à l'$t(signing.terms.post).",
                 },
                 "close-voting": {
                     label: "Clôturer le vote",
@@ -4390,9 +4390,9 @@ const frenchTranslation: TranslationType = {
                     object: "clôture du vote",
                     appliesTo: "Chaque $t(signing.terms.post)",
                     description:
-                        "Lancée dans Publier avec Arrêter la période de vote. Clôture le vote au $t(signing.terms.post) ; les signatures de clôture sont conservées dans son procès-verbal.",
+                        "Lancée dans Publier avec Arrêter la période de vote. Clôture le vote à l'$t(signing.terms.post) ; les signatures de clôture sont conservées dans son procès-verbal.",
                     descriptionSealed:
-                        "Lancée dans Publier avec Arrêter la période de vote. Clôture le vote au $t(signing.terms.post). Une fois tous les canaux clos, ses urnes sont scellées, après le délai de grâce s'il y en a un : aucun bulletin ne peut être ajouté, modifié ni supprimé, et le vote ne peut pas reprendre. Les signatures de clôture sont conservées dans son procès-verbal.",
+                        "Lancée dans Publier avec Arrêter la période de vote. Clôture le vote à l'$t(signing.terms.post). Une fois tous les canaux clos, ses urnes sont scellées, après le délai de grâce s'il y en a un : aucun bulletin ne peut être ajouté, modifié ni supprimé, et le vote ne peut pas reprendre. Les signatures de clôture sont conservées dans son procès-verbal.",
                 },
                 "generate-election-returns": {
                     label: "Générer les procès-verbaux électoraux",
@@ -4426,7 +4426,7 @@ const frenchTranslation: TranslationType = {
                     short: "Approbation d'électeur",
                     permissionName: "approuver manuellement un électeur",
                     object: "approbation d'électeur",
-                    appliesTo: "Le $t(signing.terms.post) de l'électeur",
+                    appliesTo: "L'$t(signing.terms.post) de l'électeur",
                     description:
                         "Lancée dans Approvals. Approuve l'électeur et lui délivre ses identifiants.",
                 },
@@ -4496,7 +4496,7 @@ const frenchTranslation: TranslationType = {
                 needsSignatures: "Requiert des signatures",
                 whoCanSign: "Qui peut signer",
                 whoCanSignHelp:
-                    "Ces rôles reçoivent l'autorisation « Signer : {{action}} » dans Utilisateurs et Rôles, pour tous les événements électoraux. Les signataires doivent aussi avoir accès au $t(signing.terms.post).",
+                    "Ces rôles reçoivent l'autorisation « Signer : {{action}} » dans Utilisateurs et Rôles, pour tous les événements électoraux. Les signataires doivent aussi avoir accès à l'$t(signing.terms.post).",
                 signaturesNeeded: "Signatures requises",
                 signaturesNeededHelp:
                     "Chaque signataire utilise son certificat numérique. Chaque $t(signing.terms.post) compte au moins {{n}} personnes pouvant signer.",
@@ -4517,14 +4517,14 @@ const frenchTranslation: TranslationType = {
                 checkedOnSave:
                     "Le nombre est vérifié par rapport aux nouveaux rôles lors de l'enregistrement.",
                 savedRequesterShort:
-                    "La règle de signature a été enregistrée. Certains $t(signing.terms.posts) ne peuvent pas atteindre ce nombre sans la personne qui lance une demande.",
+                    "La règle de signature a été enregistrée. Certaines $t(signing.terms.posts) ne peuvent pas atteindre ce nombre sans la personne qui lance une demande.",
                 saveError:
                     "La règle de signature n'a pas pu être enregistrée. Quelqu'un l'a peut-être modifiée entre-temps ; rechargez et réessayez.",
             },
             validation: {
                 atLeastOne: "Au moins 1.",
                 tooMany:
-                    "Aucun $t(signing.terms.post) ne compte {{n}} personnes pouvant signer. Le maximum est {{max}}.",
+                    "Aucune $t(signing.terms.post) ne compte {{n}} personnes pouvant signer. Le maximum est {{max}}.",
                 tooManyEvent:
                     "Seules {{max}} personnes peuvent signer ceci. Choisissez au plus {{max}}.",
                 atMost: "Au plus {{max}}.",
@@ -4556,7 +4556,7 @@ const frenchTranslation: TranslationType = {
                     "security-officer-only":
                         "Uniquement lorsqu'une personne autorisée à enregistrer des certificats l'enregistre",
                 },
-                onePost: "Un certificat ne signe que pour un seul $t(signing.terms.post)",
+                onePost: "Un certificat ne signe que pour une seule $t(signing.terms.post)",
                 issuers: "Émetteurs de confiance",
                 import: "Importer des certificats d'émetteurs",
                 importHelp:
@@ -4583,7 +4583,7 @@ const frenchTranslation: TranslationType = {
                     validUntil: "Valide jusqu'au",
                     sha256: "SHA-256",
                     person: "Personne",
-                    post: "$t(signing.terms.post)",
+                    post: "Élection",
                     certificate: "Certificat",
                     registered: "Enregistré",
                     status: "Statut",
@@ -4605,7 +4605,7 @@ const frenchTranslation: TranslationType = {
                     "revoked": "Révoqué",
                 },
                 revokedOn: "Révoqué le {{date}}",
-                allPosts: "Tous",
+                allPosts: "Toutes",
                 noCertificates: "Aucun certificat enregistré.",
                 registeredHow: {
                     "first-use": "À la première signature",
@@ -4656,7 +4656,7 @@ const frenchTranslation: TranslationType = {
             },
             reports: {
                 postRequired:
-                    "Sélectionnez un poste pour générer ce rapport lorsque des signatures sont requises.",
+                    "Sélectionnez une élection pour générer ce rapport lorsque des signatures sont requises.",
                 generateNotice:
                     "{{post}} : le document est généré maintenant. Il pourra être imprimé et transmis une fois signé par {{n}} personnes.",
             },
@@ -4726,7 +4726,7 @@ const frenchTranslation: TranslationType = {
                         "registered": "Enregistré à votre nom le {{date}}",
                         "registered-to-other": "Non enregistré au nom d'une autre personne",
                         "already-signed": "Pas encore utilisé pour cette demande",
-                        "post-binding": "Enregistré pour ce $t(signing.terms.post)",
+                        "post-binding": "Enregistré pour cette $t(signing.terms.post)",
                         "signature": "La signature couvre cette demande",
                     },
                     "failed": {
@@ -4738,7 +4738,7 @@ const frenchTranslation: TranslationType = {
                         "registered": "Non enregistré à votre nom",
                         "registered-to-other": "Enregistré au nom de {{name}}",
                         "already-signed": "Déjà utilisé pour cette demande",
-                        "post-binding": "Enregistré pour un autre $t(signing.terms.post)",
+                        "post-binding": "Enregistré pour une autre $t(signing.terms.post)",
                         "signature": "La signature ne couvre pas cette demande",
                     },
                     "first-use": "Première utilisation : il sera enregistré à votre nom",
@@ -5068,7 +5068,7 @@ const frenchTranslation: TranslationType = {
             authorizes: {
                 reportPolicyOf: "{{election}} : {{value}}",
                 initializationRetained:
-                    "Un rapport obligatoire dans cette configuration signée reste obligatoire si le paramètre actuel du poste devient non obligatoire.",
+                    "Un rapport obligatoire dans cette configuration signée reste obligatoire si le paramètre actuel de l'élection devient non obligatoire.",
                 title: "Ce que cette approbation autorise",
                 schedule: "Ouvertures et clôtures planifiées",
                 noSchedule:
@@ -5308,7 +5308,7 @@ const frenchTranslation: TranslationType = {
                 },
                 covered: {
                     overriddenBySignedPostRow:
-                        "La configuration signée {{code}} utilise l’ouverture propre à ce poste, {{scheduled_event_id}}. L’ouverture de l’événement entier ne s’applique pas.",
+                        "La configuration signée {{code}} utilise l’ouverture propre à cette élection, {{scheduled_event_id}}. L’ouverture de l’événement entier ne s’applique pas.",
                     yes: "Oui : approbation {{code}}, inchangée",
                     changed: "Non : modifiée depuis l'approbation {{code}}",
                     changedBy:

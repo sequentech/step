@@ -756,10 +756,28 @@ class TemplateSyntaxTest {
     assertFalse(html.contains("version-version"), "an empty version should not be labelled");
     assertFalse(html.contains("version-hash"), "an empty hash should not be labelled");
 
-    model.put("properties", Map.of("systemVersion", "1.2.3", "systemHash", "abc123"));
+    model.put("properties", Map.of("systemVersion", "1.2.3", "systemHash", "0123456789abcdef"));
     html = renderLogin("sequent.admin-portal", model);
     assertTrue(html.contains("<span class=\"value\">1.2.3</span>"));
-    assertTrue(html.contains("<span class=\"value\">abc123</span>"));
+    assertTrue(html.contains("<span class=\"value\">0123-4567</span>"));
+  }
+
+  @Test
+  void loginHeaderShowsTheShortHashLikeThePortals() throws IOException, TemplateException {
+    // The portals' headers show the first 8 hex digits as DEAD-BEEF, never the full commit hash,
+    // and no hash at all for a value that is not one.
+    Map<String, Object> model = baseModel();
+    model.put("properties", Map.of("systemVersion", "1.2.3", "systemHash", " deadbeefcafe0123\n"));
+    String html = renderLogin("sequent.admin-portal", model);
+    assertTrue(html.contains("<span class=\"value\">DEAD-BEEF</span>"));
+    assertFalse(html.toLowerCase().contains("deadbeefcafe"), "the full hash should not be shown");
+
+    for (String notAHash : List.of("abc123", "dev", "test-hash")) {
+      model.put("properties", Map.of("systemVersion", "1.2.3", "systemHash", notAHash));
+      html = renderLogin("sequent.admin-portal", model);
+      assertTrue(html.contains("<span class=\"value\">1.2.3</span>"), notAHash);
+      assertFalse(html.contains("version-hash"), notAHash + " is not a commit hash");
+    }
   }
 
   @Test

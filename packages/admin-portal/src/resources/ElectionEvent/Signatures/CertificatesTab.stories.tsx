@@ -433,9 +433,11 @@ export const SecondOrganization: Story = {
         await expect(
             within(issuers).getAllByText(council.issuers[0].common_name as string)[0]
         ).toBeVisible()
-        // The tenant's term for a Post names the column, from its one override.
+        // The tenant's name for a Post names the column, from the column's override.
         await expect(
-            canvas.getByRole("columnheader", {name: councilText("signing.terms.post")})
+            canvas.getByRole("columnheader", {
+                name: councilText("signing.certificates.columns.post"),
+            })
         ).toBeVisible()
         const [certificate] = council.certificates
         const row = await certificateRow(canvasElement, certificate.username)

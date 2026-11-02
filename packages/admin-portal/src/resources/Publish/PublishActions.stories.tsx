@@ -318,7 +318,7 @@ export const StopWithAnOpenChannelThatIsNotEnabled: Story = {
     play: async ({canvasElement}) =>
         stopWithText(
             canvasElement,
-            "You are about to stop voting period. Kiosk isn't closed and isn't enabled for this Post: stop it to seal the ballot boxes. Are you sure you want to continue?"
+            "You are about to stop voting period. Kiosk isn't closed and isn't enabled for this election: stop it to seal the ballot boxes. Are you sure you want to continue?"
         ),
 }
 

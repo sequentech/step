@@ -461,7 +461,7 @@ const FACULTIES = [
 
 /**
  * A student council: its Posts are faculties, it renames two actions and every
- * "Post" through tenant translation overrides, and most of its rules are off.
+ * "election" through tenant translation overrides, and most of its rules are off.
  */
 export const studentCouncil = (): ISigningOrganization => {
     const configVersion = 3
@@ -526,9 +526,11 @@ export const studentCouncil = (): ISigningOrganization => {
             ),
         ],
         overrides: {
-            // One term renames every Post of the signing settings.
+            // One term renames every Post in the signing settings' texts; the
+            // certificates column, a label, has its own.
             "adminPortal:signing.terms.post": "Faculty",
             "adminPortal:signing.terms.posts": "Faculties",
+            "adminPortal:signing.certificates.columns.post": "Faculty",
             "adminPortal:signing.actions.generate-election-returns.label":
                 "Certify faculty results",
             "adminPortal:signing.actions.generate-election-returns.short": "Faculty results",

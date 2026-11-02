@@ -271,7 +271,7 @@ const dutchTranslation: TranslationType = {
                     "ballot-box-seal-policy":
                         "Gesloten gehouden: met Verzegelen bij sluiting blijft een gesloten stemming gesloten.",
                     "never-opened-kept-open":
-                        "Niets te sluiten volgens planning: de Post is nooit geopend en blijft zoals hij is.",
+                        "Niets te sluiten volgens planning: de verkiezing is nooit geopend en blijft zoals ze is.",
                 },
             },
             column: {
@@ -2769,13 +2769,13 @@ const dutchTranslation: TranslationType = {
         publish: {
             initialization: {
                 countryInfo:
-                    "Genereer het rapport voor de hele post of één land. Stemmen blijft geblokkeerd totdat alle vereiste initialisaties per land en voor het hele evenement voltooid zijn.",
+                    "Genereer het rapport voor de hele verkiezing of één land. Stemmen blijft geblokkeerd totdat alle vereiste initialisaties per land en voor het hele evenement voltooid zijn.",
                 countriesError:
                     "De beschikbare landen konden niet worden geladen. Sluit en probeer opnieuw.",
                 noCountries:
-                    "Deze post heeft geen beschikbare landen met actieve stembiljetmodellen. Controleer de gebieden en publicatie voordat u initialiseert.",
+                    "Deze verkiezing heeft geen beschikbare landen met actieve stembiljetmodellen. Controleer de gebieden en publicatie voordat u initialiseert.",
                 country: "Land",
-                entirePost: "Hele post",
+                entirePost: "Hele verkiezing",
             },
             preview: {
                 publicationAreas: "Selecteer Gebied voor Voorbeeldweergave",
@@ -2914,13 +2914,13 @@ const dutchTranslation: TranslationType = {
                 startKeptChannels_other: "{{post}}: {{channels}} blijven gesloten",
                 startKeptSealed: "{{post}} blijft gesloten, omdat de stembussen zijn verzegeld",
                 startNotEnabledList:
-                    "Met Verzegelen bij sluiting opent een start een kanaal alleen bij de Posts die het inschakelen: {{items}}.",
+                    "Met Verzegelen bij sluiting opent een start een kanaal alleen in de verkiezingen die het inschakelen: {{items}}.",
                 startNotEnabledChannels_one:
                     "{{post}}: {{channels}} is daar niet ingeschakeld en blijft Niet gestart",
                 startNotEnabledChannels_other:
                     "{{post}}: {{channels}} zijn daar niet ingeschakeld en blijven Niet gestart",
                 stopNeverOpenedPosts_one:
-                    "{{names}} is nooit geopend: stoppen sluit de Post en verzegelt de lege stembussen.",
+                    "{{names}} is nooit geopend: stoppen sluit de verkiezing en verzegelt de lege stembussen.",
                 stopNeverOpenedPosts_other:
                     "{{names}} zijn nooit geopend: stoppen sluit ze en verzegelt hun lege stembussen.",
             },
@@ -4298,8 +4298,8 @@ const dutchTranslation: TranslationType = {
         },
         signing: {
             terms: {
-                post: "Post",
-                posts: "Posts",
+                post: "verkiezing",
+                posts: "verkiezingen",
             },
             tab: {
                 title: "Handtekeningen",
@@ -4356,7 +4356,7 @@ const dutchTranslation: TranslationType = {
                     object: "opening van de stemming",
                     appliesTo: "Elke $t(signing.terms.post)",
                     description:
-                        "Gestart in Publiceren met Stemperiode Starten. Opent de stemming op de $t(signing.terms.post).",
+                        "Gestart in Publiceren met Stemperiode Starten. Opent de stemming voor de $t(signing.terms.post).",
                 },
                 "close-voting": {
                     label: "Stemming sluiten",
@@ -4365,9 +4365,9 @@ const dutchTranslation: TranslationType = {
                     object: "sluiting van de stemming",
                     appliesTo: "Elke $t(signing.terms.post)",
                     description:
-                        "Gestart in Publiceren met Stemperiode Stoppen. Sluit de stemming op de $t(signing.terms.post); de sluitingshandtekeningen worden in het record ervan bewaard.",
+                        "Gestart in Publiceren met Stemperiode Stoppen. Sluit de stemming voor de $t(signing.terms.post); de sluitingshandtekeningen worden in het record ervan bewaard.",
                     descriptionSealed:
-                        "Gestart in Publiceren met Stemperiode Stoppen. Sluit de stemming op de $t(signing.terms.post). Zodra elk kanaal gesloten is, worden de stembussen ervan verzegeld, na de respijtperiode als die er is: er kan geen stembiljet worden toegevoegd, gewijzigd of verwijderd, en de stemming kan niet opnieuw beginnen. De sluitingshandtekeningen worden in het record ervan bewaard.",
+                        "Gestart in Publiceren met Stemperiode Stoppen. Sluit de stemming voor de $t(signing.terms.post). Zodra elk kanaal gesloten is, worden de stembussen ervan verzegeld, na de respijtperiode als die er is: er kan geen stembiljet worden toegevoegd, gewijzigd of verwijderd, en de stemming kan niet opnieuw beginnen. De sluitingshandtekeningen worden in het record ervan bewaard.",
                 },
                 "generate-election-returns": {
                     label: "Processen-verbaal genereren",
@@ -4559,7 +4559,7 @@ const dutchTranslation: TranslationType = {
                     validUntil: "Geldig tot",
                     sha256: "SHA-256",
                     person: "Persoon",
-                    post: "$t(signing.terms.post)",
+                    post: "Verkiezing",
                     certificate: "Certificaat",
                     registered: "Geregistreerd",
                     status: "Status",
@@ -4631,7 +4631,7 @@ const dutchTranslation: TranslationType = {
             },
             reports: {
                 postRequired:
-                    "Selecteer een post om dit rapport te genereren wanneer handtekeningen vereist zijn.",
+                    "Selecteer een verkiezing om dit rapport te genereren wanneer handtekeningen vereist zijn.",
                 generateNotice:
                     "{{post}}: het document wordt nu gegenereerd. Het kan worden afgedrukt en verzonden zodra {{n}} personen het hebben ondertekend.",
             },
@@ -5044,7 +5044,7 @@ const dutchTranslation: TranslationType = {
             authorizes: {
                 reportPolicyOf: "{{election}}: {{value}}",
                 initializationRetained:
-                    "Een verplicht rapport in deze ondertekende configuratie blijft verplicht als de huidige instelling van de post wordt gewijzigd naar niet verplicht.",
+                    "Een verplicht rapport in deze ondertekende configuratie blijft verplicht als de huidige instelling van de verkiezing wordt gewijzigd naar niet verplicht.",
                 title: "Wat deze goedkeuring toestaat",
                 schedule: "Geplande openingen en sluitingen",
                 noSchedule:
@@ -5286,7 +5286,7 @@ const dutchTranslation: TranslationType = {
                 },
                 covered: {
                     overriddenBySignedPostRow:
-                        "De ondertekende configuratie {{code}} gebruikt de eigen opening {{scheduled_event_id}} van deze post. De opening voor het hele evenement is niet van toepassing.",
+                        "De ondertekende configuratie {{code}} gebruikt de eigen opening {{scheduled_event_id}} van deze verkiezing. De opening voor het hele evenement is niet van toepassing.",
                     yes: "Ja: goedkeuring {{code}}, ongewijzigd",
                     changed: "Nee: gewijzigd sinds goedkeuring {{code}}",
                     changedBy:

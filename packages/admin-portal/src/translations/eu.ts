@@ -271,7 +271,7 @@ const basqueTranslation: TranslationType = {
                     "ballot-box-seal-policy":
                         "Itxita mantendu da: Zigilatu ixtean aukerarekin, itxi den bozketa itxita geratzen da.",
                     "never-opened-kept-open":
-                        "Ez dago ezer programazioz ixteko: Postua ez da inoiz ireki, beraz dagoen bezala geratzen da.",
+                        "Ez dago ezer programazioz ixteko: hauteskundea ez da inoiz ireki, beraz dagoen bezala geratzen da.",
                 },
             },
             column: {
@@ -2761,13 +2761,13 @@ const basqueTranslation: TranslationType = {
         publish: {
             initialization: {
                 countryInfo:
-                    "Sortu txostena hauteskunde-postu osorako edo herrialde baterako. Bozketa blokeatuta egongo da herrialdeen eta ekitaldi osoaren beharrezko hasieratze guztiak osatu arte.",
+                    "Sortu txostena hauteskunde osorako edo herrialde baterako. Bozketa blokeatuta egongo da herrialdeen eta ekitaldi osoaren beharrezko hasieratze guztiak osatu arte.",
                 countriesError:
                     "Ezin izan dira herrialde hautagarriak kargatu. Itxi eta saiatu berriro.",
                 noCountries:
-                    "Postu honek ez du boto-paperen estilo aktiboak dituen herrialde hautagarririk. Egiaztatu eremuak eta argitalpena hasieratu aurretik.",
+                    "Hauteskunde honek ez du boto-paperen estilo aktiboak dituen herrialde hautagarririk. Egiaztatu eremuak eta argitalpena hasieratu aurretik.",
                 country: "Herrialdea",
-                entirePost: "Postu osoa",
+                entirePost: "Hauteskunde osoa",
             },
             preview: {
                 publicationAreas: "Hautatu Eremua Aurreikusteko",
@@ -2903,7 +2903,7 @@ const basqueTranslation: TranslationType = {
                 startKeptSealed:
                     "{{post}}: itxita geratzen da, bere hautestontziak zigilatuta daudelako",
                 startNotEnabledList:
-                    "Zigilatu ixtean aukerarekin, hasierak kanal bat gaitzen duten Postetan bakarrik irekitzen du: {{items}}.",
+                    "Zigilatu ixtean aukerarekin, hasierak kanal bat gaitzen duten hauteskundeetan bakarrik irekitzen du: {{items}}.",
                 startNotEnabledChannels_one:
                     "{{post}}: {{channels}} ez dago han gaituta eta Hasi gabe geratzen da",
                 startNotEnabledChannels_other:
@@ -4273,8 +4273,8 @@ const basqueTranslation: TranslationType = {
         },
         signing: {
             terms: {
-                post: "Postu",
-                posts: "Postuak",
+                post: "hauteskunde",
+                posts: "hauteskundeak",
             },
             tab: {
                 title: "Sinadurak",
@@ -4319,16 +4319,16 @@ const basqueTranslation: TranslationType = {
                     short: "Hasieratzea",
                     permissionName: "bozketa hasieratu",
                     object: "bozketaren hasieratzea",
-                    appliesTo: "$t(signing.terms.post) bakoitza",
+                    appliesTo: "Hauteskunde bakoitza",
                     description:
-                        "Argitaratu atalean hasten da. $t(signing.terms.post)a hasieratzen du eta haren Hasieratze Txostena sortzen du.",
+                        "Argitaratu atalean hasten da; $t(signing.terms.post)a hasieratzen du eta haren Hasieratze Txostena sortzen du.",
                 },
                 "open-voting": {
                     label: "Bozketa ireki",
                     short: "Irekiera",
                     permissionName: "bozketa ireki",
                     object: "bozketaren irekiera",
-                    appliesTo: "$t(signing.terms.post) bakoitza",
+                    appliesTo: "Hauteskunde bakoitza",
                     description:
                         "Argitaratu atalean hasten da, Hasi Bozketa botoiarekin. Bozketa irekitzen du $t(signing.terms.post)an.",
                 },
@@ -4337,7 +4337,7 @@ const basqueTranslation: TranslationType = {
                     short: "Itxiera",
                     permissionName: "bozketa itxi",
                     object: "bozketaren itxiera",
-                    appliesTo: "$t(signing.terms.post) bakoitza",
+                    appliesTo: "Hauteskunde bakoitza",
                     description:
                         "Argitaratu atalean hasten da, Gelditu Bozketa botoiarekin. Bozketa ixten du $t(signing.terms.post)an; itxierako sinadurak haren aktan gordetzen dira.",
                     descriptionSealed:
@@ -4348,7 +4348,7 @@ const basqueTranslation: TranslationType = {
                     short: "Hauteskunde-aktak",
                     permissionName: "hauteskunde-aktak sortu",
                     object: "hauteskunde-aktak",
-                    appliesTo: "$t(signing.terms.post) eta herrialde bakoitza",
+                    appliesTo: "Hauteskunde eta herrialde bakoitza",
                     description:
                         "Zenbaketak hasten du, eskaera bat $t(signing.terms.post) eta herrialde bakoitzeko. Sinatutako hauteskunde-aktak askatzen ditu inprimatzeko eta transmititzeko.",
                 },
@@ -4357,7 +4357,7 @@ const basqueTranslation: TranslationType = {
                     short: "Txostena",
                     permissionName: "beste hauteskunde-txosten batzuk sortu",
                     object: "txostena",
-                    appliesTo: "$t(signing.terms.post) bakoitza",
+                    appliesTo: "Hauteskunde bakoitza",
                     description:
                         "Zenbaketak hasten du Hasieratze Txostenerako, eta Txostenak atalak parte-hartze txostenerako. Sinatutako txostena askatzen du.",
                 },
@@ -4366,7 +4366,7 @@ const basqueTranslation: TranslationType = {
                     short: "Transmisioa",
                     permissionName: "emaitzak transmititu",
                     object: "emaitza-paketea",
-                    appliesTo: "$t(signing.terms.post) eta herrialde bakoitza",
+                    appliesTo: "Hauteskunde eta herrialde bakoitza",
                     description:
                         "Zenbaketa atalean hasten da, Transmisioa urratsean. Sinatutako emaitza-paketea sortzen du bere helburuetarako; sinadurek haren sinadura-zerrenda betetzen dute.",
                 },
@@ -4449,7 +4449,7 @@ const basqueTranslation: TranslationType = {
                     "Rol hauek «Sinatu: {{action}}» baimena jasotzen dute Erabiltzaileak eta Rolak atalean, hauteskunde-ekitaldi guztietarako. Sinatzaileek $t(signing.terms.post)rako sarbidea ere izan behar dute.",
                 signaturesNeeded: "Behar diren sinadurak",
                 signaturesNeededHelp:
-                    "Sinatzaile bakoitzak bere ziurtagiri digitala erabiltzen du. $t(signing.terms.post) bakoitzak gutxienez sina dezaketen {{n}} pertsona ditu.",
+                    "Sinatzaile bakoitzak bere ziurtagiri digitala erabiltzen du; $t(signing.terms.post) bakoitzak gutxienez sina dezaketen {{n}} pertsona ditu.",
                 signaturesNeededShortHelp:
                     "Sinatzaile bakoitzak bere ziurtagiri digitala erabiltzen du.",
                 requesterSigning: "Hasten duen pertsonak ere sina dezake",
@@ -4533,7 +4533,7 @@ const basqueTranslation: TranslationType = {
                     validUntil: "Baliozkoa noiz arte",
                     sha256: "SHA-256",
                     person: "Pertsona",
-                    post: "$t(signing.terms.post)a",
+                    post: "Hauteskundea",
                     certificate: "Ziurtagiria",
                     registered: "Erregistratua",
                     status: "Egoera",
@@ -4606,7 +4606,7 @@ const basqueTranslation: TranslationType = {
             },
             reports: {
                 postRequired:
-                    "Hautatu hauteskunde-postu bat txosten hau sortzeko sinadurak behar direnean.",
+                    "Hautatu hauteskunde bat txosten hau sortzeko sinadurak behar direnean.",
                 generateNotice:
                     "{{post}}: dokumentua orain sortzen da. {{n}} pertsonak sinatu ondoren inprimatu eta transmititu ahal izango da.",
             },
@@ -4676,7 +4676,7 @@ const basqueTranslation: TranslationType = {
                         "registered": "Zure izenean erregistratua {{date}}(e)an",
                         "registered-to-other": "Ez dago beste inoren izenean erregistratuta",
                         "already-signed": "Oraindik ez da eskaera honetarako erabili",
-                        "post-binding": "$t(signing.terms.post) honetarako erregistratua",
+                        "post-binding": "Erregistratua $t(signing.terms.post) honetarako",
                         "signature": "Sinadurak eskaera hau estaltzen du",
                     },
                     "failed": {
@@ -4904,7 +4904,7 @@ const basqueTranslation: TranslationType = {
                 title: "Nire sinaduraren zain",
                 buttonCount_one: "Nire sinaduraren zain: sinatzeko {{count}} eskaera",
                 buttonCount_other: "Nire sinaduraren zain: sinatzeko {{count}} eskaera",
-                intro: "Sina ditzakezun ekintzen sinaduren zain dauden eskaerak. $t(signing.terms.posts): zureak soilik.",
+                intro: "Sina ditzakezun ekintzen sinaduren zain dauden eskaerak. Zure $t(signing.terms.posts) soilik.",
                 close: "Itxi zerrenda",
                 empty: "Ez dago ezer zure sinaduraren zain.",
                 loadError: "Ezin izan dira kargatu sinaduren zain dauden eskaerak.",
@@ -5016,7 +5016,7 @@ const basqueTranslation: TranslationType = {
             authorizes: {
                 reportPolicyOf: "{{election}}: {{value}}",
                 initializationRetained:
-                    "Sinatutako konfigurazio honetan derrigorrezkoa den txostenak derrigorrezkoa izaten jarraitzen du, uneko postuaren ezarpena derrigorrezkoa ez izatera aldatzen bada.",
+                    "Sinatutako konfigurazio honetan derrigorrezkoa den txostenak derrigorrezkoa izaten jarraitzen du, uneko hauteskundearen ezarpena derrigorrezkoa ez izatera aldatzen bada.",
                 title: "Onarpen honek baimentzen duena",
                 schedule: "Programatutako irekierak eta itxierak",
                 noSchedule:
@@ -5258,7 +5258,7 @@ const basqueTranslation: TranslationType = {
                 },
                 covered: {
                     overriddenBySignedPostRow:
-                        "Sinatutako {{code}} konfigurazioak postu honen {{scheduled_event_id}} irekiera propioa erabiltzen du. Ekitaldi osorako irekiera ez da aplikatzen.",
+                        "Sinatutako {{code}} konfigurazioak hauteskunde honen {{scheduled_event_id}} irekiera propioa erabiltzen du. Ekitaldi osorako irekiera ez da aplikatzen.",
                     yes: "Bai: {{code}} onarpena, aldatu gabe",
                     changed: "Ez: aldatu egin da {{code}} onarpenetik",
                     changedBy:

@@ -149,7 +149,7 @@ export const ClosedWithTheClosingSignatures: Story = {
         // At an event that doesn't seal, the description claims no seal.
         await expect(
             within(document.body).getByText(
-                "Started in Publish with Stop voting. Closes voting at the Post; the closing signatures are kept in its record."
+                "Started in Publish with Stop voting. Closes voting in the election; the closing signatures are kept in its record."
             )
         ).toBeVisible()
         expect(within(document.body).queryByText(/seals the ballots/)).toBeNull()

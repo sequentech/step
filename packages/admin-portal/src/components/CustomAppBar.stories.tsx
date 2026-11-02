@@ -36,7 +36,6 @@ interface Scenario {
     logoUrl?: string
     signedIn: boolean
     logout: () => void
-    openProfileLink: () => Promise<void>
 }
 
 const TENANT_LOGO = `${globalThis.location.origin}/story-bucket/council-logo.svg`
@@ -61,7 +60,7 @@ const tenant = (logoUrl?: string) =>
         annotations: logoUrl ? {logo_url: logoUrl} : {},
     }) as Sequent_Backend_Tenant
 
-function Fixture({logoUrl, signedIn, logout, openProfileLink, roles}: Scenario) {
+function Fixture({logoUrl, signedIn, logout, roles}: Scenario) {
     const {permissions} = useStoryGlobals()
     return (
         <AdminStoryProvider
@@ -74,7 +73,6 @@ function Fixture({logoUrl, signedIn, logout, openProfileLink, roles}: Scenario) 
                 isAuthenticated: signedIn,
                 email: "admin@example.invalid",
                 logout,
-                openProfileLink,
             }}
         >
             <SigningProvider api={idleSigningApi()}>
@@ -91,7 +89,6 @@ const meta = {
         reads: "records",
         signedIn: true,
         logout: fn(),
-        openProfileLink: fn(async () => {}),
     },
     argTypes: {reads: {control: "inline-radio", options: ["records", "loading", "error"]}},
     parameters: {expectedFailure: nestedBanners()},
@@ -189,13 +186,20 @@ export const ChangeTheLanguage: Story = {
     },
 }
 
-export const OpenTheProfile: Story = {
-    play: async ({canvasElement, args}) => {
+export const ProfileMenuHasNoAccountLink: Story = {
+    // The open menu hides the header and its nested banners.
+    parameters: {expectedFailure: null},
+    play: async ({canvasElement}) => {
         await userEvent.click(profileButton(canvasElement))
         const menu = await within(document.body).findByRole("menu")
         expect(within(menu).getByText("admin@example.invalid")).toBeVisible()
-        await userEvent.click(within(menu).getByRole("menuitem", {name: "Profile"}))
-        expect(args.openProfileLink).toHaveBeenCalledTimes(1)
+        // The staff realm's account console is off, so nothing in the menu leads to it.
+        expect(within(menu).queryByRole("menuitem", {name: "Profile"})).toBeNull()
+        expect(
+            within(menu)
+                .getAllByRole("menuitem")
+                .map((item) => item.textContent)
+        ).toEqual(["Logout"])
     },
 }
 

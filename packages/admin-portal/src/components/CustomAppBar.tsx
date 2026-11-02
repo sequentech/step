@@ -10,6 +10,7 @@ import {
     ITenantSettings,
     ITenantTheme,
     setCookie,
+    shortAppHash,
     USER_LANGUAGE_COOKIE_NAME,
 } from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -71,6 +72,8 @@ export const CustomAppBar: React.FC = () => {
         }
     }
 
+    const appHash = shortAppHash(globalSettings.APP_HASH)
+
     return (
         <AppBar
             toolbar={<></>}
@@ -91,12 +94,12 @@ export const CustomAppBar: React.FC = () => {
         >
             <Header
                 appVersion={{main: globalSettings.APP_VERSION}}
-                appHash={{main: globalSettings.APP_HASH}}
+                appHash={appHash ? {main: appHash} : undefined}
+                appHashDesktopOnly
                 userProfile={{
                     firstName: authContext.firstName,
                     username: authContext.username,
                     email: authContext.email,
-                    openLink: authContext.openProfileLink,
                 }}
                 logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
                 languagesList={langList}

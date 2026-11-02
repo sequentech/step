@@ -665,7 +665,7 @@ export const SignedEventWideReportExplainsTheRequiredPost: Story = {
         await chooseAction(canvasElement, "Participation Report", "Generate")
         await expect(
             await within(document.body).findByText(
-                "Select a Post to generate this report when signatures are required."
+                "Select an election to generate this report when signatures are required."
             )
         ).toBeVisible()
         expect(graphql.calls.some(({name}) => name === "GenerateReport")).toBe(false)

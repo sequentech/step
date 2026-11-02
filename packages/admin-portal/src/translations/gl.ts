@@ -270,7 +270,7 @@ const galegoTranslation: TranslationType = {
                     "ballot-box-seal-policy":
                         "Mantense pechada: con Selar ao pechar, a votación que xa se pechou segue pechada.",
                     "never-opened-kept-open":
-                        "Non hai nada que pechar segundo a programación: o Posto nunca se abriu, polo que queda como está.",
+                        "Non hai nada que pechar segundo a programación: a elección nunca se abriu, polo que queda como está.",
                 },
             },
             column: {
@@ -2770,13 +2770,13 @@ const galegoTranslation: TranslationType = {
         publish: {
             initialization: {
                 countryInfo:
-                    "Xere o informe para todo o posto ou para un país. A votación permanece bloqueada ata completar toda a inicialización requirida por país e para o evento.",
+                    "Xere o informe para toda a elección ou para un país. A votación permanece bloqueada ata completar toda a inicialización requirida por país e para o evento.",
                 countriesError:
                     "Non se puideron cargar os países elixibles. Peche e volva intentalo.",
                 noCountries:
-                    "Este posto non ten países elixibles con estilos de papeleta activos. Comprobe as súas áreas e a publicación antes de inicializar.",
+                    "Esta elección non ten países elixibles con estilos de papeleta activos. Comprobe as súas áreas e a publicación antes de inicializar.",
                 country: "País",
-                entirePost: "Todo o posto",
+                entirePost: "Toda a elección",
             },
             preview: {
                 publicationAreas: "Seleccionar Área para Vista Previa",
@@ -2915,7 +2915,7 @@ const galegoTranslation: TranslationType = {
                 startKeptChannels_other: "{{post}}: as canles {{channels}} seguen pechadas",
                 startKeptSealed: "{{post}} segue pechado, xa que as súas urnas están seladas",
                 startNotEnabledList:
-                    "Con Selar ao pechar, un inicio abre unha canle só nos Posts que a habilitan: {{items}}.",
+                    "Con Selar ao pechar, un inicio abre unha canle só nas eleccións que a habilitan: {{items}}.",
                 startNotEnabledChannels_one:
                     "{{post}}: a canle {{channels}} non está habilitada alí e segue Non iniciada",
                 startNotEnabledChannels_other:
@@ -4276,8 +4276,8 @@ const galegoTranslation: TranslationType = {
         },
         signing: {
             terms: {
-                post: "Posto",
-                posts: "Postos",
+                post: "elección",
+                posts: "eleccións",
             },
             tab: {
                 title: "Sinaturas",
@@ -4324,7 +4324,7 @@ const galegoTranslation: TranslationType = {
                     object: "inicialización da votación",
                     appliesTo: "Cada $t(signing.terms.post)",
                     description:
-                        "Iníciase en Publicar. Inicializa o $t(signing.terms.post) e xera o seu Informe de Inicialización.",
+                        "Iníciase en Publicar. Inicializa a $t(signing.terms.post) e xera o seu Informe de Inicialización.",
                 },
                 "open-voting": {
                     label: "Abrir a votación",
@@ -4333,7 +4333,7 @@ const galegoTranslation: TranslationType = {
                     object: "apertura da votación",
                     appliesTo: "Cada $t(signing.terms.post)",
                     description:
-                        "Iníciase en Publicar con Iniciar Votación. Abre a votación no $t(signing.terms.post).",
+                        "Iníciase en Publicar con Iniciar Votación. Abre a votación na $t(signing.terms.post).",
                 },
                 "close-voting": {
                     label: "Pechar a votación",
@@ -4342,9 +4342,9 @@ const galegoTranslation: TranslationType = {
                     object: "peche da votación",
                     appliesTo: "Cada $t(signing.terms.post)",
                     description:
-                        "Iníciase en Publicar con Detener Votación. Pecha a votación no $t(signing.terms.post); as sinaturas de peche consérvanse na súa acta.",
+                        "Iníciase en Publicar con Detener Votación. Pecha a votación na $t(signing.terms.post); as sinaturas de peche consérvanse na súa acta.",
                     descriptionSealed:
-                        "Iníciase en Publicar con Detener Votación. Pecha a votación no $t(signing.terms.post). Cando todas as canles están pechadas, as súas urnas sélanse, tras o período de graza se o hai: non se pode engadir, cambiar nin borrar ningunha papeleta, e a votación non pode volver comezar. As sinaturas de peche consérvanse na súa acta.",
+                        "Iníciase en Publicar con Detener Votación. Pecha a votación na $t(signing.terms.post). Cando todas as canles están pechadas, as súas urnas sélanse, tras o período de graza se o hai: non se pode engadir, cambiar nin borrar ningunha papeleta, e a votación non pode volver comezar. As sinaturas de peche consérvanse na súa acta.",
                 },
                 "generate-election-returns": {
                     label: "Xerar actas electorais",
@@ -4378,7 +4378,7 @@ const galegoTranslation: TranslationType = {
                     short: "Aprobación de votante",
                     permissionName: "aprobar manualmente un votante",
                     object: "aprobación de votante",
-                    appliesTo: "O $t(signing.terms.post) do votante",
+                    appliesTo: "A $t(signing.terms.post) do votante",
                     description:
                         "Iníciase en Aprobacións. Aproba o votante e emite as súas credenciais.",
                 },
@@ -4434,7 +4434,7 @@ const galegoTranslation: TranslationType = {
                 waitingCount_one: "{{count}} solicitude en espera",
                 waitingCount_other: "{{count}} solicitudes en espera",
                 capacityError:
-                    "Non se puido cargar quen pode asinar, así que o número de sinaturas non se pode comprobar cos $t(signing.terms.posts).",
+                    "Non se puido cargar quen pode asinar, así que o número de sinaturas non se pode comprobar coas $t(signing.terms.posts).",
             },
             expiry: {
                 "30": "30 minutos",
@@ -4448,7 +4448,7 @@ const galegoTranslation: TranslationType = {
                 needsSignatures: "Require sinaturas",
                 whoCanSign: "Quen pode asinar",
                 whoCanSignHelp:
-                    "Estes roles reciben o permiso «Asinar: {{action}}» en Usuarios e Roles, para todos os eventos electorais. Os asinantes tamén deben ter acceso ao $t(signing.terms.post).",
+                    "Estes roles reciben o permiso «Asinar: {{action}}» en Usuarios e Roles, para todos os eventos electorais. Os asinantes tamén deben ter acceso á $t(signing.terms.post).",
                 signaturesNeeded: "Sinaturas necesarias",
                 signaturesNeededHelp:
                     "Cada asinante usa o seu certificado dixital. Cada $t(signing.terms.post) ten polo menos {{n}} persoas que poden asinar.",
@@ -4468,14 +4468,14 @@ const galegoTranslation: TranslationType = {
                     "Gardouse a regra de sinatura. {{posts}} aínda non poden alcanzar o número: engada alí asinantes.",
                 checkedOnSave: "O número compróbase cos novos roles ao gardar.",
                 savedRequesterShort:
-                    "Gardouse a regra de sinatura. Algúns $t(signing.terms.posts) non poden alcanzar o número sen a persoa que inicia unha solicitude.",
+                    "Gardouse a regra de sinatura. Algunhas $t(signing.terms.posts) non poden alcanzar o número sen a persoa que inicia unha solicitude.",
                 saveError:
                     "Non se puido gardar a regra de sinatura. Pode que outra persoa a cambiase mentres tanto; recargue e ténteo de novo.",
             },
             validation: {
                 atLeastOne: "Polo menos 1.",
                 tooMany:
-                    "Ningún $t(signing.terms.post) ten {{n}} persoas que poidan asinar. O máximo é {{max}}.",
+                    "Ningunha $t(signing.terms.post) ten {{n}} persoas que poidan asinar. O máximo é {{max}}.",
                 tooManyEvent: "Só {{max}} persoas poden asinar isto. Escolla como máximo {{max}}.",
                 atMost: "Como máximo {{max}}.",
                 shortPosts_one:
@@ -4506,7 +4506,7 @@ const galegoTranslation: TranslationType = {
                     "security-officer-only":
                         "Só cando o rexistra alguén que pode rexistrar certificados",
                 },
-                onePost: "Un certificado asina só para un $t(signing.terms.post)",
+                onePost: "Un certificado asina só para unha $t(signing.terms.post)",
                 issuers: "Emisores de confianza",
                 import: "Importar certificados de emisores",
                 importHelp:
@@ -4533,7 +4533,7 @@ const galegoTranslation: TranslationType = {
                     validUntil: "Válido ata",
                     sha256: "SHA-256",
                     person: "Persoa",
-                    post: "$t(signing.terms.post)",
+                    post: "Elección",
                     certificate: "Certificado",
                     registered: "Rexistrado",
                     status: "Estado",
@@ -4555,7 +4555,7 @@ const galegoTranslation: TranslationType = {
                     "revoked": "Revogado",
                 },
                 revokedOn: "Revogado o {{date}}",
-                allPosts: "Todos",
+                allPosts: "Todas",
                 noCertificates: "Non hai certificados rexistrados.",
                 registeredHow: {
                     "first-use": "Na primeira sinatura",
@@ -4605,7 +4605,7 @@ const galegoTranslation: TranslationType = {
             },
             reports: {
                 postRequired:
-                    "Selecciona un posto para xerar este informe cando se requiren sinaturas.",
+                    "Selecciona unha elección para xerar este informe cando se requiren sinaturas.",
                 generateNotice:
                     "{{post}}: o documento xérase agora. Poderase imprimir e transmitir cando o asinen {{n}} persoas.",
             },
@@ -4674,7 +4674,7 @@ const galegoTranslation: TranslationType = {
                         "registered": "Rexistrado ao seu nome o {{date}}",
                         "registered-to-other": "Non rexistrado a nome doutra persoa",
                         "already-signed": "Aínda non usado para esta solicitude",
-                        "post-binding": "Rexistrado para este $t(signing.terms.post)",
+                        "post-binding": "Rexistrado para esta $t(signing.terms.post)",
                         "signature": "A sinatura cobre esta solicitude",
                     },
                     "failed": {
@@ -4686,7 +4686,7 @@ const galegoTranslation: TranslationType = {
                         "registered": "Non rexistrado ao seu nome",
                         "registered-to-other": "Rexistrado a nome de {{name}}",
                         "already-signed": "Xa usado para esta solicitude",
-                        "post-binding": "Rexistrado para outro $t(signing.terms.post)",
+                        "post-binding": "Rexistrado para outra $t(signing.terms.post)",
                         "signature": "A sinatura non cobre esta solicitude",
                     },
                     "first-use": "Primeiro uso: rexistrarase ao seu nome",
@@ -4902,7 +4902,7 @@ const galegoTranslation: TranslationType = {
                 title: "Pendente da miña sinatura",
                 buttonCount_one: "Pendente da miña sinatura: {{count}} solicitude por asinar",
                 buttonCount_other: "Pendente da miña sinatura: {{count}} solicitudes por asinar",
-                intro: "Solicitudes que agardan as sinaturas das accións que pode asinar, nos seus $t(signing.terms.posts).",
+                intro: "Solicitudes que agardan as sinaturas das accións que pode asinar, nas súas $t(signing.terms.posts).",
                 close: "Pechar a lista",
                 empty: "Non hai nada pendente da súa sinatura.",
                 loadError: "Non se puideron cargar as solicitudes que agardan sinaturas.",
@@ -5012,7 +5012,7 @@ const galegoTranslation: TranslationType = {
             authorizes: {
                 reportPolicyOf: "{{election}}: {{value}}",
                 initializationRetained:
-                    "Un informe obrigatorio nesta configuración asinada segue sendo obrigatorio se a configuración actual do Posto cambia a non obrigatorio.",
+                    "Un informe obrigatorio nesta configuración asinada segue sendo obrigatorio se a configuración actual da elección cambia a non obrigatorio.",
                 title: "Que autoriza esta aprobación",
                 schedule: "Aperturas e peches programados",
                 noSchedule:
@@ -5249,7 +5249,7 @@ const galegoTranslation: TranslationType = {
                 },
                 covered: {
                     overriddenBySignedPostRow:
-                        "A configuración asinada {{code}} utiliza a apertura propia deste posto, {{scheduled_event_id}}. A apertura para todo o evento non se aplica.",
+                        "A configuración asinada {{code}} utiliza a apertura propia desta elección, {{scheduled_event_id}}. A apertura para todo o evento non se aplica.",
                     yes: "Si: aprobación {{code}}, sen cambios",
                     changed: "Non: cambiou desde a aprobación {{code}}",
                     changedBy:

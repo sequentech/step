@@ -272,7 +272,7 @@ const tagalogTranslation: TranslationType = {
                     "ballot-box-seal-policy":
                         "Pinanatiling sarado: sa I-seal sa pagsasara, nananatiling sarado ang botohang naisara na.",
                     "never-opened-kept-open":
-                        "Walang isasara ayon sa iskedyul: hindi kailanman nabuksan ang Post, kaya nananatili ito sa kalagayan nito.",
+                        "Walang isasara ayon sa iskedyul: hindi kailanman nabuksan ang halalan, kaya nananatili ito sa kalagayan nito.",
                 },
             },
             column: {
@@ -596,7 +596,7 @@ const tagalogTranslation: TranslationType = {
                     channelOpen:
                         "Naka-enable pa at hindi sarado ang {{channel}}: ihinto ito para ma-seal ang ballot box.",
                     channelNotEnabled:
-                        "Hindi sarado ang {{channel}} at hindi ito naka-enable para sa Post na ito: ihinto ito para ma-seal ang ballot box.",
+                        "Hindi sarado ang {{channel}} at hindi ito naka-enable para sa halalan na ito: ihinto ito para ma-seal ang ballot box.",
                     channelHasBallots:
                         "May mga balota ng {{channel}} sa ballot box na ito at hindi pa ito sarado: ihinto ito para ma-seal ang ballot box.",
                     datafixVotes_one:
@@ -2787,13 +2787,13 @@ const tagalogTranslation: TranslationType = {
         publish: {
             initialization: {
                 countryInfo:
-                    "Bumuo ng ulat para sa buong Post o isang bansa. Mananatiling naka-block ang pagboto hanggang makumpleto ang lahat ng kinakailangang inisyalisasyon para sa mga bansa at sa buong kaganapan.",
+                    "Bumuo ng ulat para sa buong halalan o isang bansa. Mananatiling naka-block ang pagboto hanggang makumpleto ang lahat ng kinakailangang inisyalisasyon para sa mga bansa at sa buong kaganapan.",
                 countriesError:
                     "Hindi ma-load ang mga kwalipikadong bansa. Isara at subukang muli.",
                 noCountries:
-                    "Walang kwalipikadong bansa na may aktibong mga estilo ng balota ang Post na ito. Suriin ang mga lugar at publikasyon nito bago mag-inisyalisa.",
+                    "Walang kwalipikadong bansa na may aktibong mga estilo ng balota ang halalan na ito. Suriin ang mga lugar at publikasyon nito bago mag-inisyalisa.",
                 country: "Bansa",
-                entirePost: "Buong Post",
+                entirePost: "Buong halalan",
             },
             preview: {
                 publicationAreas: "Piliin ang Lugar para sa Preview",
@@ -2893,11 +2893,11 @@ const tagalogTranslation: TranslationType = {
                 sealHolding_other:
                     "Sa I-seal sa pagsasara, sine-seal ang mga ballot box nito kapag sarado na ang bawat naka-enable na channel: naka-enable pa at hindi sarado ang {{channels}}.",
                 sealNotEnabled:
-                    "Hindi sarado ang {{channel}} at hindi ito naka-enable para sa Post na ito: ihinto ito para ma-seal ang mga ballot box.",
+                    "Hindi sarado ang {{channel}} at hindi ito naka-enable para sa halalan na ito: ihinto ito para ma-seal ang mga ballot box.",
                 sealNotEnabledPost:
-                    "Sa {{post}}, hindi sarado ang {{channel}} at hindi ito naka-enable: ihinto ito sa Post na iyon para ma-seal ang mga ballot box nito.",
+                    "Sa {{post}}, hindi sarado ang {{channel}} at hindi ito naka-enable: ihinto ito sa halalan na iyon para ma-seal ang mga ballot box nito.",
                 sealNoChannel:
-                    "Walang naka-enable na channel para sa Post na ito at walang nagbukas, kaya hindi sine-seal ang mga ballot box nito.",
+                    "Walang naka-enable na channel para sa halalan na ito at walang nagbukas, kaya hindi sine-seal ang mga ballot box nito.",
                 stopNeverOpened_one:
                     "Hindi kailanman nabuksan ang {{channels}}: kapag inihinto ito, hindi na ito magbubukas.",
                 stopNeverOpened_other:
@@ -2933,7 +2933,7 @@ const tagalogTranslation: TranslationType = {
                 startKeptSealed:
                     "nananatiling sarado ang {{post}}, dahil naka-seal na ang mga ballot box nito",
                 startNotEnabledList:
-                    "Sa I-seal sa pagsasara, binubuksan ng Start ang isang channel sa mga Post lamang na nag-enable nito: {{items}}.",
+                    "Sa I-seal sa pagsasara, binubuksan ng Start ang isang channel sa mga halalan lamang na nag-enable nito: {{items}}.",
                 startNotEnabledChannels_one:
                     "{{post}}: hindi naka-enable doon ang {{channels}} at nananatiling Hindi pa nagsisimula",
                 startNotEnabledChannels_other:
@@ -4310,8 +4310,8 @@ const tagalogTranslation: TranslationType = {
         },
         signing: {
             terms: {
-                post: "Post",
-                posts: "Mga Post",
+                post: "halalan",
+                posts: "mga halalan",
             },
             tab: {
                 title: "Mga Pirma",
@@ -4573,7 +4573,7 @@ const tagalogTranslation: TranslationType = {
                     validUntil: "Valid hanggang",
                     sha256: "SHA-256",
                     person: "Tao",
-                    post: "$t(signing.terms.post)",
+                    post: "Halalan",
                     certificate: "Sertipiko",
                     registered: "Nakarehistro",
                     status: "Katayuan",
@@ -4645,7 +4645,7 @@ const tagalogTranslation: TranslationType = {
             },
             reports: {
                 postRequired:
-                    "Pumili ng Post upang buuin ang ulat na ito kapag kailangan ng mga lagda.",
+                    "Pumili ng halalan upang buuin ang ulat na ito kapag kailangan ng mga lagda.",
                 generateNotice:
                     "{{post}}: binubuo na ngayon ang dokumento. Maaari itong i-print at i-transmit kapag napirmahan na ito ng {{n}} tao.",
             },
@@ -4944,7 +4944,7 @@ const tagalogTranslation: TranslationType = {
                 title: "Naghihintay ng aking pirma",
                 buttonCount_one: "Naghihintay ng aking pirma: {{count}} kahilingang pipirmahan",
                 buttonCount_other: "Naghihintay ng aking pirma: {{count}} kahilingang pipirmahan",
-                intro: "Mga kahilingang naghihintay ng mga pirma para sa mga aksyong maaari mong pirmahan, sa iyong mga $t(signing.terms.posts).",
+                intro: "Mga kahilingang naghihintay ng mga pirma para sa mga aksyong maaari mong pirmahan, sa iyong $t(signing.terms.posts).",
                 close: "Isara ang listahan",
                 empty: "Walang naghihintay ng iyong pirma.",
                 loadError: "Hindi ma-load ang mga kahilingang naghihintay ng mga pirma.",
@@ -5058,7 +5058,7 @@ const tagalogTranslation: TranslationType = {
             authorizes: {
                 reportPolicyOf: "{{election}}: {{value}}",
                 initializationRetained:
-                    "Nananatiling kailangan ang isang ulat na kailangan sa nilagdaang configuration na ito kahit gawing hindi kailangan sa kasalukuyang setting ng Post.",
+                    "Nananatiling kailangan ang isang ulat na kailangan sa nilagdaang configuration na ito kahit gawing hindi kailangan sa kasalukuyang setting ng halalan.",
                 title: "Ano ang pinahihintulutan ng pag-apruba na ito",
                 schedule: "Mga nakaiskedyul na pagbubukas at pagsasara",
                 noSchedule:
@@ -5302,7 +5302,7 @@ const tagalogTranslation: TranslationType = {
                 },
                 covered: {
                     overriddenBySignedPostRow:
-                        "Ginagamit ng nilagdaang configuration {{code}} ang sariling pagbubukas {{scheduled_event_id}} ng Post na ito. Hindi nalalapat ang pagbubukas para sa buong kaganapan.",
+                        "Ginagamit ng nilagdaang configuration {{code}} ang sariling pagbubukas {{scheduled_event_id}} ng halalan na ito. Hindi nalalapat ang pagbubukas para sa buong kaganapan.",
                     yes: "Oo: pag-apruba {{code}}, walang pagbabago",
                     changed: "Hindi: nagbago mula sa pag-apruba {{code}}",
                     changedBy:

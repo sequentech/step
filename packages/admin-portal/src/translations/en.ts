@@ -368,7 +368,7 @@ const englishTranslation = {
                     "ballot-box-seal-policy":
                         "Kept closed: with Seal at close, voting that has closed stays closed.",
                     "never-opened-kept-open":
-                        "Nothing to close on schedule: the Post never opened, so it stays as it is.",
+                        "Nothing to close on schedule: the election never opened, so it stays as it is.",
                 },
             },
             column: {
@@ -685,7 +685,7 @@ const englishTranslation = {
                     channelOpen:
                         "{{channel}} is still enabled and not closed: stop it to seal the ballot box.",
                     channelNotEnabled:
-                        "{{channel}} isn't closed and isn't enabled for this Post: stop it to seal the ballot box.",
+                        "{{channel}} isn't closed and isn't enabled for this election: stop it to seal the ballot box.",
                     channelHasBallots:
                         "{{channel}} has ballots in this ballot box and isn't closed: stop it to seal the ballot box.",
                     datafixVotes_one:
@@ -2878,12 +2878,12 @@ const englishTranslation = {
         publish: {
             initialization: {
                 countryInfo:
-                    "Generate the report for the entire Post or one country. Voting remains blocked until all required country and event-wide initialization is complete.",
+                    "Generate the report for the entire election or one country. Voting remains blocked until all required country and event-wide initialization is complete.",
                 countriesError: "Could not load eligible countries. Close and try again.",
                 noCountries:
-                    "This Post has no eligible countries with active ballot styles. Check its areas and publication before initializing.",
+                    "This election has no eligible countries with active ballot styles. Check its areas and publication before initializing.",
                 country: "Country",
-                entirePost: "Entire Post",
+                entirePost: "Entire election",
             },
             preview: {
                 publicationAreas: "Select Area for Preview",
@@ -2982,11 +2982,11 @@ const englishTranslation = {
                 sealHolding_other:
                     "With Seal at close, its ballot boxes are sealed once every enabled channel is closed: {{channels}} are still enabled and not closed.",
                 sealNotEnabled:
-                    "{{channel}} isn't closed and isn't enabled for this Post: stop it to seal the ballot boxes.",
+                    "{{channel}} isn't closed and isn't enabled for this election: stop it to seal the ballot boxes.",
                 sealNotEnabledPost:
-                    "In {{post}}, {{channel}} isn't closed and isn't enabled: stop it at that Post to seal its ballot boxes.",
+                    "In {{post}}, {{channel}} isn't closed and isn't enabled: stop it in that election to seal its ballot boxes.",
                 sealNoChannel:
-                    "No channel is enabled for this Post and none has run, so its ballot boxes aren't sealed.",
+                    "No channel is enabled for this election and none has run, so its ballot boxes aren't sealed.",
                 stopNeverOpened_one: "{{channels}} never opened: stopping it means it won't open.",
                 stopNeverOpened_other:
                     "{{channels}} never opened: stopping them means they won't open.",
@@ -3019,7 +3019,7 @@ const englishTranslation = {
                 startKeptChannels_other: "{{post}}: {{channels}} stay closed",
                 startKeptSealed: "{{post}} stays closed, as its ballot boxes are sealed",
                 startNotEnabledList:
-                    "With Seal at close, a Start opens a channel only at the Posts that enable it: {{items}}.",
+                    "With Seal at close, a Start opens a channel only in the elections that enable it: {{items}}.",
                 startNotEnabledChannels_one:
                     "{{post}}: {{channels}} isn't enabled there and stays Not started",
                 startNotEnabledChannels_other:
@@ -4375,8 +4375,8 @@ const englishTranslation = {
         },
         signing: {
             terms: {
-                post: "Post",
-                posts: "Posts",
+                post: "election",
+                posts: "elections",
             },
             tab: {
                 title: "Signatures",
@@ -4425,7 +4425,7 @@ const englishTranslation = {
                     object: "opening of voting",
                     appliesTo: "Each $t(signing.terms.post)",
                     description:
-                        "Started in Publish with Start voting. Opens voting at the $t(signing.terms.post).",
+                        "Started in Publish with Start voting. Opens voting in the $t(signing.terms.post).",
                 },
                 "close-voting": {
                     label: "Close voting",
@@ -4434,9 +4434,9 @@ const englishTranslation = {
                     object: "closing of voting",
                     appliesTo: "Each $t(signing.terms.post)",
                     description:
-                        "Started in Publish with Stop voting. Closes voting at the $t(signing.terms.post); the closing signatures are kept in its record.",
+                        "Started in Publish with Stop voting. Closes voting in the $t(signing.terms.post); the closing signatures are kept in its record.",
                     descriptionSealed:
-                        "Started in Publish with Stop voting. Closes voting at the $t(signing.terms.post). Once every channel is closed, its ballot boxes are sealed, after the grace period when there is one: no ballot can be added, changed or deleted, and voting can't start again. The closing signatures are kept in its record.",
+                        "Started in Publish with Stop voting. Closes voting in the $t(signing.terms.post). Once every channel is closed, its ballot boxes are sealed, after the grace period when there is one: no ballot can be added, changed or deleted, and voting can't start again. The closing signatures are kept in its record.",
                 },
                 "generate-election-returns": {
                     label: "Generate election returns",
@@ -4669,7 +4669,7 @@ const englishTranslation = {
                     validUntil: "Valid until",
                     sha256: "SHA-256",
                     person: "Person",
-                    post: "$t(signing.terms.post)",
+                    post: "Election",
                     certificate: "Certificate",
                     registered: "Registered",
                     status: "Status",
@@ -4740,7 +4740,8 @@ const englishTranslation = {
                 },
             },
             reports: {
-                postRequired: "Select a Post to generate this report when signatures are required.",
+                postRequired:
+                    "Select an election to generate this report when signatures are required.",
                 generateNotice:
                     "{{post}}: the document is generated now. It can be printed and transmitted once {{n}} people have signed it.",
             },
@@ -5143,7 +5144,7 @@ const englishTranslation = {
             authorizes: {
                 reportPolicyOf: "{{election}}: {{value}}",
                 initializationRetained:
-                    "A required report in this signed configuration remains required if the current Post setting is changed to not required.",
+                    "A required report in this signed configuration remains required if the current election setting is changed to not required.",
                 title: "What this approval authorizes",
                 schedule: "Scheduled openings and closings",
                 noSchedule: "No scheduled openings or closings: the signers open and close voting.",
@@ -5382,7 +5383,7 @@ const englishTranslation = {
                 },
                 covered: {
                     overriddenBySignedPostRow:
-                        "The signed configuration {{code}} uses this Post's own opening {{scheduled_event_id}}. The event-wide opening does not apply.",
+                        "The signed configuration {{code}} uses this election's own opening {{scheduled_event_id}}. The event-wide opening does not apply.",
                     yes: "Yes: approval {{code}}, unchanged",
                     changed: "No: changed since approval {{code}}",
                     changedBy:

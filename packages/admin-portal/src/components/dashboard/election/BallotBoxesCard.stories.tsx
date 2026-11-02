@@ -246,7 +246,7 @@ export const OverdueChannelNotEnabled: Story = {
         await expect(spain.getByText("Sealing overdue")).toBeVisible()
         await expect(
             spain.getByText(
-                "Kiosk isn't closed and isn't enabled for this Post: stop it to seal the ballot box."
+                "Kiosk isn't closed and isn't enabled for this election: stop it to seal the ballot box."
             )
         ).toBeVisible()
     },

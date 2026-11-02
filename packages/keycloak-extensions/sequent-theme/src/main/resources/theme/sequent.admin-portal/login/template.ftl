@@ -81,12 +81,14 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <span class="value">${properties.systemVersion}</span>
             </div>
             </#if>
-            <#if (properties.systemHash!"")?has_content>
+            <#-- Like the portals' headers: the first 8 hex digits as DEAD-BEEF, never the full hash. -->
+            <#assign systemHash = (properties.systemHash!"")?trim>
+            <#if systemHash?matches("[0-9a-fA-F]{8,}")>
             <div class="version version-hash">
                 <span class="title">
                     ${msg("system.hash")}
                 </span>
-                <span class="value">${properties.systemHash}</span>
+                <span class="value">${systemHash[0..3]?upper_case}-${systemHash[4..7]?upper_case}</span>
             </div>
             </#if>
             <#if realm.internationalizationEnabled  && locale.supported?size gt 1>

@@ -81,7 +81,7 @@ for (const name of ["post-qualification", "student-council"]) {
     const org = organization(name)
     const label = overrideOf(org, `signing.actions.${ER}.label`) ?? "Generate election returns"
     const short = overrideOf(org, `signing.actions.${ER}.short`) ?? "Election returns"
-    const postTerm = overrideOf(org, "signing.terms.post") ?? "Post"
+    const postTerm = overrideOf(org, "signing.terms.post") ?? "election"
     const {post, people, groups} = signersOf(org)
     const erRule = organizationRules(org).find((entry) => entry.action === ER)
 

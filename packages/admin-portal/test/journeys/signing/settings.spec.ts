@@ -125,7 +125,7 @@ test.describe("a configuration manager", () => {
         const row = page.locator('tr[data-action="close-voting"]')
         await expect(row.getByRole("cell")).toHaveText([
             "Close voting",
-            "Each Post",
+            "Each election",
             SBEI_GROUP.name,
             "1",
             "1 hour",
@@ -149,13 +149,13 @@ test.describe("a configuration manager", () => {
         const signatures = drawer.getByRole("spinbutton", {name: "Signatures needed"})
         await signatures.fill("4")
         await expect(
-            drawer.getByText("No Post has 4 people who can sign. The most is 3.")
+            drawer.getByText("No election has 4 people who can sign. The most is 3.")
         ).toBeVisible()
         await expect(save).toBeDisabled()
         await signatures.fill("2")
         await expect(
             drawer.getByText(
-                "Each signer uses their digital certificate. Every Post has at least 3 people who can sign."
+                "Each signer uses their digital certificate. Every election has at least 3 people who can sign."
             )
         ).toBeVisible()
         await drawer.getByRole("combobox", {name: "Who can sign"}).click()
@@ -292,7 +292,9 @@ test.describe("a security officer", () => {
         })
 
         // Checks: certificates may sign for any Post.
-        const onePost = page.getByRole("switch", {name: "A certificate signs for one Post only"})
+        const onePost = page.getByRole("switch", {
+            name: "A certificate signs for one election only",
+        })
         await expect(onePost).toBeChecked()
         await onePost.click()
         await expect(page.getByText("The certificate checks were saved.")).toBeVisible()

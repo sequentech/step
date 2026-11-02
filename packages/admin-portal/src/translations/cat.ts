@@ -347,7 +347,7 @@ const catalanTranslation: TranslationType = {
                     "ballot-box-seal-policy":
                         "Es manté tancada: amb «Segellar en tancar», la votació que s'ha tancat continua tancada.",
                     "never-opened-kept-open":
-                        "No hi ha res a tancar segons la programació: el lloc de votació no s'ha obert mai, així que es queda com està.",
+                        "No hi ha res a tancar segons la programació: l'elecció no s'ha obert mai, així que es queda com està.",
                 },
             },
             column: {
@@ -2784,13 +2784,13 @@ const catalanTranslation: TranslationType = {
         publish: {
             initialization: {
                 countryInfo:
-                    "Genereu l’informe per a tot el lloc de votació o per a un país. La votació continua bloquejada fins que es completi tota la inicialització requerida per país i per a l’esdeveniment.",
+                    "Genereu l’informe per a tota l’elecció o per a un país. La votació continua bloquejada fins que es completi tota la inicialització requerida per país i per a l’esdeveniment.",
                 countriesError:
                     "No s’han pogut carregar els països elegibles. Tanqueu i torneu-ho a intentar.",
                 noCountries:
-                    "Aquest lloc de votació no té països elegibles amb estils de papereta actius. Comproveu-ne les àrees i la publicació abans d’inicialitzar.",
+                    "Aquesta elecció no té països elegibles amb estils de papereta actius. Comproveu-ne les àrees i la publicació abans d’inicialitzar.",
                 country: "País",
-                entirePost: "Tot el lloc de votació",
+                entirePost: "Tota l’elecció",
             },
             preview: {
                 publicationAreas: "Selecciona l'àrea per a la vista prèvia",
@@ -2922,7 +2922,7 @@ const catalanTranslation: TranslationType = {
                 startKeptSealed:
                     "{{post}} continua tancat, perquè les seves urnes estan segellades",
                 startNotEnabledList:
-                    "Amb «Segellar en tancar», un inici obre un canal només als Posts que l'habiliten: {{items}}.",
+                    "Amb «Segellar en tancar», un inici obre un canal només a les eleccions que l'habiliten: {{items}}.",
                 startNotEnabledChannels_one:
                     "{{post}}: {{channels}} no hi està habilitat i continua No iniciat",
                 startNotEnabledChannels_other:
@@ -4297,8 +4297,8 @@ const catalanTranslation: TranslationType = {
         },
         signing: {
             terms: {
-                post: "Lloc",
-                posts: "Llocs",
+                post: "elecció",
+                posts: "eleccions",
             },
             tab: {
                 title: "Signatures",
@@ -4346,7 +4346,7 @@ const catalanTranslation: TranslationType = {
                     object: "inicialització de la votació",
                     appliesTo: "Cada $t(signing.terms.post)",
                     description:
-                        "S'inicia a Publicar. Inicialitza el $t(signing.terms.post) i genera el seu Informe d'Inicialització.",
+                        "S'inicia a Publicar. Inicialitza l'$t(signing.terms.post) i genera el seu Informe d'Inicialització.",
                 },
                 "open-voting": {
                     label: "Obrir la votació",
@@ -4355,7 +4355,7 @@ const catalanTranslation: TranslationType = {
                     object: "obertura de la votació",
                     appliesTo: "Cada $t(signing.terms.post)",
                     description:
-                        "S'inicia a Publicar amb Començar el període de votació. Obre la votació al $t(signing.terms.post).",
+                        "S'inicia a Publicar amb Començar el període de votació. Obre la votació a l'$t(signing.terms.post).",
                 },
                 "close-voting": {
                     label: "Tancar la votació",
@@ -4364,9 +4364,9 @@ const catalanTranslation: TranslationType = {
                     object: "tancament de la votació",
                     appliesTo: "Cada $t(signing.terms.post)",
                     description:
-                        "S'inicia a Publicar amb Detenir el període de votació. Tanca la votació al $t(signing.terms.post); les signatures de tancament es conserven a la seva acta.",
+                        "S'inicia a Publicar amb Detenir el període de votació. Tanca la votació a l'$t(signing.terms.post); les signatures de tancament es conserven a la seva acta.",
                     descriptionSealed:
-                        "S'inicia a Publicar amb Detenir el període de votació. Tanca la votació al $t(signing.terms.post). Quan tots els canals estan tancats, les seves urnes se segellen, després del període de gràcia si n'hi ha: no es pot afegir, canviar ni esborrar cap papereta, i la votació no pot tornar a començar. Les signatures de tancament es conserven a la seva acta.",
+                        "S'inicia a Publicar amb Detenir el període de votació. Tanca la votació a l'$t(signing.terms.post). Quan tots els canals estan tancats, les seves urnes se segellen, després del període de gràcia si n'hi ha: no es pot afegir, canviar ni esborrar cap papereta, i la votació no pot tornar a començar. Les signatures de tancament es conserven a la seva acta.",
                 },
                 "generate-election-returns": {
                     label: "Generar actes electorals",
@@ -4400,7 +4400,7 @@ const catalanTranslation: TranslationType = {
                     short: "Aprovació de votant",
                     permissionName: "aprovar manualment un votant",
                     object: "aprovació de votant",
-                    appliesTo: "El $t(signing.terms.post) del votant",
+                    appliesTo: "L'$t(signing.terms.post) del votant",
                     description:
                         "S'inicia a Aprovacions. Aprova el votant i n'emet les credencials.",
                 },
@@ -4456,7 +4456,7 @@ const catalanTranslation: TranslationType = {
                 waitingCount_one: "{{count}} sol·licitud en espera",
                 waitingCount_other: "{{count}} sol·licituds en espera",
                 capacityError:
-                    "No s'ha pogut carregar qui pot signar, de manera que el nombre de signatures no es pot comprovar amb els $t(signing.terms.posts).",
+                    "No s'ha pogut carregar qui pot signar, de manera que el nombre de signatures no es pot comprovar amb les $t(signing.terms.posts).",
             },
             expiry: {
                 "30": "30 minuts",
@@ -4470,7 +4470,7 @@ const catalanTranslation: TranslationType = {
                 needsSignatures: "Requereix signatures",
                 whoCanSign: "Qui pot signar",
                 whoCanSignHelp:
-                    "Aquests rols reben el permís «Signar: {{action}}» a Usuaris i Rols, per a tots els esdeveniments electorals. Els signants també han de tenir accés al $t(signing.terms.post).",
+                    "Aquests rols reben el permís «Signar: {{action}}» a Usuaris i Rols, per a tots els esdeveniments electorals. Els signants també han de tenir accés a l'$t(signing.terms.post).",
                 signaturesNeeded: "Signatures necessàries",
                 signaturesNeededHelp:
                     "Cada signant fa servir el seu certificat digital. Cada $t(signing.terms.post) té almenys {{n}} persones que poden signar.",
@@ -4490,7 +4490,7 @@ const catalanTranslation: TranslationType = {
                     "S'ha desat la regla de signatura. {{posts}} encara no poden arribar al nombre: afegiu-hi signants.",
                 checkedOnSave: "El nombre es comprova amb els nous rols en desar.",
                 savedRequesterShort:
-                    "S'ha desat la regla de signatura. Alguns $t(signing.terms.posts) no poden arribar al nombre sense la persona que inicia una sol·licitud.",
+                    "S'ha desat la regla de signatura. Algunes $t(signing.terms.posts) no poden arribar al nombre sense la persona que inicia una sol·licitud.",
                 saveError:
                     "No s'ha pogut desar la regla de signatura. Potser una altra persona l'ha canviada mentrestant; recarregueu i torneu-ho a provar.",
             },
@@ -4529,7 +4529,7 @@ const catalanTranslation: TranslationType = {
                     "security-officer-only":
                         "Només quan el registra algú que pot registrar certificats",
                 },
-                onePost: "Un certificat només signa per a un $t(signing.terms.post)",
+                onePost: "Un certificat només signa per a una $t(signing.terms.post)",
                 issuers: "Emissors de confiança",
                 import: "Importar certificats d'emissors",
                 importHelp:
@@ -4556,7 +4556,7 @@ const catalanTranslation: TranslationType = {
                     validUntil: "Vàlid fins a",
                     sha256: "SHA-256",
                     person: "Persona",
-                    post: "$t(signing.terms.post)",
+                    post: "Elecció",
                     certificate: "Certificat",
                     registered: "Registrat",
                     status: "Estat",
@@ -4578,7 +4578,7 @@ const catalanTranslation: TranslationType = {
                     "revoked": "Revocat",
                 },
                 revokedOn: "Revocat el {{date}}",
-                allPosts: "Tots",
+                allPosts: "Totes",
                 noCertificates: "No hi ha certificats registrats.",
                 registeredHow: {
                     "first-use": "En la primera signatura",
@@ -4628,7 +4628,7 @@ const catalanTranslation: TranslationType = {
             },
             reports: {
                 postRequired:
-                    "Selecciona un lloc per generar aquest informe quan es requereixen signatures.",
+                    "Selecciona una elecció per generar aquest informe quan es requereixen signatures.",
                 generateNotice:
                     "{{post}}: el document es genera ara. Es podrà imprimir i transmetre quan l'hagin signat {{n}} persones.",
             },
@@ -4698,7 +4698,7 @@ const catalanTranslation: TranslationType = {
                         "registered": "Registrat a nom vostre el {{date}}",
                         "registered-to-other": "No registrat a nom de cap altra persona",
                         "already-signed": "Encara no s'ha fet servir per a aquesta sol·licitud",
-                        "post-binding": "Registrat per a aquest $t(signing.terms.post)",
+                        "post-binding": "Registrat per a aquesta $t(signing.terms.post)",
                         "signature": "La signatura cobreix aquesta sol·licitud",
                     },
                     "failed": {
@@ -4710,7 +4710,7 @@ const catalanTranslation: TranslationType = {
                         "registered": "No registrat a nom vostre",
                         "registered-to-other": "Registrat a nom de {{name}}",
                         "already-signed": "Ja s'ha fet servir per a aquesta sol·licitud",
-                        "post-binding": "Registrat per a un altre $t(signing.terms.post)",
+                        "post-binding": "Registrat per a una altra $t(signing.terms.post)",
                         "signature": "La signatura no cobreix aquesta sol·licitud",
                     },
                     "first-use": "Primer ús: es registrarà a nom vostre",
@@ -4927,7 +4927,7 @@ const catalanTranslation: TranslationType = {
                 buttonCount_one: "Pendent de la meva signatura: {{count}} sol·licitud per signar",
                 buttonCount_other:
                     "Pendent de la meva signatura: {{count}} sol·licituds per signar",
-                intro: "Sol·licituds que esperen les signatures de les accions que podeu signar, als vostres $t(signing.terms.posts).",
+                intro: "Sol·licituds que esperen les signatures de les accions que podeu signar, a les vostres $t(signing.terms.posts).",
                 close: "Tanca la llista",
                 empty: "No hi ha res pendent de la vostra signatura.",
                 loadError: "No s'han pogut carregar les sol·licituds que esperen signatures.",
@@ -5039,7 +5039,7 @@ const catalanTranslation: TranslationType = {
             authorizes: {
                 reportPolicyOf: "{{election}}: {{value}}",
                 initializationRetained:
-                    "Un informe obligatori en aquesta configuració signada continua sent obligatori si la configuració actual del lloc canvia a no obligatori.",
+                    "Un informe obligatori en aquesta configuració signada continua sent obligatori si la configuració actual de l'elecció canvia a no obligatori.",
                 title: "Què autoritza aquesta aprovació",
                 schedule: "Obertures i tancaments programats",
                 noSchedule:
@@ -5280,7 +5280,7 @@ const catalanTranslation: TranslationType = {
                 },
                 covered: {
                     overriddenBySignedPostRow:
-                        "La configuració signada {{code}} utilitza l’obertura pròpia d’aquest lloc de votació, {{scheduled_event_id}}. L’obertura per a tot l’esdeveniment no s’aplica.",
+                        "La configuració signada {{code}} utilitza l’obertura pròpia d’aquesta elecció, {{scheduled_event_id}}. L’obertura per a tot l’esdeveniment no s’aplica.",
                     yes: "Sí: aprovació {{code}}, sense canvis",
                     changed: "No: ha canviat des de l'aprovació {{code}}",
                     changedBy:

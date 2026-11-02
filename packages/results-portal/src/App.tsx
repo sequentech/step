@@ -7,7 +7,12 @@ import {Outlet, ScrollRestoration} from "react-router-dom"
 import {Box, Stack} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
-import {getValueFromCookie, setCookie, USER_LANGUAGE_COOKIE_NAME} from "@sequentech/ui-core"
+import {
+    getValueFromCookie,
+    setCookie,
+    shortAppHash,
+    USER_LANGUAGE_COOKIE_NAME,
+} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useCustomCss} from "@/providers/CustomCssContextProvider"
@@ -57,11 +62,14 @@ const AppHeader: React.FC = () => {
         }
     }
 
+    const appHash = shortAppHash(globalSettings.APP_HASH)
+
     return (
         <Box className="seq-results-portal-header">
             <Header
                 appVersion={{main: globalSettings.APP_VERSION}}
-                appHash={{main: globalSettings.APP_HASH}}
+                appHash={appHash ? {main: appHash} : undefined}
+                appHashDesktopOnly
                 userProfile={isAuthenticated ? userProfile : undefined}
                 logoutFn={isAuthenticated ? logout : undefined}
                 logoUrl="/Sequent_logo_small.png"

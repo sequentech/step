@@ -22,7 +22,7 @@ import {adminTheme, Header} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
-import {ITenantTheme} from "@sequentech/ui-core"
+import {ITenantTheme, shortAppHash} from "@sequentech/ui-core"
 import {AppBar} from "react-admin"
 
 const StyledApp = styled(Stack)<{css: string}>`
@@ -334,6 +334,8 @@ export const SelectTenant = () => {
         }
     }
 
+    const appHash = shortAppHash(globalSettings.APP_HASH)
+
     return (
         <>
             {loading ? (
@@ -342,7 +344,8 @@ export const SelectTenant = () => {
                 <StyledApp css={css} className="select-tenant">
                     <Header
                         appVersion={{main: globalSettings.APP_VERSION}}
-                        appHash={{main: globalSettings.APP_HASH}}
+                        appHash={appHash ? {main: appHash} : undefined}
+                        appHashDesktopOnly
                         logoUrl={logoImg}
                     />
                     <BackgroundWrapper>

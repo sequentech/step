@@ -300,7 +300,7 @@ export const SignedParticipationRequiresAPost: Story = {
         await chooseReportType(canvasElement, "Participation Report")
         await expect(
             await canvas.findByText(
-                "Select a Post to generate this report when signatures are required."
+                "Select an election to generate this report when signatures are required."
             )
         ).toBeVisible()
         await expect(canvas.getByRole("combobox", {name: /Election/})).toBeRequired()
