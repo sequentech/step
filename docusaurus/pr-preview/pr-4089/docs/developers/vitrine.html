@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Vitrine Transparency Logs | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Vitrine Transparency Logs | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4089/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Vitrine","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4089/assets/css/styles.fc78c976.css">
-<script src="/docusaurus/pr-preview/pr-4089/assets/js/runtime~main.1ffbce2a.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4089/assets/js/runtime~main.a20f5107.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4089/assets/js/main.befd7ca8.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -340,10 +340,11 @@ when the portal holds the receipt, and <code>&lt;hub-explorer url&gt;#policy=&lt
 when only the Tracking ID is known (the receipt PDF and the cast email). The
 payload sits in the fragment, which a browser never sends to the hub&#x27;s server.</p>
 <ul>
-<li class=""><strong>The confirmation page</strong> shows a &quot;Get email updates&quot; callout when
-<code>hub_updates.confirmation</code> is not <code>off</code>, the event is transparent, the
-policy has a hub with a site, and the voting portal is not the kiosk. The
-order is drawn once for each visit. The payload is the receipt chain, once
+<li class=""><strong>The confirmation page</strong> shows an optional &quot;Get email updates&quot; section,
+after the actions and with no box, when <code>hub_updates.confirmation</code> is not
+<code>off</code>, the event is transparent, the policy has a hub with a site, and the
+voting portal is not the kiosk. Each hub is an equal tile with its name and
+who runs it. The order is drawn once for each visit. The payload is the receipt chain, once
 the browser has it; before that the link names only the policy.</li>
 <li class=""><strong>The ballot receipt</strong> (the <code>BALLOT_RECEIPT</code> template) gets two variables.
 <code>tracking_id</code> is the ballot&#x27;s full Tracking ID, which the default template
