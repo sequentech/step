@@ -20,6 +20,7 @@ use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 use b3::messages::message::Signer;
+use dashmap::DashMap;
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use electoral_log::client::board_client::{BoardClient, DeliveryReceipt, ElectoralLogMessage};
@@ -27,8 +28,8 @@ use immudb_rs::TxMode;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignaturePk;
 use tracing::{info, instrument, warn};
@@ -171,16 +172,19 @@ fn verified_internal_message(
     row.rebuild_verified(system_pk, &input.election_event_id)
 }
 
+/// The public key of each board's protocol manager, which signs the board's
+/// internal messages. A board keeps its protocol manager for its whole life.
+static BOARD_SYSTEM_PKS: Lazy<DashMap<String, StrandSignaturePk>> = Lazy::new(DashMap::new);
+
 /// The public key of the protocol manager that signs the internal messages of
-/// a board, read once per board and batch.
+/// a board, read once per board.
 async fn board_system_pk(
     hasura_tx: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     board: &str,
-    system_pks: &mut HashMap<String, StrandSignaturePk>,
 ) -> anyhow::Result<StrandSignaturePk> {
-    if let Some(system_pk) = system_pks.get(board) {
+    if let Some(system_pk) = BOARD_SYSTEM_PKS.get(board) {
         return Ok(system_pk.clone());
     }
     let protocol_manager =
@@ -189,7 +193,7 @@ async fn board_system_pk(
             .with_context(|| "Error getting protocol manager")?;
     let system_pk = StrandSignaturePk::from_sk(protocol_manager.get_signing_key())
         .with_context(|| "Error getting protocol manager public key")?;
-    system_pks.insert(board.to_string(), system_pk.clone());
+    BOARD_SYSTEM_PKS.insert(board.to_string(), system_pk.clone());
     Ok(system_pk)
 }
 
@@ -201,7 +205,6 @@ async fn prepare_log_event(
     hasura_tx: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     input: &LogEventInput,
-    system_pks: &mut HashMap<String, StrandSignaturePk>,
 ) -> anyhow::Result<LogEventPreparation<ElectoralLogMessage>> {
     if let Err(err) =
         parse_uuid_v4(&input.tenant_id).and_then(|_| parse_uuid_v4(&input.election_event_id))
@@ -228,14 +231,8 @@ async fn prepare_log_event(
 
     let messages = match &input.message_type {
         LogMessageType::Internal => {
-            let system_pk = board_system_pk(
-                hasura_tx,
-                &input.tenant_id,
-                &election_event.id,
-                &board,
-                system_pks,
-            )
-            .await?;
+            let system_pk =
+                board_system_pk(hasura_tx, &input.tenant_id, &election_event.id, &board).await?;
             verified_internal_message(input, &system_pk).map(|message| vec![message])
         }
         LogMessageType::KeycloakEvent(event_type) => {
@@ -387,14 +384,11 @@ impl LogEventStore for ElectoralLogBoards {
             .await
             .with_context(|| "Error starting keycloak transaction")?;
 
-        let mut system_pks = HashMap::new();
         let preparations = prepare_each(
             &mut hasura_tx,
             &mut keycloak_transaction,
             events,
-            async |hasura, keycloak, input| {
-                prepare_log_event(hasura, keycloak, input, &mut system_pks).await
-            },
+            async |hasura, keycloak, input| prepare_log_event(hasura, keycloak, input).await,
         )
         .await?;
 
