@@ -4,7 +4,7 @@
 
 import {getPublishedSupportMaterialsPolicy} from "../services/PublishedBallots"
 import {Box, Button, CircularProgress, Typography, Alert} from "@mui/material"
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {Trans, useTranslation} from "react-i18next"
 import {Dialog, ElectionListLayout, IconButton, SelectElection} from "@sequentech/ui-essentials"
 import {
@@ -21,6 +21,7 @@ import {
     parseResultsWebsitePolicy,
     formatVotingPortalDateTime,
     ESupportMaterialsPolicy,
+    type IBallotLogRow,
 } from "@sequentech/ui-core"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
@@ -71,7 +72,11 @@ import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {GET_SUPPORT_MATERIALS_ACKNOWLEDGMENT} from "../queries/GetSupportMaterialsAcknowledgment"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 import {useElectionClassName} from "../hooks/useElectionClassName"
-import {readTransparency} from "../services/vitrine/presentation"
+import {BallotStatus, EBallotStatusTrigger} from "../components/Vitrine/BallotStatus"
+import {useTrackedReceipt} from "../hooks/useTrackedReceipt"
+import {BALLOT_BOX_OWN} from "../queries/BallotBoxLog"
+import {acceptedAtOf} from "../services/vitrine/ballotTracker"
+import {ITransparency, readTransparency} from "../services/vitrine/presentation"
 import {showsAlreadyCastHint} from "../services/vitrine/ballotList"
 import {ETransparencyMode} from "../services/vitrine/types"
 import {
@@ -98,6 +103,9 @@ interface ElectionWrapperProps {
     bypassChooser: boolean
     canVoteTest: boolean
     materialsGate: boolean
+    transparency: ITransparency
+    /** The voter's cast ballot in this election, as the ballot box knows it. */
+    ownBallot?: IBallotLogRow
 }
 
 const isElectionEventOnlineVotingOpen = (electionEvent?: IElectionEvent): boolean => {
@@ -142,6 +150,8 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     bypassChooser,
     canVoteTest,
     materialsGate,
+    transparency,
+    ownBallot,
 }) => {
     const navigate = useNavigate()
     const location = useLocation()
@@ -272,12 +282,39 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const electionName = translateFromPresentation(election, "name", i18n.language, {
         defaultLanguageCode,
     })
+    const acceptedAt = acceptedAtOf(ownBallot?.last_step_at)
+    const tracked = useTrackedReceipt(
+        ownBallot && eventId
+            ? {eventId, electionId, ballotId: ownBallot.tracking_id, stage: "cast", acceptedAt}
+            : undefined,
+        transparency
+    )
+    const votedStatus = ownBallot ? (
+        <BallotStatus
+            trigger={EBallotStatusTrigger.LABEL}
+            view={tracked.view}
+            ballotId={ownBallot.tracking_id}
+            electionName={electionName || undefined}
+            castAt={
+                acceptedAt === undefined
+                    ? undefined
+                    : formatVotingPortalDateTime(
+                          acceptedAt * 1000,
+                          electionEvent,
+                          i18n.resolvedLanguage || i18n.language
+                      )
+            }
+            trackerUrl={`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ownBallot.tracking_id}${isKiosk ? "?kiosk" : ""}`}
+        />
+    ) : undefined
+
     return (
         <SelectElection
             isActive={canVote()}
             isOpen={isVotingOpen()}
             title={electionName || "-"}
             hasVoted={castVotes.length > 0}
+            votedStatus={votedStatus}
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
             alreadyCast={alreadyCast}
@@ -428,6 +465,27 @@ const ElectionSelectionScreen: React.FC = () => {
                 !data?.cast_votes.some((vote) => vote.status === CastVoteStatus.IN_PROGRESS)),
     })
     const castVotes = polledCastVotes ?? data
+
+    // The voter's own ballots come from the ballot box, which knows them by the
+    // identity they were cast under, as it does when the voter votes again. The
+    // portal keeps none: it asks on each visit, and checks each against the log.
+    const transparency = useMemo(
+        () => readTransparency(electionEvent?.presentation),
+        [electionEvent?.presentation]
+    )
+    const {data: ownData} = useQuery<{ballot_box_own: {payload: {ballots: IBallotLogRow[]}}}>(
+        BALLOT_BOX_OWN,
+        {
+            variables: {electionEventId: eventId ?? ""},
+            fetchPolicy: "no-cache",
+            skip:
+                globalSettings.DISABLE_AUTH ||
+                !eventId ||
+                transparency.mode !== ETransparencyMode.PUBLIC ||
+                !castVotes?.cast_votes.length,
+        }
+    )
+    const ownBallots = ownData?.ballot_box_own?.payload?.ballots ?? []
 
     const materialsPath = `/tenant/${tenantId}/event/${eventId}/materials${location.search}`
     const materialsTitle =
@@ -763,6 +821,10 @@ const ElectionSelectionScreen: React.FC = () => {
                         bypassChooser={bypassChooser}
                         canVoteTest={canVoteTest || electionId === testElectionId}
                         materialsGate={materialsGate}
+                        transparency={transparency}
+                        ownBallot={ownBallots.find(
+                            (ballot) => ballot.election_id === electionId && ballot.stage === "cast"
+                        )}
                     />
                 ))
             ) : (

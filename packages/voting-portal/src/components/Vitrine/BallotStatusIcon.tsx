@@ -38,8 +38,9 @@ export const CHECK_COLORS = {
     RED: "#DC2626",
 } as const
 
-/** Sizes in pixels: next to a Tracking ID, in the dialog. */
+/** Sizes in pixels: in the ballot list, next to a Tracking ID, in the dialog. */
 export const CHECK_SIZES = {
+    LIST: 18,
     ID: 20,
     DIALOG: 28,
 } as const
