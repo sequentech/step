@@ -8,6 +8,8 @@
 // event ID and one of its election IDs), so that the ballots log accepts what
 // the portal casts.
 
+import { readFileSync } from "node:fs";
+
 import { sha256, styleDigest, styleList, stylesHash } from "./vitrine.mjs";
 import { createBallotBox } from "./receipts.mjs";
 
@@ -16,6 +18,10 @@ export const AREA_ID = "5e1c2a3b-7f64-4b08-9d51-6c3a0e8f2b17";
 export const VOTER_ID = "4b0f5f4c-6a1e-4f5e-8c2f-3d9a7c1e5b20";
 export const ADMIN_ID = "a7d0c6f2-2b4e-4d0b-9a61-0f3e8d5c1b94";
 export const VOTER_USERNAME = "voter@example.org";
+
+/** The header logo of the event's organizer, Valmora, a made-up municipality, as a data URL so
+ * that the style carries it and the portal needs no other request. */
+export const LOGO_URL = "data:image/svg+xml;base64," + readFileSync(new URL("./valmora-logo.svg", import.meta.url)).toString("base64");
 
 /** The election public key the portal encrypts to: a valid Ristretto point
  * (the one Step's own portal fixtures use). Nobody holds its secret half. */
@@ -114,6 +120,7 @@ export function eventPresentation({ live, policyNote }) {
       es: { name: "Elecciones municipales 2026", description: "Vote por Internet en las elecciones municipales." },
     },
     language_conf: { enabled_language_codes: ["en", "es"], default_language_code: "en" },
+    logo_url: LOGO_URL,
     skip_election_list: false,
     show_user_profile: true,
     show_cast_vote_logs: "hide-logs-tab",
