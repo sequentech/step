@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        configurationPackage: englishTranslation.translations.configurationPackage,
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Fermer",
@@ -949,6 +950,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exporter les Demandes",
                 EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
                 IMPORT_TENANT_CONFIG: "Importer la Configuration du Locataire",
+                APPLY_CONFIGURATION_PACKAGE: "Appliquer le Paquet de Configuration",
                 RENDER_DOCUMENT_PDF: "Générer le document PDF",
                 CREATE_TENANT: "Créer un locataire",
                 EXPORT_TEMPLATES: "Exporter les Modèles",
@@ -2805,6 +2807,9 @@ const frenchTranslation: TranslationType = {
                         delete: "Êtes-vous sûr de vouloir supprimer cet élément ?",
                         sealsUnknown:
                             "Les scellés des urnes n'ont pas pu être vérifiés : si l'élément a des urnes scellées, la suppression est refusée.",
+                        archiveNamed: 'Êtes-vous sûr de vouloir archiver "{{name}}" ?',
+                        unarchiveNamed: 'Êtes-vous sûr de vouloir désarchiver "{{name}}" ?',
+                        deleteNamed: 'Êtes-vous sûr de vouloir supprimer "{{name}}" ?',
                     },
                     notification: {
                         success: {
@@ -2926,6 +2931,13 @@ const frenchTranslation: TranslationType = {
                 "label": "Forme d’icône de case à cocher pour les candidats",
                 "square-checkbox": "Case à cocher carrée",
                 "round-checkbox": "Case à cocher ronde",
+            },
+            candidatesLayout: {
+                "label": "Disposition des candidats",
+                "helperText":
+                    "La grille de bulletin papier affiche les candidats dans des cases numérotées avec un cercle à remplir, colonne par colonne, selon Colonnes (4 si vide). Les scrutins par classement utilisent toujours la liste.",
+                "list": "Liste",
+                "paper-grid": "Grille de bulletin papier",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidats Et Listes",
@@ -4413,6 +4425,8 @@ const frenchTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Tableaux de bord configurables",
+            modeChangeError: "Impossible de changer le mode du tableau de bord. Réessayez.",
             title: "Suivi",
             loading: "Chargement du suivi",
             unavailableAlert:

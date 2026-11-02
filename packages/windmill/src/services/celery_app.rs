@@ -16,6 +16,7 @@ use tracing::{event, instrument, Level};
 use crate::services::messaging::checks::check_messaging_accounts;
 use crate::services::plugins_manager::plugin_manager::init_plugin_manager;
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
+use crate::tasks::apply_configuration_package::apply_configuration_package;
 use crate::tasks::apply_reconciliation_patch::apply_reconciliation_patch;
 use crate::tasks::audit_electoral_log::audit_electoral_log;
 use crate::tasks::audit_log_outbox::post_audit_log_outbox;
@@ -299,6 +300,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             PgmqBrokerBuilder::from_pool(queue_pool).environment(&slug)
         ),
         tasks = [
+            apply_configuration_package,
             create_keys,
             review_boards,
             reconcile_messages,
@@ -431,6 +433,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             export_tenant_config::NAME => Queue::ImportExport.queue_name(),
             export_audit_logs::NAME => Queue::ImportExport.queue_name(),
             import_tenant_config::NAME => Queue::ImportExport.queue_name(),
+            apply_configuration_package::NAME => Queue::ImportExport.queue_name(),
             scheduled_events::NAME => Queue::Beat.queue_name(),
             scheduled_reports::NAME => Queue::Beat.queue_name(),
             review_cast_votes::NAME => Queue::Beat.queue_name(),

@@ -85,6 +85,8 @@ export type KcContextExtension = {
         loginHintUsernamePolicy: LoginHintUsernamePolicy
         voterAccessibilitySettingsPolicy: EVoterAccessibilitySettingsPolicy
         audioInstructionsPolicy: EAudioInstructionsPolicy
+        // The realm's loginCustomCss localization text, which the FreeMarker login themes inject too.
+        loginCustomCss?: string
     }
 }
 

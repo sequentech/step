@@ -170,9 +170,38 @@ export const archivedTreeData = (): DynEntityType => ({
     electionEvents: [eventNode(eventRows()[2], false)],
 })
 
+/**
+ * A row whose texts exist only in `language`, which its event and elections
+ * make their default: the shape a historical import with that default writes.
+ */
+function onlyIn<T extends {presentation?: unknown}>(language: string, row: T): T {
+    const presentation = (row.presentation ?? {}) as {
+        i18n?: Record<string, object>
+        language_conf?: object
+    }
+    const i18n = presentation.i18n ?? {}
+    return {
+        ...row,
+        presentation: {
+            ...presentation,
+            i18n: {en: {}, [language]: i18n[language] ?? i18n.en ?? {}},
+            ...(presentation.language_conf
+                ? {
+                      language_conf: {
+                          ...presentation.language_conf,
+                          default_language_code: language,
+                      },
+                  }
+                : {}),
+        },
+    }
+}
+
 export interface TreeServicesOptions {
     /** What reading the tree does. */
     reads?: ReadState
+    /** Every text only in this language, the event's and elections' default. */
+    onlyLanguage?: string
     /** Whether changing or deleting a resource fails. */
     writeFailure?: boolean
     /** The failure's message, e.g. the database's `ballot_box_sealed` refusal. */
@@ -216,11 +245,14 @@ export function treeServices({
     sealAtClose = false,
     deleteTask = ETaskExecutionStatus.SUCCESS,
     handlers = {},
+    onlyLanguage,
 }: TreeServicesOptions = {}): TreeServices {
+    const texts = <T extends {presentation?: unknown}>(rows: T[]): T[] =>
+        onlyLanguage ? rows.map((row) => onlyIn(onlyLanguage, row)) : rows
     const data = resourceBoundary(
         {
             sequent_backend_tenant: [tenantRecord],
-            sequent_backend_election_event: eventRows().map((row, index) =>
+            sequent_backend_election_event: texts(eventRows()).map((row, index) =>
                 sealAtClose && index === 0
                     ? {
                           ...row,
@@ -231,9 +263,9 @@ export function treeServices({
                       }
                     : row
             ),
-            sequent_backend_election: electionRows(),
-            sequent_backend_contest: contestRows(),
-            sequent_backend_candidate: candidateRows(),
+            sequent_backend_election: texts(electionRows()),
+            sequent_backend_contest: texts(contestRows()),
+            sequent_backend_candidate: texts(candidateRows()),
             sequent_backend_document: [
                 {id: IMAGE_DOCUMENT_ID, tenant_id: STORY_IDS.tenant, name: "mayor.png"},
             ],

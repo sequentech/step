@@ -8,6 +8,8 @@ title: Step CLI boundary tests
 
 Test file paths in this guide are relative to [`packages/step-cli/tests/`](https://github.com/sequentech/step/blob/main/packages/step-cli/tests). Commands state their working directory.
 
+All of these files compile into one test binary, `cli`, declared in `tests/cli.rs`, so linking the CLI happens once. Select a file with its module name, for example `cargo test -p step-cli --test cli password_cli::`. A new test file needs a `mod` line in `tests/cli.rs`.
+
 The credential-export slice covers independent PBKDF2 vectors, Unicode and
 quoted CSV fields, preservation of previous files on malformed input, duplicate
 password headers, reserved credential headers and actual subprocess exit codes.
@@ -53,8 +55,8 @@ and CSV counts around that boundary. From `packages/`:
 
 ```bash
 cargo test -p step-cli --bin step-cli generate_voters
-cargo test -p step-cli --test command_failures
-cargo test -p step-cli --test voter_progress_cli
+cargo test -p step-cli --test cli command_failures::
+cargo test -p step-cli --test cli voter_progress_cli::
 ```
 
 Tally-sheet commands reach Hasura through the `GraphqlClient` port and store
@@ -71,7 +73,7 @@ the `HTTP Status` and `Error Message` of a rejected request, and only
 
 ```bash
 cargo test -p step-cli --bin step-cli tally_sheet
-cargo test -p step-cli --test tally_sheet_cli
+cargo test -p step-cli --test cli tally_sheet_cli::
 ```
 
 The telephone automation contract tests run without a deployment:
@@ -130,5 +132,5 @@ real encrypted one. From `packages/`:
 
 ```bash
 cargo test -p step-cli --bin step-cli acceptance
-cargo test -p step-cli --test acceptance_cli
+cargo test -p step-cli --test cli acceptance_cli::
 ```

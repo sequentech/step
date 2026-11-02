@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const dutchTranslation: TranslationType = {
     translations: {
+        configurationPackage: englishTranslation.translations.configurationPackage,
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Sluiten",
@@ -951,6 +952,7 @@ const dutchTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Applicaties Exporteren",
                 EXPORT_TENANT_CONFIG: "Tenantconfiguratie Exporteren",
                 IMPORT_TENANT_CONFIG: "Tenantconfiguratie Importeren",
+                APPLY_CONFIGURATION_PACKAGE: "Configuratiepakket Toepassen",
                 RENDER_DOCUMENT_PDF: "Document als PDF renderen",
                 CREATE_TENANT: "Tenant Aanmaken",
                 EXPORT_TEMPLATES: "Sjablonen Exporteren",
@@ -2789,6 +2791,9 @@ const dutchTranslation: TranslationType = {
                         delete: "Weet u zeker dat u dit item wilt verwijderen?",
                         sealsUnknown:
                             "De zegels van de stembussen konden niet worden gecontroleerd: als er verzegelde stembussen zijn, wordt het verwijderen geweigerd.",
+                        archiveNamed: 'Weet u zeker dat u "{{name}}" wilt archiveren?',
+                        unarchiveNamed: 'Weet u zeker dat u "{{name}}" wilt dearchiveren?',
+                        deleteNamed: 'Weet u zeker dat u "{{name}}" wilt verwijderen?',
                     },
                     notification: {
                         success: {
@@ -2911,6 +2916,13 @@ const dutchTranslation: TranslationType = {
                 "label": "Vorm icoon selectievakje kandidaten",
                 "square-checkbox": "Vierkant Selectievakje",
                 "round-checkbox": "Rond Selectievakje",
+            },
+            candidatesLayout: {
+                "label": "Indeling van kandidaten",
+                "helperText":
+                    "Het raster van het papieren stembiljet toont kandidaten als genummerde vakjes met een in te kleuren cirkel, kolom voor kolom, volgens Kolommen (4 indien leeg). Stemmingen met rangschikking gebruiken altijd de lijst.",
+                "list": "Lijst",
+                "paper-grid": "Raster van papieren stembiljet",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Kandidaten en Lijsten",
@@ -4389,6 +4401,8 @@ const dutchTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Configureerbare dashboards",
+            modeChangeError: "De dashboardmodus kon niet worden gewijzigd. Probeer het opnieuw.",
             title: "Monitoring",
             loading: "Monitoring laden",
             unavailableAlert:

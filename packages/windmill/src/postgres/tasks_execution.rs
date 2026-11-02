@@ -484,3 +484,37 @@ pub async fn get_tasks_by_election_event_id(
 
     Ok(tasks_execution)
 }
+
+/// The tenant's task rows of one type whose annotations record `key = value`,
+/// newest first: earlier runs of the same operation on the same input.
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_tasks_by_annotation(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    task_type: &str,
+    key: &str,
+    value: &str,
+) -> Result<Vec<TasksExecution>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT *
+                FROM sequent_backend.tasks_execution
+                WHERE tenant_id = $1 AND type = $2 AND annotations ->> $3 = $4
+                ORDER BY created_at DESC;
+            "#,
+        )
+        .await?;
+    let rows = hasura_transaction
+        .query(
+            &statement,
+            &[&parse_uuid_v4(tenant_id)?, &task_type, &key, &value],
+        )
+        .await?;
+    rows.into_iter()
+        .map(|row| {
+            row.try_into()
+                .map(|wrapper: TasksExecutionWrapper| wrapper.0)
+        })
+        .collect()
+}

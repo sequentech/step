@@ -16,7 +16,15 @@ import {
     ECandidatesIconCheckboxPolicy,
     BallotSelection,
     ECollapsibleLists,
+    ECandidatesLayout,
 } from "@sequentech/ui-core"
+import {PaperBallotGrid, PaperBallotHeading} from "../components/PaperBallot/PaperBallot"
+import {
+    getCandidatesLayout,
+    getPaperCandidateOrder,
+    getPaperGridColumns,
+    getPaperGridDensity,
+} from "./paperGrid"
 import BlankAnswer from "../components/BlankAnswer/BlankAnswer"
 import VisuallyHidden from "../components/VisuallyHidden/VisuallyHidden"
 import {theme} from "../services/theme"
@@ -248,6 +256,9 @@ export const Question: React.FC<IQuestionProps> = ({
         question.presentation?.candidates_icon_checkbox_policy ??
         ECandidatesIconCheckboxPolicy.SQUARE_CHECKBOX
     const columnCount = question.presentation?.columns ?? 1
+    const candidatesLayout = getCandidatesLayout(question, isPreferentialVote)
+    const isPaperGrid = candidatesLayout === ECandidatesLayout.PAPER_GRID
+    const paperGridColumns = getPaperGridColumns(question)
 
     useEffect(() => {
         if (overVoteDisableMode) {
@@ -274,11 +285,17 @@ export const Question: React.FC<IQuestionProps> = ({
     }
 
     if (null === candidatesOrder) {
-        let sortedCandidates = engine.sortCandidatesInContest(
-            noCategoryCandidates,
-            candidatesOrderType,
-            true
-        )
+        const sortCandidates = () =>
+            engine.sortCandidatesInContest(noCategoryCandidates, candidatesOrderType, true)
+        let sortedCandidates =
+            isPaperGrid && candidatesOrderType === CandidatesOrder.RANDOM
+                ? getPaperCandidateOrder(
+                      ballotStyle.id,
+                      question.id,
+                      noCategoryCandidates,
+                      sortCandidates
+                  )
+                : sortCandidates()
 
         if (isReview && isPreferentialVote && contestState) {
             const choicesById = keyBy(contestState.choices, "id")
@@ -297,6 +314,16 @@ export const Question: React.FC<IQuestionProps> = ({
 
     const noCategoryCandidatesMap = keyBy(noCategoryCandidates, "id")
 
+    // The review screen draws only what was marked, so the grid is sized for
+    // those cells while keeping the density of the full ballot.
+    const paperGridDensity = getPaperGridDensity(candidatesOrder?.length ?? 0, paperGridColumns)
+    const paperGridCellCount =
+        isReview && !isAcclaimed
+            ? (candidatesOrder ?? []).filter((id) =>
+                  contestState?.choices.some((choice) => choice.id === id && choice.selected > -1)
+              ).length
+            : (candidatesOrder?.length ?? 0)
+
     const onSetIsInvalidWriteIns = (value: boolean) => {
         setIsInvalidWriteIns(value)
         setDisableNext?.(value)
@@ -313,7 +340,7 @@ export const Question: React.FC<IQuestionProps> = ({
     // The review screen shows the same contests read-only, so there the limit
     // would be announced for options the voter can no longer change.
     const selectionInstruction = useMemo(() => {
-        if (isReview) {
+        if (isReview || isAcclaimed) {
             return ""
         }
         const min = question.min_votes
@@ -325,44 +352,61 @@ export const Question: React.FC<IQuestionProps> = ({
             return t("a11y.selectBetween", {min, max})
         }
         return t("a11y.selectUpTo", {count: max})
-    }, [question.min_votes, question.max_votes, isReview, t])
+    }, [question.min_votes, question.max_votes, isReview, isAcclaimed, t])
+
+    const contestTitle = (
+        <StyledTitle
+            className="contest-title"
+            variant="h5"
+            component="h2"
+            data-min={question.min_votes}
+            data-max={question.max_votes}
+            id={contestTitleId(question.id)}
+        >
+            <Box className="contest-title-text" component="span" sx={{flexGrow: 1}}>
+                {translate(question, "name", i18n.language) || ""}
+            </Box>
+            {isCollapsible &&
+            !isReview &&
+            !!categoriesMapOrder &&
+            Object.keys(categoriesMapOrder).length ? (
+                <Button
+                    className="contest-options-toggle"
+                    variant="secondary"
+                    sx={{flexShrink: 0, minHeight: "unset", fontSize: "0.875rem"}}
+                    startIcon={
+                        <FontAwesomeIcon
+                            className="contest-collapse-icon"
+                            icon={allCollapsed ? faAngleRight : faAngleDown}
+                        />
+                    }
+                    onClick={handleToggleAll}
+                    aria-expanded={!allCollapsed}
+                >
+                    {allCollapsed ? t("candidatesList.expandAll") : t("candidatesList.collapseAll")}
+                </Button>
+            ) : null}
+        </StyledTitle>
+    )
 
     return (
         <Box className="contest" component="section" aria-labelledby={contestTitleId(question.id)}>
-            <StyledTitle
-                className="contest-title"
-                variant="h5"
-                component="h2"
-                data-min={question.min_votes}
-                data-max={question.max_votes}
-                id={contestTitleId(question.id)}
-            >
-                <Box className="contest-title-text" component="span" sx={{flexGrow: 1}}>
-                    {translate(question, "name", i18n.language) || ""}
-                </Box>
-                {isCollapsible &&
-                !isReview &&
-                !!categoriesMapOrder &&
-                Object.keys(categoriesMapOrder).length ? (
-                    <Button
-                        className="contest-options-toggle"
-                        variant="secondary"
-                        sx={{flexShrink: 0, minHeight: "unset", fontSize: "0.875rem"}}
-                        startIcon={
-                            <FontAwesomeIcon
-                                className="contest-collapse-icon"
-                                icon={allCollapsed ? faAngleRight : faAngleDown}
-                            />
-                        }
-                        onClick={handleToggleAll}
-                        aria-expanded={!allCollapsed}
-                    >
-                        {allCollapsed
-                            ? t("candidatesList.expandAll")
-                            : t("candidatesList.collapseAll")}
-                    </Button>
-                ) : null}
-            </StyledTitle>
+            {isPaperGrid ? (
+                <PaperBallotHeading className="contest-paper-heading">
+                    {contestTitle}
+                    {!isReview && !isAcclaimed ? (
+                        <span className="contest-paper-subtitle">
+                            {question.min_votes > 0
+                                ? selectionInstruction
+                                : t("contest.paperBallot.voteForNoMoreThan", {
+                                      count: question.max_votes,
+                                  })}
+                        </span>
+                    ) : null}
+                </PaperBallotHeading>
+            ) : (
+                contestTitle
+            )}
             {question.description || question.description_i18n?.[i18n.language] ? (
                 <Typography
                     className="contest-description"
@@ -503,7 +547,41 @@ export const Question: React.FC<IQuestionProps> = ({
                                 )}
                             </CandidateListsWrapper>
                         ) : null}
-                        {candidatesOrder?.length ? (
+                        {candidatesOrder?.length && isPaperGrid ? (
+                            <PaperBallotGrid
+                                className="candidates-singles-container candidates-paper-grid"
+                                columns={paperGridColumns}
+                                candidateCount={paperGridCellCount}
+                                role="list"
+                            >
+                                {candidatesOrder
+                                    .map((id) => noCategoryCandidatesMap[id])
+                                    .map((answer, answerIndex) => (
+                                        <Answer
+                                            isInvalidWriteIns={isInvalidWriteIns}
+                                            ballotStyle={ballotStyle}
+                                            answer={answer}
+                                            contestId={question.id}
+                                            index={answerIndex}
+                                            key={answer.id}
+                                            isSelectable={!isReview}
+                                            isInvalidVote={false}
+                                            isReview={isReview}
+                                            isRadioSelection={isRadioSelection}
+                                            contest={question}
+                                            selectedChoicesSum={selectedChoicesSum}
+                                            setSelectedChoicesSum={setSelectedChoicesSum}
+                                            disableSelect={disableSelect}
+                                            iconCheckboxPolicy={iconCheckboxPolicy}
+                                            explicitBlank={explicitBlank}
+                                            setExplicitBlank={setExplicitBlank}
+                                            setIsTouched={setIsTouched}
+                                            layout={candidatesLayout}
+                                            paperGridDensity={paperGridDensity}
+                                        />
+                                    ))}
+                            </PaperBallotGrid>
+                        ) : candidatesOrder?.length ? (
                             <CandidatesSingleWrapper
                                 className="candidates-singles-container"
                                 columnCount={columnCount}

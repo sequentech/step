@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod activity_logs_report;
+pub mod apply_configuration_package;
 pub mod apply_reconciliation_patch;
 pub mod audit_electoral_log;
 pub mod audit_log_outbox;

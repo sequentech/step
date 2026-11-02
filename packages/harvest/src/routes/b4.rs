@@ -8,6 +8,15 @@
 //! answers pass through untouched: Harvest reads no protocol message, and the
 //! caller's `Authorization` header never reaches b4. Creating boards stays
 //! with Windmill, on the private network.
+//!
+//! One exception, where a deployment asks for it: b4 presigns its message
+//! upload and download URLs for the object store's private address, which a
+//! browser can't reach. With [`STORAGE_URL_VARIABLE`] and
+//! [`STORAGE_PUBLIC_URL_VARIABLE`] set, that address is replaced in b4's
+//! JSON answers by one the browser reaches, which the deployment routes back
+//! to the store with the host the URLs were signed for (the signature covers
+//! it). Windmill and native trustees call b4 directly and keep the private
+//! address.
 
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
@@ -28,6 +37,10 @@ use windmill::services::trustee_boards::{self, BoardAccess};
 
 /// The board service's address, shared with Windmill.
 pub const URL_VARIABLE: &str = "WBRAID_B4_URL";
+/// The object store's private address in b4's presigned URLs
+/// (`scheme://host[:port]`), and the address browsers are given instead.
+pub const STORAGE_URL_VARIABLE: &str = "HARVEST_B4_STORAGE_URL";
+pub const STORAGE_PUBLIC_URL_VARIABLE: &str = "HARVEST_B4_STORAGE_PUBLIC_URL";
 /// b4 is on the private network: a connection that takes longer is an outage.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 /// The longest b4 may take to answer; listing a large board presigns one
@@ -103,6 +116,49 @@ impl ReadOrigins {
 pub struct BoardService {
     connection: Connection,
     read_origins: ReadOrigins,
+    storage: Option<StorageRewrite>,
+}
+
+/// The private storage address b4 presigns for, and its public stand-in.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StorageRewrite {
+    /// Both without a trailing slash, compared with one after them, so a
+    /// longer host that starts the same is left alone.
+    private: String,
+    public: String,
+}
+
+impl StorageRewrite {
+    /// Both set and not blank, or none.
+    pub fn new(private: Option<&str>, public: Option<&str>) -> Option<Self> {
+        let clean = |url: Option<&str>| {
+            url.map(|url| url.trim().trim_end_matches('/').to_string())
+                .filter(|url| !url.is_empty())
+        };
+        match (clean(private), clean(public)) {
+            (Some(private), Some(public)) => Some(Self { private, public }),
+            (None, None) => None,
+            _ => {
+                warn!(
+                    "{STORAGE_URL_VARIABLE} and {STORAGE_PUBLIC_URL_VARIABLE} go together: \
+                     board storage URLs are passed through unchanged"
+                );
+                None
+            }
+        }
+    }
+
+    /// `body` with every `<private>/` replaced by `<public>/`.
+    pub fn apply(&self, body: &[u8]) -> Vec<u8> {
+        let Ok(text) = std::str::from_utf8(body) else {
+            return body.to_vec();
+        };
+        text.replace(
+            &format!("{}/", self.private),
+            &format!("{}/", self.public),
+        )
+        .into_bytes()
+    }
 }
 
 /// Whether Harvest can forward requests to b4.
@@ -125,6 +181,16 @@ impl BoardService {
             .with_read_origins(ReadOrigins::parse(
                 std::env::var(READ_ORIGINS_VARIABLE).ok().as_deref(),
             ))
+            .with_storage(StorageRewrite::new(
+                std::env::var(STORAGE_URL_VARIABLE).ok().as_deref(),
+                std::env::var(STORAGE_PUBLIC_URL_VARIABLE).ok().as_deref(),
+            ))
+    }
+
+    /// Rewrites b4's presigned storage URLs for browsers; none: unchanged.
+    pub fn with_storage(mut self, storage: Option<StorageRewrite>) -> Self {
+        self.storage = storage;
+        self
     }
 
     /// Which pages may read boards; [`ReadOrigins::SameOrigin`] unless set.
@@ -145,6 +211,7 @@ impl BoardService {
             return Self {
                 connection: Connection::NotConfigured,
                 read_origins: ReadOrigins::SameOrigin,
+                storage: None,
             };
         };
         // An internal service: never through a proxy, and its redirects (b4
@@ -167,6 +234,7 @@ impl BoardService {
         Self {
             connection,
             read_origins: ReadOrigins::SameOrigin,
+            storage: None,
         }
     }
 
@@ -203,7 +271,12 @@ impl BoardService {
             .get(reqwest::header::CONTENT_TYPE)
             .and_then(|value| value.to_str().ok())
             .and_then(|value| value.parse::<ContentType>().ok());
-        let body = response.bytes().await.map_err(b4_unreachable)?.to_vec();
+        let mut body = response.bytes().await.map_err(b4_unreachable)?.to_vec();
+        if let Some(storage) = &self.storage {
+            if content_type.as_ref().is_some_and(|c| c.is_json()) {
+                body = storage.apply(&body);
+            }
+        }
         Ok(BoardReply {
             status,
             content_type,
@@ -460,3 +533,30 @@ pub async fn confirm_board_message(
 #[cfg(test)]
 #[path = "../../tests/support/b4_routes.rs"]
 mod b4_routes;
+
+#[cfg(test)]
+mod storage_rewrite {
+    use super::StorageRewrite;
+
+    #[test]
+    fn presigned_urls_are_given_the_public_address() {
+        let rewrite = StorageRewrite::new(
+            Some("http://rustfs.step-infra.svc.cluster.local:9000"),
+            Some("https://admin.demo.lan/"),
+        )
+        .expect("both set");
+        let body = br#"{"upload_url":"http://rustfs.step-infra.svc.cluster.local:9000/wbraid-messages/b/1?X-Amz-Signature=ab&X-Amz-Date=1","other":"http://rustfs.step-infra.svc.cluster.local:90001/x"}"#;
+        let out = String::from_utf8(rewrite.apply(body)).unwrap();
+        assert_eq!(
+            out,
+            r#"{"upload_url":"https://admin.demo.lan/wbraid-messages/b/1?X-Amz-Signature=ab&X-Amz-Date=1","other":"http://rustfs.step-infra.svc.cluster.local:90001/x"}"#
+        );
+    }
+
+    #[test]
+    fn one_without_the_other_rewrites_nothing() {
+        assert_eq!(StorageRewrite::new(Some("http://a:9000"), None), None);
+        assert_eq!(StorageRewrite::new(None, Some(" ")), None);
+        assert_eq!(StorageRewrite::new(None, None), None);
+    }
+}

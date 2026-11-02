@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        configurationPackage: englishTranslation.translations.configurationPackage,
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Isara",
@@ -957,6 +958,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_APPLICATION: "I-export ang Mga Aplikasyon",
                 EXPORT_TENANT_CONFIG: "I-export ang Configurasyon ng Tenant",
                 IMPORT_TENANT_CONFIG: "I-import ang Configurasyon ng Tenant",
+                APPLY_CONFIGURATION_PACKAGE: "Ilapat ang Configuration Package",
                 RENDER_DOCUMENT_PDF: "I-render ang dokumento bilang PDF",
                 CREATE_TENANT: "Lumikha ng Tenant",
                 EXPORT_TEMPLATES: "I-export ang mga Template",
@@ -2803,6 +2805,9 @@ const tagalogTranslation: TranslationType = {
                         delete: "Sigurado ka bang tanggalin ang item na ito?",
                         sealsUnknown:
                             "Hindi masuri ang mga seal ng ballot box: kung may naka-seal itong mga ballot box, tatanggihan ang pagbura.",
+                        archiveNamed: 'Sigurado ka bang i-archive ang "{{name}}"?',
+                        unarchiveNamed: 'Sigurado ka bang i-unarchive ang "{{name}}"?',
+                        deleteNamed: 'Sigurado ka bang tanggalin ang "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2925,6 +2930,13 @@ const tagalogTranslation: TranslationType = {
                 "label": "An porma kan icon kan kahon kan mga kandidato",
                 "square-checkbox": "Parisukat na checkbox",
                 "round-checkbox": "Bilog na Kahon nin Tsek",
+            },
+            candidatesLayout: {
+                "label": "Ayos ng mga kandidato",
+                "helperText":
+                    "Ipinapakita ng grid ng papel na balota ang mga kandidato bilang mga may-numerong kahon na may bilog na pupunan, kolum bawat kolum, ayon sa Columns (4 kung walang laman). Laging listahan ang ginagamit ng mga paligsahang may ranggo.",
+                "list": "Listahan",
+                "paper-grid": "Grid ng papel na balota",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Mga Kandidato at Listahan",
@@ -4408,6 +4420,8 @@ const tagalogTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Mga nako-configure na dashboard",
+            modeChangeError: "Hindi mabago ang mode ng dashboard. Subukan muli.",
             title: "Pagsubaybay",
             loading: "Nilo-load ang pagsubaybay",
             unavailableAlert:

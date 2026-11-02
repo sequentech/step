@@ -22,54 +22,29 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
-
-      - name: Set Node.js 20.x
-        uses: actions/setup-node@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          node-version: 20.x
+          persist-credentials: false
 
-      - name: Run install
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: install
-          dir: packages/
+      # The dependency cache the frontend test jobs share.
+      - uses: ./.github/actions/setup-frontend
 
+      # Lint resolves ui-core's and ui-essentials' built types.
       - name: Build ui-core
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: build:ui-core
-          dir: packages/
-      
+        run: yarn --cwd packages build:ui-core
+
       - name: Build ui-essentials
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: build:ui-essentials
-          dir: packages/
+        run: yarn --cwd packages build:ui-essentials
 
-      - name: Test ui-essentials
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: test:ui-essentials
-          dir: packages/
-
+      # ui-essentials' Jest suite runs in tests.yml; results-portal's runs only here.
       - name: Test results portal
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: test:results-portal
-          dir: packages/
+        run: yarn --cwd packages test:results-portal
 
       - name: Lint
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: lint
-          dir: packages/
+        run: yarn --cwd packages lint
 
       - name: Prettify
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: prettify
-          dir: packages/
+        run: yarn --cwd packages prettify
 
   lint-prettify-hasura:
     name: Check Hasura prettify
@@ -131,10 +106,11 @@ jobs:
           java-version: '17'
           distribution: 'adopt'
 
-      - name: Install Maven
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y maven
-
+      # The runner image ships Maven. The modules' own build is not needed:
+      # spotless:check reads sources only, and a reactor run resolves sibling
+      # modules without installing them first (sequentech/meta#14622).
       - name: Run Spotless Check
-        run: cd packages/keycloak-extensions && mvn clean install &&mvn invoker:run@run-spotless-check
+        working-directory: packages/keycloak-extensions
+        run: >-
+          mvn -B -pl aws-ses-email-sender-provider,conditional-authenticators,ivr-config-provider,dummy-email-sender-provider,voter-enrollment,action-token-login-bridge,message-otp-authenticator,scanovate-authenticator
+          com.diffplug.spotless:spotless-maven-plugin:check
