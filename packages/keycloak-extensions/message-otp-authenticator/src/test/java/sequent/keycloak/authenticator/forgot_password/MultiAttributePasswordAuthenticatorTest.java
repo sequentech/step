@@ -1908,6 +1908,73 @@ class MultiAttributePasswordAuthenticatorTest {
     inOrder.verify(context).clearUser();
   }
 
+  /**
+   * Keycloak's flow engine logs the failure after action() returns, so it can't charge an account
+   * that action() cleared: a failure on a unique attribute value would count for nothing, and
+   * nothing else limits it with Brute Force Detection on.
+   */
+  @Test
+  void action_attributedFailureChargesTheAccountBeforeClearingIt() {
+    AuthenticationFlowContext context = mockFailureContext(true);
+    UserModel attributableUser = mock(UserModel.class);
+    Response challengeResponse = mock(Response.class);
+
+    actionAuthenticator(Resolution.failureAttributedTo(attributableUser), challengeResponse)
+        .action(context);
+
+    InOrder inOrder = inOrder(context, bruteForceProtector);
+    inOrder.verify(context).setUser(attributableUser);
+    inOrder
+        .verify(bruteForceProtector)
+        .failedLogin(
+            realm, attributableUser, clientConnection, uriInfo, PasswordCredentialModel.TYPE);
+    inOrder.verify(context).clearUser();
+    verify(bruteForceProtector, times(1)).failedLogin(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void action_attributedFailureWithoutBruteForceDetectionChargesNothing() {
+    AuthenticationFlowContext context = mockFailureContext(false);
+
+    actionAuthenticator(Resolution.failureAttributedTo(mock(UserModel.class)), mock(Response.class))
+        .action(context);
+
+    verify(session, never()).getProvider(BruteForceProtector.class);
+  }
+
+  /** A shared failure was charged during resolution: the form must not charge anyone again. */
+  @Test
+  void action_unattributedFailureChargesNothing() {
+    AuthenticationFlowContext context = mockFailureContext(true);
+
+    actionAuthenticator(Resolution.failure(), mock(Response.class)).action(context);
+
+    verify(bruteForceProtector, never()).failedLogin(any(), any(), any(), any(), any());
+  }
+
+  /** A locked account isn't charged again, as Keycloak's own form doesn't. */
+  @Test
+  void action_lockedOutChargesNothing() {
+    AuthenticationFlowContext context = mockFailureContext(true);
+
+    actionAuthenticator(
+            Resolution.lockedOut(mock(UserModel.class), LockoutState.TEMPORARY),
+            mock(Response.class))
+        .action(context);
+
+    verify(bruteForceProtector, never()).failedLogin(any(), any(), any(), any(), any());
+  }
+
+  private AuthenticationFlowContext mockFailureContext(boolean bruteForceProtected) {
+    AuthenticationFlowContext context = mockActionContext();
+    lenient().when(realm.isBruteForceProtected()).thenReturn(bruteForceProtected);
+    lenient().when(session.getProvider(BruteForceProtector.class)).thenReturn(bruteForceProtector);
+    lenient().when(session.getContext()).thenReturn(keycloakContext);
+    lenient().when(keycloakContext.getConnection()).thenReturn(clientConnection);
+    lenient().when(keycloakContext.getUri()).thenReturn(uriInfo);
+    return context;
+  }
+
   @Test
   void action_lockedOutStatesRenderGenericErrorWithoutHidingInternalEventReason() {
     for (LockoutState state : List.of(LockoutState.TEMPORARY, LockoutState.PERMANENT)) {

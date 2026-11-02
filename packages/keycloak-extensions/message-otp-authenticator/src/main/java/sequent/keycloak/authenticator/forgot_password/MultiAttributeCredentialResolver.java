@@ -555,20 +555,22 @@ public final class MultiAttributeCredentialResolver {
       List<UserModel> viableCandidates,
       ThrottleConfig throttleConfig) {
     if (throttleConfig.sharedCandidateFailurePolicy()
-            == SharedCandidateFailurePolicy.CHARGE_VIABLE_CANDIDATES
-        && realm.isBruteForceProtected()) {
-      BruteForceProtector protector = session.getProvider(BruteForceProtector.class);
-      KeycloakContext context = session.getContext();
-      for (UserModel candidate : viableCandidates) {
-        protector.failedLogin(
-            realm,
-            candidate,
-            context.getConnection(),
-            context.getUri(),
-            PasswordCredentialModel.TYPE);
-      }
+        == SharedCandidateFailurePolicy.CHARGE_VIABLE_CANDIDATES) {
+      viableCandidates.forEach(candidate -> chargeFailedLogin(session, realm, candidate));
     }
     return Resolution.failure();
+  }
+
+  /** Records a failed login against an account in Keycloak's Brute Force Detection, if it's on. */
+  static void chargeFailedLogin(KeycloakSession session, RealmModel realm, UserModel user) {
+    if (!realm.isBruteForceProtected()) {
+      return;
+    }
+    KeycloakContext context = session.getContext();
+    session
+        .getProvider(BruteForceProtector.class)
+        .failedLogin(
+            realm, user, context.getConnection(), context.getUri(), PasswordCredentialModel.TYPE);
   }
 
   /**
@@ -670,11 +672,12 @@ public final class MultiAttributeCredentialResolver {
   }
 
   /**
-   * Records a failure the result attributes to one account. With Brute Force Detection on, Keycloak
-   * charges that account once the caller sets it as the flow's user, so the failure stays out of
-   * the tuple counter: that counter is keyed only on the submitted values, and filling it would let
-   * anyone who knows them keep the voter out even with the right password. Without Brute Force
-   * Detection the tuple counter is the only limit, so it still counts the failure.
+   * Records a failure the result attributes to one account. With Brute Force Detection on, that
+   * account is charged after resolution (by the browser form itself, and in the Direct Grant flow
+   * by Keycloak, once the caller sets it as the flow's user), so the failure stays out of the tuple
+   * counter: that counter is keyed only on the submitted values, and filling it would let anyone
+   * who knows them keep the voter out even with the right password. Without Brute Force Detection
+   * the tuple counter is the only limit, so it still counts the failure.
    */
   private static void recordAttributedFailure(
       KeycloakSession session, RealmModel realm, String tupleKey, ThrottleConfig throttleConfig) {
