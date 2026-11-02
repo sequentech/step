@@ -1137,6 +1137,90 @@ mod tests {
         }
     }
 
+    /// The header row of a voters export whose elections share or collide on a
+    /// label, read back the way an import reads it.
+    fn exported_header_row_with_colliding_election_labels() -> StringRecord {
+        let long_label = "L".repeat(70);
+        let elections = [
+            "General Election",
+            "General Election",
+            "General-Election",
+            "general election",
+            long_label.as_str(),
+            long_label.as_str(),
+        ]
+        .iter()
+        .enumerate()
+        .map(|(index, name)| crate::services::election::ElectionHead {
+            id: index.to_string(),
+            name: name.to_string(),
+            alias: None,
+            external_id: None,
+        })
+        .collect();
+        let headers = crate::services::export::export_users::get_headers(&Some(elections), &vec![]);
+        let mut writer = csv::Writer::from_writer(vec![]);
+        writer
+            .write_record(&headers)
+            .expect("header row is written");
+        let bytes = writer.into_inner().expect("writer is flushed");
+        csv::Reader::from_reader(bytes.as_slice())
+            .headers()
+            .expect("header row is read")
+            .clone()
+    }
+
+    /// An export with colliding election labels imports again: each
+    /// participation header becomes its own temp table column, distinct even
+    /// after PostgreSQL folds unquoted identifiers to lowercase and keeps their
+    /// first 63 bytes, and none of them becomes a user attribute.
+    #[test]
+    fn export_with_colliding_election_labels_is_accepted_by_the_import() {
+        let record = exported_header_row_with_colliding_election_labels();
+        assert!(record.iter().all(|header| HEADER_RE.is_match(header)));
+        let (_, _, _, _, processed_columns, _) =
+            get_copy_from_query(&record).expect("an exported header row imports");
+
+        let mut columns = processed_columns
+            .iter()
+            .map(|column| {
+                let mut key = sanitize_db_key(column).to_lowercase();
+                key.truncate(63);
+                key
+            })
+            .collect::<Vec<String>>();
+        let count = columns.len();
+        columns.sort();
+        columns.dedup();
+        assert_eq!(
+            columns.len(),
+            count,
+            "temp table columns: {processed_columns:?}"
+        );
+
+        let insert_query = get_insert_user_query(
+            TENANT_ID.to_string(),
+            REALM_ID.to_string(),
+            "temp_voters_1".to_string(),
+            &processed_columns,
+        )
+        .expect("query builds");
+        assert!(!insert_query.contains(ELECTION_COL_PREFIX));
+    }
+
+    /// Distinct election headers do not relax the duplicate check: a real user
+    /// column repeated in the same export is still refused.
+    #[test]
+    fn export_with_a_repeated_user_column_is_still_rejected() {
+        let mut record = exported_header_row_with_colliding_election_labels();
+        record.push_field("Email");
+        let error = get_copy_from_query(&record).expect_err("`Email` repeats `email`");
+        assert!(
+            error.to_string().contains("Duplicate column `Email`"),
+            "{error}"
+        );
+    }
+
     const TENANT_ID: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
     const OTHER_TENANT_ID: &str = "0c5bb0b5-4bb0-4d0f-a8fb-2c7a0f1d6c11";
     const REALM_ID: &str = "33f18502-a67c-4853-8333-a58630663559";

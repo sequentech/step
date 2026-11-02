@@ -83,8 +83,80 @@ fn sanitize_name(name: &str) -> String {
     SAFE_CHARS_RE.replace_all(name, "_").to_string()
 }
 
+/// Prefix of the informational participation columns; the import skips them.
+const ELECTION_HEADER_PREFIX: &str = "election__";
+
+/// PostgreSQL keeps the first 63 bytes of an identifier (`NAMEDATALEN - 1`).
+const MAX_IMPORT_COLUMN_BYTES: usize = 63;
+
+/// Shortens `value` to at most `max_bytes`, on a character boundary.
+fn truncate_to_bytes(value: &str, max_bytes: usize) -> &str {
+    let mut end = value.len().min(max_bytes);
+    while !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    &value[..end]
+}
+
+/// The temp table column a header becomes when the CSV is imported: `.` and
+/// `-` turn into `_`, and the unquoted identifier is case-folded and truncated.
+fn import_column_key(header: &str) -> String {
+    let key = header.replace(['.', '-'], "_").to_lowercase();
+    truncate_to_bytes(&key, MAX_IMPORT_COLUMN_BYTES).to_string()
+}
+
+/// One `election__<label>` header per election, distinct from each other and
+/// from `user_headers` as import columns. A label keeps its usual header
+/// unless an earlier column already maps to it; the others get the first free
+/// `__<n>` suffix (from 2), shortening the label so the suffix fits in 63
+/// bytes.
+fn election_headers(elections: &[ElectionHead], user_headers: &[String]) -> Vec<String> {
+    let mut taken: HashSet<String> = user_headers
+        .iter()
+        .map(|header| import_column_key(header))
+        .collect();
+    let labels: Vec<String> = elections
+        .iter()
+        .map(|election| {
+            let label = election.alias.as_deref().unwrap_or(&election.name);
+            format!("{ELECTION_HEADER_PREFIX}{}", sanitize_name(label))
+        })
+        .collect();
+    let mut headers: Vec<Option<String>> = labels
+        .iter()
+        .map(|label| {
+            taken
+                .insert(import_column_key(label))
+                .then(|| label.clone())
+        })
+        .collect();
+    for (header, label) in headers.iter_mut().zip(&labels) {
+        if header.is_some() {
+            continue;
+        }
+        // Each attempt either succeeds or skips a taken key, so this ends
+        // within `taken.len() + 1` attempts.
+        let mut number: usize = 2;
+        loop {
+            let suffix = format!("__{number}");
+            let candidate = format!(
+                "{}{suffix}",
+                truncate_to_bytes(label, MAX_IMPORT_COLUMN_BYTES - suffix.len())
+            );
+            if taken.insert(import_column_key(&candidate)) {
+                *header = Some(candidate);
+                break;
+            }
+            number += 1;
+        }
+    }
+    headers.into_iter().flatten().collect()
+}
+
+/// The export's header row: user columns, then one participation column per
+/// election, in the order `get_user_record` writes the values.
 #[instrument(skip(elections))]
-fn get_headers(
+pub(crate) fn get_headers(
     elections: &Option<Vec<ElectionHead>>,
     user_attributes: &Vec<UserProfileAttribute>,
 ) -> Vec<String> {
@@ -108,22 +180,11 @@ fn get_headers(
             _ => (),
         }
     }
-    vec![
-        user_headers,
-        match elections {
-            Some(ref some_elections) => some_elections
-                .iter()
-                .map(|election| match election.alias {
-                    Some(ref election_alias) => {
-                        format!("election__{}", sanitize_name(&election_alias))
-                    }
-                    None => format!("election__{}", sanitize_name(&election.name)),
-                })
-                .collect::<Vec<String>>(),
-            None => vec![],
-        },
-    ]
-    .concat()
+    let election_headers = match elections {
+        Some(some_elections) => election_headers(some_elections, &user_headers),
+        None => vec![],
+    };
+    [user_headers, election_headers].concat()
 }
 
 #[instrument(skip(elections, areas_by_id, user, user_attributes), level = "trace")]
@@ -508,6 +569,211 @@ mod tests {
                     .unwrap()
             )
         );
+    }
+
+    fn election(id: &str, name: &str, alias: Option<&str>) -> ElectionHead {
+        ElectionHead {
+            id: id.to_string(),
+            name: name.to_string(),
+            alias: alias.map(str::to_string),
+            external_id: None,
+        }
+    }
+
+    /// The participation columns that follow the user columns.
+    fn election_headers_for(
+        elections: Vec<ElectionHead>,
+        user_attributes: &Vec<UserProfileAttribute>,
+    ) -> Vec<String> {
+        let headers = get_headers(&Some(elections), user_attributes);
+        let user_columns = get_headers(&None, user_attributes).len();
+        headers[user_columns..].to_vec()
+    }
+
+    #[test]
+    fn unique_election_labels_keep_their_existing_headers() {
+        let headers = election_headers_for(
+            vec![
+                election("1", "North", None),
+                election("2", "Ignored name", Some("South Region")),
+            ],
+            &vec![],
+        );
+        assert_eq!(headers, ["election__North", "election__South_Region"]);
+    }
+
+    /// The reported import failure: two elections sharing a label exported
+    /// `election__General_Election` twice and the importer refused the file.
+    #[test]
+    fn repeated_election_labels_get_numbered_headers() {
+        let headers = election_headers_for(
+            vec![
+                election("1", "General Election", None),
+                election("2", "General Election", None),
+                election("3", "North", None),
+                election("4", "General Election", None),
+            ],
+            &vec![],
+        );
+        assert_eq!(
+            headers,
+            [
+                "election__General_Election",
+                "election__General_Election__2",
+                "election__North",
+                "election__General_Election__3",
+            ]
+        );
+    }
+
+    #[test]
+    fn alias_colliding_with_another_elections_name_is_numbered() {
+        let headers = election_headers_for(
+            vec![
+                election("1", "Regional", Some("General Election")),
+                election("2", "General Election", None),
+            ],
+            &vec![],
+        );
+        assert_eq!(
+            headers,
+            [
+                "election__General_Election",
+                "election__General_Election__2"
+            ]
+        );
+    }
+
+    /// The importer maps `.` and `-` to `_`, and the export sanitizer maps any
+    /// other punctuation to `_`, so these four labels are one import column.
+    #[test]
+    fn labels_that_collide_after_sanitizing_are_numbered() {
+        let headers = election_headers_for(
+            vec![
+                election("1", "General Election", None),
+                election("2", "General-Election", None),
+                election("3", "General.Election", None),
+                election("4", "General/Election", None),
+            ],
+            &vec![],
+        );
+        assert_eq!(
+            headers,
+            [
+                "election__General_Election",
+                "election__General-Election__2",
+                "election__General.Election__3",
+                "election__General_Election__4",
+            ]
+        );
+    }
+
+    /// Unquoted SQL identifiers fold to lowercase on import.
+    #[test]
+    fn labels_differing_only_by_case_are_numbered() {
+        let headers = election_headers_for(
+            vec![
+                election("1", "Board", None),
+                election("2", "board", None),
+                election("3", "BOARD", None),
+            ],
+            &vec![],
+        );
+        assert_eq!(
+            headers,
+            [
+                "election__Board",
+                "election__board__2",
+                "election__BOARD__3"
+            ]
+        );
+    }
+
+    /// A label that already looks like a generated header keeps its name; the
+    /// repeated label skips to the next free number instead.
+    #[test]
+    fn natural_suffix_like_label_keeps_its_name() {
+        let headers = election_headers_for(
+            vec![
+                election("1", "General Election", None),
+                election("2", "General Election", None),
+                election("3", "General Election__2", None),
+            ],
+            &vec![],
+        );
+        assert_eq!(
+            headers,
+            [
+                "election__General_Election",
+                "election__General_Election__3",
+                "election__General_Election__2",
+            ]
+        );
+    }
+
+    /// PostgreSQL keeps the first 63 bytes of an identifier, so long labels
+    /// sharing those bytes are one column. A unique long label keeps its full
+    /// header; a numbered one is shortened so its number survives truncation.
+    #[test]
+    fn long_labels_sharing_the_first_63_bytes_are_numbered_within_63_bytes() {
+        let shared = "A".repeat(53);
+        let headers = election_headers_for(
+            vec![
+                election("1", &format!("{shared} one"), None),
+                election("2", &format!("{shared} two"), None),
+                election("3", &format!("{shared} one"), None),
+            ],
+            &vec![],
+        );
+        assert_eq!(
+            headers,
+            [
+                format!("election__{shared}_one"),
+                format!("election__{}__2", "A".repeat(50)),
+                format!("election__{}__3", "A".repeat(50)),
+            ]
+        );
+        assert!(headers[1..].iter().all(|header| header.len() == 63));
+    }
+
+    /// A realm attribute already exported under an `election__` name is a user
+    /// column: it keeps its name and the election header is numbered instead.
+    #[test]
+    fn election_header_does_not_reuse_a_user_attribute_column() {
+        let attributes = vec![attribute("election__north")];
+        let headers = get_headers(&Some(vec![election("1", "North", None)]), &attributes);
+        assert_eq!(
+            headers[headers.len() - 2..],
+            ["election__north", "election__North__2"]
+        );
+    }
+
+    /// Each participation value stays under its own election's header.
+    #[test]
+    fn numbered_election_columns_stay_aligned_with_participation_values() {
+        let elections = Some(vec![
+            election("first", "General Election", None),
+            election("second", "General Election", None),
+        ]);
+        let user = User {
+            votes_info: Some(vec![sequent_core::types::keycloak::VotesInfo {
+                election_id: "second".into(),
+                num_votes: 1,
+                last_voted_at: String::new(),
+            }]),
+            ..Default::default()
+        };
+        let headers = get_headers(&elections, &vec![]);
+        let record = get_user_record(&elections, &None, &user, &vec![]);
+        assert_eq!(headers.len(), record.len());
+        assert_eq!(
+            headers[headers.len() - 2..],
+            [
+                "election__General_Election",
+                "election__General_Election__2"
+            ]
+        );
+        assert_eq!(record[record.len() - 2..], ["", "true"]);
     }
 
     #[test]
