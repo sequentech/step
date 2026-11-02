@@ -229,13 +229,17 @@ that data on its own:
 |---|---|
 | Voters | `voter-export` |
 | Applications | `application-export` |
-| Activity logs | `logs-export` |
+| Activity logs | `logs-export` and `export-ceremony` |
 | Tally | `tally-results-read` |
 | Reports | `report-read` |
-| Publications | `publish-export` |
+| Publications | `publish-export` and `export-ceremony` |
 | Bulletin board (keys ceremonies and boards) | `export-ceremony` |
 | Documents | `document-download` |
 | Certificates | `ca-read` |
+
+Activity logs and publications need `export-ceremony` because the archive then holds the event's
+protocol manager keys. The separate activity-log export below needs only `logs-export` and holds no
+keys.
 
 | Action | Required permissions |
 |---|---|
