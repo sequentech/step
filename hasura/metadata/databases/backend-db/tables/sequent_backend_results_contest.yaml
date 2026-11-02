@@ -1,12 +1,31 @@
 table:
     name: results_contest
     schema: sequent_backend
+object_relationships:
+    - name: election
+      using:
+          manual_configuration:
+              column_mapping:
+                  election_event_id: election_event_id
+                  election_id: id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: election
+                  schema: sequent_backend
 insert_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - explicit_blank_votes
@@ -119,8 +138,15 @@ select_permissions:
               - total_votes_percent
               - voting_type
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -199,15 +225,29 @@ select_permissions:
               - total_votes_percent
               - voting_type
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: tally-results-read
 update_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - explicit_blank_votes
@@ -243,8 +283,15 @@ update_permissions:
               - total_votes_percent
               - voting_type
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
