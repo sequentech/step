@@ -44,6 +44,8 @@ portal, and this handbook gives no secure way to use them.
 
 ## Signing in
 
+To sign in to the admin portal:
+
 1. Open the admin portal at its address followed by `/tenant`. Under
    "Select Tenant", enter your organisation's tenant name in "Tenant Name"
    and select "Continue". After five failed attempts the admin portal shows "Too many attempts. Please try

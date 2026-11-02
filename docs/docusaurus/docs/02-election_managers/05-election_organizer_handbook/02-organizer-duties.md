@@ -50,6 +50,8 @@ whether to resume.
 
 ### Appoint the people
 
+To appoint the administrators, the election board and the trustees:
+
 1. Appoint the administrators. They configure the TOE and operate it. They are
    never members of the election board.
 2. Appoint the election board: at least the minimum number of members the

@@ -54,6 +54,7 @@ If that number is not set, the TOE refuses every import.
 Who: each approving board member. Phase: before the import, which creates
 a separate election event in the preparation phase. Permission: no permission in the TOE; your approval certificate, which the
 election organizer's certification authority issued to you.
+To approve a configuration package:
 
 1. The election organizer gives you, with its package tool, which runs
    outside the TOE, the package to approve: the name of the configuration, its
@@ -105,7 +106,7 @@ rules and certificate registrations before its protected operations.
 ### Importing the package
 
 Who: one board member. Phase: Preparation in the approval event; the import
-creates a separate event in Preparation.
+creates a separate event in Preparation. To import the package:
 
 1. Select **Import Election Event**. In **Board approval for import**, choose the
    Preparation event configured above. If it is missing, finish its setup first.
@@ -134,6 +135,7 @@ organizer for a corrected signed revision; do not bypass the check.
 
 Who: the election board. Phase: preparation, right after each import.
 Permission: "Read Logs" (`logs-read`) and "Read Area" (`area-read`).
+To check the import:
 
 1. Check that the new election event shows "Electoral phase" Preparation.
 2. On its Logs tab, find the import record `ConfigurationPackageImported`
@@ -246,7 +248,8 @@ Before approving the configuration, a board member with **Admin Dashboard
 View** (`admin-dashboard-view`), **View Monitoring Dashboards**
 (`monitoring-view`) and **Configure Monitoring Dashboards**
 (`monitoring-configure`) prepares the dashboard. The first permission opens
-the election-event Dashboard; its name does not assign the administrator role:
+the election-event Dashboard; its name does not assign the administrator role.
+To prepare the dashboard:
 
 1. Open the election event's **Dashboard** and select **Set up monitoring**.
 2. Choose **COMELEC overseas voting · v6**, the supplied monitoring preset
@@ -336,7 +339,7 @@ refuses). It does not stop voting.
 Who: one board member. Phase: preparation, after the configuration version is
 approved and before the election period starts. Permission: "View Election
 Event Scheduled" (`election-event-scheduled-tab`) and "Create Scheduled Event"
-(`scheduled-event-create`).
+(`scheduled-event-create`). To set the lockdown period:
 
 1. Ask the election organizer for the start and the end of the lockdown
    period. The start lies after the approval of the configuration version and
@@ -467,6 +470,8 @@ the start means that votes may have been added outside the execution phase.
 :::
 
 ## The self-test before the start
+
+To run the self-test before voting starts:
 
 1. Open **Security and self-tests**. Confirm that the approved configuration
    baseline is present; otherwise complete publication first.

@@ -10,6 +10,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ## Log in
 
+To log in:
+
 1. Open the voting portal with the address your election organizer gave you.
    Do the checks in [Before You Vote](03-before_you_vote.md) first.
 2. The voting portal sends you to the login page of the authentication service

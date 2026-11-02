@@ -92,6 +92,8 @@ results. If the page cannot refresh its status, do not act on old displayed data
 
 ## Running a self-test on request
 
+To run a self-test on request:
+
 1. Open **Security and self-tests**.
 2. Select **On request** under **Purpose of the test**.
 3. Select **Run self-tests** once. The request queues background work; you may
@@ -107,7 +109,7 @@ operation remains available for a detailed electoral-log audit.
 
 The election board interrupts the election execution when the electoral
 regulation calls for it, for example because of a suspected attack or a
-problem reported by voters.
+problem reported by voters. To interrupt the election execution:
 
 1. On the Publish tab, select "Pause Voting".
 2. Read "You are about to pause voting period. Are you sure you want to

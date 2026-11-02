@@ -102,7 +102,8 @@ verification.
 
 ## Version
 
-**Where:** the administration workstation's browser.
+**Where:** the administration workstation's browser. To check the version and
+hash in the portal's header:
 
 1. Follow [The first sign-in](09-accounts.md#the-first-sign-in).
 2. Find **VERSION** in the administration portal's header. It must show
@@ -210,7 +211,8 @@ enable shell tracing or generate a replacement as a diagnostic step.
 **When:** after every election-event import, while the event is in Preparation
 and before the board approves its configuration. Register that event's exact
 external-provider redirect address as described in
-[Connecting the Authentication Server](06-authentication_server.md).
+[Connecting the Authentication Server](06-authentication_server.md). To check
+the election event realms:
 
 1. Run `./deploy inspect site.json platform` again from the same administration
    terminal. It prints `EVENT REALM:` followed by each actual imported realm.

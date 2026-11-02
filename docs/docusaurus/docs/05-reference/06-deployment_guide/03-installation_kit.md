@@ -88,6 +88,8 @@ The installer erases the disk it shows. The USB drive also carries the cluster's
 join token. Keep it under the same physical protection as the servers.
 :::
 
+To install the operating system on C1 and C2:
+
 1. Use your workstation's approved USB-image writer to write the accepted
    `nixos/*.iso` to the installation USB. Select the USB by its physical device
    identity; image writing replaces its existing contents.
@@ -131,7 +133,8 @@ with the operator.
 
 The installed servers do not have a console password. Each server automatically
 prepares a **public SSH host-key fingerprint** screen during boot. This lets you
-verify its identity before making the first SSH connection.
+verify its identity before making the first SSH connection. To verify both SSH
+host keys:
 
 1. At C1's trusted physical or hypervisor console, press **Alt+F9**. In a remote
    console viewer, use its send-key menu if it intercepts that combination.

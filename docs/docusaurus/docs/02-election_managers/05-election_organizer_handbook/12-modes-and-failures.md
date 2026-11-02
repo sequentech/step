@@ -54,6 +54,8 @@ was accepted by the transport, failed or has an unknown delivery outcome.
 
 ### Returning to a secure state
 
+To return the election event to a secure state:
+
 1. Record the reason, time and self-test identifier. Preserve the electoral log
    and operational evidence.
 2. Have the administrator and operator investigate and correct the cause using
@@ -181,7 +183,7 @@ ballot box: there is no retry and no way to unseal it. The election cannot be
 counted, because counting needs every ballot box of the election sealed. Other
 ballot boxes and elections are not affected.
 
-**What to do.**
+**What to do:**
 
 1. Ask the operators whether a database of the platform was restored or
    switched over around the time of the seal. A restore of two databases to

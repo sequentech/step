@@ -10,6 +10,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ## Order of work
 
+To complete the tenant and election event settings:
+
 1. Once per tenant, before the first election event is imported: set up
    signed configuration packages
    ([Signed configuration packages](#signed-configuration-packages)).
@@ -87,7 +89,7 @@ You need **Edit Tenant** (`tenant-write`) and **View settings** (`settings-menu`
 to use this screen. The tenant mutation is restricted on the server to the
 `admin-user` role and the tenant named by the authenticated session. These
 portal permissions determine whether the screen is available; they are not an
-additional server permission check.
+additional server permission check. To configure the certificates:
 
 1. Open **Settings → Configuration packages** before importing the first
    election event. The screen is titled **Signed configuration packages**.
@@ -381,6 +383,7 @@ the tab "Publish" and the changes of a version show election data, so the
 administrator role holds neither "Read Publish" (`publish-read`) nor "Edit
 Publish" (`publish-write`). The TOE accepts a publication only in the
 preparation phase and refuses it in every other phase.
+To publish and approve the configuration version:
 
 1. Check the settings of this page once more, and the protected actions and the
    self-test interval, timeout and additional conditions

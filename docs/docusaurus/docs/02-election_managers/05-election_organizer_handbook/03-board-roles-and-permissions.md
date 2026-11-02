@@ -135,6 +135,8 @@ platform.
 
 ### A person joins the election board
 
+To add a new member to the election board:
+
 1. The election organizer appoints the person and gives the administrators
    their identity at the external authentication server.
 2. The administrators create the personal account, link it to the external

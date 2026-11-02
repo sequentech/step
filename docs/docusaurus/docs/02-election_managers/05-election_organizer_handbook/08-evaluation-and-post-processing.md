@@ -18,7 +18,7 @@ election execution data.
 
 At the beginning of the evaluation phase, before the votes are counted, the
 election board (or a person it appoints) checks the audit records of the whole
-election.
+election. To check the audit records:
 
 1. On the election event's Logs tab, select "Audit". The dialog "Audit
    electoral log" says: "The audit checks every log entry against its Merkle
@@ -126,6 +126,8 @@ publish any result.
 
 ## Checking and publishing the result
 
+To check and publish the result:
+
 1. Check the result under "Results & Participation" for each election: the
    number of eligible voters, the number of votes, the votes counted, valid
    and invalid, and the votes of each candidate. The number of votes counted
@@ -166,6 +168,8 @@ result in the board's minutes.
 
 ## Starting post-processing
 
+To start post-processing:
+
 1. In **Security and self-tests**, confirm **Evaluation** and that every
    election has a successfully completed results tally.
 2. Select **Start post-processing**. Read the irreversible phase-change notice.
@@ -198,7 +202,7 @@ log, the tally and results data and the voting records) for the time that the
 electoral regulation fixes. Perform it only in the post-processing phase.
 The TOE requires the execution-export permission, post-processing and the
 required board signatures. The approval binds the selected export options and
-current election data.
+current election data. To export the election execution data:
 
 1. On the election event's Data tab, select "Export". The drawer "Export
    Election Event" opens.
@@ -284,6 +288,8 @@ Delete only after the export (see
 [Exporting the election execution data](#exporting-the-election-execution-data))
 and after the lockdown period has ended.
 :::
+
+To delete the election execution data:
 
 1. Check that the data has been exported and that the copies are readable.
    If new security evidence has arrived since that export, obtain fresh board

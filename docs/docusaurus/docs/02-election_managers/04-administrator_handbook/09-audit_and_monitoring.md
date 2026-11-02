@@ -67,6 +67,8 @@ watches during the execution phase.
 
 ### Set and verify the two rates
 
+To set and verify the two rates:
+
 1. Open **Settings → Attack detection**.
 2. Enter whole numbers in **Failed logins per minute, all accounts**
    (1–100,000) and **Requests per minute, external interfaces**

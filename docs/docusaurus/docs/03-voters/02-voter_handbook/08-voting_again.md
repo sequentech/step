@@ -18,7 +18,7 @@ again.
 
 ## How to vote again
 
-If your election allows it:
+If your election allows it, to vote again:
 
 1. While voting is open, log in and open the "Ballot list". The ballot shows
    "Voted".

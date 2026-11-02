@@ -67,6 +67,7 @@ When an account reaches the threshold, the TOE locks it temporarily and writes
 a record to the electoral log: in the tenant's log for administrators, board
 members and trustees, in the election event's log for voters. The threshold
 applies to the tenant and to every election event of the tenant.
+To set the threshold:
 
 1. Open Settings > "SECURITY".
 2. Set "Authentication failure threshold". The value is a whole number of at

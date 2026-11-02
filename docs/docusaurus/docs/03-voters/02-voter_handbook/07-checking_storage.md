@@ -56,7 +56,7 @@ ballot's encryption. To locate a cast ballot, use its confirmation code instead.
 ## Find your ballot with the ballot locator
 
 You can check that your cast ballot is stored in the intermediate ballot box
-until the end of the election period.
+until the end of the election period. To find it:
 
 1. Open the ballot locator in one of these ways:
    - select the Ballot ID on the confirmation screen;
@@ -86,7 +86,10 @@ until the end of the election period.
 *Actual rehearsal screen with a synthetic voter. The example receipt identifies
 an earlier vote; use the receipt of your own latest vote.*
 
-The ballot content is encrypted. It does not show your selections.
+The ballot content is the encrypted ballot that the ballot box stored under
+your Ballot ID. It is shown so that you can see that ballot: your Ballot ID is
+calculated from its hash, so it stands for this ballot and no other. The ballot
+content is encrypted. It does not show your selections.
 
 :::warning
 
@@ -97,15 +100,18 @@ not cast.
 
 :::
 
-## Keep a copy of your encrypted ballot
+## Copy your encrypted ballot to check that it was counted
 
-If you want to check after the election that your vote was counted, keep a copy
-of your encrypted ballot. If you voted again, use the Ballot ID of the last
+You do not need a copy of your encrypted ballot to find it again: your Ballot
+ID is enough. Copy it only if you want to check after the election that your
+vote was counted. The verification data of the count contain the encrypted
+ballots, not the Ballot IDs, so the election verifier needs the encrypted ballot
+itself. If you voted again, use the Ballot ID of the last
 vote you cast and copy that ballot: only your last vote is counted. Earlier
 ballots can still be found by the locator but are absent from the counted
 ballots, so checking one of them does not verify your final vote. You can copy
 the final ballot only while the ballot locator shows it, and at the latest
-until the end of the election period.
+until the end of the election period. To copy it:
 
 1. Find your ballot with the ballot locator, as described above.
 2. Select all the text shown under "This is your Ballot content:" and copy it,

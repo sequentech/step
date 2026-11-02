@@ -28,6 +28,8 @@ their trustee workstation (see
 
 ## Signing in
 
+To sign in to the admin portal:
+
 1. Open the admin portal at its address followed by `/tenant`. Under
    "Select Tenant", enter in "Tenant Name" the tenant name that the
    administrators give you, and select "Continue".
@@ -85,6 +87,8 @@ tool, outside the TOE, before a board member imports it (see
 
 ### How a signing request works
 
+To authorise a security-critical action:
+
 1. A board member starts the action, for example "Stop Voting". Instead of
    performing it, the TOE creates a signing request and opens its panel. The
    panel shows the "Signing code", the "Signers", how many have signed
@@ -96,6 +100,8 @@ tool, outside the TOE, before a board member imports it (see
 3. When the last required signature arrives, the TOE performs the action.
 
 ### Signing
+
+To sign a request:
 
 1. Check what you sign. For a configuration version, open "Changes in this
    version"; for a document, "Open the document". Compare the "Signing code"

@@ -15,12 +15,12 @@ at the time shown.
 
 | Function | Where you do it | When it is possible | Details |
 |---|---|---|---|
-| Log in | Login page of the authentication service your election organizer tells you about | Any time; voting itself only while voting is open | [Logging In to Vote](04-logging_in.md) |
+| Log in | Login page of the authentication service your election organizer tells you about | From when your election has been set up and its voter list imported until the election is deleted; voting itself only while voting is open | [Logging In to Vote](04-logging_in.md) |
 | See your ballots | "Ballot list" in the voting portal | After you have logged in | [Logging In to Vote](04-logging_in.md) |
 | Fill in, review and cast a ballot | Voting portal, "Click to Vote" | Only while the ballot shows "Open" (execution phase) | [Casting Your Vote](05-casting_your_vote.md) |
 | Audit a ballot instead of casting it | "Audit ballot" on the review screen, then the ballot verifier | While voting is open, before you cast | [Auditing Your Ballot](06-auditing_your_ballot.md) |
 | Get the confirmation that your vote was stored | Confirmation screen "Your vote has been cast" | Right after you cast | [Checking That Your Vote Was Stored and Counted](07-checking_storage.md) |
-| Find your cast ballot and copy your encrypted ballot | "Locate your ballot" in the "Ballot list" | Until the end of the election period | [Checking That Your Vote Was Stored and Counted](07-checking_storage.md) |
+| Find your cast ballot and see the encrypted ballot stored for it | "Locate your ballot" in the "Ballot list" | Until the end of the election period | [Checking That Your Vote Was Stored and Counted](07-checking_storage.md) |
 | Check that your vote was counted | With the verification data and the election verifier that your election organizer makes available, and the copy of your encrypted ballot | After the result has been determined (post-processing phase) | [Checking That Your Vote Was Stored and Counted](07-checking_storage.md) |
 | Vote again | "Click to Vote" for the same ballot | Only if your election allows more than one vote, and only while voting is open | [Voting Again](08-voting_again.md) |
 | Log out | "Logout" in the menu under your name | Any time | [Your Voting Session](09-voting_session.md) |
@@ -77,5 +77,5 @@ What is under your control, and the secure choice for each:
 | The address of the voting portal | Only the address your election organizer gave you, over a secure connection without warnings | [Before You Vote](03-before_you_vote.md) |
 | Audit or cast | Audit if you want to check the encryption; an audited ballot can never be cast, so cast only a new ballot with a new Ballot ID | [Auditing Your Ballot](06-auditing_your_ballot.md) |
 | Your Ballot ID | Keep it to check your ballot later; it does not reveal your selections | [Checking That Your Vote Was Stored and Counted](07-checking_storage.md) |
-| Your encrypted ballot | Copy it from the ballot locator before the end of the election period if you want to check later that your vote was counted | [Checking That Your Vote Was Stored and Counted](07-checking_storage.md) |
+| Your encrypted ballot | No need to keep it: the ballot locator shows it so that you can see the ballot stored under your Ballot ID, which is calculated from its hash. Copy it before the end of the election period only if you want to check after the election that your vote was counted: the election verifier needs the encrypted ballot itself | [Checking That Your Vote Was Stored and Counted](07-checking_storage.md) |
 | Ending your session | Log out and close the browser when you have finished | [Your Voting Session](09-voting_session.md) |

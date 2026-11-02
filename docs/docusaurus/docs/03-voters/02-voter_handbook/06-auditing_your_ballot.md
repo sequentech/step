@@ -46,6 +46,8 @@ Auditing is optional. You can audit as many times as you like before you cast.
 *Current voting interface with synthetic example data. Auditing spoils this
 ballot; cancel if you want to return to the review screen.*
 
+To start the audit:
+
 1. On "Review your ballot", note the Ballot ID shown after "Your Ballot ID:".
    After the audit you check that your new ballot has a different one.
 2. Select "Audit ballot".
@@ -59,7 +61,7 @@ ballot; cancel if you want to return to the review screen.*
 ## Step 2: Save the audit details
 
 The voting portal shows "Check your ballot" with "To check your ballot, follow
-the steps below:".
+the steps below:". To save the audit details:
 
 1. Under "1. Save the following details:", note the Ballot ID shown at the top
    of this screen after "Your Ballot ID:". Copy it exactly. This is the Ballot
@@ -72,6 +74,8 @@ the steps below:".
    data as text below the button.
 
 ## Step 3: Open the ballot verifier
+
+To open the ballot verifier:
 
 1. Under "2. Check your ballot", select the link "Check your ballot code". The
    ballot verifier opens in a new tab of your browser.
@@ -87,6 +91,8 @@ the steps below:".
 *Illustration: the v10.0.0 verifier before a file is loaded. Use your own audit
 file and Ballot ID, not “Use a sample ballot”. This empty screen does not show
 a successful verification.*
+
+To check your ballot:
 
 1. Under "Step 1: Import your ballot", drag the file you downloaded onto the area
    that says "Drag & drop files or", or select "Browse" and choose the file. The
@@ -116,6 +122,8 @@ about your ballot.
 :::
 
 ## Step 5: Vote
+
+To vote after the audit:
 
 1. Go back to the tab of the voting portal. At the bottom of "Check your ballot"
    it says: "For security reasons, when you audit your ballot, it needs to be

@@ -15,7 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 | Document ID | AGD-01 |
 | Title | Handbook for Voters |
 | TOE reference (TOE: target of evaluation, the product as evaluated) | `Sequent Voting Platform - uniWAHL Version, v10.0.0` |
-| Document version | 1.0 |
+| Document version | 1.1 |
 | Software release | v10.0.0 |
 | Role | Voter |
 
@@ -121,6 +121,7 @@ screen is not evidence that your own operation completed.
 
 ## Document history
 
-| Release | Changes |
-|---|---|
-| v10.0.0 | First edition for the evaluated configuration. |
+| Version | Date | Changes |
+|---|---|---|
+| 1.0 | 2026-10-27 | First edition for the evaluated configuration of v10.0.0. |
+| 1.1 | 2026-11-02 | Introductions to numbered steps; Your Role, Casting Your Vote, Auditing, Checking Storage and States revised; new screenshots. |

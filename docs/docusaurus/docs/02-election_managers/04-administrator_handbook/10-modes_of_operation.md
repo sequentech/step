@@ -45,6 +45,7 @@ when a new configuration version is needed.
 A pause stops voting and invalidates the previous transition evidence. The board
 records why it paused the election and decides whether resumption is allowed
 under the electoral regulation. An administrator does not take that decision.
+To resume voting:
 
 1. Resolve the reason for the pause and preserve the relevant records.
 2. Select **Security and self-tests → Before resuming voting → Run self-tests**.
@@ -62,6 +63,7 @@ check and then submit a new authorized operation.
 voting. A failed required check, a stopped required service or an expired
 service heartbeat causes refusal. A repair or restart does not reopen voting.
 The system records the transition and queues a separate security notification.
+To recover and resume voting:
 
 1. Read the reason and the latest check results in **Security and self-tests**.
 2. Tell the board and server operator. Record the event identifier, run

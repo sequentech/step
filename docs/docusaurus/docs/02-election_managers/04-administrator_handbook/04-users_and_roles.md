@@ -165,6 +165,7 @@ the election board, not deleted
 The evaluated installation supplies the `election-board` role. Use it for
 board members and trustees, then verify its permissions before use. The display
 name "Election board" below refers to this role.
+To verify the role's permissions:
 
 1. In **Users and Roles → Roles**, open `election-board`. On an older tenant
    without this role, select **Add** and create it with that name.
@@ -284,7 +285,7 @@ encrypted working media and backups.
 Before the key ceremony, register each trustee in Settings > "TRUSTEES" with
 "Create Trustee" if the list is empty, or "Add" if it already contains a
 trustee. You need "Create Trustee" (`trustee-create`), "Read Trustee"
-(`trustee-read`) and "Edit Trustee" (`trustee-write`).
+(`trustee-read`) and "Edit Trustee" (`trustee-write`). To register a trustee:
 
 1. Receive the trustee's two public keys from the trustee in person, or on a
    medium the trustee hands over: `signing_public_key` and
@@ -314,6 +315,7 @@ started.
 
 Create one personal account for each administrator, each board member and each
 trustee whom the election organizer has appointed in writing.
+To create a personal account:
 
 1. In "Users and Roles", tab "Users", select "Add".
 2. Enter the person's "Username" and "Email" exactly as the external

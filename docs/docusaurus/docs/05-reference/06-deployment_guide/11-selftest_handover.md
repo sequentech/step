@@ -91,7 +91,7 @@ The admin portal shows no plugins, no telephone provider and no other
 tenants. The administrators therefore rely on the operator's written
 confirmation of these settings. The operator gives it after the installation
 and again for each new election event, before the election board approves its
-configuration version.
+configuration version. To confirm the server settings:
 
 1. Make every check of
    [Data correction, telephone channel, plugins and tenants](10-verification.md#data-correction-telephone-channel-plugins-and-tenants)

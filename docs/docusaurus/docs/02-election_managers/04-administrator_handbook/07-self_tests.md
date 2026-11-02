@@ -21,6 +21,8 @@ test is never a passed test.
 
 ## Run the checks
 
+To run the checks:
+
 1. Select the **Purpose of the test**:
    - **On request** for an additional diagnostic run.
    - **Before starting voting** before the board starts the election.
@@ -61,6 +63,7 @@ silently learn a new baseline after a failed test.
 
 An administrator with `self-test-settings-write` may change **Automatic
 self-tests** during **Preparation**. The controls are read-only in later phases.
+To change the self-test settings:
 
 1. Set **Interval in minutes (1–60)**. The default is **15 minutes**.
 2. Set **Suite timeout in seconds (10–600)**. The default is **60 seconds**.

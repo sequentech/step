@@ -143,7 +143,7 @@ Who: each trustee the ceremony names. Phase: preparation. Permission: the role
 custody" (`sign-key-ceremony`) where that protected action needs signatures.
 
 When the election board has created the key ceremony, the admin portal shows
-you: "You have been invited to participate in a Key Ceremony."
+you: "You have been invited to participate in a Key Ceremony." To take part:
 
 1. Sign in with your personal account and open the election event's Keys tab.
    Select the ceremony's key action.
@@ -206,6 +206,7 @@ you: "You have been invited to participate in a Tally ceremony." Check its
 purpose with the board: an initialization report checks that the ballot box
 is empty before voting; an electoral-results tally counts votes after voting
 has closed. Both require a new custody proof bound to their own tally.
+To authorise the tally:
 
 1. Sign in with your personal account, open the election event's Tally tab and
    select the tally's action.
@@ -256,6 +257,8 @@ command and tell the election board.
   [A trustee leaves](03-board-roles-and-permissions.md#a-trustee-leaves).
 
 ## If your keys file is lost or exposed
+
+To handle the loss or exposure:
 
 1. Tell the election board at once, with the time and what happened.
 2. The election board treats it as a security-relevant event and records it.

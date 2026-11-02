@@ -223,7 +223,8 @@ only in the cluster's encrypted Secret.
 
 **Where to work:** the administration workstation—the computer from which you
 connect to C1 and C2 over SSH. This is not the admin portal, a user named `admin`,
-or a separate trustee server.
+or a separate trustee server. To transfer the matching keys and start the
+instances:
 
 1. Complete [customer creation and account setup](#create-the-customers-tenant)
    and register both trustees as described above. In `site.json`, each

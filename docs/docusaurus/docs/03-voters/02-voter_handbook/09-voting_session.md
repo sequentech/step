@@ -30,6 +30,8 @@ Finish or cast your ballot before the time runs out.
 
 ## Log out
 
+To log out:
+
 1. At the top of the page, select your name (it follows "Welcome,") to open the
    menu.
 2. Select "Logout".
@@ -50,6 +52,8 @@ ballots to vote on.
 out.
 
 :::
+
+To end your session safely:
 
 1. Log out.
 2. Close all browser tabs and windows of the voting portal and the ballot

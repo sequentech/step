@@ -21,17 +21,23 @@ IDs will differ.
 
 ![Actual ballot list with the available synthetic rehearsal ballot](./assets/voter-chooser-current.png)
 
+If your election offers instructions for each screen, the question-mark icon at
+the top right of the screen shows them, and the speaker icon next to it, where
+your browser has a voice for your language, reads them aloud.
+
+To open your ballot:
+
 1. In the "Ballot list", find the ballot you want to vote on.
 2. Select "Click to Vote".
 
-## Step 2: Read the instructions
+## Step 2: Start voting
 
 ![How to vote screen with the Start Voting button](./assets/voter-start-current.png)
 
 The voting portal shows "How to vote" with the three steps of voting: make your
-selections, review them, and cast your ballot.
+selections, review them, and cast your ballot. To start voting:
 
-1. Read the instructions.
+1. Read the three steps.
 2. Select "Start Voting".
 
 If your election offers it, the screen also shows "Decline to Vote". If you
@@ -42,6 +48,8 @@ cast it in the same way as any other ballot.
 ## Step 3: Make your selections
 
 ![Actual candidate selection with Option A checked](./assets/voter-vote-current.png)
+
+To make your selections:
 
 1. For each question (contest), select the options you want. The question says
    how many options you can select.
@@ -57,15 +65,17 @@ selections:
 | "Review your ballot" | Your selections may need your attention, for example because you selected fewer options than allowed. The ballot is valid. | "Back and review" to go back, or "Continue" |
 | "You have not selected any candidates" | Your ballot would be cast blank. A blank ballot is valid. | "Cancel" to go back, or "Continue" |
 
-Nothing is sent as a vote at this step.
+When you continue, your browser encrypts your ballot on your device and the
+voting portal opens the review screen. Nothing is cast at this step.
 
 ## Step 4: Review your ballot
 
 ![Review screen with the selection, Ballot ID, edit, audit and cast buttons](./assets/voter-review-current.png)
 
-When you select "Next", your browser encrypts your ballot. The voting portal
-then shows "Review your ballot" with your selections. At the top it shows "Your
-Ballot ID:" followed by a code.
+The voting portal shows "Review your ballot" with your selections. Your ballot is
+already encrypted: at the top, the screen shows "Your Ballot ID:" followed by
+the code of this encrypted ballot. You can now cast this ballot, or audit it to
+check that it contains your selections.
 
 With signed ballot receipts, this is a short code in two groups of four
 characters, such as `G5AT-12SZ`. Copy your own code exactly. The audit screen
@@ -74,11 +84,16 @@ instructions in [Auditing Your Ballot](06-auditing_your_ballot.md).
 
 :::info
 
-**Your vote has not been cast yet.** The voting system has received your
-encrypted ballot, but it does not count until you cast it. If you look up this
-Ballot ID now, nothing is found.
+**Your vote has not been cast yet.** When this screen opens, the voting portal
+sends your encrypted ballot to the intermediate ballot box. The ballot box
+stores it as received, not as cast, and confirms this with its signature, which
+your browser checks. The Ballot ID is calculated from your encrypted ballot and
+this confirmation. A received ballot is never counted; only casting it makes it
+count. Until you cast it, the ballot locator does not find this Ballot ID.
 
 :::
+
+To finish the review:
 
 1. Check every selection carefully.
 2. Choose the action you need:
@@ -98,6 +113,8 @@ your ballot when you select "Cast ballot", and encrypt it again. Check your
 selections and continue as before.
 
 ## Step 5: Cast your vote
+
+To cast your vote:
 
 1. Select "Cast ballot".
 2. If your election asks you to confirm, the voting portal shows "Are you sure
@@ -159,7 +176,7 @@ log in again and start again from step 1.
 ## If casting fails
 
 If the voting portal shows an error instead of "Your vote has been cast", your
-vote may or may not have been cast. Do not assume either:
+vote may or may not have been cast. Do not assume either. To find out:
 
 1. Log in again, if needed, and open the "Ballot list".
 2. If the ballot shows "Not voted" and voting is still open, vote again from

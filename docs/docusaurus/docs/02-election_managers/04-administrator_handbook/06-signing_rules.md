@@ -140,7 +140,7 @@ authorisation requirement in the Security Target.*
 ## Setting a signing rule
 
 You can change signing rules only in the preparation phase, before the
-election board approves the configuration version.
+election board approves the configuration version. To set a signing rule:
 
 1. Open the election event, tab "Signatures", area "Protected actions". The
    table shows "Action", "Applies to", "Who can sign", "Signatures needed",
@@ -214,6 +214,7 @@ described below. Use your election’s actual issuers and revocation policy.*
 "Staff certificates must chain to one of these. They are separate from the
 certificates voters sign in with." While the list is empty the tab shows "No
 trusted issuers yet. Staff can't sign until one is imported."
+To import the trusted issuers:
 
 1. Receive the CA certificates that issue the board members' signing
    certificates from the election organizer, with their SHA-256 fingerprints
@@ -269,6 +270,7 @@ has revoked can still sign while its list cannot be downloaded.
 With "Only when someone who can register certificates registers it", a board
 member can sign only after an administrator has registered their certificate.
 Only the administrator role holds "Signatures: register certificates".
+To register a board member's certificate:
 
 1. Meet the board member in person. Check their identity and receive their
    public certificate (PEM) from them, for example on a medium they hand over.

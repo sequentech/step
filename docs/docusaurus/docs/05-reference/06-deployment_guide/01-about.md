@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 | Document ID | AGD-04 |
 | Title | Deployment Guide |
 | TOE reference | Sequent Voting Platform - uniWAHL Version, v10.0.0 |
-| Document version | 1.0 |
+| Document version | 1.1 |
 | Software release | v10.0.0 |
 
 This guide holds the preparative procedures of the Sequent Voting Platform -
@@ -411,6 +411,7 @@ their example addresses and identifiers are not values to enter at your site.
 
 ## Document history
 
-| Release | Changes |
-| --- | --- |
-| v10.0.0 | First edition for the evaluated configuration. |
+| Version | Date | Changes |
+| --- | --- | --- |
+| 1.0 | 2026-10-27 | First edition for the evaluated configuration of v10.0.0. |
+| 1.1 | 2026-11-02 | Introductions to numbered steps; Installing the TOE, Verifying the Installation and Self-Test revised; new screenshots. |
