@@ -18,6 +18,7 @@ import {
     setCookie,
     getValueFromCookie,
     sanitizePresentationCss,
+    shortAppHash,
 } from "@sequentech/ui-core"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
@@ -146,9 +147,13 @@ const HeaderWithContext: React.FC = () => {
         }
     }
 
+    const appHash = shortAppHash(globalSettings.APP_HASH)
+
     return (
         <Header
             appVersion={{main: globalSettings.APP_VERSION}}
+            appHash={appHash ? {main: appHash} : undefined}
+            appHashDesktopOnly
             userProfile={{
                 firstName: authContext.firstName,
                 username: authContext.username,
@@ -182,6 +187,7 @@ const HeaderWithContext: React.FC = () => {
             }}
             onChangeLanguage={onChangeLanguage}
             accessibilitySettingsPolicy={presentation?.voter_accessibility_settings_policy}
+            actions={<ScreenAudioInstructions />}
         />
     )
 }
@@ -258,7 +264,6 @@ export const PortalChrome: React.FC<PortalChromeProps> = ({
                         tabIndex={-1}
                     >
                         <WatermarkBackground />
-                        <ScreenAudioInstructions />
                         {/* The shared ballot asks a port for the voter's marks
                             rather than reading this app's store, so that the
                             Election Architect can render the same components over

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {StoryFn, Meta} from "@storybook/react-vite"
-import {expect, userEvent, within} from "storybook/test"
+import {expect, userEvent, waitFor, within} from "storybook/test"
 import {EAudioInstructionsPolicy} from "@sequentech/ui-core"
 import AudioInstructions from "../AudioInstructions"
 
@@ -32,11 +32,9 @@ Synthesized.args = {
 export const Transcript = Template.bind({})
 Transcript.args = {...Synthesized.args}
 Transcript.play = async ({canvasElement}) => {
-    const canvas = within(canvasElement)
-    await userEvent.click(canvas.getByRole("button", {name: "Read the instructions"}))
-    await expect(canvas.getByText(text)).toBeVisible()
-    await expect(canvas.getByRole("button", {name: "Hide the instructions"})).toHaveAttribute(
-        "aria-expanded",
-        "true"
-    )
+    const toggle = within(canvasElement).getByRole("button", {name: "Read the instructions"})
+    await userEvent.click(toggle)
+    // The text opens in a popover, outside the canvas.
+    await waitFor(() => expect(within(document.body).getByText(text)).toBeVisible())
+    await expect(toggle).toHaveAttribute("aria-expanded", "true")
 }

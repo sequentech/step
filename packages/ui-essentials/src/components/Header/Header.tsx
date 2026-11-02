@@ -140,6 +140,8 @@ export interface HeaderProps {
     appVersion?: ApplicationVersion
     /** Absent, the header shows no hash. */
     appHash?: ApplicationVersion
+    /** Whether the hash shows on wide screens (md and up) only. */
+    appHashDesktopOnly?: boolean
     logoLink?: string
     userProfile?: UserProfile
     logoUrl?: string
@@ -157,6 +159,7 @@ export default function Header({
     userProfile,
     appVersion,
     appHash,
+    appHashDesktopOnly,
     logoutFn,
     logoLink,
     logoUrl,
@@ -190,7 +193,11 @@ export default function Header({
                 <PageLimit
                     className="header-page-limit"
                     maxWidth="lg"
-                    sx={{height: {xs: "37px", md: "47px"}}}
+                    sx={{
+                        minHeight: {xs: "37px", md: "47px"},
+                        display: "flex",
+                        alignItems: "center",
+                    }}
                 >
                     <PageBanner className="header-content" direction="row" sx={{height: "100%"}}>
                         <StyledLink className="header-logo-link" href={logoLink} target="_blank">
@@ -201,14 +208,23 @@ export default function Header({
                                 alt="Logo Image"
                             />
                         </StyledLink>
+                        {/* On a narrow phone the controls wrap rather than scroll sideways. */}
                         <Box
                             className="header-actions"
                             display="flex"
                             alignItems="center"
-                            sx={{gap: {xs: "11px", lg: "31px"}}}
+                            justifyContent="flex-end"
+                            flexWrap="wrap"
+                            sx={{columnGap: {xs: "6px", sm: "11px", lg: "31px"}, rowGap: "6px"}}
                         >
                             <Version version={appVersion ?? {main: "0.0.0"}} />
-                            {appHash ? <Version header="hash.header" version={appHash} /> : null}
+                            {appHash ? (
+                                <Version
+                                    header="hash.header"
+                                    version={appHash}
+                                    desktopOnly={appHashDesktopOnly}
+                                />
+                            ) : null}
                             {accessibilitySettingsPolicy ===
                             EVoterAccessibilitySettingsPolicy.ENABLED ? (
                                 <AccessibilityMenu />

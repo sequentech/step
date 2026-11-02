@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
+import React, {useContext} from "react"
 import {fireEvent, render, screen, within} from "@testing-library/react"
 import {Provider} from "react-redux"
 import {MemoryRouter} from "react-router-dom"
@@ -15,6 +15,7 @@ import {
     fetchContactChangeAvailable,
     messagingChannelsUrl,
 } from "../providers/AuthContextProvider"
+import {SettingsContext} from "../providers/SettingsContextProvider"
 import {store} from "../store/store"
 import {PortalChrome} from "./PortalChrome"
 
@@ -24,10 +25,17 @@ jest.mock("../../../ui-essentials/src/components/Header/Header", () => ({
     __esModule: true,
     default: ({
         userProfile,
+        appHash,
+        appHashDesktopOnly,
+        actions,
     }: {
         userProfile?: {menuActions?: Array<{id: string; label: string; onSelect: () => void}>}
+        appHash?: {main: string}
+        appHashDesktopOnly?: boolean
+        actions?: React.ReactNode
     }) => (
-        <header>
+        <header data-app-hash={appHash?.main} data-app-hash-desktop-only={appHashDesktopOnly}>
+            {actions}
             {userProfile?.menuActions?.map((action) => (
                 <button role="menuitem" key={action.id} onClick={action.onSelect}>
                     {action.label}
@@ -43,10 +51,17 @@ jest.mock("@sequentech/ui-essentials", () => ({
     ...jest.requireActual("../../../ui-essentials/src/ballot/selection"),
     Header: ({
         userProfile,
+        appHash,
+        appHashDesktopOnly,
+        actions,
     }: {
         userProfile?: {menuActions?: Array<{id: string; label: string; onSelect: () => void}>}
+        appHash?: {main: string}
+        appHashDesktopOnly?: boolean
+        actions?: React.ReactNode
     }) => (
-        <header>
+        <header data-app-hash={appHash?.main} data-app-hash-desktop-only={appHashDesktopOnly}>
+            {actions}
             {userProfile?.menuActions?.map((action) => (
                 <button role="menuitem" key={action.id} onClick={action.onSelect}>
                     {action.label}
@@ -67,7 +82,7 @@ jest.mock("../../../ui-essentials/src/components/PageBanner/PageBanner", () => (
 }))
 jest.mock("./WaterMark/Watermark", () => ({__esModule: true, default: () => null}))
 jest.mock("./ScreenAudioInstructions/ScreenAudioInstructions", () => ({
-    ScreenAudioInstructions: () => null,
+    ScreenAudioInstructions: () => <section aria-label="Audio instructions" />,
 }))
 jest.mock("./BallotSelectionAdapter", () => ({
     BallotSelectionAdapter: ({children}: React.PropsWithChildren) => <>{children}</>,
@@ -107,18 +122,54 @@ const auth = (values: Partial<AuthContextValues> = {}): AuthContextValues => ({
     ...values,
 })
 
-const renderChrome = (values: AuthContextValues) =>
+const WithAppHash: React.FC<React.PropsWithChildren<{appHash: string}>> = ({appHash, children}) => {
+    const settings = useContext(SettingsContext)
+    return (
+        <SettingsContext.Provider
+            value={{...settings, globalSettings: {...settings.globalSettings, APP_HASH: appHash}}}
+        >
+            {children}
+        </SettingsContext.Provider>
+    )
+}
+
+const renderChrome = (values: AuthContextValues, appHash = "-") =>
     render(
         <Provider store={store}>
             <MemoryRouter>
-                <AuthContext.Provider value={values}>
-                    <PortalChrome>
-                        <p>screen</p>
-                    </PortalChrome>
-                </AuthContext.Provider>
+                <WithAppHash appHash={appHash}>
+                    <AuthContext.Provider value={values}>
+                        <PortalChrome>
+                            <p>screen</p>
+                        </PortalChrome>
+                    </AuthContext.Provider>
+                </WithAppHash>
             </MemoryRouter>
         </Provider>
     )
+
+describe("the header", () => {
+    test("holds the screen's audio instructions, outside the main content", () => {
+        renderChrome(auth())
+        const instructions = screen.getByRole("region", {name: "Audio instructions"})
+        expect(screen.getByRole("banner")).toContainElement(instructions)
+        expect(screen.getByRole("main")).not.toContainElement(instructions)
+    })
+
+    test.each([
+        [
+            "the start of the deployed revision",
+            "94cc549b2c68b04b87e2bb961224d4e4305f5df3",
+            "94CC-549B",
+        ],
+        ["nothing without a revision", "-", undefined],
+    ])("shows as the hash %s, on wide screens only", (_case, appHash, shown) => {
+        renderChrome(auth(), appHash)
+        const header = screen.getByRole("banner")
+        expect(header.dataset.appHash).toBe(shown)
+        expect(header.dataset.appHashDesktopOnly).toBe("true")
+    })
+})
 
 describe("the contact change entry", () => {
     test("is hidden while the event offers no channel for codes", () => {

@@ -9,6 +9,8 @@ import {styled} from "@mui/material/styles"
 interface VersionProps {
     header?: string
     version: {[key: string]: string}
+    /** Shown on wide screens (md and up) only, rather than from sm up. */
+    desktopOnly?: boolean
 }
 
 const StyledVersion = styled(Typography)<{component?: React.ElementType}>(({theme}) => ({
@@ -22,14 +24,14 @@ const StyledVersion = styled(Typography)<{component?: React.ElementType}>(({them
     backgroundColor: "rgba(255, 255, 255, 0.4)",
 }))
 
-const Version: React.FC<VersionProps> = ({version, header}) => {
+const Version: React.FC<VersionProps> = ({version, header, desktopOnly}) => {
     const {t} = useTranslation()
 
     return (
         <StyledVersion
             component="div"
             variant="button"
-            sx={{display: {xs: "none", sm: "flex"}}}
+            sx={{display: desktopOnly ? {xs: "none", md: "flex"} : {xs: "none", sm: "flex"}}}
             className="app-version"
         >
             <Box

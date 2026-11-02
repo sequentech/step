@@ -12,6 +12,7 @@ import {
     GlobalStyles,
     Radio,
     RadioGroup,
+    Tooltip,
     Typography,
 } from "@mui/material"
 import {useTranslation} from "react-i18next"
@@ -88,26 +89,21 @@ const AccessibilityMenu: React.FC = () => {
     return (
         <Box className="accessibility-settings">
             <GlobalStyles styles={accessibilityStyles} />
-            <Button
-                className="accessibility-settings-button"
-                variant="actionbar"
-                aria-haspopup="dialog"
-                aria-label={t("accessibility.button")}
-                onClick={() => {
-                    setAnnouncement("")
-                    setOpen(true)
-                }}
-                sx={{gap: "10px"}}
-            >
-                <AccessibilityNewIcon className="accessibility-settings-icon" aria-hidden />
-                <Box
-                    className="accessibility-settings-label"
-                    component="span"
-                    sx={{display: {xs: "none", md: "block"}}}
+            <Tooltip title={t("accessibility.button")}>
+                <Button
+                    className="accessibility-settings-button"
+                    variant="actionbar"
+                    aria-haspopup="dialog"
+                    aria-label={t("accessibility.button")}
+                    onClick={() => {
+                        setAnnouncement("")
+                        setOpen(true)
+                    }}
+                    sx={{minWidth: 0, px: "6px"}}
                 >
-                    {t("accessibility.button")}
-                </Box>
-            </Button>
+                    <AccessibilityNewIcon className="accessibility-settings-icon" aria-hidden />
+                </Button>
+            </Tooltip>
             <Dialog
                 className="accessibility-settings-dialog"
                 variant="info"

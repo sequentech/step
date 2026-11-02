@@ -13,6 +13,7 @@ import {
     setCookie,
     USER_LANGUAGE_COOKIE_NAME,
     getValueFromCookie,
+    shortAppHash,
 } from "@sequentech/ui-core"
 import {HomeScreen} from "./screens/HomeScreen"
 import {ConfirmationScreen} from "./screens/ConfirmationScreen"
@@ -64,9 +65,13 @@ const HeaderWithContext: React.FC = () => {
         }
     }
 
+    const appHash = shortAppHash(globalSettings.APP_HASH)
+
     return (
         <Header
             appVersion={{main: globalSettings.APP_VERSION}}
+            appHash={appHash ? {main: appHash} : undefined}
+            appHashDesktopOnly
             userProfile={{
                 firstName: authContext.firstName,
                 username: authContext.username,

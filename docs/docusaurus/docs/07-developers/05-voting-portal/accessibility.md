@@ -162,13 +162,13 @@ with the attributes set on `<html>` at 1280 and 320 CSS px wide and check that
 ### Give each screen its spoken instructions
 
 Where the event enables them (`audio_instructions_policy`), `PortalChrome` renders
-`ScreenAudioInstructions` as the first thing in `<main>`. It maps the route to an
-`EAudioInstructionsScreen`, takes that screen's text from
+`ScreenAudioInstructions` as the header's `actions`, beside the accessibility menu. It maps
+the route to an `EAudioInstructionsScreen`, takes that screen's text from
 `audioInstructions.screens.<screen>` in `voting-portal/src/translations`, and looks for an
 uploaded recording among the event's support materials (`data.audio_instructions`, with a
 `screen` and a `language`). The shared `AudioInstructions` player in `ui-essentials` plays
 the recording, or speaks the text with the Web Speech API when there is none, and always
-offers the text as a transcript.
+offers the text as a transcript, in a popover under its icon.
 
 When adding a voter screen:
 

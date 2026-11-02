@@ -8,7 +8,9 @@ import * as AudioInstructionsStories from './AudioInstructions.stories'
 Spoken instructions for the screen the voter is on. It plays `recordingUrl` when
 there is one and otherwise speaks `text` with the browser's speech synthesis,
 if the browser has a voice for `language`. The same text can always be read as
-a transcript. Audio never starts by itself.
+a transcript, in a popover under the question-mark icon. Audio never starts by
+itself. The controls are small icon buttons for the header, next to the
+accessibility button.
 
 With `policy` absent or `disabled` nothing is rendered; with `recorded`, only
 when there is a recording.

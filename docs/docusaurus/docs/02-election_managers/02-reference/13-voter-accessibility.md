@@ -17,8 +17,9 @@ presentation does not suit.
 
 ## Accessibility settings
 
-When enabled, an **Accessibility** button appears in the Voting Portal header, next to the
-language selector. It opens a dialog with four settings:
+When enabled, an **Accessibility** button appears in the Voting Portal header, to the left of
+the language selector. It is an icon whose name shows as a tooltip and is read by screen
+readers. It opens a dialog with four settings:
 
 | Setting | Choices | Effect |
 |---|---|---|
@@ -79,7 +80,8 @@ or `em`.
 
 ## Audio instructions
 
-When enabled, every voter screen has small icon buttons at its top right: a speaker icon,
+When enabled, every voter screen has small icon buttons in its header, between the
+**Accessibility** button and the language selector: a speaker icon,
 **Listen to the instructions**, and a question-mark icon, **Read the instructions**; their
 names show as tooltips and are read by screen readers. The audio explains, for that screen,
 what the screen is for and how to use it with a keyboard: how to move, select, continue and
@@ -90,9 +92,10 @@ audit, ballot locator and support materials.
 
 The voter can pause, resume and stop the audio. It never starts by itself, because a voter
 using a screen reader would hear two voices at once, and it stops when the voter leaves the
-screen or changes the language. **Read the instructions** shows the same text on screen, so it
-also reaches braille displays. Without a recording or a browser voice for the language, only
-the question-mark icon is shown.
+screen or changes the language. **Read the instructions** shows the same text on screen, in a
+small panel under the icon, so it also reaches braille displays. Escape, a click outside the
+panel or its close button closes it. Without a recording or a browser voice for the language,
+only the question-mark icon is shown.
 
 ### Where the audio comes from
 

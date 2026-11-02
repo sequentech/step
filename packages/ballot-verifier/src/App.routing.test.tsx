@@ -308,6 +308,22 @@ describe("the header", () => {
         ).toBeVisible()
         expect(document.cookie).toContain("USER_LANGUAGE=es")
     })
+
+    it("shows the short system hash of the deployed revision", async () => {
+        services = serve({APP_HASH: "94cc549b2c68b04b87e2bb961224d4e4305f5df3"})
+        launch(`${voterEvent}/start`)
+        await importStep()
+
+        expect(screen.getByRole("banner")).toHaveTextContent("Hash:94CC-549B")
+    })
+
+    it("shows no hash for a deployment without one", async () => {
+        services = serve()
+        launch(`${voterEvent}/start`)
+        await importStep()
+
+        expect(screen.getByRole("banner")).not.toHaveTextContent("Hash:")
+    })
 })
 
 describe("with authentication disabled", () => {

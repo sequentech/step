@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {act, render, screen} from "@testing-library/react"
-import userEvent from "@testing-library/user-event"
+import {act, render, screen, within} from "@testing-library/react"
+import userEvent, {UserEvent} from "@testing-library/user-event"
 import "@testing-library/jest-dom"
 import {createInstance} from "i18next"
 import {I18nextProvider} from "react-i18next"
@@ -173,11 +173,44 @@ it("offers the text to read where there is neither a recording nor a voice", asy
     expect(screen.queryByText(text)).not.toBeInTheDocument()
 
     await user.click(toggle)
-    expect(screen.getByRole("button", {name: "Hide the instructions"})).toHaveAttribute(
+    // The text opens over the page, which hides the toggle from assistive technology meanwhile.
+    expect(toggle).toHaveAccessibleName("Hide the instructions")
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
+    const transcript = screen.getByRole("dialog", {name: "Audio instructions"})
+    expect(transcript).toHaveFocus()
+    expect(within(transcript).getByText(text)).toBeVisible()
+    const controlled = document.getElementById(toggle.getAttribute("aria-controls") ?? "")
+    expect(controlled).toHaveAttribute("lang", "tl")
+    expect(controlled).toHaveTextContent(text)
+})
+
+it.each([
+    ["Escape", (user: UserEvent) => user.keyboard("{Escape}")],
+    [
+        "a click outside it",
+        (user: UserEvent) =>
+            user.click(document.querySelector(".audio-instructions-popover .MuiBackdrop-root")!),
+    ],
+    [
+        "its close button",
+        (user: UserEvent) =>
+            user.click(screen.getByRole("button", {name: "Hide the instructions"})),
+    ],
+])("closes the text on %s and returns to its icon", async (_case, close) => {
+    const user = userEvent.setup()
+    await view({})
+    const toggle = screen.getByRole("button", {name: "Read the instructions"})
+    await user.click(toggle)
+    expect(toggle.closest("[inert]")).not.toBeNull()
+
+    await close(user)
+    expect(screen.queryByText(text)).not.toBeInTheDocument()
+    expect(toggle.closest("[inert]")).toBeNull()
+    expect(screen.getByRole("button", {name: "Read the instructions"})).toHaveAttribute(
         "aria-expanded",
-        "true"
+        "false"
     )
-    expect(screen.getByText(text)).toBeVisible()
+    expect(toggle).toHaveFocus()
 })
 
 it("works in a browser without speech synthesis", async () => {

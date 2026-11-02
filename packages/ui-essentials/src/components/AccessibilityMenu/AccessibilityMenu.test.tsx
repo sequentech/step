@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {render, screen, waitFor, within} from "@testing-library/react"
+import {act, render, screen, waitFor, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import "@testing-library/jest-dom"
 import {createInstance} from "i18next"
@@ -52,7 +52,7 @@ it("lets a keyboard user change a setting, hear it, and get focus back", async (
 
     const button = screen.getByRole("button", {name: "Accessibility"})
     expect(button).toHaveAttribute("aria-haspopup", "dialog")
-    button.focus()
+    act(() => button.focus())
     await user.keyboard("{Enter}")
 
     const dialog = await screen.findByRole("dialog", {name: "Accessibility settings"})
@@ -70,6 +70,16 @@ it("lets a keyboard user change a setting, hear it, and get focus back", async (
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
     expect(button).toHaveFocus()
     expect(root).toHaveAttribute("data-a11y-text-size", "larger")
+})
+
+it("is an icon named by its tooltip", async () => {
+    const user = userEvent.setup()
+    render(await withProviders(<AccessibilityMenu />))
+
+    const button = screen.getByRole("button", {name: "Accessibility"})
+    expect(button).toHaveTextContent(/^$/)
+    await user.hover(button)
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Accessibility")
 })
 
 it("offers every setting as a named group of choices", async () => {

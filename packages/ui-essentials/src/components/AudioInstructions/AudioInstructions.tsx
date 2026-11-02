@@ -7,7 +7,7 @@ import HelpIcon from "@mui/icons-material/Help"
 import PauseIcon from "@mui/icons-material/Pause"
 import StopIcon from "@mui/icons-material/Stop"
 import VolumeUpIcon from "@mui/icons-material/VolumeUp"
-import {Box, IconButton, Tooltip, Typography} from "@mui/material"
+import {Box, IconButton, Popover, Tooltip, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {
     EAudioInstructionsPolicy,
@@ -16,8 +16,8 @@ import {
     resolveAudioInstructionsSource,
     toBCP47,
 } from "@sequentech/ui-core"
-import PageLimit from "../PageLimit/PageLimit"
 import VisuallyHidden from "../VisuallyHidden/VisuallyHidden"
+import {useInertBackground} from "../../services/useInertBackground"
 
 export interface AudioInstructionsProps {
     /** Absent, nothing is rendered. */
@@ -67,7 +67,9 @@ const useSpeechVoices = (): SpeechSynthesisVoice[] => {
  *
  * It plays the event's recording where there is one and the browser's speech synthesis
  * otherwise. It never starts by itself: a voter using a screen reader would hear both at once.
- * Its controls are small icon buttons at the top right of the screen, named by their tooltips.
+ * Its controls are small icon buttons named by their tooltips, for the header next to the
+ * accessibility button. The text opens in a popover under its icon, which Escape, a click
+ * outside it or its own close button closes.
  */
 const AudioInstructions: React.FC<AudioInstructionsProps> = ({
     policy,
@@ -78,7 +80,9 @@ const AudioInstructions: React.FC<AudioInstructionsProps> = ({
     const {t} = useTranslation()
     const [playback, setPlayback] = useState(EPlayback.IDLE)
     const [announcement, setAnnouncement] = useState("")
-    const [transcriptOpen, setTranscriptOpen] = useState(false)
+    const [transcriptAnchor, setTranscriptAnchor] = useState<HTMLElement | null>(null)
+    const transcriptOpen = Boolean(transcriptAnchor)
+    const setModalRoot = useInertBackground(transcriptOpen)
     const audioRef = useRef<HTMLAudioElement>(null)
     const transcriptId = useId()
     const voice = findSpeechVoice(useSpeechVoices(), language)
@@ -173,26 +177,19 @@ const AudioInstructions: React.FC<AudioInstructionsProps> = ({
         : t("audioInstructions.showTranscript")
 
     return (
-        <PageLimit className="audio-instructions" maxWidth="lg">
+        <Box className="audio-instructions" sx={{display: "flex"}}>
             <Box
                 className="audio-instructions-region"
                 component="section"
                 aria-label={t("audioInstructions.label")}
-                sx={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    justifyContent: "flex-end",
-                    alignItems: "center",
-                    gap: "4px",
-                    paddingTop: "8px",
-                }}
+                sx={{display: "flex", alignItems: "center", gap: "4px"}}
             >
                 {canPlay ? (
                     <Tooltip title={toggle.label}>
                         <IconButton
                             className="audio-instructions-play"
                             size="small"
-                            sx={{color: "text.primary"}}
+                            sx={{color: "brandColor"}}
                             aria-label={toggle.label}
                             onClick={toggle.action}
                         >
@@ -205,7 +202,7 @@ const AudioInstructions: React.FC<AudioInstructionsProps> = ({
                         <IconButton
                             className="audio-instructions-stop"
                             size="small"
-                            sx={{color: "text.primary"}}
+                            sx={{color: "brandColor"}}
                             aria-label={t("audioInstructions.stop")}
                             onClick={stop}
                         >
@@ -214,32 +211,77 @@ const AudioInstructions: React.FC<AudioInstructionsProps> = ({
                     </Tooltip>
                 ) : null}
                 {text === "" ? null : (
-                    <Tooltip title={transcriptLabel}>
-                        <IconButton
-                            className="audio-instructions-transcript-toggle"
-                            size="small"
-                            sx={{color: "text.primary"}}
-                            aria-label={transcriptLabel}
-                            aria-expanded={transcriptOpen}
-                            aria-controls={transcriptId}
-                            onClick={() => setTranscriptOpen((open) => !open)}
+                    <>
+                        <Tooltip title={transcriptLabel}>
+                            <IconButton
+                                className="audio-instructions-transcript-toggle"
+                                size="small"
+                                sx={{color: "brandColor"}}
+                                aria-label={transcriptLabel}
+                                aria-expanded={transcriptOpen}
+                                aria-controls={transcriptId}
+                                onClick={(event) =>
+                                    setTranscriptAnchor(transcriptOpen ? null : event.currentTarget)
+                                }
+                            >
+                                {transcriptOpen ? (
+                                    <CloseIcon aria-hidden />
+                                ) : (
+                                    <HelpIcon aria-hidden />
+                                )}
+                            </IconButton>
+                        </Tooltip>
+                        {/* Kept mounted so that aria-controls always names an element. */}
+                        <Popover
+                            ref={setModalRoot}
+                            className="audio-instructions-popover"
+                            anchorEl={transcriptAnchor}
+                            anchorOrigin={{vertical: "bottom", horizontal: "right"}}
+                            keepMounted
+                            transformOrigin={{vertical: "top", horizontal: "right"}}
+                            slotProps={{
+                                paper: {
+                                    "role": "dialog",
+                                    "aria-label": t("audioInstructions.label"),
+                                    "aria-describedby": transcriptId,
+                                    "tabIndex": -1,
+                                    "sx": {
+                                        display: "flex",
+                                        alignItems: "flex-start",
+                                        gap: "8px",
+                                        padding: "12px 12px 12px 16px",
+                                    },
+                                },
+                            }}
+                            open={transcriptOpen}
+                            onClose={() => setTranscriptAnchor(null)}
                         >
-                            {transcriptOpen ? <CloseIcon aria-hidden /> : <HelpIcon aria-hidden />}
-                        </IconButton>
-                    </Tooltip>
+                            <Box
+                                className="audio-instructions-transcript"
+                                id={transcriptId}
+                                lang={toBCP47(language)}
+                                sx={{maxWidth: "30rem"}}
+                            >
+                                {transcriptOpen ? (
+                                    <Typography className="audio-instructions-text" component="p">
+                                        {text}
+                                    </Typography>
+                                ) : null}
+                            </Box>
+                            <Tooltip title={t("audioInstructions.hideTranscript")}>
+                                <IconButton
+                                    className="audio-instructions-transcript-close"
+                                    size="small"
+                                    sx={{color: "brandColor"}}
+                                    aria-label={t("audioInstructions.hideTranscript")}
+                                    onClick={() => setTranscriptAnchor(null)}
+                                >
+                                    <CloseIcon aria-hidden />
+                                </IconButton>
+                            </Tooltip>
+                        </Popover>
+                    </>
                 )}
-                <Box
-                    className="audio-instructions-transcript"
-                    id={transcriptId}
-                    lang={toBCP47(language)}
-                    sx={{flexBasis: "100%"}}
-                >
-                    {transcriptOpen ? (
-                        <Typography className="audio-instructions-text" component="p">
-                            {text}
-                        </Typography>
-                    ) : null}
-                </Box>
                 <VisuallyHidden className="audio-instructions-status" role="status">
                     {announcement}
                 </VisuallyHidden>
@@ -253,7 +295,7 @@ const AudioInstructions: React.FC<AudioInstructionsProps> = ({
                     />
                 ) : null}
             </Box>
-        </PageLimit>
+        </Box>
     )
 }
 
