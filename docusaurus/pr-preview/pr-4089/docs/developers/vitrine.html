@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Vitrine Transparency Logs | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Vitrine Transparency Logs | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4089/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Vitrine","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4089/docs/developers/vitrine"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4089/assets/css/styles.fc78c976.css">
-<script src="/docusaurus/pr-preview/pr-4089/assets/js/runtime~main.a20f5107.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4089/assets/js/runtime~main.7700a849.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4089/assets/js/main.befd7ca8.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -302,8 +302,11 @@ has two states for an audited ballot: the audit screen&#x27;s Tracking ID box op
 it as auditable, tagged <strong>Audited</strong>, and Step doesn&#x27;t use audit failed today. Contradicting signed proofs, or a
 required receipt that never came, show as a problem, and never turn an accepted
 cast into a failed one. The portal keeps no receipt or Tracking ID in the
-browser, so the election list says <strong>Voted</strong> with no check mark, and
-<strong>Click to Vote</strong> is off once the voter cast every ballot an open election
+browser. In an event with public transparency the election list asks Harvest
+for the voter&#x27;s own ballots (<code>ballot_box_own</code>, by the voter&#x27;s ID or pseudonym,
+as a revote finds the earlier ballot) and checks the cast one against the log,
+so it says <strong>Ballot cast</strong> with the check mark, which opens the same dialog;
+otherwise it says <strong>Voted</strong>. <strong>Click to Vote</strong> is off once the voter cast every ballot an open election
 allows. The ballot tracker, Ballot Tracking, shows the whole receipt, for a
 ballot found by its short or full Tracking ID, and the ballot&#x27;s record in a
 viewer that expands, copies and saves it. Step publishes a ballot the voter
