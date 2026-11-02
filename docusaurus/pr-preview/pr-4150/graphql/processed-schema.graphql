@@ -430,7 +430,6 @@ input ExportOptions {
   bulletin_board: Boolean
   encrypt_with_password: Boolean
   include_certificates: Boolean
-  include_integration_secrets: Boolean
   include_voters: Boolean
   is_encrypted: Boolean
   password: String
