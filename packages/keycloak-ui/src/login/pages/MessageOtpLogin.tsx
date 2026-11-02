@@ -18,6 +18,7 @@ import {
     type KcContext,
 } from "../KcContext"
 import {ArrowIcon} from "../icons"
+import {stepBack} from "../stepBack"
 import type {EnrollmentPageProps} from "../enrollment/pageProps"
 
 type OtpContext = Extract<KcContext, {pageId: "message-otp.login.ftl"}>
@@ -509,6 +510,10 @@ export default function MessageOtpLogin(props: OtpPageProps) {
             classes={classes}
             displayInfo={ttl !== undefined}
             symbol={channel ? <ChannelIcon channel={channel} /> : undefined}
+            back={stepBack(kcContext, {
+                text: msgStr("enrollmentBack"),
+                lang: messageLanguage(kcContext, i18n, "enrollmentBack"),
+            })}
             {...(messenger
                 ? {
                       headerNode: msg("messageOtp.messenger.title"),

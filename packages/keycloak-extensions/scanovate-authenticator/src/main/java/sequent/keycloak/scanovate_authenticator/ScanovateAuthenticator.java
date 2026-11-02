@@ -32,6 +32,7 @@ import org.keycloak.models.UserModel;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.userprofile.UserProfileProvider;
+import sequent.keycloak.authenticator.StepBack;
 import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics;
 import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics.ConfigComponent;
 import sequent.keycloak.scanovate_authenticator.FaceMatchClient.FaceComparison;
@@ -177,6 +178,9 @@ public class ScanovateAuthenticator implements Authenticator {
       return;
     }
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
+    if (StepBack.requested(formData) && StepBack.toPreviousStep(context)) {
+      return;
+    }
     Optional<FormAction> formAction = FormAction.fromValue(formData.getFirst(FORM_ACTION_PARAM));
 
     if (formAction.isEmpty()) {
@@ -306,7 +310,11 @@ public class ScanovateAuthenticator implements Authenticator {
     }
     capture.put(FTL_LIVENESS, livenessPage(context, liveness));
 
-    LoginFormsProvider form = context.form().setAttribute(FTL_SCANOVATE, capture);
+    LoginFormsProvider form =
+        context
+            .form()
+            .setAttribute(FTL_SCANOVATE, capture)
+            .setAttribute(StepBack.ATTRIBUTE, StepBack.available(context));
     errorKey.ifPresent(form::setError);
     context.challenge(form.createForm(CAPTURE_FORM));
   }
@@ -660,6 +668,7 @@ public class ScanovateAuthenticator implements Authenticator {
             .form()
             .setAttribute(FTL_ERROR, messageKey)
             .setAttribute(FTL_CAN_RETRY, canRetry)
+            .setAttribute(StepBack.ATTRIBUTE, StepBack.available(context))
             .setAttribute(FTL_ATTEMPTS_LEFT, attemptsLeft(context, maxAttempts(config(context))))
             .setAttribute(
                 FTL_CODE_ID,

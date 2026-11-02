@@ -122,6 +122,15 @@ public class MessageOTPAuthenticator
           exhaustedForm(context, configMap, messageCourier, deferredUser));
       return;
     }
+    if (StepBack.requested(parameters)) {
+      if (StepBack.toPreviousStep(context)) {
+        // The code must not verify a contact the voter may change on an earlier step.
+        authSession.removeAuthNote(Utils.CODE);
+      } else {
+        intiateForm(context, FormRequest.SHOW);
+      }
+      return;
+    }
     if (resend != null && resend.equals("true")) {
       intiateForm(context, FormRequest.RESEND);
       return;
@@ -837,7 +846,8 @@ public class MessageOTPAuthenticator
         .setAttribute("courier", messageCourier)
         .setAttribute("isOtl", "true".equals(configMap.get(Utils.ONE_TIME_LINK)))
         .setAttribute("ttl", configMap.get(Utils.CODE_TTL))
-        .setAttribute("codeDisclosure", disclosure.name());
+        .setAttribute("codeDisclosure", disclosure.name())
+        .setAttribute(StepBack.ATTRIBUTE, StepBack.available(context));
     if (disclosure == Utils.CodePageDisclosure.NEUTRAL) {
       // Nothing about the account: no channel, destination, sender or Messenger link.
       setNeutralMessengerAttributes(form, authSession, context.getRealm());

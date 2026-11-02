@@ -349,6 +349,23 @@ public class Utils {
     return users.get(0);
   }
 
+  /**
+   * What the voter entered on the registration form, from the session notes, for when they come
+   * back to it from a later step. Never the passwords: those are typed again.
+   */
+  static MultivaluedMap<String, String> enteredFormData(AuthenticationSessionModel authSession) {
+    MultivaluedMap<String, String> entered = new MultivaluedHashMap<>();
+    for (String key : deserializeUserdataKeys(authSession.getAuthNote(KEYS_USERDATA))) {
+      String values = authSession.getAuthNote(key);
+      if (values != null && !PASSWORD_FIELDS.contains(key)) {
+        entered.put(key, deserializeUserdataKeys(values));
+      }
+    }
+    return entered;
+  }
+
+  private static final Set<String> PASSWORD_FIELDS = Set.of("password", "password-confirm");
+
   private static String serializeUserdataKeys(Collection<String> keys, String separator) {
     return String.join(separator, keys);
   }

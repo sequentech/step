@@ -682,7 +682,16 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         Boolean.parseBoolean(Optional.ofNullable(configMap.get(PASSWORD_REQUIRED)).orElse("true"));
 
     Set<String> hiddenProfileAttributes = getHiddenProfileAttributes(configMap);
-    prefillFromLoginHints(context, form, configMap, hiddenProfileAttributes);
+    MultivaluedMap<String, String> hints =
+        prefillFromLoginHints(context, form, configMap, hiddenProfileAttributes);
+
+    // Only the initial render prefills, so a redisplayed form keeps what the voter typed. Coming
+    // back from a later step, it shows what the voter entered then.
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>(hints);
+    formData.putAll(Utils.enteredFormData(context.getAuthenticationSession()));
+    if (!formData.isEmpty() && "GET".equals(context.getHttpRequest().getHttpMethod())) {
+      form.setFormData(formData);
+    }
 
     form.setAttribute("passwordRequired", passwordRequired);
     form.setAttribute("formMode", formMode);
@@ -695,7 +704,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     checkNotOtherUserAuthenticating(context);
   }
 
-  private void prefillFromLoginHints(
+  /** Marks the locked login hints, and returns the hints the form starts with. */
+  private MultivaluedMap<String, String> prefillFromLoginHints(
       FormContext context,
       LoginFormsProvider form,
       Map<String, String> configMap,
@@ -705,7 +715,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             resolveLoginHintPrefill(context, configMap, hiddenProfileAttributes), () -> form);
 
     if (prefill.isEmpty()) {
-      return;
+      return new MultivaluedHashMap<>();
     }
 
     // The marker is set on every render so locked fields stay locked when the
@@ -715,11 +725,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
           LoginHintRegistrationPrefill.READ_ONLY_ATTRIBUTES,
           List.copyOf(prefill.lockedAttributes()));
     }
-
-    // Only the initial render prefills, so a redisplayed form keeps what the voter typed.
-    if ("GET".equals(context.getHttpRequest().getHttpMethod())) {
-      form.setFormData(prefill.writableHints());
-    }
+    return prefill.writableHints();
   }
 
   private LoginHintPrefill.HintResolution resolveLoginHintPrefill(

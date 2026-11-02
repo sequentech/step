@@ -6,6 +6,7 @@
 // matches the server.
 export const enrollmentEnglish = {
     enrollmentStepDetails: "Your details",
+    enrollmentBack: "Back",
     enrollmentPasswordStrength: "Password strength",
     enrollmentOutcomeEnrolled: "Enrollment complete",
     enrollmentOutcomeUnderReview: "Enrollment under review",
@@ -36,6 +37,7 @@ export const enrollmentEnglish = {
 
 export const enrollmentSpanish: Record<keyof typeof enrollmentEnglish, string> = {
     enrollmentStepDetails: "Sus datos",
+    enrollmentBack: "Atrás",
     enrollmentPasswordStrength: "Seguridad de la contraseña",
     enrollmentOutcomeEnrolled: "Inscripción completada",
     enrollmentOutcomeUnderReview: "Inscripción en revisión",

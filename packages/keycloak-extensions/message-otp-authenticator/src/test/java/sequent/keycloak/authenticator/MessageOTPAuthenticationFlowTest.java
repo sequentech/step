@@ -321,6 +321,75 @@ class MessageOTPAuthenticationFlowTest {
     verify(event).error(MessageOTPAuthenticator.TOO_MANY_ATTEMPTS);
   }
 
+  /** The enrollment's details form, done, then this code step. */
+  private void afterTheDetailsForm() {
+    Map<String, org.keycloak.sessions.CommonClientSessionModel.ExecutionStatus> statuses =
+        new HashMap<>();
+    org.keycloak.models.AuthenticationFlowModel top =
+        new org.keycloak.models.AuthenticationFlowModel();
+    top.setId("registration");
+    org.keycloak.models.AuthenticationFlowModel formFlow =
+        new org.keycloak.models.AuthenticationFlowModel();
+    formFlow.setId("registration-form");
+    formFlow.setProviderId(org.keycloak.authentication.AuthenticationFlow.FORM_FLOW);
+    AuthenticationExecutionModel details = new AuthenticationExecutionModel();
+    details.setId("details");
+    details.setAuthenticatorFlow(true);
+    details.setFlowId(formFlow.getId());
+    AuthenticationExecutionModel code = context.getExecution();
+    code.setId("code");
+    when(context.getTopLevelFlow()).thenReturn(top);
+    when(realm.getAuthenticationFlowById(formFlow.getId())).thenReturn(formFlow);
+    when(realm.getAuthenticationExecutionsStream(top.getId()))
+        .thenAnswer(i -> Stream.of(details, code));
+    when(context.getRefreshUrl(false)).thenReturn(java.net.URI.create("https://login.example/"));
+    when(authSession.getExecutionStatus()).thenReturn(statuses);
+    doAnswer(i -> statuses.put(i.getArgument(0), i.getArgument(1)))
+        .when(authSession)
+        .setExecutionStatus(anyString(), any());
+    statuses.put(
+        details.getId(), org.keycloak.sessions.CommonClientSessionModel.ExecutionStatus.SUCCESS);
+  }
+
+  @Test
+  void backReturnsToTheDetailsFormAndDropsTheCode() {
+    afterTheDetailsForm();
+    parameters.putSingle(StepBack.PARAM, "true");
+    authenticator.action(context);
+
+    verify(context).forceChallenge(any());
+    verify(context, never()).success();
+    // The code must not verify a contact the voter changes on the details form.
+    assertNull(notes.get(Utils.CODE));
+  }
+
+  @Test
+  void theCodePageOffersBackAfterTheDetailsForm() {
+    afterTheDetailsForm();
+    authenticator.authenticate(context);
+    verify(form).setAttribute(StepBack.ATTRIBUTE, true);
+  }
+
+  @Test
+  void withoutAPreviousStepBackShowsTheCodePageAgain() {
+    parameters.putSingle(StepBack.PARAM, "true");
+    authenticator.action(context);
+
+    verify(context, never()).forceChallenge(any());
+    verify(form).setAttribute(StepBack.ATTRIBUTE, false);
+    assertEquals(CODE, notes.get(Utils.CODE));
+  }
+
+  @Test
+  void backIsRefusedOnceTheAttemptsAreUsedUp() {
+    afterTheDetailsForm();
+    fiveWrongCodes();
+    parameters.putSingle(StepBack.PARAM, "true");
+    authenticator.action(context);
+
+    verify(context, never()).forceChallenge(any());
+  }
+
   private void fiveWrongCodes() {
     for (int attempt = 0; attempt < 5; attempt++) {
       parameters.putSingle(Utils.CODE, "000000");
