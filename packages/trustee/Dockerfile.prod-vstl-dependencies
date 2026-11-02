@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM rust:1.96.0-slim-bookworm
+
+WORKDIR /app
+
+COPY . .
+
+WORKDIR /app/trustee
+RUN cargo fetch --locked

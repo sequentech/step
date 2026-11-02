@@ -1,0 +1,950 @@
+/** @jest-environment jsdom */
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+import React from "react"
+import {act, fireEvent, render, screen, within} from "@testing-library/react"
+import {useMutation, useQuery} from "@apollo/client"
+import * as verify from "@vitrine/verify"
+import {EditElectionEventTransparency} from "./EditElectionEventTransparency"
+import type {ITransparencyOutput} from "@/queries/Transparency"
+import {draftFileName, signedPolicyFileName} from "@/services/Transparency"
+import {
+    draftPolicyText,
+    EVENT_ID,
+    NOW,
+    OTHER_EVENT_ID,
+    policyHexOf,
+    policyText,
+    sidecarLogs,
+    sidecarStatus,
+} from "@/fixtures/vitrinePolicy"
+
+jest.mock("@apollo/client", () => ({
+    gql: (strings: TemplateStringsArray) => strings.join(""),
+    useQuery: jest.fn(),
+    useMutation: jest.fn(),
+}))
+jest.mock("react-i18next", () => ({
+    useTranslation: () => ({
+        t: (key: string, options?: Record<string, unknown>) =>
+            options ? `${key} ${JSON.stringify(options)}` : key,
+        i18n: {language: "en"},
+    }),
+}))
+
+const healthOf = () => screen.getByTestId("transparency-health")
+
+const ROLE = {headers: {"x-hasura-role": "election-event-transparency-tab"}}
+const MARKUP = "<img src=x onerror=alert(1)>"
+
+const enable = jest.fn()
+const upload = jest.fn()
+const setHubUpdates = jest.fn()
+const refetch = jest.fn()
+const writeText = jest.fn()
+const createObjectURL = jest.fn()
+
+const output = (o: Partial<ITransparencyOutput> = {}): ITransparencyOutput => ({
+    mode: "disabled",
+    refusal: null,
+    locked: false,
+    logs: [],
+    status: {},
+    draft_policy: null,
+    policy: null,
+    policy_id: null,
+    enrolments: [],
+    explorer_url: null,
+    ...o,
+})
+
+const publicDraft = (o: Partial<ITransparencyOutput> = {}) =>
+    output({mode: "public", draft_policy: draftPolicyText(), ...o})
+
+const answer = (value: ITransparencyOutput | undefined, error?: unknown) => {
+    ;(useQuery as jest.Mock).mockReturnValue({
+        data: value ? {get_transparency: value} : undefined,
+        loading: false,
+        error,
+        refetch,
+    })
+}
+
+const renderTab = async (
+    props: {
+        electionEventId?: string
+        presentation?: unknown
+        canChangeHubUpdates?: boolean
+        onChanged?: () => void
+    } = {}
+) => {
+    const view = render(<EditElectionEventTransparency electionEventId={EVENT_ID} {...props} />)
+    await act(async () => {})
+    return view
+}
+
+const paste = async (text: string) => {
+    await act(async () => {
+        fireEvent.change(screen.getByTestId("policy-text"), {target: {value: text}})
+    })
+}
+
+const GROUPS_13 = /^([0-9A-Z]{4}-){12}[0-9A-Z]{4}$/
+
+/** A draft's draft hash in 13 groups, as the tab shows it. */
+const draftId = (text: string) =>
+    verify.policyIdDisplay(
+        verify.parsePolicy(text, {allowDraft: true, requireSignatures: false}).id
+    )
+
+beforeAll(async () => {
+    await verify.init()
+    Object.defineProperty(navigator, "clipboard", {value: {writeText}, configurable: true})
+    Object.assign(URL, {createObjectURL, revokeObjectURL: jest.fn()})
+})
+
+beforeEach(() => {
+    jest.clearAllMocks()
+    ;(useMutation as jest.Mock).mockImplementation((document: string) => [
+        document.includes("EnableTransparency")
+            ? enable
+            : document.includes("SetHubUpdates")
+              ? setHubUpdates
+              : upload,
+        {loading: false},
+    ])
+    writeText.mockResolvedValue(undefined)
+    createObjectURL.mockReturnValue("blob:draft")
+    jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+})
+
+afterEach(() => {
+    jest.restoreAllMocks()
+})
+
+describe("the event's mode", () => {
+    it("asks Harvest as the tab's role, and enables the mode the admin confirms", async () => {
+        const changed = jest.fn()
+        answer(output())
+        enable.mockResolvedValue({
+            data: {
+                enable_transparency: output({
+                    mode: "private",
+                    draft_policy: draftPolicyText({visibility: "private"}),
+                }),
+            },
+        })
+        await renderTab({onChanged: changed})
+
+        expect(useQuery).toHaveBeenCalledWith(
+            expect.stringContaining("get_transparency"),
+            expect.objectContaining({
+                variables: {electionEventId: EVENT_ID},
+                skip: false,
+                fetchPolicy: "network-only",
+                context: ROLE,
+            })
+        )
+        expect(useMutation).toHaveBeenCalledWith(expect.stringContaining("enable_transparency"), {
+            context: ROLE,
+        })
+        expect(useMutation).toHaveBeenCalledWith(
+            expect.stringContaining("upload_transparency_policy"),
+            {context: ROLE}
+        )
+        expect(healthOf().getAttribute("data-health")).toBe("disabled")
+
+        const choices = screen.getByTestId("enable-transparency")
+        fireEvent.click(within(choices).getByDisplayValue("private"))
+        fireEvent.click(screen.getByTestId("enable-transparency-button"))
+        expect(enable).not.toHaveBeenCalled()
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("confirm-enable-transparency"))
+        })
+
+        expect(enable).toHaveBeenCalledWith({
+            variables: {electionEventId: EVENT_ID, mode: "private"},
+        })
+        expect(screen.getByTestId("transparency-notice").textContent).toContain(
+            "transparencyTab.mode.enabled"
+        )
+        const visibility = within(screen.getByTestId("overview-visibility"))
+        expect((visibility.getByDisplayValue("private") as HTMLInputElement).checked).toBe(true)
+        expect(screen.getByTestId("draft-id").textContent).toBe(
+            draftId(draftPolicyText({visibility: "private"}))
+        )
+        expect(changed).toHaveBeenCalledTimes(1)
+    })
+
+    it("says why public is refused, and offers private instead", async () => {
+        answer(output({refusal: "public-needs-unlimited-revotes"}))
+        await renderTab()
+
+        const refusal = screen.getByTestId("public-refusal").textContent
+        expect(refusal).toContain("transparencyTab.mode.refusals.public-needs-unlimited-revotes")
+        expect(refusal).toContain("transparencyTab.mode.refusalOptions")
+        const choices = screen.getByTestId("enable-transparency")
+        expect((within(choices).getByDisplayValue("public") as HTMLInputElement).disabled).toBe(
+            true
+        )
+        expect((within(choices).getByDisplayValue("private") as HTMLInputElement).checked).toBe(
+            true
+        )
+    })
+
+    it("keeps a refusal Harvest asked for public with, without calling it enabled", async () => {
+        const changed = jest.fn()
+        answer(output())
+        enable.mockResolvedValue({
+            data: {enable_transparency: output({refusal: "public-needs-unlimited-revotes"})},
+        })
+        await renderTab({onChanged: changed})
+
+        fireEvent.click(screen.getByTestId("enable-transparency-button"))
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("confirm-enable-transparency"))
+        })
+
+        expect(enable).toHaveBeenCalledWith({
+            variables: {electionEventId: EVENT_ID, mode: "public"},
+        })
+        expect(screen.getByTestId("public-refusal")).toBeTruthy()
+        expect(screen.queryByTestId("transparency-notice")).toBeNull()
+        expect(changed).not.toHaveBeenCalled()
+    })
+
+    it("shows a refusal it doesn't know as text", async () => {
+        answer(output({refusal: MARKUP}))
+        const {container} = await renderTab()
+
+        expect(screen.getByTestId("public-refusal").textContent).toContain(
+            `transparencyTab.mode.refusalUnknown ${JSON.stringify({code: MARKUP})}`
+        )
+        expect(container.querySelector("img")).toBeNull()
+    })
+
+    it("says why enabling failed", async () => {
+        answer(output())
+        enable.mockRejectedValue({graphQLErrors: [{message: "The event has no sidecar"}]})
+        await renderTab()
+
+        fireEvent.click(screen.getByTestId("enable-transparency-button"))
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("confirm-enable-transparency"))
+        })
+
+        expect(screen.getByTestId("transparency-notice").textContent).toBe(
+            `transparencyTab.mode.enableError ${JSON.stringify({reason: "The event has no sidecar"})}`
+        )
+        expect(healthOf().getAttribute("data-health")).toBe("disabled")
+    })
+
+    it("changes nothing once voting opened", async () => {
+        answer(output({mode: "public", locked: true, policy: policyText()}))
+        await renderTab()
+
+        expect(screen.getByTestId("transparency-locked")).toBeTruthy()
+        expect(screen.queryByTestId("enable-transparency")).toBeNull()
+        expect(screen.queryByTestId("upload-policy")).toBeNull()
+        expect(screen.getByTestId("sealed-policy")).toBeTruthy()
+    })
+
+    it("offers no mode to enable once the event is locked", async () => {
+        answer(output({locked: true}))
+        await renderTab()
+
+        expect(screen.queryByTestId("enable-transparency")).toBeNull()
+        expect(screen.queryByTestId("upload-policy")).toBeNull()
+    })
+})
+
+describe("the trust policy", () => {
+    it("offers the draft to download for the Board, with its hash marked as a draft's", async () => {
+        answer(publicDraft())
+        await renderTab()
+
+        const id = draftId(draftPolicyText())
+        expect(id).toMatch(GROUPS_13)
+        expect(screen.getByTestId("draft-id").textContent).toBe(id)
+        expect(screen.getByTestId("draft-id-short").textContent).toBe(
+            id.split("-").slice(0, 4).join("-")
+        )
+        expect(screen.getByTestId("draft-tag").textContent).toBe("transparencyTab.policy.draftTag")
+        expect(screen.getByTestId("board-commands").textContent).toContain(
+            `vitrine policy id ${draftFileName(EVENT_ID)}`
+        )
+        expect(screen.getByTestId("board-commands").textContent).not.toContain("words")
+
+        const click = jest.spyOn(HTMLAnchorElement.prototype, "click")
+        fireEvent.click(screen.getByTestId("download-draft"))
+        const blob = createObjectURL.mock.calls[0][0] as Blob
+        expect(await blob.text()).toBe(draftPolicyText())
+        const link = click.mock.instances[0] as unknown as HTMLAnchorElement
+        expect(link.download).toBe(draftFileName(EVENT_ID))
+        expect(link.href).toBe("blob:draft")
+    })
+
+    it("says when Harvest hasn't drafted the policy yet", async () => {
+        answer(output({mode: "public"}))
+        await renderTab()
+
+        expect(screen.getByTestId("no-draft")).toBeTruthy()
+        expect(screen.queryByTestId("draft-policy")).toBeNull()
+    })
+
+    it("checks the signed policy before uploading it, then shows its ID in groups", async () => {
+        const changed = jest.fn()
+        const signed = policyText()
+        const summary = verify.policySummary(verify.parsePolicy(signed))
+        answer(publicDraft())
+        upload.mockResolvedValue({
+            data: {
+                upload_transparency_policy: publicDraft({
+                    policy: signed,
+                    policy_id: policyHexOf(signed),
+                }),
+            },
+        })
+        await renderTab({onChanged: changed})
+
+        await paste(signed.replace(/\n/g, "\r\n").trimEnd())
+        const preview = screen.getByTestId("policy-preview")
+        const groups = verify.policyIdDisplay(summary.id)
+        expect(groups).toMatch(GROUPS_13)
+        expect(within(preview).getByTestId("candidate-policy-id").textContent).toBe(groups)
+        expect(within(preview).getByTestId("candidate-policy-id-short").textContent).toBe(
+            verify.shortPolicyId(summary.id)
+        )
+        expect(within(preview).getByTestId("candidate-policy-short-id").textContent).toBe(
+            verify.shortPolicyId(summary.id)
+        )
+        expect(screen.queryByTestId("policy-not-from-draft")).toBeNull()
+
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("upload-policy-button"))
+        })
+
+        expect(upload).toHaveBeenCalledWith({
+            variables: {electionEventId: EVENT_ID, signedPolicy: signed},
+        })
+        expect(screen.getByTestId("transparency-notice").textContent).toBe(
+            "transparencyTab.upload.uploaded"
+        )
+        expect(screen.getByTestId("event-policy-id").textContent).toBe(
+            verify.policyIdDisplay(summary.id)
+        )
+        expect(screen.queryByTestId("policy-preview")).toBeNull()
+        expect(screen.queryByTestId("draft-policy")).toBeNull()
+        expect(changed).toHaveBeenCalledTimes(1)
+    })
+
+    it("reads the signed policy from a file", async () => {
+        answer(publicDraft())
+        await renderTab()
+
+        const file = new File([policyText()], "signed.txt", {type: "text/plain"})
+        await act(async () => {
+            fireEvent.change(screen.getByTestId("policy-file"), {target: {files: [file]}})
+        })
+
+        expect((await screen.findByTestId("candidate-policy-id")).textContent).toBe(
+            verify.policyIdDisplay(verify.parsePolicy(policyText()).id)
+        )
+    })
+
+    it.each([
+        ["an unsealed draft", draftPolicyText(), "policy-is-draft"],
+        ["text that isn't a policy", MARKUP, "policy-invalid"],
+        ["another event's policy", policyText({eventId: OTHER_EVENT_ID}), "policy-other-event"],
+        [
+            "a private policy for a public event",
+            policyText({visibility: "private"}),
+            "policy-other-visibility",
+        ],
+    ])("refuses to upload %s", async (_what, text, problem) => {
+        answer(publicDraft())
+        const {container} = await renderTab()
+
+        await paste(text)
+
+        expect(screen.getByTestId(problem)).toBeTruthy()
+        const button = screen.queryByTestId("upload-policy-button") as HTMLButtonElement | null
+        if (button) {
+            expect(button.disabled).toBe(true)
+            fireEvent.click(button)
+        }
+        expect(upload).not.toHaveBeenCalled()
+        expect(container.querySelector("img")).toBeNull()
+    })
+
+    it("names the draft's hash when a draft is pasted", async () => {
+        answer(publicDraft())
+        await renderTab()
+
+        await paste(draftPolicyText())
+
+        expect(screen.getByTestId("policy-is-draft").textContent).toBe(
+            `transparencyTab.upload.draft ${JSON.stringify({
+                id: draftId(draftPolicyText()),
+            })}`
+        )
+    })
+
+    it("warns about a policy sealed from another draft of the event", async () => {
+        answer(publicDraft({draft_policy: draftPolicyText({name: "acme-2027"})}))
+        await renderTab()
+
+        await paste(policyText())
+
+        expect(screen.getByTestId("policy-not-from-draft")).toBeTruthy()
+        expect((screen.getByTestId("upload-policy-button") as HTMLButtonElement).disabled).toBe(
+            false
+        )
+    })
+
+    it("says why an upload failed and keeps the pasted policy", async () => {
+        answer(publicDraft())
+        upload.mockRejectedValue({message: "TransparencyRefused: the logs are frozen\nstack"})
+        await renderTab()
+
+        await paste(policyText())
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("upload-policy-button"))
+        })
+
+        expect(screen.getByTestId("transparency-notice").textContent).toBe(
+            `transparencyTab.upload.error ${JSON.stringify({
+                reason: "TransparencyRefused: the logs are frozen",
+            })}`
+        )
+        expect(screen.getByTestId("policy-preview")).toBeTruthy()
+    })
+
+    it("copies the policy ID in its 13 groups, and its short form on its own", async () => {
+        const signed = policyText()
+        const summary = verify.policySummary(verify.parsePolicy(signed))
+        answer(publicDraft({policy: signed, policy_id: policyHexOf(signed)}))
+        await renderTab()
+
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("event-policy-copy-id"))
+        })
+        expect(writeText).toHaveBeenLastCalledWith(verify.policyIdDisplay(summary.id))
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("event-policy-copy-short-id"))
+        })
+        expect(writeText).toHaveBeenLastCalledWith(verify.shortPolicyId(summary.id))
+    })
+
+    it("shows the event's policy and offers to upload a successor", async () => {
+        const signed = policyText()
+        const summary = verify.policySummary(verify.parsePolicy(signed))
+        answer(publicDraft({policy: signed, policy_id: policyHexOf(signed)}))
+        await renderTab()
+
+        expect(screen.getByTestId("event-policy-id").textContent).toBe(
+            verify.policyIdDisplay(summary.id)
+        )
+        expect(screen.getByTestId("event-policy-short-id").textContent).toBe(
+            verify.shortPolicyId(summary.id)
+        )
+        expect(screen.getByTestId("event-policy").textContent).toContain(
+            "transparencyTab.policy.shortId"
+        )
+        expect(screen.getByTestId("event-policy").textContent).not.toContain(summary.id)
+        expect(screen.getByTestId("event-policy").textContent).toContain("acme-2026")
+        expect(screen.queryByTestId("policy-id-mismatch")).toBeNull()
+        expect(screen.queryByTestId("draft-policy")).toBeNull()
+        expect(screen.getByTestId("upload-policy").textContent).toContain(
+            "transparencyTab.upload.successorTitle"
+        )
+    })
+
+    it("warns when the logs report another policy ID", async () => {
+        const other = "ab".repeat(32)
+        answer(publicDraft({policy: policyText(), policy_id: other}))
+        await renderTab()
+
+        expect(screen.getByTestId("policy-id-mismatch").textContent).toContain(other)
+    })
+
+    it("offers the new draft when the event changed after the policy was sealed", async () => {
+        answer(
+            publicDraft({
+                policy: policyText(),
+                policy_id: policyHexOf(policyText()),
+                draft_policy: draftPolicyText({name: "acme-2027"}),
+            })
+        )
+        await renderTab()
+
+        expect(screen.getByTestId("sealed-policy")).toBeTruthy()
+        expect(screen.getByTestId("draft-policy").textContent).toContain(
+            "transparencyTab.policy.changedDraft"
+        )
+        expect(screen.getByTestId("draft-id").textContent).toBe(
+            draftId(draftPolicyText({name: "acme-2027"}))
+        )
+    })
+
+    it("says why a stored policy isn't valid", async () => {
+        answer(publicDraft({policy: policyText().replace("mmd 60", "mmd 61")}))
+        await renderTab()
+
+        expect(screen.getByTestId("stored-policy-invalid")).toBeTruthy()
+        expect(screen.queryByTestId("sealed-policy")).toBeNull()
+    })
+})
+
+describe("the logs", () => {
+    const signed = policyText()
+    const hex = policyHexOf(signed)
+    const withLogs = (o: Partial<ITransparencyOutput> = {}) =>
+        publicDraft({
+            policy: signed,
+            policy_id: hex,
+            logs: sidecarLogs(hex),
+            status: sidecarStatus(hex),
+            ...o,
+        })
+
+    it("shows their checkpoints, the witnesses' lag and the hubs' last anchors", async () => {
+        answer(withLogs())
+        await renderTab()
+
+        const ballots = screen.getByTestId("log-ballots")
+        expect(ballots.textContent).toContain("logs.acme.example/e/ballots")
+        expect(ballots.textContent).toContain("transparencyTab.logs.policyCurrent")
+        expect(screen.getByTestId("witness-w1-lag").textContent).toBe("0")
+        expect(screen.getByTestId("witness-w2-lag").textContent).toBe("3")
+        expect(screen.getByTestId("witness-w3-lag").textContent).toBe(
+            "transparencyTab.logs.unknown"
+        )
+        expect(screen.getByTestId("witness-w2").textContent).toContain("connection refused")
+        expect(screen.getByTestId("witness-w2").textContent).toContain(
+            "transparencyTab.logs.witnessAlert"
+        )
+        expect(within(ballots).getByTestId("hub-h1").textContent).toContain("8")
+        expect(within(ballots).getByTestId("hub-h2").textContent).toContain(
+            "transparencyTab.logs.hubNoAnchor"
+        )
+
+        const events = screen.getByTestId("log-events")
+        expect(events.textContent).toContain("transparencyTab.logs.noCheckpoint")
+        expect(events.textContent).toContain("transparencyTab.logs.noWitnesses")
+        expect(screen.getByTestId("log-events-alert").textContent).toContain("witness-quorum-late")
+    })
+
+    it("says which logs run under another policy", async () => {
+        answer(withLogs({status: sidecarStatus("ef".repeat(32)), logs: []}))
+        await renderTab()
+
+        expect(screen.getByTestId("log-ballots").textContent).toContain(
+            "transparencyTab.logs.policyOther"
+        )
+    })
+
+    it("says when the logs haven't reported yet", async () => {
+        answer(publicDraft())
+        await renderTab()
+
+        expect(screen.getByTestId("no-logs")).toBeTruthy()
+    })
+
+    it("links to the explorer over https only", async () => {
+        answer(withLogs({explorer_url: "https://explorer.acme.example/e/"}))
+        const view = await renderTab()
+
+        const link = screen.getByTestId("explorer-link") as HTMLAnchorElement
+        expect(link.href).toBe("https://explorer.acme.example/e/")
+        expect(link.target).toBe("_blank")
+        expect(link.rel).toBe("noopener noreferrer")
+
+        view.unmount()
+        answer(withLogs({explorer_url: "javascript:alert(1)"}))
+        await renderTab()
+        expect(screen.queryByTestId("explorer-link")).toBeNull()
+    })
+
+    it("shows the sidecar's text as text", async () => {
+        const status = sidecarStatus(hex) as {ballots: {origin: string}}
+        status.ballots.origin = MARKUP
+        answer(withLogs({status}))
+        const {container} = await renderTab()
+
+        expect(screen.getByTestId("log-ballots").textContent).toContain(MARKUP)
+        expect(container.querySelector("img")).toBeNull()
+    })
+})
+
+describe("the overview", () => {
+    const signed = policyText()
+    const hex = policyHexOf(signed)
+    const ok = (o: Partial<ITransparencyOutput> = {}) => {
+        const status = sidecarStatus(hex) as Record<
+            string,
+            {witnesses: Array<{alert?: boolean}>; alert?: string}
+        >
+        status.ballots.witnesses.forEach((w) => {
+            w.alert = false
+        })
+        const logs = (sidecarLogs(hex) as Array<{alert: string | null}>).map((l) => ({
+            ...l,
+            alert: null,
+        }))
+        return publicDraft({policy: signed, policy_id: hex, logs, status, ...o})
+    }
+    const value = (figure: string) => screen.getByTestId(`figure-${figure}-value`).textContent
+
+    beforeEach(() => {
+        jest.spyOn(Date, "now").mockReturnValue(NOW * 1000)
+    })
+
+    it("says the record is healthy, with the policy's quorum, hubs and merge delay", async () => {
+        answer(ok({explorer_url: "https://explorer.acme.example/e/"}))
+        await renderTab()
+
+        expect(healthOf().getAttribute("data-health")).toBe("healthy")
+        expect(healthOf().textContent).toContain(
+            "transparencyTab.overview.health.title.healthyPublic"
+        )
+        const summary = screen.getByTestId("transparency-health-summary").textContent
+        expect(summary).toContain("transparencyTab.overview.health.public")
+        expect(summary).toContain(
+            `transparencyTab.overview.health.quorum ${JSON.stringify({k: 2, n: 3})}`
+        )
+        expect(summary).toContain(
+            `transparencyTab.overview.health.hubs ${JSON.stringify({count: 2})}`
+        )
+        expect(summary).toContain(
+            `transparencyTab.overview.health.hubsOutside ${JSON.stringify({count: 2})}`
+        )
+        expect(summary).not.toContain("transparencyTab.overview.health.locked")
+        expect(screen.queryByTestId("transparency-health-issues")).toBeNull()
+        expect(screen.getByTestId("explorer-link")).toBeTruthy()
+    })
+
+    it("offers the signed policy to download", async () => {
+        answer(ok())
+        await renderTab()
+
+        const click = jest.spyOn(HTMLAnchorElement.prototype, "click")
+        fireEvent.click(screen.getByTestId("download-policy"))
+        const blob = createObjectURL.mock.calls[0][0] as Blob
+        expect(await blob.text()).toBe(signed)
+        const link = click.mock.instances[0] as unknown as HTMLAnchorElement
+        expect(link.download).toBe(signedPolicyFileName(EVENT_ID))
+    })
+
+    it("lists what needs attention", async () => {
+        answer(
+            publicDraft({
+                policy: signed,
+                policy_id: hex,
+                logs: sidecarLogs(hex),
+                status: sidecarStatus(hex),
+            })
+        )
+        await renderTab()
+
+        expect(healthOf().getAttribute("data-health")).toBe("attention")
+        const issues = screen.getByTestId("transparency-health-issues").textContent
+        expect(issues).toContain(
+            `transparencyTab.overview.issues.witnessAlert ${JSON.stringify({log: "ballots", witness: "w2"})}`
+        )
+        expect(issues).toContain(
+            `transparencyTab.overview.issues.logAlert ${JSON.stringify({log: "events", alert: "witness-quorum-late"})}`
+        )
+    })
+
+    it("shows the figures the logs report, and says which ones they don't", async () => {
+        answer(ok())
+        await renderTab()
+
+        expect(value("record")).toBe("10")
+        expect(value("sequencerLag")).toBe(
+            `transparencyTab.duration.seconds ${JSON.stringify({n: 5})}`
+        )
+        expect(value("hubAnchor")).toBe(
+            `transparencyTab.overview.ago ${JSON.stringify({
+                duration: `transparencyTab.duration.seconds ${JSON.stringify({n: 90})}`,
+            })}`
+        )
+        for (const figure of [
+            "accepted",
+            "receiptTime",
+            "browserLayer",
+            "overduePromises",
+            "evidenceReports",
+        ]) {
+            expect(value(figure)).toBe("transparencyTab.overview.notReported")
+        }
+    })
+
+    it("gives each witness and hub its state", async () => {
+        answer(
+            publicDraft({
+                policy: signed,
+                policy_id: hex,
+                logs: sidecarLogs(hex),
+                status: sidecarStatus(hex),
+            })
+        )
+        await renderTab()
+
+        expect(screen.getByTestId("overview-witness-w1").textContent).toContain(
+            "transparencyTab.overview.witnesses.signing"
+        )
+        expect(screen.getByTestId("overview-witness-w2").textContent).toContain(
+            "transparencyTab.overview.witnesses.alert"
+        )
+        expect(screen.getByTestId("overview-witness-w2").textContent).toContain(
+            `transparencyTab.overview.runBy ${JSON.stringify({party: "observers"})}`
+        )
+        expect(screen.getByTestId("overview-witness-w3").textContent).toContain(
+            "transparencyTab.overview.witnesses.laggingUnknown"
+        )
+        expect(screen.getByTestId("overview-hub-h1").textContent).toContain(
+            "transparencyTab.overview.ago"
+        )
+        expect(screen.getByTestId("overview-hub-h2").textContent).toContain(
+            "transparencyTab.overview.anchoring.noAnchor"
+        )
+        expect(screen.getByTestId("overview-browser-layer").textContent).toContain(
+            "transparencyTab.overview.notReported"
+        )
+    })
+
+    it("states the hub rule, and says who runs each hub without judging them", async () => {
+        const rule = policyText({platform: "hubco2", anchorHubs: true})
+        answer(publicDraft({policy: rule, policy_id: policyHexOf(rule)}))
+        await renderTab()
+
+        expect(screen.getByTestId("overview-hub-rule").textContent).toBe(
+            `transparencyTab.overview.anchoring.rule ${JSON.stringify({min: 2, outside: 1})}`
+        )
+        const hub = screen.getByTestId("overview-hub-h2").textContent
+        expect(hub).toContain(`transparencyTab.overview.runBy ${JSON.stringify({party: "hubco2"})}`)
+        expect(hub).not.toContain("independent")
+        expect(screen.getByTestId("transparency-health-summary").textContent).toContain(
+            `transparencyTab.overview.health.hubsOutside ${JSON.stringify({count: 1})}`
+        )
+    })
+
+    it("marks no milestone as committed, since the logs don't report them", async () => {
+        answer(ok())
+        await renderTab()
+
+        const milestones = screen.getByTestId("overview-milestones")
+        expect(milestones.textContent).toContain("transparencyTab.overview.milestones.unreported")
+        expect(within(milestones).getAllByRole("listitem")).toHaveLength(6)
+    })
+
+    it("shows the visibility the logs were created with, which can't change", async () => {
+        answer(ok())
+        await renderTab()
+
+        const visibility = screen.getByTestId("overview-visibility")
+        const choices = within(visibility).getAllByRole("radio") as HTMLInputElement[]
+        expect(choices.map((c) => [c.value, c.checked, c.disabled])).toEqual([
+            ["public", true, true],
+            ["private", false, true],
+        ])
+        expect(visibility.textContent).toContain("transparencyTab.overview.visibility.fixed")
+        expect(screen.queryByTestId("transparency-locked")).toBeNull()
+    })
+
+    it("says the record is locked once voting opened", async () => {
+        answer(ok({locked: true}))
+        await renderTab()
+
+        expect(screen.getByTestId("transparency-locked").textContent).toBe(
+            "transparencyTab.overview.visibility.locked"
+        )
+        expect(screen.getByTestId("transparency-health-summary").textContent).toContain(
+            "transparencyTab.overview.health.locked"
+        )
+    })
+
+    it("names the private record as the election record", async () => {
+        const privateSigned = policyText({visibility: "private"})
+        const privateHex = policyHexOf(privateSigned)
+        answer(
+            output({
+                mode: "private",
+                policy: privateSigned,
+                policy_id: privateHex,
+                draft_policy: draftPolicyText({visibility: "private"}),
+                logs: [],
+            })
+        )
+        await renderTab()
+
+        expect(healthOf().getAttribute("data-health")).toBe("unreported")
+        expect(screen.getByTestId("transparency-health-summary").textContent).toContain(
+            "transparencyTab.overview.health.private"
+        )
+        expect(value("record")).toBe("transparencyTab.overview.notReported")
+    })
+
+    it("waits for the trust policy before showing figures", async () => {
+        answer(publicDraft())
+        await renderTab()
+
+        expect(healthOf().getAttribute("data-health")).toBe("noPolicy")
+        expect(screen.queryByTestId("figure-record")).toBeNull()
+        expect(screen.queryByTestId("download-policy")).toBeNull()
+        expect(screen.getByTestId("draft-policy")).toBeTruthy()
+    })
+
+    it("shows only the way to enable transparency while it is off", async () => {
+        answer(output())
+        await renderTab()
+
+        expect(healthOf().getAttribute("data-health")).toBe("disabled")
+        expect(screen.getByTestId("transparency-health-summary").textContent).toBe(
+            "transparencyTab.help"
+        )
+        expect(screen.queryByTestId("figure-record")).toBeNull()
+        expect(screen.queryByTestId("transparency-policy")).toBeNull()
+        expect(screen.queryByTestId("transparency-logs")).toBeNull()
+        expect(screen.getByTestId("enable-transparency")).toBeTruthy()
+    })
+})
+
+describe("updates from hubs", () => {
+    const signed = policyText({hubExplorers: true})
+
+    it("are offered once transparency is on and the policy is sealed, with the event's own settings", async () => {
+        answer(publicDraft({policy: signed, policy_id: policyHexOf(signed)}))
+        await renderTab({
+            presentation: {hub_updates: {confirmation: "off"}},
+            canChangeHubUpdates: true,
+        })
+
+        expect(screen.getByTestId("hub-updates")).toBeTruthy()
+        const confirmation = screen.getByRole("switch", {
+            name: "transparencyTab.hubUpdates.confirmation.label",
+        }) as HTMLInputElement
+        expect(confirmation.checked).toBe(false)
+        expect(confirmation.disabled).toBe(false)
+        expect(screen.getByTestId("hub-updates-hub-h1")).toBeTruthy()
+        expect(screen.getByTestId("hub-updates-hub-h2")).toBeTruthy()
+    })
+
+    it("are changed as the election-event-write role, and the record is read again", async () => {
+        const changed = jest.fn()
+        setHubUpdates.mockResolvedValue({
+            data: {
+                update_sequent_backend_election_event_by_pk: {
+                    id: EVENT_ID,
+                    hub_updates: {confirmation: "on", cast_email: "off"},
+                },
+            },
+        })
+        answer(publicDraft({policy: signed, policy_id: policyHexOf(signed)}))
+        await renderTab({canChangeHubUpdates: true, onChanged: changed})
+
+        expect(useMutation).toHaveBeenCalledWith(expect.stringContaining("SetHubUpdates"), {
+            context: {headers: {"x-hasura-role": "election-event-write"}},
+        })
+        await act(async () => {
+            fireEvent.click(
+                screen.getByRole("switch", {name: "transparencyTab.hubUpdates.castEmail.label"})
+            )
+        })
+        expect(setHubUpdates).toHaveBeenCalledWith({
+            variables: {
+                electionEventId: EVENT_ID,
+                patch: {hub_updates: {confirmation: "on", cast_email: "off"}},
+            },
+        })
+        expect(changed).toHaveBeenCalledTimes(1)
+    })
+
+    it("are locked for an admin who may not change the event", async () => {
+        answer(publicDraft({policy: signed, policy_id: policyHexOf(signed)}))
+        await renderTab()
+
+        const castEmail = screen.getByRole("switch", {
+            name: "transparencyTab.hubUpdates.castEmail.label",
+        }) as HTMLInputElement
+        expect(castEmail.disabled).toBe(true)
+        expect(screen.getByTestId("hub-updates-read-only")).toBeTruthy()
+    })
+
+    it("say there is no hub to offer while the policy has not been sealed", async () => {
+        answer(publicDraft())
+        await renderTab({canChangeHubUpdates: true})
+
+        expect(screen.getByTestId("hub-updates-no-hubs")).toBeTruthy()
+    })
+
+    it("are not offered while transparency is off", async () => {
+        answer(output())
+        await renderTab({canChangeHubUpdates: true})
+
+        expect(screen.queryByTestId("hub-updates")).toBeNull()
+    })
+})
+
+describe("witness enrolment", () => {
+    it("gives each log's note to copy for the witnesses' operators", async () => {
+        const note = `vitrine/enrol/v1\nlogs.acme.example/e/ballots\n${MARKUP}\n`
+        answer(publicDraft({enrolments: [{log: "ballots", note}]}))
+        const {container} = await renderTab()
+
+        const enrolment = screen.getByTestId("enrolment-ballots")
+        expect(enrolment.querySelector("pre")?.textContent).toBe(note)
+        expect(container.querySelector("img")).toBeNull()
+
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("copy-enrolment-ballots"))
+        })
+        expect(writeText).toHaveBeenCalledWith(note)
+        expect(screen.getByTestId("copy-enrolment-ballots").textContent).toBe(
+            "transparencyTab.copied"
+        )
+    })
+
+    it("says when the note couldn't be copied", async () => {
+        writeText.mockRejectedValue(new Error("denied"))
+        answer(publicDraft({enrolments: [{log: "ballots", note: "note"}]}))
+        await renderTab()
+
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("copy-enrolment-ballots"))
+        })
+        expect(screen.getByTestId("copy-enrolment-ballots").textContent).toBe(
+            "transparencyTab.copyFailed"
+        )
+    })
+})
+
+describe("loading", () => {
+    it("says why the tab couldn't load, and tries again", async () => {
+        answer(undefined, {graphQLErrors: [{message: "Vitrine is unavailable"}]})
+        await renderTab()
+
+        expect(screen.getByTestId("transparency-load-error").textContent).toContain(
+            JSON.stringify({reason: "Vitrine is unavailable"})
+        )
+        await act(async () => {
+            fireEvent.click(screen.getByText("transparencyTab.retry"))
+        })
+        expect(refetch).toHaveBeenCalledTimes(1)
+    })
+
+    it("asks for nothing without an event", async () => {
+        answer(undefined)
+        const {container} = await renderTab({electionEventId: undefined})
+
+        expect(container.textContent).toBe("")
+        expect(useQuery).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({skip: true})
+        )
+    })
+})

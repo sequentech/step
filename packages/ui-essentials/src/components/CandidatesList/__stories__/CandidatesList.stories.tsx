@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {Meta, StoryObj} from "@storybook/react"
+import {Meta, StoryObj} from "@storybook/react-vite"
 import CandidatesList, {CandidatesListProps} from "../CandidatesList"
-import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
+import {INITIAL_VIEWPORTS} from "storybook/viewport"
 import {Box} from "@mui/material"
 import Image from "mui-image"
-import CandidateImg from "../../../../public/example_candidate.jpg"
+const CandidateImg = "/example_candidate.jpg"
 import Candidate from "../../Candidate/Candidate"
 
 interface SimpleCandidateProps {

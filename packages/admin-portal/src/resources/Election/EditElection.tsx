@@ -13,6 +13,7 @@ import {
     TextField,
     TextInput,
     useRecordContext,
+    FunctionField,
 } from "react-admin"
 import {HorizontalBox} from "../../components/HorizontalBox"
 import {ListElection} from "./ListElection"
@@ -30,6 +31,7 @@ import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../../services/ScheduledEvent"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {EVotingStatus} from "@sequentech/ui-core"
+import {presentationNameSource, usePresentationName} from "../../hooks/usePresentationName"
 
 const ElectionForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
@@ -39,6 +41,7 @@ const ElectionForm: React.FC = () => {
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const [tenantId] = useTenantStore()
     const [showProgress, setShowProgress] = useState(false)
+    const presentationName = usePresentationName()
 
     const handleActionsButtonClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
         setAnchorEl(event.currentTarget)
@@ -59,7 +62,6 @@ const ElectionForm: React.FC = () => {
                     election_id: record?.id,
                     status: nextStatus,
                 },
-                createdBy: "admin",
             },
         })
         setShowProgress(false)
@@ -103,7 +105,7 @@ const ElectionForm: React.FC = () => {
                 <Typography variant="body2">Election configuration</Typography>
                 <Typography variant="h5">ID</Typography>
                 <TextField source="id" />
-                <TextInput source="name" />
+                <TextInput source={presentationNameSource(record)} label="Name" />
                 <TextInput source="description" />
                 <BooleanInput source="is_consolidated_ballot_encoding" />
                 <BooleanInput source="spoil_ballot_option" />
@@ -113,7 +115,7 @@ const ElectionForm: React.FC = () => {
                     reference="sequent_backend_election_event"
                     source="election_event_id"
                 >
-                    <TextField source="name" />
+                    <FunctionField render={presentationName} />
                 </ReferenceField>
                 <Typography variant="h5">Contests</Typography>
                 <ReferenceManyField

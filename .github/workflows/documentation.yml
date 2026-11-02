@@ -23,11 +23,19 @@ on:
       - main
       - release/*
       - feat/use-arc-runner-java-test
+      # Integration branch that combines programme stacks before main.
+      - ovcs
+      # Stacked meta-ticket PRs target the previous PR's branch.
+      - 'feat/meta-*/**'
 
 permissions:
   contents: write
   actions: read
   pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -38,7 +46,7 @@ jobs:
           clean: true
 
       - name: Set Node.js 22.x
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22.x
           
@@ -46,14 +54,14 @@ jobs:
         id: build_docusaurus
         working-directory: ./docs/docusaurus
         run: |
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
+          if [ "$GITHUB_EVENT_NAME" == "pull_request" ]; then
             URL_PATH="/docusaurus/pr-preview/pr-$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")"
-          elif [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref_name }}" == "main" ]; then
+          elif [ "$GITHUB_EVENT_NAME" == "push" ] && [ "$GITHUB_REF_NAME" == "main" ]; then
             URL_PATH="/docusaurus/main"
-          elif [ "${{ github.event_name }}" == "push" ] && [[ "${{ github.ref_name }}" == release/* ]]; then
-            URL_PATH="/docusaurus/release-preview/${{ github.ref_name }}"
+          elif [ "$GITHUB_EVENT_NAME" == "push" ] && [[ "$GITHUB_REF_NAME" == release/* ]]; then
+            URL_PATH="/docusaurus/release-preview/$GITHUB_REF_NAME"
           fi
-          echo "BASE_URL=$URL_PATH" >> $GITHUB_ENV
+          echo "BASE_URL=$URL_PATH" >> "$GITHUB_ENV"
           export BASE_URL=$URL_PATH
           yarn install --frozen-lockfile
           yarn build
@@ -76,7 +84,7 @@ jobs:
           pages-base-url: docs.sequentech.io
           source-dir: ./docs/docusaurus/build/
           preview-branch: doc-previews
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           clean-exclude: |
             docusaurus/main
             docusaurus/release-preview/*
@@ -90,7 +98,7 @@ jobs:
           branch: doc-previews
           target-folder: docusaurus/main
           commit-message: "Deploy preview for ${{ github.ref_name }}"
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           clean-exclude: |
             docusaurus/pr-preview/*
             docusaurus/release-preview/*
@@ -103,7 +111,7 @@ jobs:
           branch: doc-previews
           target-folder: "docusaurus/release-preview/${{ github.ref_name }}"
           commit-message: "Deploy preview for ${{ github.ref_name }}"
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           clean-exclude: |
             docusaurus/main
             docusaurus/pr-preview/*

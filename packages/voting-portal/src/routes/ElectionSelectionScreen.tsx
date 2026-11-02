@@ -2,10 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {getPublishedSupportMaterialsPolicy} from "../services/PublishedBallots"
 import {Box, Button, CircularProgress, Typography, Alert} from "@mui/material"
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {Trans, useTranslation} from "react-i18next"
-import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/ui-essentials"
+import {Dialog, ElectionListLayout, IconButton, SelectElection} from "@sequentech/ui-essentials"
 import {
     stringToHtml,
     escapeTranslationValues,
@@ -20,13 +21,16 @@ import {
     parseResultsWebsitePolicy,
     formatVotingPortalDateTime,
     ESupportMaterialsPolicy,
-    getEffectiveSupportMaterialsPolicy,
+    type IBallotLogRow,
 } from "@sequentech/ui-core"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+import {
+    selectBallotStyleByElectionId,
+    selectFirstBallotStyle,
+} from "../store/ballotStyles/ballotStylesSlice"
 import {selectElectionById, setElection, selectElectionIds} from "../store/elections/electionsSlice"
 import {
     addCastVotes,
@@ -68,71 +72,28 @@ import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {GET_SUPPORT_MATERIALS_ACKNOWLEDGMENT} from "../queries/GetSupportMaterialsAcknowledgment"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 import {useElectionClassName} from "../hooks/useElectionClassName"
+import {BallotStatus, EBallotStatusTrigger} from "../components/Vitrine/BallotStatus"
+import {useTrackedReceipt} from "../hooks/useTrackedReceipt"
+import {BALLOT_BOX_OWN} from "../queries/BallotBoxLog"
+import {acceptedAtOf} from "../services/vitrine/ballotTracker"
+import {ITransparency, readTransparency} from "../services/vitrine/presentation"
+import {showsAlreadyCastHint} from "../services/vitrine/ballotList"
+import {ETransparencyMode} from "../services/vitrine/types"
+import {
+    ballotTimeZones,
+    currentElectionDates,
+    votingClosedMessage,
+} from "../services/ElectionTimeZones"
 
-const StyledTitle = styled(Typography)`
-    margin-top: 25.5px;
-    display: flex;
-    flex-direction: row;
-    gap: 16px;
-    font-size: 24px;
-    font-weight: 500;
-    line-height: 27px;
-    margin-top: 20px;
-    margin-bottom: 16px;
-`
-
-const ElectionContainer = styled(Box)`
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
-    margin-bottom: 30px;
-`
+// `StyledTitle`, `TitleSection`, `PageActions` and `ElectionContainer` were here.
+// They are `ElectionListLayout` in `ui-essentials` now, with the class names they
+// carry, so the Election Architect's Ballot Preview draws this screen's tree rather
+// than a second one that a client's stylesheet would not fit.
 
 const MaterialsGateLink = styled(RouterLink)`
     color: inherit;
     font-weight: 500;
     text-decoration: underline;
-`
-
-const TitleSection = styled(Box)`
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    gap: 32px;
-    min-height: 100px;
-
-    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 16px;
-        min-height: unset;
-        padding: 24px 0;
-    }
-`
-
-const PageActions = styled(Box)`
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-    gap: 16px;
-
-    .election-event-results-button {
-        min-width: 150px;
-        padding: 10px 24px;
-        justify-content: center;
-        font-weight: 500;
-        line-height: 24px;
-        white-space: nowrap;
-    }
-
-    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
-        width: 100%;
-
-        > .MuiButton-root {
-            flex: 1;
-        }
-    }
 `
 
 interface ElectionWrapperProps {
@@ -142,6 +103,9 @@ interface ElectionWrapperProps {
     bypassChooser: boolean
     canVoteTest: boolean
     materialsGate: boolean
+    transparency: ITransparency
+    /** The voter's cast ballot in this election, as the ballot box knows it. */
+    ownBallot?: IBallotLogRow
 }
 
 const isElectionEventOnlineVotingOpen = (electionEvent?: IElectionEvent): boolean => {
@@ -186,6 +150,8 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     bypassChooser,
     canVoteTest,
     materialsGate,
+    transparency,
+    ownBallot,
 }) => {
     const navigate = useNavigate()
     const location = useLocation()
@@ -196,6 +162,12 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const election = useAppSelector(selectElectionById(electionId))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(electionId))
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
+    // Nothing for an event without timezones: the card then renders as before.
+    const zones = ballotTimeZones(
+        electionEvent?.presentation,
+        election?.presentation,
+        ballotStyle?.ballot_eml
+    )
     const isAcclaimedCompleted = useAppSelector(isAcclaimedElectionCompleted(electionId))
     const [visitedBypassChooser, setVisitedBypassChooser] = useState(false)
     const authContext = useContext(AuthContext)
@@ -213,13 +185,14 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     let electionClassName = getElectionClassName(election)
 
     const electionStatus = election?.status as IElectionStatus | null
+    const areaPresentation = (summary?.area_presentation ??
+        ballotStyle?.ballot_eml?.area_presentation) as IAreaPresentation | undefined
     const isVotingOpen = () =>
         isElectionOpenForVoting({
             electionStatus,
             eventStatus: electionEvent?.status as IElectionEventStatus | null,
             channels: election.voting_channels,
-            areaPresentation:
-                summary?.area_presentation ?? ballotStyle?.ballot_eml.area_presentation,
+            areaPresentation,
             isKiosk,
         })
 
@@ -228,7 +201,6 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             ballotStyle?.ballot_eml?.area_presentation) as IAreaPresentation | undefined
         return area_presentation?.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING
     }
-
     const isVotingStarted = () => {
         if (isKiosk) {
             return electionStatus?.kiosk_voting_status !== EVotingStatus.NOT_STARTED
@@ -247,7 +219,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             return false
         }
 
-        if (!canVoteTest && !election.name?.includes("TEST")) {
+        if (!canVoteTest) {
             return false
         }
 
@@ -298,27 +270,70 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         }
     }, [bypassChooser, visitedBypassChooser, setVisitedBypassChooser, ballotStyle])
 
+    const alreadyCast = showsAlreadyCastHint({
+        election,
+        votes: castVotes,
+        isOpen: isVotingOpen(),
+        canVote: canVote(),
+        keepsTransparencyLog:
+            readTransparency(electionEvent?.presentation).mode !== ETransparencyMode.DISABLED,
+    })
+
+    const electionName = translateFromPresentation(election, "name", i18n.language, {
+        defaultLanguageCode,
+    })
+    const acceptedAt = acceptedAtOf(ownBallot?.last_step_at)
+    const tracked = useTrackedReceipt(
+        ownBallot && eventId
+            ? {eventId, electionId, ballotId: ownBallot.tracking_id, stage: "cast", acceptedAt}
+            : undefined,
+        transparency
+    )
+    const votedStatus = ownBallot ? (
+        <BallotStatus
+            trigger={EBallotStatusTrigger.LABEL}
+            view={tracked.view}
+            ballotId={ownBallot.tracking_id}
+            electionName={electionName || undefined}
+            castAt={
+                acceptedAt === undefined
+                    ? undefined
+                    : formatVotingPortalDateTime(
+                          acceptedAt * 1000,
+                          electionEvent,
+                          i18n.resolvedLanguage || i18n.language
+                      )
+            }
+            trackerUrl={`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ownBallot.tracking_id}${isKiosk ? "?kiosk" : ""}`}
+        />
+    ) : undefined
+
     return (
         <SelectElection
             isActive={canVote()}
             isOpen={isVotingOpen()}
-            title={
-                translateFromPresentation(election, "name", i18n.language, {
-                    defaultLanguageCode,
-                }) || "-"
-            }
+            title={electionName || "-"}
             hasVoted={castVotes.length > 0}
+            votedStatus={votedStatus}
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
+            alreadyCast={alreadyCast}
             resultsUrl={resultsUrl}
-            electionDates={summary?.election_dates ?? ballotStyle?.ballot_eml?.election_dates}
+            electionDates={currentElectionDates(
+                summary?.election_dates ?? ballotStyle?.ballot_eml?.election_dates,
+                electionStatus,
+                isKiosk
+            )}
             isStarted={isVotingStarted()}
             className={electionClassName}
-            formatDateTime={(input) =>
+            timeZone={zones?.timeZone}
+            closeTimeZone={zones?.closeTimeZone}
+            formatDateTime={(input, zone) =>
                 formatVotingPortalDateTime(
                     input,
                     electionEvent,
-                    i18n.resolvedLanguage || i18n.language
+                    i18n.resolvedLanguage || i18n.language,
+                    zone
                 )
             }
         />
@@ -331,11 +346,15 @@ const ElectionSelectionScreen: React.FC = () => {
     const location = useLocation()
 
     const {globalSettings} = useContext(SettingsContext)
+    const isKioskVoter = useContext(AuthContext).isKiosk()
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const eventDefaultLanguageCode =
         electionEvent?.presentation?.language_conf?.default_language_code
+    const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const electionIds = useAppSelector(selectElectionIds)
+    const electionsById = useAppSelector((state) => state.elections)
+    const ballotStylesById = useAppSelector((state) => state.ballotStyles)
     const dispatch = useAppDispatch()
     const [canVoteTest, setCanVoteTest] = useState<boolean>(true)
     const [testElectionId, setTestElectionId] = useState<string | null>(null)
@@ -344,8 +363,9 @@ const ElectionSelectionScreen: React.FC = () => {
     )
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
     // Presentation comes from the immutable S3 publication snapshot.
-    const materialsPolicy = getEffectiveSupportMaterialsPolicy(
-        electionEvent?.presentation?.materials
+    const materialsPolicy = getPublishedSupportMaterialsPolicy(
+        oneBallotStyle?.ballot_eml.election_event_presentation,
+        electionEvent?.presentation
     )
     const isMaterialsVisible = materialsPolicy !== ESupportMaterialsPolicy.OFF
     const isMaterialsMandatory = materialsPolicy === ESupportMaterialsPolicy.MANDATORY_FOR_VOTING
@@ -358,7 +378,22 @@ const ElectionSelectionScreen: React.FC = () => {
             ? `${globalSettings.RESULTS_PORTAL_URL.replace(/\/+$/, "")}/${eventId}`
             : undefined
 
-    const {data, error, loading, summaries} = useVoterContext()
+    const {data, error, loading, summaries, refetch: refreshVoterStatus} = useVoterContext()
+
+    useEffect(() => {
+        if (
+            globalSettings.DISABLE_AUTH ||
+            !tenantId ||
+            !eventId ||
+            typeof refreshVoterStatus !== "function"
+        )
+            return
+        const refresh = () => {
+            void refreshVoterStatus().catch(() => undefined)
+        }
+        window.addEventListener("focus", refresh)
+        return () => window.removeEventListener("focus", refresh)
+    }, [globalSettings.DISABLE_AUTH, tenantId, eventId, refreshVoterStatus])
 
     // Materials
     const {data: dataMaterials} = useQuery<GetSupportMaterialsQuery>(GET_SUPPORT_MATERIALS, {
@@ -430,6 +465,27 @@ const ElectionSelectionScreen: React.FC = () => {
                 !data?.cast_votes.some((vote) => vote.status === CastVoteStatus.IN_PROGRESS)),
     })
     const castVotes = polledCastVotes ?? data
+
+    // The voter's own ballots come from the ballot box, which knows them by the
+    // identity they were cast under, as it does when the voter votes again. The
+    // portal keeps none: it asks on each visit, and checks each against the log.
+    const transparency = useMemo(
+        () => readTransparency(electionEvent?.presentation),
+        [electionEvent?.presentation]
+    )
+    const {data: ownData} = useQuery<{ballot_box_own: {payload: {ballots: IBallotLogRow[]}}}>(
+        BALLOT_BOX_OWN,
+        {
+            variables: {electionEventId: eventId ?? ""},
+            fetchPolicy: "no-cache",
+            skip:
+                globalSettings.DISABLE_AUTH ||
+                !eventId ||
+                transparency.mode !== ETransparencyMode.PUBLIC ||
+                !castVotes?.cast_votes.length,
+        }
+    )
+    const ownBallots = ownData?.ballot_box_own?.payload?.ballots ?? []
 
     const materialsPath = `/tenant/${tenantId}/event/${eventId}/materials${location.search}`
     const materialsTitle =
@@ -570,6 +626,7 @@ const ElectionSelectionScreen: React.FC = () => {
         globalSettings.DISABLE_AUTH,
     ])
 
+    // warningMsg is rendered as HTML below, so its interpolated values are escaped
     let warningMsg: string | undefined
     if (!globalSettings.DISABLE_AUTH) {
         let errorType: ElectionScreenErrorType | undefined
@@ -598,6 +655,53 @@ const ElectionSelectionScreen: React.FC = () => {
               : undefined
     }
 
+    // Another channel being open must not hide this voter's closing message.
+    const allBallotsClosed =
+        electionIds.length > 0 &&
+        electionIds.every(
+            (id) =>
+                !isElectionOpenForVoting({
+                    electionStatus: electionsById[id]?.status as IElectionStatus | null,
+                    eventStatus: electionEvent?.status as IElectionEventStatus | null,
+                    channels: electionsById[id]?.voting_channels,
+                    areaPresentation: (summaries?.[id]?.area_presentation ??
+                        ballotStylesById[id]?.ballot_eml?.area_presentation) as
+                        | IAreaPresentation
+                        | undefined,
+                    isKiosk: isKioskVoter,
+                })
+        )
+    const closedMsg = allBallotsClosed
+        ? votingClosedMessage({
+              ballots: electionIds.map((electionId) => {
+                  const ballotStyle = ballotStylesById[electionId]
+                  return {
+                      electionDates: currentElectionDates(
+                          summaries?.[electionId]?.election_dates ??
+                              ballotStyle?.ballot_eml?.election_dates,
+                          electionsById[electionId]?.status as IElectionStatus | null,
+                          isKioskVoter
+                      ),
+                      zones: ballotTimeZones(
+                          electionEvent?.presentation,
+                          electionsById[electionId]?.presentation,
+                          ballotStyle?.ballot_eml
+                      ),
+                  }
+              }),
+              now: new Date(),
+              t,
+              lang: i18n.resolvedLanguage || i18n.language,
+              formatDateTime: (input, zone) =>
+                  formatVotingPortalDateTime(
+                      input,
+                      electionEvent,
+                      i18n.resolvedLanguage || i18n.language,
+                      zone
+                  ),
+          })
+        : undefined
+
     // Block voting until we positively know the voter has acknowledged.
     const materialsGate =
         isMaterialsMandatory && !(hasAcknowledgmentLoaded && hasAcknowledgedSupportMaterials)
@@ -618,54 +722,50 @@ const ElectionSelectionScreen: React.FC = () => {
         )
 
     return (
-        <PageLimit maxWidth="lg" className="election-selection-screen screen">
-            <Box className="stepper-box" marginTop="48px">
-                <Stepper selected={0} />
-            </Box>
-
-            <TitleSection className="title-section">
-                <Box sx={{flex: 1, minWidth: 0}} className="election-selection-heading">
-                    <StyledTitle className="screen-title" variant="h1">
-                        <Box className="screen-title-text">
-                            {t("electionSelectionScreen.title")}
-                        </Box>
-                        <IconButton
-                            buttonClassName="screen-help-button"
-                            icon={faCircleQuestion}
-                            sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                            fontSize="16px"
-                            onClick={() => setOpenChooserHelp(true)}
-                            ariaLabel={t("a11y.helpAbout", {
-                                topic: t("electionSelectionScreen.chooserHelpDialog.title"),
-                            })}
-                        />
-                        <Dialog
-                            className="screen-help-dialog election-selection-help-dialog"
-                            handleClose={() => setOpenChooserHelp(false)}
-                            open={openChooserHelp}
-                            title={t("electionSelectionScreen.chooserHelpDialog.title")}
-                            ok={t("electionSelectionScreen.chooserHelpDialog.ok")}
-                            variant="info"
-                        >
-                            {stringToHtml(t("electionSelectionScreen.chooserHelpDialog.content"))}
-                        </Dialog>
-                    </StyledTitle>
-                    {warningMsg ? (
-                        <Alert className="election-selection-warning" severity="warning">
-                            {stringToHtml(warningMsg)}
-                        </Alert>
-                    ) : (
-                        <Typography
-                            className="screen-description"
-                            variant="body1"
-                            component="div"
-                            sx={{color: theme.palette.customGrey.contrastText}}
-                        >
-                            {stringToHtml(t("electionSelectionScreen.description"))}
-                        </Typography>
-                    )}
-                </Box>
-                <PageActions className="election-event-actions">
+        <ElectionListLayout
+            steps={<Stepper selected={0} />}
+            titleAdornment={
+                <>
+                    <IconButton
+                        buttonClassName="screen-help-button"
+                        icon={faCircleQuestion}
+                        sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
+                        fontSize="1rem"
+                        onClick={() => setOpenChooserHelp(true)}
+                        ariaLabel={t("a11y.helpAbout", {
+                            topic: t("electionSelectionScreen.chooserHelpDialog.title"),
+                        })}
+                    />
+                    <Dialog
+                        className="screen-help-dialog election-selection-help-dialog"
+                        handleClose={() => setOpenChooserHelp(false)}
+                        open={openChooserHelp}
+                        title={t("electionSelectionScreen.chooserHelpDialog.title")}
+                        ok={t("electionSelectionScreen.chooserHelpDialog.ok")}
+                        variant="info"
+                    >
+                        {stringToHtml(t("electionSelectionScreen.chooserHelpDialog.content"))}
+                    </Dialog>
+                </>
+            }
+            alert={
+                warningMsg || closedMsg ? (
+                    <>
+                        {warningMsg ? (
+                            <Alert className="election-selection-warning" severity="warning">
+                                {stringToHtml(warningMsg)}
+                            </Alert>
+                        ) : null}
+                        {closedMsg ? (
+                            <Alert className="election-selection-closed" severity="warning">
+                                {closedMsg}
+                            </Alert>
+                        ) : null}
+                    </>
+                ) : undefined
+            }
+            actions={
+                <>
                     {eventResultsUrl ? (
                         <Button
                             className="results-button election-event-results-button"
@@ -686,52 +786,55 @@ const ElectionSelectionScreen: React.FC = () => {
                             {materialsTitle}
                         </Button>
                     ) : null}
-                </PageActions>
-            </TitleSection>
-            {showMaterialsGateBanner ? (
-                <Alert
-                    severity="warning"
-                    className="materials-gate-banner"
-                    sx={{marginBottom: "16px"}}
-                >
-                    <Trans
-                        i18nKey="electionSelectionScreen.materialsGate.instructions"
-                        values={{materialsTitle}}
-                        components={{
-                            MaterialsLink: (
-                                <MaterialsGateLink
-                                    className="materials-gate-link"
-                                    to={materialsPath}
-                                />
-                            ),
-                        }}
-                    />
-                </Alert>
-            ) : null}
-            <ElectionContainer
-                className="elections-list"
-                role={hasNoElections ? undefined : "list"}
-            >
-                {!hasNoElections ? (
-                    electionIds.map((electionId) => (
-                        <ElectionWrapper
-                            summary={summaries?.[electionId]}
-                            electionId={electionId}
-                            key={electionId}
-                            bypassChooser={bypassChooser}
-                            canVoteTest={canVoteTest}
-                            materialsGate={materialsGate}
+                </>
+            }
+            banner={
+                showMaterialsGateBanner ? (
+                    <Alert
+                        severity="warning"
+                        className="materials-gate-banner"
+                        sx={{marginBottom: "16px"}}
+                    >
+                        <Trans
+                            i18nKey="electionSelectionScreen.materialsGate.instructions"
+                            values={{materialsTitle}}
+                            components={{
+                                MaterialsLink: (
+                                    <MaterialsGateLink
+                                        className="materials-gate-link"
+                                        to={materialsPath}
+                                    />
+                                ),
+                            }}
                         />
-                    ))
-                ) : (
-                    <Box className="elections-empty" sx={{margin: "auto"}}>
-                        <Typography className="election-selection-empty" component="div">
-                            {stringToHtml(t("electionSelectionScreen.noResults"))}
-                        </Typography>
-                    </Box>
-                )}
-            </ElectionContainer>
-        </PageLimit>
+                    </Alert>
+                ) : undefined
+            }
+            listRole={hasNoElections ? undefined : "list"}
+        >
+            {!hasNoElections ? (
+                electionIds.map((electionId) => (
+                    <ElectionWrapper
+                        summary={summaries?.[electionId]}
+                        electionId={electionId}
+                        key={electionId}
+                        bypassChooser={bypassChooser}
+                        canVoteTest={canVoteTest || electionId === testElectionId}
+                        materialsGate={materialsGate}
+                        transparency={transparency}
+                        ownBallot={ownBallots.find(
+                            (ballot) => ballot.election_id === electionId && ballot.stage === "cast"
+                        )}
+                    />
+                ))
+            ) : (
+                <Box className="elections-empty" sx={{margin: "auto"}}>
+                    <Typography className="election-selection-empty" component="div">
+                        {stringToHtml(t("electionSelectionScreen.noResults"))}
+                    </Typography>
+                </Box>
+            )}
+        </ElectionListLayout>
     )
 }
 

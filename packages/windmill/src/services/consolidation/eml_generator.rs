@@ -205,7 +205,7 @@ impl ValidateAnnotations for ElectionEvent {
             .clone()
             .ok_or_else(|| anyhow!("Missing election event annotations"))?;
 
-        let annotations: Annotations = deserialize_value(annotations_js)?;
+        let annotations = string_annotations(annotations_js)?;
 
         check_annotations_exist(
             vec![
@@ -285,7 +285,7 @@ impl ValidateAnnotations for ElectionEvent {
             .clone()
             .unwrap_or_else(|| Value::Object(Default::default()));
 
-        let annotations: Annotations = deserialize_value(annotations_js).unwrap_or_default();
+        let annotations = string_annotations(annotations_js).unwrap_or_default();
 
         let event_id = find_miru_annotation_opt(MIRU_ELECTION_EVENT_ID, &annotations)?
             .unwrap_or("-".to_string());
@@ -336,7 +336,7 @@ impl ValidateAnnotations for core::Election {
             .clone()
             .ok_or_else(|| anyhow!("Missing election event annotations"))?;
 
-        let annotations: Annotations = deserialize_value(annotations_js)?;
+        let annotations = string_annotations(annotations_js)?;
 
         check_annotations_exist(
             vec![
@@ -411,7 +411,7 @@ impl ValidateAnnotations for core::Election {
             .clone()
             .unwrap_or_else(|| Value::Object(Default::default()));
 
-        let annotations: Annotations = deserialize_value(annotations_js)?;
+        let annotations = string_annotations(annotations_js)?;
 
         let election_id =
             find_miru_annotation_opt(MIRU_ELECTION_ID, &annotations)?.unwrap_or("-".to_string());
@@ -465,7 +465,7 @@ impl ValidateAnnotations for core::Area {
             .clone()
             .ok_or_else(|| anyhow!("Missing election event annotations"))?;
 
-        let annotations: Annotations = deserialize_value(annotations_js)?;
+        let annotations = string_annotations(annotations_js)?;
 
         check_annotations_exist(
             vec![
@@ -497,15 +497,14 @@ impl ValidateAnnotations for core::Area {
                 )
             })?;
 
-        let threshold = find_miru_annotation(MIRU_AREA_THRESHOLD, &annotations)
-            .with_context(|| {
+        let threshold = parse_area_threshold(
+            &find_miru_annotation(MIRU_AREA_THRESHOLD, &annotations).with_context(|| {
                 format!(
                     "Missing area annotation: '{}:{}'",
                     MIRU_PLUGIN_PREPEND, MIRU_AREA_THRESHOLD
                 )
-            })?
-            .parse::<i64>()
-            .with_context(|| anyhow!("Can't parse threshold"))?;
+            })?,
+        )?;
 
         let ccs_servers_js = find_miru_annotation(MIRU_AREA_CCS_SERVERS, &annotations)
             .with_context(|| {
@@ -565,7 +564,7 @@ impl ValidateAnnotations for core::Area {
             .clone()
             .unwrap_or_else(|| Value::Object(Default::default()));
 
-        let annotations: Annotations = deserialize_value(annotations_js).unwrap_or_default();
+        let annotations = string_annotations(annotations_js).unwrap_or_default();
 
         let station_id = find_miru_annotation_opt(MIRU_AREA_STATION_ID, &annotations)?
             .unwrap_or("-".to_string());
@@ -573,10 +572,10 @@ impl ValidateAnnotations for core::Area {
         let station_name = find_miru_annotation_opt(MIRU_AREA_STATION_NAME, &annotations)?
             .unwrap_or("-".to_string());
 
-        let threshold = find_miru_annotation_opt(MIRU_AREA_THRESHOLD, &annotations)?
-            .unwrap_or("0".to_string())
-            .parse::<i64>()
-            .with_context(|| anyhow!("Can't parse threshold"))?;
+        let threshold = parse_area_threshold(
+            &find_miru_annotation_opt(MIRU_AREA_THRESHOLD, &annotations)?
+                .unwrap_or("0".to_string()),
+        )?;
 
         let ccs_servers_js =
             find_miru_annotation_opt(MIRU_AREA_CCS_SERVERS, &annotations)?.unwrap_or_default();
@@ -614,18 +613,12 @@ impl ValidateAnnotations for core::TallySession {
 
     #[instrument(skip_all, err, name = "TallySession::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
-        let annotations_js = self
-            .annotations
-            .clone()
-            .ok_or_else(|| anyhow!("Missing tally session annotations"))?;
-
-        let annotations: Annotations = deserialize_value(annotations_js)?;
-
-        let tally_session_data_js = find_miru_annotation(MIRU_TALLY_SESSION_DATA, &annotations)
-            .with_context(|| {
-                format!(
-                    "Missing area annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
+        let tally_session_data_js = tally_session_data_text(self.annotations.as_ref())?
+            .ok_or_else(|| {
+                anyhow!(
+                    "Missing tally session annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND,
+                    MIRU_TALLY_SESSION_DATA
                 )
             })?;
 
@@ -637,17 +630,37 @@ impl ValidateAnnotations for core::TallySession {
 
     #[instrument(err, skip_all)]
     fn get_annotations_or_empty_values(&self) -> Result<Self::Item> {
-        let annotations_js = self
-            .annotations
-            .clone()
-            .unwrap_or_else(|| Value::Object(Default::default()));
-        let annotations: Annotations = deserialize_value(annotations_js).unwrap_or_default();
-        let tally_session_data_js =
-            find_miru_annotation_opt(MIRU_TALLY_SESSION_DATA, &annotations)?.unwrap_or_default();
+        let tally_session_data_js = tally_session_data_text(self.annotations.as_ref())
+            .ok()
+            .flatten()
+            .unwrap_or_default();
 
         let tally_session_data: MiruTallySessionData =
             deserialize_str(&tally_session_data_js).unwrap_or_else(|_| Vec::new());
         Ok(tally_session_data)
+    }
+}
+
+/// The tally session's `miru:tally-session-data`, whatever else its
+/// annotations hold: the tally itself writes values that are not strings
+/// there (`is_post_task_completed`).
+pub fn tally_session_data_text(annotations: Option<&Value>) -> Result<Option<String>> {
+    match annotations {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::Object(map)) => {
+            match map.get(&prepend_miru_annotation(MIRU_TALLY_SESSION_DATA)) {
+                None => Ok(None),
+                Some(Value::String(text)) => Ok(Some(text.clone())),
+                Some(other) => Err(anyhow!(
+                    "The tally session's '{}:{}' is not a string: {other}",
+                    MIRU_PLUGIN_PREPEND,
+                    MIRU_TALLY_SESSION_DATA
+                )),
+            }
+        }
+        Some(other) => Err(anyhow!(
+            "The tally session's annotations are not an object: {other}"
+        )),
     }
 }
 
@@ -796,6 +809,29 @@ impl ValidateAnnotations for Candidate {
 }
 
 #[instrument]
+/// A Post's `miru:area-threshold`: the signatures its transmission package
+/// needs (-1: no minimum). The one reading of it, shared by the package and
+/// the import's mapping to the transmit-results rule.
+pub fn parse_area_threshold(text: &str) -> Result<i64> {
+    text.parse::<i64>()
+        .with_context(|| anyhow!("Can't parse threshold"))
+}
+
+/// The string annotations of an object; values that are not strings, which
+/// other parts of the platform keep beside the `miru:` ones, are left out.
+pub fn string_annotations(annotations: Value) -> Result<Annotations> {
+    match annotations {
+        Value::Object(map) => Ok(map
+            .into_iter()
+            .filter_map(|(key, value)| match value {
+                Value::String(text) => Some((key, text)),
+                _ => None,
+            })
+            .collect()),
+        other => Err(anyhow!("The annotations are not an object: {other}")),
+    }
+}
+
 pub fn prepend_miru_annotation(data: &str) -> String {
     format!("{}:{}", MIRU_PLUGIN_PREPEND, data)
 }
@@ -935,4 +971,41 @@ pub fn render_eml_file(
         }],
     };
     Ok(eml_file)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn annotations_that_are_not_strings_are_left_out() {
+        let annotations = string_annotations(json!({
+            "miru:area-station-id": "90010001",
+            "is_post_task_completed": false,
+            "weight": 2,
+            "nested": {"a": "b"},
+        }))
+        .unwrap();
+        assert_eq!(
+            annotations,
+            Annotations::from([("miru:area-station-id".to_string(), "90010001".to_string())])
+        );
+        assert!(string_annotations(json!(["miru:area-station-id"])).is_err());
+        assert!(string_annotations(Value::Null).is_err());
+    }
+
+    #[test]
+    fn the_packages_text_is_read_whatever_else_the_session_holds() {
+        let key = prepend_miru_annotation(MIRU_TALLY_SESSION_DATA);
+        assert_eq!(
+            tally_session_data_text(Some(&json!({key.clone(): "[]", "done": true}))).unwrap(),
+            Some("[]".to_string())
+        );
+        assert_eq!(tally_session_data_text(None).unwrap(), None);
+        assert_eq!(tally_session_data_text(Some(&Value::Null)).unwrap(), None);
+        assert_eq!(tally_session_data_text(Some(&json!({}))).unwrap(), None);
+        assert!(tally_session_data_text(Some(&json!({key: 1}))).is_err());
+        assert!(tally_session_data_text(Some(&json!("text"))).is_err());
+    }
 }

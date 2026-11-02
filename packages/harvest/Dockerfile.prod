@@ -2,9 +2,48 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.96.0-slim-bookworm as builder
+# Optional offline dependency source. The default, scratch, copies an empty
+# directory into the builder and leaves the online build byte-identical. Point it
+# at packages/Dockerfile.offline-dependencies' output to resolve dependencies from
+# vendored inputs instead of a registry:
+#   --build-arg VENDOR_IMAGE=sequentech.local/offline-dependencies:latest
+#
+# This is not yet enough for --network=none: the stages below still install
+# operating-system packages, and some download tools over HTTPS. See the scope
+# note in packages/Dockerfile.offline-dependencies for the full list.
+# See sequentech/meta#13625.
+# Debian archive snapshot every apt call resolves against. Pinning the archive
+# state, rather than individual package versions, is what makes the dependency
+# closure identical on a client's machine and on ours: pinning only the packages
+# we name leaves their dependencies to whatever the live mirror serves that day
+# (installing wget with its version pinned still resolves libpsl5 from the
+# mirror). See sequentech/meta#13625.
+#
+# http, not https: these base images ship no CA certificates, so an https source
+# fails before anything is installed. apt verifies the signed InRelease and the
+# per-file checksums regardless of transport.
+#
+# Bumping this is a deliberate release action, like bumping a base image digest:
+# it changes what the build contains, so it produces a new release identity. A
+# pinned snapshot also stops picking up security updates until it is bumped.
+ARG DEBIAN_SNAPSHOT=20260929T000000Z
+
+ARG VENDOR_IMAGE=scratch
+FROM ${VENDOR_IMAGE} AS vendor
+
+FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 as builder
 
 WORKDIR /app
+
+# Resolve apt against the pinned snapshot rather than the live mirror.
+ARG DEBIAN_SNAPSHOT
+RUN set -eux; \
+    rm -f /etc/apt/sources.list.d/debian.sources; \
+    { \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm-updates main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
+    } > /etc/apt/sources.list
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
@@ -18,25 +57,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 
 #TODO: Copy only necessary files
-COPY ./braid ./braid
-COPY ./b4 ./b4
-COPY ./electoral-log ./electoral-log
-COPY ./trellis ./trellis
-COPY ./harvest ./harvest
-COPY ./strand ./strand
-COPY ./sequent-core ./sequent-core
-COPY ./velvet ./velvet
-COPY ./windmill ./windmill
-COPY ./pgmq-broker ./pgmq-broker
-COPY ./e2e ./e2e
-COPY ./step-cli ./step-cli
-COPY ./orare ./orare
-COPY ./wrap-map-err ./wrap-map-err
-COPY ./braid/scripts ./braid/scripts
-COPY ./plugins ./plugins
-COPY ./Cargo.toml ./Cargo.toml
-COPY ./Cargo.lock ./Cargo.lock
-COPY ./.cargo ./.cargo
+COPY . .
+
+# Use the vendored crates when a vendor image was supplied, otherwise fetch as
+# before. cargo vendor writes an absolute directory into its config, so the path
+# is rewritten to where the cache actually landed here.
+#
+# net.offline is set in the same branch so an incomplete vendor fails loudly
+# instead of quietly reaching for crates.io -- which would make an "offline"
+# build silently depend on the network it is meant to prove it does not need.
+COPY --from=vendor / /vendor/
+RUN if [ -d /vendor/vendor-cache ]; then \
+        mkdir -p .cargo && \
+        { echo; sed 's|^directory = .*|directory = "/vendor/vendor-cache"|' \
+            /vendor/vendor-cache/config.toml; } >> .cargo/config.toml && \
+        printf '\n[net]\noffline = true\n' >> .cargo/config.toml && \
+        echo "offline build: using vendored crates from /vendor/vendor-cache"; \
+    fi
 
 RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
@@ -44,17 +81,45 @@ WORKDIR /app/harvest
 RUN cargo build --release --locked
 
 
-FROM debian:bookworm
+FROM debian:bookworm@sha256:f37a335e82bca302e955fa39f9dfe28f1be618f016f8a2b56318e5a5111afc26
 ENV ROCKET_ADDRESS=0.0.0.0
 ENV ROCKET_PORT=8400
 EXPOSE 8400
 # Some shared libraries (extra-runtime-dependencies) may need to be installed:
 # Install any necessary runtime dependencies for production
 
-RUN echo "deb http://deb.debian.org/debian/ bookworm-proposed-updates main" >> /etc/apt/sources.list \
-    && apt-get update \
+# Resolve apt against the pinned snapshot rather than the live mirror. This stage
+# also wants bookworm-proposed-updates, which the snapshot carries, so the suite
+# is kept -- pinned -- rather than dropped.
+ARG DEBIAN_SNAPSHOT
+RUN set -eux; \
+    rm -f /etc/apt/sources.list.d/debian.sources; \
+    { \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm-updates main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm-proposed-updates main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
+    } > /etc/apt/sources.list
+
+# What the package manager leaves behind that differs on every build is removed
+# in the layer that writes it, so that two builds of the same commit give the
+# same layer (sequentech/meta#13625): its logs, which carry the time; the
+# linker's auxiliary cache, which only speeds up the next ldconfig; the machine
+# ID that installing Chromium's dependencies generates, which a container
+# should not share anyway; and the font cache, which records directory times
+# and is rebuilt on first use. fc-cache also logs the stale cache files it
+# removes in the order the filesystem lists them, which follows the directory
+# hash seed of the disk Docker keeps its layers on: the same build on another
+# machine writes the same lines in another order, so that log goes as well.
+#
+# The same dependencies create system users, and useradd stamps /etc/shadow
+# with the day it runs: two builds on either side of midnight differ. With
+# SOURCE_DATE_EPOCH (a BuildKit built-in argument) it records that day instead.
+ARG SOURCE_DATE_EPOCH
+RUN apt-get update \
     && apt-get install -y --no-install-recommends libssl3 chromium ca-certificates wget software-properties-common \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* /var/log/apt /var/log/dpkg.log /var/log/alternatives.log \
+        /var/cache/ldconfig/aux-cache /var/cache/fontconfig /var/log/fontconfig.log /etc/machine-id /var/lib/dbus/machine-id
 RUN update-ca-certificates
 
 # Use Docker build arguments to determine the architecture
@@ -69,15 +134,22 @@ ENV JAVA_BUILD=c9ecb94cd31b495da20a27d4581645e8/9
 ENV JAVA_OS_ARCH=linux-x64
 ENV JAVA_FILENAME=openjdk-${JAVA_VERSION}_linux-x64_bin.tar.gz
 
-# Conditional logic to set the correct download URL and filename based on architecture
+# Conditional logic to set the correct download URL and filename based on architecture.
+#
+# The JDK is checked against the SHA-256 Oracle publishes beside each archive
+# (<url>.sha256), so a replaced file fails the build instead of silently
+# changing the image; the archive is deleted once unpacked. Bumping JAVA_VERSION
+# or JAVA_BUILD means updating both checksums (sequentech/meta#13625).
 RUN case "${TARGETARCH}" in \
     "amd64") \
         export JAVA_OS_ARCH=linux-x64; \
         export JAVA_FILENAME=openjdk-${JAVA_VERSION}_linux-x64_bin.tar.gz; \
+        export JAVA_SHA256=41536f115668308ecf4eba92aaf6acaeb0936225828b741efd83b6173ba82963; \
         ;; \
     "arm64") \
         export JAVA_OS_ARCH=linux-aarch64; \
         export JAVA_FILENAME=openjdk-${JAVA_VERSION}_linux-aarch64_bin.tar.gz; \
+        export JAVA_SHA256=25fba2bd5585e1e9923134dc827f2bd5a2beaca3d242ae00b7e68c152faf7ba6; \
         ;; \
     *) \
         echo "Unsupported architecture: ${TARGETARCH}"; \
@@ -88,11 +160,13 @@ RUN case "${TARGETARCH}" in \
     echo "Download url https://download.java.net/java/GA/jdk${JAVA_VERSION}/${JAVA_BUILD}/GPL/${JAVA_FILENAME}"; \
     echo "JAVA_FILENAME=${JAVA_FILENAME}" >> /etc/profile.d/java.sh; \
     wget https://download.java.net/java/GA/jdk${JAVA_VERSION}/${JAVA_BUILD}/GPL/${JAVA_FILENAME} \
+    && echo "${JAVA_SHA256}  ${JAVA_FILENAME}" | sha256sum -c - \
     && tar xvf ${JAVA_FILENAME} \
+    && rm -f ${JAVA_FILENAME} \
     && mv jdk-${JAVA_VERSION} /usr/local/ \
     && update-alternatives --install /usr/bin/java java /usr/local/jdk-${JAVA_VERSION}/bin/java 1 \
     && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-${JAVA_VERSION}/bin/javac 1 \
-    && curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+    && rm -f /var/log/alternatives.log
 # Copy the compiled binary from the builder stage
 COPY --from=builder /app/target/release/harvest /usr/local/bin/harvest
 COPY --from=builder /usr/local/bin/ecies-tool.jar /usr/local/bin/ecies-tool.jar

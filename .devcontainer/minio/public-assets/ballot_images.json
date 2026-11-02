@@ -26,7 +26,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -108,7 +108,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -127,7 +127,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -209,7 +209,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -228,7 +228,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -310,7 +310,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -329,7 +329,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -411,7 +411,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -430,7 +430,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -512,7 +512,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -531,7 +531,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -613,7 +613,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -632,7 +632,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -714,7 +714,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -733,7 +733,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -815,7 +815,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -834,7 +834,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -916,7 +916,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -935,7 +935,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -1017,7 +1017,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -1036,7 +1036,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -1118,7 +1118,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -1137,7 +1137,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -1219,7 +1219,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -1238,7 +1238,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -1320,7 +1320,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -1339,7 +1339,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -1421,7 +1421,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -1440,7 +1440,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -1522,7 +1522,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -1541,7 +1541,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -1623,7 +1623,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -1642,7 +1642,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -1724,7 +1724,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -1743,7 +1743,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -1825,7 +1825,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -1844,7 +1844,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -1926,7 +1926,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -1945,7 +1945,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -2027,7 +2027,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -2046,7 +2046,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -2128,7 +2128,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -2147,7 +2147,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -2229,7 +2229,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -2248,7 +2248,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -2330,7 +2330,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -2349,7 +2349,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -2431,7 +2431,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -2450,7 +2450,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -2532,7 +2532,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -2551,7 +2551,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -2633,7 +2633,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -2652,7 +2652,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -2734,7 +2734,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -2753,7 +2753,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -2835,7 +2835,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -2854,7 +2854,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -2936,7 +2936,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -2955,7 +2955,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -3037,7 +3037,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -3056,7 +3056,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -3138,7 +3138,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -3157,7 +3157,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -3239,7 +3239,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -3258,7 +3258,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -3340,7 +3340,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -3359,7 +3359,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -3441,7 +3441,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -3460,7 +3460,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -3542,7 +3542,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -3561,7 +3561,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -3643,7 +3643,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -3662,7 +3662,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -3744,7 +3744,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -3763,7 +3763,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -3845,7 +3845,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -3864,7 +3864,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -3946,7 +3946,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -3965,7 +3965,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -4047,7 +4047,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -4066,7 +4066,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -4148,7 +4148,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -4167,7 +4167,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -4249,7 +4249,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -4268,7 +4268,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -4350,7 +4350,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -4369,7 +4369,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -4451,7 +4451,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -4470,7 +4470,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -4552,7 +4552,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -4571,7 +4571,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -4653,7 +4653,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -4672,7 +4672,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -4754,7 +4754,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -4773,7 +4773,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -4855,7 +4855,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -4874,7 +4874,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -4956,7 +4956,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -4975,7 +4975,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -5057,7 +5057,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -5076,7 +5076,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -5158,7 +5158,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -5177,7 +5177,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -5259,7 +5259,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -5278,7 +5278,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -5360,7 +5360,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -5379,7 +5379,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -5461,7 +5461,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -5480,7 +5480,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -5562,7 +5562,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -5581,7 +5581,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -5663,7 +5663,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -5682,7 +5682,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -5764,7 +5764,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -5783,7 +5783,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -5865,7 +5865,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -5884,7 +5884,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -5966,7 +5966,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -5985,7 +5985,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -6067,7 +6067,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -6086,7 +6086,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -6168,7 +6168,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -6187,7 +6187,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -6269,7 +6269,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -6288,7 +6288,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -6370,7 +6370,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -6389,7 +6389,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -6471,7 +6471,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -6490,7 +6490,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -6572,7 +6572,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -6591,7 +6591,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -6673,7 +6673,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -6693,7 +6693,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -6775,7 +6775,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -6794,7 +6794,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -6876,7 +6876,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -6895,7 +6895,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -6977,7 +6977,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -6996,7 +6996,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -7078,7 +7078,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -7097,7 +7097,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -7179,7 +7179,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -7198,7 +7198,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -7280,7 +7280,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -7299,7 +7299,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -7381,7 +7381,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -7400,7 +7400,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -7482,7 +7482,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -7501,7 +7501,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -7583,7 +7583,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -7602,7 +7602,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -7684,7 +7684,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -7703,7 +7703,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -7785,7 +7785,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -7804,7 +7804,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -7886,7 +7886,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -7905,7 +7905,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -7987,7 +7987,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -8006,7 +8006,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -8088,7 +8088,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -8107,7 +8107,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -8189,7 +8189,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -8208,7 +8208,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -8290,7 +8290,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -8309,7 +8309,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -8391,7 +8391,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -8410,7 +8410,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -8492,7 +8492,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -8511,7 +8511,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -8593,7 +8593,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -8612,7 +8612,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -8694,7 +8694,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -8713,7 +8713,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -8795,7 +8795,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -8814,7 +8814,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -8896,7 +8896,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -8915,7 +8915,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -8997,7 +8997,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -9016,7 +9016,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -9098,7 +9098,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -9117,7 +9117,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -9199,7 +9199,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -9218,7 +9218,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -9300,7 +9300,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -9319,7 +9319,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -9401,7 +9401,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -9420,7 +9420,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -9502,7 +9502,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -9521,7 +9521,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -9603,7 +9603,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -9622,7 +9622,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -9704,7 +9704,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -9723,7 +9723,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -9805,7 +9805,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -9824,7 +9824,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -9906,7 +9906,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -9925,7 +9925,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -10007,7 +10007,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -10026,7 +10026,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -10108,7 +10108,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -10127,7 +10127,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -10209,7 +10209,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -10228,7 +10228,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -10310,7 +10310,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -10329,7 +10329,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -10411,7 +10411,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -10430,7 +10430,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -10512,7 +10512,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -10531,7 +10531,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -10613,7 +10613,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -10632,7 +10632,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -10714,7 +10714,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -10733,7 +10733,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -10815,7 +10815,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -10834,7 +10834,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -10916,7 +10916,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -10935,7 +10935,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -11017,7 +11017,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -11036,7 +11036,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -11118,7 +11118,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -11137,7 +11137,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -11219,7 +11219,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -11238,7 +11238,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -11320,7 +11320,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -11339,7 +11339,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -11421,7 +11421,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -11440,7 +11440,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -11522,7 +11522,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -11541,7 +11541,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -11623,7 +11623,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -11642,7 +11642,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -11724,7 +11724,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -11743,7 +11743,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -11825,7 +11825,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -11844,7 +11844,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -11926,7 +11926,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -11945,7 +11945,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -12027,7 +12027,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -12046,7 +12046,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -12128,7 +12128,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -12147,7 +12147,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -12229,7 +12229,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -12248,7 +12248,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -12330,7 +12330,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -12349,7 +12349,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -12431,7 +12431,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -12450,7 +12450,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -12532,7 +12532,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -12551,7 +12551,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -12633,7 +12633,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -12652,7 +12652,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -12734,7 +12734,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -12753,7 +12753,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -12835,7 +12835,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -12854,7 +12854,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -12936,7 +12936,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -12955,7 +12955,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -13037,7 +13037,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -13056,7 +13056,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -13138,7 +13138,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -13157,7 +13157,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -13239,7 +13239,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -13258,7 +13258,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -13340,7 +13340,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -13360,7 +13360,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -13442,7 +13442,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -13461,7 +13461,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -13543,7 +13543,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -13562,7 +13562,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -13644,7 +13644,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -13663,7 +13663,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -13745,7 +13745,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -13764,7 +13764,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -13846,7 +13846,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -13865,7 +13865,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -13947,7 +13947,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -13966,7 +13966,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -14048,7 +14048,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -14067,7 +14067,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -14149,7 +14149,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -14168,7 +14168,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -14250,7 +14250,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -14269,7 +14269,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -14351,7 +14351,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -14370,7 +14370,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -14452,7 +14452,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -14471,7 +14471,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -14553,7 +14553,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -14572,7 +14572,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -14654,7 +14654,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -14673,7 +14673,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -14755,7 +14755,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -14774,7 +14774,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -14856,7 +14856,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -14875,7 +14875,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -14957,7 +14957,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -14976,7 +14976,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -15058,7 +15058,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -15077,7 +15077,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -15159,7 +15159,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -15178,7 +15178,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -15260,7 +15260,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -15279,7 +15279,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -15361,7 +15361,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -15380,7 +15380,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -15462,7 +15462,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -15481,7 +15481,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -15563,7 +15563,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -15582,7 +15582,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -15664,7 +15664,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -15683,7 +15683,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -15765,7 +15765,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -15784,7 +15784,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -15866,7 +15866,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -15885,7 +15885,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -15967,7 +15967,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -15986,7 +15986,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -16068,7 +16068,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -16087,7 +16087,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -16169,7 +16169,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -16188,7 +16188,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -16270,7 +16270,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -16289,7 +16289,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -16371,7 +16371,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -16390,7 +16390,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -16472,7 +16472,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -16491,7 +16491,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -16573,7 +16573,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -16592,7 +16592,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -16674,7 +16674,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -16693,7 +16693,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -16775,7 +16775,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -16794,7 +16794,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -16876,7 +16876,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -16895,7 +16895,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -16977,7 +16977,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -16996,7 +16996,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -17078,7 +17078,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -17097,7 +17097,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -17179,7 +17179,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -17198,7 +17198,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -17280,7 +17280,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -17299,7 +17299,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -17381,7 +17381,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -17400,7 +17400,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -17482,7 +17482,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -17501,7 +17501,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -17583,7 +17583,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -17602,7 +17602,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -17684,7 +17684,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -17703,7 +17703,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -17785,7 +17785,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -17804,7 +17804,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -17886,7 +17886,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -17905,7 +17905,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -17987,7 +17987,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -18006,7 +18006,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -18088,7 +18088,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -18107,7 +18107,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -18189,7 +18189,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -18208,7 +18208,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -18290,7 +18290,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -18309,7 +18309,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -18391,7 +18391,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -18410,7 +18410,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -18492,7 +18492,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -18511,7 +18511,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -18593,7 +18593,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -18612,7 +18612,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -18694,7 +18694,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -18713,7 +18713,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -18795,7 +18795,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -18814,7 +18814,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -18896,7 +18896,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -18915,7 +18915,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -18997,7 +18997,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -19016,7 +19016,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -19098,7 +19098,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -19117,7 +19117,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -19199,7 +19199,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -19218,7 +19218,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -19300,7 +19300,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -19319,7 +19319,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -19401,7 +19401,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -19420,7 +19420,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -19502,7 +19502,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -19521,7 +19521,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -19603,7 +19603,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -19622,7 +19622,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -19704,7 +19704,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -19723,7 +19723,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -19805,7 +19805,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -19824,7 +19824,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -19906,7 +19906,7 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             },
@@ -19925,7 +19925,7 @@
                             "name": "Senate Election",
                             "description": "Election for the Senators of the country.",
                             "voting_type": "Ranked Choice",
-                            "counting_algorithm": "Instant Runoff",
+                            "counting_algorithm": "instant-runoff",
                             "min_votes": 1,
                             "winning_candidates_num": 3,
                             "is_encrypted": false,
@@ -20007,13 +20007,13 @@
                         "undervotes": 2,
                         "overvotes": 0,
                         "digital_signature": "0x1234567890abcdef",
-                        "page_number":1
+                        "page_number": 1
                     }
                 ]
             }
         ],
         "election_name": "TOKYO - General Election",
-        "election_alias":"TOKYO - General Election",
+        "election_alias": "TOKYO - General Election",
         "area": "United States Of America",
         "election_dates": {
             "first_started_at": "2024-11-08T00:00:00Z",
@@ -20061,7 +20061,7 @@
             "geographical_region": "Asia/Pacific",
             "post": "Bangkok PE",
             "clustered_precint_id": "E1",
-            "pollcenter_code":"12345678"
+            "pollcenter_code": "12345678"
         }
     }
 }

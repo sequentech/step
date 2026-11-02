@@ -41,15 +41,22 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
     const [trusteesData, setTrusteesData] = useState<
         Array<Sequent_Backend_Trustee & {rowId: number; id: string; active: boolean}>
     >([])
-    const [keysImported, setKeysImported] = useState<number>(0)
+    const [custodyConfirmed, setCustodyConfirmed] = useState<number>(0)
 
+    // The session's own key ceremony: an event with a ceremony per election
+    // has several, and each session's trustees are those of its ceremony.
     const {data: keyCeremony} = useGetList<Sequent_Backend_Keys_Ceremony>(
         "sequent_backend_keys_ceremony",
         {
-            pagination: {page: 1, perPage: 9999},
-            filter: {election_event_id: tally?.election_event_id, tenant_id: tenantId},
+            pagination: {page: 1, perPage: 1},
+            filter: {
+                id: tally?.keys_ceremony_id,
+                election_event_id: tally?.election_event_id,
+                tenant_id: tenantId,
+            },
         },
         {
+            enabled: !!tally?.keys_ceremony_id,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
@@ -83,18 +90,19 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
             id: trustee.id,
             name: trustee.name,
             active:
-                status.trustees.find((x) => x.name === trustee.name)?.status !==
-                ITallyTrusteeStatus.WAITING,
+                status.trustees.find((x) => x.name === trustee.name)?.status ===
+                ITallyTrusteeStatus.CUSTODY_CONFIRMED,
         }))
         setTrusteesData(temp)
     }, [trustees, tallySessionExecutions])
 
     useEffect(() => {
         if (trusteesData) {
-            const importadas = trusteesData.filter((election) => election.active).length
-            setKeysImported(importadas)
+            const confirmed = trusteesData.filter((trustee) => trustee.active).length
+            setCustodyConfirmed(confirmed)
 
-            update(importadas === tally?.threshold ? true : false)
+            const threshold = tally?.threshold
+            update(threshold != null && threshold > 0 && confirmed >= threshold)
         }
     }, [trusteesData])
 
@@ -107,8 +115,8 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
         },
         {
             field: "active",
-            headerName: "Fragment",
-            width: 100,
+            headerName: t("tally.trusteeTallySubTitle"),
+            width: 220,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, boolean>) =>
                 props.value ? <CheckCircleIcon sx={{color: "#0F054C"}} /> : <CachedIcon />,
@@ -147,7 +155,7 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
                         }}
                     >
                         <Typography variant="body2" sx={{margin: 0}}>
-                            {keysImported}/{trusteesData.length}
+                            {custodyConfirmed}/{trusteesData.length}
                             {t("tally.common.imported")}
                         </Typography>
                         <Typography variant="body2" sx={{margin: 0}}>

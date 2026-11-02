@@ -2,16 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {Meta, StoryObj} from "@storybook/react"
+import {Meta, StoryObj} from "@storybook/react-vite"
 import SelectElection, {SelectElectionProps} from "../SelectElection"
-import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
+import {INITIAL_VIEWPORTS} from "storybook/viewport"
 import {Box} from "@mui/material"
 
 const SelectElectionWrapper: React.FC<SelectElectionProps & {className?: string}> = ({
     className,
     ...props
 }) => (
-    <Box className={className}>
+    <Box role="list" className={className}>
         <SelectElection {...props} />
     </Box>
 )
@@ -179,6 +179,28 @@ export const DisplayBallotLocator: Story = {
         title: "Executive Board",
         electionHomeUrl: "/election/34570007/public/home",
         hasVoted: false,
+        onClickBallotLocator() {
+            console.log("Clicked to locate the ballot")
+        },
+        electionDates: {
+            first_started_at: "2025-10-29T14:00:00.000Z",
+        },
+    },
+    parameters: {
+        viewport: {
+            disable: true,
+        },
+    },
+}
+
+export const AlreadyCast: Story = {
+    args: {
+        isActive: false,
+        isOpen: true,
+        title: "Executive Board",
+        electionHomeUrl: "/election/34570007/public/home",
+        hasVoted: true,
+        alreadyCast: true,
         onClickBallotLocator() {
             console.log("Clicked to locate the ballot")
         },

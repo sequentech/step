@@ -78,7 +78,11 @@ pub fn refresh_and_save_token() -> Result<ConfigData, Box<dyn Error>> {
     )?;
     let config_data = ConfigData {
         auth_token: auth_details.access_token,
-        refresh_token: auth_details.refresh_token,
+        refresh_token: if auth_details.refresh_token.is_empty() {
+            config_data.refresh_token
+        } else {
+            auth_details.refresh_token
+        },
         ..config_data
     };
     write_config(&config_data)?;

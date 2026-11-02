@@ -50,3 +50,13 @@ describe("Tabs", () => {
         expect(screen.queryByText("Data panel")).toBeNull()
     })
 })
+
+it.each([-1, Number.NaN, 1.5, 99])(
+    "renders the first allowed panel for invalid selection %s",
+    (selectedTab) => {
+        const onSelectedTabChange = jest.fn()
+        render(React.createElement(Tabs, {elements, selectedTab, onSelectedTabChange}))
+        expect(screen.getByText("Data panel")).toBeTruthy()
+        expect(onSelectedTabChange).toHaveBeenCalledWith(0)
+    }
+)

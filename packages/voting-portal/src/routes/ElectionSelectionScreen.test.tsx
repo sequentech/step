@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {render, screen, waitFor, act} from "@testing-library/react"
+import {render, screen, waitFor, act, fireEvent, within} from "@testing-library/react"
 import {ApolloClient, ApolloLink, InMemoryCache, Observable} from "@apollo/client"
 import {ApolloProvider} from "@apollo/client/react"
 import {Provider} from "react-redux"
@@ -17,6 +17,7 @@ import ElectionSelectionScreen from "./ElectionSelectionScreen"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {updateBallotStyleAndSelection as loadPreview} from "./PreviewPublicationEvent"
 import {ELECTION_WITH_INVALID} from "../fixtures/election"
+import {ETransparencyMode} from "../services/vitrine/types"
 
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({t: (key: string) => key, i18n: {language: "en"}}),
@@ -24,21 +25,37 @@ jest.mock("react-i18next", () => ({
 }))
 jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual("@sequentech/ui-core"),
+    ...jest.requireActual("../../../ui-core/src/services/votingPortalDateTime"),
     sortElectionList: (items: unknown[]) => items,
 }))
-jest.mock(
-    "@sequentech/ui-essentials",
-    () => ({
-        theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
-        PageLimit: ({children}: any) => <div>{children}</div>,
-        Dialog: () => null,
-        IconButton: () => null,
-        SelectElection: ({isActive, hasVoted}: any) => (
+jest.mock("@sequentech/ui-essentials", () => ({
+    // ElectionConfigService and ElectionTimeZones re-export the shared helpers.
+    ...jest.requireActual("../../../ui-essentials/src/ballot/presentation"),
+    ...jest.requireActual("../../../ui-essentials/src/components/SelectElection/electionTimes"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/ElectionListLayout"),
+    // The status dialog's Tracking ID block copies through these.
+    copyBallotHash: jest.requireActual(
+        "../../../ui-essentials/src/components/BallotHash/BallotHash"
+    ).copyBallotHash,
+    CopyBallotHashStatus: jest.requireActual(
+        "../../../ui-essentials/src/components/BallotHash/BallotHash"
+    ).CopyBallotHashStatus,
+    theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
+    PageLimit: ({children}: any) => <div>{children}</div>,
+    Dialog: () => null,
+    IconButton: () => null,
+    SelectElection: ({isActive, hasVoted, votedStatus, alreadyCast}: any) => (
+        <div>
             <button disabled={!isActive}>{hasVoted ? "Already voted" : "Vote"}</button>
-        ),
-    }),
-    {virtual: true}
-)
+            {alreadyCast ? <span>the already cast hint</span> : null}
+            {hasVoted ? votedStatus : null}
+        </div>
+    ),
+}))
+// The ballot list checks the voter's ballot against the log; here it is still checking.
+jest.mock("../hooks/useTrackedReceipt", () => ({
+    useTrackedReceipt: () => ({view: undefined, settled: false}),
+}))
 jest.mock("../providers/AuthContextProvider", () => ({
     AuthContext: require("react").createContext({isKiosk: () => false}),
 }))
@@ -324,4 +341,167 @@ test.each([false, true])("preview honors skip_election_list=%s", async (skipElec
         client.stop()
         sessionStorage.removeItem("isDemo")
     }
+})
+
+describe("the ballot cast label", () => {
+    const TRACKING_ID = "FTBE-MHRX-0123-4567-89AB-CDEF-GHJK-MNPQ-RSTV-WXYZ-0123-4567-89AB"
+    /** The voter's ballots, as the ballot box knows them. */
+    let ownBallots: unknown[] = []
+    const voterClient = () =>
+        new ApolloClient({
+            cache: new InMemoryCache(),
+            link: new ApolloLink(
+                () =>
+                    new Observable((observer) => {
+                        const timer = setTimeout(() => {
+                            observer.next({
+                                data: {
+                                    get_ballot_files_urls: {
+                                        event_id: "event",
+                                        status: event.status,
+                                        files: [
+                                            {
+                                                id: "style",
+                                                election_id: "election",
+                                                version: "v1",
+                                                urls,
+                                                status: election.status,
+                                                num_allowed_revotes: election.num_allowed_revotes,
+                                                voting_channels: {online: true},
+                                            },
+                                        ],
+                                    },
+                                    cast_votes: [
+                                        {
+                                            ...cast,
+                                            status: CastVoteStatus.VALID,
+                                            __typename: "VoterCastVote",
+                                        },
+                                    ],
+                                    ballot_box_own: {payload: {ballots: ownBallots}},
+                                },
+                            })
+                            observer.complete()
+                        }, 1)
+                        return () => clearTimeout(timer)
+                    })
+            ),
+        })
+
+    const renderList = async () => {
+        store.dispatch(setElection({...election, contests: [], image_document_id: ""}))
+        store.dispatch(addCastVotes([{...cast, status: CastVoteStatus.VALID}]))
+        const client = voterClient()
+        await client.query({query: GET_VOTER_STATUS, variables: {electionEventId: "event"}})
+        const router = createMemoryRouter(
+            [
+                {
+                    path: "/tenant/:tenantId/event/:eventId/election-chooser",
+                    element: <ElectionSelectionScreen />,
+                },
+            ],
+            {initialEntries: ["/tenant/tenant/event/event/election-chooser"]}
+        )
+        const view = render(
+            <Provider store={store} stabilityCheck="never">
+                <ThemeProvider theme={theme}>
+                    <ApolloProvider client={client}>
+                        <RouterProvider router={router} />
+                    </ApolloProvider>
+                </ThemeProvider>
+            </Provider>
+        )
+        return () => {
+            view.unmount()
+            router.dispose()
+            client.stop()
+        }
+    }
+
+    test("is the button that opens the status of the ballot the ballot box knows is the voter's", async () => {
+        event.presentation = {transparency: ETransparencyMode.PUBLIC}
+        ownBallots = [
+            {
+                tracking_id: TRACKING_ID,
+                pseudonym: "voter",
+                stage: "cast",
+                last_step_at: "2027-01-15T08:00:00+00:00",
+                voting_channel: "ONLINE",
+                election_id: "election",
+            },
+        ]
+        const cleanup = await renderList()
+        try {
+            fireEvent.click(await screen.findByRole("button", {name: "vitrine.status.ariaCast"}))
+            const dialog = await screen.findByRole("dialog", {name: "vitrine.status.title"})
+            expect(dialog.querySelector(".ballot-status-short-id")?.textContent).toBe("FTBE-MHRX")
+            expect(dialog.querySelector(".ballot-status-meta")?.textContent).toContain("Election")
+            expect(
+                within(dialog)
+                    .getByRole("link", {name: "vitrine.status.tracker"})
+                    .getAttribute("href")
+            ).toBe(`/tenant/tenant/event/event/election/election/ballot-locator/${TRACKING_ID}`)
+        } finally {
+            cleanup()
+            event.presentation = {}
+            ownBallots = []
+        }
+    })
+
+    test("says Ballot cast with no check mark when the ballot box knows no cast ballot of the voter", async () => {
+        event.presentation = {transparency: ETransparencyMode.PUBLIC}
+        const cleanup = await renderList()
+        try {
+            expect(await screen.findByRole("button", {name: "Already voted"})).toBeDisabled()
+            expect(screen.queryByRole("button", {name: /vitrine.status.aria/})).toBeNull()
+            expect(document.querySelector(".ballot-status-button")).toBeNull()
+        } finally {
+            cleanup()
+            event.presentation = {}
+        }
+    })
+
+    describe("the vote button of the card", () => {
+        afterEach(() => {
+            event.presentation = {}
+            election.num_allowed_revotes = 1
+        })
+
+        const keepTransparencyLog = () => {
+            event.presentation = {transparency: ETransparencyMode.PUBLIC}
+        }
+
+        test("says the ballot was cast when the voter cannot vote again", async () => {
+            keepTransparencyLog()
+            const cleanup = await renderList()
+            try {
+                expect(await screen.findByRole("button", {name: "Already voted"})).toBeDisabled()
+                expect(screen.getByText("the already cast hint")).toBeTruthy()
+            } finally {
+                cleanup()
+            }
+        })
+
+        test("says nothing while the voter can vote again", async () => {
+            keepTransparencyLog()
+            election.num_allowed_revotes = 2
+            const cleanup = await renderList()
+            try {
+                expect(await screen.findByRole("button", {name: "Already voted"})).toBeEnabled()
+                expect(screen.queryByText("the already cast hint")).toBeNull()
+            } finally {
+                cleanup()
+            }
+        })
+
+        test("says nothing for an event that keeps no transparency log", async () => {
+            const cleanup = await renderList()
+            try {
+                expect(await screen.findByRole("button", {name: "Already voted"})).toBeDisabled()
+                expect(screen.queryByText("the already cast hint")).toBeNull()
+            } finally {
+                cleanup()
+            }
+        })
+    })
 })

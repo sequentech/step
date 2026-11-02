@@ -17,18 +17,16 @@ jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual("@sequentech/ui-core"),
     sortElectionList: (elections: unknown[]) => elections,
 }))
-jest.mock(
-    "@sequentech/ui-essentials",
-    () => ({
-        Footer: () => null,
-        Header: () => null,
-        PageBanner: ({children}: any) => <main>{children}</main>,
-    }),
-    {virtual: true}
-)
-jest.mock("@sequentech/ui-essentials/public/Sequent_logo.svg", () => "logo", {virtual: true})
-jest.mock("@sequentech/ui-essentials/public/blank_logo.svg", () => "logo", {virtual: true})
+jest.mock("@sequentech/ui-essentials", () => ({
+    Footer: () => null,
+    Header: () => null,
+    PageBanner: ({children}: any) => <main>{children}</main>,
+}))
+jest.mock("@sequentech/ui-essentials/public/Sequent_logo.svg", () => "logo")
+jest.mock("@sequentech/ui-essentials/public/blank_logo.svg", () => "logo")
+jest.mock("keycloak-js", () => ({__esModule: true, default: jest.fn()}))
 jest.mock("./providers/AuthContextProvider", () => ({
+    ...jest.requireActual("./providers/AuthContextProvider"),
     AuthContext: require("react").createContext({
         isAuthenticated: true,
         getExpiry: () => undefined,
@@ -41,6 +39,12 @@ jest.mock("./providers/ApolloContextProvider", () => ({
     ApolloWrapper: ({children}: any) => <>{children}</>,
 }))
 jest.mock("./components/WaterMark/Watermark", () => ({__esModule: true, default: () => null}))
+jest.mock("./components/ScreenAudioInstructions/ScreenAudioInstructions", () => ({
+    ScreenAudioInstructions: () => null,
+}))
+jest.mock("./components/BallotSelectionAdapter", () => ({
+    BallotSelectionAdapter: ({children}: React.PropsWithChildren) => <>{children}</>,
+}))
 jest.mock("./hooks/useElectionClassName", () => ({useElectionClassName: () => []}))
 jest.mock("./services/ElectionEventConfig", () => ({
     createElectionEventConfigLoader: () => jest.fn(),

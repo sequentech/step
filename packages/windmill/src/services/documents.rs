@@ -216,6 +216,21 @@ pub async fn get_upload_url(
     Ok((document, url))
 }
 
+/// Where a document's file is in S3. A private file is under the election
+/// event the document belongs to, whatever event the caller named: a tenant
+/// log export is asked for with an empty event and stored with none.
+pub fn stored_document_key(tenant_id: &str, document: &Document) -> String {
+    let name = document.name.clone().unwrap_or_default();
+    if document.is_public.unwrap_or(false) {
+        return s3::get_public_document_key(tenant_id, &document.id, &name);
+    }
+    let election_event_id = document
+        .election_event_id
+        .as_deref()
+        .filter(|id| !id.is_empty());
+    s3::get_document_key(tenant_id, election_event_id, &document.id, &name)
+}
+
 #[instrument(err)]
 pub async fn get_document_url(
     hasura_transaction: &Transaction<'_>,
@@ -236,20 +251,7 @@ pub async fn get_document_url(
         return Ok(None);
     };
 
-    let document_s3_key = if document.is_public.unwrap_or(false) {
-        s3::get_public_document_key(
-            tenant_id,
-            document_id,
-            &document.name.clone().unwrap_or_default(),
-        )
-    } else {
-        s3::get_document_key(
-            tenant_id,
-            election_event_id,
-            document_id,
-            &document.name.clone().unwrap_or_default(),
-        )
-    };
+    let document_s3_key = stored_document_key(tenant_id, &document);
 
     let bucket = if document.is_public.unwrap_or(false) {
         s3::get_public_bucket()?
@@ -294,4 +296,62 @@ pub async fn get_document_as_temp_file(
 
     // Return the temporary file and the separator as a tuple
     Ok(file)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::stored_document_key;
+    use sequent_core::types::hasura::core::Document;
+
+    const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
+    const EVENT: &str = "e003472c-4b31-4585-ae8c-73c2f216e887";
+    const DOCUMENT: &str = "068b6853-3aa2-4cc7-9ec5-8dc8294bc1e4";
+
+    fn document(election_event_id: Option<&str>, is_public: Option<bool>) -> Document {
+        Document {
+            id: DOCUMENT.to_string(),
+            tenant_id: Some(TENANT.to_string()),
+            election_event_id: election_event_id.map(str::to_string),
+            name: Some("tenant-logs.csv".to_string()),
+            media_type: None,
+            size: None,
+            labels: None,
+            annotations: None,
+            created_at: None,
+            last_updated_at: None,
+            is_public,
+        }
+    }
+
+    #[test]
+    fn a_tenant_document_is_stored_without_an_event() {
+        assert_eq!(
+            stored_document_key(TENANT, &document(None, None)),
+            format!("tenant-{TENANT}/document-{DOCUMENT}/tenant-logs.csv")
+        );
+        assert_eq!(
+            stored_document_key(TENANT, &document(Some(""), Some(false))),
+            format!("tenant-{TENANT}/document-{DOCUMENT}/tenant-logs.csv")
+        );
+    }
+
+    #[test]
+    fn an_event_document_is_stored_under_its_event() {
+        assert_eq!(
+            stored_document_key(TENANT, &document(Some(EVENT), None)),
+            format!("tenant-{TENANT}/event-{EVENT}/document-{DOCUMENT}/tenant-logs.csv")
+        );
+    }
+
+    #[test]
+    fn a_public_document_is_stored_by_its_tenant() {
+        assert_eq!(
+            stored_document_key(TENANT, &document(Some(EVENT), Some(true))),
+            sequent_core::services::s3::get_public_document_key(
+                TENANT,
+                DOCUMENT,
+                "tenant-logs.csv"
+            )
+        );
+    }
 }

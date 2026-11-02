@@ -1,0 +1,245 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use crate::utils::read_config::read_config;
+use clap::Args;
+use graphql_client::Response;
+use sequent_core::{
+    ballot_receipt::normalize_ballot_id,
+    types::{permissions::Permissions, vote_privacy::PseudonymResolutionReason},
+};
+use serde::Deserialize;
+use serde_json::{json, Value};
+use std::{error::Error, time::Duration};
+use uuid::Uuid;
+
+#[derive(Args)]
+#[command(
+    about = "Resolve one voter pseudonym; the authority records your identity and reason in the event log"
+)]
+pub struct ResolveVoterPseudonym {
+    /// Election event UUID
+    #[arg(long)]
+    election_event_id: Uuid,
+    /// One eight-character pseudonym, such as 7QKM-2HXD
+    #[arg(long, value_parser = parse_pseudonym)]
+    pseudonym: String,
+    /// Free-text reason recorded in the signed event log (maximum 512 UTF-8 bytes)
+    #[arg(long, value_parser = parse_reason)]
+    reason: String,
+}
+
+fn parse_pseudonym(value: &str) -> Result<String, String> {
+    normalize_ballot_id(&value.replace(':', "-")).ok_or_else(|| "Enter one eight-character pseudonym".into())
+}
+
+fn parse_reason(value: &str) -> Result<String, String> {
+    value
+        .parse::<PseudonymResolutionReason>()
+        .map(|reason| reason.as_str().to_owned())
+        .map_err(str::to_owned)
+}
+
+#[derive(Deserialize)]
+struct Resolution {
+    voter_id: String,
+}
+
+fn resolved_voter(response: Response<Value>) -> Result<Resolution, Box<dyn Error>> {
+    if let Some(errors) = response.errors.filter(|errors| !errors.is_empty()) {
+        let hint = errors.iter().find_map(|error| {
+            let code = error.extensions.as_ref()?.get("code")?.as_str()?;
+            match code {
+                "invalid-jwt" => Some(
+                    "Pseudonym resolution authentication failed: the access token is invalid or expired. Copy a fresh Authorization value from the browser and store only its token in auth_token.",
+                ),
+                "invalid-headers" => Some(
+                    "Malformed Authorization header. Store only the raw access token in auth_token, without the Bearer prefix.",
+                ),
+                "access-denied" => Some(
+                    "Pseudonym resolution requires the voter-pseudonym-resolve permission.",
+                ),
+                "validation-failed" => Some(
+                    "Pseudonym resolution is unavailable for this session. Check the voter-pseudonym-resolve permission and the server action configuration.",
+                ),
+                _ => None,
+            }
+        });
+        return Err(hint
+            .unwrap_or("Pseudonym resolution was refused or could not complete")
+            .into());
+    }
+    let payload = response
+        .data
+        .and_then(|mut data| {
+            data.get_mut("resolve_voter_pseudonym")
+                .and_then(|answer| answer.get_mut("payload"))
+                .map(Value::take)
+        })
+        .ok_or("Pseudonym resolution returned no answer")?;
+    let answer: Resolution = serde_json::from_value(payload)
+        .map_err(|_| "Pseudonym resolution returned an invalid answer")?;
+    if answer.voter_id.trim().is_empty() {
+        return Err("Pseudonym resolution returned no voter".into());
+    }
+    Ok(answer)
+}
+
+impl ResolveVoterPseudonym {
+    pub fn run(&self) -> Result<(), Box<dyn Error>> {
+        let config = read_config()?;
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(60))
+            .build()?;
+        let response: Response<Value> = client
+            .post(&config.endpoint_url)
+            .bearer_auth(&config.auth_token)
+            .header("x-hasura-role", Permissions::VOTER_PSEUDONYM_RESOLVE.to_string())
+            .json(&json!({
+                "operationName": "ResolveVoterPseudonym",
+                "query": "mutation ResolveVoterPseudonym($election_event_id: uuid!, $pseudonym: String!, $reason: String!) { resolve_voter_pseudonym(election_event_id: $election_event_id, pseudonym: $pseudonym, reason: $reason) { payload } }",
+                "variables": {"election_event_id": self.election_event_id.to_string(), "pseudonym": self.pseudonym, "reason": self.reason},
+            }))
+            .send()?
+            .error_for_status()?
+            .json()?;
+        let answer = resolved_voter(response)?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({"voter_id": answer.voter_id}))?
+        );
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+
+    #[derive(Parser)]
+    struct Arguments {
+        #[command(flatten)]
+        command: ResolveVoterPseudonym,
+    }
+
+    fn response(value: Value) -> Response<Value> {
+        serde_json::from_value(value).expect("synthetic GraphQL response")
+    }
+
+    #[test]
+    fn one_canonical_pseudonym_and_reason_are_required() {
+        let args = Arguments::try_parse_from([
+            "resolve",
+            "--election-event-id",
+            "11111111-1111-4111-8111-111111111111",
+            "--pseudonym",
+            "7qkm2hxd",
+            "--reason",
+            " Election protest EP-2028-014, order of 19 May 2028 ",
+        ])
+        .unwrap();
+        assert_eq!(args.command.pseudonym, "7QKM-2HXD");
+        assert_eq!(
+            args.command.reason,
+            "Election protest EP-2028-014, order of 19 May 2028"
+        );
+        for invalid in ["", "7QKM-2HXD,ABCD-EFGH", "7QKM-2HXD ABCD-EFGH"] {
+            assert!(parse_pseudonym(invalid).is_err());
+        }
+        assert!(parse_reason("   ").is_err());
+        assert!(parse_reason("first\nsecond").is_err());
+        assert!(parse_reason(&"é".repeat(257)).is_err());
+        assert!(parse_reason(&"x".repeat(513)).is_err());
+        assert!(Arguments::try_parse_from([
+            "resolve",
+            "--election-event-id",
+            "11111111-1111-4111-8111-111111111111",
+            "--pseudonym",
+            "7QKM-2HXD"
+        ])
+        .is_err());
+    }
+
+    #[test]
+    fn free_text_resolution_reasons_are_not_replaced_with_categories() {
+        for reason in [
+            "Election protest EP-2028-014, order of 19 May 2028",
+            "Court order 28/2028",
+            "Compliance review",
+            "Revisión electoral",
+            "investigation",
+            "compliance-review",
+            "test-validation",
+        ] {
+            assert_eq!(parse_reason(reason).unwrap(), reason);
+        }
+    }
+
+    #[test]
+    fn resolution_reads_only_the_explicit_payload() {
+        let answer = resolved_voter(response(json!({"data": {"resolve_voter_pseudonym": {"payload": {"voter_id": "synthetic-voter", "extra": "not printed"}}}}))).unwrap();
+        assert_eq!(answer.voter_id, "synthetic-voter");
+        for value in [
+            json!({"data": null}),
+            json!({"data": {"resolve_voter_pseudonym": {"payload": {"voter_id": ""}}}}),
+            json!({"data": {"resolve_voter_pseudonym": {"payload": {"other": "value"}}}}),
+        ] {
+            assert!(resolved_voter(response(value)).is_err());
+        }
+    }
+
+    #[test]
+    fn jwt_failures_explain_how_to_recover_without_exposing_the_response() {
+        let error = resolved_voter(response(json!({
+            "data": {"resolve_voter_pseudonym": {"payload": {"voter_id": "private-voter"}}},
+            "errors": [{
+                "message": "sensitive server diagnostic",
+                "extensions": {"code": "invalid-jwt"}
+            }]
+        })))
+        .err()
+        .unwrap()
+        .to_string();
+        assert!(
+            error.contains("access token is invalid or expired"),
+            "{error}"
+        );
+        assert!(error.contains("fresh Authorization"), "{error}");
+        assert!(!error.contains("sensitive server diagnostic"));
+        assert!(!error.contains("private-voter"));
+    }
+
+    #[test]
+    fn malformed_authorization_headers_explain_the_raw_token_format() {
+        let error = resolved_voter(response(json!({
+            "errors": [{"message": "private diagnostic", "extensions": {"code": "invalid-headers"}}]
+        })))
+        .err()
+        .unwrap()
+        .to_string();
+        assert!(error.contains("without the Bearer prefix"), "{error}");
+        assert!(!error.contains("private diagnostic"));
+    }
+
+    #[test]
+    fn permission_failures_name_the_required_permission() {
+        for code in ["access-denied", "validation-failed"] {
+            let error = resolved_voter(response(json!({
+                "errors": [{"message": "private diagnostic", "extensions": {"code": code}}]
+            })))
+            .err()
+            .unwrap()
+            .to_string();
+            assert!(error.contains("voter-pseudonym-resolve"), "{error}");
+            assert!(!error.contains("private diagnostic"));
+        }
+    }
+
+    #[test]
+    fn graphql_errors_refuse_partial_answers() {
+        let error = resolved_voter(response(json!({"data": {"resolve_voter_pseudonym": {"payload": {"voter_id": "partial-voter"}}}, "errors": [{"message": "sensitive diagnostic"}]}))).err().unwrap().to_string();
+        assert!(!error.contains("partial-voter"));
+        assert!(!error.contains("sensitive diagnostic"));
+    }
+}

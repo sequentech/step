@@ -36,6 +36,7 @@ import {
     Box,
     Button,
     Checkbox,
+    CheckboxProps,
     Chip,
     FormControlLabel,
     Menu,
@@ -44,7 +45,7 @@ import {
     Stack,
     Typography,
 } from "@mui/material"
-import {Dialog, theme} from "@sequentech/ui-essentials"
+import {ChannelLabel, Dialog, theme} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action} from "@/components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
@@ -95,6 +96,8 @@ import {EXPORT_USERS} from "@/queries/ExportUsers"
 import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
+import {EBallotIdentity} from "@sequentech/ui-core"
+import {useEventPresentation} from "@/hooks/useZonedFormat"
 import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
 import {USER_PROFILE_CONFIGURATION} from "@/queries/GetUserProfileConfiguration"
 import {
@@ -110,7 +113,7 @@ import {ListActionsMenu} from "@/components/ListActionsMenu"
 import SyncAltIcon from "@mui/icons-material/SyncAlt"
 import {ReconciliationWizard} from "@/resources/VoterListSync/ReconciliationWizard"
 import EditPassword from "./EditPassword"
-import {styled} from "@mui/material/styles"
+import {styled, ThemeProvider, useTheme} from "@mui/material/styles"
 import {DELETE_USERS} from "@/queries/DeleteUsers"
 import {buildUserFilterPayload} from "@/queries/GetUsers"
 import {ETasksExecution} from "@/types/tasksExecution"
@@ -118,12 +121,14 @@ import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
+import {VOTER_ATTR_MESSAGE_CHANNEL} from "@/types/messaging"
+import {voterChannel} from "./voterMessaging"
 import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {UserActionTypes} from "@/components/types"
 import {useUsersPermissions} from "./useUsersPermissions"
 import {Check, FilterAltOff} from "@mui/icons-material"
-import {useLocation} from "react-router-dom"
+import {useLocation, useMatch, useNavigate} from "react-router-dom"
 import {getPreferenceKey} from "@/lib/helpers"
 import {isEqual} from "lodash"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
@@ -161,6 +166,16 @@ const StyledNull = styled("div")`
     padding-left: 18px;
 `
 
+const SelectionAwareListActions: React.FC<React.ComponentProps<typeof ListActions>> = (props) => {
+    const {selectedIds} = useListContext()
+    // Keep the toolbar space and mounted dialogs while bulk actions replace it.
+    return (
+        <Box sx={{visibility: selectedIds.length ? "hidden" : "visible"}}>
+            <ListActions {...props} />
+        </Box>
+    )
+}
+
 export interface ListUsersProps {
     aside?: ReactElement
     electionEventId?: string
@@ -168,7 +183,33 @@ export interface ListUsersProps {
 }
 
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, electionId}) => {
+    const privacyPresentation = useEventPresentation(electionEventId)
     const {t, i18n} = useTranslation()
+    const parentTheme = useTheme()
+    // React-admin still labels the checkbox root; MUI 7 needs the input slot.
+    const selectionTheme = useMemo(
+        () => ({
+            ...parentTheme,
+            components: {
+                ...parentTheme.components,
+                MuiCheckbox: {
+                    ...parentTheme.components?.MuiCheckbox,
+                    defaultProps: {
+                        ...parentTheme.components?.MuiCheckbox?.defaultProps,
+                        slotProps: {
+                            root: {"aria-label": undefined},
+                            input: (props: CheckboxProps) => ({
+                                ...props.inputProps,
+                                "aria-label":
+                                    props["aria-label"] ?? props.inputProps?.["aria-label"],
+                            }),
+                        },
+                    },
+                },
+            },
+        }),
+        [parentTheme]
+    )
     const [tenantId] = useTenantStore()
     // The Voted Channel attribute can only ever be written by the Datafix
     // integration, so the column and filter are gated on the event being
@@ -209,6 +250,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const {globalSettings} = useContext(SettingsContext)
     const [isOpenSidebar] = useSidebarState()
     const location = useLocation()
+    const navigate = useNavigate()
+    const editRoute = useMatch("/user/:id")
+    const routeUserId = !electionEventId ? editRoute?.params.id : undefined
     const aliasRenderer = useAliasRenderer()
 
     const [open, setOpen] = useState(false)
@@ -324,7 +368,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         !isSecretAttribute(attr) && attr.name !== SUPPORT_MATERIALS_ACKNOWLEDGED
                 )
                 .map((attr) => {
-                    //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
+                    //covert to valid source string (if attr name is for example sequent.read-only.mobile-number)
                     const source = attr.name?.replaceAll(".", "%")
                     if (attr.annotations?.inputType === "html5-date") {
                         return (
@@ -418,10 +462,28 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         showVotersLogs,
         canSendTemplates,
         showVoterListSync,
-    } = useUsersPermissions()
+    } = useUsersPermissions(electionEventId)
     /**
      * Permissions
      */
+
+    const {data: routeUsers} = useGetList(
+        "user",
+        {
+            pagination: {page: 1, perPage: 1},
+            sort: {field: "id", order: "ASC"},
+            filter: {tenant_id: tenantId, user_ids: [routeUserId]},
+        },
+        {enabled: Boolean(routeUserId && tenantId && canEditVoters)}
+    )
+
+    useEffect(() => {
+        const requestedUser = routeUsers?.find((user) => user.id === routeUserId)
+        if (!requestedUser || !canEditVoters) return
+        setUserRecord(requestedUser)
+        setRecordIds([requestedUser.id])
+        setOpen(true)
+    }, [routeUserId, routeUsers, canEditVoters])
 
     const handleClose = () => {
         setRecordIds([])
@@ -436,6 +498,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenNew(false)
         setOpen(false)
         unselectAll()
+        if (routeUserId) navigate("/user")
     }
 
     const editAction = (id: Identifier) => {
@@ -597,35 +660,22 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const confirmDeleteAction = async () => {
-        const {errors} = await deleteUser({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: electionEventId,
-                userId: deleteId,
-            },
-        })
-        if (errors) {
-            notify(
-                t(
-                    `usersAndRolesScreen.${
-                        electionEventId ? "voters" : "users"
-                    }.notifications.deleteError`
-                ),
-                {type: "error"}
-            )
-            console.log(`Error deleting user: ${errors}`)
-            return
+        const resource = electionEventId ? "voters" : "users"
+        try {
+            const {errors} = await deleteUser({
+                variables: {tenantId, electionEventId, userId: deleteId},
+            })
+            if (errors?.length) throw new Error(errors[0].message)
+            notify(t(`usersAndRolesScreen.${resource}.notifications.deleteSuccess`), {
+                type: "success",
+            })
+            setDeleteId(undefined)
+            refresh()
+        } catch {
+            notify(t(`usersAndRolesScreen.${resource}.notifications.deleteError`), {
+                type: "error",
+            })
         }
-        notify(
-            t(
-                `usersAndRolesScreen.${
-                    electionEventId ? "voters" : "users"
-                }.notifications.deleteSuccess`
-            ),
-            {type: "success"}
-        )
-        setDeleteId(undefined)
-        refresh()
     }
 
     const showUsersLogsModal = (id: Identifier) => {
@@ -897,12 +947,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
             <Typography variant="h4" paragraph>
-                {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.emptyHeader`)}
+                {t(
+                    electionEventId
+                        ? "usersAndRolesScreen.voters.emptyHeader"
+                        : "common.label.noResult"
+                )}
             </Typography>
             {canCreateVoters ? (
                 <>
                     <Typography variant="body1" paragraph>
-                        {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.askCreate`)}
+                        {t("common.resources.noResult.askCreate")}
                     </Typography>
                     <ResourceListStyles.EmptyButtonList className="voter-add-button">
                         <Button onClick={() => setOpenNew(true)}>
@@ -1174,21 +1228,23 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const listFields = useMemo(() => {
         const basicInfoFields: UserProfileAttribute[] = []
         const attributesFields: UserProfileAttribute[] = []
-        const omitFields = ["id", "email_verified", "email"]
+        const omitFields = ["id", "email_verified", "email", "messaging_channel"]
 
         visibleUserAttributes?.forEach((attr) => {
             if (attr.name && userBasicInfo.includes(attr.name)) {
                 basicInfoFields.push(attr)
-            } else if (attr.name === SUPPORT_MATERIALS_ACKNOWLEDGED) {
-                // Has its own dedicated boolean column below; must not be
-                // auto-omitted like other Keycloak-attribute-derived columns.
+            } else if (
+                attr.name === SUPPORT_MATERIALS_ACKNOWLEDGED ||
+                (electionEventId && attr.name === VOTER_ATTR_MESSAGE_CHANNEL)
+            ) {
+                // These have dedicated columns instead of generic attribute fields.
             } else {
                 omitFields.push(`attributes['${attr.name}']`)
                 attributesFields.push(attr)
             }
         })
         return {basicInfoFields, attributesFields, omitFields}
-    }, [visibleUserAttributes])
+    }, [electionEventId, visibleUserAttributes])
 
     const renderFields = (fields: UserProfileAttribute[]) => {
         const allFields = fields.map((attr) => {
@@ -1344,137 +1400,171 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         return (
             <>
                 {visibleUserAttributes && (
-                    <DataGridContainerStyle
-                        header={ThreeStateDatagridHeader}
-                        preferenceKey={getPreferenceKey(location.pathname, "voters")}
-                        omit={listFields.omitFields}
-                        isOpenSideBar={isOpenSidebar}
-                        bulkActionButtons={<BulkActions />}
-                        rowClick={false}
-                    >
-                        <TextField source="id" sx={{display: "block", width: "280px"}} />
-                        <BooleanField
-                            source="email_verified"
-                            label={String(t("usersAndRolesScreen.users.fields.emailVerified"))}
-                        />
-                        <BooleanField
-                            source="enabled"
-                            label={String(t("usersAndRolesScreen.users.fields.enabled"))}
-                        />
-                        {renderFields(listFields.basicInfoFields)}
-                        {electionEventId && (
-                            <FunctionField
-                                label={String(t("usersAndRolesScreen.users.fields.area"))}
-                                render={(record: IUser) =>
-                                    record?.area?.name ? (
-                                        <Chip label={record?.area?.name ?? ""} />
-                                    ) : (
-                                        "-"
-                                    )
-                                }
+                    <ThemeProvider theme={selectionTheme}>
+                        <DataGridContainerStyle
+                            header={ThreeStateDatagridHeader}
+                            preferenceKey={getPreferenceKey(location.pathname, "voters")}
+                            omit={listFields.omitFields}
+                            isOpenSideBar={isOpenSidebar}
+                            bulkActionButtons={<BulkActions />}
+                            rowClick={false}
+                        >
+                            <TextField source="id" sx={{display: "block", width: "280px"}} />
+                            <BooleanField
+                                source="email_verified"
+                                label={String(t("usersAndRolesScreen.users.fields.emailVerified"))}
                             />
-                        )}
-                        {electionEventId && hasAuthorizedElectionIdsAttributes && (
-                            <ReferenceArrayField
-                                label={String(
-                                    t("usersAndRolesScreen.users.fields.authorized-election-ids")
-                                )}
-                                source="attributes.authorized-election-ids"
-                                reference="sequent_backend_election_by_external_id"
-                                queryOptions={{
-                                    meta: {filter: {election_event_id: electionEventId}},
-                                }}
-                            >
-                                <SingleFieldList linkType={false}>
-                                    <FunctionField
-                                        render={(e: any) => (
-                                            <Chip key={e.id} label={aliasRenderer(e)} />
-                                        )}
-                                    />
-                                </SingleFieldList>
-                            </ReferenceArrayField>
-                        )}
+                            <BooleanField
+                                source="enabled"
+                                label={String(t("usersAndRolesScreen.users.fields.enabled"))}
+                            />
+                            {renderFields(listFields.basicInfoFields)}
+                            {electionEventId && (
+                                <FunctionField
+                                    label={String(t("usersAndRolesScreen.users.fields.area"))}
+                                    render={(record: IUser) =>
+                                        record?.area?.name ? (
+                                            <Chip label={record?.area?.name ?? ""} />
+                                        ) : (
+                                            "-"
+                                        )
+                                    }
+                                />
+                            )}
+                            {electionEventId && hasAuthorizedElectionIdsAttributes && (
+                                <ReferenceArrayField
+                                    label={String(
+                                        t(
+                                            "usersAndRolesScreen.users.fields.authorized-election-ids"
+                                        )
+                                    )}
+                                    source="attributes.authorized-election-ids"
+                                    reference="sequent_backend_election_by_external_id"
+                                    queryOptions={{
+                                        meta: {filter: {election_event_id: electionEventId}},
+                                    }}
+                                >
+                                    <SingleFieldList linkType={false}>
+                                        <FunctionField
+                                            render={(e: any) => (
+                                                <Chip key={e.id} label={aliasRenderer(e)} />
+                                            )}
+                                        />
+                                    </SingleFieldList>
+                                </ReferenceArrayField>
+                            )}
 
-                        {renderFields(listFields.attributesFields)}
-                        {electionEventId && isDatafixEvent && (
-                            <FunctionField<IUser>
-                                source={`attributes['${VOTED_CHANNEL}']`}
-                                label={String(t("usersAndRolesScreen.users.fields.voted-channel"))}
-                                render={(record) => {
-                                    const values = record?.attributes?.[VOTED_CHANNEL]
-                                    const channel = Array.isArray(values)
-                                        ? values[values.length - 1]
-                                        : values
-                                    return channel && channel !== ATTR_RESET_VALUE ? channel : "-"
-                                }}
-                            />
-                        )}
-                        {electionEventId && showVoterListSync && isDatafixEvent && (
-                            <FunctionField<IUser>
-                                source={`attributes['${DISABLE_COMMENT}']`}
-                                label={String(
-                                    t("usersAndRolesScreen.users.fields.disable-comment")
-                                )}
-                                render={(record) => {
-                                    const values = record?.attributes?.[DISABLE_COMMENT]
-                                    const comment = Array.isArray(values)
-                                        ? values[values.length - 1]
-                                        : values
-                                    return comment && comment !== ATTR_RESET_VALUE ? comment : "-"
-                                }}
-                            />
-                        )}
-                        {electionEventId && (
-                            <FunctionField<IUser>
-                                source="has_voted"
-                                label={String(t("usersAndRolesScreen.users.fields.has_voted"))}
-                                render={(record, source) => {
-                                    let newRecord = {
-                                        has_voted: checkIsVoted(record),
-                                        ...record,
-                                    }
-                                    return source ? (
-                                        <BooleanField
-                                            record={newRecord}
-                                            source={source as keyof IUser}
-                                        />
-                                    ) : null
-                                }}
-                            />
-                        )}
-                        {electionEventId && isSupportMaterialsMandatory && (
-                            <FunctionField<IUser>
-                                source={`attributes['${SUPPORT_MATERIALS_ACKNOWLEDGED}']`}
-                                label={String(
-                                    t("usersAndRolesScreen.users.fields.support_materials_viewed")
-                                )}
-                                render={(record, source) => {
-                                    let newRecord = {
-                                        support_materials_viewed:
-                                            checkSupportMaterialsViewed(record),
-                                        ...record,
-                                    }
-                                    return source ? (
-                                        <BooleanField
-                                            record={newRecord}
-                                            source="support_materials_viewed"
-                                        />
-                                    ) : null
-                                }}
-                            />
-                        )}
-                        {!canEditVoters &&
-                        !canDeleteVoters &&
-                        !canSendTemplates &&
-                        !canManuallyVerify &&
-                        !canGenerateVoterInformationLetter &&
-                        !canChangePassword &&
-                        !showVotersLogs ? null : (
-                            <WrapperField source="actions" label="Actions">
-                                <ListActionsMenu actions={actions} />
-                            </WrapperField>
-                        )}
-                    </DataGridContainerStyle>
+                            {renderFields(listFields.attributesFields)}
+                            {electionEventId && isDatafixEvent && (
+                                <FunctionField<IUser>
+                                    source={`attributes['${VOTED_CHANNEL}']`}
+                                    label={String(
+                                        t("usersAndRolesScreen.users.fields.voted-channel")
+                                    )}
+                                    render={(record) => {
+                                        const values = record?.attributes?.[VOTED_CHANNEL]
+                                        const channel = Array.isArray(values)
+                                            ? values[values.length - 1]
+                                            : values
+                                        return channel && channel !== ATTR_RESET_VALUE
+                                            ? channel
+                                            : "-"
+                                    }}
+                                />
+                            )}
+                            {electionEventId && showVoterListSync && isDatafixEvent && (
+                                <FunctionField<IUser>
+                                    source={`attributes['${DISABLE_COMMENT}']`}
+                                    label={String(
+                                        t("usersAndRolesScreen.users.fields.disable-comment")
+                                    )}
+                                    render={(record) => {
+                                        const values = record?.attributes?.[DISABLE_COMMENT]
+                                        const comment = Array.isArray(values)
+                                            ? values[values.length - 1]
+                                            : values
+                                        return comment && comment !== ATTR_RESET_VALUE
+                                            ? comment
+                                            : "-"
+                                    }}
+                                />
+                            )}
+                            {electionEventId && (
+                                <FunctionField<IUser>
+                                    source="has_voted"
+                                    label={String(t("usersAndRolesScreen.users.fields.has_voted"))}
+                                    render={(record, source) => {
+                                        let newRecord = {
+                                            has_voted: checkIsVoted(record),
+                                            ...record,
+                                        }
+                                        return source ? (
+                                            <BooleanField
+                                                record={newRecord}
+                                                source={source as keyof IUser}
+                                            />
+                                        ) : null
+                                    }}
+                                />
+                            )}
+                            {electionEventId && isSupportMaterialsMandatory && (
+                                <FunctionField<IUser>
+                                    source={`attributes['${SUPPORT_MATERIALS_ACKNOWLEDGED}']`}
+                                    label={String(
+                                        t(
+                                            "usersAndRolesScreen.users.fields.support_materials_viewed"
+                                        )
+                                    )}
+                                    render={(record, source) => {
+                                        let newRecord = {
+                                            support_materials_viewed:
+                                                checkSupportMaterialsViewed(record),
+                                            ...record,
+                                        }
+                                        return source ? (
+                                            <BooleanField
+                                                record={newRecord}
+                                                source="support_materials_viewed"
+                                            />
+                                        ) : null
+                                    }}
+                                />
+                            )}
+                            {!canEditVoters &&
+                            !canEditVotersEmailTlf &&
+                            !canDeleteVoters &&
+                            !canSendTemplates &&
+                            !canManuallyVerify &&
+                            !canGenerateVoterInformationLetter &&
+                            !canChangePassword &&
+                            !showVotersLogs ? null : (
+                                <WrapperField source="actions" label="Actions">
+                                    <ListActionsMenu actions={actions} />
+                                </WrapperField>
+                            )}
+                            {electionEventId && (
+                                <FunctionField<IUser>
+                                    source="messaging_channel"
+                                    label={String(t("messaging.voter.listChannel"))}
+                                    sortable={false}
+                                    render={(record) => {
+                                        const channel = voterChannel(
+                                            record.email,
+                                            record.attributes
+                                        )
+                                        return channel ? (
+                                            <ChannelLabel
+                                                channel={channel.channel}
+                                                label={t(`messaging.channel.${channel.channel}`)}
+                                            />
+                                        ) : (
+                                            "-"
+                                        )
+                                    }}
+                                />
+                            )}
+                        </DataGridContainerStyle>
+                    </ThemeProvider>
                 )}
                 {/* Custom filters menu */}
                 {showVotersFilters && (
@@ -1507,7 +1597,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     }}
                     empty={hasCustomFilter ? false : <Empty />}
                     actions={
-                        <ListActions
+                        <SelectionAwareListActions
                             withColumns={showVotersColumns}
                             preferenceKey={getPreferenceKey(location.pathname, "voters")}
                             withFilter={showVotersFilters}
@@ -1671,6 +1761,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 title="electionEventScreen.import.title"
                 subtitle="electionEventScreen.import.subtitle"
                 paragraph="electionEventScreen.import.votersParagraph"
+                fileIntegrityPolicy={
+                    (electionEventRecord?.presentation as IElectionEventPresentation | undefined)
+                        ?.file_integrity_policy
+                }
+                disableImport={Boolean(electionEventId && !electionEventRecord)}
                 doImport={handleImportVoters}
                 errors={null}
             />
@@ -1804,6 +1899,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 <>
                     {/* The conditional below prevents re-rendering and data
                 refetching when closing the dialog with no id */}
+                    {privacyPresentation?.ballot_identity === EBallotIdentity.PSEUDONYM && (
+                        <Typography variant="body2" sx={{mb: 2}}>
+                            {t("ballotPrivacy.userLogs")}
+                        </Typography>
+                    )}
                     {recordIds && recordIds.length > 0 && (
                         <ElectoralLogList
                             electionEventId={electionEventId}

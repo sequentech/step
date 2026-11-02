@@ -2,5 +2,24 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod access;
+pub mod audit;
 pub mod authorization;
+pub mod dependencies;
+pub mod monitoring;
+pub mod monitoring_cache;
+pub mod monitoring_checks;
+pub mod monitoring_config_cache;
+pub mod monitoring_svg;
+pub mod otp_capacity;
+pub mod request_logging;
+pub mod role_permissions;
+pub mod service_auth;
+pub mod signing_gate;
+pub mod signing_http;
+pub mod tenant_activity;
+pub mod user_tasks;
+pub mod vitrine;
 pub mod worker;
+
+pub mod ballot_log_cache;

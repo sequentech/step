@@ -37,7 +37,7 @@ import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 const RESOURCE = "sequent_backend_phone_blacklist"
 
 interface EmptyProps {
-    onAdd: () => void
+    onAdd?: () => void
 }
 const Empty: React.FC<EmptyProps> = ({onAdd}) => {
     const {t} = useTranslation()
@@ -46,13 +46,17 @@ const Empty: React.FC<EmptyProps> = ({onAdd}) => {
             <Typography variant="h4" component="p">
                 {t("electionEventScreen.ivr.blacklist.emptyMsg")}
             </Typography>
-            <Button onClick={onAdd}>
-                <Add />
-                {t("common.label.add")}
-            </Button>
-            <Typography variant="body1" component="p">
-                {t("common.resources.noResult.askCreate")}
-            </Typography>
+            {onAdd && (
+                <Button onClick={onAdd}>
+                    <Add />
+                    {t("common.label.add")}
+                </Button>
+            )}
+            {onAdd && (
+                <Typography variant="body1" component="p">
+                    {t("common.resources.noResult.askCreate")}
+                </Typography>
+            )}
         </ResourceListStyles.EmptyBox>
     )
 }
@@ -231,7 +235,7 @@ export const PhoneBlacklist: React.FC = () => {
                 filter={{tenant_id: tenantId, election_event_id: record.id}}
                 sort={{field: "phone_e164", order: "ASC"}}
                 storeKey={false}
-                empty={<Empty onAdd={() => setDrawerOpen(true)} />}
+                empty={<Empty onAdd={canCreate ? () => setDrawerOpen(true) : undefined} />}
                 filters={[
                     <TextInput
                         key="phone_e164"

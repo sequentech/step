@@ -3,7 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {AppDispatch} from "../store/store"
-import {GetPublishedBallotStylesQuery, updateBallotStyleAndSelection} from "./BallotStyles"
+import {
+    EPublishedBallotStyleLookup,
+    GetPublishedBallotStylesQuery,
+    findPublishedBallotStyle,
+    updateBallotStyleAndSelection,
+} from "./BallotStyles"
 
 jest.mock("@sequentech/ui-core", () => ({
     isString: (value: unknown) => typeof value === "string",
@@ -67,5 +72,132 @@ describe("updateBallotStyleAndSelection", () => {
         expect(dispatch).toHaveBeenCalledTimes(2)
         expect(dispatch.mock.calls[0][0].payload.id).toBe("older-style")
         expect(dispatch.mock.calls[1][0].payload.id).toBe("newer-style")
+    })
+})
+
+describe("published ballot style contracts", () => {
+    it("uses publication id as the tie-breaker without sorting the received array in place", () => {
+        const dispatch = jest.fn()
+        const data = {
+            sequent_backend_ballot_publication: [
+                {id: "b", published_at: "2026-08-18T00:00:00Z"},
+                {id: "a", published_at: "2026-08-18T00:00:00Z"},
+            ],
+            sequent_backend_ballot_style: [ballotStyle("B", "b"), ballotStyle("A", "a")],
+        } as GetPublishedBallotStylesQuery
+        updateBallotStyleAndSelection(data, dispatch as unknown as AppDispatch)
+        expect(dispatch.mock.calls.map(([action]) => action.payload.id)).toEqual(["A", "B"])
+        expect(data.sequent_backend_ballot_style.map(({id}) => id)).toEqual(["B", "A"])
+    })
+    it("ignores non-text EML but preserves every field of a valid published snapshot", () => {
+        const dispatch = jest.fn()
+        const good = {
+            ...ballotStyle("valid", "published"),
+            ballot_eml: '{"id":"config-7"}',
+            ballot_signature: "synthetic-signature",
+            area_id: "area-7",
+        }
+        const data = {
+            sequent_backend_ballot_publication: [
+                {id: "published", published_at: "2026-08-18T00:00:00Z"},
+            ],
+            sequent_backend_ballot_style: [{...good, id: "no-eml", ballot_eml: null}, good],
+        } as GetPublishedBallotStylesQuery
+        updateBallotStyleAndSelection(data, dispatch as unknown as AppDispatch)
+        expect(dispatch).toHaveBeenCalledTimes(1)
+        const {status: _status, deleted_at: _deleted, ...expected} = good
+        expect(dispatch.mock.calls[0][0].payload).toEqual({
+            ...expected,
+            ballot_eml: {id: "config-7"},
+            publication_published_at: "2026-08-18T00:00:00Z",
+        })
+    })
+    it("propagates malformed published EML without dispatching a default ballot", () => {
+        const dispatch = jest.fn()
+        const log = jest.spyOn(console, "log").mockImplementation(() => {})
+        const data = {
+            sequent_backend_ballot_publication: [
+                {id: "published", published_at: "2026-08-18T00:00:00Z"},
+            ],
+            sequent_backend_ballot_style: [
+                {...ballotStyle("invalid", "published"), ballot_eml: "{invalid"},
+            ],
+        } as GetPublishedBallotStylesQuery
+        try {
+            expect(() =>
+                updateBallotStyleAndSelection(data, dispatch as unknown as AppDispatch)
+            ).toThrow(SyntaxError)
+            expect(dispatch).not.toHaveBeenCalled()
+            data.sequent_backend_ballot_style[0].ballot_eml = '{"id":"valid"}'
+            updateBallotStyleAndSelection(data, dispatch as unknown as AppDispatch)
+            expect(dispatch.mock.calls[0][0].payload.ballot_eml).toEqual({id: "valid"})
+        } finally {
+            log.mockRestore()
+        }
+    })
+})
+
+describe("findPublishedBallotStyle", () => {
+    const data = {
+        sequent_backend_ballot_publication: [
+            {id: "published", published_at: "2026-08-18T01:00:00Z"},
+            {id: "published-elsewhere", published_at: "2026-08-18T01:00:00Z"},
+        ],
+        sequent_backend_ballot_style: [
+            {
+                ...ballotStyle("published-style", "published"),
+                ballot_eml: '{"id":"published-style"}',
+            },
+            {...ballotStyle("draft-style", "generated-draft"), ballot_eml: '{"id":"draft-style"}'},
+            {...ballotStyle("unreadable-style", "published"), ballot_eml: "{"},
+            {...ballotStyle("missing-eml-style", "published"), ballot_eml: null},
+            {
+                ...ballotStyle("other-event-style", "published-elsewhere"),
+                election_event_id: "event-b",
+                ballot_eml: '{"id":"other-event-style"}',
+            },
+        ],
+    } as GetPublishedBallotStylesQuery
+
+    it("finds the ballot style with that id from a published publication", () => {
+        expect(findPublishedBallotStyle(data, "published-style", "event-a")).toEqual({
+            status: EPublishedBallotStyleLookup.FOUND,
+            ballotStyle: {id: "published-style"},
+        })
+    })
+
+    it.each([
+        ["of a publication that is not published", "draft-style"],
+        ["that is not listed", "unknown-style"],
+        ["that is missing", undefined],
+        ["of another election event", "other-event-style"],
+    ])("reports an id %s as not published", (_, ballotStyleId) => {
+        expect(findPublishedBallotStyle(data, ballotStyleId, "event-a")).toEqual({
+            status: EPublishedBallotStyleLookup.NOT_PUBLISHED,
+        })
+    })
+
+    it("reports a published ballot style that cannot be read apart from an unpublished one", () => {
+        expect(findPublishedBallotStyle(data, "unreadable-style", "event-a")).toEqual({
+            status: EPublishedBallotStyleLookup.UNREADABLE,
+        })
+    })
+
+    it("reports a published ballot style without EML as unreadable", () => {
+        expect(findPublishedBallotStyle(data, "missing-eml-style", "event-a")).toEqual({
+            status: EPublishedBallotStyleLookup.UNREADABLE,
+        })
+    })
+
+    it("reports ballot styles that have not loaded apart from an unpublished one", () => {
+        expect(findPublishedBallotStyle(undefined, "published-style", "event-a")).toEqual({
+            status: EPublishedBallotStyleLookup.NOT_LOADED,
+        })
+    })
+
+    it("reports a published ballot style as not published without an election event", () => {
+        expect(findPublishedBallotStyle(data, "published-style", null)).toEqual({
+            status: EPublishedBallotStyleLookup.NOT_PUBLISHED,
+        })
     })
 })

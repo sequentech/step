@@ -1,0 +1,205 @@
+{
+  "description": "While voting is open: entry 1 is for another event, entry 2 for an election the event doesn't have, entry 3 receives entry 0's ballot a second time, entry 4 was accepted an hour before the window and sequenced long after, entry 5 was sequenced 600 seconds after it was accepted, and entry 6 has three fields. No ballot is cast, so the rules about outcomes have nothing to fail.",
+  "params": {
+    "election-ids": [
+      "mayor",
+      "council"
+    ],
+    "event-id": "muni-2026"
+  },
+  "policy": {
+    "opens": 1793001600,
+    "closes": 1793044800
+  },
+  "entries": [
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBNAAAJbXVuaS0yMDI2AAAFbWF5b3IAAAhyZWNlaXZlZAAAIOCEoQWnt9WZuDRtPLpaxRt1bX4px+93/Z7/Mf3q4xOJAAAIAAAAAGrfCLw=",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBPAAAJbXVuaS0yMDI1AAAHY291bmNpbAAACHJlY2VpdmVkAAAgOQs2oJUCsF1PjCeuomNsa3/QWyfXQu0yB0/+ofiI6+QAAAgAAAAAat8I5A==",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBSAAAJbXVuaS0yMDI2AAAKZG9nY2F0Y2hlcgAACHJlY2VpdmVkAAAgwizu5muKsQRIPIMFMXOzP5kt1Py0VyhMYO+daZoccFkAAAgAAAAAat8JAg==",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBNAAAJbXVuaS0yMDI2AAAFbWF5b3IAAAhyZWNlaXZlZAAAIOCEoQWnt9WZuDRtPLpaxRt1bX4px+93/Z7/Mf3q4xOJAAAIAAAAAGrfCUg=",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBNAAAJbXVuaS0yMDI2AAAFbWF5b3IAAAhyZWNlaXZlZAAAIH/ejuvziPz/ZnqJvmBDDMbhmLGnjLYDo5zdCYhaMzbjAAAIAAAAAGre+nA=",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQBNAAAJbXVuaS0yMDI2AAAFbWF5b3IAAAhyZWNlaXZlZAAAIJJGvh6bqfXeW692aiVutyXpp1UfuT1/qnk8k44PQd41AAAIAAAAAGrfChA=",
+    "G3ZpdHJpbmUvZWxlY3Rpb24vYmFsbG90cy92MQA3AAAJbXVuaS0yMDI2AAAFbWF5b3IAACD5sAeLXfWW0uoZAQwAG70AnmUd4sV+j7fjVfMeudP3OQ=="
+  ],
+  "sequenced": [
+    1793001661,
+    1793001701,
+    1793001731,
+    1793001801,
+    1793001900,
+    1793002600,
+    1793002601
+  ],
+  "checkpoints": [
+    [
+      7,
+      1793002601
+    ]
+  ],
+  "context": {
+    "events": {
+      "entries": [
+        "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxAdYAAAZjb25maWcAAAgAAAAAat7sYAAAAQAAAbh2aXRyaW5lL2NvbmZpZy92MQpldmVudCBtdW5pLTIwMjYKZWxlY3Rpb24gbWF5b3IKa2V5IEQwOXdGRWN2cjYxSjRuMEtidXNiQzJ2SldUR0pMdSsxS093RUtPTUtMZ2s9CnN0eWxlcyAwSm1sWkszSG9GYTJaUWhWVTkycW1hb2JCeFBuMUlSRTBSckY4WEhYc09nPQpvcGVucyAxNzkzMDAxNjAwCmNsb3NlcyAxNzkzMDQ0ODAwCnBvbGljeSBzaGEyNTY6ODIzNDEyZDFlYWNiNjc5NTYyMjBlNTMyOTU5ZjAxMDQ2MDMwNTdjODg3MDQ4NjNjYTM4ZTdjZDE4OGZkYTgxMgpyZWxlYXNlIGJvb3RoIDEuMC4wCnRyYW5zcGFyZW5jeSBwdWJsaWMKZGVtbyBubwp0aW1lIDE3OTI5OTQ0MDAKCuKAlCBib2FyZC5leGFtcGxlIGNDMjAvWGlUWmlOVys2NFplSXIvOHl4WGVySytqVEZnRlFSc281TG9heXZWQ0IycGNTVHNiOW5uVVdVbHRCMmxJRzFQOUt4bTVxczRmdWhMUlhTb1pzOVdVZzg9CgAAAA==",
+        "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxAdgAAAZjb25maWcAAAgAAAAAat7sYAAAAQAAAbp2aXRyaW5lL2NvbmZpZy92MQpldmVudCBtdW5pLTIwMjYKZWxlY3Rpb24gY291bmNpbAprZXkgdjhMdVIrVk9YMndyd1dkcnJZT2FybVM0SnJRUTNpTG12ZGgrdmE4WnhjST0Kc3R5bGVzIEdWV1h1Sjh2cDhmRWNGQ1d3NjduZ3M2N0dhY0RNUjc0NWRNOHB3Mng3S3M9Cm9wZW5zIDE3OTMwMDE2MDAKY2xvc2VzIDE3OTMwNDQ4MDAKcG9saWN5IHNoYTI1Njo4MjM0MTJkMWVhY2I2Nzk1NjIyMGU1MzI5NTlmMDEwNDYwMzA1N2M4ODcwNDg2M2NhMzhlN2NkMTg4ZmRhODEyCnJlbGVhc2UgYm9vdGggMS4wLjAKdHJhbnNwYXJlbmN5IHB1YmxpYwpkZW1vIG5vCnRpbWUgMTc5Mjk5NDQwMAoK4oCUIGJvYXJkLmV4YW1wbGUgY0MyMC9laEQ4N0RuWUFVUytoZjRiWEdCL1BCWnA1a0FDRi9XMXVaMVFSTHBwT1VWY3B1aXl3OGJoRnZJbmFRRTM5SEdoM1RveEhzSGlTZVZQODNicmFjcjlBMD0KAAAA",
+        "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxAVMAAA12b3Rpbmctb3BlbmVkAAAIAAAAAGrfCIAAAAEAAAEudml0cmluZS9taWxlc3RvbmUvdjEKZXZlbnQgbXVuaS0yMDI2CmtpbmQgdm90aW5nLW9wZW5lZAp0aW1lIDE3OTMwMDE2MDAKY29uZmlnIG1heW9yIHlyU0g4WHM1ZlBNZlF1NHdLTVVPUGh1S0U5Q2oxYnRXRUVIcnBqUEpQVlE9CmNvbmZpZyBjb3VuY2lsIGVkR0xrMldMeEhuZWh2QnRxTFB0YVVpZlJKUlJrN1o0emkvT09PQXpZV289CgrigJQgYm9hcmQuZXhhbXBsZSBjQzIwL2J4ZWZURkozOGwyN1c0NzFwcGp4ZVpWcTlJWUV0dVRicnRhN05xY1hOWDZBTFc2bmZ6cEtudWc3L2tndTlIQ08vdWU1YklkVWcxWS90OHBWbFNyM1FBPQoAAAA="
+      ],
+      "sequenced": [
+        1792994600,
+        1792994610,
+        1793001595
+      ],
+      "checkpoints": [
+        [
+          3,
+          1793001595
+        ]
+      ]
+    }
+  },
+  "fields": [
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2026"
+      },
+      {
+        "name": "election_id",
+        "value": "mayor"
+      },
+      {
+        "name": "stage",
+        "value": "received"
+      },
+      {
+        "name": "ballot_id",
+        "value": "e084a105a7b7d599b8346d3cba5ac51b756d7e29c7ef77fd9eff31fdeae31389"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1793001660"
+      }
+    ],
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2025"
+      },
+      {
+        "name": "election_id",
+        "value": "council"
+      },
+      {
+        "name": "stage",
+        "value": "received"
+      },
+      {
+        "name": "ballot_id",
+        "value": "390b36a09502b05d4f8c27aea2636c6b7fd05b27d742ed32074ffea1f888ebe4"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1793001700"
+      }
+    ],
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2026"
+      },
+      {
+        "name": "election_id",
+        "value": "dogcatcher"
+      },
+      {
+        "name": "stage",
+        "value": "received"
+      },
+      {
+        "name": "ballot_id",
+        "value": "c22ceee66b8ab104483c83053173b33f992dd4fcb457284c60ef9d699a1c7059"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1793001730"
+      }
+    ],
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2026"
+      },
+      {
+        "name": "election_id",
+        "value": "mayor"
+      },
+      {
+        "name": "stage",
+        "value": "received"
+      },
+      {
+        "name": "ballot_id",
+        "value": "e084a105a7b7d599b8346d3cba5ac51b756d7e29c7ef77fd9eff31fdeae31389"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1793001800"
+      }
+    ],
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2026"
+      },
+      {
+        "name": "election_id",
+        "value": "mayor"
+      },
+      {
+        "name": "stage",
+        "value": "received"
+      },
+      {
+        "name": "ballot_id",
+        "value": "7fde8eebf388fcff667a89be60430cc6e198b1a78cb603a39cdd09885a3336e3"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1792998000"
+      }
+    ],
+    [
+      {
+        "name": "event_id",
+        "value": "muni-2026"
+      },
+      {
+        "name": "election_id",
+        "value": "mayor"
+      },
+      {
+        "name": "stage",
+        "value": "received"
+      },
+      {
+        "name": "ballot_id",
+        "value": "9246be1e9ba9f5de5baf766a256eb725e9a7551fb93d7faa793c938e0f41de35"
+      },
+      {
+        "name": "accepted_at",
+        "value": "1793002000"
+      }
+    ],
+    null
+  ],
+  "rules": {
+    "after-close": "waiting",
+    "count": "waiting",
+    "election": "failing",
+    "event": "failing",
+    "in-window": "failing",
+    "on-time": "failing",
+    "one-outcome": "passing",
+    "one-stage": "failing",
+    "received-first": "passing",
+    "vitrine/parse": "failing"
+  }
+}

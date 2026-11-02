@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: req-0283
+title: Attack detections
+description: Bot and coordinated-attack detections for the whole event.
+section: Access and security
+requirements: [SW-F-0283]
+order: 19
+layout:
+  - {widget: attack-detections, width: 12}

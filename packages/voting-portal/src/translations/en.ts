@@ -3,18 +3,230 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
     translations: {
+        ballotPrivacy: {
+            title: "All ballots",
+            subtitle:
+                "Every ballot sent in this election, once, at its last step. Voters are listed under a pseudonym instead of a name.",
+            private: "Voters appear only as pseudonyms",
+            signed: "Signed by the election authority and the ballot box",
+            device: "Checked on your device",
+            own: "Your ballot is in the log",
+            listedAs: "Listed as",
+            check: "Check my ballot",
+            copy: "Copy Tracking ID",
+            ballotIdHelp: "About your Tracking ID",
+            stageTime: "{{stage}} {{time}}",
+            timesIn: "Times in {{zone}}",
+            signedEntries: "Signed log entries ({{count}})",
+            noMatchHelp:
+                "Check for typing mistakes. A Tracking ID has a hyphen and at least 8 characters, as in FTBE-MHRX. A pseudonym has a colon, as in K7QM:2XWD.",
+            helpSections: {
+                pseudonyms: {
+                    title: "Pseudonyms",
+                    text: "Each voter is listed under a pseudonym, a code such as K7QM:2XWD. The log never says who the voter is.",
+                },
+                signatures: {
+                    title: "Signatures",
+                    text: "The election authority signs which voter key each pseudonym uses. The ballot box signs each ballot it receives, each cast and each audit.",
+                },
+                checks: {
+                    title: "Checks on your device",
+                    text: "Open a ballot to check its signatures in this browser. Anyone can download its signed entries and check them again.",
+                },
+            },
+            copied: "Tracking ID copied",
+            copyFailed: "Could not copy the Tracking ID. Select the code to copy it.",
+            search: "Find a Tracking ID or pseudonym",
+            placeholder: "FTBE-MHRX or K7QM:2XWD",
+            clear: "Clear search",
+            ballots: "{{count}} ballots",
+            matches: "{{count}} of {{total}} ballots match",
+            capped: "More than {{count}} of {{total}} ballots match; type more of the code",
+            matchesBoth: "Matches {{tracking}} by Tracking ID · {{pseudonym}} by pseudonym",
+            ballotId: "Tracking ID",
+            pseudonym: "Pseudonym",
+            lastStep: "Last step",
+            time: "Time",
+            channel: "Channel",
+            stages: {
+                received: {
+                    label: "Received",
+                    title: "Ballot received",
+                    help: "The ballot box signed a receipt for this ballot, and the public log promised to add it. It is not counted unless its voter casts it.",
+                    castState: "Not cast yet",
+                },
+                cast: {
+                    label: "Cast",
+                    title: "Ballot cast",
+                    help: "The ballot box confirmed that the voter cast this ballot.",
+                    castState: "Passed",
+                },
+                audited: {
+                    label: "Audited",
+                    title: "Ballot audited",
+                    help: "Its voter opened this ballot to check it. An audited ballot is never cast and never counted.",
+                    castState: "Never cast",
+                },
+            },
+            trackingId: "Tracking ID",
+            trackingIdHelp: "Computed from the encrypted ballot and the voter key.",
+            yours: "Yours",
+            channels: {
+                online: "Online",
+                kiosk: "Kiosk",
+                telephone: "Telephone",
+            },
+            previous: "Previous",
+            next: "Next",
+            rows: "Rows per page",
+            noMatch: "No Tracking ID or pseudonym starts with {{prefix}}",
+            noBallots: "No ballots have been sent yet.",
+            invalidPrefix:
+                "Enter at least 8 characters of a Tracking ID with a hyphen, as in FTBE-MHRX, or up to 8 of a pseudonym with a colon, as in K7QM:2XWD. The codes use the digits 0 to 9 and capital letters, without I, L, O and U.",
+            policyId:
+                "That’s this election’s policy ID. A ballot’s Tracking ID is on your receipt.",
+            loadError: "The ballot box log could not be loaded. Please try again.",
+            retry: "Try again",
+            help: "About the log of all ballots",
+            helpText:
+                "Each voter is listed under a pseudonym, a code such as K7QM:2XWD. The log never says who the voter is. The election authority signs which voter key each pseudonym uses. Open a ballot to check its signatures in this browser.",
+            detailTitle: "Ballot {{ballotId}}",
+            checking: "Checking the signatures…",
+            passed: "All four checks passed",
+            verified: "Checked on this device with the published keys.",
+            failed: "A check failed",
+            failedHelp: "Do not rely on this entry.",
+            pending: "Still being added to the log",
+            pendingHelp: "The signed entries may appear after a ballot is cast. Check again later.",
+            proofError: "The signed entries or published keys could not be loaded. Try again.",
+            checkLabels: {
+                binding: "Voter key registered",
+                received: "Ballot received",
+                ballotId: "Tracking ID",
+                cast: "Ballot cast",
+            },
+            checkDescriptions: {
+                binding: "The election authority signed which voter key this pseudonym uses.",
+                received: "The ballot box received a ballot signed with that voter key.",
+                ballotId:
+                    "The Tracking ID is computed from the encrypted ballot and the voter key.",
+                cast: "The same key cast the ballot, and the ballot box confirmed the cast.",
+            },
+            states: {
+                passed: "Passed",
+                failed: "Does not match.",
+                pending: "Not in the log yet.",
+            },
+            neverPublished:
+                "Never published: the voter's name, username, IP address, country or device.",
+            download: "Download signed log entries",
+            downloadAction: "Download",
+            close: "Close",
+            systemKey: "Election event log key",
+            boxKey: "Ballot box key",
+            userLogs:
+                "A voter's own entries: sign-ins and messages. Their ballots are in the log under a pseudonym, so they never appear here; only a logged resolution links the two.",
+            ballotSection: "Ballot and pseudonym",
+            resolution: "Pseudonym resolution",
+            resolutionHelp:
+                "The answer went only to the person who asked. The voter is never named in this log.",
+            reason: "Reason given",
+            settings: {
+                authority:
+                    "The election event log key {{fingerprint}} signs which voter key each pseudonym uses.",
+                loading: "Loading privacy permissions",
+                loadError: "The current privacy permissions could not be loaded.",
+                noRoles: "No role yet",
+                title: "Privacy",
+                identity: "Voter pseudonyms",
+                on: "On: ballots, the log and its exports name a pseudonym for each voter, never the voter.",
+                legacy: "This event uses the historical voter identity mode.",
+                immutable:
+                    "The identity mode is set when the event is created and cannot be changed.",
+                network: "Network data",
+                description:
+                    "The IP address, country and browser of each ballot sent. They are never kept with ballots, voter records or log entries.",
+                forensic: "Keep for forensic review",
+                forensicHelp:
+                    "Kept apart in the forensic store. Only people with Forensic Read see it, and every view is logged.",
+                none: "Do not store",
+                noneHelp:
+                    "Nothing new is kept, and the dashboard's IP Addresses list is not shown. Previously retained forensic data follows its retention policy.",
+                permissions: "Who can see or link it",
+                permissionHelp:
+                    "No preset role holds these permissions. Give them in Users and Roles to the few people who need them.",
+                forensicPermission: "Forensic Read",
+                forensicPermissionHelp: "Sees the network data in the forensic store",
+                resolvePermission: "Resolve a pseudonym",
+                resolvePermissionHelp:
+                    "Links one pseudonym to its voter, with a reason. Each use is logged.",
+                roles: "Manage in Users and Roles",
+            },
+            forensic: {
+                allElections: "All permitted elections",
+                exportError: "The forensic records could not be exported.",
+                subtitle:
+                    "Where ballots were sent from, by pseudonym. Only people with Forensic Read see this list, and each view is logged.",
+                store: "Forensic store",
+                pseudonyms: "Pseudonyms",
+                first: "First ballot",
+                last: "Last ballot",
+                shared: "Shared",
+                sharedHelp:
+                    "Ballots of several pseudonyms came from this address, as from a hotel or office network.",
+                more: "+{{count}} more",
+                view: "View ballots",
+                copy: "Copy IP address",
+                detailTitle: "IP address {{ip}}",
+                detailHelp:
+                    "Opening this address was written to the election event’s log. Nobody is named here: each ballot is listed by its pseudonym.",
+                error: "The forensic records could not be loaded.",
+                empty: "No forensic ballot records for this address.",
+            },
+        },
+        startup: {
+            error: "The voting portal could not start. Please try again.",
+            retry: "Try again",
+        },
+        contactChannel: {
+            change: "Contact method",
+            updated: "Your contact was changed. Codes and notices now go there.",
+            cancelled: "Your contact was not changed.",
+            failed: "We couldn't change how we contact you. Try again later or contact support.",
+            close: "Close",
+        },
         common: {
             goBack: "Back",
             showMore: "Show more",
             showLess: "Show less",
+        },
+        audioInstructions: {
+            screens: {
+                "election-chooser":
+                    "This page lists the elections you can vote in. Use the Tab key to move from one election to the next. Each election has a button to start voting. Press Enter on that button to open its ballot.",
+                "start":
+                    "This page explains how to vote. First you choose your options, then you review them, and then you cast your ballot. Use the Tab key to reach the button that starts voting and press Enter. If a declaration is shown, tick its checkbox with the Space bar first.",
+                "ballot":
+                    "This is your ballot. Each question is a group of options, and the question says how many options you can choose. Use the Tab key to move between options and the Space bar to select or clear one. When you have finished, go to the button to continue, at the end of the page, and press Enter to review your choices. There is also a button to clear all your choices. Nothing is cast until you confirm on the review page.",
+                "review":
+                    "This page shows the choices you made. Check them carefully. To change something, use the button to edit your ballot. To cast your vote, go to the button to cast your ballot and press Enter. Your ballot ID is at the top of the page. You can copy it to find your ballot later.",
+                "confirmation":
+                    "Your vote has been cast. This page shows your ballot ID, which you can use to check that your ballot was recorded. You can copy it, or save your receipt as a PDF. When you are done, use the button to finish, which comes right after the one that saves the receipt.",
+                "audit":
+                    "This page lets you audit your ballot instead of casting it. It shows the information that you can check with the ballot verifier. An audited ballot is not cast, so go back to your ballot afterwards to vote.",
+                "ballot-locator":
+                    "This page lets you check that a ballot was recorded. Type or paste a ballot ID in the text field and press Enter. The result appears below the field.",
+                "support-materials":
+                    "This page lists documents that help you vote. Use the Tab key to move between them and press Enter on a document's button to open it. Use the button to go back to return to the list of elections.",
+            },
         },
         a11y: {
             skipToContent: "Skip to main content",
             helpAbout: "Help about {{topic}}",
             previewMaterial: "Preview {{title}}",
             ballotsTable: "Ballots",
-            ballotLocatorTabs: "Ballot locator sections",
-            ballotIdLabel: "Ballot ID",
+            ballotLocatorTabs: "Ballot tracking sections",
+            ballotIdLabel: "Tracking ID",
             votingProgress: "Voting progress",
             stepOf: "Step {{current}} of {{total}}",
             selectUpTo_one: "Select up to {{count}} option",
@@ -104,12 +316,22 @@ const englishTranslation = {
                 "Pick your preferred candidates and make your selections in each contest as it appears. You can change your ballot anytime before casting your vote",
             step2Title: "2. Review your selections",
             step2Description:
-                "When you’re happy with your selections, we’ll securely encrypt your ballot and show you a final review. You’ll also get a unique tracker ID for reference",
+                "When you’re happy with your selections, we’ll securely encrypt your ballot and show you a final review. You’ll also get a unique Tracking ID for reference",
             step3Title: "3. Cast your ballot",
             step3Description:
                 "When you’re ready, cast your ballot so it’s officially recorded. Or choose to audit first to confirm it was correctly captured and encrypted",
         },
         reviewScreen: {
+            reloaded: {
+                title: "Your ballot was not cast",
+                text: "Reloading the page cleared the one-time key that casts it. Check your choices and send your ballot again. The ballot you sent stays in the record as received and is never counted.",
+                back: "Back to my ballot",
+            },
+            castRecovery: {
+                uncertain:
+                    "The cast result has not been confirmed. You can retry the same request or check your Tracking ID before starting again.",
+                checkBallot: "Check ballot",
+            },
             acclamation: {
                 title: "Decided by acclamation",
                 helpDialog: {
@@ -130,9 +352,9 @@ const englishTranslation = {
             backButton: "Edit ballot",
             castBallotButton: "Cast ballot",
             auditButton: "Audit ballot",
-            copyBallotId: "Copy ballot ID",
-            ballotIdCopied: "Ballot ID copied",
-            ballotIdCopyError: "Could not copy ballot ID",
+            copyBallotId: "Copy tracking ID",
+            ballotIdCopied: "Tracking ID copied",
+            ballotIdCopyError: "Could not copy tracking ID",
             reviewScreenHelpDialog: {
                 title: "About the review screen",
                 content: "This screen lets you review your selections before casting your ballot",
@@ -141,7 +363,7 @@ const englishTranslation = {
             ballotIdHelpDialog: {
                 title: "Your vote has not been cast",
                 content:
-                    "<p>This is your Ballot Tracker ID, but <b>your vote has not been cast yet</b>. If you try to track it now, nothing will appear.</p><p>We show the Tracker ID at this stage so you can audit the encrypted ballot before casting it.</p>",
+                    "<p>This is your Tracking ID, but <b>your vote has not been cast yet</b>. If you try to track it now, nothing will appear.</p><p>We show the Tracking ID at this stage so you can audit the encrypted ballot before casting it.</p>",
                 ok: "I understand my vote is not cast",
                 cancel: "Cancel",
             },
@@ -151,6 +373,14 @@ const englishTranslation = {
                     "<p>Auditing your ballot will void it and restart the voting process. Continue only if you’re comfortable with the advanced steps. Otherwise, click <u>Cancel</u> to go back.</p>",
                 ok: "Yes, discard my ballot to audit",
                 cancel: "Cancel",
+            },
+            auditConfirm: {
+                title: "Audit this ballot instead of casting it?",
+                text: "The portal publishes how it encrypted <Id>{{id}}</Id>, so you can check on a hub that it holds what you chose.",
+                never: "It is never cast or counted: its secret would show how you voted.",
+                again: "Then you vote again, with a new Tracking ID.",
+                cancel: "Cancel",
+                audit: "Audit ballot",
             },
             confirmCastVoteDialog: {
                 title: "Are you sure you want to cast your vote?",
@@ -164,6 +394,15 @@ const englishTranslation = {
                     "You have not selected any candidates. After you confirm, your ballot will be cast as blank.",
                 ok: "Yes, cast my blank ballot",
                 cancel: "Cancel",
+            },
+            unfilledContestsDialog: {
+                title: "Some selections are unfilled",
+                content:
+                    "You may leave a selection blank or choose fewer options than allowed. Check the following before continuing.",
+                selected: "{{selected}} of {{max}} selected",
+                nothingSelected: "Nothing selected",
+                ok: "Continue with these selections",
+                cancel: "Review selections",
             },
             error: {
                 NETWORK_ERROR:
@@ -221,7 +460,9 @@ const englishTranslation = {
                 NO_AUDITABLE_BALLOT:
                     "There is no ballot available for audit. Please contact support",
                 INCONSISTENT_HASH:
-                    "There was an error related to the ballot hashing process. BallotId: {{ballotId}} is not consistent with auditable Ballot Hash: {{auditableBallotHash}}. Please report this issue to support.",
+                    "There was an error related to the ballot hashing process. Tracking ID: {{ballotId}} is not consistent with auditable Ballot Hash: {{auditableBallotHash}}. Please report this issue to support.",
+                NOT_RECEIVED:
+                    "The public record does not hold your ballot yet, so it was not sent. Go back to your ballot and try again.",
                 ELECTION_EVENT_NOT_OPEN: "This election is closed. You can no longer vote",
                 PARSE_ERROR:
                     "There was an error parsing the ballot. Please try again later or contact support for assistance.",
@@ -237,7 +478,7 @@ const englishTranslation = {
                 REAUTH_FAILED:
                     "Login failed. Your username or password may be incorrect. Please try again or contact support",
                 SESSION_EXPIRED: "Your session has expired. Please start again",
-                CAST_VOTE_BallotIdMismatch: "The ballot id does not match with the cast vote.",
+                CAST_VOTE_BallotIdMismatch: "The tracking ID does not match the cast vote.",
                 SESSION_STORAGE_ERROR:
                     "Session storage is not available. Please try again or contact support.",
                 PARSE_BALLOT_DATA_ERROR:
@@ -257,55 +498,44 @@ const englishTranslation = {
             acclamation: {
                 title: "Decided by acclamation",
                 description:
-                    "Every contest in this election was decided by acclamation, so no ballot was cast and there is no ballot ID to track.",
-                helpDialog: {
-                    title: "Information: Acclamation",
-                    content:
-                        "Every contest in this election was decided by acclamation: its candidates are elected without a vote. Because no ballot was cast, there is no ballot ID, receipt or QR code to verify.",
-                    ok: "OK",
-                },
+                    "Every contest in this election was decided by acclamation, so no ballot was cast and there is no tracking ID.",
             },
             title: "Your vote has been cast",
-            description:
-                "Your ballot was cast successfully. Use the code below to verify that it was counted",
             blankBallot: {
                 description: "Your ballot was cast blank, which is a valid, deliberate choice.",
             },
-            ballotId: "Ballot ID",
-            printButton: "Print",
+            ballotId: "Tracking ID",
             finishButton: "Finish",
+            saveReceiptButton: "Save receipt (PDF)",
+            receipt: "Receipt",
+            keepTitle: "Keep your receipt",
+            keepLead:
+                "This website doesn’t keep a copy. Save it now to check your ballot later, on any device.",
+            castEmailNote: "A copy was also emailed to you.",
+            qrCaption: "Scan to check it on another device",
             remainingElectionsError:
                 "We couldn’t check whether you have more elections to vote in. Please retry.",
             retryButton: "Retry",
-            verifyCastTitle: "Verify that your ballot was cast",
-            verifyCastDescription:
-                "You can verify your ballot was cast correctly at any time using the QR code below",
-            confirmationHelpDialog: {
-                title: "About the confirmation screen",
-                content:
-                    "This screen confirms that your vote was successfully cast. The information here allows you to verify that your ballot was stored in the ballot box, both during the voting period and after it has closed",
-                ok: "OK",
-            },
             demoPrintDialog: {
                 title: "Printing ballot",
                 content: "Printing is disabled in demo mode",
                 ok: "OK",
             },
             demoBallotUrlDialog: {
-                title: "Ballot Id",
+                title: "Tracking ID",
                 content: "Code use is disabled in demo mode",
                 ok: "OK",
             },
             ballotIdHelpDialog: {
-                title: "About the Ballot ID",
+                title: "About the Tracking ID",
                 content:
-                    "The Ballot ID is a unique code that lets you find your ballot in the ballot box. It does not contain any information about your selections.",
+                    "The Tracking ID is a unique code that lets you find your ballot in the ballot box. It does not contain any information about your selections.",
                 ok: "OK",
             },
             ballotIdDemoHelpDialog: {
-                title: "About the Ballot ID",
+                title: "About the Tracking ID",
                 content:
-                    "The Ballot ID is a unique code that lets you find your ballot in the ballot box. It does not contain any information about your selections.",
+                    "The Tracking ID is a unique code that lets you find your ballot in the ballot box. It does not contain any information about your selections.",
                 ok: "OK",
             },
             errorDialogPrintBallotReceipt: {
@@ -316,13 +546,16 @@ const englishTranslation = {
             demoQRText: "Ballot tracker is disabled in demo mode",
         },
         auditScreen: {
+            confirmingAudit: "Confirming that this ballot cannot be cast…",
+            auditUnavailable:
+                "The ballot could not be audited. Its contents have not been revealed. Please try again.",
             printButton: "Print",
             restartButton: "Start Voting",
             title: "Check your ballot",
             description: "To check your ballot, follow the steps below:",
             step1Title: "1. Save the following details:",
             step1Description:
-                "your <b>Ballot ID</b> at the top of the screen and your encrypted ballot shown below",
+                "your <b>Tracking ID</b> at the top of the screen and your encrypted ballot shown below",
             step1HelpDialog: {
                 title: "Copy ballot code",
                 content:
@@ -341,6 +574,72 @@ const englishTranslation = {
             },
             bottomWarning:
                 "For security reasons, when you audit your ballot, it needs to be spoiled. To continue with the voting process, you need to click ‘<b>Start Voting</b>’ below.",
+            voteAgain: "Vote again",
+            check: {
+                title: "Check your audited ballot",
+                lead: "This ballot was opened instead of cast, so it will never be counted. Check on a hub that it holds what you chose, then vote again.",
+                label: "Checking an audited ballot",
+                encrypted: {
+                    title: "Encrypted on this device",
+                    text: "With its Tracking ID, before you chose to audit it.",
+                },
+                opened: {
+                    title: "Opened in the public record",
+                    text: "The portal published the secret it encrypted with. The record marks the ballot Audited.",
+                    publishingText: "The portal is publishing the secret it encrypted with.",
+                    failedTitle: "Not opened in the public record",
+                    failedText:
+                        "The portal couldn't publish the secret it encrypted with, so no hub can check this ballot yet. The ballot stays audited and won't be counted. Try again, or vote again.",
+                },
+                compare: {
+                    title: "Compare it on a hub",
+                    text: "The hub decodes it in your browser and shows the choices it holds. Only you know what you chose.",
+                },
+                entry: "entry #{{index}}",
+                hubsLabel: "Hubs that check ballots, from the election’s policy",
+                runBy: "Run by {{party}}",
+                hubLabel:
+                    "{{name}}, run by {{party}}: check this ballot on its own site (opens a new tab)",
+                authorityName: "Election ballot verifier",
+                runByAuthority: "Run by the election authority",
+                authorityLabel:
+                    "Election ballot verifier, run by the election authority: check this ballot on its own site (opens a new tab)",
+                footnote:
+                    "Every hub in the election’s policy that checks ballots, in a random order each time. Each opens on its own site with the Tracking ID in the link.",
+                footnoteAuthority:
+                    "No hub in the election’s policy checks ballots yet, so this is the election authority’s own ballot verifier. It opens with the Tracking ID in the link.",
+                trackerText:
+                    "No hub in the election’s policy checks ballots yet. The ballot tracker can show it: it decodes the ballot in your browser.",
+                trackerLink: "Open it in the ballot tracker",
+                tip: "Strongest on another device, such as your phone: open any hub’s site and paste the Tracking ID.",
+                tipTracker:
+                    "Strongest on another device, such as your phone: open the ballot tracker there and paste the Tracking ID.",
+                why: "Why audit?",
+                faq: {
+                    why: {
+                        question: "Why audit?",
+                        answer: "Your vote is encrypted on your device, so no one can read it, not even you. Auditing lets you check that the portal encrypted what you chose.",
+                    },
+                    catch: {
+                        question: "Why does it catch cheating?",
+                        answer: "The portal encrypts before you decide to audit, so it can’t know which ballots will be checked. If it changed votes, anyone who audits could catch it.",
+                    },
+                    spent: {
+                        question: "Why can’t this ballot count?",
+                        answer: "With its secret published, the ballot shows how you voted. To keep your vote secret, an audited ballot is never cast.",
+                    },
+                    hub: {
+                        question: "Why on a hub?",
+                        answer: "A portal that changed your vote could also show you a false check. A hub is another site; the ballot and its secret come from the public record, not from this page.",
+                    },
+                },
+                helpDialog: {
+                    title: "Check your audited ballot",
+                    content:
+                        "<p>Auditing opens a ballot instead of casting it. The portal publishes the secret it encrypted your choices with, so anyone can decode the ballot and see what it holds.</p><p>Check on a hub that it holds what you chose. Then vote again: your new ballot gets a new Tracking ID, and that is the one that counts.</p>",
+                    ok: "OK",
+                },
+            },
         },
         electionSelectionScreen: {
             title: "Ballot list",
@@ -383,6 +682,8 @@ const englishTranslation = {
                 instructions:
                     "You must read the <MaterialsLink>{{materialsTitle}}</MaterialsLink> before you can vote.",
             },
+            votingClosedAt: "Voting closed on {{close}} ({{localClose}}).",
+            votingClosedOn: "Voting closed on {{close}}.",
         },
         errors: {
             encoding: {
@@ -423,40 +724,593 @@ const englishTranslation = {
                 error: "There was a problem recording your acknowledgment. Please try again.",
             },
         },
+        slates: {
+            title: "Slates",
+            description:
+                "A slate is a group of candidates running together. Each candidate shows the slate they belong to.",
+            independent: "Independent",
+            contestMembers: "{{slate}} candidates for {{contest}}",
+            noCandidate: "No candidate",
+            coverage: {
+                full: "Full slate",
+                singleContest: "{{contest}} only",
+                partial: "Partial slate",
+                candidates_one: "{{count}} candidate",
+                candidates_other: "{{count}} candidates",
+                offices_one: "{{count}} office",
+                offices_other: "{{count}} offices",
+            },
+            candidateList: {
+                show: "Show candidates",
+                hide: "Hide candidates",
+            },
+            tabs: {
+                label: "Ways to fill in your ballot",
+                slates: "Choose a slate",
+                candidates: "Individual candidates",
+            },
+            review: {
+                title: "Your selections",
+                total: "Candidates selected: {{selected}} of {{seats}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Independent candidates selected: {{count}}",
+                note: "Your vote is recorded for each selected candidate. A slate is not a vote of its own.",
+                contestCount: "{{selected}} of {{max}} selected",
+                edit: "Edit",
+                editLabel: "Edit {{contest}}",
+            },
+            selection: {
+                all: "All {{total}} selected",
+                mixed: "Mixed · {{selected}} of {{total}} selected",
+                partly: "Partly selected · {{selected}} of {{total}}",
+                selected: "Selected",
+                edit: "Edit selections",
+            },
+            apply: {
+                button: "Choose this slate",
+                buttonLabel: "Choose slate {{slate}}",
+                chosen: "{{slate}} chosen. Candidates selected: {{candidates}}. Contests: {{contests}}.",
+                overMaximum:
+                    "{{slate}} cannot be chosen: it has {{candidates}} candidates for {{contest}}, which allows {{max}}. You can still choose candidates individually.",
+                unavailable:
+                    "{{slate}} cannot be chosen on this ballot. You can still choose candidates individually.",
+                replaceDialog: {
+                    title: "Replace your current choices?",
+                    content:
+                        "Choosing {{slate}} replaces your choices in the contests below. Your other choices stay as they are.",
+                    removed: "Removed:",
+                    added: "Selected instead:",
+                    ok: "Replace choices",
+                    cancel: "Keep my choices",
+                },
+            },
+        },
         ballotLocator: {
-            title: "Find your Ballot",
-            titleResult: "Your Ballot Lookup Results",
+            title: "Ballot Tracking",
+            titleResult: "Ballot Tracking",
             description: "Confirm your ballot was cast correctly",
+            descriptionAudited:
+                "This ballot was audited, so it was never cast. Check that the selections decoded below are the ones you made.",
+            descriptionAuditedBrief: "This ballot was audited, so it was never cast.",
             locate: "Find your Ballot",
             locateAgain: "Find another Ballot",
-            found: "Your ballot ID {{ballotId}} has been found",
-            notFound: "Your ballot ID {{ballotId}} was not found",
-            ambiguous:
-                "More than one of your ballots matches {{ballotId}}. Use the full ballot ID.",
+            found: "Your tracking ID {{ballotId}} has been found",
+            notFound: "Your tracking ID {{ballotId}} was not found",
             contentDesc: "This is your Ballot content: ",
-            wrongFormatBallotId: "Invalid Ballot ID format",
+            wrongFormatBallotId: "Invalid Tracking ID format",
+            ambiguous: "Several of your ballots start with {{ballotId}}. Choose one:",
+            ambiguousMany:
+                "Several of your ballots start with {{ballotId}}. Type more of the Tracking ID.",
             ballotIdNotFoundAtFilter:
-                "Not found, check that your Ballot ID is correct and belongs to this user.",
-            filterByBallotId: "Filter by Ballot ID",
+                "Not found, check that your Tracking ID is correct and belongs to this user.",
+            filterByBallotId: "Filter by Tracking ID",
             totalBallots: "Total Ballots: {{total}}",
+            idHelp: "The short Tracking ID, like FTBE-MHRX, or the full one",
+            policyId:
+                "That’s this election’s policy ID. A ballot’s Tracking ID is on your receipt.",
+            foundShort:
+                "Found by its short ID. To be certain it is yours, compare the full Tracking ID with your receipt.",
+            search: {
+                title: "Check your ballot in the public record",
+                intro: "Enter the Tracking ID from your confirmation screen or receipt. Your browser looks it up and checks the proofs itself.",
+                find: "Find",
+                invalid: "A Tracking ID has only digits and letters, never U.",
+                chips: {
+                    short: "<b>Short</b> FTBE-MHRX",
+                    full: "<b>Full</b> 13 groups of four",
+                    spaces: "Spaces optional",
+                },
+                features: {
+                    cast: {
+                        title: "Cast ballots",
+                        text: "See that it is in the public record, confirmed by witnesses and anchored publicly.",
+                    },
+                    audited: {
+                        title: "Audited ballots",
+                        text: "See the selections it holds, decrypted in your browser, and check they are the ones you made.",
+                    },
+                    secret: {
+                        title: "Your vote stays secret",
+                        text: "A cast ballot stays encrypted. The tracker shows that it was counted, never how you voted.",
+                    },
+                },
+            },
+            matches: {
+                cast: "Cast {{time}}",
+                audited: "Audited {{time}}",
+            },
+            shortId: {
+                head: {
+                    one: "1 ballot starts with {{start}}",
+                    other: "{{count}} ballots start with {{start}}",
+                    atLeast: "{{count}} or more ballots start with {{start}}",
+                },
+                sub: {
+                    few: "Which is yours? Compare the highlighted group with your receipt, or type it below.",
+                    one: "Open it, then compare its full Tracking ID with your receipt.",
+                    many: "That’s more than we list. Type the third group from your receipt to find yours.",
+                },
+                why: {
+                    few: "A short ID finds ballots. Only the full Tracking ID on your receipt says which one is yours.",
+                    many: "So many usually means someone made ballots to match this short ID on purpose. Yours is still in the record: matching three groups as well would take about a billion billion tries.",
+                },
+                third: "Third group from your receipt",
+                thirdOr: "Or type the third group from your receipt",
+                find: "Find",
+                serverSees:
+                    "The record’s servers could not look this up without being told which ballot you want, so the election’s server was asked for this exact ID and could see it.",
+            },
+            audit: {
+                kicker: "Ballot audit",
+                title: "Check that your ballot was encrypted as you chose",
+                note: "This is the ballot you audited, decoded by your browser. Only you know what you chose, so only you can do this check.",
+                steps: {
+                    label: "How the check works",
+                    encrypted: {
+                        title: "Encrypted on your device",
+                        text: "The portal encrypted your choices and gave the ballot its Tracking ID, before you chose to audit it.",
+                    },
+                    decoded: {
+                        title: "Decoded here",
+                        text: "Auditing made the portal reveal its secret. Your browser decoded the ballot with it and checked it against the public record.",
+                    },
+                    compare: {
+                        title: "You compare",
+                        text: "Look at the choices below. Are they the ones you made?",
+                    },
+                },
+                choices: "Choices decoded from this ballot",
+                question: "Do these match what you chose?",
+                yes: "Yes, they match",
+                no: "No, something’s different",
+                change: "Change my answer",
+                match: {
+                    title: "Your ballot was encrypted as you chose",
+                    text: "This audited ballot is now spent: it was never cast and will never be counted. Go back and vote. Your vote gets a new Tracking ID, and you can audit again first if you like.",
+                    vote: "Go back and vote",
+                },
+                mismatch: {
+                    title: "Don’t vote on this device",
+                    text: "What was encrypted isn’t what you chose, so this device or the voting portal may have been tampered with. Your browser kept the evidence: the encrypted ballot from the public record, the secret the portal revealed, and what it decodes to.",
+                    report: "Report it to the election authority",
+                    reportNoContact: "Report it to the election authority.",
+                    fromPolicy: "From the election’s published policy, not from this page.",
+                    fromSettings: "From the election’s settings.",
+                    then: "Then vote from another device.",
+                    save: "Save evidence",
+                    email: "Email the authority",
+                    emailSubject: "My audited ballot does not decode to my choices",
+                    emailBody:
+                        "I audited a ballot in this election and the choices my browser decoded are not the ones I made.\n\nTracking ID: {{id}}\n\nI have saved the evidence as a file and can send it.",
+                },
+                how: "How does this work?",
+                faq: {
+                    why: {
+                        question: "Why audit?",
+                        answer: "Your vote is encrypted on your device, so no one can read it, not even you. Auditing lets you check that the portal encrypted what you chose before you vote for real.",
+                    },
+                    catch: {
+                        question: "Why does it catch cheating?",
+                        answer: "The portal encrypts before you decide to audit, so it can’t know which ballots will be checked. If it changed votes, every voter who audits could catch it.",
+                    },
+                    spent: {
+                        question: "Why can’t this ballot count?",
+                        answer: "With its secret revealed, the ballot shows how you voted. To keep your vote secret, an audited ballot is never cast.",
+                    },
+                    differ: {
+                        question: "What if they don’t match?",
+                        answer: "Don’t vote on that device. Save the evidence and report it to the election authority, whose contact comes from the election’s policy. Then vote from another device.",
+                    },
+                    tip: "For the strongest check, open this page on a different device from the one you voted on, such as your phone. A device that changed your ballot could also change what it shows you here.",
+                },
+                failed: {
+                    title: "Audit failed",
+                    text: "The ballot in the public record does not decrypt with the key the portal revealed. Do not cast from this device; tell the election authority.",
+                },
+                unchecked: {
+                    title: "The audit could not be checked",
+                    text: "This device could not check this audited ballot, so no selections are shown. Try again later, or check the ballot content in the ballot verifier.",
+                },
+            },
+            result: {
+                receipt: "Ballot receipt",
+                idComment: "Use the short ID or the full one to find this ballot again.",
+                fullId: "Full Tracking ID",
+                copy: "Copy the full Tracking ID",
+                copied: "Tracking ID copied",
+                tag: {
+                    found: "Found",
+                    auditFailed: "Audit failed",
+                },
+                record: {
+                    title: "Your ballot content",
+                    subtitle: "Encrypted, as in the public record",
+                },
+                recordEntry: "Record entry",
+                save: "Save receipt",
+                sealLabel: "Ballot status: {{status}}",
+                check: "Check it independently",
+                caption: "Checked by your browser, with code anyone can inspect.",
+                captionVerified: "Verified by your browser, with code anyone can inspect.",
+                captionProblem: "Found by your browser, with code anyone can inspect.",
+                late: "This usually means a hub is slow or offline; it is not evidence of tampering. Check again later, here or on any other device.",
+                problem:
+                    "The portal lists this ballot as cast, but the election’s public record has no entry for it. Your browser kept the evidence: the portal’s answer and the record’s signed checkpoint. Send it to the election authority or an observer.",
+                problemOther:
+                    "Signed proofs for this ballot contradict each other. It may be a fault or an attack. Your browser kept the evidence. Send it to the election authority or an observer.",
+                saveEvidence: "Save evidence",
+                howToReport: "How to report it",
+                howToReportText:
+                    "Save the evidence file and send it to the election authority or to an observer. They can check it on their own computers. It contains nothing about how you voted.",
+                noReceipt:
+                    "No receipt for this ballot could be checked here. Check the receipt file you kept in the ballot verifier, or try again later.",
+                status: {
+                    checking: {
+                        head: "Checking…",
+                        sub: "Your browser is looking the ballot up in the public record.",
+                    },
+                    recorded: {
+                        head: "In the public record",
+                        sub: "Your browser found the ballot. Checking its witnesses…",
+                    },
+                    witnessed: {
+                        head: "Confirmed by witnesses",
+                        sub: "Checking the public anchors…",
+                        subAnchored_one:
+                            "Anchored in public hubs. Where browsers check follows within {{count}} minute.",
+                        subAnchored_other:
+                            "Anchored in public hubs. Where browsers check follows within {{count}} minutes.",
+                    },
+                    verified: {
+                        head: "Verified",
+                        sub: "In the public record, confirmed by witnesses and anchored publicly.",
+                    },
+                    late: {
+                        head: "Taking longer than expected",
+                        sub: "In the public record and confirmed by witnesses, but its public anchors are late.",
+                    },
+                    problem: {
+                        head: "Not in the public record",
+                        sub: "Your browser could not find this ballot in the election’s public record.",
+                    },
+                    otherProblem: {
+                        head: "A check failed",
+                        sub: "Signed proofs for this ballot contradict each other. See the step that failed.",
+                    },
+                },
+                steps: {
+                    record: {
+                        title: "Added to the public record",
+                        done: "Entry #{{index}} in the election’s ballots log. Your browser checked its proof.",
+                        failed: "No entry in the election’s ballots log has this Tracking ID.",
+                        missing: "Missing",
+                    },
+                    witnesses: {
+                        title: "Confirmed by witnesses",
+                        done: "Witnesses signed a record that includes it.",
+                        count: "{{signed}} of {{total}} · {{needed}} needed",
+                        countOf: "{{signed}} of {{total}}",
+                    },
+                    hubs: {
+                        title_one: "Anchored in {{count}} public hub",
+                        title_other: "Anchored in {{count}} public hubs",
+                        titleAny: "Anchored in public hubs",
+                        done: "Shared logs also hold this record: {{hubs}}.",
+                    },
+                    browser: {
+                        title: "Anchored where browsers check",
+                        done: "Held by a stand-in hub until browsers check logs themselves.",
+                    },
+                    checking: "Your browser is checking…",
+                    scheduled_one: "Within {{count}} minute. No need to wait.",
+                    scheduled_other: "Within {{count}} minutes. No need to wait.",
+                    by: "By {{time}}",
+                    late: "Late",
+                    lateHubs: "The hubs should have anchored it by {{time}}.",
+                    lateOther: "This should have been done by {{time}}.",
+                    waiting: "Waiting for the step above.",
+                    skipped: "Not checked.",
+                    failedStep: "Signed proofs for this step contradict each other.",
+                    failedTime: "Problem",
+                },
+            },
+            checksAvailableUntil: "You can check your ballot until {{date}}.",
+            checksEnded: "Checks ended on {{date}}.",
+            castAt: "Cast on {{date}}",
             steps: {
                 lookup: "Find your Ballot",
                 result: "Result",
             },
             titleHelpDialog: {
-                title: "About the Ballot Finder Screen",
+                title: "About Ballot Tracking",
                 content:
-                    "This screen allows you to find your vote by using the Ballot ID to retrieve it. This procedure enables you to check that your ballot was correctly cast and that the recorded ballot matches the encrypted ballot you sent.",
+                    "This screen allows you to find your vote by using the Tracking ID to retrieve it. This procedure enables you to check that your ballot was correctly cast and that the recorded ballot matches the encrypted ballot you sent.",
                 ok: "OK",
             },
             tabs: {
                 logs: "Logs",
-                ballotLocator: "Ballot Locator",
+                ballotLocator: "Ballot Tracking",
             },
             column: {
                 statement_kind: "Statement kind",
                 statement_timestamp: "Statement Timestamp",
-                ballot_id: "Ballot ID",
+                ballot_id: "Tracking ID",
+            },
+        },
+        vitrine: {
+            hubProblems: {
+                title: {
+                    one: "A hub lists a problem for this election",
+                    other: "{{count}} problems are listed for this election",
+                },
+                listedBy: "Listed by {{hubs}}",
+                proof: "See the proof",
+                note: "This notice is a convenience from this site, and a listing is only a pointer: open the proof to check it in your browser. The hubs also tell you, by email, on their own sites and in the extension, whether or not this site does.",
+                kind: {
+                    splitView: "Two versions of the record",
+                    brokenPromise: "A promised entry is missing",
+                    breaksRules: "An entry breaks the rules",
+                    twoPolicies: "Two policies",
+                    unloggedCode: "Code that isn’t logged",
+                    other: "A problem recorded by a hub",
+                },
+            },
+            ballotId: {
+                label: "Tracking ID",
+                full: "Full Tracking ID",
+                yours: "Your Tracking ID:",
+                copy: "Copy the full Tracking ID",
+                copied: "Tracking ID copied",
+                copyText: "Copy",
+                copiedText: "Copied",
+                showFull: "Show the full Tracking ID",
+                selected: "Selected. Press Ctrl+C, or ⌘C on a Mac, to copy it.",
+                copyByHand:
+                    "Your browser would not copy it. Open the full Tracking ID to select it.",
+            },
+            elsewhere: {
+                title: "Look it up elsewhere",
+                count_one: "{{count}} explorer",
+                count_other: "{{count}} explorers",
+                introBallot:
+                    "Explorers run by others read the public record themselves. Each should find your ballot, with the same checks, without this website.",
+                introEntry:
+                    "Explorers run by others read the public record themselves. Each should show this entry exactly as it is here.",
+                foot: "The list comes from the election’s policy. Any Vitrine explorer can open the same record: give it the full Tracking ID.",
+                name: "{{name}} explorer",
+                operatorName: "Election explorer",
+                newTab: "Opens in a new tab",
+                who: {
+                    monitor: "Run by {{party}}, a monitor named in the election’s policy",
+                    hub: "Run by {{party}}, a hub named in the election’s policy",
+                    operator: "Run by the election authority, which runs this election",
+                },
+            },
+            status: {
+                title: "Ballot status",
+                audit: "Audit ballot",
+                auditNote:
+                    "Not sure the portal encrypted your choices correctly? Audit this ballot: the portal reveals how it was encrypted so you can check it. An audited ballot can never be cast, so you then vote again.",
+                cast: "Cast {{when}}",
+                audited: "Audited {{when}}",
+                ballotCast: "Ballot cast",
+                aria: "Ballot status: {{state}}. Show details",
+                ariaCast: "Ballot cast. Ballot status: {{state}}. Show details",
+                tooltip: "{{state}} · Show details",
+                tracker: "Open in the ballot tracker",
+                save: "Save receipt",
+                ok: "OK",
+                tag: {
+                    cast: "Cast",
+                    notCast: "Not cast",
+                    auditable: "Auditable",
+                    audited: "Audited",
+                },
+                state: {
+                    notcast: "Not cast yet",
+                    checking: "Checking…",
+                    recorded: "In the public record",
+                    witnessed: "Confirmed by witnesses",
+                    verified: "Verified",
+                    late: "Late",
+                    problem: "Problem",
+                    auditable: "Auditable",
+                    auditfail: "Audit failed",
+                },
+                head: {
+                    late: "Taking longer than expected",
+                    mismatch: "The record does not match",
+                    damaged: "The receipt is damaged",
+                    noReceipt: "No receipt for your ballot",
+                    unchecked: "Your ballot could not be checked",
+                },
+                sub: {
+                    notcast:
+                        "This ballot is encrypted on this device and nothing has been sent. Once you cast it, your browser checks that it reaches the public record.",
+                    checking: "Your browser is checking that your ballot is in the public record.",
+                    recorded:
+                        "Your browser found your ballot in the public record. Witnesses confirm it next.",
+                    witnessed:
+                        "Witnesses confirmed the record. Public anchors follow within {{minutes}} minutes; no need to wait.",
+                    verified:
+                        "Your ballot is in the public record, confirmed by witnesses and anchored publicly.",
+                    late: "Your ballot is in the public record and confirmed by witnesses, but its public anchors are late.",
+                    lateStep:
+                        "A step is taking longer than expected. This is not evidence of tampering, and your browser keeps checking.",
+                    mismatch:
+                        "The public record’s entry #{{index}} is not the one in this receipt.",
+                    mismatchNoEntry: "The public record’s entry is not the one in this receipt.",
+                    damaged:
+                        "Part of the receipt or the record could not be read or verified. That is a data fault, not evidence of tampering. Your vote was cast.",
+                    noReceipt:
+                        "This website did not get a receipt for your ballot. Your vote was cast, and the election’s observers have been told.",
+                    unchecked: "This website could not check the receipt. Your vote was cast.",
+                    auditable:
+                        "You audited this ballot, so it was never cast. It is in the public record, and the ballot tracker decrypts it to show the selections it holds.",
+                    auditfail:
+                        "The ballot in the public record does not decrypt with the key the portal revealed. Do not cast from this device; tell the election authority.",
+                },
+                step: {
+                    record: {
+                        title: "In the public record",
+                        upcoming: "Your browser finds the ballot in the election’s public record.",
+                    },
+                    witnesses: {
+                        title: "Confirmed by witnesses",
+                        upcoming: "Witnesses sign a record that includes it.",
+                    },
+                    anchors: {
+                        title: "Anchored publicly",
+                        upcoming: "Public hubs, and the logs browsers check, hold that record.",
+                    },
+                },
+                row: {
+                    waiting: "Waiting for the step above.",
+                    checking: "Your browser is checking…",
+                    anchoring:
+                        "Public hubs, then where browsers check: within {{minutes}} minutes.",
+                    recorded: "Your browser checked its proof.",
+                    recordedEntry: "Entry #{{index}}. Your browser checked its proof.",
+                    witnessed:
+                        "Enough of the policy’s witnesses ({{count}}) signed a record that includes it.",
+                    anchoredWaict: "In the public hubs ({{count}}), and where browsers check.",
+                    anchoredBootstrap:
+                        "In the public hubs ({{count}}), and where browsers check, through a stand-in hub for now.",
+                    anchoredHubs: "In the public hubs ({{count}}).",
+                    anchoredOneHub: "Anchored in 1 hub, run by {{party}}.",
+                    anchoredOneHubPlatform: "Anchored in 1 hub, run by the platform.",
+                    lateNow: "It should have been done by now.",
+                    lateStep: "It should have been done by {{time}}.",
+                    lateAnchors: "The hubs should have anchored it by {{time}}.",
+                    mismatch: "Entry #{{index}} in the record differs from your receipt.",
+                    mismatchNoEntry: "An entry in the record differs from your receipt.",
+                    contradiction: "Its signed proofs contradict each other.",
+                    damaged: "Its proof is damaged and could not be verified.",
+                    noReceipt: "This website did not get a receipt.",
+                    unchecked: "This website could not check the receipt.",
+                    skipped: "Not checked, because the step above could not be completed.",
+                    skippedMismatch: "Not checked, because the record does not match.",
+                },
+                word: {
+                    withinSeconds: "Within seconds",
+                    withinMinutes: "Within {{minutes}} min",
+                    checking: "Checking…",
+                    late: "Late",
+                    mismatch: "Mismatch",
+                    damaged: "Damaged",
+                    noReceipt: "No receipt",
+                    unchecked: "Not checked",
+                    skipped: "—",
+                },
+                callout: {
+                    late: "This usually means a hub is slow or offline; it is not evidence of tampering. Check again later with your receipt, in the ballot tracker or on a hub, from any device.",
+                    evidence:
+                        "Your browser kept the evidence: this receipt and the record’s signed entry. Send it to the election authority or an observer; anyone can check it.",
+                    saveEvidence: "Save evidence",
+                },
+                caption: {
+                    notcast:
+                        "Nothing is checked until you cast it. Then this check mark shows how far your ballot has been verified.",
+                    checking:
+                        "Your browser is checking the public record, with code anyone can inspect.",
+                    problem: "Found by your browser, with code anyone can inspect.",
+                    auditable: "Decrypted by your browser, with code anyone can inspect.",
+                    verified: "Verified by your browser, with code anyone can inspect.",
+                    checked: "Checked by your browser, with code anyone can inspect.",
+                    keep: "Keep your receipt to check it again later, in the ballot tracker or on a hub.",
+                },
+            },
+            signers: {
+                witnesses: {open: "Who signed", close: "Hide who signed"},
+                hubs: {open: "Which hubs", close: "Hide which hubs"},
+                runBy: "Run by {{party}}",
+                runByAlso: "Run by {{party}}, which also runs {{hubs}}",
+                signed: "Signed {{time}}",
+                signedNoTime: "Signed",
+                notYet: "Not yet",
+                late: "Late",
+                anchored: "Anchored {{time}}",
+                anchoredNoTime: "Anchored",
+                within: "Within {{minutes}} min",
+                check: "Check on its site",
+                checkWitness: "Check on its site: witness {{name}} (opens in a new tab)",
+                checkHub: "Check on its site: hub {{name}} (opens in a new tab)",
+                linksNote:
+                    "“Check on its site” opens the signer’s own explorer, which checks that signature there.",
+                standIn: {name: "Where browsers check", who: "A stand-in hub, for now"},
+                rule: {
+                    witnesses:
+                        "The policy needs {{needed}} of its {{total}} witnesses to sign. {{signed}} have signed.",
+                    witnessesAlone:
+                        "The policy needs {{needed}} of its {{total}} witnesses to sign, and no single party runs that many. {{signed}} have signed.",
+                    witnessesCount: "{{signed}} of the policy’s {{total}} witnesses have signed.",
+                    hubs: "All {{count}} hubs must anchor the record, and at least {{independent}} must be run by someone other than the election authority.",
+                    hubsPlatform:
+                        "All {{count}} hubs must anchor the record, and at least {{independent}} must be run by neither the election authority nor the platform.",
+                    hubsAll: "All {{count}} hubs must anchor the record.",
+                    oneHub: "The policy names one hub, run by {{party}}.",
+                    oneHubPlatform: "The policy names one hub, run by the platform.",
+                },
+            },
+            updates: {
+                optional: "Optional",
+                title: "Get email updates about this ballot",
+                description:
+                    "When it’s confirmed and when it’s counted, or if a problem is recorded. Choose any hub: each checks the record itself.",
+                listLabel: "Hubs in this election’s policy",
+                runBy: "Run by {{party}}",
+                hubLabel:
+                    "{{name}}, run by {{party}}: get email updates on its own site (opens a new tab)",
+                footnote:
+                    "The hubs named in the election’s policy, in a random order each time. Each opens on its own site with your receipt in the link; nothing is shared until you choose what to watch there.",
+                footnoteNoReceipt:
+                    "The hubs named in the election’s policy, in a random order each time. Each opens on its own site; nothing is shared until you choose what to watch there.",
+            },
+            booth: {
+                title: "Your ballot can't be prepared yet",
+                explanation:
+                    "Before it encrypts your ballot, this website checks that the election's settings are the ones published in the election's public record. Your ballot hasn't been encrypted or sent, and your choices are still here.",
+                pending:
+                    "The published settings aren't available yet. Please try again in a moment.",
+                invalid: "The published settings couldn't be read. Please try again in a moment.",
+                failed: "The settings don't match the published ones. The election's observers have been told. Please contact support.",
+                retry: "Try again",
+                close: "Close",
+            },
+            record: {
+                json: "JSON",
+                text: "Text",
+                fields_one: "{{count}} field",
+                fields_other: "{{count}} fields",
+                items_one: "{{count}} item",
+                items_other: "{{count}} items",
+                size: {
+                    bytes: "{{value}} B",
+                    kilobytes: "{{value}} KB",
+                },
+                copy: "Copy {{file}}",
+                copied: "Copied",
+                download: "Download {{file}}",
             },
         },
     },

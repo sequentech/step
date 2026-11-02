@@ -40,7 +40,7 @@ while true; do
     if [ "${remaining}" -le 0 ]; then
         echo "graphql-engine was not ready within ${HASURA_READY_TIMEOUT_SECS}s; last introspection error:" >&2
         cat "${GQ_STDERR}" >&2
-        echo "check 'docker logs hasura'" >&2
+        echo "check 'docker logs ${DEVCONTAINER_NAME_PREFIX}hasura'" >&2
         exit 1
     fi
 
@@ -58,10 +58,10 @@ while true; do
     # A container that stays down will never become ready, so fail now with a
     # pointer to the cause rather than waiting out the whole timeout. A failed
     # migration leaves graphql-engine in a restart loop and lands here.
-    if [ "$(env -u LD_LIBRARY_PATH docker inspect -f '{{.State.Running}}' hasura 2>/dev/null)" != "true" ]; then
+    if [ "$(env -u LD_LIBRARY_PATH docker inspect -f '{{.State.Running}}' "${DEVCONTAINER_NAME_PREFIX}hasura" 2>/dev/null)" != "true" ]; then
         not_running_count=$((not_running_count + 1))
         if [ "${not_running_count}" -ge 3 ]; then
-            echo "graphql-engine is not running; check 'docker logs hasura'" >&2
+            echo "graphql-engine is not running; check 'docker logs ${DEVCONTAINER_NAME_PREFIX}hasura'" >&2
             exit 1
         fi
     else

@@ -233,6 +233,51 @@ pub trait GroupElement: Sized + Debug + Eq + std::hash::Hash {
     }
 
     /**
+     * Variable-time multi-exponentiation: the product `∏_i bases[i]^{exponents[i]}`.
+     *
+     * Returns [`one`](GroupElement::one) for empty input.
+     *
+     * # Preconditions
+     *
+     * **All exponents must be public.** Unlike
+     * [`multi_exp`](GroupElement::multi_exp), a backend override MAY run in time
+     * that depends on the exponents (signed-digit recoding, zero-digit
+     * skipping, unmasked table lookups), so this must never be given secret
+     * scalars. Verifier batching values and published proof responses are
+     * public and belong here; a prover's blinding scalars (`epsilon`, `beta`)
+     * do not — those use [`multi_exp`](GroupElement::multi_exp).
+     *
+     * # Errors
+     *
+     * - `MismatchedMultiExpLength` if `bases` and `exponents` differ in length.
+     */
+    fn vartime_multi_exp(bases: &[&Self], exponents: &[Self::Scalar]) -> Result<Self, Error> {
+        // Sound default: a constant-time result is a correct variable-time one,
+        // just slower. A backend overrides this with a genuinely faster path.
+        Self::multi_exp(bases, exponents)
+    }
+
+    /**
+     * Fixed-base batch exponentiation: `self^{exponents[i]}` for each `i`.
+     *
+     * One base raised to many scalars — the `g^{r_i}` and `h_1^{p_i}` batches
+     * of the shuffle. A backend overrides this with a precomputed table over
+     * `self` that amortizes across the batch; the default is a plain per-scalar
+     * [`exp`](GroupElement::exp).
+     *
+     * Constant-time in the exponents, like [`exp`](GroupElement::exp): callers
+     * may pass secret scalars.
+     *
+     * This is the *large-N* batch, where the precomputed table pays. For the
+     * small fixed-width broadcast (one base to a width-`W` ciphertext's
+     * scalars) use [`ReplGroupOps::repl_exp`], which is a plain per-element
+     * `exp` — a table would not amortize at that size.
+     */
+    fn exp_many(&self, exponents: &[Self::Scalar]) -> Vec<Self> {
+        exponents.iter().map(|s| self.exp(s)).collect()
+    }
+
+    /**
      * Equality test between two group elements
      *
      * @traceability Cryptol predicate `T'eq` of [CyclicGroupI.cry](../../../../../../../../../models/cryptography/cryptol/Algebra/CyclicGroupI.cry)
@@ -314,6 +359,25 @@ pub trait DistGroupOps<Rhs: GroupElement>: GroupElement {
     fn dist_multi_exp(bases: &[Self], exponents: &[Rhs::Scalar]) -> Result<Self::Result, Error>;
 
     /**
+     * Variable-time [`dist_multi_exp`](DistGroupOps::dist_multi_exp).
+     *
+     * The broadcast, componentwise counterpart of
+     * [`vartime_multi_exp`](GroupElement::vartime_multi_exp): **public scalars
+     * only**, since a backend override may run in time that depends on them.
+     * This is the verifier's form of the width-`W` batched products (`big_f`,
+     * V5), where the exponents are hash-derived batching values or published
+     * proof responses.
+     *
+     * # Errors
+     *
+     * - `MismatchedMultiExpLength` if `bases` and `exponents` differ in length.
+     */
+    fn dist_vartime_multi_exp(
+        bases: &[Self],
+        exponents: &[Rhs::Scalar],
+    ) -> Result<Self::Result, Error>;
+
+    /**
      * Conjunctive evaluation of equality of the components of a product
      * group element `self` with respect to `other`
      */
@@ -347,6 +411,10 @@ pub trait ReplGroupOps<Rhs: GroupElement>: GroupElement {
     /**
      * Component-wise application of exponentation of replicated `self`
      * with the elements of `other`
+     *
+     * This is the fixed-width broadcast (one base to a ciphertext's `W`
+     * randomizers). For a large runtime-length fixed-base batch that amortizes
+     * a precomputed table, use [`GroupElement::exp_many`].
      */
     fn repl_exp(&self, other: &Rhs::Scalar) -> Self::Result;
 

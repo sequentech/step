@@ -1,0 +1,379 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+"""CI must preserve affected checks and reject absent or cancelled results."""
+
+import json
+import os
+import subprocess
+import sys
+import unittest
+from pathlib import Path
+
+from scripts.dev.affected.changes import from_files
+from scripts.dev.affected.model import load_model
+from scripts.dev.ci import Validation, check_results, matrices, selection_for
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+class PlanTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.model = load_model(ROOT)
+
+    def plan(self, *paths):
+        return matrices(self.model.select(from_files(ROOT, paths, ROOT)))
+
+    def test_sbom_changes_run_inventory_tests_in_python_matrix(self):
+        plan = self.plan("scripts/sbom/generate.py")
+        self.assertEqual([row["check"] for row in plan["python"]], ["python:scripts-sbom"])
+
+    def test_unchanged_tree_skips_every_managed_job(self):
+        plan = self.plan()
+        self.assertFalse(any(plan["jobs"].values()))
+        self.assertFalse(any(plan["ui_jobs"].values()))
+
+    def test_native_protocol_tests_use_optimized_builds(self):
+        for package in ("voting-crypto", "protocol-board", "trustee"):
+            with self.subTest(package=package):
+                plan = self.plan(f"packages/{package}/src/lib.rs")
+                job = next(row for row in plan["rust"] if row["service"] == package)
+                self.assertIn("--release", job["extra"])
+                check = next(
+                    check
+                    for check in self.model.checks
+                    if check.id == f"cargo-test:{package}"
+                )
+                self.assertIn("--release", check.command)
+
+    def test_docs_change_does_not_compile_application_code(self):
+        plan = self.plan("docs/docusaurus/docs/07-developers/example.md")
+        self.assertTrue(plan["jobs"]["docs"])
+        self.assertFalse(plan["jobs"]["run-tests"])
+        self.assertFalse(plan["jobs"]["run-frontend-tests"])
+        self.assertFalse(plan["jobs"]["frontend-ui"])
+
+    def test_results_leaf_keeps_production_validation_without_rust(self):
+        plan = self.plan("packages/results-portal/src/App.tsx")
+        self.assertEqual(plan["builds"], ["results-portal"])
+        self.assertEqual(plan["stories"], ["results-portal"])
+        self.assertEqual(
+            plan["story_shards"],
+            [{"package": "results-portal", "shard": 1, "shards": 1}],
+        )
+        self.assertEqual(
+            plan["journeys"], [{"package": "results-portal", "shard": 1, "shards": 1}]
+        )
+        self.assertFalse(plan["jobs"]["run-tests"])
+
+    def test_shared_ui_selects_every_portal_and_workbench(self):
+        plan = self.plan("packages/ui-core/src/index.ts")
+        self.assertEqual(len(plan["builds"]), 4)
+        self.assertEqual(len(plan["stories"]), 6)
+        self.assertEqual(
+            [
+                (row["shard"], row["shards"])
+                for row in plan["story_shards"]
+                if row["package"] == "admin-portal"
+            ],
+            [(1, 3), (2, 3), (3, 3)],
+        )
+        self.assertEqual(len(plan["story_shards"]), 8)
+        self.assertEqual(len(plan["journeys"]), 7)
+        self.assertTrue(plan["ui_jobs"]["workbench"])
+        self.assertFalse(plan["jobs"]["run-tests"])
+
+    def test_compiler_cache_changes_select_all_its_rust_callers(self):
+        for path in (
+            ".github/actions/setup-rust-cache/action.yml",
+            "scripts/dev/rust_cache.py",
+        ):
+            with self.subTest(path=path):
+                plan = self.plan(path)
+                self.assertEqual(
+                    {row["service"] for row in plan["rust"]},
+                    {
+                        "electoral-log",
+                        "trellis",
+                        "pgmq-broker",
+                        "harvest",
+                        "voting-crypto",
+                        "protocol-board",
+                        "trustee",
+                        "messaging",
+                        "messaging-webhooks",
+                        "sequent-core",
+                        "step-cli",
+                        "velvet",
+                        "wrap-map-err",
+                    },
+                )
+                self.assertTrue(plan["jobs"]["run-windmill-tests"])
+                self.assertFalse(plan["jobs"]["frontend-ui"])
+
+    def test_keycloak_page_selects_its_browser_and_type_checks(self):
+        plan = self.plan("packages/keycloak-ui/src/login/pages/Login.tsx")
+        self.assertEqual(plan["stories"], ["keycloak-ui"])
+        self.assertIn(
+            {"package": "keycloak-ui", "command": "yarn typecheck"}, plan["node"]
+        )
+        self.assertFalse(plan["builds"])
+        self.assertFalse(plan["jobs"]["run-tests"])
+
+    def test_verifier_builds_voting_once_for_cross_portal_journey(self):
+        plan = self.plan("packages/ballot-verifier/src/App.tsx")
+        self.assertEqual(plan["builds"], ["ballot-verifier", "voting-portal"])
+        self.assertEqual(
+            [row["package"] for row in plan["journeys"]], ["ballot-verifier"]
+        )
+
+    def test_wasm_source_requires_native_tests_and_package_freshness(self):
+        plan = self.plan("packages/sequent-core/src/lib.rs")
+        self.assertTrue(plan["jobs"]["wasm-freshness"])
+        self.assertIn("sequent-core", [row["service"] for row in plan["rust"]])
+        self.assertEqual(plan["builds"], [])
+
+    def test_election_config_selects_feature_gates_and_every_gate_test(self):
+        plan = self.plan("packages/sequent-core/src/election_config/validate.rs")
+        self.assertTrue(plan["jobs"]["feature-gates"])
+        rust = {row["service"]: row["extra"] for row in plan["rust"]}
+        self.assertIn("step-cli", rust)
+        for feature in (
+            "election_config_xlsx",
+            "election_config_templates",
+            "election_config_archive",
+        ):
+            self.assertIn(feature, rust["sequent-core"])
+        self.assertFalse(plan["jobs"]["frontend-ui"])
+
+    def test_monitoring_selects_its_feature_gate(self):
+        plan = self.plan("packages/sequent-core/src/monitoring/policy.rs")
+        self.assertTrue(plan["jobs"]["feature-gates"])
+        rust = {row["service"]: row["extra"] for row in plan["rust"]}
+        features = rust["sequent-core"].removeprefix("--features ").split(",")
+        self.assertIn("monitoring", features)
+
+    def test_trellis_tests_its_upstream_service_and_postgres_consumers(self):
+        plan = self.plan("packages/trellis/src/tree.rs")
+        rust = {row["service"]: row["extra"] for row in plan["rust"]}
+        self.assertEqual(
+            rust["trellis"],
+            "--features upstream-service --lib --example monitor --example post",
+        )
+        self.assertIn("electoral-log", rust)
+        self.assertTrue(plan["jobs"]["run-windmill-tests"])
+
+    def test_pgmq_broker_tests_its_crate_and_the_windmill_transport(self):
+        plan = self.plan("packages/pgmq-broker/src/lib.rs")
+        self.assertIn("pgmq-broker", [row["service"] for row in plan["rust"]])
+        self.assertTrue(plan["jobs"]["run-windmill-tests"])
+
+    def test_step_cli_acceptance_change_runs_its_database_check(self):
+        plan = self.plan("packages/step-cli/src/acceptance/hasura.rs")
+        self.assertTrue(plan["jobs"]["run-windmill-tests"])
+
+    def test_step_cli_binary_follows_its_embedded_inputs(self):
+        # Build Step CLI Binary only builds on PRs that select step-cli's tests.
+        for path, selected in (
+            ("packages/admin-portal/src/App.tsx", False),
+            ("docs/docusaurus/docs/intro.md", False),
+            ("packages/sequent-core/src/lib.rs", True),
+            ("packages/admin-portal/public/roboto/Roboto_latin_400.woff2", True),
+            (".devcontainer/minio/public-assets/activity_logs_user.hbs", True),
+            ("packages/voting-load/Dockerfile", True),
+        ):
+            with self.subTest(path=path):
+                services = [row["service"] for row in self.plan(path)["rust"]]
+                self.assertEqual("step-cli" in services, selected)
+
+    def test_wasm_build_follows_what_it_builds(self):
+        # build_wasm.yml builds on PRs only when this predicate holds.
+        def builds(plan):
+            return (
+                plan["jobs"]["wasm-freshness"]
+                or bool(plan["wasm_builds"])
+                or any(row["service"] in ("sequent-core", "protocol-board") for row in plan["rust"])
+                or any(row["package"] in ("ui-core", "ui-essentials", "workbench") for row in plan["node"])
+            )
+
+        for path, selected in (
+            ("packages/admin-portal/src/App.tsx", False),
+            ("packages/windmill/src/lib.rs", False),
+            ("docs/docusaurus/docs/intro.md", False),
+            ("packages/sequent-core/src/lib.rs", True),
+            ("packages/protocol-board/src/lib.rs", True),
+            ("packages/wbraid/crates/braid/src/lib.rs", True),
+            ("packages/ui-essentials/src/index.ts", True),
+            ("packages/workbench/package.json", True),
+            ("packages/yarn.lock", True),
+            (".devcontainer/scripts/rebuild-election-config-wasm.sh", True),
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(builds(self.plan(path)), selected)
+
+    def test_step_cli_builder_does_not_check_core_gates(self):
+        plan = self.plan("packages/step-cli/src/commands/build_election_event.rs")
+        self.assertEqual([row["service"] for row in plan["rust"]], ["step-cli"])
+        self.assertFalse(plan["jobs"]["feature-gates"])
+
+    def test_packaged_wasm_change_selects_consumers(self):
+        plan = self.plan("packages/ui-core/rust/sequent-core-0.1.0.tgz")
+        self.assertTrue(plan["jobs"]["wasm-freshness"])
+        self.assertEqual(len(plan["builds"]), 4)
+
+    def test_fixture_change_selects_consumers(self):
+        plan = self.plan("packages/ui-test-kit/src/fixtures/index.ts")
+        self.assertTrue(plan["ui_jobs"]["fixtures"])
+        self.assertEqual(len(plan["journeys"]), 7)
+
+    def test_graphql_schema_selects_its_portal(self):
+        plan = self.plan("packages/voting-portal/graphql.schema.json")
+        self.assertIn("voting-portal", plan["builds"])
+        self.assertTrue(plan["ui_jobs"]["fixtures"])
+
+    def test_toolchain_or_model_change_selects_every_managed_group(self):
+        for path in ("devenv.lock", "scripts/dev/affected.toml", "scripts/dev/ci.py"):
+            with self.subTest(path=path):
+                self.assertTrue(all(self.plan(path)["jobs"].values()))
+
+    def test_missing_base_selects_full_validation(self):
+        _, selection = selection_for(
+            ROOT, "refs/heads/absent-ci-test-base", Validation.AFFECTED
+        )
+        self.assertTrue(selection.fallback)
+        self.assertTrue(all(matrices(selection)["jobs"].values()))
+
+    def test_protected_branch_event_selects_full_validation(self):
+        _, selection = selection_for(ROOT, "HEAD", Validation.FULL)
+        self.assertTrue(all(matrices(selection)["jobs"].values()))
+
+    def test_yarn_lock_selects_ui_not_unrelated_rust(self):
+        plan = self.plan("packages/yarn.lock")
+        self.assertTrue(plan["jobs"]["run-frontend-tests"])
+        self.assertFalse(plan["jobs"]["run-tests"])
+
+
+class RequiredChecksTests(unittest.TestCase):
+    def test_selected_success_and_explicit_skip_pass(self):
+        self.assertEqual(
+            check_results(
+                {"test": True, "docs": False},
+                {
+                    "test": {"result": "success"},
+                    "docs": {"result": "skipped"},
+                },
+            ),
+            [],
+        )
+
+    def test_selected_failure_cancellation_skip_or_missing_fails(self):
+        for state in ("failure", "cancelled", "skipped", "missing"):
+            with self.subTest(state=state):
+                results = {} if state == "missing" else {"test": {"result": state}}
+                self.assertEqual(len(check_results({"test": True}, results)), 1)
+
+    def test_unselected_execution_is_not_reported_as_a_skip(self):
+        self.assertEqual(
+            len(check_results({"test": False}, {"test": {"result": "success"}})), 1
+        )
+
+
+class VerifyCommandTests(unittest.TestCase):
+    def verify(self, selection, results, scope="jobs"):
+        environment = dict(os.environ, CI_RESULTS=results)
+        environment.pop("CI_SELECTION", None)
+        if selection is not None:
+            environment["CI_SELECTION"] = selection
+        return subprocess.run(
+            [sys.executable, "-m", "scripts.dev.ci", "verify", "--scope", scope],
+            cwd=ROOT,
+            env=environment,
+            capture_output=True,
+            text=True,
+        )
+
+    def assert_error(self, result, message):
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn(f"::error::{message}", result.stdout)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_failed_plan_is_reported_before_reading_empty_selection(self):
+        for state in ("failure", "cancelled", "skipped", "missing"):
+            with self.subTest(state=state):
+                results = {} if state == "missing" else {"plan": {"result": state}}
+                self.assert_error(
+                    self.verify("", json.dumps(results)), "plan did not succeed"
+                )
+
+    def test_successful_plan_requires_a_selection_document(self):
+        for selection in (None, "", "{broken", "null", "[]"):
+            with self.subTest(selection=selection):
+                self.assert_error(
+                    self.verify(selection, '{"plan":{"result":"success"}}'),
+                    "CI_SELECTION must contain a JSON object",
+                )
+
+    def test_selection_requires_nonempty_boolean_job_choices(self):
+        for selection in ({}, {"jobs": {}}, {"jobs": []}, {"jobs": {"test": "yes"}}):
+            with self.subTest(selection=selection):
+                self.assert_error(
+                    self.verify(json.dumps(selection), '{"plan":{"result":"success"}}'),
+                    "CI_SELECTION.jobs must be a non-empty object "
+                    "of boolean job selections",
+                )
+
+    def test_malformed_results_are_reported_without_a_traceback(self):
+        for results in ("", "{broken", "null", "[]"):
+            with self.subTest(results=results):
+                self.assert_error(
+                    self.verify("", results), "CI_RESULTS must contain a JSON object"
+                )
+        self.assert_error(
+            self.verify("", '{"plan":null}'),
+            "CI_RESULTS must map job names to result objects",
+        )
+
+    def test_selected_success_and_unselected_skip_pass_through_cli(self):
+        result = self.verify(
+            '{"jobs":{"test":true,"docs":false}}',
+            '{"plan":{"result":"success"},"test":{"result":"success"},'
+            '"docs":{"result":"skipped"}}',
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("All selected feedback checks succeeded", result.stdout)
+
+    def test_selected_failure_remains_a_required_check_failure(self):
+        self.assert_error(
+            self.verify(
+                '{"jobs":{"test":true}}',
+                '{"plan":{"result":"success"},"test":{"result":"failure"}}',
+            ),
+            "test: expected success, got failure",
+        )
+
+    def test_reusable_ui_workflow_does_not_require_a_plan_job(self):
+        result = self.verify(
+            '{"ui_jobs":{"stories":true,"fixtures":false}}',
+            '{"stories":{"result":"success"},"fixtures":{"result":"skipped"}}',
+            scope="ui_jobs",
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
+class CompileCacheWiringTests(unittest.TestCase):
+    def test_rust_jobs_can_reach_the_shared_compiler_cache(self):
+        # Without the input or an OIDC token, a job silently compiles everything.
+        for workflow in sorted((ROOT / ".github/workflows").glob("*.yml")):
+            text = workflow.read_text()
+            calls = text.count("uses: ./.github/actions/setup-rust-tests") + text.count(
+                "uses: ./.github/actions/setup-rust-cache"
+            )
+            if not calls:
+                continue
+            with self.subTest(workflow=workflow.name):
+                self.assertEqual(text.count("compile-cache: ${{ vars.STEP_COMPILE_CACHE }}"), calls)
+                self.assertIn("id-token: write", text)
+
+
+if __name__ == "__main__":
+    unittest.main()

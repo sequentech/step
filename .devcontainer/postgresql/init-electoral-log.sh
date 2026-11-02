@@ -58,3 +58,30 @@ SELECT format('ALTER ROLE %I SET default_transaction_read_only = on', :'reader_u
 SELECT format('ALTER ROLE %I SET statement_timeout = %L', :'reader_user', '30s') \gexec
 SQL
 fi
+
+# The Vitrine sidecar's role keeps the registry of its logs in a database of its own,
+# and its `vitrine` schema in each election event's database, which lets it connect and
+# create schemas when the application creates the database. The sidecar grants a
+# `ballots` log's queue to the queue role. The application role is a member of it, so
+# the ballot box's `ACCEPT` can queue entries, and so is the sidecar's role, so it can
+# test that grant without the application's privileges.
+if [ -n "${ELECTORAL_LOG_PG_VITRINE_USER:-}" ]; then
+    : "${ELECTORAL_LOG_PG_VITRINE_PASSWORD:?must be set}"
+    : "${ELECTORAL_LOG_PG_VITRINE_QUEUE_ROLE:?must be set}"
+    : "${ELECTORAL_LOG_PG_VITRINE_DATABASE:?must be set}"
+    psql -v ON_ERROR_STOP=1 --username "${POSTGRES_USER:-postgres}" --dbname postgres \
+        -v log_user="$ELECTORAL_LOG_PG_USER" \
+        -v vitrine_user="$ELECTORAL_LOG_PG_VITRINE_USER" \
+        -v vitrine_password="$ELECTORAL_LOG_PG_VITRINE_PASSWORD" \
+        -v queue_role="$ELECTORAL_LOG_PG_VITRINE_QUEUE_ROLE" \
+        -v vitrine_database="$ELECTORAL_LOG_PG_VITRINE_DATABASE" <<'SQL'
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'vitrine_user', :'vitrine_password')
+WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'vitrine_user') \gexec
+SELECT format('CREATE ROLE %I NOLOGIN', :'queue_role')
+WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'queue_role') \gexec
+SELECT format('GRANT %I TO %I', :'queue_role', :'log_user') \gexec
+SELECT format('GRANT %I TO %I', :'queue_role', :'vitrine_user') \gexec
+SELECT format('CREATE DATABASE %I OWNER %I', :'vitrine_database', :'vitrine_user')
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = :'vitrine_database') \gexec
+SQL
+fi

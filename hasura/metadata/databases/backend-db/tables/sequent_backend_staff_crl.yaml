@@ -1,0 +1,26 @@
+table:
+    name: staff_crl
+    schema: sequent_backend
+select_permissions:
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - issuer_id
+              - issuer_fingerprint
+              - url
+              - der
+              - this_update
+              - next_update
+              - fetched_at
+              - last_ok_at
+              - status
+              - last_error
+              - created_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: signing-certificates-read

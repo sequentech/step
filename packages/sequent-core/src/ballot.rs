@@ -22,32 +22,49 @@ use anyhow::anyhow;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
 use chrono::Utc;
+use cryptography::utils::serialization::{Deserializable, Serializable};
+use cryptography::Canonical;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_path_to_error::Error;
 use std::hash::Hash;
 use std::ops::Deref;
-use std::{collections::HashMap, default::Default};
-use strand::elgamal::Ciphertext;
-use strand::serialization::StrandSerialize;
-use strand::signature::StrandSignature;
-use strand::signature::StrandSignaturePk;
-use strand::signature::StrandSignatureSk;
-use strand::zkp::Schnorr;
-use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
+use std::{
+    collections::{BTreeMap, HashMap},
+    default::Default,
+};
 use strum_macros::{AsRefStr, Display, EnumIter, EnumString, IntoStaticStr};
+use voting_crypto::ballot::BallotCiphertext;
+use voting_crypto::signing::{Signature, SigningKey, VerificationKey};
+use voting_crypto::RecordSerialize;
 
-pub const TYPES_VERSION: u32 = 2;
+/// Version of the ballots encrypted by this crate. Their tracker covers the
+/// ballot format and the ballot style besides the contests.
+pub const TYPES_VERSION: u32 = 3;
+
+/// Version of the ballots whose tracker covers only the issue date and the
+/// contests. They are still read, and hashed as they were cast.
+pub const LEGACY_TYPES_VERSION: u32 = 2;
+
+pub(crate) fn check_types_version(version: u32) -> Result<u32, BallotError> {
+    match version {
+        TYPES_VERSION | LEGACY_TYPES_VERSION => Ok(version),
+        _ => Err(BallotError::Serialization(format!(
+            "Unexpected version {version}, expected {TYPES_VERSION} or \
+             {LEGACY_TYPES_VERSION}"
+        ))),
+    }
+}
 
 pub type I18nContent<T = Option<String>> = HashMap<String, T>;
 
 pub type Annotations = HashMap<String, String>;
 
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
-pub struct ReplicationChoice<C: Ctx> {
-    pub ciphertext: Ciphertext<C>,
-    pub plaintext: C::P,
-    pub randomness: C::X,
+#[derive(PartialEq, Debug, Clone, Canonical)]
+pub struct ReplicationChoice {
+    pub ciphertext: cryptography::cryptosystem::naoryung::Ciphertext<cryptography::context::RistrettoCtx, 1>,
+    pub plaintext: [u8; 30],
+    pub randomness: <cryptography::context::RistrettoCtx as cryptography::context::Context>::Scalar,
 }
 
 #[derive(
@@ -64,39 +81,37 @@ pub struct ReplicationChoice<C: Ctx> {
 pub struct PublicKeyConfig {
     pub public_key: String,
     pub is_demo: bool,
+    /// Keys ceremony UUID, used by the trustees' ballot encryption context.
+    #[serde(default)]
+    #[borsh(skip)]
+    pub keys_ceremony_id: Option<String>,
+    /// Immutable wbraid Configuration.id as a decimal u128, preserved on import.
+    #[serde(default)]
+    #[borsh(skip)]
+    pub configuration_id: Option<String>,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
-pub struct AuditableBallotContest<C: Ctx> {
+#[derive(PartialEq, Debug, Clone, Canonical)]
+pub struct AuditableBallotContest {
     pub contest_id: String,
-    pub choice: ReplicationChoice<C>,
-    pub proof: Schnorr<C>,
+    pub choice: ReplicationChoice,
 }
-/*
-FIXME: why does this exist
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
-pub struct RawAuditableBallot<C: Ctx> {
-    pub election_url: String,
-    pub issue_date: String,
-    pub contests: Vec<AuditableBallotContest<C>>,
-    pub ballot_hash: String,
-}*/
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct AuditableBallot {
     pub version: u32,
     pub issue_date: String,
     pub config: BallotStyle,
-    pub contests: Vec<String>, // Vec<AuditableBallotContest<C>>,
+    pub contests: Vec<String>, // Vec<AuditableBallotContest>,
     pub ballot_hash: String,
     pub voter_signing_pk: Option<String>,
     pub voter_ballot_signature: Option<String>,
 }
 
 impl AuditableBallot {
-    pub fn deserialize_contests<C: Ctx>(
+    pub fn deserialize_contests(
         &self,
-    ) -> Result<Vec<AuditableBallotContest<C>>, BallotError> {
+    ) -> Result<Vec<AuditableBallotContest>, BallotError> {
         self.contests
             .clone()
             .into_iter()
@@ -109,8 +124,8 @@ impl AuditableBallot {
             .collect()
     }
 
-    pub fn serialize_contests<C: Ctx>(
-        contests: &Vec<AuditableBallotContest<C>>,
+    pub fn serialize_contests(
+        contests: &Vec<AuditableBallotContest>,
     ) -> Result<Vec<String>, BallotError> {
         contests
             .clone()
@@ -124,12 +139,7 @@ impl AuditableBallot {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
-pub struct HashableBallotContest<C: Ctx> {
-    pub contest_id: String,
-    pub ciphertext: Ciphertext<C>,
-    pub proof: Schnorr<C>,
-}
+pub type HashableBallotContest = BallotCiphertext;
 
 #[derive(
     BorshSerialize, Serialize, Deserialize, PartialEq, Eq, Debug, Clone,
@@ -137,7 +147,7 @@ pub struct HashableBallotContest<C: Ctx> {
 pub struct HashableBallot {
     pub version: u32,
     pub issue_date: String,
-    pub contests: Vec<String>, // Vec<HashableBallotContest<C>>,
+    pub contests: Vec<String>, // Vec<HashableBallotContest>,
     pub config: String,
     pub ballot_style_hash: String,
 }
@@ -153,17 +163,31 @@ pub struct SignedHashableBallot {
     pub voter_ballot_signature: Option<String>,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
-pub struct RawHashableBallot<C: Ctx> {
+#[derive(PartialEq, Debug, Clone, Canonical)]
+pub struct RawHashableBallot {
     pub version: u32,
     pub issue_date: String,
-    pub contests: Vec<HashableBallotContest<C>>,
+    pub contests: Vec<HashableBallotContest>,
+}
+
+/// What the tracker of a ballot of [`TYPES_VERSION`] is the hash of. Besides
+/// what [`RawHashableBallot`] covers, it names the ballot format and the
+/// ballot style (its id and hash), so the same contests under another format,
+/// election, public key or candidate list get another tracker.
+#[derive(BorshSerialize, PartialEq, Eq, Debug, Clone)]
+pub struct StyleBoundHashableBallot<T> {
+    pub version: u32,
+    pub format: ContestEncryptionPolicy,
+    pub issue_date: String,
+    pub config: String,
+    pub ballot_style_hash: String,
+    pub contests: T,
 }
 
 impl HashableBallot {
-    pub fn deserialize_contests<C: Ctx>(
+    pub fn deserialize_contests(
         &self,
-    ) -> Result<Vec<HashableBallotContest<C>>, BallotError> {
+    ) -> Result<Vec<HashableBallotContest>, BallotError> {
         self.contests
             .clone()
             .into_iter()
@@ -176,8 +200,8 @@ impl HashableBallot {
             .collect()
     }
 
-    pub fn serialize_contests<C: Ctx>(
-        contests: &Vec<HashableBallotContest<C>>,
+    pub fn serialize_contests(
+        contests: &Vec<HashableBallotContest>,
     ) -> Result<Vec<String>, BallotError> {
         contests
             .clone()
@@ -192,26 +216,26 @@ impl HashableBallot {
 }
 
 impl SignedHashableBallot {
-    pub fn deserialize_contests<C: Ctx>(
+    pub fn deserialize_contests(
         &self,
-    ) -> Result<Vec<HashableBallotContest<C>>, BallotError> {
+    ) -> Result<Vec<HashableBallotContest>, BallotError> {
         let hashable_ballot = HashableBallot::try_from(self)?;
 
         hashable_ballot.deserialize_contests()
     }
 
-    pub fn serialize_contests<C: Ctx>(
-        contests: &Vec<HashableBallotContest<C>>,
+    pub fn serialize_contests(
+        contests: &Vec<HashableBallotContest>,
     ) -> Result<Vec<String>, BallotError> {
         HashableBallot::serialize_contests(contests)
     }
 }
 
-impl<C: Ctx> TryFrom<&HashableBallot> for RawHashableBallot<C> {
+impl TryFrom<&HashableBallot> for RawHashableBallot {
     type Error = BallotError;
 
     fn try_from(value: &HashableBallot) -> Result<Self, Self::Error> {
-        let contests = value.deserialize_contests::<C>()?;
+        let contests = value.deserialize_contests()?;
         Ok(RawHashableBallot {
             version: value.version,
             issue_date: value.issue_date.clone(),
@@ -220,12 +244,11 @@ impl<C: Ctx> TryFrom<&HashableBallot> for RawHashableBallot<C> {
     }
 }
 
-impl<C: Ctx> From<&AuditableBallotContest<C>> for HashableBallotContest<C> {
-    fn from(value: &AuditableBallotContest<C>) -> HashableBallotContest<C> {
+impl From<&AuditableBallotContest> for HashableBallotContest {
+    fn from(value: &AuditableBallotContest) -> HashableBallotContest {
         HashableBallotContest {
-            contest_id: value.contest_id.clone(),
+            contest_ids: vec![value.contest_id.clone()],
             ciphertext: value.choice.ciphertext.clone(),
-            proof: value.proof.clone(),
         }
     }
 }
@@ -234,26 +257,17 @@ impl TryFrom<&AuditableBallot> for SignedHashableBallot {
     type Error = BallotError;
 
     fn try_from(value: &AuditableBallot) -> Result<Self, Self::Error> {
-        if TYPES_VERSION != value.version {
-            return Err(BallotError::Serialization(format!(
-                "Unexpected version {}, expected {}",
-                value.version.to_string(),
-                TYPES_VERSION
-            )));
-        }
+        let version = check_types_version(value.version)?;
 
-        let contests = value.deserialize_contests::<RistrettoCtx>()?;
-        let hashable_ballot_contest: Vec<HashableBallotContest<RistrettoCtx>> =
-            contests
-                .iter()
-                .map(|auditable_ballot_contest| {
-                    let hashable_ballot_contest =
-                        HashableBallotContest::<RistrettoCtx>::from(
-                            auditable_ballot_contest,
-                        );
-                    hashable_ballot_contest
-                })
-                .collect();
+        let contests = value.deserialize_contests()?;
+        let hashable_ballot_contest: Vec<HashableBallotContest> = contests
+            .iter()
+            .map(|auditable_ballot_contest| {
+                let hashable_ballot_contest =
+                    HashableBallotContest::from(auditable_ballot_contest);
+                hashable_ballot_contest
+            })
+            .collect();
         let ballot_style_hash =
             hash_ballot_style(&value.config).map_err(|error| {
                 BallotError::Serialization(format!(
@@ -262,9 +276,9 @@ impl TryFrom<&AuditableBallot> for SignedHashableBallot {
                 ))
             })?;
         Ok(SignedHashableBallot {
-            version: TYPES_VERSION,
+            version,
             issue_date: value.issue_date.clone(),
-            contests: HashableBallot::serialize_contests::<RistrettoCtx>(
+            contests: HashableBallot::serialize_contests(
                 &hashable_ballot_contest,
             )?,
             config: value.config.id.clone(),
@@ -278,16 +292,8 @@ impl TryFrom<&AuditableBallot> for SignedHashableBallot {
 impl TryFrom<&SignedHashableBallot> for HashableBallot {
     type Error = BallotError;
     fn try_from(value: &SignedHashableBallot) -> Result<Self, Self::Error> {
-        if TYPES_VERSION != value.version {
-            return Err(BallotError::Serialization(format!(
-                "Unexpected version {}, expected {}",
-                value.version.to_string(),
-                TYPES_VERSION
-            )));
-        }
-
         Ok(HashableBallot {
-            version: TYPES_VERSION,
+            version: check_types_version(value.version)?,
             issue_date: value.issue_date.clone(),
             contests: value.contests.clone(),
             config: value.config.clone(),
@@ -307,17 +313,30 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key(
     election_id: &str,
     hashable_ballot: &HashableBallot,
 ) -> Result<SignedContent, String> {
+    let secret_key = SigningKey::generate()
+        .map_err(|err| format!("Error generating secret key: {err}"))?;
+    sign_hashable_ballot_with_voter_signing_key(
+        &secret_key,
+        ballot_id,
+        election_id,
+        hashable_ballot,
+    )
+}
+
+pub fn sign_hashable_ballot_with_voter_signing_key(
+    secret_key: &SigningKey,
+    ballot_id: &str,
+    election_id: &str,
+    hashable_ballot: &HashableBallot,
+) -> Result<SignedContent, String> {
     // Get ballot_bytes_for_signing
     let content_bytes = hashable_ballot
-        .strand_serialize()
+        .record_serialize()
         .map_err(|err| format!("Error getting signature bytes: {err}"))?;
     let ballot_bytes =
         get_ballot_bytes_for_signing(ballot_id, election_id, &content_bytes);
 
-    // Generate voter ephemeral key for signing
-    let secret_key = StrandSignatureSk::generate()
-        .map_err(|err| format!("Error generating secret key: {err}"))?;
-    let public_key = StrandSignaturePk::from_sk(&secret_key)
+    let public_key = VerificationKey::from_sk(secret_key)
         .map_err(|err| format!("Error generating public key: {err}"))?;
 
     let ballot_signature = secret_key
@@ -325,7 +344,7 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key(
         .map_err(|err| format!("Failed to sign the ballot: {err}"))?;
 
     let public_key = public_key
-        .to_der_b64_string()
+        .to_b64_string()
         .map_err(|err| format!("Failed to serialize the public key: {err}"))?;
 
     let signature = ballot_signature
@@ -338,39 +357,46 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key(
     })
 }
 
-// Returns Some(StrandSignature) if the signature was verified or None if there
-// was no signature to verify.
+/// Error for a ballot that carries only one of the voter signature and its
+/// public key.
+pub const INCOMPLETE_BALLOT_SIGNATURE_ERROR: &str =
+    "Incomplete ballot signature: public key and signature must both be present";
+
+// Returns Some(Signature) if the signature was verified or None if both
+// signature fields were absent. A partial pair is malformed, not unsigned.
 pub fn verify_ballot_signature(
     ballot_id: &str,
     election_id: &str,
     signed_hashable_ballot: &SignedHashableBallot,
-) -> Result<Option<(StrandSignaturePk, StrandSignature)>, String> {
+) -> Result<Option<(VerificationKey, Signature)>, String> {
     let (voter_ballot_signature, voter_signing_pk) =
         if let (Some(voter_ballot_signature), Some(voter_signing_pk)) = (
             signed_hashable_ballot.voter_ballot_signature.clone(),
             signed_hashable_ballot.voter_signing_pk.clone(),
         ) {
             (voter_ballot_signature, voter_signing_pk)
-        } else {
+        } else if signed_hashable_ballot.voter_ballot_signature.is_none()
+            && signed_hashable_ballot.voter_signing_pk.is_none()
+        {
             return Ok(None);
+        } else {
+            return Err(INCOMPLETE_BALLOT_SIGNATURE_ERROR.into());
         };
 
-    let voter_signing_pk = StrandSignaturePk::from_der_b64_string(
-        &voter_signing_pk,
-    )
-    .map_err(|err| {
-        format!(
-            "Failed to deserialize signature from hashable ballot: {}",
-            err
-        )
-    })?;
+    let voter_signing_pk = VerificationKey::from_b64_string(&voter_signing_pk)
+        .map_err(|err| {
+            format!(
+                "Failed to deserialize signature from hashable ballot: {}",
+                err
+            )
+        })?;
 
     let hashable_ballot: HashableBallot =
         signed_hashable_ballot.try_into().map_err(|err| {
             format!("Failed to convert to hashable ballot: {}", err)
         })?;
 
-    let content = hashable_ballot.strand_serialize().map_err(|err| {
+    let content = hashable_ballot.record_serialize().map_err(|err| {
         format!(
             "Failed to get bytes for signing from hashable ballot: {}",
             err
@@ -380,15 +406,13 @@ pub fn verify_ballot_signature(
     let ballot_bytes =
         get_ballot_bytes_for_signing(ballot_id, election_id, &content);
 
-    let ballot_signature = StrandSignature::from_b64_string(
-        &voter_ballot_signature,
-    )
-    .map_err(|err| {
-        format!(
-            "Failed to deserialize signature from hashable ballot: {}",
-            err
-        )
-    })?;
+    let ballot_signature = Signature::from_b64_string(&voter_ballot_signature)
+        .map_err(|err| {
+            format!(
+                "Failed to deserialize signature from hashable ballot: {}",
+                err
+            )
+        })?;
 
     voter_signing_pk
         .verify(&ballot_signature, &ballot_bytes)
@@ -1144,6 +1168,103 @@ where
     }
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum EChecksPeriodPolicy {
+    #[strum(serialize = "unlimited")]
+    #[serde(rename = "unlimited")]
+    #[default]
+    UNLIMITED,
+    #[strum(serialize = "until-date")]
+    #[serde(rename = "until-date")]
+    UNTIL_DATE,
+}
+
+/// Whether a voter can still view a cast ballot at a given instant.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum ChecksPeriod {
+    Unlimited,
+    OpenUntil(DateTime<Utc>),
+    Ended(DateTime<Utc>),
+}
+
+pub const RECEIPTS_PRESENTATION_KEY: &str = "receipts";
+
+#[derive(
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Default,
+)]
+pub struct ReceiptsPresentation {
+    pub policy: Option<ReceiptsPolicy>,
+    pub checks_period_policy: Option<EChecksPeriodPolicy>,
+    /// RFC 3339 date and time with its offset. Required with `until-date`.
+    pub checks_available_until: Option<String>,
+}
+
+impl ReceiptsPresentation {
+    pub fn checks_period(
+        &self,
+        now: DateTime<Utc>,
+    ) -> anyhow::Result<ChecksPeriod> {
+        match self.checks_period_policy.clone().unwrap_or_default() {
+            EChecksPeriodPolicy::UNLIMITED => Ok(ChecksPeriod::Unlimited),
+            EChecksPeriodPolicy::UNTIL_DATE => {
+                let until = self
+                    .checks_available_until
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "checks_available_until is required with the {} checks period policy",
+                            EChecksPeriodPolicy::UNTIL_DATE
+                        )
+                    })?;
+                let until = DateTime::parse_from_rfc3339(until)
+                    .map_err(|error| {
+                        anyhow!(
+                            "checks_available_until is not a date and time with an offset: {error}"
+                        )
+                    })?
+                    .with_timezone(&Utc);
+                Ok(if now > until {
+                    ChecksPeriod::Ended(until)
+                } else {
+                    ChecksPeriod::OpenUntil(until)
+                })
+            }
+        }
+    }
+}
+
+/// Reads only the receipts settings of a stored event presentation, so that
+/// an unrelated field that fails to parse does not decide whether voters can
+/// view their ballots.
+pub fn checks_period_from_presentation(
+    presentation: Option<&serde_json::Value>,
+    now: DateTime<Utc>,
+) -> anyhow::Result<ChecksPeriod> {
+    let receipts = presentation
+        .and_then(|value| value.get(RECEIPTS_PRESENTATION_KEY))
+        .filter(|value| !value.is_null());
+    let Some(receipts) = receipts else {
+        return Ok(ChecksPeriod::Unlimited);
+    };
+    serde_json::from_value::<ReceiptsPresentation>(receipts.clone())
+        .map_err(|error| anyhow!("invalid receipts settings: {error}"))?
+        .checks_period(now)
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -1157,6 +1278,15 @@ where
     Default,
 )]
 pub struct ElectionEventPresentation {
+    /// Internal immutable identity mode. Missing values retain historical behavior.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ballot_identity: Option<crate::types::vote_privacy::BallotIdentity>,
+    /// Network data is never part of a privacy ballot or its signed log entry.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub network_data_policy:
+        Option<crate::types::vote_privacy::NetworkDataPolicy>,
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
     pub materials: Option<ElectionEventMaterials>,
     pub language_conf: Option<ElectionEventLanguageConf>,
@@ -1186,6 +1316,350 @@ pub struct ElectionEventPresentation {
     #[serde(default, deserialize_with = "deserialize_optional_json_string")]
     pub results_website: Option<String>,
     pub voting_portal_datetime_format: Option<VotingPortalDateTimeFormat>,
+    #[borsh(skip)]
+    pub batch_anonymity_policy: Option<BatchAnonymityPolicy>,
+    /// Skipped by Borsh for the reason `Contest::is_acclaimed` is: one more
+    /// positional field would change `ballot_style_hash` for every election.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub receipts: Option<ReceiptsPresentation>,
+    /// Skipped in Borsh so that published ballot styles keep their hashes.
+    #[borsh(skip)]
+    pub voter_accessibility_settings_policy:
+        Option<VoterAccessibilitySettingsPolicy>,
+    /// Skipped in Borsh so that published ballot styles keep their hashes.
+    #[borsh(skip)]
+    pub audio_instructions_policy: Option<AudioInstructionsPolicy>,
+    /// The event's configured timezones and its primary one (VOTE-LIFECYCLE).
+    /// Display and configuration data only: skipped in Borsh so ballot-style
+    /// hashes (and the auditable ballots that carry them) don't change.
+    #[borsh(skip)]
+    pub timezones: Option<ElectionEventTimeZones>,
+    /// Lifecycle decisions that are part of the (signed) configuration. The
+    /// configuration approval signs them through the publication digest
+    /// (JSON), not through Borsh.
+    #[borsh(skip)]
+    pub lifecycle_policies: Option<LifecyclePolicies>,
+    /// Whether each ballot box is sealed at close (VOTE-FREEZE). Read it
+    /// through [`ElectionEventPresentation::ballot_box_seal_policy`]. Skipped
+    /// in Borsh so ballot-style hashes don't change.
+    #[borsh(skip)]
+    #[serde(default)]
+    pub ballot_box_seal_policy: Option<BallotBoxSealPolicy>,
+    /// Who can download a sealed box's seal record (VOTE-FREEZE). Read it
+    /// through [`ElectionEventPresentation::ballot_box_seal_record_policy`].
+    /// Skipped in Borsh so ballot-style hashes don't change.
+    #[borsh(skip)]
+    #[serde(default)]
+    pub ballot_box_seal_record_policy: Option<BallotBoxSealRecordPolicy>,
+    #[borsh(skip)]
+    #[serde(default)]
+    pub ballot_tracker_policy: Option<BallotTrackerPolicy>,
+    /// File-byte verification is enforced by the import worker. Skipped by
+    /// Borsh to preserve existing published ballot-style hashes.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file_integrity_policy:
+        Option<crate::types::voter_import::FileIntegrityPolicy>,
+    /// Absent means `TransparencyMode::DISABLED`.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transparency: Option<TransparencyMode>,
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vitrine: Option<VitrinePresentation>,
+    /// Where voters are offered updates from the policy's hubs. Absent means
+    /// both are on. Skipped in Borsh so ballot-style hashes don't change.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hub_updates: Option<HubUpdatesPresentation>,
+    /// How voters reach the election authority, as the admin typed it. The
+    /// Transparency tab drafts the policy's `contact` lines from it. Skipped
+    /// in Borsh so ballot-style hashes don't change.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authority_contact: Option<AuthorityContactPresentation>,
+}
+
+
+impl ElectionEventPresentation {
+    pub fn transparency_mode(&self) -> TransparencyMode {
+        self.transparency.unwrap_or_default()
+    }
+
+    /// The hub updates settings, with each switch that is not set on.
+    pub fn hub_updates(&self) -> HubUpdatesPresentation {
+        self.hub_updates.clone().unwrap_or_default()
+    }
+}
+
+/// The election authority's contact: each kind that is set becomes one
+/// `contact` line of the event's Vitrine policy (specs/policy.md, section 3,
+/// rule 19). Windmill checks the syntax of each when it drafts the policy.
+#[derive(
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Default,
+)]
+pub struct AuthorityContactPresentation {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phone: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+}
+
+/// Whether voters are offered updates from the hubs the election's policy
+/// names. They are on unless an admin turns them off.
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum HubUpdatesPolicy {
+    #[default]
+    #[strum(serialize = "on")]
+    #[serde(rename = "on")]
+    ON,
+    #[strum(serialize = "off")]
+    #[serde(rename = "off")]
+    OFF,
+}
+
+/// The admin's choices about hub updates, stored with the election event's
+/// other voting portal settings. Each switch that is absent is on.
+#[derive(
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Default,
+)]
+pub struct HubUpdatesPresentation {
+    /// A callout on the vote confirmation page, with a link to each hub's
+    /// explorer that watches the voter's receipt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub confirmation: Option<HubUpdatesPolicy>,
+    /// A link to each hub's explorer in the cast ballot receipt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cast_email: Option<HubUpdatesPolicy>,
+}
+
+impl HubUpdatesPresentation {
+    pub fn confirmation(&self) -> HubUpdatesPolicy {
+        self.confirmation.unwrap_or_default()
+    }
+
+    pub fn cast_email(&self) -> HubUpdatesPolicy {
+        self.cast_email.unwrap_or_default()
+    }
+}
+
+/// A Vitrine log of an election event, as voters reach it.
+#[derive(
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Default,
+)]
+pub struct VitrineLogPresentation {
+    pub url: String,
+    pub origin: String,
+}
+
+/// The `ballots` and `events` logs of an election event.
+#[derive(
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Default,
+)]
+pub struct VitrineLogsPresentation {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ballots: Option<VitrineLogPresentation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub events: Option<VitrineLogPresentation>,
+}
+
+/// What voters need to check an election event's Vitrine logs. Voters read it,
+/// so it never holds a token or a key.
+#[derive(
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Default,
+)]
+pub struct VitrinePresentation {
+    /// The policy ID's hex, without the `sha256:` prefix.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub policy_id: Option<String>,
+    /// The sealed, signed policy note; public events only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub policy: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub logs: Option<VitrineLogsPresentation>,
+}
+
+impl ElectionEventPresentation {
+    pub fn file_integrity_policy(
+        &self,
+    ) -> crate::types::voter_import::FileIntegrityPolicy {
+        self.file_integrity_policy.unwrap_or_default()
+    }
+
+    /// `SEAL_AT_CLOSE` only when set; unset means `DO_NOT_SEAL`.
+    pub fn ballot_box_seal_policy(&self) -> BallotBoxSealPolicy {
+        match self.ballot_box_seal_policy {
+            Some(BallotBoxSealPolicy::SEAL_AT_CLOSE) => {
+                BallotBoxSealPolicy::SEAL_AT_CLOSE
+            }
+            _ => BallotBoxSealPolicy::DO_NOT_SEAL,
+        }
+    }
+
+    /// `PUBLIC` only when set; unset means `RESTRICTED`.
+    pub fn ballot_box_seal_record_policy(&self) -> BallotBoxSealRecordPolicy {
+        self.ballot_box_seal_record_policy.unwrap_or_default()
+    }
+}
+
+impl ElectionEventPresentation {
+    pub fn receipts_policy(&self) -> ReceiptsPolicy {
+        self.receipts
+            .as_ref()
+            .and_then(|receipts| receipts.policy.clone())
+            .unwrap_or_default()
+    }
+}
+
+/// Which timezone the Logs tab and log exports show.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum LogTimeZonePolicy {
+    /// The event's primary timezone for every row.
+    #[strum(serialize = "primary")]
+    #[serde(rename = "primary")]
+    PRIMARY,
+    /// Each row's election timezone (the primary for event-wide rows).
+    #[default]
+    #[strum(serialize = "election")]
+    #[serde(rename = "election")]
+    ELECTION,
+}
+
+/// The timezones an election event works with. Zones are IANA names in
+/// their tzdata canonical form (`Asia/Kolkata`, not `Asia/Calcutta`).
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+)]
+pub struct ElectionEventTimeZones {
+    /// At least one; elections choose theirs from this list.
+    pub configured: Vec<String>,
+    /// One of `configured`: event-wide schedules, reports and elections
+    /// without their own timezone use it.
+    pub primary: String,
+    #[serde(default)]
+    pub logs: LogTimeZonePolicy,
+}
+
+/// When voting can open with respect to initialization.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum InitializationScope {
+    /// A Post opens once it is initialized.
+    #[default]
+    #[strum(serialize = "post")]
+    #[serde(rename = "post")]
+    POST,
+    /// No Post opens until every Post is initialized.
+    #[strum(serialize = "event")]
+    #[serde(rename = "event")]
+    EVENT,
+    /// A Post opens once every country under it is initialized.
+    #[strum(serialize = "post-and-country")]
+    #[serde(rename = "post-and-country")]
+    POST_AND_COUNTRY,
+}
+
+/// What a scheduled close does when Close voting needs signatures and the
+/// close isn't covered by a signed configuration.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum UnsignedScheduledClosePolicy {
+    /// The close doesn't run; the election's signers close it with signatures.
+    #[default]
+    #[strum(serialize = "refuse")]
+    #[serde(rename = "refuse")]
+    REFUSE,
+    /// The close runs at its deadline, recorded as closed by the schedule
+    /// without signatures.
+    #[strum(serialize = "run-as-system")]
+    #[serde(rename = "run-as-system")]
+    RUN_AS_SYSTEM,
+}
+
+/// Lifecycle decisions kept in the event presentation, so the configuration
+/// approval signs them.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct LifecyclePolicies {
+    #[serde(default)]
+    pub initialization_scope: InitializationScope,
+    #[serde(default)]
+    pub unsigned_scheduled_close: UnsignedScheduledClosePolicy,
 }
 
 impl ElectionEvent {
@@ -1337,6 +1811,9 @@ pub enum EUnderVotePolicy {
     #[strum(serialize = "warn-and-alert")]
     #[serde(rename = "warn-and-alert")]
     WARN_AND_ALERT,
+    #[strum(serialize = "warn-and-confirm-in-review")]
+    #[serde(rename = "warn-and-confirm-in-review")]
+    WARN_AND_CONFIRM_IN_REVIEW,
 }
 
 #[allow(non_camel_case_types)]
@@ -1504,6 +1981,10 @@ pub struct ElectionPresentation {
     /// decline_to_vote_policy) to preserve the Borsh binary layout of
     /// already-serialized ElectionPresentation/BallotStyle payloads.
     pub blank_ballots_policy: Option<BlankBallotsPolicy>,
+    /// One of the event's configured timezones; `None` uses the primary.
+    /// Every area under the election uses it (VOTE-LIFECYCLE).
+    #[borsh(skip)]
+    pub timezone: Option<String>,
 }
 
 impl hasura_core::Election {
@@ -1546,6 +2027,7 @@ impl Default for ElectionPresentation {
             voting_screen_back_policy: Some(VotingScreenBackPolicy::default()),
             css: None,
             blank_ballots_policy: Some(BlankBallotsPolicy::default()),
+            timezone: None,
         }
     }
 }
@@ -1874,6 +2356,35 @@ impl Contest {
     }
 }
 
+/// Which ballots a cast vote is accepted with. A ballot of [`TYPES_VERSION`]
+/// must always name the ballot style published for the voter's area and
+/// election. A ballot of [`LEGACY_TYPES_VERSION`], whose tracker does not
+/// cover the ballot style, is only accepted with `ALLOW_LEGACY`.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum BallotTrackerPolicy {
+    #[default]
+    #[strum(serialize = "style-bound")]
+    #[serde(rename = "style-bound")]
+    STYLE_BOUND,
+    #[strum(serialize = "allow-legacy")]
+    #[serde(rename = "allow-legacy")]
+    ALLOW_LEGACY,
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     BorshSerialize,
@@ -1999,6 +2510,40 @@ pub enum VoterSigningPolicy {
     WITH_SIGNATURE,
 }
 
+/// Whether the ballot box receives and signs a ballot at review, so that its
+/// Ballot ID is proof of storage.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum ReceiptsPolicy {
+    #[default]
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    DISABLED,
+    #[strum(serialize = "signed-by-ballot-box")]
+    #[serde(rename = "signed-by-ballot-box")]
+    SIGNED_BY_BALLOT_BOX,
+}
+/// The ballot box's public key, as published to voters' devices.
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct BallotBoxKey {
+    pub key_id: String,
+    /// Base64 of the DER SubjectPublicKeyInfo.
+    pub public_key: String,
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     BorshSerialize,
@@ -2024,6 +2569,58 @@ pub enum VoterCertificatePolicy {
     ENABLED,
 }
 
+/// Whether the Voting Portal offers the voter its display settings: text size,
+/// contrast, text spacing and motion.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    EnumString,
+    Display,
+)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum VoterAccessibilitySettingsPolicy {
+    #[default]
+    Disabled,
+    Enabled,
+}
+
+/// Whether each Voting Portal screen offers spoken instructions, and where
+/// the audio may come from: only the event's uploaded recordings, or the
+/// browser's speech synthesis where a screen has no recording.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    EnumString,
+    Display,
+)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum AudioInstructionsPolicy {
+    #[default]
+    Disabled,
+    Recorded,
+    RecordedOrSynthesized,
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     BorshSerialize,
@@ -2047,6 +2644,68 @@ pub enum LockedDown {
     #[strum(serialize = "not-locked-down")]
     #[serde(rename = "not-locked-down")]
     NOT_LOCKED_DOWN,
+}
+
+/// Whether each ballot box (an election's area) is sealed when voting
+/// closes: a signed hash of its ballots goes to the electoral log, its
+/// ballots can no longer change and voting cannot open again (VOTE-FREEZE).
+/// Locked once voting has opened.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    JsonSchema,
+)]
+pub enum BallotBoxSealPolicy {
+    #[default]
+    #[strum(serialize = "do-not-seal")]
+    #[serde(rename = "do-not-seal")]
+    DO_NOT_SEAL,
+    #[strum(serialize = "seal-at-close")]
+    #[serde(rename = "seal-at-close")]
+    SEAL_AT_CLOSE,
+}
+
+/// Who can download the seal record of a sealed ballot box: the record lists
+/// each ballot's hash, Ballot ID, disposition, weight and channel
+/// (VOTE-FREEZE). Restricted keeps it a private event document that
+/// administrators download and share; Public puts it in the public bucket,
+/// readable without signing in. Locked once voting has opened on an event
+/// that seals at close.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    JsonSchema,
+)]
+pub enum BallotBoxSealRecordPolicy {
+    #[default]
+    #[strum(serialize = "restricted")]
+    #[serde(rename = "restricted")]
+    RESTRICTED,
+    #[strum(serialize = "public")]
+    #[serde(rename = "public")]
+    PUBLIC,
 }
 
 #[allow(non_camel_case_types)]
@@ -2314,6 +2973,43 @@ impl VotingStatusChannel {
     }
 }
 
+/// Whether an election event's ballots and milestones go to Vitrine
+/// transparency logs, and who may read them. Public receipts let a coercer
+/// check that a ballot was cast, so `PUBLIC` needs unlimited revoting.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum TransparencyMode {
+    #[default]
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    DISABLED,
+    #[strum(serialize = "public")]
+    #[serde(rename = "public")]
+    PUBLIC,
+    #[strum(serialize = "private")]
+    #[serde(rename = "private")]
+    PRIVATE,
+}
+
+impl TransparencyMode {
+    pub fn is_enabled(&self) -> bool {
+        !matches!(self, TransparencyMode::DISABLED)
+    }
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -2520,6 +3216,12 @@ pub struct ReportDates {
 pub struct ScheduledEventDates {
     pub scheduled_at: Option<String>,
     pub stopped_at: Option<String>,
+    /// The IANA zone the date was set in (`cron_config.timezone`), so
+    /// screens can show it in that zone (VOTE-LIFECYCLE). Display only:
+    /// skipped in Borsh so ballot-style hashes don't change.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[borsh(skip)]
+    pub timezone: Option<String>,
 }
 
 impl PeriodDates {
@@ -2581,6 +3283,54 @@ pub struct ElectionStatus {
     pub early_voting_period_dates: PeriodDates,
     pub telephone_voting_period_dates: PeriodDates,
     pub allow_tally: AllowTallyStatus,
+    /// The scheduled lifecycle windows of the election (VOTE-LIFECYCLE).
+    /// What each window enables belongs to readiness and test voting.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lifecycle_windows:
+        Option<BTreeMap<LifecycleWindow, LifecycleWindowState>>,
+}
+
+/// A window the schedule opens and closes for an election.
+#[allow(non_camel_case_types)]
+#[derive(
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Debug,
+    Clone,
+    Copy,
+    Display,
+    EnumString,
+)]
+pub enum LifecycleWindow {
+    /// Election Readiness Test.
+    READINESS_TEST,
+    /// Final Testing and Lockdown.
+    FINAL_TESTING,
+    TEST_VOTING,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Copy,
+    Display,
+    EnumString,
+)]
+pub enum LifecycleWindowState {
+    OPEN,
+    CLOSED,
 }
 
 impl Default for ElectionStatus {
@@ -2597,6 +3347,7 @@ impl Default for ElectionStatus {
             early_voting_period_dates: Default::default(),
             telephone_voting_period_dates: Default::default(),
             allow_tally: Default::default(),
+            lifecycle_windows: None,
         }
     }
 }
@@ -2644,7 +3395,7 @@ impl ElectionStatus {
         new_status: VotingStatus,
     ) {
         let should_close_early_voting = channel == VotingStatusChannel::ONLINE
-            && (new_status.is_open() || new_status.is_closed());
+            && matches!(new_status, VotingStatus::OPEN | VotingStatus::CLOSED);
 
         if should_close_early_voting
             && self
@@ -2743,6 +3494,12 @@ pub struct BallotStyle {
     pub area_annotations: Option<AreaAnnotations>,
     /// Absent means `MultiContestEncodingMode::LEGACY`.
     pub multi_contest_encoding_mode: Option<MultiContestEncodingMode>,
+    /// Absent when the event's receipts are not signed by the ballot box.
+    /// Skipped by Borsh so that publishing the key leaves
+    /// `ballot_style_hash` as it was.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ballot_box_key: Option<BallotBoxKey>,
 }
 
 #[derive(
@@ -2872,6 +3629,38 @@ pub enum DelegatedVotingPolicy {
     DISABLED,
     #[serde(rename = "enabled")]
     ENABLED,
+}
+
+/// What extracting the ballots for a tally does with a contest area batch
+/// whose decrypted votes would not stay hidden among others: one holding the
+/// ballots of fewer than `MIN_WEIGHT_BATCH_ANONYMITY` voters, or one that
+/// differs from the ballots another tally session already posted for the same
+/// election, area and contest.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum BatchAnonymityPolicy {
+    /// Log a warning and post the batch.
+    #[default]
+    #[strum(serialize = "warn")]
+    #[serde(rename = "warn")]
+    WARN,
+    /// Refuse the tally without posting the contest area's ballots to the
+    /// bulletin board.
+    #[strum(serialize = "refuse")]
+    #[serde(rename = "refuse")]
+    REFUSE,
 }
 
 #[derive(
@@ -3154,14 +3943,120 @@ mod presentation_borsh_compat_tests {
     }
 
     #[test]
+    fn voter_accessibility_settings_policy_is_optional_and_strict() {
+        let parse = |presentation: serde_json::Value| {
+            serde_json::from_value::<ElectionEventPresentation>(presentation)
+        };
+        let legacy = parse(serde_json::json!({})).unwrap();
+        assert_eq!(legacy.voter_accessibility_settings_policy, None);
+        assert_eq!(
+            legacy
+                .voter_accessibility_settings_policy
+                .unwrap_or_default(),
+            VoterAccessibilitySettingsPolicy::Disabled
+        );
+
+        let enabled = parse(serde_json::json!({
+            "voter_accessibility_settings_policy": "enabled"
+        }))
+        .unwrap();
+        assert_eq!(
+            enabled.voter_accessibility_settings_policy,
+            Some(VoterAccessibilitySettingsPolicy::Enabled)
+        );
+        assert_eq!(
+            serde_json::to_value(&enabled).unwrap()
+                ["voter_accessibility_settings_policy"],
+            "enabled"
+        );
+
+        assert!(parse(serde_json::json!({
+            "voter_accessibility_settings_policy": "sometimes"
+        }))
+        .is_err());
+    }
+
+    #[test]
+    fn audio_instructions_policy_is_optional_and_strict() {
+        let parse = |presentation: serde_json::Value| {
+            serde_json::from_value::<ElectionEventPresentation>(presentation)
+        };
+        let legacy = parse(serde_json::json!({})).unwrap();
+        assert_eq!(legacy.audio_instructions_policy, None);
+        assert_eq!(
+            legacy.audio_instructions_policy.unwrap_or_default(),
+            AudioInstructionsPolicy::Disabled
+        );
+
+        let configured = parse(serde_json::json!({
+            "audio_instructions_policy": "recorded-or-synthesized"
+        }))
+        .unwrap();
+        assert_eq!(
+            configured.audio_instructions_policy,
+            Some(AudioInstructionsPolicy::RecordedOrSynthesized)
+        );
+        assert_eq!(
+            serde_json::to_value(&configured).unwrap()
+                ["audio_instructions_policy"],
+            "recorded-or-synthesized"
+        );
+
+        assert!(parse(serde_json::json!({
+            "audio_instructions_policy": "autoplay"
+        }))
+        .is_err());
+    }
+
+    #[test]
+    fn batch_anonymity_policy_round_trips_through_borsh() {
+        for policy in [BatchAnonymityPolicy::WARN, BatchAnonymityPolicy::REFUSE]
+        {
+            let bytes = borsh::to_vec(&policy).unwrap();
+            assert_eq!(
+                borsh::from_slice::<BatchAnonymityPolicy>(&bytes).unwrap(),
+                policy
+            );
+        }
+        assert!(borsh::from_slice::<BatchAnonymityPolicy>(&[2]).is_err());
+    }
+
+    #[test]
     fn json_only_results_fields_do_not_change_borsh_bytes() {
         let event_presentation = ElectionEventPresentation::default();
         let event_bytes = borsh::to_vec(&event_presentation).unwrap();
         let event_with_results = ElectionEventPresentation {
             results_website: Some("enabled".to_string()),
-            ..event_presentation
+            ..event_presentation.clone()
         };
         assert_eq!(borsh::to_vec(&event_with_results).unwrap(), event_bytes);
+        let event_with_batch_policy = ElectionEventPresentation {
+            batch_anonymity_policy: Some(BatchAnonymityPolicy::REFUSE),
+            ..event_presentation
+        };
+        assert_eq!(
+            borsh::to_vec(&event_with_batch_policy).unwrap(),
+            event_bytes
+        );
+
+        let event_with_accessibility = ElectionEventPresentation {
+            voter_accessibility_settings_policy: Some(
+                VoterAccessibilitySettingsPolicy::Enabled,
+            ),
+            ..ElectionEventPresentation::default()
+        };
+        assert_eq!(
+            borsh::to_vec(&event_with_accessibility).unwrap(),
+            event_bytes
+        );
+
+        let event_with_audio = ElectionEventPresentation {
+            audio_instructions_policy: Some(
+                AudioInstructionsPolicy::RecordedOrSynthesized,
+            ),
+            ..ElectionEventPresentation::default()
+        };
+        assert_eq!(borsh::to_vec(&event_with_audio).unwrap(), event_bytes);
 
         let election_presentation = ElectionPresentation::default();
         let election_bytes = borsh::to_vec(&election_presentation).unwrap();
@@ -3170,6 +4065,17 @@ mod presentation_borsh_compat_tests {
             ..election_presentation
         };
         assert_eq!(borsh::to_vec(&election_with_css).unwrap(), election_bytes);
+    }
+
+    #[test]
+    fn ballot_tracker_policy_does_not_change_borsh_bytes() {
+        let event_bytes =
+            borsh::to_vec(&ElectionEventPresentation::default()).unwrap();
+        let event_with_policy = ElectionEventPresentation {
+            ballot_tracker_policy: Some(BallotTrackerPolicy::ALLOW_LEGACY),
+            ..ElectionEventPresentation::default()
+        };
+        assert_eq!(borsh::to_vec(&event_with_policy).unwrap(), event_bytes);
     }
 }
 
@@ -3221,5 +4127,361 @@ mod support_materials_policy_tests {
             materials.effective_policy(),
             SupportMaterialsPolicy::MandatoryForVoting
         );
+    }
+}
+
+#[cfg(test)]
+mod ballot_box_seal_record_policy_tests {
+    use super::*;
+
+    #[test]
+    fn the_default_is_restricted() {
+        assert_eq!(
+            BallotBoxSealRecordPolicy::default(),
+            BallotBoxSealRecordPolicy::RESTRICTED
+        );
+    }
+
+    #[test]
+    fn the_policy_round_trips_through_its_names() {
+        for (policy, name) in [
+            (BallotBoxSealRecordPolicy::RESTRICTED, "restricted"),
+            (BallotBoxSealRecordPolicy::PUBLIC, "public"),
+        ] {
+            assert_eq!(
+                serde_json::to_value(policy).unwrap(),
+                serde_json::json!(name)
+            );
+            assert_eq!(
+                serde_json::from_value::<BallotBoxSealRecordPolicy>(
+                    serde_json::json!(name)
+                )
+                .unwrap(),
+                policy
+            );
+            assert_eq!(policy.to_string(), name);
+            assert_eq!(
+                name.parse::<BallotBoxSealRecordPolicy>().unwrap(),
+                policy
+            );
+        }
+        assert!(serde_json::from_value::<BallotBoxSealRecordPolicy>(
+            serde_json::json!("PUBLIC")
+        )
+        .is_err());
+    }
+
+    fn presentation(json: serde_json::Value) -> ElectionEventPresentation {
+        serde_json::from_value(json).unwrap()
+    }
+
+    #[test]
+    fn the_accessor_is_public_only_when_set_to_public() {
+        let missing = presentation(serde_json::json!({}));
+        assert_eq!(missing.ballot_box_seal_record_policy, None);
+        assert_eq!(
+            missing.ballot_box_seal_record_policy(),
+            BallotBoxSealRecordPolicy::RESTRICTED
+        );
+        let null = presentation(
+            serde_json::json!({"ballot_box_seal_record_policy": null}),
+        );
+        assert_eq!(
+            null.ballot_box_seal_record_policy(),
+            BallotBoxSealRecordPolicy::RESTRICTED
+        );
+        let restricted = presentation(
+            serde_json::json!({"ballot_box_seal_record_policy": "restricted"}),
+        );
+        assert_eq!(
+            restricted.ballot_box_seal_record_policy(),
+            BallotBoxSealRecordPolicy::RESTRICTED
+        );
+        let public = presentation(
+            serde_json::json!({"ballot_box_seal_record_policy": "public"}),
+        );
+        assert_eq!(
+            public.ballot_box_seal_record_policy(),
+            BallotBoxSealRecordPolicy::PUBLIC
+        );
+    }
+
+    #[test]
+    fn a_presentation_without_the_field_still_deserializes() {
+        let legacy = presentation(serde_json::json!({
+            "ballot_box_seal_policy": "seal-at-close",
+            "skip_election_list": true
+        }));
+        assert_eq!(legacy.ballot_box_seal_record_policy, None);
+        // Borsh skips the field, so ballot-style hashes don't change.
+        let public = ElectionEventPresentation {
+            ballot_box_seal_record_policy: Some(
+                BallotBoxSealRecordPolicy::PUBLIC,
+            ),
+            ..legacy.clone()
+        };
+        assert_eq!(
+            borsh::to_vec(&public).unwrap(),
+            borsh::to_vec(&legacy).unwrap()
+        );
+    }
+}
+
+#[cfg(test)]
+mod ballot_box_seal_policy_tests {
+    use super::*;
+
+    #[test]
+    fn the_default_is_do_not_seal() {
+        assert_eq!(
+            BallotBoxSealPolicy::default(),
+            BallotBoxSealPolicy::DO_NOT_SEAL
+        );
+    }
+
+    #[test]
+    fn the_policy_round_trips_through_its_names() {
+        for (policy, name) in [
+            (BallotBoxSealPolicy::DO_NOT_SEAL, "do-not-seal"),
+            (BallotBoxSealPolicy::SEAL_AT_CLOSE, "seal-at-close"),
+        ] {
+            assert_eq!(
+                serde_json::to_value(policy).unwrap(),
+                serde_json::json!(name)
+            );
+            assert_eq!(
+                serde_json::from_value::<BallotBoxSealPolicy>(
+                    serde_json::json!(name)
+                )
+                .unwrap(),
+                policy
+            );
+            assert_eq!(policy.to_string(), name);
+            assert_eq!(name.parse::<BallotBoxSealPolicy>().unwrap(), policy);
+        }
+        assert!(serde_json::from_value::<BallotBoxSealPolicy>(
+            serde_json::json!("SEAL_AT_CLOSE")
+        )
+        .is_err());
+    }
+
+    fn presentation(json: serde_json::Value) -> ElectionEventPresentation {
+        serde_json::from_value(json).unwrap()
+    }
+
+    #[test]
+    fn the_accessor_seals_only_when_set_to_seal_at_close() {
+        let missing = presentation(serde_json::json!({}));
+        assert_eq!(missing.ballot_box_seal_policy, None);
+        assert_eq!(
+            missing.ballot_box_seal_policy(),
+            BallotBoxSealPolicy::DO_NOT_SEAL
+        );
+        let null =
+            presentation(serde_json::json!({"ballot_box_seal_policy": null}));
+        assert_eq!(
+            null.ballot_box_seal_policy(),
+            BallotBoxSealPolicy::DO_NOT_SEAL
+        );
+        let off = presentation(
+            serde_json::json!({"ballot_box_seal_policy": "do-not-seal"}),
+        );
+        assert_eq!(
+            off.ballot_box_seal_policy(),
+            BallotBoxSealPolicy::DO_NOT_SEAL
+        );
+        let on = presentation(
+            serde_json::json!({"ballot_box_seal_policy": "seal-at-close"}),
+        );
+        assert_eq!(
+            on.ballot_box_seal_policy(),
+            BallotBoxSealPolicy::SEAL_AT_CLOSE
+        );
+    }
+
+    #[test]
+    fn a_presentation_without_the_field_still_deserializes() {
+        let legacy = presentation(serde_json::json!({
+            "locked_down": "not-locked-down",
+            "skip_election_list": true
+        }));
+        assert_eq!(legacy.ballot_box_seal_policy, None);
+        assert_eq!(legacy.locked_down, Some(LockedDown::NOT_LOCKED_DOWN));
+        // Borsh skips the field, so ballot-style hashes don't change.
+        let sealed = ElectionEventPresentation {
+            ballot_box_seal_policy: Some(BallotBoxSealPolicy::SEAL_AT_CLOSE),
+            ..legacy.clone()
+        };
+        assert_eq!(
+            borsh::to_vec(&sealed).unwrap(),
+            borsh::to_vec(&legacy).unwrap()
+        );
+    }
+}
+
+#[cfg(test)]
+mod transparency_presentation_tests {
+    use super::*;
+    use std::str::FromStr;
+
+    fn transparent_presentation() -> ElectionEventPresentation {
+        ElectionEventPresentation {
+            transparency: Some(TransparencyMode::PUBLIC),
+            vitrine: Some(VitrinePresentation {
+                policy_id: Some("ab".repeat(32)),
+                policy: Some("vitrine/policy/v1\n".to_string()),
+                logs: Some(VitrineLogsPresentation {
+                    ballots: Some(VitrineLogPresentation {
+                        url: "https://logs.example/acme/e/ballots/".to_string(),
+                        origin: "logs.example/acme/e/ballots".to_string(),
+                    }),
+                    events: None,
+                }),
+            }),
+            ..ElectionEventPresentation::default()
+        }
+    }
+
+    #[test]
+    fn transparency_fields_do_not_change_borsh_bytes() {
+        let plain = borsh::to_vec(&ElectionEventPresentation::default()).unwrap();
+        assert_eq!(borsh::to_vec(&transparent_presentation()).unwrap(), plain);
+    }
+
+    #[test]
+    fn absent_transparency_reads_as_disabled_and_is_not_written() {
+        let presentation: ElectionEventPresentation =
+            serde_json::from_value(serde_json::json!({"css": "x"})).unwrap();
+        assert_eq!(presentation.transparency_mode(), TransparencyMode::DISABLED);
+        assert!(!presentation.transparency_mode().is_enabled());
+        let json = serde_json::to_value(&presentation).unwrap();
+        assert!(json.get("transparency").is_none());
+        assert!(json.get("vitrine").is_none());
+    }
+
+    #[test]
+    fn transparency_round_trips_in_the_contract_shape() {
+        let json = serde_json::to_value(transparent_presentation()).unwrap();
+        assert_eq!(json["transparency"], "public");
+        assert_eq!(
+            json["vitrine"]["logs"]["ballots"]["origin"],
+            "logs.example/acme/e/ballots"
+        );
+        assert!(json["vitrine"]["logs"].get("events").is_none());
+        let back: ElectionEventPresentation =
+            serde_json::from_value(json).unwrap();
+        assert_eq!(back, transparent_presentation());
+    }
+
+    #[test]
+    fn hub_updates_are_on_unless_an_admin_turns_them_off() {
+        let presentation: ElectionEventPresentation =
+            serde_json::from_value(serde_json::json!({"css": "x"})).unwrap();
+        let updates = presentation.hub_updates();
+        assert_eq!(updates.confirmation(), HubUpdatesPolicy::ON);
+        assert_eq!(updates.cast_email(), HubUpdatesPolicy::ON);
+        let json = serde_json::to_value(&presentation).unwrap();
+        assert!(json.get("hub_updates").is_none());
+    }
+
+    #[test]
+    fn a_switch_that_is_not_set_stays_on() {
+        let presentation: ElectionEventPresentation = serde_json::from_value(
+            serde_json::json!({"hub_updates": {"confirmation": "off"}}),
+        )
+        .unwrap();
+        let updates = presentation.hub_updates();
+        assert_eq!(updates.confirmation(), HubUpdatesPolicy::OFF);
+        assert_eq!(updates.cast_email(), HubUpdatesPolicy::ON);
+        let json = serde_json::to_value(&presentation).unwrap();
+        assert_eq!(json["hub_updates"]["confirmation"], "off");
+        assert!(json["hub_updates"].get("cast_email").is_none());
+    }
+
+    #[test]
+    fn hub_updates_round_trip_in_the_contract_shape() {
+        let presentation = ElectionEventPresentation {
+            hub_updates: Some(HubUpdatesPresentation {
+                confirmation: Some(HubUpdatesPolicy::ON),
+                cast_email: Some(HubUpdatesPolicy::OFF),
+            }),
+            ..transparent_presentation()
+        };
+        let json = serde_json::to_value(&presentation).unwrap();
+        assert_eq!(
+            json["hub_updates"],
+            serde_json::json!({"confirmation": "on", "cast_email": "off"})
+        );
+        let back: ElectionEventPresentation =
+            serde_json::from_value(json).unwrap();
+        assert_eq!(back, presentation);
+    }
+
+    #[test]
+    fn hub_updates_do_not_change_borsh_bytes() {
+        let plain =
+            borsh::to_vec(&ElectionEventPresentation::default()).unwrap();
+        let off = ElectionEventPresentation {
+            hub_updates: Some(HubUpdatesPresentation {
+                confirmation: Some(HubUpdatesPolicy::OFF),
+                cast_email: Some(HubUpdatesPolicy::OFF),
+            }),
+            ..ElectionEventPresentation::default()
+        };
+        assert_eq!(borsh::to_vec(&off).unwrap(), plain);
+    }
+
+    #[test]
+    fn the_authority_contact_round_trips_and_leaves_borsh_alone() {
+        let presentation: ElectionEventPresentation =
+            serde_json::from_value(serde_json::json!({
+                "authority_contact": {
+                    "name": "Electoral Board of Acme",
+                    "email": "elections@acme.example"
+                }
+            }))
+            .unwrap();
+        let contact = presentation.authority_contact.clone().unwrap();
+        assert_eq!(contact.name.as_deref(), Some("Electoral Board of Acme"));
+        assert_eq!(contact.phone, None);
+        let json = serde_json::to_value(&presentation).unwrap();
+        assert!(json["authority_contact"].get("phone").is_none());
+        assert!(json["authority_contact"].get("url").is_none());
+        let plain = ElectionEventPresentation::default();
+        assert!(serde_json::to_value(&plain)
+            .unwrap()
+            .get("authority_contact")
+            .is_none());
+        assert_eq!(
+            borsh::to_vec(&presentation).unwrap(),
+            borsh::to_vec(&plain).unwrap()
+        );
+    }
+
+    #[test]
+    fn hub_updates_policies_parse_and_print_as_the_contract_spells_them() {
+        for (text, policy) in
+            [("on", HubUpdatesPolicy::ON), ("off", HubUpdatesPolicy::OFF)]
+        {
+            assert_eq!(HubUpdatesPolicy::from_str(text).unwrap(), policy);
+            assert_eq!(policy.to_string(), text);
+        }
+        assert!(HubUpdatesPolicy::from_str("ON").is_err());
+        assert!(serde_json::from_str::<HubUpdatesPolicy>("true").is_err());
+        assert!(serde_json::from_str::<HubUpdatesPolicy>("\"maybe\"").is_err());
+    }
+
+    #[test]
+    fn modes_parse_and_print_as_the_contract_spells_them() {
+        for (text, mode) in [
+            ("disabled", TransparencyMode::DISABLED),
+            ("public", TransparencyMode::PUBLIC),
+            ("private", TransparencyMode::PRIVATE),
+        ] {
+            assert_eq!(TransparencyMode::from_str(text).unwrap(), mode);
+            assert_eq!(mode.to_string(), text);
+        }
+        assert!(TransparencyMode::from_str("PUBLIC").is_err());
+        assert!(serde_json::from_str::<TransparencyMode>("\"open\"").is_err());
     }
 }

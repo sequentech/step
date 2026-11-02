@@ -27,49 +27,58 @@ import {
 } from "./providers/ApolloContextProvider"
 import {DatabaseProvider} from "./providers/DatabaseProvider"
 import {WidgetsContextProvider} from "./providers/WidgetsContextProvider"
-import {BrowserRouter as Router} from "react-router-dom"
+import {RouterProvider, createBrowserRouter} from "react-router-dom"
+import {PluginProvider} from "./plugins/PluginProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
 initCore()
 
+/** Every provider and the app; React Admin declares the routes inside. */
+const Portal = () => (
+    <SettingsWrapper>
+        <ThemeProvider theme={fullAdminTheme}>
+            <AuthContextProvider>
+                <TenantContextProvider>
+                    <NewResourceContextProvider>
+                        <ElectionEventContextProvider>
+                            <ElectionContextProvider>
+                                <ContestContextProvider>
+                                    <CandidateContextProvider>
+                                        <ElectionEventTallyContextProvider>
+                                            <PublishContextProvider>
+                                                <ApolloContextProvider
+                                                    role={defaultApolloContextValues.role}
+                                                >
+                                                    <ApolloWrapper>
+                                                        <DatabaseProvider>
+                                                            <WidgetsContextProvider>
+                                                                <PluginProvider>
+                                                                    <App />
+                                                                </PluginProvider>
+                                                            </WidgetsContextProvider>
+                                                        </DatabaseProvider>
+                                                    </ApolloWrapper>
+                                                </ApolloContextProvider>
+                                            </PublishContextProvider>
+                                        </ElectionEventTallyContextProvider>
+                                    </CandidateContextProvider>
+                                </ContestContextProvider>
+                            </ElectionContextProvider>
+                        </ElectionEventContextProvider>
+                    </NewResourceContextProvider>
+                </TenantContextProvider>
+            </AuthContextProvider>
+        </ThemeProvider>
+    </SettingsWrapper>
+)
+
+// A data router, so screens can hold navigation while they have unsaved changes.
+const router = createBrowserRouter([{path: "*", element: <Portal />}])
+
 root.render(
     <React.StrictMode>
-        <Router>
-            <SettingsWrapper>
-                <ThemeProvider theme={fullAdminTheme}>
-                    <AuthContextProvider>
-                        <TenantContextProvider>
-                            <NewResourceContextProvider>
-                                <ElectionEventContextProvider>
-                                    <ElectionContextProvider>
-                                        <ContestContextProvider>
-                                            <CandidateContextProvider>
-                                                <ElectionEventTallyContextProvider>
-                                                    <PublishContextProvider>
-                                                        <ApolloContextProvider
-                                                            role={defaultApolloContextValues.role}
-                                                        >
-                                                            <ApolloWrapper>
-                                                                <DatabaseProvider>
-                                                                    <WidgetsContextProvider>
-                                                                        <App />
-                                                                    </WidgetsContextProvider>
-                                                                </DatabaseProvider>
-                                                            </ApolloWrapper>
-                                                        </ApolloContextProvider>
-                                                    </PublishContextProvider>
-                                                </ElectionEventTallyContextProvider>
-                                            </CandidateContextProvider>
-                                        </ContestContextProvider>
-                                    </ElectionContextProvider>
-                                </ElectionEventContextProvider>
-                            </NewResourceContextProvider>
-                        </TenantContextProvider>
-                    </AuthContextProvider>
-                </ThemeProvider>
-            </SettingsWrapper>
-        </Router>
+        <RouterProvider router={router} />
     </React.StrictMode>
 )
 

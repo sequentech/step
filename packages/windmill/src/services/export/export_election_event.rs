@@ -14,6 +14,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
+use crate::services::approval_matrix::store::get_latest_approval_matrix;
 use crate::services::database::get_hasura_pool;
 use crate::services::electoral_log_transfer::{
     export_electoral_log, manifest_file_name, records_file_name,
@@ -25,30 +26,33 @@ use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
 use crate::services::reports_vault::get_password;
+use crate::services::signing::configuration::export_bundle_signing;
+use crate::services::signing::issuers::staff_issuers_pem_bundle;
 use crate::tasks::export_election_event::ExportOptions;
 use crate::types::documents::EDocuments;
 
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
+use sequent_core::election_config::emit::{plain_csv, MULTI_VALUE_SEPARATOR, REPORT_COLUMNS};
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::s3;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::temp_path::generate_temp_file;
 use sequent_core::types::hasura::core::{
-    Candidate, Contest, DocumentAnnotations, Election, KeysCeremony,
+    Candidate, Contest, DocumentAnnotations, Election, KeysCeremony, SupportMaterial,
 };
 use sequent_core::util::version::{DEV_APP_VERSION, ENV_VAR_APP_VERSION};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
-use strand::hash::hash_sha256_file;
 use tempfile::{NamedTempFile, TempPath};
 use tokio::io::{self, AsyncWriteExt};
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
+use voting_crypto::hash::hash_sha256_file;
 use zip::write::FileOptions;
 
 use super::export_bulletin_boards;
@@ -57,9 +61,7 @@ use super::export_tally;
 use super::export_users::export_users_file;
 use super::export_users::ExportBody;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
-use crate::services::documents::{
-    upload_and_return_document, upload_and_return_document_with_annotations,
-};
+use crate::services::documents::upload_and_return_document_with_annotations;
 use crate::services::password;
 
 #[instrument(err, skip(transaction, export_config))]
@@ -147,10 +149,39 @@ pub async fn read_export_data(
         vec![]
     };
 
+    // The rows for the documents that travel. Without these an export was
+    // one-way: import it back and the tab is empty because nothing points at the
+    // uploads. A row goes exactly when its file does; see
+    // `export_support_materials`.
+    let export_support_materials = export_support_materials(
+        &transaction,
+        &tenant_id,
+        &election_event_id,
+        export_config.s3_files,
+        export_config.contains_voter_secrets,
+    )
+    .await?;
+
     let version =
         std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
 
-    let import_election_event_schema = ImportElectionEventSchema {
+    // The matrix in force travels; an event that never saved one exports
+    // none and keeps the built-in matrix where it is imported.
+    let approval_matrix = get_latest_approval_matrix(&transaction, tenant_id, election_event_id)
+        .await?
+        .map(|saved| serde_json::to_value(saved.matrix))
+        .transpose()?;
+
+    // The messaging configuration travels with the event, as stored.
+    let messaging_config = crate::postgres::messaging::get_messaging_event_config(
+        &transaction,
+        &Uuid::parse_str(tenant_id)?,
+        &Uuid::parse_str(election_event_id)?,
+    )
+    .await?
+    .map(|stored| stored.config);
+
+    let mut import_election_event_schema = ImportElectionEventSchema {
         // parse_uuid_v4 still runs: the schema now carries a String, but an
         // export must not emit a tenant id that is not a UUID.
         tenant_id: parse_uuid_v4(&tenant_id)?.to_string(),
@@ -164,14 +195,92 @@ pub async fn read_export_data(
         scheduled_events: None,
         reports: export_reports,
         keys_ceremonies: Some(export_keys_ceremonies),
+        protocol_boards: if export_config.bulletin_board {
+            Some(
+                crate::postgres::protocol_board::get_event_protocol_boards(
+                    transaction,
+                    tenant_id,
+                    election_event_id,
+                )
+                .await?
+                .into_iter()
+                .filter(|row| export_config.tally || row.parent_id.is_none())
+                .collect(),
+            )
+        } else {
+            None
+        },
         applications: Some(export_applications),
+        support_materials: Some(export_support_materials),
+        signing_rules: None,
+        signing_checks: None,
+        approval_matrix,
+        messaging_config,
         version,
     };
+
+    export_bundle_signing(
+        &transaction,
+        Uuid::parse_str(tenant_id)?,
+        Uuid::parse_str(election_event_id)?,
+        &mut import_election_event_schema,
+    )
+    .await?;
 
     let images_files_path =
         process_event_images(&transaction, tenant_id, elections, contests, candidates).await?;
 
     Ok((import_election_event_schema, images_files_path))
+}
+
+/// The support material rows of the event, for the archive's JSON.
+///
+/// A row travels exactly when its document's file does, because import pairs
+/// the two through the replacement map:
+///
+/// * A file without its row fails the import in `process_s3_file`, since the
+///   file's document id is then missing from the map. So hidden materials'
+///   rows are included: their files are exported like any other.
+/// * A row without its file imports as a material pointing at a document that
+///   was never created, and nothing reports it. So a row whose document the
+///   archive leaves out is left out with it: every row with a document when the
+///   archive carries no `export_S3_files/` (`s3_files` off), and a row whose
+///   document is a voter-secret one in an export without voter secrets.
+///
+/// Both sides use `get_exportable_document_ids`, the set `process_export_zip`
+/// hands to `get_files_from_s3`.
+#[instrument(err, skip(transaction))]
+pub async fn export_support_materials(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    s3_files: bool,
+    include_voter_secrets: bool,
+) -> Result<Vec<SupportMaterial>> {
+    let exportable = if s3_files {
+        get_exportable_document_ids(
+            transaction,
+            tenant_id,
+            election_event_id,
+            include_voter_secrets,
+        )
+        .await
+        .context("Error retrieving the exportable documents for support materials")?
+    } else {
+        Default::default()
+    };
+    let materials =
+        crate::postgres::document::get_support_materials(transaction, tenant_id, election_event_id)
+            .await
+            .context("Error retrieving support materials for export")?;
+    // A material with no document has no file to lose, so it always travels.
+    Ok(materials
+        .into_iter()
+        .filter(|material| match material.document_id.as_deref() {
+            None => true,
+            Some(id) => exportable.contains(&id.to_ascii_lowercase()),
+        })
+        .collect())
 }
 
 #[instrument(err, skip(password))]
@@ -186,9 +295,9 @@ pub async fn generate_encrypted_zip(
     Ok(())
 }
 
-pub async fn write_export_document(data: ImportElectionEventSchema) -> Result<NamedTempFile> {
+pub async fn write_export_document(data: &ImportElectionEventSchema) -> Result<NamedTempFile> {
     // Serialize the data into JSON string
-    let data_str = serde_json::to_string_pretty(&data)?;
+    let data_str = serde_json::to_string_pretty(data)?;
     let data_bytes = data_str.into_bytes();
 
     // Create and write the data into a temporary file
@@ -355,7 +464,9 @@ pub async fn process_export_zip(
     election_event_id: &str,
     document_id: &str,
     export_config: ExportOptions,
+    permitted_election_ids: &[String],
 ) -> Result<()> {
+    export_config.validate_protocol_archive()?;
     let contains_voter_secrets = export_config.contains_voter_secrets;
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -366,6 +477,18 @@ pub async fn process_export_zip(
         .transaction()
         .await
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
+    let current_elections = crate::services::election::get_election_event_elections(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
+    anyhow::ensure!(
+        current_elections
+            .iter()
+            .all(|election| permitted_election_ids.contains(&election.id)),
+        "Event elections changed after authorization; create a new archive export"
+    );
     info!(
         include_voters = export_config.include_voters,
         contains_voter_secrets, "exporting election event"
@@ -392,7 +515,7 @@ pub async fn process_export_zip(
         &export_config,
     )
     .await?;
-    let temp_election_event_file = write_export_document(export_data).await?;
+    let temp_election_event_file = write_export_document(&export_data).await?;
     let election_event_filename = format!(
         "{}-{}.json",
         EDocuments::ELECTION_EVENT.to_file_name(),
@@ -440,6 +563,7 @@ pub async fn process_export_zip(
                 election_id: None,
                 include_secret_attributes: export_config.contains_voter_secrets,
             },
+            Some(permitted_election_ids),
         )
         .await
         .map_err(|e| anyhow!("Error exporting users file: {e:?}"))?;
@@ -477,18 +601,12 @@ pub async fn process_export_zip(
         let temp_reports_file = NamedTempFile::new()
             .map_err(|e| anyhow!("Error creating temporary reports file: {e:?}"))?;
         {
-            let mut wtr = csv::Writer::from_writer(&temp_reports_file);
-            wtr.write_record(&[
-                "ID",
-                "Election ID",
-                "Report Type",
-                "Template Alias",
-                "Cron Config",
-                "Encryption Policy",
-                "Password",
-                "Permission Labels",
-            ])
-            .map_err(|e| anyhow!("Error writing CSV header: {e:?}"))?;
+            // Written through the shared emitter. The header used to read "ID",
+            // "Election ID", … — harmless, because `process_reports_file` skips it
+            // and reads by index, but it meant an export and a generated bundle
+            // differed on sight for no reason. REPORT_COLUMNS is the one name for
+            // this file's shape.
+            let mut rows: Vec<Vec<String>> = Vec::new();
             for report in reports_data {
                 let password = get_password(
                     &hasura_transaction,
@@ -499,7 +617,7 @@ pub async fn process_export_zip(
                 .await?
                 .unwrap_or("".to_string());
 
-                wtr.write_record(&[
+                rows.push(vec![
                     report.id.to_string(),
                     report.election_id.unwrap_or_default().to_string(),
                     report.report_type.to_string(),
@@ -508,12 +626,26 @@ pub async fn process_export_zip(
                         .map_err(|e| anyhow!("Error serializing cron config: {e:?}"))?,
                     report.encryption_policy.to_string(),
                     password,
-                    report.permission_label.unwrap_or_default().join("|"),
-                ])
-                .map_err(|e| anyhow!("Error writing CSV record: {e:?}"))?;
+                    report
+                        .permission_label
+                        .unwrap_or_default()
+                        .join(MULTI_VALUE_SEPARATOR),
+                    report
+                        .copies
+                        .map(|copies| copies.to_string())
+                        .unwrap_or_default(),
+                    report
+                        .output_formats
+                        .unwrap_or_default()
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(MULTI_VALUE_SEPARATOR),
+                ]);
             }
-            wtr.flush()
-                .map_err(|e| anyhow!("Error flushing CSV writer: {e:?}"))?;
+
+            std::fs::write(temp_reports_file.path(), plain_csv(REPORT_COLUMNS, &rows))
+                .map_err(|e| anyhow!("Error writing reports CSV: {e:?}"))?;
         }
         let mut reports_file = File::open(temp_reports_file.path())
             .map_err(|e| anyhow!("Error opening temporary reports file: {e:?}"))?;
@@ -721,6 +853,7 @@ pub async fn process_export_zip(
             &hasura_transaction,
             tenant_id,
             election_event_id,
+            export_data.protocol_boards.as_deref().unwrap_or_default(),
         )
         .await
         .map_err(|e| anyhow!("Error reading protocol manager keys data: {e:?}"))?;
@@ -749,6 +882,7 @@ pub async fn process_export_zip(
             &hasura_transaction,
             tenant_id,
             election_event_id,
+            export_config.tally,
         )
         .await
         .map_err(|e| anyhow!("Error reading bulletin boards data: {e:?}"))?;
@@ -785,7 +919,9 @@ pub async fn process_export_zip(
     }
 
     if export_config.include_certificates {
-        let election_event_uuid = parse_uuid_v4(election_event_id)?;
+        // Any UUID: imported events keep the ids they had.
+        let election_event_uuid = Uuid::parse_str(election_event_id)
+            .map_err(|e| anyhow!("Invalid election event id: {e}"))?;
         let pems = get_certificate_authorities_pem(&hasura_transaction, election_event_uuid)
             .await
             .map_err(|e| anyhow!("Error fetching certificate authorities: {e:?}"))?;
@@ -802,6 +938,25 @@ pub async fn process_export_zip(
             zip_writer
                 .write_all(pem_bundle.as_bytes())
                 .map_err(|e| anyhow!("Error writing certificates to ZIP: {e:?}"))?;
+        }
+        // Staff issuers go in a file of their own, so an import keeps them
+        // apart from the voters' authorities.
+        if let Some(pem_bundle) =
+            staff_issuers_pem_bundle(&hasura_transaction, tenant_id, election_event_id)
+                .await
+                .map_err(|e| anyhow!("Error fetching staff issuers: {e:?}"))?
+        {
+            let issuers_filename = format!(
+                "{}-{}.pem",
+                EDocuments::STAFF_ISSUERS.to_file_name(),
+                election_event_id
+            );
+            zip_writer
+                .start_file(&issuers_filename, options)
+                .map_err(|e| anyhow!("Error starting staff issuers file in ZIP: {e:?}"))?;
+            zip_writer
+                .write_all(pem_bundle.as_bytes())
+                .map_err(|e| anyhow!("Error writing staff issuers to ZIP: {e:?}"))?;
         }
     }
 
@@ -844,34 +999,30 @@ pub async fn process_export_zip(
     let upload_path = upload_path
         .to_str()
         .ok_or_else(|| anyhow!("Can't convert {:?} to string", upload_path))?;
-    let _document = if contains_voter_secrets {
-        upload_and_return_document_with_annotations(
-            &hasura_transaction,
-            upload_path,
-            zip_size,
-            "application/zip",
-            &tenant_id.to_string(),
-            Some(election_event_id.to_string()),
-            &export_event_filename,
-            Some(document_id.to_string()),
-            false,
-            &DocumentAnnotations::voter_secret_export(),
-        )
-        .await?
+    let mut document_annotations = if contains_voter_secrets {
+        DocumentAnnotations::voter_secret_export()
     } else {
-        upload_and_return_document(
-            &hasura_transaction,
-            upload_path,
-            zip_size,
-            "application/zip",
-            &tenant_id.to_string(),
-            Some(election_event_id.to_string()),
-            &export_event_filename,
-            Some(document_id.to_string()),
-            false,
-        )
-        .await?
+        DocumentAnnotations::default()
     };
+    document_annotations.participation_scope = Some(
+        sequent_core::types::hasura::core::DocumentParticipationScope {
+            election_event_id: election_event_id.to_string(),
+            election_ids: permitted_election_ids.to_vec(),
+        },
+    );
+    let _document = upload_and_return_document_with_annotations(
+        &hasura_transaction,
+        upload_path,
+        zip_size,
+        "application/zip",
+        &tenant_id.to_string(),
+        Some(election_event_id.to_string()),
+        &export_event_filename,
+        Some(document_id.to_string()),
+        false,
+        &document_annotations,
+    )
+    .await?;
 
     hasura_transaction
         .commit()

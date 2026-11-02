@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use anyhow::Error as CryptoError;
 use std::fmt::Write;
 use std::fs::File;
 use std::io::Read;
-use strand::hash::hash_sha256;
-use strand::util::StrandError;
 use strum_macros::Display;
 use tempfile::NamedTempFile;
+use voting_crypto::hash::hash_sha256;
 
 #[derive(Debug, Display)]
 pub enum HashFileVerifyError {
@@ -16,7 +16,7 @@ pub enum HashFileVerifyError {
     #[strum(serialize = "hash-mismatch")]
     HashMismatch(String, String), // Voters file hash does not match
     #[strum(serialize = "hash-computing-error")]
-    HashComputingError(String, StrandError), // Error computing the hash
+    HashComputingError(String, CryptoError), // Error computing the hash
 }
 
 impl std::error::Error for HashFileVerifyError {}

@@ -16,6 +16,14 @@
 
 log_format mtls '$remote_addr - ssl_verify=$ssl_client_verify';
 
+# Development only: the dev voting portal sends voters to Keycloak on
+# http://localhost:8090, from where the Liveness Plus API below is another
+# origin. Local origins may call it; production serves both on one origin.
+map $http_origin $liveness_cors_origin {
+    default "";
+    "~^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$" $http_origin;
+}
+
 server {
     listen 8443 ssl;
     server_name localhost 127.0.0.1;
@@ -53,6 +61,65 @@ server {
     access_log /dev/stdout mtls;
     # Note: with optional_no_ca, $ssl_client_verify is "NONE" (no cert) or
     # "FAILED:..." (cert present but unverified). It is never "SUCCESS".
+
+    # Scanovate Liveness Plus API (opt-in `scanovate` profile), called by the
+    # capture page on Keycloak's origin. With CLIENT_BASE_URL_PREFIX=biometric/
+    # the service itself serves everything under /biometric/liveness/, so the
+    # path is passed unchanged: stripping the prefix makes it answer 404. Only
+    # the endpoints the capture page uses are routed: the service's own UI,
+    # API docs and metrics stay internal. Without the profile running, only
+    # these paths fail (502).
+    location ~ ^/biometric/liveness/(create_session|check_liveness|client_session_data|client_error)$ {
+        if ($request_method = OPTIONS) {
+            add_header Access-Control-Allow-Origin $liveness_cors_origin always;
+            add_header Access-Control-Allow-Methods "POST, OPTIONS" always;
+            add_header Access-Control-Allow-Headers "content-type, service-session-token" always;
+            add_header Access-Control-Max-Age 600 always;
+            add_header Vary Origin always;
+            return 204;
+        }
+        add_header Access-Control-Allow-Origin $liveness_cors_origin always;
+        add_header Vary Origin always;
+
+        set $liveness_upstream http://scanovate-liveness:5050;
+        proxy_pass $liveness_upstream;
+
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_read_timeout 60s;
+        client_max_body_size 5m;
+
+        proxy_set_header Host               $host;
+        proxy_set_header X-Real-IP          $remote_addr;
+        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto  https;
+    }
+
+    location /biometric/ {
+        return 404;
+    }
+
+    # The capture page uploads each photo, or the video, to the identity
+    # verification realm resource before submitting the capture: allow bodies
+    # bigger than nginx's 1 MiB default, up to the authenticator's largest
+    # limit.
+    location ~ ^/realms/[^/]+/identity-verification/capture/ {
+        set $keycloak_upstream http://keycloak:${KC_HTTP_PORT};
+        proxy_pass $keycloak_upstream;
+        client_max_body_size 8m;
+
+        proxy_set_header Host               $host;
+        proxy_set_header X-Real-IP          $remote_addr;
+        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto  https;
+        proxy_set_header X-Forwarded-Host   $host;
+        proxy_set_header X-Forwarded-Port   8443;
+    }
+
+    # Called by Liveness Plus on the internal network only, never by browsers.
+    location ~ ^/realms/[^/]+/identity-verification/liveness/ {
+        return 404;
+    }
 
     location / {
         set $keycloak_upstream http://keycloak:${KC_HTTP_PORT};

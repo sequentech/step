@@ -1,0 +1,94 @@
+{
+  "description": "voting-closed (2) is the last entry, and no bound after it is known: an entry sequenced in the same second could be a successor policy with other authorities, so milestones waits to judge who signed it.",
+  "params": {},
+  "policy": {
+    "authorities": [
+      "board.example+702db4fd+AepKbGPinFIKvvVQexMuxfmVR3auvr57kkIe6mkURtIs"
+    ]
+  },
+  "entries": [
+    "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxAdYAAAZjb25maWcAAAgAAAAAat7sYAAAAQAAAbh2aXRyaW5lL2NvbmZpZy92MQpldmVudCBtdW5pLTIwMjYKZWxlY3Rpb24gbWF5b3IKa2V5IEQwOXdGRWN2cjYxSjRuMEtidXNiQzJ2SldUR0pMdSsxS093RUtPTUtMZ2s9CnN0eWxlcyAwSm1sWkszSG9GYTJaUWhWVTkycW1hb2JCeFBuMUlSRTBSckY4WEhYc09nPQpvcGVucyAxNzkzMDAxNjAwCmNsb3NlcyAxNzkzMDQ0ODAwCnBvbGljeSBzaGEyNTY6ODIzNDEyZDFlYWNiNjc5NTYyMjBlNTMyOTU5ZjAxMDQ2MDMwNTdjODg3MDQ4NjNjYTM4ZTdjZDE4OGZkYTgxMgpyZWxlYXNlIGJvb3RoIDEuMC4wCnRyYW5zcGFyZW5jeSBwdWJsaWMKZGVtbyBubwp0aW1lIDE3OTI5OTQ0MDAKCuKAlCBib2FyZC5leGFtcGxlIGNDMjAvWGlUWmlOVys2NFplSXIvOHl4WGVySytqVEZnRlFSc281TG9heXZWQ0IycGNTVHNiOW5uVVdVbHRCMmxJRzFQOUt4bTVxczRmdWhMUlhTb1pzOVdVZzg9CgAAAA==",
+    "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxARcAAA12b3Rpbmctb3BlbmVkAAAIAAAAAGrfCIAAAAEAAADydml0cmluZS9taWxlc3RvbmUvdjEKZXZlbnQgbXVuaS0yMDI2CmtpbmQgdm90aW5nLW9wZW5lZAp0aW1lIDE3OTMwMDE2MDAKY29uZmlnIG1heW9yIHlyU0g4WHM1ZlBNZlF1NHdLTVVPUGh1S0U5Q2oxYnRXRUVIcnBqUEpQVlE9CgrigJQgYm9hcmQuZXhhbXBsZSBjQzIwL2ZhaGhubFBpZFZ3M1F2VUZ0enFpd0p6dFRNTjRQVk9vZGszNFlYWllNeGM1OFVISThXOVdXejJNYXJMZG9UbE1jUURsTjd5bE9YRmZobCt5VWlRRWdrPQoAAAA=",
+    "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxAOwAAA12b3RpbmctY2xvc2VkAAAIAAAAAGrfsUAAAAEAAADHdml0cmluZS9taWxlc3RvbmUvdjEKZXZlbnQgbXVuaS0yMDI2CmtpbmQgdm90aW5nLWNsb3NlZAp0aW1lIDE3OTMwNDQ4MDAKY291bnQgbWF5b3IgNDIKCuKAlCBib2FyZC5leGFtcGxlIGNDMjAvVVM4bldCcGJGdDkzVENDbkFJR3VGRTN6RjhiNitmQmF3b0lob1NoVzhheDRZeUZYRVdKRTNXZUliYlF1S0xZMExiczFVek9OL1I0anBISE04UnZ5Z2s9CgAAAA=="
+  ],
+  "sequenced": [
+    1792994600,
+    1793001595,
+    1793045400
+  ],
+  "fields": [
+    [
+      {
+        "name": "kind",
+        "value": "config"
+      },
+      {
+        "name": "time",
+        "value": "1792994400"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/config/v1\nevent muni-2026\nelection mayor\nkey D09wFEcvr61J4n0KbusbC2vJWTGJLu+1KOwEKOMKLgk=\nstyles 0JmlZK3HoFa2ZQhVU92qmaobBxPn1IRE0RrF8XHXsOg=\nopens 1793001600\ncloses 1793044800\npolicy sha256:823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812\nrelease booth 1.0.0\ntransparency public\ndemo no\ntime 1792994400\n\n— board.example cC20/XiTZiNW+64ZeIr/8yxXerK+jTFgFQRso5LoayvVCB2pcSTsb9nnUWUltB2lIG1P9Kxm5qs4fuhLRXSoZs9WUg8=\n"
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ],
+    [
+      {
+        "name": "kind",
+        "value": "voting-opened"
+      },
+      {
+        "name": "time",
+        "value": "1793001600"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/milestone/v1\nevent muni-2026\nkind voting-opened\ntime 1793001600\nconfig mayor yrSH8Xs5fPMfQu4wKMUOPhuKE9Cj1btWEEHrpjPJPVQ=\n\n— board.example cC20/fahhnlPidVw3QvUFtzqiwJztTMN4PVOodk34YXZYMxc58UHI8W9WWz2MarLdoTlMcQDlN7ylOXFfhl+yUiQEgk=\n"
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ],
+    [
+      {
+        "name": "kind",
+        "value": "voting-closed"
+      },
+      {
+        "name": "time",
+        "value": "1793044800"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/milestone/v1\nevent muni-2026\nkind voting-closed\ntime 1793044800\ncount mayor 42\n\n— board.example cC20/US8nWBpbFt93TCCnAIGuFE3zF8b6+fBawoIhoShW8ax4YyFXEWJE3WeIbbQuKLY0Lbs1UzON/R4jpHHM8Rvygk=\n"
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ]
+  ],
+  "rules": {
+    "milestones": "waiting",
+    "one-closed": "passing",
+    "one-opened": "passing",
+    "other-milestones": "passing",
+    "vitrine/parse": "passing"
+  }
+}

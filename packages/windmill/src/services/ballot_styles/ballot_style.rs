@@ -5,7 +5,7 @@
 use super::publication_files;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
-use crate::postgres::ballot_publication::get_ballot_publication_by_id;
+use crate::postgres::ballot_publication::{get_ballot_publication_by_id, lock_publication_event};
 use crate::postgres::ballot_style::insert_ballot_style;
 use crate::postgres::candidate::export_candidates;
 use crate::postgres::contest::export_contests;
@@ -13,6 +13,10 @@ use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::ballot_box_key::ballot_box_key_for_publication;
+use crate::services::ceremonies::keys_ceremony::{
+    verify_keys_ceremony_public_key, CeremonyPublicKeyState,
+};
 use crate::services::database::get_hasura_pool;
 use crate::services::election_dates::get_election_dates;
 use crate::services::external::utils::remove_datafix_annotations;
@@ -22,7 +26,7 @@ use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
 use rocket::http::Status;
-use sequent_core::ballot::{ContestEncryptionPolicy, ElectionEventPresentation};
+use sequent_core::ballot::{BallotBoxKey, ContestEncryptionPolicy, ElectionEventPresentation};
 use sequent_core::ballot_codec::multi_ballot::BallotChoices;
 use sequent_core::types::hasura::core::{
     self as hasura_type, Area, AreaContest, BallotPublication, BallotStyle, Candidate, Contest,
@@ -55,6 +59,11 @@ pub struct ElectionEventConfig {
  * Returns a HashMap<election_id, set<contest_id>> with all
  * the election ids and contest ids related to an area,
  * taking into consideration the parent areas as well.
+ *
+ * The resolution itself lives in `sequent_core::ballot_style` beside
+ * `create_ballot_style`, so that the Election Architect's ballot preview
+ * composes ballots exactly the way a publication does. This is the part that
+ * knows about a `ballot_publication` row, which sequent-core does not.
  */
 pub fn get_elections_contests_map_for_area(
     area: &Area,
@@ -63,48 +72,13 @@ pub fn get_elections_contests_map_for_area(
     contests_map: &HashMap<String, Contest>,
     area_contests_map: &HashMap<String, AreaContest>,
 ) -> AnyhowResult<HashMap<String, HashSet<String>>> {
-    let election_ids = ballot_publication.election_ids.clone().unwrap_or(vec![]);
-    if 0 == election_ids.len() {
-        return Err(anyhow!("No election ids"));
-    }
-    let area_ids: Vec<String> = areas_tree
-        .find_path_to_area(&area.id)
-        .ok_or(anyhow!("area not found in tree"))?
-        .into_iter()
-        .map(|area| area.id)
-        .collect();
-    let area_contests: Vec<AreaContest> = area_contests_map
-        .values()
-        .filter(|area_contest| area_ids.contains(&area_contest.area_id))
-        .map(|val| val.clone())
-        .collect();
-    // election_id, set<contest>
-    let mut election_contest_map: HashMap<String, HashSet<String>> = HashMap::new();
-
-    for area_contest in area_contests.iter() {
-        let Some(contest) = contests_map.get(&area_contest.contest_id) else {
-            event!(
-                Level::INFO,
-                "missing contest for area contest: {}",
-                area_contest.id
-            );
-            continue;
-        };
-        if !election_ids.contains(&contest.election_id) {
-            continue;
-        }
-        election_contest_map
-            .entry(contest.election_id.clone())
-            .and_modify(|contest_ids| {
-                contest_ids.insert(contest.id.clone());
-            })
-            .or_insert_with(|| {
-                let mut set = HashSet::new();
-                set.insert(contest.id.clone());
-                set
-            });
-    }
-    Ok(election_contest_map)
+    sequent_core::ballot_style::elections_contests_for_area(
+        area,
+        areas_tree,
+        &ballot_publication.election_ids.clone().unwrap_or_default(),
+        contests_map,
+        area_contests_map,
+    )
 }
 
 pub async fn create_ballot_style_postgres(
@@ -120,6 +94,7 @@ pub async fn create_ballot_style_postgres(
     area_contests_map: &HashMap<String, AreaContest>,
     scheduled_events: &Vec<ScheduledEvent>,
     keys_ceremonies_map: &HashMap<String, KeysCeremony>,
+    ballot_box_key: Option<&BallotBoxKey>,
 ) -> Result<()> {
     let election_contest_map = get_elections_contests_map_for_area(
         area,
@@ -176,7 +151,7 @@ pub async fn create_ballot_style_postgres(
         remove_datafix_annotations(voter_election_event.annotations.as_mut());
 
         let ballot_style_id = Uuid::new_v4();
-        let election_dto = sequent_core::ballot_style::create_ballot_style(
+        let mut election_dto = sequent_core::ballot_style::create_ballot_style(
             ballot_style_id.clone().to_string(),
             area.clone(),
             voter_election_event,
@@ -186,7 +161,25 @@ pub async fn create_ballot_style_postgres(
             candidates.clone(),
             election_dates.clone(),
             public_key.clone(),
+            // windmill has an environment; let it read DEMO_PUBLIC_KEY from
+            // there. A browser does not, which is why the parameter exists.
+            None,
         )?;
+        if let Some(published) = election_dto.public_key.as_mut().filter(|key| !key.is_demo) {
+            let ceremony_id = election
+                .keys_ceremony_id
+                .as_deref()
+                .context("Election has a public key without a keys ceremony")?;
+            let dkg = crate::services::protocol_board::load_dkg_board(
+                transaction,
+                tenant_id,
+                &election_event.id,
+                ceremony_id,
+            )
+            .await?;
+            published.configuration_id = Some(dkg.configuration.configuration_id()?.to_string());
+        }
+        election_dto.ballot_box_key = ballot_box_key.cloned();
 
         let is_multi_contest = election_dto
             .election_event_presentation
@@ -296,6 +289,18 @@ async fn generate_election_event_ballot_styles(
         .await
         .with_context(|| "Error getting hasura db pool")?;
 
+    // The producer enqueues this task before committing the publication and
+    // holds the event lock until then. Wait for it before taking the snapshot.
+    let barrier = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error starting hasura transaction")?;
+    lock_publication_event(&barrier, tenant_id, election_event_id).await?;
+    barrier
+        .rollback()
+        .await
+        .with_context(|| "Error releasing the publication event lock")?;
+
     let transaction = hasura_db_client
         .build_transaction()
         .isolation_level(IsolationLevel::RepeatableRead)
@@ -370,8 +375,49 @@ async fn generate_election_event_ballot_styles(
         .map(|keys_ceremony: KeysCeremony| (keys_ceremony.id.clone(), keys_ceremony.clone()))
         .collect();
 
+    super::slates::validate_elections_slates(
+        &ballot_publication.election_ids.clone().unwrap_or_default(),
+        &elections_map,
+        &contests_map.values().cloned().collect::<Vec<Contest>>(),
+        &candidates_map.values().cloned().collect::<Vec<Candidate>>(),
+    )?;
+    let mut verified_keys_ceremonies = HashSet::new();
+    for election_id in ballot_publication.election_ids.iter().flatten() {
+        let Some(keys_ceremony) = elections_map
+            .get(election_id)
+            .and_then(|election| election.keys_ceremony_id.as_ref())
+            .and_then(|keys_ceremony_id| keys_ceremonies_map.get(keys_ceremony_id))
+        else {
+            continue;
+        };
+        if verified_keys_ceremonies.insert(keys_ceremony.id.clone())
+            && verify_keys_ceremony_public_key(
+                &transaction,
+                tenant_id,
+                election_event_id,
+                keys_ceremony,
+            )
+            .await?
+                == CeremonyPublicKeyState::NotOnBoard
+        {
+            return Err(anyhow!(
+                "Keys ceremony {} reports a public key that is not on its board",
+                keys_ceremony.id
+            ));
+        }
+    }
+
     let basic_areas = areas.iter().map(|area| area.into()).collect();
     let areas_tree = TreeNode::from_areas(basic_areas)?;
+    let ballot_box_key = ballot_box_key_for_publication(&transaction, &election_event).await?;
+    if let Some(receipt_key) = ballot_box_key.as_ref() {
+        crate::services::public_ballot_keys::for_publication(
+            &transaction,
+            &election_event,
+            receipt_key,
+        )
+        .await?;
+    }
 
     for area in &areas {
         create_ballot_style_postgres(
@@ -387,6 +433,7 @@ async fn generate_election_event_ballot_styles(
             &area_contests_map,
             &scheduled_events,
             &keys_ceremonies_map,
+            ballot_box_key.as_ref(),
         )
         .await?;
     }

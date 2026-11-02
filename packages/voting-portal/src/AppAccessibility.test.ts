@@ -8,8 +8,8 @@ import ts from "typescript"
 
 it("places the skip link inside a navigation landmark", () => {
     const source = ts.createSourceFile(
-        "App.tsx",
-        readFileSync(join(__dirname, "App.tsx"), "utf8"),
+        "PortalChrome.tsx",
+        readFileSync(join(__dirname, "components", "PortalChrome.tsx"), "utf8"),
         ts.ScriptTarget.Latest,
         true,
         ts.ScriptKind.TSX

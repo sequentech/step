@@ -36,7 +36,8 @@ export const categorizeCandidates = (question: IContest): ICategorizedCandidates
         isInvalidOrBlank
     )
     const noCategoryCandidates: ICandidate[] = []
-    const categoriesMap: CategoriesMap = {}
+    // Category names are authored data, including names of inherited JS properties.
+    const categoriesMap: CategoriesMap = Object.create(null)
 
     for (const answer of validCandidates) {
         const category = answer.candidate_type
@@ -64,7 +65,7 @@ export const getShuffledCategories = (
     shuffleCategoryList: string[],
     typesPresentation?: Record<string, ITypePresentation>
 ): CategoriesMap => {
-    const shuffledCategories: CategoriesMap = {}
+    const shuffledCategories: CategoriesMap = Object.create(null)
 
     const categoryKeys = shuffleCategories
         ? shuffle(Object.keys(categories))

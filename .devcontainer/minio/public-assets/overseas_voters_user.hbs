@@ -19,8 +19,7 @@
                     <td class="left">
                       <div>
                         <p>
-                          {{datetime from_rfc3339=../execution_annotations.date_printed output_format="%B %d, %Y %H:%M"
-                          with_timezone="UTC"}}
+                          {{datetime_zone ../execution_annotations.date_printed output_format="%B %d, %Y %H:%M"}}
                         </p>
                       </div>
                     </td>
@@ -46,12 +45,7 @@
                     </div>
                     <div class="online">ONLINE VOTING AND COUNTING SYSTEM</div>
                     <div class="voting-period">
-                      Voting Period: {{datetime
-                      from_rfc3339=election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
-                      output_format="%d %B %Y" with_timezone="UTC"}} - {{datetime
-                      from_rfc3339=election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at
-                      output_format="%d %B %Y"
-                      with_timezone="UTC"}}
+                      Voting Period: {{#if election_dates.scheduled_event_dates.START_VOTING_PERIOD.scheduled_at}}{{datetime_zone election_dates.scheduled_event_dates.START_VOTING_PERIOD.scheduled_at output_format="%d %B %Y"}}{{else}}{{#if election_dates.first_started_at}}{{datetime_zone election_dates.first_started_at output_format="%d %B %Y"}}{{else}}-{{/if}}{{/if}} - {{#if election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at}}{{datetime_zone election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at @root.electionEventTimezone output_format="%d %B %Y"}}{{else}}{{#if election_dates.last_stopped_at}}{{datetime_zone election_dates.last_stopped_at @root.electionTimezone output_format="%d %B %Y"}}{{else}}-{{/if}}{{/if}}
                     </div>
 
                   </td>
@@ -122,10 +116,10 @@
                   {{status}}
                 </td>
                 <td>
-                  {{datetime from_rfc3339=date_voted output_format="%B %d, %Y"}}
+                  {{datetime_zone date_voted output_format="%B %d, %Y"}}
                 </td>
                 <td>
-                  {{datetime from_rfc3339=date_voted output_format="%H:%M GMT %:z"}}
+                  {{datetime_zone date_voted output_format="%H:%M"}}
                 </td>
               </tr>
               {{/each}}
@@ -191,6 +185,12 @@
       <td align="center">
         <div>
           <span class="word-break">Report hash: {{sanitize_html (expr ../execution_annotations.report_hash)}}</span><br />
+          {{#if ../execution_annotations.configuration_revision}}
+          Configuration revision {{sanitize_html ../execution_annotations.configuration_revision}}, manifest SHA-256 {{sanitize_html ../execution_annotations.configuration_manifest_sha256}}<br />
+          {{/if}}
+          {{#if ../execution_annotations.copy_total}}
+          Copy {{sanitize_html ../execution_annotations.copy_number}} of {{sanitize_html ../execution_annotations.copy_total}}<br />
+          {{/if}}
           <br />
           Software version: {{sanitize_html (expr ../execution_annotations.software_version)}}<br />
           System hash: {{sanitize_html (expr ../execution_annotations.app_hash)}}
@@ -219,7 +219,7 @@
       let systemHash = '{{expr execution_annotations.app_hash}}';
       let softwareVersion = '{{expr execution_annotations.software_version}}';
       let ovcsVersion = '{{expr execution_annotations.app_version}}';
-      let date = `{{datetime from_rfc3339=execution_annotations.date_printed output_format="%B %d, %Y %H:%M" with_timezone="UTC"}}`
+      let date = `{{datetime_zone execution_annotations.date_printed output_format="%B %d, %Y %H:%M"}}`
       let user = '{{expr execution_annotations.executer_username}}'
       const areaData = {{{to_json areas}}};
       areaData.forEach((area, index) => {
