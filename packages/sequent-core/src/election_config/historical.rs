@@ -305,16 +305,10 @@ pub fn adapt(
     } else {
         (workbook, None)
     };
+    // Enums, strings and numbers only: encoding them cannot fail.
     summary.decisions_sha256 = format!(
         "{:x}",
-        Sha256::digest(serde_json::to_vec(options).map_err(|_| fail(
-            summary.clone(),
-            Problem::error(
-                Code::InvalidValue,
-                "historical decisions",
-                "could not encode decisions"
-            )
-        ))?)
+        Sha256::digest(serde_json::to_vec(options).unwrap_or_default())
     );
     let dates = || {
         let dates = historical_dates(xlsx, options.schedule_offset_minutes)?;
