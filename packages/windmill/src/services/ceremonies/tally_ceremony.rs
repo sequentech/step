@@ -222,6 +222,8 @@ pub async fn insert_tally_session_contests(
     // at its `session_id`. Only `VOTERS_WEIGHTED_VOTING` fills more than the
     // first, but the stride is unconditional so that a session created under
     // one policy can never allocate a batch inside a run created under another.
+    // Sessions created before the layout widened own fewer batches per area,
+    // and `get_tally_session_highest_batch` steps past their last run too.
     let mut batch: BatchNumber =
         get_tally_session_highest_batch(hasura_transaction, tenant_id, election_event_id).await?;
 
@@ -345,18 +347,18 @@ pub async fn create_tally_ceremony(
             )
             .into());
         }
-        // The mix batch no longer repeats a ciphertext, but the tally still
-        // expands each batch's plaintexts by that batch's multiplier, so the
-        // decoded ballots would carry each voter's weight as a run of identical
-        // plaintexts. This closes the most direct disclosure; it does not make
-        // the scheme secret-ballot safe on its own, since a ballot still
-        // appears in one batch per bit of its weight and every batch is
-        // public.
+        // Each weight batch is decoded on its own, so a voter's ballot is
+        // decoded once per bit of their weight. Published, those ballots would
+        // not be one per voter, and matching them across batches would read
+        // each voter's weight straight off the results. This closes the most
+        // direct disclosure; it does not make the scheme secret-ballot safe on
+        // its own, since every batch is public on the board.
         if decoded_ballots_inclusion_policy == DecodedBallotsInclusionPolicy::INCLUDED {
             return Err(TallyValidationError::new(format!(
                 "Decoded ballots cannot be included in the results when \
-                 voter-weighted voting is enabled, because the repeated \
-                 ballots would reveal each voter's weight"
+                 voter-weighted voting is enabled, because each ballot is \
+                 decoded once per weight batch it was mixed in, which would \
+                 reveal each voter's weight"
             ))
             .into());
         }
@@ -459,6 +461,11 @@ pub async fn create_tally_ceremony(
     final_configuration.contest_encryption_policy = Some(contest_encryption_policy);
     final_configuration.decoded_ballots_inclusion_policy = Some(decoded_ballots_inclusion_policy);
     final_configuration.delegated_voting_policy = Some(delegated_voting_policy);
+    // Recorded so that the dump keeps using the batch layout this session's
+    // contest areas are allocated below, whatever a later release widens it to.
+    final_configuration.vote_weight_batches = (weighted_voting_policy
+        == WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING)
+        .then_some(VOTE_WEIGHT_BATCHES);
     final_configuration.weighted_voting_policy = Some(weighted_voting_policy);
     let contests: Vec<Contest> = all_contests
         .into_iter()
@@ -554,6 +561,7 @@ pub async fn create_tally_ceremony(
     let tally_session_id: String = Uuid::new_v4().to_string();
 
     let annotations: Value = json!({
+        "result_readiness_version": 1,
         "executer_username": username,
         "executer_user_id": user_id,
         ELECTION_AREAS_ANNOTATION: serde_json::to_string(&election_areas(
@@ -654,8 +662,27 @@ pub async fn update_tally_ceremony(
     user_id: String,
     username: String,
 ) -> Result<()> {
+    lock_tally_session_for_update(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session.id,
+    )
+    .await?;
+    let tally_session = get_tally_session_by_id(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session.id,
+    )
+    .await?;
+    // Numeric completion remains terminal for cancellation while reports finalize.
+    if super::result_readiness::is_numerically_complete(&tally_session) {
+        return Err(TallyValidationError::new("Cannot change a completed tally's status").into());
+    }
     let current_status = tally_session
         .execution_status
+        .clone()
         .map(|value| {
             TallyExecutionStatus::from_str(&value).unwrap_or(TallyExecutionStatus::STARTED)
         })
@@ -996,8 +1023,24 @@ pub async fn set_tally_session_completed(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
+    has_results: bool,
 ) -> Result<()> {
-    let execution_status = TallyExecutionStatus::SUCCESS;
+    let session = get_tally_session_by_id(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await?;
+    // Existing tallies retain their original completion semantics.
+    let execution_status =
+        if super::result_readiness::uses_readiness_policy(session.annotations.as_ref())
+            && has_results
+        {
+            TallyExecutionStatus::IN_PROGRESS
+        } else {
+            TallyExecutionStatus::SUCCESS
+        };
 
     let is_updated = match set_tally_session_completed_in_db(
         hasura_transaction,
@@ -1009,9 +1052,19 @@ pub async fn set_tally_session_completed(
     .await
     {
         Ok(_) => true,
-        Err(_) => false,
+        Err(error) => return Err(error),
     };
 
+    if super::result_readiness::uses_readiness_policy(session.annotations.as_ref()) && !has_results
+    {
+        crate::postgres::tally_session::set_post_tally_task_completed(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session_id,
+        )
+        .await?;
+    }
     if is_updated {
         let election_event =
             get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;
@@ -1107,10 +1160,7 @@ pub async fn begin_tally_session_recount(
         tally_session_id,
     )
     .await?;
-    if tally_session.execution_status.as_deref()
-        != Some(TallyExecutionStatus::SUCCESS.to_string().as_str())
-        || !tally_session.is_execution_completed
-    {
+    if !super::result_readiness::is_numerically_complete(&tally_session) {
         return Ok(false);
     }
 

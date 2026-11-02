@@ -46,8 +46,9 @@ authentication flow.
 
 - Voters imported with an **email address**, a **mobile number**, or both.
 - A working sender for the channel you use: an email sender for email codes, an
-  SMS sender for SMS codes. In the development environment the dummy senders write
-  the message to the Keycloak log instead of sending it.
+  SMS sender for SMS codes. In the development environment the dummy senders
+  simulate delivery without sending or logging the message; Step 3 explains how to
+  sign in with them.
 - Access to the Keycloak admin console for the election event realm.
 
 ## Step 1: add the OTP sub-flow to the browser flow
@@ -95,18 +96,14 @@ SMS:
 
 Entering the code completes the login.
 
-In the development environment the message is written to the Keycloak log rather
-than sent, so you can read an emailed code with:
+Use the code received through the configured email or SMS provider. Dummy
+couriers simulate delivery and log delivery metadata; they do not send messages
+or expose their contents.
 
-```bash
-docker logs keycloak --since 2m 2>&1 | grep -A6 "Sending dummy email"
-```
-
-The dummy SMS sender logs its messages in the same way:
-
-```bash
-docker logs keycloak --since 2m 2>&1 | grep -A3 "Sending dummy sms"
-```
+For a local run with a dummy courier, enable **Test Mode** and choose a **Test Mode
+Code** on this Message OTP execution in an isolated development realm. Use the
+configured number of digits. Restore the previous settings after the run; do not
+enable test mode in a production realm.
 
 ## Step 4: verify the credential was created
 
