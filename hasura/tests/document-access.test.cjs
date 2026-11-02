@@ -32,6 +32,21 @@ const protectedFilter = {
                 },
             ],
         },
+        // Archives carrying integration secrets keep their access restriction.
+        {
+            _or: [
+                {annotations: {_is_null: true}},
+                {
+                    _not: {
+                        annotations: {
+                            _contains: {
+                                access: {integration_secrets: true},
+                            },
+                        },
+                    },
+                },
+            ],
+        },
     ],
 }
 const excludeBallotReceipts = {
