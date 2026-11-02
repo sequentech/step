@@ -10,6 +10,11 @@
 //! or the process stopped, are published again by
 //! `relay_electoral_log_outbox`. The ID is the message's correlation ID, so
 //! the dispatcher's receipts make publishing an event twice harmless.
+//!
+//! Both wait for RabbitMQ's confirmations for a bounded time only: a broker
+//! that stays connected but does not confirm must neither hold the vote's
+//! response nor keep the relay's rows locked. A publish that times out may
+//! still have been stored, and its row stays to be published again.
 
 use crate::services::celery_app::{get_celery_connection, Queue};
 use crate::services::database::get_hasura_pool;
@@ -23,6 +28,7 @@ use lapin::{
     types::{AMQPValue, FieldTable, ShortString},
     BasicProperties, Connection,
 };
+use std::future::Future;
 use std::time::Duration;
 use tracing::{error, info};
 use uuid::Uuid;
@@ -33,6 +39,14 @@ const PERSISTENT_DELIVERY_MODE: u8 = 2;
 pub const OUTBOX_RELAY_DELAY: Duration = Duration::from_secs(60);
 /// Most events one relay run publishes.
 pub const OUTBOX_RELAY_BATCH: i64 = 500;
+/// Longest the delivery of an accepted vote's event delays its response.
+pub const OUTBOX_DELIVERY_TIMEOUT: Duration = Duration::from_secs(5);
+/// Longest a relay run publishes. The events confirmed by then are removed
+/// and the others are left to the next run.
+pub const OUTBOX_RELAY_PUBLISH_BUDGET: Duration = Duration::from_secs(30);
+/// Longest a relay run waits for its connections, for its rows and for
+/// removing the events it published.
+pub const OUTBOX_RELAY_STEP_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// An event stored in the outbox, waiting to be published.
 #[derive(Debug, Clone)]
@@ -155,10 +169,19 @@ fn event_queue() -> Result<String> {
     Ok(Queue::ElectoralLogEvent.queue_name(&slug))
 }
 
+/// Runs `work` for at most `limit`. On timeout `work` is dropped with what it
+/// holds: an open transaction is rolled back and a pending confirmation is
+/// no longer awaited.
+pub async fn within<T>(limit: Duration, work: impl Future<Output = Result<T>>) -> Result<T> {
+    tokio::time::timeout(limit, work)
+        .await
+        .map_err(|_| anyhow!("Timed out after {limit:?} delivering electoral log events"))?
+}
+
 /// Publishes an event stored by an accepted vote, after its commit. On error
-/// the event stays in the outbox for the relay.
+/// or timeout the event stays in the outbox for the relay.
 pub async fn deliver_log_event(event: &PendingLogEvent) {
-    let delivered = async {
+    let delivered = within(OUTBOX_DELIVERY_TIMEOUT, async {
         let connection = get_celery_connection().await?;
         publish_and_remove(&connection, &event_queue()?, event, || async {
             get_hasura_pool()
@@ -168,7 +191,7 @@ pub async fn deliver_log_event(event: &PendingLogEvent) {
                 .context("Error getting DB pool")
         })
         .await
-    }
+    })
     .await;
     if let Err(err) = delivered {
         error!(
@@ -199,24 +222,32 @@ where
 
 /// Publishes the outbox events older than `older_than`, oldest first, and
 /// removes them. Rows are locked while they are published, so concurrent
-/// relays take different events. Returns how many were published.
+/// relays take different events. Publishing stops at the first event that
+/// fails or that RabbitMQ has not confirmed within `budget`; the events
+/// confirmed before it are removed. Returns how many were published.
 pub async fn relay_log_events(
     client: &mut DbClient,
     connection: &Connection,
     queue: &str,
     older_than: Duration,
     limit: i64,
+    budget: Duration,
 ) -> Result<usize> {
-    let transaction = client.transaction().await?;
-    let rows = transaction
-        .query(
-            "SELECT id, input FROM sequent_backend.electoral_log_outbox \
-             WHERE created_at < now() - make_interval(secs => $1) \
-             ORDER BY created_at LIMIT $2 FOR UPDATE SKIP LOCKED",
-            &[&older_than.as_secs_f64(), &limit],
-        )
-        .await
-        .context("Error reading the electoral log outbox")?;
+    let (transaction, rows) = within(OUTBOX_RELAY_STEP_TIMEOUT, async move {
+        let transaction = client.transaction().await?;
+        let rows = transaction
+            .query(
+                "SELECT id, input FROM sequent_backend.electoral_log_outbox \
+                 WHERE created_at < now() - make_interval(secs => $1) \
+                 ORDER BY created_at LIMIT $2 FOR UPDATE SKIP LOCKED",
+                &[&older_than.as_secs_f64(), &limit],
+            )
+            .await
+            .context("Error reading the electoral log outbox")?;
+        Ok((transaction, rows))
+    })
+    .await?;
+    let deadline = tokio::time::Instant::now() + budget;
     let mut published = Vec::with_capacity(rows.len());
     let mut failure = None;
     for row in rows {
@@ -225,20 +256,34 @@ pub async fn relay_log_events(
             input: serde_json::from_value(row.try_get(1)?)
                 .context("Error reading an electoral log outbox event")?,
         };
-        if let Err(err) = publish_log_event(connection, queue, &event).await {
-            failure = Some(err);
-            break;
+        match tokio::time::timeout_at(deadline, publish_log_event(connection, queue, &event)).await
+        {
+            Ok(Ok(())) => published.push(event.id),
+            Ok(Err(err)) => {
+                failure = Some(err);
+                break;
+            }
+            Err(_) => {
+                failure = Some(anyhow!(
+                    "RabbitMQ did not confirm event {} within {budget:?}",
+                    event.id
+                ));
+                break;
+            }
         }
-        published.push(event.id);
     }
-    transaction
-        .execute(
-            "DELETE FROM sequent_backend.electoral_log_outbox WHERE id = ANY($1)",
-            &[&published],
-        )
-        .await
-        .context("Error removing published electoral log events from the outbox")?;
-    transaction.commit().await?;
+    within(OUTBOX_RELAY_STEP_TIMEOUT, async {
+        transaction
+            .execute(
+                "DELETE FROM sequent_backend.electoral_log_outbox WHERE id = ANY($1)",
+                &[&published],
+            )
+            .await
+            .context("Error removing published electoral log events from the outbox")?;
+        transaction.commit().await?;
+        Ok(())
+    })
+    .await?;
     if !published.is_empty() {
         info!(
             "Relayed {} electoral log events from the outbox",
@@ -254,20 +299,27 @@ pub async fn relay_log_events(
     }
 }
 
-/// Runs the relay against the configured database and broker.
+/// Runs the relay against the configured database and broker. The broker
+/// connection is taken first, so that reconnecting does not hold a database
+/// client.
 pub async fn relay_configured_log_events() -> Result<usize> {
-    let mut client = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .context("Error getting DB pool")?;
-    let connection = get_celery_connection().await?;
+    let (connection, mut client) = within(OUTBOX_RELAY_STEP_TIMEOUT, async {
+        let connection = get_celery_connection().await?;
+        let client = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .context("Error getting DB pool")?;
+        Ok((connection, client))
+    })
+    .await?;
     relay_log_events(
         &mut client,
         &connection,
         &event_queue()?,
         OUTBOX_RELAY_DELAY,
         OUTBOX_RELAY_BATCH,
+        OUTBOX_RELAY_PUBLISH_BUDGET,
     )
     .await
 }
