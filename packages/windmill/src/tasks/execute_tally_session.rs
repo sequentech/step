@@ -29,6 +29,9 @@ use crate::services::ceremonies::insert_ballots::{
     get_elections_end_dates, insert_ballots_messages,
 };
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
+use crate::services::ceremonies::result_readiness::{
+    expected_area_contests, lock_active_tally, record_result_origins, uses_readiness_policy,
+};
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_finished, append_tally_updated, generate_logs, print_messages, sort_logs,
@@ -447,7 +450,15 @@ async fn process_plaintexts(
 }
 
 #[instrument]
-fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecutionStatus> {
+fn get_execution_status(
+    execution_status: Option<String>,
+    completed: bool,
+) -> Option<TallyExecutionStatus> {
+    // Duplicate/recount nudges arriving during PDF finalization must not append
+    // an error execution and displace the completed SQLite snapshot.
+    if completed {
+        return None;
+    }
     let Some(execution_status_str) = execution_status.clone() else {
         event!(Level::INFO, "Missing execution status");
 
@@ -712,6 +723,18 @@ async fn map_plaintext_data(
         TallySession,
     )>,
 > {
+    let Some(execution_status) = get_execution_status(
+        tally_session.execution_status.clone(),
+        tally_session.is_execution_completed,
+    ) else {
+        event!(
+            Level::INFO,
+            "Election Event {} Tally execution status not found",
+            election_event_id.clone()
+        );
+        return Ok(None);
+    };
+
     // fetch election_event
     let Ok(election_event) =
         get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await
@@ -737,16 +760,6 @@ async fn map_plaintext_data(
     // let tally_session = &tally_session_data.sequent_backend_tally_session[0];
     let tally_session_created_at_timestamp_secs =
         get_tally_session_created_at_timestamp_secs(&tally_session)? as u64;
-
-    let Some(execution_status) = get_execution_status(tally_session.execution_status.clone())
-    else {
-        event!(
-            Level::INFO,
-            "Election Event {} Tally execution status not found",
-            election_event_id.clone()
-        );
-        return Ok(None);
-    };
 
     let keys_ceremonies = get_keys_ceremonies(hasura_transaction, &tenant_id, &election_event_id)
         .await
@@ -1347,6 +1360,17 @@ pub async fn execute_tally_session_wrapped(
         return Ok(());
     };
 
+    // Late nudges must stop before fallible key/template reads can append an
+    // error execution that displaces the completed numeric snapshot.
+    if get_execution_status(
+        tally_session.execution_status.clone(),
+        tally_session.is_execution_completed,
+    )
+    .is_none()
+    {
+        return Ok(());
+    }
+
     let keys_ceremony = get_keys_ceremony_by_id(
         hasura_transaction,
         &tenant_id,
@@ -1493,6 +1517,18 @@ pub async fn execute_tally_session_wrapped(
     )
     .await?;
 
+    let expected = if uses_readiness_policy(tally_session.annotations.as_ref()) {
+        let expected = expected_area_contests(
+            &tally_session,
+            &tally_session_contests,
+            &get_ballot_styles(&ballot_styles)?,
+        )?;
+        lock_active_tally(hasura_transaction, &tally_session).await?;
+        expected
+    } else {
+        Vec::new()
+    };
+
     // Check if results contain pending IRV tie-break resolutions.
     // On a re-run after partial resolution the new results_event_id ensures
     // handle_pending_irv_resolutions only returns ties from the freshly-computed
@@ -1516,7 +1552,7 @@ pub async fn execute_tally_session_wrapped(
                 .map(|values| values.into_iter().map(|int| int as i32).collect());
             new_status.logs =
                 append_tally_updated(&new_status.logs, &election_ids.clone().unwrap_or_default());
-            insert_tally_session_execution(
+            let saved_execution = insert_tally_session_execution(
                 hasura_transaction,
                 &tenant_id,
                 &election_event_id,
@@ -1531,6 +1567,17 @@ pub async fn execute_tally_session_wrapped(
                 TallyRunReason::NORMAL,
             )
             .await?;
+
+            if uses_readiness_policy(tally_session.annotations.as_ref()) {
+                record_result_origins(
+                    hasura_transaction,
+                    &saved_execution,
+                    &tally_session.election_ids.clone().unwrap_or_default(),
+                    &expected,
+                    false,
+                )
+                .await?;
+            }
 
             // Update status to AWAITING_INPUT
             update_tally_session_status(
@@ -1561,7 +1608,7 @@ pub async fn execute_tally_session_wrapped(
     };
 
     // insert tally_session_execution
-    insert_tally_session_execution(
+    let saved_execution = insert_tally_session_execution(
         hasura_transaction,
         &tenant_id,
         &election_event_id,
@@ -1575,6 +1622,17 @@ pub async fn execute_tally_session_wrapped(
     )
     .await?;
 
+    if uses_readiness_policy(tally_session.annotations.as_ref()) {
+        record_result_origins(
+            hasura_transaction,
+            &saved_execution,
+            &tally_session.election_ids.clone().unwrap_or_default(),
+            &expected,
+            is_execution_completed,
+        )
+        .await?;
+    }
+
     if is_execution_completed {
         // update tally session to flag it as completed
         set_tally_session_completed(
@@ -1582,6 +1640,7 @@ pub async fn execute_tally_session_wrapped(
             tenant_id.clone(),
             election_event_id.clone(),
             tally_session_id.clone(),
+            saved_execution.results_event_id.is_some(),
         )
         .await?;
         // get the election event
@@ -1748,12 +1807,20 @@ mod tests {
     use crate::services::ceremonies::election_electorates::ElectionElectorates;
     use crate::tasks::execute_tally_session::{
         count_cast_votes_election_with_census, generate_acclaimed_area_contests,
-        should_force_initial_results,
+        get_execution_status, should_force_initial_results,
     };
     use anyhow::anyhow;
     use anyhow::Result;
     use sequent_core::ballot::{BallotStyle, Contest};
     use sequent_core::types::hasura::core::{Area, TallySessionContest};
+
+    #[test]
+    fn completed_numeric_run_ignores_late_recount_nudges_before_processing() {
+        assert!(get_execution_status(Some("IN_PROGRESS".into()), true).is_none());
+        assert!(get_execution_status(Some("SUCCESS".into()), true).is_none());
+        // begin_tally_session_recount clears completion before enqueueing work.
+        assert!(get_execution_status(Some("IN_PROGRESS".into()), false).is_some());
+    }
 
     #[test]
     fn initial_results_are_forced_only_after_execution_completes() {

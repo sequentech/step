@@ -1816,6 +1816,9 @@ const englishTranslation = {
                         archive: "Are you sure to archive this item?",
                         unarchive: "Are you sure to unarchive this item?",
                         delete: "Are you sure to delete this item?",
+                        archiveNamed: 'Are you sure you want to archive "{{name}}"?',
+                        unarchiveNamed: 'Are you sure you want to unarchive "{{name}}"?',
+                        deleteNamed: 'Are you sure you want to delete "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2142,6 +2145,8 @@ const englishTranslation = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Numeric results are complete. Reports are still being generated.",
             errorUploadingSignature: "There was an error uploading signature",
             downloadTransmissionPackage: "Download Transmission Package",
             resultsPublication: {
