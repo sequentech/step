@@ -147,19 +147,26 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                 url={service.url}
                 title={text(frame.frame)}
                 dispatch={dispatch}
+                fillWindow={state.stage === CaptureStage.Face}
             />
             <StartOver text={text} loginAction={url.loginAction} />
         </Template>
     )
 }
 
-/** One of Scanovate's own capture pages, embedded as its integration guide asks. */
+/**
+ * One of Scanovate's own capture pages, embedded as its integration guide asks.
+ *
+ * The face check fills the window: ID R&D's face capture inside it takes a frame
+ * much smaller than the window for open DevTools, and refuses to start.
+ */
 function ScanovateFrame(props: {
     url: string
     title: TemplateLabel
     dispatch: Dispatch<CaptureEvent>
+    fillWindow: boolean
 }) {
-    const {url, title, dispatch} = props
+    const {url, title, dispatch, fillWindow} = props
     const ref = useRef<HTMLIFrameElement | null>(null)
 
     useEffect(() => {
@@ -175,7 +182,7 @@ function ScanovateFrame(props: {
     }, [url, dispatch])
 
     return (
-        <div className="scanovate-frame">
+        <div className={fillWindow ? "scanovate-frame scanovate-frame-window" : "scanovate-frame"}>
             <iframe
                 ref={ref}
                 src={url}

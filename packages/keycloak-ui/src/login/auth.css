@@ -906,6 +906,18 @@ html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visib
     height: 100%;
     border: 0;
 }
+/* The face check covers the whole window (ScanovateFrame). */
+.sequent-auth .scanovate-frame.scanovate-frame-window {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+}
 .sequent-auth .scanovate-start-over {
     display: flex;
     justify-content: center;

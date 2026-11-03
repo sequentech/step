@@ -226,6 +226,17 @@ export const FaceStep: Story = {
         ).toBeVisible()
         const frame = await scanovateFrame(canvasElement, FAKE_LIVENESS)
         await expect(frame).toHaveAccessibleName("Face check")
+        // ID R&D's face capture takes a frame much smaller than the window
+        // for open DevTools and refuses to start, so it fills the window.
+        await waitFor(() => {
+            const box = frame.getBoundingClientRect()
+            expect([box.left, box.top, box.width, box.height]).toEqual([
+                0,
+                0,
+                window.innerWidth,
+                window.innerHeight,
+            ])
+        })
     },
 }
 
