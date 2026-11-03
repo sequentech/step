@@ -168,6 +168,8 @@ const basqueTranslation: TranslationType = {
                     "Autentifikazioak huts egin du. Saiatu berriro edo jarri harremanetan laguntza-zerbitzuarekin laguntza jasotzeko.",
                 SESSION_EXPIRED: "Zure saioa iraungi da. Saiatu berriro hasieratik.",
                 CAST_VOTE_BallotIdMismatch: "Boto-paperaren IDa ez dator bat emandako botoarekin.",
+                CAST_VOTE_BallotStyleMismatch:
+                    "Zure boto-papera ez dator bat une honetan hauteskunde honetarako argitaratuta dagoenarekin. Mesedez, birkargatu orria eta saiatu berriro, edo jarri harremanetan laguntzarekin.",
                 SESSION_STORAGE_ERROR:
                     "Saio-biltegia ez dago erabilgarri. Mesedez, saiatu berriro edo jarri harremanetan laguntza-zerbitzuarekin.",
                 PARSE_BALLOT_DATA_ERROR:
