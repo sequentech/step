@@ -1856,6 +1856,9 @@ const catalanTranslation: TranslationType = {
                         archive: "Estàs segur de que vols arxivar aquest element?",
                         unarchive: "Estàs segur de que vols desarxivar aquest element?",
                         delete: "Estàs segur de que vols eliminar aquest element?",
+                        archiveNamed: 'Estàs segur de que vols arxivar "{{name}}"?',
+                        unarchiveNamed: 'Estàs segur de que vols desarxivar "{{name}}"?',
+                        deleteNamed: 'Estàs segur de que vols eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2180,6 +2183,8 @@ const catalanTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Els resultats numèrics estan complets. Els informes encara s’estan generant.",
             errorUploadingSignature: "S'ha produït un error en carregar la signatura",
             downloadTransmissionPackage: "Descarregar paquet",
             resultsPublication: {

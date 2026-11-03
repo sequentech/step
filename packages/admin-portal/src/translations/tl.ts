@@ -1847,6 +1847,9 @@ const tagalogTranslation: TranslationType = {
                         archive: "Sigurado ka bang i-archive ang item na ito?",
                         unarchive: "Sigurado ka bang i-unarchive ang item na ito?",
                         delete: "Sigurado ka bang tanggalin ang item na ito?",
+                        archiveNamed: 'Sigurado ka bang i-archive ang "{{name}}"?',
+                        unarchiveNamed: 'Sigurado ka bang i-unarchive ang "{{name}}"?',
+                        deleteNamed: 'Sigurado ka bang tanggalin ang "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2175,6 +2178,8 @@ const tagalogTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Kumpleto na ang mga numerikong resulta. Ginagawa pa ang mga ulat.",
             errorUploadingSignature: "Nagkaroon ng error sa pag-upload ng pirma",
             downloadTransmissionPackage: "I-download ang pakete",
             resultsPublication: {

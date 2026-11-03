@@ -370,7 +370,12 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         .iter()
         .map(|candidate_result| candidate_result.total_count)
         .sum();
-    let total_valid_marks: u64 = match contest.get_counting_algorithm() {
+    let count_valid: u64 = content
+        .total_valid_votes
+        .unwrap_or(votes_for_candidates.saturating_add(count_blank));
+    // The candidate percentage base, in the unit the electronic tally sums into total_weight:
+    // marks for plurality, one per non-blank ballot for instant runoff.
+    let total_weight: u64 = match contest.get_counting_algorithm() {
         CountingAlgType::PluralityAtLarge => candidate_results
             .iter()
             .filter(|candidate_result| {
@@ -379,11 +384,9 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
             })
             .map(|candidate_result| candidate_result.total_count)
             .sum(),
+        CountingAlgType::InstantRunoff => count_valid.saturating_sub(count_blank),
         _ => 0,
     };
-    let count_valid: u64 = content
-        .total_valid_votes
-        .unwrap_or(votes_for_candidates.saturating_add(count_blank));
 
     let total_votes = count_valid + count_invalid;
     let channel: VotingChannel = tally_sheet.channel.clone().into();
@@ -414,7 +417,7 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         extended_metrics: Some(ExtendedMetricsContest {
             votes_by_channel,
             total_blank_ballots: content.blank_ballots.unwrap_or(0),
-            total_weight: total_valid_marks,
+            total_weight,
             ..Default::default()
         }),
         process_results: None,
@@ -744,19 +747,20 @@ mod tests {
     }
 
     #[test]
-    fn process_tally_sheet_does_not_set_mark_weight_for_instant_runoff() {
+    fn process_tally_sheet_weighs_instant_runoff_by_non_blank_ballots() {
         let mut contest = contest();
         contest.counting_algorithm = Some(CountingAlgType::InstantRunoff);
 
         let result =
             process_tally_sheet(&tally_sheet(4, 2), &contest).expect("tally sheet should process");
 
+        // 6 valid ballots, 2 of them blank, so the same base as electronic ballots at weight 1.
         assert_eq!(
             result
                 .extended_metrics
                 .expect("extended metrics should exist")
                 .total_weight,
-            0
+            4
         );
     }
 
