@@ -18,6 +18,7 @@ use windmill::postgres::area::{
     delete_area_contests, insert_area, update_area,
 };
 use windmill::postgres::area_contest::insert_area_to_area_contests;
+use windmill::postgres::election_event::get_election_event_by_id_if_exist;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::import::import_election_event::upsert_b3_and_elog;
 
@@ -40,18 +41,25 @@ pub struct UpsertAreaOutput {
     id: String,
 }
 
+fn authorize_upsert_area(
+    claims: &JwtClaims,
+    input: &UpsertAreaInput,
+) -> Result<(), (Status, String)> {
+    authorize(
+        claims,
+        true,
+        Some(input.tenant_id.to_string()),
+        vec![Permissions::AREA_CREATE],
+    )
+}
+
 #[instrument(skip(claims))]
 #[post("/upsert-area", format = "json", data = "<body>")]
 pub async fn upsert_area(
     body: Json<UpsertAreaInput>,
     claims: JwtClaims,
 ) -> Result<Json<UpsertAreaOutput>, (Status, String)> {
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::AREA_CREATE],
-    )?;
+    authorize_upsert_area(&claims, &body)?;
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -64,13 +72,29 @@ pub async fn upsert_area(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
+    let tenant_id = body.tenant_id.to_string();
     let election_event_id_str = body.election_event_id.to_string();
+
+    get_election_event_by_id_if_exist(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id_str,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?
+    .ok_or_else(|| {
+        (
+            Status::NotFound,
+            format!("Election event {election_event_id_str} not found"),
+        )
+    })?;
+
     let area = Area {
         id: body
             .id
             .map(|uuid| uuid.to_string())
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
-        tenant_id: body.tenant_id.to_string(),
+        tenant_id: tenant_id.clone(),
         election_event_id: election_event_id_str.clone(),
         labels: body.labels.clone(),
         annotations: body.annotations.clone(),
@@ -92,10 +116,9 @@ pub async fn upsert_area(
             .await
             .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     }
-    let tenant_id = &claims.hasura_claims.tenant_id;
     delete_area_contests(
         &hasura_transaction,
-        tenant_id,
+        &tenant_id,
         &body.election_event_id,
         &area.id,
     )
@@ -109,7 +132,7 @@ pub async fn upsert_area(
 
     insert_area_to_area_contests(
         &hasura_transaction,
-        tenant_id,
+        &tenant_id,
         &election_event_id_str,
         &area.id,
         &body.area_contest_ids,
@@ -124,7 +147,7 @@ pub async fn upsert_area(
 
     upsert_b3_and_elog(
         &hasura_transaction,
-        &claims.hasura_claims.tenant_id,
+        &tenant_id,
         &body.election_event_id.to_string(),
         &vec![area.id.clone()],
         false,
@@ -139,4 +162,43 @@ pub async fn upsert_area(
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(UpsertAreaOutput { id: area.id }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::authorization::test_claims::{
+        admin_claims, CALLER_TENANT_ID, OTHER_TENANT_ID,
+    };
+
+    fn input(tenant_id: &str) -> UpsertAreaInput {
+        UpsertAreaInput {
+            id: None,
+            name: "area".to_string(),
+            description: None,
+            election_event_id: Uuid::new_v4(),
+            tenant_id: Uuid::parse_str(tenant_id)
+                .expect("test tenant id must be a UUID"),
+            parent_id: None,
+            area_contest_ids: vec![],
+            annotations: None,
+            labels: None,
+            r#type: None,
+        }
+    }
+
+    #[test]
+    fn upsert_area_rejects_tenant_other_than_callers() {
+        let claims = admin_claims(CALLER_TENANT_ID, &["area-create"]);
+        let result = authorize_upsert_area(&claims, &input(OTHER_TENANT_ID));
+        assert_eq!(result.unwrap_err().0, Status::Unauthorized);
+    }
+
+    #[test]
+    fn upsert_area_accepts_callers_tenant() {
+        let claims = admin_claims(CALLER_TENANT_ID, &["area-create"]);
+        assert!(
+            authorize_upsert_area(&claims, &input(CALLER_TENANT_ID)).is_ok()
+        );
+    }
 }
