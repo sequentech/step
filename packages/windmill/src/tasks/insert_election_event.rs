@@ -6,6 +6,7 @@
 use crate::postgres::election_event::update_bulletin_board;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::BoardSerializable;
+use crate::services::import::import_election_event::ensure_new_election_event;
 use crate::services::import::import_election_event::insert_election_event_db;
 use crate::services::import::import_election_event::upsert_b3_and_elog;
 use crate::services::import::import_election_event::upsert_keycloak_realm;
@@ -52,6 +53,11 @@ pub async fn insert_election_event_anyhow(
             return Err(anyhow!("Failed to start Hasura transaction: {err}").into());
         }
     };
+
+    if let Err(err) = ensure_new_election_event(&hasura_transaction, &id).await {
+        update_fail(&task_execution, &format!("{err:#}")).await?;
+        return Err(err);
+    }
 
     final_object.id = Some(id.clone());
 
