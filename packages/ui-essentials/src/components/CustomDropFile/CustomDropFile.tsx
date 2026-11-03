@@ -211,7 +211,8 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                     sx={{
                         fontSize: "16px",
                         margin: "8px 0",
-                        height: "24px",
+                        minHeight: "24px",
+                        overflowWrap: "anywhere",
                         color: theme.palette.text.primary,
                     }}
                 >
