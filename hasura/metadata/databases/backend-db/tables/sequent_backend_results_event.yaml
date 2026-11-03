@@ -4,22 +4,6 @@ table:
 insert_permissions:
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - annotations
-              - documents
-              - labels
-              - name
-              - created_at
-              - last_updated_at
-              - election_event_id
-              - id
-              - tenant_id
-      role: admin-user
-    - comment: ""
-      permission:
           check: {}
           columns:
               - annotations
@@ -83,25 +67,6 @@ select_permissions:
                   _eq: X-Hasura-Tenant-Id
       role: tally-results-read
 update_permissions:
-    - comment: ""
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - annotations
-              - documents
-              - labels
-              - name
-              - created_at
-              - last_updated_at
-              - election_event_id
-              - id
-              - tenant_id
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: admin-user
     - comment: ""
       permission:
           check: {}

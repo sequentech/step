@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres;
 use crate::postgres::area::get_area_by_id;
+use crate::postgres::ballot_style::get_ballot_styles_by_elections;
 use crate::postgres::ballot_style::get_published_ballot_emls;
 use crate::postgres::election::{get_cast_vote_configuration, CastVoteConfiguration};
 use crate::postgres::election_event::get_election_event_by_id;
@@ -13,8 +14,10 @@ use crate::services::datafix::utils::{
 };
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log_outbox::{deliver_log_event, store_log_event, PendingLogEvent};
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager::get_protocol_manager;
+use crate::tasks::electoral_log::LogEventInput;
 use anyhow::{anyhow, Context, Result};
 use b3::messages::message::Signer;
 use base64::{engine::general_purpose, Engine as _};
@@ -47,10 +50,12 @@ use sequent_core::multi_ballot::SignedHashableMultiBallot;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
+use sequent_core::types::hasura::core::BallotStyle as PublishedBallotStyle;
 use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Serializer;
+use std::collections::HashSet;
 use std::time::Instant;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::{hash_to_array, Hash, HashWrapper};
@@ -214,7 +219,8 @@ async fn insert_datafix_cast_vote_locked<'a>(
     voter_signature_data: &Option<(StrandSignaturePk, StrandSignature)>,
     is_early_voting_area: bool,
     initial_status: CastVoteStatus,
-) -> Result<(CastVote, VotingStatusChannel), CastVoteError> {
+    audit: &CastVoteAudit<'_>,
+) -> Result<(CastVote, VotingStatusChannel, PendingLogEvent), CastVoteError> {
     let voter_id_uuid = parse_uuid_v4(ids.voter_id)
         .map_err(|err| CastVoteError::VoterStateLocked(format!("Invalid voter id: {err}")))?;
     let lock = PgLock::acquire(
@@ -253,6 +259,7 @@ async fn insert_datafix_cast_vote_locked<'a>(
         voter_signature_data,
         is_early_voting_area,
         initial_status,
+        audit,
     )
     .await;
 
@@ -345,6 +352,8 @@ pub enum CastVoteError {
     BallotIdMismatch(String),
     #[serde(rename = "get_ballot_style_failed")]
     GetBallotStyleFailed(String),
+    /// The contests of the ballot are not those of any published ballot style,
+    /// or the ballot style it names is not one published for its area.
     #[serde(rename = "ballot_style_mismatch")]
     #[strum(to_string = "ballot_style_mismatch")]
     BallotStyleMismatch(String),
@@ -361,6 +370,11 @@ impl CastVoteError {
     }
 }
 
+/// Checks a ballot cast by a voter and inserts it as a vote. The ballot has to
+/// carry exactly the contests of a ballot style published for the voter's area
+/// and election. A refusal that a retry cannot change is returned as
+/// `InsertCastVoteResult::SkipRetryFailure`, any other error is returned for
+/// the caller to retry.
 #[instrument(skip(input), err)]
 pub async fn try_insert_cast_vote(
     input: InsertCastVoteInput,
@@ -410,6 +424,19 @@ pub async fn try_insert_cast_vote(
         false
     };
 
+    let published_styles = match get_published_style_contest_ids(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &input.election_id.to_string(),
+        area_id,
+    )
+    .await
+    {
+        Ok(published_styles) => published_styles,
+        Err(error) => return error.into_cast_vote_result(),
+    };
+
     let ballot_tracker_policy = presentation_opt
         .as_ref()
         .and_then(|presentation| presentation.ballot_tracker_policy.clone())
@@ -433,6 +460,7 @@ pub async fn try_insert_cast_vote(
             voter_id,
             &ballot_tracker_policy,
             &published_ballot_styles,
+            &published_styles,
         )
     } else {
         deserialize_and_check_ballot(
@@ -440,6 +468,7 @@ pub async fn try_insert_cast_vote(
             voter_id,
             &ballot_tracker_policy,
             &published_ballot_styles,
+            &published_styles,
         )
     };
 
@@ -481,19 +510,35 @@ pub async fn try_insert_cast_vote(
     };
     let is_early_voting_area = area_presentation.is_early_voting();
 
-    // Audit delivery remains post-commit and best-effort, as before. Reuse the
-    // authenticated request's username and the already loaded signing key so
-    // audit preparation needs neither Keycloak nor a second database checkout.
+    // The signed CastVote is stored with the vote and delivered after the
+    // commit. Reuse the authenticated request's username and the already loaded
+    // signing key so audit preparation needs neither Keycloak nor a second
+    // database checkout.
     let voter_electoral_log = ElectoralLog::for_voter_with_signing_key(
         &electoral_log.elog_database,
         voter_id,
         &signing_key,
     );
+    let ip = format!("ip: {}", voter_ip.as_deref().unwrap_or(""),);
+    let country = format!("country: {}", voter_country.as_deref().unwrap_or(""),);
+    let audit = CastVoteAudit {
+        electoral_log: &voter_electoral_log,
+        tenant_id,
+        election_event_id,
+        election_id: &election_id_string,
+        pseudonym_h: &pseudonym_h,
+        vote_h: &vote_h,
+        ip: &ip,
+        country: &country,
+        voter_id,
+        username,
+        area_id,
+    };
 
     // Datafix votes are inserted under a per-voter lease that owns its own
     // connection/lock lifecycle (see `insert_datafix_cast_vote_locked`); ordinary
     // votes reuse this read transaction directly. Either way the connection is
-    // released before the audit below, which only enqueues its signed message.
+    // released before the audit below, which only publishes its stored message.
     let result = match initial_status {
         CastVoteStatus::InProgress => {
             // Release the read transaction and its connection before locking: the
@@ -516,6 +561,7 @@ pub async fn try_insert_cast_vote(
                 &voter_signature_data,
                 is_early_voting_area,
                 initial_status,
+                &audit,
             )
             .await
         }
@@ -533,6 +579,7 @@ pub async fn try_insert_cast_vote(
                 &voter_signature_data,
                 is_early_voting_area,
                 initial_status,
+                &audit,
             )
             .await;
             drop(hasura_db_client);
@@ -540,29 +587,10 @@ pub async fn try_insert_cast_vote(
         }
     };
 
-    let ip = format!("ip: {}", voter_ip.as_deref().unwrap_or(""),);
-    let country = format!("country: {}", voter_country.as_deref().unwrap_or(""),);
     let _audit_phase = CastVotePhase::start("audit");
     match result {
-        Ok((inserted_cast_vote, effective_voting_channel)) => {
-            let log_result = voter_electoral_log
-                .post_cast_vote(
-                    tenant_id.to_string(),
-                    election_event_id.to_string(),
-                    Some(election_id_string),
-                    pseudonym_h,
-                    vote_h,
-                    ip,
-                    country,
-                    voter_id.to_string(),
-                    username.clone(),
-                    area_id.to_string().clone(),
-                    effective_voting_channel.to_string(),
-                )
-                .await;
-            if let Err(log_err) = log_result {
-                error!("Error posting to the electoral log {:?}", log_err);
-            }
+        Ok((inserted_cast_vote, _, pending_audit)) => {
+            deliver_log_event(&pending_audit).await;
             classify_inserted_cast_vote(inserted_cast_vote)
         }
         Err(cast_vote_err) => {
@@ -646,12 +674,17 @@ pub fn check_ballot_style_binding(
     )))
 }
 
+/// Checks a ballot that encrypts each contest on its own: its id is the hash of
+/// its content, it carries exactly the contests of one of the `published_styles`,
+/// the proofs of knowledge hold and its voter signature, if it has one, is valid.
+/// Returns the voter pseudonym hash, the ballot hash and the signature data.
 #[instrument(skip(input), err)]
 pub fn deserialize_and_check_ballot(
     input: &InsertCastVoteInput,
     voter_id: &str,
     ballot_tracker_policy: &BallotTrackerPolicy,
     published_ballot_styles: &[PublishedBallotStyleHash],
+    published_styles: &[HashSet<String>],
 ) -> Result<
     (
         PseudonymHash,
@@ -703,6 +736,13 @@ pub fn deserialize_and_check_ballot(
         .deserialize_contests()
         .map_err(|e| CastVoteError::DeserializeContestsFailed(e.to_string()))?;
 
+    check_ballot_contests(
+        hashable_ballot_contests
+            .iter()
+            .map(|contest| &contest.contest_id),
+        published_styles,
+    )?;
+
     hashable_ballot_contests
         .iter()
         .map(check_popk)
@@ -724,12 +764,16 @@ pub fn deserialize_and_check_ballot(
     Ok((pseudonym_h, vote_h, signature_opt))
 }
 
+/// Checks a ballot that encrypts all its contests together, as
+/// `deserialize_and_check_ballot` does for one that encrypts each contest on its
+/// own.
 #[instrument(skip(input), err)]
 pub fn deserialize_and_check_multi_ballot(
     input: &InsertCastVoteInput,
     voter_id: &str,
     ballot_tracker_policy: &BallotTrackerPolicy,
     published_ballot_styles: &[PublishedBallotStyleHash],
+    published_styles: &[HashSet<String>],
 ) -> Result<
     (
         PseudonymHash,
@@ -782,6 +826,11 @@ pub fn deserialize_and_check_multi_ballot(
         .deserialize_contests()
         .map_err(|e| CastVoteError::DeserializeContestsFailed(e.to_string()))?;
 
+    check_ballot_contests(
+        &hashable_multi_ballot_contests.contest_ids,
+        published_styles,
+    )?;
+
     check_popk_multi(&hashable_multi_ballot_contests)
         .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
 
@@ -806,7 +855,8 @@ pub fn deserialize_and_check_multi_ballot(
         hasura_transaction,
         election_event,
         signing_key,
-        voter_signature_data
+        voter_signature_data,
+        audit
     ),
     err
 )]
@@ -823,7 +873,8 @@ pub async fn insert_cast_vote_and_commit<'a>(
     voter_signature_data: &Option<(StrandSignaturePk, StrandSignature)>,
     is_early_voting_area: bool,
     initial_status: CastVoteStatus,
-) -> Result<(CastVote, VotingStatusChannel), CastVoteError> {
+    audit: &CastVoteAudit<'_>,
+) -> Result<(CastVote, VotingStatusChannel, PendingLogEvent), CastVoteError> {
     let election_id_string = input.election_id.to_string();
     let election_id = election_id_string.as_str();
     let tenant_uuid = parse_uuid_v4(ids.tenant_id)
@@ -855,6 +906,20 @@ pub async fn insert_cast_vote_and_commit<'a>(
         .map(|signature| signature.to_bytes())
         .unwrap_or([0u8; 64]);
 
+    // The signed CastVote is stored with the vote, so an accepted vote always
+    // has it; a refused vote rolls it back. Before the INSERT, which stays last.
+    let audit_event = audit
+        .event(effective_voting_channel)
+        .map_err(|err| CastVoteError::InsertFailed(format!("{err:#}")))?;
+    let pending_audit = store_log_event(
+        &hasura_transaction,
+        &tenant_uuid,
+        &election_event_uuid,
+        audit_event,
+    )
+    .await
+    .map_err(|err| CastVoteError::InsertFailed(format!("{err:#}")))?;
+
     let insert_phase = CastVotePhase::start("insert");
     let insert = postgres::cast_vote::insert_cast_vote(
         &hasura_transaction,
@@ -883,7 +948,41 @@ pub async fn insert_cast_vote_and_commit<'a>(
         .await
         .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
 
-    Ok((cast_vote, effective_voting_channel))
+    Ok((cast_vote, effective_voting_channel, pending_audit))
+}
+
+/// What the signed CastVote of a vote is made of, except for the channel the
+/// vote is accepted through, which is known once its status is checked.
+pub(crate) struct CastVoteAudit<'a> {
+    pub electoral_log: &'a ElectoralLog,
+    pub tenant_id: &'a str,
+    pub election_event_id: &'a str,
+    pub election_id: &'a str,
+    pub pseudonym_h: &'a PseudonymHash,
+    pub vote_h: &'a CastVoteHash,
+    pub ip: &'a str,
+    pub country: &'a str,
+    pub voter_id: &'a str,
+    pub username: &'a Option<String>,
+    pub area_id: &'a str,
+}
+
+impl CastVoteAudit<'_> {
+    fn event(&self, voting_channel: VotingStatusChannel) -> Result<LogEventInput> {
+        self.electoral_log.cast_vote_event(
+            self.tenant_id.to_string(),
+            self.election_event_id.to_string(),
+            Some(self.election_id.to_string()),
+            self.pseudonym_h.clone(),
+            self.vote_h.clone(),
+            self.ip.to_string(),
+            self.country.to_string(),
+            self.voter_id.to_string(),
+            self.username.clone(),
+            self.area_id.to_string(),
+            voting_channel.to_string(),
+        )
+    }
 }
 
 pub(crate) fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
@@ -1173,6 +1272,145 @@ fn map_insert_error(error: anyhow::Error) -> CastVoteError {
     }
 }
 
+/// Why the contests of the published ballot styles could not be determined.
+#[derive(Debug)]
+enum PublishedStylesError {
+    /// The styles could not be read from the database, so a retry can succeed.
+    Lookup(CastVoteError),
+    /// A published ballot style cannot be used, so a retry finds the same data.
+    Unreadable(CastVoteError),
+}
+
+impl PublishedStylesError {
+    /// Wraps a failure to read the published ballot styles, which a retry can
+    /// fix.
+    fn lookup_failed(error: anyhow::Error) -> Self {
+        Self::Lookup(CastVoteError::CheckStatusInternalFailed(error.to_string()))
+    }
+
+    /// Maps the failure to the caller's retry contract: an unreadable style is
+    /// terminal and surfaced as `SkipRetryFailure`, a failed lookup propagates
+    /// for the normal retry path.
+    fn into_cast_vote_result(self) -> Result<InsertCastVoteResult, CastVoteError> {
+        match self {
+            Self::Unreadable(cv_err) => Ok(InsertCastVoteResult::SkipRetryFailure(cv_err)),
+            Self::Lookup(cv_err) => Err(cv_err),
+        }
+    }
+}
+
+/// The ids of the contests that a ballot has to carry for a ballot style, read
+/// from its EML. Acclaimed contests are never encoded, so they are left out.
+fn votable_contest_ids(ballot_eml: &str) -> Result<HashSet<String>, CastVoteError> {
+    let ballot_style: BallotStyle = deserialize_str(ballot_eml)
+        .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
+    Ok(ballot_style
+        .votable_contests()
+        .map(|contest| contest.id.clone())
+        .collect())
+}
+
+/// The votable contest ids of a published ballot style, from the EML the lookup
+/// returned for it.
+fn read_style_contest_ids(
+    style: &PublishedBallotStyle,
+) -> Result<HashSet<String>, PublishedStylesError> {
+    let ballot_eml = style.ballot_eml.as_deref().ok_or_else(|| {
+        PublishedStylesError::Unreadable(CastVoteError::CheckStatusInternalFailed(format!(
+            "Published ballot style {} has no ballot EML",
+            style.id
+        )))
+    })?;
+    votable_contest_ids(ballot_eml).map_err(PublishedStylesError::Unreadable)
+}
+
+/// The votable contests of each ballot style published for this area and
+/// election.
+#[instrument(skip(hasura_transaction), err(Debug))]
+async fn get_published_style_contest_ids(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
+) -> Result<Vec<HashSet<String>>, PublishedStylesError> {
+    get_ballot_styles_by_elections(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &vec![election_id.to_string()],
+        Some(area_id),
+    )
+    .await
+    .map_err(PublishedStylesError::lookup_failed)?
+    .iter()
+    .map(read_style_contest_ids)
+    .collect()
+}
+
+/// The tally reads one ciphertext for each votable contest of the ballot style
+/// published for the voter's area and election. A ballot has to carry exactly
+/// the contests of one of the published styles, each of them once.
+fn check_ballot_contests<'a>(
+    ballot_contest_ids: impl IntoIterator<Item = &'a String>,
+    published_styles: &[HashSet<String>],
+) -> Result<(), CastVoteError> {
+    if published_styles.is_empty() {
+        return Err(CastVoteError::BallotStyleMismatch(
+            "There is no ballot style published for the voter's area and election".to_string(),
+        ));
+    }
+
+    let mut ballot_contests: HashSet<&str> = HashSet::new();
+    let mut repeated: Vec<&str> = Vec::new();
+    for contest_id in ballot_contest_ids {
+        if !ballot_contests.insert(contest_id.as_str()) {
+            repeated.push(contest_id.as_str());
+        }
+    }
+    if !repeated.is_empty() {
+        repeated.sort();
+        repeated.dedup();
+        return Err(CastVoteError::BallotStyleMismatch(format!(
+            "The ballot includes contests {repeated:?} more than once"
+        )));
+    }
+
+    let matches_ballot = |style: &HashSet<String>| {
+        style.len() == ballot_contests.len()
+            && style
+                .iter()
+                .all(|contest_id| ballot_contests.contains(contest_id.as_str()))
+    };
+    if published_styles.iter().any(matches_ballot) {
+        return Ok(());
+    }
+
+    let (mut missing, mut unexpected): (Vec<&str>, Vec<&str>) = published_styles
+        .iter()
+        .map(|style| {
+            let missing: Vec<&str> = style
+                .iter()
+                .map(String::as_str)
+                .filter(|contest_id| !ballot_contests.contains(contest_id))
+                .collect();
+            let unexpected: Vec<&str> = ballot_contests
+                .iter()
+                .copied()
+                .filter(|contest_id| !style.contains(*contest_id))
+                .collect();
+            (missing, unexpected)
+        })
+        .min_by_key(|(missing, unexpected)| missing.len() + unexpected.len())
+        .unwrap_or_default();
+    missing.sort();
+    unexpected.sort();
+    Err(CastVoteError::BallotStyleMismatch(format!(
+        "The ballot does not match the contests of the voter's ballot style: \
+         missing {missing:?}, not part of the style {unexpected:?}"
+    )))
+}
+
 #[instrument(skip_all, err)]
 fn check_popk(ballot_contest: &HashableBallotContest<RistrettoCtx>) -> Result<()> {
     let zkp = Zkp::new(&RistrettoCtx);
@@ -1216,3 +1454,7 @@ fn check_popk_multi(ballot_contest: &HashableMultiBallotContests<RistrettoCtx>) 
 #[cfg(test)]
 #[path = "insert_cast_vote_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "insert_cast_vote_outbox_tests.rs"]
+mod outbox_tests;

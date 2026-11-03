@@ -302,6 +302,11 @@ pub async fn insert_cast_vote(
                 ErrorCode::DeserializeBallotFailed.to_string().as_str(),
                 ErrorCode::DeserializeBallotFailed,
             ),
+            CastVoteError::BallotStyleMismatch(_) => ErrorResponse::new(
+                Status::BadRequest,
+                ErrorCode::BallotStyleMismatch.to_string().as_str(),
+                ErrorCode::BallotStyleMismatch,
+            ),
         }
     })?;
 
