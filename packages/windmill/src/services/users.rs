@@ -223,6 +223,77 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     Ok(())
 }
 
+/// The enabled voters of any of `areas` who may vote in the election with
+/// alias `election_alias`, each counted once however many of those areas
+/// they belong to, leaving out every voter who also belongs to one of
+/// `except_areas`.
+///
+/// A voter qualifies exactly as in
+/// [`list_keycloak_enabled_users_by_area_id_and_authorized_elections`]: an
+/// enabled account that is not a service account, in the event's realm, whose
+/// authorized elections are unset or include the election.
+#[instrument(skip(keycloak_transaction), err)]
+pub async fn count_keycloak_enabled_voters_of_areas(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    areas: &[String],
+    except_areas: &[String],
+    election_alias: &str,
+) -> Result<u64> {
+    if areas.is_empty() {
+        return Ok(0);
+    }
+    let no_service_accounts = service_account_exclusion("u");
+    let statement = format!(
+        r#"
+        SELECT
+            COUNT(*) AS voters
+        FROM
+            user_entity AS u
+        JOIN
+            realm AS ra ON u.realm_id = ra.id
+        WHERE
+            ra.name = $1 AND
+            {no_service_accounts} AND
+            u.enabled IS TRUE AND
+            EXISTS (
+                SELECT 1 FROM user_attribute AS ua_area
+                WHERE ua_area.user_id = u.id AND
+                    ua_area.name = '{AREA_ID_ATTR_NAME}' AND
+                    ua_area.value = ANY($2)
+            ) AND
+            NOT EXISTS (
+                SELECT 1 FROM user_attribute AS ua_area
+                WHERE ua_area.user_id = u.id AND
+                    ua_area.name = '{AREA_ID_ATTR_NAME}' AND
+                    ua_area.value = ANY($3)
+            ) AND
+            (
+                NOT EXISTS (
+                    SELECT 1 FROM user_attribute AS ua_elections
+                    WHERE ua_elections.user_id = u.id AND
+                        ua_elections.name = '{AUTHORIZED_ELECTION_IDS_NAME}'
+                ) OR
+                EXISTS (
+                    SELECT 1 FROM user_attribute AS ua_elections
+                    WHERE ua_elections.user_id = u.id AND
+                        ua_elections.name = '{AUTHORIZED_ELECTION_IDS_NAME}' AND
+                        (ua_elections.value = $4 OR ua_elections.value IS NULL)
+                )
+            )
+    "#
+    );
+    let row = keycloak_transaction
+        .query_one(
+            statement.as_str(),
+            &[&realm, &areas, &except_areas, &election_alias],
+        )
+        .await
+        .context("Error counting the enabled voters of the areas")?;
+    let voters: i64 = row.try_get("voters")?;
+    Ok(voters.try_into()?)
+}
+
 /// SQL boolean operator used to chain filter clauses in WHERE conditions.
 #[derive(Debug, Clone, Copy, EnumString, Display)]
 pub enum SqlBooleanOperator {
@@ -1906,5 +1977,139 @@ mod tests {
         assert!(clause.contains("ra.name = $1"));
         assert!(clause.contains(r#"("email" = $3) AND"#));
         assert!(clause.contains("(u.id = ANY($2) OR $2 IS NULL)"));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL configured through KEYCLOAK_DB__*"]
+    async fn the_voters_of_areas_are_the_enabled_ones_each_counted_once() -> Result<()> {
+        const NORTH: &str = "20000000-0000-4000-8000-00000000000a";
+        const SOUTH: &str = "20000000-0000-4000-8000-00000000000b";
+        // A third area of the election.
+        const WEST: &str = "20000000-0000-4000-8000-00000000000c";
+        const ELSEWHERE: &str = "20000000-0000-4000-8000-00000000000d";
+        // Every voter of this area is disabled.
+        const DISABLED: &str = "20000000-0000-4000-8000-00000000000e";
+        // Its voter is authorized for an election without an external id,
+        // which Keycloak names by its id.
+        const BY_ID: &str = "20000000-0000-4000-8000-00000000000f";
+        const ELECTION_ID: &str = "30000000-0000-4000-8000-000000000001";
+        const ELECTION_ALIAS: &str = "election-a";
+
+        let pool = crate::services::database::generate_keycloak_pool().await?;
+        let mut client = pool.get().await?;
+        let transaction = client.transaction().await?;
+        transaction
+            .batch_execute(&format!(
+                r#"
+                CREATE TEMP TABLE realm (id TEXT PRIMARY KEY, name TEXT) ON COMMIT DROP;
+                CREATE TEMP TABLE user_entity (
+                    id TEXT PRIMARY KEY,
+                    realm_id TEXT,
+                    username TEXT,
+                    enabled BOOLEAN,
+                    service_account_client_link TEXT
+                ) ON COMMIT DROP;
+                CREATE TEMP TABLE user_attribute (
+                    id SERIAL PRIMARY KEY,
+                    user_id TEXT,
+                    name TEXT,
+                    value TEXT
+                ) ON COMMIT DROP;
+                INSERT INTO realm (id, name) VALUES ('realm-a', 'event-a'), ('realm-b', 'event-b');
+                INSERT INTO user_entity (id, realm_id, username, enabled, service_account_client_link)
+                VALUES ('north-1', 'realm-a', 'north-1', true, NULL),
+                       ('north-2', 'realm-a', 'north-2', true, NULL),
+                       ('north-off', 'realm-a', 'north-off', false, NULL),
+                       ('south-1', 'realm-a', 'south-1', true, NULL),
+                       ('west-1', 'realm-a', 'west-1', true, NULL),
+                       ('west-2', 'realm-a', 'west-2', true, NULL),
+                       ('west-off', 'realm-a', 'west-off', false, NULL),
+                       ('both', 'realm-a', 'both', true, NULL),
+                       ('this-election', 'realm-a', 'this-election', true, NULL),
+                       ('other-election', 'realm-a', 'other-election', true, NULL),
+                       ('elsewhere', 'realm-a', 'elsewhere', true, NULL),
+                       ('disabled-1', 'realm-a', 'disabled-1', false, NULL),
+                       ('disabled-2', 'realm-a', 'disabled-2', false, NULL),
+                       ('by-id', 'realm-a', 'by-id', true, NULL),
+                       ('service', 'realm-a', 'service', true, 'client'),
+                       ('other-realm', 'realm-b', 'other-realm', true, NULL);
+                INSERT INTO user_attribute (user_id, name, value)
+                VALUES ('north-1', '{AREA_ID_ATTR_NAME}', '{NORTH}'),
+                       ('north-2', '{AREA_ID_ATTR_NAME}', '{NORTH}'),
+                       ('north-off', '{AREA_ID_ATTR_NAME}', '{NORTH}'),
+                       ('south-1', '{AREA_ID_ATTR_NAME}', '{SOUTH}'),
+                       ('west-1', '{AREA_ID_ATTR_NAME}', '{WEST}'),
+                       ('west-2', '{AREA_ID_ATTR_NAME}', '{WEST}'),
+                       ('west-off', '{AREA_ID_ATTR_NAME}', '{WEST}'),
+                       ('both', '{AREA_ID_ATTR_NAME}', '{NORTH}'),
+                       ('both', '{AREA_ID_ATTR_NAME}', '{WEST}'),
+                       ('this-election', '{AREA_ID_ATTR_NAME}', '{SOUTH}'),
+                       ('this-election', '{AUTHORIZED_ELECTION_IDS_NAME}', 'election-b'),
+                       ('this-election', '{AUTHORIZED_ELECTION_IDS_NAME}', '{ELECTION_ALIAS}'),
+                       ('other-election', '{AREA_ID_ATTR_NAME}', '{SOUTH}'),
+                       ('other-election', '{AUTHORIZED_ELECTION_IDS_NAME}', 'election-b'),
+                       ('elsewhere', '{AREA_ID_ATTR_NAME}', '{ELSEWHERE}'),
+                       ('disabled-1', '{AREA_ID_ATTR_NAME}', '{DISABLED}'),
+                       ('disabled-2', '{AREA_ID_ATTR_NAME}', '{DISABLED}'),
+                       ('by-id', '{AREA_ID_ATTR_NAME}', '{BY_ID}'),
+                       ('by-id', '{AUTHORIZED_ELECTION_IDS_NAME}', '{ELECTION_ID}'),
+                       ('service', '{AREA_ID_ATTR_NAME}', '{NORTH}'),
+                       ('other-realm', '{AREA_ID_ATTR_NAME}', '{NORTH}');
+                "#
+            ))
+            .await?;
+
+        let areas = |ids: &[&str]| ids.iter().map(|id| id.to_string()).collect::<Vec<_>>();
+        let count = |of: Vec<String>, except: Vec<String>| {
+            let transaction = &transaction;
+            async move {
+                count_keycloak_enabled_voters_of_areas(
+                    transaction,
+                    "event-a",
+                    &of,
+                    &except,
+                    ELECTION_ALIAS,
+                )
+                .await
+            }
+        };
+
+        // north-1, north-2, both, south-1, this-election, west-1 and
+        // west-2: `both` once although it is in two of the areas, and
+        // nobody disabled, authorized elsewhere, a service account or from
+        // another realm.
+        assert_eq!(count(areas(&[NORTH, SOUTH, WEST]), vec![]).await?, 7);
+        // Each area on its own, as the per-area census reads them.
+        assert_eq!(count(areas(&[NORTH]), vec![]).await?, 3);
+        assert_eq!(count(areas(&[SOUTH]), vec![]).await?, 2);
+        assert_eq!(count(areas(&[WEST]), vec![]).await?, 3);
+        // The third area beside two areas counted elsewhere: `both` is
+        // already one of theirs.
+        assert_eq!(count(areas(&[WEST]), areas(&[NORTH, SOUTH])).await?, 2);
+        assert_eq!(count(areas(&[DISABLED]), vec![]).await?, 0);
+        assert_eq!(
+            count(areas(&[NORTH, SOUTH, WEST, DISABLED]), vec![]).await?,
+            7
+        );
+        assert_eq!(count(vec![], vec![]).await?, 0);
+        // Named by its id, the election has the voter authorized by its id;
+        // named by an empty alias, it does not.
+        let by_id = |alias: &'static str| {
+            let transaction = &transaction;
+            async move {
+                count_keycloak_enabled_voters_of_areas(
+                    transaction,
+                    "event-a",
+                    &[BY_ID.to_string()],
+                    &[],
+                    alias,
+                )
+                .await
+            }
+        };
+        assert_eq!(by_id(ELECTION_ID).await?, 1);
+        assert_eq!(by_id("").await?, 0);
+        transaction.rollback().await?;
+        Ok(())
     }
 }
