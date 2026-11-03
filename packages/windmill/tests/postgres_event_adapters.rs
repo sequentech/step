@@ -2343,13 +2343,21 @@ async fn get_cast_vote_configuration_reports_absent_dates_without_a_voting_windo
             .await
             .unwrap();
 
+    // An election inserted without channels stores the online-only default.
+    let voting_channels = json!({
+        "online": true,
+        "kiosk": null,
+        "telephone": null,
+        "paper": null,
+        "early_voting": null,
+    });
     assert_eq!(
         (
             configuration.presentation,
             configuration.status,
             configuration.voting_channels
         ),
-        (None, None, None)
+        (None, None, Some(voting_channels))
     );
     assert_eq!(
         (configuration.dates.start_date, configuration.dates.end_date),
@@ -2492,5 +2500,112 @@ async fn get_realm_id_rejects_ambiguous_realm_names() {
         .unwrap_err();
 
     assert_eq!(error.to_string(), "found too many realms with same name: 2");
+    tx.rollback().await.unwrap();
+}
+
+/// Stand-ins for the Keycloak tables the Scanovate secret query reads,
+/// visible only to this transaction.
+async fn authenticator_tables(tx: &Transaction<'_>) {
+    realm_table(tx).await;
+    tx.batch_execute(
+        "CREATE TEMPORARY TABLE authentication_execution (
+             id varchar(36) PRIMARY KEY, realm_id varchar(36),
+             authenticator varchar(36), auth_config varchar(36)) ON COMMIT DROP;
+         CREATE TEMPORARY TABLE authenticator_config (
+             id varchar(36) PRIMARY KEY, alias varchar(255), realm_id varchar(36)) ON COMMIT DROP;
+         CREATE TEMPORARY TABLE authenticator_config_entry (
+             authenticator_id varchar(36), name varchar(255), value text) ON COMMIT DROP",
+    )
+    .await
+    .unwrap();
+}
+
+/// The query returns, from Keycloak's own storage, the `liveness-secret` of
+/// exactly the configurations of the named realm that only Scanovate
+/// executions use, each with its config id and `liveness-url` read in the
+/// same statement. Values are synthetic.
+#[tokio::test]
+async fn scanovate_liveness_secrets_are_read_only_for_the_realm_s_scanovate_configurations() {
+    use windmill::services::export::integration_secrets::{
+        IntegrationSecretValue, StoredIntegrationSecret,
+    };
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    authenticator_tables(&tx).await;
+    tx.batch_execute(
+        "INSERT INTO realm (id, name) VALUES ('r-1', 'event-realm'), ('r-2', 'other-realm');
+         INSERT INTO authenticator_config (id, alias, realm_id) VALUES
+             ('c-scan', 'scanovate-registration', 'r-1'),
+             ('c-noendpoint', 'scanovate-no-url', 'r-1'),
+             ('c-shared', 'scanovate-shared', 'r-1'),
+             ('c-otherprov', 'other-provider', 'r-1'),
+             ('c-noalias', NULL, 'r-1'),
+             ('c-otherrealm', 'scanovate-registration', 'r-2');
+         INSERT INTO authentication_execution (id, realm_id, authenticator, auth_config) VALUES
+             ('e-1', 'r-1', 'scanovate-authenticator', 'c-scan'),
+             ('e-2', 'r-1', 'scanovate-authenticator', 'c-scan'),
+             ('e-3', 'r-1', 'scanovate-authenticator', 'c-noendpoint'),
+             ('e-4', 'r-1', 'scanovate-authenticator', 'c-shared'),
+             ('e-5', 'r-1', 'attacker-authenticator', 'c-shared'),
+             ('e-6', 'r-1', 'attacker-authenticator', 'c-otherprov'),
+             ('e-7', 'r-1', 'scanovate-authenticator', 'c-noalias'),
+             ('e-8', 'r-2', 'scanovate-authenticator', 'c-otherrealm');
+         INSERT INTO authenticator_config_entry (authenticator_id, name, value) VALUES
+             ('c-scan', 'liveness-secret', 'synthetic-secret-scan'),
+             ('c-scan', 'liveness-url', 'https://source.example.test/biometric'),
+             ('c-scan', 'ocr-url', 'http://ocr.example.test'),
+             ('c-noendpoint', 'liveness-secret', 'synthetic-secret-no-url'),
+             ('c-shared', 'liveness-secret', 'synthetic-secret-shared'),
+             ('c-shared', 'liveness-url', 'https://shared.example.test'),
+             ('c-otherprov', 'liveness-secret', 'synthetic-secret-other-provider'),
+             ('c-noalias', 'liveness-secret', 'synthetic-secret-no-alias'),
+             ('c-otherrealm', 'liveness-secret', 'synthetic-secret-other-realm'),
+             ('c-otherrealm', 'liveness-url', 'https://other.example.test')",
+    )
+    .await
+    .unwrap();
+
+    let mut stored = keycloak_realm::get_scanovate_liveness_secrets(&tx, "event-realm")
+        .await
+        .unwrap();
+    stored.sort_by(|a, b| a.config_alias.cmp(&b.config_alias));
+
+    let secret =
+        |id: &str, alias: &str, value: &str, endpoint: Option<&str>| StoredIntegrationSecret {
+            config_id: id.to_string(),
+            config_alias: alias.to_string(),
+            value: IntegrationSecretValue::new(value.to_string()),
+            endpoint: endpoint.map(str::to_string),
+        };
+    let scan = secret(
+        "c-scan",
+        "scanovate-registration",
+        "synthetic-secret-scan",
+        Some("https://source.example.test/biometric"),
+    );
+    // One row per Scanovate execution using the configuration; no shared,
+    // other-provider, alias-less or other-realm configuration is read.
+    assert_eq!(
+        stored,
+        vec![
+            secret(
+                "c-noendpoint",
+                "scanovate-no-url",
+                "synthetic-secret-no-url",
+                None
+            ),
+            scan.clone(),
+            scan,
+        ]
+    );
+    // The secret never shows in diagnostics.
+    assert!(!format!("{stored:?}").contains("synthetic-secret"));
+
+    assert!(
+        keycloak_realm::get_scanovate_liveness_secrets(&tx, "missing-realm")
+            .await
+            .unwrap()
+            .is_empty()
+    );
     tx.rollback().await.unwrap();
 }

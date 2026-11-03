@@ -110,6 +110,14 @@ public class Utils {
   public final String SENDER_ID = "senderId";
   public final String ONE_TIME_LINK = "one-time-link";
   public final String OTL_VISITED = "one-time-link.visited";
+
+  /**
+   * Set by Back ({@link StepBack}): the code step reached again sends its first code only once the
+   * resend timer allows, so going back and forth can't send one message after another. Every send
+   * clears it.
+   */
+  public final String CODE_PACED = "code-paced";
+
   public static final String EMAIL_VERIFIED = "Email verified";
   public static final String USER_ID = "userId";
   public final String TEL_USER_ATTRIBUTE = "telUserAttribute";
@@ -146,6 +154,22 @@ public class Utils {
     }
     long sentAt = Long.parseLong(codeExpiryMillis) - Long.parseLong(codeTtlSeconds) * 1000L;
     return sentAt + Long.parseLong(resendTimerSeconds) * 1000L < nowMillis;
+  }
+
+  /**
+   * The whole seconds until a resend is allowed, counted from the last send, or empty without one.
+   * The page's countdown shows it, so rendering the page again never restarts the wait.
+   */
+  public Optional<Long> resendSecondsLeft(
+      String codeExpiryMillis, String codeTtlSeconds, String resendTimerSeconds, long nowMillis) {
+    if (codeExpiryMillis == null || codeTtlSeconds == null || resendTimerSeconds == null) {
+      return Optional.empty();
+    }
+    long allowedAt =
+        Long.parseLong(codeExpiryMillis)
+            - Long.parseLong(codeTtlSeconds) * 1000L
+            + Long.parseLong(resendTimerSeconds) * 1000L;
+    return Optional.of(Math.max(0L, (allowedAt - nowMillis + 999L) / 1000L));
   }
 
   /** The most wrong codes a challenge takes; resends never reset the count. */
@@ -606,6 +630,30 @@ public class Utils {
     }
   }
 
+  /**
+   * Forgets the live code or link, where it went, and everything a code verified, for when the
+   * contact may change: the voter is back at the form that entered it. An old code or link must not
+   * verify a contact entered after it was sent. The resend timer ({@link #CODE_TTL}) and the wrong
+   * codes stay, so going back and forward again neither sends at once nor resets the limit.
+   */
+  public void forgetCodeAndVerification(AuthenticationSessionModel authSession) {
+    for (String note :
+        List.of(
+            CODE,
+            OTL_VISITED,
+            EMAIL_VERIFIED,
+            MessagingAttributes.NOTE_DELIVERY_STATE,
+            MessagingAttributes.NOTE_CODE_CHANNEL,
+            MessagingAttributes.NOTE_CODE_DESTINATION,
+            MessagingAttributes.NOTE_VERIFIED_CHANNEL,
+            MessagingAttributes.NOTE_VERIFIED_DESTINATION,
+            MessagingAttributes.NOTE_VERIFIED_MESSENGER_ID,
+            MessagingAttributes.NOTE_VERIFIED_MESSENGER_PAGE)) {
+      authSession.removeAuthNote(note);
+    }
+    clearMessengerLink(authSession);
+  }
+
   /** Forgets the Messenger link of the previous code, so it cannot confirm a contact. */
   void clearMessengerLink(AuthenticationSessionModel authSession) {
     authSession.removeAuthNote(MessagingAttributes.NOTE_MESSENGER_REFERENCE);
@@ -739,6 +787,7 @@ public class Utils {
     authSession.setAuthNote(
         Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + (ttl * 1000L)));
     authSession.setAuthNote(MessagingAttributes.NOTE_CODE_ID, UUID.randomUUID().toString());
+    authSession.removeAuthNote(CODE_PACED);
     clearMessengerLink(authSession);
     if (target.isPresent()) {
       authSession.setAuthNote(MessagingAttributes.NOTE_CODE_CHANNEL, target.get().channel().name());
@@ -1208,7 +1257,8 @@ public class Utils {
             otlAuthNotesNames,
             isDeferredUser,
             redirectUri,
-            authSession.getClient().getClientId());
+            authSession.getClient().getClientId(),
+            authSession.getAuthNote(MessagingAttributes.NOTE_CODE_ID));
 
     // Generate the OTL link
     return linkFromActionToken(session, realm, token);

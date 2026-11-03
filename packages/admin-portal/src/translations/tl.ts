@@ -1850,6 +1850,9 @@ const tagalogTranslation: TranslationType = {
                 encryptWithPassword: "I-encrypt gamit ang Password",
                 passwordForcedNote:
                     "Mapoprotektahan pa rin ng password ang archive: palaging naka-encrypt ang mga ulat, aplikasyon at datos ng bulletin board. Lagyan ng tsek ang kahon para isama rin ang mga na-decrypt na lihim na field ng botante.",
+                integrationSecrets: "Mga lihim ng integrasyon (mga kredensyal ng serbisyo)",
+                integrationSecretsNote:
+                    "Kapag na-decrypt, maglalaman ang archive ng liveness secret ng Scanovate nang malinaw. Panatilihing lihim ang archive at ang password nito, at i-import lamang ito kung saan gagamitin ang serbisyong Liveness Plus na iyon.",
                 includeVoters: "Isama ang mga Botante",
                 activityLogs: "Mga Log ng Aktibidad",
                 bulletinBoard: "Bulletin Board",
@@ -2287,6 +2290,7 @@ const tagalogTranslation: TranslationType = {
                 "voter-write": "I-edit ang Botante",
                 "voter-secret-attribute-read": "Ipakita ang mga Lihim na Field ng Botante",
                 "voter-secret-attribute-write": "I-edit ang mga Lihim na Field ng Botante",
+                "integration-secret-read": "I-export ang mga Lihim ng Integrasyon",
                 "user-create": "Lumikha ng Tagagamit",
                 "user-read": "Basahin ang Tagagamit",
                 "user-write": "I-edit ang Tagagamit",
@@ -2805,6 +2809,9 @@ const tagalogTranslation: TranslationType = {
                         delete: "Sigurado ka bang tanggalin ang item na ito?",
                         sealsUnknown:
                             "Hindi masuri ang mga seal ng ballot box: kung may naka-seal itong mga ballot box, tatanggihan ang pagbura.",
+                        archiveNamed: 'Sigurado ka bang i-archive ang "{{name}}"?',
+                        unarchiveNamed: 'Sigurado ka bang i-unarchive ang "{{name}}"?',
+                        deleteNamed: 'Sigurado ka bang tanggalin ang "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2927,6 +2934,13 @@ const tagalogTranslation: TranslationType = {
                 "label": "An porma kan icon kan kahon kan mga kandidato",
                 "square-checkbox": "Parisukat na checkbox",
                 "round-checkbox": "Bilog na Kahon nin Tsek",
+            },
+            candidatesLayout: {
+                "label": "Ayos ng mga kandidato",
+                "helperText":
+                    "Ipinapakita ng grid ng papel na balota ang mga kandidato bilang mga may-numerong kahon na may bilog na pupunan, kolum bawat kolum, ayon sa Columns (4 kung walang laman). Laging listahan ang ginagamit ng mga paligsahang may ranggo.",
+                "list": "Listahan",
+                "paper-grid": "Grid ng papel na balota",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Mga Kandidato at Listahan",
@@ -4168,6 +4182,7 @@ const tagalogTranslation: TranslationType = {
                     "insufficient-information": "Kulang na datos",
                     "no-matching-voter": "Walang tumutugmang botante",
                     "voter-already-approved": "Naaprubahan na",
+                    "EMAIL_IN_USE": "Ginagamit ng ibang botante ang email",
                     "other": "Iba pa",
                 },
                 hint: {
@@ -4410,6 +4425,8 @@ const tagalogTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Mga nako-configure na dashboard",
+            modeChangeError: "Hindi mabago ang mode ng dashboard. Subukan muli.",
             title: "Pagsubaybay",
             loading: "Nilo-load ang pagsubaybay",
             unavailableAlert:

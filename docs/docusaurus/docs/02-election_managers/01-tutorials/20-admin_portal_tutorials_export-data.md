@@ -35,3 +35,25 @@ Without both safeguards, these documents are excluded. Objects without committed
 are always excluded. CSV secret exports remain plaintext downloads with an explicit warning; store
 and transfer them securely. Importing these CSV columns still requires secret-write permission and
 encrypts each value for the destination event and voter.
+
+## Integration secrets
+
+Keycloak masks the secret settings of authenticators, so an ordinary
+election-event archive carries a placeholder (`**********`) instead of the
+Scanovate authenticator's `liveness-secret`.
+
+To carry the real secret, select **Integration secrets (service credentials)**
+in the export dialog. The option is shown only to users with the
+`integration-secret-read` permission and always encrypts the archive with a
+password. The server checks the permission again, reads the secret from
+Keycloak's own storage together with the configuration's `liveness-url`, and
+refuses the export if a Scanovate configuration has no usable secret or changed
+while it was exported. Only the Scanovate `liveness-secret` travels; other
+authenticator, identity-provider and client secrets never do. Downloading the
+archive or its password also requires `integration-secret-read`, and such
+archives are never included in the **S3 Files** of later exports.
+
+Anyone holding the archive and its password holds the secret. Importing the
+archive installs the realm configuration as it is, including the secret and its
+`liveness-url`; Liveness Plus must use the same secret for the imported event to
+work.

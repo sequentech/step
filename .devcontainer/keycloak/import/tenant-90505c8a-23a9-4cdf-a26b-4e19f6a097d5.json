@@ -2040,6 +2040,15 @@
         "attributes": {}
       },
       {
+        "id": "e408df40-7304-4031-9a33-5ef693d94abb",
+        "name": "integration-secret-read",
+        "description": "Export authenticator integration secrets and download archives carrying them",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "c5b7b9da-905c-4a00-a016-c0dc35812604",
         "name": "voter-write",
         "description": "",
@@ -2910,6 +2919,7 @@
         "voter-read",
         "voter-secret-attribute-read",
         "voter-secret-attribute-write",
+        "integration-secret-read",
         "election-event-reports-tab",
         "election-event-scheduled-tab",
         "election-type-write",

@@ -1840,6 +1840,9 @@ const dutchTranslation: TranslationType = {
                 encryptWithPassword: "Versleutelen met wachtwoord",
                 passwordForcedNote:
                     "Het archief wordt hoe dan ook met een wachtwoord beveiligd: rapporten, aanvragen en bulletinboardgegevens worden altijd versleuteld. Vink het vakje aan om ook ontsleutelde geheime kiezersvelden op te nemen.",
+                integrationSecrets: "Integratiegeheimen (servicereferenties)",
+                integrationSecretsNote:
+                    "Na ontsleuteling bevat het archief het liveness-geheim van Scanovate in leesbare tekst. Houd het archief en het wachtwoord geheim en importeer het alleen waar die Liveness Plus-dienst gebruikt moet worden.",
                 includeVoters: "Kiezers Opnemen",
                 activityLogs: "Activiteitenlogs",
                 bulletinBoard: "Prikbord",
@@ -2277,6 +2280,7 @@ const dutchTranslation: TranslationType = {
                 "voter-write": "Kiezer Bewerken",
                 "voter-secret-attribute-read": "Geheime Kiezersvelden Tonen",
                 "voter-secret-attribute-write": "Geheime Kiezersvelden Bewerken",
+                "integration-secret-read": "Integratiegeheimen Exporteren",
                 "user-create": "Gebruiker Aanmaken",
                 "user-read": "Gebruiker Lezen",
                 "user-write": "Gebruiker Bewerken",
@@ -2791,6 +2795,9 @@ const dutchTranslation: TranslationType = {
                         delete: "Weet u zeker dat u dit item wilt verwijderen?",
                         sealsUnknown:
                             "De zegels van de stembussen konden niet worden gecontroleerd: als er verzegelde stembussen zijn, wordt het verwijderen geweigerd.",
+                        archiveNamed: 'Weet u zeker dat u "{{name}}" wilt archiveren?',
+                        unarchiveNamed: 'Weet u zeker dat u "{{name}}" wilt dearchiveren?',
+                        deleteNamed: 'Weet u zeker dat u "{{name}}" wilt verwijderen?',
                     },
                     notification: {
                         success: {
@@ -2913,6 +2920,13 @@ const dutchTranslation: TranslationType = {
                 "label": "Vorm icoon selectievakje kandidaten",
                 "square-checkbox": "Vierkant Selectievakje",
                 "round-checkbox": "Rond Selectievakje",
+            },
+            candidatesLayout: {
+                "label": "Indeling van kandidaten",
+                "helperText":
+                    "Het raster van het papieren stembiljet toont kandidaten als genummerde vakjes met een in te kleuren cirkel, kolom voor kolom, volgens Kolommen (4 indien leeg). Stemmingen met rangschikking gebruiken altijd de lijst.",
+                "list": "Lijst",
+                "paper-grid": "Raster van papieren stembiljet",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Kandidaten en Lijsten",
@@ -4146,6 +4160,7 @@ const dutchTranslation: TranslationType = {
                     "insufficient-information": "Ontbrekende gegevens",
                     "no-matching-voter": "Geen overeenkomende kiezer",
                     "voter-already-approved": "Al goedgekeurd",
+                    "EMAIL_IN_USE": "E-mail gebruikt door een andere kiezer",
                     "other": "Anders",
                 },
                 hint: {
@@ -4391,6 +4406,8 @@ const dutchTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Configureerbare dashboards",
+            modeChangeError: "De dashboardmodus kon niet worden gewijzigd. Probeer het opnieuw.",
             title: "Monitoring",
             loading: "Monitoring laden",
             unavailableAlert:

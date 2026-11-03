@@ -116,3 +116,70 @@ pub async fn user_groups(
     }
     Ok(groups)
 }
+
+/// The Scanovate `liveness-secret` of each aliased authenticator
+/// configuration of a realm used only by Scanovate executions, read from
+/// Keycloak's storage (its Admin API masks it), one row per execution, each
+/// with its configuration's id and `liveness-url` from the same statement so
+/// the export can tell whether the configuration changed since the realm
+/// export. No other setting, configuration or realm is read.
+#[instrument(skip(keycloak_transaction), err)]
+pub async fn get_scanovate_liveness_secrets(
+    keycloak_transaction: &Transaction<'_>,
+    realm_name: &str,
+) -> Result<Vec<crate::services::export::integration_secrets::StoredIntegrationSecret>> {
+    use crate::services::export::integration_secrets::{
+        IntegrationSecretValue, StoredIntegrationSecret, SCANOVATE_AUTHENTICATOR_PROVIDER,
+        SCANOVATE_LIVENESS_SECRET_KEY, SCANOVATE_LIVENESS_URL_KEY,
+    };
+    let rows = keycloak_transaction
+        .query(
+            r#"
+            SELECT
+                config.id::VARCHAR AS config_id,
+                config.alias AS config_alias,
+                secret.value AS secret_value,
+                endpoint.value AS endpoint
+            FROM realm
+            JOIN authentication_execution AS execution
+                ON execution.realm_id = realm.id
+            JOIN authenticator_config AS config
+                ON config.id = execution.auth_config
+                AND config.realm_id = realm.id
+            JOIN authenticator_config_entry AS secret
+                ON secret.authenticator_id = config.id
+                AND secret.name = $2
+            LEFT JOIN authenticator_config_entry AS endpoint
+                ON endpoint.authenticator_id = config.id
+                AND endpoint.name = $3
+            WHERE realm.name = $1
+                AND config.alias IS NOT NULL
+                AND execution.authenticator = $4
+                AND NOT EXISTS (
+                    SELECT 1 FROM authentication_execution AS other
+                    WHERE other.auth_config = config.id
+                        AND other.authenticator IS DISTINCT FROM $4
+                )
+            "#,
+            &[
+                &realm_name,
+                &SCANOVATE_LIVENESS_SECRET_KEY,
+                &SCANOVATE_LIVENESS_URL_KEY,
+                &SCANOVATE_AUTHENTICATOR_PROVIDER,
+            ],
+        )
+        .await
+        // The statement's error never carries row values.
+        .map_err(|err| anyhow!("Error reading the realm's Scanovate configurations: {err}"))?;
+    let mut stored = Vec::with_capacity(rows.len());
+    for row in rows {
+        let value: Option<String> = row.try_get("secret_value")?;
+        stored.push(StoredIntegrationSecret {
+            config_id: row.try_get("config_id")?,
+            config_alias: row.try_get("config_alias")?,
+            value: IntegrationSecretValue::new(value.unwrap_or_default()),
+            endpoint: row.try_get("endpoint")?,
+        });
+    }
+    Ok(stored)
+}

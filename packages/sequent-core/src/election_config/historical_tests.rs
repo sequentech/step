@@ -94,7 +94,7 @@ fn reviewed() -> HistoricalOptions {
 fn refuses_undefined_census_eligibility_without_exposing_voter_values() {
     let (sql, xlsx) = fixture();
     let refused =
-        adapt(&sql, &xlsx, &HistoricalOptions::default()).unwrap_err();
+        adapt(&sql, Some(&xlsx), &HistoricalOptions::default()).unwrap_err();
     assert_eq!(refused.report.problems[0].code, Code::NotApproved);
     assert!(refused.report.problems[0].path.contains("voters"));
     assert!(!format!("{:?}", refused.report).contains("private-voter-id"));
@@ -104,7 +104,7 @@ fn refuses_undefined_census_eligibility_without_exposing_voter_values() {
 fn preserves_codes_reconciles_explicit_exclusions_and_builds_repeatable_native_archive(
 ) {
     let (sql, xlsx) = fixture();
-    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let adapted = adapt(&sql, Some(&xlsx), &reviewed()).unwrap();
     assert_eq!(adapted.summary.selected_candidates, 1);
     assert_eq!(adapted.summary.excluded_voters, 1);
     assert_eq!(
@@ -296,7 +296,7 @@ fn overseas_voter_fixture_with(
 fn preserve_source_voters_builds_the_full_census_joined_by_the_whole_location_tuple(
 ) {
     let (sql, xlsx) = overseas_voter_fixture("", "");
-    let adapted = adapt(&sql, &xlsx, &preserving()).unwrap();
+    let adapted = adapt(&sql, Some(&xlsx), &preserving()).unwrap();
     assert_eq!(adapted.summary.preserved_voters, 80);
     assert_eq!(adapted.summary.excluded_voters, 0);
 
@@ -456,7 +456,7 @@ fn a_voter_with_no_in_scope_area_is_surfaced_not_dropped() {
         "",
         "('v-9999','Orphan','Voter','Mid','','1990','1','1','90','06','9999','O')",
     );
-    let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+    let refused = adapt(&sql, Some(&xlsx), &preserving()).unwrap_err();
     assert_eq!(refused.report.problems[0].code, Code::DanglingReference);
     assert!(refused.report.problems[0].path.contains("voters"));
 }
@@ -466,7 +466,7 @@ fn a_precinct_key_shared_by_two_areas_is_a_conflict_not_a_guess() {
     // different barangay/area must be rejected, so voters are never misassigned.
     let (sql, xlsx) =
         overseas_voter_fixture(",('B02','P01','90','06','001','0001A')", "");
-    let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+    let refused = adapt(&sql, Some(&xlsx), &preserving()).unwrap_err();
     assert_eq!(refused.report.problems[0].code, Code::DuplicateId);
     assert!(refused.report.problems[0].path.contains("pop"));
 }
@@ -476,7 +476,7 @@ fn a_duplicate_voter_id_is_rejected() {
         "",
         "('v-0000','Dup','Licate','Mid','','1990','1','1','90','06','0001A','O')",
     );
-    let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+    let refused = adapt(&sql, Some(&xlsx), &preserving()).unwrap_err();
     assert_eq!(refused.report.problems[0].code, Code::DuplicateId);
     assert!(refused.report.problems[0].path.contains("voters"));
 }
@@ -488,7 +488,7 @@ fn an_incomplete_or_impossible_date_of_birth_is_surfaced() {
         "",
         "('v-9000','Bad','Date','Mid','','1990','99','99','90','06','0001A','O')",
     );
-    let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+    let refused = adapt(&sql, Some(&xlsx), &preserving()).unwrap_err();
     assert_eq!(refused.report.problems[0].code, Code::InvalidValue);
     assert!(refused.report.problems[0].path.contains("voters"));
 }
@@ -503,7 +503,7 @@ fn every_failing_voter_row_is_reported_not_only_the_first() {
          ('v-0000','Dup','Licate','Mid','','1990','1','1','90','06','0001A','O'),\
          ('v-9000','Bad','Date','Mid','','1990','99','99','90','06','0001A','O')",
     );
-    let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+    let refused = adapt(&sql, Some(&xlsx), &preserving()).unwrap_err();
     let found: Vec<(Code, &str)> = refused
         .report
         .problems
@@ -527,7 +527,7 @@ fn the_voter_area_join_is_an_explicit_recorded_decision() {
     // The location join is a named contract, recorded in the event provenance so a
     // reviewer can see which source columns were equated.
     let (sql, xlsx) = overseas_voter_fixture("", "");
-    let adapted = adapt(&sql, &xlsx, &preserving()).unwrap();
+    let adapted = adapt(&sql, Some(&xlsx), &preserving()).unwrap();
     let event = &adapted.workbook.rows("electionevent")[0];
     let provenance: Value = serde_json::from_str(
         event
@@ -549,7 +549,7 @@ fn preserving_voters_without_a_join_decision_is_not_approved() {
         voter_area_join: None,
         ..preserving()
     };
-    let refused = adapt(&sql, &xlsx, &options).unwrap_err();
+    let refused = adapt(&sql, Some(&xlsx), &options).unwrap_err();
     assert_eq!(refused.report.problems[0].code, Code::NotApproved);
     assert_eq!(
         refused.report.problems[0].path,
@@ -563,7 +563,7 @@ fn a_voter_with_no_date_of_birth_imports_with_it_left_blank() {
         "",
         "('v-9001','No','Dob','Mid','','','','','90','06','0001A','O')",
     );
-    let adapted = adapt(&sql, &xlsx, &preserving()).unwrap();
+    let adapted = adapt(&sql, Some(&xlsx), &preserving()).unwrap();
     assert_eq!(adapted.summary.preserved_voters, 81);
     let voters = adapted.workbook.rows("voters");
     let voter = voters
@@ -582,7 +582,7 @@ fn refuses_a_dangling_precinct_reference_before_building() {
     let sql = String::from_utf8(sql)
         .unwrap()
         .replace("('B01','P01','001'", "('B01','MISSING','001'");
-    let refused = adapt(sql.as_bytes(), &xlsx, &reviewed()).unwrap_err();
+    let refused = adapt(sql.as_bytes(), Some(&xlsx), &reviewed()).unwrap_err();
     assert_eq!(refused.report.problems[0].code, Code::DanglingReference);
     assert!(!refused.report.problems[0].message.contains("MISSING"));
 }
@@ -593,7 +593,7 @@ fn outside_seat_candidates_require_explicit_scope_review() {
     let xlsx = fixture().1;
     let mut options = first_seat_only(sql.as_bytes(), &xlsx);
     options.scope = ScopePolicy::RequireCompleteCoverage;
-    let refused = adapt(sql.as_bytes(), &xlsx, &options).unwrap_err();
+    let refused = adapt(sql.as_bytes(), Some(&xlsx), &options).unwrap_err();
     assert_eq!(refused.report.problems[0].code, Code::NotApproved);
     assert_eq!(refused.summary.outside_scope_candidates, 1);
 }
@@ -623,7 +623,7 @@ fn a_valid_unselected_contest_is_excluded_and_counted_under_configured_seats_onl
     let xlsx = fixture().1;
     let adapted = adapt(
         sql.as_bytes(),
-        &xlsx,
+        Some(&xlsx),
         &first_seat_only(sql.as_bytes(), &xlsx),
     )
     .unwrap();
@@ -700,7 +700,8 @@ fn every_candidate_reference_is_checked_against_the_whole_source_before_scope_fi
         for options in
             [first_seat_only(sql.as_bytes(), &xlsx), reviewed(), complete]
         {
-            let rejected = adapt(sql.as_bytes(), &xlsx, &options).unwrap_err();
+            let rejected =
+                adapt(sql.as_bytes(), Some(&xlsx), &options).unwrap_err();
             let problem = &rejected.report.problems[0];
             assert_eq!(problem.code, case.code, "{}", case.name);
             assert!(
@@ -769,7 +770,7 @@ fn a_null_code_on_either_side_of_a_candidate_reference_is_refused_where_it_is()
 fn malformed_sql_reports_hashes_and_location_without_any_workbook_read() {
     let refused = adapt(
         b"SELECT 'private-record' INTO OUTFILE '/tmp/data';",
-        b"invalid",
+        Some(b"invalid"),
         &reviewed(),
     )
     .unwrap_err();
@@ -792,7 +793,7 @@ fn repeated_posts_with_distinct_aliases_require_associations_instead_of_discardi
     set(&mut duplicate, "alias", json!("e2"));
     elections.rows.push(duplicate);
     let xlsx = write_xlsx(&Workbook::new(sheets).unwrap()).unwrap();
-    let refused = adapt(&sql, &xlsx, &reviewed()).unwrap_err();
+    let refused = adapt(&sql, Some(&xlsx), &reviewed()).unwrap_err();
     assert_eq!(refused.report.problems[0].code, Code::NotApproved);
     assert_eq!(refused.summary.election_contexts.len(), 2);
     let mut options = reviewed();
@@ -810,7 +811,7 @@ fn repeated_posts_with_distinct_aliases_require_associations_instead_of_discardi
             seat_rows: vec![1],
         },
     ];
-    let accepted = adapt(&sql, &xlsx, &options).unwrap();
+    let accepted = adapt(&sql, Some(&xlsx), &options).unwrap();
     assert_eq!(accepted.workbook.rows("elections").len(), 2);
     assert_eq!(accepted.workbook.rows("contests").len(), 2);
     assert_eq!(accepted.workbook.rows("candidates").len(), 2);
@@ -835,12 +836,12 @@ fn timezone_less_dates_require_an_explicit_reviewed_offset() {
         set(row, "date", json!("2027-01-01 10:00:00"));
     }
     let xlsx = write_xlsx(&Workbook::new(sheets).unwrap()).unwrap();
-    let refused = adapt(&sql, &xlsx, &reviewed()).unwrap_err();
+    let refused = adapt(&sql, Some(&xlsx), &reviewed()).unwrap_err();
     assert_eq!(refused.report.problems[0].code, Code::NotApproved);
     assert!(refused.report.problems[0].path.contains("column date"));
     let mut options = reviewed();
     options.schedule_offset_minutes = Some(480);
-    let accepted = adapt(&sql, &xlsx, &options).unwrap();
+    let accepted = adapt(&sql, Some(&xlsx), &options).unwrap();
     assert_eq!(
         accepted.workbook.rows("scheduledevents")[0].text("scheduled_datetime"),
         Some("2027-01-01T10:00:00+08:00")
@@ -857,9 +858,9 @@ fn reviewed_associations_cannot_be_reused_after_source_bytes_change() {
     }];
     options.source_digests = Some(SourceDigests {
         sql_sha256: format!("{:x}", Sha256::digest(&sql)),
-        workbook_sha256: format!("{:x}", Sha256::digest(&xlsx)),
+        workbook_sha256: Some(format!("{:x}", Sha256::digest(&xlsx))),
     });
-    assert!(adapt(&sql, &xlsx, &options).is_ok());
+    assert!(adapt(&sql, Some(&xlsx), &options).is_ok());
     let changed = [
         sql.as_slice(),
         b"
@@ -867,7 +868,7 @@ fn reviewed_associations_cannot_be_reused_after_source_bytes_change() {
 ",
     ]
     .concat();
-    let refused = adapt(&changed, &xlsx, &options).unwrap_err();
+    let refused = adapt(&changed, Some(&xlsx), &options).unwrap_err();
     assert_eq!(refused.report.problems[0].code, Code::IntegrityMismatch);
 }
 
@@ -881,9 +882,9 @@ fn partial_associations_cannot_drop_an_election_context() {
     }];
     options.source_digests = Some(SourceDigests {
         sql_sha256: format!("{:x}", Sha256::digest(&sql)),
-        workbook_sha256: format!("{:x}", Sha256::digest(&xlsx)),
+        workbook_sha256: Some(format!("{:x}", Sha256::digest(&xlsx))),
     });
-    let refused = adapt(&sql, &xlsx, &options).unwrap_err();
+    let refused = adapt(&sql, Some(&xlsx), &options).unwrap_err();
     assert_eq!(refused.report.problems[0].code, Code::InvalidValue);
 }
 
@@ -899,17 +900,17 @@ fn explicit_area_associations_are_hash_bound_and_preserve_the_workbook_row() {
     );
     let xlsx = write_xlsx(&Workbook::new(sheets).unwrap()).unwrap();
     let mut options = reviewed();
-    let rejected = adapt(&sql, &xlsx, &options).unwrap_err();
+    let rejected = adapt(&sql, Some(&xlsx), &options).unwrap_err();
     assert_eq!(rejected.report.problems[0].code, Code::DanglingReference);
     options.source_digests = Some(SourceDigests {
         sql_sha256: format!("{:x}", Sha256::digest(&sql)),
-        workbook_sha256: format!("{:x}", Sha256::digest(&xlsx)),
+        workbook_sha256: Some(format!("{:x}", Sha256::digest(&xlsx))),
     });
     options.area_mappings = vec![AreaMapping {
         workbook_row: 2,
         precinct_rows: vec![1],
     }];
-    let adapted = adapt(&sql, &xlsx, &options).unwrap();
+    let adapted = adapt(&sql, Some(&xlsx), &options).unwrap();
     assert_eq!(
         adapted.workbook.rows("areas")[0].text("name"),
         Some("Reviewed area label")
@@ -917,7 +918,11 @@ fn explicit_area_associations_are_hash_bound_and_preserve_the_workbook_row() {
     assert_eq!(adapted.workbook.rows("areacontests").len(), 1);
     options.source_digests = None;
     assert_eq!(
-        adapt(&sql, &xlsx, &options).unwrap_err().report.problems[0].code,
+        adapt(&sql, Some(&xlsx), &options)
+            .unwrap_err()
+            .report
+            .problems[0]
+            .code,
         Code::NotApproved
     );
 }
@@ -930,15 +935,19 @@ fn incomplete_post_coverage_requires_an_explicit_bound_exclusion() {
     );
     let mut options = reviewed();
     assert_eq!(
-        adapt(&sql, &xlsx, &options).unwrap_err().report.problems[0].code,
+        adapt(&sql, Some(&xlsx), &options)
+            .unwrap_err()
+            .report
+            .problems[0]
+            .code,
         Code::BallotCoverage
     );
     options.post_coverage = PostCoverage::WorkbookPostsOnly;
     options.source_digests = Some(SourceDigests {
         sql_sha256: format!("{:x}", Sha256::digest(&sql)),
-        workbook_sha256: format!("{:x}", Sha256::digest(&xlsx)),
+        workbook_sha256: Some(format!("{:x}", Sha256::digest(&xlsx))),
     });
-    let accepted = adapt(&sql, &xlsx, &options).unwrap();
+    let accepted = adapt(&sql, Some(&xlsx), &options).unwrap();
     assert_eq!(accepted.summary.excluded_polling_centers, 1);
     assert_eq!(accepted.summary.generated_rows["Elections"], 1);
 }
@@ -950,15 +959,19 @@ fn precincts_without_workbook_areas_are_counted_only_after_explicit_exclusion()
     sql.extend_from_slice(b"INSERT INTO `allbgy` VALUES ('B02','Missing supplemental area'); INSERT INTO `trans_route` VALUES ('0010020004','DEST02'); INSERT INTO `pop` VALUES ('B02','P01','001','002','004');");
     let mut options = reviewed();
     assert_eq!(
-        adapt(&sql, &xlsx, &options).unwrap_err().report.problems[0].code,
+        adapt(&sql, Some(&xlsx), &options)
+            .unwrap_err()
+            .report
+            .problems[0]
+            .code,
         Code::DanglingReference
     );
     options.precinct_coverage = PostCoverage::WorkbookPostsOnly;
     options.source_digests = Some(SourceDigests {
         sql_sha256: format!("{:x}", Sha256::digest(&sql)),
-        workbook_sha256: format!("{:x}", Sha256::digest(&xlsx)),
+        workbook_sha256: Some(format!("{:x}", Sha256::digest(&xlsx))),
     });
-    let adapted = adapt(&sql, &xlsx, &options).unwrap();
+    let adapted = adapt(&sql, Some(&xlsx), &options).unwrap();
     assert_eq!(adapted.summary.excluded_precinct_rows, 1);
     assert_eq!(adapted.summary.generated_rows["Areas"], 1);
 }
@@ -972,7 +985,7 @@ fn unresolved_affiliations_require_review_and_never_gain_invented_party_names()
         .replace("'S01','PR01'", "'S01','UNRESOLVED'");
     let mut options = reviewed();
     assert_eq!(
-        adapt(sql.as_bytes(), &xlsx, &options)
+        adapt(sql.as_bytes(), Some(&xlsx), &options)
             .unwrap_err()
             .report
             .problems[0]
@@ -982,9 +995,9 @@ fn unresolved_affiliations_require_review_and_never_gain_invented_party_names()
     options.affiliation = AffiliationPolicy::PreserveUnresolvedCode;
     options.source_digests = Some(SourceDigests {
         sql_sha256: format!("{:x}", Sha256::digest(sql.as_bytes())),
-        workbook_sha256: format!("{:x}", Sha256::digest(&xlsx)),
+        workbook_sha256: Some(format!("{:x}", Sha256::digest(&xlsx))),
     });
-    let accepted = adapt(sql.as_bytes(), &xlsx, &options).unwrap();
+    let accepted = adapt(sql.as_bytes(), Some(&xlsx), &options).unwrap();
     assert_eq!(accepted.summary.unresolved_affiliations, 1);
     let candidate = &accepted.workbook.rows("candidates")[0];
     assert_eq!(
@@ -1002,7 +1015,7 @@ fn multiple_centers_cannot_silently_share_one_schedule_alias() {
     sql.extend_from_slice(
         b"INSERT INTO `polling_centers` VALUES ('P02','Post One');",
     );
-    let refused = adapt(&sql, &xlsx, &reviewed()).unwrap_err();
+    let refused = adapt(&sql, Some(&xlsx), &reviewed()).unwrap_err();
     assert_eq!(refused.report.problems[0].code, Code::NotApproved);
     assert!(refused.report.problems[0]
         .message
@@ -1034,7 +1047,7 @@ fn bound_options(sql: &[u8], xlsx: &[u8]) -> HistoricalOptions {
     HistoricalOptions {
         source_digests: Some(SourceDigests {
             sql_sha256: format!("{:x}", Sha256::digest(sql)),
-            workbook_sha256: format!("{:x}", Sha256::digest(xlsx)),
+            workbook_sha256: Some(format!("{:x}", Sha256::digest(xlsx))),
         }),
         ..reviewed()
     }
@@ -1045,7 +1058,7 @@ fn refused_code(
     options: &HistoricalOptions,
     code: Code,
 ) -> Problem {
-    let rejected = adapt(sql, xlsx, options).unwrap_err();
+    let rejected = adapt(sql, Some(xlsx), options).unwrap_err();
     assert_eq!(rejected.report.problems[0].code, code);
     assert!(rejected.summary.generated_rows.is_empty());
     rejected.report.problems[0].clone()
@@ -1167,7 +1180,7 @@ fn declared_primary_and_unique_keys_are_validated_before_any_mapping() {
         "CREATE TABLE `allprov` (`ID` text)",
         "CREATE TABLE `allprov` (`ID` text, UNIQUE KEY u (`ID`))",
     ) + "INSERT INTO allprov VALUES (NULL),(NULL),('1');";
-    let adapted = adapt(sql.as_bytes(), &xlsx, &reviewed()).unwrap();
+    let adapted = adapt(sql.as_bytes(), Some(&xlsx), &reviewed()).unwrap();
     assert_eq!(adapted.summary.source_rows["allprov"], 3);
 }
 #[test]
@@ -1185,7 +1198,7 @@ fn source_charsets_and_nullable_affiliations_preserve_text_without_invention() {
     let start = sql.find(marker).unwrap();
     let mut sql = sql.into_bytes();
     sql.splice(start..start + marker.len(), [0x80, 0xe9]);
-    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let adapted = adapt(&sql, Some(&xlsx), &reviewed()).unwrap();
     assert_eq!(
         adapted.workbook.rows("candidates")[0]
             .text("presentation.i18n.en.name"),
@@ -1222,7 +1235,7 @@ fn source_charsets_and_nullable_affiliations_preserve_text_without_invention() {
         )
         .replace("Example Candidate", "Résumé");
     assert_eq!(
-        adapt(override_sql.as_bytes(), &xlsx, &reviewed())
+        adapt(override_sql.as_bytes(), Some(&xlsx), &reviewed())
             .unwrap()
             .workbook
             .rows("candidates")[0]
@@ -1345,7 +1358,8 @@ fn exclusions_and_municipality_area_names_reconcile_without_losing_contexts() {
             json!("City One"),
         )
     });
-    let adapted = adapt(changed_sql.as_bytes(), &changed, &reviewed()).unwrap();
+    let adapted =
+        adapt(changed_sql.as_bytes(), Some(&changed), &reviewed()).unwrap();
     assert_eq!(adapted.summary.precincts[0].workbook_area_rows, [2]);
     assert_eq!(
         adapted.workbook.rows("areas")[0].text("name"),
@@ -1354,7 +1368,7 @@ fn exclusions_and_municipality_area_names_reconcile_without_losing_contexts() {
     let extra=format!("{source} INSERT INTO polling_centers VALUES ('P02','Unused post'); INSERT INTO pop VALUES ('B01','P02','001','002','003');");
     let mut options = bound_options(extra.as_bytes(), &xlsx);
     options.post_coverage = PostCoverage::WorkbookPostsOnly;
-    let adapted = adapt(extra.as_bytes(), &xlsx, &options).unwrap();
+    let adapted = adapt(extra.as_bytes(), Some(&xlsx), &options).unwrap();
     assert_eq!(adapted.summary.excluded_precinct_rows, 1);
     assert_eq!(adapted.summary.excluded_polling_centers, 1);
     let conflict=format!("{source} INSERT INTO trans_route VALUES ('0010020004','DEST02'); INSERT INTO pop VALUES ('B01','P01','001','002','004');");
@@ -1433,7 +1447,7 @@ fn ccs_trustees_annotations_and_logo_are_preserved_as_canonical_metadata() {
             );
             set(area, "annotations.synthetic_flag", json!(true));
         });
-        let adapted = adapt(&sql, &changed, &reviewed()).unwrap();
+        let adapted = adapt(&sql, Some(&changed), &reviewed()).unwrap();
         let event = &adapted.workbook.rows("electionevent")[0];
         assert_eq!(
             event.text("presentation.logo_url"),
@@ -1526,7 +1540,7 @@ fn source_text_helpers_reject_missing_cells_columns_and_duplicate_lookup_keys()
     assert_eq!(data.index("id").unwrap_err().code, Code::DuplicateId);
     let (mut sql, xlsx) = fixture();
     sql.extend_from_slice(b"INSERT INTO allprov VALUES (x'ff');");
-    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let adapted = adapt(&sql, Some(&xlsx), &reviewed()).unwrap();
     assert_eq!(adapted.summary.opaque_binary_values, 1);
 }
 #[test]
@@ -1594,7 +1608,7 @@ fn schedules_require_real_dates_aliases_and_an_explicit_bounded_offset() {
     refused_code(&sql, &naive, &options, Code::NotApproved);
     options.schedule_offset_minutes = Some(-840);
     assert_eq!(
-        adapt(&sql, &naive, &options)
+        adapt(&sql, Some(&naive), &options)
             .unwrap()
             .workbook
             .rows("scheduledevents")[0]
@@ -1691,7 +1705,7 @@ fn workbook_zip_limits_and_malformed_containers_are_refused_before_parsing_data(
         encrypted[at + offset] |= 1;
     }
     refused_code(&sql, &encrypted, &reviewed(), Code::Unreadable);
-    assert!(adapt(&sql, &small, &reviewed()).is_err());
+    assert!(adapt(&sql, Some(&small), &reviewed()).is_err());
 }
 
 #[test]
@@ -1727,7 +1741,7 @@ fn explicit_candidate_scope_records_exclusions_without_inventing_affiliations()
     let sql = with_second_seat(sql.into_bytes(), "('S02','Second Seat',1,'G01')")
         + "INSERT INTO candidate VALUES ('0008','Outside example','C02','S02',NULL);";
     let options = first_seat_only(sql.as_bytes(), &xlsx);
-    let adapted = adapt(sql.as_bytes(), &xlsx, &options).unwrap();
+    let adapted = adapt(sql.as_bytes(), Some(&xlsx), &options).unwrap();
     assert_eq!(adapted.summary.selected_candidates, 1);
     assert_eq!(adapted.summary.outside_scope_candidates, 1);
     assert_eq!(adapted.summary.unresolved_affiliations, 0);
@@ -1747,7 +1761,7 @@ fn an_empty_source_census_never_requires_invented_voter_credentials() {
     let mut options = reviewed();
     options.census = CensusPolicy::RequireReviewedMapping;
     options.scope = ScopePolicy::RequireCompleteCoverage;
-    let adapted = adapt(sql.as_bytes(), &xlsx, &options).unwrap();
+    let adapted = adapt(sql.as_bytes(), Some(&xlsx), &options).unwrap();
     assert_eq!(adapted.summary.excluded_voters, 0);
     assert_eq!(adapted.summary.outside_scope_candidates, 0);
     assert!(adapted.workbook.rows("voters").is_empty());
@@ -1758,7 +1772,7 @@ fn repeated_precinct_rows_with_identical_metadata_share_one_canonical_area() {
     sql.extend_from_slice(
         b"INSERT INTO pop VALUES ('B01','P01','001','002','003');",
     );
-    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let adapted = adapt(&sql, Some(&xlsx), &reviewed()).unwrap();
     assert_eq!(adapted.summary.source_rows["pop"], 2);
     assert_eq!(adapted.summary.generated_rows["Areas"], 1);
     assert_eq!(adapted.summary.generated_rows["AreaContests"], 1);
@@ -1805,7 +1819,7 @@ fn each_required_source_table_reports_its_missing_column_before_conversion() {
 #[test]
 fn every_name_lands_in_the_localized_presentation_the_importer_keeps() {
     let (sql, xlsx) = fixture();
-    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let adapted = adapt(&sql, Some(&xlsx), &reviewed()).unwrap();
     let built = build(
         &adapted.workbook,
         &TemplateSet::builtin().unwrap(),
@@ -1840,7 +1854,7 @@ fn a_plain_workbook_name_must_agree_with_its_localized_name() {
                 json!("Localized"),
             );
         });
-        let adapted = adapt(&sql, &localized, &reviewed()).unwrap();
+        let adapted = adapt(&sql, Some(&localized), &reviewed()).unwrap();
         assert_eq!(
             adapted.workbook.rows(sheet)[0].text("presentation.i18n.en.name"),
             Some("Localized")
@@ -1856,7 +1870,7 @@ fn a_plain_workbook_name_must_agree_with_its_localized_name() {
                 json!(plain),
             );
         });
-        adapt(&sql, &agreeing, &reviewed()).unwrap();
+        adapt(&sql, Some(&agreeing), &reviewed()).unwrap();
 
         let conflicting = changed_workbook(&xlsx, |sheets| {
             let target = sheets.iter_mut().find(|s| s.key == sheet).unwrap();
@@ -1870,7 +1884,7 @@ fn a_plain_workbook_name_must_agree_with_its_localized_name() {
     }
 }
 fn built_export(sql: &[u8], xlsx: &[u8]) -> Value {
-    let adapted = adapt(sql, xlsx, &reviewed()).unwrap();
+    let adapted = adapt(sql, Some(xlsx), &reviewed()).unwrap();
     build(
         &adapted.workbook,
         &TemplateSet::builtin().unwrap(),
@@ -1903,7 +1917,7 @@ fn a_plain_workbook_description_must_agree_with_its_localized_description() {
             target.rows[0].cells.retain(|(c, _)| c != "description");
             set(&mut target.rows[0], description, json!("Localized"));
         });
-        let adapted = adapt(&sql, &localized_only, &reviewed()).unwrap();
+        let adapted = adapt(&sql, Some(&localized_only), &reviewed()).unwrap();
         assert_eq!(
             adapted.workbook.rows(sheet)[0].text(description),
             Some("Localized")
@@ -1913,7 +1927,7 @@ fn a_plain_workbook_description_must_agree_with_its_localized_description() {
             let target = sheets.iter_mut().find(|s| s.key == sheet).unwrap();
             set(&mut target.rows[0], description, json!("Test"));
         });
-        adapt(&sql, &agreeing, &reviewed()).unwrap();
+        adapt(&sql, Some(&agreeing), &reviewed()).unwrap();
 
         let conflicting = changed_workbook(&xlsx, |sheets| {
             let target = sheets.iter_mut().find(|s| s.key == sheet).unwrap();
@@ -2030,7 +2044,7 @@ fn an_entity_left_without_a_name_in_its_default_language_is_refused_where_it_is(
 #[test]
 fn names_and_descriptions_survive_the_native_schema_and_a_reopened_archive() {
     let (sql, xlsx) = fixture();
-    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let adapted = adapt(&sql, Some(&xlsx), &reviewed()).unwrap();
     let built = build(
         &adapted.workbook,
         &TemplateSet::builtin().unwrap(),
@@ -2135,7 +2149,7 @@ fn a_source_without_the_optional_identity_columns_imports_them_blank() {
             values.join(",")
         ),
     );
-    let adapted = adapt(&sql, &xlsx, &preserving()).unwrap();
+    let adapted = adapt(&sql, Some(&xlsx), &preserving()).unwrap();
     assert_eq!(adapted.summary.preserved_voters, 4);
     let voters = adapted.workbook.rows("voters");
     let voter = voters
@@ -2161,7 +2175,8 @@ fn preserving_voters_needs_the_population_precinct_column() {
     let end = start + sql[start..].find('\n').unwrap();
     let pop = "CREATE TABLE `pop` (`CLUSTERPOLLCENTER` text, `POLLCENTER_CODE` text, `PROV_CODE` text, `MUN_CODE` text, `BRGY_CODE` text); INSERT INTO `pop` VALUES ('B06','P01','90','06','001');";
     let sql = format!("{}{}{}", &sql[..start], pop, &sql[end..]);
-    let refused = adapt(sql.as_bytes(), &xlsx, &preserving()).unwrap_err();
+    let refused =
+        adapt(sql.as_bytes(), Some(&xlsx), &preserving()).unwrap_err();
     let problem = &refused.report.problems[0];
     assert!(
         problem.path.contains("pop") && problem.path.contains("PRECINCT"),
@@ -2185,7 +2200,7 @@ fn a_voter_whose_area_has_no_embassy_label_is_refused() {
     // Enrollment matches the voter's embassy against the registration options;
     // an area without a label would match against a blank, so it is refused.
     let (sql, xlsx) = overseas_voter_fixture_with("", "", "");
-    let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+    let refused = adapt(&sql, Some(&xlsx), &preserving()).unwrap_err();
     let problems = &refused.report.problems;
     assert!(!problems.is_empty());
     assert!(problems
@@ -2194,4 +2209,446 @@ fn a_voter_whose_area_has_no_embassy_label_is_refused() {
             && p.path.ends_with("column EMBASSY")));
     // Only the 20 voters of the unlabelled area, each by its own row.
     assert_eq!(problems.len(), 20);
+}
+
+/// The legacy SQL rewritten in the documented post-qualification names.
+fn post_qualification(sql: &[u8]) -> String {
+    let mut sql = String::from_utf8(sql.to_vec()).unwrap();
+    for (legacy, post) in [
+        ("candidate", "candidates"),
+        ("contest", "contests"),
+        ("seat", "seats"),
+        ("party_list", "political_party"),
+        ("canvass_center", "canvass_centers"),
+        ("trans_route", "trans_routes"),
+        ("geographical", "jurisdictions"),
+        ("ELIGIBLEAMOUNT", "NUM_SEAT"),
+    ] {
+        sql = sql.replace(&format!("`{legacy}`"), &format!("`{post}`"));
+    }
+    sql + "CREATE TABLE `trans_servers` (`ID` int, `CODE_SERVER` text); INSERT INTO `trans_servers` VALUES (1,'S1');\n"
+}
+
+#[test]
+fn a_post_qualification_dump_converts_as_its_legacy_equivalent() {
+    let (sql, xlsx) = fixture();
+    let post = post_qualification(&sql);
+    let legacy = adapt(&sql, Some(&xlsx), &reviewed()).unwrap();
+    let renamed = adapt(post.as_bytes(), Some(&xlsx), &reviewed()).unwrap();
+    assert_eq!(legacy.summary.source_schema, SourceSchema::Legacy);
+    assert_eq!(
+        renamed.summary.source_schema,
+        SourceSchema::PostQualification
+    );
+    // The same rows; only the provenance differs, recording the source's own names.
+    let cells = |workbook: &Workbook| -> Vec<Vec<(String, Value)>> {
+        workbook
+            .sheets()
+            .iter()
+            .flat_map(|sheet| sheet.rows.iter())
+            .map(|row| row.without(&["annotations.import:provenance"]))
+            .collect()
+    };
+    assert_eq!(cells(&renamed.workbook), cells(&legacy.workbook));
+    let provenance: Value = serde_json::from_str(
+        renamed.workbook.rows("electionevent")[0]
+            .text("annotations.import:provenance")
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(provenance["sourceSchema"], json!("post-qualification"));
+    assert_eq!(provenance["sourceRows"]["seats"], json!(1));
+}
+
+#[test]
+fn a_dump_mixing_both_schemas_is_refused() {
+    let (sql, xlsx) = fixture();
+    let mixed = post_qualification(&sql).replace("`contests`", "`contest`");
+    let refused =
+        adapt(mixed.as_bytes(), Some(&xlsx), &reviewed()).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::InvalidValue);
+    assert_eq!(refused.report.problems[0].path, "SQL schema");
+}
+
+#[test]
+fn post_qualification_problems_name_the_source_tables_and_columns() {
+    let (sql, xlsx) = fixture();
+    let post = post_qualification(&sql).replace(
+        "('S01','Example Seat',1,'G01')",
+        "('S01','Example Seat',NULL,'G01')",
+    );
+    let refused = adapt(post.as_bytes(), Some(&xlsx), &reviewed()).unwrap_err();
+    let path = &refused.report.problems[0].path;
+    assert!(
+        path.starts_with("SQL table seats ")
+            && path.ends_with("column NUM_SEAT"),
+        "{path}"
+    );
+
+    let report = schema::source_names(
+        Report::from(Problem::error(
+            Code::InvalidValue,
+            "SQL table pop row 2 column MACHINE_TYPE",
+            "x",
+        )),
+        SourceSchema::PostQualification,
+    );
+    assert_eq!(
+        report.problems[0].path,
+        "SQL table pop row 2 column VOTING_MODE"
+    );
+}
+
+/// The overseas source in the post-qualification schema: voters carry their mail
+/// country and embassy, and no precinct or abroad status. Each cluster has its own
+/// polling center, whose post is the area's embassy; `UNITED STATES` is named after
+/// its own post, so its area takes the municipality's name.
+fn post_qualification_overseas() -> Vec<u8> {
+    let (sql, _) = overseas_voter_fixture("", "");
+    let mut sql = post_qualification(&sql)
+        .replace(
+            "('P01','Post One');",
+            "('P01','Post One'),('B06','BANGKOK PE'),('B02','DHAKA PE'),('B91','WASHINGTON D.C.');",
+        )
+        .replace("('B91','UNITED STATES')", "('B91','WASHINGTON D.C.')");
+    let start = sql.find("CREATE TABLE `voters`").unwrap();
+    let end = start + sql[start..].find(";\n").unwrap() + 2;
+    let voters: Vec<String> = (0..80usize)
+        .map(|i| {
+            let (country, embassy) =
+                [("90", "06"), ("90", "06"), ("90", "02"), ("91", "01")][i / 20];
+            format!("('v-{i:04}','Last{i}','First{i}','Mid{i}','','F','1990','1','2',NULL,'000','x@example.org','{country}','{embassy}',NULL)")
+        })
+        .collect();
+    sql.replace_range(start..end, &format!("CREATE TABLE `voters` (`ID` text, `LASTNAME` text, `FIRSTNAME` text, `MATERNALNAME` text, `SUFFIX` text, `SEX` text, `DOBYEAR` text, `DOBMONTH` text, `DOBDAY` text, `VOTING_HIST1` text, `MOBILE` text, `EMAIL` text, `MAILCOUNTRY` text, `MAILEMBASSY` text, `GEOLOGY` text); INSERT INTO `voters` VALUES {};\n", voters.join(",")));
+    sql.into_bytes()
+}
+
+fn supplemented() -> HistoricalOptions {
+    HistoricalOptions {
+        voter_area_join: Some(VoterAreaJoin::MailCountryEmbassy),
+        schedule_offset_minutes: Some(480),
+        supplement: Some(Supplement {
+            event: SupplementEvent {
+                name: "Synthetic Event".into(),
+                election_event_id: "evt-001".into(),
+                description: None,
+                logo_url: None,
+                css: None,
+            },
+            schedules: vec![
+                SupplementSchedule {
+                    election: None,
+                    event_type: "START_VOTING_PERIOD".into(),
+                    date: "2027-01-01T10:00".into(),
+                },
+                SupplementSchedule {
+                    election: Some("Post One".into()),
+                    event_type: "END_VOTING_PERIOD".into(),
+                    date: "2027-01-02T10:00:00+08:00".into(),
+                },
+            ],
+            ccs_servers: vec![SupplementCcsServer {
+                name: "Central".into(),
+                tag: "9701".into(),
+                address: "https://ccs.example.org".into(),
+                public_key: "key".into(),
+                send_logs: false,
+            }],
+            area_ccs_server_tags: Some("9701".into()),
+            area_trustee_servers: None,
+        }),
+        ..preserving()
+    }
+}
+
+#[test]
+fn a_supplement_replaces_the_workbook_and_the_mail_location_joins_voters() {
+    let sql = post_qualification_overseas();
+    let adapted = adapt(&sql, None, &supplemented()).unwrap();
+    assert_eq!(adapted.summary.workbook_sha256, None);
+    assert_eq!(adapted.summary.preserved_voters, 80);
+
+    let templates = TemplateSet::builtin().unwrap();
+    let built = build(
+        &adapted.workbook,
+        &templates,
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap();
+    let event = &built.export["election_event"];
+    assert_eq!(
+        event["presentation"]["i18n"]["en"]["name"],
+        json!("Synthetic Event")
+    );
+    let elections = built.export["elections"].as_array().unwrap();
+    assert_eq!(elections.len(), 1, "one election per post with voters");
+    // A schedule without an election is every election's; a local time takes the
+    // reviewed offset.
+    let dates: Vec<&str> = adapted
+        .workbook
+        .rows("scheduledevents")
+        .iter()
+        .map(|row| row.text("scheduled_datetime").unwrap())
+        .collect();
+    assert_eq!(
+        dates,
+        ["2027-01-01T10:00:00+08:00", "2027-01-02T10:00:00+08:00"]
+    );
+
+    let v = &built.voters;
+    let col = |name: &str| v.column(name).unwrap();
+    let (area, embassy) = (col("area_name"), col("embassy"));
+    for (prefix, expected_area, expected_embassy) in [
+        ("90/06", "KINGDOM OF THAILAND", "Bangkok PE"),
+        ("90/02", "PEOPLES REPUBLIC OF BANGLADESH", "Dhaka PE"),
+        ("91/01", "City C", "Washington D.C."),
+    ] {
+        let (c, e) = prefix.split_once('/').unwrap();
+        let matching: Vec<_> = v
+            .rows
+            .iter()
+            .filter(|r| {
+                r[col("source_country")] == c && r[col("source_embassy")] == e
+            })
+            .collect();
+        assert!(!matching.is_empty(), "{prefix}");
+        assert!(
+            matching
+                .iter()
+                .all(|r| r[area] == expected_area
+                    && r[embassy] == expected_embassy),
+            "{prefix} must map to {expected_area} / {expected_embassy}"
+        );
+    }
+    // Contact and sex stay in the source: nothing beyond the reviewed census.
+    assert!(v.rows.iter().all(|r| r[col("email")].is_empty()));
+    assert!(v.column("mobile").is_none());
+}
+
+#[test]
+fn a_supplement_needs_an_event_name_and_identity() {
+    let sql = post_qualification_overseas();
+    let mut options = supplemented();
+    options.supplement.as_mut().unwrap().event.election_event_id = " ".into();
+    let refused = adapt(&sql, None, &options).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::MissingField);
+    assert!(refused.report.problems[0]
+        .path
+        .ends_with("event.electionEventId"));
+}
+
+#[test]
+fn the_workbook_and_the_supplement_are_one_or_the_other() {
+    let (sql, xlsx) = fixture();
+    let both = adapt(&sql, Some(&xlsx), &supplemented()).unwrap_err();
+    assert_eq!(both.report.problems[0].code, Code::ConflictingColumns);
+    let neither = adapt(&sql, None, &reviewed()).unwrap_err();
+    assert_eq!(neither.report.problems[0].code, Code::NotApproved);
+}
+
+#[test]
+fn supplement_decisions_roundtrip_as_strict_json() {
+    let json = serde_json::to_value(&supplemented()).unwrap();
+    assert_eq!(json["voterAreaJoin"], json!("mail-country-embassy"));
+    assert_eq!(
+        json["supplement"]["event"]["electionEventId"],
+        json!("evt-001")
+    );
+    let back: HistoricalOptions = serde_json::from_value(json.clone()).unwrap();
+    assert_eq!(serde_json::to_value(&back).unwrap(), json);
+    let mut unknown = json;
+    unknown["supplement"]["event"]["extra"] = json!(1);
+    assert!(serde_json::from_value::<HistoricalOptions>(unknown).is_err());
+}
+
+#[test]
+fn a_supplement_carries_the_optional_event_and_area_metadata() {
+    let sql = post_qualification_overseas();
+    let mut options = supplemented();
+    let supplement = options.supplement.as_mut().unwrap();
+    supplement.event.description = Some("Synthetic description".into());
+    supplement.event.logo_url = Some("https://example.org/logo.png".into());
+    supplement.event.css = Some("body {}".into());
+    supplement.area_trustee_servers = Some("trustee1,trustee2".into());
+    let adapted = adapt(&sql, None, &options).unwrap();
+    let event = &adapted.workbook.rows("electionevent")[0];
+    assert_eq!(event.text("description"), Some("Synthetic description"));
+    assert_eq!(
+        event.text("presentation.logo_url"),
+        Some("https://example.org/logo.png")
+    );
+    assert_eq!(event.text("presentation.css"), Some("body {}"));
+    for area in adapted.workbook.rows("areas") {
+        assert_eq!(
+            area.text("annotations.miru_trustee_servers"),
+            Some("trustee1,trustee2")
+        );
+    }
+}
+
+#[test]
+fn a_supplement_refuses_a_source_it_cannot_derive_elections_and_areas_from() {
+    let sql = String::from_utf8(post_qualification_overseas()).unwrap();
+    for (from, to, expected) in [
+        ("`pop`", "`pop_missing`", Code::MissingField),
+        ("`polling_centers`", "`centers_missing`", Code::MissingField),
+        ("`allbgy`", "`allbgy_missing`", Code::MissingField),
+        ("`allmun`", "`allmun_missing`", Code::MissingField),
+        (
+            "('B06','P01','90','06'",
+            "('B06','P99','90','06'",
+            Code::DanglingReference,
+        ),
+        (
+            "('B06','KINGDOM OF THAILAND')",
+            "('B07','KINGDOM OF THAILAND')",
+            Code::DanglingReference,
+        ),
+        (
+            "('9101','City C')",
+            "('9102','City C')",
+            Code::DanglingReference,
+        ),
+    ] {
+        assert!(sql.contains(from), "{from}");
+        let changed = sql.replace(from, to);
+        let refused =
+            adapt(changed.as_bytes(), None, &supplemented()).unwrap_err();
+        assert_eq!(refused.report.problems[0].code, expected, "{from}");
+    }
+}
+
+#[test]
+fn post_qualification_renames_reach_keys_charsets_and_bare_table_paths() {
+    let dump = crate::election_config::sql_dump::read_mysql_dump(
+        b"CREATE TABLE `seats` (`DISTRICTCODE` text, `NUM_SEAT` int CHARACTER SET latin1, PRIMARY KEY (`NUM_SEAT`), UNIQUE KEY u (`NUM_SEAT`));\n",
+    )
+    .unwrap();
+    let (dump, schema) = schema::normalize(dump).unwrap();
+    assert_eq!(schema, SourceSchema::PostQualification);
+    let seat = &dump.tables["seat"];
+    assert_eq!(seat.columns, ["DISTRICTCODE", "ELIGIBLEAMOUNT"]);
+    assert_eq!(seat.primary_key, ["ELIGIBLEAMOUNT"]);
+    assert!(seat
+        .unique_keys
+        .iter()
+        .all(|key| key == &["ELIGIBLEAMOUNT"]));
+    assert!(seat.column_charsets.contains_key("ELIGIBLEAMOUNT"));
+
+    let report = schema::source_names(
+        Report::from(Problem::error(Code::MissingField, "SQL table seat", "x")),
+        SourceSchema::PostQualification,
+    );
+    assert_eq!(report.problems[0].path, "SQL table seats");
+}
+
+#[test]
+fn a_supplement_refuses_workbook_associations_and_unreadable_dates() {
+    let sql = post_qualification_overseas();
+    let mut options = supplemented();
+    options.election_mappings = vec![ElectionMapping {
+        workbook_row: 2,
+        seat_rows: vec![1],
+    }];
+    let refused = adapt(&sql, None, &options).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::InvalidValue);
+    assert!(refused.report.problems[0].path.ends_with("areaMappings"));
+
+    let mut options = supplemented();
+    options.supplement.as_mut().unwrap().schedules[0].date =
+        "next tuesday".into();
+    let refused = adapt(&sql, None, &options).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::InvalidValue);
+    assert!(refused.report.problems[0]
+        .message
+        .contains("an instant or a local date and time"));
+}
+
+#[test]
+fn a_supplement_refuses_ambiguous_cluster_posts_in_either_row_order() {
+    let sql = String::from_utf8(post_qualification_overseas()).unwrap();
+    let original = "('B06','P01','90','06','001','0001A'),('B06','P01','90','06','001','0002A')";
+    let first = "('B06','P01','90','06','001','0001A')";
+    let second = "('B06','P02','90','06','001','0002A')";
+    assert!(sql.contains(original));
+    let sql = sql.replace(",('B06','BANGKOK PE')", "").replace(
+        "('P01','Post One')",
+        "('P01','Post One'),('P02','Post Two')",
+    );
+    for rows in [format!("{first},{second}"), format!("{second},{first}")] {
+        let source = sql.replace(original, &rows);
+        let refused =
+            adapt(source.as_bytes(), None, &supplemented()).unwrap_err();
+        let problem = &refused.report.problems[0];
+        assert_eq!(problem.code, Code::ConflictingColumns);
+        assert_eq!(problem.path, "SQL table pop row 2 column POLLCENTER_CODE");
+    }
+}
+
+#[test]
+fn a_clusters_own_center_keeps_its_embassy_across_multiple_posts() {
+    let sql = String::from_utf8(post_qualification_overseas()).unwrap();
+    let original = "('B06','P01','90','06','001','0001A'),('B06','P01','90','06','001','0002A')";
+    let first = "('B06','P01','90','06','001','0001A')";
+    let second = "('B06','P02','90','06','001','0002A')";
+    assert!(sql.contains(original));
+    let sql = sql.replace(
+        "('P01','Post One')",
+        "('P01','Post One'),('P02','Post Two')",
+    );
+    for rows in [format!("{first},{second}"), format!("{second},{first}")] {
+        let source = sql.replace(original, &rows);
+        let adapted = adapt(source.as_bytes(), None, &supplemented()).unwrap();
+        assert_eq!(adapted.summary.generated_rows["Elections"], 2);
+        let area = adapted
+            .workbook
+            .rows("areas")
+            .iter()
+            .find(|row| row.text("external_id") == Some("barangay:B06"))
+            .unwrap();
+        assert_eq!(area.text("description"), Some("BANGKOK PE"));
+        let voters: Vec<_> = adapted
+            .workbook
+            .rows("voters")
+            .iter()
+            .filter(|row| row.text("area.external_id") == Some("barangay:B06"))
+            .collect();
+        assert_eq!(voters.len(), 40);
+        assert!(voters
+            .iter()
+            .all(|row| row.text("embassy") == Some("Bangkok PE")));
+    }
+}
+
+#[test]
+fn post_qualification_column_alias_collisions_are_refused() {
+    for (table, source, legacy) in [
+        ("seats", "NUM_SEAT", "ELIGIBLEAMOUNT"),
+        ("seats", "PROC_CCS_CODE", "CCS_CODE"),
+        ("pop", "VOTING_MODE", "MACHINE_TYPE"),
+        ("trans_routes", "TYPE", "MACHINE_TYPE"),
+    ] {
+        for columns in [
+            format!("`{source}` text, `{legacy}` text"),
+            format!("`{legacy}` text, `{source}` text"),
+        ] {
+            for values in ["('1','2')", "('1','1')"] {
+                let sql = format!(
+                    "CREATE TABLE contests (ID text); CREATE TABLE `{table}` ({columns}); INSERT INTO `{table}` VALUES {values};"
+                );
+                let dump = crate::election_config::sql_dump::read_mysql_dump(
+                    sql.as_bytes(),
+                )
+                .unwrap();
+                let problem = schema::normalize(dump).unwrap_err();
+                assert_eq!(problem.code, Code::ConflictingColumns);
+                assert_eq!(
+                    problem.path,
+                    format!("SQL table {table} column {source}")
+                );
+            }
+        }
+    }
 }

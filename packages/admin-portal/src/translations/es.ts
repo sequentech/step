@@ -1909,6 +1909,9 @@ const spanishTranslation: TranslationType = {
                 encryptWithPassword: "Cifrar con Contraseña",
                 passwordForcedNote:
                     "El archivo se protegerá con contraseña de todos modos: los informes, las solicitudes y los datos del tablón se cifran siempre. Marca la casilla para incluir también los campos secretos de votante descifrados.",
+                integrationSecrets: "Secretos de integración (credenciales de servicio)",
+                integrationSecretsNote:
+                    "Una vez descifrado, el archivo contendrá en claro el secreto de liveness de Scanovate. Mantén en secreto el archivo y su contraseña, e impórtalo solo donde deba usarse ese servicio de Liveness Plus.",
                 includeVoters: "Incluir Votantes",
                 activityLogs: "Registros de Actividad",
                 bulletinBoard: "Tablón de Anuncios",
@@ -2342,6 +2345,7 @@ const spanishTranslation: TranslationType = {
                 "voter-write": "Editar Votante",
                 "voter-secret-attribute-read": "Mostrar Campos Secretos del Votante",
                 "voter-secret-attribute-write": "Editar Campos Secretos del Votante",
+                "integration-secret-read": "Exportar Secretos de Integración",
                 "user-create": "Crear Usuario",
                 "user-read": "Leer Usuario",
                 "user-write": "Editar Usuario",
@@ -2859,6 +2863,9 @@ const spanishTranslation: TranslationType = {
                         delete: "¿Está seguro de que desea eliminar este elemento?",
                         sealsUnknown:
                             "No se pudieron comprobar los sellos de las urnas: si tiene urnas selladas, se rechazará el borrado.",
+                        archiveNamed: '¿Está seguro de que desea archivar "{{name}}"?',
+                        unarchiveNamed: '¿Está seguro de que desea desarchivar "{{name}}"?',
+                        deleteNamed: '¿Está seguro de que desea eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2979,6 +2986,13 @@ const spanishTranslation: TranslationType = {
                 "label": "Forma del icono de la casilla de verificación de los candidatos",
                 "square-checkbox": "Casilla de verificación cuadrada",
                 "round-checkbox": "Casilla de verificación redonda",
+            },
+            candidatesLayout: {
+                "label": "Disposición de las candidaturas",
+                "helperText":
+                    "La cuadrícula de papeleta en papel muestra las candidaturas como celdas numeradas con un círculo para rellenar, columna a columna, según Columnas (4 si está vacío). Las votaciones por orden de preferencia siempre usan la lista.",
+                "list": "Lista",
+                "paper-grid": "Cuadrícula de papeleta en papel",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidatos Y Listas",
@@ -4213,6 +4227,7 @@ const spanishTranslation: TranslationType = {
                     "insufficient-information": "Datos faltantes",
                     "no-matching-voter": "Votante no coincidente",
                     "voter-already-approved": "Ya aprobado",
+                    "EMAIL_IN_USE": "Correo usado por otro votante",
                     "other": "Otro",
                 },
                 hint: {
@@ -4453,6 +4468,8 @@ const spanishTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Paneles configurables",
+            modeChangeError: "No se pudo cambiar el modo del panel. Inténtelo de nuevo.",
             title: "Monitorización",
             loading: "Cargando la monitorización",
             unavailableAlert:

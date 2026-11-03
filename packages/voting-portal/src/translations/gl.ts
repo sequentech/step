@@ -85,6 +85,11 @@ const galegoTranslation: TranslationType = {
                 description:
                     "Esta pregunta resolveuse por aclamación. As súas candidaturas resultan elixidas sen votación, polo que non se pode seleccionar ningunha opción nin se rexistra ningún voto.",
             },
+            paperBallot: {
+                voteForNoMoreThan_one: "Vote por non máis de {{count}}",
+                voteForNoMoreThan_many: "Vote por non máis de {{count}}",
+                voteForNoMoreThan_other: "Vote por non máis de {{count}}",
+            },
         },
         votingScreen: {
             backButton: "Volver",
