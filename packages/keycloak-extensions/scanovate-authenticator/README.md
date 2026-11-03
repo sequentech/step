@@ -12,9 +12,12 @@ Scanovate's on-premise kit integrates them: the capture page embeds the OCR and
 Liveness Plus pages of the services themselves, which check Keycloak's
 one-time tokens and post their results to the `identity-verification` realm
 resource (`<ocr|liveness>/verify` and `<ocr|liveness>/callback`), server to
-server. Keycloak then compares the portrait OCR read with the live face using
-Face Match, and applies the configured rules to what OCR read. Nothing is sent
-to any third party.
+server. With the `holding-photo` policy `REQUIRED` (the default), the capture
+page then takes a photo of the voter holding their document and uploads it to
+`capture/holding` with a one-time token. Keycloak then compares the live face
+with the portrait OCR read and with the holding photo using Face Match, and
+applies the configured rules to what OCR read. Nothing is sent to any third
+party.
 
 See the [Scanovate Identity Verification guide](../../../docs/docusaurus/docs/integrations/scanovate_identity_verification_guide.md)
 for the configuration reference, and

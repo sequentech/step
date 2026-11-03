@@ -4,6 +4,7 @@
 package sequent.keycloak.scanovate_authenticator;
 
 import com.google.auto.service.AutoService;
+import java.util.Arrays;
 import java.util.List;
 import org.keycloak.Config;
 import org.keycloak.authentication.Authenticator;
@@ -29,6 +30,7 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
   public static final String LIVENESS_RESULT_WAIT_SECONDS = "liveness-result-wait-seconds";
   public static final String FACE_MATCH_URL = "face-match-url";
   public static final String FACE_MATCH_MIN_SIMILARITY = "face-match-min-similarity";
+  public static final String HOLDING_PHOTO = "holding-photo";
 
   public static final String DEFAULT_DOC_ID_TYPE = "sequent.read-only.id-card-type";
   public static final String DEFAULT_USER_STATUS = "sequent.read-only.id-card-number-validated";
@@ -195,6 +197,17 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
                 + " the document. The Face Match threshold applies if it is stricter.")
         .type(ProviderConfigProperty.TEXT_TYPE)
         .defaultValue(DEFAULT_FACE_MATCH_MIN_SIMILARITY)
+        .add()
+        .property()
+        .name(HOLDING_PHOTO)
+        .label("Holding photo")
+        .helpText(
+            "REQUIRED: after Scanovate's document scan and face check, the voter takes a photo of"
+                + " themselves holding the document next to their face, which must match their"
+                + " live face, with the same minimum similarity. NONE: no such photo.")
+        .type(ProviderConfigProperty.LIST_TYPE)
+        .options(Arrays.stream(HoldingPhotoPolicy.values()).map(Enum::name).toList())
+        .defaultValue(HoldingPhotoPolicy.REQUIRED.name())
         .add()
         .property()
         .name(DOC_ID_TYPE)

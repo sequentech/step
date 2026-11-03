@@ -27,6 +27,16 @@ export const scanovateEnglish = {
     scanovateFaceStepLead:
         "Your ID is scanned. Follow the instructions below so we can confirm it is you in front of the camera.",
     scanovateFaceFrameTitle: "Face check",
+    scanovateHoldingStepTitle: "Take a photo holding your ID",
+    scanovateHoldingStepLead:
+        "Hold your {0} open next to your face, with both your face and its photo in view, and take the photo.",
+    scanovateHoldingCameraLabel: "Camera",
+    scanovateHoldingPhotoLabel: "Your photo holding your ID",
+    scanovateHoldingTake: "Take photo",
+    scanovateHoldingRetake: "Take it again",
+    scanovateHoldingUse: "Use this photo",
+    scanovateUploadProblemTitle: "We couldn’t send your photo",
+    scanovateUploadProblemText: "Check your internet connection and try again.",
     scanovateCameraProblemTitle: "We couldn’t use your camera",
     scanovateCameraProblemText:
         "Allow camera access for this site in your browser settings, close other apps that are using the camera, then try again. If your device has no camera, open this page on a phone.",
@@ -90,9 +100,9 @@ export const scanovateEnglish = {
     scanovateStartOver: "Start over",
     scanovateLivenessError:
         "We could not confirm that it was you in front of the camera. Please try again.",
-    scanovateFaceMismatchError: "Your face doesn’t match the photo on your ID.",
+    scanovateFaceMismatchError: "The face in your photos doesn’t match the photo on your ID.",
     scanovateFaceNotFoundError:
-        "We couldn’t find your face on your ID. Make sure the photo on your ID is clear and not covered.",
+        "We couldn’t find your face on your ID or in the photo of you holding it. Make sure the photo on your ID is clear and not covered.",
     dateOfBirth: "Date of birth",
     "sequent.read-only.id-card-number": "ID number",
 } as const
@@ -121,6 +131,16 @@ export const scanovateSpanish: Record<keyof typeof scanovateEnglish, string> = {
     scanovateFaceStepLead:
         "Su documento está escaneado. Siga las instrucciones de abajo para confirmar que es usted quien está frente a la cámara.",
     scanovateFaceFrameTitle: "Comprobación facial",
+    scanovateHoldingStepTitle: "Hágase una foto con su documento",
+    scanovateHoldingStepLead:
+        "Sostenga su {0} abierto junto a su cara, con su cara y la foto del documento a la vista, y haga la foto.",
+    scanovateHoldingCameraLabel: "Cámara",
+    scanovateHoldingPhotoLabel: "Su foto con su documento",
+    scanovateHoldingTake: "Hacer la foto",
+    scanovateHoldingRetake: "Repetirla",
+    scanovateHoldingUse: "Usar esta foto",
+    scanovateUploadProblemTitle: "No pudimos enviar su foto",
+    scanovateUploadProblemText: "Compruebe su conexión a internet e inténtelo de nuevo.",
     scanovateCameraProblemTitle: "No pudimos usar su cámara",
     scanovateCameraProblemText:
         "Permita el acceso a la cámara para este sitio en la configuración de su navegador, cierre otras aplicaciones que la estén usando y vuelva a intentarlo. Si su dispositivo no tiene cámara, abra esta página en un teléfono.",
@@ -185,9 +205,9 @@ export const scanovateSpanish: Record<keyof typeof scanovateEnglish, string> = {
     scanovateStartOver: "Volver a empezar",
     scanovateLivenessError:
         "No pudimos confirmar que era usted quien estaba frente a la cámara. Vuelva a intentarlo.",
-    scanovateFaceMismatchError: "Su cara no coincide con la foto de su documento.",
+    scanovateFaceMismatchError: "La cara de sus fotos no coincide con la foto de su documento.",
     scanovateFaceNotFoundError:
-        "No encontramos su cara en su documento. Asegúrese de que la foto de su documento se vea bien y no esté tapada.",
+        "No encontramos su cara en su documento ni en la foto en la que lo sostiene. Asegúrese de que la foto de su documento se vea bien y no esté tapada.",
     dateOfBirth: "Fecha de nacimiento",
     "sequent.read-only.id-card-number": "Número de documento",
 }

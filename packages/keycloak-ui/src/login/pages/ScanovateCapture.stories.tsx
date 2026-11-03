@@ -348,3 +348,153 @@ export const StartOverDuringStep: Story = {
         await expect([...submissions[0].entries()]).toEqual([["action", "retry"]])
     },
 }
+
+// The holding photo: Keycloak's page takes it with its own camera and uploads
+// it with the page's one-time token before submitting the capture.
+const HOLDING = {url: "/realms/r/identity-verification/capture/holding", token: "page-token"}
+const withHolding = {scanovate: {holding: HOLDING}}
+
+/** A front camera that films a test card, and the uploads the page makes. */
+type Uploads = {url: string; init: RequestInit}[]
+const uploads: Uploads = []
+function fakeCameraAndUploads(status = 200, camera = true) {
+    uploads.length = 0
+    const devices = navigator.mediaDevices
+    const realGetUserMedia = devices.getUserMedia
+    const realFetch = window.fetch
+    const canvas = document.createElement("canvas")
+    canvas.width = 640
+    canvas.height = 480
+    const paint = canvas.getContext("2d")!
+    const timer = setInterval(() => {
+        paint.fillStyle = "#0d796a"
+        paint.fillRect(0, 0, canvas.width, canvas.height)
+        paint.fillStyle = "#ffffff"
+        paint.fillRect(380, 160, 180, 240)
+        paint.fillText(new Date().toISOString(), 20, 40)
+    }, 50)
+    devices.getUserMedia = async () => {
+        if (!camera) throw new DOMException("Permission denied", "NotAllowedError")
+        return canvas.captureStream(20)
+    }
+    window.fetch = async (input, init) => {
+        const url = typeof input === "string" ? input : input.toString()
+        if (url === HOLDING.url) {
+            uploads.push({url, init: init ?? {}})
+            return new Response("{}", {status})
+        }
+        return realFetch(input, init)
+    }
+    const cleanSubmissions = keepSubmissions()
+    return () => {
+        clearInterval(timer)
+        devices.getUserMedia = realGetUserMedia
+        window.fetch = realFetch
+        cleanSubmissions()
+    }
+}
+
+async function throughScanovate(canvasElement: HTMLElement) {
+    await press(canvasElement, FAKE_OCR, "Finish")
+    await heading(canvasElement, "Check your face")
+    await press(canvasElement, FAKE_LIVENESS, "Finish")
+    return heading(canvasElement, "Take a photo holding your ID")
+}
+
+async function takePhoto(canvasElement: HTMLElement) {
+    const canvas = within(canvasElement)
+    const take = canvas.getByRole("button", {name: "Take photo"})
+    await waitFor(() => expect(take).toBeEnabled(), {timeout: 5000})
+    await userEvent.click(take)
+    return canvas.findByRole("img", {name: "Your photo holding your ID"})
+}
+
+/** After the face check, the voter takes the photo, checks it and sends it. */
+export const HoldingStep: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () => fakeCameraAndUploads(),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await throughScanovate(canvasElement)).toBeVisible()
+        await expect(
+            canvas.getByText(
+                "Hold your Driver’s License open next to your face, with both your face and its photo in view, and take the photo."
+            )
+        ).toBeVisible()
+        await expect(canvas.getByLabelText("Camera")).toBeVisible()
+        await expect(await takePhoto(canvasElement)).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Use this photo"}))
+
+        await waitFor(() => expect(submissions).toHaveLength(1))
+        await expect([...submissions[0].entries()]).toEqual([["action", "capture"]])
+        await expect(uploads).toHaveLength(1)
+        const {init} = uploads[0]
+        await expect(init.method).toBe("PUT")
+        await expect(init.headers).toEqual({
+            "X-Capture-Token": "page-token",
+            "Content-Type": "image/jpeg",
+        })
+        const body = init.body as Blob
+        await expect(body.type).toBe("image/jpeg")
+        await expect(body.size).toBeGreaterThan(0)
+    },
+}
+
+/** A photo the voter doesn't like is taken again, without uploading it. */
+export const HoldingRetake: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () => fakeCameraAndUploads(),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await takePhoto(canvasElement)
+        await userEvent.click(canvas.getByRole("button", {name: "Take it again"}))
+        await expect(canvas.getByLabelText("Camera")).toBeVisible()
+        await expect(canvas.queryByRole("img", {name: "Your photo holding your ID"})).toBeNull()
+        await expect(uploads).toHaveLength(0)
+        await expect(submissions).toHaveLength(0)
+    },
+}
+
+/** A failed upload is said plainly, and the voter takes the photo again. */
+export const HoldingUploadFails: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () => fakeCameraAndUploads(500),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await takePhoto(canvasElement)
+        await userEvent.click(canvas.getByRole("button", {name: "Use this photo"}))
+        await expect(await heading(canvasElement, "We couldn’t send your photo")).toBeVisible()
+        await expect(submissions).toHaveLength(0)
+        await userEvent.click(canvas.getByRole("button", {name: "Try again"}))
+        await expect(await heading(canvasElement, "Take a photo holding your ID")).toBeVisible()
+    },
+}
+
+/** An expired page token needs a new page from Keycloak. */
+export const HoldingTokenExpired: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () => fakeCameraAndUploads(401),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await takePhoto(canvasElement)
+        await userEvent.click(canvas.getByRole("button", {name: "Use this photo"}))
+        await expect(await heading(canvasElement, "Start the verification again")).toBeVisible()
+        await expect(canvas.queryByRole("button", {name: "Try again"})).toBeNull()
+    },
+}
+
+/** Without the camera, the voter gets the camera help. */
+export const HoldingWithoutCamera: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () => fakeCameraAndUploads(200, false),
+    play: async ({canvasElement}) => {
+        await press(canvasElement, FAKE_OCR, "Finish")
+        await heading(canvasElement, "Check your face")
+        await press(canvasElement, FAKE_LIVENESS, "Finish")
+        await expect(await heading(canvasElement, "We couldn’t use your camera")).toBeVisible()
+        await expect(uploads).toHaveLength(0)
+    },
+}

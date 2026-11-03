@@ -17,7 +17,9 @@ Sequent can verify a voter's identity during enrollment with the
 infrastructure. The voter scans their identity document and then their face in
 Scanovate's own capture pages, embedded in Keycloak's: OCR reads the document,
 and Liveness Plus checks that they are a live person in front of the camera.
-Keycloak then compares their face with the portrait on the document, checks
+Then, unless the realm turns it off, the voter takes a photo of themselves
+holding the document on Keycloak's page. Keycloak compares their live face with
+the portrait on the document and with the photo holding it, checks
 what OCR read against rules you configure, stores the extracted data and asks
 the voter to confirm it.
 
@@ -30,6 +32,7 @@ read the document, is no longer used.
 | The document's details (name, date of birth, number, nationality, expiry), its machine readable zone (MRZ) and its portrait | OCR, in its own capture page | The capture page embeds it; OCR posts the result to Keycloak |
 | The voter is a live person (not a photo, a screen, a mask or a deepfake) and the frames come from a real camera (not a virtual camera or a tampered browser) | Liveness Plus, in its own capture page, with its presentation (PAD) and injection (IAD) attack detection servers | The capture page embeds it; Liveness Plus posts the verdict to Keycloak |
 | The live face matches the portrait on the document | Face Match | Keycloak |
+| The live face matches the photo of the voter holding the document (`holding-photo`) | Face Match | Keycloak; the capture page takes the photo and uploads it to Keycloak |
 
 [Scanovate On-Premise Services](scanovate_on_premise_guide.md) describes how
 to get the images, run them, configure them and the contract with each one.
@@ -52,9 +55,10 @@ sequenceDiagram
     O->>K: token check, then the result (fields, checks, portrait), server to server
     V->>L: Liveness Plus's page in an iframe: the voter's face
     L->>K: token check, then the verdict and the live face, server to server
+    V->>K: PUT identity-verification/capture/holding (photo holding the document, one-time token)
     V->>K: POST login actions URL (action=capture)
     K->>K: wait for both results, reject unless they passed
-    K->>F: compare the live face with the document's portrait
+    K->>F: compare the live face with the document's portrait, then with the holding photo
     K->>K: validate the rules on what OCR read, store the attributes
     K->>V: confirmation or error page
 ```
@@ -70,12 +74,19 @@ sequenceDiagram
 3. The page then embeds Liveness Plus's page, which does the same for the
    voter's face: it guides them, runs PAD and IAD on its frames, and posts the
    verdict and the live face to Keycloak.
-4. Once both pages are done, the page posts `action=capture`.
-5. Keycloak rejects the attempt unless OCR read the document and found its
+4. With `holding-photo` `REQUIRED`, the page then opens the camera itself: the
+   voter holds their document open next to their face, takes the photo, checks
+   it, and the page uploads it as a JPEG to
+   `/realms/<realm>/identity-verification/capture/holding` with the page's
+   one-time token in the `X-Capture-Token` header.
+5. Once that is done, the page posts `action=capture`.
+6. Keycloak rejects the attempt unless OCR read the document and found its
    portrait, and the liveness, presentation attack and injection attack checks
    all passed.
-6. Keycloak compares the live face with the portrait with Face Match.
-7. Only then, Keycloak validates what OCR read with the realm's rules and
+7. Keycloak compares the live face with the portrait with Face Match, and then
+   with the holding photo. A capture without the photo gets a retryable
+   `scanovateCaptureInvalidError`, without using up an attempt.
+8. Only then, Keycloak validates what OCR read with the realm's rules and
    stores the voter's data, which later steps compare with the voter registry.
 
 Some design decisions to be aware of:
@@ -84,13 +95,17 @@ Some design decisions to be aware of:
   move the capture page on. What OCR read, the portrait, the liveness verdict
   and the live face all reach Keycloak from the services, server to server, in
   callbacks that carry a secret the browser never sees.
-- **Scanovate's own pages.** The capture page takes no photo itself: OCR and
-  Liveness Plus run their own capture pages, themed with the colours and fonts
+- **Scanovate's own pages.** The document scan and the face check run in
+  OCR's and Liveness Plus's own capture pages, themed with the colours and fonts
   of the login theme (see
   [Theming](scanovate_on_premise_guide.md#theming)). Injection attack detection
   needs the frames encrypted by Liveness Plus's own page. Keycloak's Content
   Security Policy only allows framing its own origin, so the authenticator adds
-  the origin of `liveness-url` to `frame-src` on the capture page.
+  the origin of `liveness-url` to `frame-src` on the capture page. Only the
+  holding photo is taken by the capture page itself, after the face check:
+  Scanovate's pages take no free photo. It isn't protected by Scanovate's
+  presentation and injection attack detection, so it adds a check of who holds
+  the document, not of how the face reached the camera.
 - **Needs a React login theme.** The capture page is part of the React login
   themes (`packages/keycloak-ui`), e.g. `sequent-ui-voting`, which the Keycloak
   image ships (see
@@ -125,7 +140,8 @@ Some design decisions to be aware of:
   attribute, which a form could submit.
 - **Attempts.** An unreadable document (an OCR result that didn't complete, a
   side it couldn't read, or no portrait), a failed liveness check, a face that
-  doesn't match or can't be found, and a failed rule each use up an attempt. Once
+  doesn't match or can't be found (on the document or in the holding photo), and
+  a failed rule each use up an attempt. Once
   the attempts of the authentication session reach `max-attempts`, no new
   capture starts, whether through **Retry**, a page refresh, a forged
   confirmation or a capture posted without one: the voter gets
@@ -139,17 +155,19 @@ Some design decisions to be aware of:
   the capture page explains it and offers **Try again**, which opens the page
   again, a new session with the same token (each token allows 3 sessions), and
   **Start over**, which asks Keycloak for new tokens (`action=retry`). An
-  invalid token only offers **Start over**.
+  invalid token only offers **Start over**. The holding photo's problems (no
+  camera, a failed upload, an expired upload token) are handled the same way.
 - **Refresh.** Reloading the capture page renders it again for the same case,
   with new one-time tokens.
-- **Nothing is stored but the result.** The portrait, what OCR read and the
-  live face live in Keycloak's single-use object store until the capture is
-  checked (at most 30 minutes), and are discarded then; the other images,
+- **Nothing is stored but the result.** The portrait, what OCR read, the live
+  face and the holding photo live in Keycloak's single-use object store until
+  the capture is checked (at most 30 minutes), and are discarded then; the other images,
   screenshots and frames of the results are never kept. OCR and Liveness Plus
   keep their sessions in memory for 5 minutes, and Face Match keeps nothing.
   Keycloak stores the attributes the voter confirms, and logs and adds to its
   events the case id, the outcome and the face similarity
-  (`scanovate_case_id`, `scanovate_face_match_document`), never an image.
+  (`scanovate_case_id`, `scanovate_face_match_document`,
+  `scanovate_face_match_holding`), never an image.
 
 On success the auth note named by `user-status`
 (`sequent.read-only.id-card-number-validated` by default) is set to `VERIFIED`.
@@ -166,7 +184,9 @@ Starting the step over, a retry, a failed check, a service error or reaching
 
 The capture page receives a `scanovate` attribute with `documentType`,
 `attemptsLeft`, `maxAttempts`, `ocr` and `liveness`, each with the `url` of
-the page to embed, one-time token and case id included. The error page receives `attemptsLeft`, and the confirmation
+the page to embed, one-time token and case id included, and, with
+`holding-photo` `REQUIRED`, `holding` with the `url` and `token` of the
+upload. The error page receives `attemptsLeft`, and the confirmation
 page receives `storedAttributes` as a list of `{key, value, type}` and
 `documentType`.
 
@@ -183,14 +203,15 @@ steps that collect the document type, and configure it:
 | `liveness-result-wait-seconds` | How long to wait for the result callback of OCR or Liveness Plus once the voter is done. | `15` |
 | `face-match-url` | Face Match base URL as Keycloak reaches it, on the internal network, e.g. `http://scanovate-face-match:3000`. | |
 | `face-match-min-similarity` | JSON keyed by document type, with a `default` key for any other type, of the minimum similarity (0 to 1) of the voter's live face with the portrait OCR read from the document. The service's own threshold (`0.67`) applies if higher. | `{"default": 0.67}` |
+| `holding-photo` | `REQUIRED`: after the face check, the voter takes a photo of themselves holding the document, which must match their live face with the same minimum similarity. `NONE`: no such photo. | `REQUIRED` |
 | `doc-id-type` | Auth note with the document type, used to pick the settings and rules. | `sequent.read-only.id-card-type` |
 | `user-status` | Auth note set to `VERIFIED` on success. | `sequent.read-only.id-card-number-validated` |
 | `attributes-to-validate` | Validation rules, see [Rules](#rules). | the document hasn't expired |
 | `attributes-to-store` | Values to store and show for confirmation, see [Rules](#rules). | first name, last name, date of birth |
 | `max-attempts` | Failed verifications allowed before the voter is rejected. | `3` |
 
-Missing or malformed service settings, a non-positive number, or a document
-type without an OCR type reject the verification with `scanovateInternalError`
+Missing or malformed service settings, a non-positive number, an unknown
+`holding-photo` policy, or a document type without an OCR type reject the verification with `scanovateInternalError`
 before the capture starts. The sides to scan are up to OCR: its
 `scan_config.json` says which sides each OCR type needs (a passport only has
 its data page).

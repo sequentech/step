@@ -19,6 +19,9 @@
 #   SCANOVATE_OCR_TYPES: ocr-types, default {"default": "passport"}.
 #   SCANOVATE_FACE_MATCH_MIN_SIMILARITY: face-match-min-similarity, default
 #     {"default": 0.67}.
+#   SCANOVATE_HOLDING_PHOTO: holding-photo, REQUIRED (the default: the voter
+#     also takes a photo holding their document, matched with their live face)
+#     or NONE.
 #   SCANOVATE_LOGIN_THEME: if set, the login theme of the realm, and of its
 #     clients that set their own, e.g. sequent-ui-voting, which has the
 #     capture page.
@@ -91,6 +94,7 @@ configure() {
         --arg liveness_secret "$SCANOVATE_LIVENESS_SECRET" \
         --arg face_match_url "$SCANOVATE_FACE_MATCH_URL" \
         --arg min_similarity "${SCANOVATE_FACE_MATCH_MIN_SIMILARITY:-{\"default\": 0.67\}}" \
+        --arg holding_photo "${SCANOVATE_HOLDING_PHOTO:-REQUIRED}" \
         '.config |= (
           del(."base-url", ."client-id", ."client-secret", ."flow-id", ."execution-mode",
               ."save-option", ."link-params", ."doc-id", ."face-capture", ."max-retries",
@@ -101,7 +105,8 @@ configure() {
             "liveness-url": $liveness_url,
             "liveness-secret": $liveness_secret,
             "face-match-url": $face_match_url,
-            "face-match-min-similarity": $min_similarity
+            "face-match-min-similarity": $min_similarity,
+            "holding-photo": $holding_photo
           })' <<<"$config"
     )"
     curl -sSf -X PUT -H "Authorization: Bearer $token" -H "Content-Type: application/json" \

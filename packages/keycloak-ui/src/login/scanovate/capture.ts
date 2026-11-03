@@ -51,33 +51,45 @@ export function problemFor(code: number | null): CaptureProblem {
 export type CaptureState = {
     stage: CaptureStage
     problem: CaptureProblem | null
-    // Bumped to mount the Scanovate page again: its token allows a few sessions.
+    // Bumped to mount the step again: a Scanovate token allows a few sessions.
     attempt: number
+    // Whether Keycloak asks for the photo of the voter holding their document.
+    holding: boolean
 }
 
 export type CaptureEvent =
     | {type: "done"}
     | {type: "error"; code: number | null}
+    | {type: "problem"; problem: CaptureProblem}
     | {type: "tryAgain"}
 
-export function initialCaptureState(): CaptureState {
-    return {stage: CaptureStage.Document, problem: null, attempt: 0}
+export function initialCaptureState(holding = false): CaptureState {
+    return {stage: CaptureStage.Document, problem: null, attempt: 0, holding}
 }
 
-const NEXT: Record<CaptureStage, CaptureStage> = {
-    [CaptureStage.Document]: CaptureStage.Face,
-    [CaptureStage.Face]: CaptureStage.Checking,
-    [CaptureStage.Checking]: CaptureStage.Checking,
+function next(state: CaptureState): CaptureStage {
+    switch (state.stage) {
+        case CaptureStage.Document:
+            return CaptureStage.Face
+        case CaptureStage.Face:
+            return state.holding ? CaptureStage.Holding : CaptureStage.Checking
+        case CaptureStage.Holding:
+        case CaptureStage.Checking:
+            return CaptureStage.Checking
+    }
 }
 
 export function captureReducer(state: CaptureState, event: CaptureEvent): CaptureState {
     switch (event.type) {
         case "done":
             if (state.problem !== null || state.stage === CaptureStage.Checking) return state
-            return {...state, stage: NEXT[state.stage]}
+            return {...state, stage: next(state)}
         case "error":
             if (state.problem !== null || state.stage === CaptureStage.Checking) return state
             return {...state, problem: problemFor(event.code)}
+        case "problem":
+            if (state.problem !== null || state.stage === CaptureStage.Checking) return state
+            return {...state, problem: event.problem}
         case "tryAgain":
             if (state.problem === null) return state
             return {...state, problem: null, attempt: state.attempt + 1}
