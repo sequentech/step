@@ -191,6 +191,8 @@ impl BuildElectionEvent {
             // No ceremony from a workbook, so this labels nothing; the platform's
             // own default, named rather than defaulted for the reason above.
             ceremony_policy: CeremoniesPolicy::MANUAL_CEREMONIES,
+            // A historical census leaves contact details to enrollment.
+            census_contacts_at_enrollment: self.historical_sql.is_some(),
         };
 
         let bundle = match build(&workbook, &templates, &options, &Sources::default()) {

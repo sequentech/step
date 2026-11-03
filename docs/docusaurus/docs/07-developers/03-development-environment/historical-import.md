@@ -246,10 +246,12 @@ Each voter carries two kinds of attribute:
   voter's area with the same formatting as the registration option lists.
 - Raw source values for audit, unchanged: `source_maternal_name`, `source_suffix`,
   `source_dob_year`/`_month`/`_day`, `source_country`, `source_embassy`,
-  `source_precinct` and `source_abroad_status`. The abroad status is never turned
-  into eligibility.
+  and, from a legacy dump, `source_precinct` and `source_abroad_status`. A
+  post-qualification dump has neither column, so neither is emitted. The abroad
+  status is never turned into eligibility.
 
-Email, mobile and password are left unset; enrollment collects them later. Every
+Email, mobile and password are left unset; enrollment collects them later, so the
+conversion does not warn that voters cannot be sent a one-time code. Every
 row is checked before the conversion is refused, and each failing voter is reported
 by row and column: a location with no in-scope area, a duplicate id, an incomplete
 or impossible date of birth, or an area without an embassy/country label. Nothing

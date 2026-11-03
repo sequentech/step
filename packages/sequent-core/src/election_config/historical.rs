@@ -1870,12 +1870,13 @@ fn record_precinct_area(
 ///   `source_country`/`source_embassy` for audit.
 /// Alongside the canonical fields, the raw source values are kept for audit:
 /// `source_maternal_name`, `source_suffix`, `source_dob_year`/`_month`/`_day`,
-/// `source_country`/`source_embassy` (the SQL codes) and `source_precinct`. The
-/// abroad status is kept raw as `source_abroad_status` with no eligibility inference.
+/// `source_country`/`source_embassy` (the SQL codes) and, from a legacy dump,
+/// `source_precinct`. A legacy abroad status is kept raw as `source_abroad_status`
+/// with no eligibility inference; a post-qualification dump has neither column.
 /// A supplied date of birth that is incomplete or not a real calendar date, and an
 /// area with no embassy/country label, each raise a visible per-row problem rather
 /// than a silent blank. Email, mobile and password are intentionally left unset;
-/// enrollment collects them later. Source columns outside this mapping are not carried.
+/// enrollment collects them later, so the build is told not to warn about them. Source columns outside this mapping are not carried.
 ///
 /// Each voter joins to an area through the crosswalk recorded while the areas were
 /// built, keyed as the join decides: `(COUNTRY, EMBASSY, PRECINCT)` against
@@ -2024,43 +2025,48 @@ fn source_voter_row(
                 )
             })?
             .unwrap_or_default();
-        Ok(row(
-            "Voters",
-            v,
-            vec![
-                ("username", json!(username)),
-                ("area.external_id", json!(area.external_id)),
-                // Canonical COMELEC identity attributes, named exactly as the
-                // registration user profile and the enrollment approval matrix read
-                // them (keycloak.hbs user profile; approvalMatrix.json compares
-                // firstName/middleName/lastName/dateOfBirth/embassy). first_name and
-                // last_name become Keycloak firstName/lastName in build_voters.
-                ("first_name", json!(voters.text(v, "FIRSTNAME")?)),
-                ("last_name", json!(voters.text(v, "LASTNAME")?)),
-                ("middleName", json!(optional("MATERNALNAME")?)),
-                ("suffix", json!(optional("SUFFIX")?)),
-                ("dateOfBirth", json!(date_of_birth)),
-                // Location under the canonical keys the registration selects and the
-                // matrix compare. The values are derived from the voter's resolved
-                // area the same way the registration option lists are, so they match.
-                ("country", json!(area.country)),
-                ("embassy", json!(area.embassy)),
-                // Raw source values kept for audit (parent asked for raw preservation):
-                // the identity components as supplied, the post/country codes and
-                // precinct as they appear in the SQL, and the abroad status verbatim
-                // (never turned into eligibility). build_voters drops any all-blank one.
-                ("source_maternal_name", json!(optional("MATERNALNAME")?)),
-                ("source_suffix", json!(optional("SUFFIX")?)),
-                ("source_dob_year", json!(dob_year)),
-                ("source_dob_month", json!(dob_month)),
-                ("source_dob_day", json!(dob_day)),
-                ("source_country", json!(country)),
-                ("source_embassy", json!(embassy)),
-                ("source_precinct", json!(precinct)),
-                // Legacy only; the post-qualification voters have no status.
-                ("source_abroad_status", json!(optional("ABROADSTATUS")?)),
-            ],
-        ))
+        let mut columns = vec![
+            ("username", json!(username)),
+            ("area.external_id", json!(area.external_id)),
+            // Canonical COMELEC identity attributes, named exactly as the
+            // registration user profile and the enrollment approval matrix read
+            // them (keycloak.hbs user profile; approvalMatrix.json compares
+            // firstName/middleName/lastName/dateOfBirth/embassy). first_name and
+            // last_name become Keycloak firstName/lastName in build_voters.
+            ("first_name", json!(voters.text(v, "FIRSTNAME")?)),
+            ("last_name", json!(voters.text(v, "LASTNAME")?)),
+            ("middleName", json!(optional("MATERNALNAME")?)),
+            ("suffix", json!(optional("SUFFIX")?)),
+            ("dateOfBirth", json!(date_of_birth)),
+            // Location under the canonical keys the registration selects and the
+            // matrix compare. The values are derived from the voter's resolved
+            // area the same way the registration option lists are, so they match.
+            ("country", json!(area.country)),
+            ("embassy", json!(area.embassy)),
+            // Raw source values kept for audit (parent asked for raw preservation):
+            // the identity components as supplied, the post/country codes and
+            // precinct as they appear in the SQL, and the abroad status verbatim
+            // (never turned into eligibility). build_voters drops any all-blank one.
+            ("source_maternal_name", json!(optional("MATERNALNAME")?)),
+            ("source_suffix", json!(optional("SUFFIX")?)),
+            ("source_dob_year", json!(dob_year)),
+            ("source_dob_month", json!(dob_month)),
+            ("source_dob_day", json!(dob_day)),
+            ("source_country", json!(country)),
+            ("source_embassy", json!(embassy)),
+        ];
+        // Legacy only: a post-qualification dump has neither column, and an
+        // always-blank one would only be dropped again with a warning.
+        if precinct_column.is_some() {
+            columns.push(("source_precinct", json!(precinct)));
+        }
+        if voters.table.columns.iter().any(|c| c == "ABROADSTATUS") {
+            columns.push((
+                "source_abroad_status",
+                json!(optional("ABROADSTATUS")?),
+            ));
+        }
+        Ok(row("Voters", v, columns))
     }
 }
 

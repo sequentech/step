@@ -545,7 +545,10 @@ pub fn build_from_historical(
     let decisions: HistoricalOptions =
         serde_wasm_bindgen::from_value(decisions)
             .map_err(|_| JsError::new("historical decisions are invalid"))?;
-    let options = build_options(options)?;
+    let options = BuildOptions {
+        census_contacts_at_enrollment: true,
+        ..build_options(options)?
+    };
     let request: Option<PackageRequest> =
         if package_request.is_undefined() || package_request.is_null() {
             None
@@ -1930,6 +1933,8 @@ fn build_options(options: JsValue) -> Result<BuildOptions, JsError> {
         // time would mean two ways to say the same thing and one of them stale.
         images: Vec::new(),
         ceremony_policy: Default::default(),
+        // Set by `build_from_historical`, whose census this is about.
+        census_contacts_at_enrollment: false,
     })
 }
 

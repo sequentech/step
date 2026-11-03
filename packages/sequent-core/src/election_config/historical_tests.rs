@@ -2460,6 +2460,37 @@ fn a_defaults_workbook_derives_elections_and_areas_and_the_mail_location_joins_v
     // Contact and sex stay in the source: nothing beyond the reviewed census.
     assert!(v.rows.iter().all(|r| r[col("email")].is_empty()));
     assert!(v.column("mobile").is_none());
+    // The schema has no precinct or abroad status, so neither column is emitted
+    // only to be dropped blank.
+    assert!(v.column("source_precinct").is_none());
+    assert!(v.column("source_abroad_status").is_none());
+    // (The fixture's suffixes are blank, so that column is still dropped.)
+    let blank = |built: &crate::election_config::build::Bundle| {
+        built.warnings.warnings().any(|problem| {
+            problem.message.contains("blank for every voter")
+                && problem.message.contains("source_precinct")
+        })
+    };
+    let unreachable = |built: &crate::election_config::build::Bundle| {
+        built.warnings.warnings().any(|problem| {
+            problem.message.contains("cannot be sent a one-time code")
+        })
+    };
+    assert!(!blank(&built));
+    // Every voter lacks a contact; that is only worth saying when enrollment
+    // does not collect it.
+    assert!(unreachable(&built));
+    let enrolling = build(
+        &adapted.workbook,
+        &templates,
+        &BuildOptions {
+            census_contacts_at_enrollment: true,
+            ..BuildOptions::default()
+        },
+        &Sources::default(),
+    )
+    .unwrap();
+    assert!(!unreachable(&enrolling));
 }
 
 #[test]
