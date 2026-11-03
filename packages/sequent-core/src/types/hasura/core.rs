@@ -497,6 +497,15 @@ pub struct TallySessionConfiguration {
     pub delegated_voting_policy: Option<DelegatedVotingPolicy>,
     pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
+    /// How many consecutive board batches each contest area of a
+    /// voter-weighted session owns, and so how many bits of a vote weight it
+    /// can represent. Recorded when the session is created, because later
+    /// releases may widen the layout while this session keeps the batch
+    /// numbers it was allocated. Absent on every other policy, and on
+    /// voter-weighted sessions created before it was recorded, which own
+    /// `LEGACY_VOTE_WEIGHT_BATCHES`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vote_weight_batches: Option<u32>,
 }
 
 impl TallySessionConfiguration {
@@ -554,8 +563,10 @@ pub struct TallySessionContestAnnotations {
     /// read back to decide which batches the tally must wait for -- an unset
     /// bit means "no such batch", which is otherwise indistinguishable from
     /// "that batch has not been mixed yet" and would hang the session.
+    /// Wider than the 32 batches it can name so that `1 << VOTE_WEIGHT_BATCHES`
+    /// does not overflow; masks stored as 32-bit values read back unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub weight_bit_mask: Option<u32>,
+    pub weight_bit_mask: Option<u64>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

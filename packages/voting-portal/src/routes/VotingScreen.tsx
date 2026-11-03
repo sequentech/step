@@ -38,7 +38,7 @@ import {
 import {clearDeclinedToVoteForElection, clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
 import {TenantEventType} from ".."
 import {provideBallotService} from "../services/BallotService"
-import {Question} from "../components/Question/Question"
+import {Question, contestTitleId} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {useRootBackLink} from "../hooks/root-back-link"
@@ -49,6 +49,15 @@ import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {IDecodedVoteContest} from "@sequentech/ui-core"
 import {sortContestList} from "@sequentech/ui-core"
 import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
+import {useBallotStyleSlates} from "../hooks/useBallotStyleSlates"
+import {BallotSlatesProvider} from "../providers/BallotSlatesProvider"
+import {SlateSelectionChooser} from "../components/SlateChooser/SlateSelectionChooser"
+import {ESlateBallotTab, SlateBallotTabs} from "../components/SlateChooser/SlateBallotTabs"
+import {SlateOfficeNavigator} from "../components/SlateChooser/SlateOfficeNavigator"
+import {SlateBallotCount, SlateSelectionLabel} from "../components/SlateChooser/SlateBallotSummary"
+import {useSlateClear} from "../components/SlateChooser/SlateClearFlow"
+import {getEditContestId} from "../services/EditContest"
+import {sortContestsInBallotOrder} from "../services/ContestOrder"
 
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
@@ -88,6 +97,7 @@ interface ActionButtonProps {
     handleClearCustom?: () => void
     pageIndex?: number
     disableNext?: boolean
+    disableClear?: boolean
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
@@ -96,6 +106,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     handleClearCustom,
     pageIndex,
     disableNext,
+    disableClear,
 }) => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
@@ -135,6 +146,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 }}
                 variant="secondary"
                 onClick={() => (handleClearCustom ? handleClearCustom() : handleClear())}
+                disabled={disableClear}
             >
                 <Box className="clear-selection-label">{t("votingScreen.clearButton")}</Box>
             </StyledButton>
@@ -162,6 +174,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     }}
                     variant="secondary"
                     onClick={() => (handleClearCustom ? handleClearCustom() : handleClear())}
+                    disabled={disableClear}
                 >
                     <Box className="clear-selection-label">{t("votingScreen.clearButton")}</Box>
                 </StyledButton>
@@ -180,6 +193,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     )
 }
 
+interface IOfficeRequest {
+    contestId?: string
+}
+
 interface ContestPaginationProps {
     ballotStyle: any
     contests: IContest[][]
@@ -187,6 +204,16 @@ interface ContestPaginationProps {
     onSetDecodedContests: (id: string) => (value: IDecodedVoteContest) => void
     encryptAndReview: () => void
     disableNextButton: (contests?: IContest[]) => boolean
+    slateChooser?: React.ReactNode
+    /** How many candidates the ballot holds, shown with the slates. */
+    slateCount?: React.ReactNode
+    /** What the ballot holds as a whole, above the individual candidates. */
+    slateLabel?: React.ReactNode
+    slateTab: ESlateBallotTab
+    onSlateTabChange: (tab: ESlateBallotTab) => void
+    /** The office the individual candidates should show. */
+    officeRequest?: IOfficeRequest
+    editContestId?: string
 }
 
 const ContestPagination: React.FC<ContestPaginationProps> = ({
@@ -196,6 +223,13 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     onSetDecodedContests,
     encryptAndReview,
     disableNextButton,
+    slateChooser,
+    slateCount,
+    slateLabel,
+    slateTab,
+    onSlateTabChange,
+    officeRequest,
+    editContestId,
 }) => {
     const dispatch = useAppDispatch()
     const submit = useSubmit()
@@ -204,6 +238,8 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
     const [pageIndex, setPageIndex] = useState(0)
     const pageAnnouncementRef = useRef<HTMLDivElement>(null)
+    // A ballot with slates is cleared as a whole, after the voter sees what goes.
+    const slateClear = useSlateClear(ballotStyle)
     const isFirstRender = useRef(true)
 
     useEffect(() => {
@@ -213,7 +249,48 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
         }
         pageAnnouncementRef.current?.focus()
     }, [pageIndex])
+
+    // The review screen sends the voter back to edit one contest: its page is
+    // opened and its heading takes the focus.
+    const isEditContestShown = useRef(false)
+    const [office, setOffice] = useState(0)
     const sortedContests = sortContestList(contests[pageIndex], contestsOrderType)
+    useEffect(() => {
+        const requested = (sortedContests ?? []).findIndex(
+            (contest) => contest.id === officeRequest?.contestId
+        )
+        if (requested >= 0) {
+            setOffice(requested)
+        }
+    }, [officeRequest])
+    useEffect(() => {
+        if (!editContestId || isEditContestShown.current) {
+            return
+        }
+        const editPageIndex = contests.findIndex((page) =>
+            page.some((contest) => contest.id === editContestId)
+        )
+        if (editPageIndex < 0) {
+            return
+        }
+        if (editPageIndex !== pageIndex) {
+            setPageIndex(editPageIndex)
+            return
+        }
+        const editOffice = (sortedContests ?? []).findIndex(
+            (contest) => contest.id === editContestId
+        )
+        if (slateChooser && editOffice >= 0 && editOffice !== office) {
+            setOffice(editOffice)
+            return
+        }
+        isEditContestShown.current = true
+        const title = document.getElementById(contestTitleId(editContestId))
+        if (title) {
+            title.tabIndex = -1
+            title.focus()
+        }
+    }, [contests, pageIndex, editContestId, office, sortedContests, slateChooser])
     const ballotSelectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)
     )
@@ -248,7 +325,11 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     }, [ballotSelectionState, isMultiContest, ballotStyle.ballot_eml])
 
     const handleNext = () => {
-        if (pageIndex === contests.length - 1) {
+        // The contests of the later pages are only checked once they are
+        // shown, so a ballot with several pages goes through them.
+        if (slateChooser && slateTab === ESlateBallotTab.SLATES && contests.length > 1) {
+            onSlateTabChange(ESlateBallotTab.CANDIDATES)
+        } else if (pageIndex === contests.length - 1) {
             encryptAndReview()
         } else {
             setPageIndex(pageIndex + 1)
@@ -278,7 +359,23 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
         }
     }
 
-    return (
+    const renderContest = (contest: IContest, index: number) => (
+        <Box
+            key={contest.id}
+            className={`contest-container contest-${index} ${getContestClassName(contest.external_id)}`.trim()}
+        >
+            <Question
+                ballotStyle={ballotStyle}
+                question={contest}
+                isReview={false}
+                setDisableNext={() => onSetDisableNext(contest.id)}
+                setDecodedContests={onSetDecodedContests(contest.id)}
+                errorSelectionState={errorSelectionState}
+            />
+        </Box>
+    )
+
+    const contestList = (
         <>
             {/* Paging through a multi-page ballot swaps the contests in place
                 without a route change. Moving focus here both orients the voter
@@ -291,29 +388,51 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
             >
                 {t("a11y.stepOf", {current: pageIndex + 1, total: contests.length})}
             </VisuallyHidden>
-            {sortedContests &&
-                sortedContests.map((contest, index) => (
-                    <Box
-                        key={contest.id}
-                        className={`contest-container contest-${index} ${getContestClassName(contest.external_id)}`.trim()}
-                    >
-                        <Question
-                            ballotStyle={ballotStyle}
-                            question={contest}
-                            isReview={false}
-                            setDisableNext={() => onSetDisableNext(contest.id)}
-                            setDecodedContests={onSetDecodedContests(contest.id)}
-                            errorSelectionState={errorSelectionState}
-                        />
-                    </Box>
-                ))}
+            {slateChooser && sortedContests?.length ? (
+                <SlateOfficeNavigator
+                    contests={sortedContests}
+                    selection={ballotSelectionState}
+                    office={office}
+                    onOfficeChange={setOffice}
+                    renderContest={(contest) =>
+                        renderContest(contest, sortedContests.indexOf(contest))
+                    }
+                />
+            ) : (
+                sortedContests?.map(renderContest)
+            )}
+        </>
+    )
+
+    return (
+        <>
+            {slateChooser ? (
+                <>
+                    {slateCount}
+                    <SlateBallotTabs
+                        value={slateTab}
+                        onChange={onSlateTabChange}
+                        slates={slateChooser}
+                        candidates={
+                            <>
+                                {slateLabel}
+                                {contestList}
+                            </>
+                        }
+                    />
+                </>
+            ) : (
+                contestList
+            )}
             <ActionButtons
                 handleNext={handleNext}
                 handlePrev={handlePrev}
-                handleClearCustom={handleClear}
+                handleClearCustom={slateChooser ? slateClear.requestClear : handleClear}
+                disableClear={!!slateChooser && !slateClear.canClear}
                 pageIndex={pageIndex}
                 disableNext={disableNextButton(sortedContests) && contests.length !== 1}
             />
+            {slateChooser ? slateClear.feedback : null}
         </>
     )
 }
@@ -331,6 +450,12 @@ const VotingScreen: React.FC = () => {
     const [openNotVoted, setOpenNonVoted] = useState(false)
     const [hasInvalidErrors, setHasInvalidErrors] = useState<boolean>(false)
     const [contestsPerPage, setContestsPerPage] = useState<IContest[][]>([])
+    const location = useLocation()
+    const editContestId = getEditContestId(location.state)
+    const [officeRequest, setOfficeRequest] = useState<IOfficeRequest | undefined>()
+    const [slateTab, setSlateTab] = useState(
+        editContestId ? ESlateBallotTab.CANDIDATES : ESlateBallotTab.SLATES
+    )
 
     const {encryptAndStoreBallot} = useEncryptBallotForReview()
     const election = useAppSelector(selectElectionById(String(electionId)))
@@ -351,6 +476,8 @@ const VotingScreen: React.FC = () => {
     const dispatch = useAppDispatch()
 
     const submit = useSubmit()
+    const slates = useBallotStyleSlates(ballotStyle)
+    const hasSlates = !!slates.resolved && slates.resolved.slates.length > 0
 
     const onSetDisableNext = (id: string) => (value: boolean) => {
         setDisableNext({
@@ -481,10 +608,7 @@ const VotingScreen: React.FC = () => {
     useEffect(() => {
         let minMaxGlobal = false
         let contestsPages = new Map<String, IContest[]>()
-        let contests = [...(ballotStyle?.ballot_eml.contests ?? [])].sort(
-            (a, b) =>
-                (a.presentation?.sort_order ?? Infinity) - (b.presentation?.sort_order ?? Infinity)
-        )
+        let contests = sortContestsInBallotOrder(ballotStyle?.ballot_eml.contests ?? [])
         for (let contest of contests ?? []) {
             let countVotes = 0
             let selection = selectionState?.find((s) => s.contest_id === contest.id)
@@ -503,14 +627,16 @@ const VotingScreen: React.FC = () => {
             }
             contestsPages.get(contestPageName)!.push(contest)
         }
-        const contestsAsArrays = Array.from(contestsPages.values())
+        // A ballot with slates goes through its offices with the office
+        // navigator instead of pages.
+        const contestsAsArrays = hasSlates ? [contests] : Array.from(contestsPages.values())
         setContestsPerPage(contestsAsArrays)
 
         setDisableNext((state) => ({
             ...state,
             minmax_global: minMaxGlobal,
         }))
-    }, [selectionState, ballotStyle])
+    }, [selectionState, ballotStyle, hasSlates])
 
     if (!ballotStyle || !election) {
         return <CircularProgress className="voting-progress" aria-label={t("a11y.loading")} />
@@ -524,109 +650,138 @@ const VotingScreen: React.FC = () => {
     }
 
     return (
-        <PageLimit maxWidth="lg" className="voting-screen screen">
-            <Box marginTop="48px" className="stepper-box">
-                <Stepper selected={1} />
-            </Box>
-            <StyledTitle variant="h4" component="h1" className="title-container screen-title">
-                <Box className="selected-election-title">
-                    {translateFromPresentation(election, "name", i18n.language, {
-                        defaultLanguageCode,
-                    }) ?? "-"}
+        <BallotSlatesProvider slates={slates.config}>
+            <PageLimit maxWidth="lg" className="voting-screen screen">
+                <Box marginTop="48px" className="stepper-box">
+                    <Stepper selected={1} />
                 </Box>
-                <IconButton
-                    className="title-question"
-                    buttonClassName="screen-help-button"
-                    icon={faCircleQuestion}
-                    sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                    fontSize="16px"
-                    onClick={() => setOpenBallotHelp(true)}
-                    ariaLabel={t("a11y.helpAbout", {
-                        topic: t("votingScreen.ballotHelpDialog.title"),
-                    })}
+                <StyledTitle variant="h4" component="h1" className="title-container screen-title">
+                    <Box className="selected-election-title">
+                        {translateFromPresentation(election, "name", i18n.language, {
+                            defaultLanguageCode,
+                        }) ?? "-"}
+                    </Box>
+                    <IconButton
+                        className="title-question"
+                        buttonClassName="screen-help-button"
+                        icon={faCircleQuestion}
+                        sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
+                        fontSize="16px"
+                        onClick={() => setOpenBallotHelp(true)}
+                        ariaLabel={t("a11y.helpAbout", {
+                            topic: t("votingScreen.ballotHelpDialog.title"),
+                        })}
+                    />
+                    <Dialog
+                        className="screen-help-dialog voting-help-dialog"
+                        handleClose={() => setOpenBallotHelp(false)}
+                        open={openBallotHelp}
+                        title={t("votingScreen.ballotHelpDialog.title")}
+                        ok={t("votingScreen.ballotHelpDialog.ok")}
+                        variant="info"
+                    >
+                        {stringToHtml(t("votingScreen.ballotHelpDialog.content"))}
+                    </Dialog>
+                </StyledTitle>
+                {electionDescription ? (
+                    <Typography
+                        className="description screen-description"
+                        variant="body2"
+                        component="div"
+                        sx={{color: theme.palette.customGrey.main}}
+                    >
+                        {stringToHtml(electionDescription)}
+                    </Typography>
+                ) : null}
+
+                <ContestPagination
+                    slateChooser={
+                        hasSlates && slates.resolved ? (
+                            <SlateSelectionChooser
+                                ballotStyle={ballotStyle}
+                                slates={slates.resolved}
+                                defaultLanguage={defaultLanguageCode}
+                                onEditSelections={(slate) => {
+                                    setSlateTab(ESlateBallotTab.CANDIDATES)
+                                    setOfficeRequest({contestId: slate.contests[0]?.contest.id})
+                                }}
+                            />
+                        ) : undefined
+                    }
+                    slateCount={<SlateBallotCount ballotStyle={ballotStyle} />}
+                    slateLabel={
+                        slates.resolved ? (
+                            <SlateSelectionLabel
+                                ballotStyle={ballotStyle}
+                                slates={slates.resolved}
+                                defaultLanguage={defaultLanguageCode}
+                            />
+                        ) : undefined
+                    }
+                    slateTab={slateTab}
+                    officeRequest={officeRequest}
+                    onSlateTabChange={setSlateTab}
+                    editContestId={editContestId}
+                    ballotStyle={ballotStyle}
+                    contests={contestsPerPage}
+                    onSetDisableNext={onSetDisableNext}
+                    onSetDecodedContests={onSetDecodedContests}
+                    encryptAndReview={encryptAndReview}
+                    disableNextButton={disableNextButton}
                 />
-                <Dialog
-                    className="screen-help-dialog voting-help-dialog"
-                    handleClose={() => setOpenBallotHelp(false)}
-                    open={openBallotHelp}
-                    title={t("votingScreen.ballotHelpDialog.title")}
-                    ok={t("votingScreen.ballotHelpDialog.ok")}
-                    variant="info"
-                >
-                    {stringToHtml(t("votingScreen.ballotHelpDialog.content"))}
-                </Dialog>
-            </StyledTitle>
-            {electionDescription ? (
-                <Typography
-                    className="description screen-description"
-                    variant="body2"
-                    component="div"
-                    sx={{color: theme.palette.customGrey.main}}
-                >
-                    {stringToHtml(electionDescription)}
-                </Typography>
-            ) : null}
 
-            <ContestPagination
-                ballotStyle={ballotStyle}
-                contests={contestsPerPage}
-                onSetDisableNext={onSetDisableNext}
-                onSetDecodedContests={onSetDecodedContests}
-                encryptAndReview={encryptAndReview}
-                disableNextButton={disableNextButton}
-            />
-
-            {disableNextButton() ? (
-                <Dialog
-                    className="ballot-validation-dialog"
-                    handleClose={(value) => setOpenNonVoted(false)}
-                    open={openNotVoted}
-                    title={t("votingScreen.nonVotedDialog.title")}
-                    ok={t("votingScreen.nonVotedDialog.ok")}
-                    variant="softwarning"
-                >
-                    {stringToHtml(t("votingScreen.nonVotedDialog.content"))}
-                </Dialog>
-            ) : (
-                <Dialog
-                    className="ballot-validation-dialog"
-                    handleClose={(value) => warnAllowContinue(value)}
-                    open={openNotVoted}
-                    title={t(
-                        hasInvalidErrors
-                            ? "votingScreen.nonVotedDialog.title"
-                            : isWholeBallotBlank()
-                              ? "votingScreen.blankBallotDialog.title"
-                              : "votingScreen.warningDialog.title"
-                    )}
-                    ok={t(
-                        hasInvalidErrors
-                            ? "votingScreen.nonVotedDialog.continue"
-                            : isWholeBallotBlank()
-                              ? "votingScreen.blankBallotDialog.continue"
-                              : "votingScreen.warningDialog.continue"
-                    )}
-                    cancel={t(
-                        hasInvalidErrors
-                            ? "votingScreen.nonVotedDialog.cancel"
-                            : isWholeBallotBlank()
-                              ? "votingScreen.blankBallotDialog.cancel"
-                              : "votingScreen.warningDialog.cancel"
-                    )}
-                    variant="action"
-                >
-                    {stringToHtml(
-                        t(
+                {disableNextButton() ? (
+                    <Dialog
+                        className="ballot-validation-dialog"
+                        handleClose={(value) => setOpenNonVoted(false)}
+                        open={openNotVoted}
+                        title={t("votingScreen.nonVotedDialog.title")}
+                        ok={t("votingScreen.nonVotedDialog.ok")}
+                        variant="softwarning"
+                    >
+                        {stringToHtml(t("votingScreen.nonVotedDialog.content"))}
+                    </Dialog>
+                ) : (
+                    <Dialog
+                        className="ballot-validation-dialog"
+                        handleClose={(value) => warnAllowContinue(value)}
+                        open={openNotVoted}
+                        title={t(
                             hasInvalidErrors
-                                ? "votingScreen.nonVotedDialog.content"
+                                ? "votingScreen.nonVotedDialog.title"
                                 : isWholeBallotBlank()
-                                  ? "votingScreen.blankBallotDialog.content"
-                                  : "votingScreen.warningDialog.content"
-                        )
-                    )}
-                </Dialog>
-            )}
-        </PageLimit>
+                                  ? "votingScreen.blankBallotDialog.title"
+                                  : "votingScreen.warningDialog.title"
+                        )}
+                        ok={t(
+                            hasInvalidErrors
+                                ? "votingScreen.nonVotedDialog.continue"
+                                : isWholeBallotBlank()
+                                  ? "votingScreen.blankBallotDialog.continue"
+                                  : "votingScreen.warningDialog.continue"
+                        )}
+                        cancel={t(
+                            hasInvalidErrors
+                                ? "votingScreen.nonVotedDialog.cancel"
+                                : isWholeBallotBlank()
+                                  ? "votingScreen.blankBallotDialog.cancel"
+                                  : "votingScreen.warningDialog.cancel"
+                        )}
+                        variant="action"
+                    >
+                        {stringToHtml(
+                            t(
+                                hasInvalidErrors
+                                    ? "votingScreen.nonVotedDialog.content"
+                                    : isWholeBallotBlank()
+                                      ? "votingScreen.blankBallotDialog.content"
+                                      : "votingScreen.warningDialog.content"
+                            )
+                        )}
+                    </Dialog>
+                )}
+            </PageLimit>
+        </BallotSlatesProvider>
     )
 }
 

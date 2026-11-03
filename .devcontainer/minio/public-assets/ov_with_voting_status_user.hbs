@@ -138,19 +138,19 @@
               <td class="key">
                 <strong>No. who voted:</strong>
               </td>
-              <td class="value">{{voted}}</td>
+              <td class="value">{{format_u64 voted}}</td>
             </tr>
             <tr>
               <td class="key">
                 <strong>No. who did not vote:</strong>
               </td>
-              <td class="value">{{not_voted}}</td>
+              <td class="value">{{format_u64 not_voted}}</td>
             </tr>
             <tr>
               <td class="key">
                 <strong>No. who did not pre-enroll:</strong>
               </td>
-              <td class="value">{{not_pre_enrolled}}</td>
+              <td class="value">{{format_u64 not_pre_enrolled}}</td>
             </tr>
             <tr>
               <td class="key">
@@ -158,14 +158,14 @@
                   voted:</strong>
               </td>
               <td class="value">
-                {{voting_privilege_voted}}
+                {{format_u64 voting_privilege_voted}}
               </td>
             </tr>
             <tr>
               <td class="key">
                 <strong>Total No. of Voters:</strong>
               </td>
-              <td class="value">{{total}}</td>
+              <td class="value">{{format_u64 total}}</td>
             </tr>
           </table>
         </div>

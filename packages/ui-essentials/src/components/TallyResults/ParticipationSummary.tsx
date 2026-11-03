@@ -15,12 +15,14 @@ import {
     Typography,
 } from "@mui/material"
 import type {Props as ApexChartProps} from "react-apexcharts"
+import {useNumberFormat} from "@sequentech/ui-core"
 import {
     RESPONSIVE_PIE_OPTIONS,
     TALLY_RESULTS_PIE_HEIGHT,
     TALLY_RESULTS_PIE_PANEL_WIDTH,
 } from "./constants"
 import {Chart, ChartPanel} from "./ChartPanel"
+import {withEscapedChartText} from "../../services/chartOptions"
 import {ParticipationByChannel} from "./ParticipationByChannel"
 import type {
     NumericValue,
@@ -28,7 +30,13 @@ import type {
     ResultsAndParticipationLabels,
     ResultsParticipationSummary,
 } from "./types"
-import {mergeLabels, percentOrDash, toFiniteNumber, valueOrDash} from "./utils"
+import {
+    mergeLabels,
+    percentOrDash,
+    pieChartNumberFormatOptions,
+    toFiniteNumber,
+    valueOrDash,
+} from "./utils"
 
 interface ParticipationSummaryChartProps {
     result: ResultsParticipationSummary
@@ -187,22 +195,24 @@ export const ParticipationSummaryChart: React.FC<ParticipationSummaryChartProps>
     labels,
 }) => {
     const mergedLabels = useMemo(() => mergeLabels(labels), [labels])
+    const {policy} = useNumberFormat()
     const chartData = useMemo(
         () => buildParticipationChartData(result, mergedLabels),
         [result, mergedLabels]
     )
     const chartOptions = useMemo<ApexChartProps>(
         () => ({
-            options: {
+            options: withEscapedChartText({
                 labels: chartData.map((item) => item.label),
                 legend: {
                     position: "right",
                 },
                 responsive: RESPONSIVE_PIE_OPTIONS,
-            },
+                ...pieChartNumberFormatOptions(policy),
+            }),
             series: chartData.map((item) => item.value),
         }),
-        [chartData]
+        [chartData, policy]
     )
 
     return (
@@ -226,6 +236,7 @@ export const ParticipationSummary: React.FC<ParticipationSummaryProps> = ({
     showWeight = false,
 }) => {
     const mergedLabels = useMemo(() => mergeLabels(labels), [labels])
+    const {policy} = useNumberFormat()
     const summaryRows = useMemo(
         () => (result ? buildSummaryRows(result, mergedLabels, showWeight) : []),
         [result, mergedLabels, showWeight]
@@ -336,7 +347,7 @@ export const ParticipationSummary: React.FC<ParticipationSummaryProps> = ({
                                                     className="seq-tally-results-participation-summary__value-cell"
                                                     align="right"
                                                 >
-                                                    {valueOrDash(row.value)}
+                                                    {valueOrDash(row.value, policy)}
                                                 </TableCell>
                                                 <TableCell
                                                     className="seq-tally-results-participation-summary__percent-cell"
@@ -344,7 +355,7 @@ export const ParticipationSummary: React.FC<ParticipationSummaryProps> = ({
                                                 >
                                                     {row.showPercent === false
                                                         ? ""
-                                                        : percentOrDash(row.percent)}
+                                                        : percentOrDash(row.percent, policy)}
                                                 </TableCell>
                                             </TableRow>
                                         ))}
