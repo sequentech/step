@@ -78,6 +78,8 @@ pub(super) fn derive(
 
     let mut posts: Vec<String> = Vec::new();
     let mut areas: Vec<Row> = Vec::new();
+    // Each area's post as derived; an override may change its description.
+    let mut area_posts: Vec<String> = Vec::new();
     let mut area_by_cluster: BTreeMap<String, usize> = BTreeMap::new();
     let mut areas_by_precinct = BTreeMap::new();
     for pop in 0..populations.table.rows.len() {
@@ -93,9 +95,7 @@ pub(super) fn derive(
         }
         let cluster = populations.text(pop, "CLUSTERPOLLCENTER")?;
         if let Some(&area) = area_by_cluster.get(&cluster) {
-            if !ci.contains_key(&cluster)
-                && areas[area].text("description") != Some(post.as_str())
-            {
+            if !ci.contains_key(&cluster) && area_posts[area] != post {
                 return Err(problem(
                     "pop",
                     pop,
@@ -134,10 +134,18 @@ pub(super) fn derive(
             index,
             vec![("name", json!(name)), ("description", json!(own_post))],
         );
-        // Two clusters may share a name; both take its row.
+        // Two clusters may share a name, and a row naming it cannot tell
+        // them apart.
         let named = area_overrides.get(&name);
-        if named.is_some() {
-            overridden.insert(name.clone());
+        if let Some(given) = named {
+            if !overridden.insert(name.clone()) {
+                return Err(Problem::error(
+                    Code::ConflictingColumns,
+                    given.origin(Some("name")).to_string(),
+                    "more than one area derived from the SQL has this name",
+                )
+                .at(&given.origin(Some("name"))));
+            }
         }
         for given in area_defaults.iter().chain(named) {
             for (column, value) in given.without(&["name"]) {
@@ -145,6 +153,7 @@ pub(super) fn derive(
             }
         }
         areas.push(area);
+        area_posts.push(own_post);
         area_by_cluster.insert(cluster, index);
         areas_by_precinct.insert(pop, index);
     }

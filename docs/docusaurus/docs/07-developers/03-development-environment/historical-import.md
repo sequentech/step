@@ -156,8 +156,8 @@ derived from the dump, so the same workbook serves any dump of that source.
   to the same post; conflicting posts are refused. An `Areas` row without a
   `name` gives its other columns (CCS server tags, trustee servers, station id)
   to every area; a row with a `name` gives them to that area only, after the
-  defaults. A named row that matches no derived area, and a second row for the
-  same area or for every area, are refused.
+  defaults. A named row that matches no derived area or more than one, and a
+  second row for the same area or for every area, are refused.
 - **Schedules**: a `ScheduledEvents` row without an `election_alias` applies to
   every election; one with an alias (the post) to that election only.
 - **Event and CCS servers**: the `ElectionEvent` and `CcsServers` sheets, read

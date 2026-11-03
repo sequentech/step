@@ -2578,6 +2578,70 @@ fn defaults_workbook_area_rows_must_name_a_derived_area_once() {
 }
 
 #[test]
+fn an_area_override_naming_two_derived_areas_is_refused() {
+    // A second cluster whose barangay has the same name as B02's.
+    let sql = String::from_utf8(post_qualification_overseas())
+        .unwrap()
+        .replace(
+            "('B02','PEOPLES REPUBLIC OF BANGLADESH'),",
+            "('B02','PEOPLES REPUBLIC OF BANGLADESH'),('B08','PEOPLES REPUBLIC OF BANGLADESH'),",
+        )
+        .replace(
+            "('B02','P01','90','02','001','0001A'),",
+            "('B02','P01','90','02','001','0001A'),('B08','B02','90','08','001','0001A'),",
+        );
+    let xlsx = defaults_workbook_with(|sheets| {
+        sheet_mut(sheets, "areas").rows.push(row(
+            "Areas",
+            1,
+            vec![
+                ("name", json!("PEOPLES REPUBLIC OF BANGLADESH")),
+                ("annotations.miru_trustee_servers", json!("trustee3")),
+            ],
+        ));
+    });
+    let refused = adapt(sql.as_bytes(), &xlsx, &defaulted()).unwrap_err();
+    let problem = &refused.report.problems[0];
+    assert_eq!(problem.code, Code::ConflictingColumns);
+    assert!(
+        problem.message.contains("more than one area"),
+        "{problem:?}"
+    );
+}
+
+#[test]
+fn a_description_override_does_not_split_a_cluster_without_its_own_center() {
+    // B07 has no polling center of its own; both its precinct rows use P01.
+    let sql = String::from_utf8(post_qualification_overseas())
+        .unwrap()
+        .replace(
+            "('B02','PEOPLES REPUBLIC OF BANGLADESH'),",
+            "('B02','PEOPLES REPUBLIC OF BANGLADESH'),('B07','Cluster Seven'),",
+        )
+        .replace("('9002','City B'),", "('9002','City B'),('9007','City D'),")
+        .replace("('90020001','DESTB'),", "('90020001','DESTB'),('90070001','DESTD'),")
+        .replace(
+            "('B02','P01','90','02','001','0001A'),",
+            "('B02','P01','90','02','001','0001A'),('B07','P01','90','07','001','0001A'),('B07','P01','90','07','001','0002A'),",
+        );
+    let xlsx = defaults_workbook_with(|sheets| {
+        set(
+            &mut sheet_mut(sheets, "areas").rows[0],
+            "description",
+            json!("Overseas area"),
+        );
+    });
+    let adapted = adapt(sql.as_bytes(), &xlsx, &defaulted()).unwrap();
+    let areas = adapted.workbook.rows("areas");
+    let seven: Vec<_> = areas
+        .iter()
+        .filter(|area| area.text("name") == Some("Cluster Seven"))
+        .collect();
+    assert_eq!(seven.len(), 1);
+    assert_eq!(seven[0].text("description"), Some("Overseas area"));
+}
+
+#[test]
 fn a_defaults_workbook_refuses_a_source_it_cannot_derive_elections_and_areas_from(
 ) {
     let sql = String::from_utf8(post_qualification_overseas()).unwrap();
