@@ -175,6 +175,7 @@ export interface IBallotStyle {
     election_event_presentation?: IElectionEventPresentation
     election_presentation?: IElectionPresentation
     election_dates?: IElectionDates
+    election_annotations?: Record<string, string> | null
     multi_contest_encoding_mode?: EMultiContestEncodingMode
 }
 

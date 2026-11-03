@@ -18,6 +18,7 @@ import {
     ICandidatePresentation,
     IContestPresentation,
     IElectionEventPresentation,
+    IElectionPresentation,
     IContest,
     IElection,
     ICandidate,
@@ -165,6 +166,8 @@ export type ElectionType = BaseType & {
     __typename: "sequent_backend_election"
     election_event_id: string
     image_document_id: string
+    presentation?: IElectionPresentation
+    annotations?: Record<string, unknown> | null
     contests: Array<ContestType>
 }
 
@@ -466,7 +469,7 @@ export default function ElectionEvents() {
     }
 
     const transformElectionsForSort = (elections: ElectionType[]): IElection[] => {
-        return elections.map((election) => {
+        return elections.map(({annotations: _annotations, ...election}) => {
             return {
                 ...election,
                 tenant_id: tenantId || "",
@@ -534,6 +537,11 @@ export default function ElectionEvents() {
                                           const contestOrderType = e?.presentation?.contests_order
                                           return {
                                               ...e,
+                                              annotations: (
+                                                  electionTreeData?.sequent_backend_election as
+                                                      | Array<ElectionType>
+                                                      | undefined
+                                              )?.find(({id}) => id === e.id)?.annotations,
                                               ...(e.id === electionId
                                                   ? {
                                                         active: true,
