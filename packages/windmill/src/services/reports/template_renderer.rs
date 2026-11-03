@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::document_visibility::DocumentVisibility;
 use super::utils::get_public_asset_template;
 use crate::postgres::reports::{get_template_alias_for_report, Report, ReportType};
 use crate::postgres::{election_event, template};
@@ -631,6 +632,11 @@ pub trait TemplateRenderer: Debug {
 
         let contains_voter_secrets =
             generate_mode == GenerateReportMode::REAL && !declared_secret_names.is_empty();
+        let document_visibility = DocumentVisibility::for_report(
+            &self.get_report_type(),
+            contains_voter_secrets,
+            generate_mode == GenerateReportMode::REAL,
+        );
         let items_count = self.count_items(&hasura_transaction).await?.unwrap_or(0);
         let report_options = ext_cfg.report_options.clone();
         let per_report_limit = report_options
@@ -832,7 +838,7 @@ pub trait TemplateRenderer: Debug {
                 Some(election_event_id.to_string()),
                 &enc_report_name,
                 Some(document_id.to_string()),
-                !contains_voter_secrets,
+                document_visibility.is_public(),
                 &annotations,
             )
             .await
@@ -873,7 +879,7 @@ pub trait TemplateRenderer: Debug {
                 Some(election_event_id.to_string()),
                 &final_report_name,
                 Some(document_id.to_string()),
-                !contains_voter_secrets,
+                document_visibility.is_public(),
                 &annotations,
             )
             .await
