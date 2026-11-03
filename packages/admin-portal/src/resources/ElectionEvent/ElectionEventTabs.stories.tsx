@@ -143,7 +143,6 @@ const meta = {
             path: "/sequent_backend_election_event/:id/*",
             initialEntries: [`/sequent_backend_election_event/${EVENT_ID}`],
         },
-        widgets: ["DashboardTab"],
     },
     beforeEach: async ({args}) => {
         data = recordsOrPending(
@@ -411,7 +410,7 @@ const tabPlay =
     }
 
 export const Populated: Story = {
-    parameters: {...spinnerDefects("The election event dashboard"), widgets: ["DashboardTab"]},
+    parameters: spinnerDefects("The election event dashboard"),
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("Council")).toBeVisible()

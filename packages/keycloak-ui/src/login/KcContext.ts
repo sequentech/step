@@ -210,6 +210,8 @@ export type KcContextExtensionPerPage = {
         codeJustSent?: boolean
         // A send was attempted now, delivered or not: the resend countdown starts.
         resendTimerStarted?: boolean
+        // Seconds until a resend is allowed, when the page is shown without a send.
+        resendSecondsLeft?: number
         resendTimer?: string
         ttl?: string
         codeLength?: string
@@ -238,15 +240,19 @@ export type KcContextExtensionPerPage = {
         // With the code progress policy, which of the flow's codes this is, from 1.
         codeRequest?: number
         codeRequests?: number
+        // The flow has a previous step to go back to.
+        stepBack?: boolean
     }
     "scanovate-capture.ftl": {
         scanovate: ScanovateCaptureSettings
+        stepBack?: boolean
     }
     "scanovate-error.ftl": {
         error: string
         canRetry: boolean
         code_id: string
         attemptsLeft?: number
+        stepBack?: boolean
     }
     "scanovate-confirmation.ftl": {
         storedAttributes: ScanovateStoredAttribute[]

@@ -8,7 +8,6 @@ import {StandardDashboardContent, StandardDashboardCharts} from "../DashboardCon
 import {useQuery} from "@apollo/client"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 import {Stats} from "./Stats"
-import {useTranslation} from "react-i18next"
 import {daysBefore, formatDate, getToday} from "../charts/Charts"
 import {VotesPerDay} from "../charts/VotesPerDay"
 import {
@@ -30,7 +29,6 @@ import {useGetList, useRecordContext} from "react-admin"
 import {EVotingStatus, IElectionEventStatistics, IElectionEventStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT_STATS} from "@/queries/GetElectionEventStats"
-import {getAuthUrl} from "@/services/UrlGeneration"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
@@ -56,7 +54,6 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
     const cardHeight = 300
     const endDate = getToday()
     const startDate = daysBefore(endDate, 6)
-    const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
@@ -180,38 +177,6 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
         setSelected(Math.max(...data))
     }, [record?.status, keysCeremonies?.list_keys_ceremony?.items, tallySessions])
 
-    const loginUrl = useMemo(() => {
-        return getAuthUrl(
-            globalSettings.VOTING_PORTAL_URL,
-            tenantId ?? "",
-            record?.id ?? "",
-            "login"
-        )
-    }, [globalSettings.VOTING_PORTAL_URL, tenantId, record?.id])
-
-    const enrollUrl = useMemo(() => {
-        return getAuthUrl(
-            globalSettings.VOTING_PORTAL_URL,
-            tenantId ?? "",
-            record?.id ?? "",
-            "enroll"
-        )
-    }, [globalSettings.VOTING_PORTAL_URL, tenantId, record?.id])
-
-    const kioskEnrollUrl = useMemo(() => {
-        return getAuthUrl(
-            globalSettings.KIOSK_VOTING_PORTAL_URL?.trim() || globalSettings.VOTING_PORTAL_URL,
-            tenantId ?? "",
-            record?.id ?? "",
-            "login"
-        )
-    }, [
-        globalSettings.KIOSK_VOTING_PORTAL_URL,
-        globalSettings.VOTING_PORTAL_URL,
-        tenantId,
-        record?.id,
-    ])
-
     if (loading) {
         return <CircularProgress />
     }
@@ -257,33 +222,6 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                             height={cardHeight}
                         />
                     </StandardDashboardCharts>
-                </Box>
-                <Box
-                    sx={{
-                        display: "flex",
-                        justifyContent: "center",
-                        gap: "20px",
-                        paddingTop: "10px",
-                    }}
-                >
-                    <a href={loginUrl ?? ""} target="_blank">
-                        {t("dashboard.voterLoginURL")}
-                    </a>
-                    <p>|</p>
-                    <a href={enrollUrl ?? ""} target="_blank">
-                        {t("dashboard.voterEnrollURL")}
-                    </a>
-                    {record?.voting_channels?.kiosk === true && (
-                        <>
-                            <p>|</p>
-                            <a
-                                href={kioskEnrollUrl ? `${kioskEnrollUrl}?kiosk` : ""}
-                                target="_blank"
-                            >
-                                {t("dashboard.voterEnrollKioskURL")}
-                            </a>
-                        </>
-                    )}
                 </Box>
             </StandardDashboardContent>
         </>

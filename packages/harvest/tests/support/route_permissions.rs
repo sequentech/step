@@ -480,6 +480,14 @@ fn cases() -> Vec<Case> {
         case!(UuidTenant, "/upsert-area", {"name": "test-area", "election_event_id": UUID_EVENT_ID, "tenant_id": UUID_TENANT_ID, "area_contest_ids": []}, [AREA_CREATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/upsert-areas", {"election_event_id": EVENT_ID, "document_id": "test-document"}, [AREA_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/verify-application", {"applicant_id": "test-applicant", "applicant_data": {}, "tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "annotations": {}}, [SERVICE_ACCOUNT], BACKEND, UNAUTHORIZED_JSON),
+        case!(Admin, "/reject-application-email-in-use", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "application_id": "test-application", "session_id": "test-session", "user_id": USER_ID}, [SERVICE_ACCOUNT], BACKEND, UNAUTHORIZED_JSON),
+        // Only the tenant's own service account rejects an application late:
+        // not for another tenant, not from the super admin tenant, and never
+        // an election officer or a voter.
+        case!(Admin, "/reject-application-email-in-use", {"tenant_id": OTHER_TENANT_ID, "election_event_id": EVENT_ID, "application_id": "test-application", "session_id": "test-session", "user_id": USER_ID}, [SERVICE_ACCOUNT], UNAUTHORIZED_JSON, UNAUTHORIZED_JSON),
+        case!(SuperAdmin, "/reject-application-email-in-use", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "application_id": "test-application", "session_id": "test-session", "user_id": USER_ID}, [SERVICE_ACCOUNT], UNAUTHORIZED_JSON, UNAUTHORIZED_JSON),
+        case!(Admin, "/reject-application-email-in-use", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "application_id": "test-application", "session_id": "test-session", "user_id": USER_ID}, [APPLICATION_WRITE], UNAUTHORIZED_JSON, UNAUTHORIZED_JSON),
+        case!(Voter, "/reject-application-email-in-use", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "application_id": "test-application", "session_id": "test-session", "user_id": USER_ID}, [CAST_VOTE], UNAUTHORIZED_JSON, UNAUTHORIZED_JSON),
         // Who may act on a request depends on the request: the requester, its
         // action's sign permission or a reader, checked after reading it.
         case!(UuidTenant, "/signing-requests/get", {"request_id": ELECTION_ID}, [], BACKEND),

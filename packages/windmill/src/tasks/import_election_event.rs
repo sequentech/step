@@ -29,7 +29,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tracing::{event, info, instrument, Level};
 
-#[derive(Deserialize, Debug, Clone, Serialize)]
+/// `Debug` is written by hand: it never shows the archive's password.
+#[derive(Deserialize, Clone, Serialize)]
 pub struct ImportElectionEventBody {
     pub tenant_id: String,
     pub document_id: String,
@@ -52,6 +53,19 @@ pub struct ImportElectionEventBody {
     /// the server from that user's permissions.
     #[serde(default)]
     pub privileges: ImportUsersPrivileges,
+}
+
+impl std::fmt::Debug for ImportElectionEventBody {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ImportElectionEventBody")
+            .field("tenant_id", &self.tenant_id)
+            .field("document_id", &self.document_id)
+            .field("password", &self.password.as_ref().map(|_| "<redacted>"))
+            .field("check_only", &self.check_only)
+            .field("sha256", &self.sha256)
+            .finish_non_exhaustive()
+    }
 }
 
 /// The tenant log's entry of an imported election event: the SHA-256 of the
@@ -103,7 +117,7 @@ fn imported_event_name(event: &ElectionEvent) -> Option<String> {
         .filter(|name| !name.is_empty() && name != "-")
 }
 
-#[instrument(err)]
+#[instrument(err, skip(object, task_execution))]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn import_election_event(
@@ -211,6 +225,19 @@ mod tests {
             "encryption_protocol": "RSA256",
         }))
         .unwrap()
+    }
+
+    #[test]
+    fn debug_never_shows_the_archive_password() {
+        let synthetic = "synthetic-archive-password-91c2";
+        let object = body(json!({
+            "tenant_id": TENANT_ID,
+            "document_id": "document",
+            "password": synthetic,
+        }));
+        let formatted = format!("{object:?}");
+        assert!(!formatted.contains(synthetic), "{formatted}");
+        assert!(formatted.contains("<redacted>"));
     }
 
     /// The name is read from the presentation, in the default language: the

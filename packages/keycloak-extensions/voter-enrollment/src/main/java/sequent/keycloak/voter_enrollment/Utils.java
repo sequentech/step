@@ -69,6 +69,9 @@ public class Utils {
   public static final String SESSION_ID = "session_id";
   public static final String ERROR_GENERATING_APPROVAL = "approvalGenerationError";
 
+  /** Windmill refused to record a late EMAIL_IN_USE rejection: the voter must start again. */
+  public static final String ERROR_EMAIL_IN_USE_NOT_RECORDED = "emailInUseRejectionNotRecorded";
+
   private static final String KEYS_USERDATA = "keyUserdata";
   private static final String KEYS_USERDATA_SEPARATOR = ";";
   private static final List<String> DEFAULT_KEYS_USERDATA =
@@ -91,11 +94,13 @@ public class Utils {
                   sequent.keycloak.authenticator.Utils.CODE_TTL,
                   sequent.keycloak.authenticator.Utils.CODE_ATTEMPTS,
                   sequent.keycloak.authenticator.Utils.OTL_VISITED,
+                  sequent.keycloak.authenticator.Utils.CODE_PACED,
                   sequent.keycloak.authenticator.Utils.EMAIL_VERIFIED,
                   LookupAndUpdateUser.VERIFICATION_COMPLETED,
                   LookupAndUpdateUser.VERIFICATION_STATUS,
                   LookupAndUpdateUser.VERIFICATION_REJECTION_REASON,
                   LookupAndUpdateUser.VERIFICATION_MISMATCHED_FIELDS,
+                  LookupAndUpdateUser.EMAIL_IN_USE_REJECTION_NOTE,
                   LookupAndUpdateUser.FIELDS_MATCH,
                   LookupAndUpdateUser.IDENTITY_METHOD,
                   KEYS_USERDATA,
@@ -249,8 +254,10 @@ public class Utils {
     for (String field : ScanovateDiagnostics.ENTERED_FIELDS) {
       sessionModel.removeAuthNote(ScanovateDiagnostics.ENTERED_NOTE + "." + field);
     }
-    // The data was typed again: what an earlier verification established no longer holds.
+    // The data was typed again: what an earlier verification established no longer holds, nor
+    // what an earlier code verified (the contact or channel may have changed).
     sessionModel.removeAuthNote(LookupAndUpdateUser.IDENTITY_METHOD);
+    sequent.keycloak.authenticator.Utils.forgetCodeAndVerification(sessionModel);
   }
 
   /** We retrieve the user data stored in the session notes and create a new user in this realm. */
@@ -348,6 +355,23 @@ public class Utils {
     }
     return users.get(0);
   }
+
+  /**
+   * What the voter entered on the registration form, from the session notes, for when they come
+   * back to it from a later step. Never the passwords: those are typed again.
+   */
+  static MultivaluedMap<String, String> enteredFormData(AuthenticationSessionModel authSession) {
+    MultivaluedMap<String, String> entered = new MultivaluedHashMap<>();
+    for (String key : deserializeUserdataKeys(authSession.getAuthNote(KEYS_USERDATA))) {
+      String values = authSession.getAuthNote(key);
+      if (values != null && !PASSWORD_FIELDS.contains(key)) {
+        entered.put(key, deserializeUserdataKeys(values));
+      }
+    }
+    return entered;
+  }
+
+  private static final Set<String> PASSWORD_FIELDS = Set.of("password", "password-confirm");
 
   private static String serializeUserdataKeys(Collection<String> keys, String separator) {
     return String.join(separator, keys);
