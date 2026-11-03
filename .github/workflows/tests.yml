@@ -21,10 +21,12 @@ jobs:
           - service: electoral-log
           - service: harvest
           - service: strand
+          - service: strand
+            extra: --features fips_core
           - service: immu-board
           - service: immudb-rs
           - service: sequent-core
-            extra: --features keycloak,default_features
+            extra: --features keycloak,default_features,areas
           - service: step-cli
           - service: velvet
           - service: wrap-map-err

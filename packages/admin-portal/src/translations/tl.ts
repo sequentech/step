@@ -471,6 +471,7 @@ const tagalogTranslation: TranslationType = {
                 customUrls: "Pasadyang Unang Bahagi ng URL",
                 votingPeriod: "Panahon ng Pagboto",
                 language: "Wika",
+                languageAndRegion: "Wika at Rehiyon",
                 allowed: "Pinapayagang Mga Channel ng Pagboto",
                 materials: "Mga Karagdagang Materyales",
                 ballotDesign: "Disenyo ng Balota",
@@ -704,6 +705,13 @@ const tagalogTranslation: TranslationType = {
                         "browser-detect": "Awtomatikong tuklasin mula sa browser",
                         "force-default": "Ipatupad ang default",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Patakaran sa Format ng Numero",
+                    helperText:
+                        "Nalalapat sa mga numerong ipinapakita sa mga resulta, dashboard at ulat.",
+                    unknownPolicy:
+                        "Hindi kilalang format na '{{policy}}', ipinapakita bilang {{sample}}",
                 },
             },
             error: {
@@ -1839,6 +1847,9 @@ const tagalogTranslation: TranslationType = {
                         archive: "Sigurado ka bang i-archive ang item na ito?",
                         unarchive: "Sigurado ka bang i-unarchive ang item na ito?",
                         delete: "Sigurado ka bang tanggalin ang item na ito?",
+                        archiveNamed: 'Sigurado ka bang i-archive ang "{{name}}"?',
+                        unarchiveNamed: 'Sigurado ka bang i-unarchive ang "{{name}}"?',
+                        deleteNamed: 'Sigurado ka bang tanggalin ang "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2167,6 +2178,8 @@ const tagalogTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Kumpleto na ang mga numerikong resulta. Ginagawa pa ang mga ulat.",
             errorUploadingSignature: "Nagkaroon ng error sa pag-upload ng pirma",
             downloadTransmissionPackage: "I-download ang pakete",
             resultsPublication: {
