@@ -28,7 +28,6 @@ public class MessageOTPAuthenticator
     implements Authenticator, CredentialValidator<MessageOTPCredentialProvider> {
   public static final String MOBILE_NUMBER_FIELD = "sequent.read-only.mobile-number";
   private static final String TPL_CODE = "message-otp.login.ftl";
-  private static final String EMAIL_VERIFIED = "Email verified";
   public static final String INVALID_CODE = "invalid otp Code";
   public static final String EXPIRED_CODE = "Code expired";
   public static final String INTERNAL_ERROR = "InternalError";
@@ -144,7 +143,7 @@ public class MessageOTPAuthenticator
           // the email or email and/or sms
           if (messageCourier == Utils.MessageCourier.BOTH
               || messageCourier == Utils.MessageCourier.EMAIL) {
-            authSession.setAuthNote(EMAIL_VERIFIED, "true");
+            authSession.setAuthNote(Utils.EMAIL_VERIFIED, "true");
           }
 
           // If the user doesn't have a MessageOTPCredential yet, create one now
