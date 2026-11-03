@@ -3744,3 +3744,54 @@ fn a_reference_cell_holding_null_is_no_reference() {
     assert_eq!(value_as_text(&json!(1001)), "1001");
     assert_eq!(value_as_text(&json!(true)), "true");
 }
+
+#[test]
+fn a_realm_parameter_that_is_not_a_realm_is_refused() {
+    let report = refused(&with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![
+                text("settings"),
+                text("keycloak_event_realm"),
+                text("realm"),
+            ],
+        ],
+    ));
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.message.contains("must be a whole realm")));
+}
+
+#[test]
+fn a_realm_parameter_wins_over_the_base_exports_realm_and_says_so() {
+    let mut realm = base_realm();
+    realm["emailTheme"] = json!("from-the-document");
+    let workbook = with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![
+                text("settings"),
+                text("keycloak_event_realm"),
+                text(&realm.to_string()),
+            ],
+        ],
+    );
+    let bundle = with_options(
+        &workbook,
+        BuildOptions {
+            base_export: Some(json!({"keycloak_event_realm": base_realm()})),
+            ..BuildOptions::default()
+        },
+    );
+    assert_eq!(
+        bundle.export["keycloak_event_realm"]["emailTheme"],
+        json!("from-the-document")
+    );
+    assert!(bundle
+        .warnings
+        .warnings()
+        .any(|problem| problem.message.contains("not the base export's")));
+}
