@@ -14,11 +14,13 @@ jest.mock("react-apexcharts", () => {
 
     return {
         __esModule: true,
+        // Labels every slice and tooltip the way the chart library would, through
+        // the formatters the component passes.
         default: ({
             className,
             height,
             options,
-            series,
+            series = [],
         }: {
             className?: string
             height?: number | string
@@ -26,11 +28,20 @@ jest.mock("react-apexcharts", () => {
             series?: number[]
         }) => {
             mockChartOptions.push(options ?? {})
+            const total = series.reduce((sum, value) => sum + value, 0)
+            const tooltipY = Array.isArray(options?.tooltip?.y) ? undefined : options?.tooltip?.y
+
             return react.createElement("div", {
                 className,
                 "data-height": height,
                 "data-labels": JSON.stringify(options?.labels ?? []),
-                "data-series": JSON.stringify(series ?? []),
+                "data-series": JSON.stringify(series),
+                "data-slice-labels": series
+                    .map((value) => options?.dataLabels?.formatter?.((value / total) * 100))
+                    .join("|"),
+                "data-tooltip-labels": series
+                    .map((value) => tooltipY?.formatter?.(value))
+                    .join("|"),
             })
         },
     }
@@ -53,16 +64,33 @@ jest.mock("react-i18next", () => ({
 }))
 
 jest.mock("@sequentech/ui-core", () => ({
+    ...jest.requireActual<typeof import("@sequentech/ui-core")>(
+        "../../../ui-core/src/types/VotingChannel"
+    ),
+    ...jest.requireActual<typeof import("@sequentech/ui-core")>(
+        "../../../ui-core/src/types/ElectionEventPresentation"
+    ),
+    ...jest.requireActual<typeof import("@sequentech/ui-core")>(
+        "../../../ui-core/src/services/numberFormat"
+    ),
+    ...jest.requireActual<typeof import("@sequentech/ui-core")>(
+        "../../../ui-core/src/services/NumberFormatContext"
+    ),
+    ...jest.requireActual<typeof import("@sequentech/ui-core")>(
+        "../../../ui-core/src/services/percentFormatter"
+    ),
     escapeHtml: jest.requireActual<typeof import("@sequentech/ui-core")>(
         "../../../ui-core/src/services/stringToHtml"
     ).escapeHtml,
-    formatPercentOne: (value: number) => `${value.toFixed(2)}%`,
     isNumber: (value: unknown) => typeof value === "number" && Number.isFinite(value),
 }))
 
 jest.mock("@sequentech/ui-essentials", () => ({
     TALLY_RESULTS_PIE_HEIGHT: 170,
     TALLY_RESULTS_PIE_PANEL_WIDTH: 360,
+    pieChartNumberFormatOptions: jest.requireActual<typeof import("@sequentech/ui-essentials")>(
+        "../../../ui-essentials/src/components/TallyResults/utils"
+    ).pieChartNumberFormatOptions,
     withEscapedChartText: jest.requireActual<typeof import("@sequentech/ui-essentials")>(
         "../../../ui-essentials/src/services/chartOptions"
     ).withEscapedChartText,
@@ -72,7 +100,18 @@ jest.mock("@/services/resultLabels", () => ({
     translatedLabel: () => "Election",
 }))
 
+import {ENumberFormatPolicy, NumberFormatProvider} from "@sequentech/ui-core"
 import {ResultsSummary} from "./ResultsSummary"
+
+const electionResult = {
+    id: "result-id",
+    election_id: "election-id",
+    name: "Election",
+    elegible_census: 12000000,
+    total_voters: 8589934,
+    total_voters_percent: 0.715827833,
+    blank_ballots: 1234,
+}
 
 describe("ResultsSummary", () => {
     beforeEach(() => {
@@ -149,6 +188,77 @@ describe("ResultsSummary", () => {
 
         expect(markup).not.toContain("seq-results-summary__blank-ballots-heading")
         expect(markup).not.toContain("seq-results-summary__blank-ballots-cell")
+    })
+
+    it("writes the general information in the event's number format", () => {
+        const markup = renderToStaticMarkup(
+            <NumberFormatProvider policy={ENumberFormatPolicy.PERIOD_COMMA}>
+                <ResultsSummary
+                    elections={[{id: "election-id", presentation: {en: "Election"}}]}
+                    resultsElections={[electionResult]}
+                    locale="en"
+                />
+            </NumberFormatProvider>
+        )
+
+        expect(markup).toContain(">12.000.000<")
+        expect(markup).toContain(">8.589.934<")
+        expect(markup).toContain(">1.234<")
+        expect(markup).toContain(">71,58%<")
+        expect(markup).toContain('data-tooltip-labels="8.589.934|3.410.066"')
+        expect(markup).toContain('data-slice-labels="71,6%|28,4%"')
+    })
+
+    it("writes comma grouped figures for results without a number format", () => {
+        const markup = renderToStaticMarkup(
+            <ResultsSummary
+                elections={[{id: "election-id", presentation: {en: "Election"}}]}
+                resultsElections={[electionResult]}
+                locale="en"
+            />
+        )
+
+        expect(markup).toContain(">12,000,000<")
+        expect(markup).toContain(">8,589,934<")
+        expect(markup).toContain(">1,234<")
+        expect(markup).toContain(">71.58%<")
+        expect(markup).toContain('data-tooltip-labels="8,589,934|3,410,066"')
+        expect(markup).toContain('data-slice-labels="71.6%|28.4%"')
+    })
+
+    it("keeps a dash for figures the results do not carry", () => {
+        const markup = renderToStaticMarkup(
+            <NumberFormatProvider policy={ENumberFormatPolicy.PERIOD_COMMA}>
+                <ResultsSummary
+                    elections={[{id: "election-id", presentation: {en: "Election"}}]}
+                    resultsElections={[{id: "result-id", election_id: "election-id"}]}
+                    locale="en"
+                />
+            </NumberFormatProvider>
+        )
+
+        expect(markup).toMatch(/seq-results-summary__eligible-cell[^"]*">-</)
+        expect(markup).toMatch(/seq-results-summary__participation-cell[^"]*">-</)
+    })
+
+    it("writes a dash for figures that are not numbers", () => {
+        const markup = renderToStaticMarkup(
+            <ResultsSummary
+                elections={[{id: "election-id", presentation: {en: "Election"}}]}
+                resultsElections={[
+                    {
+                        id: "result-id",
+                        election_id: "election-id",
+                        elegible_census: "",
+                        total_voters: "n/a",
+                    },
+                ]}
+                locale="en"
+            />
+        )
+
+        expect(markup).toMatch(/seq-results-summary__eligible-cell[^"]*">-</)
+        expect(markup).not.toContain("n/a")
     })
 
     it("escapes chart labels in the legend and tooltip and keeps the labels raw", () => {
