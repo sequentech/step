@@ -2387,6 +2387,27 @@ fn scanovate_config(bundle: &Bundle) -> &Value {
 }
 
 #[test]
+fn biometric_authentication_adds_its_configuration_to_a_realm_without_any() {
+    // A realm with no authenticatorConfig yet gets the preset's, so the
+    // Scanovate step finds its settings by alias.
+    let mut realm = biometric_realm();
+    realm.as_object_mut().unwrap().remove("authenticatorConfig");
+    let bundle = with_options(
+        &biometric_workbook(),
+        BuildOptions {
+            base_export: Some(json!({"keycloak_event_realm": realm})),
+            ..BuildOptions::default()
+        },
+    );
+    let scanovate = scanovate_config(&bundle);
+    assert_eq!(
+        scanovate["liveness-url"],
+        json!("https://liveness.example.org")
+    );
+    assert!(scanovate.get("liveness-secret").is_none());
+}
+
+#[test]
 fn biometric_authentication_builds_without_its_service_urls() {
     let bundle = with_options(
         &biometric_workbook_without_urls(),
