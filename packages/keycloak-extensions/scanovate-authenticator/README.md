@@ -7,8 +7,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 # Scanovate Authenticator
 
 Keycloak authenticator (`scanovate-authenticator`) that verifies the voter's
-identity during enrollment with the Scanovate services hosted on premise:
-Liveness Plus, Face Match and OCR. Nothing is sent to any third party.
+identity during enrollment with the Scanovate services hosted on premise, as
+Scanovate's on-premise kit integrates them: the capture page embeds the OCR and
+Liveness Plus pages of the services themselves, which check Keycloak's
+one-time tokens and post their results to the `identity-verification` realm
+resource (`<ocr|liveness>/verify` and `<ocr|liveness>/callback`), server to
+server. Keycloak then compares the portrait OCR read with the live face using
+Face Match, and applies the configured rules to what OCR read. Nothing is sent
+to any third party.
 
 See the [Scanovate Identity Verification guide](../../../docs/docusaurus/docs/integrations/scanovate_identity_verification_guide.md)
 for the configuration reference, and

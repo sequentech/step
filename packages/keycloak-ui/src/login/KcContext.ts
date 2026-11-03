@@ -90,44 +90,18 @@ export type KcContextExtension = {
     }
 }
 
-export enum ScanovateSide {
-    Front = "FRONT",
-    Back = "BACK",
-}
-
-// The Liveness Plus API that checks the voter's face frames, with Keycloak's
-// one-time token for it.
-export type ScanovateLiveness = {
+// A Scanovate page to embed: the OCR document scan or Liveness Plus.
+export type ScanovateService = {
+    // Complete URL of the Scanovate page to embed, with its one-time token and case id.
     url: string
-    token: string
-    caseId: string
-}
-
-// Where the page uploads its captures, with Keycloak's one-time token for it:
-// Keycloak can't take files on its login actions URL.
-export type ScanovateUpload = {
-    url: string
-    token: string
-}
-
-// Physical format of the document, which the capture guide takes the shape of.
-export enum DocumentFormat {
-    // ISO/IEC 7810 ID-1 cards: national IDs, driver's licenses.
-    Id1 = "ID_1",
-    // ICAO 9303 TD3 passport data pages.
-    Td3 = "TD3",
 }
 
 export type ScanovateCaptureSettings = {
     documentType: string
-    // Absent on pages rendered by earlier authenticators: ID-1.
-    format?: DocumentFormat
-    sides: ScanovateSide[]
-    videoSeconds: number
     attemptsLeft: number
     maxAttempts: number
-    upload: ScanovateUpload
-    liveness: ScanovateLiveness
+    ocr: ScanovateService
+    liveness: ScanovateService
 }
 
 export type ScanovateStoredAttribute = {

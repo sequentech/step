@@ -5,7 +5,7 @@ package sequent.keycloak.scanovate_authenticator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static sequent.keycloak.scanovate_authenticator.CaptureMediaTest.JPEG;
+import static sequent.keycloak.scanovate_authenticator.OnPremSessionsTest.JPEG;
 import static sequent.keycloak.scanovate_authenticator.TestJson.json;
 
 import com.fasterxml.jackson.databind.JsonNode;

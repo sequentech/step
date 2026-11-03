@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -19,11 +20,13 @@ import lombok.extern.jbosslog.JBossLog;
 import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics;
 
 /**
- * Interprets the responses of the on-premise Scanovate OCR service, see {@link OcrClient}.
+ * Interprets the results of the on-premise Scanovate OCR service, as it posts them to Keycloak at
+ * the end of a session, see {@link OnPremSessions}.
  *
- * <p>Each side of the document is read on its own. The rules of the authenticator apply to their
- * combined results, a JSON object with the fields read from the document under {@value
- * #OCR_PROCESS} and the checks of the service under {@value #AUTHENTICATIONS_PROCESS}:
+ * <p>A result has the reading of each side of the document the service scanned. The rules of the
+ * authenticator apply to their combined results, a JSON object with the fields read from the
+ * document under {@value #OCR_PROCESS} and the checks of the service under {@value
+ * #AUTHENTICATIONS_PROCESS}:
  *
  * <pre>{"ocr": {"document_number": "P1234567A", ...}, "authentications": {"expiry_date_valid":
  * true, ...}}</pre>
@@ -49,7 +52,7 @@ public class OcrResults {
   private static final Pattern MRZ_DATE = Pattern.compile("\\d{6}");
 
   /**
-   * Combines the responses for the sides of a document, front first. A field read from several
+   * Combines the readings of every side of the responses, front first. A field read from several
    * sides keeps the first value that isn't empty.
    *
    * @return the results the rules apply to, or empty if a side could not be read, such as a blurred
@@ -65,15 +68,21 @@ public class OcrResults {
       if (!COMPLETED.equals(status)) {
         throw new ServiceFailure(ScanovateDiagnostics.ServiceError.PROVIDER_RESPONSE);
       }
-      JsonNode result = processingResult(response);
-      String resultStatus = result.path("status").asText("");
-      if (!SUCCESS.equals(resultStatus)) {
-        log.warnv(
-            "combine: a side of the document could not be read: {0}",
-            ScanovateDiagnostics.status(resultStatus));
+      List<JsonNode> results = processingResults(response);
+      if (results.isEmpty()) {
+        log.warn("combine: the response has no side of the document");
         return Optional.empty();
       }
-      merge(fields, result.path("fields"));
+      for (JsonNode result : results) {
+        String resultStatus = result.path("status").asText("");
+        if (!SUCCESS.equals(resultStatus)) {
+          log.warnv(
+              "combine: a side of the document could not be read: {0}",
+              ScanovateDiagnostics.status(resultStatus));
+          return Optional.empty();
+        }
+        merge(fields, result.path("fields"));
+      }
       merge(authentications, response.path("auth"));
     }
     PAST_DATES.forEach(field -> convertDate(fields, field, today, false));
@@ -108,14 +117,16 @@ public class OcrResults {
     return value.isValueNode() && !value.isNull() ? Optional.of(value.asText()) : Optional.empty();
   }
 
-  private static JsonNode processingResult(JsonNode response) {
+  /** The reading of each side of the response, front first. */
+  private static List<JsonNode> processingResults(JsonNode response) {
+    List<JsonNode> results = new ArrayList<>();
     for (String side : SIDES) {
       JsonNode result = response.path(side).path("processing_result");
       if (result.isObject()) {
-        return result;
+        results.add(result);
       }
     }
-    return MAPPER.createObjectNode();
+    return results;
   }
 
   /** Copies the scalar values of {@code source}, unless {@code target} already has a value. */

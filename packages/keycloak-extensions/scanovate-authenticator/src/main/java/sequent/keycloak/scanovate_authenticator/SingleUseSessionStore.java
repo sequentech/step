@@ -7,11 +7,11 @@ import java.util.Map;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.SingleUseObjectProvider;
 
-/** {@link LivenessStore} backed by Keycloak's single-use object store, shared by the cluster. */
-public class SingleUseLivenessStore implements LivenessStore {
+/** {@link SessionStore} backed by Keycloak's single-use object store, shared by the cluster. */
+public class SingleUseSessionStore implements SessionStore {
   private final SingleUseObjectProvider provider;
 
-  public SingleUseLivenessStore(KeycloakSession session) {
+  public SingleUseSessionStore(KeycloakSession session) {
     this.provider = session.singleUseObjects();
   }
 
