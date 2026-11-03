@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Wbraid trustee configuration | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/developers/wbraid/trustee-configuration"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Wbraid trustee configuration | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3987/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/developers/wbraid/trustee-configuration"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/developers/wbraid/trustee-configuration" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/developers/wbraid/trustee-configuration" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Wbraid trustees","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/developers/wbraid/trustee-configuration"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3987/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3987/assets/js/runtime~main.f769f73d.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-3987/assets/js/main.02f8a9ba.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3987/assets/js/runtime~main.1da61758.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3987/assets/js/main.556e44b0.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -32,7 +32,76 @@ when running on the development host, or <code>http://graphql-engine:8080/v1/gra
 inside the development Compose network. A separately hosted trustee can use the
 production public endpoint. The runner sends fixed JSON requests using its
 existing HTTP client; it needs no GraphQL client library or schema generation.
-Containers use <code>http://b4v6:3005</code> for the supplied native board service.</p>
+Set <code>B4_URL</code> to Harvest&#x27;s board forward (see <a href="#board-access" class="">Board access</a>):
+<code>http://harvest:8400/b4</code> inside the Compose network, or
+<code>https://&lt;admin-domain&gt;/b4</code> for a trustee outside it.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="board-access">Board access<a href="#board-access" class="hash-link" aria-label="Direct link to Board access" title="Direct link to Board access" translate="no">​</a></h2>
+<p>The board service (<code>b4v6</code>) is private. Trustees reach it only through Harvest at
+<code>/b4/*</code>, which uses the trustee&#x27;s bearer token:</p>
+<table><thead><tr><th>Route</th><th>Access</th></tr></thead><tbody><tr><td><code>GET /b4/boards/&lt;board&gt;/messages</code></td><td>Public, for verification</td></tr><tr><td><code>POST /b4/boards/&lt;board&gt;/messages/initiate</code></td><td>Trustee token with the <code>trustee-ceremony</code> role, assigned the board</td></tr><tr><td><code>POST /b4/boards/&lt;board&gt;/messages/&lt;id&gt;/confirm</code></td><td>Same</td></tr></tbody></table>
+<p>Harvest does not forward the caller&#x27;s <code>Authorization</code> header to b4. It reaches
+b4 at <code>WBRAID_B4_URL</code>. Windmill creates boards and publishes messages directly
+at <code>WBRAID_B4_URL</code> (<code>http://b4v6:3005</code>). Presigned S3 URLs are unchanged.</p>
+<p>Pages read boards from the admin-portal origin, which needs no CORS. To let
+verifier pages on other origins read <code>GET /b4/boards/&lt;board&gt;/messages</code>, set
+Harvest&#x27;s <code>HARVEST_B4_READ_ORIGINS</code>:</p>
+<table><thead><tr><th>Value</th><th>Pages that may read boards</th></tr></thead><tbody><tr><td>unset or empty (default)</td><td>The admin portal only; no <code>Access-Control-Allow-Origin</code> header</td></tr><tr><td><code>https://verifier.example,https://other.example</code></td><td>Those origins: Harvest echoes a listed <code>Origin</code> and sends <code>Vary: Origin</code></td></tr><tr><td><code>*</code></td><td>Any origin</td></tr></tbody></table>
+<p>Board writes never allow other origins. Don&#x27;t also set
+<code>Access-Control-Allow-Origin</code> for <code>/b4/</code> on the ingress: browsers reject an
+answer that carries the header twice.</p>
+<p>Every deployment needs one forward rule on the admin-portal domain:</p>
+<ul>
+<li class=""><code>/b4/</code> goes to Harvest (<code>harvest:&lt;HARVEST_PORT&gt;</code>) with the <code>/b4/</code> prefix kept.
+Pass the <code>Authorization</code> header and the request body through unchanged, and
+allow bodies of at least 2 MB (b4&#x27;s JSON request limit).</li>
+<li class="">Do not publish b4 or make it reachable from outside the private network.</li>
+</ul>
+<p>The checked-in setups apply this rule as follows:</p>
+<ul>
+<li class=""><strong>Development:</strong> the admin portal&#x27;s webpack dev server forwards <code>/b4/</code> to
+<code>http://${HARVEST_DOMAIN}</code>, or <code>http://harvest:8400</code> when <code>HARVEST_DOMAIN</code> is
+unset, as in the devcontainer. b4 keeps port 3005 for wbraid tooling and
+direct E2E reads.</li>
+<li class=""><strong>Remote:</strong> the <code>nginx-proxy</code> admin server block
+(<code>.devcontainer/nginx/default.conf.template</code>).</li>
+<li class=""><strong>Air-gapped:</strong> the admin portal&#x27;s own nginx includes
+<code>.devcontainer/admin-portal-nginx/b4.conf</code> from <code>/etc/nginx/default.d/</code>.</li>
+<li class=""><strong>Production:</strong> configure the same rule on the ingress or web server that
+serves the admin-portal domain.</li>
+</ul>
+<p>The nginx files resolve <code>harvest</code> through Docker&#x27;s DNS on each request and
+hardcode the Harvest port of their deployment (8000 remote, 8400 air-gapped);
+change it there if you change <code>HARVEST_PORT</code>.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="upgrading-an-existing-deployment">Upgrading an existing deployment<a href="#upgrading-an-existing-deployment" class="hash-link" aria-label="Direct link to Upgrading an existing deployment" title="Direct link to Upgrading an existing deployment" translate="no">​</a></h3>
+<ul>
+<li class="">
+<p><strong>Remote:</strong> <code>configure-environment.sh</code> writes <code>.devcontainer/nginx/default.conf</code>
+only once, so add this block to the admin <code>server</code> block by hand, after
+<code>location /</code>, then restart <code>nginx-proxy</code>:</p>
+<div class="language-nginx codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-nginx codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">location /b4/ {</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    resolver 127.0.0.11 valid=10s ipv6=off;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    set $harvest_upstream harvest:8000; # HARVEST_PORT</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    if ($request_uri !~ &quot;^/b4/&quot;) {</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        return 404;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    }</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    proxy_pass http://$harvest_upstream;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    proxy_set_header Host $host;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    proxy_set_header X-Real-IP $remote_addr;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    proxy_set_header X-Forwarded-Proto https;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    client_max_body_size 2m;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+</li>
+<li class="">
+<p>Unset <code>WBRAID_BOARD_PUBLIC_URL</code>, or set it to <code>/b4</code>. The admin portal&#x27;s
+<code>WBRAID_BOARD_URL</code> must be on the portal&#x27;s own origin: board writes carry an
+<code>Authorization</code> header, which on another origin triggers a CORS preflight
+that the forward does not answer.</p>
+</li>
+<li class="">
+<p>Native trustees must set <code>B4_URL</code> to the Harvest <code>/b4</code> URL
+(<code>https://&lt;admin-domain&gt;/b4</code> outside the network). The trustee image no longer
+falls back to <code>WBRAID_B4_URL</code> and fails at startup without <code>B4_URL</code>.</p>
+</li>
+<li class="">
+<p>Finish browser trustee ceremonies before upgrading. Browser session stores
+and backups are tied to the board URL, so sessions and backups made under the
+old absolute URL are not found, or are refused, under <code>/b4</code>. Native trustees
+are unaffected.</p>
+</li>
+<li class="">
+<p>Rebuild the admin-portal image, which now includes <code>/etc/nginx/default.d/</code>
+locations (<code>packages/default.conf</code>), before relying on the air-gapped forward.</p>
+</li>
+</ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="development-workspace">Development workspace<a href="#development-workspace" class="hash-link" aria-label="Direct link to Development workspace" title="Direct link to Development workspace" translate="no">​</a></h2>
 <p>Both <strong>backend</strong> and <strong>full</strong> development modes start <code>trustee1</code> and <code>trustee2</code>
 alongside <code>b4v6</code>, its PostgreSQL database, and LocalStack. The board and trustee
@@ -54,14 +123,15 @@ override or update it when migrating a workspace. The default
 through public loopback DNS from a browser and a network alias inside Compose.
 No browser-host hosts-file change is needed. Older workspaces with an explicit
 <code>http://localstack:4566</code> override must update it to this default.
-The browser board URL defaults to <code>http://localhost:3005</code> through
-<code>WBRAID_BOARD_PUBLIC_URL</code>.</p>
+The browser board URL defaults to <code>/b4</code> on the portal&#x27;s own origin, which the
+dev server forwards to Harvest.</p>
 <p>The full and backend devcontainers forward ports <strong>3002</strong> (admin portal),
-<strong>3005</strong> (board), <strong>4566</strong> (storage), <strong>8080</strong> (Hasura) and <strong>8090</strong> (Keycloak).
+<strong>3005</strong> (board, for wbraid tooling and direct E2E reads), <strong>4566</strong> (storage),
+<strong>8080</strong> (Hasura) and <strong>8090</strong> (Keycloak).
 These ports must retain their local numbers; VS Code reports a conflict instead
 of silently selecting another port. Use the local forwarded admin URL,
 <code>http://localhost:3002/trustee</code>, when developing through a remote workspace.
-An HTTPS preview URL also requires HTTPS board and storage endpoints.</p>
+An HTTPS preview URL also requires an HTTPS storage endpoint.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="browser-trustee-accounts">Browser trustee accounts<a href="#browser-trustee-accounts" class="hash-link" aria-label="Direct link to Browser trustee accounts" title="Direct link to Browser trustee accounts" translate="no">​</a></h3>
 <p>The default development realm includes <code>trustee1-wbraid</code> and <code>trustee2-wbraid</code>,
 whose <code>trustee</code> attributes match their usernames. They belong to the trustee
@@ -249,8 +319,24 @@ these records. <strong>Back up browser sessions</strong> exports the keys and al
 sessions together; keep this JSON file private. <strong>Restore browser backup</strong> restores
 them into a fresh browser. A keys file alone is insufficient to restore a tally
 participant in a different browser: the recorded DKG commitments must survive.
-A Web Lock prevents two tabs in the same browser from running the same identity.
-Do not clear browser storage or run the same identity in another browser or native
+A Web Lock prevents two tabs in the same browser from running the same identity.</p>
+<p>After importing keys or restoring a backup, <strong>Local session history</strong> shows the
+readable history-record and own-post counts for known boards, including the DKG
+parents of assigned tallies. The <strong>Session entries</strong> collection starts collapsed;
+expand it to show all board entries, their counts, database names and parent-history
+warnings. The section heading and refresh controls remain visible.
+<strong>Refresh boards</strong> includes current assignments;
+<strong>Refresh local history</strong> rereads their local stores while the runner is stopped.
+Counts also refresh after each participation cycle. The displayed browser origin,
+board service URL and database name identify the storage the loaded trustee uses.
+Use the same literal board URL when resuming: <code>/b4</code> and an absolute URL select
+different stores even when they reach the same server. Empty parent history is
+flagged, and storage decoding failures appear as errors rather than zero counts.
+Nonzero counts confirm readable records, not a completed or valid ceremony;
+normal protocol verification still runs. Imported elections can also reuse the
+original DKG board&#x27;s history. Restoring history does not reopen a failed tally;
+start a new tally session after recovery.</p>
+<p>Do not clear browser storage or run the same identity in another browser or native
 runner during a ceremony. Native SQLite stores and browser IndexedDB stores are distinct; a
 native keys file can enroll a browser participant before DKG, but moving an active
 native participant to a browser requires its protocol state as well.</p>
@@ -275,16 +361,18 @@ scope. The browser rejects requests for another trustee or either wrong public k
 <p>Production browser participation requires HTTPS, WebAssembly threads, IndexedDB,
 the Web Locks API, and cross-origin isolation. The admin image serves COOP <code>same-origin</code> and COEP
 <code>require-corp</code> headers on documents and worker assets; preserve them at the ingress.
-The board service and its presigned S3 URLs must be reachable by the browser, use
-HTTPS in production, and permit the portal origin through CORS. Configure:</p>
-<table><thead><tr><th>Setting</th><th>Purpose</th></tr></thead><tbody><tr><td>Admin <code>WBRAID_BOARD_URL</code></td><td>Browser-reachable native board URL; Compose reads <code>WBRAID_BOARD_PUBLIC_URL</code></td></tr><tr><td>Admin <code>HASURA_URL</code></td><td>Public GraphQL endpoint used for assigned-board discovery and halt reports; locally <code>http://localhost:8080/v1/graphql</code></td></tr></tbody></table>
+The browser reaches the board through the admin domain&#x27;s <code>/b4/</code> forward
+(<a href="#board-access" class="">Board access</a>), so the board needs no CORS configuration. The
+presigned S3 URLs must be reachable by the browser, use HTTPS in production, and
+permit the portal origin through CORS. Configure:</p>
+<table><thead><tr><th>Setting</th><th>Purpose</th></tr></thead><tbody><tr><td>Admin <code>WBRAID_BOARD_URL</code></td><td>Board URL for the browser; defaults to <code>/b4</code> on the portal origin; Compose reads <code>WBRAID_BOARD_PUBLIC_URL</code></td></tr><tr><td>Admin <code>HASURA_URL</code></td><td>Public GraphQL endpoint used for assigned-board discovery and halt reports; locally <code>http://localhost:8080/v1/graphql</code></td></tr></tbody></table>
 <p>The displayed <strong>Platform URL</strong> is <code>HASURA_URL</code>. Browser trustees use the
 <code>trustee_event_updates</code> query, <code>submit_trustee_action_result</code> mutation and
 <code>report_trustee_board</code> mutation with their bearer
 token and the <code>trustee-ceremony</code> role. Hasura forwards those calls internally to
 Harvest, which independently verifies the JWT, tenant, trustee identity and
-assigned board. Harvest remains private and needs no browser-facing URL or CORS
-configuration. Server trustees use <code>trustee_event_updates</code> for discovery and pending work, and
+assigned board. Apart from the <code>/b4/</code> forward, Harvest remains private and needs
+no browser-facing URL or CORS configuration. Server trustees use <code>trustee_event_updates</code> for discovery and pending work, and
 <code>report_trustee_board</code> for halts, with the same bearer token and role through
 <code>TRUSTEE_PLATFORM_URL</code>. Both require an explicit successful report
 acknowledgement before clearing a pending halt.</p>
@@ -323,6 +411,6 @@ fixtures. It restores synthetic OTP settings after browser login and cleans up
 only its own stack and controller.</p>
 <p><a class="" href="/docusaurus/pr-preview/pr-3987/docs/developers/wbraid/public-verification">Public ceremony and tally verification</a> describes
 the independent native and browser verifier, public exports, trust anchors and
-the distinction between ballot tracking and tally-input inclusion.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/09-wbraid/trustee-configuration.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-3987/docs/developers/wbraid/public-verification"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">public-verification</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-3987/docs/developers/tutorials/add_new_language"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Add a New Language</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#development-workspace" class="table-of-contents__link toc-highlight">Development workspace</a><ul><li><a href="#browser-trustee-accounts" class="table-of-contents__link toc-highlight">Browser trustee accounts</a></li></ul></li><li><a href="#manual-custody-proofs" class="table-of-contents__link toc-highlight">Manual custody proofs</a><ul><li><a href="#trustee-event-updates" class="table-of-contents__link toc-highlight">Trustee event updates</a></li></ul></li><li><a href="#election-event-archives" class="table-of-contents__link toc-highlight">Election event archives</a></li><li><a href="#browser-trustees" class="table-of-contents__link toc-highlight">Browser trustees</a></li><li><a href="#building-and-validating-browser-trustees" class="table-of-contents__link toc-highlight">Building and validating browser trustees</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+the distinction between ballot tracking and tally-input inclusion.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/09-wbraid/trustee-configuration.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-3987/docs/developers/wbraid/public-verification"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">public-verification</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-3987/docs/developers/tutorials/add_new_language"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Add a New Language</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#board-access" class="table-of-contents__link toc-highlight">Board access</a><ul><li><a href="#upgrading-an-existing-deployment" class="table-of-contents__link toc-highlight">Upgrading an existing deployment</a></li></ul></li><li><a href="#development-workspace" class="table-of-contents__link toc-highlight">Development workspace</a><ul><li><a href="#browser-trustee-accounts" class="table-of-contents__link toc-highlight">Browser trustee accounts</a></li></ul></li><li><a href="#manual-custody-proofs" class="table-of-contents__link toc-highlight">Manual custody proofs</a><ul><li><a href="#trustee-event-updates" class="table-of-contents__link toc-highlight">Trustee event updates</a></li></ul></li><li><a href="#election-event-archives" class="table-of-contents__link toc-highlight">Election event archives</a></li><li><a href="#browser-trustees" class="table-of-contents__link toc-highlight">Browser trustees</a></li><li><a href="#building-and-validating-browser-trustees" class="table-of-contents__link toc-highlight">Building and validating browser trustees</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>

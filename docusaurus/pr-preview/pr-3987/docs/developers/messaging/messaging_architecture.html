@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Messaging Architecture | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/developers/messaging/messaging_architecture"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Messaging Architecture | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3987/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/developers/messaging/messaging_architecture"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/developers/messaging/messaging_architecture" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/developers/messaging/messaging_architecture" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Architecture","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3987/docs/developers/messaging/messaging_architecture"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3987/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3987/assets/js/runtime~main.f769f73d.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-3987/assets/js/main.02f8a9ba.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3987/assets/js/runtime~main.1da61758.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3987/assets/js/main.556e44b0.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -521,7 +521,19 @@ there. At beat start, <code>mark_migrated_configs</code>
 validates each copied row once, logs the errors, and marks the invalid ones
 <code>&#x27;migration: needs saving again&#x27;</code>; the event&#x27;s Messaging tab then says
 <em>Configuration needs saving again</em>. Event export and import carry this
-table.</p>
+table. The import never keeps the exported realm&#x27;s <code>sequent.messaging</code> as such:
+it publishes the channels of a bundle&#x27;s configuration once it validates.
+A bundle without one, from an event whose channels exist only in its
+realm, has those channels published again as exported, empty and disabled
+choices included, when they read, name only the imported elections and
+the importer has <code>messaging-config-write</code>; otherwise the import&#x27;s notes say
+why they were not imported. Into another tenant the source&#x27;s sender names
+are left out, and a Messenger Page is kept only when one of the importing
+tenant&#x27;s Messenger accounts sends from it, with that account&#x27;s details
+as they are at import (saving a configuration publishes current ones).
+The import&#x27;s notes warn that the event has no configuration: WhatsApp,
+Viber and Messenger are offered as exported, but codes and notices on them
+are refused until a configuration is saved.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="message-ledger">Message ledger<a href="#message-ledger" class="hash-link" aria-label="Direct link to Message ledger" title="Direct link to Message ledger" translate="no">​</a></h3>
 <p><code>sequent_backend.message</code> has one row per attempt, unique on
 <code>(tenant_id, logical_key, attempt)</code>:</p>
