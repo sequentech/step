@@ -6,11 +6,11 @@ package sequent.keycloak.scanovate_authenticator;
 import java.util.Map;
 
 /**
- * Where the Liveness Plus sessions and the files uploaded by the capture page are kept between the
- * voter's browser, the Liveness Plus service and Keycloak. It must be shared by every Keycloak
- * node, see {@link SingleUseLivenessStore}.
+ * Where the sessions of the on-premise Scanovate services are kept between the voter's browser, the
+ * services and Keycloak. It must be shared by every Keycloak node, see {@link
+ * SingleUseSessionStore}.
  */
-public interface LivenessStore {
+public interface SessionStore {
   /** Stores (or overwrites) an entry, expiring after the given time. */
   void put(String key, long lifespanSeconds, Map<String, String> value);
 
