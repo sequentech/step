@@ -63,13 +63,12 @@ impl RistrettoCtx {
     ) -> Result<Vec<RistrettoPointS>, StrandError> {
         let seed_ = seed.to_vec();
 
-        let reader = crate::hash::hash_xof(64 * size, &seed_)?;
+        let xof_bytes = crate::hash::hash_xof(64 * size, &seed_)?;
+        let mut reader = xof_bytes.as_slice();
         let mut uniform_bytes = [0u8; 64];
         let mut bytes = vec![];
         for _ in 0..size {
-            let bytes_read = std::io::Read::read(&mut reader.as_slice(), &mut uniform_bytes)
-                .expect("impossible: we are reading from a byte slice, any out of bounds programming error should panic");
-            assert_eq!(bytes_read, 64);
+            std::io::Read::read_exact(&mut reader, &mut uniform_bytes)?;
             bytes.push(uniform_bytes);
         }
 
@@ -497,6 +496,45 @@ mod tests {
 
     fn to_plaintext_array(input: &[u8]) -> [u8; 30] {
         super::to_ristretto_plaintext_array(input).unwrap()
+    }
+
+    const GENERATORS_SEED: &[u8] = b"strand generators seed";
+    const GENERATORS_COUNT: usize = 16;
+
+    #[test]
+    fn test_generators_are_distinct_and_not_identity() {
+        let ctx = RistrettoCtx;
+        let generators =
+            ctx.generators(GENERATORS_COUNT, GENERATORS_SEED).unwrap();
+
+        assert_eq!(generators.len(), GENERATORS_COUNT);
+        for (i, generator) in generators.iter().enumerate() {
+            assert_ne!(generator.0, RistrettoPoint::identity());
+            for other in &generators[i + 1..] {
+                assert_ne!(generator.0, other.0);
+            }
+        }
+    }
+
+    #[test]
+    fn test_generators_match_sequential_shake256_blocks() {
+        use sha3::digest::{ExtendableOutput, Update, XofReader};
+
+        let ctx = RistrettoCtx;
+        let generators =
+            ctx.generators(GENERATORS_COUNT, GENERATORS_SEED).unwrap();
+
+        let mut shake = sha3::Shake256::default();
+        shake.update(GENERATORS_SEED);
+        let mut reader = shake.finalize_xof();
+        let mut uniform_bytes = [0u8; 64];
+        for generator in &generators {
+            reader.read(&mut uniform_bytes);
+            assert_eq!(
+                generator.0,
+                RistrettoPoint::from_uniform_bytes(&uniform_bytes)
+            );
+        }
     }
 
     #[test]

@@ -362,7 +362,9 @@ jobs:
           needs.create-release-branch.result == 'success' &&
           needs.trigger-beyond-release.result == 'success' &&
           (needs.build-and-push.result == 'success' ||
-           (inputs.infra_only && needs.build-and-push.result == 'skipped')) }}
+           (inputs.infra_only && needs.build-and-push.result == 'skipped')) &&
+          (needs.build-and-push-root-account.result == 'success' ||
+           (inputs.infra_only && needs.build-and-push-root-account.result == 'skipped')) }}
     runs-on: ubuntu-24.04
     steps:
     - name: Trigger Deployer Workflow

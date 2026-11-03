@@ -101,6 +101,41 @@ pub fn replace_election_event_translation_overrides_sqlite(
     election_event_id: &str,
     translation_overrides: Option<&Value>,
 ) -> Result<()> {
+    replace_election_event_presentation_value_sqlite(
+        sqlite_connection,
+        election_event_id,
+        "i18n",
+        translation_overrides.cloned(),
+    )
+}
+
+/// Stores `policy`, usually the event's current number format as the event
+/// stores it, in place of the one the tally stored. A code this version
+/// doesn't know is stored as it is, for readers that know it. Without a
+/// policy the stored one is removed, so that readers use the default.
+#[instrument(err, skip_all)]
+pub fn replace_election_event_number_format_policy_sqlite(
+    sqlite_connection: &Connection,
+    election_event_id: &str,
+    policy: Option<&Value>,
+) -> Result<()> {
+    replace_election_event_presentation_value_sqlite(
+        sqlite_connection,
+        election_event_id,
+        "number_format_policy",
+        policy.cloned(),
+    )
+}
+
+/// Sets one field of the stored election event presentation to
+/// `replacement`, or removes it when there is none, keeping every other
+/// field.
+fn replace_election_event_presentation_value_sqlite(
+    sqlite_connection: &Connection,
+    election_event_id: &str,
+    key: &str,
+    replacement: Option<Value>,
+) -> Result<()> {
     let stored_presentation = sqlite_connection
         .query_row(
             "SELECT presentation FROM election_event WHERE id = ? LIMIT 1",
@@ -120,11 +155,10 @@ pub fn replace_election_event_translation_overrides_sqlite(
         anyhow!("Election event presentation in tally results SQLite is not an object")
     })?;
 
-    if let Some(translation_overrides) = translation_overrides {
-        presentation_object
-            .insert("i18n".to_string(), translation_overrides.clone());
+    if let Some(replacement) = replacement {
+        presentation_object.insert(key.to_string(), replacement);
     } else {
-        presentation_object.remove("i18n");
+        presentation_object.remove(key);
     }
 
     let serialized_presentation = serde_json::to_string(&presentation)?;
@@ -144,6 +178,143 @@ pub fn replace_election_event_translation_overrides_sqlite(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ballot::ElectionEventPresentation;
+    use crate::types::number_format::NumberFormatPolicy;
+
+    fn stored_presentation(
+        conn: &Connection,
+        election_event_id: &str,
+    ) -> Result<Value> {
+        let presentation: String = conn.query_row(
+            "SELECT presentation FROM election_event WHERE id = ?",
+            [election_event_id],
+            |row| row.get(0),
+        )?;
+        Ok(serde_json::from_str(&presentation)?)
+    }
+
+    #[test]
+    fn current_number_format_policy_replaces_tally_snapshot_without_changing_other_presentation(
+    ) -> Result<()> {
+        let conn = Connection::open_in_memory()?;
+        conn.execute_batch(
+            r#"
+                CREATE TABLE election_event (id TEXT, presentation TEXT);
+                INSERT INTO election_event VALUES
+                    ('event-1', '{"css":"tally-css","unknown":{"kept":true}}'),
+                    ('event-2', '{"number_format_policy":"space-comma"}');
+            "#,
+        )?;
+
+        replace_election_event_number_format_policy_sqlite(
+            &conn,
+            "event-1",
+            Some(&json!("period-comma")),
+        )?;
+
+        let presentation = stored_presentation(&conn, "event-1")?;
+        assert_eq!(presentation["number_format_policy"], "period-comma");
+        assert_eq!(presentation["css"], "tally-css");
+        assert_eq!(presentation["unknown"], json!({"kept": true}));
+        assert_eq!(
+            serde_json::from_value::<ElectionEventPresentation>(presentation)?
+                .number_format_policy,
+            Some(NumberFormatPolicy::PeriodComma)
+        );
+        assert_eq!(
+            stored_presentation(&conn, "event-2")?["number_format_policy"],
+            "space-comma"
+        );
+
+        replace_election_event_number_format_policy_sqlite(
+            &conn, "event-1", None,
+        )?;
+        let presentation = stored_presentation(&conn, "event-1")?;
+        assert!(presentation.get("number_format_policy").is_none());
+        assert_eq!(presentation["css"], "tally-css");
+
+        Ok(())
+    }
+
+    #[test]
+    fn number_format_policy_is_added_to_a_snapshot_without_presentation(
+    ) -> Result<()> {
+        let conn = Connection::open_in_memory()?;
+        conn.execute_batch(
+            r#"
+                CREATE TABLE election_event (id TEXT, presentation TEXT);
+                INSERT INTO election_event VALUES ('event-1', NULL);
+            "#,
+        )?;
+
+        replace_election_event_number_format_policy_sqlite(
+            &conn,
+            "event-1",
+            Some(&json!("apostrophe-period")),
+        )?;
+
+        assert_eq!(
+            stored_presentation(&conn, "event-1")?,
+            json!({"number_format_policy": "apostrophe-period"})
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn number_format_policy_replacement_requires_the_event_row() -> Result<()> {
+        let conn = Connection::open_in_memory()?;
+        conn.execute_batch(
+            r#"
+                CREATE TABLE election_event (id TEXT, presentation TEXT);
+                INSERT INTO election_event VALUES ('event-1', '[]');
+            "#,
+        )?;
+
+        assert!(replace_election_event_number_format_policy_sqlite(
+            &conn,
+            "missing-event",
+            Some(&json!("period-comma")),
+        )
+        .is_err());
+        assert!(replace_election_event_number_format_policy_sqlite(
+            &conn,
+            "event-1",
+            Some(&json!("period-comma")),
+        )
+        .is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn a_number_format_policy_this_version_does_not_know_is_stored_as_it_is(
+    ) -> Result<()> {
+        let conn = Connection::open_in_memory()?;
+        conn.execute_batch(
+            r#"
+                CREATE TABLE election_event (id TEXT, presentation TEXT);
+                INSERT INTO election_event VALUES
+                    ('event-1', '{"css":"tally-css","number_format_policy":"space-comma"}');
+            "#,
+        )?;
+
+        replace_election_event_number_format_policy_sqlite(
+            &conn,
+            "event-1",
+            Some(&json!("a-newer-format")),
+        )?;
+
+        let presentation = stored_presentation(&conn, "event-1")?;
+        assert_eq!(
+            presentation,
+            json!({"css": "tally-css", "number_format_policy": "a-newer-format"})
+        );
+        assert_eq!(
+            serde_json::from_value::<ElectionEventPresentation>(presentation)?
+                .number_format_policy,
+            None
+        );
+        Ok(())
+    }
 
     #[test]
     fn current_translation_overrides_replace_tally_snapshot_without_changing_other_presentation(
