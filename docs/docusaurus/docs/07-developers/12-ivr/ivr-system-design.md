@@ -192,7 +192,7 @@ All behavior is driven by the **published election/contest data** — the same s
 | `contests_order` | `ElectionPresentation` | Sort contests within an election: `alphabetical`, `custom`, `random` |
 | `candidates_order` | `ContestPresentation` | Sort candidates within a contest: `alphabetical`, `custom`, `random`. Determines DTMF assignment order |
 | `blank_vote_policy` | `ContestPresentation` | `allowed`: offer blank ballot confirmation. `warn`/`warn-only-in-review`: play warning then allow. `not-allowed`: require at least one selection |
-| `under_vote_policy` | `ContestPresentation` | `allowed`: accept silently. `warn`/`warn-and-alert`: play warning before confirming. `warn-only-in-review`: warn during summary only |
+| `under_vote_policy` | `ContestPresentation` | `allowed`: accept silently. `warn`/`warn-and-alert`: play warning before confirming. `warn-only-in-review`/`warn-and-confirm-in-review`: warn during summary only |
 | `language_conf` | `ElectionPresentation` | If the election's enabled/default language differs from the session language, offer a per-ballot language switch. If exactly 1 language is enabled for the election, select it automatically without prompting |
 | `min_votes` / `max_votes` | Contest | Enforce selection count. `max_votes=1` → stop after 1 selection. `min_votes>0` + `blank_vote_policy=not_allowed` → force selection |
 | `is_explicit_invalid` | `CandidatePresentation` | Excluded from the numbered DTMF list (IVR has no "invalid vote" affordance — invalid ballots cannot be cast via phone by design) |
