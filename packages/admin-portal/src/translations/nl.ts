@@ -1839,6 +1839,9 @@ const dutchTranslation: TranslationType = {
                         archive: "Weet u zeker dat u dit item wilt archiveren?",
                         unarchive: "Weet u zeker dat u dit item wilt dearchiveren?",
                         delete: "Weet u zeker dat u dit item wilt verwijderen?",
+                        archiveNamed: 'Weet u zeker dat u "{{name}}" wilt archiveren?',
+                        unarchiveNamed: 'Weet u zeker dat u "{{name}}" wilt dearchiveren?',
+                        deleteNamed: 'Weet u zeker dat u "{{name}}" wilt verwijderen?',
                     },
                     notification: {
                         success: {
