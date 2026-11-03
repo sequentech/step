@@ -16,8 +16,8 @@ sequent-core), it restricts them to browser logins:
 | Client | Settings applied |
 |--------|------------------|
 | `voting-portal`, `onsite-voting-portal`, `voting-portal-kiosk`, `results-portal`, `admin-portal` | Direct access (password) grant and implicit flow off; PKCE `S256` required; Web Origins and post-logout redirect URIs `+` (the client's own redirect URIs). |
-| `admin-portal` | Also: root, base and redirect URIs pinned to `ADMIN_PORTAL_URL`, when windmill has that variable set. |
-| `account-console` | Redirect URIs limited to `/realms/<realm>/account/*`; Web Origins and post-logout redirect URIs `+`. |
+| `admin-portal` | In tenant realms, also: root, base and redirect URIs pinned to `ADMIN_PORTAL_URL`, which windmill requires. |
+| `account-console` | In every realm: redirect URIs limited to `/realms/<realm>/account/*`; Web Origins and post-logout redirect URIs `+`. |
 | `cli-account-admin` | Confidential: the password grant now also needs the client secret. No browser logins. Gets any `admin-portal` token mapper it lacks, so its tokens carry the same Hasura claims. |
 
 The password grant skips the browser flow, including its email or SMS
@@ -65,7 +65,7 @@ Before applying it to a deployment:
    `admin-portal` or a voting portal client to `cli-account-admin` and its
    secret. If `cli-account-admin` has no secret yet, the script generates one;
    read it from the Credentials tab afterwards.
-2. Set `ADMIN_PORTAL_URL` for windmill so that realms created later pin the
-   admin portal redirect URIs too.
+2. Pass the admin portal URL with `--admin-portal-url` so that existing tenant
+   realms get the same `admin-portal` redirect URIs as new ones.
 
 `template FILE...` applies the same settings to realm template files.
