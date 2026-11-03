@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::validate_keycloak_path_segment;
 use crate::ballot::VoterCertificatePolicy;
 use crate::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use crate::types::keycloak::{
@@ -61,6 +62,7 @@ impl KeycloakAdminClient {
         self,
         realm: &str,
     ) -> Result<HashMap<String, String>> {
+        validate_keycloak_path_segment(realm)?;
         let current_realm = self
             .client
             .realm_get(realm)
@@ -79,6 +81,7 @@ impl KeycloakAdminClient {
         realm: &str,
         updates: HashMap<String, String>,
     ) -> Result<()> {
+        validate_keycloak_path_segment(realm)?;
         validate_realm_attributes(&updates)?;
 
         let mut current_realm = self
