@@ -39,6 +39,12 @@ use serde::Serialize;
 /// active one with nothing but an "Ignoring" note to say so.
 const DERIVED: &[&str] = &["id", "authorized-election-ids"];
 
+/// Prefix of the participation columns a voters export adds, reporting who
+/// voted in each election. Old exports name them after the election, new ones
+/// after its external ID. Both are report-only: dropped here, never imported as
+/// voter attributes or voting history.
+const PARTICIPATION_PREFIX: &str = "election__";
+
 /// Only census identity, contact and area fields from a SMART TD list are kept.
 /// Membership, payroll, birth dates and addresses are deliberately not attributes.
 const SMART_FIELDS: &[(&str, &str)] = &[
@@ -154,12 +160,25 @@ impl CensusCsv {
                 derived.join(", ")
             ));
         }
+        let participation = columns
+            .iter()
+            .filter(|each| each.starts_with(PARTICIPATION_PREFIX))
+            .count();
+        if participation > 0 {
+            notes.push(format!(
+                "Ignoring {participation} election participation column(s) \
+                 ({PARTICIPATION_PREFIX}…) — they only report who voted and \
+                 are not imported as voter attributes or voting history."
+            ));
+        }
 
         let kept: Vec<usize> = columns
             .iter()
             .enumerate()
             .filter(|(_, name)| {
-                !name.is_empty() && !DERIVED.contains(&name.as_str())
+                !name.is_empty()
+                    && !DERIVED.contains(&name.as_str())
+                    && !name.starts_with(PARTICIPATION_PREFIX)
             })
             .map(|(at, _)| at)
             .collect();
@@ -479,6 +498,57 @@ mod tests {
                 "a@b.org".to_owned()
             ]
         );
+    }
+
+    #[test]
+    fn drops_the_participation_columns_of_old_and_new_exports() {
+        let text = "username,email,election__General_Election,\
+                    election__external_id__47452d32303236,custom\n\
+                    ada,a@b.org,true,true,kept\n";
+        let reader = CensusCsv::new(text).expect("header");
+        assert_eq!(
+            reader.header().columns,
+            vec!["username", "email", "custom"]
+        );
+        assert_eq!(
+            reader.header().notes,
+            vec![
+                "Ignoring 2 election participation column(s) (election__…) — \
+                 they only report who voted and are not imported as voter \
+                 attributes or voting history."
+            ]
+        );
+        assert_eq!(
+            all(text)[0],
+            vec!["ada".to_owned(), "a@b.org".to_owned(), "kept".to_owned()]
+        );
+    }
+
+    #[test]
+    fn a_row_of_blank_cells_is_not_a_voter_and_ignored_columns_stay_out() {
+        // A spreadsheet row whose cells are all blank keeps its commas, so the
+        // csv reader returns it as a record; only the census reader's own check
+        // stops it becoming a voter. The dropped platform and participation
+        // columns around it, empty or not, must not shift the kept values.
+        let text =
+            "username,id,enabled,email_verified,authorized-election-ids,\
+             election__General_Election,election__external_id__6e,custom\n\
+             ada,7,false,true,x,true,,first\n\
+             ,  ,,\t, ,,,\n\
+             bob,8,true,false,y,,true,second\n";
+        let reader = CensusCsv::new(text).expect("header");
+        assert_eq!(
+            reader.header().columns,
+            vec!["username", "enabled", "email_verified", "custom"]
+        );
+        let voters: Vec<Vec<String>> = [
+            ["ada", "false", "true", "first"],
+            ["bob", "true", "false", "second"],
+        ]
+        .iter()
+        .map(|row| row.iter().map(|value| value.to_string()).collect())
+        .collect();
+        assert_eq!(all(text), voters);
     }
 
     #[test]
