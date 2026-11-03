@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Scanovate Identity Verification | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4168/docs/integrations/scanovate_identity_verification_guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Scanovate Identity Verification | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4168/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4168/docs/integrations/scanovate_identity_verification_guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4168/docs/integrations/scanovate_identity_verification_guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4168/docs/integrations/scanovate_identity_verification_guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Scanovate Identity Verification","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4168/docs/integrations/scanovate_identity_verification_guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4168/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4168/assets/js/runtime~main.9492c98b.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4168/assets/js/runtime~main.ba0ac64f.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4168/assets/js/main.d40b84af.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -151,10 +151,9 @@ before the capture starts. The sides to scan are up to OCR: its
 <code>scan_config.json</code> says which sides each OCR type needs (a passport only has
 its data page).</p>
 <p>The settings of our earlier capture page, <code>ocr-url</code> (Keycloak no longer calls
-OCR), <code>capture-sides</code>, <code>video-seconds</code> and <code>max-image-bytes</code>, are ignored.
-Realm templates still write <code>ocr-url</code> and <code>capture-sides</code> (sequent-core&#x27;s
-presets, the COMELEC janitor template and the sample election event), which
-is harmless.</p>
+OCR), <code>capture-sides</code>, <code>video-seconds</code> and <code>max-image-bytes</code>, are ignored, and
+no realm template writes them any more. A realm or an Election Architect
+profile that still has them keeps working.</p>
 <p>Realms configured for the B-Trust integration keep working once their
 services are set, since the old settings (<code>base-url</code>, <code>client-id</code>,
 <code>client-secret</code>, <code>flow-id</code>, <code>execution-mode</code>, <code>save-option</code>, <code>link-params</code>,
@@ -233,7 +232,7 @@ birth read from the document match a pre-loaded voter of the election event.
 The <code>country</code> and <code>embassy</code> fields are the post abroad where the Filipino voter
 is registered, not their nationality.</p>
 <p><code>run.py</code> fills the template from these <code>settings</code> rows of the spreadsheet:</p>
-<table><thead><tr><th>Setting</th><th>Default</th></tr></thead><tbody><tr><td><code>keycloak_scanovate_ocr_url</code></td><td>empty, and ignored: the template still writes it as <code>ocr-url</code></td></tr><tr><td><code>keycloak_scanovate_liveness_url</code></td><td>empty</td></tr><tr><td><code>keycloak_scanovate_liveness_secret</code></td><td>empty</td></tr><tr><td><code>keycloak_scanovate_face_match_url</code></td><td>empty</td></tr><tr><td><code>keycloak_scanovate_min_biometric_score_&lt;philis_id|seaman_book|passport|driver_license|ibp&gt;</code></td><td><code>0.67</code></td></tr></tbody></table>
+<table><thead><tr><th>Setting</th><th>Default</th></tr></thead><tbody><tr><td><code>keycloak_scanovate_liveness_url</code></td><td>empty</td></tr><tr><td><code>keycloak_scanovate_liveness_secret</code></td><td>empty</td></tr><tr><td><code>keycloak_scanovate_face_match_url</code></td><td>empty</td></tr><tr><td><code>keycloak_scanovate_min_biometric_score_&lt;philis_id|seaman_book|passport|driver_license|ibp&gt;</code></td><td><code>0.67</code></td></tr></tbody></table>
 <p>The <code>min_biometric_score</code> settings are the minimum Face Match similarity of
 each document type (<code>face-match-min-similarity</code>), from 0.0 to 1.0. The service
 settings have no usable default: until they&#x27;re set, enrollment fails with
@@ -284,7 +283,7 @@ the messages of the embedded pages:</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="sample-election-event">Sample election event<a href="#sample-election-event" class="hash-link" aria-label="Direct link to Sample election event" title="Direct link to Sample election event" translate="no">​</a></h3>
 <p><code>packages/step-cli/data/scanovate-enrollment/</code> has an election event that
 enrolls voters with the Scanovate services of the dev container:</p>
-<table><thead><tr><th>File</th><th>Contents</th></tr></thead><tbody><tr><td><code>election-event.json</code></td><td>The <em>Scanovate Enrollment Demo</em> election event: one area (<code>Japan - Tokyo PE</code>), one election and one contest. Its Keycloak realm is the COMELEC realm template with enrollment enabled, the <code>sequent-ui-voting</code> login theme, and <code>scanovate-registration</code> pointing to the services of the dev container (<code>https://localhost:8443/biometric</code> and <code>http://scanovate-face-match:3000</code>). Like the template, it reads passports with the <code>passport</code> OCR type (<code>ocr-types</code>); its <code>ocr-url</code> and <code>capture-sides</code> are ignored.</td></tr><tr><td><code>voters.csv</code></td><td>The voter registry: <code>JUAN DELA CRUZ</code>, born <code>1990-01-01</code>, registered at the Tokyo PE.</td></tr></tbody></table>
+<table><thead><tr><th>File</th><th>Contents</th></tr></thead><tbody><tr><td><code>election-event.json</code></td><td>The <em>Scanovate Enrollment Demo</em> election event: one area (<code>Japan - Tokyo PE</code>), one election and one contest. Its Keycloak realm is the COMELEC realm template with enrollment enabled, the <code>sequent-ui-voting</code> login theme, and <code>scanovate-registration</code> pointing to the services of the dev container (<code>https://localhost:8443/biometric</code> and <code>http://scanovate-face-match:3000</code>). Like the template, it reads passports with the <code>passport</code> OCR type (<code>ocr-types</code>).</td></tr><tr><td><code>voters.csv</code></td><td>The voter registry: <code>JUAN DELA CRUZ</code>, born <code>1990-01-01</code>, registered at the Tokyo PE.</td></tr></tbody></table>
 <p>The data read from the document must match a voter of the registry, so to
 enroll with your own passport, import a voters CSV with your data instead. The
 <a class="" href="/docusaurus/pr-preview/pr-4168/docs/integrations/scanovate_on_premise_guide#end-to-end-test">End-to-end test</a> goes through
