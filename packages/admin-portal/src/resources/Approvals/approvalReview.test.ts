@@ -7,6 +7,7 @@ import en from "@/translations/en"
 import {IApplicationsStatus} from "@/types/applications"
 import {EFieldMatch, EIdentityMethod, Translate, humanizeField} from "./approvalMatrix"
 import {
+    EDecisionOverride,
     IApplication,
     IRegistryVoter,
     applicantData,
@@ -15,6 +16,7 @@ import {
     comparable,
     compareWithVoter,
     decidedBy,
+    decisionOverride,
     decisionDetails,
     differenceText,
     differingFields,
@@ -185,6 +187,82 @@ describe("the decision record", () => {
     it("names the officer who decided by hand", () => {
         expect(decidedBy({annotations: {verified_by: "ana"}})).toBe("ana")
         expect(decidedBy(application())).toBe("")
+    })
+})
+
+describe("why the status is not what the rule decided", () => {
+    const decided = (
+        status: IApplicationsStatus,
+        record: Record<string, unknown>
+    ): IApplication => ({
+        status,
+        annotations: {decision: decision({}, {decision: status, ...record})},
+    })
+
+    it("is nothing when the rule decided the status", () => {
+        expect(decisionOverride(decided(IApplicationsStatus.PENDING, {}))).toBeNull()
+        expect(
+            decisionOverride(decided(IApplicationsStatus.ACCEPTED, {accepted_candidates: 1}))
+        ).toBeNull()
+    })
+
+    it("is the officer who decided instead of the rule", () => {
+        expect(
+            decisionOverride({
+                status: IApplicationsStatus.ACCEPTED,
+                annotations: {
+                    decision: decision({}, {decision: IApplicationsStatus.PENDING}),
+                    verified_by: "ana",
+                },
+            })
+        ).toBe(EDecisionOverride.OFFICER)
+    })
+
+    it.each([
+        [IApplicationsStatus.PENDING, EDecisionOverride.MANUAL_ENTRY_NOT_ACCEPTED],
+        [IApplicationsStatus.REJECTED, EDecisionOverride.ALREADY_ENROLLED_NOT_ACCEPTED],
+        [IApplicationsStatus.REJECTED, EDecisionOverride.NO_VOTER_NOT_ACCEPTED],
+        [IApplicationsStatus.PENDING, EDecisionOverride.OTHERWISE_NOT_ACCEPTED],
+    ])("is the platform limit that turned an approval into %s: %s", (status, invariant) => {
+        expect(decisionOverride(decided(status, {invariant}))).toBe(invariant)
+    })
+
+    it("is several voters approved by the rules", () => {
+        expect(
+            decisionOverride(decided(IApplicationsStatus.PENDING, {accepted_candidates: 2}))
+        ).toBe(EDecisionOverride.SEVERAL_VOTERS)
+    })
+
+    it("is the enrollment settings when the status changed without an officer", () => {
+        expect(
+            decisionOverride({
+                status: IApplicationsStatus.PENDING,
+                annotations: {decision: decision({}, {decision: IApplicationsStatus.REJECTED})},
+            })
+        ).toBe(EDecisionOverride.SETTINGS)
+    })
+
+    it("compares the status whatever its case", () => {
+        expect(
+            decisionOverride({
+                status: "accepted",
+                annotations: {decision: decision({}, {decision: IApplicationsStatus.ACCEPTED})},
+            })
+        ).toBeNull()
+    })
+
+    it.each([
+        {},
+        {annotations: {decision: decision({})}},
+        {status: IApplicationsStatus.PENDING, annotations: {decision: {rule: 1}}},
+    ])("is nothing without a decision for %j", (value) => {
+        expect(decisionOverride(value)).toBeNull()
+    })
+
+    it("ignores an unknown limit", () => {
+        expect(
+            decisionOverride(decided(IApplicationsStatus.PENDING, {invariant: "SOMETHING_NEW"}))
+        ).toBeNull()
     })
 })
 

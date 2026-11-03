@@ -170,6 +170,49 @@ export function decidedBy(application: IApplication): string {
     return text(annotations(application).verified_by)
 }
 
+/** Why an application's status is not what the rule that decided it says. */
+export enum EDecisionOverride {
+    /** An officer decided it. */
+    OFFICER = "OFFICER",
+    /** The limits of the platform, as the matrix pages describe them. */
+    MANUAL_ENTRY_NOT_ACCEPTED = "MANUAL_ENTRY_NOT_ACCEPTED",
+    ALREADY_ENROLLED_NOT_ACCEPTED = "ALREADY_ENROLLED_NOT_ACCEPTED",
+    NO_VOTER_NOT_ACCEPTED = "NO_VOTER_NOT_ACCEPTED",
+    OTHERWISE_NOT_ACCEPTED = "OTHERWISE_NOT_ACCEPTED",
+    /** The rules approved more than one registry voter. */
+    SEVERAL_VOTERS = "SEVERAL_VOTERS",
+    /** The election event's enrollment settings, such as its no-matching-voter policy. */
+    SETTINGS = "SETTINGS",
+}
+
+const INVARIANTS: EDecisionOverride[] = [
+    EDecisionOverride.MANUAL_ENTRY_NOT_ACCEPTED,
+    EDecisionOverride.ALREADY_ENROLLED_NOT_ACCEPTED,
+    EDecisionOverride.NO_VOTER_NOT_ACCEPTED,
+    EDecisionOverride.OTHERWISE_NOT_ACCEPTED,
+]
+
+/** What changed the decision of the rule shown with an application; empty when nothing did. */
+export function decisionOverride(application: IApplication): EDecisionOverride | null {
+    const record = annotations(application).decision
+    if (!isRecord(record) || typeof record.matrix_version !== "number") {
+        return null
+    }
+    const status = text(application.status).toUpperCase()
+    const decided = text(record.decision).toUpperCase()
+    if (status && decided && status !== decided) {
+        return decidedBy(application) ? EDecisionOverride.OFFICER : EDecisionOverride.SETTINGS
+    }
+    const invariant = INVARIANTS.find((value) => value === record.invariant)
+    if (invariant) {
+        return invariant
+    }
+    if (typeof record.accepted_candidates === "number" && record.accepted_candidates > 1) {
+        return EDecisionOverride.SEVERAL_VOTERS
+    }
+    return null
+}
+
 /**
  * The two lines of the queue's "What happened" column: what the rules found,
  * and how the identity was established or who decided.

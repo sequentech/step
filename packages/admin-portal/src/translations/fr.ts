@@ -4039,6 +4039,7 @@ const frenchTranslation: TranslationType = {
                 unnamed: "Demandeur sans nom",
                 waiting: "En attente depuis {{time}}",
                 applied: "Demandée le {{date}}",
+                anyStatus: "Tous les statuts",
                 empty: {
                     title: "Rien ici",
                     text: "Les inscriptions ayant ce statut apparaîtront ici. Essayez une autre recherche ou un autre statut.",
@@ -4090,6 +4091,21 @@ const frenchTranslation: TranslationType = {
                 applied: "Demandée le {{date}}",
                 waiting: "En attente depuis {{time}}",
                 whyTitle: "Pourquoi une personne doit intervenir",
+                override: {
+                    OFFICER: "{{name}} a décidé de cette inscription à la place de la règle.",
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "La règle approuve, mais les données saisies à la main ne sont jamais approuvées automatiquement : une personne décide.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "La règle approuve, mais l'électeur est déjà inscrit : l'inscription a été rejetée.",
+                    NO_VOTER_NOT_ACCEPTED:
+                        "La règle approuve, mais aucun électeur n'a été trouvé dans le registre : l'inscription a été rejetée.",
+                    OTHERWISE_NOT_ACCEPTED:
+                        "La dernière règle ne peut pas approuver : une personne décide.",
+                    SEVERAL_VOTERS:
+                        "La règle approuve plusieurs électeurs du registre : une personne décide.",
+                    SETTINGS:
+                        "Les paramètres d'inscription de l'événement électoral ont modifié la décision de la règle.",
+                },
                 decisionTitle: "Comment la décision a été prise",
                 rule: "Règle {{rule}} de la version {{version}} de la matrice",
                 ruleLast: "Dernière règle de la version {{version}} de la matrice",

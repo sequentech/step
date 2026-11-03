@@ -4024,6 +4024,7 @@ const catalanTranslation: TranslationType = {
                 unnamed: "Sol·licitant sense nom",
                 waiting: "Fa {{time}} que espera",
                 applied: "Sol·licitada el {{date}}",
+                anyStatus: "Qualsevol estat",
                 empty: {
                     title: "Aquí no hi ha res",
                     text: "Les inscripcions amb aquest estat apareixeran aquí. Proveu una altra cerca o un altre estat.",
@@ -4073,6 +4074,21 @@ const catalanTranslation: TranslationType = {
                 applied: "Sol·licitada el {{date}}",
                 waiting: "Fa {{time}} que espera",
                 whyTitle: "Per què cal una persona",
+                override: {
+                    OFFICER: "{{name}} va decidir aquesta inscripció en lloc de la regla.",
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "La regla aprova, però les dades escrites a mà mai no s'aproven automàticament, així que decideix una persona.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "La regla aprova, però el votant ja està inscrit, així que la inscripció es va rebutjar.",
+                    NO_VOTER_NOT_ACCEPTED:
+                        "La regla aprova, però no es va trobar el votant al cens, així que la inscripció es va rebutjar.",
+                    OTHERWISE_NOT_ACCEPTED:
+                        "L'última regla no pot aprovar, així que decideix una persona.",
+                    SEVERAL_VOTERS:
+                        "La regla aprova més d'un votant del cens, així que decideix una persona.",
+                    SETTINGS:
+                        "La configuració d'inscripció de l'esdeveniment electoral va canviar la decisió de la regla.",
+                },
                 decisionTitle: "Com es va decidir",
                 rule: "Regla {{rule}} de la versió {{version}} de la matriu",
                 ruleLast: "Última regla de la versió {{version}} de la matriu",

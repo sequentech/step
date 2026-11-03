@@ -137,17 +137,17 @@ const lastListFilter = () =>
 
 export const Populated: Story = {
     play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
         await expect(await row(canvasElement, "Alice Example")).toBeVisible()
         await expect(await row(canvasElement, "Carol Sample")).toBeVisible()
-        // Without a stored status filter, the queue shows the enrollments that wait.
+        // Without a stored status filter, the queue shows every enrollment.
+        await expect(await row(canvasElement, "Bob Example")).toBeVisible()
         await waitFor(() =>
             expect(lastListFilter()).toMatchObject({
-                filter: {"election_event_id": EVENT_ID, "status@_ilike": "pending"},
+                filter: {election_event_id: EVENT_ID},
                 sort: {field: "created_at", order: "DESC"},
             })
         )
-        expect(canvas.queryByRole("row", {name: /Bob Example/})).toBeNull()
+        expect(lastListFilter()?.filter).not.toHaveProperty("status@_ilike")
         expect(graphql.calls[0]).toMatchObject({
             name: "getUserProfileAttributes",
             variables: {electionEventId: EVENT_ID},
@@ -229,6 +229,25 @@ export const ReviewAnEnrollmentAndGoBack: Story = {
         await userEvent.click(canvas.getByRole("button", {name: "Back to Approvals"}))
         await noReview(canvasElement)
         await expect(await row(canvasElement, "Alice Example")).toBeVisible()
+    },
+}
+
+export const ChooseAStatusAndComeBackToIt: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await row(canvasElement, "Alice Example")
+        await userEvent.click(canvas.getByRole("combobox", {name: "Status"}))
+        await userEvent.click(await within(document.body).findByRole("option", {name: "Approved"}))
+        await rowAction(canvasElement, "Bob Example", "Open enrollment")
+        await expect(await review(canvasElement, "Bob Example")).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Back to Approvals"}))
+        await noReview(canvasElement)
+        // The queue comes back on the chosen status, and shows which one it is.
+        await expect(await row(canvasElement, "Bob Example")).toBeVisible()
+        await expect(canvas.getByRole("combobox", {name: "Status"})).toHaveTextContent("Approved")
+        await waitFor(() =>
+            expect(lastListFilter()).toMatchObject({filter: {"status@_ilike": "accepted"}})
+        )
     },
 }
 

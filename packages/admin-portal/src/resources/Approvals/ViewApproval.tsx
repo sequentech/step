@@ -59,6 +59,7 @@ import {
     candidateFilters,
     decidedBy,
     decisionDetails,
+    decisionOverride,
     differenceText,
     differingFields,
     displayValue,
@@ -212,6 +213,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
         [profileAttributes, t]
     )
     const decision = useMemo(() => (task ? decisionDetails(task) : null), [task])
+    const override = useMemo(() => (task ? decisionOverride(task) : null), [task])
     const comparedFields = useMemo(() => {
         const decided = Object.keys(decision?.fields ?? {})
         const asked = task ? listAnnotation(task, "search-attributes") : []
@@ -787,6 +789,11 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                                 </Button>
                             )}
                         </TagRow>
+                    )}
+                    {decision && override && (
+                        <Muted sx={{display: "block", marginTop: "8px"}}>
+                            {t(`approvalsScreen.review.override.${override}`, {name: officer})}
+                        </Muted>
                     )}
                 </Box>
             </Notice>

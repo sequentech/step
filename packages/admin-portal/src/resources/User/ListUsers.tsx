@@ -132,6 +132,7 @@ import {useLocation, useMatch, useNavigate} from "react-router-dom"
 import {getPreferenceKey} from "@/lib/helpers"
 import {isEqual} from "lodash"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import type {IElectionReference, IElectionRow} from "@/queries/electionReferences"
 import {GENERATE_VOTER_INFORMATION_LETTER} from "@/queries/VoterInformationLetter"
 import {VoterInformationLetterPasswordAccess} from "@/resources/Tasks/VoterInformationLetterPasswordAccess"
 import {getVoterInformationLetterPasswordPolicyError} from "./editPasswordError"
@@ -1446,8 +1447,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 >
                                     <SingleFieldList linkType={false}>
                                         <FunctionField
-                                            render={(e: any) => (
-                                                <Chip key={e.id} label={aliasRenderer(e)} />
+                                            render={(e: IElectionReference<IElectionRow>) => (
+                                                <Chip
+                                                    key={e.id}
+                                                    label={e.election_id ? aliasRenderer(e) : e.id}
+                                                />
                                             )}
                                         />
                                     </SingleFieldList>

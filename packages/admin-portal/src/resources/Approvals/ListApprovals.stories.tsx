@@ -120,11 +120,14 @@ export const Populated: Story = {
         expect(
             canvas.getAllByRole("columnheader").map((header) => header.textContent?.trim())
         ).toEqual(["Voter", "What happened", "Post", "When", "Status", "Actions"])
-        // A first visit shows the enrollments that wait for a person, the newest first.
+        // A first visit shows every enrollment, the newest first.
         expect(canvas.getAllByRole("row").slice(1)).toEqual([
             alice,
             await row(canvasElement, "Carol Sample"),
+            await row(canvasElement, "Bob Example"),
+            await row(canvasElement, "Dan Nobody"),
         ])
+        await expect(canvas.getByRole("combobox", {name: "Status"})).toHaveTextContent("Any status")
         await expect(within(alice).getByText("alice@example.test")).toBeVisible()
         await expect(
             within(alice).getByText("Date of birth differs from the registry")
@@ -144,12 +147,11 @@ export const Populated: Story = {
 
         // ra-data-hasura compares the status column with `_ilike`.
         expect(applicationsRead()[0].args[1]).toMatchObject({
-            filter: {"election_event_id": EVENT_ID, "status@_ilike": "pending"},
+            filter: {election_event_id: EVENT_ID},
             sort: {field: "created_at", order: "DESC"},
         })
         expect(listFilters("sequent_backend_applications").at(-1)).toEqual({
-            "election_event_id": EVENT_ID,
-            "status@_ilike": "pending",
+            election_event_id: EVENT_ID,
         })
         expect(canvas.queryByRole("progressbar")).toBeNull()
     },
@@ -166,6 +168,10 @@ export const ApprovedEnrollments: Story = {
         // Only an enrollment that waits says for how long.
         expect(bob.queryByText(/^Waiting/)).toBeNull()
         await noRow(canvasElement, "Alice Example")
+        // The status the queue opened on stays on screen, to be changed.
+        await expect(
+            within(canvasElement).getByRole("combobox", {name: "Status"})
+        ).toHaveTextContent("Approved")
         expect(listFilters("sequent_backend_applications").at(-1)).toEqual({
             "election_event_id": EVENT_ID,
             "status@_ilike": "accepted",
@@ -198,6 +204,16 @@ export const ChooseAStatus: Story = {
         })
         // The next visit starts from the status chosen last.
         expect(localStorage.getItem("approvals_status_filter")).toBe("accepted")
+
+        await userEvent.click(canvas.getByRole("combobox", {name: "Status"}))
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "Any status"})
+        )
+        await expect(await row(canvasElement, "Alice Example")).toBeVisible()
+        expect(listFilters("sequent_backend_applications").at(-1)).toEqual({
+            election_event_id: EVENT_ID,
+        })
+        expect(localStorage.getItem("approvals_status_filter")).toBe("")
     },
 }
 
@@ -209,9 +225,8 @@ export const SearchTheQueue: Story = {
         await noRow(canvasElement, "Carol Sample")
         await expect(await row(canvasElement, "Alice Example")).toBeVisible()
         expect(listFilters("sequent_backend_applications").at(-1)).toEqual({
-            "election_event_id": EVENT_ID,
-            "status@_ilike": "pending",
-            "q": "alice",
+            election_event_id: EVENT_ID,
+            q: "alice",
         })
     },
 }

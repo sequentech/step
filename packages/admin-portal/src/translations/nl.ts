@@ -4013,6 +4013,7 @@ const dutchTranslation: TranslationType = {
                 unnamed: "Aanvrager zonder naam",
                 waiting: "Wacht al {{time}}",
                 applied: "Aangevraagd op {{date}}",
+                anyStatus: "Elke status",
                 empty: {
                     title: "Hier staat niets",
                     text: "Inschrijvingen met deze status verschijnen hier. Probeer een andere zoekopdracht of status.",
@@ -4064,6 +4065,22 @@ const dutchTranslation: TranslationType = {
                 applied: "Aangevraagd op {{date}}",
                 waiting: "Wacht al {{time}}",
                 whyTitle: "Waarom hier een persoon voor nodig is",
+                override: {
+                    OFFICER:
+                        "{{name}} heeft over deze inschrijving beslist in plaats van de regel.",
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "De regel keurt goed, maar met de hand ingevoerde gegevens worden nooit automatisch goedgekeurd, dus beslist een persoon.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "De regel keurt goed, maar de kiezer is al ingeschreven, dus is de inschrijving afgewezen.",
+                    NO_VOTER_NOT_ACCEPTED:
+                        "De regel keurt goed, maar er is geen kiezer in het register gevonden, dus is de inschrijving afgewezen.",
+                    OTHERWISE_NOT_ACCEPTED:
+                        "De laatste regel kan niet goedkeuren, dus beslist een persoon.",
+                    SEVERAL_VOTERS:
+                        "De regel keurt meer dan één kiezer uit het register goed, dus beslist een persoon.",
+                    SETTINGS:
+                        "De inschrijvingsinstellingen van het verkiezingsevenement hebben de beslissing van de regel gewijzigd.",
+                },
                 decisionTitle: "Hoe hierover is beslist",
                 rule: "Regel {{rule}} van matrixversie {{version}}",
                 ruleLast: "Laatste regel van matrixversie {{version}}",

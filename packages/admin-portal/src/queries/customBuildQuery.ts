@@ -32,6 +32,8 @@ import {isString} from "lodash"
 import {COLUMNS_MAP} from "@/types/query"
 import {FORENSIC_NETWORK_SUMMARY} from "./ForensicNetwork"
 import {GET_ELECTIONS_BY_EXTERNAL_ID} from "./GetElectionsByExternalID"
+import {electionReferenceIds, matchElectionReferences} from "./electionReferences"
+import type {GetElectionsByExternalIdQuery} from "@/gql/graphql"
 import {LOG_FILTER_CHANNEL, LOG_FILTER_OUTCOME} from "@/components/logs/messagingLogFilters"
 
 export interface ParamsSort {
@@ -475,7 +477,7 @@ export const customBuildQuery =
             resourceName === "sequent_backend_election_by_external_id" &&
             raFetchType === "GET_MANY"
         ) {
-            const externalIds: string[] = (params?.ids ?? []).map(String)
+            const references: string[] = (params?.ids ?? []).map(String)
             const electionEventId =
                 params?.meta?.filter?.election_event_id ??
                 params?.meta?.filter?.electionEventId ??
@@ -484,18 +486,17 @@ export const customBuildQuery =
             return {
                 query: GET_ELECTIONS_BY_EXTERNAL_ID,
                 variables: {
-                    external_ids: externalIds,
+                    external_ids: references,
+                    ids: electionReferenceIds(references),
                     election_event_id: electionEventId,
                 },
-                parseResponse: (res: any) => {
-                    const rows = res?.data?.sequent_backend_election ?? []
-                    return {
-                        data: rows.map((r: any) => ({
-                            ...r,
-                            id: r.external_id,
-                        })),
-                    }
-                },
+                parseResponse: (res: {data?: Record<string, unknown>}) => ({
+                    data: matchElectionReferences(
+                        references,
+                        (res?.data?.sequent_backend_election ??
+                            []) as GetElectionsByExternalIdQuery["sequent_backend_election"]
+                    ),
+                }),
             }
         } else if (
             resourceName === "sequent_backend_tally_session_execution" &&

@@ -4083,6 +4083,7 @@ const spanishTranslation: TranslationType = {
                 unnamed: "Solicitante sin nombre",
                 waiting: "Lleva {{time}} esperando",
                 applied: "Solicitada el {{date}}",
+                anyStatus: "Cualquier estado",
                 empty: {
                     title: "No hay nada aquí",
                     text: "Las inscripciones con este estado aparecerán aquí. Pruebe con otra búsqueda u otro estado.",
@@ -4132,6 +4133,21 @@ const spanishTranslation: TranslationType = {
                 applied: "Solicitada el {{date}}",
                 waiting: "Lleva {{time}} esperando",
                 whyTitle: "Por qué hace falta una persona",
+                override: {
+                    OFFICER: "{{name}} decidió esta inscripción en lugar de la regla.",
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "La regla aprueba, pero los datos escritos a mano nunca se aprueban automáticamente, así que decide una persona.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "La regla aprueba, pero el votante ya está inscrito, así que la inscripción se rechazó.",
+                    NO_VOTER_NOT_ACCEPTED:
+                        "La regla aprueba, pero no se encontró al votante en el censo, así que la inscripción se rechazó.",
+                    OTHERWISE_NOT_ACCEPTED:
+                        "La última regla no puede aprobar, así que decide una persona.",
+                    SEVERAL_VOTERS:
+                        "La regla aprueba a más de un votante del censo, así que decide una persona.",
+                    SETTINGS:
+                        "La configuración de inscripción del evento electoral cambió la decisión de la regla.",
+                },
                 decisionTitle: "Cómo se decidió",
                 rule: "Regla {{rule}} de la versión {{version}} de la matriz",
                 ruleLast: "Última regla de la versión {{version}} de la matriz",

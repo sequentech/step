@@ -138,6 +138,8 @@ export const OneDetailDiffers: Story = {
         await expect(canvas.getByText("Rule 5 of matrix version 1")).toBeVisible()
         await expect(canvas.getByText("Exactly 1 detail differs")).toBeVisible()
         await expect(canvas.getByText("Embassy matches")).toBeVisible()
+        // The rule decided the status, so nothing changed its decision.
+        expect(canvas.queryByText(/instead of the rule|changed the rule's decision/)).toBeNull()
 
         // Step 1: how the identity was established, and what the applicant wrote.
         expect(currentStep(canvasElement)).toBe("1Check the identity")
@@ -554,6 +556,10 @@ export const ApprovedEnrollment: Story = {
             canvas.getByText("admin approved this enrollment on Jan 13, 2026.")
         ).toBeVisible()
         await expect(canvas.getByText("Rule 5 of matrix version 1")).toBeVisible()
+        // The rule sent it to a person; the status is the officer's decision.
+        await expect(
+            canvas.getByText("admin decided this enrollment instead of the rule.")
+        ).toBeVisible()
         // A decided enrollment shows what the applicant wrote, without the steps.
         await expect(canvas.getByRole("row", {name: /Embassy Lisbon/})).toBeVisible()
         expect(canvas.queryByRole("list", {name: "Review steps"})).toBeNull()
