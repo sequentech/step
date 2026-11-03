@@ -8,9 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static sequent.keycloak.scanovate_authenticator.CaptureMediaTest.JPEG;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -18,15 +18,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
-import sequent.keycloak.scanovate_authenticator.LivenessSessions.LivenessResult;
-import sequent.keycloak.scanovate_authenticator.LivenessSessions.RecordOutcome;
+import sequent.keycloak.scanovate_authenticator.OnPremSessions.RecordOutcome;
+import sequent.keycloak.scanovate_authenticator.OnPremSessions.SessionResult;
 
-class LivenessSessionsTest {
+class OnPremSessionsTest {
+  static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 0x10};
   private static final String SECRET = "callback-secret";
   private static final String CASE_ID = "proc-1";
 
   /** In-memory stand-in for Keycloak's single-use object store. */
-  static class MemoryStore implements LivenessStore {
+  static class MemoryStore implements SessionStore {
     final Map<String, Map<String, String>> entries = new HashMap<>();
 
     @Override
@@ -47,14 +48,15 @@ class LivenessSessionsTest {
 
   private final MemoryStore store = new MemoryStore();
   private final List<Long> sleeps = new ArrayList<>();
-  private final LivenessSessions sessions = new LivenessSessions(store, sleeps::add);
+  private final OnPremSessions sessions =
+      new OnPremSessions(OnPremService.LIVENESS, store, sleeps::add);
 
   /**
-   * Result callback of a session run in Liveness Plus PRESENTATION mode, where the injection check
-   * does not run and is reported as null.
+   * Result callback of a Liveness Plus session whose injection check passed along with the
+   * presentation check, as in full mode.
    */
   static String result(String status, boolean passed, byte[] image) {
-    return result(status, passed, passed, "null", image);
+    return result(status, passed, passed, String.valueOf(passed), image);
   }
 
   static String result(
@@ -123,7 +125,7 @@ class LivenessSessionsTest {
   void limitsTheLivenessSessionsOfAToken() {
     String token = sessions.create(CASE_ID, SECRET);
 
-    for (int i = 0; i < LivenessSessions.MAX_SESSIONS_PER_TOKEN; i++) {
+    for (int i = 0; i < OnPremSessions.MAX_SESSIONS_PER_TOKEN; i++) {
       assertTrue(sessions.verify(token, CASE_ID, SECRET));
     }
     assertFalse(sessions.verify(token, CASE_ID, SECRET));
@@ -138,10 +140,11 @@ class LivenessSessionsTest {
         RecordOutcome.RECORDED,
         sessions.record(token, SECRET, TestJson.json(result("completed", true, JPEG))));
 
-    LivenessResult result = sessions.awaitResult(token, 5).orElseThrow();
+    SessionResult result = sessions.awaitResult(token, 5).orElseThrow();
     assertTrue(result.passed());
     assertEquals("completed", result.status());
-    assertArrayEquals(JPEG, result.image().orElseThrow());
+    assertArrayEquals(JPEG, result.face().orElseThrow());
+    assertTrue(result.reading().isEmpty());
     assertTrue(sleeps.isEmpty());
   }
 
@@ -150,15 +153,15 @@ class LivenessSessionsTest {
     String token = sessions.create(CASE_ID, SECRET);
     sessions.record(token, SECRET, TestJson.json(result("completed", false, JPEG)));
 
-    LivenessResult result = sessions.awaitResult(token, 5).orElseThrow();
+    SessionResult result = sessions.awaitResult(token, 5).orElseThrow();
     assertFalse(result.passed());
-    assertTrue(result.image().isEmpty());
+    assertTrue(result.face().isEmpty());
   }
 
   @Test
   void failedPresentationAttackCheckDoesNotPass() {
     String token = sessions.create(CASE_ID, SECRET);
-    sessions.record(token, SECRET, TestJson.json(result("completed", true, false, "null", JPEG)));
+    sessions.record(token, SECRET, TestJson.json(result("completed", true, false, "true", JPEG)));
 
     assertFalse(sessions.awaitResult(token, 5).orElseThrow().passed());
   }
@@ -167,6 +170,14 @@ class LivenessSessionsTest {
   void failedInjectionAttackCheckDoesNotPass() {
     String token = sessions.create(CASE_ID, SECRET);
     sessions.record(token, SECRET, TestJson.json(result("completed", true, true, "false", JPEG)));
+
+    assertFalse(sessions.awaitResult(token, 5).orElseThrow().passed());
+  }
+
+  @Test
+  void injectionAttackChecksThatDidNotRunDoNotPass() {
+    String token = sessions.create(CASE_ID, SECRET);
+    sessions.record(token, SECRET, TestJson.json(result("completed", true, true, "null", JPEG)));
 
     assertFalse(sessions.awaitResult(token, 5).orElseThrow().passed());
   }
@@ -194,7 +205,7 @@ class LivenessSessionsTest {
     String token = sessions.create(CASE_ID, SECRET);
     sessions.record(token, SECRET, TestJson.json(result("aborted", true, JPEG)));
 
-    LivenessResult result = sessions.awaitResult(token, 5).orElseThrow();
+    SessionResult result = sessions.awaitResult(token, 5).orElseThrow();
     assertFalse(result.passed());
     assertEquals("aborted", result.status());
   }
@@ -270,21 +281,22 @@ class LivenessSessionsTest {
 
     assertEquals(Optional.empty(), sessions.awaitResult(token, 2));
     assertEquals(
-        2000L / LivenessSessions.POLL_INTERVAL_MS,
+        2000L / OnPremSessions.POLL_INTERVAL_MS,
         sleeps.size(),
-        "polls every " + LivenessSessions.POLL_INTERVAL_MS + " ms");
+        "polls every " + OnPremSessions.POLL_INTERVAL_MS + " ms");
   }
 
   @Test
   void stopsWaitingOnceTheResultArrives() {
     String token = sessions.create(CASE_ID, SECRET);
-    LivenessSessions arriving =
-        new LivenessSessions(
+    OnPremSessions arriving =
+        new OnPremSessions(
+            OnPremService.LIVENESS,
             store,
             millis -> {
               sleeps.add(millis);
               if (sleeps.size() == 2) {
-                new LivenessSessions(store, ignored -> {})
+                new OnPremSessions(OnPremService.LIVENESS, store, ignored -> {})
                     .record(token, SECRET, TestJson.json(result("completed", true, JPEG)));
               }
             });
@@ -301,5 +313,70 @@ class LivenessSessionsTest {
     assertFalse(sessions.verify(token, CASE_ID, SECRET));
     assertEquals(RecordOutcome.UNAUTHORIZED, sessions.record(token, SECRET, TestJson.json(START)));
     sessions.discard(null);
+  }
+
+  /** Result callback of an OCR session that read the passport and its portrait. */
+  static String ocrResult(String status, String readStatus, byte[] face) {
+    JsonNode body = TestJson.json(OcrResultsTest.PASSPORT_RESPONSE);
+    ((ObjectNode) body).put("message_type", "result").put("status", status);
+    ((ObjectNode) body).putObject("onprem_params").put("case_id", CASE_ID);
+    ObjectNode result = body.withObject("/front/processing_result");
+    result.put("status", readStatus);
+    if (face == null) {
+      result.withObject("/images").remove("face_image");
+    } else {
+      result.withObject("/images").put("face_image", Base64.getEncoder().encodeToString(face));
+    }
+    return body.toString();
+  }
+
+  private final OnPremSessions ocr = new OnPremSessions(OnPremService.OCR, store, sleeps::add);
+
+  @Test
+  void recordsTheReadingAndThePortraitOfAnOcrSession() {
+    String token = ocr.create(CASE_ID, SECRET);
+    assertTrue(ocr.verify(token, CASE_ID, SECRET));
+    ocr.record(token, SECRET, TestJson.json(ocrResult("completed", "success", JPEG)));
+
+    SessionResult result = ocr.awaitResult(token, 5).orElseThrow();
+    assertTrue(result.passed());
+    assertArrayEquals(JPEG, result.face().orElseThrow());
+    JsonNode reading = result.reading().orElseThrow();
+    assertEquals("P1234567A", reading.at("/ocr/document_number").asText());
+    assertTrue(reading.at("/authentications/expiry_date_valid").asBoolean());
+    assertEquals(Map.of("front", "success"), result.sides());
+  }
+
+  @Test
+  void ocrSessionsThatCouldNotReadTheDocumentDoNotPass() {
+    String token = ocr.create(CASE_ID, SECRET);
+    ocr.record(token, SECRET, TestJson.json(ocrResult("completed", "card_not_detected", JPEG)));
+
+    SessionResult result = ocr.awaitResult(token, 5).orElseThrow();
+    assertFalse(result.passed());
+    assertTrue(result.reading().isEmpty());
+    assertEquals(Map.of("front", "card_not_detected"), result.sides());
+  }
+
+  @Test
+  void ocrSessionsWithoutAPortraitOrNotCompletedDoNotPass() {
+    String token = ocr.create(CASE_ID, SECRET);
+    ocr.record(token, SECRET, TestJson.json(ocrResult("completed", "success", null)));
+    assertFalse(ocr.awaitResult(token, 5).orElseThrow().passed());
+
+    ocr.record(token, SECRET, TestJson.json(ocrResult("expired", "success", JPEG)));
+    SessionResult expired = ocr.awaitResult(token, 5).orElseThrow();
+    assertFalse(expired.passed());
+    assertEquals("expired", expired.status());
+  }
+
+  @Test
+  void tokensBelongToTheirService() {
+    String token = ocr.create(CASE_ID, SECRET);
+
+    assertFalse(sessions.verify(token, CASE_ID, SECRET));
+    assertEquals(
+        RecordOutcome.UNAUTHORIZED,
+        sessions.record(token, SECRET, TestJson.json(result("completed", true, JPEG))));
   }
 }

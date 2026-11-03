@@ -13,7 +13,6 @@ import {
     LoginValidationPolicy,
     MessageCourier,
     RegistrationFormMode,
-    ScanovateSide,
     type KcContext,
     type KcContextExtension,
     type KcContextExtensionPerPage,
@@ -39,19 +38,12 @@ const kcContextExtensionPerPage: KcContextExtensionPerPage = {
     "scanovate-capture.ftl": {
         scanovate: {
             documentType: "driversLicense",
-            sides: [ScanovateSide.Front, ScanovateSide.Back],
-            videoSeconds: 5,
             attemptsLeft: 3,
             maxAttempts: 3,
-            upload: {
-                url: "/realms/storybook/identity-verification/capture",
-                token: "capture-token",
-            },
-            liveness: {
-                url: "/biometric/liveness",
-                token: "liveness-token",
-                caseId: "storybook-case",
-            },
+            // Keycloak sends Scanovate's pages under /biometric/ with one-time
+            // tokens; previews embed a blank page unless a story brings a fake.
+            ocr: {url: "about:blank"},
+            liveness: {url: "about:blank"},
         },
     },
     "scanovate-error.ftl": {

@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-class LivenessSettingsTest {
+class OnPremSettingsTest {
   static Map<String, String> livenessConfig() {
     Map<String, String> config = new HashMap<>();
     config.put(ScanovateAuthenticatorFactory.LIVENESS_URL, "https://liveness.example.com:8443/");
@@ -22,7 +22,7 @@ class LivenessSettingsTest {
 
   @Test
   void defaultsApplyWhenUnset() throws ScanovateException {
-    LivenessSettings settings = LivenessSettings.fromConfig(livenessConfig());
+    OnPremSettings settings = OnPremSettings.fromConfig(livenessConfig());
 
     assertEquals("callback-secret", settings.secret());
     assertEquals(
@@ -31,10 +31,21 @@ class LivenessSettingsTest {
   }
 
   @Test
-  void apiUrlIsTheLivenessPathOfTheService() throws ScanovateException {
+  void pagesAreServedUnderTheBaseUrlWithTheirTokenAndCase() throws ScanovateException {
+    OnPremSettings settings = OnPremSettings.fromConfig(livenessConfig());
+
     assertEquals(
-        "https://liveness.example.com:8443/liveness",
-        LivenessSettings.fromConfig(livenessConfig()).apiUrl());
+        "https://liveness.example.com:8443/liveness/?case_id=case-1&token=t_0-k",
+        settings.pageUrl(OnPremService.LIVENESS, "case-1", "t_0-k", Map.of()));
+    assertEquals(
+        "https://liveness.example.com:8443/ocr/?ocr_type=passport&case_id=case%201&token=a%2Bb",
+        settings.pageUrl(OnPremService.OCR, "case 1", "a+b", Map.of("ocr_type", "passport")));
+  }
+
+  @Test
+  void theOriginOfThePagesIsTheSchemeAndAuthorityOfTheBaseUrl() throws ScanovateException {
+    assertEquals(
+        "https://liveness.example.com:8443", OnPremSettings.fromConfig(livenessConfig()).origin());
   }
 
   @Test
@@ -43,21 +54,12 @@ class LivenessSettingsTest {
     config.put(ScanovateAuthenticatorFactory.LIVENESS_URL, "http://127.0.0.1:5050/biometric");
     config.put(ScanovateAuthenticatorFactory.LIVENESS_RESULT_WAIT_SECONDS, "30");
 
-    LivenessSettings settings = LivenessSettings.fromConfig(config);
+    OnPremSettings settings = OnPremSettings.fromConfig(config);
 
     assertEquals(30, settings.resultWaitSeconds());
-    assertEquals("http://127.0.0.1:5050/biometric/liveness", settings.apiUrl());
-  }
-
-  @Test
-  void settingsOfTheRemovedIframeAreIgnored() throws ScanovateException {
-    Map<String, String> config = livenessConfig();
-    config.put("liveness-ui-theme", "tenant_ui");
-    config.put("liveness-translation-variant", "tenant");
-    config.put("liveness-languages", "en,tl");
-
     assertEquals(
-        "https://liveness.example.com:8443/liveness", LivenessSettings.fromConfig(config).apiUrl());
+        "http://127.0.0.1:5050/biometric/liveness/?case_id=c&token=t",
+        settings.pageUrl(OnPremService.LIVENESS, "c", "t", Map.of()));
   }
 
   @Test
@@ -73,10 +75,10 @@ class LivenessSettingsTest {
       Map<String, String> config = livenessConfig();
       config.put(invalid.getKey(), invalid.getValue());
       assertThrows(
-          ScanovateException.class, () -> LivenessSettings.fromConfig(config), invalid.toString());
+          ScanovateException.class, () -> OnPremSettings.fromConfig(config), invalid.toString());
     }
     Map<String, String> withoutSecret = livenessConfig();
     withoutSecret.remove(ScanovateAuthenticatorFactory.LIVENESS_SECRET);
-    assertThrows(ScanovateException.class, () -> LivenessSettings.fromConfig(withoutSecret));
+    assertThrows(ScanovateException.class, () -> OnPremSettings.fromConfig(withoutSecret));
   }
 }

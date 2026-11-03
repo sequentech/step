@@ -32,24 +32,25 @@ serialized into diagnostics.
 | `attempt_id`, `case_id` | Independent attempt UUID and optional verification case UUID |
 | `occurred_at` | UTC occurrence time supplied by the Keycloak listener, independent of queue delays |
 | `service_error`, `http_status` | Bounded category (`http_error`, `timeout`, `connection`, `tls`, `transport`, `malformed_response`, `provider_response`, `interrupted`) and optional numeric HTTP status 100–599; no error text or response body |
-| `config_component` | Invalid configuration group: `capture`, `liveness`, `face_match`, `ocr`, `validation_rules` or `storage_rules`; never setting values |
-| `stage` | `configuration`, `capture`, `liveness`, `face_document`, `face_holding`, `ocr` or `validation` |
+| `config_component` | Invalid configuration group: `liveness` (the Scanovate pages URL, callback secret or result wait), `face_match`, `ocr`, `validation_rules` or `storage_rules`; never setting values. `capture` is only found in entries of the earlier capture page |
+| `stage` | Where the attempt was: `configuration`, `ocr` (waiting for OCR's result), `liveness` (waiting for Liveness Plus's result), `face_document` (comparing the live face with the portrait OCR read) or `validation`, in this order. `capture` is only the initial value, before any check; `face_holding` is only found in entries of the earlier capture page, which also compared a photo of the voter holding the ID |
 | `error` | Allowlisted error-page category, including retry exhaustion |
 | `failure_reason` | Underlying category, retained when `error` becomes `scanovateMaxRetriesError`; custom rule messages map to `scanovateAttributesError` |
 | `can_retry`, `failed_attempts` | Retry availability and existing counted-failure value, capped at 9999 in diagnostics only; service/configuration failures need not increment it |
 | `entered_document_type`, `entered_embassy`, `entered_country` | Selected realm profile options only; missing values say `missing`, unconfigured/free-text/oversized values say `unrecognized_redacted`. Country is the entered choice, never network geolocation |
 | `entered_email_state`, `entered_phone_state` | `missing`, `present_redacted` or `unknown` when an original snapshot is unavailable; **no address or number is retained**. Phone refers to the existing mobile-number profile attribute, not every possible messaging channel |
 | `entered_document_number_state`, `extracted_document_number_state` | Presence only, never a document number, MRZ or hash of one |
-| `liveness_status`, `liveness_passed` | Allowlisted callback status and verdict; `unknown` when no authenticated final result is available, which does not establish why a callback is missing |
-| `face_match_document`, `face_match_holding` | Existing similarity scores to four decimals; non-finite/out-of-range values become `invalid` in diagnostics only |
-| `ocr_front_status`, `ocr_back_status`, `ocr_front_result`, `ocr_back_result` | Allowlisted response/processing categories per attempted side; unknown vendor text becomes `unknown` |
+| `liveness_status`, `liveness_passed` | Allowlisted callback status and verdict of Liveness Plus (passed means completed with the liveness, presentation attack and injection attack checks passed); `unknown` when no authenticated final result is available, which does not establish why a callback is missing |
+| `face_match_document` | Similarity score of the live face with the document portrait, to four decimals; non-finite/out-of-range values become `invalid` in diagnostics only. `face_match_holding` is only found in entries of the earlier capture page |
+| `ocr_<side>_status`, `ocr_<side>_result` | For each side (`front`, `back` or `scan`) that OCR's result callback contains: the allowlisted status of the OCR session and the processing result of that side; unknown vendor text becomes `unknown`. A result without sides reports `ocr_front_status` only |
 | `extracted_document_type` | Allowlisted document/MRZ type; other values are redacted |
 | `extracted_issuing_country`, `extracted_nationality` | Three-uppercase-letter codes only; other values are redacted |
 | `check_template_matching_valid`, `check_document_in_frame_valid`, `check_expiry_date_valid`, `check_face_size_valid`, `check_barcode_valid` | Boolean scan checks, or `missing`/`invalid` when absent/malformed |
 
-Extracted fields/checks are available only after OCR produces combined readable
-results. Earlier failures have no invented reading. Per-side status is retained
-when a later OCR side fails. Entered fields are captured once before OCR may replace authentication notes,
+Extracted fields/checks are available only after OCR's result passed and the
+faces matched. Earlier failures have no invented reading. The per-side status
+is recorded as soon as OCR's result arrives, so it survives a later liveness,
+face or rule failure. Entered fields are captured once before OCR may replace authentication notes,
 and that sanitized snapshot survives scan retries. A newly accepted registration
 form resets it. A confirmation created before the snapshot existed reports
 unknown/redacted entered data. The snapshot includes form defaults as well as
