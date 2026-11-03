@@ -279,6 +279,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "I-export ang mga Template",
                 IMPORT_TEMPLATES: "I-import ang mga Template",
                 DELETE_ELECTION_EVENT: "Tanggalin ang Kaganapan ng Halalan",
+                RESTORE_ELECTION_EVENT: "Ibalik ang Kaganapan ng Halalan",
                 DELETE_VOTERS: "Tanggalin ang mga botante",
                 PREPARE_PUBLICATION_PREVIEW: "Ihanda ang paunang tingin ng publikasyon",
                 EXPORT_TALLY_RESULTS_XLSX:
@@ -1819,6 +1820,43 @@ const tagalogTranslation: TranslationType = {
             templates: "Mga template",
             active: "Aktibo",
             archived: "Arkilado",
+            trash: {
+                tab: "Basurahan",
+                loading: "Nilo-load ang Basurahan",
+                error: "Hindi ma-load ang Basurahan.",
+                retry: "Subukang muli",
+                empty: "Walang laman ang Basurahan",
+                emptyHint_one:
+                    "Ang mga tinanggal na kaganapan ng halalan ay nananatili rito nang {{count}} araw at maaaring ibalik.",
+                emptyHint_other:
+                    "Ang mga tinanggal na kaganapan ng halalan ay nananatili rito nang {{count}} araw at maaaring ibalik.",
+                emptyHintNoDays:
+                    "Ang mga tinanggal na kaganapan ng halalan ay nananatili rito nang ilang panahon at maaaring ibalik.",
+                deletedOn: "Tinanggal noong {{date}}",
+                purgeOn: "Permanenteng tatanggalin sa {{date}}",
+                purging: "Isinasagawa ang permanenteng pagtanggal",
+                wasArchived: "Naka-archive dati",
+                showing: "Ipinapakita ang {{count}} sa {{total}}",
+                loadMore: "Mag-load pa",
+                refresh: "I-refresh",
+                refreshError: "Hindi ma-refresh ang Basurahan; maaaring hindi ito napapanahon.",
+                restore: "Ibalik",
+                restoreNamed: "Ibalik ang {{name}}",
+                restoreTitle: "Ibalik ang kaganapan ng halalan",
+                restoreConfirm: 'Ibalik ang "{{name}}"?',
+                restoreToActive: "Babalik ito sa Aktibo.",
+                restoreToArchived: "Babalik ito sa Naka-archive, gaya ng dati bago ito tinanggal.",
+                restoreVoting: "Hindi nagbabago ang katayuan ng pagboto nito.",
+                restored: 'Naibalik ang "{{name}}"',
+                restoreError: "Hindi maibalik ang kaganapan ng halalan: {{message}}",
+                moveToTrash: "Ilipat sa Basurahan",
+                deleteExplanation_one:
+                    "Mananatili ito sa Basurahan nang {{count}} araw, kung saan maaari itong ibalik. Pagkatapos ay permanente itong tatanggalin.",
+                deleteExplanation_other:
+                    "Mananatili ito sa Basurahan nang {{count}} araw, kung saan maaari itong ibalik. Pagkatapos ay permanente itong tatanggalin.",
+                deleteExplanationNoDays:
+                    "Mananatili ito sa Basurahan, kung saan maaari itong ibalik hanggang sa permanenteng tanggalin.",
+            },
             addResource: {
                 electionEvent: "Lumikha ng Kaganapan ng Halalan",
                 election: "Lumikha ng Halalan",
@@ -1842,6 +1880,9 @@ const tagalogTranslation: TranslationType = {
                     candidate: "Tanggalin ang Kandidato",
                     slate: "Alisin ang Slate na ito",
                 },
+                trash: {
+                    electionEvent: "Ilipat ang Kaganapan ng Halalan na ito sa Basurahan",
+                },
                 messages: {
                     confirm: {
                         archive: "Sigurado ka bang i-archive ang item na ito?",
@@ -1850,6 +1891,9 @@ const tagalogTranslation: TranslationType = {
                         archiveNamed: 'Sigurado ka bang i-archive ang "{{name}}"?',
                         unarchiveNamed: 'Sigurado ka bang i-unarchive ang "{{name}}"?',
                         deleteNamed: 'Sigurado ka bang tanggalin ang "{{name}}"?',
+                        trash: "Sigurado ka bang gusto mong ilipat ang item na ito sa Basurahan?",
+                        trashNamed:
+                            'Sigurado ka bang gusto mong ilipat ang "{{name}}" sa Basurahan?',
                     },
                     notification: {
                         success: {

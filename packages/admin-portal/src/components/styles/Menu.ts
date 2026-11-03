@@ -21,43 +21,37 @@ export const divContainer = css`
 export const MenuStyles = {
     SideMenuContainer: styled("ul")`
         display: flex;
-        padding-left: 1rem;
-        padding-right: 1rem;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
         background-color: white;
         text-transform: uppercase;
         font-size: 0.75rem;
         line-height: 1.5rem;
-        & > *:not(:last-child) {
-            margin-right: 1rem;
+    `,
+
+    SideMenuTab: styled("button", {shouldForwardProp: (prop) => prop !== "isSelected"})<{
+        isSelected: boolean
+    }>`
+        flex: 1 1 auto;
+        padding: 0.5rem;
+        margin: 0;
+        border: none;
+        background: none;
+        font: inherit;
+        text-transform: inherit;
+        text-align: center;
+        cursor: pointer;
+        white-space: nowrap;
+        color: ${({isSelected}) =>
+            isSelected ? adminTheme.palette.brandColor : adminTheme.palette.secondary.main};
+        border-bottom: ${({isSelected}) =>
+            isSelected ? `2px solid ${adminTheme.palette.brandSuccess}` : "2px solid transparent"};
+        &:focus-visible {
+            outline: 2px solid ${adminTheme.palette.brandColor};
+            outline-offset: -2px;
         }
-    `,
-
-    SideMenuActiveItem: styled("li")<{isArchivedElectionEvents: boolean}>`
-        padding-left: 1rem;
-        padding-right: 1rem;
-        padding-top: 0.5rem;
-        padding-bottom: 0.5rem;
-        cursor: pointer;
-        color: ${({isArchivedElectionEvents}) =>
-            !isArchivedElectionEvents
-                ? adminTheme.palette.brandColor
-                : adminTheme.palette.secondary.main};
-        border-bottom: ${({isArchivedElectionEvents}) =>
-            !isArchivedElectionEvents ? `2px solid ${adminTheme.palette.brandSuccess}` : "none"};
-    `,
-
-    SideMenuArchiveItem: styled("li")<{isArchivedElectionEvents: boolean}>`
-        padding-left: 1rem;
-        padding-right: 1rem;
-        padding-top: 0.5rem;
-        padding-bottom: 0.5rem;
-        cursor: pointer;
-        color: ${({isArchivedElectionEvents}) =>
-            isArchivedElectionEvents
-                ? adminTheme.palette.brandColor
-                : adminTheme.palette.secondary.main};
-        border-bottom: ${({isArchivedElectionEvents}) =>
-            isArchivedElectionEvents ? `2px solid ${adminTheme.palette.brandSuccess}` : "none"};
     `,
 
     RefreshAction: styled("li")`

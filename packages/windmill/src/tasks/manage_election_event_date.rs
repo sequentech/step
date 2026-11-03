@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::election_event_trash::lock_election_event_for_schedule;
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_status::update_scheduled_event_voting_status;
@@ -27,6 +28,10 @@ pub async fn manage_election_event_date_wrapped(
     election_event_id: String,
     scheduled_event_id: String,
 ) -> AnyhowResult<()> {
+    // Taken before reading the schedule: moving the event to Trash or restoring
+    // it (which stops the schedules that came due meanwhile) either waits for
+    // this change or commits before the schedule is read.
+    lock_election_event_for_schedule(hasura_transaction, &tenant_id, &election_event_id).await?;
     let scheduled_manage_date_opt = find_scheduled_event_by_id(
         hasura_transaction,
         Some(tenant_id.clone()),

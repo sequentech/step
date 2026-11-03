@@ -67,6 +67,7 @@ impl TryFrom<Row> for ScheduledEventWrapper {
 }
 
 #[instrument(skip(hasura_transaction), err)]
+/// The scheduled events still to run, except those of election events in Trash.
 pub async fn find_all_active_events(
     hasura_transaction: &Transaction<'_>,
 ) -> Result<Vec<ScheduledEvent>> {
@@ -74,10 +75,16 @@ pub async fn find_all_active_events(
         .prepare(
             r#"
             SELECT
-                *
+                scheduled_event.*
             FROM "sequent_backend".scheduled_event
             WHERE
                 stopped_at IS NULL
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM "sequent_backend".election_event
+                    WHERE election_event.id = scheduled_event.election_event_id
+                        AND election_event.trashed_at IS NOT NULL
+                )
             "#,
         )
         .await?;

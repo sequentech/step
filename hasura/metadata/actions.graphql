@@ -148,6 +148,19 @@ type Mutation {
 }
 
 type Mutation {
+    restore_election_event(
+        election_event_id: String!
+    ): RestoreElectionEventOutput!
+}
+
+type Query {
+    list_trashed_election_events(
+        limit: Int
+        offset: Int
+    ): TrashedElectionEventsOutput!
+}
+
+type Mutation {
     delete_tenant(tenant_id: String!): DeleteTenant
 }
 
@@ -1709,6 +1722,26 @@ type DeleteElectionEvent {
     id: String
     task_execution: tasks_execution_type
     error_msg: String
+}
+
+type RestoreElectionEventOutput {
+    id: String!
+    is_archived: Boolean!
+}
+
+type TrashedElectionEvent {
+    id: String!
+    presentation: jsonb
+    trashed_at: String!
+    purge_after: String!
+    purge_started_at: String
+    archived_before_trash: Boolean!
+}
+
+type TrashedElectionEventsOutput {
+    items: [TrashedElectionEvent!]!
+    total: Int!
+    retention_days: Int
 }
 
 type DeleteTenant {
