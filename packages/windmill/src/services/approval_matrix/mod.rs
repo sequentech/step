@@ -190,6 +190,8 @@ impl std::fmt::Display for MatrixError {
 fn outcome_errors(outcome: &RuleOutcome, rule: Option<usize>) -> Option<MatrixError> {
     let code = match (&outcome.decision, &outcome.reason) {
         (ApplicationStatus::ACCEPTED, Some(_)) => MatrixErrorCode::UNEXPECTED_REASON,
+        // Only the enrollment itself finds the email in use, after the matrix.
+        (_, Some(ApplicationRejectReason::EMAIL_IN_USE)) => MatrixErrorCode::UNEXPECTED_REASON,
         (ApplicationStatus::PENDING | ApplicationStatus::REJECTED, None) => {
             MatrixErrorCode::MISSING_REASON
         }

@@ -6,6 +6,7 @@
 // matches the server.
 export const enrollmentEnglish = {
     enrollmentStepDetails: "Your details",
+    enrollmentBack: "Back",
     enrollmentPasswordStrength: "Password strength",
     enrollmentOutcomeEnrolled: "Enrollment complete",
     enrollmentOutcomeUnderReview: "Enrollment under review",
@@ -31,11 +32,14 @@ export const enrollmentEnglish = {
     NO_VOTER: "The data provided for enrollment does not match any existing user in the registry.",
     ALREADY_APPROVED:
         "Our records indicate that you have already completed the enrollment process. If you believe this is an error, please contact support for further assistance.",
+    EMAIL_IN_USE:
+        "Your email is already registered to another voter. Enroll again with a different email, or contact your election office.",
     OTHER: "An unexpected issue occurred while processing your enrollment. Please try again later. If the problem persists, reach out to our support team for assistance.",
 } as const
 
 export const enrollmentSpanish: Record<keyof typeof enrollmentEnglish, string> = {
     enrollmentStepDetails: "Sus datos",
+    enrollmentBack: "Atrás",
     enrollmentPasswordStrength: "Seguridad de la contraseña",
     enrollmentOutcomeEnrolled: "Inscripción completada",
     enrollmentOutcomeUnderReview: "Inscripción en revisión",
@@ -59,5 +63,7 @@ export const enrollmentSpanish: Record<keyof typeof enrollmentEnglish, string> =
     NO_VOTER: "Los datos proporcionados no coinciden con ningún votante del registro.",
     ALREADY_APPROVED:
         "Según nuestros registros, ya completó el proceso de inscripción. Si cree que es un error, contacte con soporte.",
+    EMAIL_IN_USE:
+        "Su correo electrónico ya está registrado para otro votante. Inscríbase de nuevo con otro correo o contacte con su oficina electoral.",
     OTHER: "Se produjo un problema inesperado al procesar su inscripción. Inténtelo de nuevo más tarde. Si el problema continúa, contacte con nuestro equipo de soporte.",
 }

@@ -4182,6 +4182,7 @@ const tagalogTranslation: TranslationType = {
                     "insufficient-information": "Kulang na datos",
                     "no-matching-voter": "Walang tumutugmang botante",
                     "voter-already-approved": "Naaprubahan na",
+                    "EMAIL_IN_USE": "Ginagamit ng ibang botante ang email",
                     "other": "Iba pa",
                 },
                 hint: {

@@ -4147,6 +4147,7 @@ const galegoTranslation: TranslationType = {
                     "insufficient-information": "Faltan datos",
                     "no-matching-voter": "Votante non coincidente",
                     "voter-already-approved": "Xa aprobado",
+                    "EMAIL_IN_USE": "Correo usado por outro votante",
                     "other": "Outro",
                 },
                 hint: {

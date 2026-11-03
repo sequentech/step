@@ -18,6 +18,8 @@ import {
     type KcContext,
 } from "../KcContext"
 import {ArrowIcon} from "../icons"
+import {stepBack} from "../stepBack"
+import {resendCountdownStart} from "../resendCountdown"
 import type {EnrollmentPageProps} from "../enrollment/pageProps"
 
 type OtpContext = Extract<KcContext, {pageId: "message-otp.login.ftl"}>
@@ -77,12 +79,18 @@ function resendSecondsLeft(): number {
 
 /**
  * The seconds until the voter can ask for the code again. A send that just happened, delivered or
- * not, starts the countdown; a failed send never lifts it, as Keycloak's own timer doesn't.
+ * not, starts the countdown; a failed send never lifts it, as Keycloak's own timer doesn't. A page
+ * shown again without a send (after Back) continues the server's count.
  */
-function useResendCountdown(seconds: number, sendAttempted: boolean): number {
+function useResendCountdown(
+    seconds: number,
+    sendAttempted: boolean,
+    serverSecondsLeft: number | undefined
+): number {
     const [remaining, setRemaining] = useState(() => {
-        if (sendAttempted) {
-            startResendCountdown(seconds)
+        const start = resendCountdownStart(seconds, sendAttempted, serverSecondsLeft)
+        if (start !== undefined) {
+            startResendCountdown(start)
         }
         return resendSecondsLeft()
     })
@@ -374,7 +382,8 @@ export default function MessageOtpLogin(props: OtpPageProps) {
     const resendSeconds = Number(resendTimer ?? DEFAULT_RESEND_SECONDS)
     const remaining = useResendCountdown(
         resendSeconds,
-        kcContext.resendTimerStarted === true || codeJustSent === true
+        kcContext.resendTimerStarted === true || codeJustSent === true,
+        kcContext.resendSecondsLeft
     )
 
     const focusInput = (index: number) => {
@@ -509,6 +518,10 @@ export default function MessageOtpLogin(props: OtpPageProps) {
             classes={classes}
             displayInfo={ttl !== undefined}
             symbol={channel ? <ChannelIcon channel={channel} /> : undefined}
+            back={stepBack(kcContext, {
+                text: msgStr("enrollmentBack"),
+                lang: messageLanguage(kcContext, i18n, "enrollmentBack"),
+            })}
             {...(messenger
                 ? {
                       headerNode: msg("messageOtp.messenger.title"),

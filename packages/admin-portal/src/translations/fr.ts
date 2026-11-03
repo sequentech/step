@@ -4184,6 +4184,7 @@ const frenchTranslation: TranslationType = {
                     "insufficient-information": "Données manquantes",
                     "no-matching-voter": "Aucun électeur correspondant",
                     "voter-already-approved": "Déjà approuvé",
+                    "EMAIL_IN_USE": "E-mail utilisé par un autre électeur",
                     "other": "Autre",
                 },
                 hint: {
