@@ -7,11 +7,11 @@
 use super::super::*;
 use serde_json::json;
 
-struct ElectionFixture {
-    tenant: Uuid,
-    event: Uuid,
-    election: Uuid,
-    area: Uuid,
+pub(in crate::services::insert_cast_vote) struct ElectionFixture {
+    pub tenant: Uuid,
+    pub event: Uuid,
+    pub election: Uuid,
+    pub area: Uuid,
 }
 
 impl ElectionFixture {
@@ -79,10 +79,29 @@ impl ElectionFixture {
         voter_id: &str,
     ) -> Result<CastVote, CastVoteError> {
         let (_, _, voter_signature_data, ciphertext_fingerprints) =
-            deserialize_and_check_ballot(input, voter_id)?;
+            deserialize_and_check_ballot(input, voter_id, &super::styles_of(input))?;
         let tenant_id = self.tenant.to_string();
         let election_event_id = self.event.to_string();
+        let election_id = self.election.to_string();
         let area_id = self.area.to_string();
+        let signing_key = StrandSignatureSk::gen().unwrap();
+        let electoral_log =
+            ElectoralLog::for_voter_with_signing_key("synthetic", voter_id, &signing_key);
+        let pseudonym_h = PseudonymHash(HashWrapper::new(hash_voter_id(voter_id).unwrap()));
+        let vote_h = CastVoteHash(HashWrapper::new([7u8; 64]));
+        let audit = CastVoteAudit {
+            electoral_log: &electoral_log,
+            tenant_id: &tenant_id,
+            election_event_id: &election_event_id,
+            election_id: &election_id,
+            pseudonym_h: &pseudonym_h,
+            vote_h: &vote_h,
+            ip: "ip: ",
+            country: "country: ",
+            voter_id,
+            username: &None,
+            area_id: &area_id,
+        };
         let transaction = client.transaction().await.unwrap();
         insert_cast_vote_and_commit(
             input.clone(),
@@ -95,7 +114,7 @@ impl ElectionFixture {
                 voter_id,
                 area_id: &area_id,
             },
-            StrandSignatureSk::gen().unwrap(),
+            signing_key.clone(),
             &Some(ISO8601::now().timestamp()),
             &None,
             &None,
@@ -103,13 +122,14 @@ impl ElectionFixture {
             &ciphertext_fingerprints,
             false,
             CastVoteStatus::Valid,
+            &audit,
         )
         .await
-        .map(|(cast_vote, _)| cast_vote)
+        .map(|(cast_vote, _, _)| cast_vote)
     }
 }
 
-async fn test_client() -> DbClient {
+pub(in crate::services::insert_cast_vote) async fn test_client() -> DbClient {
     let mut config = deadpool_postgres::Config::new();
     config.url = Some(
         std::env::var("CAST_VOTE_TEST_DATABASE_URL")
@@ -332,7 +352,8 @@ async fn ciphertext_cast_by_another_voter_is_rejected() {
     );
     fixture.cast(&mut client, &fresh, "second").await.unwrap();
 
-    let (_, _, _, fingerprints) = deserialize_and_check_ballot(&first, "first").unwrap();
+    let (_, _, _, fingerprints) =
+        deserialize_and_check_ballot(&first, "first", &super::styles_of(&first)).unwrap();
     let transaction = client.transaction().await.unwrap();
     assert!(!postgres::cast_vote::ciphertext_cast_by_other_voter(
         &transaction,
@@ -343,5 +364,279 @@ async fn ciphertext_cast_by_another_voter_is_rejected() {
     )
     .await
     .unwrap());
+    transaction.rollback().await.unwrap();
+}
+
+pub(in crate::services::insert_cast_vote) mod electoral_log_outbox {
+    use super::*;
+    use crate::services::electoral_log_outbox::{
+        publish_log_event, relay_log_events, PendingLogEvent,
+    };
+    use crate::services::electoral_log_queue::{
+        drain_log_event_queue, AmqpLogEventQueue, BoardDelivery, LogEventPreparation, LogEventStore,
+    };
+    use crate::tasks::electoral_log::persist_board_deliveries;
+    use async_trait::async_trait;
+    use electoral_log::client::board_client::{BoardClient, DeliveryReceipt, ElectoralLogMessage};
+    use lapin::{Connection, ConnectionProperties};
+
+    const VOTER: &str = "synthetic-voter";
+
+    /// An open election with the online channel, committed so that the vote's
+    /// own transaction sees it.
+    pub(in crate::services::insert_cast_vote) async fn open_election(
+        client: &mut DbClient,
+    ) -> ElectionFixture {
+        let transaction = client.transaction().await.unwrap();
+        let fixture = ElectionFixture::create(&transaction).await;
+        transaction
+            .execute(
+                "UPDATE sequent_backend.election SET voting_channels = $1 WHERE id = $2",
+                &[&json!({"online": true}), &fixture.election],
+            )
+            .await
+            .unwrap();
+        transaction.commit().await.unwrap();
+        fixture
+    }
+
+    pub(in crate::services::insert_cast_vote) async fn remove(
+        client: &DbClient,
+        fixture: &ElectionFixture,
+    ) {
+        for table in ["cast_vote", "electoral_log_outbox", "election"] {
+            let column = if table == "election" {
+                "id"
+            } else {
+                "election_event_id"
+            };
+            let value = if table == "election" {
+                fixture.election
+            } else {
+                fixture.event
+            };
+            client
+                .execute(
+                    &format!("DELETE FROM sequent_backend.{table} WHERE {column} = $1"),
+                    &[&value],
+                )
+                .await
+                .unwrap();
+        }
+    }
+
+    pub(in crate::services::insert_cast_vote) async fn count(
+        client: &DbClient,
+        table: &str,
+        fixture: &ElectionFixture,
+    ) -> i64 {
+        client
+            .query_one(
+                &format!(
+                    "SELECT count(*) FROM sequent_backend.{table} WHERE election_event_id = $1"
+                ),
+                &[&fixture.event],
+            )
+            .await
+            .unwrap()
+            .get(0)
+    }
+
+    /// Casts a synthetic vote through the production insert and commit.
+    pub(in crate::services::insert_cast_vote) async fn cast(
+        client: &mut DbClient,
+        fixture: &ElectionFixture,
+        signing_key: &StrandSignatureSk,
+    ) -> Result<(CastVote, VotingStatusChannel, PendingLogEvent), CastVoteError> {
+        let tenant = fixture.tenant.to_string();
+        let event = fixture.event.to_string();
+        let election = fixture.election.to_string();
+        let area = fixture.area.to_string();
+        let electoral_log =
+            ElectoralLog::for_voter_with_signing_key("synthetic", VOTER, signing_key);
+        let pseudonym_h = PseudonymHash(HashWrapper::new(hash_voter_id(VOTER).unwrap()));
+        let vote_h = CastVoteHash(HashWrapper::new([7u8; 64]));
+        let audit = CastVoteAudit {
+            electoral_log: &electoral_log,
+            tenant_id: &tenant,
+            election_event_id: &event,
+            election_id: &election,
+            pseudonym_h: &pseudonym_h,
+            vote_h: &vote_h,
+            ip: "ip: ",
+            country: "country: ",
+            voter_id: VOTER,
+            username: &None,
+            area_id: &area,
+        };
+        let transaction = client.transaction().await.unwrap();
+        insert_cast_vote_and_commit(
+            InsertCastVoteInput {
+                ballot_id: "synthetic-ballot".to_string(),
+                election_id: fixture.election,
+                content: "synthetic-encrypted-ballot".to_string(),
+            },
+            transaction,
+            super::super::election_event(None),
+            VotingStatusChannel::ONLINE,
+            CastVoteIds {
+                election_event_id: &event,
+                tenant_id: &tenant,
+                voter_id: VOTER,
+                area_id: &area,
+            },
+            signing_key.clone(),
+            &Some(ISO8601::now().timestamp()),
+            &None,
+            &None,
+            &None,
+            &[],
+            false,
+            CastVoteStatus::Valid,
+            &audit,
+        )
+        .await
+    }
+
+    #[tokio::test]
+    #[ignore = "requires the disposable devenv database fixture"]
+    async fn accepted_vote_commits_with_its_signed_event_and_a_refused_vote_with_none() {
+        let mut client = test_client().await;
+        let fixture = open_election(&mut client).await;
+        let signing_key = StrandSignatureSk::gen().unwrap();
+
+        let (_, channel, pending) = cast(&mut client, &fixture, &signing_key).await.unwrap();
+        let stored: serde_json::Value = client
+            .query_one(
+                "SELECT input FROM sequent_backend.electoral_log_outbox WHERE id = $1",
+                &[&pending.id],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        let message: ElectoralLogMessage =
+            serde_json::from_str(&pending.input.body.as_raw()).unwrap();
+        println!(
+            "accepted: channel {channel}, votes {}, outbox events {}, kind {}",
+            count(&client, "cast_vote", &fixture).await,
+            count(&client, "electoral_log_outbox", &fixture).await,
+            message.statement_kind
+        );
+        assert_eq!(stored, serde_json::to_value(&pending.input).unwrap());
+        assert_eq!(message.statement_kind, "CastVote");
+        assert_eq!(count(&client, "cast_vote", &fixture).await, 1);
+        assert_eq!(count(&client, "electoral_log_outbox", &fixture).await, 1);
+
+        // One vote is allowed: the database refuses the second and rolls back
+        // the event stored before it.
+        let refused = cast(&mut client, &fixture, &signing_key).await;
+        println!(
+            "refused: {:?}, votes {}, outbox events {}",
+            refused.as_ref().err(),
+            count(&client, "cast_vote", &fixture).await,
+            count(&client, "electoral_log_outbox", &fixture).await
+        );
+        assert!(matches!(
+            refused,
+            Err(CastVoteError::InsertFailedExceedsAllowedRevotes)
+        ));
+        assert_eq!(count(&client, "cast_vote", &fixture).await, 1);
+        assert_eq!(count(&client, "electoral_log_outbox", &fixture).await, 1);
+        remove(&client, &fixture).await;
+    }
+}
+
+/// The cast check and the tally read only the ballot styles of published
+/// publications. A generated draft keeps its styles live until it is
+/// published, so filtering on the style alone would also return the draft's.
+#[tokio::test]
+#[ignore = "requires the disposable devenv database fixture"]
+async fn only_published_ballot_styles_are_read() {
+    use sequent_core::ballot::Contest;
+    use sequent_core::fixtures::ballot_codec::{get_test_contest, get_writein_ballot_style};
+
+    let mut client = test_client().await;
+    let transaction = client.transaction().await.unwrap();
+    let fixture = ElectionFixture::create(&transaction).await;
+    let other_area = Uuid::new_v4();
+    // Each style has a single contest named after its case:
+    // (contest, area, published, publication deleted, style deleted).
+    let cases = [
+        ("published", fixture.area, true, false, false),
+        ("draft", fixture.area, false, false, false),
+        ("deleted-publication", fixture.area, true, true, false),
+        ("deleted-style", fixture.area, true, false, true),
+        ("other-area", other_area, true, false, false),
+    ];
+    for (contest_id, area, published, publication_deleted, style_deleted) in cases {
+        let publication = Uuid::new_v4();
+        transaction
+            .execute(
+                "INSERT INTO sequent_backend.ballot_publication
+                    (id, tenant_id, election_event_id, is_generated, published_at, deleted_at)
+                VALUES ($1, $2, $3, true, CASE WHEN $4 THEN now() END, CASE WHEN $5 THEN now() END)",
+                &[
+                    &publication,
+                    &fixture.tenant,
+                    &fixture.event,
+                    &published,
+                    &publication_deleted,
+                ],
+            )
+            .await
+            .unwrap();
+        let ballot_style = BallotStyle {
+            contests: vec![Contest {
+                id: contest_id.to_string(),
+                ..get_test_contest()
+            }],
+            ..get_writein_ballot_style()
+        };
+        transaction
+            .execute(
+                "INSERT INTO sequent_backend.ballot_style
+                    (id, tenant_id, election_event_id, election_id, area_id, ballot_eml,
+                     deleted_at, ballot_publication_id)
+                VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $7 THEN now() END, $8)",
+                &[
+                    &Uuid::new_v4(),
+                    &fixture.tenant,
+                    &fixture.event,
+                    &fixture.election,
+                    &area,
+                    &serde_json::to_string(&ballot_style).unwrap(),
+                    &style_deleted,
+                    &publication,
+                ],
+            )
+            .await
+            .unwrap();
+    }
+
+    let cast_styles = get_published_style_contest_ids(
+        &transaction,
+        &fixture.tenant.to_string(),
+        &fixture.event.to_string(),
+        &fixture.election.to_string(),
+        &fixture.area.to_string(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(cast_styles, vec![HashSet::from(["published".to_string()])]);
+
+    let mut tally_contests: Vec<String> = get_ballot_styles_by_elections(
+        &transaction,
+        &fixture.tenant.to_string(),
+        &fixture.event.to_string(),
+        &vec![fixture.election.to_string()],
+        None,
+    )
+    .await
+    .unwrap()
+    .iter()
+    .flat_map(|style| read_style_contest_ids(style).unwrap())
+    .collect();
+    tally_contests.sort();
+    assert_eq!(tally_contests, ["other-area", "published"]);
     transaction.rollback().await.unwrap();
 }
