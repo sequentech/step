@@ -13,7 +13,6 @@ import React, {useContext, useEffect, useState} from "react"
 import {ElectionEventBaseTabs} from "./resources/ElectionEvent/ElectionEventBaseTabs"
 
 import {CreateAreaContest} from "./resources/AreaContest/CreateAreaContest"
-import {CreateBallotStyle} from "./resources/BallotStyle/CreateBallotStyle"
 import {CreateCandidate} from "./resources/Candidate/CreateCandidate"
 import {CreateContest} from "./resources/Contest/CreateContest"
 import {CreateDocument} from "./resources/Document/CreateDocument"
@@ -28,6 +27,8 @@ import {ListElection} from "./resources/Election/ListElection"
 import {ListTenant} from "./resources/Tenant/ListTenant"
 import {Messages} from "./screens/Messages"
 import {Navigate, Route} from "react-router-dom"
+import {SlatePage} from "./resources/Slate/SlatePage"
+import {CREATE_SLATE_ROUTE, SLATE_ROUTE} from "./resources/Slate/slatePaths"
 import {ShowDocument} from "./resources/Document/ShowDocument"
 import {UserAndRoles} from "./screens/UserAndRoles"
 import buildHasuraProvider from "ra-data-hasura"
@@ -36,7 +37,6 @@ import {fullAdminTheme} from "./services/AdminTheme"
 import {SettingsScreen} from "./screens/SettingsScreen"
 import {ListUsers} from "./resources/User/ListUsers"
 import {CustomLayout} from "./components/CustomLayout"
-import {EditBallotStyle} from "./resources/BallotStyle/EditBallotStyle"
 import {EditAreaContest} from "./resources/AreaContest/EditAreaContest"
 import {EditTenant} from "./resources/Tenant/EditTenant"
 import {CreateTenant} from "./resources/Tenant/CreateTenant"
@@ -183,7 +183,10 @@ const App: React.FC<AppProps> = () => {
                         menuParent: "sequent_backend_election_event",
                         foreignKeyFrom: "election_event_id",
                     }}
-                />
+                >
+                    <Route path={SLATE_ROUTE} element={<SlatePage />} />
+                    <Route path={CREATE_SLATE_ROUTE} element={<SlatePage />} />
+                </Resource>
 
                 <Resource
                     name="sequent_backend_contest"
@@ -211,9 +214,7 @@ const App: React.FC<AppProps> = () => {
                 />
                 <Resource
                     name="sequent_backend_ballot_style"
-                    edit={EditBallotStyle}
                     list={ListBallotStyle}
-                    create={CreateBallotStyle}
                     options={{label: "Ballot Styles"}}
                 />
                 <Resource name="sequent_backend_certificate_authority" />

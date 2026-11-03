@@ -31,8 +31,14 @@ insert_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           columns:
               - applicant_id
               - status
@@ -113,8 +119,14 @@ select_permissions:
               - tenant_id
               - permission_label
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
       role: application-read
     - comment: ""
       permission:
@@ -134,8 +146,14 @@ select_permissions:
               - tenant_id
               - permission_label
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
       role: application-write
     - comment: ""
       permission:
@@ -160,10 +178,17 @@ select_permissions:
 update_permissions:
     - comment: ""
       permission:
-          check: null
+          check:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           columns:
               - applicant_id
-              - status
               - verification_type
               - annotations
               - applicant_data
@@ -176,12 +201,26 @@ update_permissions:
               - tenant_id
               - permission_label
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
-          check: null
+          check:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           columns:
               - applicant_id
               - status
@@ -197,8 +236,14 @@ update_permissions:
               - tenant_id
               - permission_label
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
       role: application-write
     - comment: ""
       permission:
@@ -236,8 +281,14 @@ delete_permissions:
     - comment: ""
       permission:
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
       role: application-write
     - comment: ""
       permission:
