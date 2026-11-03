@@ -91,7 +91,7 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: trustee-read
+      role: trustee-ceremony
     - comment: ""
       permission:
           allow_aggregations: true
@@ -107,7 +107,7 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: trustee-ceremony
+      role: trustee-read
     - comment: ""
       permission:
           allow_aggregations: true
