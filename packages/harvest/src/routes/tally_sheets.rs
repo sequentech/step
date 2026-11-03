@@ -9,9 +9,7 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::tally_sheet_validation::validate_area_contest_results;
-use sequent_core::types::ceremonies::{
-    AutomaticRecountPolicy, TallyExecutionStatus,
-};
+use sequent_core::types::ceremonies::AutomaticRecountPolicy;
 use sequent_core::types::hasura::core::{TallySession, TallySheet};
 use sequent_core::types::permissions::Permissions;
 use sequent_core::types::tally_sheet_import::{
@@ -605,9 +603,7 @@ async fn maybe_trigger_automatic_recount_for_import(
     let sessions_to_recount: Vec<TallySession> = tally_sessions
         .into_iter()
         .filter(|session| {
-            session.is_execution_completed
-                && session.execution_status.as_deref()
-                    == Some(TallyExecutionStatus::SUCCESS.to_string().as_str())
+            windmill::services::ceremonies::result_readiness::is_numerically_complete(session)
         })
         .filter(|session| {
             session
