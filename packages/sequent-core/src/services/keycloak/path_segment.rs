@@ -6,9 +6,8 @@ use anyhow::{Context, Result};
 use keycloak::KeycloakError;
 use uuid::Uuid;
 
-/// The Keycloak client interpolates identifiers into URL paths without
-/// escaping reserved characters. Reject path, query, fragment and encoding
-/// controls before building a request so an identifier stays in its segment.
+/// The generated Keycloak client interpolates segments without encoding them.
+/// Reject URL controls before building a request so it cannot escape its realm.
 pub fn validate_keycloak_path_segment(
     segment: &str,
 ) -> Result<(), KeycloakError> {
