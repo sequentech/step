@@ -2,11 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-export const formatPercentOne = (percentOne: number) =>
-    `${numberToNDecimalPlaces(percentOne * 100, 2)}%`
+import {formatNumber} from "./numberFormat"
 
-export const numberToNDecimalPlaces = (num: number, decimals: number): string =>
-    new Intl.NumberFormat("en-US", {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
-    }).format(num)
+export const formatPercentOne = (percentOne: number, policy?: string | null) =>
+    `${numberToNDecimalPlaces(percentOne * 100, 2, policy)}%`
+
+export const numberToNDecimalPlaces = (
+    num: number,
+    decimals: number,
+    policy?: string | null
+): string => formatNumber(num, policy, decimals)
