@@ -468,6 +468,7 @@ const galegoTranslation: TranslationType = {
                 customUrls: "Prefixo de URLs Personalizados",
                 votingPeriod: "Período de Votación",
                 language: "Idioma",
+                languageAndRegion: "Idioma e rexión",
                 allowed: "Canles de Votación Permitidas",
                 materials: "Materiais de Soporte",
                 ballotDesign: "Deseño da Papeleta",
@@ -701,6 +702,11 @@ const galegoTranslation: TranslationType = {
                         "browser-detect": "Detectar desde o navegador",
                         "force-default": "Forzar predeterminado",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Política de formato de números",
+                    helperText: "Aplícase aos números dos resultados, os taboleiros e os informes.",
+                    unknownPolicy: "Formato descoñecido '{{policy}}', amósase como {{sample}}",
                 },
             },
             error: {
@@ -1836,6 +1842,9 @@ const galegoTranslation: TranslationType = {
                         archive: "¿Estás seguro de que queres arquivar este elemento?",
                         unarchive: "¿Estás seguro de que queres desarquivar este elemento?",
                         delete: "¿Estás seguro de que queres eliminar este elemento?",
+                        archiveNamed: '¿Estás seguro de que queres arquivar "{{name}}"?',
+                        unarchiveNamed: '¿Estás seguro de que queres desarquivar "{{name}}"?',
+                        deleteNamed: '¿Estás seguro de que queres eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2160,6 +2169,8 @@ const galegoTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Os resultados numéricos están completos. Os informes aínda se están xerando.",
             errorUploadingSignature: "Houbo un erro ao cargar a sinatura",
             downloadTransmissionPackage: "Descargar Paquete de Transmisión",
             resultsPublication: {

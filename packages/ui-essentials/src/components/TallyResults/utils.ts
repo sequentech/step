@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {formatPercentOne} from "@sequentech/ui-core"
+import {formatNumber, formatPercentage, formatPercentOne} from "@sequentech/ui-core"
 import {MAX_CANDIDATES_REPRESENTED} from "./constants"
 import {defaultResultsAndParticipationLabels} from "./types"
 import type {
@@ -76,12 +76,28 @@ export const buildCandidateChartData = (
     return representedResults
 }
 
-export const valueOrDash = (value: NumericValue): string | number => toFiniteNumber(value) ?? "-"
+export const valueOrDash = (value: NumericValue, policy?: string | null): string =>
+    toFiniteNumber(value) === null ? "-" : formatNumber(value, policy)
 
-export const percentOrDash = (value: NumericValue): string => {
+export const percentOrDash = (value: NumericValue, policy?: string | null): string => {
     const numeric = toFiniteNumber(value)
-    return numeric !== null ? formatPercentOne(numeric) : "-"
+    return numeric !== null ? formatPercentOne(numeric, policy) : "-"
 }
+
+/**
+ * Pie chart options that write slice percentages, with the chart library's
+ * one decimal, and tooltip counts in `policy`.
+ */
+export const pieChartNumberFormatOptions = (policy?: string | null) => ({
+    dataLabels: {
+        formatter: (percentage: number) => formatPercentage(percentage, policy, 1),
+    },
+    tooltip: {
+        y: {
+            formatter: (value: number) => formatNumber(value, policy),
+        },
+    },
+})
 
 export const sortCandidateResults = (
     left: CandidateResultRow,

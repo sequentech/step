@@ -469,6 +469,7 @@ const basqueTranslation: TranslationType = {
                 customUrls: "URL Aurrizki Pertsonalizatuak",
                 votingPeriod: "Bozketa Aldia",
                 language: "Hizkuntza",
+                languageAndRegion: "Hizkuntza eta eskualdea",
                 allowed: "Baimendutako Bozketa Kanalak",
                 materials: "Laguntza Materialak",
                 ballotDesign: "Bozketa Diseinua",
@@ -696,6 +697,13 @@ const basqueTranslation: TranslationType = {
                         "browser-detect": "Arakatzailetik detektatu",
                         "force-default": "Lehenetsia behartu",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Zenbakien formatuaren politika",
+                    helperText:
+                        "Emaitzetako, paneletako eta txostenetako zenbakiei aplikatzen zaie.",
+                    unknownPolicy:
+                        "'{{policy}}' formatu ezezaguna, honela erakusten da: {{sample}}",
                 },
             },
             error: {
@@ -1825,6 +1833,9 @@ const basqueTranslation: TranslationType = {
                         archive: "Ziur zaude elementu hau artxibatu nahi duzula?",
                         unarchive: "Ziur zaude elementu hau desartxibatu nahi duzula?",
                         delete: "Ziur zaude elementu hau ezabatu nahi duzula?",
+                        archiveNamed: 'Ziur zaude "{{name}}" artxibatu nahi duzula?',
+                        unarchiveNamed: 'Ziur zaude "{{name}}" desartxibatu nahi duzula?',
+                        deleteNamed: 'Ziur zaude "{{name}}" ezabatu nahi duzula?',
                     },
                     notification: {
                         success: {
@@ -2152,6 +2163,8 @@ const basqueTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Zenbakizko emaitzak osatuta daude. Txostenak sortzen ari dira oraindik.",
             errorUploadingSignature: "Errorea izan da sinadura igotzean",
             downloadTransmissionPackage: "Deskargatu Transmisio Paketea",
             resultsPublication: {
