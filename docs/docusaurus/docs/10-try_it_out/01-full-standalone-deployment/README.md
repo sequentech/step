@@ -99,7 +99,7 @@ The configuration script generates all necessary files from templates, including
     **Note:** For a basic dev/demo deployment, the default values are sufficient. The system will work with:
     - Default database passwords (`postgrespassword`)
     - Default Keycloak admin credentials (`admin`/`admin`)
-    - Dummy email/SMS transports (logs to console)
+    - Dummy email/SMS transports (delivery is simulated; message contents are not logged)
 
     You only need to configure additional secrets if you want:
     - Real Twilio SMS (`TWILIO_*` variables)
