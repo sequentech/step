@@ -15,6 +15,11 @@ export function useUsersPermissions() {
      * Permissions
      */
     const canImportUsers = authContext.isAuthorized(true, tenantId, IPermissions.USER_IMPORT)
+    const canWritePermissionLabels = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.PERMISSION_LABEL_WRITE
+    )
 
     const canExportVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_EXPORT)
     const canCreateVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_CREATE)
@@ -64,6 +69,7 @@ export function useUsersPermissions() {
 
     return {
         canImportUsers,
+        canWritePermissionLabels,
         canCreateVoters,
         canEditVoters,
         canEditVotersWhoVoted,
