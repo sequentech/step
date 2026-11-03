@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize_voter_election;
+use crate::services::authorization::{
+    authorize_voter_election, ensure_election_in_event,
+};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -58,6 +60,12 @@ pub async fn create_ballot_receipt(
             return Err(error);
         }
     };
+    ensure_election_in_event(
+        &tenant_id,
+        &input.election_event_id,
+        &input.election_id,
+    )
+    .await?;
 
     // The receipt link follows the voter's token client, not the request's
     // tracker URL, which Windmill ignores.
