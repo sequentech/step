@@ -50,6 +50,9 @@ use crate::election_config::architect::{
 use crate::election_config::architect::{PlannedReport, REPORT_SHEET_COLUMNS};
 use crate::election_config::emit::MULTI_VALUE_SEPARATOR;
 use crate::election_config::paths::cell_text;
+use crate::election_config::policy::{
+    Behaviour, LayoutPatch, Overrides, PolicyPatch, PolicyValue, TallyPatch,
+};
 use crate::election_config::problem::{Code, Problem, Report};
 use crate::election_config::report::{ReportFormat, ReportType};
 use crate::election_config::sheet::SHEET_REPORTS;
@@ -110,6 +113,7 @@ pub fn plan_from_workbook(workbook: &Workbook) -> Result<ReadPlan, Report> {
 
     plan.areas = areas;
     plan.elections = elections;
+    hoist_common_behaviour(&mut plan);
     let voters = read_voters(workbook, &plan.areas, &mut report);
     plan.materials = read_materials(workbook, &plan.languages, &mut report);
 
@@ -126,6 +130,7 @@ pub fn plan_from_workbook(workbook: &Workbook) -> Result<ReadPlan, Report> {
     if report.has_errors() {
         return Err(report);
     }
+    carry_unread_columns(workbook, &mut plan);
     Ok(ReadPlan {
         sources: crate::election_config::sources::Sources {
             census: (!voters.is_empty()).then(|| {
@@ -250,7 +255,62 @@ fn translated(row: &Row, prefix: &str, field: &str) -> Translated {
             }
         }
     }
+    // The same text inside a language's whole object, which is how an export's
+    // `presentation.i18n.<lang>` arrives when its portal keys are dotted. A
+    // column of its own wins.
+    for (language, keys) in i18n_objects(row, prefix) {
+        if let Some(Value::String(text)) = keys.get(field) {
+            if !text.trim().is_empty() {
+                by_language
+                    .entry(language)
+                    .or_insert_with(|| text.clone());
+            }
+        }
+    }
     Translated { by_language }
+}
+
+/// The `<prefix>.i18n.<lang>` cells that hold a language's texts as one JSON
+/// object, by language.
+fn i18n_objects(
+    row: &Row,
+    prefix: &str,
+) -> Vec<(String, serde_json::Map<String, Value>)> {
+    let wanted = format!("{prefix}.i18n.");
+    row.cells
+        .iter()
+        .filter_map(|(header, value)| {
+            let language = header.strip_prefix(&wanted)?;
+            match value {
+                Value::Object(keys) if !language.contains('.') => {
+                    Some((language.to_string(), keys.clone()))
+                }
+                _ => None,
+            }
+        })
+        .collect()
+}
+
+/// An event's portal texts: the keys of its per-language objects other than
+/// the ones the plan reads as fields of its own, which the wizard edits there.
+fn portal_texts(row: &Row) -> BTreeMap<String, BTreeMap<String, String>> {
+    const FIELDS: [&str; 5] =
+        ["name", "description", "alias", "materialsTitle", "materialsSubtitle"];
+    i18n_objects(row, "presentation")
+        .into_iter()
+        .map(|(language, keys)| {
+            let texts = keys
+                .into_iter()
+                .filter(|(key, _)| !FIELDS.contains(&key.as_str()))
+                .filter_map(|(key, value)| match value {
+                    Value::String(text) => Some((key, text)),
+                    _ => None,
+                })
+                .collect::<BTreeMap<_, _>>();
+            (language, texts)
+        })
+        .filter(|(_, texts)| !texts.is_empty())
+        .collect()
 }
 
 // -- the sheets ----------------------------------------------------------------
@@ -352,6 +412,157 @@ fn read_event(workbook: &Workbook, plan: &mut Blueprint, report: &mut Report) {
         translated(row, "presentation", "materialsSubtitle");
     plan.ivr = read_ivr(row);
     plan.ivr_prompt = ivr_prompt_of(row);
+    plan.css = text(row, "presentation.css");
+    plan.i18n = portal_texts(row);
+    // What the Admin Portal's ceremony screens follow. A Ceremony sheet, read
+    // later, says it again for the wizard and wins.
+    let ceremonies = text(row, "presentation.ceremonies_policy");
+    if !ceremonies.is_empty() {
+        match ceremonies.parse::<CeremoniesPolicy>() {
+            Ok(policy) => plan.ceremony_policy = policy,
+            Err(_) => warn_about(
+                report,
+                row,
+                "presentation.ceremonies_policy",
+                format!(
+                    "'{ceremonies}' is not a way to run a ceremony; the \
+                     ceremony is manual"
+                ),
+            ),
+        }
+    }
+    plan.annotations = annotations_of(row);
+}
+
+/// The entity sheets whose rows the plan reads field by field.
+const ENTITY_SHEETS: [&str; 5] = [
+    "electionevent",
+    "elections",
+    "contests",
+    "candidates",
+    "areas",
+];
+
+/// Keep, on each entity, the columns of its row the plan did not take in.
+///
+/// Decided by writing the plan back out and comparing, rather than by a list of
+/// the columns each reader reads: a list would be a second statement of the
+/// readers that could drift from them, and the first column a reader learned
+/// would then be read *and* carried. A column the writer produces with a value
+/// is the plan's; one it leaves out or blank is carried. Annotations are
+/// skipped because [`annotations_of`] has read them all.
+///
+/// A plan the writer refuses carries nothing: it is opened as before and its
+/// problems are on the screens.
+fn carry_unread_columns(workbook: &Workbook, plan: &mut Blueprint) {
+    let Ok(written) = crate::election_config::architect::to_workbook(
+        plan,
+        &crate::election_config::sources::Sources::default(),
+    ) else {
+        return;
+    };
+    let key_of = |sheet: &str, row: &Row| -> Option<String> {
+        if sheet == "electionevent" {
+            return Some(String::new());
+        }
+        row.text("external_id").map(str::to_string)
+    };
+    let mut carried: BTreeMap<(&'static str, String), BTreeMap<String, Value>> =
+        BTreeMap::new();
+    for sheet in ENTITY_SHEETS {
+        let ours: BTreeMap<String, &Row> = written
+            .rows(sheet)
+            .iter()
+            .filter_map(|row| Some((key_of(sheet, row)?, row)))
+            .collect();
+        for row in workbook.rows(sheet).iter().take(match sheet {
+            "electionevent" => 1,
+            _ => usize::MAX,
+        }) {
+            let Some(key) = key_of(sheet, row) else {
+                continue;
+            };
+            let Some(mine) = ours.get(&key) else { continue };
+            for (column, value) in &row.cells {
+                // A language's whole object is read: its texts by
+                // `translated`, its portal keys by `portal_texts`. Carried, it
+                // would land over the wizard's edits of them.
+                if column == "annotations"
+                    || column.starts_with("annotations.")
+                    || column
+                        .strip_prefix("presentation.i18n.")
+                        .is_some_and(|language| !language.contains('.'))
+                    || blank(value)
+                    || mine.get(column).is_some_and(|ours| !blank(ours))
+                {
+                    continue;
+                }
+                carried
+                    .entry((sheet, key.clone()))
+                    .or_default()
+                    .insert(column.clone(), value.clone());
+            }
+        }
+    }
+    let mut take = |sheet: &'static str, key: &str| {
+        carried
+            .remove(&(sheet, key.to_string()))
+            .unwrap_or_default()
+    };
+    plan.columns = take("electionevent", "");
+    for area in &mut plan.areas {
+        area.columns = take("areas", &area.external_id);
+    }
+    for election in &mut plan.elections {
+        election.columns = take("elections", &election.external_id);
+        for contest in &mut election.contests {
+            contest.columns = take("contests", &contest.external_id);
+            for candidate in &mut contest.candidates {
+                candidate.columns = take("candidates", &candidate.external_id);
+            }
+        }
+    }
+}
+
+/// A cell with nothing in it.
+fn blank(value: &Value) -> bool {
+    match value {
+        Value::Null => true,
+        Value::String(text) => text.trim().is_empty(),
+        _ => false,
+    }
+}
+
+/// A row's annotations, from the one `annotations` column the writer uses and
+/// from one `annotations.<key>` column per key, which is how a janitor workbook
+/// and a historical conversion write them.
+///
+/// The telephone channel's keys are left out: [`read_ivr`] reads those into
+/// fields of their own, and the writer puts them back from there. Values stay
+/// strings, as the platform's annotations are; anything else is written as
+/// JSON.
+fn annotations_of(row: &Row) -> BTreeMap<String, String> {
+    let as_text = |value: &Value| match value {
+        Value::String(text) => text.clone(),
+        other => other.to_string(),
+    };
+    let mut annotations = BTreeMap::new();
+    if let Some(Value::Object(whole)) = row.get("annotations") {
+        for (key, value) in whole {
+            annotations.insert(key.clone(), as_text(value));
+        }
+    }
+    for (column, value) in &row.cells {
+        let Some(key) = column.strip_prefix("annotations.") else {
+            continue;
+        };
+        if key.starts_with("ivr:") || value.is_null() {
+            continue;
+        }
+        annotations.insert(key.to_string(), as_text(value));
+    }
+    annotations.retain(|key, _| !key.starts_with("ivr:"));
+    annotations
 }
 
 /// The telephone channel's configuration, back out of the event sheet.
@@ -452,8 +663,9 @@ fn read_areas(workbook: &Workbook, report: &mut Report) -> Vec<PlannedArea> {
                     (!parent.is_empty()).then_some(parent)
                 },
                 allow_early_voting: early_voting(row),
-                description: String::new(),
-                annotations: Default::default(),
+                description: text(row, "description"),
+                annotations: annotations_of(row),
+                columns: Default::default(),
             })
         })
         .collect()
@@ -507,6 +719,7 @@ fn read_elections(
                 "presentation.start_screen_title_policy",
             ),
             contests_order: text(row, "presentation.contests_order"),
+            annotations: annotations_of(row),
             ..PlannedElection::default()
         });
     }
@@ -522,7 +735,7 @@ fn read_contests(
 ) -> BTreeMap<String, (usize, usize)> {
     let mut by_id = BTreeMap::new();
 
-    for row in workbook.rows("contests") {
+    for row in in_sheet_order(workbook.rows("contests")) {
         let external_id = text(row, "external_id");
         let election_id = text(row, "election.external_id");
 
@@ -558,6 +771,8 @@ fn read_contests(
             winners: whole(row, "winning_candidates_num").unwrap_or(1),
             allow_writeins: flag(row, "presentation.allow_writeins")
                 .unwrap_or(false),
+            annotations: annotations_of(row),
+            overrides: overrides_of(row, report),
             ..PlannedContest::default()
         };
 
@@ -568,13 +783,193 @@ fn read_contests(
     by_id
 }
 
+/// Move what every contest says alike up to the event's defaults.
+///
+/// [`overrides_of`] gives each contest the whole of its row's behaviour, which
+/// is faithful and leaves the event's own settings screen saying nothing: a
+/// change made there would be overridden by every contest. A value all the
+/// contests share is the event's, so it goes there, and a contest keeps only
+/// where it differs. One field at a time, through each group's serialised
+/// form, so a field added to a patch is hoisted without being listed here.
+fn hoist_common_behaviour(plan: &mut Blueprint) {
+    let contests = || {
+        plan.elections
+            .iter()
+            .flat_map(|election| election.contests.iter())
+    };
+    if contests().next().is_none() {
+        return;
+    }
+    let as_map = |overrides: &Overrides| match serde_json::to_value(overrides) {
+        Ok(Value::Object(map)) => map,
+        _ => serde_json::Map::new(),
+    };
+    let patches: Vec<serde_json::Map<String, Value>> =
+        contests().map(|contest| as_map(&contest.overrides)).collect();
+    let Ok(Value::Object(mut defaults)) = serde_json::to_value(&plan.defaults)
+    else {
+        return;
+    };
+
+    let mut common: Vec<(String, String, Value)> = Vec::new();
+    for (group, fields) in &patches[0] {
+        let Value::Object(fields) = fields else { continue };
+        for (field, value) in fields {
+            let shared = patches.iter().all(|patch| {
+                patch.get(group).and_then(|g| g.get(field)) == Some(value)
+            });
+            if shared {
+                common.push((group.clone(), field.clone(), value.clone()));
+            }
+        }
+    }
+    if common.is_empty() {
+        return;
+    }
+    for (group, field, value) in &common {
+        if let Some(Value::Object(fields)) = defaults.get_mut(group) {
+            fields.insert(field.clone(), value.clone());
+        }
+    }
+    let Ok(hoisted) = serde_json::from_value(Value::Object(defaults)) else {
+        return;
+    };
+    plan.defaults = hoisted;
+
+    for election in &mut plan.elections {
+        for contest in &mut election.contests {
+            let mut patch = as_map(&contest.overrides);
+            for (group, field, _) in &common {
+                if let Some(Value::Object(fields)) = patch.get_mut(group) {
+                    fields.remove(field);
+                }
+            }
+            if let Ok(rest) = serde_json::from_value(Value::Object(patch)) {
+                contest.overrides = rest;
+            }
+        }
+    }
+}
+
+/// Rows in the order their `presentation.sort_order` gives, ties and rows
+/// without one keeping their place.
+///
+/// The writer numbers contests and candidates by their position in the plan,
+/// so the position is the order: reading rows as they sit on the sheet would
+/// reorder a ballot somebody sorted by that column.
+fn in_sheet_order(rows: &[Row]) -> Vec<&Row> {
+    let mut sorted: Vec<&Row> = rows.iter().collect();
+    sorted.sort_by_key(|row| {
+        whole(row, "presentation.sort_order").unwrap_or(i64::MAX)
+    });
+    sorted
+}
+
+/// The row with every blank behaviour cell filled from the built-in contest
+/// template.
+///
+/// `build` leaves a blank cell to the template, and the template's defaults
+/// are not the plan's: it breaks a tie at random where a new plan leaves it to
+/// an external procedure. Reading a blank as the plan's default would change
+/// how an imported contest is counted the first time it is saved.
+fn with_template_behaviour(row: &Row) -> Row {
+    static TEMPLATE: std::sync::OnceLock<Option<serde_json::Map<String, Value>>> =
+        std::sync::OnceLock::new();
+    let template = TEMPLATE.get_or_init(|| {
+        crate::election_config::render::TemplateSet::builtin()
+            .and_then(|set| set.render_json("contest", &serde_json::json!({})))
+            .ok()
+    });
+    let mut row = row.clone();
+    let Some(template) = template else {
+        return row;
+    };
+    for (column, _) in Behaviour::default().columns() {
+        if !row.get(column).map_or(true, blank) {
+            continue;
+        }
+        let mut at = column.split('.');
+        let first = at.next().and_then(|key| template.get(key));
+        let found = at.try_fold(first, |value, key| Some(value?.get(key)));
+        if let Some(Some(value)) = found {
+            if !value.is_null() {
+                row.cells.push((column.to_string(), value.clone()));
+            }
+        }
+    }
+    row
+}
+
+/// A contest's ballot behaviour, as its row states it.
+///
+/// The Contests sheet carries every contest's resolved behaviour, so whatever
+/// a row says becomes the contest's own override: the plan then writes the
+/// same values back. A blank cell means what `build` makes of it, the contest
+/// template's value, and a value the platform does not have is reported and
+/// left out rather than guessed at.
+fn overrides_of(row: &Row, report: &mut Report) -> Overrides {
+    let row = &with_template_behaviour(row);
+    fn policy<T: PolicyValue + FromStr>(
+        row: &Row,
+        report: &mut Report,
+    ) -> Option<T> {
+        let value = text(row, T::COLUMN);
+        if value.is_empty() {
+            return None;
+        }
+        let parsed = T::from_str(&value).ok();
+        if parsed.is_none() {
+            warn_about(
+                report,
+                row,
+                T::COLUMN,
+                format!("'{value}' is not a value this column takes; left out"),
+            );
+        }
+        parsed
+    }
+    let some_text = |column: &str| Some(text(row, column)).filter(|v| !v.is_empty());
+
+    Overrides {
+        policies: PolicyPatch {
+            over_vote: policy(row, report),
+            blank_vote: policy(row, report),
+            under_vote: policy(row, report),
+            invalid_vote: policy(row, report),
+            duplicated_rank: policy(row, report),
+            preference_gaps: policy(row, report),
+            candidates_order: policy(row, report),
+        },
+        tally: TallyPatch {
+            voting_type: some_text("voting_type"),
+            counting_algorithm: some_text("counting_algorithm"),
+            min_votes: whole(row, "min_votes"),
+            is_encrypted: flag(row, "is_encrypted"),
+            tie_breaking_policy: some_text(
+                "tally_configuration.tie_breaking_policy",
+            ),
+        },
+        layout: LayoutPatch {
+            columns: whole(row, "presentation.columns"),
+            collapsible_lists: some_text("presentation.collapsible_lists"),
+            enable_checkable_lists: some_text(
+                "presentation.enable_checkable_lists",
+            ),
+            max_selections_per_type: whole(
+                row,
+                "presentation.max_selections_per_type",
+            ),
+        },
+    }
+}
+
 fn read_candidates(
     workbook: &Workbook,
     elections: &mut [PlannedElection],
     by_contest: &BTreeMap<String, (usize, usize)>,
     report: &mut Report,
 ) {
-    for row in workbook.rows("candidates") {
+    for row in in_sheet_order(workbook.rows("candidates")) {
         let contest_id = text(row, "contest.external_id");
         let Some(&(election, contest)) = by_contest.get(&contest_id) else {
             refuse(
@@ -625,7 +1020,8 @@ fn read_candidates(
                 // here is the platform's, derived from the candidate, so there is
                 // nothing to keep: a photograph has to be chosen again.
                 image: None,
-                annotations: Default::default(),
+                annotations: annotations_of(row),
+                columns: Default::default(),
             },
         );
     }

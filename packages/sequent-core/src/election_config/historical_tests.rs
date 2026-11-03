@@ -2974,3 +2974,328 @@ fn a_supplemental_parameters_sheet_reaches_the_realm() {
         json!("Election Office")
     );
 }
+
+fn built_with(
+    change: impl FnOnce(&mut Vec<Sheet>),
+) -> crate::election_config::Bundle {
+    let adapted = adapt(
+        &post_qualification_overseas(),
+        &defaults_workbook_with(change),
+        &defaulted(),
+    )
+    .unwrap();
+    build(
+        &adapted.workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap()
+}
+
+#[test]
+fn a_contests_sheet_gives_contests_what_the_dump_lacks() {
+    let built = built_with(|sheets| {
+        sheets.push(rows_sheet(
+            "Contests",
+            vec![row(
+                "Contests",
+                0,
+                vec![
+                    ("description", json!("Vote for no more than {max_votes}")),
+                    (
+                        "presentation.i18n.en.description",
+                        json!("Vote for no more than {max_votes}"),
+                    ),
+                ],
+            )],
+        ))
+    });
+    let contests = built.export["contests"].as_array().unwrap();
+    assert!(!contests.is_empty());
+    for contest in contests {
+        let expected =
+            format!("Vote for no more than {}", contest["max_votes"]);
+        assert_eq!(contest["description"], json!(expected));
+        assert_eq!(
+            contest["presentation"]["i18n"]["en"]["description"],
+            json!(expected)
+        );
+    }
+}
+
+#[test]
+fn a_contests_row_cannot_change_what_the_source_decides() {
+    let sql = post_qualification_overseas();
+    let xlsx = defaults_workbook_with(|sheets| {
+        sheets.push(rows_sheet(
+            "Contests",
+            vec![row("Contests", 0, vec![("max_votes", json!(3))])],
+        ))
+    });
+    let refused = adapt(&sql, &xlsx, &defaulted()).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::ConflictingColumns);
+}
+
+#[test]
+fn templates_and_reports_pass_through_with_reports_named_by_alias() {
+    let built = built_with(|sheets| {
+        sheets.push(rows_sheet(
+            "Templates",
+            vec![row(
+                "Templates",
+                0,
+                vec![
+                    ("alias", json!("results")),
+                    ("template.document", json!("<p>{{title}}</p>")),
+                ],
+            )],
+        ));
+        sheets.push(rows_sheet(
+            "Reports",
+            vec![row(
+                "Reports",
+                0,
+                vec![
+                    ("report_type", json!("ELECTORAL_RESULTS")),
+                    ("election_alias", json!("Post One")),
+                    ("template.alias", json!("results")),
+                ],
+            )],
+        ));
+    });
+    assert_eq!(built.templates.len(), 1);
+    let reports = built.reports.as_ref().unwrap();
+    assert_eq!(reports.rows.len(), 1);
+    let column = reports
+        .columns
+        .iter()
+        .position(|c| c == "election_id")
+        .unwrap();
+    let election = built.export["elections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["alias"] == json!("Post One"))
+        .unwrap();
+    assert_eq!(reports.rows[0][column], election["id"].as_str().unwrap());
+}
+
+#[test]
+fn a_realm_in_the_workbook_is_the_one_its_settings_apply_to() {
+    let source_event = "6ca52ac1-42f1-4f84-ba87-83f475b4e0d4";
+    let realm = json!({
+        "id": "keycloak-own-id",
+        "realm": format!("tenant-t-event-{source_event}"),
+        "displayName": "Source Event",
+        "clients": [{"clientId": "voting-portal", "rootUrl": format!("https://vote.example.org/{source_event}")}]
+    });
+    let built = built_with(|sheets| {
+        sheets.push(rows_sheet(
+            "Parameters",
+            vec![
+                row(
+                    "Parameters",
+                    0,
+                    vec![
+                        ("type", json!("settings")),
+                        ("key", json!("keycloak_event_realm")),
+                        ("value", realm),
+                    ],
+                ),
+                row(
+                    "Parameters",
+                    1,
+                    vec![
+                        ("type", json!("settings")),
+                        (
+                            "key",
+                            json!("keycloak_event_realm.registrationAllowed"),
+                        ),
+                        ("value", json!(true)),
+                    ],
+                ),
+            ],
+        ))
+    });
+    let emitted = &built.export["keycloak_event_realm"];
+    let event_id = built.export["election_event"]["id"].as_str().unwrap();
+    assert_eq!(emitted["displayName"], json!("Synthetic Event"));
+    assert_eq!(emitted["registrationAllowed"], json!(true));
+    assert_eq!(
+        emitted["realm"].as_str().unwrap(),
+        format!(
+            "tenant-{}-event-{event_id}",
+            built.export["tenant_id"].as_str().unwrap()
+        )
+    );
+    assert_eq!(
+        emitted["clients"][0]["rootUrl"],
+        json!(format!("https://vote.example.org/{event_id}"))
+    );
+    assert!(!built
+        .warnings
+        .problems
+        .iter()
+        .any(|w| w.message.contains("no base export")));
+}
+
+
+/// What a ballot shows and how it counts, without the identifiers and the
+/// numbering a plan assigns afresh.
+///
+/// Contests and candidates are compared in their ballot order, which the plan
+/// keeps while renumbering `sort_order` from zero; a null and the default it
+/// stands for (one column, no cap per type) count as the same.
+fn ballot_of(export: &Value) -> Value {
+    fn strip(value: &Value) -> Value {
+        match value {
+            Value::Object(map) => Value::Object(
+                map.iter()
+                    .filter(|(key, _)| {
+                        !(key.as_str() == "id"
+                            || key.ends_with("_id")
+                            || key.ends_with("_at")
+                            || key.as_str() == "sort_order")
+                    })
+                    .map(|(key, value)| {
+                        let value = match (key.as_str(), value) {
+                            ("columns", Value::Null) => json!(1),
+                            ("max_selections_per_type", Value::Null) => json!(0),
+                            _ => strip(value),
+                        };
+                        (key.clone(), value)
+                    })
+                    .collect(),
+            ),
+            Value::Array(items) => Value::Array(items.iter().map(strip).collect()),
+            other => other.clone(),
+        }
+    }
+    let ordered = |key: &str| {
+        let mut items = export[key].as_array().cloned().unwrap_or_default();
+        items.sort_by_key(|item| {
+            item["presentation"]["sort_order"].as_i64().unwrap_or(i64::MAX)
+        });
+        Value::Array(items.iter().map(strip).collect())
+    };
+    json!({"contests": ordered("contests"), "candidates": ordered("candidates")})
+}
+
+#[test]
+fn a_converted_event_opened_in_the_wizard_builds_the_same_ballot() {
+    use crate::election_config::architect::{compile_plan, Compile, Trustee};
+    use crate::election_config::plan_from_workbook::plan_from_workbook;
+
+    let (sql, xlsx) = fixture();
+    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let templates = TemplateSet::builtin().unwrap();
+    let options = BuildOptions::default();
+    let direct =
+        build(&adapted.workbook, &templates, &options, &Sources::default())
+            .unwrap();
+
+    let mut read = plan_from_workbook(&adapted.workbook).unwrap();
+    // The wizard asks for trustees before it compiles; the workbook may carry
+    // them, and this one does not.
+    read.plan.trustees = ["trustee-a", "trustee-b"]
+        .map(|name| Trustee {
+            name: name.into(),
+            email: format!("{name}@example.test"),
+        })
+        .to_vec();
+    let compiled = compile_plan(Compile {
+        plan: &read.plan,
+        templates: &templates,
+        options: &options,
+        profile: None,
+        sources: Some(&read.sources),
+    })
+    .unwrap();
+
+    assert_eq!(
+        ballot_of(&compiled.bundle.export),
+        ballot_of(&direct.export)
+    );
+    // Ballot behaviour the template supplies, not the plan's own defaults.
+    assert_eq!(
+        compiled.bundle.export["contests"][0]["tally_configuration"]
+            ["tie_breaking_policy"],
+        direct.export["contests"][0]["tally_configuration"]
+            ["tie_breaking_policy"]
+    );
+    assert_eq!(
+        compiled.bundle.export["election_event"]["annotations"],
+        direct.export["election_event"]["annotations"]
+    );
+}
+
+#[test]
+fn wizard_edits_of_a_converted_event_win_over_its_source_cells() {
+    use crate::election_config::architect::{compile_plan, Compile, Trustee};
+    use crate::election_config::plan_from_workbook::plan_from_workbook;
+
+    let (sql, xlsx) = fixture();
+    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    // An export's event texts as one object per language, because its portal
+    // keys are dotted.
+    let mut sheets = adapted.workbook.sheets().to_vec();
+    let event = sheets.iter_mut().find(|s| s.key == "electionevent").unwrap();
+    let row = &mut event.rows[0];
+    row.cells
+        .retain(|(column, _)| !column.starts_with("presentation.i18n."));
+    row.cells.push((
+        "presentation.i18n.en".into(),
+        json!({
+            "name": "Source name",
+            "description": null,
+            "votingPortal:breadcrumbSteps.electionList": "Ballot List",
+        }),
+    ));
+    row.cells
+        .retain(|(column, _)| column != "presentation.ceremonies_policy");
+    row.cells.push((
+        "presentation.ceremonies_policy".into(),
+        json!("automated-ceremonies"),
+    ));
+    let workbook = Workbook::new(sheets).unwrap();
+
+    let mut read = plan_from_workbook(&workbook).unwrap();
+    assert_eq!(read.plan.name.get("en"), Some("Source name"));
+    assert_eq!(
+        read.plan.ceremony_policy,
+        crate::types::ceremonies::CeremoniesPolicy::AUTOMATED_CEREMONIES
+    );
+    read.plan.name =
+        crate::election_config::architect::Translated::new("Edited name");
+    read.plan.ceremony_policy =
+        crate::types::ceremonies::CeremoniesPolicy::MANUAL_CEREMONIES;
+    read.plan.trustees = ["trustee-a", "trustee-b"]
+        .map(|name| Trustee {
+            name: name.into(),
+            email: format!("{name}@example.test"),
+        })
+        .to_vec();
+    let templates = TemplateSet::builtin().unwrap();
+    let compiled = compile_plan(Compile {
+        plan: &read.plan,
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: Some(&read.sources),
+    })
+    .unwrap();
+
+    let english =
+        &compiled.bundle.export["election_event"]["presentation"]["i18n"]["en"];
+    assert_eq!(english["name"], "Edited name");
+    assert_eq!(
+        english["votingPortal:breadcrumbSteps.electionList"],
+        "Ballot List"
+    );
+    assert_eq!(
+        compiled.bundle.export["election_event"]["presentation"]
+            ["ceremonies_policy"],
+        "manual-ceremonies"
+    );
+}

@@ -136,13 +136,34 @@ Mapped text uses declared UTF-8 or MySQL latin1 encoding. Binary content remains
 in the unmodified original; this profile does not publish candidate photographs
 from opaque blobs.
 
-The workbook contains `ElectionEvent`, `Elections`, `Areas`,
-`ScheduledEvents` and `CcsServers`, and optionally `Parameters`. Blank styling
-rows are not records. `Parameters` goes to the build unchanged, as in an
-authoring workbook: that is where realm settings the dump cannot hold belong,
-such as `keycloak_event_realm.displayName` (which otherwise follows the event
-name) and the login page's `login_custom_css`. Without a base export they reach
-the realm patch beside the package, not the realm itself.
+The workbook carries everything the dump does not. It contains `ElectionEvent`,
+`Elections`, `Areas`, `ScheduledEvents` and `CcsServers`, and optionally
+`Contests`, `Parameters` and any other sheet an authoring workbook takes. Blank
+styling rows are not records.
+
+- **`Contests`** gives contests the columns the dump lacks, such as
+  `description` and `presentation.i18n.<lang>.description`. A row without a
+  `name` applies to every contest; a row with a `name` (the source's
+  `seat.CONTEST`) to that contest, after the defaults. `{max_votes}` in a value
+  is the contest's seat count, so `Vote for no more than {max_votes}` describes
+  every contest. What the seats decide (`external_id`, `election.external_id`,
+  the vote counts, `voting_type`, `counting_algorithm`, the `miru:` annotations)
+  is refused.
+- **`Parameters`** goes to the build unchanged, as in an authoring workbook. It
+  carries the Keycloak realm, which the dump has nothing about: a whole realm,
+  as an event export's `keycloak_event_realm` holds it, under the key
+  `keycloak_event_realm`, split across `value+` continuation cells. The build
+  patches it the way it patches a base export's: the realm's name and its URLs
+  take this event's id, `displayName` follows the event name, `login_custom_css`
+  becomes the login stylesheet in every enabled language, an `auth_type` applies
+  its preset, and `keycloak_event_realm.<path>` rows set anything else. The
+  importer then checks it against the deployment's template and generates new
+  client secrets, as for any imported realm. Without a realm (and without a base
+  export) those settings reach the realm patch beside the package instead.
+- **`Templates`, `Reports`, `Admin Users`, `Permissions`** and the plan sheets
+  (`Contacts`, `Trustees`, `Ceremony`, `Milestones`, `Messages`, `Notes`) go to
+  the build unchanged. A `Reports` row names its election by `election_alias`,
+  as a schedule does, in place of `election.external_id`.
 
 A cell holds at most 32,767 characters, and a stylesheet can be longer. A column
 headed `<column>+` directly after `<column>` (or after another `<column>+`)
@@ -359,6 +380,29 @@ and scheduled-event CSV members. Configuration-only conversion emits no voter
 CSV; `preserve-source-voters` adds an `export_voters-*.csv` census member.
 Keep original source files in controlled local storage; hashes do not
 replace the originals.
+
+## Editing a converted event
+
+`openFromHistorical(sql, workbook, decisions)` in the core's WASM converts the
+dump as `adapt` does and reads the result back with `plan_from_workbook`. It
+returns an editable plan, the same as opening a wizard workbook does. The
+Election Architect uses it for *Edit in the Wizard*. Compiling that plan
+unchanged builds the same ballot as the direct build:
+
+- Columns the plan has no field for are carried on each entity (`columns`).
+  So are the `miru:*` and `import:provenance` annotations. The writer puts both
+  back into the workbook the build reads.
+- Contest behaviour the template would supply for a blank cell is read as
+  explicit overrides. A value every contest shares becomes a plan default.
+- The event's `presentation.i18n.<lang>` object gives its name and description
+  to the plan's fields and its remaining keys to the portal texts (`i18n`). It is
+  not carried whole, so an edited name wins.
+- `presentation.ceremonies_policy`, which the Admin Portal's ceremony screens
+  read, is the plan's ceremony policy. A `Ceremony` sheet overrides it.
+
+The test `a_converted_event_opened_in_the_wizard_builds_the_same_ballot` checks
+the unchanged round trip. `wizard_edits_of_a_converted_event_win_over_its_source_cells`
+checks that edits win.
 
 ## Verification and limits
 

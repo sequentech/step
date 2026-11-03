@@ -700,6 +700,111 @@ fn historical_annotations(
     }
     Ok(())
 }
+/// Sheets the dump has nothing to say about, carried to the build as they are:
+/// the same sheets, with the same columns, as any import workbook's.
+const PASSED_THROUGH: &[&str] = &[
+    "templates",
+    "reports",
+    "adminusers",
+    "permissions",
+    "contacts",
+    "trustees",
+    "ceremony",
+    "milestones",
+    "messages",
+    "notes",
+];
+/// What a `Contests` row may not change: the identity, the election and the
+/// counting the source's seats decide.
+const SOURCE_CONTEST_COLUMNS: &[&str] = &[
+    "external_id",
+    "election.external_id",
+    "min_votes",
+    "max_votes",
+    "winning_candidates_num",
+    "voting_type",
+    "counting_algorithm",
+];
+/// Give contests the columns the dump lacks, such as a description. A row
+/// without a `name` is every contest's; one with a `name` is the contest the
+/// source names so (its `CONTEST`), after the defaults. A name no contest has is
+/// not an error, so one workbook serves every dump. `{max_votes}` in a value is
+/// the contest's seat count.
+fn apply_contest_rows(
+    given: &[Row],
+    contests: &mut BTreeMap<String, Row>,
+) -> Result<(), Problem> {
+    for given in given {
+        for (column, _) in &given.cells {
+            if SOURCE_CONTEST_COLUMNS.contains(&column.as_str())
+                || column.starts_with("annotations.miru:")
+            {
+                return Err(Problem::error(
+                    Code::ConflictingColumns,
+                    given.origin(Some(column)).to_string(),
+                    "this contest column comes from the SQL source",
+                ));
+            }
+        }
+    }
+    let (defaults, named): (Vec<&Row>, Vec<&Row>) =
+        given.iter().partition(|r| r.get("name").is_none());
+    for contest in contests.values_mut() {
+        let source_name = contest
+            .text("annotations.miru:contest-name")
+            .unwrap_or_default()
+            .to_string();
+        let max_votes = contest
+            .get("max_votes")
+            .map(|v| v.to_string())
+            .unwrap_or_default();
+        let rows = defaults.iter().chain(
+            named
+                .iter()
+                .filter(|r| r.text("name") == Some(source_name.as_str())),
+        );
+        for given in rows {
+            for (column, value) in &given.cells {
+                if column == "name" {
+                    continue;
+                }
+                let value = match value {
+                    Value::String(text) => {
+                        json!(text.replace("{max_votes}", &max_votes))
+                    }
+                    other => other.clone(),
+                };
+                set(contest, column, value);
+            }
+        }
+    }
+    Ok(())
+}
+/// A `Reports` row names its election by alias, as a schedule does, since the
+/// author never sees the external ids the source decides.
+fn reports_by_alias(
+    sheet: &Sheet,
+    aliases: &BTreeMap<String, String>,
+) -> Result<Sheet, Problem> {
+    let mut sheet = sheet.clone();
+    for report in &mut sheet.rows {
+        let Some(alias) = report.text("election_alias").map(str::to_string)
+        else {
+            continue;
+        };
+        let id = aliases.get(&alias).ok_or_else(|| {
+            Problem::error(
+                Code::DanglingReference,
+                report.origin(Some("election_alias")).to_string(),
+                "report alias has no configured election",
+            )
+        })?;
+        report.cells.retain(|(c, _)| c != "election_alias");
+        set(report, "election.external_id", json!(id));
+    }
+    sheet.headers = rows_sheet(&sheet.name, sheet.rows.clone()).headers;
+    Ok(sheet)
+}
 fn sheet_row<'a>(
     rows: &'a [Row],
     index: &BTreeMap<String, usize>,
@@ -905,11 +1010,13 @@ fn map(
             "electionevent",
             "elections",
             "areas",
+            "contests",
             "scheduledevents",
             "ccsservers",
             "parameters",
         ]
         .contains(&sheet.key.as_str())
+            && !PASSED_THROUGH.contains(&sheet.key.as_str())
         {
             return Err(Problem::error(
                 Code::InvalidValue,
@@ -1717,6 +1824,16 @@ fn map(
         "annotations.import:provenance",
         json!(provenance),
     );
+    apply_contest_rows(workbook.rows("contests"), &mut output_contests)?;
+    let aliases: BTreeMap<String, String> = output_elections
+        .values()
+        .filter_map(|r| {
+            Some((
+                r.text("alias")?.to_string(),
+                r.text("external_id")?.to_string(),
+            ))
+        })
+        .collect();
     let mut sheets = vec![
         rows_sheet("ElectionEvent", vec![event]),
         rows_sheet("Elections", output_elections.into_values().collect()),
@@ -1733,6 +1850,14 @@ fn map(
     // stylesheet) is the build's to check, the same as for any workbook.
     if let Some(parameters) = workbook.sheet("parameters") {
         sheets.push(parameters.clone());
+    }
+    for key in PASSED_THROUGH {
+        if let Some(sheet) = workbook.sheet(key) {
+            sheets.push(match *key {
+                "reports" => reports_by_alias(sheet, &aliases)?,
+                _ => sheet.clone(),
+            });
+        }
     }
     summary.generated_rows = sheets
         .iter()

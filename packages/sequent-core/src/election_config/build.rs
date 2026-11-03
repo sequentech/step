@@ -140,8 +140,11 @@ pub const PARAMETER_PREFIXES: &[&str] = &[
 ];
 
 /// Parameters the builder acts on directly rather than carrying as metadata.
-pub const HANDLED_PARAMETERS: &[&str] =
-    &["tenant_id", realm::PARAM_LOGIN_CUSTOM_CSS];
+pub const HANDLED_PARAMETERS: &[&str] = &[
+    "tenant_id",
+    realm::PARAM_LOGIN_CUSTOM_CSS,
+    realm::PARAM_EVENT_REALM,
+];
 
 /// Fields of a base entity that describe *that* event rather than the platform's
 /// defaults, and so must not leak into a new one.
