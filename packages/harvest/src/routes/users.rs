@@ -10,6 +10,7 @@ use rocket::futures::future::join_all;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
+use sequent_core::services::keycloak::validate_keycloak_scope;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
@@ -60,6 +61,11 @@ pub async fn delete_user(
     body: Json<DeleteUserBody>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
     let required_perm: Permissions = if input.election_event_id.is_some() {
         Permissions::VOTER_WRITE
     } else {
@@ -109,6 +115,11 @@ pub async fn delete_users(
     body: Json<DeleteUsersBody>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
     let required_perm: Permissions = if input.election_event_id.is_some() {
         Permissions::VOTER_WRITE
     } else {
@@ -611,6 +622,11 @@ pub async fn edit_user(
     body: Json<EditUserBody>,
 ) -> Result<Json<User>, (Status, String)> {
     let mut input = body.into_inner();
+    validate_keycloak_scope(
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
     let mut required_perms = Vec::<Permissions>::new();
     let mut voter_voted_edit = false;
     let mut edit_scope = VoterEditScope::Full;
@@ -796,6 +812,11 @@ pub async fn get_user(
     body: Json<GetUserBody>,
 ) -> Result<Json<User>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
     let required_perm: Permissions = if input.election_event_id.is_some() {
         Permissions::VOTER_READ
     } else {
