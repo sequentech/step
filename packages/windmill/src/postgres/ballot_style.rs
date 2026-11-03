@@ -109,47 +109,6 @@ pub async fn insert_ballot_style(
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_all_ballot_styles(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    area_id: &str,
-    authorized_election_ids: &Vec<String>,
-) -> Result<Vec<BallotStyle>> {
-    let query: tokio_postgres::Statement = hasura_transaction
-        .prepare(
-            r#"
-            SELECT
-                *
-            FROM
-                sequent_backend.ballot_style
-            WHERE
-                tenant_id = $1 AND
-                area_id = $2 AND
-                election_id = ANY($3) AND
-                deleted_at IS NULL;
-            "#,
-        )
-        .await
-        .map_err(|err| anyhow!("Error preparing statement: {}", err))?;
-
-    let rows: Vec<Row> = hasura_transaction
-        .query(&query, &[&tenant_id, &area_id, authorized_election_ids])
-        .await
-        .map_err(|err| anyhow!("Error executing query: {}", err))?;
-
-    let results: Vec<BallotStyle> = rows
-        .into_iter()
-        .map(|row| -> Result<BallotStyle> {
-            row.try_into()
-                .map(|res: BallotStyleWrapper| -> BallotStyle { res.0 })
-        })
-        .collect::<Result<Vec<BallotStyle>>>()
-        .map_err(|err| anyhow!("Error collecting ballot styles: {}", err))?;
-
-    Ok(results)
-}
-
-#[instrument(skip(hasura_transaction), err)]
 pub async fn export_event_ballot_styles(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -191,30 +150,45 @@ pub async fn export_event_ballot_styles(
     Ok(results)
 }
 
+/// The published ballot styles of the elections, only those of `area_id` when
+/// given. A style counts as published when its publication is generated,
+/// published and not deleted: generating a publication inserts its styles
+/// before it is published, so a style that is only not deleted can belong to a
+/// draft.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_ballot_styles_by_elections(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     authorized_election_ids: &Vec<String>,
+    area_id: Option<&str>,
 ) -> Result<Vec<BallotStyle>> {
     let authorized_election_ids_uuids: Vec<Uuid> = authorized_election_ids
         .iter()
         .map(|id| parse_uuid_v4(id))
         .collect::<Result<_, _>>()?;
+    let area_uuid = area_id.map(parse_uuid_v4).transpose()?;
 
     let query: tokio_postgres::Statement = hasura_transaction
         .prepare(
             r#"
             SELECT
-                *
+                style.*
             FROM
-                sequent_backend.ballot_style
+                sequent_backend.ballot_style AS style
+            JOIN sequent_backend.ballot_publication AS publication ON
+                publication.id = style.ballot_publication_id AND
+                publication.tenant_id = style.tenant_id AND
+                publication.election_event_id = style.election_event_id
             WHERE
-                tenant_id = $1 AND
-                election_event_id = $2 AND
-                election_id = ANY($3) AND
-                deleted_at IS NULL;
+                style.tenant_id = $1 AND
+                style.election_event_id = $2 AND
+                style.election_id = ANY($3) AND
+                ($4::uuid IS NULL OR style.area_id = $4::uuid) AND
+                style.deleted_at IS NULL AND
+                publication.is_generated IS TRUE AND
+                publication.published_at IS NOT NULL AND
+                publication.deleted_at IS NULL;
             "#,
         )
         .await
@@ -227,6 +201,7 @@ pub async fn get_ballot_styles_by_elections(
                 &parse_uuid_v4(tenant_id)?,
                 &parse_uuid_v4(election_event_id)?,
                 &authorized_election_ids_uuids,
+                &area_uuid,
             ],
         )
         .await

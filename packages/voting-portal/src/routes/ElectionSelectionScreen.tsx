@@ -119,6 +119,9 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
     }
 
+    const defaultLanguageCode =
+        election.presentation?.language_conf?.default_language_code ??
+        electionEvent?.presentation?.language_conf?.default_language_code
     const electionStatus = election?.status as IElectionStatus | null
     const isVotingOpen =
         (electionStatus?.voting_status === EVotingStatus.OPEN ||
@@ -172,7 +175,11 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         <SelectElection
             isActive={canVote()}
             isOpen={isVotingOpen}
-            title={translateFromPresentation(election, "name", i18n.language) || "-"}
+            title={
+                translateFromPresentation(election, "name", i18n.language, {
+                    defaultLanguageCode,
+                }) || "-"
+            }
             hasVoted={castVotes.length > 0}
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
