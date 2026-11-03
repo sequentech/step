@@ -14,7 +14,7 @@ import {styled} from "@mui/material/styles"
 import {LinearProgress, Typography, linearProgressClasses} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {ITallyCeremonyStatus, ITallyElectionStatus} from "@/types/ceremonies"
-import {formatPercentOne} from "@sequentech/ui-core"
+import {formatPercentOne, useNumberFormat} from "@sequentech/ui-core"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
@@ -25,6 +25,7 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
 }
 
 interface TallyElectionsProgressProps {
+    completeElectionIds: string[]
     tally?: Sequent_Backend_Tally_Session
     tallySessionExecutions?: Array<Sequent_Backend_Tally_Session_Execution>
     allElections?: Array<Sequent_Backend_Election>
@@ -32,11 +33,13 @@ interface TallyElectionsProgressProps {
 
 export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
     tally,
+    completeElectionIds,
     tallySessionExecutions: execution,
     allElections,
 }) => {
     const {t, i18n} = useTranslation()
     const aliasRenderer = useAliasRenderer()
+    const {policy} = useNumberFormat()
 
     const elections = useMemo(() => {
         return (
@@ -87,7 +90,12 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
                 )
                 return (
                     <ElectionStatusItem
-                        name={election_data?.status ?? ITallyElectionStatus.WAITING}
+                        name={
+                            election_data?.status === ITallyElectionStatus.SUCCESS &&
+                            !completeElectionIds.includes(String(props["id"]))
+                                ? ITallyElectionStatus.WAITING
+                                : (election_data?.status ?? ITallyElectionStatus.WAITING)
+                        }
                     />
                 )
             },
@@ -114,7 +122,7 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
                             color="text.secondary"
                             sx={{marginLeft: "1rem", display: "flex", justifyContent: "end"}}
                         >
-                            {formatPercentOne((election_data?.progress ?? 0) / 100)}
+                            {formatPercentOne((election_data?.progress ?? 0) / 100, policy)}
                         </Typography>
                     </ProgressBarDiv>
                 )

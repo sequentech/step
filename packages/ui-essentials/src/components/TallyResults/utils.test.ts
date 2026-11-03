@@ -2,17 +2,29 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+// ui-core's built dist is unavailable when this package's tests run alone, so
+// load the number formatting sources the helpers write figures with.
 jest.mock(
     "@sequentech/ui-core",
     () => ({
-        formatPercentOne: (value: number) => `${value}%`,
+        ...jest.requireActual("../../../../ui-core/src/types/ElectionEventPresentation"),
+        ...jest.requireActual("../../../../ui-core/src/services/numberFormat"),
+        ...jest.requireActual("../../../../ui-core/src/services/percentFormatter"),
         TallySheetVotingChannel: {},
         VotingStatusChannel: {},
     }),
     {virtual: true}
 )
 
-import {buildCandidateChartData, mergeLabels, orderCandidateReferences} from "./utils"
+import {ENumberFormatPolicy} from "@sequentech/ui-core"
+import {
+    buildCandidateChartData,
+    mergeLabels,
+    orderCandidateReferences,
+    percentOrDash,
+    pieChartNumberFormatOptions,
+    valueOrDash,
+} from "./utils"
 
 describe("orderCandidateReferences", () => {
     it("uses configured candidate order and retains process-only references", () => {
@@ -62,5 +74,72 @@ describe("buildCandidateChartData", () => {
             "Configured first",
             "Configured second",
         ])
+    })
+})
+
+describe("valueOrDash", () => {
+    it("groups counts in thousands with the event's number format", () => {
+        expect(valueOrDash(12000000, ENumberFormatPolicy.PERIOD_COMMA)).toBe("12.000.000")
+        expect(valueOrDash(8589934591, ENumberFormatPolicy.SPACE_COMMA)).toBe(
+            "8\u00a0589\u00a0934\u00a0591"
+        )
+        expect(valueOrDash("1234", ENumberFormatPolicy.APOSTROPHE_PERIOD)).toBe("1\u2019234")
+        expect(valueOrDash(0, ENumberFormatPolicy.PERIOD_COMMA)).toBe("0")
+    })
+
+    it("uses comma grouping for events without a number format", () => {
+        expect(valueOrDash(12000000)).toBe("12,000,000")
+        expect(valueOrDash(12000000, null)).toBe("12,000,000")
+        expect(valueOrDash(999)).toBe("999")
+    })
+
+    it("keeps counts given as text exact beyond 2^53", () => {
+        expect(valueOrDash("9007199254740993")).toBe("9,007,199,254,740,993")
+    })
+
+    it("writes a dash for missing or non-numeric values", () => {
+        expect(valueOrDash(null)).toBe("-")
+        expect(valueOrDash(undefined)).toBe("-")
+        expect(valueOrDash("")).toBe("-")
+        expect(valueOrDash("n/a")).toBe("-")
+        expect(valueOrDash(Number.NaN)).toBe("-")
+        expect(valueOrDash(Number.POSITIVE_INFINITY)).toBe("-")
+    })
+})
+
+describe("percentOrDash", () => {
+    it("writes a fraction as a percentage with two decimals in the event's number format", () => {
+        expect(percentOrDash(0.456789, ENumberFormatPolicy.PERIOD_COMMA)).toBe("45,68%")
+        expect(percentOrDash("0.5", ENumberFormatPolicy.SPACE_COMMA)).toBe("50,00%")
+        expect(percentOrDash(1, ENumberFormatPolicy.APOSTROPHE_PERIOD)).toBe("100.00%")
+    })
+
+    it("uses the default format for events without a number format", () => {
+        expect(percentOrDash(0.456789)).toBe("45.68%")
+        expect(percentOrDash(0)).toBe("0.00%")
+    })
+
+    it("writes a dash for missing or non-numeric values", () => {
+        expect(percentOrDash(null)).toBe("-")
+        expect(percentOrDash(undefined)).toBe("-")
+        expect(percentOrDash("")).toBe("-")
+        expect(percentOrDash(Number.NaN)).toBe("-")
+    })
+})
+
+describe("pieChartNumberFormatOptions", () => {
+    it("labels slices and tooltips in the event's number format", () => {
+        const options = pieChartNumberFormatOptions(ENumberFormatPolicy.PERIOD_COMMA)
+
+        expect(options.dataLabels.formatter(45.678)).toBe("45,7%")
+        expect(options.tooltip.y.formatter(12000000)).toBe("12.000.000")
+    })
+
+    it("keeps the chart library's one-decimal slice labels without a number format", () => {
+        const options = pieChartNumberFormatOptions()
+
+        expect(options.dataLabels.formatter(45.678)).toBe(`${(45.678).toFixed(1)}%`)
+        expect(options.dataLabels.formatter(100)).toBe("100.0%")
+        expect(options.tooltip.y.formatter(12000000)).toBe("12,000,000")
     })
 })
