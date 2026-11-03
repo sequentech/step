@@ -51,9 +51,7 @@ impl TryFrom<Row> for ResultsElectionWrapper {
                 .map(NotNan::new)
                 .transpose()?,
             documents,
-            blank_ballots: item
-                .try_get::<_, Option<i32>>("blank_ballots")?
-                .map(|v| v as i64),
+            blank_ballots: item.try_get::<_, Option<i64>>("blank_ballots")?,
             blank_ballots_percent: item
                 .try_get::<&str, Option<Decimal>>("blank_ballots_percent")?
                 .map(|d| d.to_f64().map(NotNan::new).transpose())
