@@ -929,6 +929,27 @@ html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visib
 .sequent-auth .scanovate-holding video[hidden] {
     display: none;
 }
+.sequent-auth .scanovate-holding-status {
+    margin: 12px 0 0;
+    text-align: center;
+}
+.sequent-auth .scanovate-holding-status p {
+    margin: 0 0 8px;
+    color: #173449;
+    font-weight: 600;
+}
+.sequent-auth .scanovate-holding-progress {
+    height: 6px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: #e3eaee;
+}
+.sequent-auth .scanovate-holding-progress span {
+    display: block;
+    height: 100%;
+    background: #43e3a1;
+    transition: width 100ms linear;
+}
 /* The face check covers the whole window (ScanovateFrame). */
 .sequent-auth .scanovate-frame.scanovate-frame-window {
     position: fixed;

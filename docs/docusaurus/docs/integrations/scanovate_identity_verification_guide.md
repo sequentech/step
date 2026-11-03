@@ -75,8 +75,11 @@ sequenceDiagram
    voter's face: it guides them, runs PAD and IAD on its frames, and posts the
    verdict and the live face to Keycloak.
 4. With `holding-photo` `REQUIRED`, the page then opens the camera itself: the
-   voter holds their document open next to their face, takes the photo, checks
-   it, and the page uploads it as a JPEG to
+   voter holds their document open next to their face and keeps still. The
+   page compares small grayscale samples of successive frames, counts down the
+   `video-seconds` holding time while the image stays still, starts again when
+   it moves, and takes the photo by itself; there is no shutter button. The
+   voter checks the photo or has it taken again, and the page uploads it as a JPEG to
    `/realms/<realm>/identity-verification/capture/holding` with the page's
    one-time token in the `X-Capture-Token` header.
 5. Once that is done, the page posts `action=capture`.
@@ -186,7 +189,7 @@ The capture page receives a `scanovate` attribute with `documentType`,
 `attemptsLeft`, `maxAttempts`, `ocr` and `liveness`, each with the `url` of
 the page to embed, one-time token and case id included, and, with
 `holding-photo` `REQUIRED`, `holding` with the `url` and `token` of the
-upload. The error page receives `attemptsLeft`, and the confirmation
+upload and the holding time in `seconds`. The error page receives `attemptsLeft`, and the confirmation
 page receives `storedAttributes` as a list of `{key, value, type}` and
 `documentType`.
 
@@ -204,20 +207,22 @@ steps that collect the document type, and configure it:
 | `face-match-url` | Face Match base URL as Keycloak reaches it, on the internal network, e.g. `http://scanovate-face-match:3000`. | |
 | `face-match-min-similarity` | JSON keyed by document type, with a `default` key for any other type, of the minimum similarity (0 to 1) of the voter's live face with the portrait OCR read from the document. The service's own threshold (`0.67`) applies if higher. | `{"default": 0.67}` |
 | `holding-photo` | `REQUIRED`: after the face check, the voter takes a photo of themselves holding the document, which must match their live face with the same minimum similarity. `NONE`: no such photo. | `REQUIRED` |
+| `video-seconds` | Holding time: seconds the image must stay still before the holding photo is taken. A positive whole number. | `5` |
 | `doc-id-type` | Auth note with the document type, used to pick the settings and rules. | `sequent.read-only.id-card-type` |
 | `user-status` | Auth note set to `VERIFIED` on success. | `sequent.read-only.id-card-number-validated` |
 | `attributes-to-validate` | Validation rules, see [Rules](#rules). | the document hasn't expired |
 | `attributes-to-store` | Values to store and show for confirmation, see [Rules](#rules). | first name, last name, date of birth |
 | `max-attempts` | Failed verifications allowed before the voter is rejected. | `3` |
 
-Missing or malformed service settings, a non-positive number, an unknown
+Missing or malformed service settings, a non-positive number (including
+`video-seconds`), an unknown
 `holding-photo` policy, or a document type without an OCR type reject the verification with `scanovateInternalError`
 before the capture starts. The sides to scan are up to OCR: its
 `scan_config.json` says which sides each OCR type needs (a passport only has
 its data page).
 
 The settings of our earlier capture page, `ocr-url` (Keycloak no longer calls
-OCR), `capture-sides`, `video-seconds` and `max-image-bytes`, are ignored, and
+OCR), `capture-sides` and `max-image-bytes`, are ignored, and
 no realm template writes them any more. A realm or an Election Architect
 profile that still has them keeps working.
 

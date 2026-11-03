@@ -148,7 +148,7 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                 <HoldingCamera
                     key={state.attempt}
                     text={text}
-                    upload={scanovate.holding}
+                    holding={scanovate.holding}
                     dispatch={dispatch}
                 />
                 <StartOver text={text} loginAction={url.loginAction} />

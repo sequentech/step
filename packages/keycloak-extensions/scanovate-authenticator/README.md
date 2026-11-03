@@ -13,7 +13,8 @@ Liveness Plus pages of the services themselves, which check Keycloak's
 one-time tokens and post their results to the `identity-verification` realm
 resource (`<ocr|liveness>/verify` and `<ocr|liveness>/callback`), server to
 server. With the `holding-photo` policy `REQUIRED` (the default), the capture
-page then takes a photo of the voter holding their document and uploads it to
+page then takes a photo of the voter holding their document, automatically once
+the image has been still for the holding time (`video-seconds`), and uploads it to
 `capture/holding` with a one-time token. Keycloak then compares the live face
 with the portrait OCR read and with the holding photo using Face Match, and
 applies the configured rules to what OCR read. Nothing is sent to any third

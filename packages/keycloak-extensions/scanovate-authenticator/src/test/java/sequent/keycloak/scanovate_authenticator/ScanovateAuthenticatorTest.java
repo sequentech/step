@@ -536,7 +536,9 @@ class ScanovateAuthenticatorTest {
             ScanovateAuthenticator.FTL_PAGE_URL,
             "/realms/r/identity-verification/capture/holding",
             ScanovateAuthenticator.FTL_UPLOAD_TOKEN,
-            authNotes.get(ScanovateAuthenticator.HOLDING_TOKEN_NOTE)),
+            authNotes.get(ScanovateAuthenticator.HOLDING_TOKEN_NOTE),
+            ScanovateAuthenticator.FTL_HOLDING_SECONDS,
+            5),
         page.get(ScanovateAuthenticator.FTL_HOLDING));
   }
 
@@ -1000,6 +1002,28 @@ class ScanovateAuthenticatorTest {
     verify(faceMatch).compare(PORTRAIT, JPEG);
     verify(faceMatch, never()).compare(HOLDING, JPEG);
     assertEquals("VERIFIED", authNotes.get(STATUS_NOTE));
+  }
+
+  @Test
+  void theHoldingTimeIsConfigurable() {
+    config.put(ScanovateAuthenticatorFactory.HOLDING_SECONDS, "3");
+
+    startCapture();
+
+    @SuppressWarnings("unchecked")
+    Map<String, Object> holding =
+        (Map<String, Object>) capturePage().get(ScanovateAuthenticator.FTL_HOLDING);
+    assertEquals(3, holding.get(ScanovateAuthenticator.FTL_HOLDING_SECONDS));
+  }
+
+  @Test
+  void anInvalidHoldingTimeIsAConfigurationError() {
+    config.put(ScanovateAuthenticatorFactory.HOLDING_SECONDS, "0");
+
+    authenticator.authenticate(context);
+
+    verifyError(ScanovateError.INTERNAL, false);
+    assertEquals("capture", lastFailure().get("scanovate_config_component"));
   }
 
   @Test

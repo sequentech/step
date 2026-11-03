@@ -351,13 +351,20 @@ export const StartOverDuringStep: Story = {
 
 // The holding photo: Keycloak's page takes it with its own camera and uploads
 // it with the page's one-time token before submitting the capture.
-const HOLDING = {url: "/realms/r/identity-verification/capture/holding", token: "page-token"}
+const HOLDING = {
+    url: "/realms/r/identity-verification/capture/holding",
+    token: "page-token",
+    seconds: 1,
+}
 const withHolding = {scanovate: {holding: HOLDING}}
 
-/** A front camera that films a test card, and the uploads the page makes. */
+/**
+ * A front camera that films a test card, still unless `moving`, and the
+ * uploads the page makes.
+ */
 type Uploads = {url: string; init: RequestInit}[]
 const uploads: Uploads = []
-function fakeCameraAndUploads(status = 200, camera = true) {
+function fakeCameraAndUploads(status = 200, camera = true, moving = false) {
     uploads.length = 0
     const devices = navigator.mediaDevices
     const realGetUserMedia = devices.getUserMedia
@@ -366,12 +373,15 @@ function fakeCameraAndUploads(status = 200, camera = true) {
     canvas.width = 640
     canvas.height = 480
     const paint = canvas.getContext("2d")!
+    let tick = 0
+    // Repainted all the time, as a camera delivers frames; only `moving` changes them.
     const timer = setInterval(() => {
+        tick++
+        const x = moving ? (tick * 97) % 460 : 380
         paint.fillStyle = "#0d796a"
         paint.fillRect(0, 0, canvas.width, canvas.height)
         paint.fillStyle = "#ffffff"
-        paint.fillRect(380, 160, 180, 240)
-        paint.fillText(new Date().toISOString(), 20, 40)
+        paint.fillRect(x, 160, 180, 240)
     }, 50)
     devices.getUserMedia = async () => {
         if (!camera) throw new DOMException("Permission denied", "NotAllowedError")
@@ -401,15 +411,19 @@ async function throughScanovate(canvasElement: HTMLElement) {
     return heading(canvasElement, "Take a photo holding your ID")
 }
 
-async function takePhoto(canvasElement: HTMLElement) {
-    const canvas = within(canvasElement)
-    const take = canvas.getByRole("button", {name: "Take photo"})
-    await waitFor(() => expect(take).toBeEnabled(), {timeout: 5000})
-    await userEvent.click(take)
-    return canvas.findByRole("img", {name: "Your photo holding your ID"})
+/** The photo the page takes by itself once the image held still. */
+async function autoPhoto(canvasElement: HTMLElement) {
+    return within(canvasElement).findByRole(
+        "img",
+        {name: "Your photo holding your ID"},
+        {timeout: 8000}
+    )
 }
 
-/** After the face check, the voter takes the photo, checks it and sends it. */
+/**
+ * After the face check, the voter holds still with their ID: the page counts
+ * down, takes the photo by itself, and the voter checks it and sends it.
+ */
 export const HoldingStep: Story = {
     args: {kcContext: withHolding},
     beforeEach: () => fakeCameraAndUploads(),
@@ -418,11 +432,14 @@ export const HoldingStep: Story = {
         await expect(await throughScanovate(canvasElement)).toBeVisible()
         await expect(
             canvas.getByText(
-                "Hold your Driver’s License open next to your face, with both your face and its photo in view, and take the photo."
+                "Hold your Driver’s License open next to your face, with both your face and its photo in view, and keep still: the photo is taken by itself."
             )
         ).toBeVisible()
         await expect(canvas.getByLabelText("Camera")).toBeVisible()
-        await expect(await takePhoto(canvasElement)).toBeVisible()
+        await expect(canvas.queryByRole("button", {name: "Take photo"})).toBeNull()
+        await expect(await canvas.findByText(/^Hold still: \d$/, {}, {timeout: 5000})).toBeVisible()
+        await expect(canvas.getByRole("progressbar", {name: "Holding still"})).toBeVisible()
+        await expect(await autoPhoto(canvasElement)).toBeVisible()
         await userEvent.click(canvas.getByRole("button", {name: "Use this photo"}))
 
         await waitFor(() => expect(submissions).toHaveLength(1))
@@ -440,6 +457,26 @@ export const HoldingStep: Story = {
     },
 }
 
+/** While the image moves, the page waits and no photo is taken. */
+export const HoldingWhileMoving: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () => fakeCameraAndUploads(200, true, true),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await expect(
+            await canvas.findByText("Hold your ID next to your face and keep still.")
+        ).toBeVisible()
+        await new Promise((resolve) => setTimeout(resolve, 2500))
+        await expect(canvas.queryByRole("img", {name: "Your photo holding your ID"})).toBeNull()
+        await expect(canvas.getByRole("progressbar", {name: "Holding still"})).toHaveAttribute(
+            "aria-valuenow",
+            "0"
+        )
+        await expect(uploads).toHaveLength(0)
+    },
+}
+
 /** A photo the voter doesn't like is taken again, without uploading it. */
 export const HoldingRetake: Story = {
     args: {kcContext: withHolding},
@@ -447,10 +484,11 @@ export const HoldingRetake: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await throughScanovate(canvasElement)
-        await takePhoto(canvasElement)
+        await autoPhoto(canvasElement)
         await userEvent.click(canvas.getByRole("button", {name: "Take it again"}))
         await expect(canvas.getByLabelText("Camera")).toBeVisible()
         await expect(canvas.queryByRole("img", {name: "Your photo holding your ID"})).toBeNull()
+        await expect(await autoPhoto(canvasElement)).toBeVisible()
         await expect(uploads).toHaveLength(0)
         await expect(submissions).toHaveLength(0)
     },
@@ -463,7 +501,7 @@ export const HoldingUploadFails: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await throughScanovate(canvasElement)
-        await takePhoto(canvasElement)
+        await autoPhoto(canvasElement)
         await userEvent.click(canvas.getByRole("button", {name: "Use this photo"}))
         await expect(await heading(canvasElement, "We couldn’t send your photo")).toBeVisible()
         await expect(submissions).toHaveLength(0)
@@ -479,7 +517,7 @@ export const HoldingTokenExpired: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await throughScanovate(canvasElement)
-        await takePhoto(canvasElement)
+        await autoPhoto(canvasElement)
         await userEvent.click(canvas.getByRole("button", {name: "Use this photo"}))
         await expect(await heading(canvasElement, "Start the verification again")).toBeVisible()
         await expect(canvas.queryByRole("button", {name: "Try again"})).toBeNull()

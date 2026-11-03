@@ -33,8 +33,9 @@ first OCR's capture page and then Liveness Plus's. Each service checks
 Keycloak's one-time token before it starts a session and posts its result to
 Keycloak, server to server. Keycloak then calls Face Match. Our capture page
 never carries a verdict; the only photo it takes itself is the voter holding
-their document, after the face check, which it uploads to Keycloak (the
-authenticator's `holding-photo` policy).
+their document, after the face check, taken automatically once the image has
+been still for the holding time, which it uploads to Keycloak (the
+authenticator's `holding-photo` policy and `video-seconds`).
 
 This page describes how to run the services, how to configure them, and the
 contract between them, the capture page and Keycloak.
@@ -381,8 +382,10 @@ SCANOVATE_LOGIN_THEME=sequent-ui-voting \
 `.devcontainer/scanovate/ocr/service_config.json` and
 `.devcontainer/scanovate/liveness/service_config.json`. Set
 `SCANOVATE_FACE_MATCH_MIN_SIMILARITY` to change the threshold
-(`{"default": 0.67}`). The script also deletes the settings of the earlier
-integrations, including `ocr-url`, `capture-sides`, `video-seconds` and
+(`{"default": 0.67}`), `SCANOVATE_HOLDING_PHOTO` (`REQUIRED` or `NONE`) for the
+photo holding the document, and `SCANOVATE_HOLDING_SECONDS` for its holding
+time (`video-seconds`, 5 by default). The script also deletes the settings of
+the earlier integrations, including `ocr-url`, `capture-sides` and
 `max-image-bytes` of our former capture page, which the authenticator
 ignores. `KEYCLOAK_URL`, `KEYCLOAK_ADMIN` and
 `KEYCLOAK_ADMIN_PASSWORD` default to the dev container Keycloak

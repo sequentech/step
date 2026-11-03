@@ -3,31 +3,47 @@
 import {useEffect, useRef, useState, type Dispatch} from "react"
 import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
-import type {ScanovateUpload} from "../KcContext"
+import type {ScanovateHolding} from "../KcContext"
 import {ArrowIcon} from "../icons"
 import type {CaptureEvent} from "./capture"
 import {takePhoto, uploadHoldingPhoto} from "./holding"
+import {
+    SAMPLE_HEIGHT,
+    SAMPLE_WIDTH,
+    STILL,
+    grayscale,
+    secondsLeft,
+    trackStillness,
+    type Stillness,
+} from "./stillness"
 import type {Text} from "./text"
 import {CaptureProblem} from "./types"
 
 type Photo = {blob: Blob; url: string}
+
+// How often the camera image is sampled for movement.
+const SAMPLE_INTERVAL_MS = 100
 
 function stop(stream: MediaStream) {
     for (const track of stream.getTracks()) track.stop()
 }
 
 /**
- * The page's own camera: the voter takes a photo of themselves holding their
- * document, checks it, and the page uploads it to Keycloak before moving on.
+ * The page's own camera: the voter holds their document next to their face,
+ * the page takes the photo by itself once the image has been still for the
+ * holding time, the voter checks it, and the page uploads it to Keycloak
+ * before moving on. There is no shutter button: the photo is only ever taken
+ * still.
  */
 export function HoldingCamera(props: {
     text: Text
-    upload: ScanovateUpload
+    holding: ScanovateHolding
     dispatch: Dispatch<CaptureEvent>
 }) {
-    const {text, upload, dispatch} = props
+    const {text, holding, dispatch} = props
     const videoRef = useRef<HTMLVideoElement | null>(null)
     const [ready, setReady] = useState(false)
+    const [progress, setProgress] = useState(0)
     const [photo, setPhoto] = useState<Photo | null>(null)
     const [sending, setSending] = useState(false)
 
@@ -62,29 +78,68 @@ export function HoldingCamera(props: {
         }
     }, [dispatch])
 
-    useEffect(() => () => (photo === null ? undefined : URL.revokeObjectURL(photo.url)), [photo])
-
-    const take = async () => {
+    // Samples the image while there is no photo, and takes it once still.
+    useEffect(() => {
         const video = videoRef.current
-        const blob = video === null ? null : await takePhoto(video)
-        if (blob === null) {
+        if (!ready || photo !== null || video === null) return
+        const sampler = document.createElement("canvas")
+        sampler.width = SAMPLE_WIDTH
+        sampler.height = SAMPLE_HEIGHT
+        const context = sampler.getContext("2d", {willReadFrequently: true})
+        if (context === null) {
             dispatch({type: "problem", problem: CaptureProblem.Camera})
             return
         }
-        setPhoto({blob, url: URL.createObjectURL(blob)})
-    }
+        let stillness: Stillness = STILL
+        let taking = false
+        const timer = setInterval(() => {
+            if (taking || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return
+            context.drawImage(video, 0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT)
+            const sample = grayscale(context.getImageData(0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT).data)
+            const step = trackStillness(
+                stillness,
+                sample,
+                performance.now(),
+                holding.seconds * 1000
+            )
+            stillness = step.state
+            setProgress(step.progress)
+            if (!step.captured) return
+            taking = true
+            clearInterval(timer)
+            void takePhoto(video).then((blob) => {
+                if (blob === null) {
+                    dispatch({type: "problem", problem: CaptureProblem.Camera})
+                    return
+                }
+                setPhoto({blob, url: URL.createObjectURL(blob)})
+            })
+        }, SAMPLE_INTERVAL_MS)
+        return () => clearInterval(timer)
+    }, [ready, photo, holding.seconds, dispatch])
+
+    useEffect(() => () => (photo === null ? undefined : URL.revokeObjectURL(photo.url)), [photo])
 
     const use = async () => {
         if (photo === null) return
         setSending(true)
-        const problem = await uploadHoldingPhoto(upload, photo.blob)
+        const problem = await uploadHoldingPhoto(holding, photo.blob)
         setSending(false)
         dispatch(problem === null ? {type: "done"} : {type: "problem", problem})
     }
 
+    const retake = () => {
+        setProgress(0)
+        setPhoto(null)
+    }
+
     const cameraLabel = text("scanovateHoldingCameraLabel")
     const photoLabel = text("scanovateHoldingPhotoLabel")
-    const takeLabel = text("scanovateHoldingTake")
+    const progressLabel = text("scanovateHoldingProgress")
+    const status =
+        progress > 0
+            ? text("scanovateHoldingCountdown", String(secondsLeft(progress, holding.seconds)))
+            : text("scanovateHoldingKeepStill")
     const retakeLabel = text("scanovateHoldingRetake")
     const useLabel = text("scanovateHoldingUse")
     return (
@@ -105,47 +160,49 @@ export function HoldingCamera(props: {
                     <img src={photo.url} alt={photoLabel.text} lang={photoLabel.lang} />
                 )}
             </div>
-            <Box className="auth-actions">
-                {photo === null ? (
+            {photo === null ? (
+                <div className="scanovate-holding-status">
+                    <p aria-live="polite" lang={status.lang}>
+                        {status.text}
+                    </p>
+                    <div
+                        className="scanovate-holding-progress"
+                        role="progressbar"
+                        aria-label={progressLabel.text}
+                        lang={progressLabel.lang}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.round(progress * 100)}
+                    >
+                        <span style={{width: `${progress * 100}%`}} />
+                    </div>
+                </div>
+            ) : (
+                <Box className="auth-actions">
                     <Button
                         type="button"
                         variant="contained"
                         fullWidth
                         className="auth-submit"
                         endIcon={<ArrowIcon />}
-                        disabled={!ready}
-                        onClick={take}
-                        lang={takeLabel.lang}
+                        disabled={sending}
+                        onClick={use}
+                        lang={useLabel.lang}
                     >
-                        {takeLabel.text}
+                        {useLabel.text}
                     </Button>
-                ) : (
-                    <>
-                        <Button
-                            type="button"
-                            variant="contained"
-                            fullWidth
-                            className="auth-submit"
-                            endIcon={<ArrowIcon />}
-                            disabled={sending}
-                            onClick={use}
-                            lang={useLabel.lang}
-                        >
-                            {useLabel.text}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outlined"
-                            fullWidth
-                            disabled={sending}
-                            onClick={() => setPhoto(null)}
-                            lang={retakeLabel.lang}
-                        >
-                            {retakeLabel.text}
-                        </Button>
-                    </>
-                )}
-            </Box>
+                    <Button
+                        type="button"
+                        variant="outlined"
+                        fullWidth
+                        disabled={sending}
+                        onClick={retake}
+                        lang={retakeLabel.lang}
+                    >
+                        {retakeLabel.text}
+                    </Button>
+                </Box>
+            )}
         </>
     )
 }

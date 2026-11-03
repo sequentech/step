@@ -95,6 +95,7 @@ public class ScanovateAuthenticator implements Authenticator {
   static final String FTL_HOLDING = "holding";
   static final String FTL_PAGE_URL = "url";
   static final String FTL_UPLOAD_TOKEN = "token";
+  static final String FTL_HOLDING_SECONDS = "seconds";
   static final String EVENT_ERROR = "scanovate_verification_failed";
   static final String EVENT_DETAIL_ERROR = "scanovate_error";
   static final String EVENT_DETAIL_CASE_ID = "scanovate_case_id";
@@ -143,7 +144,8 @@ public class ScanovateAuthenticator implements Authenticator {
       OnPremSettings onPrem,
       OcrSettings ocr,
       FaceMatchSettings faceMatch,
-      HoldingPhotoPolicy holding) {}
+      HoldingPhotoPolicy holding,
+      int holdingSeconds) {}
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -232,7 +234,12 @@ public class ScanovateAuthenticator implements Authenticator {
       OcrSettings ocr = OcrSettings.fromConfig(config, docType);
       component = ConfigComponent.CAPTURE;
       HoldingPhotoPolicy holding = HoldingPhotoPolicy.fromConfig(config);
-      return Optional.of(new Services(onPrem, ocr, faceMatch, holding));
+      int holdingSeconds =
+          OnPremSettings.positiveInt(
+              config,
+              ScanovateAuthenticatorFactory.HOLDING_SECONDS,
+              ScanovateAuthenticatorFactory.DEFAULT_HOLDING_SECONDS);
+      return Optional.of(new Services(onPrem, ocr, faceMatch, holding, holdingSeconds));
     } catch (ScanovateException e) {
       configurationFailure(context, component);
       showError(context, ScanovateError.INTERNAL, false);
@@ -278,7 +285,15 @@ public class ScanovateAuthenticator implements Authenticator {
     if (services.holding() == HoldingPhotoPolicy.REQUIRED) {
       String token = photos.create();
       authSession.setAuthNote(HOLDING_TOKEN_NOTE, token);
-      capture.put(FTL_HOLDING, Map.of(FTL_PAGE_URL, holdingUrl(context), FTL_UPLOAD_TOKEN, token));
+      capture.put(
+          FTL_HOLDING,
+          Map.of(
+              FTL_PAGE_URL,
+              holdingUrl(context),
+              FTL_UPLOAD_TOKEN,
+              token,
+              FTL_HOLDING_SECONDS,
+              services.holdingSeconds()));
     }
 
     // Keycloak only lets its pages embed its own origin: the services' pages may be on another
