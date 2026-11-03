@@ -11,7 +11,7 @@ use serde;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
-use tracing::{debug, info, instrument, warn};
+use tracing::{info, instrument, warn};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtRolesAccess {
@@ -28,6 +28,8 @@ pub struct JwtHasuraClaims {
     pub user_id: String,
     #[serde(rename = "x-hasura-area-id")]
     pub area_id: Option<String>,
+    #[serde(rename = "x-hasura-election-event-id")]
+    pub election_event_id: Option<String>,
     #[serde(rename = "authorized-election-ids")]
     pub authorized_election_ids: Option<Vec<String>>,
     #[serde(rename = "x-hasura-allowed-roles")]
@@ -82,7 +84,6 @@ pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
         .map_err(|err| anyhow!("Error decoding string: {:?}", err))?;
     let json = String::from_utf8(bytes)
         .map_err(|err| anyhow!("Error decoding bytes to utf8: {:?}", err))?;
-    debug!("json: {:?}", json);
     let claims: JwtClaims = serde_json::from_str(&json).map_err(|err| {
         anyhow!("Error decoding string into formatted json: {:?}", err)
     })?;
