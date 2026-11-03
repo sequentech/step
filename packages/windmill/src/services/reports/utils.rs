@@ -4,8 +4,13 @@
 
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::s3::get_minio_url;
+use sequent_core::types::hasura::core::ElectionEvent;
+use sequent_core::types::number_format::{
+    deserialize_lenient_number_format_policy, NumberFormatPolicy,
+};
+use serde::Deserialize;
 use std::env;
-use tracing::instrument;
+use tracing::{instrument, warn};
 
 /// Function to get the public assets path environment variable
 #[instrument(err, skip_all)]
@@ -45,4 +50,112 @@ pub async fn get_public_asset_template(filename: &str) -> Result<String> {
         .with_context(|| format!("Error reading the template response for {}", filename))?;
 
     Ok(template_hbs)
+}
+
+/// The one setting of an election event's presentation that its reports
+/// read.
+#[derive(Deserialize)]
+struct NumberFormatSetting {
+    #[serde(default, deserialize_with = "deserialize_lenient_number_format_policy")]
+    number_format_policy: Option<NumberFormatPolicy>,
+}
+
+/// The number format the reports of `election_event` write their figures
+/// in, or `None` for the default. Only this setting of the event's
+/// presentation is read, so that another one this version can't read doesn't
+/// change it. A presentation that isn't an object gets the default, so that
+/// its reports still render.
+pub fn get_number_format_policy(election_event: &ElectionEvent) -> Option<NumberFormatPolicy> {
+    let presentation = election_event.presentation.clone()?;
+    match serde_json::from_value::<NumberFormatSetting>(presentation) {
+        Ok(setting) => setting.number_format_policy,
+        Err(err) => {
+            warn!(
+                "Can't read the presentation of election event {}, using the default number format: {err}",
+                election_event.id
+            );
+            None
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::{json, Value};
+
+    fn election_event(presentation: Option<Value>) -> ElectionEvent {
+        ElectionEvent {
+            id: "event".to_string(),
+            created_at: None,
+            updated_at: None,
+            labels: None,
+            annotations: None,
+            tenant_id: "tenant".to_string(),
+            description: None,
+            presentation,
+            bulletin_board_reference: None,
+            is_archived: false,
+            voting_channels: None,
+            status: None,
+            user_boards: None,
+            encryption_protocol: "RSA256".to_string(),
+            is_audit: None,
+            audit_election_event_id: None,
+            public_key: None,
+            statistics: None,
+            external_id: None,
+        }
+    }
+
+    #[test]
+    fn reports_follow_the_number_format_policy_of_their_election_event() {
+        let event = election_event(Some(json!({ "number_format_policy": "period-comma" })));
+
+        assert_eq!(
+            get_number_format_policy(&event),
+            Some(NumberFormatPolicy::PeriodComma)
+        );
+    }
+
+    #[test]
+    fn events_without_a_number_format_policy_use_the_default() {
+        for presentation in [
+            None,
+            Some(json!({})),
+            Some(json!({ "number_format_policy": null })),
+        ] {
+            assert_eq!(
+                get_number_format_policy(&election_event(presentation)),
+                None
+            );
+        }
+    }
+
+    #[test]
+    fn an_unreadable_number_format_policy_uses_the_default() {
+        let event = election_event(Some(json!({ "number_format_policy": "unknown" })));
+
+        assert_eq!(get_number_format_policy(&event), None);
+    }
+
+    #[test]
+    fn a_setting_this_version_cannot_read_keeps_the_number_format_policy() {
+        let event = election_event(Some(json!({
+            "locked_down": "a-newer-lockdown",
+            "number_format_policy": "period-comma",
+        })));
+
+        assert_eq!(
+            get_number_format_policy(&event),
+            Some(NumberFormatPolicy::PeriodComma)
+        );
+    }
+
+    #[test]
+    fn a_presentation_that_is_not_an_object_uses_the_default() {
+        let event = election_event(Some(json!("period-comma")));
+
+        assert_eq!(get_number_format_policy(&event), None);
+    }
 }

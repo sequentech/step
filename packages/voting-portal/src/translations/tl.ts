@@ -252,6 +252,8 @@ const tagalogTranslation: TranslationType = {
                 SESSION_EXPIRED:
                     "Ang iyong session ay nag-expire na. Pakisubukan muli mula sa simula.",
                 CAST_VOTE_BallotIdMismatch: "Hindi tumutugma ang ballot ID sa ibinotong boto.",
+                CAST_VOTE_BallotStyleMismatch:
+                    "Hindi tumutugma ang iyong ballot sa kasalukuyang nailathala para sa halalang ito. Paki-reload ang page at pakisubukang muli, o makipag-ugnayan sa suporta para sa tulong.",
                 SESSION_STORAGE_ERROR:
                     "Hindi magamit ang session storage. Pakisubukang muli o makipag-ugnayan sa support.",
                 PARSE_BALLOT_DATA_ERROR:
@@ -581,6 +583,15 @@ const tagalogTranslation: TranslationType = {
                 username: "Username",
                 ballot_id: "Ballot ID",
                 message: "Mensahe",
+            },
+            pagination: {
+                rowsPerPage: "Mga hilera bawat pahina:",
+                displayedRows: "{{from}}–{{to}} ng {{total}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} ng higit sa {{to}}",
+                firstPage: "Pumunta sa unang pahina",
+                lastPage: "Pumunta sa huling pahina",
+                nextPage: "Pumunta sa susunod na pahina",
+                previousPage: "Pumunta sa nakaraang pahina",
             },
         },
     },
