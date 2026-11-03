@@ -56,6 +56,7 @@ import {
     ITenantSettings,
     EVotingPortalCountdownPolicy,
     EElectionEventLockedDown,
+    EFileIntegrityPolicy,
     EBallotBoxSealPolicy,
     EBallotBoxSealRecordPolicy,
     EElectionEventEnrollment,
@@ -74,6 +75,7 @@ import {
     EElectionEventAutomaticRecountPolicy,
     EElectionEventWeightedVotingPolicy,
     EElectionEventDelegatedVotingPolicy,
+    EElectionEventBatchAnonymityPolicy,
     EResultsWebsiteAccess,
     EResultsWebsiteStatus,
     EResultsWebsiteVisibilityScope,
@@ -94,6 +96,7 @@ import {
     type ILifecyclePolicies,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
+import {ReadinessCheckButton} from "@/components/election-event/ReadinessCheckButton"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -134,6 +137,7 @@ import {
     PasswordPolicyAccordionHandle,
 } from "@/components/election-event/PasswordPolicyAccordion"
 import {SettingsLanguageSelector} from "../../components/SettingsLanguageSelector"
+import {PrivacySettings} from "@/components/election-event/PrivacySettings"
 import {BallotReceiptsInput} from "./BallotReceiptsInput"
 import {
     VOTER_SIGNING_POLICY_SOURCE,
@@ -152,6 +156,7 @@ import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
 import {ballotBoxSealPolicyLock, ESealPolicyLock} from "@/services/ElectionStatus"
 import {effectiveSealRecordPolicy} from "@/services/ballotBoxSealPolicy"
 import {sealErrorText} from "@/services/ballotBoxSealErrors"
+import {policyOptions} from "@/services/policyOptions"
 import {timeZoneContextOf} from "@/components/timezones/useTimeZoneContext"
 import {
     CONFIGURE_RESULTS_WEBSITE_POLICY,
@@ -1454,7 +1459,13 @@ export const EditElectionEventDataForm: React.FC<{
                     isExportDisabled={openExport || loadingExport}
                     withColumns={false}
                     withFilter={false}
-                    extraActions={extraActionsButtons()}
+                    extraActions={[
+                        ...extraActionsButtons(),
+                        <ReadinessCheckButton
+                            key={`readiness-${parsedValue.id}`}
+                            event={parsedValue}
+                        />,
+                    ]}
                 />
             </Box>
             <SimpleForm
@@ -1766,6 +1777,31 @@ export const EditElectionEventDataForm: React.FC<{
                             source={"presentation.css"}
                             label={String(t("electionEventScreen.field.css"))}
                         />
+                    </AccordionDetails>
+                </Accordion>
+
+                <Accordion
+                    sx={{width: "100%"}}
+                    expanded={expanded === "election-event-data-privacy"}
+                    onChange={() =>
+                        setExpanded((previous) =>
+                            previous === "election-event-data-privacy"
+                                ? ""
+                                : "election-event-data-privacy"
+                        )
+                    }
+                >
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <ElectionHeaderStyles.Wrapper>
+                            <ElectionHeaderStyles.Title>
+                                {t("ballotPrivacy.settings.title")}
+                            </ElectionHeaderStyles.Title>
+                        </ElectionHeaderStyles.Wrapper>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        {expanded === "election-event-data-privacy" ? (
+                            <PrivacySettings canEdit={canEdit} />
+                        ) : null}
                     </AccordionDetails>
                 </Accordion>
 
@@ -2139,6 +2175,26 @@ export const EditElectionEventDataForm: React.FC<{
                     </AccordionSummary>
                     <AccordionDetails>
                         <SelectInput
+                            disabled={!canEdit}
+                            source="presentation.file_integrity_policy"
+                            choices={Object.values(EFileIntegrityPolicy).map((policy) => ({
+                                id: policy,
+                                name: String(
+                                    t(
+                                        `electionEventScreen.field.fileIntegrityPolicy.options.${policy}`
+                                    )
+                                ),
+                            }))}
+                            label={String(
+                                t("electionEventScreen.field.fileIntegrityPolicy.policyLabel")
+                            )}
+                            helperText={String(
+                                t("electionEventScreen.field.fileIntegrityPolicy.helperText")
+                            )}
+                            format={(value: unknown) => value ?? EFileIntegrityPolicy.OPTIONAL}
+                            emptyText={undefined}
+                        />
+                        <SelectInput
                             source={"presentation.contest_encryption_policy"}
                             choices={contestEncryptionPolicyChoices()}
                             label={String(
@@ -2268,6 +2324,23 @@ export const EditElectionEventDataForm: React.FC<{
                             )}
                             {...sealSettingProps(EElectionEventDelegatedVotingPolicy.DISABLED)}
                             emptyText={undefined}
+                        />
+                        <SelectInput
+                            source={"presentation.batch_anonymity_policy"}
+                            choices={policyOptions(
+                                Object.values(EElectionEventBatchAnonymityPolicy),
+                                "electionEventScreen.field.batchAnonymityPolicy.options",
+                                t
+                            )}
+                            label={String(
+                                t("electionEventScreen.field.batchAnonymityPolicy.policyLabel")
+                            )}
+                            helperText={String(
+                                t("electionEventScreen.field.batchAnonymityPolicy.helperText")
+                            )}
+                            defaultValue={EElectionEventBatchAnonymityPolicy.WARN}
+                            emptyText={undefined}
+                            validate={required()}
                         />
                         {canConfigureResultsWebsite ? <ResultsWebsitePolicyFields /> : null}
                         <Typography

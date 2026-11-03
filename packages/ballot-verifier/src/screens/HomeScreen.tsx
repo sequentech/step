@@ -24,15 +24,28 @@ import {IAuditableBallot, IAuditableMultiBallot, IAuditableSingleBallot} from "@
 import {useNavigate} from "react-router-dom"
 import {Box} from "@mui/material"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
+import {
+    EBallotCiphertextCheck,
+    EBallotEncoding,
+    checkAuditableBallotCiphertext,
+} from "../services/ballotCiphertextVerification"
 import TextField from "@mui/material/TextField"
 import {faCircleQuestion, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import JsonImg from "../public/json.png"
 import Image from "mui-image"
 import {TenantEventContext} from "../providers/TenantEventContext"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
+import {
+    EBallotStyleCheck,
+    LEGACY_BALLOT_VERSION,
+    checkAuditedBallotStyle,
+} from "../services/ballotStyleBinding"
 import {useAppDispatch} from "../store/hooks"
 import {
+    EPublishedBallotStyleLookup,
     GetPublishedBallotStylesQuery,
+    PublishedBallotStyleLookup,
+    findPublishedBallotStyle,
     updateBallotStyleAndSelection,
 } from "../services/BallotStyles"
 
@@ -140,6 +153,11 @@ export const HomeScreen: React.FC<IProps> = ({
 }) => {
     const {t} = useTranslation()
     const [showError, setShowError] = useState(false)
+    const [showCiphertextError, setShowCiphertextError] = useState(false)
+    const [showStyleError, setShowStyleError] = useState(false)
+    const [showLegacyWarning, setShowLegacyWarning] = useState(false)
+    const [styleLookupFailure, setStyleLookupFailure] =
+        useState<EPublishedBallotStyleLookup | null>(null)
     const [openStep1Help, setOpenStep1Help] = useState(false)
     const [openStep2Help, setOpenStep2Help] = useState(false)
     const [isNextActive, setNextActive] = useState(false)
@@ -164,58 +182,114 @@ export const HomeScreen: React.FC<IProps> = ({
         }
     }, [dataBallotStyles])
 
-    const handleAuditableBallot = (auditableBallot: IAuditableBallot | null) => {
-        let isMultiContest = false
-        let decodedBallot = null
-        try {
-            decodedBallot =
-                (auditableBallot &&
-                    ballotService.decodeAuditableBallot(
-                        auditableBallot as IAuditableSingleBallot
-                    )) ||
-                null
-        } catch (error) {
-            const decodedMultiBallot =
-                (!decodedBallot &&
-                    auditableBallot &&
-                    ballotService.decodeAuditableMultiBallot(
-                        auditableBallot as IAuditableMultiBallot
-                    )) ||
-                null
-            isMultiContest = true
-            decodedBallot = decodedMultiBallot
-        }
-        const ballotStyle = auditableBallot?.config ?? null
-        if (null === auditableBallot || null === decodedBallot || null === ballotStyle) {
-            setShowError(true)
-            setConfirmationBallot(null)
+    const rejectBallot = (
+        showImportError: boolean,
+        failure: EPublishedBallotStyleLookup | null = null
+    ) => {
+        setShowError(showImportError)
+        setShowCiphertextError(false)
+        setStyleLookupFailure(failure)
+        setShowStyleError(false)
+        setShowLegacyWarning(false)
+        setConfirmationBallot(null)
+    }
+
+    const handleAuditableBallot = (
+        file: IAuditableBallot | null,
+        ballotStyleLookup: PublishedBallotStyleLookup,
+        isPublishedBallot: boolean = true
+    ) => {
+        if (!file?.config?.id) {
+            rejectBallot(true)
             return
         }
+        if (EPublishedBallotStyleLookup.FOUND !== ballotStyleLookup.status) {
+            rejectBallot(false, ballotStyleLookup.status)
+            return
+        }
+        const {ballotStyle} = ballotStyleLookup
+        const mustMatchPublishedStyle = isPublishedBallot && !globalSettings.DISABLE_AUTH
+        if (
+            mustMatchPublishedStyle &&
+            EBallotStyleCheck.MATCHES !== checkAuditedBallotStyle(file.config, [ballotStyle])
+        ) {
+            rejectBallot(false)
+            setShowStyleError(true)
+            return
+        }
+        // The ballot is decoded and shown with the published ballot style,
+        // never with the copy of it that the file carries.
+        const auditableBallot: IAuditableBallot = {...file, config: ballotStyle}
+        const contests = (file as IAuditableSingleBallot | IAuditableMultiBallot).contests
+        const isMultiContest = typeof contests === "string"
+        if (!isMultiContest && !Array.isArray(contests)) {
+            rejectBallot(true)
+            return
+        }
+        let decodedBallot = null
+        try {
+            decodedBallot = isMultiContest
+                ? ballotService.decodeAuditableMultiBallot(auditableBallot as IAuditableMultiBallot)
+                : ballotService.decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)
+        } catch (error) {
+            console.log(error)
+            rejectBallot(true)
+            return
+        }
+        if (decodedBallot == null) {
+            rejectBallot(true)
+            return
+        }
+        // Decoding only reads the plaintext. The ballot is not verified until the
+        // plaintext and randomness are shown to reproduce the ciphertext.
+        const encoding = isMultiContest
+            ? EBallotEncoding.MULTI_CONTEST
+            : EBallotEncoding.SINGLE_CONTEST
+        const ciphertextCheck = checkAuditableBallotCiphertext(
+            ballotService,
+            auditableBallot,
+            encoding
+        )
+        if (EBallotCiphertextCheck.VERIFIED !== ciphertextCheck) {
+            // Only a ciphertext that fails to reproduce is a failed
+            // verification. A ballot that could not be checked at all is a
+            // problem with the file, and reports the generic import error.
+            const isMismatch = EBallotCiphertextCheck.MISMATCH === ciphertextCheck
+            rejectBallot(!isMismatch)
+            setShowCiphertextError(isMismatch)
+            return
+        }
+        setShowLegacyWarning(isPublishedBallot && LEGACY_BALLOT_VERSION === auditableBallot.version)
+        // Signatures and trackers cover the uploaded configuration; the published
+        // presentation is used for decoding and display after the layout matches.
         let ballotHash = isMultiContest
-            ? ballotService.hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-            : ballotService.hashBallot512(auditableBallot as IAuditableSingleBallot)
+            ? ballotService.hashMultiBallot(file as IAuditableMultiBallot)
+            : ballotService.hashBallot512(file as IAuditableSingleBallot)
 
         // sequent-core also rejects a signature without its public key, and the reverse.
         if (
-            auditableBallot?.voter_ballot_signature !== undefined ||
-            auditableBallot?.voter_signing_pk !== undefined
+            auditableBallot?.voter_ballot_signature != null ||
+            auditableBallot?.voter_signing_pk != null
         ) {
             try {
-                let _signatureVerificationResult = isMultiContest
+                const signatureVerified = isMultiContest
                     ? ballotService.verifyMultiBallotSignature(
                           ballotHash,
                           ballotStyle.election_id,
-                          auditableBallot as IAuditableMultiBallot
+                          file as IAuditableMultiBallot
                       )
                     : ballotService.verifyBallotSignature(
                           ballotHash,
                           ballotStyle.election_id,
-                          auditableBallot as IAuditableSingleBallot
+                          file as IAuditableSingleBallot
                       )
+                if (signatureVerified !== true) {
+                    rejectBallot(true)
+                    return
+                }
             } catch (error) {
                 console.log(error)
-                setShowError(true)
-                setConfirmationBallot(null)
+                rejectBallot(true)
                 return
             }
         }
@@ -226,16 +300,35 @@ export const HomeScreen: React.FC<IProps> = ({
             decoded_questions: decodedBallot,
         })
         setShowError(false)
+        setShowCiphertextError(false)
+        setStyleLookupFailure(null)
+        setShowStyleError(false)
     }
 
     const handleFiles = async (files: FileList) => {
         try {
             setFileName(files[0].name)
             const auditableBallotString = await parseAuditableBallotFile(files[0], ballotService)
-            auditableBallotString && handleAuditableBallot(JSON.parse(auditableBallotString))
+            if (auditableBallotString) {
+                const auditableBallot: IAuditableBallot | null = JSON.parse(auditableBallotString)
+                handleAuditableBallot(
+                    auditableBallot,
+                    globalSettings.DISABLE_AUTH && auditableBallot
+                        ? // Without authentication the published ballot styles cannot be
+                          // fetched, so there is nothing else to check the ballot against.
+                          {
+                              status: EPublishedBallotStyleLookup.FOUND,
+                              ballotStyle: auditableBallot.config,
+                          }
+                        : findPublishedBallotStyle(
+                              dataBallotStyles,
+                              auditableBallot?.config?.id,
+                              eventId
+                          )
+                )
+            }
         } catch (e) {
-            setShowError(true)
-            setConfirmationBallot(null)
+            rejectBallot(true)
         }
     }
 
@@ -246,7 +339,16 @@ export const HomeScreen: React.FC<IProps> = ({
         if (!auditableBallot) {
             return
         }
-        handleAuditableBallot(auditableBallot)
+        // The sample is generated here rather than uploaded, so the ballot
+        // style it carries is the one to check it against.
+        handleAuditableBallot(
+            auditableBallot,
+            {
+                status: EPublishedBallotStyleLookup.FOUND,
+                ballotStyle: auditableBallot.config,
+            },
+            false
+        )
         let ballotHash = ballotService.hashBallot512(auditableBallot)
         setBallotId(ballotHash)
     }
@@ -287,7 +389,11 @@ export const HomeScreen: React.FC<IProps> = ({
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {t("homeScreen.description1")}
             </Typography>
-            <Alert severity="error" style={{display: showError ? undefined : "none"}}>
+            <Alert
+                severity="error"
+                style={{display: showError ? undefined : "none"}}
+                data-testid="import-error"
+            >
                 <AlertTitle>{t("homeScreen.importErrorTitle")}</AlertTitle>
                 <Typography variant="body2">{t("homeScreen.importErrorDescription")}</Typography>
                 <RouterLink
@@ -297,6 +403,62 @@ export const HomeScreen: React.FC<IProps> = ({
                 >
                     {t("homeScreen.importErrorMoreInfo")}
                 </RouterLink>
+            </Alert>
+            <Alert
+                severity="error"
+                style={{display: showCiphertextError ? undefined : "none"}}
+                data-testid="ciphertext-error"
+            >
+                <AlertTitle>{t("homeScreen.ciphertextErrorTitle")}</AlertTitle>
+                <Typography variant="body2">
+                    {t("homeScreen.ciphertextErrorDescription")}
+                </Typography>
+            </Alert>
+            <Alert
+                severity="error"
+                style={{display: showStyleError ? undefined : "none"}}
+                data-testid="style-error"
+            >
+                <AlertTitle>{t("homeScreen.verificationErrorTitle")}</AlertTitle>
+                <Typography variant="body2">{t("homeScreen.styleErrorDescription")}</Typography>
+            </Alert>
+            <Alert
+                severity="warning"
+                style={{display: showLegacyWarning ? undefined : "none"}}
+                data-testid="legacy-ballot-warning"
+            >
+                <Typography variant="body2">{t("homeScreen.legacyBallotWarning")}</Typography>
+            </Alert>
+            <Alert
+                severity="error"
+                style={{
+                    display:
+                        EPublishedBallotStyleLookup.NOT_PUBLISHED === styleLookupFailure
+                            ? undefined
+                            : "none",
+                }}
+                data-testid="unpublished-style-error"
+            >
+                <AlertTitle>{t("homeScreen.verificationErrorTitle")}</AlertTitle>
+                <Typography variant="body2">
+                    {t("homeScreen.unpublishedStyleErrorDescription")}
+                </Typography>
+            </Alert>
+            <Alert
+                severity="error"
+                style={{
+                    display:
+                        null !== styleLookupFailure &&
+                        EPublishedBallotStyleLookup.NOT_PUBLISHED !== styleLookupFailure
+                            ? undefined
+                            : "none",
+                }}
+                data-testid="unavailable-style-error"
+            >
+                <AlertTitle>{t("homeScreen.verificationErrorTitle")}</AlertTitle>
+                <Typography variant="body2">
+                    {t("homeScreen.unavailableStyleErrorDescription")}
+                </Typography>
             </Alert>
             <DropFile handleFiles={handleFiles} />
             {confirmationBallot ? <JsonFile name={fileName} /> : null}

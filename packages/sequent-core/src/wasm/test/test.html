@@ -11,15 +11,25 @@ SPDX-License-Identifier: AGPL-3.0-only
   </head>
   <body style="background-color:black;">
     <script type="module">
-        import init, {hash_ballot} from '../../../pkg/index.js';
-        const ballotFixture = await fetch('../../../fixtures/ballot.json').then(res => res.json());
-    
-        async function run() {
+        import init, {
+            generate_sample_auditable_ballot_js,
+            hash_auditable_ballot_js,
+            decode_auditable_ballot_js,
+        } from '../../../../node_modules/sequent-core/index.js';
+
+        try {
             await init();
-            const hashResult = hash_ballot(ballotFixture);
-            document.getElementById("lognew").textContent += 'hash: ' + hashResult;
+            const ballot = generate_sample_auditable_ballot_js();
+            const hash = hash_auditable_ballot_js(ballot);
+            const decoded = decode_auditable_ballot_js(ballot);
+            if (!/^[0-9a-f]{64}$/.test(hash) || decoded.length !== ballot.contests.length) {
+                throw new Error('Invalid sample ballot hash or contest coverage');
+            }
+            document.getElementById('lognew').textContent = 'verified: ' + hash;
+        } catch (error) {
+            document.getElementById('lognew').textContent = 'failed: ' + String(error);
+            throw error;
         }
-        run();
     </script>
     <span id="lognew" style="color:cyan;white-space: pre;font-size: 20px;"></span>
   </body>

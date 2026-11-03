@@ -45,7 +45,7 @@ export const MiruSignatures: React.FC<MiruSignaturesProps> = (props) => {
     return (
         <>
             <TableContainer sx={{marginTop: 3}} component={Paper}>
-                <Table sx={{minWidth: 650}} aria-label="simple table">
+                <Table aria-label="simple table">
                     <TableHead>
                         <TableRow>
                             <TableCell sx={{width: "25%"}}>

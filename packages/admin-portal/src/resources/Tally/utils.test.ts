@@ -5,8 +5,14 @@
 import {ICountingAlgorithm} from "@sequentech/ui-core"
 import type {Sequent_Backend_Contest} from "@/gql/graphql"
 import {
+    ETallyKeyRestoreEligibility,
+    ITallyExecutionStatus,
+    ITallyTrusteeStatus,
+} from "@/types/ceremonies"
+import {
     convertContestsArray,
     convertSequentContestToIContest,
+    getTallyKeyRestoreEligibility,
     orderItemsByIds,
     parseProcessResults,
     parseResultAnnotations,
@@ -15,6 +21,53 @@ import {
 jest.mock("@sequentech/ui-core", () =>
     jest.requireActual("../../../../ui-core/src/types/CoreTypes")
 )
+
+describe("getTallyKeyRestoreEligibility", () => {
+    it.each([ITallyExecutionStatus.STARTED, ITallyExecutionStatus.CONNECTED])(
+        "allows a waiting trustee while the tally accepts keys (%s)",
+        (executionStatus) => {
+            expect(
+                getTallyKeyRestoreEligibility(ITallyTrusteeStatus.WAITING, executionStatus)
+            ).toBe(ETallyKeyRestoreEligibility.ALLOWED)
+        }
+    )
+
+    it.each([
+        ITallyExecutionStatus.NOT_STARTED,
+        ITallyExecutionStatus.IN_PROGRESS,
+        ITallyExecutionStatus.AWAITING_INPUT,
+        ITallyExecutionStatus.SUCCESS,
+        ITallyExecutionStatus.CANCELLED,
+    ])("denies key restoration while the tally is %s", (executionStatus) => {
+        expect(getTallyKeyRestoreEligibility(ITallyTrusteeStatus.WAITING, executionStatus)).toBe(
+            ETallyKeyRestoreEligibility.DENIED
+        )
+    })
+
+    it.each([undefined, null])(
+        "denies key restoration while the tally status is unknown (%s)",
+        (executionStatus) => {
+            expect(
+                getTallyKeyRestoreEligibility(ITallyTrusteeStatus.WAITING, executionStatus)
+            ).toBe(ETallyKeyRestoreEligibility.DENIED)
+        }
+    )
+
+    it("denies a trustee whose key is already restored", () => {
+        expect(
+            getTallyKeyRestoreEligibility(
+                ITallyTrusteeStatus.CUSTODY_CONFIRMED,
+                ITallyExecutionStatus.STARTED
+            )
+        ).toBe(ETallyKeyRestoreEligibility.DENIED)
+    })
+
+    it("denies a user who is absent from the tally ceremony", () => {
+        expect(getTallyKeyRestoreEligibility(null, ITallyExecutionStatus.STARTED)).toBe(
+            ETallyKeyRestoreEligibility.DENIED
+        )
+    })
+})
 
 describe("orderItemsByIds", () => {
     const items = [

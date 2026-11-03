@@ -58,3 +58,9 @@ describe("cast status decoding", () => {
         expect(() => parseCastVoteStatus("unexpected-status")).toThrow("Unknown cast vote status")
     })
 })
+
+test("unvisited elections remain available without downloaded ballot styles", () => {
+    const initial = state(false)
+    initial.ballotStyles = {}
+    expect(canVoteSomeElection()(initial)).toBe(true)
+})

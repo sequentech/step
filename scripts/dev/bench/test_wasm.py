@@ -52,6 +52,7 @@ class WasmRestorationTest(unittest.TestCase):
         for name, content in self.original.items():
             (self.root / name).write_bytes(content)
         self.git("init", "-q")
+        self.git("config", "commit.gpgsign", "false")
         self.git("add", ".")
         self.git(
             "-c",

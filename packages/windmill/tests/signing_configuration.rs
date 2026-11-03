@@ -339,8 +339,8 @@ fn the_janitor_template_carries_the_sample_preset() {
     assert_eq!(needs(SigningAction::TransmitResults), 2);
     assert_eq!(needs(SigningAction::ApproveVoter), 1);
     assert_eq!(needs(SigningAction::ApproveConfiguration), 2);
-    assert_eq!(needs(SigningAction::ConfirmKeyShare), 1);
-    assert_eq!(needs(SigningAction::ContributeKeyShare), 1);
+    assert_eq!(needs(SigningAction::ConfirmCustodyProof), 1);
+    assert_eq!(needs(SigningAction::ContributeCustodyProof), 1);
     // Three SBEIs per Post sign the election returns, so whoever starts it
     // must be able to sign too.
     assert_eq!(

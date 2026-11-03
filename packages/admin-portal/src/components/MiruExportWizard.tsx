@@ -67,6 +67,31 @@ import {useSigningRequest} from "@/components/signing/SigningProvider"
 import {SigningAction, SigningRequestStatus} from "@/lib/signing/types"
 import {useActionNeedsSignatures} from "@/components/signing/useSigningRule"
 import {createSigningApi} from "@/lib/signing/api"
+import {
+    ESignaturesState,
+    groupHash,
+    latestDocument,
+    networkServers,
+    onlyManualReceipt,
+    signaturesNeeded,
+    signaturesState,
+} from "@/services/transmissionPackage"
+
+/** A section's title and its status chip; on a phone the chip wraps below the title. */
+const sectionSummary = {
+    "& .MuiAccordionSummary-content": {
+        flexDirection: {xs: "column", sm: "row"},
+        flexWrap: "wrap",
+        gap: 1,
+        alignItems: {xs: "flex-start", sm: "center"},
+    },
+}
+const sectionChip = {
+    "marginLeft": {xs: 0, sm: "auto"},
+    "height": "auto",
+    "minHeight": 32,
+    "& .MuiChip-label": {whiteSpace: {xs: "normal", sm: "nowrap"}},
+}
 
 interface IMiruExportWizardProps {}
 
@@ -366,17 +391,13 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
         }
     )
 
-    const signaturesStatusColor: () => string = () => {
-        let signed = signedCount()
-        let trustees = trusteeCount()
-        let minimum = minimumSignatures()
+    const signaturesStatus = (): ESignaturesState =>
+        signaturesState(signedCount(), minimumSignatures())
 
-        return signed === 0
-            ? theme.palette.warning.main
-            : signed === minimum
-              ? theme.palette.info.main
-              : theme.palette.brandSuccess
-    }
+    const signaturesStatusColor: () => string = () =>
+        signaturesStatus() === ESignaturesState.REACHED
+            ? theme.palette.brandSuccess
+            : theme.palette.warning.main
 
     const signedCount: () => number = () => {
         let signatures =
@@ -387,15 +408,22 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
     }
 
     const trusteeCount: () => number = () => {
+        if (areaSbeiCount !== null) {
+            return areaSbeiCount
+        }
         let trustees = tallySessionExecution?.status?.trustees ?? []
         return trustees.length
     }
+
+    const manualReceipt = onlyManualReceipt(selectedTallySessionData?.servers ?? [])
 
     const serversStatusColor: () => string = () => {
         let sentTo = serverSentToCount()
         let servers = serversTotalCount()
 
-        return sentTo < servers ? theme.palette.info.main : theme.palette.brandSuccess
+        return manualReceipt || sentTo < servers
+            ? theme.palette.info.main
+            : theme.palette.brandSuccess
     }
 
     const serverSentToCount: () => number = () => {
@@ -406,10 +434,9 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
         return sentTo.filter((server) => server.status == "SUCCESS").length
     }
 
-    const serversTotalCount: () => number = () => {
-        let servers = selectedTallySessionData?.servers ?? []
-        return servers.length
-    }
+    // Destinations that receive the package by hand are never sent to.
+    const serversTotalCount: () => number = () =>
+        networkServers(selectedTallySessionData?.servers ?? []).length
 
     let documents: IResultDocuments | null = useMemo(
         () =>
@@ -433,6 +460,24 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
             ) ?? null,
         [selectedTallySessionData?.area_id, tallyData?.sequent_backend_area]
     )
+
+    // The SBEIs of the area sign the package.
+    const areaSbeiAnnotation: string | undefined =
+        areaData?.annotations?.["miru:area-trustee-users"] ??
+        area?.annotations?.["miru:area-trustee-users"]
+    const areaSbeiCount = useMemo((): number | null => {
+        if (!areaSbeiAnnotation) {
+            return null
+        }
+        try {
+            const sbeis: unknown = JSON.parse(areaSbeiAnnotation)
+            return Array.isArray(sbeis) ? sbeis.length : null
+        } catch {
+            return null
+        }
+    }, [areaSbeiAnnotation])
+
+    const erFileSha256 = latestDocument(selectedTallySessionData?.documents)?.sha256?.eml
 
     const election = useMemo(
         () =>
@@ -486,9 +531,8 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
         !signingRequest &&
         (transmitNeedsSignatures === true || (requestEnded && transmitNeedsSignatures !== false))
 
-    let minimumSignatures = () => {
-        return signingRequest?.required ?? selectedTallySessionData?.threshold ?? 1
-    }
+    let minimumSignatures = () =>
+        signaturesNeeded(signingRequest, selectedTallySessionData?.threshold)
 
     // The signed package is the document the executed request added.
     const packageSigned = !!signingRequest && signedCount() >= signingRequest.required
@@ -513,7 +557,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
     // The panel's actions read the wizard as it stands, not as it was when
     // the panel opened.
     const sendable = useRef(false)
-    sendable.current = canSendMiru && !disableSendButton
+    sendable.current = canSendMiru && !manualReceipt && !disableSendButton
     const openSigningRequest = () => {
         if (!signingRequest) return
         signing.open(signingRequest.id, {
@@ -668,10 +712,16 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
                     <ElectionHeaderStyles.SubTitle>
                         {t("tally.transmissionPackage.description")}
                     </ElectionHeaderStyles.SubTitle>
+                    {erFileSha256 ? (
+                        <TallyStyles.MiruHash data-testid="er-file-sha256">
+                            {t("tally.transmissionPackage.erFileSha256")}{" "}
+                            <code>{groupHash(erFileSha256)}</code>
+                        </TallyStyles.MiruHash>
+                    ) : null}
                 </ElectionHeaderStyles.ThinWrapper>
 
                 <TallyStyles.MiruToolbar>
-                    {canSendMiru ? (
+                    {canSendMiru && !manualReceipt ? (
                         <Tooltip
                             title={
                                 disableSendButton
@@ -711,8 +761,10 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
                             tenantId={tenantId ?? ""}
                             electionEventId={electionEventId ?? ""}
                             electionId={selectedTallySessionData?.election_id}
+                            areaId={selectedTallySessionData?.area_id}
                             tallySessionId={tallyId || undefined}
                             eventName={eventName}
+                            ovcsPublicKey={selectedTallySessionData?.ovcs_public_key}
                         />
                     ) : null}
                     {canCreateMiru ? (
@@ -816,22 +868,33 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
                     }))
                 }
             >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-miru-signatures" />}>
+                <AccordionSummary
+                    expandIcon={<ExpandMoreIcon id="tally-miru-signatures" />}
+                    sx={sectionSummary}
+                >
                     <WizardStyles.AccordionTitle>
                         {t("tally.transmissionPackage.signatures.title")}
                     </WizardStyles.AccordionTitle>
                     <WizardStyles.CeremonyStatus
+                        data-testid="signatures-status"
+                        data-state={signaturesStatus()}
                         sx={{
+                            ...sectionChip,
                             backgroundColor: signaturesStatusColor(),
                             color: theme.palette.common.black,
                             textTransform: "uppercase",
                         }}
                         label={String(
-                            t("tally.transmissionPackage.signatures.status", {
-                                signed: signedCount(),
-                                total: trusteeCount(),
-                                minimum: minimumSignatures(),
-                            })
+                            t(
+                                minimumSignatures() > 0
+                                    ? "tally.transmissionPackage.signatures.status"
+                                    : "tally.transmissionPackage.signatures.statusNoMinimum",
+                                {
+                                    signed: signedCount(),
+                                    total: trusteeCount(),
+                                    minimum: minimumSignatures(),
+                                }
+                            )
                         )}
                     />
                 </AccordionSummary>
@@ -859,21 +922,27 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
                     }))
                 }
             >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-miru-servers" />}>
+                <AccordionSummary
+                    expandIcon={<ExpandMoreIcon id="tally-miru-servers" />}
+                    sx={sectionSummary}
+                >
                     <WizardStyles.AccordionTitle>
                         {t("tally.transmissionPackage.destinationServers.title")}
                     </WizardStyles.AccordionTitle>
                     <WizardStyles.CeremonyStatus
                         sx={{
+                            ...sectionChip,
                             backgroundColor: serversStatusColor(),
                             color: theme.palette.common.black,
                             textTransform: "uppercase",
                         }}
                         label={String(
-                            t("tally.transmissionPackage.destinationServers.status", {
-                                signed: serverSentToCount(),
-                                total: serversTotalCount(),
-                            })
+                            manualReceipt
+                                ? t("tally.transmissionPackage.destinationServers.manualReceipt")
+                                : t("tally.transmissionPackage.destinationServers.status", {
+                                      signed: serverSentToCount(),
+                                      total: serversTotalCount(),
+                                  })
                         )}
                     />
                 </AccordionSummary>

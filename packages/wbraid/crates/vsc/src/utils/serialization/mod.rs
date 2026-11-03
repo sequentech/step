@@ -9,7 +9,7 @@
 //! strings: `ser` is injective (every value has exactly one encoding) and
 //! `deser` accepts exactly the image of `ser`. The full format definition —
 //! eight rules — lives in `SERIALIZATION.md` §9; property tests pinning the
-//! bijection live in [`properties`].
+//! bijection live in `properties`.
 //!
 //! The design is cursor-based: every type's `read` consumes exactly the bytes
 //! its `write` produced, from the front of a shared slice, so composition is
@@ -42,6 +42,7 @@
 //!   inconsistencies can cause otherwise valid proofs to fail.**
 
 use crate::utils::error::Error;
+use rayon::prelude::*;
 
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
@@ -67,6 +68,18 @@ pub trait Serializable: Sized {
 /// Types that deserialize by consuming their canonical encoding from the
 /// front of a slice.
 pub trait Deserializable: Sized {
+    /// The encoded width, when every value of the type encodes to the same
+    /// number of bytes: fixed-width leaves, arrays of them, and structs of
+    /// them (the derive sums its fields). `None` — the default — for anything
+    /// whose width varies (`Vec`, `String`, `Option`, and structs containing
+    /// them).
+    ///
+    /// The one consumer is [`Vec<T>::read`]: with the width known, a list's
+    /// element boundaries are computable before any element is decoded, so
+    /// a long list is decoded in parallel. The hint changes nothing about
+    /// the encoding or about what is accepted.
+    const FIXED_WIDTH: Option<usize> = None;
+
     /// Consume exactly this value's encoding from the front of `input`,
     /// advancing it.
     ///
@@ -130,6 +143,8 @@ macro_rules! impl_int {
             }
         }
         impl Deserializable for $t {
+            const FIXED_WIDTH: Option<usize> = Some(size_of::<$t>());
+
             fn read(input: &mut &[u8]) -> Result<Self, Error> {
                 let bytes = take(input, size_of::<$t>())?;
                 Ok(<$t>::from_be_bytes(
@@ -149,6 +164,8 @@ impl Serializable for usize {
     }
 }
 impl Deserializable for usize {
+    const FIXED_WIDTH: Option<usize> = Some(size_of::<u64>());
+
     fn read(input: &mut &[u8]) -> Result<Self, Error> {
         read_len(input)
     }
@@ -164,6 +181,8 @@ impl Serializable for bool {
     }
 }
 impl Deserializable for bool {
+    const FIXED_WIDTH: Option<usize> = Some(1);
+
     fn read(input: &mut &[u8]) -> Result<Self, Error> {
         match u8::read(input)? {
             0 => Ok(false),
@@ -187,6 +206,11 @@ impl<T: Serializable, const N: usize> Serializable for [T; N] {
     }
 }
 impl<T: Deserializable, const N: usize> Deserializable for [T; N] {
+    const FIXED_WIDTH: Option<usize> = match T::FIXED_WIDTH {
+        Some(width) => width.checked_mul(N),
+        None => None,
+    };
+
     fn read(input: &mut &[u8]) -> Result<Self, Error> {
         let mut items = Vec::with_capacity(N);
         for _ in 0..N {
@@ -202,18 +226,32 @@ impl<T: Deserializable, const N: usize> Deserializable for [T; N] {
 // Rule 4: Vec
 // ---------------------------------------------------------------------------
 
-impl<T: Serializable> Serializable for Vec<T> {
+/// Lists at least this long are encoded — and, when the element width is
+/// known, decoded — on the rayon pool. Below it the per-task overhead is not
+/// worth paying; the bytes produced and accepted are identical either way.
+///
+/// Under `cfg(fuzzing)` (set by `cargo fuzz` for the whole build) the
+/// threshold drops to 4, so the bijection-oracle fuzz targets — whose inputs
+/// are a few kilobytes — exercise the parallel paths on ordinary short lists
+/// instead of never reaching them.
+pub const PAR_MIN_ELEMENTS: usize = if cfg!(fuzzing) { 4 } else { 1024 };
+
+impl<T: Serializable + Sync> Serializable for Vec<T> {
     fn write(&self, out: &mut Vec<u8>) {
-        let count: u64 = self.len().try_into().expect("usize fits in u64");
-        count.write(out);
-        for item in self {
-            item.write(out);
-        }
+        write_list(self, out);
     }
 }
-impl<T: Deserializable> Deserializable for Vec<T> {
+impl<T: Deserializable + Send> Deserializable for Vec<T> {
+    // A list is never fixed-width: its count varies. (The default `None`.)
+
     fn read(input: &mut &[u8]) -> Result<Self, Error> {
         let count = read_len(input)?;
+        match T::FIXED_WIDTH {
+            Some(width) if width > 0 && count >= PAR_MIN_ELEMENTS => {
+                return read_fixed_width_list_parallel(input, count, width);
+            }
+            _ => {}
+        }
         // No allocation is sized by the attacker-controlled count: the vector
         // grows per parsed element, and each element must consume input, so
         // the loop is bounded by the input length.
@@ -229,6 +267,91 @@ impl<T: Deserializable> Deserializable for Vec<T> {
         }
         Ok(items)
     }
+}
+
+/// The list encoding — a big-endian `u64` count, then the elements in order —
+/// with the elements encoded on the rayon pool from [`PAR_MIN_ELEMENTS`] up:
+/// each into its own buffer, then concatenated, which is byte-identical to
+/// writing them one after another.
+fn write_list<T: Serializable + Sync>(items: &[T], out: &mut Vec<u8>) {
+    let count: u64 = items.len().try_into().expect("usize fits in u64");
+    count.write(out);
+    if items.len() < PAR_MIN_ELEMENTS {
+        for item in items {
+            item.write(out);
+        }
+        return;
+    }
+    let encoded: Vec<Vec<u8>> = items.par_iter().map(Serializable::ser).collect();
+    let total: usize = encoded.iter().map(Vec::len).sum();
+    out.reserve(total);
+    for chunk in &encoded {
+        out.extend_from_slice(chunk);
+    }
+}
+
+/// Decode `count` elements of `width` bytes each from the front of `input`,
+/// on the rayon pool. Accepts exactly what the sequential loop accepts: the
+/// bytes are taken up front (so a short input fails as "Input too short"
+/// before anything is decoded, and no allocation exceeds the input), every
+/// element goes through the same `T::read` on exactly its `width` bytes, and
+/// the first failing element in list order is the error reported.
+fn read_fixed_width_list_parallel<T: Deserializable + Send>(
+    input: &mut &[u8],
+    count: usize,
+    width: usize,
+) -> Result<Vec<T>, Error> {
+    let total = count
+        .checked_mul(width)
+        .ok_or_else(|| Error::DeserializationError("Input too short".to_string()))?;
+    let bytes = take(input, total)?;
+    let decoded: Vec<Result<T, Error>> = bytes
+        .par_chunks_exact(width)
+        .map(|chunk| {
+            let mut cursor = chunk;
+            let value = T::read(&mut cursor)?;
+            if !cursor.is_empty() {
+                return Err(Error::DeserializationError(
+                    "Fixed-width element consumed fewer bytes than its width".to_string(),
+                ));
+            }
+            Ok(value)
+        })
+        .collect();
+    decoded.into_iter().collect()
+}
+
+/// The sum of fixed widths, or `None` if any is unknown — the width of a
+/// struct from the widths of its fields (used by the `Canonical` derive).
+#[must_use]
+pub const fn fixed_width_sum(widths: &[Option<usize>]) -> Option<usize> {
+    let mut total: usize = 0;
+    let mut rest = widths;
+    while let [first, tail @ ..] = rest {
+        match first {
+            Some(width) => match total.checked_add(*width) {
+                Some(sum) => total = sum,
+                None => return None,
+            },
+            None => return None,
+        }
+        rest = tail;
+    }
+    Some(total)
+}
+
+// ---------------------------------------------------------------------------
+// Parallel serialization of slices
+// ---------------------------------------------------------------------------
+
+/// The list encoding of a slice — what `Vec<T>::ser` produces for the same
+/// elements, byte for byte — for callers holding a slice: the transcript
+/// derivations encode borrowed element and ciphertext lists with it.
+#[must_use]
+pub fn par_ser<T: Serializable + Sync>(items: &[T]) -> Vec<u8> {
+    let mut out = Vec::new();
+    write_list(items, &mut out);
+    out
 }
 
 // ---------------------------------------------------------------------------
@@ -281,6 +404,8 @@ impl<T> Serializable for std::marker::PhantomData<T> {
     fn write(&self, _out: &mut Vec<u8>) {}
 }
 impl<T> Deserializable for std::marker::PhantomData<T> {
+    const FIXED_WIDTH: Option<usize> = Some(0);
+
     fn read(_input: &mut &[u8]) -> Result<Self, Error> {
         Ok(std::marker::PhantomData)
     }

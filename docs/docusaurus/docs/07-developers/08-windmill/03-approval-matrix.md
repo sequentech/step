@@ -43,7 +43,21 @@ describes the feature for election managers.
 | `fields` | `{"<field>": "MATCHES" \| "DIFFERS"}` | A compared field's result |
 
 `then.decision` is `ACCEPTED`, `PENDING` or `REJECTED`; `then.reason` is `NO_VOTER`,
-`ALREADY_APPROVED`, `INSUFFICIENT_INFORMATION`, `IDENTITY_NOT_VERIFIED` or `OTHER`.
+`ALREADY_APPROVED`, `INSUFFICIENT_INFORMATION`, `IDENTITY_NOT_VERIFIED` or `OTHER`. `EMAIL_IN_USE` is
+not a rule's: `verify_application` rejects an accepted enrollment with it when the flow's
+`update-attributes` write the email and another voter of the realm already has it, unless the realm
+allows duplicate emails.
+
+Another voter can take the email after windmill accepts the enrollment and before Keycloak updates
+the voter. Keycloak then checks again and asks harvest's `/reject-application-email-in-use`, as the
+tenant's service account, to reject the application. Harvest locks the application and rejects it
+only if it is still automatically accepted, was sent from the asking enrollment session (stored as a
+digest), matched the named voter, writes the email, and the email still belongs to another user of
+a realm with unique emails, with the voter not enrolled. Asking again once rejected succeeds, so a
+lost answer can be retried. Until harvest answers, the voter sees an error and a reload asks again;
+only then does Keycloak show the rejection and send it. The two databases still commit apart:
+another voter can take the email after Keycloak's own check, and Keycloak's update of the voter then
+fails as before, with the application left accepted.
 
 Unknown keys and values fail deserialization. `ApprovalMatrix::validate` returns the errors that keep
 a matrix from being saved: `NO_COMPARED_FIELDS`, `DUPLICATE_COMPARED_FIELD`, `UNKNOWN_FIELD` (a rule
@@ -78,6 +92,22 @@ the registry lookup and for the comparison. Without a saved matrix, `search-attr
 An identity verification step reports how it established the identity by setting the
 `identity-method` auth note to `VERIFIED` or `MANUAL_ENTRY`. `LookupAndUpdateUser` forwards it in the
 annotations of the application. When no step sets it, `identity` conditions don't apply.
+
+Only Keycloak sets the note:
+
+- The registration form can't: `identity-method` is a reserved note, and submitting the form again
+  removes the note an earlier verification set.
+- The Scanovate step sets `VERIFIED` only when it completes a verification: after the voter confirms
+  the attributes it read, or right away when it stores none. Starting the step over (a reload, a
+  retry, the attempt limit), a failed check or a service error removes it, so a verification never
+  carries over to a later failed attempt.
+- A voter whose status attribute says they were verified before skips the Scanovate step without a
+  method: the attribute is not proof of a verification in this session.
+- `LookupAndUpdateUser` forwards only `VERIFIED` or `MANUAL_ENTRY`; it ignores any other value with a
+  warning, and windmill refuses an application whose annotations carry one.
+
+No step of the platform sets `MANUAL_ENTRY` yet: an enrollment without a verification step carries
+no method.
 
 ## Versions
 

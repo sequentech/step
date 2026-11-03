@@ -77,9 +77,6 @@ in
     postgresql_18
     openssh
 
-    # immudb
-    go
-
     # To be able to use vim in the terminal
     vim
 
@@ -108,14 +105,14 @@ in
     firefox
     k6 # HTTP cast load generator, pinned by devenv.lock.
 
-    # to build the rug backend in strand/braid
+    # to build native cryptographic arithmetic
     gcc
     m4
 
     # count line numbers
     scc
 
-    # for development of immudb local store
+    # SQLite utilities
     sqlite
 
     # rust dependencies

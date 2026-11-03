@@ -18,7 +18,7 @@
 use anyhow::{anyhow, Result};
 use log::info;
 use rand::seq::IndexedRandom;
-use rand::Rng;
+use rand::RngExt;
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::marker::PhantomData;
@@ -80,10 +80,8 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
     // 1-based trustee indices; the chosen subset is the mixing/decrypting set and
     // its order is the mixing order.
     let all: Vec<TrusteeIndex> = (1..=n_trustees).collect();
-    let mixing_trustees: Vec<TrusteeIndex> = all
-        .choose_multiple(&mut setup_rng, n_threshold)
-        .cloned()
-        .collect();
+    let mixing_trustees: Vec<TrusteeIndex> =
+        all.sample(&mut setup_rng, n_threshold).cloned().collect();
 
     let now = Instant::now();
 
@@ -112,7 +110,7 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
         W,
         share_enc_keys,
         PhantomData,
-    );
+    )?;
     let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
     let cfg_message = ProtocolMessage::<C>::configuration(&pm, DATE, &cfg);
 
@@ -256,7 +254,7 @@ async fn run_invalid_ballot<C: Context>() -> Result<()> {
         W,
         share_enc_keys,
         PhantomData,
-    );
+    )?;
     let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
     let cfg_message = ProtocolMessage::<C>::configuration(&pm, DATE, &cfg);
 

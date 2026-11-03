@@ -5,6 +5,7 @@
 package sequent.keycloak.authenticator.gateway;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import com.twilio.Twilio;
@@ -69,18 +70,51 @@ class SmsSecretLoggingTest {
       verify(creator).setCustomCode("482619");
       verify(session.getContext().getAuthenticationSession())
           .setAuthNote(TwilioVerifySenderProvider.SID_AUTH_NOTE, "synthetic-verification");
+      // R7-08: Twilio Verify sends only codes; anything else is not sent, and says so.
+      assertTrue(provider.sendsOnlyCodes());
+      java.io.IOException skipped =
+          assertThrows(
+              java.io.IOException.class,
+              () ->
+                  provider.send(
+                      "+15550123456",
+                      Utils.SEND_LINK_SMS_I18N_KEY,
+                      List.of("realm", "https://auth.example/?key=synthetic-token", "5"),
+                      realm,
+                      user,
+                      session));
       assertEquals(
-          "Your link is https://auth.example/?key=synthetic-token",
-          provider.send(
-              "+15550123456",
-              Utils.SEND_LINK_SMS_I18N_KEY,
-              List.of("realm", "https://auth.example/?key=synthetic-token", "5"),
-              realm,
-              user,
-              session));
+          sequent.keycloak.authenticator.messaging.MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES
+              .reason(),
+          skipped.getMessage());
       assertFalse(logs.text().contains("482619"));
       assertFalse(logs.text().contains("synthetic-token"));
       assertFalse(logs.text().contains("synthetic-provider-secret"));
+    }
+  }
+
+  /** Twilio's feedback is logged with the masked number only. */
+  @Test
+  void twilioFeedbackLogsOnlyTheMaskedNumber() throws Exception {
+    KeycloakSession session = mock(KeycloakSession.class, RETURNS_DEEP_STUBS);
+    when(session.getContext().getAuthenticationSession().getAuthNote(anyString()))
+        .thenReturn("synthetic-verification");
+    com.twilio.rest.verify.v2.service.VerificationUpdater updater =
+        mock(com.twilio.rest.verify.v2.service.VerificationUpdater.class);
+    Verification verification = mock(Verification.class);
+    when(updater.update()).thenReturn(verification);
+    when(verification.getSid()).thenReturn("synthetic-verification");
+    try (CapturedLogs logs = new CapturedLogs(TwilioVerifySenderProvider.class);
+        MockedStatic<Twilio> twilio = mockStatic(Twilio.class);
+        MockedStatic<Verification> verifications = mockStatic(Verification.class)) {
+      verifications
+          .when(() -> Verification.updater(anyString(), anyString(), any()))
+          .thenReturn(updater);
+      new TwilioVerifySenderProvider()
+          .sendFeedback("+15550123456", true, mock(RealmModel.class), null, session);
+      assertFalse(logs.text().isEmpty());
+      assertFalse(logs.text().contains("15550123456"));
+      assertTrue(logs.text().contains("+1 ••• ••• 456"));
     }
   }
 }

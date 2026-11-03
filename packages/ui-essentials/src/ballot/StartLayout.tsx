@@ -5,7 +5,7 @@
 import Box from "@mui/material/Box"
 import Typography from "@mui/material/Typography"
 import {styled} from "@mui/material/styles"
-import React from "react"
+import React, {useId} from "react"
 
 import {stringToHtml} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
@@ -80,6 +80,7 @@ export const StartLayout = ({
     children,
 }: IStartLayoutProps): React.JSX.Element => {
     const {t} = useTranslation()
+    const instructionsTitleId = useId()
 
     /*
      * `startScreen.*`, translated here.
@@ -116,7 +117,12 @@ export const StartLayout = ({
                     {description}
                 </Typography>
             )}
-            <Typography className="instructions-title" variant="h5" component="h2">
+            <Typography
+                id={instructionsTitleId}
+                className="instructions-title"
+                variant="h5"
+                component="h2"
+            >
                 {t("startScreen.instructionsTitle")}
             </Typography>
             <Typography className="instructions-description" variant="body2" component="div">
@@ -124,7 +130,13 @@ export const StartLayout = ({
             </Typography>
             <Box
                 className="instructions-steps"
+                component="ol"
+                role="list"
+                aria-labelledby={instructionsTitleId}
                 sx={{
+                    margin: 0,
+                    padding: 0,
+                    listStyle: "none",
                     display: "flex",
                     flexDirection: {xs: "column", md: "row"},
                     gap: {sm: 0, md: "15px"},
@@ -134,6 +146,7 @@ export const StartLayout = ({
                     <Box
                         key={step.kind}
                         className={`instructions-step instructions-${step.kind}-step`}
+                        component="li"
                         sx={{width: {xs: "100%", md: "33.33333333%"}}}
                     >
                         <Typography

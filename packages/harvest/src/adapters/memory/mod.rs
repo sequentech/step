@@ -10,6 +10,7 @@ pub mod identity;
 pub mod monitoring_audit;
 pub mod monitoring_renderer;
 pub mod monitoring_snapshots;
+pub mod service_keys;
 pub mod task_ledger;
 pub mod task_queue;
 pub mod user_tasks;

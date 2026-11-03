@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
-import {render, screen, waitFor, within} from "@testing-library/react"
+import {act, render, screen, waitFor, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import {MockedProvider} from "@apollo/client/testing"
+import {MockedProvider, MockedResponse} from "@apollo/client/testing"
 import {configureStore} from "@reduxjs/toolkit"
 import {Provider} from "react-redux"
 import {MemoryRouter, Route, Routes} from "react-router-dom"
@@ -17,6 +17,7 @@ import ballotStyles from "../store/ballotStyles/ballotStylesSlice"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {resetSequentCore, sequentCore} from "../__mocks__/sequentCore"
 import {
+    ballotStyle,
     IDS,
     multiContestBallot,
     recordSequentCore,
@@ -27,13 +28,44 @@ import {
 } from "../__mocks__/auditableBallots"
 
 const eventPath = `/tenant/${IDS.tenant}/event/${IDS.event}`
-const noBallotStyles = {
+const PUBLICATION_ID = "publication-1"
+
+/** What the ballot styles query answers when the given ballots' styles are published. */
+const publishedStyles = (
+    published: RecordedBallot[],
+    eventId: string = IDS.event
+): MockedResponse => ({
     request: {query: GET_BALLOT_STYLES},
-    result: {data: {sequent_backend_ballot_publication: [], sequent_backend_ballot_style: []}},
-}
+    result: {
+        data: {
+            sequent_backend_ballot_publication: [
+                {id: PUBLICATION_ID, published_at: "2026-01-10T00:00:00Z"},
+            ],
+            sequent_backend_ballot_style: published.map(({ballot}) => ({
+                id: ballot.config.id,
+                ballot_publication_id: PUBLICATION_ID,
+                election_id: ballot.config.election_id,
+                election_event_id: eventId,
+                status: null,
+                tenant_id: IDS.tenant,
+                ballot_eml: JSON.stringify(ballot.config),
+                ballot_signature: null,
+                created_at: "2026-01-10T00:00:00Z",
+                area_id: null,
+                annotations: null,
+                labels: null,
+                last_updated_at: "2026-01-10T00:00:00Z",
+                deleted_at: null,
+            })),
+        },
+    },
+})
 
 /** Holds the import state the way App does, and reports every verified ballot. */
-function renderImportStep() {
+function renderImportStep(
+    published: RecordedBallot | null = null,
+    ballotStylesResponse: MockedResponse = publishedStyles(published ? [published] : [])
+) {
     const reported = jest.fn<void, [IConfirmationBallot | null]>()
     const ImportStep = () => {
         const [confirmationBallot, setConfirmationBallot] = useState<IConfirmationBallot | null>(
@@ -59,7 +91,7 @@ function renderImportStep() {
     render(
         <ThemeProvider theme={theme}>
             <Provider store={configureStore({reducer: {ballotStyles}})}>
-                <MockedProvider mocks={[noBallotStyles]} addTypename={false}>
+                <MockedProvider mocks={[ballotStylesResponse]} addTypename={false}>
                     <MemoryRouter initialEntries={[`${eventPath}/start`]}>
                         <TenantEventProvider tenantId={IDS.tenant} eventId={IDS.event}>
                             <Routes>
@@ -83,6 +115,8 @@ const nextButton = () => screen.getByRole("button", {name: "Next"})
 const importError = () => screen.queryByRole("alert")
 
 async function importFile(contents: string, name = "audited-ballot.json") {
+    // Lets the mocked ballot styles query answer before the file is dropped.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
     const dropZone = screen.getByTestId("drop-label-file")
     userEvent.upload(
         screen.getByTestId("drop-input-file"),
@@ -107,6 +141,15 @@ const expectRejected = async () => {
     expect(screen.queryByText("Uploaded", {exact: true})).not.toBeInTheDocument()
 }
 
+const expectCiphertextRejected = async () => {
+    const alert = await screen.findByRole("alert")
+    expect(alert).toHaveTextContent("Ballot verification failed")
+    expect(alert).toHaveTextContent(
+        "is not the encryption of the plaintext and randomness it contains"
+    )
+    expect(screen.queryByText("Uploaded", {exact: true})).not.toBeInTheDocument()
+}
+
 const confirmationOf = ({ballot, ballotId, decoded}: RecordedBallot) => ({
     ballot_hash: ballotId,
     election_config: ballot.config,
@@ -120,11 +163,68 @@ beforeEach(() => {
 })
 afterEach(() => jest.restoreAllMocks())
 
+describe("comparing the audited ballot style with the published one", () => {
+    it("checks the original signed ballot while displaying the published presentation", async () => {
+        const single = singleContestBallot()
+        const published = {
+            ...single,
+            ballot: {
+                ...single.ballot,
+                config: {...single.ballot.config, description: "Published presentation"},
+            },
+        }
+        recordSequentCore(single)
+        const {lastReported} = renderImportStep(published)
+
+        await importFile(JSON.stringify(single.ballot))
+
+        await expectAccepted("audited-ballot.json")
+        expect(sequentCore.hash_auditable_ballot_js).toHaveBeenCalledWith(single.ballot)
+        expect(sequentCore.verify_ballot_signature_js).toHaveBeenCalledWith(
+            single.ballotId,
+            single.ballot.config.election_id,
+            single.ballot
+        )
+        expect(lastReported()).toEqual({
+            ...confirmationOf(single),
+            election_config: published.ballot.config,
+        })
+    })
+
+    it("rejects a ballot whose ballot style carries another public key", async () => {
+        const single = singleContestBallot()
+        const forged = {
+            ...single.ballot,
+            config: {...single.ballot.config, public_key: {public_key: "forged", is_demo: false}},
+        }
+        recordSequentCore(single)
+        const {lastReported} = renderImportStep(single)
+
+        await importFile(JSON.stringify(forged))
+
+        await waitFor(() => expect(screen.getByTestId("style-error")).toBeVisible())
+        expect(lastReported()).toBeNull()
+        expect(nextButton()).toBeDisabled()
+    })
+
+    it("accepts a ballot of the legacy version with a warning", async () => {
+        const single = singleContestBallot()
+        const legacy = {...single.ballot, version: 2}
+        recordSequentCore(single)
+        const {lastReported} = renderImportStep(single)
+
+        await importFile(JSON.stringify(legacy))
+
+        await waitFor(() => expect(screen.getByTestId("legacy-ballot-warning")).toBeVisible())
+        expect(lastReported()).toEqual(confirmationOf(single))
+    })
+})
+
 describe("importing an audited ballot", () => {
     it("verifies a signed single-contest ballot and continues once its ballot ID is entered", async () => {
         const single = singleContestBallot()
         recordSequentCore(single)
-        const {lastReported} = renderImportStep()
+        const {lastReported} = renderImportStep(single)
         expect(nextButton()).toBeDisabled()
 
         await importFile(JSON.stringify(single.ballot))
@@ -142,7 +242,7 @@ describe("importing an audited ballot", () => {
     it("falls back to the multi-contest format and hashes the ballot in that format", async () => {
         const multi = multiContestBallot()
         recordSequentCore(multi)
-        const {lastReported} = renderImportStep()
+        const {lastReported} = renderImportStep(multi)
 
         await importFile(JSON.stringify(multi.ballot))
 
@@ -164,7 +264,7 @@ describe("importing an audited ballot", () => {
             voter_ballot_signature: missing,
         }
         recordSequentCore(single)
-        const {lastReported} = renderImportStep()
+        const {lastReported} = renderImportStep(single)
 
         await importFile(JSON.stringify(unsigned))
 
@@ -180,7 +280,7 @@ describe("importing an audited ballot", () => {
         async (_format, recorded) => {
             const valid = recorded()
             recordSequentCore(valid)
-            const {lastReported} = renderImportStep()
+            const {lastReported} = renderImportStep(valid)
             await importFile(JSON.stringify(valid.ballot))
             await expectAccepted("audited-ballot.json")
             userEvent.type(ballotIdField(), valid.ballotId)
@@ -207,7 +307,7 @@ describe("importing an audited ballot", () => {
     ])("rejects %s after a verified import", async (_case, contents) => {
         const single = singleContestBallot()
         recordSequentCore(single)
-        const {lastReported} = renderImportStep()
+        const {lastReported} = renderImportStep(single)
         await importFile(JSON.stringify(single.ballot))
         await expectAccepted("audited-ballot.json")
         userEvent.type(ballotIdField(), single.ballotId)
@@ -216,6 +316,63 @@ describe("importing an audited ballot", () => {
 
         await expectRejected()
         expect(lastReported()).toBeNull()
+        expect(nextButton()).toBeDisabled()
+    })
+
+    it("rejects a ballot that sequent-core decodes to nothing", async () => {
+        const single = singleContestBallot()
+        recordSequentCore(single)
+        sequentCore.decode_auditable_ballot_js.mockReturnValue(undefined)
+        const {lastReported} = renderImportStep(single)
+
+        await importFile(JSON.stringify(single.ballot))
+
+        await expectRejected()
+        expect(lastReported()).toBeNull()
+        expect(nextButton()).toBeDisabled()
+    })
+
+    it.each([
+        ["single-contest", singleContestBallot, "verify_ballot_signature_js", false],
+        ["single-contest", singleContestBallot, "verify_ballot_signature_js", null],
+        ["combined-contest", multiContestBallot, "verify_multi_ballot_signature_js", false],
+        ["combined-contest", multiContestBallot, "verify_multi_ballot_signature_js", null],
+    ] as const)(
+        "rejects a signed %s ballot when verification does not succeed",
+        async (_format, recorded, binding, answer) => {
+            const valid = recorded()
+            recordSequentCore(valid)
+            const {lastReported} = renderImportStep(valid)
+            await importFile(JSON.stringify(valid.ballot))
+            await expectAccepted("audited-ballot.json")
+            sequentCore[binding].mockReturnValue(answer)
+            await importFile(JSON.stringify(valid.ballot), "unverified.json")
+            await expectRejected()
+            expect(lastReported()).toBeNull()
+            expect(nextButton()).toBeDisabled()
+        }
+    )
+
+    it("selects the combined ballot decoder without trying the single-contest decoder", async () => {
+        const valid = multiContestBallot()
+        recordSequentCore(valid)
+        renderImportStep(valid)
+        await importFile(JSON.stringify(valid.ballot))
+        await expectAccepted("audited-ballot.json")
+        expect(sequentCore.decode_auditable_multi_ballot_js).toHaveBeenCalledWith(valid.ballot)
+        expect(sequentCore.decode_auditable_ballot_js).not.toHaveBeenCalled()
+    })
+
+    it("ignores an empty file", async () => {
+        const single = singleContestBallot()
+        recordSequentCore(single)
+        const {reported} = renderImportStep(single)
+
+        await importFile("", "empty.json")
+
+        expect(importError()).not.toBeInTheDocument()
+        expect(screen.queryByText("Uploaded", {exact: true})).not.toBeInTheDocument()
+        expect(reported).not.toHaveBeenCalled()
         expect(nextButton()).toBeDisabled()
     })
 
@@ -232,13 +389,150 @@ describe("importing an audited ballot", () => {
             const valid = recorded()
             const {[field]: _removed, ...incomplete} = valid.ballot
             recordSequentCore(valid)
-            const {lastReported} = renderImportStep()
+            const {lastReported} = renderImportStep(valid)
 
             await importFile(JSON.stringify(incomplete), "incomplete.json")
 
             await expectRejected()
             expect(lastReported()).toBeNull()
             expect(nextButton()).toBeDisabled()
+        }
+    )
+})
+
+describe("reproducing the ciphertext of an audited ballot", () => {
+    const formats = [
+        ["single-contest", singleContestBallot, "verify_auditable_ballot_ciphertext_js"],
+        ["multi-contest", multiContestBallot, "verify_auditable_multi_ballot_ciphertext_js"],
+    ] as const
+
+    it.each(formats)(
+        "accepts a %s ballot whose plaintext and randomness reproduce its ciphertext",
+        async (_format, recorded, binding) => {
+            const valid = recorded()
+            recordSequentCore(valid)
+            const {lastReported} = renderImportStep(valid)
+
+            await importFile(JSON.stringify(valid.ballot))
+
+            await expectAccepted("audited-ballot.json")
+            expect(sequentCore[binding]).toHaveBeenCalledWith(valid.ballot)
+            expect(lastReported()).toEqual(confirmationOf(valid))
+        }
+    )
+
+    it.each(formats)(
+        "rejects a %s ballot whose ciphertext is not reproduced",
+        async (_format, recorded, binding) => {
+            const valid = recorded()
+            recordSequentCore(valid)
+            sequentCore[binding].mockReturnValue(false)
+            const {lastReported} = renderImportStep(valid)
+
+            await importFile(JSON.stringify(valid.ballot))
+
+            await expectCiphertextRejected()
+            expect(lastReported()).toBeNull()
+            expect(nextButton()).toBeDisabled()
+            expect(sequentCore.hash_auditable_ballot_js).not.toHaveBeenCalled()
+            expect(sequentCore.hash_auditable_multi_ballot_js).not.toHaveBeenCalled()
+        }
+    )
+
+    // sequent-core reports a ballot it cannot check at all (such as a malformed
+    // public key) as an error, which says nothing about the ciphertext itself.
+    it.each(formats)(
+        "rejects a %s ballot that cannot be checked without calling it a mismatch",
+        async (_format, recorded, binding) => {
+            const valid = recorded()
+            recordSequentCore(valid)
+            sequentCore[binding].mockImplementation(() => {
+                throw "Error checking the ballot: invalid public key"
+            })
+            const {lastReported} = renderImportStep(valid)
+
+            await importFile(JSON.stringify(valid.ballot))
+
+            await expectRejected()
+            expect(lastReported()).toBeNull()
+            expect(nextButton()).toBeDisabled()
+            expect(sequentCore.hash_auditable_ballot_js).not.toHaveBeenCalled()
+            expect(sequentCore.hash_auditable_multi_ballot_js).not.toHaveBeenCalled()
+        }
+    )
+})
+
+describe("the ballot style a ballot is shown with", () => {
+    const unpublishedError = () => screen.getByTestId("unpublished-style-error")
+    const unavailableError = () => screen.getByTestId("unavailable-style-error")
+
+    it("uses the published ballot style instead of the copy in the file", async () => {
+        const single = singleContestBallot()
+        recordSequentCore(single)
+        const {lastReported} = renderImportStep(single)
+        const altered = {
+            ...single.ballot,
+            config: {
+                ...single.ballot.config,
+                description: "A description that only the file carries",
+                election_event_presentation: {css: ".from-file {}"},
+            },
+        }
+
+        await importFile(JSON.stringify(altered))
+
+        await expectAccepted("audited-ballot.json")
+        expect(lastReported()).toEqual(confirmationOf(single))
+        expect(unpublishedError()).not.toBeVisible()
+    })
+
+    it("rejects a ballot whose ballot style is not published", async () => {
+        const single = singleContestBallot()
+        recordSequentCore(single)
+        const {lastReported} = renderImportStep(single)
+
+        await importFile(
+            JSON.stringify({
+                ...single.ballot,
+                config: {...single.ballot.config, id: "unpublished-ballot-style"},
+            })
+        )
+
+        await waitFor(() => expect(unpublishedError()).toBeVisible())
+        expect(screen.getByText(/problem importing/)).not.toBeVisible()
+        expect(lastReported()).toBeNull()
+        expect(nextButton()).toBeDisabled()
+    })
+
+    it("rejects a ballot whose ballot style is published for another election event", async () => {
+        const single = singleContestBallot()
+        recordSequentCore(single)
+        const {lastReported} = renderImportStep(
+            single,
+            publishedStyles([single], "another-election-event")
+        )
+
+        await importFile(JSON.stringify(single.ballot))
+
+        await waitFor(() => expect(unpublishedError()).toBeVisible())
+        expect(lastReported()).toBeNull()
+    })
+
+    it.each([
+        ["failed to load", {request: {query: GET_BALLOT_STYLES}, error: new Error("offline")}],
+        ["have not loaded yet", {...publishedStyles([singleContestBallot()]), delay: 60_000}],
+    ])(
+        "does not report a ballot as unpublished when the ballot styles %s",
+        async (_case, response: MockedResponse) => {
+            const single = singleContestBallot()
+            recordSequentCore(single)
+            const {lastReported} = renderImportStep(single, response)
+
+            await importFile(JSON.stringify(single.ballot))
+
+            await waitFor(() => expect(unavailableError()).toBeVisible())
+            expect(unpublishedError()).not.toBeVisible()
+            expect(lastReported()).toBeNull()
         }
     )
 })

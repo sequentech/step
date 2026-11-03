@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use anyhow::Result;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -16,6 +17,7 @@ use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::tasks_execution::*;
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -39,7 +41,7 @@ pub async fn generate_preview_url(
     authorize(
         &claims,
         true,
-        Some(claims.hasura_claims.tenant_id.clone()),
+        Some(body.tenant_id.clone()),
         vec![Permissions::GENERATE_PREVIEW],
     )?;
 
@@ -64,6 +66,7 @@ pub async fn generate_preview_url(
             )
         },
     )?;
+    audit::act_for(&hasura_transaction, &claims).await?;
 
     let preview_url =
         windmill::services::generate_preview_url::generate_preview_url(
@@ -83,6 +86,7 @@ pub async fn generate_preview_url(
     hasura_transaction.commit().await.map_err(|e| {
         (Status::InternalServerError, format!("Commit failed: {e}"))
     })?;
+    kick_audit_log_outbox();
 
     Ok(Json(GeneratePreviewUrlOutput { preview_url }))
 }

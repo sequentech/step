@@ -64,6 +64,7 @@ const DragFileElement = styled(Box)`
 
 export interface DropFileProps {
     handleFiles: (files: FileList) => void | Promise<void>
+    multiple?: boolean
     accept?: string
     /** Localized fallback shown when the importing callback throws or rejects. */
     errorMessage?: string
@@ -76,6 +77,7 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
         {
             handleFiles,
             accept,
+            multiple,
             children,
             errorMessage = "Could not import this file. Please try again.",
         },
@@ -94,7 +96,7 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
             inFlight.current = true
             setBusy(true)
             setFailed(false)
-            setFileName(files[0].name)
+            setFileName(Array.from(files, (file) => file.name).join(", "))
             try {
                 await handleFiles(files)
             } catch {
@@ -169,6 +171,7 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                         ref={innerRef}
                         type="file"
                         accept={accept}
+                        multiple={multiple}
                         disabled={busy}
                         onChange={handleChange}
                         data-testid="drop-input-file"

@@ -29,6 +29,7 @@
 //! | `/signing-rules/capacity` | `signing-rules-read` |
 //! | `/signing-event-info` | a `signing-*-read` or `sign-<action>`; the titles `signing-certificates-read` |
 
+use crate::services::audit;
 use crate::services::dependencies::HarvestServices;
 use crate::services::signing_http::{
     authorize_403, caller_display_name, SigningError as SigningFailure,
@@ -69,6 +70,7 @@ use windmill::services::signing::rules::{
 };
 use windmill::services::signing::signers::GroupChange;
 use windmill::services::signing::{InvalidReason, SigningCaller, SigningError};
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 use windmill::tasks::signing_log_outbox::kick_signing_log_outbox;
 
 pub type SigningReply<T> = Result<Json<T>, SigningFailure>;
@@ -460,6 +462,7 @@ pub async fn export_signing_requests(
     let caller = writer(&claims, tenant_id, services).await?;
     let mut client = hasura(services).await?;
     let transaction = client.transaction().await.map_err(internal)?;
+    audit::act_for(&transaction, &claims).await?;
     let export = export_requests(
         &transaction,
         &caller,
@@ -487,6 +490,7 @@ pub async fn export_signing_requests(
         .map_err(internal)?;
     transaction.commit().await.map_err(internal)?;
     kick_signing_log_outbox();
+    kick_audit_log_outbox();
     Ok(Json(ExportOutput {
         document_id: stored.document_id,
         sha256: export.sha256,
@@ -549,6 +553,7 @@ pub async fn save_signing_rule(
     let mut keycloak_client = keycloak(services).await?;
     let hasura_transaction =
         hasura_client.transaction().await.map_err(internal)?;
+    audit::act_for(&hasura_transaction, &claims).await?;
     let keycloak_transaction =
         keycloak_client.transaction().await.map_err(internal)?;
     let saved = save_rule(
@@ -577,6 +582,7 @@ pub async fn save_signing_rule(
     .await
     .map_err(signing_failure)?;
     kick_signing_log_outbox();
+    kick_audit_log_outbox();
     Ok(Json(saved.outcome))
 }
 

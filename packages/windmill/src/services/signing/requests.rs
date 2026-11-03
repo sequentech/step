@@ -11,8 +11,8 @@
 //! (see [`lock_signing_event`]).
 
 use super::approve::{log_step_refusal, DocumentSigner, RefusedStep};
+use super::custody_proofs::{custody_proof_labels, CustodyProofLabels};
 use super::executors::SigningExecutorRegistry;
-use super::key_shares::{key_share_labels, KeyShareLabels};
 use super::log::{stage, Actor, LogStep, SystemOutcome};
 use super::pdf::DocumentRevisionView;
 use super::signers::{list_signers, signer_titles, GroupChange};
@@ -558,7 +558,7 @@ pub struct SigningPanel {
     pub time_zone: String,
     /// For a trustee's request, the names beside its ceremony and trustee ids.
     #[serde(flatten)]
-    pub key_share: KeyShareLabels,
+    pub custody_proof: CustodyProofLabels,
     /// A Close voting request at an event with Seal at close: closing seals
     /// the Post's ballot boxes (VOTE-FREEZE).
     #[serde(skip_serializing_if = "std::ops::Not::not")]
@@ -761,7 +761,7 @@ pub async fn get_panel(
             .await?
             .name()
             .to_owned(),
-        key_share: key_share_labels(hasura_transaction, &request).await?,
+        custody_proof: custody_proof_labels(hasura_transaction, &request).await?,
         seals_ballots,
         ballot_boxes,
     })

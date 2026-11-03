@@ -16,6 +16,15 @@ import org.keycloak.provider.Provider;
 import org.keycloak.theme.Theme;
 
 public interface SmsSenderProvider extends Provider {
+  /**
+   * Whether the provider sends only sign-in codes (Twilio Verify), never other text: a temporary
+   * password, a reset link or a notice by SMS is then not sent, with {@code
+   * MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES} (R7-08).
+   */
+  default boolean sendsOnlyCodes() {
+    return false;
+  }
+
   default String send(
       String phoneNumber,
       String messageKey,

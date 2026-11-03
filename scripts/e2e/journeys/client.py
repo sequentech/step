@@ -138,9 +138,10 @@ class GraphQLError(AssertionError):
 class Hasura:
     """GraphQL over Hasura, either as admin (secret) or with a bearer token."""
 
-    def __init__(self, token=None, admin_secret=None):
+    def __init__(self, token=None, admin_secret=None, role=None):
         self.token = token
         self.admin_secret = admin_secret
+        self.role = role
 
     @classmethod
     def admin(cls):
@@ -150,6 +151,8 @@ class Hasura:
         headers = {}
         if self.admin_secret:
             headers["x-hasura-admin-secret"] = self.admin_secret
+        if self.role:
+            headers["x-hasura-role"] = self.role
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
         response = Http().post(

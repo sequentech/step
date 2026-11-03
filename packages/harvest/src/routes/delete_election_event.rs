@@ -2,15 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
+use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::jwt::{decode_permission_labels, JwtClaims};
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tracing::{event, instrument, Level};
 use windmill::postgres::election_event::{
     SealedEventDeleteRefusal, SEALED_EVENT_DELETE_REFUSAL,
@@ -19,6 +22,9 @@ use windmill::postgres::tenant;
 use windmill::services::ballot_box_seal::refuse_sealed_event_delete;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
+use windmill::services::delete_election_event::{
+    find_election_event_deletion_refusal, ElectionEventDeletionRefusal,
+};
 use windmill::services::tasks_execution::*;
 use windmill::services::tasks_execution::{update_complete, update_fail};
 use windmill::tasks::delete_election_event;
@@ -57,13 +63,35 @@ async fn sealed_event_refusal(
     }
 }
 
+async fn election_event_deletion_refusal(
+    tenant_id: &str,
+    election_event_id: &str,
+    permission_labels: &[String],
+) -> anyhow::Result<Option<ElectionEventDeletionRefusal>> {
+    let mut client = get_hasura_pool().await.get().await?;
+    let transaction = client.transaction().await?;
+    find_election_event_deletion_refusal(
+        &transaction,
+        tenant_id,
+        election_event_id,
+        permission_labels,
+    )
+    .await
+}
+
 #[instrument(skip(claims))]
 #[post("/delete-election-event", format = "json", data = "<body>")]
 pub async fn delete_election_event_f(
     body: Json<DeleteElectionEventInput>,
     claims: JwtClaims,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<DeleteElectionEventOutput>, (Status, String)> {
     let input = body.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::DeleteElectionEvent,
+        json!({"election_event_id": input.election_event_id}),
+    );
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let executer_name = claims
         .name
@@ -118,6 +146,32 @@ pub async fn delete_election_event_f(
         }));
     }
 
+    let permission_labels = decode_permission_labels(&claims);
+    let refusal = match election_event_deletion_refusal(
+        &tenant_id,
+        &input.election_event_id,
+        &permission_labels,
+    )
+    .await
+    {
+        Ok(refusal) => refusal,
+        Err(error) => {
+            let message = format!(
+                "Failed to check whether the election event can be deleted: {error:?}"
+            );
+            let _ = update_fail(&task_execution, &message).await;
+            return Err((Status::InternalServerError, message));
+        }
+    };
+    if let Some(refusal) = refusal {
+        let _ = update_fail(&task_execution, &refusal.to_string()).await;
+        return Ok(Json(DeleteElectionEventOutput {
+            id: input.election_event_id,
+            error_msg: Some(refusal.to_string()),
+            task_execution,
+        }));
+    }
+
     let celery_app = get_celery_app().await;
 
     let realm = get_event_realm(&tenant_id, &input.election_event_id);
@@ -128,6 +182,8 @@ pub async fn delete_election_event_f(
             input.election_event_id.clone(),
             realm.clone(),
             task_execution.clone(),
+            permission_labels,
+            Some(audit::actor(&claims)),
         ))
         .await;
 

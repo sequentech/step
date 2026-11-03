@@ -27,6 +27,7 @@ import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {FETCH_ELECTION_EVENTS_TREE} from "@/queries/GetElectionEventsTree"
+import {ImportRequestError} from "@/services/ImportRequestError"
 import {IMPORT_ELECTION_EVENT} from "@/queries/ImportElectionEvent"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
 import {ETasksExecution} from "@/types/tasksExecution"
@@ -263,19 +264,21 @@ export const CreateElectionEventProvider = ({children}: any) => {
     const uploadCallback = async (documentId: string, password: string = "") => {
         setErrors(null)
         setProblems(null)
-        let {data: importData, errors} = await importElectionEvent({
-            variables: {
-                tenantId,
-                documentId,
-                password,
-                checkOnly: true,
-            },
-        })
-
-        if (importData?.import_election_event?.error) {
-            setErrors(importData.import_election_event.error)
-            setProblems(readProblems(importData.import_election_event.problems) ?? null)
-            throw new Error(importData?.import_election_event?.error)
+        let result
+        try {
+            result = await importElectionEvent({
+                variables: {tenantId, documentId, password, checkOnly: true},
+            })
+        } catch {
+            throw new ImportRequestError("transport")
+        }
+        const response = result.data?.import_election_event
+        if (result.errors?.length || !response) throw new ImportRequestError("transport")
+        const validationProblems = readProblems(response.problems) ?? null
+        if (response.error || validationProblems?.some((problem) => problem.severity === "error")) {
+            setErrors(response.error || "Backend dry-run validation refused the package.")
+            setProblems(validationProblems)
+            throw new ImportRequestError("validation")
         }
     }
 
@@ -284,7 +287,6 @@ export const CreateElectionEventProvider = ({children}: any) => {
         sha256: string,
         password?: string
     ) => {
-        closeImportDrawer()
         setIsLoading(false)
         setErrors(null)
         setProblems(null)
@@ -312,22 +314,40 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 } else {
                     updateWidgetFail(currWidget.identifier)
                 }
-                return
+                throw new ImportRequestError("creation")
+            }
+            if (errors?.length) {
+                updateWidgetFail(currWidget.identifier)
+                throw new ImportRequestError("transport")
             }
 
-            let id = data?.import_election_event?.id
-            if (id) {
-                setWidgetTaskId(
-                    currWidget.identifier,
-                    data?.import_election_event?.task_execution?.id,
-                    () => navigate(`/sequent_backend_election_event/${id}`)
+            const id = data?.import_election_event?.id
+            const taskId = data?.import_election_event?.task_execution?.id
+            if (id && taskId) {
+                setWidgetTaskId(currWidget.identifier, taskId, () =>
+                    navigate(`/sequent_backend_election_event/${id}`)
                 )
                 setNewId(id)
                 setLastCreatedResource({id, type: "sequent_backend_election_event"})
                 setArchivedElectionEvents(false)
+                closeImportDrawer()
+                notify(
+                    String(
+                        t("electionEventScreen.import.creationSubmitted", {
+                            defaultValue:
+                                "Backend creation task submitted. Follow the import task for final success or errors.",
+                        })
+                    ),
+                    {type: "info"}
+                )
+            } else {
+                updateWidgetFail(currWidget.identifier)
+                throw new ImportRequestError("creation")
             }
         } catch (err) {
+            if (err instanceof ImportRequestError) throw err
             updateWidgetFail(currWidget.identifier)
+            throw new ImportRequestError("transport")
         }
     }
 

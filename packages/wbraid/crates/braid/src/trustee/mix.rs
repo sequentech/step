@@ -60,16 +60,9 @@ impl<C: Context> Trustee<C> {
                 let ny_pk = naoryung::PublicKey::augment(&eg_pk, &ctx_enc)
                     .map_err(|e| anyhow!("failed to derive the ballot auxiliary key: {:?}", e))?;
 
-                ballots
-                    .ciphertexts
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, c)| {
-                        ny_pk.strip(c, &ctx_enc).map_err(|e| {
-                            anyhow!("ballot {} failed Naor-Yung verification: {:?}", i, e)
-                        })
-                    })
-                    .collect()
+                ny_pk
+                    .strip_all(ballots.ciphertexts, &ctx_enc)
+                    .map_err(|e| anyhow!("ballots failed Naor-Yung verification: {:?}", e))
             }
             MixSource::PriorMix => {
                 let body = view.mix_body_by_output(input_hash).ok_or_else(|| {
@@ -116,7 +109,7 @@ impl<C: Context> Trustee<C> {
 
             // An empty input yields a null mix: no shuffle, no proof (§8).
             if input_ciphertexts.is_empty() {
-                let mix = Mix::<C, W>::null();
+                let mix = Mix::<C, W>::null(*input_hash);
                 let message = ProtocolMessage::<C>::mix(
                     self,
                     WIRE_DATE,
@@ -186,8 +179,13 @@ impl<C: Context> Trustee<C> {
 
             // A null mix carries no ciphertexts and no proof; verify by shape.
             if source_ciphertexts.is_empty() {
-                if !mix.ciphertexts.is_empty() || mix.proof.is_some() {
-                    return Err(anyhow!("null mix must have empty output and no proof"));
+                if !mix.ciphertexts.is_empty()
+                    || mix.proof.is_some()
+                    || mix.null_input != Some(*input_hash)
+                {
+                    return Err(anyhow!(
+                        "null mix must have empty output, no proof and the expected input"
+                    ));
                 }
                 let message = ProtocolMessage::<C>::mix_signature(
                     self,
@@ -245,7 +243,7 @@ impl<C: Context> Trustee<C> {
 /// every verifier before the proof is fixed, and the datalog errors on two
 /// mixes sharing an input, so this is a deterministic, agreed, per-instance
 /// domain separator.
-fn shuffle_generators_seed(
+pub(crate) fn shuffle_generators_seed(
     cfg_hash: &ConfigurationHash,
     tally_id: u128,
     input: &CiphertextsHash,
@@ -258,7 +256,7 @@ fn shuffle_generators_seed(
 /// Fiat–Shamir label for a shuffle proof, bound to the tally-scoped label and
 /// the input hash like the generator seed so the mixer and every verifier
 /// derive an identical context.
-fn shuffle_proof_label(
+pub(crate) fn shuffle_proof_label(
     cfg_hash: &ConfigurationHash,
     tally_id: u128,
     input: &CiphertextsHash,

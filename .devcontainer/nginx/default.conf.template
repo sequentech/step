@@ -16,6 +16,29 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
     }
+
+    # Trustees reach the board service (b4) only through Harvest, which checks
+    # their token and board membership; b4 itself is not published.
+    # Authorization and the body pass through unchanged.
+    location /b4/ {
+        # Docker's DNS, asked per request: Harvest may start later or be recreated.
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        # Hardcoded: HARVEST_PORT=8000 in .env.remote-deployment.example.
+        set $harvest_upstream harvest:8000;
+        # With a variable and no URI part, nginx sends the original request
+        # URI, /b4/ prefix and query included, so that URI must start with /b4/
+        # as sent, not only after normalization.
+        if ($request_uri !~ "^/b4/") {
+            return 404;
+        }
+        proxy_pass http://$harvest_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        # b4's JSON request limit (axum default).
+        client_max_body_size 2m;
+    }
 }
 
 # Voting Portal
@@ -72,7 +95,13 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
         proxy_set_header Forwarded "for=$remote_addr;host=$host;proto=https";
-        
+
+        # Client certificates reach Keycloak only through the mTLS proxy
+        # (keycloak-nginx), which sets ssl-client-cert itself.
+        proxy_set_header ssl-client-cert "";
+        proxy_set_header Cf-Tls-Client-Cert "";
+        proxy_set_header Client-Cert "";
+
         # Increase buffer sizes for large headers from Keycloak
         proxy_buffer_size 32k;
         proxy_buffers 4 16k;

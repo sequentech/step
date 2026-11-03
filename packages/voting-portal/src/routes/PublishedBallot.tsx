@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useEffect, useState} from "react"
-import {Outlet, useParams, useNavigate} from "react-router-dom"
+import {Outlet, useParams, useNavigate, useLocation} from "react-router-dom"
 import {CircularProgress} from "@mui/material"
 import {useVoterContext} from "../hooks/useVoterContext"
 import {SettingsContext} from "../providers/SettingsContextProvider"
@@ -14,12 +14,18 @@ import {setElectionEvent} from "../store/electionEvents/electionEventsSlice"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 
 export default function PublishedBallot() {
-    const {electionId} = useParams()
+    const {tenantId, eventId, electionId} = useParams()
     const {globalSettings} = useContext(SettingsContext)
     const context = useVoterContext(electionId)
     const dispatch = useAppDispatch()
     const navigate = useNavigate()
-    const [ready, setReady] = useState<typeof context.data>()
+    const {search} = useLocation()
+    const [ready, setReady] = useState<{
+        tenantId: string
+        eventId: string
+        electionId: string
+        styleId: string
+    }>()
     useEffect(() => {
         if (!context.data) return
         for (const election of context.data.sequent_backend_election) {
@@ -44,13 +50,29 @@ export default function PublishedBallot() {
             updateBallotStyleAndSelection(context.data, dispatch)
             if (existing)
                 navigate(
-                    `/tenant/${incoming.tenant_id}/event/${incoming.election_event_id}/election/${incoming.election_id}/start`
+                    `/tenant/${incoming.tenant_id}/event/${incoming.election_event_id}/election/${incoming.election_id}/start${search}`
                 )
         }
-        setReady(context.data)
-    }, [context.data, dispatch, navigate])
+        if (incoming)
+            setReady({
+                tenantId: incoming.tenant_id,
+                eventId: incoming.election_event_id,
+                electionId: incoming.election_id,
+                styleId: incoming.id,
+            })
+    }, [context.data, dispatch, navigate, tenantId, eventId, electionId, search])
     if (context.error) throw context.error
-    if (!globalSettings.DISABLE_AUTH && (!ready || ready !== context.data))
+    const incomingStyleId = context.data?.sequent_backend_ballot_style[0]?.id
+    // ApolloWrapper remounts children when the voter's authorization scope
+    // changes. Within that scope, retain the current screen while refreshing
+    // the same immutable ballot, including its pagination and receipt state.
+    const hasReadyBallot =
+        ready &&
+        ready.tenantId === tenantId &&
+        ready.eventId === eventId &&
+        ready.electionId === electionId &&
+        (!incomingStyleId || incomingStyleId === ready.styleId)
+    if (!globalSettings.DISABLE_AUTH && !hasReadyBallot)
         return <CircularProgress className="published-ballot-loading-progress" />
     return <Outlet />
 }

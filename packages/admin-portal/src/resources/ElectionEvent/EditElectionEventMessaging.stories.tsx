@@ -28,13 +28,12 @@ import {
     EMessagingProvider,
     EOutOfWindowPolicy,
     EProviderApproval,
+    IChannelMessageStats,
     IEventMessagingConfig,
     IMessagingAccount,
     IMessagingConfigError,
-    MESSAGE_ATTEMPT_STATES,
-    MESSAGE_CHANNELS,
-    MESSAGING_CONFIG_ANNOTATION,
 } from "@/types/messaging"
+import {ERecountOutcome, IVoterCounts} from "@/queries/GetMessagingVoterCounts"
 import {EditElectionEventMessaging} from "./EditElectionEventMessaging"
 
 type SaveResult = "saved" | "rejected" | "fails"
@@ -46,6 +45,20 @@ interface Scenario {
     configured: boolean
     /** What saving answers. */
     save: SaveResult
+    /** Whether the deployment has the webhook component's public address. */
+    callbackAddress?: boolean
+    /** Whether voters with no contact channel have failed messages. */
+    noContactFailures?: boolean
+    /** Who last wrote the configuration (`updated_by`). */
+    updatedBy?: string
+    /** The channel whose account's identity changed and wasn't checked since. */
+    unchecked?: EMessageChannel
+    /** The event's voters as last counted; `"NEVER"`: not counted yet. */
+    voterCounts?: IVoterCounts | "NEVER"
+    /** The event has no message yet. */
+    noMessages?: boolean
+    /** Forty bindings, matching a multilingual demo event. */
+    manyTemplates?: boolean
 }
 
 const account = (
@@ -64,7 +77,6 @@ const account = (
     },
     credentials: {},
     limits: {allowed_calling_codes: []},
-    webhook_key: null,
     is_default: true,
     created_at: FIXED_TIME,
     updated_at: FIXED_TIME,
@@ -192,11 +204,16 @@ const CONFIG: IEventMessagingConfig = {
             account_id: accountId(EMessageChannel.MESSENGER),
             purposes: [],
             templates: [],
-            out_of_window: EOutOfWindowPolicy.DISABLED,
+            out_of_window: EOutOfWindowPolicy.UTILITY_MESSAGES,
         },
     ],
-    notice_fallback: [EMessageChannel.EMAIL, EMessageChannel.SMS],
     election_channels: {[STORY_IDS.secondElection]: [EMessageChannel.EMAIL]},
+}
+
+/** A configuration saved before the second pass: its fallback order and replies are ignored. */
+const STORED_CONFIG = {
+    ...CONFIG,
+    notice_fallback: [EMessageChannel.EMAIL, EMessageChannel.SMS],
     reply_text: {en: "This account only sends codes and notices. Replies are not read."},
 }
 
@@ -208,32 +225,50 @@ const ELECTIONS = [
     }),
 ]
 
-const COUNTS: Record<string, number> = {
-    EMAIL_ACCEPTED: 2,
-    EMAIL_DELIVERED: 310,
-    EMAIL_FAILED: 3,
-    SMS_ACCEPTED: 120,
-    SMS_FAILED: 4,
-    SMS_UNKNOWN: 1,
-    VIBER_QUEUED: 5,
-    VIBER_DELIVERED: 41,
-}
+const stats = (
+    channel: EMessageChannel,
+    counts: Partial<IChannelMessageStats>
+): IChannelMessageStats => ({
+    channel,
+    sent_last_24h: 0,
+    queued: 0,
+    accepted: 0,
+    delivered: 0,
+    failed: 0,
+    unknown: 0,
+    unresolved: 0,
+    ...counts,
+})
 
-// Every alias of the query is answered; those without traffic count 0.
-const STATS = Object.fromEntries(
-    MESSAGE_CHANNELS.flatMap((channel) =>
-        MESSAGE_ATTEMPT_STATES.map((state) => `${channel}_${state}`)
-    ).map((alias) => [
-        alias,
-        {
-            __typename: "sequent_backend_message_aggregate",
-            aggregate: {
-                __typename: "sequent_backend_message_aggregate_fields",
-                count: COUNTS[alias] ?? 0,
-            },
-        },
-    ])
-)
+// Per message, by the state of its latest attempt.
+const STATS: IChannelMessageStats[] = [
+    stats(EMessageChannel.EMAIL, {
+        sent_last_24h: 12,
+        accepted: 2,
+        delivered: 310,
+        failed: 3,
+    }),
+    stats(EMessageChannel.SMS, {
+        sent_last_24h: 30,
+        accepted: 120,
+        failed: 4,
+        unknown: 1,
+        unresolved: 2,
+    }),
+    stats(EMessageChannel.VIBER, {sent_last_24h: 5, queued: 5, delivered: 41}),
+]
+
+// Counted in the background this morning; some voters have no contact channel.
+const VOTER_COUNTS: IVoterCounts = {
+    total: 2355,
+    channels: [
+        {channel: EMessageChannel.VIBER, voters: 96, not_offered: 0},
+        {channel: EMessageChannel.SMS, voters: 412, not_offered: 0},
+        {channel: EMessageChannel.EMAIL, voters: 1840, not_offered: 0},
+        {channel: null, voters: 7, not_offered: 0},
+    ],
+    status: {computed_at: FIXED_TIME, pending: false, outcome: ERecountOutcome.COUNTED},
+}
 
 const REJECTED: IMessagingConfigError[] = [
     {
@@ -247,17 +282,16 @@ const REJECTED: IMessagingConfigError[] = [
 
 const ALL_ROLES = [
     IPermissions.MESSAGING_CONFIG_WRITE,
-    IPermissions.MESSAGING_ACCOUNT_READ,
-    IPermissions.NOTIFICATION_READ,
+    IPermissions.MESSAGING_CONFIG_READ,
+    IPermissions.LOGS_READ,
+    IPermissions.ELECTION_EVENT_LOGS_TAB,
 ]
 
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
 
-function Fixture({roles, configured}: Scenario) {
-    const event = eventRecord(undefined, {
-        annotations: configured ? {[MESSAGING_CONFIG_ANNOTATION]: JSON.stringify(CONFIG)} : {},
-    })
+function Fixture({roles}: Scenario) {
+    const event = eventRecord()
     return (
         <AdminStoryProvider boundary={graphql} dataProvider={data.provider} roles={roles}>
             <RecordContextProvider value={event}>
@@ -293,15 +327,126 @@ const meta = {
         })
         // The messaging operations are not in the generated schema yet.
         graphql = graphqlBoundary({
-            GetMessagingAccounts: () => ({
+            GetMessagingAccountSummaries: () => ({
                 data: {
-                    sequent_backend_messaging_account: ACCOUNTS.map((entry) => ({
-                        ...entry,
-                        __typename: "sequent_backend_messaging_account",
-                    })),
+                    sequent_backend_messaging_account: ACCOUNTS.map(
+                        ({credentials: _credentials, ...entry}) => ({
+                            ...entry,
+                            // Its last check was of an earlier sender.
+                            status:
+                                entry.channel === args.unchecked && entry.status
+                                    ? {
+                                          ...entry.status,
+                                          details: {
+                                              ...entry.status.details,
+                                              identity: {
+                                                  provider: entry.provider,
+                                                  ids: {sender_id: "Earlier sender"},
+                                              },
+                                          },
+                                      }
+                                    : entry.status,
+                            __typename: "sequent_backend_messaging_account",
+                        })
+                    ),
                 },
             }),
-            GetMessageDeliveryStats: () => ({data: STATS}),
+            GetEventMessagingConfig: () => ({
+                data: {
+                    sequent_backend_messaging_event_config: args.configured
+                        ? [
+                              {
+                                  __typename: "sequent_backend_messaging_event_config",
+                                  election_event_id: EVENT_ID,
+                                  config: args.manyTemplates
+                                      ? {
+                                            ...STORED_CONFIG,
+                                            channels: CONFIG.channels.map((entry) => ({
+                                                ...entry,
+                                                templates: Array.from(
+                                                    {
+                                                        length:
+                                                            entry.channel ===
+                                                                EMessageChannel.WHATSAPP ||
+                                                            entry.channel === EMessageChannel.VIBER
+                                                                ? 16
+                                                                : entry.channel ===
+                                                                    EMessageChannel.MESSENGER
+                                                                  ? 8
+                                                                  : 0,
+                                                    },
+                                                    (_, index) => ({
+                                                        purpose: EMessagePurpose.NOTICE,
+                                                        language: "en",
+                                                        key: `notice-${index}`,
+                                                        provider_template: `reminder_${index}`,
+                                                    })
+                                                ),
+                                            })),
+                                        }
+                                      : STORED_CONFIG,
+                                  version: 1,
+                                  updated_at: FIXED_TIME,
+                              },
+                          ]
+                        : [],
+                },
+            }),
+            GetMessagingVoterCounts: () => ({
+                data: {
+                    messaging_voter_counts:
+                        args.voterCounts === "NEVER"
+                            ? {
+                                  total: 0,
+                                  channels: [],
+                                  status: {computed_at: null, pending: false, outcome: null},
+                              }
+                            : (args.voterCounts ?? VOTER_COUNTS),
+                },
+            }),
+            RecountMessagingVoters: () => ({
+                data: {
+                    messaging_recount_voters: {
+                        requested: true,
+                        status: {...VOTER_COUNTS.status, pending: true},
+                    },
+                },
+            }),
+            GetMessagingEventStats: () => ({
+                data: {
+                    messaging_event_stats: {
+                        channels: args.noMessages
+                            ? []
+                            : args.noContactFailures
+                              ? [
+                                    ...STATS,
+                                    {...stats(EMessageChannel.EMAIL, {failed: 6}), channel: null},
+                                ]
+                              : STATS,
+                    },
+                },
+            }),
+            GetEventMessagingConfigAuthor: () => ({
+                data: {
+                    sequent_backend_messaging_event_config: args.configured
+                        ? [{election_event_id: EVENT_ID, updated_by: args.updatedBy ?? null}]
+                        : [],
+                },
+            }),
+            GetMessagingCallbackStatus: () => ({
+                data: {
+                    messaging_callback_status: {
+                        accounts:
+                            args.callbackAddress === false
+                                ? ACCOUNTS.map(({id}) => ({
+                                      account_id: id,
+                                      blockers: ["CALLBACK_NOT_CONFIGURED"],
+                                      reasons: ["Callback address not configured"],
+                                  }))
+                                : [],
+                    },
+                },
+            }),
             UpdateEventMessagingConfig: saveReply(args.save),
         })
         await graphql.ready
@@ -329,6 +474,30 @@ const notified = async (text: string) => {
 
 const saveCall = () => graphql.calls.find(({name}) => name === "UpdateEventMessagingConfig")
 
+export const FluidIntro: Story = {
+    play: async ({canvasElement}) => {
+        const intro = await within(canvasElement).findByText(
+            /^The channels voters of this event can choose/
+        )
+        const container = intro.parentElement as HTMLElement
+        const channels = container.querySelector("#messaging-channels") as HTMLElement
+        const originalWidth = container.style.width
+        try {
+            for (const width of [1200, 600]) {
+                container.style.width = `${width}px`
+                await waitFor(() =>
+                    expect(intro.getBoundingClientRect().width).toBeCloseTo(
+                        channels.getBoundingClientRect().width,
+                        0
+                    )
+                )
+            }
+        } finally {
+            container.style.width = originalWidth
+        }
+    },
+}
+
 export const Populated: Story = {
     parameters: {
         widgets: [
@@ -336,11 +505,8 @@ export const Populated: Story = {
             "Helper",
             "MessagingErrors",
             "MessagingChannels",
-            "OutOfWindowPolicySelect",
             "MessagingTemplateBindings",
-            "MessagingFallbackOrder",
             "MessagingElectionChannels",
-            "MessagingReplyText",
             "MessagingDeliveryStatus",
         ],
     },
@@ -354,67 +520,164 @@ export const Populated: Story = {
         expect(within(whatsapp).getAllByText(/^Missing: Needs provider approval/)).toHaveLength(2)
         const messenger = await channelRow(canvasElement, EMessageChannel.MESSENGER)
         expect(
-            within(messenger).getByText(/Choose Utility messages to send notices after that/)
+            within(messenger).getByText(/sends notices with the approved utility template/)
         ).toBeVisible()
+        expect(canvas.queryByRole("combobox", {name: /conversation window/})).toBeNull()
+        expect(canvas.queryByText(/Fallback order/)).toBeNull()
+        expect(canvas.queryByText(/Reply to incoming messages/)).toBeNull()
+        // Channel order: WhatsApp, Viber, Messenger, SMS, Email.
         expect(
-            within(messenger).getByRole("combobox", {name: "Outside the conversation window"})
-        ).not.toHaveAttribute("aria-disabled")
+            Array.from(
+                canvasElement.querySelectorAll('table[aria-label="Channels"] tr[data-channel]')
+            ).map((row) => row.getAttribute("data-channel"))
+        ).toEqual(["WHATSAPP", "VIBER", "MESSENGER", "SMS", "EMAIL"])
         await expect(canvas.getByText(/^For each message the most specific row wins/)).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Viber"}))
         const viberTemplate = within(canvas.getByRole("group", {name: "Viber template 1"}))
+        await userEvent.click(viberTemplate.getByRole("button", {name: "Viber template 1"}))
         await expect(viberTemplate.getByRole("combobox", {name: "Provider template"})).toHaveValue(
             "otp_en_88213"
         )
         await expect(viberTemplate.getByText("Approved")).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "WhatsApp"}))
         await expect(canvas.getByText(/^WhatsApp sends only approved templates/)).toBeVisible()
         const delivery = within(
             canvasElement.querySelector('table[aria-label="Delivery status"]') as HTMLElement
         )
         const sms = within(delivery.getByText("SMS").closest("tr") as HTMLElement)
         await waitFor(() => expect(sms.getByText("Delivery unavailable")).toBeVisible())
+        await expect(sms.getByText("412")).toBeVisible()
+        await expect(sms.getByText("30")).toBeVisible()
+        await expect(
+            sms.getByRole("button", {name: "Show the failed SMS messages in Logs"})
+        ).toHaveTextContent("4")
+        // SES without a notification topic gets no receipts: unavailable, never 0.
+        const email = within(delivery.getByText("Email").closest("tr") as HTMLElement)
+        await expect(email.getByText("Delivery unavailable")).toBeVisible()
         const viber = within(delivery.getByText("Viber").closest("tr") as HTMLElement)
         expect(viber.getByText("41")).toBeVisible()
+        // Voters as last counted, with when.
+        expect(canvas.getByText(/^Counted at /)).toBeVisible()
+        expect(
+            within(delivery.getByText("Email").closest("tr") as HTMLElement).getByText("1,840")
+        ).toBeVisible()
+        expect(
+            within(
+                canvasElement.querySelector(
+                    'table[aria-label="Delivery status"] tr[data-channel="NONE"]'
+                ) as HTMLElement
+            ).getByText("7")
+        ).toBeVisible()
         expect(canvas.getByRole("button", {name: "Save"})).toBeDisabled()
-        expect(graphql.calls.find(({name}) => name === "GetMessageDeliveryStats")?.headers).toEqual(
-            {"x-hasura-role": IPermissions.NOTIFICATION_READ}
-        )
+        for (const operation of [
+            "GetEventMessagingConfig",
+            "GetMessagingAccountSummaries",
+            "GetMessagingEventStats",
+            "GetMessagingVoterCounts",
+        ]) {
+            expect(graphql.calls.find(({name}) => name === operation)?.headers).toEqual({
+                "x-hasura-role": IPermissions.MESSAGING_CONFIG_READ,
+            })
+        }
     },
 }
 
+const deliveryRows = (canvasElement: HTMLElement) =>
+    Array.from(
+        canvasElement.querySelectorAll('table[aria-label="Delivery status"] tr[data-channel]')
+    ).map((row) => row.getAttribute("data-channel"))
+
+/**
+ * Without a configuration the event's voters and messages still show, on
+ * every channel they're on, each said not to be offered by the event.
+ */
 export const NotConfigured: Story = {
     parameters: {
-        widgets: [
-            "Section",
-            "Helper",
-            "MessagingChannels",
-            "MessagingFallbackOrder",
-            "MessagingDeliveryStatus",
-        ],
+        widgets: ["Section", "Helper", "MessagingChannels", "MessagingDeliveryStatus"],
     },
     args: {configured: false},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
+        await waitFor(() =>
+            expect(deliveryRows(canvasElement)).toEqual(["VIBER", "SMS", "EMAIL", "NONE"])
+        )
+        expect(canvas.getAllByText("Not offered by this event")).toHaveLength(3)
+        expect(canvas.queryByText("No channel is in use.")).toBeNull()
+        const email = within(
+            canvasElement.querySelector(
+                'table[aria-label="Delivery status"] tr[data-channel="EMAIL"]'
+            ) as HTMLElement
+        )
+        expect(email.getByText("1,840")).toBeVisible()
+        // Its refused messages are counted as they are, not "unavailable".
+        expect(email.queryByText("Delivery unavailable")).toBeNull()
+    },
+}
+
+/** No configuration, no message and voters never counted: nothing in use, and Recount. */
+export const NothingInUse: Story = {
+    parameters: {widgets: ["MessagingDeliveryStatus"]},
+    args: {configured: false, noMessages: true, voterCounts: "NEVER"},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
         await expect(await canvas.findByText("No channel is in use.")).toBeVisible()
+        expect(canvas.getByText("Not counted yet.")).toBeVisible()
+        expect(canvas.getByRole("button", {name: "Recount"})).toBeEnabled()
+    },
+}
+
+/**
+ * Recount asks for the event's voters to be counted again; the last count
+ * that took too long says so and keeps the counts before it.
+ */
+export const RecountVoters: Story = {
+    parameters: {widgets: ["MessagingDeliveryStatus"]},
+    args: {
+        voterCounts: {
+            ...VOTER_COUNTS,
+            status: {...VOTER_COUNTS.status, outcome: ERecountOutcome.TIMED_OUT},
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
         await expect(
-            canvas.getByText("Turn on notices for a channel to add it to the fallback order.")
+            await canvas.findByText(/The last recount took too long and was stopped\./)
         ).toBeVisible()
+        expect(canvas.getByText(/The counts shown are from the count before it\./)).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Recount"}))
+        await notified("Recount asked for. The counts update when it finishes.")
+        expect(graphql.calls.find(({name}) => name === "RecountMessagingVoters")).toMatchObject({
+            variables: {electionEventId: EVENT_ID},
+            headers: {"x-hasura-role": IPermissions.MESSAGING_CONFIG_READ},
+        })
     },
 }
 
 export const ReadOnly: Story = {
-    parameters: {
-        widgets: ["MessagingChannels", "OutOfWindowPolicySelect", "MessagingTemplateBindings"],
-    },
-    args: {roles: [IPermissions.MESSAGING_ACCOUNT_READ]},
+    parameters: {widgets: ["MessagingChannels", "MessagingTemplateBindings"]},
+    args: {roles: [IPermissions.MESSAGING_CONFIG_READ]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText(/^You can view these settings/)).toBeVisible()
         const email = await channelRow(canvasElement, EMessageChannel.EMAIL)
         expect(purposeSwitch(email, "OTPs")).toBeDisabled()
-        expect(
-            canvas.getByRole("combobox", {name: "Outside the conversation window"})
-        ).toHaveAttribute("aria-disabled", "true")
         expect(canvas.queryByRole("button", {name: /^Add .* template$/})).toBeNull()
         expect(canvas.queryByRole("button", {name: "Save"})).toBeNull()
+        // Without access to Logs, Failed is a plain count.
+        expect(canvas.queryByRole("button", {name: /^Show the failed/})).toBeNull()
+    },
+}
+
+export const NoReadPermission: Story = {
+    parameters: {widgets: []},
+    args: {roles: [IPermissions.MESSAGING_CONFIG_WRITE]},
+    play: async ({canvasElement}) => {
+        await expect(
+            await within(canvasElement).findByText(
+                "Reading these settings needs the messaging-config-read permission."
+            )
+        ).toBeVisible()
+        expect(graphql.calls).toEqual([])
     },
 }
 
@@ -432,48 +695,50 @@ export const EnableNoticesAndSave: Story = {
         expect(call?.headers).toEqual({"x-hasura-role": IPermissions.MESSAGING_CONFIG_WRITE})
         const config = call?.variables.config as IEventMessagingConfig
         expect(call?.variables.electionEventId).toBe(EVENT_ID)
-        expect(config.notice_fallback).toEqual([
-            EMessageChannel.EMAIL,
-            EMessageChannel.SMS,
-            EMessageChannel.VIBER,
-        ])
+        // The stored fallback order and replies are never written again.
+        expect(Object.keys(config).sort()).toEqual(["channels", "election_channels", "version"])
         expect(
             config.channels.find(({channel}) => channel === EMessageChannel.VIBER)?.purposes
         ).toEqual([EMessagePurpose.OTP, EMessagePurpose.NOTICE])
     },
 }
 
-export const ReorderFallbackAndRestrictAPost: Story = {
-    parameters: {widgets: ["MessagingFallbackOrder", "MessagingElectionChannels"]},
+export const RestrictAPost: Story = {
+    parameters: {widgets: ["MessagingElectionChannels"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await userEvent.click(await canvas.findByRole("button", {name: "Move SMS earlier"}))
         await userEvent.click(await canvas.findByRole("checkbox", {name: "Council: SMS"}))
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         await notified("Messaging settings saved.")
         const config = saveCall()?.variables.config as IEventMessagingConfig
-        expect(config.notice_fallback).toEqual([EMessageChannel.SMS, EMessageChannel.EMAIL])
         expect(config.election_channels[STORY_IDS.election]).toEqual([
-            EMessageChannel.EMAIL,
             EMessageChannel.VIBER,
+            EMessageChannel.EMAIL,
         ])
     },
 }
 
-export const UtilityMessagesWithABoundTemplate: Story = {
-    parameters: {widgets: ["OutOfWindowPolicySelect", "MessagingTemplateBindings"]},
+export const FailedOpensLogs: Story = {
+    parameters: {widgets: ["MessagingDeliveryStatus"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const failed = await canvas.findByRole("button", {
+            name: "Show the failed Email messages in Logs",
+        })
+        await expect(failed).toHaveTextContent("3")
+        await userEvent.click(failed)
+    },
+}
+
+export const MessengerUtilityTemplate: Story = {
+    parameters: {widgets: ["MessagingChannels", "MessagingTemplateBindings"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         const messenger = await channelRow(canvasElement, EMessageChannel.MESSENGER)
-        await userEvent.click(
-            within(messenger).getByRole("combobox", {name: "Outside the conversation window"})
-        )
-        await userEvent.click(
-            await within(document.body).findByRole("option", {name: "Utility messages"})
-        )
         await expect(
-            await within(messenger).findByText(/^No template is bound to notices on this channel/)
+            within(messenger).getByText(/sends notices with the approved utility template/)
         ).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Facebook Messenger"}))
         await expect(
             canvas.getByText(/^No templates are bound for Facebook Messenger/)
         ).toBeVisible()
@@ -481,15 +746,15 @@ export const UtilityMessagesWithABoundTemplate: Story = {
         const row = within(
             await canvas.findByRole("group", {name: "Facebook Messenger template 1"})
         )
-        await userEvent.click(row.getByRole("combobox", {name: "For message"}))
+        await userEvent.click(row.getByRole("combobox", {name: "Message type or template"}))
+        await expect(
+            await within(document.body).findByRole("option", {name: "Enrollment rejected"})
+        ).toBeVisible()
         await userEvent.click(
             await within(document.body).findByRole("option", {name: "voting-reminder"})
         )
         await userEvent.type(row.getByRole("combobox", {name: "Provider template"}), "reminder")
         await userEvent.type(row.getByRole("textbox", {name: "Provider language"}), "en_US")
-        await waitFor(() =>
-            expect(within(messenger).queryByText(/^No template is bound to notices/)).toBeNull()
-        )
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         await notified("Messaging settings saved.")
         const config = saveCall()?.variables.config as IEventMessagingConfig
@@ -514,9 +779,17 @@ export const IncompleteTemplateRow: Story = {
     parameters: {widgets: ["MessagingTemplateBindings"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
+        await userEvent.click(await canvas.findByRole("button", {name: "WhatsApp"}))
         await userEvent.click(await canvas.findByRole("button", {name: "Add WhatsApp template"}))
         const row = within(await canvas.findByRole("group", {name: "WhatsApp template 1"}))
-        await userEvent.type(row.getByRole("combobox", {name: "For message"}), "otp")
+        const message = row.getByRole("combobox", {name: "Message type or template"})
+        await expect(message).toHaveAttribute("placeholder", "Default for this purpose")
+        await userEvent.keyboard("{Escape}")
+        await userEvent.click(message)
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "Verification code"})
+        )
+        await expect(message).toHaveValue("Verification code")
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         await expect(
             await row.findByText(
@@ -532,17 +805,12 @@ export const IncompleteTemplateRow: Story = {
 
 export const SaveRejected: Story = {
     parameters: {
-        widgets: [
-            "MessagingErrors",
-            "MessagingTemplateBindings",
-            "MessagingElectionChannels",
-            "MessagingReplyText",
-        ],
+        widgets: ["MessagingErrors", "MessagingTemplateBindings", "MessagingElectionChannels"],
     },
     args: {save: "rejected"},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await userEvent.type(await canvas.findByRole("textbox", {name: "Reply (es)"}), "Hola")
+        await userEvent.click(await canvas.findByRole("checkbox", {name: "Council: SMS"}))
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         await notified("The messaging settings were not saved. Fix the problems shown.")
         await expect(
@@ -557,13 +825,194 @@ export const SaveRejected: Story = {
 }
 
 export const SaveFails: Story = {
-    parameters: {widgets: ["MessagingReplyText"]},
+    parameters: {widgets: ["MessagingElectionChannels"]},
     args: {save: "fails"},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await userEvent.type(await canvas.findByRole("textbox", {name: "Reply (es)"}), "Hola")
+        await userEvent.click(await canvas.findByRole("checkbox", {name: "Council: SMS"}))
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         await notified("Could not save the messaging settings.")
         expect(canvas.getByRole("button", {name: "Save"})).toBeEnabled()
+    },
+}
+
+/** Without the webhook component's address, receipts are unavailable, with the reason. */
+export const WithoutACallbackAddress: Story = {
+    args: {callbackAddress: false},
+    play: async ({canvasElement}) => {
+        const delivery = within(
+            await within(canvasElement).findByRole("table", {name: "Delivery status"})
+        )
+        const viber = await waitFor(() => delivery.getByText("Viber").closest("tr") as HTMLElement)
+        const cell = within(viber).getByText("Delivery unavailable").closest("td")
+        await expect(cell).toHaveAttribute("title", "Callback address not configured")
+    },
+}
+
+/** Failures of voters with no contact channel have a row of their own, never under Email. */
+export const VotersWithNoContactChannel: Story = {
+    args: {noContactFailures: true},
+    play: async ({canvasElement}) => {
+        const delivery = within(
+            await within(canvasElement).findByRole("table", {name: "Delivery status"})
+        )
+        const row = await waitFor(
+            () => delivery.getByText("No contact channel").closest("tr") as HTMLElement
+        )
+        await expect(within(row).getByText("6")).toBeVisible()
+    },
+}
+
+/** Copied from the old storage and refused by validation: it asks to be saved again. */
+export const MigratedConfigurationNeedsSaving: Story = {
+    args: {updatedBy: "migration: needs saving again"},
+    parameters: {widgets: ["MigratedConfigNotice"]},
+    play: async ({canvasElement}) => {
+        const alert = await within(canvasElement).findByText("Configuration needs saving again.")
+        await expect(alert).toBeVisible()
+        await expect(
+            within(canvasElement).getByText(/didn't pass the checks a save makes/)
+        ).toBeVisible()
+    },
+}
+
+/**
+ * An account whose number changed is ready for nothing until its check
+ * runs: the purposes it doesn't send yet can't be turned on, and each says
+ * why. A purpose already on can still be turned off.
+ */
+export const AccountNotCheckedSinceItsNumberChanged: Story = {
+    args: {unchecked: EMessageChannel.SMS},
+    play: async ({canvasElement}) => {
+        const sms = await channelRow(canvasElement, EMessageChannel.SMS)
+        await waitFor(() => expect(purposeSwitch(sms, "OTPs")).toBeDisabled())
+        expect(purposeSwitch(sms, "Notices")).toBeEnabled()
+        expect(
+            within(sms).getAllByText("Missing: Not checked for its current number, Page or sender")
+        ).toHaveLength(2)
+        // The other channels keep their own readiness.
+        const email = await channelRow(canvasElement, EMessageChannel.EMAIL)
+        expect(within(email).queryByText(/Not checked for its current/)).toBeNull()
+    },
+}
+
+export const ManyTemplates: Story = {
+    args: {manyTemplates: true},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByRole("button", {name: "WhatsApp"})).toHaveAttribute(
+            "aria-expanded",
+            "false"
+        )
+        expect(canvas.queryByRole("group")).toBeNull()
+        await userEvent.click(canvas.getByRole("button", {name: "WhatsApp"}))
+        await expect(canvas.getByRole("group", {name: "WhatsApp template 16"})).toBeVisible()
+        expect(canvas.queryByRole("group", {name: "Viber template 16"})).toBeNull()
+        await userEvent.click(canvas.getByRole("button", {name: "WhatsApp"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Viber"}))
+        expect(canvas.queryByRole("combobox", {name: "Provider template"})).toBeNull()
+        await expect(canvas.getByRole("button", {name: "Save"})).toBeDisabled()
+        const row = within(canvas.getByRole("group", {name: "Viber template 16"}))
+        await userEvent.click(row.getByRole("button", {name: "Viber template 16"}))
+        await expect(row.getByRole("combobox", {name: "Provider template"})).toHaveValue(
+            "reminder_15"
+        )
+        await expect(canvas.getByRole("button", {name: "Save"})).toBeDisabled()
+        await userEvent.clear(row.getByRole("combobox", {name: "Provider template"}))
+        await userEvent.type(
+            row.getByRole("combobox", {name: "Provider template"}),
+            "changed_reminder"
+        )
+        await userEvent.click(row.getByRole("button", {name: "Viber template 16"}))
+        await userEvent.click(row.getByRole("button", {name: "Viber template 16"}))
+        await expect(row.getByRole("combobox", {name: "Provider template"})).toHaveValue(
+            "changed_reminder"
+        )
+        await userEvent.click(canvas.getByRole("button", {name: "Viber"}))
+        expect(canvas.queryByRole("group", {name: "Viber template 16"})).toBeNull()
+        await userEvent.click(canvas.getByRole("button", {name: "Viber"}))
+        await expect(
+            within(canvas.getByRole("group", {name: "Viber template 16"})).getByRole("combobox", {
+                name: "Provider template",
+            })
+        ).toHaveValue("changed_reminder")
+        expect(canvas.getAllByRole("combobox", {name: "Provider template"})).toHaveLength(1)
+        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
+        await notified("Messaging settings saved.")
+        const config = saveCall()?.variables.config as IEventMessagingConfig
+        expect(config.channels.flatMap((channel) => channel.templates)).toHaveLength(40)
+        expect(
+            config.channels.find(({channel}) => channel === EMessageChannel.VIBER)?.templates[15]
+                .provider_template
+        ).toBe("changed_reminder")
+        expect(
+            config.channels.find(({channel}) => channel === EMessageChannel.WHATSAPP)?.templates[15]
+                .provider_template
+        ).toBe("reminder_15")
+    },
+}
+
+export const ChannelGroupsFitNarrowScreens: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const toggle = await canvas.findByRole("button", {name: "Facebook Messenger"})
+        const container = canvasElement.querySelector(
+            '[data-template-channel="MESSENGER"]'
+        ) as HTMLElement
+        const original = container.style.width
+        try {
+            for (const width of [600, 224]) {
+                container.style.width = `${width}px`
+                await waitFor(() => {
+                    const right = toggle.getBoundingClientRect().right
+                    expect(
+                        within(toggle).getByText("Facebook Messenger").getBoundingClientRect().right
+                    ).toBeLessThanOrEqual(right)
+                    expect(
+                        within(toggle).getByText("0").getBoundingClientRect().right
+                    ).toBeLessThanOrEqual(right)
+                    expect(within(toggle).getByTestId("ExpandMoreIcon")).toBeVisible()
+                    expect(
+                        within(toggle).getByTestId("ExpandMoreIcon").getBoundingClientRect().width
+                    ).toBeGreaterThanOrEqual(20)
+                    expect(
+                        within(toggle).getByTestId("ExpandMoreIcon").getBoundingClientRect().right
+                    ).toBeLessThanOrEqual(right)
+                })
+            }
+        } finally {
+            container.style.width = original
+        }
+    },
+}
+
+export const ReadableMessageType: Story = {
+    parameters: {widgets: ["MessagingTemplateBindings"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.click(await canvas.findByRole("button", {name: "WhatsApp"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Add WhatsApp template"}))
+        const row = within(await canvas.findByRole("group", {name: "WhatsApp template 1"}))
+        const message = row.getByRole("combobox", {name: "Message type or template"})
+        await userEvent.type(message, "custom-reminder")
+        await expect(message).toHaveValue("custom-reminder")
+        await userEvent.clear(message)
+        await expect(message).toHaveValue("")
+        await expect(message).toHaveAttribute("placeholder", "Default for this purpose")
+        await userEvent.keyboard("{Escape}")
+        await userEvent.click(message)
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "Verification code"})
+        )
+        await expect(message).toHaveValue("Verification code")
+        await userEvent.type(row.getByRole("combobox", {name: "Provider template"}), "demo_code")
+        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
+        await notified("Messaging settings saved.")
+        const config = saveCall()?.variables.config as IEventMessagingConfig
+        expect(
+            config.channels.find(({channel}) => channel === EMessageChannel.WHATSAPP)?.templates[0]
+        ).toMatchObject({key: "otp", provider_template: "demo_code"})
+        await userEvent.click(row.getByRole("button", {name: "WhatsApp template 1"}))
+        await expect(row.getByText(/Verification code/)).toBeVisible()
     },
 }

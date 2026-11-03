@@ -15,7 +15,6 @@ import {
 } from "./data"
 
 const AREA_CONTEST_ID = "a1000000-0000-4000-8000-000000000001"
-const BALLOT_STYLE_ID = "b1000000-0000-4000-8000-000000000001"
 const DOCUMENT_ID = "d1000000-0000-4000-8000-000000000001"
 const LABELS = {print_code: "North"}
 const AREA_CONTEST = {
@@ -23,16 +22,6 @@ const AREA_CONTEST = {
     area_id: IDS.area,
     contest_id: IDS.contest,
     labels: LABELS,
-    annotations: {},
-}
-const BALLOT_STYLE = {
-    ...EVENT_SCOPE,
-    ballot_publication_id: "b2000000-0000-4000-8000-000000000001",
-    area_id: IDS.area,
-    election_id: IDS.election,
-    ballot_eml: "<Ballot>North</Ballot>",
-    status: "DRAFT",
-    labels: {},
     annotations: {},
 }
 const DOCUMENT = {
@@ -51,8 +40,6 @@ test.use({
         "area-read",
         "area-write",
         "contest-read",
-        "publish-read",
-        "publish-write",
         "document-read",
         "document-write",
         "tenant-read",
@@ -73,13 +60,6 @@ const CASES = [
         id: AREA_CONTEST_ID,
         fields: AREA_CONTEST,
         role: "area-write",
-    },
-    {
-        resource: "ballot_style",
-        title: "Ballot Style",
-        id: BALLOT_STYLE_ID,
-        fields: BALLOT_STYLE,
-        role: "publish-write",
     },
     {
         resource: "document",
@@ -152,34 +132,6 @@ test("edits area-contest print labels", async ({page, portal}) => {
     await page.goto(`${portal.origin}/sequent_backend_area_contest/${AREA_CONTEST_ID}?lang=en`)
     await page.getByText("...", {exact: true}).click()
     await expect(page.getByText('"North annex"', {exact: true})).toBeVisible()
-})
-
-test("edits a ballot style's printable ballot", async ({page, portal}) => {
-    resources(portal)
-    table(portal, "sequent_backend_ballot_style", [
-        {id: BALLOT_STYLE_ID, ...BALLOT_STYLE, created_at: FIXED_TIME, last_updated_at: FIXED_TIME},
-    ])
-    await page.goto(`${portal.origin}/sequent_backend_ballot_style/${BALLOT_STYLE_ID}?lang=en`)
-    await expect(page.getByRole("textbox", {name: "Ballot eml", exact: true})).toHaveValue(
-        "<Ballot>North</Ballot>"
-    )
-    await page
-        .getByRole("textbox", {name: "Ballot eml", exact: true})
-        .fill("<Ballot>North annex</Ballot>")
-    await page.getByRole("button", {name: "Save", exact: true}).click()
-    await page.clock.runFor(6000)
-    await expect
-        .poll(() => portal.graphql.callsTo("update_sequent_backend_ballot_style").length)
-        .toBe(1)
-    expect(portal.graphql.callsTo("update_sequent_backend_ballot_style")[0].variables).toEqual({
-        where: {id: {_eq: BALLOT_STYLE_ID}},
-        _set: {ballot_eml: "<Ballot>North annex</Ballot>"},
-    })
-    expectRole(portal, "update_sequent_backend_ballot_style", "publish-write")
-    await page.goto(`${portal.origin}/sequent_backend_ballot_style/${BALLOT_STYLE_ID}?lang=en`)
-    await expect(page.getByRole("textbox", {name: "Ballot eml", exact: true})).toHaveValue(
-        "<Ballot>North annex</Ballot>"
-    )
 })
 
 for (const entry of CASES.filter((entry) => entry.resource !== "document")) {

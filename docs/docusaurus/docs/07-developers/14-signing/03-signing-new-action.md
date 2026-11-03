@@ -39,7 +39,8 @@ Write each step's test first.
    sentence under `certify` in every language of
    `packages/windmill/src/services/signing/signature_page_texts.toml`.
 5. **The subject.** Define what is signed: every field the signer must see, ids and hashes
-   rather than secrets (the trustee steps sign a key share's hash, never the share). Choose
+   rather than secrets (the trustee steps sign the hash of a public custody proof;
+   private keys and election shares remain local). Choose
    the `subject_key` so that one waiting request exists per real-world thing (for example
    the application id).
 6. **The guard.** In the existing route or service that starts the action, call

@@ -35,7 +35,10 @@ export interface IpAddressRow {
     vote_count: number
     election_id: string
     election_presentation: ReturnType<typeof electionPresentation>
-    voters_id: string
+    pseudonyms: string[]
+    first_ballot: string
+    last_ballot: string
+    shared: boolean
 }
 
 export const ipAddressRows = (): IpAddressRow[] => [
@@ -46,6 +49,9 @@ export const ipAddressRows = (): IpAddressRow[] => [
         vote_count: 3,
         election_id: STORY_IDS.election,
         election_presentation: electionPresentation("Council election"),
-        voters_id: "voter-1, voter-2, voter-3",
+        pseudonyms: ["7QKM-2HXD", "9ABC-3DEF"],
+        first_ballot: "2026-01-12T09:00:00Z",
+        last_ballot: "2026-01-13T09:00:00Z",
+        shared: true,
     },
 ]

@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 from http.server import HTTPServer, SimpleHTTPRequestHandler
+from functools import partial
+from pathlib import Path
 
 class CrossOriginIsolation(SimpleHTTPRequestHandler):
     def end_headers(self):
@@ -16,5 +18,8 @@ handler = CrossOriginIsolation
 handler.extensions_map.update({
     '.wasm': 'application/wasm'
 })
-httpd = HTTPServer(('localhost', 8080), handler)
+httpd = HTTPServer(
+    ('localhost', 8080),
+    partial(handler, directory=str(Path(__file__).resolve().parents[4])),
+)
 httpd.serve_forever()

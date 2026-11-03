@@ -12,3 +12,13 @@ export enum ScheduledEventType {
     TALLY_ELECTION_EVENT = "TALLY_ELECTION_EVENT",
     SEND_TEMPLATE = "SEND_TEMPLATE",
 }
+
+/**
+ * The list filter of scheduled events that are still events: not archived.
+ * A bulk notification (Send Notification) is stored as a stopped, archived
+ * `SEND_TEMPLATE` row, kept only as the content its retries are sent from,
+ * so it is never listed, edited or rescheduled here.
+ */
+export const ACTIVE_SCHEDULED_EVENTS = {
+    archived_at: {format: "hasura-raw-query", value: {_is_null: true}},
+} as const

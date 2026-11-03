@@ -113,6 +113,12 @@ export type UserProfile = {
     firstName?: string
     username: string
     email?: string
+    menuActions?: Array<{
+        id: string
+        label: string
+        icon?: React.ReactNode
+        onSelect: () => void
+    }>
     openLink?: Function
 }
 

@@ -11,7 +11,8 @@ import {
     type ScenarioSnapshot,
 } from "@sequentech/ui-test-kit/fixtures/scenarios"
 import type {VoterPreviewParameters} from "../../../.storybook/withVoterPreview"
-import {electionRoutes, tenantEventRoutes} from "../../appRoutes"
+import {tenantEventRoutes} from "../../appRoutes"
+import {publishedBallotRoutes} from "../../routes/electionRoutes"
 import {PortalChrome} from "../../components/PortalChrome"
 import {ErrorPage} from "../../routes/ErrorPage"
 import {
@@ -42,7 +43,7 @@ function productionRoute(screen: PreviewScreen) {
     const route = SCREEN_ROUTES[screen]
     const separator = route.lastIndexOf("/")
     const leaf = route.slice(separator + 1)
-    const routes = screen === PreviewScreen.CHOOSER ? tenantEventRoutes : electionRoutes
+    const routes = screen === PreviewScreen.CHOOSER ? tenantEventRoutes : publishedBallotRoutes
     const production = routes.find(({path}) => path === leaf)
     if (!production) throw new Error(`The portal has no ${leaf} route`)
     return {

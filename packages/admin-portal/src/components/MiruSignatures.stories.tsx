@@ -74,6 +74,17 @@ export const AreaWithoutMembers: Story = {
     },
 }
 
+export const PhoneFitsTheScreen: Story = {
+    globals: {viewport: {value: "iphone12", isRotated: false}},
+    play: async ({canvasElement}) => {
+        expect(hasSigned(canvasElement, "sbei-1")).toBe(true)
+        const table = canvasElement.querySelector<HTMLElement>(".MuiTableContainer-root")
+        if (!table) throw new Error("Missing signatures table")
+        // No minimum width: the table scrolls nowhere on a phone.
+        expect(table.scrollWidth).toBeLessThanOrEqual(table.clientWidth)
+    },
+}
+
 export const MalformedMembersAnnotation: Story = {
     args: {area: {...area, annotations: {"miru:area-trustee-users": "[not json"}}},
     play: async ({canvasElement}) => {

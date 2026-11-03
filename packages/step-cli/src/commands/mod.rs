@@ -2,12 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod apply_configuration_package;
+pub mod audit_electoral_log;
+pub mod authorize_tally_custody;
 pub mod build_election_event;
 pub mod cast_vote;
 pub mod compile_plan;
 pub mod complete_key_ceremony;
 pub mod configure;
-pub mod confirm_tally_ceremoney_key;
 pub mod create_applications;
 pub mod create_area;
 pub mod create_area_contest;
@@ -38,8 +40,10 @@ pub mod import_voters;
 pub mod migrate_realm_permissions;
 pub mod migrate_registration_flows;
 pub mod publish_changes;
+pub mod readiness_check;
 pub mod refresh_token;
 pub mod render_template;
+pub mod resolve_voter_pseudonym;
 pub mod results_publication;
 pub mod start_key_ceremony;
 pub mod start_tally;
@@ -52,3 +56,4 @@ pub mod update_voter;
 pub mod upload_document;
 pub mod verify_ballot_box_seal;
 pub mod verify_package;
+pub mod verify_transmission_package;

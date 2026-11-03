@@ -7,40 +7,53 @@ use crate::adapters::user_tasks::{
     CeleryUserTaskDispatch, ClaimsUserTaskAuthorization,
     WindmillUserTaskLedger,
 };
+use crate::ports::database::DatabasePools;
+use crate::ports::identity::IdentityAdmin;
 use crate::services::access::{
     create_user_permissions, delete_permission, edit_user_access,
     read_permission, writes_secret_attributes, UserEdit, UserEditAccess,
     UserScope,
 };
-use crate::services::authorization::authorize;
+use crate::services::audit::{self, PasswordEdit};
+use crate::services::authorization::{authorize, permitted_event_election_ids};
+use crate::services::dependencies::HarvestServices;
+use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::{anyhow, Result};
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
+use electoral_log::adapters::ballot_box_status::VoterBallotState;
 use rocket::futures::future::join_all;
 use rocket::http::Status;
 use rocket::response::{Responder, Result as ResponseResult};
 use rocket::serde::json::Json;
 use rocket::Request;
+use rocket::State;
 use sequent_core::services::jwt;
+use sequent_core::services::keycloak::validate_keycloak_scope;
 use sequent_core::services::keycloak::{
     get_event_realm, get_realm_password_policy, get_tenant_realm,
     get_user_profile_validation_errors, is_keycloak_bad_request,
     PasswordPolicyViolation, UserProfileValidationError,
 };
 use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{
-    User, UserProfileAttribute, UserProfileConfiguration, TENANT_ID_ATTR_NAME,
+    User, UserProfileAttribute, UserProfileConfiguration,
+    MOBILE_PHONE_ATTR_NAME, TENANT_ID_ATTR_NAME,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde::Serialize;
+use serde_json::json;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use tracing::{info, instrument};
 use uuid::Uuid;
 use windmill::postgres::election_event::get_election_event_by_id;
+use windmill::services::audit_log::AdminAction;
+use windmill::services::ballot_box::get_voter_ballot_state;
 use windmill::services::cast_votes::get_users_with_vote_info;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
@@ -58,7 +71,7 @@ use windmill::services::export::export_users::{
 use windmill::services::external::utils::datafix_annotations;
 use windmill::services::keycloak_events::list_keycloak_events_by_type;
 use windmill::services::tasks_execution::*;
-use windmill::services::users::list_users_has_voted;
+use windmill::services::users::{census_edit_refusal, list_users_has_voted};
 use windmill::services::users::{
     count_keycloak_users, list_users, list_users_with_vote_info,
 };
@@ -98,6 +111,124 @@ async fn ensure_election_event_not_locked(
             format!("Failed to check election event lockdown: {err}"),
         )),
     }
+}
+
+/// Why checking a voter's ballots failed, not that the voter has one.
+fn ballot_check_error(err: anyhow::Error) -> (Status, String) {
+    (
+        Status::InternalServerError,
+        format!("Error checking the voter's ballots: {err:?}"),
+    )
+}
+
+async fn voter_ballot_state(
+    databases: &dyn DatabasePools,
+    tenant_id: &str,
+    election_event_id: &str,
+    user_id: &str,
+) -> Result<VoterBallotState> {
+    let mut hasura_db_client: DbClient = databases.hasura().await.get().await?;
+    let hasura_transaction = hasura_db_client.transaction().await?;
+    get_voter_ballot_state(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        user_id,
+    )
+    .await
+    .map_err(|err| anyhow!("{err:?}"))
+}
+
+/// Refuses deleting a voter whose ballot is valid or still in progress: the
+/// tally would no longer find the voter and would leave that ballot out.
+async fn ensure_voter_has_no_active_ballot(
+    databases: &dyn DatabasePools,
+    tenant_id: &str,
+    election_event_id: &str,
+    user_id: &str,
+) -> Result<(), (Status, String)> {
+    for id in [tenant_id, election_event_id] {
+        parse_uuid_v4(id)
+            .map_err(|err| (Status::BadRequest, err.to_string()))?;
+    }
+    let state =
+        voter_ballot_state(databases, tenant_id, election_event_id, user_id)
+            .await
+            .map_err(ballot_check_error)?;
+    if state.has_active_vote() {
+        return Err((
+            Status::Conflict,
+            "Cannot delete a voter who has cast a ballot".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+async fn census_refusal(
+    databases: &dyn DatabasePools,
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    current_user: &User,
+    enabled: Option<bool>,
+    attributes: &HashMap<String, Vec<String>>,
+) -> Result<Option<String>> {
+    let mut keycloak_db_client: DbClient =
+        databases.keycloak().await.get().await?;
+    let keycloak_transaction = keycloak_db_client.transaction().await?;
+    census_edit_refusal(
+        hasura_transaction,
+        &keycloak_transaction,
+        tenant_id,
+        election_event_id,
+        current_user,
+        enabled,
+        attributes,
+    )
+    .await
+    .map_err(|err| anyhow!("{err:?}"))
+}
+
+/// Refuses an edit that changes a census attribute counting a valid or
+/// in-progress ballot: the tally reads those attributes when it runs, so the
+/// edit would leave that ballot out or change its weight.
+async fn ensure_census_edit_keeps_ballots(
+    databases: &dyn DatabasePools,
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    current_user: &User,
+    enabled: Option<bool>,
+    attributes: &HashMap<String, Vec<String>>,
+) -> Result<(), (Status, String)> {
+    let refusal = census_refusal(
+        databases,
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        current_user,
+        enabled,
+        attributes,
+    )
+    .await
+    .map_err(ballot_check_error)?;
+    match refusal {
+        Some(reason) => Err((Status::Conflict, reason)),
+        None => Ok(()),
+    }
+}
+
+async fn load_voter(
+    identity: &dyn IdentityAdmin,
+    tenant_id: &str,
+    election_event_id: &str,
+    user_id: &str,
+) -> Result<User> {
+    identity
+        .client()
+        .await?
+        .get_user(&get_event_realm(tenant_id, election_event_id), user_id)
+        .await
 }
 
 async fn get_event_secret_attribute_config(
@@ -208,13 +339,27 @@ fn ensure_secret_attributes_not_queried(
     Ok(())
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/delete-user", format = "json", data = "<body>")]
 pub async fn delete_user(
     claims: jwt::JwtClaims,
     body: Json<DeleteUserBody>,
+    services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    if input.election_event_id.is_none() {
+        activity.record(
+            &claims,
+            TenantAction::DeleteUser,
+            json!({"tenant_id": input.tenant_id, "user_id": input.user_id}),
+        );
+    }
+    validate_keycloak_scope(
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -226,6 +371,13 @@ pub async fn delete_user(
     if let Some(election_event_id) = input.election_event_id.as_deref() {
         ensure_election_event_not_locked(&input.tenant_id, election_event_id)
             .await?;
+        ensure_voter_has_no_active_ballot(
+            services.databases.as_ref(),
+            &input.tenant_id,
+            election_event_id,
+            &input.user_id,
+        )
+        .await?;
     }
     let realm = match input.election_event_id.as_ref() {
         Some(election_event_id) => {
@@ -233,12 +385,15 @@ pub async fn delete_user(
         }
         None => get_tenant_realm(&input.tenant_id),
     };
-    let client = KeycloakAdminClient::new().await.map_err(|e| {
+    let target =
+        audit::target(&input.tenant_id, input.election_event_id.as_deref())?;
+    let client = services.identity.client().await.map_err(|e| {
         (
             Status::InternalServerError,
             format!("Error obtaining the client: {:?}", e),
         )
     })?;
+    let deleted = client.get_user(&realm, &input.user_id).await.ok();
     client
         .delete_user(&realm, &input.user_id)
         .await
@@ -248,6 +403,17 @@ pub async fn delete_user(
                 format!("Error deleting the user: {:?}", e),
             )
         })?;
+    let username = deleted.as_ref().and_then(|user| user.username.as_deref());
+    audit::record(
+        services,
+        &audit::change(
+            &claims,
+            target,
+            audit::account(&target, &input.user_id, username),
+            AdminAction::Delete,
+        ),
+    )
+    .await?;
     Ok(Json(Default::default()))
 }
 
@@ -276,13 +442,31 @@ pub struct DeleteUsersBody {
     authorized_to_election_alias: Option<String>,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/delete-users", format = "json", data = "<body>")]
 pub async fn delete_users(
     claims: jwt::JwtClaims,
     body: Json<DeleteUsersBody>,
+    services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<DeleteUsersOutput>, (Status, String)> {
     let input = body.into_inner();
+    if input.election_event_id.is_none() {
+        activity.record(
+            &claims,
+            TenantAction::DeleteUsers,
+            json!({
+                "tenant_id": input.tenant_id,
+                "user_ids": input.users_id,
+                "select_all": input.select_all.unwrap_or(false),
+            }),
+        );
+    }
+    validate_keycloak_scope(
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -326,20 +510,41 @@ pub async fn delete_users(
     // Keep this path synchronous so Keycloak failures are returned to the
     // caller instead of disappearing in an untracked worker task.
     if input.election_event_id.is_none() {
-        let client = KeycloakAdminClient::new()
+        let target = audit::target(&input.tenant_id, None)?;
+        let client = services
+            .identity
+            .client()
             .await
             .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
         let user_ids = input
             .users_id
             .as_ref()
             .ok_or((Status::BadRequest, "No users selected".to_string()))?;
+        // The accounts deleted before a failure are gone: they are logged
+        // before the failure is answered.
+        let mut deleted: Vec<String> = vec![];
+        let mut failure = None;
         for id in user_ids {
-            client.delete_user(&realm, id).await.map_err(|e| {
-                (
-                    Status::InternalServerError,
-                    format!("Error deleting the user: {e:?}"),
-                )
-            })?;
+            match client.delete_user(&realm, id).await {
+                Ok(()) => deleted.push(id.clone()),
+                Err(e) => {
+                    failure = Some((
+                        Status::InternalServerError,
+                        format!("Error deleting the user: {e:?}"),
+                    ));
+                    break;
+                }
+            }
+        }
+        if !deleted.is_empty() {
+            audit::record(
+                services,
+                &audit::accounts_deleted(&claims, target, &deleted),
+            )
+            .await?;
+        }
+        if let Some(failure) = failure {
+            return Err(failure);
         }
         return Ok(Json(DeleteUsersOutput {
             ids: None,
@@ -357,6 +562,35 @@ pub async fn delete_users(
         .election_event_id
         .clone()
         .expect("tenant users returned above");
+    let vote_elections = if select_all && input.has_voted.is_some() {
+        let mut client = services
+            .databases
+            .hasura()
+            .await
+            .get()
+            .await
+            .map_err(|error| {
+                (
+                    Status::InternalServerError,
+                    format!("Cannot read voter selection scope: {error}"),
+                )
+            })?;
+        let tx = client.transaction().await.map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Cannot read voter selection scope: {error}"),
+            )
+        })?;
+        permitted_event_election_ids(
+            &tx,
+            &claims,
+            &input.tenant_id,
+            &election_event_id,
+        )
+        .await?
+    } else {
+        None
+    };
     let task_execution = Some(
         post(
             &input.tenant_id,
@@ -378,6 +612,7 @@ pub async fn delete_users(
             tenant_id: input.tenant_id.clone(),
             election_event_id: input.election_event_id.clone(),
             election_id: input.election_id.clone(),
+            permitted_election_ids: vote_elections,
             area_id: None,
             realm: realm.clone(),
             search: None,
@@ -406,6 +641,7 @@ pub async fn delete_users(
             if select_all { None } else { input.users_id },
             filter,
             task_execution.clone(),
+            Some(audit::actor(&claims)),
         ))
         .await
     {
@@ -520,10 +756,23 @@ pub async fn count_users(
             )
         })?;
 
-    let filter = ListUsersFilter {
+    let vote_elections = match input.election_event_id.as_deref() {
+        Some(event) if input.has_voted.is_some() => {
+            permitted_event_election_ids(
+                &hasura_transaction,
+                &claims,
+                &input.tenant_id,
+                event,
+            )
+            .await?
+        }
+        _ => None,
+    };
+    let mut filter = ListUsersFilter {
         tenant_id: input.tenant_id.clone(),
         election_event_id: input.election_event_id.clone(),
         election_id: input.election_id.clone(),
+        permitted_election_ids: vote_elections,
         area_id: None,
         realm: realm.clone(),
         search: input.search,
@@ -542,12 +791,20 @@ pub async fn count_users(
         authorized_to_election_alias: input.authorized_to_election_alias,
     };
 
-    let count = count_keycloak_users(
-        &hasura_transaction,
-        &keycloak_transaction,
-        filter,
-    )
-    .await
+    let count = if filter.has_voted.is_some() {
+        filter.limit = Some(0);
+        list_users_has_voted(
+            &hasura_transaction,
+            &keycloak_transaction,
+            filter,
+            &input.tenant_id,
+        )
+        .await
+        .map(|(_, count)| count)
+    } else {
+        count_keycloak_users(&hasura_transaction, &keycloak_transaction, filter)
+            .await
+    }
     .map_err(|e| {
         (
             Status::InternalServerError,
@@ -558,6 +815,19 @@ pub async fn count_users(
     Ok(Json(CountUserOutput {
         count: count.into(),
     }))
+}
+
+/// Drops the votes of elections outside the caller's permission labels, as
+/// Hasura scoped the cast vote rows. Votes not tied to an election stay.
+fn keep_permitted_votes(user: &mut User, elections: Option<&[String]>) {
+    if let (Some(elections), Some(votes_info)) =
+        (elections, user.votes_info.as_mut())
+    {
+        votes_info.retain(|votes| {
+            votes.election_id.is_empty()
+                || elections.contains(&votes.election_id)
+        });
+    }
 }
 
 #[instrument(skip(claims, body), ret)]
@@ -624,10 +894,27 @@ pub async fn get_users(
             )
         })?;
 
+    let vote_elections = match input.election_event_id.as_deref() {
+        Some(election_event_id)
+            if input.has_voted.is_some()
+                || input.show_votes_info.unwrap_or(false) =>
+        {
+            permitted_event_election_ids(
+                &hasura_transaction,
+                &claims,
+                &input.tenant_id,
+                election_event_id,
+            )
+            .await?
+        }
+        _ => None,
+    };
+
     let filter = ListUsersFilter {
         tenant_id: input.tenant_id.clone(),
         election_event_id: input.election_event_id.clone(),
         election_id: input.election_id.clone(),
+        permitted_election_ids: vote_elections.clone(),
         area_id: None,
         realm: realm.clone(),
         search: input.search,
@@ -662,6 +949,7 @@ pub async fn get_users(
         })?;
 
         for user in &mut users {
+            keep_permitted_votes(user, vote_elections.as_deref());
             redact_user(user, &secret_names);
         }
         return Ok(Json(DataList {
@@ -704,6 +992,7 @@ pub async fn get_users(
     };
 
     for user in &mut users {
+        keep_permitted_votes(user, vote_elections.as_deref());
         redact_user(user, &secret_names);
     }
     Ok(Json(DataList {
@@ -788,19 +1077,46 @@ pub struct CreateUserBody {
     secret_attributes: Option<HashMap<String, Option<Vec<String>>>>,
 }
 
-#[instrument(skip(claims, body))]
+/// A new user always gets the id of the tenant it is created in, so the request
+/// must not carry a `tenant-id` attribute of its own.
+fn reject_tenant_id_attribute(user: &User) -> Result<(), String> {
+    if user
+        .attributes
+        .as_ref()
+        .is_some_and(|attributes| attributes.contains_key(TENANT_ID_ATTR_NAME))
+    {
+        return Err(format!("Cannot set {TENANT_ID_ATTR_NAME} attribute"));
+    }
+    Ok(())
+}
+
+#[instrument(skip(claims, body, services))]
 #[post("/create-user", format = "json", data = "<body>")]
 pub async fn create_user(
     claims: jwt::JwtClaims,
     body: Json<CreateUserBody>,
+    services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<User>, JsonError> {
     let input = body.into_inner();
+    if input.election_event_id.is_none() {
+        activity.record(
+            &claims,
+            TenantAction::CreateUser,
+            json!({
+                "tenant_id": input.tenant_id,
+                "username": input.user.username,
+                "role_ids": input.user_roles_ids,
+            }),
+        );
+    }
     let has_secret_attributes =
         writes_secret_attributes(input.secret_attributes.as_ref());
     let required_perms = create_user_permissions(
         UserScope::of(input.election_event_id.as_deref()),
         input.secret_attributes.as_ref(),
         input.user.attributes.as_ref(),
+        input.user_roles_ids.as_deref(),
     )
     .map_err(|error| {
         ErrorResponse::new(
@@ -818,6 +1134,13 @@ pub async fn create_user(
             };
             ErrorResponse::new(status, &message, code)
         })?;
+    reject_tenant_id_attribute(&input.user).map_err(|message| {
+        ErrorResponse::new(
+            Status::BadRequest,
+            &message,
+            ErrorCode::UnknownError,
+        )
+    })?;
     let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
@@ -973,6 +1296,51 @@ pub async fn create_user(
             keycloak_user_error(error, "Error creating user in Keycloak")
         })?;
 
+    if let (Some(event_id), Some(voter_id)) =
+        (input.election_event_id.as_deref(), user.id.as_deref())
+    {
+        let mut privacy_client =
+            windmill::services::database::get_hasura_pool()
+                .await
+                .get()
+                .await
+                .map_err(|_| {
+                    ErrorResponse::new(
+                        Status::InternalServerError,
+                        "Privacy registration unavailable",
+                        ErrorCode::InternalServerError,
+                    )
+                })?;
+        let privacy_tx = privacy_client.transaction().await.map_err(|_| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                "Privacy registration unavailable",
+                ErrorCode::InternalServerError,
+            )
+        })?;
+        windmill::services::vote_privacy::allocate_added_voter(
+            &privacy_tx,
+            &input.tenant_id,
+            event_id,
+            voter_id,
+        )
+        .await
+        .map_err(|_| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                "Privacy registration unavailable",
+                ErrorCode::InternalServerError,
+            )
+        })?;
+        privacy_tx.commit().await.map_err(|_| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                "Privacy registration unavailable",
+                ErrorCode::InternalServerError,
+            )
+        })?;
+    }
+
     match (user.id.clone(), &input.user_roles_ids) {
         (Some(id), Some(user_roles_ids)) => {
             let res: Vec<_> = user_roles_ids
@@ -1066,6 +1434,24 @@ pub async fn create_user(
 
     redact_user(&mut user, &secret_names);
 
+    let audit_error = |(status, message): (Status, String)| {
+        ErrorResponse::new(status, &message, ErrorCode::InternalServerError)
+    };
+    let target =
+        audit::target(&input.tenant_id, input.election_event_id.as_deref())
+            .map_err(audit_error)?;
+    audit::record(
+        services,
+        &audit::account_created(
+            &claims,
+            target,
+            &user,
+            input.user_roles_ids.as_deref().unwrap_or_default(),
+        ),
+    )
+    .await
+    .map_err(audit_error)?;
+
     Ok(Json(user))
 }
 
@@ -1086,7 +1472,91 @@ pub struct EditUserBody {
     temporary: Option<bool>,
 }
 
-const MOBILE_NUMBER_ATTRIBUTE: &str = "sequent.read-only.mobile-number";
+const EMAIL_AND_OR_MOBILE_ATTR_NAME: &str = "emailAndOrMobile";
+const EMAIL_TLF_ATTRIBUTES: [&str; 2] =
+    [MOBILE_PHONE_ATTR_NAME, EMAIL_AND_OR_MOBILE_ATTR_NAME];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VoterEditScope {
+    Full,
+    EmailTlfOnly,
+}
+
+impl VoterEditScope {
+    fn from_allowed_roles(allowed_roles: &[String]) -> Self {
+        if allowed_roles.contains(&Permissions::VOTER_WRITE.to_string()) {
+            Self::Full
+        } else {
+            Self::EmailTlfOnly
+        }
+    }
+}
+
+fn same_attribute_values(
+    requested: &[String],
+    current: Option<&Vec<String>>,
+) -> bool {
+    let mut requested = requested.to_vec();
+    let mut current = current.cloned().unwrap_or_default();
+    requested.sort();
+    current.sort();
+    requested == current
+}
+
+/// Fields the request would change besides the email and mobile number.
+/// A field counts only when it is supplied and differs from the current
+/// value, so a form that sends every field back unchanged passes.
+fn email_tlf_edit_violations(
+    input: &EditUserBody,
+    attributes: &HashMap<String, Vec<String>>,
+    current: &User,
+) -> Vec<String> {
+    let mut violations = Vec::new();
+    if input
+        .enabled
+        .is_some_and(|enabled| current.enabled != Some(enabled))
+    {
+        violations.push("enabled".to_string());
+    }
+    for (field, requested, current) in [
+        ("first_name", &input.first_name, &current.first_name),
+        ("last_name", &input.last_name, &current.last_name),
+        ("username", &input.username, &current.username),
+    ] {
+        if requested.is_some() && requested != current {
+            violations.push(field.to_string());
+        }
+    }
+    let current_attributes = current.attributes.as_ref();
+    let mut changed_attributes: Vec<String> = attributes
+        .iter()
+        .filter(|(name, values)| {
+            !EMAIL_TLF_ATTRIBUTES.contains(&name.as_str())
+                && !same_attribute_values(
+                    values,
+                    current_attributes.and_then(|current| current.get(*name)),
+                )
+        })
+        .map(|(name, _)| format!("attributes.{name}"))
+        .collect();
+    changed_attributes.sort();
+    violations.extend(changed_attributes);
+    violations
+}
+
+/// Drops everything but the email and mobile number from a request that
+/// passed `email_tlf_edit_violations`, so that fields the caller may not
+/// change are not written back from a stale copy of the form.
+fn keep_only_email_tlf(
+    input: &mut EditUserBody,
+    attributes: &mut HashMap<String, Vec<String>>,
+) {
+    input.enabled = None;
+    input.first_name = None;
+    input.last_name = None;
+    input.username = None;
+    attributes.retain(|name, _| EMAIL_TLF_ATTRIBUTES.contains(&name.as_str()));
+}
 
 pub struct EditUserError(JsonError);
 
@@ -1149,63 +1619,39 @@ impl<'r> Responder<'r, 'static> for EditUserError {
     }
 }
 
-pub async fn check_edit_email_tlf(
-    client: &KeycloakAdminClient,
-    input: &EditUserBody,
-    realm: &str,
-    attributes: &HashMap<String, Vec<String>>,
-) -> Result<()> {
-    let user = client.get_user(realm, &input.user_id).await?;
-    let mut changes: Vec<String> = vec![];
-
-    let mut current_attributes = user.attributes.unwrap_or_default();
-    current_attributes.remove(MOBILE_NUMBER_ATTRIBUTE);
-    let mut new_attributes = attributes.clone();
-    new_attributes.remove(MOBILE_NUMBER_ATTRIBUTE);
-    if current_attributes != new_attributes {
-        changes.push("attributes".to_string());
-    }
-
-    if input.enabled != user.enabled {
-        changes.push("enabled".to_string());
-    }
-    if input.first_name != user.first_name {
-        changes.push("first_name".to_string());
-    }
-    if input.last_name != user.last_name {
-        changes.push("last_name".to_string());
-    }
-    if input.username != user.username {
-        changes.push("username".to_string());
-    }
-    if input.password.is_some() {
-        changes.push("password".to_string());
-    }
-    if input.temporary.is_some() {
-        changes.push("temporary".to_string());
-    }
-
-    if changes.len() > 0 {
-        return Err(anyhow!("Can't change user properties: {:?}", changes));
-    }
-
-    Ok(())
-}
-
-#[instrument(skip(claims, body), ret)]
+#[instrument(skip(claims, body, services), ret)]
 #[post("/edit-user", format = "json", data = "<body>")]
 pub async fn edit_user(
     claims: jwt::JwtClaims,
     body: Json<EditUserBody>,
+    services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<EditUserOutput>, EditUserError> {
-    let input = body.into_inner();
+    let mut input = body.into_inner();
+    if input.election_event_id.is_none() {
+        activity.record(
+            &claims,
+            TenantAction::EditUser,
+            json!({
+                "tenant_id": input.tenant_id,
+                "user_id": input.user_id,
+                "enabled": input.enabled,
+                "password_changed": input.password.is_some(),
+            }),
+        );
+    }
+    validate_keycloak_scope(
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
     let has_secret_changes =
         writes_secret_attributes(input.secret_attributes.as_ref());
     let UserEditAccess {
         permissions: required_perms,
         password_only,
         voter_voted_edit,
-        voter_email_tlf_edit,
+        ..
     } = edit_user_access(
         &UserEdit {
             scope: UserScope::of(input.election_event_id.as_deref()),
@@ -1223,6 +1669,11 @@ pub async fn edit_user(
     .map_err(|error| {
         EditUserError::from((Status::BadRequest, error.to_string()))
     })?;
+    let edit_scope = if input.election_event_id.is_some() && !password_only {
+        VoterEditScope::from_allowed_roles(&claims.hasura_claims.allowed_roles)
+    } else {
+        VoterEditScope::Full
+    };
 
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
     let realm = match input.election_event_id.clone() {
@@ -1284,7 +1735,7 @@ pub async fn edit_user(
     }
 
     let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|e| {
+        services.databases.hasura().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
                 format!("Error acquiring hasura db client from pool {:?}", e),
@@ -1373,12 +1824,6 @@ pub async fn edit_user(
             .into());
     }
 
-    if voter_email_tlf_edit {
-        /*check_edit_email_tlf(&client, &input, &realm, &new_attributes)
-        .await
-        .map_err(|e| (Status::Unauthorized, format!("{:?}", e)))?;*/
-    }
-
     let datafix_election_event = match input.election_event_id.as_deref() {
         Some(election_event_id) => {
             let election_event = get_election_event_by_id(
@@ -1400,6 +1845,33 @@ pub async fn edit_user(
         None => None,
     };
 
+    // Datafix edits run in the `edit_user` task, which checks the same under
+    // the per-voter lock.
+    if let (Some(election_event_id), None, false) = (
+        input.election_event_id.as_deref(),
+        datafix_election_event.as_ref(),
+        password_only,
+    ) {
+        let current_user = load_voter(
+            services.identity.as_ref(),
+            &input.tenant_id,
+            election_event_id,
+            &input.user_id,
+        )
+        .await
+        .map_err(ballot_check_error)?;
+        ensure_census_edit_keeps_ballots(
+            services.databases.as_ref(),
+            &hasura_transaction,
+            &input.tenant_id,
+            election_event_id,
+            &current_user,
+            input.enabled,
+            &new_attributes,
+        )
+        .await?;
+    }
+
     hasura_transaction.commit().await.map_err(|err| {
         (
             Status::InternalServerError,
@@ -1407,6 +1879,35 @@ pub async fn edit_user(
         )
     })?;
     drop(hasura_db_client);
+
+    if edit_scope == VoterEditScope::EmailTlfOnly {
+        let client = KeycloakAdminClient::new()
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        let current_user = client
+            .get_user(&realm, &input.user_id)
+            .await
+            .map_err(|error| {
+                EditUserError::from_keycloak(
+                    error,
+                    "Error reading user in Keycloak",
+                )
+            })?;
+        let violations =
+            email_tlf_edit_violations(&input, &new_attributes, &current_user);
+        if !violations.is_empty() {
+            return Err((
+                Status::Forbidden,
+                format!(
+                    "Without the {} permission only the email and mobile number can be changed: {}",
+                    Permissions::VOTER_WRITE,
+                    violations.join(", ")
+                ),
+            )
+                .into());
+        }
+        keep_only_email_tlf(&mut input, &mut new_attributes);
+    }
 
     if let (Some(election_event_id), Some(secret_attributes)) = (
         input.election_event_id.as_deref(),
@@ -1426,7 +1927,7 @@ pub async fn edit_user(
     // For Datafix election events the edit is offloaded to the `edit_user`
     // task, which notifies VoterView (SetNotVoted) and reconciles the voter's
     // cast votes under the per-voter lock. Deferring it keeps the Save button
-    // from blocking on the (retried) VoterView round-trip, and the admin portal
+    // from blocking on the VoterView round-trip, and the admin portal
     // tracks the outcome in the returned task widget. Non-Datafix edits stay
     // synchronous.
     if !password_only {
@@ -1509,9 +2010,21 @@ pub async fn edit_user(
         }
     }
 
-    let client = KeycloakAdminClient::new()
+    let client = services
+        .identity
+        .client()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let mut before =
+        client
+            .get_user(&realm, &input.user_id)
+            .await
+            .map_err(|error| {
+                EditUserError::from_keycloak(
+                    error,
+                    "Error reading user in Keycloak",
+                )
+            })?;
 
     let mut user = client
         .edit_user(
@@ -1569,6 +2082,19 @@ pub async fn edit_user(
     }
 
     redact_user(&mut user, &secret_names);
+    redact_user(&mut before, &secret_names);
+    let target =
+        audit::target(&input.tenant_id, input.election_event_id.as_deref())?;
+    // A voter's password change has its own electoral-log entry above.
+    let password = match (&input.password, target.election_event_id) {
+        (Some(_), None) => PasswordEdit::Set,
+        _ => PasswordEdit::Kept,
+    };
+    let change =
+        audit::account_edited(&claims, target, &before, &user, password);
+    if input.password.is_none() || !change.changes.is_empty() {
+        audit::record(services, &change).await?;
+    }
     Ok(Json(EditUserOutput {
         user: Some(user),
         task_execution: None,
@@ -1589,6 +2115,11 @@ pub async fn get_user(
     body: Json<GetUserBody>,
 ) -> Result<Json<User>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -1644,6 +2175,11 @@ pub async fn reveal_voter_secret_attribute(
     body: Json<RevealSecretAttributeBody>,
 ) -> Result<Json<RevealSecretAttributeOutput>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(
+        &input.tenant_id,
+        Some(input.election_event_id.as_str()),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -1726,7 +2262,18 @@ pub async fn reveal_voter_secret_attribute(
 pub async fn import_users_f(
     claims: jwt::JwtClaims,
     body: Json<import_users::ImportUsersBody>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<ImportUsersOutput>, (Status, String)> {
+    if body.election_event_id.is_none() {
+        activity.record(
+            &claims,
+            TenantAction::ImportUsers,
+            json!({
+                "tenant_id": body.tenant_id,
+                "document_id": body.document_id,
+            }),
+        );
+    }
     crate::services::user_tasks::import_users_with(
         &WindmillUserTaskLedger,
         &ClaimsUserTaskAuthorization,
@@ -1743,7 +2290,18 @@ pub async fn import_users_f(
 pub async fn export_users_f(
     claims: jwt::JwtClaims,
     input: Json<ExportUsersBody>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<ExportUsersOutput>, (Status, String)> {
+    if input.election_event_id.is_none() {
+        activity.record(
+            &claims,
+            TenantAction::ExportUsers,
+            json!({
+                "tenant_id": input.tenant_id,
+                "include_secret_attributes": input.include_secret_attributes,
+            }),
+        );
+    }
     crate::services::user_tasks::export_users_with(
         &WindmillUserTaskLedger,
         &ClaimsUserTaskAuthorization,
@@ -1780,6 +2338,7 @@ pub async fn export_tenant_users_f(
             },
             document_id.clone(),
             None,
+            Some(audit::actor(&claims)),
         ))
         .await
     {
@@ -1885,6 +2444,68 @@ pub async fn get_user_profile_configuration(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn listed_votes_keep_only_the_permitted_elections() {
+        let votes =
+            |election_id: &str| sequent_core::types::keycloak::VotesInfo {
+                election_id: election_id.to_string(),
+                num_votes: 1,
+                last_voted_at: String::new(),
+            };
+        let voter = || super::User {
+            votes_info: Some(vec![votes("north"), votes("south"), votes("")]),
+            ..Default::default()
+        };
+        let elections = |user: &super::User| -> Vec<String> {
+            user.votes_info
+                .iter()
+                .flatten()
+                .map(|votes| votes.election_id.clone())
+                .collect()
+        };
+
+        let mut user = voter();
+        super::keep_permitted_votes(&mut user, Some(&["north".to_string()]));
+        assert_eq!(elections(&user), ["north", ""]);
+
+        let mut user = voter();
+        super::keep_permitted_votes(&mut user, Some(&[]));
+        assert_eq!(elections(&user), [""]);
+
+        let mut user = voter();
+        super::keep_permitted_votes(&mut user, None);
+        assert_eq!(elections(&user), ["north", "south", ""]);
+
+        let mut user = super::User::default();
+        super::keep_permitted_votes(&mut user, Some(&[]));
+        assert!(user.votes_info.is_none());
+    }
+
+    /// A new user always gets the id of the tenant it is created in, so a
+    /// request that carries a `tenant-id` attribute, whatever its value, is
+    /// refused while other attributes are accepted.
+    #[test]
+    fn creating_with_a_tenant_id_attribute_is_rejected() {
+        let user = |attributes: serde_json::Value| -> super::User {
+            serde_json::from_value(serde_json::json!({
+                "username": "new-user",
+                "attributes": attributes,
+            }))
+            .expect("valid user")
+        };
+        for tenant_id in ["tenant", "another-tenant"] {
+            let message = super::reject_tenant_id_attribute(&user(
+                serde_json::json!({"tenant-id": [tenant_id]}),
+            ))
+            .expect_err("tenant-id must be rejected");
+            assert!(message.contains(super::TENANT_ID_ATTR_NAME), "{message}");
+        }
+        assert!(super::reject_tenant_id_attribute(&user(
+            serde_json::json!({"customerReference": ["REF-1"]})
+        ))
+        .is_ok());
+    }
+
     #[test]
     fn blank_secret_values_are_audited_as_clears() {
         let attributes = std::collections::HashMap::from([
@@ -2025,8 +2646,225 @@ mod tests {
             "Password does not contain enough digits"
         );
     }
+
+    mod voter_edit_scope {
+        use super::super::{
+            email_tlf_edit_violations, keep_only_email_tlf, EditUserBody,
+            VoterEditScope, EMAIL_AND_OR_MOBILE_ATTR_NAME,
+        };
+        use sequent_core::types::keycloak::{
+            User, AUTHORIZED_ELECTION_IDS_NAME, MOBILE_PHONE_ATTR_NAME,
+        };
+        use sequent_core::types::permissions::Permissions;
+        use serde_json::{json, Value};
+        use std::collections::HashMap;
+
+        const AREA_ID: &str = "area-id";
+
+        fn current_attributes() -> HashMap<String, Vec<String>> {
+            HashMap::from([
+                (AREA_ID.to_string(), vec!["area-1".to_string()]),
+                (
+                    AUTHORIZED_ELECTION_IDS_NAME.to_string(),
+                    vec!["election-1".to_string(), "election-2".to_string()],
+                ),
+                (
+                    MOBILE_PHONE_ATTR_NAME.to_string(),
+                    vec!["+34600000001".to_string()],
+                ),
+                (
+                    EMAIL_AND_OR_MOBILE_ATTR_NAME.to_string(),
+                    vec!["email".to_string()],
+                ),
+            ])
+        }
+
+        fn current_voter() -> User {
+            User {
+                id: Some("voter".to_string()),
+                attributes: Some(current_attributes()),
+                email: Some("voter@example.com".to_string()),
+                enabled: Some(true),
+                first_name: Some("Ada".to_string()),
+                last_name: Some("Lovelace".to_string()),
+                username: Some("ada".to_string()),
+                ..Default::default()
+            }
+        }
+
+        fn violations(fields: Value) -> Vec<String> {
+            let mut body = json!({
+                "tenant_id": "tenant",
+                "user_id": "voter",
+                "election_event_id": "event",
+            });
+            if let (Some(body), Some(fields)) =
+                (body.as_object_mut(), fields.as_object())
+            {
+                body.extend(fields.clone());
+            }
+            let input: EditUserBody =
+                serde_json::from_value(body).expect("valid edit body");
+            let attributes = input.attributes.clone().unwrap_or_default();
+            email_tlf_edit_violations(&input, &attributes, &current_voter())
+        }
+
+        fn attributes_with(name: &str, values: &[&str]) -> Value {
+            let mut attributes = current_attributes();
+            attributes.insert(
+                name.to_string(),
+                values.iter().map(|value| value.to_string()).collect(),
+            );
+            json!(attributes)
+        }
+
+        #[test]
+        fn voter_write_keeps_the_full_edit_scope() {
+            let roles = vec![
+                "admin-user".to_string(),
+                Permissions::VOTER_WRITE.to_string(),
+                Permissions::VOTER_EMAIL_TLF_EDIT.to_string(),
+            ];
+            assert_eq!(
+                VoterEditScope::from_allowed_roles(&roles),
+                VoterEditScope::Full
+            );
+        }
+
+        #[test]
+        fn email_tlf_edit_without_voter_write_is_limited_to_email_and_mobile() {
+            let roles = vec![
+                "admin-user".to_string(),
+                Permissions::VOTER_EMAIL_TLF_EDIT.to_string(),
+            ];
+            assert_eq!(
+                VoterEditScope::from_allowed_roles(&roles),
+                VoterEditScope::EmailTlfOnly
+            );
+        }
+
+        #[test]
+        fn email_tlf_scope_rejects_enabled_change() {
+            assert_eq!(violations(json!({"enabled": false})), vec!["enabled"]);
+        }
+
+        #[test]
+        fn email_tlf_scope_rejects_name_and_username_changes() {
+            assert_eq!(
+                violations(json!({
+                    "first_name": "Grace",
+                    "last_name": "Hopper",
+                    "username": "grace",
+                })),
+                vec!["first_name", "last_name", "username"]
+            );
+        }
+
+        #[test]
+        fn email_tlf_scope_rejects_area_change() {
+            assert_eq!(
+                violations(json!({
+                    "attributes": attributes_with(AREA_ID, &["area-2"]),
+                })),
+                vec!["attributes.area-id"]
+            );
+        }
+
+        #[test]
+        fn email_tlf_scope_rejects_authorized_elections_change() {
+            assert_eq!(
+                violations(json!({
+                    "attributes": attributes_with(
+                        AUTHORIZED_ELECTION_IDS_NAME,
+                        &["election-1"],
+                    ),
+                })),
+                vec!["attributes.authorized-election-ids"]
+            );
+        }
+
+        #[test]
+        fn email_tlf_scope_rejects_new_attribute() {
+            assert_eq!(
+                violations(json!({"attributes": {"vote-weight": ["5"]}})),
+                vec!["attributes.vote-weight"]
+            );
+        }
+
+        #[test]
+        fn email_tlf_scope_allows_email_and_mobile_changes() {
+            let mut attributes = current_attributes();
+            attributes.insert(
+                MOBILE_PHONE_ATTR_NAME.to_string(),
+                vec!["+34600000002".to_string()],
+            );
+            attributes.insert(
+                EMAIL_AND_OR_MOBILE_ATTR_NAME.to_string(),
+                vec!["email".to_string(), "mobile".to_string()],
+            );
+            attributes.insert(
+                AUTHORIZED_ELECTION_IDS_NAME.to_string(),
+                vec!["election-2".to_string(), "election-1".to_string()],
+            );
+            assert!(violations(json!({
+                "enabled": true,
+                "email": "new@example.com",
+                "first_name": "Ada",
+                "last_name": "Lovelace",
+                "temporary": true,
+                "attributes": attributes,
+            }))
+            .is_empty());
+        }
+
+        #[test]
+        fn email_tlf_scope_forwards_only_email_and_mobile() {
+            let body = json!({
+                "tenant_id": "tenant",
+                "user_id": "voter",
+                "election_event_id": "event",
+                "enabled": true,
+                "email": "new@example.com",
+                "first_name": "Ada",
+                "last_name": "Lovelace",
+                "username": "ada",
+                "attributes": current_attributes(),
+            });
+            let mut input: EditUserBody =
+                serde_json::from_value(body).expect("valid edit body");
+            let mut attributes = input.attributes.clone().unwrap_or_default();
+            keep_only_email_tlf(&mut input, &mut attributes);
+            assert_eq!(input.enabled, None);
+            assert_eq!(input.first_name, None);
+            assert_eq!(input.last_name, None);
+            assert_eq!(input.username, None);
+            assert_eq!(input.email.as_deref(), Some("new@example.com"));
+            let mut names: Vec<&str> =
+                attributes.keys().map(String::as_str).collect();
+            names.sort();
+            assert_eq!(
+                names,
+                vec![EMAIL_AND_OR_MOBILE_ATTR_NAME, MOBILE_PHONE_ATTR_NAME]
+            );
+        }
+
+        #[test]
+        fn email_tlf_scope_ignores_fields_left_out() {
+            assert!(violations(json!({})).is_empty());
+            assert!(violations(json!({"enabled": null, "attributes": {}}))
+                .is_empty());
+        }
+    }
 }
 
 #[cfg(test)]
 #[path = "../../tests/support/user_service_errors.rs"]
 mod user_service_errors;
+
+#[cfg(test)]
+#[path = "../../tests/support/user_ballot_guards.rs"]
+mod user_ballot_guards;
+
+#[cfg(test)]
+#[path = "../../tests/support/account_audit_routes.rs"]
+mod account_audit_routes;

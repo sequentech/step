@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::ceremonies::tally_boards::remap_recorded_ids;
 use crate::{
     postgres::{
         results_area_contest::insert_many_results_area_contests,
@@ -323,7 +324,9 @@ pub async fn process_tally_session_record(
     let last_updated_at = get_opt_date(&record, 4).await?;
 
     let labels = get_opt_json_value_item(&record, 5).await?;
-    let annotations = get_opt_json_value_item(&record, 6).await?;
+    let annotations =
+        remap_recorded_ids(get_opt_json_value_item(&record, 6).await?, &replacement_map)
+            .with_context(|| "Error at process the recorded election electorates")?;
     let election_ids = process_uuids(record.get(7), replacement_map.clone()).await?;
     let area_ids = process_uuids(record.get(8), replacement_map.clone()).await?;
 
@@ -1089,4 +1092,183 @@ pub async fn process_tally_file(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::ceremonies::tally_boards::{
+        election_areas, recorded_election_areas, recorded_election_electorates,
+        ElectionElectorates, ELECTION_AREAS_ANNOTATION, ELECTION_ELECTORATES_ANNOTATION,
+    };
+    use crate::tasks::execute_tally_session::count_cast_votes_election_with_census;
+    use sequent_core::types::hasura::core::TallySessionContest;
+
+    const OLD_POST: &str = "10000000-0000-4000-8000-000000000001";
+    const NEW_POST: &str = "20000000-0000-4000-8000-000000000001";
+    const OLD_NORTH: &str = "10000000-0000-4000-8000-00000000000a";
+    const NEW_NORTH: &str = "20000000-0000-4000-8000-00000000000a";
+    const OLD_SOUTH: &str = "10000000-0000-4000-8000-00000000000b";
+    const NEW_SOUTH: &str = "20000000-0000-4000-8000-00000000000b";
+    // Its contests are all acclaimed: it has no contest area.
+    const OLD_ACCLAIMED: &str = "10000000-0000-4000-8000-00000000000c";
+    const NEW_ACCLAIMED: &str = "20000000-0000-4000-8000-00000000000c";
+    const OLD_SESSION: &str = "10000000-0000-4000-8000-0000000000f1";
+    const NEW_SESSION: &str = "20000000-0000-4000-8000-0000000000f1";
+    const OLD_KEYS: &str = "10000000-0000-4000-8000-0000000000f2";
+    const NEW_KEYS: &str = "20000000-0000-4000-8000-0000000000f2";
+
+    fn replacement_map() -> HashMap<String, String> {
+        [
+            (OLD_POST, NEW_POST),
+            (OLD_NORTH, NEW_NORTH),
+            (OLD_SOUTH, NEW_SOUTH),
+            (OLD_ACCLAIMED, NEW_ACCLAIMED),
+            (OLD_SESSION, NEW_SESSION),
+            (OLD_KEYS, NEW_KEYS),
+        ]
+        .into_iter()
+        .map(|(old, new)| (old.to_string(), new.to_string()))
+        .collect()
+    }
+
+    /// A tally session row as the export writes it, with `annotations`.
+    fn exported_session(annotations: &Value) -> StringRecord {
+        StringRecord::from(vec![
+            serde_json::to_string(OLD_SESSION).unwrap(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            annotations.to_string(),
+            serde_json::to_string(&[OLD_POST]).unwrap(),
+            serde_json::to_string(&[OLD_ACCLAIMED, OLD_NORTH, OLD_SOUTH]).unwrap(),
+            "true".to_string(),
+            serde_json::to_string(OLD_KEYS).unwrap(),
+            "null".to_string(),
+            "2".to_string(),
+            String::new(),
+            "null".to_string(),
+            String::new(),
+        ])
+    }
+
+    fn contest_area(area_id: &str, voters: u64, cast: u64) -> TallySessionContest {
+        TallySessionContest {
+            id: format!("contest-{area_id}"),
+            tenant_id: "tenant".into(),
+            election_event_id: "event".into(),
+            area_id: area_id.into(),
+            contest_id: None,
+            session_id: 1,
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: Some(serde_json::json!({
+                "casted_ballots": cast,
+                "elegible_voters": voters,
+                "ballots_without_voter": 0
+            })),
+            tally_session_id: NEW_SESSION.into(),
+            election_id: NEW_POST.into(),
+        }
+    }
+
+    #[tokio::test]
+    async fn an_imported_session_keeps_its_recorded_census_under_the_new_ids() -> Result<()> {
+        // Exported: `post` spans north (3 voters), south (2) and an
+        // acclaimed area, one voter is in both north and south, and its
+        // recorded electorate is 4 where its contest areas add up to 5.
+        let annotations = serde_json::json!({
+            "executer_username": "admin",
+            ELECTION_ELECTORATES_ANNOTATION:
+                serde_json::to_string(&ElectionElectorates::from([(OLD_POST.to_string(), 4)]))?,
+            ELECTION_AREAS_ANNOTATION: serde_json::to_string(&election_areas([
+                (OLD_POST, OLD_NORTH),
+                (OLD_POST, OLD_SOUTH),
+                (OLD_POST, OLD_ACCLAIMED),
+            ]))?,
+        });
+
+        let imported = process_tally_session_record(
+            "tenant",
+            "event",
+            &exported_session(&annotations),
+            replacement_map(),
+        )
+        .await?;
+
+        assert_eq!(imported.election_ids, Some(vec![NEW_POST.to_string()]));
+        assert_eq!(
+            recorded_election_electorates(&imported)?,
+            Some(ElectionElectorates::from([(NEW_POST.to_string(), 4)]))
+        );
+        assert_eq!(
+            recorded_election_areas(&imported)?,
+            Some(election_areas([
+                (NEW_POST, NEW_NORTH),
+                (NEW_POST, NEW_SOUTH),
+                (NEW_POST, NEW_ACCLAIMED),
+            ]))
+        );
+        assert_eq!(
+            imported
+                .annotations
+                .as_ref()
+                .and_then(|a| a.get("executer_username")),
+            Some(&Value::from("admin"))
+        );
+
+        // A recount of the imported session counts the recorded 4, not 5.
+        let contests = vec![contest_area(NEW_NORTH, 3, 2), contest_area(NEW_SOUTH, 2, 1)];
+        let counts = count_cast_votes_election_with_census(
+            &contests,
+            recorded_election_electorates(&imported)?.as_ref(),
+        )
+        .await?;
+        assert_eq!(counts.len(), 1);
+        assert_eq!((counts[0].census, counts[0].cast_votes), (4, 3));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn an_imported_session_naming_an_unknown_election_or_area_is_refused() {
+        for annotations in [
+            serde_json::json!({
+                ELECTION_ELECTORATES_ANNOTATION: serde_json::to_string(
+                    &ElectionElectorates::from([("unknown".to_string(), 4)])
+                )
+                .unwrap(),
+            }),
+            serde_json::json!({
+                ELECTION_AREAS_ANNOTATION:
+                    serde_json::to_string(&election_areas([(OLD_POST, "unknown")])).unwrap(),
+            }),
+            serde_json::json!({ ELECTION_ELECTORATES_ANNOTATION: {"post": 4} }),
+        ] {
+            assert!(process_tally_session_record(
+                "tenant",
+                "event",
+                &exported_session(&annotations),
+                replacement_map(),
+            )
+            .await
+            .is_err());
+        }
+    }
+
+    #[tokio::test]
+    async fn an_imported_session_without_recorded_census_is_imported_as_before() -> Result<()> {
+        let annotations = serde_json::json!({"executer_username": "admin"});
+        let imported = process_tally_session_record(
+            "tenant",
+            "event",
+            &exported_session(&annotations),
+            replacement_map(),
+        )
+        .await?;
+        assert_eq!(imported.annotations, Some(annotations));
+        Ok(())
+    }
 }

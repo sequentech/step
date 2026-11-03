@@ -40,7 +40,7 @@ const tagalogTranslation: TranslationType = {
             publishedResultsDescription: "Mga nailathalang resulta para sa election event na ito.",
             resultsAndParticipationTitle: "Mga Resulta at Partisipasyon",
             electionsTitle: "Mga Halalan",
-            contestsTitle: "Mga Labanan",
+            contestsTitle: "Mga Paligsahan",
             areasTitle: "Mga Lugar",
             globalArea: "Global",
             noResultsForSelection: "Walang available na resulta para sa seleksyong ito.",
@@ -52,10 +52,11 @@ const tagalogTranslation: TranslationType = {
                 "Nanalo sa pamamagitan ng aklamasyon. Ang paligsahang ito ay napagpasyahan nang walang botohan, kaya walang naitalang boto.",
             published: "Nailathala",
             notPublishedYet: "Hindi pa nailalathala",
-            position: "{{count}} posisyon",
-            position_plural: "{{count}} posisyon",
+            position_one: "{{count}} posisyon",
+            position_many: "{{count}} posisyon",
+            position_other: "{{count}} posisyon",
             fallbackElectionName: "Halalan",
-            fallbackContestName: "Labanan {{contestId}}",
+            fallbackContestName: "Paligsahan {{contestId}}",
             state: {
                 unexpectedErrorTitle: "Hindi inaasahang error",
                 loadErrorMessage:

@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! The ballot box key and the ballot checks of an election event against the
-//! migrated schema. Every test writes its own rows in a transaction and rolls
-//! it back.
+//! migrated schema and the event's ballot box. Every test writes its own rows
+//! in a transaction and rolls it back; its election events' ballot boxes are
+//! its own.
 
+#[path = "support/ballot_box.rs"]
+mod ballot_box;
 #[path = "support/schema.rs"]
 mod schema;
 
@@ -15,7 +18,6 @@ use sequent_core::types::hasura::core::ElectionEvent;
 use serde_json::{json, Value};
 use std::sync::Once;
 use uuid::Uuid;
-use windmill::postgres::cast_vote::insert_cast_vote;
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::ballot_box_key::{
     ballot_box_key_for_publication, get_ballot_box_secret_path, get_ballot_box_signing_key,
@@ -25,7 +27,6 @@ use windmill::services::ballot_checks::{
     ballot_id_match, get_checks_period, locate_ballot, BallotIdMatch, LocateBallotOutput,
     LocateBallotStatus,
 };
-use windmill::services::cast_votes::CastVoteStatus;
 use windmill::services::receive_ballot::must_be_received;
 
 const SIGNED_RECEIPTS: &str = "signed-by-ballot-box";
@@ -75,11 +76,7 @@ impl Event {
         .await
         .unwrap();
         let board = match board {
-            Board::Created => Some(json!({
-                "id": 1,
-                "database_name": fixture.board(),
-                "is_archived": false,
-            })),
+            Board::Created => Some(ballot_box::board_reference(&fixture.board())),
             Board::Missing => None,
         };
         tx.execute(
@@ -179,25 +176,20 @@ impl Event {
         )
         .await
         .unwrap();
+        let store = ballot_box::ballot_box(&self.tenant, &self.event).await;
         for ballot_id in ballot_ids {
-            insert_cast_vote(
-                tx,
-                &self.tenant,
-                &self.event,
-                &self.election,
-                &area,
-                &format!("ciphertext of {ballot_id}"),
-                voter_id,
-                ballot_id,
-                &[0; 64],
-                &None,
-                &None,
-                VotingStatusChannel::ONLINE,
-                CastVoteStatus::Valid,
-                None,
+            ballot_box::accept(
+                &store,
+                ballot_box::Ballot {
+                    event: &self.event,
+                    election: &self.election,
+                    area: &area,
+                    voter_id,
+                    ballot_id,
+                    content: &format!("ciphertext of {ballot_id}"),
+                },
             )
-            .await
-            .unwrap();
+            .await;
         }
         area
     }
@@ -379,7 +371,8 @@ async fn a_ballot_the_voter_did_not_cast_is_not_found_and_nothing_is_looked_up_a
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
 
-    let open = Event::create(&tx, None, Board::Missing, Some(json!({"telephone": true}))).await;
+    let open = Event::create(&tx, None, Board::Created, Some(json!({"telephone": true}))).await;
+    ballot_box::ballot_box(&open.tenant, &open.event).await;
     for ballot_id in ["0abc12", "0ABC", "FTBE-MHRX", "not a ballot id", ""] {
         assert_eq!(
             open.locate(&tx, ballot_id).await,
@@ -441,7 +434,7 @@ async fn a_voter_finds_their_own_cast_ballot_and_never_another_voters() {
             "checks_period_policy": "until-date",
             "checks_available_until": "2028-04-09T00:00:00Z",
         }})),
-        Board::Missing,
+        Board::Created,
         Some(json!({"telephone": true})),
     )
     .await;
@@ -478,11 +471,18 @@ fn a_typed_ballot_id_becomes_an_exact_match_or_a_telephone_prefix() {
         ballot_id_match(" 0ABC12 ", false),
         Some(BallotIdMatch::Exact("0abc12".to_string()))
     );
-    let prefix = ballot_id_match("0ABC", true).unwrap();
-    assert_eq!(prefix, BallotIdMatch::Prefix("0abc".to_string()));
-    assert_eq!(prefix.like_pattern(), "0abc%");
-    let exact = ballot_id_match("0abc", false).unwrap();
-    assert_eq!(exact.like_pattern(), "0abc");
+    assert_eq!(
+        ballot_id_match("0ABC", true),
+        Some(BallotIdMatch::Prefix("0abc".to_string()))
+    );
+    assert_eq!(
+        ballot_id_match("0abc", false),
+        Some(BallotIdMatch::Exact("0abc".to_string()))
+    );
+    assert_eq!(
+        ballot_id_match("ftbe mhrx", true),
+        Some(BallotIdMatch::Received("FTBE-MHRX".to_string()))
+    );
     for text in ["", "50%", "not hex"] {
         assert_eq!(ballot_id_match(text, true), None);
     }

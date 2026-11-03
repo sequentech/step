@@ -98,6 +98,9 @@ pub fn report_signing_action(report_type: &ReportType) -> Option<SigningAction> 
         | ReportType::BALLOT_IMAGES
         | ReportType::BALLOT_RECEIPT
         | ReportType::CREDENTIALS => None,
+        // Downloaded from the tally for the SBEI to sign on paper: its
+        // page has their signature boxes (known gap).
+        ReportType::TRANSMISSION_REPORT => None,
     }
 }
 

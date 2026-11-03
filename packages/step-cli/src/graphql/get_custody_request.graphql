@@ -1,0 +1,7 @@
+mutation GetCustodyRequest($object: GetCustodyRequestInput!) {
+        get_custody_request(
+            object: $object
+        ) {
+            custody_request_json
+        }
+    }

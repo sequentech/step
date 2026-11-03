@@ -6,6 +6,7 @@ use crate::load::{config::Settings, files, input::Input};
 use crate::ports::load_setup::{PreparationEnvironment, Provisioning};
 use crate::types::config::ConfigData;
 use anyhow::{anyhow, Result};
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use serde_json::{json, Value};
 use std::{
     collections::{HashMap, VecDeque},
@@ -37,6 +38,7 @@ pub(crate) struct ProvisioningState {
     pub failures: HashMap<Operation, &'static str>,
     pub sessions: usize,
     pub fail_session: Option<usize>,
+    pub silver_session: Option<usize>,
     pub imported_event: Option<(Value, bool)>,
     pub exported_events: Vec<String>,
     pub voter_imports: Vec<(String, String, bool)>,
@@ -53,6 +55,25 @@ impl ProvisioningState {
         }
         Ok(())
     }
+}
+
+/// An unsigned administrator token; the secret signature part lets tests detect leaks.
+fn administrator_token(acr: &str) -> String {
+    let now = chrono::Utc::now().timestamp();
+    let claims = json!({
+        "exp": now + 300, "iat": now, "auth_time": null,
+        "jti": "memory", "iss": "memory", "sub": "synthetic-admin", "typ": "Bearer",
+        "azp": "api-key-client", "acr": acr, "allowed-origins": [],
+        "scope": "openid", "email_verified": true,
+        "https://hasura.io/jwt/claims": {
+            "x-hasura-default-role": "admin-user", "x-hasura-tenant-id": "memory",
+            "x-hasura-user-id": "synthetic-admin", "x-hasura-allowed-roles": ["admin-user"]
+        }
+    });
+    format!(
+        "header.{}.private-admin-token",
+        URL_SAFE_NO_PAD.encode(claims.to_string())
+    )
 }
 
 pub(crate) struct MemoryProvisioning {
@@ -90,11 +111,16 @@ impl Provisioning for MemoryProvisioning {
         if state.fail_session == Some(state.sessions) {
             return Err(anyhow!("refresh failed"));
         }
+        let acr = if state.silver_session == Some(state.sessions) {
+            "silver"
+        } else {
+            "gold"
+        };
         Ok(ConfigData {
             endpoint_url: self.settings.target.graphql_url.clone(),
             tenant_id: self.settings.target.tenant_id.clone(),
             keycloak_url: self.settings.target.keycloak_url.clone(),
-            auth_token: "private-admin-token".into(),
+            auth_token: administrator_token(acr),
             refresh_token: "private-refresh-token".into(),
             client_id: "admin-cli".into(),
             client_secret: String::new(),

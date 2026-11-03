@@ -16,7 +16,11 @@ def summarize_sql(records: list[dict], clients: dict[str, str]) -> list[dict]:
             record.get("remote_host", ""),
             record.get("application_name") or "unattributed",
         )
-        match = re.match(r"(?:statement:|execute [^:]+:)\s*(.*)", message, re.DOTALL)
+        match = re.match(
+            r"(?:duration: [0-9.]+ ms\s+)?(?:statement:|execute [^:]+:)\s*(.*)",
+            message,
+            re.DOTALL,
+        )
         if match:
             sql = match.group(1).lstrip()
             # Rust query files start with explanatory SQL comments. Classify the

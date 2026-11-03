@@ -6,6 +6,8 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen(typescript_custom_section)]
 const IPERMISSIONS: &'static str = r#"
 export enum IPermissions {
+    VOTER_PSEUDONYM_RESOLVE = "voter-pseudonym-resolve",
+    FORENSIC_READ = "forensic-read",
     TENANT_CREATE = "tenant-create",
     TENANT_READ = "tenant-read",
     TENANT_WRITE = "tenant-write",
@@ -21,6 +23,7 @@ export enum IPermissions {
     VOTER_WRITE = "voter-write",
     VOTER_SECRET_ATTRIBUTE_READ = "voter-secret-attribute-read",
     VOTER_SECRET_ATTRIBUTE_WRITE = "voter-secret-attribute-write",
+    INTEGRATION_SECRET_READ = "integration-secret-read",
     USER_CREATE = "user-create",
     USER_READ = "user-read",
     USER_WRITE = "user-write",
@@ -62,6 +65,15 @@ export enum IPermissions {
     PUBLISH_RESULTS_READ = "publish-results-read",
     PUBLISH_RESULTS_WRITE = "publish-results-write",
     LOGS_READ = "logs-read",
+    TENANT_LOGS_READ = "tenant-logs-read",
+    TENANT_LOGS_EXPORT = "tenant-logs-export",
+    ELECTORAL_LOG_AUDIT = "electoral-log-audit",
+    ELECTORAL_LOG_CONSOLE_READ = "electoral-log-console-read",
+    ELECTORAL_LOG_CONSOLE_QUERY = "electoral-log-console-query",
+    ELECTORAL_LOG_PERSONAL_DATA_READ = "electoral-log-personal-data-read",
+    TASK_QUEUES_READ = "task-queues-read",
+    TASK_QUEUES_WRITE = "task-queues-write",
+    TASK_QUEUES_QUERY = "task-queues-query",
     TASKS_READ = "tasks-read",
     KEYS_READ = "keys-read",
     DOCUMENT_UPLOAD = "document-upload",

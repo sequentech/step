@@ -27,7 +27,7 @@ import i18next from "i18next"
 
 import Candidate from "./Candidate"
 import {theme} from "../../services/theme"
-import englishTranslation from "../../translations/en"
+import englishTranslation from "../../../../ui-core/src/translations/en"
 import {ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 
 const i18n = i18next.createInstance()

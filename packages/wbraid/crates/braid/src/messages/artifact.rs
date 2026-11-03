@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::newtypes::PROTOCOL_MANAGER_INDEX;
+use anyhow::anyhow;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
-
-use super::newtypes::PROTOCOL_MANAGER_INDEX;
 
 use cryptography::context::Context;
 use cryptography::cryptosystem::elgamal::Ciphertext;
@@ -29,7 +29,7 @@ pub struct Configuration<C: Context> {
     /// `trustees` and in the same order. Peers encrypt DKG shares to these keys
     /// (§9.4).
     pub share_encryption_keys: Vec<C::Element>,
-    pub phantom: PhantomData<C>,
+    _seal: PhantomData<C>,
 }
 
 impl<C: Context> Clone for Configuration<C> {
@@ -41,7 +41,7 @@ impl<C: Context> Clone for Configuration<C> {
             threshold: self.threshold,
             ciphertext_width: self.ciphertext_width,
             share_encryption_keys: self.share_encryption_keys.clone(),
-            phantom: PhantomData,
+            _seal: PhantomData,
         }
     }
 }
@@ -55,7 +55,7 @@ impl<C: Context> Configuration<C> {
         ciphertext_width: usize,
         share_encryption_keys: Vec<C::Element>,
         _phantom: PhantomData<C>,
-    ) -> Configuration<C> {
+    ) -> anyhow::Result<Configuration<C>> {
         let c = Configuration {
             id,
             protocol_manager,
@@ -63,23 +63,26 @@ impl<C: Context> Configuration<C> {
             threshold,
             ciphertext_width,
             share_encryption_keys,
-            phantom: PhantomData,
+            _seal: PhantomData,
         };
-        assert!(c.is_valid());
 
-        c
+        if !Self::is_valid(&c) {
+            return Err(anyhow!("invalid configuration"));
+        }
+
+        Ok(c)
     }
 
-    pub fn is_valid(&self) -> bool {
+    fn is_valid(config: &Self) -> bool {
         let unique: HashSet<<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier> =
-            HashSet::from_iter(self.trustees.clone());
+            HashSet::from_iter(config.trustees.clone());
 
-        (unique.len() == self.trustees.len())
-            && (self.trustees.len() > 1 && self.trustees.len() <= super::newtypes::MAX_TRUSTEES)
-            && (self.threshold > 1 && self.threshold <= self.trustees.len())
-            && (self.ciphertext_width >= 1
-                && self.ciphertext_width <= super::newtypes::MAX_CIPHERTEXT_WIDTH)
-            && (self.share_encryption_keys.len() == self.trustees.len())
+        (unique.len() == config.trustees.len())
+            && (config.trustees.len() > 1 && config.trustees.len() <= super::newtypes::MAX_TRUSTEES)
+            && (config.threshold > 1 && config.threshold <= config.trustees.len())
+            && (config.ciphertext_width >= 1
+                && config.ciphertext_width <= super::newtypes::MAX_CIPHERTEXT_WIDTH)
+            && (config.share_encryption_keys.len() == config.trustees.len())
     }
 
     pub fn get_trustee_position(
@@ -140,20 +143,33 @@ impl<C: Context, const W: usize> Ballots<C, W> {
 pub struct Mix<C: Context, const W: usize> {
     pub ciphertexts: Vec<Ciphertext<C, W>>,
     pub proof: Option<ShuffleProof<C, W>>,
+    /// Input of a null mix, distinguishing consecutive empty chain links.
+    pub null_input: Option<super::newtypes::CiphertextsHash>,
 }
 
 impl<C: Context, const W: usize> Serializable for Mix<C, W> {
     fn write(&self, out: &mut Vec<u8>) {
         self.ciphertexts.write(out);
         self.proof.write(out);
+        if self.proof.is_none() {
+            self.null_input.write(out);
+        }
     }
 }
 
 impl<C: Context, const W: usize> Deserializable for Mix<C, W> {
     fn read(input: &mut &[u8]) -> Result<Self, cryptography::utils::error::Error> {
+        let ciphertexts = Vec::<Ciphertext<C, W>>::read(input)?;
+        let proof = Option::<ShuffleProof<C, W>>::read(input)?;
+        let null_input = if proof.is_none() {
+            Option::<super::newtypes::CiphertextsHash>::read(input)?
+        } else {
+            None
+        };
         Ok(Mix {
-            ciphertexts: Vec::<Ciphertext<C, W>>::read(input)?,
-            proof: Option::<ShuffleProof<C, W>>::read(input)?,
+            ciphertexts,
+            proof,
+            null_input,
         })
     }
 }
@@ -163,13 +179,15 @@ impl<C: Context, const W: usize> Mix<C, W> {
         Mix {
             ciphertexts,
             proof: Some(proof),
+            null_input: None,
         }
     }
     /// A null mix (empty input ⇒ empty output, no proof).
-    pub fn null() -> Mix<C, W> {
+    pub fn null(input: super::newtypes::CiphertextsHash) -> Mix<C, W> {
         Mix {
             ciphertexts: vec![],
             proof: None,
+            null_input: Some(input),
         }
     }
 }

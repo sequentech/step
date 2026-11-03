@@ -25,3 +25,7 @@ cargo build --release
 popd
 
 source .devcontainer/scripts/config-cli.sh
+
+# Startup imports do not update an existing Keycloak realm. Provision the
+# dedicated browser identities without changing native trustee accounts.
+scripts/dev/step-dev browser_trustees

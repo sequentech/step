@@ -81,6 +81,56 @@ class TemplateSyntaxTest {
   }
 
   @Test
+  void loginSubtitleAndUsernameHintOnlyRenderWhenTheRealmSetsThem()
+      throws IOException, TemplateException {
+    for (String portal : List.of("sequent.voting-portal", "sequent.admin-portal")) {
+      // Keycloak echoes the key when no bundle defines it, and the theme bundle ships them empty.
+      for (Map<String, String> unset :
+          List.of(
+              Map.<String, String>of(),
+              Map.of("loginAccountSubtitle", "", "loginUsernameHint", ""))) {
+        Map<String, Object> model = baseModel("standard");
+        model.put("msg", messagesWith(model, unset));
+        String html = renderLogin(portal, model);
+
+        assertFalse(html.contains("kc-page-subtitle"), portal + " " + unset);
+        assertFalse(html.contains("username-hint"), portal + " " + unset);
+        assertFalse(html.contains("loginAccountSubtitle"), portal + " " + unset);
+        assertFalse(html.contains("loginUsernameHint"), portal + " " + unset);
+      }
+
+      Map<String, Object> model = baseModel("standard");
+      model.put(
+          "msg",
+          messagesWith(
+              model,
+              Map.of(
+                  "loginAccountSubtitle",
+                  "Use the <b>name</b> sent.",
+                  "loginUsernameHint",
+                  "Sent after \"approval\".")));
+      String html = renderLogin(portal, model);
+
+      assertTrue(
+          html.contains("<p id=\"kc-page-subtitle\">Use the &lt;b&gt;name&lt;/b&gt; sent.</p>"),
+          portal);
+      assertTrue(html.contains("Sent after &quot;approval&quot;.</div>"), portal);
+      assertTrue(
+          inputTagFor(html, "username").contains("aria-describedby=\"username-hint\""), portal);
+    }
+  }
+
+  /** The model's {@code msg} with some keys answered from a realm's localization overrides. */
+  private static TemplateMethodModelEx messagesWith(
+      Map<String, Object> model, Map<String, String> overrides) {
+    TemplateMethodModelEx base = (TemplateMethodModelEx) model.get("msg");
+    return arguments -> {
+      String key = arguments.get(0).toString();
+      return overrides.containsKey(key) ? overrides.get(key) : base.exec(arguments);
+    };
+  }
+
+  @Test
   void socialProvidersFilterDigitalCertificatesUnlessRealmOptsIn()
       throws IOException, TemplateException {
     List<Map<String, Object>> providers =

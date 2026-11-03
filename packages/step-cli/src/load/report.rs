@@ -17,14 +17,52 @@ use std::{
 /// Latency columns are an enum so SQL identifiers never come from operator input.
 #[derive(Clone, Copy)]
 pub enum Stage {
+    Keycloak,
+    Auth,
+    Login,
+    Token,
+    Event,
+    Election,
+    Summary,
+    Style,
     Status,
     Cast,
     Journey,
 }
 impl Stage {
-    pub const ALL: [Self; 3] = [Self::Status, Self::Cast, Self::Journey];
+    pub const EXTRA: [Self; 8] = [
+        Self::Keycloak,
+        Self::Auth,
+        Self::Login,
+        Self::Token,
+        Self::Event,
+        Self::Election,
+        Self::Summary,
+        Self::Style,
+    ];
+    pub const ALL: [Self; 11] = [
+        Self::Keycloak,
+        Self::Auth,
+        Self::Login,
+        Self::Token,
+        Self::Status,
+        Self::Event,
+        Self::Election,
+        Self::Summary,
+        Self::Style,
+        Self::Cast,
+        Self::Journey,
+    ];
     pub fn column(self) -> &'static str {
         match self {
+            Self::Keycloak => "keycloak_ms",
+            Self::Auth => "auth",
+            Self::Login => "login",
+            Self::Token => "token",
+            Self::Event => "event_url",
+            Self::Election => "election_url",
+            Self::Summary => "summary_url",
+            Self::Style => "style_url",
             Self::Status => "status_ms",
             Self::Cast => "cast_ms",
             Self::Journey => "journey_ms",
@@ -32,6 +70,14 @@ impl Stage {
     }
     pub fn label(self) -> &'static str {
         match self {
+            Self::Keycloak => "Keycloak login (complete)",
+            Self::Auth => "Keycloak login page",
+            Self::Login => "Keycloak credentials",
+            Self::Token => "Keycloak token exchange",
+            Self::Event => "Event download",
+            Self::Election => "Election download",
+            Self::Summary => "Summary download",
+            Self::Style => "Ballot style download",
             Self::Status => "Voter status",
             Self::Cast => "Cast acceptance",
             Self::Journey => "Complete journey",
@@ -49,6 +95,8 @@ struct Sample {
     cast_ms: Option<f64>,
     status_ms: Option<f64>,
     receipt: Option<String>,
+    #[serde(default)]
+    timings: BTreeMap<String, f64>,
 }
 
 /// Portable report data; request inventory stays in private JSON, outside the HTML.
@@ -146,7 +194,8 @@ impl Failures {
     }
 }
 
-/// Audit accepted receipt IDs in bounded read-only PostgreSQL batches using the DSN-selected transport.
+/// Audit accepted receipt IDs against the ballot box of the tenant's electoral-log database, in
+/// bounded read-only PostgreSQL batches using the DSN-selected transport.
 fn audit(db: &Connection, input: &Input, dsn_env: &str) -> Result<usize> {
     let reporting = &input.settings.reporting;
     let mut config: tokio_postgres::Config = std::env::var(dsn_env)
@@ -172,7 +221,7 @@ fn audit(db: &Connection, input: &Input, dsn_env: &str) -> Result<usize> {
                 batch.push(row.get(0)?);
             }
             if batch.is_empty() { break; }
-            let row = client.query_one("SELECT count(*) FROM sequent_backend.cast_vote WHERE id=ANY($1::text[]::uuid[]) AND tenant_id=$2::text::uuid AND election_event_id=$3::text::uuid", &[&batch, &input.settings.target.tenant_id, &input.event.election_event_id]).await?;
+            let row = client.query_one("SELECT count(*) FROM ballot_box_ballot WHERE election_event_id=$1::text::uuid AND id=ANY($2::text[]::uuid[])", &[&input.event.election_event_id, &batch]).await?;
             verified += row.get::<_, i64>(0) as usize;
         }
         drop(client);
@@ -200,6 +249,12 @@ pub fn generate(directory: &Path, dsn_env: Option<&str>) -> Result<()> {
     )?;
     db.pragma_update(None, "temp_store", "FILE")?;
     db.execute_batch("CREATE TABLE samples(voter INTEGER PRIMARY KEY, passed INTEGER, start REAL, end REAL, cast_ms REAL, status_ms REAL, journey_ms REAL, receipt TEXT UNIQUE)")?;
+    for stage in Stage::EXTRA {
+        db.execute_batch(&format!(
+            "ALTER TABLE samples ADD COLUMN {} REAL",
+            stage.column()
+        ))?;
+    }
     let mut failures = Failures {
         messages: vec![],
         count: 0,
@@ -212,16 +267,34 @@ pub fn generate(directory: &Path, dsn_env: Option<&str>) -> Result<()> {
         if !exit.is_ok_and(|value| value["code"] == 0) {
             failures.add(format!("Shard {shard} did not finish successfully"));
         }
-        let samples = result.join("samples.jsonl");
+        // k6 logs each completed journey before the worker extracts samples.jsonl.
+        // Prefer that source even if termination left a partially extracted file.
+        let log = result.join("worker.log");
+        let from_log = matches!(input.settings.workload.engine, super::Engine::K6) && log.exists();
+        let samples = if from_log {
+            log
+        } else {
+            result.join("samples.jsonl")
+        };
         if !samples.exists() {
             continue;
         }
         let (first, count) = input.bounds(shard)?;
         let transaction = db.transaction()?;
         {
-            let mut insert = transaction.prepare("INSERT INTO samples VALUES(?,?,?,?,?,?,?,?)")?;
+            let mut insert = transaction.prepare("INSERT INTO samples(voter,passed,start,end,cast_ms,status_ms,journey_ms,receipt) VALUES(?,?,?,?,?,?,?,?)")?;
+            let mut timing_update = transaction.prepare("UPDATE samples SET keycloak_ms=?,auth=?,login=?,token=?,event_url=?,election_url=?,summary_url=?,style_url=? WHERE voter=?")?;
             for line in BufReader::new(File::open(samples)?).lines() {
-                let sample: Sample = match serde_json::from_str(&line?) {
+                let line = line?;
+                let json = if from_log {
+                    let Some(sample) = line.strip_prefix("RESULT ") else {
+                        continue;
+                    };
+                    sample
+                } else {
+                    &line
+                };
+                let sample: Sample = match serde_json::from_str(json) {
                     Ok(sample) => sample,
                     Err(_) => {
                         failures.add(format!("Malformed result in shard {shard}"));
@@ -235,6 +308,10 @@ pub fn generate(directory: &Path, dsn_env: Option<&str>) -> Result<()> {
                 if !sample.start.is_finite()
                     || !sample.end.is_finite()
                     || sample.end < sample.start
+                    || sample
+                        .timings
+                        .values()
+                        .any(|value| !value.is_finite() || *value < 0.0)
                     || [sample.status_ms, sample.cast_ms]
                         .into_iter()
                         .flatten()
@@ -253,7 +330,19 @@ pub fn generate(directory: &Path, dsn_env: Option<&str>) -> Result<()> {
                     sample.end - sample.start,
                     sample.receipt
                 ]) {
-                    Ok(_) => (),
+                    Ok(_) => {
+                        timing_update.execute(params![
+                            sample.timings.get("keycloak_ms"),
+                            sample.timings.get("auth"),
+                            sample.timings.get("login"),
+                            sample.timings.get("token"),
+                            sample.timings.get("event_url"),
+                            sample.timings.get("election_url"),
+                            sample.timings.get("summary_url"),
+                            sample.timings.get("style_url"),
+                            sample.index
+                        ])?;
+                    }
                     Err(error)
                         if error.sqlite_error_code() == Some(ErrorCode::ConstraintViolation) =>
                     {
@@ -299,10 +388,22 @@ pub fn generate(directory: &Path, dsn_env: Option<&str>) -> Result<()> {
     };
     let mut latency = BTreeMap::new();
     for stage in Stage::ALL {
-        let values = quantiles(&db, stage, &[0.5, 0.99])?;
+        let values = quantiles(&db, stage, &[0.5, 0.95, 0.99, 1.0])?;
+        let (count, mean): (f64, Option<f64>) = db.query_row(
+            &format!("SELECT count({0}),avg({0}) FROM samples", stage.column()),
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
         latency.insert(
             stage.column().into(),
-            BTreeMap::from([("p50".into(), values[0]), ("p99".into(), values[1])]),
+            BTreeMap::from([
+                ("count".into(), Some(count)),
+                ("mean".into(), mean),
+                ("p50".into(), values[0]),
+                ("p95".into(), values[1]),
+                ("p99".into(), values[2]),
+                ("max".into(), values[3]),
+            ]),
         );
     }
 
@@ -332,7 +433,7 @@ pub fn generate(directory: &Path, dsn_env: Option<&str>) -> Result<()> {
         match audit(&db, &input, dsn) {
             Ok(verified) => {
                 verification =
-                    format!("{verified}/{receipts} API receipts matched PostgreSQL in batches");
+                    format!("{verified}/{receipts} API receipts matched the ballot box in batches");
                 if verified != receipts {
                     failures.add("Database receipt audit is incomplete");
                 }

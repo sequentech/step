@@ -23,6 +23,36 @@ export const MIRU_SERVERS: IMiruCcsServer[] = ["ccs-north", "ccs-south", "ccs-ea
     })
 )
 
+/** A synthetic P-256 destination key; its DER SubjectPublicKeyInfo hashes to MANUAL_KEY_SHA256. */
+export const MANUAL_KEY_PEM = [
+    "-----BEGIN PUBLIC KEY-----",
+    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEMP8nkUSnx3UqYsrG0S7ESrQDj3Te",
+    "Xq2LhhZnUwg2l6GrOl5aOwY/FYw7Lqfnjkdhx4OMX39f48eSH7JA7tFtEQ==",
+    "-----END PUBLIC KEY-----",
+    "",
+].join("\n")
+export const MANUAL_KEY_SHA256 = "66BA07DD9888E2E7DECB84E8DBA009918FEA3247E8C2FAF77DB0532AAD4353E2"
+
+/** A destination without an address: the package is downloaded and handed over. */
+export const MANUAL_SERVER: IMiruCcsServer = {
+    name: "CCS Manila (SBOC)",
+    tag: "sboc",
+    address: "",
+    public_key_pem: MANUAL_KEY_PEM,
+}
+
+/** A synthetic OVCS public key the package's signature verifies with. */
+export const OVCS_PUBLIC_KEY = [
+    "-----BEGIN PUBLIC KEY-----",
+    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEIncvQYyXXWk+rde84ASofRlw47zR",
+    "qqA3pKbPu6zS7PfY92n5ZDaXFWC5/oGqKsCQVvgHgy8KkoeH3fr9awfDIg==",
+    "-----END PUBLIC KEY-----",
+    "",
+].join("\n")
+
+/** The SHA-256 of the current generation's ER file, as the package stores it. */
+export const ER_FILE_SHA256 = "E8D67AC41B2C3D4E5F60718293A4B5C6D7E8F9011223344556677889073CD925"
+
 /** SBEI members of the north district; the signed-in "admin" user is sbei-1. */
 export const SBEI_IDS = ["sbei-1", "sbei-2", "sbei-3"]
 
@@ -40,6 +70,7 @@ export const MIRU_DOCUMENT_IDS = {
     xz: documentId(52),
     allServers: documentId(53),
     previousAllServers: documentId(54),
+    csv: documentId(57),
 }
 
 /** The package documents: an older generation and the current one, signed by `signed`. */
@@ -60,6 +91,12 @@ export function miruDocuments(signed: string[] = ["sbei-1"], sentTo: string[] = 
             eml: MIRU_DOCUMENT_IDS.eml,
             xz: MIRU_DOCUMENT_IDS.xz,
             all_servers: MIRU_DOCUMENT_IDS.allServers,
+            csv: MIRU_DOCUMENT_IDS.csv,
+        },
+        sha256: {
+            eml: ER_FILE_SHA256,
+            csv: "0A82EABE".repeat(8),
+            all_servers: "4884BAC3".repeat(8),
         },
         servers_sent_to: sentTo.map((name) => ({
             name,

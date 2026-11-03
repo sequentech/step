@@ -197,8 +197,8 @@ struct CeleryTask(SignedActionTask);
 impl PostCommitTask for CeleryTask {
     async fn send(&self) -> Result<()> {
         let task = self.0;
-        crate::services::celery_app::get_celery_app()
-            .await
+        crate::services::celery_app::try_get_celery_app()
+            .await?
             .send_task(crate::tasks::run_signed_action::run_signed_action::new(
                 task.tenant_id.to_string(),
                 task.election_event_id.to_string(),

@@ -1,12 +1,21 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {EChannelSelection, EMessageChannel} from "@/types/messaging"
-import {ITemplateMethod} from "@/types/templates"
+import {
+    EMessageChannel,
+    EMessagePurpose,
+    EOutOfWindowPolicy,
+    IEventChannelConfig,
+    IEventMessagingConfig,
+    IMessagingAccount,
+} from "@/types/messaging"
+import {emptyEventMessagingConfig} from "@/services/messaging"
 import {
     buildSendTemplatePayload,
     missingChannelContent,
-    templatesForChannelSelection,
+    sendNoticeChannels,
+    sendableTemplates,
+    sendingAccountFor,
 } from "./sendTemplatePayload"
 
 const content = {
@@ -26,14 +35,10 @@ const base = {
 }
 
 describe("buildSendTemplatePayload", () => {
-    it("sends each voter's channel without a single method", () => {
-        const payload = buildSendTemplatePayload({
-            ...base,
-            channelSelection: EChannelSelection.VOTER_PREFERENCE,
-            communicationMethod: ITemplateMethod.SMS,
-        })
-        expect(payload.channel_selection).toBe(EChannelSelection.VOTER_PREFERENCE)
-        expect(payload.communication_method).toBeUndefined()
+    it("sends the content of every channel, with no channel choice", () => {
+        const payload = buildSendTemplatePayload(base)
+        expect("channel_selection" in payload).toBe(false)
+        expect("communication_method" in payload).toBe(false)
         expect(payload.email).toEqual(content.email)
         expect(payload.sms).toEqual(content.sms)
         expect(payload.whatsapp).toEqual(content.whatsapp)
@@ -43,25 +48,9 @@ describe("buildSendTemplatePayload", () => {
         expect(payload.secret_attribute_names).toEqual(["passport"])
     })
 
-    it("sends one channel with only that channel's content", () => {
-        const payload = buildSendTemplatePayload({
-            ...base,
-            channelSelection: EChannelSelection.SINGLE_CHANNEL,
-            communicationMethod: ITemplateMethod.WHATSAPP,
-        })
-        expect(payload.channel_selection).toBe(EChannelSelection.SINGLE_CHANNEL)
-        expect(payload.communication_method).toBe(ITemplateMethod.WHATSAPP)
-        expect(payload.whatsapp).toEqual(content.whatsapp)
-        expect(payload.email).toBeUndefined()
-        expect(payload.sms).toBeUndefined()
-        expect(payload.messenger).toBeUndefined()
-    })
-
     it("names the provider's template and language when they are set", () => {
         const payload = buildSendTemplatePayload({
             ...base,
-            channelSelection: EChannelSelection.VOTER_PREFERENCE,
-            communicationMethod: ITemplateMethod.SMS,
             content: {
                 ...content,
                 whatsapp: {
@@ -91,14 +80,12 @@ describe("buildSendTemplatePayload", () => {
         const payload = buildSendTemplatePayload({
             ...base,
             alias: "reminder",
-            channelSelection: EChannelSelection.SINGLE_CHANNEL,
-            communicationMethod: ITemplateMethod.WHATSAPP,
         })
         expect(payload.alias).toBe("reminder")
     })
 })
 
-describe("templatesForChannelSelection", () => {
+describe("sendableTemplates", () => {
     const rows = [
         {
             communication_method: "EMAIL",
@@ -108,24 +95,11 @@ describe("templatesForChannelSelection", () => {
         {communication_method: "DOCUMENT", template: {alias: "receipt", selected_methods: {}}},
     ]
 
-    it("offers SMS templates for an SMS send, including multi-method ones", () => {
-        expect(
-            templatesForChannelSelection(
-                rows,
-                EChannelSelection.SINGLE_CHANNEL,
-                ITemplateMethod.SMS
-            ).map((row) => row.template.alias)
-        ).toEqual(["both", "legacy-sms"])
-    })
-
-    it("offers every messaging template for each voter's channel", () => {
-        expect(
-            templatesForChannelSelection(
-                rows,
-                EChannelSelection.VOTER_PREFERENCE,
-                ITemplateMethod.EMAIL
-            ).map((row) => row.template.alias)
-        ).toEqual(["both", "legacy-sms"])
+    it("offers every template that sends a message, not documents", () => {
+        expect(sendableTemplates(rows).map((row) => row.template.alias)).toEqual([
+            "both",
+            "legacy-sms",
+        ])
     })
 })
 
@@ -144,5 +118,84 @@ describe("missingChannelContent", () => {
         expect(missingChannelContent({sms: {message: "  "}}, [EMessageChannel.SMS])).toEqual([
             EMessageChannel.SMS,
         ])
+    })
+})
+
+describe("sendNoticeChannels: the channels a send reaches voters on (R4-10)", () => {
+    const config = (channels: IEventChannelConfig[]): IEventMessagingConfig => ({
+        ...emptyEventMessagingConfig(),
+        channels,
+    })
+    const channel = (name: EMessageChannel, purposes: EMessagePurpose[]): IEventChannelConfig => ({
+        channel: name,
+        account_id: `${name}-account`,
+        purposes,
+        templates: [],
+        out_of_window: EOutOfWindowPolicy.DISABLED,
+    })
+
+    it("doesn't guess without the permission to read the event's configuration", () => {
+        expect(sendNoticeChannels(false, null)).toEqual({kind: "NO_PERMISSION"})
+    })
+
+    it("uses email and SMS for an event without a configuration, as the backend does", () => {
+        expect(sendNoticeChannels(true, null)).toEqual({
+            kind: "CHANNELS",
+            channels: [EMessageChannel.SMS, EMessageChannel.EMAIL],
+        })
+    })
+
+    it("says no channel sends notices when the configuration has none, never SMS and Email", () => {
+        expect(
+            sendNoticeChannels(true, config([channel(EMessageChannel.SMS, [EMessagePurpose.OTP])]))
+        ).toEqual({kind: "NONE"})
+    })
+
+    it("lists the configured notice channels in channel order", () => {
+        expect(
+            sendNoticeChannels(
+                true,
+                config([
+                    channel(EMessageChannel.EMAIL, [EMessagePurpose.NOTICE]),
+                    channel(EMessageChannel.WHATSAPP, [
+                        EMessagePurpose.OTP,
+                        EMessagePurpose.NOTICE,
+                    ]),
+                ])
+            )
+        ).toEqual({kind: "CHANNELS", channels: [EMessageChannel.WHATSAPP, EMessageChannel.EMAIL]})
+    })
+})
+
+describe("sendingAccountFor", () => {
+    const sms = {
+        id: "sms-default",
+        channel: EMessageChannel.SMS,
+        is_default: true,
+    } as IMessagingAccount
+    const other = {
+        id: "sms-2",
+        channel: EMessageChannel.SMS,
+        is_default: false,
+    } as IMessagingAccount
+    const withSms = (accountId: string): IEventMessagingConfig => ({
+        ...emptyEventMessagingConfig(),
+        channels: [
+            {
+                channel: EMessageChannel.SMS,
+                account_id: accountId,
+                purposes: [EMessagePurpose.NOTICE],
+                templates: [],
+                out_of_window: EOutOfWindowPolicy.DISABLED,
+            },
+        ],
+    })
+
+    it("takes the event's account, else the tenant's default, else the deployment for email and SMS", () => {
+        expect(sendingAccountFor(withSms("sms-2"), [sms, other], EMessageChannel.SMS)).toBe(other)
+        expect(sendingAccountFor(null, [sms, other], EMessageChannel.SMS)).toBe(sms)
+        expect(sendingAccountFor(null, [], EMessageChannel.EMAIL)).toBe("ENVIRONMENT")
+        expect(sendingAccountFor(null, [], EMessageChannel.WHATSAPP)).toBeNull()
+        expect(sendingAccountFor(withSms("deleted"), [sms], EMessageChannel.SMS)).toBeNull()
     })
 })

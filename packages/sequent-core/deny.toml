@@ -119,7 +119,7 @@ exceptions = [
     # This is our own package, so we don't mind its license :-)
     { allow = ["AGPL-3.0"], name = "sequent-core" },
     # This is another Sequent package
-    { allow = ["AGPL-3.0"], name = "strand" }
+    { allow = ["AGPL-3.0-only"], name = "voting-crypto" }
 ]
 
 # Some crates don't have (easily) machine readable licensing information,

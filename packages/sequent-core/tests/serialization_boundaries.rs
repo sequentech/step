@@ -18,46 +18,28 @@ use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashMap;
 use std::io::Write;
-use strand::serialization::StrandSerialize;
-use strand::util::StrandError;
 use tempfile::NamedTempFile;
 
 #[test]
-fn base64_uses_unpadded_standard_encoding_of_little_endian_borsh() {
+fn base64_uses_padded_standard_encoding_of_canonical_bytes() {
     assert_eq!(
         Base64Serialize::serialize(&0x01020304_u32).unwrap(),
-        "BAMCAQ"
+        "AQIDBA=="
     );
     assert_eq!(
-        <u32 as Base64Deserialize>::deserialize("BAMCAQ".into()).unwrap(),
+        <u32 as Base64Deserialize>::deserialize("AQIDBA==".into()).unwrap(),
         0x01020304
     );
 }
 
 #[test]
 fn malformed_base64_and_truncated_or_trailing_borsh_are_rejected() {
-    for encoded in ["!", "BAMCAQ==", "BA", "BAMCAQA"] {
+    for encoded in ["!", "AQIDBA", "AQI=", "AQIDBAA="] {
         assert!(
             <u32 as Base64Deserialize>::deserialize(encoded.into()).is_err(),
             "accepted {encoded}"
         );
     }
-}
-
-/// Fault injection at the serialization boundary checks that a lower-level
-/// error is preserved instead of exporting a success-shaped empty string.
-struct Unserializable;
-
-impl StrandSerialize for Unserializable {
-    fn strand_serialize(&self) -> Result<Vec<u8>, StrandError> {
-        Err(std::io::Error::other("fixture serialization failure").into())
-    }
-}
-
-#[test]
-fn serialization_errors_reach_the_caller() {
-    let error = Base64Serialize::serialize(&Unserializable).unwrap_err();
-    assert!(error.to_string().contains("fixture serialization failure"));
 }
 
 #[derive(Debug, Deserialize, PartialEq)]

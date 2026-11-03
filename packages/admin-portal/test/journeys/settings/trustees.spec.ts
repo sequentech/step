@@ -34,8 +34,11 @@ test.describe("with trustee write and export permissions", () => {
         await page.getByRole("button", {name: "Add", exact: true}).click()
         const drawer = page.getByRole("dialog")
         await expect(drawer.getByText("Create Trustee", {exact: true})).toBeVisible()
-        await drawer.getByRole("textbox", {name: "Name", exact: true}).fill("Trustee Bob")
-        await drawer.getByRole("textbox", {name: "Public key", exact: true}).fill("bob-public-key")
+        await drawer.getByRole("textbox", {name: /^Name/}).fill("Trustee Bob")
+        await drawer.getByRole("textbox", {name: /^Public key/}).fill("bob-public-key")
+        await drawer
+            .getByRole("textbox", {name: /^Share encryption public key/})
+            .fill("bob-share-encryption-key")
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
 
         await expect(rowWith(page, "Trustee Bob")).toBeVisible()
@@ -43,7 +46,14 @@ test.describe("with trustee write and export permissions", () => {
         expect(
             portal.graphql.callsTo("insert_sequent_backend_trustee").map((c) => c.variables)
         ).toEqual([
-            {objects: {tenant_id: TENANT_ID, name: "Trustee Bob", public_key: "bob-public-key"}},
+            {
+                objects: {
+                    tenant_id: TENANT_ID,
+                    name: "Trustee Bob",
+                    public_key: "bob-public-key",
+                    share_encryption_public_key: "bob-share-encryption-key",
+                },
+            },
         ])
     })
 
@@ -54,12 +64,15 @@ test.describe("with trustee write and export permissions", () => {
         await rowWith(page, "Trustee Alice").getByRole("button").first().click()
         const drawer = page.getByRole("dialog")
         await expect(drawer.getByText("Edit Trustee", {exact: true})).toBeVisible()
-        const name = drawer.getByRole("textbox", {name: "Name", exact: true})
-        const publicKey = drawer.getByRole("textbox", {name: "Public key", exact: true})
+        const name = drawer.getByRole("textbox", {name: /^Name/})
+        const publicKey = drawer.getByRole("textbox", {name: /^Public key/})
         await expect(name).toHaveValue("Trustee Alice")
         await expect(publicKey).toHaveValue("alice-public-key")
         await name.fill("Trustee Alicia")
         await publicKey.fill("alicia-public-key")
+        await drawer
+            .getByRole("textbox", {name: /^Share encryption public key/})
+            .fill("alicia-share-encryption-key")
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
 
         await expect(rowWith(page, "Trustee Alicia")).toBeVisible()
@@ -68,7 +81,11 @@ test.describe("with trustee write and export permissions", () => {
             portal.graphql.callsTo("update_sequent_backend_trustee").map((c) => c.variables)
         ).toEqual([
             {
-                _set: {name: "Trustee Alicia", public_key: "alicia-public-key"},
+                _set: {
+                    name: "Trustee Alicia",
+                    public_key: "alicia-public-key",
+                    share_encryption_public_key: "alicia-share-encryption-key",
+                },
                 where: {id: {_eq: TRUSTEE_ID}},
             },
         ])
@@ -98,12 +115,25 @@ test.describe("with trustee write and export permissions", () => {
         await expect(page.getByText("No Trustees yet.", {exact: true})).toBeVisible()
         await page.getByText("Create Trustee", {exact: true}).click()
         const drawer = page.getByRole("dialog")
-        await drawer.getByRole("textbox", {name: "Name", exact: true}).fill("Trustee Carol")
+        await drawer.getByRole("textbox", {name: /^Name/}).fill("Trustee Carol")
+        await drawer.getByRole("textbox", {name: /^Public key/}).fill("carol-signing-key")
+        await drawer
+            .getByRole("textbox", {name: /^Share encryption public key/})
+            .fill("carol-share-encryption-key")
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
         await expect(rowWith(page, "Trustee Carol")).toBeVisible()
         expect(
             portal.graphql.callsTo("insert_sequent_backend_trustee").map((c) => c.variables)
-        ).toEqual([{objects: {tenant_id: TENANT_ID, name: "Trustee Carol"}}])
+        ).toEqual([
+            {
+                objects: {
+                    tenant_id: TENANT_ID,
+                    name: "Trustee Carol",
+                    public_key: "carol-signing-key",
+                    share_encryption_public_key: "carol-share-encryption-key",
+                },
+            },
+        ])
     })
 
     test("exports trustees as an archive protected by the password shown", async ({
@@ -197,7 +227,11 @@ test.describe("with trustee write and export permissions", () => {
         await openSettings(page, portal, "TRUSTEES")
         await page.getByRole("button", {name: "Add", exact: true}).click()
         const drawer = page.getByRole("dialog")
-        await drawer.getByRole("textbox", {name: "Name", exact: true}).fill("Trustee Bob")
+        await drawer.getByRole("textbox", {name: /^Name/}).fill("Trustee Bob")
+        await drawer.getByRole("textbox", {name: /^Public key/}).fill("bob-signing-key")
+        await drawer
+            .getByRole("textbox", {name: /^Share encryption public key/})
+            .fill("bob-share-encryption-key")
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
         await expect
             .poll(() => portal.graphql.callsTo("insert_sequent_backend_trustee"))

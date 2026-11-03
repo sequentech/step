@@ -5,8 +5,8 @@ title: Backend E2E journeys
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-The backend journeys use real PostgreSQL, Hasura, Keycloak, RabbitMQ, ImmuDB,
-MinIO, B4 and two trustees. They exercise administrator commands and the voting
+The backend journeys use real PostgreSQL (with the electoral log's databases
+and the task queues), Hasura, Keycloak, MinIO, B4 and two trustees. They exercise administrator commands and the voting
 portal's GraphQL protocol, including ballot encryption and tallying.
 
 From the repository root, with Python 3, `flock`, Docker Engine and Compose 2.24.4 or newer:
@@ -22,6 +22,11 @@ image that executes them. Allow at least 8 GB RAM and 40 GB free disk space; use
 `CARGO_BUILD_JOBS=1` on smaller machines. No host Rust or Node installation is needed. Python 3 holds the project lock. The runner uses development credentials from `.env.development` and
 creates a uniquely named `step-e2e-...` Compose project without publishing host ports. It
 removes that project's containers and volumes when finished.
+
+The isolated bootstrap enables the tenant's `api-key-client` and assigns
+`API_KEY_CLIENT_SECRET` from the test environment before authenticating the
+administrator and trustees. Tenant creation rotates client secrets; the realm
+template's defaults do not provide credentials for the generated realm.
 
 For iteration:
 
@@ -51,8 +56,26 @@ prepares services and the administrator without executing voting journeys.
 
 Results are written to `.cache/backend-e2e/<project>/journeys.json`, with CLI output and
 service logs beside it. Override this directory with `STEP_E2E_OUTPUT_DIR`.
-The `Backend E2E journeys` workflow runs the same command on affected pull
-requests and uploads those artifacts, including after failures.
+The Compose overlays also work with `.env.development` alone: binaries default
+to `.cache/backend-e2e/bin` and output to `.cache/backend-e2e/default` within
+the checkout. The runner writes its per-run paths to `compose.env` and passes
+that file to Compose, so Compose does not require shell exports for these paths.
+The `Backend E2E journeys` workflow runs the same journeys on affected pull
+requests and uploads those artifacts, including after failures. It splits the
+build across two runners: one job builds the release binaries (`trustee`,
+`b4v6`) with `STEP_E2E_BINARIES=release scripts/e2e/run.sh --build-only`, while
+the journeys job builds the images and the debug binaries
+(`STEP_E2E_BINARIES=debug`), takes the release pair from the Actions cache and
+runs with `--skip-images --skip-build`. `--build-only` builds what
+`STEP_E2E_IMAGES` names (default: every image the stack needs) and the
+selected binaries, then stops. Pushes to `main`, `ovcs` and release branches
+seed the Cargo caches that pull requests restore.
+The service images reuse layers from GHCR (`ghcr.io/sequentech/step/backend-e2e-cache`):
+`STEP_E2E_BUILD_CACHE` names the repository, `STEP_E2E_BUILD_CACHE_READ` the
+scopes to import (the branch and its base) and `STEP_E2E_BUILD_CACHE_WRITE` the
+one to export to. Pushes and manual runs export to their branch's tags; pull
+requests only import. The export needs a buildx builder such as
+`docker buildx create --use --driver docker-container`.
 The job summary (`scripts/e2e/summary.py <output>` writes it to `summary.md`) lists each
 journey and the bootstrap check with status and duration, then the totals. The
 `backend-e2e-results-<attempt>` artifact keeps it with the JSON results.
@@ -67,7 +90,28 @@ code (143: stopped by SIGTERM, counters kept by continuous mode); a missing prof
 The ordered tests in `scripts/e2e/journeys/test_journeys.py` cover tenant bootstrap,
 event import and invalid bundles, voter import, automatic key generation,
 private ballot publication, cast/revote/closing rules and results matching the
-last accepted ballot. Fixtures live in `fixtures.py`; clients use Python's
+last accepted ballot. A combined-contest voting journey casts one native
+ciphertext covering two contests, checks malformed ciphertext and foreign-domain
+proof rejection before storage, then verifies voter weight batches through the
+native trustees and independently calculated Velvet totals. Native archive
+journeys cover configuration-only, publication-only and activity-log-only exports,
+including older selective bundles with unused native keys. They reject missing
+manager keys and tally exports without protocol boards. They also export a
+completed election with its protocol boards, publications, voters and tally, then recover it through the
+CLI and the authenticated encrypted-import API. They check preserved canonical
+protocol messages, remapped board relationships, immutable signed configuration
+domains and the same independently calculated vote totals. Archives also
+retain publication metadata and ballot styles, rebuilding their immutable
+storage objects under the recovered event's identifiers. Historical archives
+without publication metadata recover their styles as generated, unpublished
+publications. Encrypted archives contain manager identities; decrypted server
+files belong to the import request
+and are removed when it finishes, including on decryption failure.
+The manual ceremony journey imports a completed event, rejects the original
+public ceremony file, downloads a file scoped to the copy, and completes a new
+tally over a fresh accepted vote. The server custody browser runner exercises
+that recovery download and upload through the production administration portal.
+Fixtures live in `fixtures.py`; clients use Python's
 standard library. Add assertions against observable responses and persisted
 results, with valid controls for rejection cases.
 The same fixture and clients build the development stack's

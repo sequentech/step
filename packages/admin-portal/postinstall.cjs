@@ -42,3 +42,10 @@ if (fse.existsSync(path.join(sqlJsSourceDir, "sql-wasm.js"))) {
     })
     console.log("✓ Copied sql-wasm.js to public/")
 }
+
+// Keep worker module URLs intact: the WASM thread pool loads these directly.
+fse.copySync(
+    path.join(topDir, "node_modules", "wbraid-trustee"),
+    path.join(publicDir, "wbraid-trustee"),
+    {overwrite: true}
+)

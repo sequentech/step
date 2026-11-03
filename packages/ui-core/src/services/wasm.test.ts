@@ -40,10 +40,13 @@ jest.mock("sequent-core", () => {
         "check_is_blank_js",
         "verify_ballot_signature_js",
         "verify_multi_ballot_signature_js",
+        "verify_auditable_ballot_ciphertext_js",
+        "verify_auditable_multi_ballot_ciphertext_js",
         "verify_received_ballot_js",
         "sign_ballot_cast_js",
         "forget_voter_signing_key_js",
         "verify_cast_receipt_js",
+        "verify_ballot_log_proof_js",
         "normalize_ballot_id_js",
         "check_voting_not_allowed_next",
         "check_voting_error_dialog",
@@ -82,6 +85,20 @@ afterEach(() => {
 const decoded = decodedContest({choices: [{id: "candidate-1", selected: 0}]})
 const multiBallot = {...auditableBallot, contests: "synthetic-multi-contest"}
 const ballotBoxKey = {key_id: "fd110d301d2f077d", public_key: "ballot-box-key"}
+const privacyTrust = {
+    tenant_id: "tenant-1",
+    election_event_id: "event-1",
+    election_id: "election-1",
+    system_public_key: "system-key",
+    ballot_box_key: ballotBoxKey,
+}
+const privacyProof = {
+    ballot_id: "FTBE-MHRX",
+    pseudonym: "7QKM-2HXD",
+    voting_channel: "ONLINE",
+    received_entry: "signed-received-entry",
+    cast_entry: null,
+}
 const receivedBallot = {
     tenant_id: "tenant-1",
     election_event_id: "event-1",
@@ -144,6 +161,15 @@ interface AdapterCase {
 // failure policy. It makes no claim about mocked cryptography; real WASM runs
 // separately in the browser integration suite.
 const cases: AdapterCase[] = [
+    {
+        name: "ballot log proof verifies scoped evidence without replacing pending checks",
+        run: () => adapter.verifyBallotLogProof(privacyTrust, privacyProof),
+        backend: backend.verify_ballot_log_proof_js,
+        args: [privacyTrust, privacyProof],
+        result: {
+            checks: {binding: "passed", received: "passed", ballotId: "passed", cast: "pending"},
+        },
+    },
     {
         name: "election ordering",
         run: () => adapter.sortElectionList([election], ElectionsOrder.CUSTOM, false),
@@ -291,6 +317,20 @@ const cases: AdapterCase[] = [
         backend: backend.verify_multi_ballot_signature_js,
         args: ["ballot-1", "election-1", multiBallot],
         result: true,
+    },
+    {
+        name: "ballot ciphertext verification",
+        run: () => adapter.verifyAuditableBallotCiphertext(auditableBallot),
+        backend: backend.verify_auditable_ballot_ciphertext_js,
+        args: [auditableBallot],
+        result: true,
+    },
+    {
+        name: "multi-ballot ciphertext verification",
+        run: () => adapter.verifyAuditableMultiBallotCiphertext(multiBallot),
+        backend: backend.verify_auditable_multi_ballot_ciphertext_js,
+        args: [multiBallot],
+        result: false,
     },
     {
         name: "received ballot verification",

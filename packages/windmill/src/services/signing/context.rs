@@ -249,8 +249,8 @@ pub enum InvalidReason {
     /// The document's signature fields don't fit the request (one empty
     /// field per signature it needs): generate the document again.
     DocumentFields,
-    /// The key share's SHA-256 a trustee sent is not the uploaded key share's.
-    KeyShareHash,
+    /// The custody proof's SHA-256 a trustee sent is not the uploaded custody proof's.
+    CustodyProofHash,
     /// The event runs its key ceremonies automatically: no trustee takes a
     /// key step there to sign.
     AutomatedCeremonies,
@@ -311,8 +311,8 @@ pub fn action_title(action: SigningAction) -> &'static str {
         SigningAction::TransmitResults => "Transmit results",
         SigningAction::ApproveVoter => "Approve voter",
         SigningAction::ApproveConfiguration => "Approve configuration",
-        SigningAction::ConfirmKeyShare => "Confirm key share",
-        SigningAction::ContributeKeyShare => "Contribute key share",
+        SigningAction::ConfirmCustodyProof => "Confirm custody proof",
+        SigningAction::ContributeCustodyProof => "Contribute custody proof",
     }
 }
 

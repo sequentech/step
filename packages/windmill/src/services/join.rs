@@ -275,6 +275,28 @@ pub fn merge_join_csv(
     })
 }
 
+/// Voter ids of a tally ballots CSV, whose rows are each voter's valid
+/// ballot (`find_area_ballots`).
+pub fn read_ballot_voter_ids(
+    ballots_file: &File,
+    ballots_voter_id_index: usize,
+) -> Result<Vec<String>> {
+    let mut ballots_reader = ReaderBuilder::new()
+        .has_headers(false)
+        .from_reader(ballots_file);
+    let mut voter_ids = Vec::new();
+    for ballot in ballots_reader.records() {
+        let ballot = ballot?;
+        let voter_id = ballot
+            .get(ballots_voter_id_index)
+            .ok_or_else(|| anyhow!("Missing ballot voter id column {ballots_voter_id_index}"))?;
+        if !voter_id.is_empty() {
+            voter_ids.push(voter_id.to_string());
+        }
+    }
+    Ok(voter_ids)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -916,6 +938,37 @@ mod tests {
             result.casted_ballots
         );
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_ballot_voter_ids_skips_ballots_without_a_voter() -> Result<()> {
+        let mut ballots = NamedTempFile::new()?;
+        writeln!(
+            ballots,
+            "alice,content-a,ONLINE\n\
+             ,content-x,ONLINE\n\
+             carol,content-c,KIOSK"
+        )?;
+        ballots.flush()?;
+
+        assert_eq!(
+            read_ballot_voter_ids(&ballots.reopen()?, 0)?,
+            vec!["alice".to_string(), "carol".to_string()]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_ballot_voter_ids_rejects_a_missing_column() -> Result<()> {
+        let mut ballots = NamedTempFile::new()?;
+        writeln!(ballots, "alice,content-a,ONLINE")?;
+        ballots.flush()?;
+
+        let missing_voter = read_ballot_voter_ids(&ballots.reopen()?, 5).unwrap_err();
+        assert!(missing_voter
+            .to_string()
+            .contains("Missing ballot voter id column 5"));
         Ok(())
     }
 }

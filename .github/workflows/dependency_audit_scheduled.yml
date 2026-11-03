@@ -47,8 +47,17 @@ jobs:
 
       - name: Scan ${{ matrix.branch }}
         run: |
+          # osv-scanner exits 1 when it finds vulnerabilities and uses other
+          # nonzero codes for errors such as finding no packages to scan.
+          status=0
           docker run --rm \
             -v "${{ github.workspace }}:/src" \
             ghcr.io/google/osv-scanner:v2.5.1 \
             scan source --recursive /src \
-            || echo "::warning title=Vulnerabilities found::osv-scanner reported findings on ${{ matrix.branch }} - see the log above"
+            || status=$?
+          if [ "$status" -eq 1 ]; then
+            echo "::warning title=Vulnerabilities found::osv-scanner reported findings on ${{ matrix.branch }} - see the log above"
+          elif [ "$status" -ne 0 ]; then
+            echo "::error title=Scan failed::osv-scanner exited with status $status"
+            exit "$status"
+          fi

@@ -1,14 +1,17 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {type ReactNode} from "react"
-import {Alert, Box, CircularProgress, Stack} from "@mui/material"
-import {useQuery} from "@apollo/client"
+import React, {useState, type ReactNode} from "react"
+import {Alert, Box, CircularProgress, FormControlLabel, Stack, Switch} from "@mui/material"
+import {useMutation, useQuery} from "@apollo/client"
 import {useTranslation} from "react-i18next"
+import {MONITORING_SET_MODE} from "@/queries/MonitoringSetMode"
+import {IPermissions} from "@/types/keycloak"
 import {MONITORING_LIST_DASHBOARDS} from "@/queries/MonitoringListDashboards"
 import {
     EMonitoringCapability,
     EMonitoringMode,
+    type MonitoringSetModeMutation,
     type MonitoringListDashboardsQuery,
     type MonitoringListDashboardsVariables,
 } from "./types"
@@ -17,6 +20,7 @@ import {MonitoringProvider, type MonitoringEditorActions} from "./MonitoringProv
 import {MonitoringDashboard} from "./MonitoringDashboard"
 import type {IMonitoringEditorApi} from "./editor/api"
 import {useMonitoringTabEditor} from "./editor/useMonitoringTabEditor"
+import {StandardDashboardContent} from "../dashboard/DashboardContent"
 
 export interface MonitoringDashboardTabProps {
     electionEventId?: string | null
@@ -30,6 +34,8 @@ export interface MonitoringDashboardTabProps {
      * standard dashboard needs under it.
      */
     below?: ReactNode
+    /** Shown in every mode, within the selected dashboard's content bounds. */
+    footer?: ReactNode
     lock?: EMonitoringLock
     /** Replaces the editor's entry points, which a viewer who may configure gets. */
     actions?: MonitoringEditorActions
@@ -48,12 +54,36 @@ export function MonitoringDashboardTab({
     electionId,
     legacy,
     below,
+    footer,
     lock = EMonitoringLock.OPEN,
     actions,
     editorApi,
 }: MonitoringDashboardTabProps) {
     const {t} = useTranslation()
     const {view, configure} = useMonitoringPermissions(lock)
+    const [modeError, setModeError] = useState(false)
+    const [setMode, {loading: changingMode}] = useMutation<
+        MonitoringSetModeMutation,
+        {electionEventId: string; mode: EMonitoringMode}
+    >(MONITORING_SET_MODE, {
+        context: {headers: {"x-hasura-role": IPermissions.MONITORING_CONFIGURE}},
+        refetchQueries: [MONITORING_LIST_DASHBOARDS],
+        awaitRefetchQueries: true,
+    })
+    const changeMode = async (enabled: boolean) => {
+        if (!electionEventId || configure !== EMonitoringCapability.GRANTED || changingMode) return
+        setModeError(false)
+        try {
+            await setMode({
+                variables: {
+                    electionEventId,
+                    mode: enabled ? EMonitoringMode.CONFIGURED : EMonitoringMode.LEGACY,
+                },
+            })
+        } catch {
+            setModeError(true)
+        }
+    }
     const editor = useMonitoringTabEditor({
         electionEventId: electionEventId ?? "",
         electionId,
@@ -69,34 +99,68 @@ export function MonitoringDashboardTab({
         skip: !allowed,
     })
 
-    if (!allowed) return <>{legacy}</>
+    const standard = (
+        <StandardDashboardContent>
+            {legacy}
+            {footer}
+        </StandardDashboardContent>
+    )
+    if (!allowed) return standard
     if (error) {
         return (
             <Stack spacing={2}>
                 <Alert severity="warning">{t("monitoring.unavailableAlert")}</Alert>
-                {legacy}
+                {standard}
             </Stack>
         )
     }
     const list = data?.monitoringListDashboards
     if (loading || !list) {
         return (
-            <Box sx={{display: "flex", justifyContent: "center", py: 4}}>
-                <CircularProgress aria-label={t("monitoring.loading")} />
-            </Box>
+            <>
+                <Box sx={{display: "flex", justifyContent: "center", py: 4}}>
+                    <CircularProgress aria-label={t("monitoring.loading")} />
+                </Box>
+                {footer}
+            </>
         )
     }
-    if (list.mode !== EMonitoringMode.CONFIGURED) return <>{legacy}</>
+    const controls = (
+        <Stack spacing={1} sx={{mb: 2}}>
+            <FormControlLabel
+                label={t("monitoring.configuredDashboards")}
+                control={
+                    <Switch
+                        inputProps={{role: "switch"}}
+                        checked={list.mode === EMonitoringMode.CONFIGURED}
+                        disabled={configure !== EMonitoringCapability.GRANTED || changingMode}
+                        onChange={(_event, checked) => void changeMode(checked)}
+                    />
+                }
+            />
+            {modeError && <Alert severity="error">{t("monitoring.modeChangeError")}</Alert>}
+        </Stack>
+    )
+    if (list.mode !== EMonitoringMode.CONFIGURED)
+        return (
+            <>
+                {controls}
+                {standard}
+            </>
+        )
     if (!list.dashboards.length) {
         return (
             <Stack spacing={2}>
+                {controls}
                 <Alert severity="info">{t("monitoring.noDashboards")}</Alert>
                 {below}
+                {footer}
             </Stack>
         )
     }
     return (
         <>
+            {controls}
             <MonitoringProvider
                 storageKey={`monitoring:${electionEventId}:${electionId ?? ""}`}
                 actions={actions ?? editor.actions}
@@ -112,6 +176,7 @@ export function MonitoringDashboardTab({
                 {editor.element}
             </MonitoringProvider>
             {below}
+            {footer}
         </>
     )
 }

@@ -118,10 +118,7 @@ export const CreateAnEvent: Story = {
 export const ImportAnEvent: Story = {
     parameters: {
         widgets: ["SequentSidebar"],
-        expectedFailure: {
-            reason: "The import drawer is a modal dialog without an accessible name.",
-            a11y: ["aria-dialog-name"],
-        },
+        expectedFailure: null,
     },
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
@@ -129,10 +126,12 @@ export const ImportAnEvent: Story = {
         await userEvent.click(canvas.getByRole("button", {name: "Create an Election Event"}))
         const menu = await within(document.body).findByRole("menu")
         await userEvent.click(within(menu).getByRole("menuitem", {name: "Import Election Event"}))
-        const hint = await within(document.body).findByText(
-            "Import Election Events using a JSON file."
-        )
-        await waitFor(() => expect(hint).toBeVisible())
+        const drawer = await within(document.body).findByRole("dialog", {
+            name: "Import Election Event",
+        })
+        await waitFor(() => expect(drawer).toBeVisible())
+        expect(within(drawer).getAllByTestId("drop-input-file")).toHaveLength(1)
+        expect(within(drawer).getByTestId("drop-input-file")).not.toHaveAttribute("multiple")
         expect(services.graphql.calls.map(({name}) => name)).not.toContain("ImportElectionEvent")
     },
 }

@@ -10,6 +10,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  # OIDC for the shared compiler cache (setup-rust-cache)
+  id-token: write
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -21,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [immu-board, e2e, mock_server]
+        package: [e2e, mock_server]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -29,6 +31,7 @@ jobs:
       - uses: ./.github/actions/setup-rust-tests
         with:
           cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
+          compile-cache: ${{ vars.STEP_COMPILE_CACHE }}
           cargo-build-name: additional-${{ matrix.package }}
           cargo-build-path: packages/target
           cargo-lock-path: packages/Cargo.lock
@@ -39,9 +42,4 @@ jobs:
         run: cargo test --locked -p '${{ matrix.package }}' --tests
       - name: Check production code
         working-directory: packages
-        run: |
-          if [ '${{ matrix.package }}' = immu-board ]; then
-            cargo clippy --locked -p immu-board --lib --bins
-          else
-            cargo clippy --locked -p '${{ matrix.package }}' --bins
-          fi
+        run: cargo clippy --locked -p '${{ matrix.package }}' --bins

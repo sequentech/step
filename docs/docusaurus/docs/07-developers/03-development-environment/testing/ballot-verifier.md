@@ -64,3 +64,28 @@ boundaries. Direct login redirects replace their browser-history entry so Back
 can leave the verifier instead of entering a redirect loop. Production browser
 journeys verify a real signed ballot with both available and missing public
 metadata, while asserting the exact public request and absence of private calls.
+
+The verifier opens native wbraid ballots through `sequent-core` WASM. Single-contest
+audits carry a sequence of canonical contest encodings; combined-contest audits
+carry one canonical encoding. Decoder selection follows that wire shape, and an
+opening or proof failure rejects the import without trying another format.
+
+For authenticated verification, the uploaded public key, demo mode and immutable
+`configuration_id` must match the published style. Configuration IDs remain
+decimal strings so JavaScript preserves their full 128-bit precision. When the
+immutable ID is absent, `keys_ceremony_id` supplies the encryption domain. When
+that ID is present, recovery may remap the ceremony UUID without changing the
+cryptographic domain. Candidate and contest ordering remain bound to publication.
+Signed ballots require a successful verification result; incomplete signatures,
+false results and missing results reject the import. Unsigned application
+envelopes retain their existing behavior, with native opening checks still required.
+
+Production browser journeys start with valid signed native ballots, then truncate
+the canonical ciphertext, change/remove only the configuration ID, or replace the
+revealed plaintext or randomness. Opening substitutions preserve the ciphertext,
+ballot ID and voter signature, and must still reject the import. Both ballot
+formats assert rejection, hidden selections and recovery with the original ballot. Cross-portal
+journeys import the exact voting portal download for both single- and combined-
+contest policies and compare the ballot ID and selected candidates. Service
+boundaries are synthetic; encryption, proof/opening checks, hashes and signatures
+run in the real WASM. Desktop and mobile journeys cover the rendered verifier.

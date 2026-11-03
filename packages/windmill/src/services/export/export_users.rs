@@ -13,7 +13,6 @@ use crate::services::voter_secret_attributes::{
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use deadpool_postgres::Transaction;
-use regex::Regex;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::{User, UserProfileAttribute};
@@ -21,12 +20,19 @@ use sequent_core::util::aws::get_max_upload_size;
 use sequent_core::util::temp_path::generate_temp_file;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::sync::LazyLock;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
 
-static SAFE_CHARS_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"[^a-zA-Z0-9._-]").expect("Failed to build safe chars regex"));
+/// Prefix of a participation column. The rest of the header is the election's
+/// external ID, which an election event keeps unique per election.
+pub(crate) const ELECTION_EXTERNAL_ID_HEADER_PREFIX: &str = "election__external_id__";
+
+fn scoped_export_elections(elections: Vec<ElectionHead>, ids: &[String]) -> Vec<ElectionHead> {
+    elections
+        .into_iter()
+        .filter(|election| ids.contains(&election.id))
+        .collect()
+}
 
 pub const USER_FIELDS: [&str; 9] = [
     "id",
@@ -70,17 +76,71 @@ pub enum ExportBody {
     },
 }
 
-#[instrument(level = "trace")]
-fn sanitize_name(name: &str) -> String {
-    // Replace all characters not matching the regex with an underscore '_'
-    SAFE_CHARS_RE.replace_all(name, "_").to_string()
+/// The participation column for the election with this external ID: the prefix,
+/// then the ID's UTF-8 bytes in lowercase hexadecimal.
+///
+/// The encoding is reversible and fits the import header pattern
+/// (`[a-zA-Z0-9._-]`). Unlike replacing unsafe characters, it keeps IDs that
+/// differ only by case, punctuation, spacing or non-ASCII characters distinct,
+/// for example `A-B` and `A_B`, or `Board` and `board`.
+fn election_header(external_id: &str) -> String {
+    format!(
+        "{ELECTION_EXTERNAL_ID_HEADER_PREFIX}{}",
+        hex::encode(external_id.as_bytes())
+    )
+}
+
+/// One participation column per election, in the order given.
+///
+/// The external ID is the election's only identity in the file, so an election
+/// without one, or two elections sharing one, stops the export rather than
+/// falling back to another identifier. The ID is encoded exactly as stored:
+/// never trimmed or case-folded.
+fn election_headers(elections: &[ElectionHead]) -> Result<Vec<String>> {
+    // Elections are named by display name and id; the list is already limited
+    // to the elections this export may show.
+    let describe = |election: &ElectionHead| format!("{:?} ({})", election.name, election.id);
+    let mut seen: HashMap<&str, &ElectionHead> = HashMap::new();
+    elections
+        .iter()
+        .map(|election| {
+            let external_id = election
+                .external_id
+                .as_deref()
+                .filter(|external_id| !external_id.trim().is_empty())
+                .ok_or_else(|| {
+                    Error::String(format!(
+                        "Election {} has no external ID. The voters export names each \
+                         election's participation column by its external ID: set one \
+                         before exporting.",
+                        describe(election)
+                    ))
+                })?;
+            if let Some(other) = seen.insert(external_id, election) {
+                return Err(Error::String(format!(
+                    "Elections {} and {} share the external ID {external_id:?}. \
+                     External IDs must be unique within the election event before \
+                     exporting voters.",
+                    describe(other),
+                    describe(election)
+                )));
+            }
+            Ok(election_header(external_id))
+        })
+        .collect()
+}
+
+/// The temp table column the voter import makes from a header: `.` and `-`
+/// become `_`, and case is folded.
+fn import_column_key(header: &str) -> String {
+    header.replace(['.', '-'], "_").to_lowercase()
 }
 
 #[instrument(skip(elections))]
-fn get_headers(
+pub(crate) fn get_headers(
     elections: &Option<Vec<ElectionHead>>,
     user_attributes: &Vec<UserProfileAttribute>,
-) -> Vec<String> {
+) -> Result<Vec<String>> {
     let mut user_headers: Vec<String> = vec![
         "id".to_string(),
         "email".to_string(),
@@ -101,22 +161,22 @@ fn get_headers(
             _ => (),
         }
     }
-    vec![
-        user_headers,
-        match elections {
-            Some(ref some_elections) => some_elections
-                .iter()
-                .map(|election| match election.alias {
-                    Some(ref election_alias) => {
-                        format!("election__{}", sanitize_name(&election_alias))
-                    }
-                    None => format!("election__{}", sanitize_name(&election.name)),
-                })
-                .collect::<Vec<String>>(),
-            None => vec![],
-        },
-    ]
-    .concat()
+    let election_headers = match elections {
+        Some(some_elections) => election_headers(some_elections)?,
+        None => vec![],
+    };
+    // A voter attribute read back as a participation column would be dropped
+    // on import, or rejected as a duplicate.
+    if let Some(attribute) = user_headers
+        .iter()
+        .find(|header| election_headers.contains(&import_column_key(header)))
+    {
+        return Err(Error::String(format!(
+            "The voter attribute `{attribute}` has the same name as an election \
+             participation column. Rename the attribute before exporting voters."
+        )));
+    }
+    Ok(vec![user_headers, election_headers].concat())
 }
 
 #[instrument(skip(elections, areas_by_id, user, user_attributes), level = "trace")]
@@ -167,7 +227,8 @@ fn get_user_record(
                 .iter()
                 .map(|election: &ElectionHead| match votes_info_map_opt {
                     Some(ref votes_info_map) => match votes_info_map.get(&election.id) {
-                        Some(ref votes_info) => votes_info.last_voted_at.clone(),
+                        Some(ref votes_info) if votes_info.num_votes > 0 => "true".to_string(),
+                        Some(_) => String::new(),
                         None => Default::default(),
                     },
                     None => Default::default(),
@@ -183,7 +244,20 @@ fn get_user_record(
 pub async fn export_users_file(
     hasura_transaction: &Transaction<'_>,
     body: ExportBody,
+    permitted_election_ids: Option<&[String]>,
 ) -> Result<TempPath> {
+    if matches!(
+        &body,
+        ExportBody::Users {
+            election_event_id: Some(_),
+            ..
+        }
+    ) && permitted_election_ids.is_none()
+    {
+        return Err(Error::String(
+            crate::services::participation_authorization::REAUTHORIZE_PARTICIPATION.into(),
+        ));
+    }
     let realm = match &body {
         ExportBody::Users {
             tenant_id,
@@ -218,6 +292,8 @@ pub async fn export_users_file(
             )
             .await
             .with_context(|| "Error retrieving elections for the event")?;
+            let elections =
+                scoped_export_elections(elections, permitted_election_ids.unwrap_or_default());
 
             let areas_by_id = get_areas_by_id(
                 &hasura_transaction,
@@ -288,7 +364,7 @@ pub async fn export_users_file(
                     .is_none_or(|name| !configured_secret_names.contains(name))
         })
         .collect::<Vec<_>>();
-    let headers = get_headers(&elections, &attributes);
+    let headers = get_headers(&elections, &attributes)?;
 
     // Pagination loop to export users in batches
     let batch_size = PgConfig::from_env()?.default_sql_batch_size;
@@ -333,6 +409,7 @@ pub async fn export_users_file(
             email_verified: None,
             sort: None,
             has_voted: None,
+            permitted_election_ids: permitted_election_ids.map(<[String]>::to_vec),
             authorized_to_election_alias: None,
         };
 
@@ -425,7 +502,7 @@ mod tests {
     #[test]
     fn area_name_profile_attribute_does_not_duplicate_or_shift_export_columns() {
         let attributes = vec![attribute("area_name"), attribute("custom_attribute")];
-        let headers = get_headers(&None, &attributes);
+        let headers = get_headers(&None, &attributes).unwrap();
         let user = User {
             id: Some("id".to_string()),
             email: Some("email@example.com".to_string()),
@@ -501,7 +578,7 @@ mod tests {
                 .is_none_or(|name| !configured_secret_names.contains(name))
         })
         .collect::<Vec<_>>();
-        let headers = get_headers(&None, &attributes);
+        let headers = get_headers(&None, &attributes).unwrap();
         let user = User {
             attributes: Some(HashMap::from([
                 (
@@ -536,7 +613,7 @@ mod tests {
             )])),
             ..Default::default()
         };
-        let headers = get_headers(&None, &attributes);
+        let headers = get_headers(&None, &attributes).unwrap();
         let record = get_user_record(&None, &None, &user, &attributes);
         let index = headers
             .iter()
@@ -551,4 +628,235 @@ mod tests {
         assert!(record[index].contains("second-secret"));
         assert!(!record[index].contains("seqenc:"));
     }
+
+    fn election(id: &str, external_id: Option<&str>) -> ElectionHead {
+        ElectionHead {
+            id: id.to_string(),
+            name: "General Election".to_string(),
+            alias: None,
+            external_id: external_id.map(str::to_string),
+        }
+    }
+
+    fn election_columns(elections: Vec<ElectionHead>) -> Result<Vec<String>> {
+        let user_columns = get_headers(&None, &vec![])?.len();
+        Ok(get_headers(&Some(elections), &vec![])?[user_columns..].to_vec())
+    }
+
+    fn decode(header: &str) -> String {
+        let encoded = header
+            .strip_prefix(ELECTION_EXTERNAL_ID_HEADER_PREFIX)
+            .expect("participation prefix");
+        String::from_utf8(hex::decode(encoded).expect("hex")).expect("utf-8")
+    }
+
+    #[test]
+    fn elections_with_the_same_name_are_told_apart_by_external_id() {
+        // Regression for meta#14667: two elections named "General Election"
+        // both became `election__General_Election`, and import refused the file.
+        assert_eq!(
+            election_columns(vec![
+                election("1", Some("GE-2026")),
+                election("2", Some("GE-2027")),
+            ])
+            .unwrap(),
+            [
+                "election__external_id__47452d32303236",
+                "election__external_id__47452d32303237",
+            ]
+        );
+    }
+
+    #[test]
+    fn raw_external_ids_round_trip_through_the_header() {
+        let raw = [
+            "Élection «Nord» 選挙",
+            "with \"quotes\", a comma",
+            "line\nbreak",
+            "  padded  ",
+            "3f6c1d2e-8a4b-4c1e-9f00-1b2c3d4e5f60",
+        ];
+        let headers = election_columns(
+            raw.iter()
+                .enumerate()
+                .map(|(at, id)| election(&at.to_string(), Some(id)))
+                .collect(),
+        )
+        .unwrap();
+        assert_eq!(
+            headers[4],
+            "election__external_id__\
+             33663663316432652d386134622d346331652d396630302d316232633364346535663630"
+        );
+        for (header, id) in headers.iter().zip(raw) {
+            assert_eq!(decode(header), id);
+            assert!(header
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_'));
+        }
+    }
+
+    #[test]
+    fn ids_differing_only_by_case_or_punctuation_stay_distinct() {
+        let raw = [
+            "A-B", "A_B", "A.B", "A B", "a-b", "Board", "board", "X", " X",
+        ];
+        let headers = election_columns(
+            raw.iter()
+                .enumerate()
+                .map(|(at, id)| election(&at.to_string(), Some(id)))
+                .collect(),
+        )
+        .unwrap();
+        assert_eq!(headers[0], "election__external_id__412d42");
+        assert_eq!(headers[1], "election__external_id__415f42");
+        assert_eq!(headers[5], "election__external_id__426f617264");
+        assert_eq!(headers[6], "election__external_id__626f617264");
+        assert_eq!(headers[8], "election__external_id__2058");
+        let import_keys = headers
+            .iter()
+            .map(|header| import_column_key(header))
+            .collect::<HashSet<_>>();
+        assert_eq!(import_keys.len(), raw.len());
+    }
+
+    #[test]
+    fn missing_or_blank_external_ids_stop_the_export() {
+        for external_id in [None, Some(""), Some("   "), Some("\t\n")] {
+            let error = election_columns(vec![
+                election("first", Some("GE-2026")),
+                election("second", external_id),
+            ])
+            .expect_err("an election without an external ID must be refused");
+            let message = format!("{error:?}");
+            assert!(message.contains("second"), "{message}");
+            assert!(message.contains("no external ID"), "{message}");
+        }
+    }
+
+    #[test]
+    fn a_repeated_external_id_stops_the_export() {
+        let error = election_columns(vec![
+            election("first", Some("GE-2026")),
+            election("second", Some("GE-2027")),
+            election("third", Some("GE-2026")),
+        ])
+        .expect_err("a repeated external ID must be refused");
+        let message = format!("{error:?}");
+        assert!(
+            message.contains("first") && message.contains("third"),
+            "{message}"
+        );
+        assert!(message.contains("GE-2026"), "{message}");
+    }
+
+    #[test]
+    fn a_voter_attribute_named_like_a_participation_column_stops_the_export() {
+        for name in [
+            "election__external_id__6e",
+            "ELECTION__EXTERNAL_ID__6E",
+            "election--external.id__6e",
+        ] {
+            let error = get_headers(
+                &Some(vec![election("north", Some("n"))]),
+                &vec![attribute(name)],
+            )
+            .expect_err("a colliding attribute must be refused");
+            assert!(format!("{error:?}").contains(name));
+        }
+        assert!(get_headers(
+            &Some(vec![election("north", Some("n"))]),
+            &vec![attribute("election__external_id__6f")],
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn participation_values_follow_their_own_election_column() {
+        let elections = Some(vec![
+            election("first", Some("GE-2026")),
+            election("second", Some("GE-2027")),
+        ]);
+        let user = User {
+            votes_info: Some(vec![sequent_core::types::keycloak::VotesInfo {
+                election_id: "second".into(),
+                num_votes: 1,
+                last_voted_at: String::new(),
+            }]),
+            ..Default::default()
+        };
+        let headers = get_headers(&elections, &vec![]).unwrap();
+        let record = get_user_record(&elections, &None, &user, &vec![]);
+        assert_eq!(headers.len(), record.len());
+        let value = |external_id: &str| {
+            let at = headers
+                .iter()
+                .position(|header| *header == election_header(external_id))
+                .unwrap();
+            record[at].clone()
+        };
+        assert_eq!(value("GE-2026"), "");
+        assert_eq!(value("GE-2027"), "true");
+    }
+
+    #[test]
+    fn exports_without_elections_keep_their_columns() {
+        let attributes = vec![attribute("custom_attribute")];
+        let expected = [
+            "id",
+            "email",
+            "email_verified",
+            "enabled",
+            "first_name",
+            "last_name",
+            "username",
+            "area_name",
+            "custom_attribute",
+        ];
+        // Tenant-wide exports have no elections at all.
+        assert_eq!(get_headers(&None, &attributes).unwrap(), expected);
+        // An event export with no authorized election adds no columns and
+        // validates nothing.
+        assert_eq!(get_headers(&Some(vec![]), &attributes).unwrap(), expected);
+    }
+}
+#[test]
+fn privacy_csv_has_only_authorized_elections_and_no_hidden_participation() {
+    let all = ["north", "south", "new-after-authorization"]
+        .into_iter()
+        .map(|id| ElectionHead {
+            id: id.into(),
+            name: id.into(),
+            alias: None,
+            // Only the authorized election needs an external ID: the others are
+            // dropped before the export validates or names anything.
+            external_id: (id == "north").then(|| "NORTH-1".into()),
+        })
+        .collect();
+    let elections = Some(scoped_export_elections(all, &["north".into()]));
+    let user = User {
+        username: Some("voter".into()),
+        votes_info: Some(vec![sequent_core::types::keycloak::VotesInfo {
+            election_id: "south".into(),
+            num_votes: 1,
+            last_voted_at: String::new(),
+        }]),
+        ..Default::default()
+    };
+    let headers = get_headers(&elections, &vec![]).unwrap();
+    let record = get_user_record(&elections, &None, &user, &vec![]);
+    assert_eq!(headers.last().unwrap(), &election_header("NORTH-1"));
+    assert_eq!(record.last().unwrap(), "");
+    assert_eq!(
+        1,
+        headers
+            .iter()
+            .filter(|value| value.starts_with("election__"))
+            .count()
+    );
+    let empty = Some(scoped_export_elections(elections.unwrap(), &[]));
+    assert!(!get_headers(&empty, &vec![])
+        .unwrap()
+        .iter()
+        .any(|value| value.starts_with("election__")));
 }

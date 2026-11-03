@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
+use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -12,6 +14,7 @@ use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tracing::instrument;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;
@@ -60,8 +63,14 @@ fn check_deletion_target(
 pub async fn delete_tenant_f(
     body: Json<DeleteTenantInput>,
     claims: JwtClaims,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<DeleteTenantOutput>, (Status, String)> {
     let input = body.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::DeleteTenant,
+        json!({"tenant_id": input.tenant_id}),
+    );
     let executor_name = claims
         .name
         .clone()
@@ -109,6 +118,9 @@ pub async fn delete_tenant_f(
             tenant_id.clone(),
             realm,
             task_execution.clone(),
+            // The task records the deletion, with this admin, in the log
+            // of the tenant that asked for it.
+            Some(audit::actor(&claims)),
         ))
         .await;
 

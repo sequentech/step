@@ -187,12 +187,7 @@ export const AddOpensTheCreateDrawer: Story = {
 export const ImportOpensTheImportDrawer: Story = {
     args: {empty: true},
     globals: {permissions: EStoryPermissions.ADMIN},
-    parameters: {
-        expectedFailure: {
-            reason: "The drawer is a modal dialog without an accessible name.",
-            a11y: ["aria-dialog-name"],
-        },
-    },
+    parameters: {expectedFailure: null},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await userEvent.click(

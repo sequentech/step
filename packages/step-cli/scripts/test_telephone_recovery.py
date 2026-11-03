@@ -7,6 +7,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+import zipfile
 
 import cleanup_telephone_load_test as cleanup
 import load_test_common as common
@@ -36,6 +37,11 @@ class RecoveryTests(unittest.TestCase):
 
     def cli(self, binary, *args):
         self.calls.append(args)
+        if args[0] == "export-election-event":
+            output = Path(args[args.index("--output-dir") + 1])
+            with zipfile.ZipFile(output / "election_event_export.zip", "w") as archive:
+                archive.writestr("event.json", json.dumps({"election_event": {
+                    "id": args[args.index("--election-event-id") + 1], "tenant_id": "bootstrap"}}))
         return {
             "export-tenant-config": "Success! ID: export-id",
             "create-tenant": "Success! ID: created-tenant",

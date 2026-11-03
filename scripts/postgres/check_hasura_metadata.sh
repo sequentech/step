@@ -58,8 +58,8 @@ if [ "$ready" != true ]; then
     exit 1
 fi
 
-# The actions read HARVEST_DOMAIN and ACTIONS_ADMIN_SECRET; without them the
-# metadata is inconsistent. The values follow .devcontainer/.env.development.
+# The actions read both Harvest domains and ACTIONS_ADMIN_SECRET; without them
+# the metadata is inconsistent. The values follow .devcontainer/.env.development.
 created_id=$(docker create --name "$name-hasura" --network "$network_id" \
     --volume "$hasura/migrations:/hasura-migrations:ro" \
     --volume "$hasura/metadata:/hasura-metadata:ro" \
@@ -68,6 +68,7 @@ created_id=$(docker create --name "$name-hasura" --network "$network_id" \
     --env HASURA_GRAPHQL_ADMIN_SECRET="$secret" \
     --env ACTIONS_ADMIN_SECRET="$secret" \
     --env HARVEST_DOMAIN=harvest:8400 \
+    --env HARVEST_BALLOT_LOG_DOMAIN=harvest-edge:8080 \
     --env HASURA_GRAPHQL_ENABLE_TELEMETRY=false \
     hasura/graphql-engine:v2.33.1.cli-migrations-v3)
 hasura_id=$created_id

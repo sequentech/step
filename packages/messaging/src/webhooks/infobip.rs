@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Infobip Viber delivery reports and incoming messages.
+//! Infobip Viber delivery reports. Incoming messages are dropped.
 //!
 //! Infobip does not sign callbacks. They are accepted only on the account's
 //! unguessable webhook URL, and a report only changes an attempt this
 //! account sent with the reported message ID.
 
-use super::{InboundMessage, StatusReport, WebhookEvent};
+use super::{StatusReport, WebhookEvent};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sequent_core::types::messaging::MessageAttemptState;
@@ -39,31 +39,20 @@ pub fn parse_events(body: &[u8]) -> Result<Vec<WebhookEvent>> {
         .iter()
         .filter_map(|result| {
             let message_id = result["messageId"].as_str()?.to_string();
-            if let Some(group) = result["status"]["groupName"].as_str() {
-                let billing = result["price"]
-                    .is_object()
-                    .then(|| json!({"price": result["price"].clone()}));
-                return Some(WebhookEvent::Status(StatusReport {
-                    provider_message_id: message_id,
-                    state: state(group)?,
-                    error_code: result["error"]["name"]
-                        .as_str()
-                        .filter(|name| *name != "NO_ERROR")
-                        .map(str::to_string),
-                    billing,
-                    at: at(&result["doneAt"]),
-                }));
-            }
-            let from = result["from"].as_str()?;
-            Some(WebhookEvent::Inbound(InboundMessage {
-                from: if from.starts_with('+') {
-                    from.to_string()
-                } else {
-                    format!("+{from}")
-                },
+            // Incoming messages carry no status: they are not kept.
+            let group = result["status"]["groupName"].as_str()?;
+            let billing = result["price"]
+                .is_object()
+                .then(|| json!({"price": result["price"].clone()}));
+            Some(WebhookEvent::Status(StatusReport {
                 provider_message_id: message_id,
-                has_text: result["message"]["text"].is_string(),
-                at: at(&result["receivedAt"]),
+                state: state(group)?,
+                error_code: result["error"]["name"]
+                    .as_str()
+                    .filter(|name| *name != "NO_ERROR")
+                    .map(str::to_string),
+                billing,
+                at: at(&result["doneAt"]),
             }))
         })
         .collect())
@@ -102,20 +91,13 @@ mod tests {
     }
 
     #[test]
-    fn incoming_messages_keep_only_metadata() {
+    fn incoming_messages_are_dropped() {
         let body = json!({"results": [
-            {"messageId": "in-1", "from": "639171234567", "to": "COMELEC",
+            {"messageId": "in-1", "from": "639171234567", "to": "Elections",
              "receivedAt": "2026-10-02T10:00:00.000+00:00", "message": {"text": "help"}}
         ]});
-        let events = parse_events(body.to_string().as_bytes()).unwrap();
-        assert_eq!(
-            events,
-            vec![WebhookEvent::Inbound(InboundMessage {
-                from: "+639171234567".to_string(),
-                provider_message_id: "in-1".to_string(),
-                has_text: true,
-                at: at(&json!("2026-10-02T10:00:00.000+00:00")),
-            })]
-        );
+        assert!(parse_events(body.to_string().as_bytes())
+            .unwrap()
+            .is_empty());
     }
 }

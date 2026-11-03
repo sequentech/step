@@ -24,6 +24,7 @@ export interface ITenantSettings {
     mail?: boolean
     schedules?: Array<ITenantScheduledEvent>
     schedulesIds?: Array<string>
-    gapi_key?: object
     gapi_email?: string
+    /** The IANA zone the tenant log is shown in; UTC when absent. */
+    logs_timezone?: string
 }

@@ -4,10 +4,28 @@ import http from "k6/http";
 import crypto from "k6/crypto";
 import encoding from "k6/encoding";
 import { sleep } from "k6";
+import { URL } from "./url-1.0.0.js";
 
-function origin(url) {
-  return /^https?:\/\/[^/]+/.exec(url)?.[0];
+export function origin(url) {
+  try {
+    const parsed = new URL(url);
+    if (
+      !["http:", "https:"].includes(parsed.protocol) ||
+      parsed.username ||
+      parsed.password
+    )
+      return undefined;
+    return parsed.origin;
+  } catch {
+    return undefined;
+  }
 }
+export function approvedUrl(url, allowedOrigins) {
+  if (!allowedOrigins.includes(origin(url)))
+    throw new Error("Unapproved profile origin");
+  return new URL(url).href;
+}
+
 function fields(query) {
   return Object.fromEntries(
     query
@@ -33,22 +51,16 @@ function query(parameters) {
 }
 
 /** Execute the authenticated protocol with a fresh cookie jar and PKCE verifier. */
-export function replayJourney(profile, ballot, index, config, cast) {
+export function replayJourney(profile, ballot, index, config, cast, timings = {}) {
   const started = Date.now();
   const jar = new http.CookieJar();
-  let form, authorization, code, file, authParameters;
+  let form, authorization, code, file, authParameters, loginStarted;
   const publications = {};
-  const timings = {};
   const state = encoding.b64encode(crypto.randomBytes(24), "rawurl");
   const verifier = encoding.b64encode(crypto.randomBytes(32), "rawurl");
   const nonce = encoding.b64encode(crypto.randomBytes(24), "rawurl");
-  const checkUrl = (url) => {
-    if (!config.allowed_origins.includes(origin(url)))
-      throw new Error("Unapproved profile origin");
-    return url;
-  };
   const send = (method, url, body, kind, headers = {}, binary = false) => {
-    checkUrl(url);
+    url = approvedUrl(url, config.allowed_origins);
     const at = Date.now();
     const response = http.request(method, url, body, {
       jar,
@@ -93,6 +105,7 @@ export function replayJourney(profile, ballot, index, config, cast) {
     if (delay > 0) sleep(delay / 1000);
     switch (step.kind) {
       case "auth": {
+        loginStarted = Date.now();
         authParameters = {
           ...step.parameters,
           state,
@@ -154,6 +167,7 @@ export function replayJourney(profile, ballot, index, config, cast) {
         );
         if (claims.nonce !== nonce) throw new Error("OIDC nonce mismatch");
         authorization = "Bearer " + result.access_token;
+        timings.keycloak_ms = Date.now() - loginStarted;
         break;
       }
       case "status": {

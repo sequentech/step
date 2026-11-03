@@ -7,7 +7,7 @@
 //! lock, and the package's stored documents.
 
 use super::create_transmission_package_service::{
-    generate_all_servers_document, update_transmission_package_annotations,
+    generate_all_servers_document, resealed_document, update_transmission_package_annotations,
 };
 use super::eml_generator::ValidateAnnotations;
 use super::eml_types::ACMTrustee;
@@ -32,11 +32,10 @@ use async_trait::async_trait;
 use chrono::Utc;
 use chrono_tz::Tz;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::Annotations;
-use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::translations::Name;
 use sequent_core::types::date_time::TimeZone;
 use sequent_core::types::hasura::core::TallySession;
+use serde_json::{Map, Value};
 use std::collections::HashMap;
 use tracing::instrument;
 use uuid::Uuid;
@@ -45,8 +44,24 @@ use uuid::Uuid;
 /// its annotations and packages as they stand under the lock.
 pub struct LockedTransmissionData {
     pub tally_session: TallySession,
-    pub annotations: Annotations,
+    pub annotations: TallyAnnotations,
     pub packages: MiruTallySessionData,
+}
+
+/// A tally session's annotations as they are stored: the packages are one
+/// string in it, and the tally keeps values that are not strings beside
+/// them, which a rewrite of the packages must keep.
+pub type TallyAnnotations = Map<String, Value>;
+
+/// The tally session's annotations; none is an empty object.
+pub fn tally_annotations(tally_session: &TallySession) -> Result<TallyAnnotations> {
+    match &tally_session.annotations {
+        None | Some(Value::Null) => Ok(Map::new()),
+        Some(Value::Object(map)) => Ok(map.clone()),
+        Some(other) => Err(anyhow!(
+            "The tally session's annotations are not an object: {other}"
+        )),
+    }
 }
 
 /// Locks the tally session's row (`FOR UPDATE`) and reads its packages
@@ -74,12 +89,7 @@ pub async fn lock_transmission_data(
     )
     .await
     .context("Error fetching the tally session")?;
-    let annotations: Annotations = tally_session
-        .annotations
-        .clone()
-        .map(deserialize_value)
-        .transpose()?
-        .unwrap_or_default();
+    let annotations = tally_annotations(&tally_session)?;
     let packages = tally_session.get_annotations().unwrap_or_default();
     Ok(LockedTransmissionData {
         tally_session,
@@ -297,12 +307,7 @@ impl TransmissionPackages for StoredPackages {
             &loaded.tally_session_id,
         )
         .await?;
-        let tally_annotations: Annotations = tally_session
-            .annotations
-            .clone()
-            .map(deserialize_value)
-            .transpose()?
-            .unwrap_or_default();
+        let tally_annotations = tally_annotations(&tally_session)?;
 
         let eml = String::from_utf8(loaded.eml.clone()).context("The EML is not UTF-8")?;
         // The package names its EML by the uppercase hex SHA-256.
@@ -343,17 +348,14 @@ impl TransmissionPackages for StoredPackages {
             &ReportRequester::default(),
         )
         .await?;
-        package.documents.push(MiruDocument {
-            document_ids: MiruDocumentIds {
-                eml: latest.document_ids.eml.clone(),
-                xz: latest.document_ids.xz.clone(),
-                all_servers: all_servers.id.clone(),
-            },
-            transaction_id: latest.transaction_id.clone(),
-            servers_sent_to: vec![],
-            created_at: now_local.to_rfc3339(),
+        package.documents.push(resealed_document(
+            &latest,
+            &all_servers,
+            &eml_hash,
+            now_local.to_rfc3339(),
             signatures,
-        });
+        ));
+        package.ovcs_public_key = Some(all_servers.ovcs_public_key.clone());
         update_transmission_package_annotations(
             hasura_transaction,
             &at.tenant_id,
@@ -366,6 +368,66 @@ impl TransmissionPackages for StoredPackages {
             tally_annotations,
         )
         .await?;
-        Ok(all_servers.id)
+        Ok(all_servers.document.id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn session(annotations: Value) -> TallySession {
+        serde_json::from_value(json!({
+            "id": "session",
+            "tenant_id": "tenant",
+            "election_event_id": "event",
+            "is_execution_completed": true,
+            "keys_ceremony_id": "ceremony",
+            "threshold": 2,
+            "annotations": annotations,
+        }))
+        .unwrap()
+    }
+
+    /// The tally writes `is_post_task_completed` as a boolean beside the
+    /// packages: they are still read, and the boolean survives a rewrite.
+    #[test]
+    fn the_packages_are_read_beside_the_tallys_own_annotations() {
+        let package = json!([{
+            "election_id": "post", "area_id": "country", "servers": [], "logs": [],
+            "threshold": 2, "documents": [],
+        }]);
+        let tallied = session(json!({
+            "is_post_task_completed": false,
+            "operator": "admin",
+            "miru:tally-session-data": package.to_string(),
+        }));
+        let annotations = tally_annotations(&tallied).unwrap();
+        assert_eq!(annotations["is_post_task_completed"], json!(false));
+        let packages = tallied.get_annotations().unwrap();
+        assert_eq!(packages.len(), 1);
+        assert_eq!(packages[0].area_id, "country");
+        assert_eq!(tallied.get_annotations_or_empty_values().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn a_session_without_packages_has_none() {
+        for annotations in [Value::Null, json!({"is_post_task_completed": true})] {
+            let tallied = session(annotations);
+            assert!(tally_annotations(&tallied).is_ok());
+            assert!(tallied.get_annotations().is_err());
+            assert!(tallied
+                .get_annotations_or_empty_values()
+                .unwrap()
+                .is_empty());
+        }
+        let malformed = session(json!({"miru:tally-session-data": 3}));
+        assert!(malformed.get_annotations().is_err());
+        assert!(malformed
+            .get_annotations_or_empty_values()
+            .unwrap()
+            .is_empty());
+        assert!(tally_annotations(&session(json!([1]))).is_err());
     }
 }

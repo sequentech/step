@@ -5,14 +5,7 @@
 FROM rust:1.96.0-slim-bookworm AS builder
 
 WORKDIR /app
-COPY ./immu-board ./immu-board
-COPY ./immudb-rs ./immudb-rs
-COPY ./strand ./strand
-COPY ./board-messages ./board-messages
-COPY ./sequent-core ./sequent-core
-COPY ./windmill ./windmill
-COPY ./wrap-map-err ./wrap-map-err
-COPY ./velvet ./velvet
+COPY . .
 
 RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
@@ -59,4 +52,4 @@ RUN case "${TARGETARCH}" in \
 WORKDIR /app/windmill
 RUN cargo build
 
-CMD ["cargo", "run", "--bin", "main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "monitoring_queue" ]
+CMD ["cargo", "run", "--bin", "main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "communication_queue", "import_export_queue", "electoral_log_batch_queue", "electoral_log_beat_queue", "monitoring_queue"]

@@ -46,6 +46,11 @@ export const Populated: Story = {
         await expect(
             within(card(canvasElement, "Messenger messages sent")).getByText("0")
         ).toBeVisible()
+        // Channel order, each with the shared channel icon.
+        const channels = Array.from(canvasElement.querySelectorAll("svg[data-channel]")).map(
+            (icon) => icon.getAttribute("data-channel")
+        )
+        expect(channels).toEqual(["WHATSAPP", "VIBER", "MESSENGER", "SMS", "EMAIL"])
         expect(canvas.queryByText("Actual Voters")).not.toBeInTheDocument()
     },
 }

@@ -122,7 +122,7 @@ fn json_csv_field(field: &JsonField) -> String {
     match field {
         JsonField::Null => "null".to_string(),
         JsonField::Value(value) => {
-            let encoded = serde_json::to_string(value)
+            let encoded = super::canonical::compact(value)
                 .unwrap_or_else(|_| "null".to_string());
             format!("\"{}\"", encoded.replace('"', "\"\""))
         }

@@ -7,29 +7,9 @@
 
 use anyhow::{anyhow, Result};
 use hmac::{Hmac, Mac};
+use sequent_core::types::dial_codes;
 use sequent_core::types::messaging::{MessageChannel, RecipientKind};
 use sha2::Sha256;
-
-/// ITU-T E.164 country calling codes. They are prefix-free, so the first
-/// match by length is the code.
-const CALLING_CODES: &[&str] = &[
-    "1", "7", "20", "27", "30", "31", "32", "33", "34", "36", "39", "40", "41", "43", "44", "45",
-    "46", "47", "48", "49", "51", "52", "53", "54", "55", "56", "57", "58", "60", "61", "62", "63",
-    "64", "65", "66", "81", "82", "84", "86", "90", "91", "92", "93", "94", "95", "98", "211",
-    "212", "213", "216", "218", "220", "221", "222", "223", "224", "225", "226", "227", "228",
-    "229", "230", "231", "232", "233", "234", "235", "236", "237", "238", "239", "240", "241",
-    "242", "243", "244", "245", "246", "247", "248", "249", "250", "251", "252", "253", "254",
-    "255", "256", "257", "258", "260", "261", "262", "263", "264", "265", "266", "267", "268",
-    "269", "290", "291", "297", "298", "299", "350", "351", "352", "353", "354", "355", "356",
-    "357", "358", "359", "370", "371", "372", "373", "374", "375", "376", "377", "378", "379",
-    "380", "381", "382", "383", "385", "386", "387", "389", "420", "421", "423", "500", "501",
-    "502", "503", "504", "505", "506", "507", "508", "509", "590", "591", "592", "593", "594",
-    "595", "596", "597", "598", "599", "670", "672", "673", "674", "675", "676", "677", "678",
-    "679", "680", "681", "682", "683", "685", "686", "687", "688", "689", "690", "691", "692",
-    "850", "852", "853", "855", "856", "870", "880", "886", "960", "961", "962", "963", "964",
-    "965", "966", "967", "968", "970", "971", "972", "973", "974", "975", "976", "977", "992",
-    "993", "994", "995", "996", "998",
-];
 
 /// A validated recipient address in canonical form.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,28 +34,37 @@ impl Destination {
         &self.value
     }
 
-    /// Shown in records and screens instead of the address.
+    /// Shown in records, logs and screens instead of the address: the
+    /// country code and the last three digits (`+966 ••• ••• 567`), the
+    /// first two characters of an email (`ma••••••••@example.com`; fewer for
+    /// a local part of one or two, never all of it), or the
+    /// last three digits of a Page-scoped ID (`••• 321`). The masked parts
+    /// have a fixed length, so they don't reveal the address's length.
     pub fn masked(&self) -> String {
+        const HIDDEN: &str = "\u{2022}\u{2022}\u{2022}";
+        let last_three = |value: &str| value[value.len().saturating_sub(3)..].to_string();
         match self.kind {
             RecipientKind::PHONE_NUMBER => {
                 let code = self.calling_code().unwrap_or_default();
                 let national = &self.value[1 + code.len()..];
-                let visible = national.len().min(4);
-                format!(
-                    "+{code}{}{}",
-                    "*".repeat(national.len() - visible),
-                    &national[national.len() - visible..]
-                )
+                format!("+{code} {HIDDEN} {HIDDEN} {}", last_three(national))
             }
             RecipientKind::EMAIL_ADDRESS => {
                 let (local, domain) = self.value.split_once('@').unwrap_or((&self.value, ""));
-                let first = local.chars().next().map(String::from).unwrap_or_default();
-                format!("{first}***@{domain}")
+                // Never the whole local part, however short it is.
+                let shown = 2.min(local.chars().count().saturating_sub(1));
+                let first: String = local.chars().take(shown).collect();
+                format!("{first}{HIDDEN}{HIDDEN}\u{2022}\u{2022}@{domain}")
             }
-            RecipientKind::PAGE_SCOPED_ID => {
-                let visible = self.value.len().min(4);
-                format!("***{}", &self.value[self.value.len() - visible..])
-            }
+            RecipientKind::PAGE_SCOPED_ID => format!("{HIDDEN} {}", last_three(&self.value)),
+        }
+    }
+
+    /// The ISO 3166-1 alpha-2 country of a phone number.
+    pub fn country(&self) -> Option<&'static str> {
+        match self.kind {
+            RecipientKind::PHONE_NUMBER => dial_codes::iso_country(&self.value),
+            _ => None,
         }
     }
 
@@ -91,14 +80,11 @@ impl Destination {
     }
 
     /// Country calling code of a phone number, as digits.
-    pub fn calling_code(&self) -> Option<&str> {
+    pub fn calling_code(&self) -> Option<&'static str> {
         if self.kind != RecipientKind::PHONE_NUMBER {
             return None;
         }
-        let digits = &self.value[1..];
-        (1..=3)
-            .filter_map(|length| digits.get(..length))
-            .find(|prefix| CALLING_CODES.contains(prefix))
+        dial_codes::calling_code(&self.value)
     }
 }
 
@@ -157,7 +143,11 @@ mod tests {
             Destination::parse(MessageChannel::WHATSAPP, "+63 (917) 123-4567").expect("phone");
         assert_eq!(destination.as_str(), "+639171234567");
         assert_eq!(destination.calling_code(), Some("63"));
-        assert_eq!(destination.masked(), "+63******4567");
+        assert_eq!(
+            destination.masked(),
+            "+63 \u{2022}\u{2022}\u{2022} \u{2022}\u{2022}\u{2022} 567"
+        );
+        assert_eq!(destination.country(), Some("PH"));
     }
 
     #[test]
@@ -186,7 +176,21 @@ mod tests {
         let destination =
             Destination::parse(MessageChannel::EMAIL, " Voter@Example.ORG ").expect("email");
         assert_eq!(destination.as_str(), "voter@example.org");
-        assert_eq!(destination.masked(), "v***@example.org");
+        assert_eq!(
+            destination.masked(),
+            "vo\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}@example.org"
+        );
+        assert_eq!(destination.country(), None);
+        // A short local part is never shown whole.
+        let hidden = "\u{2022}".repeat(8);
+        for (address, shown) in [("ab@example.org", "a"), ("a@example.org", "")] {
+            assert_eq!(
+                Destination::parse(MessageChannel::EMAIL, address)
+                    .expect("email")
+                    .masked(),
+                format!("{shown}{hidden}@example.org")
+            );
+        }
         assert!(Destination::parse(MessageChannel::EMAIL, "voter").is_err());
         assert!(Destination::parse(MessageChannel::EMAIL, "a b@example.org").is_err());
     }
@@ -195,7 +199,7 @@ mod tests {
     fn messenger_recipients_are_page_scoped_ids() {
         let destination =
             Destination::parse(MessageChannel::MESSENGER, "6543210987654321").expect("psid");
-        assert_eq!(destination.masked(), "***4321");
+        assert_eq!(destination.masked(), "\u{2022}\u{2022}\u{2022} 321");
         assert!(Destination::parse(MessageChannel::MESSENGER, "+639171234567").is_err());
     }
 

@@ -20,7 +20,7 @@ class CustomEventListenerProviderMessageTest {
     JsonNode message =
         om.readTree(
             om.writeValueAsBytes(
-                CustomEventListenerProvider.buildMessage(
+                CustomEventListenerProvider.taskMessage(
                     "event-1", "LOGIN", "null", "user-1", "tenant-1", "voter", 1778511600123L)));
 
     assertTrue(message.isArray());
@@ -42,7 +42,7 @@ class CustomEventListenerProviderMessageTest {
     JsonNode input =
         om.readTree(
                 om.writeValueAsBytes(
-                    CustomEventListenerProvider.buildMessage(
+                    CustomEventListenerProvider.taskMessage(
                         null, null, null, null, null, null, 0L)))
             .get(1)
             .get("input");

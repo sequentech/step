@@ -51,7 +51,7 @@ import extraReducer from "../store/extra/extraSlice"
 import englishTranslation from "../translations/en"
 // The other half of what a ballot reads. Imported by source path rather than
 // through the package barrel, which would pull `TallyResults` and a data grid.
-import essentialsTranslation from "../../../ui-essentials/src/translations/en"
+import uiCoreTranslation from "../../../ui-core/src/translations/en"
 
 const harnessReducer = combineReducers({
     ballotSelections: ballotSelectionsReducer,
@@ -73,7 +73,7 @@ export const CONTEST_ID = "contest-1"
  * **Both** bundles, because a ballot reads from two: `candidatesList.*` and
  * `votingScreen.*` come from `voting-portal`, while `candidate.*` — the write-in
  * placeholder, the ordinals, the "more information" link — comes from
- * `ui-essentials`, whose components draw the rows. The running app merges them in
+ * `ui-core`'s catalogue, for the rows `ui-essentials` draws. The running app merges them in
  * `ui-core`'s `initializeLanguages`; this mirrors that, portal last so it wins,
  * which is the same precedence.
  *
@@ -107,7 +107,7 @@ void i18n.init({
     resources: {
         en: {
             translation: deepMerge(
-                essentialsTranslation.translations as Record<string, unknown>,
+                uiCoreTranslation.translations as Record<string, unknown>,
                 englishTranslation.translations as Record<string, unknown>
             ),
         },

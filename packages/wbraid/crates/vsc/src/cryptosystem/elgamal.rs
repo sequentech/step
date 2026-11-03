@@ -364,6 +364,7 @@ pub fn decrypt<C: Context, const W: usize>(
  */
 #[derive(Debug, PartialEq, Clone, Canonical)]
 pub struct Ciphertext<C: Context, const W: usize>(pub [[C::Element; W]; 2]);
+
 impl<C: Context, const W: usize> Ciphertext<C, W> {
     /// Construct a ciphertext with given values `u` and `v`.
     ///

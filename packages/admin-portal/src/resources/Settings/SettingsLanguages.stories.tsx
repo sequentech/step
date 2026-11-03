@@ -144,6 +144,27 @@ export const ChooseTheDefaultLanguage: Story = {
     },
 }
 
+/** The tenant log shows in UTC until a timezone is chosen for it. */
+export const ChooseTheTimezoneForTenantLogs: Story = {
+    play: async ({canvasElement}) => {
+        await loaded(canvasElement)
+        const picker = within(canvasElement).getByRole<HTMLInputElement>("combobox", {
+            name: "Timezone for tenant logs",
+        })
+        expect(picker.value).toMatch(/UTC/)
+        await userEvent.clear(picker)
+        await userEvent.type(picker, "Madrid")
+        await userEvent.keyboard("{ArrowDown}{Enter}")
+        await commit()
+        await waitFor(() => expect(data.writes).toHaveLength(1))
+        const saved = data.writes[0].params.data as {settings: Record<string, unknown>}
+        expect(saved.settings.logs_timezone).toBe("Europe/Madrid")
+        // The other settings are kept.
+        expect(saved.settings.language_conf).toMatchObject({default_language_code: "en"})
+        expect(saved.settings.gapi_email).toBe("calendar@admin-story.invalid")
+    },
+}
+
 export const Loading: Story = {
     args: {reads: "loading"},
     parameters: {expectedFailure: null},
