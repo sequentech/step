@@ -102,7 +102,12 @@ describe("captureReducer", () => {
     const start = initialCaptureState()
 
     it("starts on the document scan", () => {
-        expect(start).toEqual({stage: CaptureStage.Document, problem: null, attempt: 0})
+        expect(start).toEqual({
+            stage: CaptureStage.Document,
+            problem: null,
+            attempt: 0,
+            holding: false,
+        })
     })
 
     it("moves from the document to the face and then to checking", () => {
@@ -122,6 +127,7 @@ describe("captureReducer", () => {
             stage: CaptureStage.Document,
             problem: CaptureProblem.Camera,
             attempt: 0,
+            holding: false,
         })
     })
 
@@ -143,7 +149,34 @@ describe("captureReducer", () => {
             stage: CaptureStage.Face,
             problem: null,
             attempt: 1,
+            holding: false,
         })
+    })
+
+    it("takes the holding photo after the face when Keycloak asks for it", () => {
+        const withHolding = initialCaptureState(true)
+        const face = captureReducer(withHolding, {type: "done"})
+        expect(face.stage).toBe(CaptureStage.Face)
+        const holding = captureReducer(face, {type: "done"})
+        expect(holding.stage).toBe(CaptureStage.Holding)
+        expect(captureReducer(holding, {type: "done"}).stage).toBe(CaptureStage.Checking)
+    })
+
+    it("shows the page's own problems, such as a failed upload, and tries again", () => {
+        const holding: CaptureState = {...initialCaptureState(true), stage: CaptureStage.Holding}
+        const failed = captureReducer(holding, {type: "problem", problem: CaptureProblem.Upload})
+        expect(failed).toEqual({...holding, problem: CaptureProblem.Upload})
+        expect(captureReducer(failed, {type: "problem", problem: CaptureProblem.Camera})).toBe(
+            failed
+        )
+        expect(captureReducer(failed, {type: "tryAgain"})).toEqual({
+            ...holding,
+            attempt: 1,
+        })
+        const checking: CaptureState = {...holding, stage: CaptureStage.Checking}
+        expect(captureReducer(checking, {type: "problem", problem: CaptureProblem.Upload})).toBe(
+            checking
+        )
     })
 })
 

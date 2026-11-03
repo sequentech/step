@@ -906,6 +906,50 @@ html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visib
     height: 100%;
     border: 0;
 }
+/* The page's own camera for the photo holding the ID (HoldingCamera). */
+.sequent-auth .scanovate-holding {
+    margin: 8px 0 0;
+    overflow: hidden;
+    border: 1px solid #dce7e7;
+    border-radius: 14px;
+    background: #173449;
+    aspect-ratio: 4 / 3;
+}
+.sequent-auth .scanovate-holding video,
+.sequent-auth .scanovate-holding img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+/* A mirror, as voters expect of a front camera; the photo itself is not mirrored. */
+.sequent-auth .scanovate-holding video {
+    transform: scaleX(-1);
+}
+.sequent-auth .scanovate-holding video[hidden] {
+    display: none;
+}
+.sequent-auth .scanovate-holding-status {
+    margin: 12px 0 0;
+    text-align: center;
+}
+.sequent-auth .scanovate-holding-status p {
+    margin: 0 0 8px;
+    color: #173449;
+    font-weight: 600;
+}
+.sequent-auth .scanovate-holding-progress {
+    height: 6px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: #e3eaee;
+}
+.sequent-auth .scanovate-holding-progress span {
+    display: block;
+    height: 100%;
+    background: #43e3a1;
+    transition: width 100ms linear;
+}
 /* The face check covers the whole window (ScanovateFrame). */
 .sequent-auth .scanovate-frame.scanovate-frame-window {
     position: fixed;

@@ -6,6 +6,8 @@ package sequent.keycloak.scanovate_authenticator;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.ws.rs.core.MultivaluedMap;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.HashSet;
@@ -49,9 +51,13 @@ import sequent.keycloak.voter_enrollment.Utils;
  * posts its result to Keycloak server to server, see {@link OnPremSessions}: the voter's browser
  * never carries a verdict.
  *
- * <p>Keycloak then compares the portrait OCR read from the document with the live face, using Face
- * Match, validates what OCR read against the configured rules, and stores the extracted attributes
- * as auth notes for the voter to confirm.
+ * <p>Unless its {@link HoldingPhotoPolicy} is {@link HoldingPhotoPolicy#NONE}, the voter then takes
+ * a photo of themselves holding their document on Keycloak's page, which uploads it with a one-time
+ * token, see {@link HoldingPhotos}.
+ *
+ * <p>Keycloak then compares the portrait OCR read from the document, and the photo holding it, with
+ * the live face, using Face Match, validates what OCR read against the configured rules, and stores
+ * the extracted attributes as auth notes for the voter to confirm.
  *
  * <p>Only a verification this step completed, and the voter confirmed when there was something to
  * confirm, sets the {@link LookupAndUpdateUser#IDENTITY_METHOD} note to {@link
@@ -62,6 +68,7 @@ public class ScanovateAuthenticator implements Authenticator {
   static final String CASE_ID_NOTE = "scanovate-case-id";
   static final String LIVENESS_TOKEN_NOTE = "scanovate-liveness-token";
   static final String OCR_TOKEN_NOTE = "scanovate-ocr-token";
+  static final String HOLDING_TOKEN_NOTE = "scanovate-holding-token";
   static final String ATTEMPTS_NOTE = "scanovate-attempts";
 
   /**
@@ -85,25 +92,35 @@ public class ScanovateAuthenticator implements Authenticator {
   static final String FTL_SCANOVATE = "scanovate";
   static final String FTL_OCR = "ocr";
   static final String FTL_LIVENESS = "liveness";
+  static final String FTL_HOLDING = "holding";
   static final String FTL_PAGE_URL = "url";
+  static final String FTL_UPLOAD_TOKEN = "token";
+  static final String FTL_HOLDING_SECONDS = "seconds";
   static final String EVENT_ERROR = "scanovate_verification_failed";
   static final String EVENT_DETAIL_ERROR = "scanovate_error";
   static final String EVENT_DETAIL_CASE_ID = "scanovate_case_id";
   static final String EVENT_DETAIL_FACE_MATCH_DOCUMENT = "scanovate_face_match_document";
+  static final String EVENT_DETAIL_FACE_MATCH_HOLDING = "scanovate_face_match_holding";
   static final String OCR_TYPE_PARAM = "ocr_type";
 
   private final BiFunction<OnPremService, KeycloakSession, OnPremSessions> sessionsFactory;
   private final Function<FaceMatchSettings, FaceMatchClient> faceMatchFactory;
+  private final Function<KeycloakSession, HoldingPhotos> holdingFactory;
 
   public ScanovateAuthenticator() {
-    this(ScanovateAuthenticator::defaultSessions, ScanovateAuthenticator::defaultFaceMatch);
+    this(
+        ScanovateAuthenticator::defaultSessions,
+        ScanovateAuthenticator::defaultFaceMatch,
+        ScanovateAuthenticator::defaultHolding);
   }
 
   ScanovateAuthenticator(
       BiFunction<OnPremService, KeycloakSession, OnPremSessions> sessionsFactory,
-      Function<FaceMatchSettings, FaceMatchClient> faceMatchFactory) {
+      Function<FaceMatchSettings, FaceMatchClient> faceMatchFactory,
+      Function<KeycloakSession, HoldingPhotos> holdingFactory) {
     this.sessionsFactory = sessionsFactory;
     this.faceMatchFactory = faceMatchFactory;
+    this.holdingFactory = holdingFactory;
   }
 
   static FaceMatchClient defaultFaceMatch(FaceMatchSettings settings) {
@@ -118,8 +135,17 @@ public class ScanovateAuthenticator implements Authenticator {
     return new OnPremSessions(service, new SingleUseSessionStore(session), Thread::sleep);
   }
 
+  static HoldingPhotos defaultHolding(KeycloakSession session) {
+    return new HoldingPhotos(new SingleUseSessionStore(session));
+  }
+
   /** The settings of the services for the voter's document type. */
-  record Services(OnPremSettings onPrem, OcrSettings ocr, FaceMatchSettings faceMatch) {}
+  record Services(
+      OnPremSettings onPrem,
+      OcrSettings ocr,
+      FaceMatchSettings faceMatch,
+      HoldingPhotoPolicy holding,
+      int holdingSeconds) {}
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -206,7 +232,14 @@ public class ScanovateAuthenticator implements Authenticator {
       FaceMatchSettings faceMatch = FaceMatchSettings.fromConfig(config, docType);
       component = ConfigComponent.OCR;
       OcrSettings ocr = OcrSettings.fromConfig(config, docType);
-      return Optional.of(new Services(onPrem, ocr, faceMatch));
+      component = ConfigComponent.CAPTURE;
+      HoldingPhotoPolicy holding = HoldingPhotoPolicy.fromConfig(config);
+      int holdingSeconds =
+          OnPremSettings.positiveInt(
+              config,
+              ScanovateAuthenticatorFactory.HOLDING_SECONDS,
+              ScanovateAuthenticatorFactory.DEFAULT_HOLDING_SECONDS);
+      return Optional.of(new Services(onPrem, ocr, faceMatch, holding, holdingSeconds));
     } catch (ScanovateException e) {
       configurationFailure(context, component);
       showError(context, ScanovateError.INTERNAL, false);
@@ -215,8 +248,9 @@ public class ScanovateAuthenticator implements Authenticator {
   }
 
   /**
-   * Shows the capture page, which embeds the capture pages of OCR and then of Liveness Plus. Issues
-   * a new token for each, replacing any earlier one.
+   * Shows the capture page, which embeds the capture pages of OCR and then of Liveness Plus, and
+   * then takes the holding photo if the policy asks for it. Issues a new token for each, replacing
+   * any earlier one.
    */
   private void showCapture(AuthenticationFlowContext context, Services services) {
     Map<String, String> config = config(context);
@@ -245,6 +279,22 @@ public class ScanovateAuthenticator implements Authenticator {
             LIVENESS_TOKEN_NOTE,
             caseId,
             Map.of()));
+    HoldingPhotos photos = holdingFactory.apply(context.getSession());
+    photos.discard(authSession.getAuthNote(HOLDING_TOKEN_NOTE));
+    authSession.removeAuthNote(HOLDING_TOKEN_NOTE);
+    if (services.holding() == HoldingPhotoPolicy.REQUIRED) {
+      String token = photos.create();
+      authSession.setAuthNote(HOLDING_TOKEN_NOTE, token);
+      capture.put(
+          FTL_HOLDING,
+          Map.of(
+              FTL_PAGE_URL,
+              holdingUrl(context),
+              FTL_UPLOAD_TOKEN,
+              token,
+              FTL_HOLDING_SECONDS,
+              services.holdingSeconds()));
+    }
 
     // Keycloak only lets its pages embed its own origin: the services' pages may be on another
     SecurityHeadersProvider headers =
@@ -258,6 +308,22 @@ public class ScanovateAuthenticator implements Authenticator {
             .setAttribute(FTL_SCANOVATE, capture)
             .setAttribute(StepBack.ATTRIBUTE, StepBack.available(context))
             .createForm(CAPTURE_FORM));
+  }
+
+  /**
+   * Root-relative URL of the holding photo upload, so that the page uploads to its own origin,
+   * whatever reverse proxy serves it.
+   */
+  private static String holdingUrl(AuthenticationFlowContext context) {
+    String base = context.getUriInfo().getBaseUri().getRawPath();
+    return (base.endsWith("/") ? base : base + "/")
+        + "realms/"
+        + URLEncoder.encode(context.getRealm().getName(), StandardCharsets.UTF_8)
+            .replace("+", "%20")
+        + "/"
+        + IdentityVerificationResourceFactory.PROVIDER_ID
+        + "/"
+        + IdentityVerificationResource.HOLDING_PATH;
   }
 
   /** The capture page of a service, with a new token for the case. */
@@ -324,16 +390,49 @@ public class ScanovateAuthenticator implements Authenticator {
       return;
     }
 
+    FaceMatchClient client = faceMatchFactory.apply(services.get().faceMatch());
+    byte[] face = liveness.get().face().orElseThrow();
     if (!facesMatch(
         context,
-        faceMatchFactory.apply(services.get().faceMatch()),
+        client,
         services.get().faceMatch(),
         document.get().face().orElseThrow(),
-        liveness.get().face().orElseThrow(),
+        face,
         EVENT_DETAIL_FACE_MATCH_DOCUMENT)) {
       return;
     }
+    if (services.get().holding() == HoldingPhotoPolicy.REQUIRED
+        && !holdingPhotoMatches(context, client, services.get().faceMatch(), face)) {
+      return;
+    }
     readDocument(context, document.get().reading().orElseThrow());
+  }
+
+  /**
+   * Compares the photo of the voter holding their document with their live face. Without a photo,
+   * shows a retryable error and returns false.
+   */
+  private boolean holdingPhotoMatches(
+      AuthenticationFlowContext context,
+      FaceMatchClient client,
+      FaceMatchSettings settings,
+      byte[] face) {
+    diagnostic(context, "stage", "face_holding");
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    String token = authSession.getAuthNote(HOLDING_TOKEN_NOTE);
+    HoldingPhotos photos = holdingFactory.apply(context.getSession());
+    Optional<byte[]> photo = photos.photo(token);
+    photos.discard(token);
+    authSession.removeAuthNote(HOLDING_TOKEN_NOTE);
+    if (photo.isEmpty()) {
+      log.warnv(
+          "capture: no holding photo for {0}",
+          ScanovateDiagnostics.caseId(authSession.getAuthNote(CASE_ID_NOTE)));
+      showError(context, ScanovateError.CAPTURE_INVALID, true);
+      return false;
+    }
+    return facesMatch(
+        context, client, settings, photo.get(), face, EVENT_DETAIL_FACE_MATCH_HOLDING);
   }
 
   /**
@@ -378,7 +477,10 @@ public class ScanovateAuthenticator implements Authenticator {
       byte[] photo,
       byte[] face,
       String eventDetail) {
-    diagnostic(context, "stage", "face_document");
+    diagnostic(
+        context,
+        "stage",
+        EVENT_DETAIL_FACE_MATCH_HOLDING.equals(eventDetail) ? "face_holding" : "face_document");
     String caseId = context.getAuthenticationSession().getAuthNote(CASE_ID_NOTE);
     FaceComparison comparison;
     try {
@@ -540,6 +642,11 @@ public class ScanovateAuthenticator implements Authenticator {
     if (ocrToken != null) {
       sessionsFactory.apply(OnPremService.OCR, context.getSession()).discard(ocrToken);
       authSession.removeAuthNote(OCR_TOKEN_NOTE);
+    }
+    String holdingToken = authSession.getAuthNote(HOLDING_TOKEN_NOTE);
+    if (holdingToken != null) {
+      holdingFactory.apply(context.getSession()).discard(holdingToken);
+      authSession.removeAuthNote(HOLDING_TOKEN_NOTE);
     }
     authSession.removeAuthNote(CASE_ID_NOTE);
     authSession.removeAuthNote(CONFIRMATION_CASE_NOTE);

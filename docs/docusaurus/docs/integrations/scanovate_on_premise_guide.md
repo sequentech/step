@@ -32,7 +32,10 @@ Guide* show: Keycloak's capture page embeds, in iframes on Keycloak's origin,
 first OCR's capture page and then Liveness Plus's. Each service checks
 Keycloak's one-time token before it starts a session and posts its result to
 Keycloak, server to server. Keycloak then calls Face Match. Our capture page
-takes no photo itself and never carries a verdict.
+never carries a verdict; the only photo it takes itself is the voter holding
+their document, after the face check, taken automatically once the image has
+been still for the holding time, which it uploads to Keycloak (the
+authenticator's `holding-photo` policy and `video-seconds`).
 
 This page describes how to run the services, how to configure them, and the
 contract between them, the capture page and Keycloak.
@@ -241,12 +244,12 @@ curl -sk -o /dev/null -w '%{http_code}\n' https://localhost:8443/realms/master/i
 
 This runs the whole enrollment in the dev container with your own face and
 passport, on the real services: OCR reads your passport, Liveness Plus, PAD and
-IAD check your face, and Face Match compares it with the portrait of your
-passport.
+IAD check your face, you take a photo holding your passport, and Face Match
+compares your face with the portrait of your passport and with that photo.
 
 Everything stays on your machine. OCR and Liveness Plus keep their sessions in
 memory for 5 minutes, Face Match keeps nothing, and Keycloak keeps the portrait,
-what OCR read and the live face in its single-use store until the capture is
+what OCR read, the live face and the holding photo in its single-use store until the capture is
 checked (at most 30 minutes). No image is logged.
 
 ### What you need
@@ -379,8 +382,10 @@ SCANOVATE_LOGIN_THEME=sequent-ui-voting \
 `.devcontainer/scanovate/ocr/service_config.json` and
 `.devcontainer/scanovate/liveness/service_config.json`. Set
 `SCANOVATE_FACE_MATCH_MIN_SIMILARITY` to change the threshold
-(`{"default": 0.67}`). The script also deletes the settings of the earlier
-integrations, including `ocr-url`, `capture-sides`, `video-seconds` and
+(`{"default": 0.67}`), `SCANOVATE_HOLDING_PHOTO` (`REQUIRED` or `NONE`) for the
+photo holding the document, and `SCANOVATE_HOLDING_SECONDS` for its holding
+time (`video-seconds`, 5 by default). The script also deletes the settings of
+the earlier integrations, including `ocr-url`, `capture-sides` and
 `max-image-bytes` of our former capture page, which the authenticator
 ignores. `KEYCLOAK_URL`, `KEYCLOAK_ADMIN` and
 `KEYCLOAK_ADMIN_PASSWORD` default to the dev container Keycloak
@@ -636,6 +641,7 @@ Keycloak's endpoints, under any realm (the dev configuration uses `master`):
 | Endpoint | Answers |
 | --- | --- |
 | `GET /realms/{realm}/identity-verification/{ocr,liveness}/verify?secret=...` | `200` if the `X-token` is a token of that service, matches the `case-id` and hasn't used its 3 sessions, `401` otherwise. |
+| `PUT /realms/{realm}/identity-verification/capture/holding` | Called by the voter's browser, not the services: the photo holding the document, as the raw body. `200` once stored, `401` without the capture page's token in `X-Capture-Token`, `400` for an empty body, `413` above 8 MiB, `415` for anything but a JPEG. |
 | `POST /realms/{realm}/identity-verification/{ocr,liveness}/callback?secret=...` | `200` once the `start` or `result` message is recorded (other message types, such as `result_debug`, are ignored), `401` for an unknown token, a wrong secret or another case, `400` for a malformed body or image. The token is read from `x-token`, or from `onprem_params.token`. |
 
 The `secret` is the authenticator's `liveness-secret`, the same in the four
@@ -824,8 +830,11 @@ single origin, which the iframes can use.
 - It answers `404` for the services' `/docs`, `/redoc`, `/openapi.json`,
   `/metrics` and `/active_sessions`, and for the rest of `/biometric/`. PAD,
   IAD and Face Match stay internal.
-- It answers `404` for `/realms/*/identity-verification/`: only OCR and
-  Liveness Plus call those endpoints, on the internal network.
+- It answers `404` for `/realms/*/identity-verification/ocr/` and
+  `/realms/*/identity-verification/liveness/`: only OCR and Liveness Plus call
+  those endpoints, on the internal network. The capture page's upload,
+  `/realms/*/identity-verification/capture/holding`, stays reachable, with
+  bodies of up to 10 MiB.
 
 The dev container does this in `keycloak-nginx`
 (`.devcontainer/keycloak-nginx/keycloak-mtls.conf.template`), on
@@ -857,8 +866,13 @@ location /biometric/ {
     return 404;
 }
 
-location ~ ^/realms/[^/]+/identity-verification/ {
+location ~ ^/realms/[^/]+/identity-verification/(ocr|liveness)/ {
     return 404;
+}
+
+location / {
+    # Keycloak, as before, with room for the holding photo
+    client_max_body_size 10m;
 }
 ```
 
@@ -875,7 +889,10 @@ location ~ ^/realms/[^/]+/identity-verification/ {
 - Set `token_verification_url` and `callback_url` of both services with a
   random `secret`, the same as the authenticator's `liveness-secret`, and test
   them before going live. The services reach Keycloak on the internal network.
-- Block `/realms/*/identity-verification/` on the public proxy.
+- Block `/realms/*/identity-verification/ocr/` and
+  `/realms/*/identity-verification/liveness/` on the public proxy; keep
+  `/realms/*/identity-verification/capture/holding` reachable for the voter's
+  browser.
 - Mount the Sequent theme (`sequent_ui.json`) in both services, see
   [Theming](#theming).
 - Pull the images from our ECR mirror (see

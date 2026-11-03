@@ -96,12 +96,28 @@ export type ScanovateService = {
     url: string
 }
 
+// Where the page uploads the photo of the voter holding their document.
+export type ScanovateUpload = {
+    // Root-relative URL of the upload endpoint.
+    url: string
+    // One-time token of the page, sent in the X-Capture-Token header.
+    token: string
+}
+
 export type ScanovateCaptureSettings = {
     documentType: string
     attemptsLeft: number
     maxAttempts: number
     ocr: ScanovateService
     liveness: ScanovateService
+    // Present when the authenticator's holding-photo policy asks for the photo.
+    holding?: ScanovateHolding
+}
+
+// The photo of the voter holding their document: where it goes, and how long
+// the voter holds still before the page takes it.
+export type ScanovateHolding = ScanovateUpload & {
+    seconds: number
 }
 
 export type ScanovateStoredAttribute = {
