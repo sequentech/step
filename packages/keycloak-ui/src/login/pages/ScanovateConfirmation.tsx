@@ -81,6 +81,11 @@ export default function ScanovateConfirmation(
             doUseDefaultCss={doUseDefaultCss}
             classes={classes}
             {...enrollmentFrame(kcContext, i18n, EnrollmentStep.Confirm)}
+            back={{
+                label: text("enrollmentBack"),
+                action: url.loginAction,
+                fields: {action: ConfirmationAction.Retry},
+            }}
             symbol={<IdCardIcon />}
             headerNode={title.text}
             titleLang={title.lang}
