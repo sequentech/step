@@ -17,7 +17,7 @@ Only the election board has access to election execution data and audit records.
 
 | Phase | How it starts | What happens next |
 | --- | --- | --- |
-| Preparation | The board creates an authorization context or imports an approved election event. | Configure administrator settings, approved imports, signing rules, the key ceremony and initialization. The board approves and publishes the configuration. |
+| Preparation | The board creates the approval event or imports an approved election event. | Configure administrator settings, approved imports, signing rules, the key ceremony and initialization. The board approves and publishes the configuration. |
 | Execution | The board or the approved schedule opens voting after the required checks pass. | Voters cast ballots within the approved period. The board may pause, resume or close voting with the required approvals. |
 | Evaluation | The approved period ends or the board closes all elections of the election event. | Voting cannot reopen. The board checks the audit and authorizes counting. |
 | Post-processing | The board selects **Start post-processing** in **Security and self-tests** and authenticates again. | Completed counting permits normal post-processing. An unrecoverable failure permits investigation. Board-approved read-out and export precede deletion. |

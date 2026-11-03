@@ -60,31 +60,24 @@ settings.
 
 ## Authentication failure threshold
 
-The TOE counts, per account, the consecutive failed authentication attempts it
-observes: when the external authentication server reports a failed
-authentication for the account, or when an assertion fails the TOE's checks.
-When an account reaches the threshold, the TOE locks it temporarily and writes
-a record to the electoral log: in the tenant's log for administrators, board
-members and trustees, in the election event's log for voters. The threshold
-applies to the tenant and to every election event of the tenant.
-To set the threshold:
+The TOE counts the failed sign-ins of each account: the external
+authentication server reports a failed authentication for the account, or an
+assertion fails the TOE's checks.
 
-1. Open Settings > "SECURITY".
-2. Set "Authentication failure threshold". The value is a whole number of at
-   least 1; the default is 5.
-3. Save.
+| Item | Value |
+|---|---|
+| Threshold | 5 failed sign-ins of one account |
+| Who sets it | The person who runs the servers, at installation, with the realm settings of the Deployment Guide: for the tenant and for the template of the election event realms ([Configure the realms](../../05-reference/06-deployment_guide/07-hardening.md#configure-the-realms)). The admin portal has no setting for it. A signed configuration package can carry another threshold for the realm of its election event; the election organizer decides it. |
+| Accounts it applies to | administrators, board members and trustees in the tenant; voters in each election event |
+| When an account reaches it | The TOE locks the account temporarily, for at most 15 minutes and never permanently. The TOE writes the record `PotentialAttackDetected`, category `brute-force-account`, to the electoral log: of every election event of the tenant for administrators, board members and trustees, of the election event for voters. |
+| Who sees it | The election board, in the Dashboard's "Attack detections" and on the Logs tab ([Audit, Monitoring and Notifications](09-audit_and_monitoring.md#attack-detections)). |
 
-Keep the default of 5 unless the election organizer decides on another value:
-a lower value locks accounts after fewer mistakes and helps an attacker to lock
-out legitimate voters, a higher value gives a password-guessing attacker more
-attempts. The external authentication server keeps its own limits as well.
-
-A locked account and the record of the threshold being reached are
+A lower threshold locks accounts after fewer mistakes and helps an attacker to
+lock out legitimate voters; a higher one gives a password-guessing attacker
+more attempts. The external authentication server keeps its own limits as
+well. A locked account and the record of the threshold being reached are
 security-relevant events
 ([Security-Relevant Events for Administrators](11-security_relevant_events.md)).
-Indications of attacks across several accounts appear in the Dashboard's
-"Attack detections", which the election board watches
-([Audit, Monitoring and Notifications](09-audit_and_monitoring.md#attack-detections)).
 
 ## Sessions
 
@@ -127,8 +120,8 @@ An imported package can also carry settings of the election event's realm,
 such as its brute-force detection and the recording of authentication events.
 After each import, check with the person who runs the servers, as the
 Deployment Guide describes, that the realm of the new election event still has
-brute-force detection on with your threshold and records its authentication
-events. If not, do not let the board approve the configuration version until
+brute-force detection on, with the threshold that the election organizer
+decided, and records its authentication events. If not, do not let the board approve the configuration version until
 the setting has been restored.
 :::
 

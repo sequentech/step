@@ -69,12 +69,12 @@ signing controls:
 On the tab, termination is the protected action "Close voting", and
 resumption is "Open voting", which also covers the first opening of voting.
 The evaluated procedure imports the four data categories together as a signed
-configuration package. Before the first import, the board creates an empty
-preparation event for authorization. Configure **Import election data** and
-register the board certificates there. The board selects this event in
-**Board approval for import**; its signing request binds the exact uploaded
-file. Package signatures and these online board approvals are both required.
-See [Import of election data](05-tenant_and_event_settings.md#import-of-election-data).
+configuration package. The board approves each import in the approval event:
+configure **Import election data** and register the board certificates there.
+The board selects this event in **Board approval for import**; its signing
+request binds the exact uploaded file. Package signatures and these online
+board approvals are both required. See
+[The approval event](05-tenant_and_event_settings.md#the-approval-event).
 
 The server always requires configured board approval for these actions:
 
@@ -151,8 +151,8 @@ election board approves the configuration version. To set a signing rule:
 3. For "Confirm custody (key ceremony)" and "Authorize tally custody (tally)",
    switch on "Trustees sign this step" and save. These two rows have no
    "Who can sign", "Signatures needed", requester or expiry controls: each
-   trustee signs their own custody step, with the permissions given to the
-   `trustee` role in [Users, Roles and Role Separation](04-users_and_roles.md).
+   trustee signs their own custody step, with the permissions of
+   [The trustee role](04-users_and_roles.md#the-trustee-role).
    For every other protected action, set the following fields:
 
 | Field | Required value |

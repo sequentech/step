@@ -228,8 +228,9 @@ the election event realms:
 
 3. Repeat for every imported event. Expect a `PASS` line naming that realm and
    its TLS/session/audit policy, issuer, absent code channels and disabled
-   password grant. Confirm the event's configured failure threshold with the
-   administrator; the initial value is 5 and must stay positive.
+   password grant. The check requires a positive failure threshold: 5 from the
+   realm settings, or the value that the election organizer decided in the
+   signed configuration package.
 
 The realm policy must require external TLS, a 900-second idle timeout,
 brute-force protection, event recording and `custom-event-listener`. Voters must

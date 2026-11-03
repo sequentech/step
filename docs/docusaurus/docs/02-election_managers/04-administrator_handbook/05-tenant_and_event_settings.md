@@ -134,8 +134,9 @@ configuration.
 | Package-signing CAs or the approval count are disabled | They were already configured. Do not try to change them through a backup or a direct API call. |
 | Staff CA replacement is refused | Every tenant election event must be archived before staff CA trust can change. Confirm this with the election board; never archive an ongoing election event just to enable a certificate change. |
 
-The database enforces the required policy, approval-count bounds, public PEM
-format and change restrictions for direct mutations and tenant restores too.
+The TOE enforces the required policy, the approval-count bounds, the public PEM
+format and the change restrictions also for changes made without this screen
+and for tenant restores.
 The TOE performs the authoritative X.509 trust-chain and signature checks when
 it imports a package. The browser's successful certificate preview alone does
 not authorize an election-data import.
@@ -171,13 +172,6 @@ Your part:
    fingerprints and approval count still match your approved values. Do not change it. Treat the refusal as a security-relevant event
    ([Security-Relevant Events for Administrators](11-security_relevant_events.md)).
 
-Before the first import, the board creates an empty preparation event as an
-**authorization context**. Configure its **Import election data** protected
-action, trusted issuers and registered board certificates. The board selects
-this event in **Board approval for import**. The exact uploaded file then needs
-the context's distinct board approvals as well as the signed-package checks.
-The empty context itself is not a configured election event ready for voting.
-
 Use the complete signed-package procedure for the evaluated configuration.
 The server also gates individual voter, area, candidate and schedule imports
 with board authorization and phase checks. An unapproved raw table mutation
@@ -191,6 +185,23 @@ verify those imported values; they do not change them to repair a package.
 Otherwise publication can refuse the changed ballot design. The tenant settings,
 protected-action rules, certificate registrations and the background audit policy are
 configured separately as their procedures describe. Areas remain election data.
+
+### The approval event
+
+Each import also needs the board's online approval: a signing request of the
+protected action **Import election data**. Protected actions, trusted issuers
+and certificate registrations belong to an election event, and the election
+event that an import creates does not exist before the import. The board
+therefore approves imports in an existing election event in the preparation
+phase, the approval event. Before the first import there is none, so the board
+creates an empty one
+([Prepare the first import's approval event](../05-election_organizer_handbook/06-preparation.md#prepare-the-first-imports-approval-event)).
+
+| Who | What |
+|---|---|
+| A board member | Creates the empty approval event with **Create an Election Event**. It holds no election data and never opens voting. |
+| You | On its **Signatures** tab, configure **Import election data**, the trusted issuers and the board members' certificate registrations ([Configuring Protected Actions](06-signing_rules.md)). |
+| The importing board member | Selects it in **Board approval for import**. The exact uploaded file then needs the approval event's board signatures as well as the package checks. |
 
 ### Correcting imported election data
 
@@ -372,8 +383,8 @@ have it ticked.
 | Tenants | The customer's tenant holds every election event and every account and role for election work. The super-admin tenant serves only the installation steps of the Deployment Guide, holds no election event and has no enabled personal account. | Work only in the customer's tenant. The person who runs the servers confirms in writing that election work uses only the customer's tenant. |
 | Telephone voting channel | Not configured: no telephone provider and no credentials for its endpoints, which refuse every request. Voters vote only through the voting portal. | "Voting Channels Allowed" is "Online" only in the election event and in each election. The person who runs the servers confirms in writing that the installation configured no telephone provider. |
 | Plugins | None installed: the TOE answers every plugin request that the plugin does not exist. | The person who runs the servers confirms in writing that no plugin is installed. |
-| Data correction | No account holds "Datafix account" (`datafix-account`); its data-correction routes are not used. | No role contains it and no account has it ([Users, Roles and Role Separation](04-users_and_roles.md#permissions-on-election-data-and-audit-records)). |
-| Manual verification of voters | No account holds "Manually Verify Voter" (`voter-manually-verify`); voters sign in only through the external authentication server. | No role contains it and no account has it ([Users, Roles and Role Separation](04-users_and_roles.md#permissions-on-election-data-and-audit-records)). |
+| Data correction | No account holds "Datafix account" (`datafix-account`); its data-correction routes are not used. | No role contains it and no account has it ([The roles of the evaluated configuration](04-users_and_roles.md#the-roles-of-the-evaluated-configuration)). |
+| Manual verification of voters | No account holds "Manually Verify Voter" (`voter-manually-verify`); voters sign in only through the external authentication server. | No role contains it and no account has it ([The roles of the evaluated configuration](04-users_and_roles.md#the-roles-of-the-evaluated-configuration)). |
 
 ## Publishing the configuration version
 

@@ -188,7 +188,7 @@ election event is never deleted:
    shows "The item
    has been archived", and the election event is listed under "Archived". An
    archived election event never opens voting; its data and audit records
-   stay in the TOE. Never select "Unarchive this Election Event".
+   stay in the TOE, and the TOE refuses "Unarchive this Election Event".
 4. The board checks that the corrected election event is the only one under
    "Active" for this election and records both events in its minutes.
 

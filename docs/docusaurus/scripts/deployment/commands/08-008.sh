@@ -17,8 +17,6 @@ for N in 1 2; do
       attributes: {"tenant-id": [$t], trustee: [$n]},
       credentials: [{type: "password", value: $ENV[$v], temporary: false}]}' \
     | kc create users -r "$CR" -f -
-  kc add-roles -r "$CR" --uusername trustee$N \
-    --rolename trustee-read --rolename trustee-write
 done
 K=$(kc get clients -r "$CR" -q clientId=api-key-client --fields id \
   --format csv --noquotes)

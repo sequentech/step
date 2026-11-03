@@ -13,7 +13,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 Open the election event and select **Security and self-tests**. The page shows
 its electoral phase, security state, recent test runs and security email delivery.
 Administrators and election-board members can read these results with
-`self-test-read`. Running a test requires `self-test-run`.
+"Self-tests: read results" (`self-test-read`). Running a test requires
+"Self-tests: run checks" (`self-test-run`).
 
 Tests run in the background. You can leave this page while the worker continues.
 The page refreshes every five seconds. A queued, unfinished, missing or timed-out
@@ -61,16 +62,18 @@ silently learn a new baseline after a failed test.
 
 ## Configure the background interval
 
-An administrator with `self-test-settings-write` may change **Automatic
-self-tests** during **Preparation**. The controls are read-only in later phases.
+An administrator with "Self-tests: edit settings" (`self-test-settings-write`)
+may change **Automatic self-tests** during **Preparation**. The controls are read-only in later phases.
 To change the self-test settings:
 
 1. Set **Interval in minutes (1–60)**. The default is **15 minutes**.
 2. Set **Suite timeout in seconds (10–600)**. The default is **60 seconds**.
    Leave at least 30 seconds between the timeout and the interval. For example,
    a one-minute interval permits a timeout of at most 30 seconds.
-3. Select additional conditions if needed: **After a configuration import**,
-   **After pausing voting**, or **Before counting**.
+3. Select additional conditions if needed: **After pausing voting** or
+   **Before counting**. **After a configuration import** has no effect: an
+   import creates a new election event, which starts with the default
+   settings.
 4. Select **Save self-test settings** and check the confirmation.
 
 Mandatory startup, election-start, start/resume, recovery and periodic checks

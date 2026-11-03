@@ -78,24 +78,23 @@ Give the administrators the customer's short name: everyone enters it under
 The administrator then follows the illustrated
 [Users, Roles and Role Separation](../../02-election_managers/04-administrator_handbook/04-users_and_roles.md)
 procedure in AGD-02:
-setting up the roles with their separation, creating the personal accounts of
-the election board and the trustees, and deleting the seeded account `admin`. The realm settings of this guide have already removed from
-the seeded administrator groups every permission that the administrator role
-must not hold: the election board's permissions, among them "Create Election
+checking the roles and their separation, creating the personal accounts of
+the election board and the trustees, and deleting the seeded account `admin`.
+The realm settings of this guide have already removed the election board's
+permissions from the seeded administrator groups, among them "Create Election
 Event" (`election-event-create`), with which the election board imports
 election data, "Delete Election Event" (`election-event-delete`), "Archive
 Election Event" (`election-event-archive`), the "Sign:" permissions, the
-scheduled events and the areas, and the other named permissions excluded by the AGD role tables. These role
-assignments do not establish the missing backend access restrictions recorded
-in ADV; do not treat portal visibility as proof of complete role separation. No group
+scheduled events and the areas. At sign-in the TOE gives an administrator
+account only the permissions of the administrator role in AGD-02. No group
 holds "Edit Results Publication" (`publish-results-write`), "Datafix
 account" (`datafix-account`) or "Manually Verify Voter"
 (`voter-manually-verify`).
 
 :::warning
-The first personal administrator account holds the remaining permissions of
-the seeded administrator group, among them the user, role and permission
-label permissions, with which an account could be given any permission. Use
+The first personal administrator account holds the permissions of the
+administrator role, among them the user and role permissions, with which an
+account could be given any permission. Use
 it only for the setup that the Handbook for Election Administrators describes, and never
 give an administrator account a permission that the handbook reserves for
 the election board. The administrator never imports, reads or changes

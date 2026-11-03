@@ -38,13 +38,13 @@ The election board reads the electoral log in the election event's tab "Logs"
 and in the Electoral Log console, checks it with "Audit" ("Audit electoral
 log"), whose result appears as the task "Audit Electoral Log" in the tab
 "Tasks", and exports it with "Export in CSV" or "Export in PDF". The
-permissions for these tools belong only to the "Election board" role
-([Users, Roles and Role Separation](04-users_and_roles.md#the-election-boards-permissions)).
+permissions for these tools belong only to the role `election-board`
+([The election board role](04-users_and_roles.md#the-election-board-role)).
 
-Your part: give these permissions to the "Election board" role as that page
-describes, and check that no administrator account holds any of them. Give
-"Read Electoral Log Personal Data" (`electoral-log-personal-data-read`) only
-where the election organizer decides so.
+Your part: check that `election-board` holds them, as that section lists, and
+that "Role Data" of `admin` shows none of them. Give "Read Electoral Log
+Personal Data" (`electoral-log-personal-data-read`) only where the election
+organizer decides so.
 
 ## Attack detections
 

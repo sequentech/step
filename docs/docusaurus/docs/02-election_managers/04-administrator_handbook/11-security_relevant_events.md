@@ -85,13 +85,15 @@ If a check fails, stop and resolve it before asking for approval.
 ### Check the accounts and permissions {#2-check-the-accounts-and-permissions}
 
 - ☐ No account combines an administrator role with a board permission.
-- ☐ The administrator has none of the
-  [permissions on election data and audit records](04-users_and_roles.md#permissions-on-election-data-and-audit-records).
+- ☐ "Role Data" of `admin` shows no "Sign:" permission, no **Edit Election
+  State** and no **Create Election Event**
+  ([The administrator role](04-users_and_roles.md#the-administrator-role)).
 - ☐ No role has **Edit Results Publication** (`publish-results-write`),
   and no account has **Datafix account** (`datafix-account`).
 - ☐ The seeded `admin` account is deleted.
-- ☐ Each board member has **Create Election Event**, **Signatures: cancel
-  requests**, **Export Logs**, **Edit Reports**, and read-only user/role access.
+- ☐ The roles `election-board` and `trustee` hold exactly the permissions of
+  [The election board role](04-users_and_roles.md#the-election-board-role)
+  and [The trustee role](04-users_and_roles.md#the-trustee-role).
 - ☐ Each administrator and board member has a tested notification email address.
 
 ### Check the event settings with the board {#3-check-the-event-settings-with-the-board}
@@ -155,9 +157,11 @@ only after recording that check; do not add board data permissions to your accou
   or recovery. A standalone electoral-log audit does not replace these checks.
 - ☐ Test the protected mail relay and check the security notification delivery
   state with the operator; confirm receipt at the intended staff addresses.
-- ☐ **Settings → SECURITY → Authentication failure threshold** is set
-  (default 5), and the
-  [login checks](08-authentication_and_sessions.md#what-you-check) pass.
+- ☐ The person who runs the servers confirms that the realm checks of the
+  Deployment Guide passed, with the
+  [authentication failure threshold](08-authentication_and_sessions.md#authentication-failure-threshold)
+  of 5, and the [login checks](08-authentication_and_sessions.md#what-you-check)
+  pass.
 - ☐ **Attack detection → Failed logins per minute, all accounts** and
   **Requests per minute, external interfaces** match the organizer's agreed values.
 

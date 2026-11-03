@@ -31,17 +31,17 @@ Before the election board imports any election data:
    [certificate setup procedure](../../02-election_managers/04-administrator_handbook/05-tenant_and_event_settings.md#configure-certificates-in-the-admin-portal).
    Save and check the read-back. A failed save or different fingerprint blocks
    the first import; do not substitute a different CA to make the form pass.
-2. The administrator sets up the roles and the personal accounts and deletes
-   the seeded accounts, following the illustrated
+2. The administrator checks the roles, sets up the personal accounts and
+   deletes the seeded account `admin`, following the illustrated
    [Users, Roles and Role Separation](../../02-election_managers/04-administrator_handbook/04-users_and_roles.md)
-   procedure. The seeded administrator groups already hold none of the
-   permissions that the handbook's role tables exclude from the administrator
-   role ([Configuring the Deployment](07-hardening.md#configure-the-realms)). Only
-   the election board's role holds "Create Election Event"
-   (`election-event-create`), with which a board member imports election data
-   with "Import Election Event" and a signed configuration package, and the
-   permissions to publish configuration versions and to read the electoral
-   log.
+   procedure. The seeded administrator groups hold none of the election
+   board's permissions ([Configuring the Deployment](07-hardening.md#configure-the-realms)),
+   and at sign-in the TOE gives an administrator account only the permissions
+   of the administrator role. Only the election board's role holds "Create
+   Election Event" (`election-event-create`), with which a board member imports
+   election data with "Import Election Event" and a signed configuration
+   package, and the permissions to publish configuration versions and to read
+   the electoral log.
 3. No role holds "Edit Results Publication" (`publish-results-write`), no
    account holds "Datafix account" (`datafix-account`), and no role and no
    group holds "Manually Verify Voter" (`voter-manually-verify`). The import

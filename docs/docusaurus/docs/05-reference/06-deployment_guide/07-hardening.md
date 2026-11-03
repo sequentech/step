@@ -204,8 +204,7 @@ The required sign-in policy is:
   no local password, and demonstration credentials are removed.
 - Remove the board-only and prohibited named permissions from seeded
   administrator groups. Give no group `publish-results-write`, `datafix-account`
-  or `voter-manually-verify`. The remaining table-permission limitations documented
-  in ADV are not resolved merely by hiding portal controls or removing a named role.
+  or `voter-manually-verify`.
 - Disable the account console (client `account-console`) in every realm. In
   event realms, also disable voter sign-in codes, messaging channels, offline
   access and the unused channel/results clients.
