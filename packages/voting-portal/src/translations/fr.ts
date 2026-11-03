@@ -253,6 +253,8 @@ const frenchTranslation: TranslationType = {
                 SESSION_EXPIRED: "Votre session a expiré. Veuillez recommencer depuis le début.",
                 CAST_VOTE_BallotIdMismatch:
                     "L'identifiant du bulletin ne correspond pas à celui du vote exprimé.",
+                CAST_VOTE_BallotStyleMismatch:
+                    "Votre bulletin ne correspond pas à celui actuellement publié pour cette élection. Veuillez recharger la page et réessayer, ou contacter le support pour obtenir de l'aide.",
                 SESSION_STORAGE_ERROR:
                     "Le stockage de session n'est pas disponible. Veuillez réessayer ou contacter le support.",
                 PARSE_BALLOT_DATA_ERROR:
@@ -582,6 +584,15 @@ const frenchTranslation: TranslationType = {
                 username: "Nom d'utilisateur",
                 ballot_id: "Numéro d'identification du bulletin",
                 message: "Message",
+            },
+            pagination: {
+                rowsPerPage: "Lignes par page :",
+                displayedRows: "{{from}}–{{to}} sur {{total}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} sur plus de {{to}}",
+                firstPage: "Aller à la première page",
+                lastPage: "Aller à la dernière page",
+                nextPage: "Aller à la page suivante",
+                previousPage: "Aller à la page précédente",
             },
         },
     },

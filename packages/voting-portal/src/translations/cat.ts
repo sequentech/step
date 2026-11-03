@@ -255,6 +255,8 @@ const catalanTranslation: TranslationType = {
                     "La vostra sessió ha caducat. Si us plau, torneu a començar des del principi.",
                 CAST_VOTE_BallotIdMismatch:
                     "L'identificador de la papereta no coincideix amb el del vot emès.",
+                CAST_VOTE_BallotStyleMismatch:
+                    "La seva papereta no coincideix amb la que està publicada actualment per a aquesta elecció. Si us plau, recarregui la pàgina i torni-ho a provar, o contacti amb el suport per obtenir ajuda.",
                 SESSION_STORAGE_ERROR:
                     "L'emmagatzematge de sessió no està disponible. Si us plau, torneu-ho a provar o contacteu amb el servei d'assistència.",
                 PARSE_BALLOT_DATA_ERROR:
@@ -584,6 +586,15 @@ const catalanTranslation: TranslationType = {
                 username: "Usuari",
                 ballot_id: "ID de la Papereta",
                 message: "Missatge",
+            },
+            pagination: {
+                rowsPerPage: "Files per pàgina:",
+                displayedRows: "{{from}}–{{to}} de {{total}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} de més de {{to}}",
+                firstPage: "Anar a la primera pàgina",
+                lastPage: "Anar a l'última pàgina",
+                nextPage: "Anar a la pàgina següent",
+                previousPage: "Anar a la pàgina anterior",
             },
         },
     },
