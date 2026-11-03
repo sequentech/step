@@ -1,0 +1,95 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The offline ballot audit image: the ballot audit tools, the B3 server, the
+# Braid verifier, PostgreSQL and ImmuDB. It restores the backups in /backups
+# into copies inside the container and writes the audit to /output; see
+# image/run-audit. Build from packages/:
+#   docker build -f ballot-audit/Dockerfile.prod -t ballot-audit .
+
+FROM rust:1.96.0-slim-bookworm AS builder
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        protobuf-compiler \
+        libprotobuf-dev \
+        m4 \
+        make \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY ./braid ./braid
+COPY ./b3 ./b3
+COPY ./electoral-log ./electoral-log
+COPY ./harvest ./harvest
+COPY ./strand ./strand
+COPY ./immu-board ./immu-board
+COPY ./immudb-rs ./immudb-rs
+COPY ./sequent-core ./sequent-core
+COPY ./velvet ./velvet
+COPY ./windmill ./windmill
+COPY ./e2e ./e2e
+COPY ./step-cli ./step-cli
+COPY ./orare ./orare
+COPY ./wrap-map-err ./wrap-map-err
+COPY ./braid/scripts ./braid/scripts
+COPY ./plugins ./plugins
+COPY ./ballot-audit ./ballot-audit
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
+COPY ./.cargo ./.cargo
+
+RUN cargo build --release --locked -p ballot-audit --bins \
+    && cargo build --release --locked -p b3 --features server --bin server \
+    && cargo build --release --locked -p braid --bin verify
+
+# ImmuDB, pinned by version and SHA-256 of each release file.
+FROM debian:bookworm-slim AS immudb
+
+ARG TARGETARCH
+ARG IMMUDB_VERSION=1.9.6
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /immudb
+RUN case "${TARGETARCH:-amd64}" in \
+        amd64) printf '%s\n' \
+            "26a26b68c02a86b3464e669710bd77fb06ccdbbaca03f481c4706c3526c2c5f8  immudb" \
+            "f8aa9d07342236a46eff49677d6b5dea11710ba7996a494b64fd3ce1a0e36b39  immuadmin" \
+            "16e0d8e67253f253dc3ae1220f4aee84b3634eaa5c018e2b0729df0b03d4c11b  immuclient" ;; \
+        arm64) printf '%s\n' \
+            "5db18862ca4ab53d60271c3e832369b477ad87a1ff32ef56b1cedf16250638d4  immudb" \
+            "82ae3e80387b0c7a24a88da4acd0cda043d3361b2fbe46478683a8815092fe90  immuadmin" \
+            "49f162ce5ca9a073dcdc50ae18869eafb014507fcb6af5ad111e5b195596a2d6  immuclient" ;; \
+        *) echo "unsupported architecture ${TARGETARCH}" && exit 1 ;; \
+    esac >SHA256SUMS \
+    && for tool in immudb immuadmin immuclient; do \
+        curl -fsSL -o "$tool" \
+            "https://github.com/codenotary/immudb/releases/download/v${IMMUDB_VERSION}/${tool}-v${IMMUDB_VERSION}-linux-${TARGETARCH:-amd64}"; \
+    done \
+    && sha256sum -c SHA256SUMS \
+    && chmod 755 immudb immuadmin immuclient
+
+# The PostgreSQL major version of the platform. pg_restore also restores the
+# dumps of older versions.
+FROM postgres:18-bookworm
+
+COPY --from=immudb /immudb/immudb /immudb/immuadmin /immudb/immuclient /usr/local/bin/
+# audit-tally runs the other commands and verify from its own directory.
+COPY --from=builder \
+    /app/target/release/audit-tally \
+    /app/target/release/export-ballot-audit \
+    /app/target/release/export-electoral-log \
+    /app/target/release/prepare-ballot-audit \
+    /app/target/release/ballot-audit \
+    /app/target/release/audit-cast-history \
+    /app/target/release/verify \
+    /usr/local/bin/
+COPY --from=builder /app/target/release/server /usr/local/bin/b3-server
+COPY ./ballot-audit/image/run-audit /usr/local/bin/run-audit
+
+ENTRYPOINT ["run-audit"]
