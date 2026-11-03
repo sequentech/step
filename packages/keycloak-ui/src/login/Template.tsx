@@ -6,12 +6,13 @@ import {kcSanitize} from "keycloakify/lib/kcSanitize"
 import type {TemplateProps} from "keycloakify/login/TemplateProps"
 import Alert, {type AlertColor} from "@mui/material/Alert"
 import Box from "@mui/material/Box"
+import Button from "@mui/material/Button"
 import CssBaseline from "@mui/material/CssBaseline"
 import Paper from "@mui/material/Paper"
 import Typography from "@mui/material/Typography"
 import {ThemeProvider} from "@mui/material/styles"
 import logo from "./assets/sequent-white.svg"
-import {GlobeIcon, MessageIcon, ShieldIcon} from "./icons"
+import {BackIcon, GlobeIcon, MessageIcon, ShieldIcon} from "./icons"
 import {authTheme} from "./theme"
 import {getAuthCopy} from "./authCopy"
 import {buildDetail} from "./buildDetail"
@@ -44,6 +45,12 @@ export enum SymbolTone {
 
 export type TemplateLabel = {text: string; lang: string}
 
+// Back to the previous step: a form the page's authenticator answers, or a link.
+export type TemplateBack = {label: TemplateLabel} & (
+    | {action: string; fields: Record<string, string>}
+    | {href: string}
+)
+
 export type TemplateExtras = {
     layout?: TemplateLayout
     symbol?: ReactNode
@@ -51,6 +58,7 @@ export type TemplateExtras = {
     eyebrow?: TemplateLabel
     titleLang?: string
     progress?: {step: number; total: number; label: TemplateLabel}
+    back?: TemplateBack
 }
 
 export type SequentTemplateProps = TemplateProps<KcContext, I18n> & TemplateExtras
@@ -63,6 +71,7 @@ export default function Template(props: SequentTemplateProps) {
         eyebrow,
         titleLang,
         progress,
+        back,
         displayInfo = false,
         displayMessage = true,
         headerNode,
@@ -85,6 +94,10 @@ export default function Template(props: SequentTemplateProps) {
         (kcContext.locale?.rtl ?? document.documentElement.dir === "rtl") ? "rtl" : "ltr"
     const copy = getAuthCopy(currentLanguage.languageTag)
     const accessibilityCopy = getAccessibilityCopy(currentLanguage.languageTag)
+    // Rendered after the theme's stylesheet, so the realm's rules win at equal specificity.
+    const customCss = kcContext.sequent.loginCustomCss && (
+        <style id="login-custom-css">{kcContext.sequent.loginCustomCss}</style>
+    )
 
     useEffect(() => {
         document.title = documentTitle ?? msgStr("loginTitle", realm.displayName || realm.name)
@@ -126,6 +139,7 @@ export default function Template(props: SequentTemplateProps) {
             <ThemeProvider theme={authTheme}>
                 <CssBaseline />
                 <Box className="sequent-auth" lang={currentLanguage.languageTag} dir={direction}>
+                    {customCss}
                     <Box
                         component="main"
                         className="auth-fullscreen"
@@ -142,6 +156,7 @@ export default function Template(props: SequentTemplateProps) {
         <ThemeProvider theme={authTheme}>
             <CssBaseline />
             <Box className="sequent-auth" lang={currentLanguage.languageTag} dir={direction}>
+                {customCss}
                 <Box
                     className={
                         layout === TemplateLayout.Wide ? "auth-layout auth-wide" : "auth-layout"
@@ -209,6 +224,7 @@ export default function Template(props: SequentTemplateProps) {
                     <Box component="main" aria-labelledby="kc-page-title">
                         {layout === TemplateLayout.Card ? (
                             <Paper className="auth-card" elevation={0}>
+                                {back && <BackControl back={back} />}
                                 {progress && (
                                     <Box
                                         className="auth-progress"
@@ -286,6 +302,7 @@ export default function Template(props: SequentTemplateProps) {
                             </Paper>
                         ) : (
                             <>
+                                {back && <BackControl back={back} />}
                                 {feedback}
                                 {children}
                             </>
@@ -297,6 +314,31 @@ export default function Template(props: SequentTemplateProps) {
                 </Box>
             </Box>
         </ThemeProvider>
+    )
+}
+
+function BackControl({back}: {back: TemplateBack}): ReactNode {
+    const button = (
+        <Button
+            className="auth-back"
+            variant="text"
+            startIcon={<BackIcon />}
+            lang={back.label.lang}
+            {...("href" in back ? {href: back.href} : {type: "submit" as const})}
+        >
+            {back.label.text}
+        </Button>
+    )
+    if ("href" in back) {
+        return button
+    }
+    return (
+        <form className="auth-back-form" method="post" action={back.action}>
+            {Object.entries(back.fields).map(([name, value]) => (
+                <input key={name} type="hidden" name={name} value={value} />
+            ))}
+            {button}
+        </form>
     )
 }
 

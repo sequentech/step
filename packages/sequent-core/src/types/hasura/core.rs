@@ -258,6 +258,7 @@ impl DocumentAnnotations {
             access: Some(DocumentAccess {
                 password_secret_id: Some(password_secret_id.into()),
                 voter_secret_attributes: false,
+                integration_secrets: false,
             }),
             ..Default::default()
         }
@@ -274,6 +275,7 @@ impl DocumentAnnotations {
             access: Some(DocumentAccess {
                 password_secret_id: None,
                 voter_secret_attributes: true,
+                integration_secrets: false,
             }),
             ..Default::default()
         }
@@ -284,6 +286,21 @@ impl DocumentAnnotations {
             .as_ref()
             .is_some_and(|access| access.voter_secret_attributes)
     }
+
+    /// Marks the document as carrying authenticator integration secrets:
+    /// reading it then also requires `integration-secret-read`.
+    pub fn with_integration_secrets(mut self) -> Self {
+        self.access
+            .get_or_insert_with(DocumentAccess::default)
+            .integration_secrets = true;
+        self
+    }
+
+    pub fn requires_integration_secret_read(&self) -> bool {
+        self.access
+            .as_ref()
+            .is_some_and(|access| access.integration_secrets)
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
@@ -292,6 +309,9 @@ pub struct DocumentAccess {
     pub password_secret_id: Option<String>,
     #[serde(default, skip_serializing_if = "is_false")]
     pub voter_secret_attributes: bool,
+    /// The document carries authenticator integration secrets.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub integration_secrets: bool,
 }
 
 fn is_false(value: &bool) -> bool {
@@ -380,6 +400,33 @@ mod document_annotations_tests {
             serde_json::to_value(&annotations).unwrap(),
             json!({"access": {"voter_secret_attributes": true}})
         );
+    }
+
+    #[test]
+    fn marks_integration_secret_exports_as_restricted() {
+        let ordinary = DocumentAnnotations::default();
+        assert!(!ordinary.requires_integration_secret_read());
+        let voter = DocumentAnnotations::voter_secret_export();
+        assert!(!voter.requires_integration_secret_read());
+
+        for (annotations, expected) in [
+            (
+                DocumentAnnotations::default().with_integration_secrets(),
+                json!({"access": {"integration_secrets": true}}),
+            ),
+            (
+                DocumentAnnotations::voter_secret_export()
+                    .with_integration_secrets(),
+                json!({"access": {"voter_secret_attributes": true,
+                                  "integration_secrets": true}}),
+            ),
+        ] {
+            assert!(annotations.requires_integration_secret_read());
+            assert_eq!(serde_json::to_value(&annotations).unwrap(), expected);
+            let read: DocumentAnnotations =
+                serde_json::from_value(expected).unwrap();
+            assert!(read.requires_integration_secret_read());
+        }
     }
 
     #[test]

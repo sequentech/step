@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pub mod api_datafix;
 pub mod applications;
+pub mod apply_configuration_package;
 pub mod approval_matrix;
 pub mod areas;
 pub mod b4;

@@ -32,6 +32,7 @@ export const Email: Story = {
         await expect(header.getByText("0.0.0-preview")).toBeVisible()
         await expect(header.getByText("synthetic")).toBeVisible()
         await expect(canvas.getByText("Enter the code we sent to your email.")).toBeVisible()
+        await expect(canvas.queryByRole("button", {name: "Back"})).toBeNull()
         await expect(canvas.getByRole("group", {name: "Verification code"})).toBeVisible()
         await userEvent.click(canvas.getByLabelText("Digit 1 of 6"))
         await userEvent.tab({shift: true})
@@ -43,6 +44,20 @@ export const Email: Story = {
         await expectStickyActions(canvas.getByRole("button", {name: "Submit"}))
         const form = canvas.getByLabelText("Digit 1 of 6").closest("form")!
         await expect(new FormData(form).get("code")).toBe("123456")
+    },
+}
+
+/** After the details form, Back returns to it. */
+export const BackToTheDetailsForm: Story = {
+    args: {kcContext: {stepBack: true}},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        const back = canvas.getByRole("button", {name: "Back"})
+        await expect(back).toBeVisible()
+        const form = back.closest("form")!
+        await expect(new FormData(form).get("back")).toBe("true")
+        await expect(form.querySelector('input[name="code"]')).toBeNull()
     },
 }
 

@@ -3,10 +3,10 @@
 name: Frontend coverage
 on:
   pull_request:
-    paths: ['packages/**', 'scripts/coverage/**', '.github/workflows/frontend-coverage.yml', '.github/actions/setup-test-browser/**']
+    paths: ['packages/**', 'scripts/coverage/**', '.github/workflows/frontend-coverage.yml', '.github/actions/setup-test-browser/**', '.github/actions/setup-frontend/**']
   push:
     branches: [main]
-    paths: ['packages/**', 'scripts/coverage/**', '.github/workflows/frontend-coverage.yml', '.github/actions/setup-test-browser/**']
+    paths: ['packages/**', 'scripts/coverage/**', '.github/workflows/frontend-coverage.yml', '.github/actions/setup-test-browser/**', '.github/actions/setup-frontend/**']
 permissions:
   contents: read
 concurrency:
@@ -22,32 +22,56 @@ jobs:
       matrix:
         package: [ui-core, voting-portal, ui-essentials, results-portal, ballot-verifier, admin-portal]
     steps:
+      # The head is the workspace itself, so setup-frontend restores the same
+      # dependency cache as the other frontend jobs.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.sha }}
-          path: head
           persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.event.pull_request.base.sha || github.event.before }}
           path: base
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: '22.22.0'
-      - name: Install locked dependencies in both checkouts
+      - name: Keep the base checkout out of the head's status
+        # The comparison requires a clean head checkout.
+        run: echo /base/ >> .git/info/exclude
+      - uses: ./.github/actions/setup-frontend
+      - name: Install the base's locked dependencies
+        # Most pull requests keep the dependency manifests, so the base copies
+        # the head's installed tree (workspace links are relative) and reruns
+        # its postinstall steps. Otherwise it installs its own versions; the
+        # comparison still uses the head's locked Jest/Istanbul instrumenter.
         run: |
-          npm install --global yarn@1.22.22
-          yarn --cwd head/packages install --frozen-lockfile --non-interactive
-          # Keep workspace-local dependency versions for each revision.
-          # The comparison still uses the head's locked Jest/Istanbul instrumenter.
-          yarn --cwd base/packages install --frozen-lockfile --non-interactive
+          # Tracked files only: the head's postinstall has already copied
+          # packages (TinyMCE, with its package.json) into public/.
+          inputs() {
+            git -C "$1" ls-files -z -- packages/yarn.lock \
+              ':(glob)packages/**/package.json' ':(glob)packages/*/rust/*.tgz' \
+              | (cd "$1" && xargs -0 sha256sum)
+          }
+          if [ "$(inputs .)" = "$(inputs base)" ]; then
+            echo 'Base dependency manifests match the head: copying its installed tree.'
+            for modules in packages/node_modules packages/*/node_modules packages/keycloak-extensions/sequent-theme/node_modules; do
+              if [ -d "$modules" ]; then
+                cp -a "$modules" "base/$modules"
+              fi
+            done
+            for manifest in base/packages/*/package.json; do
+              if node -e 'process.exit(require(process.argv[1]).scripts?.postinstall ? 0 : 1)' "./$manifest"; then
+                yarn --cwd "$(dirname "$manifest")" run postinstall
+              fi
+            done
+          else
+            echo 'Base dependency manifests differ from the head: installing them.'
+            yarn --cwd base/packages install --frozen-lockfile --non-interactive
+          fi
       - name: Verify the real frontend gate
         if: matrix.package == 'ui-core'
-        run: node head/scripts/coverage/test_frontend.cjs
+        run: node scripts/coverage/test_frontend.cjs
       - name: Install the pinned local test browser
         if: contains(fromJSON('["ui-core", "voting-portal", "ui-essentials"]'), matrix.package)
-        uses: ./head/.github/actions/setup-test-browser
+        uses: ./.github/actions/setup-test-browser
       - name: Exercise the real browser boundary
         if: contains(fromJSON('["ui-core", "voting-portal", "ui-essentials"]'), matrix.package)
         env:
@@ -56,13 +80,13 @@ jobs:
           export UI_CORE_CHROME_PATH="$CHROME"
           export VOTING_PORTAL_TEST_CHROME_PATH="$CHROME"
           export UI_ESSENTIALS_TEST_CHROME_PATH="$CHROME"
-          yarn --cwd "head/packages/$PACKAGE" test:browser
+          yarn --cwd "packages/$PACKAGE" test:browser
       - name: Compare all four source metrics
         env:
           PACKAGE: ${{ matrix.package }}
         run: >-
-          python3 head/scripts/coverage/ci.py frontend "$PACKAGE"
-          --base base --head head --output "$RUNNER_TEMP/coverage/frontend"
+          python3 scripts/coverage/ci.py frontend "$PACKAGE"
+          --base base --head . --output "$RUNNER_TEMP/coverage/frontend"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
