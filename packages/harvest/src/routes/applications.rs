@@ -190,9 +190,10 @@ pub async fn reject_application_email_in_use(
         input.application_id
     );
 
+    // The tenant's own service account only: no super admin tenant.
     authorize(
         &claims,
-        true,
+        false,
         Some(input.tenant_id.clone()),
         vec![Permissions::SERVICE_ACCOUNT],
     )
