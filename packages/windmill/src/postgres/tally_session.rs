@@ -166,6 +166,8 @@ pub async fn get_tally_session_by_election_event_id_pending_post_tally_task(
         WHERE
             tenant_id = $1 AND
             election_event_id = $2 AND
+            (NOT (COALESCE(annotations, '{}'::jsonb) ? 'result_readiness_version') OR
+             (is_execution_completed IS TRUE AND execution_status IN ('IN_PROGRESS', 'SUCCESS'))) AND
             annotations @> '{"is_post_task_completed": false}'::jsonb
         ORDER BY
             created_at DESC;
@@ -334,6 +336,51 @@ pub async fn lock_tally_session_for_update(
     Ok(())
 }
 
+/// Sets `key` of the tally session's annotations to `value`, keeping every
+/// other key. One statement, so it cannot overwrite a key another writer set
+/// since this session was read.
+#[instrument(err, skip(hasura_transaction, value))]
+pub async fn merge_tally_session_annotation(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    key: &str,
+    value: Value,
+) -> Result<()> {
+    let updated = hasura_transaction
+        .execute(
+            r#"
+            UPDATE
+                sequent_backend.tally_session
+            SET
+                annotations = (
+                    CASE WHEN jsonb_typeof(annotations) = 'object'
+                        THEN annotations
+                        ELSE '{}'::jsonb
+                    END
+                ) || jsonb_build_object($1::text, $2::jsonb)
+            WHERE
+                id = $3 AND
+                tenant_id = $4 AND
+                election_event_id = $5;
+            "#,
+            &[
+                &key,
+                &value,
+                &parse_uuid_v4(tally_session_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
+        )
+        .await
+        .with_context(|| format!("Error annotating tally session {tally_session_id}"))?;
+    if updated == 0 {
+        return Err(anyhow!("Tally Session {tally_session_id} not found"));
+    }
+    Ok(())
+}
+
 #[instrument(err, skip_all)]
 pub async fn update_tally_session_annotation(
     hasura_transaction: &Transaction<'_>,
@@ -473,6 +520,7 @@ pub async fn set_post_tally_task_completed(
             UPDATE
                 sequent_backend.tally_session
             SET
+                execution_status = CASE WHEN annotations ? 'result_readiness_version' THEN 'SUCCESS' ELSE execution_status END,
                 annotations = annotations || '{"is_post_task_completed": true}'
             WHERE
                 id = $1 AND
