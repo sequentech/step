@@ -520,8 +520,25 @@ html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visib
 }
 
 /* Identity verification */
+/* The capture fills the window, so the camera is as large as it can be. */
 .sequent-auth .auth-layout.auth-wide {
-    max-width: 1080px;
+    display: flex;
+    flex-direction: column;
+    max-width: 1440px;
+    min-height: 100vh;
+    min-height: 100svh;
+    padding-block: 24px 16px;
+}
+.sequent-auth .auth-wide > main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+}
+.sequent-auth .auth-wide .auth-header {
+    margin-bottom: 16px;
+}
+.sequent-auth .auth-wide .auth-footer {
+    margin-top: 16px;
 }
 .sequent-auth .auth-progress {
     display: grid;
@@ -685,12 +702,14 @@ html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visib
     line-height: 1.5;
 }
 .sequent-auth .auth-reference code {
+    display: block;
+    margin-top: 4px;
     color: #173449;
     font-family: SFMono-Regular, Consolas, "Liberation Mono", monospace;
     font-size: 1rem;
     font-weight: 700;
     letter-spacing: 0.02em;
-    word-break: break-all;
+    overflow-wrap: anywhere;
     user-select: all;
 }
 .sequent-auth .auth-reference-actions {
@@ -1211,6 +1230,7 @@ html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visib
 }
 .sequent-auth .desk-capture {
     display: grid;
+    flex: 1;
     grid-template-columns: minmax(0, 1fr) 340px;
     overflow: hidden;
     border-radius: 22px;
@@ -1219,7 +1239,7 @@ html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visib
 }
 .sequent-auth .desk-cam {
     position: relative;
-    min-height: 526px;
+    min-height: 420px;
     background: #0b2231;
 }
 .sequent-auth .desk-side {
