@@ -1,85 +1,148 @@
-/** @jest-environment jsdom */
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {fireEvent, render, waitFor} from "@testing-library/react"
+import {renderToStaticMarkup} from "react-dom/server"
+import type {GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
+import type {CandidateResultRow} from "./types"
 
+jest.mock("./ChartPanel", () => {
+    const react = jest.requireActual<typeof import("react")>("react")
+
+    return {
+        Chart: ({
+            className,
+            options,
+            series = [],
+        }: {
+            className?: string
+            options?: {tooltip?: {y?: {formatter?: (value: number) => string}}}
+            series?: number[]
+        }) =>
+            react.createElement("div", {
+                className,
+                "data-tooltip-labels": series
+                    .map((value) => options?.tooltip?.y?.formatter?.(value))
+                    .join("|"),
+            }),
+        ChartPanel: ({children}: {children: React.ReactNode}) =>
+            react.createElement("section", null, children),
+    }
+})
+
+// The data grid lays rows out only once it has measured itself, which never
+// happens in a static render, so render every cell the way its column does.
+jest.mock("@mui/x-data-grid", () => {
+    const react = jest.requireActual<typeof import("react")>("react")
+
+    return {
+        DataGrid: ({
+            rows,
+            columns,
+        }: {
+            rows: CandidateResultRow[]
+            columns: GridColDef<CandidateResultRow>[]
+        }) =>
+            react.createElement(
+                "table",
+                null,
+                react.createElement(
+                    "tbody",
+                    null,
+                    rows.map((row) =>
+                        react.createElement(
+                            "tr",
+                            {key: row.id},
+                            columns.map((column) => {
+                                const value = row[column.field as keyof CandidateResultRow]
+
+                                return react.createElement(
+                                    "td",
+                                    {key: column.field, className: column.field},
+                                    column.renderCell
+                                        ? column.renderCell({
+                                              value,
+                                              row,
+                                          } as GridRenderCellParams<CandidateResultRow>)
+                                        : value
+                                )
+                            })
+                        )
+                    )
+                )
+            ),
+    }
+})
+
+// ui-core's built dist is unavailable when this package's tests run alone, so
+// load the number format modules from source.
 jest.mock(
     "@sequentech/ui-core",
     () => ({
         ...jest.requireActual<typeof import("@sequentech/ui-core")>(
             "../../../../ui-core/src/types/VotingChannel"
         ),
-        escapeHtml: jest.requireActual<typeof import("@sequentech/ui-core")>(
-            "../../../../ui-core/src/services/stringToHtml"
-        ).escapeHtml,
-        formatPercentOne: (value: number) => `${value}%`,
+        ...jest.requireActual<typeof import("@sequentech/ui-core")>(
+            "../../../../ui-core/src/types/ElectionEventPresentation"
+        ),
+        ...jest.requireActual<typeof import("@sequentech/ui-core")>(
+            "../../../../ui-core/src/services/numberFormat"
+        ),
+        ...jest.requireActual<typeof import("@sequentech/ui-core")>(
+            "../../../../ui-core/src/services/NumberFormatContext"
+        ),
+        ...jest.requireActual<typeof import("@sequentech/ui-core")>(
+            "../../../../ui-core/src/services/percentFormatter"
+        ),
     }),
     {virtual: true}
 )
 
-jest.mock("@mui/x-data-grid", () => ({DataGrid: () => null}))
+import {ENumberFormatPolicy, NumberFormatProvider} from "@sequentech/ui-core"
+import {CandidateResults} from "./CandidateResults"
 
-import {CandidateResultsChart} from "./CandidateResults"
+const candidates: CandidateResultRow[] = [
+    {
+        id: "candidate-a",
+        name: "Candidate A",
+        castVotes: 10999999,
+        castVotesPercent: 0.9166666,
+        winningPosition: 1,
+    },
+    {
+        id: "candidate-b",
+        name: "Candidate B",
+        castVotes: 1000001,
+        castVotesPercent: 0.0833334,
+        winningPosition: null,
+    },
+]
 
-const MARKUP_NAME = '<i class="candidate-name-markup">Ann</i> & Co'
+describe("CandidateResults", () => {
+    it("writes candidate votes and percentages in the event's number format", () => {
+        const markup = renderToStaticMarkup(
+            <NumberFormatProvider policy={ENumberFormatPolicy.PERIOD_COMMA}>
+                <CandidateResults candidates={candidates} chartName="Election - Contest" />
+            </NumberFormatProvider>
+        )
 
-const identityMatrix = () => ({
-    a: 1,
-    b: 0,
-    c: 0,
-    d: 1,
-    e: 0,
-    f: 0,
-    inverse: identityMatrix,
-    multiply: identityMatrix,
-})
-
-beforeAll(() => {
-    // apexcharts observes its container and measures SVG elements, which jsdom does not implement.
-    window.ResizeObserver = class {
-        observe() {}
-        unobserve() {}
-        disconnect() {}
-    }
-    Object.assign(window.SVGElement.prototype, {
-        getBBox: () => ({x: 0, y: 0, width: 10, height: 10}),
-        getComputedTextLength: () => 10,
-        getScreenCTM: identityMatrix,
-        createSVGMatrix: identityMatrix,
+        expect(markup).toContain('class="castVotes">10.999.999<')
+        expect(markup).toContain('class="castVotesPercent">91,67%<')
+        expect(markup).toContain('class="castVotes">1.000.001<')
+        expect(markup).toContain('class="castVotesPercent">8,33%<')
+        expect(markup).toContain('class="winningPosition">1<')
+        expect(markup).toContain('class="winningPosition">-<')
+        expect(markup).toContain('data-tooltip-labels="10.999.999|1.000.001"')
     })
-})
 
-describe("CandidateResultsChart", () => {
-    it("renders candidate names as text in the chart legend and tooltip", async () => {
-        const {container} = render(
-            <CandidateResultsChart
-                chartName="Election - Contest"
-                results={[
-                    {id: "candidate-1", name: MARKUP_NAME, castVotes: 3},
-                    {id: "candidate-2", name: "Plain name", castVotes: 1},
-                ]}
-            />
+    it("writes comma grouped votes for events without a number format", () => {
+        const markup = renderToStaticMarkup(
+            <CandidateResults candidates={candidates} chartName="Election - Contest" />
         )
 
-        const legendTexts = await waitFor(() => {
-            const nodes = container.querySelectorAll(".apexcharts-legend-text")
-            expect(nodes).toHaveLength(2)
-            return nodes
-        })
-        expect(legendTexts[0].textContent).toBe(MARKUP_NAME)
-        expect(legendTexts[1].textContent).toBe("Plain name")
-        expect(container.querySelector(".apexcharts-legend .candidate-name-markup")).toBeNull()
-
-        fireEvent.mouseMove(container.querySelectorAll(".apexcharts-series")[0])
-
-        await waitFor(() =>
-            expect(
-                container.querySelector(".apexcharts-tooltip-text-y-label")?.textContent
-            ).toContain(MARKUP_NAME)
-        )
-        expect(container.querySelector(".apexcharts-tooltip .candidate-name-markup")).toBeNull()
+        expect(markup).toContain('class="castVotes">10,999,999<')
+        expect(markup).toContain('class="castVotesPercent">91.67%<')
+        expect(markup).toContain('data-tooltip-labels="10,999,999|1,000,001"')
     })
 })
