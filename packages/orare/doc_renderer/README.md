@@ -36,6 +36,12 @@ In order to create the lambda container image, run, from the
 ❯ docker build --push -f orare/doc_renderer/Dockerfile -t <someuser>/doc_renderer:latest .
 ```
 
+The renderer only loads the images, stylesheets and scripts that templates take
+from the platform's public bucket if it knows where that bucket is. Pass the
+same `AWS_S3_PRIVATE_URI`, `AWS_S3_PUBLIC_URI` and `AWS_S3_PUBLIC_BUCKET` values
+that windmill uses as `--build-arg` options of the build above (the `make`
+targets in this directory forward them from the environment).
+
 #### Creating the lambda container image in OpenWhisk
 
 Although optional, first create the package:
