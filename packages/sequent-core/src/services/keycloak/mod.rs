@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 mod admin_client;
+mod path_segment;
 mod permission;
 mod realm;
 mod role;
@@ -11,7 +12,11 @@ mod test_support;
 mod user;
 
 pub use self::admin_client::*;
+pub use self::path_segment::*;
 pub use self::permission::*;
 pub use self::realm::*;
 pub use self::role::*;
 pub use self::user::*;
+
+#[cfg(test)]
+mod realm_scope_tests;
