@@ -110,6 +110,10 @@ A rule decides one of:
 What the voter is told is one of: No matching voter, Already approved, Missing data, Identity not
 verified and Other. The rule editor shows the message the voter sees for each.
 
+An enrollment the rules approve is still rejected, as Email used by another voter, when another
+voter of the election event already has its email: each email can belong to one voter only. The
+voter is told to enroll again with a different email.
+
 When the registry returns several voters for an enrollment, each one is checked against the rules,
 and the results are combined always in the same way, whatever the order of the voters:
 

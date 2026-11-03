@@ -48,6 +48,7 @@ class StoreUserDataNotesTest {
           "verificationStatus",
           "verificationRejectionReason",
           "verificationMismatchedFields",
+          "emailInUseRejection",
           "fields_match");
 
   /**
