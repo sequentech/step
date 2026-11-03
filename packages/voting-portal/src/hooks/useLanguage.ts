@@ -4,6 +4,7 @@
 
 import React, {useEffect} from "react"
 import {useTranslation} from "react-i18next"
+import {isLanguageEnabled} from "@sequentech/ui-core"
 import {IBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 
 type props = {
@@ -21,7 +22,7 @@ const useLanguage = ({ballotStyle}: props) => {
         if (
             !electionLanguages ||
             !currLanguage ||
-            electionLanguages.includes(currLanguage) ||
+            isLanguageEnabled(currLanguage, electionLanguages) ||
             !defaultLang
         )
             return
