@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Scanovate On-Premise Services | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4169/docs/integrations/scanovate_on_premise_guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Scanovate On-Premise Services | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4169/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4169/docs/integrations/scanovate_on_premise_guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4169/docs/integrations/scanovate_on_premise_guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4169/docs/integrations/scanovate_on_premise_guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Scanovate On-Premise Services","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4169/docs/integrations/scanovate_on_premise_guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4169/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4169/assets/js/runtime~main.a99bdfa1.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4169/assets/js/runtime~main.f0f6c67e.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4169/assets/js/main.dbe560d8.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -34,8 +34,9 @@ first OCR&#x27;s capture page and then Liveness Plus&#x27;s. Each service checks
 Keycloak&#x27;s one-time token before it starts a session and posts its result to
 Keycloak, server to server. Keycloak then calls Face Match. Our capture page
 never carries a verdict; the only photo it takes itself is the voter holding
-their document, after the face check, which it uploads to Keycloak (the
-authenticator&#x27;s <code>holding-photo</code> policy).</p>
+their document, after the face check, taken automatically once the image has
+been still for the holding time, which it uploads to Keycloak (the
+authenticator&#x27;s <code>holding-photo</code> policy and <code>video-seconds</code>).</p>
 <p>This page describes how to run the services, how to configure them, and the
 contract between them, the capture page and Keycloak.</p>
 <table><thead><tr><th>Service</th><th>Image</th><th>Role</th></tr></thead><tbody><tr><td><code>scanovate-ocr</code></td><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ocr:version_3.9.0_aefa131_285</code></td><td>OCR capture page and its API. Manages the sessions, reads the document, sends the callbacks.</td></tr><tr><td><code>scanovate-liveness</code></td><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-plus-service:version_3.9.0_e0dc72e_115</code></td><td>Liveness capture page and its API. Manages the sessions, checks the face quality of each frame, calls PAD and IAD, sends the callbacks.</td></tr><tr><td><code>scanovate-presentation-detection</code></td><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-presentation-detection-service:release_1.52.0</code></td><td>PAD server, with the <code>pad-r-2</code> (presentation attacks) and <code>dfd-3</code> (deepfakes) pipelines.</td></tr><tr><td><code>scanovate-injection-detection</code></td><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-injection-detection-service:release-2.6.2</code></td><td>IAD server: checks that the frames come from a real camera.</td></tr><tr><td><code>scanovate-face-match</code></td><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ngfacematch:version_3.9.0_ba58397_79</code></td><td>Face Match API. We use its 1:1 API (<code>/facematch11</code>).</td></tr></tbody></table>
@@ -198,8 +199,10 @@ login theme on the realm and on the clients that set their own. It needs
 <code>.devcontainer/scanovate/ocr/service_config.json</code> and
 <code>.devcontainer/scanovate/liveness/service_config.json</code>. Set
 <code>SCANOVATE_FACE_MATCH_MIN_SIMILARITY</code> to change the threshold
-(<code>{&quot;default&quot;: 0.67}</code>). The script also deletes the settings of the earlier
-integrations, including <code>ocr-url</code>, <code>capture-sides</code>, <code>video-seconds</code> and
+(<code>{&quot;default&quot;: 0.67}</code>), <code>SCANOVATE_HOLDING_PHOTO</code> (<code>REQUIRED</code> or <code>NONE</code>) for the
+photo holding the document, and <code>SCANOVATE_HOLDING_SECONDS</code> for its holding
+time (<code>video-seconds</code>, 5 by default). The script also deletes the settings of
+the earlier integrations, including <code>ocr-url</code>, <code>capture-sides</code> and
 <code>max-image-bytes</code> of our former capture page, which the authenticator
 ignores. <code>KEYCLOAK_URL</code>, <code>KEYCLOAK_ADMIN</code> and
 <code>KEYCLOAK_ADMIN_PASSWORD</code> default to the dev container Keycloak
