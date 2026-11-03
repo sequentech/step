@@ -18,3 +18,6 @@ pub use self::permission::*;
 pub use self::realm::*;
 pub use self::role::*;
 pub use self::user::*;
+
+#[cfg(test)]
+mod realm_scope_tests;

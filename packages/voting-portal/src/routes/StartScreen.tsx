@@ -99,6 +99,10 @@ const StartScreen: React.FC = () => {
     const navigate = useNavigate()
     useLanguage({ballotStyle})
 
+    const defaultLanguageCode =
+        election?.presentation?.language_conf?.default_language_code ??
+        ballotStyle?.ballot_eml.election_event_presentation?.language_conf?.default_language_code
+
     useEffect(() => {
         if (!election) {
             navigate(backLink)
@@ -128,12 +132,18 @@ const StartScreen: React.FC = () => {
                 <Stepper selected={1} />
             </Box>
             <StyledTitle variant="h3" justifyContent="center" fontWeight="bold">
-                <span>{translateFromPresentation(election, "name", i18n.language) ?? "-"}</span>
+                <span>
+                    {translateFromPresentation(election, "name", i18n.language, {
+                        defaultLanguageCode,
+                    }) ?? "-"}
+                </span>
             </StyledTitle>
             {election.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                     {stringToHtml(
-                        translateFromPresentation(election, "description", i18n.language) ?? "-"
+                        translateFromPresentation(election, "description", i18n.language, {
+                            defaultLanguageCode,
+                        }) ?? "-"
                     )}
                 </Typography>
             ) : null}
