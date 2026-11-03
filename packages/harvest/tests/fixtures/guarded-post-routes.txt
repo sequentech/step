@@ -164,6 +164,7 @@
 /receipt-document
 /recount-tally-session
 /refresh-results-publication-index
+/reject-application-email-in-use
 /render-document-pdf
 /resolve-results-publication
 /resolve-voter-pseudonym

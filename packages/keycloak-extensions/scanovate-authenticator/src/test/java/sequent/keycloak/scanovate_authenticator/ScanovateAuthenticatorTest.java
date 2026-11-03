@@ -40,6 +40,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,7 @@ import org.keycloak.headers.SecurityHeadersOptions;
 import org.keycloak.headers.SecurityHeadersProvider;
 import org.keycloak.http.HttpRequest;
 import org.keycloak.models.AuthenticationExecutionModel;
+import org.keycloak.models.AuthenticationFlowModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakUriInfo;
@@ -60,10 +62,12 @@ import org.keycloak.models.UserModel;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.sessions.CommonClientSessionModel.ExecutionStatus;
 import org.keycloak.sessions.RootAuthenticationSessionModel;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
+import sequent.keycloak.authenticator.StepBack;
 import sequent.keycloak.scanovate_authenticator.FaceMatchClient.FaceComparison;
 import sequent.keycloak.voter_enrollment.IdentityMethod;
 import sequent.keycloak.voter_enrollment.LookupAndUpdateUser;
@@ -660,6 +664,57 @@ class ScanovateAuthenticatorTest {
 
     verifyError(ScanovateError.INTERNAL, true);
     assertEquals(Optional.empty(), forwardedMethod());
+  }
+
+  /** The enrollment's code step, done, then this step. */
+  private void afterTheCodeStep() {
+    Map<String, ExecutionStatus> statuses = new HashMap<>();
+    AuthenticationFlowModel top = new AuthenticationFlowModel();
+    top.setId("registration");
+    AuthenticationExecutionModel code = new AuthenticationExecutionModel();
+    code.setId("code");
+    when(execution.getId()).thenReturn("identity");
+    when(context.getTopLevelFlow()).thenReturn(top);
+    when(context.getRealm().getAuthenticationExecutionsStream(top.getId()))
+        .thenAnswer(i -> Stream.of(code, execution));
+    when(context.getRefreshUrl(false)).thenReturn(URI.create("https://kc/registration"));
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    when(authSession.getExecutionStatus()).thenReturn(statuses);
+    doAnswer(i -> statuses.put(i.getArgument(0), i.getArgument(1)))
+        .when(authSession)
+        .setExecutionStatus(anyString(), any());
+    statuses.put(code.getId(), ExecutionStatus.SUCCESS);
+  }
+
+  @Test
+  void backReturnsToTheCodeStep() {
+    afterTheCodeStep();
+    formParams.putSingle(StepBack.PARAM, "true");
+
+    authenticator.action(context);
+
+    verify(context).forceChallenge(any());
+    verify(form, never()).createForm(anyString());
+  }
+
+  @Test
+  void theCapturePageOffersBackAfterTheCodeStep() {
+    afterTheCodeStep();
+
+    authenticator.action(context);
+
+    verify(form).setAttribute(StepBack.ATTRIBUTE, true);
+  }
+
+  @Test
+  void withoutAPreviousStepBackShowsTheCapturePage() {
+    formParams.putSingle(StepBack.PARAM, "true");
+
+    authenticator.action(context);
+
+    verify(context, never()).forceChallenge(any());
+    verify(form).setAttribute(StepBack.ATTRIBUTE, false);
+    verifyCapturePage(List.of("FRONT", "BACK"), 3);
   }
 
   @Test

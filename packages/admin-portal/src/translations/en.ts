@@ -4360,6 +4360,7 @@ const englishTranslation = {
                     "insufficient-information": "Missing data",
                     "no-matching-voter": "No matching voter",
                     "voter-already-approved": "Already approved",
+                    "EMAIL_IN_USE": "Email used by another voter",
                     "other": "Other",
                 },
                 hint: {

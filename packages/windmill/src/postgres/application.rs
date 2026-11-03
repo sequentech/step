@@ -177,6 +177,74 @@ pub async fn insert_application(
 }
 
 #[instrument(err, skip_all)]
+pub async fn get_application_for_update(
+    hasura_transaction: &Transaction<'_>,
+    id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Option<Application>> {
+    let row = hasura_transaction
+        .query_opt(
+            r#"
+            SELECT *
+            FROM sequent_backend.applications
+            WHERE id = $1 AND tenant_id = $2 AND election_event_id = $3
+            FOR UPDATE
+            "#,
+            &[
+                &parse_uuid_v4(id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
+        )
+        .await
+        .with_context(|| "Error reading the application")?;
+    row.map(|row| ApplicationWrapper::try_from(row).map(|wrapper| wrapper.0))
+        .transpose()
+}
+
+/// Rejects an automatically accepted application with `reason`, only while
+/// it is still automatically accepted. Nothing when it no longer is.
+#[instrument(err, skip(hasura_transaction))]
+pub async fn reject_accepted_automatic_application(
+    hasura_transaction: &Transaction<'_>,
+    id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    reason: &Value,
+) -> Result<Option<Application>> {
+    let row = hasura_transaction
+        .query_opt(
+            r#"
+            UPDATE sequent_backend.applications
+            SET
+                status = $4,
+                updated_at = NOW(),
+                annotations = jsonb_set(
+                    COALESCE(annotations, '{}'::jsonb), '{rejection_reason}', $5, true
+                )
+            WHERE
+                id = $1 AND tenant_id = $2 AND election_event_id = $3
+                AND status = $6 AND verification_type = $7
+            RETURNING *
+            "#,
+            &[
+                &parse_uuid_v4(id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &ApplicationStatus::REJECTED.to_string(),
+                &Json(reason),
+                &ApplicationStatus::ACCEPTED.to_string(),
+                &ApplicationType::AUTOMATIC.to_string(),
+            ],
+        )
+        .await
+        .with_context(|| "Error rejecting the application")?;
+    row.map(|row| ApplicationWrapper::try_from(row).map(|wrapper| wrapper.0))
+        .transpose()
+}
+
+#[instrument(err, skip_all)]
 pub async fn update_application_status(
     hasura_transaction: &Transaction<'_>,
     id: &str,

@@ -466,4 +466,10 @@ describe("rejectionReasonKey", () => {
         expect(rejectionReasonKey(null)).toBe("approvalsScreen.reject.reasons.undefined")
         expect(rejectionReasonKey(undefined)).toBe("approvalsScreen.reject.reasons.undefined")
     })
+
+    it("reads a reason the enrollment itself rejects with by its name", () => {
+        expect(rejectionReasonKey("EMAIL_IN_USE")).toBe(
+            "approvalsScreen.reject.reasons.EMAIL_IN_USE"
+        )
+    })
 })
