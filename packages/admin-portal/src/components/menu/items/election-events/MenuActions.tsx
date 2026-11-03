@@ -26,6 +26,7 @@ import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContex
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {WidgetProps} from "@/components/Widget"
 import {ETasksExecution} from "@/types/tasksExecution"
+import {getMenuActionConfirmMessage} from "./menuActionConfirmMessage"
 
 const mapRemoveResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "sideMenu.menuActions.remove.electionEvent",
@@ -464,9 +465,11 @@ export default function MenuAction({
                     setOpenArchiveModal(false)
                 }}
             >
-                {selectedActionModal?.action === Action.Archive
-                    ? t("sideMenu.menuActions.messages.confirm.archive")
-                    : t("sideMenu.menuActions.messages.confirm.unarchive")}
+                {getMenuActionConfirmMessage(
+                    t,
+                    selectedActionModal?.action === Action.Archive ? "archive" : "unarchive",
+                    selectedActionModal?.payload.name
+                )}
             </Dialog>
 
             <Dialog
@@ -482,7 +485,7 @@ export default function MenuAction({
                     setOpenDeleteModal(false)
                 }}
             >
-                {t("sideMenu.menuActions.messages.confirm.delete")}
+                {getMenuActionConfirmMessage(t, "delete", selectedActionModal?.payload.name)}
             </Dialog>
         </>
     )
