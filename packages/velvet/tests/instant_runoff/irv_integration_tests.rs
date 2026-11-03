@@ -553,7 +553,8 @@ fn test_run_with_random_ballots() {
     println!("Votes: {:#?}", votes);
 
     // Initialize statuses
-    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest)
+        .expect("ballots should initialize");
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
     runoff.run(&mut ballots_status);
 
@@ -669,7 +670,8 @@ fn test_all_ballot_candidates_unselected() {
     println!("Votes (all invalid): {:#?}", votes);
 
     // Initialize statuses and run
-    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest)
+        .expect("ballots should initialize");
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
     runoff.run(&mut ballots_status);
 
@@ -873,7 +875,8 @@ fn test_tie_in_final_round() {
     println!("Votes (tie scenario): {:#?}", votes);
 
     // Initialize statuses and run
-    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest)
+        .expect("ballots should initialize");
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
     runoff.run(&mut ballots_status);
 

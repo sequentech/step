@@ -4,7 +4,7 @@ const {test} = require("node:test")
 const assert = require("node:assert/strict")
 const {readFileSync} = require("node:fs")
 const {resolve} = require("node:path")
-const yaml = require("../../packages/node_modules/js-yaml")
+const yaml = require("js-yaml")
 
 const metadata = yaml.load(
     readFileSync(
