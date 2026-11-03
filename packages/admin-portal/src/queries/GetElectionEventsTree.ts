@@ -23,6 +23,7 @@ export const FETCH_ELECTIONS_TREE = gql`
         ) {
             id
             presentation
+            annotations
             election_event_id
         }
     }
