@@ -84,6 +84,11 @@ const dutchTranslation: TranslationType = {
                 description:
                     "Deze stemming is bij acclamatie beslist. De kandidaten worden zonder stemming gekozen, dus er kan niets worden geselecteerd en er wordt geen stem geregistreerd.",
             },
+            paperBallot: {
+                voteForNoMoreThan_one: "Stem op niet meer dan {{count}}",
+                voteForNoMoreThan_many: "Stem op niet meer dan {{count}}",
+                voteForNoMoreThan_other: "Stem op niet meer dan {{count}}",
+            },
         },
         votingScreen: {
             backButton: "Terug",

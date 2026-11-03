@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.extern.jbosslog.JBossLog;
+import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics;
 
 /**
  * One-time tokens that let a voter's browser open a Liveness Plus session, and the results that
@@ -149,7 +150,9 @@ public class LivenessSessions {
       }
       log.infov(
           "record: liveness session of case {0} ended with {1}, passed={2}",
-          entry.get().get(CASE_ID), status.asText(), passed);
+          ScanovateDiagnostics.caseId(entry.get().get(CASE_ID)),
+          ScanovateDiagnostics.status(status.asText()),
+          passed);
     }
     store.put(key(token), LIFESPAN_SECONDS, updated);
     return RecordOutcome.RECORDED;

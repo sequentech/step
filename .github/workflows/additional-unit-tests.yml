@@ -10,6 +10,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  # OIDC for the shared compiler cache (setup-rust-cache)
+  id-token: write
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -29,6 +31,7 @@ jobs:
       - uses: ./.github/actions/setup-rust-tests
         with:
           cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
+          compile-cache: ${{ vars.STEP_COMPILE_CACHE }}
           cargo-build-name: additional-${{ matrix.package }}
           cargo-build-path: packages/target
           cargo-lock-path: packages/Cargo.lock

@@ -1271,4 +1271,138 @@ class MessageOTPChannelFlowTest {
     verify(session, never()).getProvider(org.keycloak.email.EmailTemplateProvider.class);
     verify(session, never()).getProvider(org.keycloak.email.EmailSenderProvider.class);
   }
+
+  // Back to an earlier step (meta#13611).
+
+  private static final String EMAIL_B = "other@example.test";
+  private static final String PHONE_B = "+15550177777";
+
+  private void back() {
+    parameters.clear();
+    parameters.putSingle(StepBack.PARAM, "true");
+    authenticator.action(context);
+    parameters.clear();
+  }
+
+  /** What the details form stores when it is submitted with another contact and channel. */
+  private void detailsFormSubmitted(
+      java.util.Map<String, org.keycloak.sessions.CommonClientSessionModel.ExecutionStatus>
+          statuses,
+      String newEmail,
+      MessageChannel channel) {
+    notes.put("email", newEmail);
+    notes.put(MessageOTPAuthenticator.MOBILE_NUMBER_FIELD, PHONE_B);
+    notes.put(MessagingAttributes.FORM_OTP_CHANNEL, channel.name());
+    notes.put(MessagingAttributes.NOTE_OFFERED_CHANNELS, "EMAIL,SMS");
+    statuses.put("details", org.keycloak.sessions.CommonClientSessionModel.ExecutionStatus.SUCCESS);
+  }
+
+  /**
+   * Email A is verified; the voter goes Back twice (identity check, then code page) to the details
+   * form, changes the email to B and the channel to SMS, and verifies the SMS code. Email B was
+   * never verified, so nothing may say it was.
+   */
+  @Test
+  void anEmailVerifiedBeforeGoingBackDoesNotVerifyTheNewEmail() throws Exception {
+    enrolling(MessageChannel.EMAIL);
+    notes.put(MessagingAttributes.NOTE_OFFERED_CHANNELS, "EMAIL,SMS");
+    var statuses = StepBackFlow.afterTheDetailsForm(context, realm, authSession);
+    liveCode(MessageChannel.EMAIL, "482619");
+    notes.put(MessagingAttributes.NOTE_CODE_DESTINATION, EMAIL);
+    parameters.putSingle(Utils.CODE, "482619");
+    authenticator.action(context);
+    verify(context).success();
+    assertEquals("true", notes.get(Utils.EMAIL_VERIFIED));
+    assertEquals(EMAIL, notes.get(MessagingAttributes.NOTE_VERIFIED_DESTINATION));
+
+    // Back from the identity check runs the code step again; Back there reaches the form.
+    statuses.put("code", org.keycloak.sessions.CommonClientSessionModel.ExecutionStatus.CHALLENGED);
+    back();
+    verify(context).forceChallenge(any());
+    detailsFormSubmitted(statuses, EMAIL_B, MessageChannel.SMS);
+
+    codeIssuedSecondsAgo(61);
+    authenticator.authenticate(context);
+    verify(sms).send(eq(PHONE_B), anyString(), anyList(), any(), any(), any());
+    parameters.clear();
+    parameters.putSingle(Utils.CODE, notes.get(Utils.CODE));
+    authenticator.action(context);
+    verify(context, times(2)).success();
+
+    assertNull(notes.get(Utils.EMAIL_VERIFIED));
+    assertEquals("SMS", notes.get(MessagingAttributes.NOTE_VERIFIED_CHANNEL));
+    assertEquals(PHONE_B, notes.get(MessagingAttributes.NOTE_VERIFIED_DESTINATION));
+  }
+
+  /**
+   * Back, a changed contact and forward again within the resend timer sends nothing, to the new
+   * contact either: Back can't be used to send one message after another. The page names the new
+   * contact, not the old one, and the old code doesn't verify it.
+   */
+  @Test
+  void aChangedContactWaitsForTheResendTimerAndTheOldCodeDoesNotVerifyIt() throws Exception {
+    enrolling(MessageChannel.SMS);
+    notes.put(MessageOTPAuthenticator.MOBILE_NUMBER_FIELD, PHONE);
+    var statuses = StepBackFlow.afterTheDetailsForm(context, realm, authSession);
+    liveCode(MessageChannel.SMS, "482619");
+    notes.put(MessagingAttributes.NOTE_CODE_DESTINATION, PHONE);
+
+    back();
+    detailsFormSubmitted(statuses, EMAIL, MessageChannel.SMS);
+    clearInvocations(form);
+    authenticator.authenticate(context);
+    verifyNoInteractions(sms);
+    verify(form, never()).setAttribute("address", "+1 ••• ••• 456");
+
+    parameters.putSingle(Utils.CODE, "482619");
+    authenticator.action(context);
+    verify(context, never()).success();
+    assertNull(notes.get(MessagingAttributes.NOTE_VERIFIED_DESTINATION));
+
+    parameters.clear();
+    parameters.putSingle("resend", "true");
+    authenticator.action(context);
+    verifyNoInteractions(sms);
+
+    codeIssuedSecondsAgo(61);
+    authenticator.action(context);
+    verify(sms).send(eq(PHONE_B), anyString(), anyList(), any(), any(), any());
+    verify(sms, never()).send(eq(PHONE), anyString(), anyList(), any(), any(), any());
+  }
+
+  /** A reset's code page after the identifier step: known when the identifier has an account. */
+  private void resetCodePage(boolean known) {
+    configMap.put(Utils.CODE_PAGE_DISCLOSURE, "NEUTRAL");
+    recorded(MessageChannel.WHATSAPP, WHATSAPP);
+    StepBackFlow.afterTheIdentifier(context, realm, authSession);
+    when(context.getUser()).thenReturn(known ? user : null);
+    when(authSession.getAuthenticatedUser()).thenReturn(known ? user : null);
+  }
+
+  /**
+   * R3-04: a neutral page never offers Back. A reset's identifier step sets the user only for an
+   * identifier with an account, so offering Back while no user is set would tell the two apart. A
+   * forged Back answers the same for both, and goes nowhere.
+   */
+  @Test
+  void aNeutralPageOffersNoBackWithOrWithoutAnAccount() throws Exception {
+    Map<Boolean, List<java.util.Set<String>>> pages = new HashMap<>();
+    for (boolean known : List.of(true, false)) {
+      clearInvocations(form, context);
+      notes.clear();
+      resetCodePage(known);
+      authenticator.authenticate(context);
+      verify(form).setAttribute(StepBack.ATTRIBUTE, false);
+      java.util.Set<String> first = pageAttributes();
+
+      clearInvocations(form);
+      back();
+      verify(context, never()).forceChallenge(any());
+      verify(form).setAttribute(StepBack.ATTRIBUTE, false);
+      verify(form, never()).setAttribute(StepBack.ATTRIBUTE, true);
+      pages.put(known, List.of(first, pageAttributes()));
+    }
+    // The first page, and the page a forged Back shows, are the same for both.
+    assertEquals(pages.get(true), pages.get(false));
+  }
 }

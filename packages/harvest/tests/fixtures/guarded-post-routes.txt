@@ -106,6 +106,7 @@
 /import-election-event
 /import-templates
 /import-tenant-config
+/apply-configuration-package
 /import-users
 /insert-cast-vote
 /insert-election-event
@@ -163,6 +164,7 @@
 /receipt-document
 /recount-tally-session
 /refresh-results-publication-index
+/reject-application-email-in-use
 /render-document-pdf
 /resolve-results-publication
 /resolve-voter-pseudonym

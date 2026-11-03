@@ -232,6 +232,7 @@ test("exports an encrypted archive, tracks its task and reveals the generated pa
             applications: false,
             tally: true,
             include_certificates: false,
+            include_integration_secrets: false,
         },
     })
     expect(call.headers["x-hasura-role"]).toBe("election-event-read")
@@ -417,6 +418,7 @@ test("exports chosen content unencrypted and marks a failed export task", async 
             applications: false,
             tally: false,
             include_certificates: true,
+            include_integration_secrets: false,
         },
     })
     await expect(page.getByText("Task: Export Election Event", {exact: true})).toBeVisible()

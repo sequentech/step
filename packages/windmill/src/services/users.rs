@@ -1842,6 +1842,64 @@ pub async fn count_keycloak_enabled_users(
     Ok(user_count)
 }
 
+/// The IDs of the realm's users whose email is `email`. Keycloak stores
+/// emails in lowercase.
+#[instrument(skip(keycloak_transaction, email), err)]
+pub async fn get_user_ids_by_email(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    email: &str,
+) -> Result<Vec<String>> {
+    let statement = keycloak_transaction
+        .prepare(
+            r#"
+            SELECT u.id
+            FROM user_entity u
+            INNER JOIN realm AS ra ON ra.id = u.realm_id
+            WHERE ra.name = $1 AND u.email = lower($2)
+            "#,
+        )
+        .await?;
+    let rows = keycloak_transaction
+        .query(&statement, &[&realm, &email.trim()])
+        .await
+        .with_context(|| "Error looking up users by email")?;
+    rows.iter()
+        .map(|row| row.try_get::<_, String>("id").map_err(anyhow::Error::from))
+        .collect()
+}
+
+/// Whether a Keycloak realm keeps its users' emails unique.
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EmailUniqueness {
+    /// The realm's default: no two users have the same email.
+    UNIQUE,
+    /// The realm allows duplicate emails.
+    DUPLICATES_ALLOWED,
+}
+
+/// The realm's email uniqueness, from its `duplicateEmailsAllowed` setting.
+#[instrument(skip(keycloak_transaction), err)]
+pub async fn get_realm_email_uniqueness(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+) -> Result<EmailUniqueness> {
+    let row = keycloak_transaction
+        .query_one(
+            "SELECT duplicate_emails_allowed FROM realm WHERE name = $1",
+            &[&realm],
+        )
+        .await
+        .with_context(|| "Error reading the realm's duplicate emails setting")?;
+    Ok(
+        match row.try_get::<_, Option<bool>>("duplicate_emails_allowed")? {
+            Some(true) => EmailUniqueness::DUPLICATES_ALLOWED,
+            _ => EmailUniqueness::UNIQUE,
+        },
+    )
+}
+
 /// Use only for verifying application!, does not work as it seems for other situations, then use list_users instead.
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
 pub async fn lookup_users(

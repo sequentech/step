@@ -3,9 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! The electoral log's entry for each monitoring configuration change,
-//! signed by the administrator who made it.
+//! signed by the administrator who made it, or by the event's system identity
+//! when its initial defaults are created.
 
-use super::config_store::{Author, EventRef, MonitoringConfigAudit, RecordedChange};
+use super::config_store::{
+    initialize_default_config, Author, EventRef, MonitoringConfigAudit, RecordedChange,
+};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
@@ -182,6 +185,64 @@ impl MonitoringConfigAudit for ElectoralLogConfigAudit {
                 change.author.name.clone(),
             )
             .await
+    }
+}
+
+/// Stores and records the shipped defaults as part of creating a new event.
+/// Uses the event's already-created system signing key, not a new admin identity.
+pub async fn initialize_new_event(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
+    let event = EventRef {
+        tenant_id: tenant_id.parse()?,
+        election_event_id: election_event_id.parse()?,
+    };
+    initialize_default_config(
+        transaction,
+        &InitialConfigAudit,
+        event,
+        &Author {
+            id: "system".to_owned(),
+            name: Some("Initial monitoring defaults".to_owned()),
+        },
+    )
+    .await
+    .map_err(|error| anyhow!("Could not initialize monitoring defaults: {error:?}"))?;
+    Ok(())
+}
+
+/// Initial defaults belong to event creation, signed with its system identity.
+struct InitialConfigAudit;
+
+#[async_trait]
+impl MonitoringConfigAudit for InitialConfigAudit {
+    async fn prepare(
+        &self,
+        _client: &mut Client,
+        _event: EventRef,
+        _author: &Author,
+    ) -> Result<()> {
+        anyhow::bail!("Initial defaults must use the event creation transaction")
+    }
+
+    async fn record(&self, transaction: &Transaction<'_>, change: &RecordedChange) -> Result<()> {
+        let board = board(transaction, change.event).await?;
+        let log = ElectoralLog::new(
+            transaction,
+            &change.event.tenant_id.to_string(),
+            Some(&change.event.election_event_id.to_string()),
+            &board,
+        )
+        .await?;
+        log.post_monitoring_config_changed(
+            change.event.election_event_id.to_string(),
+            change_details(change)?,
+            None,
+            None,
+        )
+        .await
     }
 }
 

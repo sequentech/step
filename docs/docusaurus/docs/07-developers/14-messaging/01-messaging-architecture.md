@@ -630,7 +630,19 @@ there. At beat start, `mark_migrated_configs`
 validates each copied row once, logs the errors, and marks the invalid ones
 `'migration: needs saving again'`; the event's Messaging tab then says
 *Configuration needs saving again*. Event export and import carry this
-table.
+table. The import never keeps the exported realm's `sequent.messaging` as such:
+it publishes the channels of a bundle's configuration once it validates.
+A bundle without one, from an event whose channels exist only in its
+realm, has those channels published again as exported, empty and disabled
+choices included, when they read, name only the imported elections and
+the importer has `messaging-config-write`; otherwise the import's notes say
+why they were not imported. Into another tenant the source's sender names
+are left out, and a Messenger Page is kept only when one of the importing
+tenant's Messenger accounts sends from it, with that account's details
+as they are at import (saving a configuration publishes current ones).
+The import's notes warn that the event has no configuration: WhatsApp,
+Viber and Messenger are offered as exported, but codes and notices on them
+are refused until a configuration is saved.
 
 ### Message ledger
 

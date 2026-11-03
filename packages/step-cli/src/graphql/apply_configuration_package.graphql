@@ -1,0 +1,18 @@
+mutation ApplyConfigurationPackageMutation(
+    $tenantId: String!
+    $documentId: String!
+    $mode: String!
+    $requirements: jsonb
+) {
+  apply_configuration_package(
+    tenant_id: $tenantId
+    document_id: $documentId
+    mode: $mode
+    requirements: $requirements
+  ) {
+    task_execution {
+      id
+      execution_status
+    }
+  }
+}
