@@ -4,6 +4,7 @@
 
 use crate::services::authorization::{
     authorize_voter_election, authorize_voter_event, ensure_election_in_event,
+    VoterClient,
 };
 use anyhow::Result;
 use rocket::http::Status;
@@ -78,6 +79,9 @@ pub async fn create_ballot_receipt(
     )
     .await?;
 
+    // The receipt link follows the voter's token client, not the request's
+    // tracker URL, which Windmill ignores.
+    let is_kiosk = matches!(claims.azp.parse(), Ok(VoterClient::Kiosk));
     let voter_id = claims.hasura_claims.user_id.clone();
     let document_id: String = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
@@ -111,6 +115,7 @@ pub async fn create_ballot_receipt(
                 input.time_zone,
                 input.date_format,
                 task_execution.clone(),
+                Some(is_kiosk),
             ),
         )
         .await;
