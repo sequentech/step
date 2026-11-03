@@ -288,6 +288,8 @@ globs = [
     "scripts/assurance/**",
     "scripts/tasks/**",
     "scripts/build-airgapped.sh",
+    "scripts/check-deployment-env-templates.sh",
+    "scripts/test-check-deployment-env-templates.sh",
     "scripts/generate_voters.py",
     "scripts/loc.sh",
     "scripts/replacements.sh",
@@ -325,9 +327,10 @@ units = ["admin-portal", "keycloak-ui"]
 globs = ["packages/ECIESEncryption/**"]
 units = ["ecies"]
 
+# step-cli's build script embeds every voting-load file in the binary.
 [[paths]]
 globs = ["packages/voting-load/**"]
-units = ["voting-load"]
+units = ["voting-load", "step-cli"]
 
 [[paths]]
 globs = ["packages/loadtesting/**"]
@@ -377,7 +380,7 @@ focus = ["yarn", "jest", "--runInBand"]
 workflows = ["frontend-coverage.yml"]
 [checks.also_workflows]
 ui-core = ["tests.yml"]
-ui-essentials = ["tests.yml", "lint_prettify.yml"]
+ui-essentials = ["tests.yml"]
 voting-portal = ["tests.yml"]
 admin-portal = ["tests.yml"]
 results-portal = ["lint_prettify.yml"]
@@ -776,7 +779,7 @@ kind = "test"
 runner = "cargo"
 cost = "integration"
 cwd = "packages"
-command = "cargo test --locked -p step-cli --test acceptance_cli -- --ignored"
+command = "cargo test --locked -p step-cli --test cli -- --ignored acceptance_cli::"
 requires = ["postgres-server"]
 workflows = ["tests.yml"]
 [checks.env]

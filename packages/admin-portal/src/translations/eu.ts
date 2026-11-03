@@ -1831,6 +1831,9 @@ const basqueTranslation: TranslationType = {
                 encryptWithPassword: "Zifratu Pasahitzarekin",
                 passwordForcedNote:
                     "Artxiboa pasahitzarekin babestuko da nolanahi ere: txostenak, eskaerak eta iragarki-taulako datuak beti zifratzen dira. Markatu laukia bozkatzaileen eremu sekretu deszifratuak ere sartzeko.",
+                integrationSecrets: "Integrazio sekretuak (zerbitzu kredentzialak)",
+                integrationSecretsNote:
+                    "Deszifratu ondoren, artxiboak Scanovate-ren liveness sekretua testu argian izango du. Gorde artxiboa eta haren pasahitza ezkutuan, eta inportatu soilik Liveness Plus zerbitzu hori erabili behar den lekuan.",
                 includeVoters: "Sartu Bozkatzaileak",
                 activityLogs: "Jarduera Egunkariak",
                 bulletinBoard: "Iragarki Taula",
@@ -2263,6 +2266,7 @@ const basqueTranslation: TranslationType = {
                 "voter-write": "Editatu Bozkatzailea",
                 "voter-secret-attribute-read": "Erakutsi Bozkatzailearen Eremu Sekretuak",
                 "voter-secret-attribute-write": "Editatu Bozkatzailearen Eremu Sekretuak",
+                "integration-secret-read": "Esportatu Integrazio Sekretuak",
                 "user-create": "Sortu Erabiltzailea",
                 "user-read": "Irakurri Erabiltzailea",
                 "user-write": "Editatu Erabiltzailea",
@@ -2777,6 +2781,9 @@ const basqueTranslation: TranslationType = {
                         delete: "Ziur zaude elementu hau ezabatu nahi duzula?",
                         sealsUnknown:
                             "Ezin izan dira hautestontzien zigiluak egiaztatu: hautestontzi zigilaturik badu, ezabaketa baztertu egingo da.",
+                        archiveNamed: 'Ziur zaude "{{name}}" artxibatu nahi duzula?',
+                        unarchiveNamed: 'Ziur zaude "{{name}}" desartxibatu nahi duzula?',
+                        deleteNamed: 'Ziur zaude "{{name}}" ezabatu nahi duzula?',
                     },
                     notification: {
                         success: {
@@ -2898,6 +2905,13 @@ const basqueTranslation: TranslationType = {
                 "label": "Hautagaien kontrol-laukiaren ikono forma",
                 "square-checkbox": "Kontrol-lauki Karratua",
                 "round-checkbox": "Kontrol-lauki Biribila",
+            },
+            candidatesLayout: {
+                "label": "Hautagaien antolaketa",
+                "helperText":
+                    "Paperezko txartelaren saretak hautagaiak zenbakidun gelaxka gisa erakusten ditu, betetzeko zirkulu batekin, zutabez zutabe, Zutabeak erabiliz (4 hutsik badago). Lehentasunezko bozketek zerrenda erabiltzen dute beti.",
+                "list": "Zerrenda",
+                "paper-grid": "Paperezko txartelaren sareta",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Hautagaiak eta Zerrendak",
@@ -4126,6 +4140,7 @@ const basqueTranslation: TranslationType = {
                     "insufficient-information": "Datuak falta dira",
                     "no-matching-voter": "Ez dago bat datorren bozkatzailerik",
                     "voter-already-approved": "Dagoeneko onartua",
+                    "EMAIL_IN_USE": "Beste hautesle batek erabilitako posta",
                     "other": "Bestelakoa",
                 },
                 hint: {
@@ -4367,6 +4382,8 @@ const basqueTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Aginte-panel konfiguragarriak",
+            modeChangeError: "Ezin izan da aginte-panelaren modua aldatu. Saiatu berriro.",
             title: "Monitorizazio-panelak",
             loading: "Monitorizazioa kargatzen",
             unavailableAlert:

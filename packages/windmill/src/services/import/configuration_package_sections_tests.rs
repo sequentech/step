@@ -484,3 +484,30 @@ fn messaging_configuration_without_its_permission_blocks() {
         None
     );
 }
+
+#[test]
+fn realm_only_messaging_channels_need_the_permission_when_the_import_publishes_them() {
+    use serde_json::json;
+    let realm = |published: &str| json!({"attributes": {"sequent.messaging": published}});
+    let election = "33333333-3333-4333-8333-333333333333".to_string();
+    let publishable = format!(
+        r#"{{"version":1,"channels":[],"election_labels":{{}},"election_channels":{{"{election}":[]}}}}"#
+    );
+    let config = json!({"version": 1, "channels": []});
+    assert!(carries_messaging(
+        None,
+        Some(&realm(&publishable)),
+        std::slice::from_ref(&election)
+    ));
+    assert!(carries_messaging(Some(&config), None, &[]));
+    // Channels the import would only note as not imported don't need it.
+    assert!(!carries_messaging(None, Some(&realm(&publishable)), &[]));
+    assert!(!carries_messaging(None, Some(&realm("not json")), &[]));
+    assert!(!carries_messaging(None, Some(&realm(" ")), &[]));
+    assert!(!carries_messaging(
+        None,
+        Some(&json!({"attributes": {}})),
+        &[]
+    ));
+    assert!(!carries_messaging(None, None, &[]));
+}

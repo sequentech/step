@@ -2049,6 +2049,9 @@ const englishTranslation = {
                 encryptWithPassword: "Encrypt with Password",
                 passwordForcedNote:
                     "The archive will be password protected anyway: reports, applications and bulletin-board data are always encrypted. Tick the box to also include decrypted secret voter fields.",
+                integrationSecrets: "Integration secrets (service credentials)",
+                integrationSecretsNote:
+                    "The archive will contain the Scanovate liveness secret in clear text once decrypted. Keep the archive and its password secret, and import it only where that Liveness Plus service is meant to be used.",
                 includeVoters: "Include Voters",
                 activityLogs: "Activity Logs",
                 bulletinBoard: "Bulletin Board",
@@ -2478,6 +2481,7 @@ const englishTranslation = {
                 "voter-write": "Edit Voter",
                 "voter-secret-attribute-read": "Reveal Secret Voter Fields",
                 "voter-secret-attribute-write": "Edit Secret Voter Fields",
+                "integration-secret-read": "Export Integration Secrets",
                 "user-create": "Create User",
                 "user-read": "Read User",
                 "user-write": "Edit User",
@@ -2985,6 +2989,9 @@ const englishTranslation = {
                         delete: "Are you sure to delete this item?",
                         sealsUnknown:
                             "The ballot box seals could not be checked: if it has sealed ballot boxes, the delete is refused.",
+                        archiveNamed: 'Are you sure you want to archive "{{name}}"?',
+                        unarchiveNamed: 'Are you sure you want to unarchive "{{name}}"?',
+                        deleteNamed: 'Are you sure you want to delete "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -3105,6 +3112,13 @@ const englishTranslation = {
                 "label": "Candidates checkbox icon shape",
                 "square-checkbox": "Square Checkbox",
                 "round-checkbox": "Round Checkbox",
+            },
+            candidatesLayout: {
+                "label": "Candidates layout",
+                "helperText":
+                    "Paper ballot grid shows candidates as numbered cells with a fill-in circle, filled column by column, using Columns (4 if empty). Ranked contests always use the list.",
+                "list": "List",
+                "paper-grid": "Paper ballot grid",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidates And Lists",
@@ -4346,6 +4360,7 @@ const englishTranslation = {
                     "insufficient-information": "Missing data",
                     "no-matching-voter": "No matching voter",
                     "voter-already-approved": "Already approved",
+                    "EMAIL_IN_USE": "Email used by another voter",
                     "other": "Other",
                 },
                 hint: {
@@ -4587,6 +4602,8 @@ const englishTranslation = {
             },
         },
         monitoring: {
+            configuredDashboards: "Configurable dashboards",
+            modeChangeError: "Could not change the dashboard mode. Try again.",
             title: "Monitoring",
             loading: "Loading monitoring",
             unavailableAlert:

@@ -202,6 +202,17 @@ fn a_decision_without_its_reason_is_refused() {
 }
 
 #[test]
+fn a_rule_cannot_reject_as_email_in_use() {
+    let mut value = comelec_version_1();
+    value["rules"][0]["then"] = json!({"decision": "REJECTED", "reason": "EMAIL_IN_USE"});
+
+    assert_eq!(
+        codes(&matrix(value)),
+        vec![(MatrixErrorCode::UNEXPECTED_REASON, Some(1))]
+    );
+}
+
+#[test]
 fn errors_name_their_rule() {
     let error = MatrixError {
         code: MatrixErrorCode::UNKNOWN_FIELD,

@@ -52,6 +52,7 @@ import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
+import org.keycloak.models.ModelDuplicateException;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.UserCredentialModel;
@@ -115,12 +116,45 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
   static final String SUPPORT_REFERENCE_ATTRIBUTE = "supportReference";
 
+  /**
+   * An enrollment windmill accepted but Keycloak rejects as EMAIL_IN_USE, until windmill records
+   * the rejection: its {@link LateRejection}. While set, a reload asks windmill again instead of
+   * showing a result.
+   */
+  static final String EMAIL_IN_USE_REJECTION_NOTE = "emailInUseRejection";
+
+  /** The path of harvest's late EMAIL_IN_USE rejection. */
+  static final String REJECT_EMAIL_IN_USE_PATH = "/reject-application-email-in-use";
+
+  /** The application rejected late as EMAIL_IN_USE, and the voter it matched. */
+  record LateRejection(String applicationId, String userId) {
+    String toNote() {
+      return (applicationId == null ? "" : applicationId) + " " + userId;
+    }
+
+    static LateRejection fromNote(String note) {
+      String[] parts = note.split(" ", 2);
+      return new LateRejection(parts[0], parts.length > 1 ? parts[1] : "");
+    }
+  }
+
+  /** How windmill answered a late EMAIL_IN_USE rejection. */
+  enum LateRejectionOutcome {
+    /** Windmill's application is rejected, now or by an earlier request. */
+    RECORDED,
+    /** Windmill's own checks refused it. */
+    REFUSED,
+    /** Windmill couldn't be asked, or didn't answer. */
+    FAILED
+  }
+
   // Enumerate the rejection reasons
   private enum VerificationRejectionReason {
     INSUFFICIENT_INFORMATION,
     NO_VOTER,
     ALREADY_APPROVED,
     IDENTITY_NOT_VERIFIED,
+    EMAIL_IN_USE,
     OTHER,
     NO_REASON_GIVEN;
 
@@ -136,10 +170,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       return NO_REASON_GIVEN;
     }
 
-    // Java self method.
-    // Self Method to check if the rejection reason is ALREADY_APPROVED
-    public boolean isAlreadyApproved() {
-      return this == ALREADY_APPROVED;
+    // Rejections that aren't about the applicant's data, so there are no mismatches to show
+    public boolean hidesMismatches() {
+      return this == ALREADY_APPROVED || this == EMAIL_IN_USE;
     }
   }
 
@@ -166,6 +199,13 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
     // Prevent multiple submissions
     if (completedVerification) {
+      String lateRejection =
+          context.getAuthenticationSession().getAuthNote(EMAIL_IN_USE_REJECTION_NOTE);
+      if (lateRejection != null) {
+        // Windmill hasn't recorded the rejection yet: ask again rather than show a result
+        rejectEmailInUse(context, LateRejection.fromNote(lateRejection));
+        return;
+      }
       String template = null;
       String verificationStatus =
           context.getAuthenticationSession().getAuthNote(VERIFICATION_STATUS);
@@ -285,6 +325,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     String rejectionReason = null;
     JsonNode fieldsMatchNode = null;
     Map<String, String> applicantDataMap = null;
+    String applicationId = null;
 
     try {
       applicantDataMap =
@@ -359,10 +400,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       // The application record's id gives the reference the voter quotes to support. Older harvest
       // versions don't return it; the page then shows no reference.
       JsonNode applicationIdNode = verificationResult.get("application_id");
-      SupportReference.of(
-              applicationIdNode == null || applicationIdNode.isNull()
-                  ? null
-                  : applicationIdNode.asText())
+      applicationId =
+          applicationIdNode == null || applicationIdNode.isNull()
+              ? null
+              : applicationIdNode.asText();
+      SupportReference.of(applicationId)
           .ifPresentOrElse(
               reference ->
                   context.getAuthenticationSession().setAuthNote(SUPPORT_REFERENCE_NOTE, reference),
@@ -461,13 +503,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
         if ("REJECTED".equals(verificationStatus)) {
 
-          // Do not show the mismatches details if the rejection reason is that it was alrady
-          // approved
-          if (!VerificationRejectionReason.fromString(rejectionReason).isAlreadyApproved()) {
-            log.infov("Application was not already approved.");
+          if (!VerificationRejectionReason.fromString(rejectionReason).hidesMismatches()) {
             context.form().setAttribute("mismatchedFields", mismatchedFields);
           } else {
-            log.infov("Application was already approved, not showing mismatches.");
+            log.infov("Rejected as {0}, not showing mismatches.", rejectionReason);
           }
 
           Response form =
@@ -531,6 +570,20 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               .form()
               .setError(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET_ERROR, sessionId)
               .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+      return;
+    }
+
+    // Keycloak keeps emails unique: setting another voter's email would fail
+    // and roll back the whole update
+    List<String> newEmail = Utils.getAttributeValuesFromAuthNote(context, "email");
+    if (emailInUse(
+        context.getSession(),
+        context.getRealm(),
+        user,
+        updateAttributesList,
+        newEmail == null || newEmail.isEmpty() ? null : newEmail.get(0))) {
+      log.error("authenticate(): the email belongs to another user");
+      rejectEmailInUse(context, new LateRejection(applicationId, user.getId()));
       return;
     }
 
@@ -858,6 +911,176 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       }
     }
     return Optional.empty();
+  }
+
+  /**
+   * Whether the enrollment would set an email another user of the realm has, in a realm that keeps
+   * emails unique. A realm that allows duplicate emails accepts it.
+   */
+  static boolean emailInUse(
+      KeycloakSession session,
+      RealmModel realm,
+      UserModel user,
+      List<String> updateAttributes,
+      String email) {
+    if (email == null
+        || email.isBlank()
+        || !updateAttributes.contains("email")
+        || realm.isDuplicateEmailsAllowed()) {
+      return false;
+    }
+    UserModel holder;
+    try {
+      holder = session.users().getUserByEmail(realm, email.trim());
+    } catch (ModelDuplicateException several) {
+      // Several users have it, so at least one is not this voter
+      return true;
+    }
+    return holder != null && !holder.getId().equals(user.getId());
+  }
+
+  /**
+   * Rejects, after windmill accepted it, an enrollment whose email another voter has. Windmill
+   * rejects these itself, so this only happens when another voter takes the email in between, or
+   * with a windmill that doesn't check.
+   *
+   * <p>Windmill must record the rejection first: until it does, the session keeps {@link
+   * #EMAIL_IN_USE_REJECTION_NOTE}, the voter sees an error, and a reload asks windmill again. Only
+   * once recorded do the session notes say REJECTED, so a reload shows the rejection again (never
+   * the success page), and the voter is told as for any rejection.
+   */
+  void rejectEmailInUse(AuthenticationFlowContext context, LateRejection rejection) {
+    String reason = VerificationRejectionReason.EMAIL_IN_USE.name();
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    String sessionId = authSession.getParentSession().getId();
+    authSession.setAuthNote(EMAIL_IN_USE_REJECTION_NOTE, rejection.toNote());
+
+    LateRejectionOutcome outcome = recordEmailInUseRejection(context, rejection);
+    if (outcome != LateRejectionOutcome.RECORDED) {
+      log.errorv(
+          "rejectEmailInUse(): windmill didn't record the rejection of application {0}: {1}",
+          rejection.applicationId(), outcome);
+      context.getEvent().detail("email_in_use_rejection", outcome.name()).error(reason);
+      // Refused for good: asking again won't help, so the voter is told to start again. A reload
+      // still asks again, and never shows a result windmill hasn't recorded.
+      context.failureChallenge(
+          AuthenticationFlowError.INTERNAL_ERROR,
+          context
+              .form()
+              .setError(
+                  outcome == LateRejectionOutcome.REFUSED
+                      ? Utils.ERROR_EMAIL_IN_USE_NOT_RECORDED
+                      : Utils.ERROR_GENERATING_APPROVAL,
+                  sessionId)
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+      return;
+    }
+
+    authSession.setAuthNote(VERIFICATION_STATUS, "REJECTED");
+    authSession.setAuthNote(VERIFICATION_REJECTION_REASON, reason);
+    authSession.removeAuthNote(VERIFICATION_MISMATCHED_FIELDS);
+    authSession.setAuthNote(VERIFICATION_COMPLETED, Boolean.toString(Boolean.TRUE));
+    authSession.removeAuthNote(EMAIL_IN_USE_REJECTION_NOTE);
+
+    context.challenge(
+        context
+            .form()
+            .setAttribute("rejectReason", reason)
+            .createForm("registration-rejected-finish.ftl"));
+    context.getEvent().error(reason);
+
+    try {
+      sendRejectCommunication(
+          context.getSession(),
+          context.getRealm(),
+          MessageCourier.fromString(
+              context.getAuthenticatorConfig().getConfig().get(MESSAGE_COURIER_ATTRIBUTE)),
+          authSession.getAuthNote("email"),
+          authSession.getAuthNote(PHONE_NUMBER_ATTRIBUTE),
+          reason,
+          new HashMap<>(),
+          enrollmentRecipient(context),
+          context);
+    } catch (Exception error) {
+      log.errorv("rejectEmailInUse(): the rejection was not sent: {0}", error);
+      context.failureChallenge(
+          AuthenticationFlowError.INTERNAL_ERROR,
+          context
+              .form()
+              .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+    }
+  }
+
+  /** Asks windmill to record the late rejection, and how it answered. */
+  LateRejectionOutcome recordEmailInUseRejection(
+      AuthenticationFlowContext context, LateRejection rejection) {
+    if (rejection.applicationId() == null
+        || rejection.applicationId().isBlank()
+        || rejection.userId().isBlank()) {
+      // An older harvest that doesn't name the application
+      return LateRejectionOutcome.FAILED;
+    }
+    int status;
+    try {
+      status = postEmailInUseRejection(context, rejection);
+    } catch (IOException error) {
+      log.errorv("recordEmailInUseRejection(): {0}", error);
+      return LateRejectionOutcome.FAILED;
+    } catch (InterruptedException error) {
+      Thread.currentThread().interrupt();
+      return LateRejectionOutcome.FAILED;
+    }
+    log.infov("recordEmailInUseRejection(): status {0}", status);
+    if (status == Response.Status.OK.getStatusCode()) {
+      return LateRejectionOutcome.RECORDED;
+    }
+    return status == Response.Status.CONFLICT.getStatusCode()
+        ? LateRejectionOutcome.REFUSED
+        : LateRejectionOutcome.FAILED;
+  }
+
+  /** Posts the late rejection to harvest, as the tenant's service account; its HTTP status. */
+  int postEmailInUseRejection(AuthenticationFlowContext context, LateRejection rejection)
+      throws IOException, InterruptedException {
+    String realmId = context.getRealm().getId();
+    String tenantId = getTenantId(context.getSession(), realmId);
+    return sendEmailInUseRejection(
+        this.harvestUrl,
+        tokenClient.fetchAccessToken(ServiceAccountTokenClient.tenantRealmName(tenantId)),
+        tenantId,
+        getElectionEventId(context.getSession(), realmId),
+        context.getAuthenticationSession().getParentSession().getId(),
+        rejection);
+  }
+
+  /**
+   * Sends harvest's {@link #REJECT_EMAIL_IN_USE_PATH} request: the body names the application, the
+   * enrollment session and the matched voter, as harvest's {@code EmailInUseRejectionBody}.
+   */
+  static int sendEmailInUseRejection(
+      String harvestDomain,
+      String token,
+      String tenantId,
+      String electionEventId,
+      String sessionId,
+      LateRejection rejection)
+      throws IOException, InterruptedException {
+    Map<String, String> body = new HashMap<>();
+    body.put("tenant_id", tenantId);
+    body.put("election_event_id", electionEventId);
+    body.put("application_id", rejection.applicationId());
+    body.put("session_id", sessionId);
+    body.put("user_id", rejection.userId());
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .uri(URI.create("http://" + harvestDomain + REJECT_EMAIL_IN_USE_PATH))
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer " + token)
+            .timeout(REQUEST_TIMEOUT)
+            .POST(HttpRequest.BodyPublishers.ofString(new ObjectMapper().writeValueAsString(body)))
+            .build();
+    return HARVEST_CLIENT.send(request, HttpResponse.BodyHandlers.ofString()).statusCode();
   }
 
   private void updateUserAttributes(

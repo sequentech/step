@@ -21,6 +21,8 @@ with the [contributing guide](docs/docusaurus/docs/07-developers/00-contributing
 - Data changes stay backwards compatible (optional or defaulted fields).
 - Cargo builds into this checkout's `packages/rust-local-target`, never
   `packages/target`; leave other checkouts' services alone.
+- `git config core.hooksPath scripts/dev/hooks` runs the pushed changes' lint
+  and format checks before each push (`scripts/dev/pre_push.py`).
 
 ## Skills
 

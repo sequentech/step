@@ -1848,6 +1848,9 @@ const frenchTranslation: TranslationType = {
                 encryptWithPassword: "Chiffrer avec Mot de Passe",
                 passwordForcedNote:
                     "L'archive sera protégée par mot de passe de toute façon : les rapports, les demandes et les données du tableau d'affichage sont toujours chiffrés. Cochez la case pour inclure aussi les champs secrets des électeurs déchiffrés.",
+                integrationSecrets: "Secrets d'intégration (identifiants de service)",
+                integrationSecretsNote:
+                    "Une fois déchiffrée, l'archive contiendra en clair le secret de liveness de Scanovate. Gardez l'archive et son mot de passe secrets, et ne l'importez que là où ce service Liveness Plus doit être utilisé.",
                 includeVoters: "Inclure les Électeurs",
                 activityLogs: "Journaux d'Activité",
                 bulletinBoard: "Tableau d'Affichage",
@@ -2285,6 +2288,7 @@ const frenchTranslation: TranslationType = {
                 "voter-write": "Éditer Électeur",
                 "voter-secret-attribute-read": "Afficher les Champs Secrets de l'Électeur",
                 "voter-secret-attribute-write": "Éditer les Champs Secrets de l'Électeur",
+                "integration-secret-read": "Exporter les Secrets d'Intégration",
                 "user-create": "Créer Utilisateur",
                 "user-read": "Lire Utilisateur",
                 "user-write": "Éditer Utilisateur",
@@ -2807,6 +2811,9 @@ const frenchTranslation: TranslationType = {
                         delete: "Êtes-vous sûr de vouloir supprimer cet élément ?",
                         sealsUnknown:
                             "Les scellés des urnes n'ont pas pu être vérifiés : si l'élément a des urnes scellées, la suppression est refusée.",
+                        archiveNamed: 'Êtes-vous sûr de vouloir archiver "{{name}}" ?',
+                        unarchiveNamed: 'Êtes-vous sûr de vouloir désarchiver "{{name}}" ?',
+                        deleteNamed: 'Êtes-vous sûr de vouloir supprimer "{{name}}" ?',
                     },
                     notification: {
                         success: {
@@ -2928,6 +2935,13 @@ const frenchTranslation: TranslationType = {
                 "label": "Forme d’icône de case à cocher pour les candidats",
                 "square-checkbox": "Case à cocher carrée",
                 "round-checkbox": "Case à cocher ronde",
+            },
+            candidatesLayout: {
+                "label": "Disposition des candidats",
+                "helperText":
+                    "La grille de bulletin papier affiche les candidats dans des cases numérotées avec un cercle à remplir, colonne par colonne, selon Colonnes (4 si vide). Les scrutins par classement utilisent toujours la liste.",
+                "list": "Liste",
+                "paper-grid": "Grille de bulletin papier",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidats Et Listes",
@@ -4170,6 +4184,7 @@ const frenchTranslation: TranslationType = {
                     "insufficient-information": "Données manquantes",
                     "no-matching-voter": "Aucun électeur correspondant",
                     "voter-already-approved": "Déjà approuvé",
+                    "EMAIL_IN_USE": "E-mail utilisé par un autre électeur",
                     "other": "Autre",
                 },
                 hint: {
@@ -4415,6 +4430,8 @@ const frenchTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Tableaux de bord configurables",
+            modeChangeError: "Impossible de changer le mode du tableau de bord. Réessayez.",
             title: "Suivi",
             loading: "Chargement du suivi",
             unavailableAlert:

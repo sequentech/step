@@ -4,12 +4,13 @@
 
 # Run the backend E2E journeys on a fresh, isolated compose stack.
 #
-#   scripts/e2e/run.sh [--keep] [--skip-images] [--skip-build] [-k PATTERN]
+#   scripts/e2e/run.sh [--keep] [--skip-images] [--skip-build] [--build-only] [-k PATTERN]
 #
 #   --keep          leave the stack running (tear it down with --down)
 #   --down          remove the explicitly named STEP_E2E_PROJECT and its volumes
 #   --skip-images   reuse the service images already built
 #   --skip-build    reuse the binaries already in STEP_E2E_BIN_DIR
+#   --build-only    build the images and binaries, then stop without starting a stack
 #   --bootstrap-only prepare services and the administrator for another driver
 #   -k PATTERN      run through the last matching journey, including prerequisites
 #
@@ -18,7 +19,14 @@
 #   STEP_E2E_PROJECT       compose project name (default unique per invocation)
 #   STEP_E2E_OUTPUT_DIR    logs/results (default .cache/backend-e2e/<project>)
 #   STEP_E2E_BIN_DIR       binaries (default .cache/backend-e2e/bin)
+#   STEP_E2E_IMAGES        space-separated service images to build (default: all the
+#                          stack needs; "harvest" is the image the binaries build in)
 #   STEP_E2E_COMPOSE_OVERLAY optional existing Compose file, applied last
+#   STEP_E2E_BUILD_CACHE   registry repository for image layer caches (needs a
+#                          buildx builder that exports caches, e.g. docker-container);
+#                          tags are <image>-<scope>
+#   STEP_E2E_BUILD_CACHE_READ  space-separated scopes to import, e.g. branch names
+#   STEP_E2E_BUILD_CACHE_WRITE scope to export to; unset reads only
 #   STEP_E2E_PORTS=1       also publish Hasura, Keycloak and MinIO on 127.0.0.1
 #   STEP_E2E_COVERAGE=1    instrumented binaries (default .cache/backend-e2e/bin-coverage);
 #                          after the journeys the services stop and <output>/coverage
@@ -42,23 +50,30 @@ SERVICES=(
     data-connector-agent graphql-engine keycloak harvest messaging-webhooks windmill beat b4v6
     trustee1 trustee2 localstack configure-localstack
 )
-IMAGES=(postgres postgres-b4v6 minio configure-minio keycloak harvest)
+read -ra IMAGES <<< "${STEP_E2E_IMAGES:-postgres postgres-b4v6 minio configure-minio keycloak harvest}"
+# Registry references are lowercase; GitHub owner and repository names may not be.
+STEP_E2E_BUILD_CACHE=$(printf '%s' "${STEP_E2E_BUILD_CACHE:-}" | tr '[:upper:]' '[:lower:]')
+if [[ -n "$STEP_E2E_BUILD_CACHE" && ! "$STEP_E2E_BUILD_CACHE" =~ ^[a-z0-9][a-z0-9.:/_-]*$ ]]; then
+    echo 'STEP_E2E_BUILD_CACHE must be a registry repository, e.g. ghcr.io/owner/name' >&2
+    exit 2
+fi
 # Services with an LLVM_PROFILE_FILE in docker-compose-ci-coverage.yml.
 INSTRUMENTED=(harvest messaging-webhooks windmill beat b4v6 trustee1 trustee2)
 
 original_args=("$@")
-keep=false images=true build=true down_only=false bootstrap_only=false pattern=()
+keep=false images=true build=true build_only=false down_only=false bootstrap_only=false pattern=()
 while (($#)); do
     case "$1" in
         --keep) keep=true ;;
         --down) down_only=true ;;
         --skip-images) images=false ;;
         --skip-build) build=false ;;
+        --build-only) build_only=true ;;
         --bootstrap-only) bootstrap_only=true ;;
         -k)
             [[ $# -ge 2 && -n "$2" ]] || { echo '-k requires a pattern' >&2; exit 2; }
             pattern=(-k "$2"); shift ;;
-        -h | --help) sed -n '5,25p' "$0"; exit 0 ;;
+        -h | --help) sed -n '5,34p' "$0"; exit 0 ;;
         *) echo "Unknown option $1" >&2; exit 2 ;;
     esac
     shift
@@ -139,6 +154,31 @@ compose() {
         --profile full --profile e2e "${files[@]}" "$@"
 }
 
+# A Compose overlay importing, and optionally exporting, each image's layer cache.
+build_cache_overlay() {
+    local service scope overlay=$OUTPUT/build-cache.yml
+    {
+        printf 'services:\n'
+        for service in "${IMAGES[@]}"; do
+            printf '  %s:\n    build:\n' "$service"
+            if [[ -n "${STEP_E2E_BUILD_CACHE_READ:-}" ]]; then
+                printf '      cache_from:\n'
+                for scope in $STEP_E2E_BUILD_CACHE_READ; do
+                    printf '        - type=registry,ref=%s:%s-%s\n' \
+                        "$STEP_E2E_BUILD_CACHE" "$service" "${scope//[^A-Za-z0-9_.-]/-}"
+                done
+            fi
+            if [[ -n "${STEP_E2E_BUILD_CACHE_WRITE:-}" ]]; then
+                scope=$STEP_E2E_BUILD_CACHE_WRITE
+                # A failed export only costs the next run its cache.
+                printf '      cache_to:\n        - type=registry,ref=%s:%s-%s,mode=max,ignore-error=true\n' \
+                    "$STEP_E2E_BUILD_CACHE" "$service" "${scope//[^A-Za-z0-9_.-]/-}"
+            fi
+        done
+    } > "$overlay"
+    printf '%s\n' "$overlay"
+}
+
 collect_logs() {
     compose ps --all > "$OUTPUT/logs/services.txt" 2>&1 || true
     for service in "${SERVICES[@]}"; do
@@ -178,11 +218,17 @@ phase() { printf '\n==> %s (%ss)\n' "$1" "$((SECONDS - started))"; }
 
 if $images; then
     phase "Building service images"
+    # Only build settings: later Compose calls can keep the overlay.
+    [[ -n "${STEP_E2E_BUILD_CACHE:-}" ]] && files+=(-f "$(build_cache_overlay)")
     compose build "${IMAGES[@]}"
 fi
 if $build; then
     phase "Building backend binaries"
     STEP_E2E_RUNTIME_IMAGE=$RUNTIME_IMAGE DOCKER=$DOCKER "$ROOT/scripts/e2e/build.sh"
+fi
+if $build_only; then
+    phase "Build complete"
+    exit 0
 fi
 
 # Builds may take several minutes: check again immediately before taking ownership.

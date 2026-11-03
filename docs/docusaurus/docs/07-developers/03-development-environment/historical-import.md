@@ -105,6 +105,32 @@ definitions. The restricted reader recognizes the dump's table definitions,
 literal inserts and inert mysqldump envelope. Unknown statements, computed
 insert values, malformed rows and unsupported escaping modes are refused.
 
+The same records also arrive in the documented post-qualification schema, which
+renames some tables and columns. It is recognized by its table names, mapped onto
+the names above and converted the same way. The summary and provenance record
+which schema was read (`sourceSchema`: `legacy` or `post-qualification`), and
+every problem names the table and column as the dump spells them. A dump that
+mixes both sets of table names is refused, as is a table containing both names
+of a renamed column, even when their values agree.
+
+| Post-qualification name | Read as                    |
+| ----------------------- | -------------------------- |
+| `candidates`            | `candidate`                |
+| `contests`              | `contest`                  |
+| `seats`                 | `seat`                     |
+| `seats.NUM_SEAT`        | `seat.ELIGIBLEAMOUNT`      |
+| `seats.PROC_CCS_CODE`   | `seat.CCS_CODE`            |
+| `political_party`       | `party_list`               |
+| `canvass_centers`       | `canvass_center`           |
+| `trans_routes`          | `trans_route`              |
+| `trans_routes.TYPE`     | `trans_route.MACHINE_TYPE` |
+| `pop.VOTING_MODE`       | `pop.MACHINE_TYPE`         |
+| `jurisdictions`         | `geographical`             |
+
+`trans_servers`, new in that schema, is accepted and not read. Its voters carry a
+mail country and embassy instead of a country, embassy and precinct; see the
+voter area joins below.
+
 Literals remain bytes, preserving leading zeros and binary picture content.
 Mapped text uses declared UTF-8 or MySQL latin1 encoding. Binary content remains
 in the unmodified original; this profile does not publish candidate photographs
@@ -114,6 +140,30 @@ The workbook contains `ElectionEvent`, `Elections`, `Areas`,
 `ScheduledEvents` and `CcsServers`. Blank styling rows are not records.
 Election aliases must be unique because schedules refer to aliases. Several
 election rows may share a post; they remain separate contexts.
+
+### Without the workbook
+
+The workbook is optional. Without it, the decisions carry a `supplement` with
+what the dump does not hold, and the rest is derived from the dump:
+
+- **Elections**: one per polling center that a `pop` row places voters in,
+  named and aliased by its `POLLING_PLACE`.
+- **Areas**: one per precinct cluster (`pop.CLUSTERPOLLCENTER`), named by the
+  historical name rule below and described by the cluster's own polling place.
+  Without its own polling center, every precinct row of that cluster must refer
+  to the same post; conflicting posts are refused.
+- **Event**: `supplement.event` — `name` and `electionEventId` are required;
+  `description`, `logoUrl` and `css` are optional.
+- **Schedules**: `supplement.schedules`, each a `type` and a `date`. A schedule
+  with no `election` (the post) applies to every election. Dates are RFC 3339
+  instants, or local date-times read at `scheduleOffsetMinutes`.
+- **CCS servers and trustees**: `supplement.ccsServers`, and the
+  `areaCcsServerTags` and `areaTrusteeServers` every area carries.
+
+A workbook and a supplement together are refused, as is neither. Election and
+area associations name workbook rows, so they are refused without one. The
+summary and provenance then have no `workbookSha256`, and `sourceDigests`
+binds the SQL alone.
 
 Names and descriptions are kept per language in `presentation.i18n.<lang>`.
 `<lang>` is the row's `presentation.language_conf.default_language_code`, or
@@ -172,14 +222,20 @@ Census policy is an enum with three reviewed options:
 
 Under `preserve-source-voters` each voter is emitted into the `Voters` sheet and
 flows through the shared voters builder into the `export_voters-*.csv` native
-member. The decisions must also name the voter area join; the only join is
-`voterAreaJoin: "population-precinct-tuple"`, which equates
-`(voters.COUNTRY, voters.EMBASSY, voters.PRECINCT)` with
-`(pop.PROV_CODE, pop.MUN_CODE, pop.PRECINCT)` of exactly one in-scope polling row.
-The same precinct under different embassies therefore resolves to different areas,
-and a key shared by rows with different outcomes is a conflict. Without the join
-decision the conversion is refused as not approved. The join is recorded in
-provenance under `decisions`.
+member. The decisions must also name the voter area join:
+
+- `population-precinct-tuple` (legacy dumps) equates
+  `(voters.COUNTRY, voters.EMBASSY, voters.PRECINCT)` with
+  `(pop.PROV_CODE, pop.MUN_CODE, pop.PRECINCT)` of exactly one in-scope polling
+  row. The same precinct under different embassies therefore resolves to
+  different areas.
+- `mail-country-embassy` (post-qualification dumps, which have no voter
+  precinct) equates `(voters.MAILCOUNTRY, voters.MAILEMBASSY)` with
+  `(pop.PROV_CODE, pop.MUN_CODE)`.
+
+Under either, a key shared by rows with different outcomes is a conflict.
+Without the join decision the conversion is refused as not approved. The join is
+recorded in provenance under `decisions`.
 
 Each voter carries two kinds of attribute:
 
@@ -228,7 +284,36 @@ step-cli step build-election-event \
 ```
 
 Run without `--check-only` to write a validated package. `--strict` also refuses
-warnings. The existing workbook-only command remains available.
+warnings. The existing workbook-only command remains available. With
+`--historical-sql`, `--workbook` may be left out when the decisions file carries
+a `supplement`:
+
+```json
+{
+  "census": "preserve-source-voters",
+  "voterAreaJoin": "mail-country-embassy",
+  "ballot": "seat-plurality-at-large",
+  "scope": "configured-seats-only",
+  "scheduleOffsetMinutes": 480,
+  "supplement": {
+    "event": { "name": "Example Event", "electionEventId": "1" },
+    "schedules": [
+      { "type": "START_VOTING_PERIOD", "date": "2027-01-01T08:00" },
+      { "type": "END_VOTING_PERIOD", "date": "2027-01-02T08:00" }
+    ],
+    "ccsServers": [
+      {
+        "name": "Example CCS",
+        "tag": "1",
+        "address": "https://ccs.example.org",
+        "publicKey": "<PEM public key>",
+        "sendLogs": false
+      }
+    ],
+    "areaCcsServerTags": "1"
+  }
+}
+```
 
 The command above uses the drawer's historical policy preset. The drawer additionally
 supplies its loaded runtime version through `baseExport.version`. For advanced CLI conversion,
