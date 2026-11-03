@@ -34,6 +34,11 @@ const ErrorWrapper = styled(Box)`
     margin-bottom: 12px;
 `
 
+// sequent-core types message_map as a Map, but serializes it with
+// Serializer::json_compatible(), so at runtime it is a plain object.
+const toTranslationValues = (messageMap?: Map<string, string>): Record<string, string> =>
+    (messageMap ?? {}) as unknown as Record<string, string>
+
 export interface IInvalidErrorsListProps {
     ballotStyle: IBallotStyle
     question: IContest
@@ -233,12 +238,12 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
             ) : null}
             {filteredSelection?.invalid_errors.map((error, index) => (
                 <WarnBox variant="warning" key={index}>
-                    {translateHtml(t, error.message || "", error.message_map ?? {})}
+                    {translateHtml(t, error.message || "", toTranslationValues(error.message_map))}
                 </WarnBox>
             ))}
             {filteredSelection?.invalid_alerts.map((error, index) => (
                 <WarnBox variant="info" key={index}>
-                    {translateHtml(t, error.message || "", error.message_map ?? {})}
+                    {translateHtml(t, error.message || "", toTranslationValues(error.message_map))}
                 </WarnBox>
             ))}
         </ErrorWrapper>

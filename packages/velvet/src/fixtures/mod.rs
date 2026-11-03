@@ -5,7 +5,7 @@
 mod areas;
 pub mod ballot_styles;
 mod candidates;
-mod contests;
+pub(crate) mod contests;
 pub mod elections;
 pub mod fixtures;
 

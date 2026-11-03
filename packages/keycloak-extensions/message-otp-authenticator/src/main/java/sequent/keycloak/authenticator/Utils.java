@@ -70,6 +70,7 @@ public class Utils {
   public final String SENDER_ID = "senderId";
   public final String ONE_TIME_LINK = "one-time-link";
   public final String OTL_VISITED = "one-time-link.visited";
+  public static final String EMAIL_VERIFIED = "Email verified";
   public static final String USER_ID = "userId";
   public final String TEL_USER_ATTRIBUTE = "telUserAttribute";
   public final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
