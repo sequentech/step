@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::maintenance::vacuum_analyze_direct;
+use crate::services::import::import_users::ImportUsersPrivileges;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
@@ -22,6 +23,10 @@ pub struct ImportElectionEventBody {
     pub password: Option<String>,
     pub check_only: Option<bool>,
     pub sha256: Option<String>,
+    /// What the importing user may grant through the voters file, derived by
+    /// the server from that user's permissions.
+    #[serde(default)]
+    pub privileges: ImportUsersPrivileges,
 }
 
 #[instrument(err)]
