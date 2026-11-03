@@ -18,6 +18,7 @@ import {
     useMediaQuery,
     useTheme,
 } from "@mui/material"
+import {formatNumber, formatPercentOne, useNumberFormat} from "@sequentech/ui-core"
 import {PREFERENTIAL_ROUND_COLUMN_WIDTH} from "./constants"
 import type {
     CandidateReference,
@@ -205,6 +206,7 @@ export const PreferentialCandidateResults: React.FC<PreferentialCandidateResults
     labels,
 }) => {
     const mergedLabels = useMemo(() => mergeLabels(labels), [labels])
+    const {policy} = useNumberFormat()
     const theme = useTheme()
     const isXL = useMediaQuery(theme.breakpoints.up("xl"))
     const isLarge = useMediaQuery(theme.breakpoints.up("lg"))
@@ -400,9 +402,12 @@ export const PreferentialCandidateResults: React.FC<PreferentialCandidateResults
                                                                 fontSize: "0.875rem",
                                                             }}
                                                         >
-                                                            {outcome.wins.toLocaleString("en-US")} (
-                                                            {(outcome.percentage * 100).toFixed(2)}
-                                                            %)
+                                                            {formatNumber(outcome.wins, policy)} (
+                                                            {formatPercentOne(
+                                                                outcome.percentage,
+                                                                policy
+                                                            )}
+                                                            )
                                                         </Box>
                                                         <RoundStatusChip
                                                             status={status}
