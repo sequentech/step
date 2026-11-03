@@ -12,7 +12,9 @@ use crate::services::audit_log::{
 };
 use crate::services::database::get_hasura_pool;
 use crate::services::electoral_log_board::ensure_tenant_log;
-use crate::services::import::import_election_event::remove_keycloak_realm_secrets;
+use crate::services::import::import_election_event::{
+    remove_keycloak_realm_secrets, AuthenticatorSecretsPolicy,
+};
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::keycloak::read_realm_config_from_s3;
 use crate::services::tasks_execution::{update_complete, update_fail};
@@ -45,7 +47,10 @@ pub fn prepare_new_tenant_realm(realm: &mut RealmRepresentation) {
 
 #[instrument(err)]
 pub async fn upsert_keycloak_realm(tenant_id: &str, slug: &str) -> Result<()> {
-    let mut default_tenant = remove_keycloak_realm_secrets(&read_default_tenant_realm().await?)?;
+    let mut default_tenant = remove_keycloak_realm_secrets(
+        &read_default_tenant_realm().await?,
+        AuthenticatorSecretsPolicy::Clear,
+    )?;
     prepare_new_tenant_realm(&mut default_tenant);
     let realm_config = serde_json::to_string(&default_tenant)?;
     let client = KeycloakAdminClient::new().await?;

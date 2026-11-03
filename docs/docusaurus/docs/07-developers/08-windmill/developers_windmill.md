@@ -138,6 +138,28 @@ existing `tenant-<id>` realm, apply the settings above to its `admin-portal` and
 `cli-account-admin` clients in the Keycloak admin console, and list every URL
 that serves the admin portal.
 
+### Vendor credentials
+
+The realm templates leave the credentials in authenticator config empty: the
+Inetum `api-key`, the reCAPTCHA `siteSecret` and the Scanovate
+`liveness-secret`. When Windmill creates a tenant or election-event realm from a
+default template, it empties these entries too, so new realms never inherit
+credentials from the uploaded template. An imported election event keeps the
+values in its realm.
+
+Set the credentials in each realm that uses them: in the Keycloak admin console,
+open **Authentication**, then the flow, then the settings of the step. Janitor
+fills the reCAPTCHA and Scanovate secrets from the
+`keycloak_recaptcha_site_secret` and `keycloak_scanovate_liveness_secret`
+`settings` rows of its Excel `Parameters` sheet.
+
+Templates from earlier versions include credentials in these entries, and their
+`liveness-secret` is the development value `liveness-dev-callback-secret`.
+Upload the current default event realm template as described above, then rotate
+those credentials with the vendors and set the new values in the realms that use
+them. Give each realm that uses Scanovate a random `liveness-secret`, the same
+as the `secret` of the Liveness Plus callback URLs.
+
 ## Login hint prefill configuration
 
 Voting Portal notification links can carry bounded `login_hint__<field>` query

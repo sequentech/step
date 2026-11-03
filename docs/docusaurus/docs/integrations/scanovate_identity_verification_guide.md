@@ -481,8 +481,11 @@ enroll with your own passport, import a voters CSV with your data instead. The
 the whole enrollment step by step.
 
 The development election event realm also ships a `scanovate-registration`
-config pointing to the same services, to be added to its registration flow
-from the Keycloak admin console (http://127.0.0.1:8090).
+config pointing to the same services, with an empty `liveness-secret`. To use
+it, add it to its registration flow from the Keycloak admin console
+(http://127.0.0.1:8090) and set `liveness-secret` to
+`liveness-dev-callback-secret`, the secret of
+`.devcontainer/scanovate/liveness/service_config.json`.
 
 ### Load tests
 
