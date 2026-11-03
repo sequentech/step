@@ -22,11 +22,10 @@ export function useLogsPermissions() {
         tenantId,
         IPermissions.TENANT_LOGS_READ
     )
-    const canExportTenantLogs = authContext.isAuthorized(
-        true,
-        tenantId,
-        IPermissions.TENANT_LOGS_EXPORT
-    )
+    // Harvest refuses a tenant log export to anyone who can't read the log.
+    const canExportTenantLogs =
+        canReadTenantLogs &&
+        authContext.isAuthorized(true, tenantId, IPermissions.TENANT_LOGS_EXPORT)
 
     const showLogsColumns = authContext.isAuthorized(true, tenantId, IPermissions.EE_LOGS_COLUMNS)
     const showLogsFilters = authContext.isAuthorized(true, tenantId, IPermissions.EE_LOGS_FILTERS)

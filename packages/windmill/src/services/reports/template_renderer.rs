@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::document_visibility::DocumentVisibility;
+use super::document_visibility::{
+    report_document_name, report_document_purpose, DocumentVisibility,
+};
 use super::generation::{
     attach_report_manifest, bundle, copy_template_data, delivered_manifest, manifest_log,
     report_copies, task_with_log, write_report_manifest, Delivery, GeneratedFile, ReportCopy,
@@ -1057,6 +1059,9 @@ pub trait TemplateRenderer: Debug {
             );
         }
 
+        for file in &mut generated {
+            file.name = report_document_name(&self.get_report_type(), is_real, &file.name);
+        }
         // For an event imported from a signed configuration, the hash
         // manifest of what was just written.
         let report_manifest = stamp
@@ -1071,7 +1076,7 @@ pub trait TemplateRenderer: Debug {
         )?;
         let (final_file_path, final_report_name, mimetype) = (
             delivered.path.clone(),
-            delivered.name.clone(),
+            report_document_name(&self.get_report_type(), is_real, &delivered.name),
             delivered.media_type.clone(),
         );
         let requester = ReportRequester::named(
@@ -1086,6 +1091,8 @@ pub trait TemplateRenderer: Debug {
         } else {
             DocumentAnnotations::default()
         };
+
+        annotations.purpose = report_document_purpose(&self.get_report_type(), is_real);
 
         // A report whose action needs signatures gets its signature page,
         // and is kept as a signing document only.

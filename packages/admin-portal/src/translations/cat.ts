@@ -5,6 +5,318 @@ import englishTranslation, {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        configurationPackage: englishTranslation.translations.configurationPackage,
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        readiness: {
+            close: "Tanca",
+            action: "Verificar preparació",
+            title: "Preparació electoral",
+            description:
+                "Compareu aquest esdeveniment oficial amb un assaig finalitzat. Si la verificació és satisfactòria, es registra evidència signada al registre de l’esdeveniment oficial.",
+            testedEvent: "Esdeveniment provat",
+            archived: "Arxivat",
+            noEvents: "No hi ha altres esdeveniments disponibles",
+            retry: "Torna-ho a provar",
+            eventsError: "No s’han pogut carregar els esdeveniments.",
+            run: "Executa la verificació",
+            running: "Verificant la preparació…",
+            error: "No s’ha pogut completar la verificació. Reviseu el registre abans de tornar-ho a provar; la resposta es pot haver perdut després de registrar l’evidència.",
+            downloadError: "No s’ha pogut descarregar l’informe. Torneu-ho a provar.",
+            success:
+                "Preparació verificada. S’ha registrat evidència signada al registre de l’esdeveniment oficial.",
+            failed: "La preparació ha fallat. Resoleu les verificacions fallides i repetiu. No s’ha registrat cap entrada de preparació.",
+            download: "Descarrega l’informe JSON",
+            snapshot:
+                "Aquest informe és una instantània. Repetiu després de canvis rellevants; no bloqueja l’esdeveniment ni substitueix l’aprovació operativa.",
+            results: "Resultats de la verificació",
+            condition: "Condició comprovada pel servidor",
+            noDetail: "El servidor no ha donat més detalls sobre aquesta comprovació.",
+            reasons: "Per què ha fallat",
+            noArea: "cap àrea o una àrea desconeguda",
+            eventRoles: {
+                official: "oficial",
+                tested: "de prova",
+                both: "tots dos",
+            },
+            scope: {
+                event: "L'esdeveniment {{event}}",
+                election: "L'elecció {{election}}",
+            },
+            certification: {
+                declared_sha256_missing: "no s'ha indicat el SHA-256",
+                declared_sha256_mismatch: "el SHA-256 indicat no coincideix amb el del fitxer",
+                no_counts: "no té votants per àrea",
+                blank_area: "hi ha votants sense àrea",
+                invalid_sha256: "el seu SHA-256 no és vàlid",
+            },
+            findings: {
+                same_event: "L'esdeveniment oficial i el de prova són el mateix esdeveniment.",
+                configuration_missing:
+                    "L'esdeveniment {{event}} no es va importar d'un paquet de configuració signat.",
+                configuration_incomplete:
+                    "La configuració signada de l'esdeveniment oficial no té un valor vàlid per a «{{field}}».",
+                external_id_mismatch:
+                    "Els esdeveniments provenen de configuracions diferents: {{official}} (oficial) i {{tested}} (de prova).",
+                content_mismatch:
+                    "El contingut signat és diferent: SHA-256 {{official}} (oficial) i {{tested}} (de prova).",
+                approvers_mismatch:
+                    "Els aprovadors verificats són diferents: {{only_official}} només a l'esdeveniment oficial i {{only_tested}} només al de prova.",
+                areas_mismatch:
+                    "{{area}} només és al contingut signat de l'esdeveniment {{event}}.",
+                voter_import_missing:
+                    "L'esdeveniment {{event}} no té cap importació certificada de votants.",
+                voter_import_in_progress:
+                    "Encara hi ha una importació de votants en curs a l'esdeveniment {{event}}.",
+                voter_file_not_certified:
+                    "L'última importació de votants de l'esdeveniment {{event}} no està certificada: {{reason}}.",
+                voter_receipt_not_signed:
+                    "El registre de l'esdeveniment {{event}} no té cap entrada signada que correspongui a la importació de votants {{import_id}}.",
+                registry_count_changed:
+                    "L'esdeveniment {{event}} té ara {{current}} votants a {{area}}, però la seva importació certificada en té {{imported}}.",
+                voter_area_not_configured:
+                    "Els votants certificats de l'esdeveniment {{event}} inclouen {{area}}, que no és al seu contingut signat.",
+                voter_file_mismatch:
+                    "Els fitxers certificats de votants són diferents: SHA-256 {{official}} (oficial) i {{tested}} (de prova).",
+                voter_count_mismatch:
+                    "Els fitxers certificats difereixen a {{area}}: {{official}} votants (oficial) i {{tested}} (de prova).",
+                ballots_present: "L'esdeveniment oficial té {{count}} paperetes emmagatzemades.",
+                received_ballots_present:
+                    "L'esdeveniment oficial té {{count}} paperetes rebudes per revisar.",
+                tally_sessions_present: "L'esdeveniment oficial té {{count}} sessions de recompte.",
+                status_missing: "{{scope}} no té estat de votació.",
+                voting_started: "{{scope}}: el canal {{channel}} és {{status}}.",
+                voting_dates_recorded:
+                    "{{scope}}: el canal {{channel}} té dates de votació registrades.",
+                no_elections: "L'esdeveniment {{event}} no té eleccions.",
+                publication_missing: "L'esdeveniment {{event}} no té cap publicació activa.",
+                publication_mismatch:
+                    "Els {{design_count}} dissenys de papereta publicats de l'esdeveniment {{event}} no coincideixen amb tots els dissenys de la seva configuració signada.",
+                publication_empty:
+                    "Els dissenys de papereta publicats de l'esdeveniment {{event}} no s'han pogut comprovar amb una configuració signada.",
+                channels_open: "L'esdeveniment de prova encara té canals de votació sense tancar.",
+                seal_at_close_off: "L'esdeveniment de prova no segella les urnes en tancar.",
+                no_expected_boxes: "La publicació de l'esdeveniment de prova no espera cap urna.",
+                boxes_unsealed:
+                    "L'elecció {{election}} de l'esdeveniment de prova té {{unsealed}} urnes sense segellar.",
+            },
+        },
+        plugins: {
+            title: "Complements",
+            description:
+                "Els complements s'inclouen en aquesta versió. En activar-ne un s'afegeixen el seu element de menú i els seus permisos per a aquest inquilí; en desactivar-lo s'amaga i se'n conserven les dades i els permisos.",
+            enabled: "Activat",
+            disabled: "Desactivat",
+            compatible: "Compatible",
+            incompatible: "Les dades desades requereixen una versió més recent",
+            api: "API de complements {{major}}",
+            permissions: "Permisos",
+            adminGroup: "es concedeixen al grup admin en activar-lo",
+            enable: "Activa",
+            disable: "Desactiva",
+            confirmEnableTitle: "Voleu activar {{name}}?",
+            confirmDisableTitle: "Voleu desactivar {{name}}?",
+            confirmEnable:
+                "{{name}} apareix al menú dels usuaris amb els seus permisos. Els seus permisos es creen en aquest inquilí i es concedeixen al grup admin.",
+            confirmDisable:
+                "{{name}} s'amaga i les seves sol·licituds es rebutgen. Se'n conserven les dades, l'historial i els permisos, i no canvia res més de l'inquilí.",
+            confirm: "Confirma",
+            noPermission: "Canviar els complements requereix el permís tenant-write.",
+            retry: "Torna-ho a provar",
+            loading: "S'estan carregant els complements…",
+            signIn: "Inicieu la sessió a l'inquilí seleccionat per fer servir els seus complements.",
+            unavailable: "Aquest complement no forma part d'aquesta versió.",
+            incompatibleRoute:
+                "Les dades desades d'aquest complement requereixen una versió més recent. Les dades no han canviat.",
+            disabledRoute:
+                "{{name}} no està activat per a aquest inquilí. Un administrador de l'inquilí el pot activar a Configuració → Complements.",
+            forbidden: "No teniu permís per fer servir {{name}}.",
+        },
+        projects: {
+            title: "Projectes",
+            subtitle:
+                "Planifiqueu la feina de l'inquilí en una línia de temps. Els projectes mai no canvien els calendaris electorals.",
+            cancel: "Cancel·la",
+            retry: "Torna-ho a provar",
+            loading: "S'està carregant…",
+            list: {
+                create: "Projecte nou",
+                import: "Importa",
+                emptyTitle: "Encara no hi ha projectes",
+                emptyHelp:
+                    "Creeu un projecte o importeu un fitxer CSV exportat d'un altre projecte.",
+                emptyViewer: "No s'ha creat cap projecte en aquest inquilí.",
+                active_one: "Actius ({{count}})",
+                active_other: "Actius ({{count}})",
+                archived_one: "Arxivats ({{count}})",
+                archived_other: "Arxivats ({{count}})",
+                name: "Nom",
+                dates: "Dates",
+                tasks: "Tasques",
+                timezone: "Zona horària",
+                updated: "Darrer canvi",
+                updatedBy: "{{at}} · {{actor}}",
+                archivedChip: "Arxivat",
+                noneInTab: "Aquí no hi ha projectes.",
+            },
+            create: {
+                title: "Projecte nou",
+                name: "Nom del projecte",
+                timezone: "Zona horària",
+                timezoneHelp:
+                    "Totes les dates del projecte s'introdueixen i es mostren en aquesta zona horària IANA.",
+                submit: "Crea el projecte",
+            },
+            import: {
+                title: "Importa un projecte",
+                help: "Importar sempre crea un projecte nou. Feu servir un fitxer CSV en UTF-8 amb les columnes {{columns}}, tal com s'exporta d'un projecte, amb un desfasament UTC a cada data. No es desa res fins que creeu el projecte.",
+                choose: "Tria un fitxer CSV",
+                noFile: "Cap fitxer triat",
+                fileLimit: "El fitxer ha d'ocupar com a màxim 1 MiB.",
+                invalidFile: "El fitxer no és text UTF-8 vàlid.",
+                valid_one: "{{count}} tasca està a punt per importar.",
+                valid_other: "{{count}} tasques estan a punt per importar.",
+                invalid_one:
+                    "{{count}} de {{total}} files té errors. Corregiu el fitxer i torneu-lo a triar.",
+                invalid_other:
+                    "{{count}} de {{total}} files tenen errors. Corregiu el fitxer i torneu-lo a triar.",
+                previewTable: "Previsualització de la importació",
+                line: "Línia",
+                result: "Comprovació",
+                rowValid: "A punt",
+                commit: "Crea el projecte",
+            },
+            detail: {
+                timezone: "Totes les dates i hores són en {{timezone}}.",
+                export: "Exporta",
+                archive: "Arxiva",
+                restore: "Restaura",
+                addTask: "Afegeix una tasca",
+                viewOnly: "Només lectura. Canviar tasques requereix el permís projects-write.",
+                archivedNotice:
+                    "Aquest projecte està arxivat. Restaureu-lo per canviar-ne les tasques.",
+            },
+            notices: {
+                saved: "S'ha desat «{{title}}».",
+                moved: "S'ha desat «{{title}}»: {{start}} – {{end}}.",
+                deleted: "S'ha suprimit «{{title}}».",
+                archived: "Projecte arxivat.",
+                restored: "Projecte restaurat.",
+            },
+            panel: {
+                details: "Detalls de la tasca",
+                edit: "Edita la tasca",
+                add: "Afegeix una tasca",
+                close: "Tanca els detalls de la tasca",
+                hint: "Seleccioneu una tasca a la línia de temps per veure'n aquí els detalls.",
+                noTasks: "Aquest projecte encara no té tasques.",
+            },
+            conflict: {
+                body: "Una altra persona ha canviat aquesta tasca ({{actor}}, {{at}}). Els vostres canvis encara hi són. Reviseu la seva versió abans de tornar a desar.",
+                load: "Carrega la seva versió",
+            },
+            unsaved: {
+                body: "Teniu canvis sense desar. Deseu-los o descarteu-los per {{action}}.",
+                keep: "Continua editant",
+                discard: "Descarta els canvis",
+                actions: {
+                    open: "obrir «{{title}}»",
+                    add: "afegir una tasca nova",
+                    leave: "tornar als projectes",
+                    close: "tancar la tasca",
+                    state: "canviar el projecte",
+                },
+            },
+            deleteDialog: {
+                title: "Voleu suprimir la tasca?",
+                body: "«{{title}}» se suprimeix del projecte. Se'n conserva l'historial de canvis.",
+                confirm: "Suprimeix",
+            },
+            history: {
+                task: "Historial de canvis",
+                project: "Historial del projecte",
+                empty: "Encara no hi ha canvis registrats.",
+                more: "Mostra canvis anteriors",
+                by: "{{actor}} · {{at}}",
+                actions: {
+                    create: "Creat {{subject}}",
+                    update: "Canviat {{subject}}",
+                    delete: "Suprimit {{subject}}",
+                    import_one: "Importada {{count}} tasca",
+                    import_other: "Importades {{count}} tasques",
+                    export: "Exportat com a CSV",
+                    other: "{{action}}",
+                },
+            },
+            editor: {
+                title: "Títol",
+                type: "Tipus",
+                status: "Estat",
+                start: "Inici",
+                end: "Final",
+                at: "Data i hora",
+                notes: "Notes",
+                order: "Ordre",
+                orderHelp: "Les tasques s'ordenen per ordre i després per inici.",
+                timezoneNote: "Les hores són en {{timezone}}.",
+                offset: "UTC{{offset}}",
+                localTime: {
+                    invalid: "Introduïu una data i hora entre 1900 i 2200.",
+                    skipped:
+                        "Aquesta hora no existeix a {{timezone}}: els rellotges se la salten. Trieu una altra hora.",
+                    repeated:
+                        "Aquesta hora passa dues vegades a {{timezone}}. Trieu a quina us referiu.",
+                },
+                chooseInstant: "Quina vegada",
+                instantChoice: "A UTC{{offset}}",
+                saving: "S'està desant…",
+                toFix_one: "{{count}} camp per corregir",
+                toFix_other: "{{count}} camps per corregir",
+                save: "Desa",
+                delete: "Suprimeix",
+            },
+            validation: {
+                title: "Introduïu un títol de com a màxim 200 caràcters.",
+                offset: "Introduïu dates vàlides.",
+                range: "El final ha de ser posterior a l'inici.",
+                milestone: "Una fita no té final.",
+                notes: "Les notes han de tenir com a màxim 16.000 caràcters.",
+                order: "L'ordre ha de ser un nombre enter de 0 a 1.000.000.",
+            },
+            status: {
+                not_started: "No començada",
+                in_progress: "En curs",
+                done: "Feta",
+            },
+            type: {
+                task: "Tasca",
+                milestone: "Fita",
+            },
+            units: {
+                days_one: "{{count}} dia",
+                days_other: "{{count}} dies",
+                hours_one: "{{count}} h",
+                hours_other: "{{count}} h",
+                minutes_one: "{{count}} min",
+                minutes_other: "{{count}} min",
+            },
+            timeline: {
+                title: "Línia de temps",
+                tasks_one: "{{count}} tasca",
+                tasks_other: "{{count}} tasques",
+                empty: "Encara no hi ha tasques.",
+                editHelp:
+                    "Assenyaleu o enfoqueu una tasca per veure'n un resum; seleccioneu-la per editar-la a sota. Arrossegueu una barra o feu servir ← → per moure-la 24 hores; afegiu Maj per canviar el final.",
+                viewHelp:
+                    "Assenyaleu o enfoqueu una tasca per veure'n un resum. Seleccioneu-la per veure'n els detalls a sota.",
+                touchEditHelp:
+                    "Toqueu una tasca per editar-la a sota, o arrossegueu una barra per moure-la dies sencers.",
+                touchViewHelp: "Toqueu una tasca per veure'n els detalls a sota.",
+                taskLabel: "{{title}}, de {{start}} a {{end}}, {{status}}",
+                milestoneLabel: "{{title}}, fita el {{at}}, {{status}}",
+                previewEdit: "Feu clic o premeu Retorn per editar",
+                previewView: "Feu clic o premeu Retorn per veure els detalls",
+            },
+        },
         philippinePassport: "Passaport filipí",
         seamanBook: "Llibreta de mariner",
         philSysID: "Identificació PhilSys",
@@ -244,6 +556,7 @@ const catalanTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exportar Sol·licituds",
                 EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
                 IMPORT_TENANT_CONFIG: "Importa la Configuració del Llogater",
+                APPLY_CONFIGURATION_PACKAGE: "Aplica el Paquet de Configuració",
                 RENDER_DOCUMENT_PDF: "Generar el document PDF",
                 CREATE_TENANT: "Crear Llogater",
                 EXPORT_TEMPLATES: "Exportar plantilles",
@@ -294,6 +607,77 @@ const catalanTranslation: TranslationType = {
             },
         },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
+            readiness: {
+                passed: "Superat",
+                failed: "Fallat",
+                checkResult: "{{outcome}}: {{description}}",
+                checkResultWithMessage:
+                    "{{outcome}}: {{description}} Condició registrada: «{{message}}»",
+                description: {
+                    VotersImported: "Fitxer de votants importat.",
+                    ReadinessVerified:
+                        "Preparació de l’esdeveniment oficial verificada amb l’esdeveniment provat.",
+                },
+                checks: {
+                    configuration:
+                        "Tots dos esdeveniments tenen el mateix contingut aprovat, aprovadors verificats i àrees.",
+                    certified_voters:
+                        "Tots dos esdeveniments coincideixen en el fitxer certificat de votants i els recomptes actuals per àrea.",
+                    official_zero:
+                        "L’esdeveniment oficial mai ha obert la votació i no té vots ni sessions de recompte.",
+                    publication:
+                        "La publicació oficial coincideix amb la seva configuració signada.",
+                    tested_finished:
+                        "Els canals de votació de l’esdeveniment provat estan tancats i totes les urnes previstes estan segellades.",
+                },
+                fields: {
+                    report: "Informe de preparació",
+                    passed: "Superat",
+                    checked_at: "Data de comprovació",
+                    evidence: "Evidència",
+                    official: "Esdeveniment oficial",
+                    tested: "Esdeveniment provat",
+                    official_event_id: "ID de l’esdeveniment oficial",
+                    tested_event_id: "ID de l’esdeveniment provat",
+                    event_id: "ID de l’esdeveniment",
+                    election_id: "ID de l’elecció",
+                    configuration: "Configuració",
+                    external_id: "ID extern",
+                    revision: "Revisió",
+                    content_sha256: "SHA-256 del contingut",
+                    manifest_sha256: "SHA-256 del manifest",
+                    approvers: "Aprovadors verificats",
+                    areas: "Àrees",
+                    voters: "Importació de votants",
+                    import_id: "ID d’importació",
+                    document_id: "ID del document",
+                    file_name: "Nom del fitxer",
+                    sha256: "SHA-256 del fitxer",
+                    declared_sha256: "SHA-256 declarat",
+                    counts_by_area: "Votants per àrea",
+                    imported_at: "Data d’importació",
+                    voter_log_delivered: "Importació signada registrada",
+                    current_voter_counts: "Votants actuals per àrea",
+                    voter_import_in_progress: "Importació de votants activa",
+                    status: "Estat",
+                    elections: "Eleccions",
+                    ballot_count: "Vots emmagatzemats",
+                    received_ballot_count: "Vots rebuts en revisió",
+                    tally_session_count: "Sessions de recompte",
+                    publication: "Publicació",
+                    publication_id: "ID de publicació",
+                    publication_ids: "ID de les publicacions",
+                    matches_manifest: "Coincideix amb el manifest signat",
+                    design_count: "Dissenys publicats",
+                    seal_at_close: "Segellar al tancament",
+                    expected_boxes: "Urnes previstes",
+                    sealed_boxes: "Urnes segellades",
+                    all_channels_closed: "Tots els canals tancats",
+                    locked_down: "Bloquejat",
+                    log_entry_id: "ID de l’entrada del registre",
+                },
+            },
             noPermissions: "No tens permís per accedir a les bitàcoles.",
             title: "Bitàcoles",
             subtitle:
@@ -415,6 +799,27 @@ const catalanTranslation: TranslationType = {
                     newValue: "Valor nou",
                     error: "Error",
                 },
+                importedFile: {
+                    title: "El fitxer importat",
+                    declared: "Suma de verificació declarada",
+                    sha256: "SHA-256 del fitxer",
+                    declaredSha256: "SHA-256 declarat",
+                    document: "Document",
+                    checksum: {
+                        undeclared: "No se n'ha declarat cap",
+                        matches: "Coincideix amb el fitxer",
+                        mismatch: "No coincideix amb el fitxer",
+                    },
+                    counts: {
+                        count: "Files",
+                        elections: "Eleccions",
+                        contests: "Contesses",
+                        candidates: "Candidats",
+                        areas: "Àrees",
+                        area_contests: "Àrees per contesa",
+                        sections: "Seccions de configuració",
+                    },
+                },
                 deletedEvent: {
                     title: "La bitàcola de l'esdeveniment electoral eliminat",
                     lastEntry: "Darrera entrada",
@@ -424,6 +829,7 @@ const catalanTranslation: TranslationType = {
                     retired:
                         "Descarregada i conservada fins que s'esborri segons la política de conservació",
                     task: "Tasca",
+                    systemKey: "La clau de sistema de la bitàcola",
                 },
                 exported: {
                     title: "Exportació",
@@ -845,6 +1251,10 @@ const catalanTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Les dades no estan disponibles per a aquest esdeveniment electoral.",
+            noAccessibleTabs:
+                "No tens accés a cap pestanya disponible d’aquest esdeveniment electoral.",
+
             common: {
                 subtitle: "Configuració de l'Esdeveniment Electoral.",
                 showMore: "Mostra'n més",
@@ -1016,6 +1426,11 @@ const catalanTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Bloquejat des de {{date}}.",
+                    scheduledEnd: "Final del bloqueig programat per a {{date}}.",
+                    endScheduled: "Hi ha un final del bloqueig programat.",
+                    noScheduledEnd: "No hi ha cap final del bloqueig programat.",
+                    banner: "Aquest esdeveniment electoral està bloquejat.",
                     policyLabel: "Estat de Confinament",
                     helperText:
                         "Programeu l’inici o el final del període de bloqueig per canviar aquest estat.",
@@ -1063,6 +1478,15 @@ const catalanTranslation: TranslationType = {
                     policyLabel:
                         "Inclou les paperetes descodificades a la base de dades de resultats",
                     options: {"included": "Inclou", "not-included": "No incloguis"},
+                },
+                fileIntegrityPolicy: {
+                    policyLabel: "Integritat del fitxer de votants",
+                    helperText:
+                        "Exigeix el SHA-256 certificat de manera independent abans d’importar votants.",
+                    options: {
+                        OPTIONAL: "SHA-256 opcional",
+                        REQUIRED_SHA256: "SHA-256 obligatori",
+                    },
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -1397,6 +1821,8 @@ const catalanTranslation: TranslationType = {
                 importVotersError: "Error Important Votants.",
                 importElectionEventSuccess: "Esdeveniment electoral importat correctament",
                 importElectionEventError: "Error en importar l'esdeveniment electoral",
+                shaRequiredHelp:
+                    "Introduïu el SHA-256 hexadecimal certificat de 64 caràcters. És obligatori per importar.",
                 shaDialog: {
                     ok: "Sí, Importar Sense Verificació d'Integritat",
                     cancel: "Tornar",
@@ -1419,6 +1845,9 @@ const catalanTranslation: TranslationType = {
                 encryptWithPassword: "Xifrar amb Contrasenya",
                 passwordForcedNote:
                     "L'arxiu es protegirà amb contrasenya igualment: els informes, les sol·licituds i les dades del tauler sempre es xifren. Marca la casella per incloure també els camps secrets de votant desxifrats.",
+                integrationSecrets: "Secrets d'integració (credencials de servei)",
+                integrationSecretsNote:
+                    "Un cop desxifrat, el fitxer contindrà en clar el secret de liveness de Scanovate. Mantén en secret el fitxer i la seva contrasenya, i importa'l només on s'hagi d'utilitzar aquest servei de Liveness Plus.",
                 includeVoters: "Incloure Votants",
                 activityLogs: "Registres d'Activitat",
                 bulletinBoard: "Tauler d'Anuncis",
@@ -1853,6 +2282,7 @@ const catalanTranslation: TranslationType = {
                 "voter-write": "Editar Votant",
                 "voter-secret-attribute-read": "Mostrar Camps Secrets del Votant",
                 "voter-secret-attribute-write": "Editar Camps Secrets del Votant",
+                "integration-secret-read": "Exportar Secrets d'Integració",
                 "user-create": "Crear Usuari",
                 "user-read": "Llegir Usuari",
                 "user-write": "Editar Usuari",
@@ -1991,6 +2421,9 @@ const catalanTranslation: TranslationType = {
                 "application-read": "Llegir Aplicació",
                 "application-write": "Editar Aplicació",
                 "approval-matrix-write": "Editar la Matriu d'Aprovació",
+                "readiness-check": "Verificar la preparació electoral",
+                "forensic-read": "Llegir dades forenses de xarxa aïllades",
+                "voter-pseudonym-resolve": "Resoldre un pseudònim de votant amb un motiu auditat",
                 "logs-export": "Exportar Registres",
                 "tenant-logs-read": "Llegir Bitàcola de l'Inquilí",
                 "tenant-logs-export": "Exportar Bitàcola de l'Inquilí",
@@ -2375,6 +2808,9 @@ const catalanTranslation: TranslationType = {
                         delete: "Estàs segur de que vols eliminar aquest element?",
                         sealsUnknown:
                             "No s'han pogut comprovar els segells de les urnes: si té urnes segellades, l'esborrat es rebutjarà.",
+                        archiveNamed: 'Estàs segur de que vols arxivar "{{name}}"?',
+                        unarchiveNamed: 'Estàs segur de que vols desarxivar "{{name}}"?',
+                        deleteNamed: 'Estàs segur de que vols eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2495,6 +2931,13 @@ const catalanTranslation: TranslationType = {
                 "label": "Forma de la icona de la casella de verificació dels candidats",
                 "square-checkbox": "Caixa de verificació quadrada",
                 "round-checkbox": "Caixa de verificació rodona",
+            },
+            candidatesLayout: {
+                "label": "Disposició de les candidatures",
+                "helperText":
+                    "La graella de papereta de paper mostra les candidatures com a cel·les numerades amb un cercle per omplir, columna per columna, segons Columnes (4 si és buit). Les votacions per ordre de preferència sempre fan servir la llista.",
+                "list": "Llista",
+                "paper-grid": "Graella de papereta de paper",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidats I Llistes",
@@ -2731,6 +3174,7 @@ const catalanTranslation: TranslationType = {
                 title: "Paquet de Transmissió per a l'Àrea '{{name}}' y Elección '{{eventName}}'",
                 description:
                     "Et permet exportar un Paquet de Transmissió als Servidors de Destinació o descarregar-lo.",
+                erFileSha256: "Fitxer ER SHA-256:",
                 actions: {
                     sign: {
                         title: "Regenerar",
@@ -2773,6 +3217,10 @@ const catalanTranslation: TranslationType = {
                         emlTitle: "Descarregar EML {{date}}",
                         transmissionPackageTitle: "Descarregar el Paquet de Transmissió {{date}}",
                         transmissionReportTitle: "Descarrega l'informe de transmissió",
+                        csvTitle: "Descarrega el CSV de resultats {{date}}",
+                        ovcsPublicKeyTitle: "Descarrega la clau pública de l'OVCS",
+                        recordError:
+                            "No s'ha pogut registrar la baixada, així que no s'ha iniciat. Torna-ho a provar.",
                         dialog: {
                             title: "Vols descarregar el Paquet de Transmissió?",
                             description:
@@ -2787,6 +3235,9 @@ const catalanTranslation: TranslationType = {
                     description:
                         "La taula a continuació mostra l'estat d'enviament de cadascun dels Servidors de Destinació.",
                     status: "Enviat a {{signed}} de {{total}}",
+                    manualReceipt: "Recepció manual",
+                    handOver: "Descarrega el paquet i lliura'l en mà",
+                    sealedFor: "Segellat per a la seva clau, SHA-256 {{key}}…",
                     table: {
                         serverName: "Nom del Servidor",
                         sendStatus: "Estat d'Enviament",
@@ -2800,7 +3251,8 @@ const catalanTranslation: TranslationType = {
                         trusteeName: "Membre",
                         signed: "Ha Signat",
                     },
-                    status: "{{signed}} de {{total}} Han Signat, mínim {{minimum}}",
+                    status: "{{signed}} de {{total}}, se'n necessiten {{minimum}}",
+                    statusNoMinimum: "{{signed}} de {{total}}",
                 },
             },
             sendToTransmissionPackageServers:
@@ -3714,6 +4166,7 @@ const catalanTranslation: TranslationType = {
                     "insufficient-information": "Dades insuficients",
                     "no-matching-voter": "Votant no trobat",
                     "voter-already-approved": "Ja aprovat",
+                    "EMAIL_IN_USE": "Correu usat per un altre votant",
                     "other": "Altre",
                 },
                 hint: {
@@ -3954,6 +4407,8 @@ const catalanTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Taulers configurables",
+            modeChangeError: "No s’ha pogut canviar el mode del tauler. Torneu-ho a provar.",
             title: "Monitoratge",
             loading: "Carregant el monitoratge",
             unavailableAlert:

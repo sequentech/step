@@ -44,9 +44,15 @@ class InterpolateHtmlPlugin {
 module.exports = function (env, argv) {
     return withPortalDevelopment(__dirname, {
         mode: argv.mode,
-        entry: path.resolve(__dirname, "src/index.tsx"),
+        entry: {
+            "index": path.resolve(__dirname, "src/index.tsx"),
+            "historical-import-worker": path.resolve(
+                __dirname,
+                "src/services/HistoricalImportWorker.ts"
+            ),
+        },
         output: {
-            filename: "index.js",
+            filename: "[name].js",
             path: path.resolve(__dirname, "dist"),
             publicPath: "/", // Set to empty string to ensure correct base path
             clean: true,
@@ -101,6 +107,7 @@ module.exports = function (env, argv) {
                 PUBLIC_URL: "", // Provide replacements for variables
             }),
             new HtmlWebpackPlugin({
+                chunks: ["index"],
                 template: path.resolve(__dirname, "public/index.html"),
                 favicon: path.resolve(__dirname, "public/favicon.ico"),
                 filename: "./index.html",
@@ -114,6 +121,15 @@ module.exports = function (env, argv) {
             // Configure CopyWebpackPlugin to include a list of files from 'public/' into 'dist/'
             new CopyWebpackPlugin({
                 patterns: [
+                    // Optional converter: deployed locally, fetched only when configured.
+                    {
+                        from: require.resolve("sequent-election-config/index.js"),
+                        to: "wasm/election_event_import_converter.js",
+                    },
+                    {
+                        from: require.resolve("sequent-election-config/index_bg.wasm"),
+                        to: "wasm/election_event_import_converter_bg.wasm",
+                    },
                     {
                         from: path.resolve(__dirname, "public"), // Source folder
                         to: path.resolve(__dirname, "dist"), // Destination folder
@@ -160,6 +176,15 @@ module.exports = function (env, argv) {
             port: 3002,
             open: true, // Automatically open the browser
             historyApiFallback: true,
+            // Browser trustees reach the board service through Harvest on the
+            // portal's own origin, as the deployed web server forwards /b4/.
+            // The path, Authorization header and body pass through unchanged.
+            proxy: [
+                {
+                    context: ["/b4/"],
+                    target: `http://${process.env.HARVEST_DOMAIN || "harvest:8400"}`,
+                },
+            ],
             headers: {
                 // Required together for SharedArrayBuffer/Atomics support,
                 // used by browser worker builds.

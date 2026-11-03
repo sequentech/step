@@ -10,6 +10,16 @@ use strum_macros::{Display, EnumIter, EnumString};
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
 )]
 pub enum Permissions {
+    #[strum(serialize = "voter-pseudonym-resolve")]
+    VOTER_PSEUDONYM_RESOLVE,
+    #[strum(serialize = "forensic-read")]
+    FORENSIC_READ,
+    #[strum(serialize = "projects-read")]
+    PROJECTS_READ,
+    #[strum(serialize = "projects-write")]
+    PROJECTS_WRITE,
+    #[strum(serialize = "projects-manage")]
+    PROJECTS_MANAGE,
     #[strum(serialize = "admin-user")]
     ADMIN_USER,
     #[strum(serialize = "tenant-create")]
@@ -44,6 +54,10 @@ pub enum Permissions {
     VOTER_SECRET_ATTRIBUTE_READ,
     #[strum(serialize = "voter-secret-attribute-write")]
     VOTER_SECRET_ATTRIBUTE_WRITE,
+    /// Export the Scanovate `liveness-secret` and download archives that
+    /// carry it.
+    #[strum(serialize = "integration-secret-read")]
+    INTEGRATION_SECRET_READ,
     #[strum(serialize = "user-create")]
     USER_CREATE,
     #[strum(serialize = "user-read")]
@@ -287,6 +301,8 @@ pub enum Permissions {
     #[strum(serialize = "application-write")]
     APPLICATION_WRITE,
     // save a new version of the enrollment approval matrix
+    #[strum(serialize = "readiness-check")]
+    READINESS_CHECK,
     #[strum(serialize = "approval-matrix-write")]
     APPROVAL_MATRIX_WRITE,
     #[strum(serialize = "ee-voters-columns")]

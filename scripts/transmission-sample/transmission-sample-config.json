@@ -1,0 +1,141 @@
+{
+  "description": "Sample configuration of the ER transmission file (VOTE-TRANSMISSION, meta#13782): every value the generator reads, under the annotation keys Step reads them from. Madrid PE (a Post, an election) and Spain (a country, an area) with three SBEIs, two signatures needed and one destination for manual receipt. Fictitious values and synthetic keys from kit/ (generate_kit.sh); for tests and rehearsals only.",
+  "election_event": {
+    "annotations": {
+      "miru:election-event-id": "OV2028",
+      "miru:election-event-name": "2028 OVERSEAS VOTING (SAMPLE)",
+      "miru:sbei-users": [
+        {
+          "username": "sbei-madrid-1",
+          "miru_id": "SBEI-MADRID-01",
+          "miru_role": "Chairperson",
+          "miru_name": "Maria L. Santos",
+          "miru_election_id": "9001",
+          "certificate_fingerprint": null
+        },
+        {
+          "username": "sbei-madrid-2",
+          "miru_id": "SBEI-MADRID-02",
+          "miru_role": "Poll Clerk",
+          "miru_name": "Jose R. Dela Cruz",
+          "miru_election_id": "9001",
+          "certificate_fingerprint": null
+        },
+        {
+          "username": "sbei-madrid-3",
+          "miru_id": "SBEI-MADRID-03",
+          "miru_role": "Third Member",
+          "miru_name": "Ana P. Reyes",
+          "miru_election_id": "9001",
+          "certificate_fingerprint": null
+        }
+      ],
+      "miru:root-ca": "-----BEGIN CERTIFICATE-----\nMIICCjCCAa+gAwIBAgIUBo4nfa6Q7JFL2/TLRNqHq/g95b4wCgYIKoZIzj0EAwIw\nUjELMAkGA1UEBhMCUEgxJzAlBgNVBAoMHlNhbXBsZSBDb21taXNzaW9uIG9uIEVs\nZWN0aW9uczEaMBgGA1UEAwwRU2FtcGxlIE9WIFJvb3QgQ0EwHhcNMjYxMDE1MjEy\nMjUyWhcNNDYxMDEwMjEyMjUyWjBSMQswCQYDVQQGEwJQSDEnMCUGA1UECgweU2Ft\ncGxlIENvbW1pc3Npb24gb24gRWxlY3Rpb25zMRowGAYDVQQDDBFTYW1wbGUgT1Yg\nUm9vdCBDQTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIz7KyH1pS17IGrgNxb4\nFra9tvs7Jc7kL6p9EP2UcKGgx3r4rSweuAcrga5vtD/FiM1VvWfn3VQ4wMsIzwT0\nHJmjYzBhMB0GA1UdDgQWBBTJ3IpsveOLXN5VqWPzYpsxlpcMBTAfBgNVHSMEGDAW\ngBTJ3IpsveOLXN5VqWPzYpsxlpcMBTAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB\n/wQEAwIBBjAKBggqhkjOPQQDAgNJADBGAiEA0RHLLxcSVJ3ULvOs1i9oCgdCdBvl\nds6BxSCPZrXSz1gCIQDyZBAomM/+pv/8jO88/GZIAefyUmoQBx9TUP5eZaKvOg==\n-----END CERTIFICATE-----\n",
+      "miru:intermediate-cas": "-----BEGIN CERTIFICATE-----\nMIICCzCCAbKgAwIBAgIUfRVF1oXlKk6azZ783Uv1OrhtpsMwCgYIKoZIzj0EAwIw\nUjELMAkGA1UEBhMCUEgxJzAlBgNVBAoMHlNhbXBsZSBDb21taXNzaW9uIG9uIEVs\nZWN0aW9uczEaMBgGA1UEAwwRU2FtcGxlIE9WIFJvb3QgQ0EwHhcNMjYxMDE1MjEy\nMjUyWhcNNDYxMDEwMjEyMjUyWjBSMQswCQYDVQQGEwJQSDEnMCUGA1UECgweU2Ft\ncGxlIENvbW1pc3Npb24gb24gRWxlY3Rpb25zMRowGAYDVQQDDBFTYW1wbGUgT1Yg\nU0JFSSBDQTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABKuNK7hDMnJTzog1x7TB\n87Y3NLzwK2SfRf7AKX9ptx1uLDOe1AeVfD19Y2dicOD+ftN2VKr1xEpak2p6T1Sy\nadyjZjBkMBIGA1UdEwEB/wQIMAYBAf8CAQAwDgYDVR0PAQH/BAQDAgEGMB0GA1Ud\nDgQWBBT0iAFY0JZfiFaFllCCVC5/Gs7qyjAfBgNVHSMEGDAWgBTJ3IpsveOLXN5V\nqWPzYpsxlpcMBTAKBggqhkjOPQQDAgNHADBEAiBOjn/c/QQC87HrC7fXLsWfArZW\nSGhmrTKtnovZL/2bFgIgCRb6pbwRRsMgi8cPiSUBNqWp9PtoC9Vu82bvykj/Gyk=\n-----END CERTIFICATE-----\n",
+      "miru:use-root-ca": "true"
+    }
+  },
+  "post": {
+    "name": "Madrid PE",
+    "annotations": {
+      "miru:election-id": "9001",
+      "miru:election-name": "Madrid PE",
+      "miru:geographical-region": "EUROPE",
+      "miru:voting-center": "MADRID PE",
+      "miru:precinct-code": "90010001",
+      "pollcenter_code": "9001A"
+    },
+    "contests": [
+      {
+        "annotations": {
+          "miru:contest-id": "1",
+          "miru:contest-name": "PRESIDENT OF THE PHILIPPINES"
+        },
+        "candidates": [
+          {
+            "annotations": {
+              "miru:candidate-id": "101",
+              "miru:candidate-name": "DELA PAZ, ROSARIO",
+              "miru:candidate-setting": "Y",
+              "miru:candidate-affiliation-id": "P01",
+              "miru:candidate-affiliation-registered-name": "PARTIDO UNO",
+              "miru:candidate-affiliation-party": "Political Party"
+            }
+          },
+          {
+            "annotations": {
+              "miru:candidate-id": "102",
+              "miru:candidate-name": "MAGBANUA, ELENA",
+              "miru:candidate-setting": "Y",
+              "miru:candidate-affiliation-id": "P02",
+              "miru:candidate-affiliation-registered-name": "LAKAS DALAWA",
+              "miru:candidate-affiliation-party": "Political Party"
+            }
+          },
+          {
+            "annotations": {
+              "miru:candidate-id": "103",
+              "miru:candidate-name": "TOLENTINO, RAMON",
+              "miru:candidate-setting": "Y",
+              "miru:candidate-affiliation-id": " ",
+              "miru:candidate-affiliation-registered-name": " ",
+              "miru:candidate-affiliation-party": " "
+            }
+          }
+        ]
+      },
+      {
+        "annotations": {
+          "miru:contest-id": "2",
+          "miru:contest-name": "VICE-PRESIDENT OF THE PHILIPPINES"
+        },
+        "candidates": [
+          {
+            "annotations": {
+              "miru:candidate-id": "201",
+              "miru:candidate-name": "AGUSTIN, LORNA",
+              "miru:candidate-setting": "Y",
+              "miru:candidate-affiliation-id": "P01",
+              "miru:candidate-affiliation-registered-name": "PARTIDO UNO",
+              "miru:candidate-affiliation-party": "Political Party"
+            }
+          },
+          {
+            "annotations": {
+              "miru:candidate-id": "202",
+              "miru:candidate-name": "BAUTISTA, CARLO",
+              "miru:candidate-setting": "Y",
+              "miru:candidate-affiliation-id": "P02",
+              "miru:candidate-affiliation-registered-name": "LAKAS DALAWA",
+              "miru:candidate-affiliation-party": "Political Party"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "country": {
+    "name": "Spain",
+    "annotations": {
+      "miru:area-station-id": "90010001",
+      "miru:area-station-name": "SPAIN",
+      "miru:area-country": "Spain",
+      "miru:registered-voters": "1250",
+      "miru:area-threshold": "2",
+      "miru:area-trustee-users": [
+        "SBEI-MADRID-01",
+        "SBEI-MADRID-02",
+        "SBEI-MADRID-03"
+      ],
+      "miru:area-ccs-servers": [
+        {
+          "name": "CCS Manila (SBOC)",
+          "tag": "ccs-manila",
+          "address": "",
+          "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEYgtl1idfauebscLTLYVHqw84NBew\ndZ8uj5BMeJ0ICy8eKVw4xfdWMrE3f2WvYSb6UjadImSx2F8fAnPG/5UIWQ==\n-----END PUBLIC KEY-----\n",
+          "send_logs": false
+        }
+      ]
+    }
+  }
+}

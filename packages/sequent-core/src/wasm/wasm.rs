@@ -1678,3 +1678,24 @@ pub fn canonicalize_slates_js(annotation: &str) -> Result<String, JsValue> {
             })
     })
 }
+
+/// Run the canonical four-step check with independently published trusted keys.
+#[wasm_bindgen]
+pub fn verify_ballot_log_proof_js(
+    trusted: JsValue,
+    proof: JsValue,
+) -> Result<JsValue, JsValue> {
+    let trusted: crate::ballot_privacy::BallotPrivacyTrust =
+        serde_wasm_bindgen::from_value(trusted)
+            .map_err(|_| "Invalid trusted ballot-log context".to_string())
+            .into_json()?;
+    let proof: crate::ballot_privacy::BallotPrivacyProof =
+        serde_wasm_bindgen::from_value(proof)
+            .map_err(|_| "Invalid ballot-log proof".to_string())
+            .into_json()?;
+    serde_wasm_bindgen::to_value(
+        &crate::ballot_privacy::verify_ballot_log_proof(&trusted, &proof),
+    )
+    .map_err(|_| "Cannot serialize ballot-log verification".to_string())
+    .into_json()
+}

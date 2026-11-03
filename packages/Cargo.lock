@@ -4615,6 +4615,9 @@ dependencies = [
  "reqwest 0.12.24",
  "rocket",
  "sequent-core",
+ "sequent-plugin-api",
+ "sequent-plugin-host",
+ "sequent-plugin-projects",
  "serde",
  "serde_json",
  "serde_with",
@@ -9381,6 +9384,7 @@ dependencies = [
  "chrono-tz",
  "console_error_panic_hook",
  "csv",
+ "electoral-log",
  "handlebars",
  "handlebars-chrono",
  "headless_chrome",
@@ -9442,6 +9446,48 @@ dependencies = [
  "web-sys",
  "x509-parser 0.18.1",
  "zip 2.4.2",
+]
+
+[[package]]
+name = "sequent-plugin-api"
+version = "1.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.17",
+ "uuid",
+]
+
+[[package]]
+name = "sequent-plugin-host"
+version = "1.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "sequent-plugin-api",
+ "sequent-plugin-projects",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-postgres",
+ "uuid",
+]
+
+[[package]]
+name = "sequent-plugin-projects"
+version = "1.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "chrono-tz",
+ "csv",
+ "sequent-plugin-api",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -11226,6 +11272,7 @@ name = "trustee"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "clap",
  "protocol-board",
  "reqwest 0.12.24",

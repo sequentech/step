@@ -5,6 +5,318 @@ import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        configurationPackage: englishTranslation.translations.configurationPackage,
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        readiness: {
+            close: "Fermer",
+            action: "Vérifier la préparation",
+            title: "Préparation électorale",
+            description:
+                "Comparez cet événement officiel à une répétition terminée. Une vérification réussie inscrit une preuve signée dans le journal de l’événement officiel.",
+            testedEvent: "Événement testé",
+            archived: "Archivé",
+            noEvents: "Aucun autre événement disponible",
+            retry: "Réessayer",
+            eventsError: "Impossible de charger les événements.",
+            run: "Lancer la vérification",
+            running: "Vérification en cours…",
+            error: "La vérification n’a pas pu être terminée. Consultez le journal avant de réessayer ; la réponse peut avoir été perdue après l’enregistrement des preuves.",
+            downloadError: "Impossible de télécharger le rapport. Réessayez.",
+            success:
+                "Préparation vérifiée. Une preuve signée a été inscrite dans le journal de l’événement officiel.",
+            failed: "La vérification a échoué. Corrigez les contrôles en échec et recommencez. Aucune entrée de préparation n’a été inscrite.",
+            download: "Télécharger le rapport JSON",
+            snapshot:
+                "Ce rapport est un instantané. Répétez après toute modification pertinente ; il ne fige pas l’événement et ne remplace pas l’approbation opérationnelle.",
+            results: "Résultats des contrôles",
+            condition: "Condition vérifiée par le serveur",
+            noDetail: "Le serveur n’a donné aucun autre détail pour ce contrôle.",
+            reasons: "Pourquoi il a échoué",
+            noArea: "aucune zone ou une zone inconnue",
+            eventRoles: {
+                official: "officiel",
+                tested: "de test",
+                both: "les deux",
+            },
+            scope: {
+                event: "L’événement {{event}}",
+                election: "L’élection {{election}}",
+            },
+            certification: {
+                declared_sha256_missing: "aucun SHA-256 n’a été déclaré",
+                declared_sha256_mismatch: "le SHA-256 déclaré diffère de celui du fichier",
+                no_counts: "il n’a aucun électeur par zone",
+                blank_area: "des électeurs n’ont pas de zone",
+                invalid_sha256: "son SHA-256 n’est pas valide",
+            },
+            findings: {
+                same_event: "L’événement officiel et l’événement de test sont le même événement.",
+                configuration_missing:
+                    "L’événement {{event}} n’a pas été importé depuis un paquet de configuration signé.",
+                configuration_incomplete:
+                    "La configuration signée de l’événement officiel n’a pas de valeur valide pour « {{field}} ».",
+                external_id_mismatch:
+                    "Les événements proviennent de configurations différentes : {{official}} (officiel) et {{tested}} (de test).",
+                content_mismatch:
+                    "Le contenu signé diffère : SHA-256 {{official}} (officiel) et {{tested}} (de test).",
+                approvers_mismatch:
+                    "Les approbateurs vérifiés diffèrent : {{only_official}} uniquement sur l’événement officiel et {{only_tested}} uniquement sur l’événement de test.",
+                areas_mismatch:
+                    "{{area}} ne figure que dans le contenu signé de l’événement {{event}}.",
+                voter_import_missing:
+                    "L’événement {{event}} n’a aucune importation certifiée d’électeurs.",
+                voter_import_in_progress:
+                    "Une importation d’électeurs est encore en cours sur l’événement {{event}}.",
+                voter_file_not_certified:
+                    "La dernière importation d’électeurs de l’événement {{event}} n’est pas certifiée : {{reason}}.",
+                voter_receipt_not_signed:
+                    "Le journal de l’événement {{event}} n’a aucune entrée signée correspondant à l’importation d’électeurs {{import_id}}.",
+                registry_count_changed:
+                    "L’événement {{event}} compte maintenant {{current}} électeurs dans {{area}}, mais son importation certifiée en compte {{imported}}.",
+                voter_area_not_configured:
+                    "Les électeurs certifiés de l’événement {{event}} incluent {{area}}, qui ne figure pas dans son contenu signé.",
+                voter_file_mismatch:
+                    "Les fichiers d’électeurs certifiés diffèrent : SHA-256 {{official}} (officiel) et {{tested}} (de test).",
+                voter_count_mismatch:
+                    "Les fichiers certifiés diffèrent dans {{area}} : {{official}} électeurs (officiel) et {{tested}} (de test).",
+                ballots_present: "L’événement officiel contient {{count}} bulletins enregistrés.",
+                received_ballots_present:
+                    "L’événement officiel contient {{count}} bulletins reçus pour vérification.",
+                tally_sessions_present:
+                    "L’événement officiel a {{count}} sessions de dépouillement.",
+                status_missing: "{{scope}} n’a pas de statut de vote.",
+                voting_started: "{{scope}} : le canal {{channel}} est {{status}}.",
+                voting_dates_recorded:
+                    "{{scope}} : le canal {{channel}} a des dates de vote enregistrées.",
+                no_elections: "L’événement {{event}} n’a aucune élection.",
+                publication_missing: "L’événement {{event}} n’a aucune publication active.",
+                publication_mismatch:
+                    "Les {{design_count}} modèles de bulletin publiés de l’événement {{event}} ne correspondent pas à tous les modèles de sa configuration signée.",
+                publication_empty:
+                    "Les modèles de bulletin publiés de l’événement {{event}} n’ont pas pu être vérifiés par rapport à une configuration signée.",
+                channels_open: "L’événement de test a encore des canaux de vote non fermés.",
+                seal_at_close_off: "L’événement de test ne scelle pas les urnes à la clôture.",
+                no_expected_boxes: "La publication de l’événement de test n’attend aucune urne.",
+                boxes_unsealed:
+                    "L’élection {{election}} de l’événement de test a {{unsealed}} urnes non scellées.",
+            },
+        },
+        plugins: {
+            title: "Extensions",
+            description:
+                "Les extensions sont incluses dans cette version. En activer une ajoute son élément de menu et ses autorisations pour ce locataire ; la désactiver la masque et conserve ses données et ses autorisations.",
+            enabled: "Activée",
+            disabled: "Désactivée",
+            compatible: "Compatible",
+            incompatible: "Les données enregistrées nécessitent une version plus récente",
+            api: "API des extensions {{major}}",
+            permissions: "Autorisations",
+            adminGroup: "accordées au groupe admin à l'activation",
+            enable: "Activer",
+            disable: "Désactiver",
+            confirmEnableTitle: "Activer {{name}} ?",
+            confirmDisableTitle: "Désactiver {{name}} ?",
+            confirmEnable:
+                "{{name}} apparaît dans le menu des utilisateurs disposant de ses autorisations. Ses autorisations sont créées dans ce locataire et accordées au groupe admin.",
+            confirmDisable:
+                "{{name}} est masquée et ses requêtes sont refusées. Ses données, son historique et ses autorisations sont conservés, et rien d'autre ne change dans le locataire.",
+            confirm: "Confirmer",
+            noPermission: "Modifier les extensions nécessite l'autorisation tenant-write.",
+            retry: "Réessayer",
+            loading: "Chargement des extensions…",
+            signIn: "Connectez-vous au locataire sélectionné pour utiliser ses extensions.",
+            unavailable: "Cette extension ne fait pas partie de cette version.",
+            incompatibleRoute:
+                "Les données enregistrées de cette extension nécessitent une version plus récente. Ses données sont inchangées.",
+            disabledRoute:
+                "{{name}} n'est pas activée pour ce locataire. Un administrateur du locataire peut l'activer dans Paramètres → Extensions.",
+            forbidden: "Vous n'êtes pas autorisé à utiliser {{name}}.",
+        },
+        projects: {
+            title: "Projets",
+            subtitle:
+                "Planifiez le travail du locataire sur une frise chronologique. Les projets ne modifient jamais les calendriers électoraux.",
+            cancel: "Annuler",
+            retry: "Réessayer",
+            loading: "Chargement…",
+            list: {
+                create: "Nouveau projet",
+                import: "Importer",
+                emptyTitle: "Aucun projet pour l'instant",
+                emptyHelp: "Créez un projet ou importez un fichier CSV exporté d'un autre projet.",
+                emptyViewer: "Aucun projet n'a été créé dans ce locataire.",
+                active_one: "Actif ({{count}})",
+                active_other: "Actifs ({{count}})",
+                archived_one: "Archivé ({{count}})",
+                archived_other: "Archivés ({{count}})",
+                name: "Nom",
+                dates: "Dates",
+                tasks: "Tâches",
+                timezone: "Fuseau horaire",
+                updated: "Dernière modification",
+                updatedBy: "{{at}} · {{actor}}",
+                archivedChip: "Archivé",
+                noneInTab: "Aucun projet ici.",
+            },
+            create: {
+                title: "Nouveau projet",
+                name: "Nom du projet",
+                timezone: "Fuseau horaire",
+                timezoneHelp:
+                    "Toutes les dates du projet sont saisies et affichées dans ce fuseau horaire IANA.",
+                submit: "Créer le projet",
+            },
+            import: {
+                title: "Importer un projet",
+                help: "L'importation crée toujours un nouveau projet. Utilisez un fichier CSV en UTF-8 avec les colonnes {{columns}}, tel qu'exporté d'un projet, avec un décalage UTC sur chaque date. Rien n'est enregistré tant que vous ne créez pas le projet.",
+                choose: "Choisir un fichier CSV",
+                noFile: "Aucun fichier choisi",
+                fileLimit: "Le fichier doit faire au plus 1 Mio.",
+                invalidFile: "Le fichier n'est pas un texte UTF-8 valide.",
+                valid_one: "{{count}} tâche est prête à être importée.",
+                valid_other: "{{count}} tâches sont prêtes à être importées.",
+                invalid_one:
+                    "{{count}} ligne sur {{total}} contient des erreurs. Corrigez le fichier et choisissez-le à nouveau.",
+                invalid_other:
+                    "{{count}} lignes sur {{total}} contiennent des erreurs. Corrigez le fichier et choisissez-le à nouveau.",
+                previewTable: "Aperçu de l'importation",
+                line: "Ligne",
+                result: "Vérification",
+                rowValid: "Prête",
+                commit: "Créer le projet",
+            },
+            detail: {
+                timezone: "Toutes les dates et heures sont en {{timezone}}.",
+                export: "Exporter",
+                archive: "Archiver",
+                restore: "Restaurer",
+                addTask: "Ajouter une tâche",
+                viewOnly:
+                    "Lecture seule. Modifier les tâches nécessite l'autorisation projects-write.",
+                archivedNotice: "Ce projet est archivé. Restaurez-le pour modifier ses tâches.",
+            },
+            notices: {
+                saved: "« {{title}} » enregistrée.",
+                moved: "« {{title}} » enregistrée : {{start}} – {{end}}.",
+                deleted: "« {{title}} » supprimée.",
+                archived: "Projet archivé.",
+                restored: "Projet restauré.",
+            },
+            panel: {
+                details: "Détails de la tâche",
+                edit: "Modifier la tâche",
+                add: "Ajouter une tâche",
+                close: "Fermer les détails de la tâche",
+                hint: "Sélectionnez une tâche sur la frise pour voir ses détails ici.",
+                noTasks: "Ce projet n'a pas encore de tâches.",
+            },
+            conflict: {
+                body: "Quelqu'un d'autre a modifié cette tâche ({{actor}}, {{at}}). Vos modifications sont toujours là. Examinez sa version avant d'enregistrer à nouveau.",
+                load: "Charger sa version",
+            },
+            unsaved: {
+                body: "Vous avez des modifications non enregistrées. Enregistrez-les, ou abandonnez-les pour {{action}}.",
+                keep: "Continuer la modification",
+                discard: "Abandonner les modifications",
+                actions: {
+                    open: "ouvrir « {{title}} »",
+                    add: "ajouter une nouvelle tâche",
+                    leave: "revenir aux projets",
+                    close: "fermer la tâche",
+                    state: "modifier le projet",
+                },
+            },
+            deleteDialog: {
+                title: "Supprimer la tâche ?",
+                body: "« {{title}} » est retirée du projet. Son historique des modifications est conservé.",
+                confirm: "Supprimer",
+            },
+            history: {
+                task: "Historique des modifications",
+                project: "Historique du projet",
+                empty: "Aucune modification enregistrée pour l'instant.",
+                more: "Afficher les modifications plus anciennes",
+                by: "{{actor}} · {{at}}",
+                actions: {
+                    create: "Création {{subject}}",
+                    update: "Modification {{subject}}",
+                    delete: "Suppression {{subject}}",
+                    import_one: "{{count}} tâche importée",
+                    import_other: "{{count}} tâches importées",
+                    export: "Exporté en CSV",
+                    other: "{{action}}",
+                },
+            },
+            editor: {
+                title: "Titre",
+                type: "Type",
+                status: "Statut",
+                start: "Début",
+                end: "Fin",
+                at: "Date et heure",
+                notes: "Notes",
+                order: "Ordre",
+                orderHelp: "Les tâches sont triées par ordre, puis par début.",
+                timezoneNote: "Les heures sont en {{timezone}}.",
+                offset: "UTC{{offset}}",
+                localTime: {
+                    invalid: "Saisissez une date et une heure entre 1900 et 2200.",
+                    skipped:
+                        "Cette heure n'existe pas en {{timezone}} : les horloges la sautent. Choisissez une autre heure.",
+                    repeated:
+                        "Cette heure se produit deux fois en {{timezone}}. Choisissez celle que vous voulez dire.",
+                },
+                chooseInstant: "Quelle occurrence",
+                instantChoice: "À UTC{{offset}}",
+                saving: "Enregistrement…",
+                toFix_one: "{{count}} champ à corriger",
+                toFix_other: "{{count}} champs à corriger",
+                save: "Enregistrer",
+                delete: "Supprimer",
+            },
+            validation: {
+                title: "Saisissez un titre de 200 caractères au plus.",
+                offset: "Saisissez des dates valides.",
+                range: "La fin doit être postérieure au début.",
+                milestone: "Un jalon n'a pas de fin.",
+                notes: "Les notes doivent faire au plus 16 000 caractères.",
+                order: "L'ordre doit être un nombre entier de 0 à 1 000 000.",
+            },
+            status: {
+                not_started: "Non commencée",
+                in_progress: "En cours",
+                done: "Terminée",
+            },
+            type: {
+                task: "Tâche",
+                milestone: "Jalon",
+            },
+            units: {
+                days_one: "{{count}} jour",
+                days_other: "{{count}} jours",
+                hours_one: "{{count}} h",
+                hours_other: "{{count}} h",
+                minutes_one: "{{count}} min",
+                minutes_other: "{{count}} min",
+            },
+            timeline: {
+                title: "Frise chronologique",
+                tasks_one: "{{count}} tâche",
+                tasks_other: "{{count}} tâches",
+                empty: "Aucune tâche pour l'instant.",
+                editHelp:
+                    "Pointez ou ciblez une tâche pour un résumé ; sélectionnez-la pour la modifier en dessous. Faites glisser une barre ou utilisez ← → pour la déplacer de 24 heures ; ajoutez Maj pour changer la fin.",
+                viewHelp:
+                    "Pointez ou ciblez une tâche pour un résumé. Sélectionnez-la pour voir ses détails en dessous.",
+                touchEditHelp:
+                    "Touchez une tâche pour la modifier en dessous, ou faites glisser une barre pour la déplacer de jours entiers.",
+                touchViewHelp: "Touchez une tâche pour voir ses détails en dessous.",
+                taskLabel: "{{title}}, du {{start}} au {{end}}, {{status}}",
+                milestoneLabel: "{{title}}, jalon le {{at}}, {{status}}",
+                previewEdit: "Cliquez ou appuyez sur Entrée pour modifier",
+                previewView: "Cliquez ou appuyez sur Entrée pour voir les détails",
+            },
+        },
         philippinePassport: "Passeport philippin",
         seamanBook: "Livret de marin",
         philSysID: "Carte d'identité PhilSys",
@@ -217,6 +529,76 @@ const frenchTranslation: TranslationType = {
             },
         },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
+            readiness: {
+                passed: "Réussi",
+                failed: "Échoué",
+                checkResult: "{{outcome}}: {{description}}",
+                checkResultWithMessage:
+                    "{{outcome}} : {{description}} Condition enregistrée : « {{message}} »",
+                description: {
+                    VotersImported: "Fichier des électeurs importé.",
+                    ReadinessVerified:
+                        "Préparation de l’événement officiel vérifiée par rapport à l’événement testé.",
+                },
+                checks: {
+                    configuration:
+                        "Les deux événements ont le même contenu approuvé, les mêmes approbateurs vérifiés et les mêmes zones.",
+                    certified_voters:
+                        "Les deux événements correspondent au même fichier électoral certifié et aux effectifs actuels par zone.",
+                    official_zero:
+                        "L’événement officiel n’a jamais ouvert le vote et ne contient ni bulletins ni sessions de dépouillement.",
+                    publication: "La publication officielle correspond à sa configuration signée.",
+                    tested_finished:
+                        "Les canaux de vote de l’événement testé sont fermés et toutes les urnes attendues sont scellées.",
+                },
+                fields: {
+                    report: "Rapport de préparation",
+                    passed: "Réussi",
+                    checked_at: "Date de vérification",
+                    evidence: "Preuves",
+                    official: "Événement officiel",
+                    tested: "Événement testé",
+                    official_event_id: "ID de l’événement officiel",
+                    tested_event_id: "ID de l’événement testé",
+                    event_id: "ID de l’événement",
+                    election_id: "ID de l’élection",
+                    configuration: "Configuration",
+                    external_id: "ID externe",
+                    revision: "Révision",
+                    content_sha256: "SHA-256 du contenu",
+                    manifest_sha256: "SHA-256 du manifeste",
+                    approvers: "Approbateurs vérifiés",
+                    areas: "Zones",
+                    voters: "Import des électeurs",
+                    import_id: "ID de l’import",
+                    document_id: "ID du document",
+                    file_name: "Nom du fichier",
+                    sha256: "SHA-256 du fichier",
+                    declared_sha256: "SHA-256 déclaré",
+                    counts_by_area: "Électeurs par zone",
+                    imported_at: "Date d’import",
+                    voter_log_delivered: "Import signé enregistré",
+                    current_voter_counts: "Électeurs actuels par zone",
+                    voter_import_in_progress: "Import des électeurs actif",
+                    status: "État",
+                    elections: "Élections",
+                    ballot_count: "Bulletins stockés",
+                    received_ballot_count: "Bulletins reçus à la vérification",
+                    tally_session_count: "Sessions de dépouillement",
+                    publication: "Publication",
+                    publication_id: "ID de publication",
+                    publication_ids: "ID des publications",
+                    matches_manifest: "Correspond au manifeste signé",
+                    design_count: "Modèles publiés",
+                    seal_at_close: "Sceller à la fermeture",
+                    expected_boxes: "Urnes attendues",
+                    sealed_boxes: "Urnes scellées",
+                    all_channels_closed: "Tous les canaux de vote fermés",
+                    locked_down: "Verrouillé",
+                    log_entry_id: "ID de l’entrée du journal",
+                },
+            },
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
             title: "Journaux",
             subtitle:
@@ -338,6 +720,27 @@ const frenchTranslation: TranslationType = {
                     newValue: "Nouvelle valeur",
                     error: "Erreur",
                 },
+                importedFile: {
+                    title: "Le fichier importé",
+                    declared: "Somme de contrôle déclarée",
+                    sha256: "SHA-256 du fichier",
+                    declaredSha256: "SHA-256 déclaré",
+                    document: "Document",
+                    checksum: {
+                        undeclared: "Aucune déclarée",
+                        matches: "Correspond au fichier",
+                        mismatch: "Ne correspond pas au fichier",
+                    },
+                    counts: {
+                        count: "Lignes",
+                        elections: "Élections",
+                        contests: "Scrutins",
+                        candidates: "Candidats",
+                        areas: "Zones",
+                        area_contests: "Zones par scrutin",
+                        sections: "Sections de configuration",
+                    },
+                },
                 deletedEvent: {
                     title: "Le journal de l'événement électoral supprimé",
                     lastEntry: "Dernière entrée",
@@ -347,6 +750,7 @@ const frenchTranslation: TranslationType = {
                     retired:
                         "Déchargé et conservé jusqu'à son effacement selon la politique de conservation",
                     task: "Tâche",
+                    systemKey: "La clé système du journal",
                 },
                 exported: {
                     title: "Export",
@@ -546,6 +950,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exporter les Demandes",
                 EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
                 IMPORT_TENANT_CONFIG: "Importer la Configuration du Locataire",
+                APPLY_CONFIGURATION_PACKAGE: "Appliquer le Paquet de Configuration",
                 RENDER_DOCUMENT_PDF: "Générer le document PDF",
                 CREATE_TENANT: "Créer un locataire",
                 EXPORT_TEMPLATES: "Exporter les Modèles",
@@ -847,6 +1252,10 @@ const frenchTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Les données ne sont pas disponibles pour cet événement électoral.",
+            noAccessibleTabs:
+                "Vous n’avez accès à aucun onglet disponible pour cet événement électoral.",
+
             common: {
                 subtitle: "Configuration de l'Événement Électoral.",
                 showMore: "Afficher plus",
@@ -1019,6 +1428,11 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Verrouillé depuis le {{date}}.",
+                    scheduledEnd: "Fin du verrouillage prévue le {{date}}.",
+                    endScheduled: "Une fin du verrouillage est prévue.",
+                    noScheduledEnd: "Aucune fin du verrouillage n’est prévue.",
+                    banner: "Cet événement électoral est verrouillé.",
                     policyLabel: "État de Confinement",
                     helperText:
                         "Programmez le début ou la fin de la période de verrouillage pour modifier cet état.",
@@ -1065,6 +1479,15 @@ const frenchTranslation: TranslationType = {
                     policyLabel:
                         "Inclure les bulletins décodés dans la base de données de résultats",
                     options: {"included": "Inclure", "not-included": "Ne pas inclure"},
+                },
+                fileIntegrityPolicy: {
+                    policyLabel: "Intégrité du fichier des électeurs",
+                    helperText:
+                        "Exiger le SHA-256 certifié indépendamment avant d’importer les électeurs.",
+                    options: {
+                        OPTIONAL: "SHA-256 facultatif",
+                        REQUIRED_SHA256: "SHA-256 obligatoire",
+                    },
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -1401,6 +1824,8 @@ const frenchTranslation: TranslationType = {
                 importVotersError: "Erreur lors de l'Importation des Électeurs.",
                 importElectionEventSuccess: "Événement électoral importé avec succès",
                 importElectionEventError: "Erreur lors de l'importation de l'événement électoral",
+                shaRequiredHelp:
+                    "Saisissez le SHA-256 hexadécimal certifié de 64 caractères. Il est obligatoire pour importer.",
                 shaDialog: {
                     ok: "Oui, Importer Sans Vérification de l'Intégrité",
                     cancel: "Retour",
@@ -1423,6 +1848,9 @@ const frenchTranslation: TranslationType = {
                 encryptWithPassword: "Chiffrer avec Mot de Passe",
                 passwordForcedNote:
                     "L'archive sera protégée par mot de passe de toute façon : les rapports, les demandes et les données du tableau d'affichage sont toujours chiffrés. Cochez la case pour inclure aussi les champs secrets des électeurs déchiffrés.",
+                integrationSecrets: "Secrets d'intégration (identifiants de service)",
+                integrationSecretsNote:
+                    "Une fois déchiffrée, l'archive contiendra en clair le secret de liveness de Scanovate. Gardez l'archive et son mot de passe secrets, et ne l'importez que là où ce service Liveness Plus doit être utilisé.",
                 includeVoters: "Inclure les Électeurs",
                 activityLogs: "Journaux d'Activité",
                 bulletinBoard: "Tableau d'Affichage",
@@ -1860,6 +2288,7 @@ const frenchTranslation: TranslationType = {
                 "voter-write": "Éditer Électeur",
                 "voter-secret-attribute-read": "Afficher les Champs Secrets de l'Électeur",
                 "voter-secret-attribute-write": "Éditer les Champs Secrets de l'Électeur",
+                "integration-secret-read": "Exporter les Secrets d'Intégration",
                 "user-create": "Créer Utilisateur",
                 "user-read": "Lire Utilisateur",
                 "user-write": "Éditer Utilisateur",
@@ -1996,6 +2425,9 @@ const frenchTranslation: TranslationType = {
                 "application-read": "Lire l'Application",
                 "application-write": "Modifier l'Application",
                 "approval-matrix-write": "Modifier la Matrice d'Approbation",
+                "readiness-check": "Vérifier la préparation électorale",
+                "forensic-read": "Lire les données réseau forensiques isolées",
+                "voter-pseudonym-resolve": "Résoudre un pseudonyme d’électeur avec un motif audité",
                 "logs-export": "Exporter les Journaux",
                 "tenant-logs-read": "Lire le Journal du Locataire",
                 "tenant-logs-export": "Exporter le Journal du Locataire",
@@ -2379,6 +2811,9 @@ const frenchTranslation: TranslationType = {
                         delete: "Êtes-vous sûr de vouloir supprimer cet élément ?",
                         sealsUnknown:
                             "Les scellés des urnes n'ont pas pu être vérifiés : si l'élément a des urnes scellées, la suppression est refusée.",
+                        archiveNamed: 'Êtes-vous sûr de vouloir archiver "{{name}}" ?',
+                        unarchiveNamed: 'Êtes-vous sûr de vouloir désarchiver "{{name}}" ?',
+                        deleteNamed: 'Êtes-vous sûr de vouloir supprimer "{{name}}" ?',
                     },
                     notification: {
                         success: {
@@ -2500,6 +2935,13 @@ const frenchTranslation: TranslationType = {
                 "label": "Forme d’icône de case à cocher pour les candidats",
                 "square-checkbox": "Case à cocher carrée",
                 "round-checkbox": "Case à cocher ronde",
+            },
+            candidatesLayout: {
+                "label": "Disposition des candidats",
+                "helperText":
+                    "La grille de bulletin papier affiche les candidats dans des cases numérotées avec un cercle à remplir, colonne par colonne, selon Colonnes (4 si vide). Les scrutins par classement utilisent toujours la liste.",
+                "list": "Liste",
+                "paper-grid": "Grille de bulletin papier",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidats Et Listes",
@@ -2743,6 +3185,7 @@ const frenchTranslation: TranslationType = {
                 title: "Paquet de Transmission pour la Zone '{{name}}' y Elección '{{eventName}}'",
                 description:
                     "Vous permet d'exporter un Paquet de Transmission vers des Serveurs de Destination ou de le télécharger.",
+                erFileSha256: "Fichier ER SHA-256 :",
                 actions: {
                     sign: {
                         title: "Régénérer",
@@ -2785,6 +3228,10 @@ const frenchTranslation: TranslationType = {
                         emlTitle: "Télécharger EML {{date}}",
                         transmissionPackageTitle: "Télécharger le Paquet de Transmission {{date}}",
                         transmissionReportTitle: "Télécharger le rapport de transmission",
+                        csvTitle: "Télécharger le CSV des résultats {{date}}",
+                        ovcsPublicKeyTitle: "Télécharger la clé publique de l'OVCS",
+                        recordError:
+                            "Le téléchargement n'a pas pu être enregistré, il n'a donc pas commencé. Réessayez.",
                         dialog: {
                             title: "Voulez-vous télécharger le Paquet de Transmission?",
                             description:
@@ -2799,6 +3246,9 @@ const frenchTranslation: TranslationType = {
                     description:
                         "Le tableau ci-dessous montre l'état d'envoi de chacun des Serveurs de Destination.",
                     status: "Envoyé à {{signed}} sur {{total}}",
+                    manualReceipt: "Remise manuelle",
+                    handOver: "Téléchargez le paquet et remettez-le en main propre",
+                    sealedFor: "Scellé pour sa clé, SHA-256 {{key}}…",
                     table: {
                         serverName: "Nom du Serveur",
                         sendStatus: "État de l'Envoi",
@@ -2812,7 +3262,8 @@ const frenchTranslation: TranslationType = {
                         trusteeName: "Membre",
                         signed: "A Signé",
                     },
-                    status: "{{signed}} sur {{total}} Ont Signé, minimum {{minimum}}",
+                    status: "{{signed}} sur {{total}}, {{minimum}} requises",
+                    statusNoMinimum: "{{signed}} sur {{total}}",
                 },
             },
             sendToTransmissionPackageServers:
@@ -3733,6 +4184,7 @@ const frenchTranslation: TranslationType = {
                     "insufficient-information": "Données manquantes",
                     "no-matching-voter": "Aucun électeur correspondant",
                     "voter-already-approved": "Déjà approuvé",
+                    "EMAIL_IN_USE": "E-mail utilisé par un autre électeur",
                     "other": "Autre",
                 },
                 hint: {
@@ -3978,6 +4430,8 @@ const frenchTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Tableaux de bord configurables",
+            modeChangeError: "Impossible de changer le mode du tableau de bord. Réessayez.",
             title: "Suivi",
             loading: "Chargement du suivi",
             unavailableAlert:

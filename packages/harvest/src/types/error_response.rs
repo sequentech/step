@@ -64,8 +64,12 @@ pub enum ErrorCode {
     InvalidElectoralLogConsoleRequest,
     ElectoralLogRecordNotFound,
     InvalidTaskQueuesRequest,
+    InvalidReadinessCheck,
     InvalidTrusteeAction,
     TaskQueuesUnavailable,
+    /// An enrollment's application that can't be rejected as its email
+    /// being in use: the server's own checks didn't confirm it.
+    ApplicationNotRejectable,
     // Add any other needed error codes
 }
 

@@ -141,6 +141,17 @@ pub struct ExportedLog {
 
 /// What an export of an election event's electoral logs holds besides the records.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PublicBallotVerificationKey {
+    /// Original signing scope, preserved when an archive is copied to a new event.
+    pub election_event_id: String,
+    pub board_log_uid: Uuid,
+    pub board_name: String,
+    pub ballot_box_key_id: String,
+    pub system_public_key: String,
+    pub ballot_box_public_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ExportManifest {
     /// `EXPORT_FORMAT_V1` for a linear history, or `EXPORT_FORMAT_V2` for multiple boards.
     pub format: String,
@@ -148,6 +159,9 @@ pub struct ExportManifest {
     /// V2 identifies the main event board independently of record ordering.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub board_log_uid: Option<Uuid>,
+    /// Public-only retained trust. Legacy archives have no such snapshot.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ballot_verification_keys: Vec<PublicBallotVerificationKey>,
     /// Logs in the order their records appear in the records file: every log that the
     /// event's board continues, then the board in V1; independent boards may also
     /// appear in V2. Continuations follow the logs they name.
@@ -566,6 +580,7 @@ mod tests {
             format: EXPORT_FORMAT_V1.into(),
             election_event_id: "event".into(),
             board_log_uid: None,
+            ballot_verification_keys: vec![],
             logs: vec![log(1, LogState::Sealed), log(2, LogState::Open)],
         };
         assert_eq!(manifest.board().unwrap().checkpoint.log_name, "log2");
@@ -590,6 +605,7 @@ mod tests {
             format: EXPORT_FORMAT_V2.into(),
             election_event_id: "event".into(),
             board_log_uid: Some(Uuid::from_u128(1)),
+            ballot_verification_keys: vec![],
             logs: vec![exported_log(1), exported_log(2)],
         };
         assert_eq!(manifest.board().unwrap().checkpoint.log_name, "log1");
@@ -691,6 +707,7 @@ mod tests {
             format: EXPORT_FORMAT_V2.into(),
             election_event_id: "event".into(),
             board_log_uid: Some(Uuid::from_u128(1)),
+            ballot_verification_keys: vec![],
             logs: vec![exported_log(1)],
         };
         for (format, board_log_uid, expected) in [

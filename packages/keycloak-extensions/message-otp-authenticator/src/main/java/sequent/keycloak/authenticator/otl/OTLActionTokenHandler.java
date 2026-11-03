@@ -31,6 +31,7 @@ import org.keycloak.sessions.AuthenticationSessionCompoundId;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.sessions.CommonClientSessionModel.ExecutionStatus;
 import sequent.keycloak.authenticator.Utils;
+import sequent.keycloak.authenticator.messaging.MessagingAttributes;
 
 /**
  * Handles an OTLActionToken. It looks up the session that initiated the OTL flow, set the
@@ -70,7 +71,8 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
   }
 
   // getVerifiers() checks that the original session is found to be copied. If
-  // it's not, then we show Messages.EXPIRED_ACTION_TOKEN_NO_SESSION message
+  // it's not, then we show Messages.EXPIRED_ACTION_TOKEN_NO_SESSION message. The
+  // link must also be that session's live one (isLiveLink), else Messages.STALE_CODE.
   @SuppressWarnings("unchecked")
   @Override
   public Predicate<? super OTLActionToken>[] getVerifiers(
@@ -85,7 +87,26 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
               return originalSession != null;
             },
             Errors.NOT_ALLOWED,
-            Messages.EXPIRED_ACTION_TOKEN_NO_SESSION));
+            Messages.EXPIRED_ACTION_TOKEN_NO_SESSION),
+        TokenUtils.checkThat(
+            (token) -> isLiveLink(getOriginalSession(tokenContext, token), token),
+            Errors.INVALID_TOKEN,
+            Messages.STALE_CODE));
+  }
+
+  /**
+   * Whether the link is the session's live one: sent by its last send and not forgotten since.
+   * Going back to the form that entered the contact forgets it, and a new send replaces it, so an
+   * old link can't verify a contact entered after it was sent. A link without its send is refused.
+   */
+  static boolean isLiveLink(AuthenticationSessionModel originalSession, OTLActionToken token) {
+    if (originalSession == null) {
+      return false;
+    }
+    String codeId = originalSession.getAuthNote(MessagingAttributes.NOTE_CODE_ID);
+    return token.getCodeId() != null
+        && token.getCodeId().equals(codeId)
+        && "false".equals(originalSession.getAuthNote(Utils.OTL_VISITED));
   }
 
   @Override

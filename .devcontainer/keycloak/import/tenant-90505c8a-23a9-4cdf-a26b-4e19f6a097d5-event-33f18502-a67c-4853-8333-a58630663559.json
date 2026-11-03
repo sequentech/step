@@ -2498,11 +2498,10 @@
   "emailTheme": "",
   "eventsEnabled": false,
   "eventsListeners": [
-    "custom-event-listener",
-    "jboss-logging"
+    "custom-event-listener"
   ],
   "enabledEventTypes": [],
-  "adminEventsEnabled": false,
+  "adminEventsEnabled": true,
   "adminEventsDetailsEnabled": false,
   "identityProviders": [
     {

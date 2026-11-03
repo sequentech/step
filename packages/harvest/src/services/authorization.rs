@@ -21,6 +21,28 @@ pub use sequent_core::services::authorization::*;
 const ELECTION_OUTSIDE_PERMISSION_LABELS: &str =
     "Election outside the user's permission labels";
 
+/// A bounded snapshot for queued work. Unlike list filters this never uses
+/// None to mean all elections, since elections may be added before execution.
+pub async fn explicit_participation_elections(
+    tx: &Transaction<'_>,
+    claims: &JwtClaims,
+    event_id: &str,
+) -> Result<Vec<String>, (Status, String)> {
+    let elections = event_elections_permission_labels(
+        tx,
+        &claims.hasura_claims.tenant_id,
+        event_id,
+        None,
+    )
+    .await?;
+    let labels = PermissionLabels::from_claims(claims);
+    Ok(elections
+        .into_iter()
+        .filter(|election| labels.allows(election.permission_label.as_deref()))
+        .map(|election| election.election_id)
+        .collect())
+}
+
 fn ensure_elections_permitted(
     permission_labels: &PermissionLabels,
     elections: &[ElectionPermissionLabel],

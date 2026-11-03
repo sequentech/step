@@ -16,9 +16,11 @@ use tracing::{event, instrument, Level};
 use crate::services::messaging::checks::check_messaging_accounts;
 use crate::services::plugins_manager::plugin_manager::init_plugin_manager;
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
+use crate::tasks::apply_configuration_package::apply_configuration_package;
 use crate::tasks::apply_reconciliation_patch::apply_reconciliation_patch;
 use crate::tasks::audit_electoral_log::audit_electoral_log;
 use crate::tasks::audit_log_outbox::post_audit_log_outbox;
+use crate::tasks::backfill_ballot_verification_keys::backfill_ballot_verification_keys;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
@@ -66,6 +68,7 @@ use crate::tasks::migrate_messaging_attributes::migrate_messaging_attributes;
 use crate::tasks::migrate_realm_permissions::migrate_realm_permissions;
 use crate::tasks::migrate_registration_flows::migrate_registration_flows;
 use crate::tasks::migrate_tenant_logs::migrate_tenant_logs;
+use crate::tasks::migrate_vote_privacy_realms::migrate_vote_privacy_realms;
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
 use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
 use crate::tasks::plugins_tasks::execute_plugin_task;
@@ -78,6 +81,7 @@ use crate::tasks::publish_electoral_log_checkpoint::{
 };
 use crate::tasks::publish_results_website::publish_results_website_task;
 use crate::tasks::purge_queue_archives::purge_queue_archives;
+use crate::tasks::purge_vote_privacy::purge_vote_privacy;
 use crate::tasks::recompute_schedule_instants::recompute_schedule_instants;
 use crate::tasks::reconcile_messages::reconcile_messages;
 use crate::tasks::recount_messaging_voters::{
@@ -296,6 +300,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             PgmqBrokerBuilder::from_pool(queue_pool).environment(&slug)
         ),
         tasks = [
+            apply_configuration_package,
             create_keys,
             review_boards,
             reconcile_messages,
@@ -370,9 +375,12 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             apply_reconciliation_patch,
             generate_voter_information_letter,
             migrate_realm_permissions,
+            purge_vote_privacy,
+            backfill_ballot_verification_keys,
             post_signing_log_outbox,
             post_audit_log_outbox,
             migrate_tenant_logs,
+            migrate_vote_privacy_realms,
             expire_signing_requests,
             sweep_signing_executions,
             refresh_staff_crls,
@@ -425,6 +433,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             export_tenant_config::NAME => Queue::ImportExport.queue_name(),
             export_audit_logs::NAME => Queue::ImportExport.queue_name(),
             import_tenant_config::NAME => Queue::ImportExport.queue_name(),
+            apply_configuration_package::NAME => Queue::ImportExport.queue_name(),
             scheduled_events::NAME => Queue::Beat.queue_name(),
             scheduled_reports::NAME => Queue::Beat.queue_name(),
             review_cast_votes::NAME => Queue::Beat.queue_name(),
@@ -469,11 +478,14 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             apply_reconciliation_patch::NAME => Queue::ImportExport.queue_name(),
             generate_voter_information_letter::NAME => Queue::Reports.queue_name(),
             migrate_realm_permissions::NAME => Queue::Short.queue_name(),
+            purge_vote_privacy::NAME => Queue::Short.queue_name(),
+            backfill_ballot_verification_keys::NAME => Queue::Short.queue_name(),
             migrate_registration_flows::NAME => Queue::Short.queue_name(),
             migrate_messaging_attributes::NAME => Queue::Short.queue_name(),
             post_signing_log_outbox::NAME => Queue::ElectoralLogBeat.queue_name(),
             post_audit_log_outbox::NAME => Queue::ElectoralLogBeat.queue_name(),
             migrate_tenant_logs::NAME => Queue::Short.queue_name(),
+            migrate_vote_privacy_realms::NAME => Queue::Short.queue_name(),
             expire_signing_requests::NAME => Queue::Beat.queue_name(),
             sweep_signing_executions::NAME => Queue::Beat.queue_name(),
             refresh_staff_crls::NAME => Queue::Beat.queue_name(),

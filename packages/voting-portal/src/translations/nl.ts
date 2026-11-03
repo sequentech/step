@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 const dutchTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         startup: {
             error: "Het stemportaal kon niet worden gestart. Probeer het opnieuw.",
             retry: "Opnieuw proberen",
@@ -83,6 +84,11 @@ const dutchTranslation: TranslationType = {
                 description:
                     "Deze stemming is bij acclamatie beslist. De kandidaten worden zonder stemming gekozen, dus er kan niets worden geselecteerd en er wordt geen stem geregistreerd.",
             },
+            paperBallot: {
+                voteForNoMoreThan_one: "Stem op niet meer dan {{count}}",
+                voteForNoMoreThan_many: "Stem op niet meer dan {{count}}",
+                voteForNoMoreThan_other: "Stem op niet meer dan {{count}}",
+            },
         },
         votingScreen: {
             backButton: "Terug",
@@ -141,6 +147,11 @@ const dutchTranslation: TranslationType = {
                 "Breng uw stem uit zodat deze correct wordt geregistreerd, of kies voor audit om te bevestigen dat het stembiljet correct is versleuteld.",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "Het resultaat van het uitbrengen is niet bevestigd. U kunt hetzelfde verzoek opnieuw proberen of uw stembiljet-ID controleren voordat u opnieuw begint.",
+                checkBallot: "Stembiljet controleren",
+            },
             acclamation: {
                 title: "Bij acclamatie beslist",
                 helpDialog: {
@@ -363,6 +374,9 @@ const dutchTranslation: TranslationType = {
             demoQRText: "Stembiljet tracker is uitgeschakeld in demo-modus",
         },
         auditScreen: {
+            confirmingAudit: "Bevestigen dat dit stembiljet niet meer kan worden uitgebracht…",
+            auditUnavailable:
+                "Het stembiljet kon niet worden gecontroleerd. De inhoud is niet onthuld. Probeer het opnieuw.",
             printButton: "Afdrukken",
             restartButton: "Begin met stemmen",
             title: "Controleer uw Stembiljet",

@@ -46,6 +46,14 @@ const startedExport = (type: string, electionEventId: string = EVENT_ID) => ({
 const meta = {
     title: "Admin/Logs/ExportLogsDialog",
     component: ExportLogsDialog,
+    parameters: {
+        viewport: {
+            options: {
+                privacyPhone: {name: "Privacy phone", styles: {width: "390px", height: "1000px"}},
+                privacyTablet: {name: "Privacy tablet", styles: {width: "820px", height: "1000px"}},
+            },
+        },
+    },
     args: {
         log: {kind: ELogScope.EVENT, electionEventId: EVENT_ID},
         zones: ["Asia/Manila", "Asia/Dubai", "America/New_York"],
@@ -311,4 +319,41 @@ export const OneAccountWithItsElectionEvents: Story = {
             ])
         )
     },
+}
+
+/** The account export carries only the requested account scope, never a pseudonym lookup. */
+export const OneAccountInElectionEvent: Story = {
+    globals: {viewport: {value: "privacyPhone", isRotated: false}},
+    play: async ({globals}) => {
+        expect(window.innerWidth).toBe(globals.viewport.value === "privacyPhone" ? 390 : 820)
+        const view = await dialog()
+        await choose(view, "Scope", "One account")
+        await userEvent.type(view.getByRole("textbox", {name: /Username/}), "alice")
+        await userEvent.click(view.getByRole("button", {name: "Export"}))
+        await waitFor(() =>
+            expect(graphql.calls).toEqual([
+                {
+                    name: "ExportElectionEventLogs",
+                    variables: {
+                        electionEventId: EVENT_ID,
+                        format: "CSV",
+                        scope: "ACCOUNT",
+                        electionId: null,
+                        areaId: null,
+                        username: "alice",
+                        createdFrom: null,
+                        createdTo: null,
+                        timeZone: "Asia/Manila",
+                    },
+                    headers: {"x-hasura-role": "logs-export"},
+                },
+            ])
+        )
+        expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth + 1)
+    },
+}
+
+export const TabletAccountInElectionEvent: Story = {
+    ...OneAccountInElectionEvent,
+    globals: {viewport: {value: "privacyTablet", isRotated: false}},
 }

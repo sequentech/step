@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::access::authorize_any;
+use crate::services::audit;
 use crate::services::authorization::{
     authorize, authorize_tally_session_permission_labels,
 };
@@ -38,6 +39,7 @@ use windmill::services::signing::custody_proofs::{
 };
 use windmill::services::signing::guard::SigningRequestSummary;
 use windmill::services::signing::SigningCaller;
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 use windmill::tasks::signing_log_outbox::kick_signing_log_outbox;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -131,6 +133,7 @@ pub async fn confirm_key_custody(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    audit::act_for(&hasura_transaction, &claims).await?;
 
     let outcome = take_custody_proof_step(
         &hasura_transaction,
@@ -155,6 +158,7 @@ pub async fn confirm_key_custody(
     .map_err(custody_proof_failure)?;
     let (is_valid, signing_request) =
         finish_custody_proof_step(hasura_transaction, outcome).await?;
+    kick_audit_log_outbox();
 
     event!(
         Level::INFO,
@@ -333,6 +337,9 @@ pub async fn get_custody_request(
             );
             custody_request_download_internal_error()
         })?;
+    audit::act_for(&hasura_transaction, &claims)
+        .await
+        .map_err(audit::json_error)?;
 
     if let Some(tally_id) = &input.tally_session_id {
         authorize_tally_session_permission_labels(
@@ -388,6 +395,7 @@ pub async fn get_custody_request(
         );
         custody_request_download_internal_error()
     })?;
+    kick_audit_log_outbox();
 
     Ok(Json(GetCustodyRequestOutput {
         custody_request_json,
@@ -435,10 +443,10 @@ pub async fn create_keys_ceremony(
     )?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
-    let user_id = claims.hasura_claims.user_id;
-    let user_permission_labels = claims.hasura_claims.permission_labels;
+    let user_id = claims.hasura_claims.user_id.clone();
+    let user_permission_labels = claims.hasura_claims.permission_labels.clone();
 
-    let username = claims.preferred_username.unwrap_or("-".to_string());
+    let username = claims.preferred_username.clone().unwrap_or("-".to_string());
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -450,6 +458,7 @@ pub async fn create_keys_ceremony(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    audit::act_for(&hasura_transaction, &claims).await?;
 
     let valid_permissions_label = validate_permission_labels(
         &hasura_transaction,
@@ -494,6 +503,7 @@ pub async fn create_keys_ceremony(
         .await
         .with_context(|| "error comitting transaction")
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    kick_audit_log_outbox();
 
     event!(
         Level::INFO,

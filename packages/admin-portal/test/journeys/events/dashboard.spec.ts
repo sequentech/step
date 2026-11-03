@@ -1,32 +1,49 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {test, expect} from "../fixtures"
-import {EVENT_ID, EVENT_ROLES, listOf, mockEvent, openEvent} from "./data"
+import {test, expect, type AdminPortal} from "../fixtures"
+import {EVENT_ID, EVENT_ROLES, electionEvent, listOf, mockEvent, openEvent} from "./data"
 
-test.use({roles: [...EVENT_ROLES, "admin-dashboard-view", "admin-ip-address-view"]})
+const DASHBOARD_ROLES = [...EVENT_ROLES, "admin-dashboard-view", "admin-ip-address-view"]
+test.use({roles: [...DASHBOARD_ROLES, "forensic-read"]})
 
 const IP_ROWS = [
     {
         id: "ip-1",
         ip: "203.0.113.7",
         country: "ES",
-        election_presentation: {alias: "Council seats"},
         vote_count: 12,
-        voters_id: ["voter-1"],
+        pseudonyms: ["7QKM-2HXD"],
+        shared: false,
+        first_ballot: "2028-05-08T03:00:00Z",
+        last_ballot: "2028-05-08T04:00:00Z",
     },
     {
         id: "ip-2",
-        ip: null,
+        ip: "198.51.100.7",
         country: null,
-        election_presentation: {alias: "Mayor"},
         vote_count: 3,
-        voters_id: ["voter-2"],
+        pseudonyms: ["9KMP-2RST"],
+        shared: false,
+        first_ballot: "2028-05-08T03:00:00Z",
+        last_ballot: "2028-05-08T04:00:00Z",
     },
 ]
 
-test("lists the event's votes per IP address on the dashboard", async ({page, portal}) => {
-    mockEvent(portal)
+function mockDashboard(
+    portal: AdminPortal,
+    networkPolicy: "forensic-store" | "do-not-store" = "forensic-store"
+) {
+    mockEvent(
+        portal,
+        electionEvent(
+            {},
+            {
+                ballot_identity: "pseudonym",
+                network_data_policy: networkPolicy,
+            }
+        )
+    )
     portal.graphql.on("GetElectionEventStats", () => ({
         data: {
             getElectionEventStats: {
@@ -44,24 +61,56 @@ test("lists the event's votes per IP address on the dashboard", async ({page, po
         data: {list_keys_ceremony: {items: [], total: {aggregate: {count: 0}}}},
     }))
     portal.graphql.on("sequent_backend_tally_session", listOf("sequent_backend_tally_session", []))
-    portal.graphql.on("GetCastVotesByIp", () => ({
-        data: {get_top_votes_by_ip: {items: IP_ROWS, total: {aggregate: {count: 2}}}},
+    portal.graphql.on("ForensicNetworkSummary", () => ({
+        data: {forensic_network_summary: {payload: {items: IP_ROWS, total: 2}}},
     }))
+}
+
+test("lists the event's forensic ballot addresses on the dashboard", async ({page, portal}) => {
+    mockDashboard(portal)
     await openEvent(page, portal)
     await expect(page.getByText("IP Addresses", {exact: true})).toBeVisible()
     const first = page.getByRole("row").filter({hasText: "203.0.113.7"})
     await expect(first).toContainText("ES")
     await expect(first).toContainText("12")
-    await expect(first).toContainText("Council seats")
-    // Rows without an address or country fall back to a dash.
-    const anonymous = page.getByRole("row").filter({hasText: "Mayor"})
-    await expect(anonymous.getByRole("cell", {name: "-", exact: true})).toHaveCount(2)
-    expect(portal.graphql.callsTo("GetCastVotesByIp")[0].variables).toEqual({
-        election_event_id: EVENT_ID,
+    await expect(first).toContainText("7QKM-2HXD")
+    // An unknown country stays unknown; the forensic store always names an address.
+    const anonymous = page.getByRole("row").filter({hasText: "198.51.100.7"})
+    await expect(anonymous.getByText("—", {exact: true})).toBeVisible()
+    const request = portal.graphql.callsTo("ForensicNetworkSummary")[0]
+    expect(request.variables).toEqual({
+        electionEventId: EVENT_ID,
         limit: 10,
         offset: 0,
         ip: null,
         country: null,
-        election_id: null,
+        electionId: null,
+    })
+    expect(request.headers["x-hasura-role"]).toBe("forensic-read")
+    expect(portal.graphql.callsTo("GetCastVotesByIp")).toHaveLength(0)
+})
+
+test("does not query forensic records when the event does not store network data", async ({
+    page,
+    portal,
+}) => {
+    mockDashboard(portal, "do-not-store")
+    await openEvent(page, portal)
+    await expect(page.getByRole("tab", {name: "Dashboard", exact: true})).toBeVisible()
+    await expect(page.getByText("IP Addresses", {exact: true})).toHaveCount(0)
+    expect(portal.graphql.callsTo("ForensicNetworkSummary")).toHaveLength(0)
+})
+
+test.describe("without forensic permission", () => {
+    test.use({roles: DASHBOARD_ROLES})
+    test("does not query forensic records with only dashboard permissions", async ({
+        page,
+        portal,
+    }) => {
+        mockDashboard(portal)
+        await openEvent(page, portal)
+        await expect(page.getByRole("tab", {name: "Dashboard", exact: true})).toBeVisible()
+        await expect(page.getByText("IP Addresses", {exact: true})).toHaveCount(0)
+        expect(portal.graphql.callsTo("ForensicNetworkSummary")).toHaveLength(0)
     })
 })

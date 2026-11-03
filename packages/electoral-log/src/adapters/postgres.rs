@@ -146,6 +146,16 @@ impl PostgresConnection {
         PostgresStore::with_tls(config, self.tls.clone(), pool_size)
     }
 
+    /// A store of a database of the server whose transactions are read-only, with at
+    /// most `pool_size` connections.
+    pub fn read_only_store_of(&self, database: &str, pool_size: usize) -> Result<PostgresStore> {
+        let mut config = self.config.clone();
+        config
+            .dbname(database)
+            .options("-c default_transaction_read_only=on");
+        PostgresStore::with_tls(config, self.tls.clone(), pool_size)
+    }
+
     /// The role of `ELECTORAL_LOG_PG_READER_USER`, if set.
     pub fn reader() -> Option<String> {
         Self::role(READER_USER_ENV)

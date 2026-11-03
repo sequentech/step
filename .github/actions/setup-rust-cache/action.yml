@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
-name: Restore Rust compiler units
-description: Optional bounded compiler cache; every caller still runs Cargo
+name: Restore Rust downloads
+description: Select the Cargo output directory, restore Cargo downloads, and use the shared GCS compiler cache when configured; every caller still runs Cargo
 inputs:
   epoch:
     description: Explicit cache reset version, supplied by the calling workflow
@@ -24,6 +24,11 @@ inputs:
   targets:
     description: Compilation targets, including host when applicable
     default: host
+  compile-cache:
+    description: >-
+      The STEP_COMPILE_CACHE repository variable, a JSON object with bucket, provider,
+      reader and writer. Empty leaves compiled units uncached.
+    default: ''
 runs:
   using: composite
   steps:
@@ -43,34 +48,83 @@ runs:
         python3 -m scripts.dev.rust_cache --name "$CACHE_NAME" --lockfile "$CACHE_LOCKFILE" \
           --target-dir "$CACHE_TARGET_DIR" --profile "$CACHE_PROFILE" --features "$CACHE_FEATURES" \
           --targets "$CACHE_TARGETS" --epoch "$CACHE_EPOCH" --github-output "$GITHUB_OUTPUT"
-    - name: Select isolated cache and output directories
+    - name: Select the output directory
       shell: bash
       env:
         TARGET_DIR: ${{ steps.identity.outputs.target-dir }}
       run: |
         echo "CARGO_TARGET_DIR=$TARGET_DIR" >> "$GITHUB_ENV"
-        echo "SCCACHE_DIR=$RUNNER_TEMP/step-sccache" >> "$GITHUB_ENV"
-        echo 'SCCACHE_CACHE_SIZE=512M' >> "$GITHUB_ENV"
-        echo 'SCCACHE_GHA_ENABLED=false' >> "$GITHUB_ENV"
         echo 'CARGO_INCREMENTAL=0' >> "$GITHUB_ENV"
-    - name: Restore compiler units (read only)
-      if: github.event_name != 'pull_request' && (github.event_name != 'push' || !(github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ovcs' || startsWith(github.ref, 'refs/heads/release/')))
-      id: compiler-read
+    # Compiled units go to a GCS bucket that only main, ovcs and release pushes
+    # write; every other run reads it. The identities come from GitHub OIDC
+    # through Workload Identity Federation (gitops iac/catalog/gcp/ci-compile-cache).
+    - name: Choose the compiler cache access
+      id: compile-cache
+      if: inputs.compile-cache != ''
+      shell: bash
+      env:
+        CONFIG: ${{ inputs.compile-cache }}
+        TRUSTED_PUSH: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ovcs' || startsWith(github.ref, 'refs/heads/release/')) }}
+      run: |
+        # Fork PRs and jobs without id-token: write get no OIDC token.
+        if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+          echo 'Compiled units: no OIDC token in this job, so the shared cache is off.' >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+        fi
+        if [ "$TRUSTED_PUSH" = true ]; then role=writer mode=READ_WRITE; else role=reader mode=READ_ONLY; fi
+        if ! bucket=$(jq -er .bucket <<<"$CONFIG") || ! provider=$(jq -er .provider <<<"$CONFIG") \
+          || ! account=$(jq -er --arg role "$role" '.[$role]' <<<"$CONFIG"); then
+          echo "::warning::STEP_COMPILE_CACHE needs bucket, provider, reader and writer; the shared compiler cache is off."
+          exit 0
+        fi
+        {
+          echo 'enabled=true'
+          echo "bucket=$bucket"
+          echo "provider=$provider"
+          echo "service-account=$account"
+          echo "mode=$mode"
+        } >> "$GITHUB_OUTPUT"
+    - name: Authenticate to the compiler cache
+      id: gcp
+      if: steps.compile-cache.outputs.enabled == 'true'
       continue-on-error: true
-      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+      uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
       with:
-        path: ${{ runner.temp }}/step-sccache
-        key: ${{ steps.identity.outputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}
-        restore-keys: ${{ steps.identity.outputs.key }}-
-    - name: Restore and save compiler units (PR or trusted push)
-      if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ovcs' || startsWith(github.ref, 'refs/heads/release/')))
-      id: compiler-write
+        workload_identity_provider: ${{ steps.compile-cache.outputs.provider }}
+        service_account: ${{ steps.compile-cache.outputs.service-account }}
+        create_credentials_file: true
+        # Only sccache gets the credentials; tests must not pick them up.
+        export_environment_variables: false
+    - name: Install sccache
+      id: install-sccache
+      if: steps.gcp.outcome == 'success'
       continue-on-error: true
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+      uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba
       with:
-        path: ${{ runner.temp }}/step-sccache
-        key: ${{ steps.identity.outputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}
-        restore-keys: ${{ steps.identity.outputs.key }}-
+        version: v0.16.0
+    - name: Use the shared compiler cache
+      if: steps.install-sccache.outcome == 'success'
+      shell: bash
+      env:
+        SCCACHE_GCS_BUCKET: ${{ steps.compile-cache.outputs.bucket }}
+        SCCACHE_GCS_KEY_PATH: ${{ steps.gcp.outputs.credentials_file_path }}
+        SCCACHE_GCS_RW_MODE: ${{ steps.compile-cache.outputs.mode }}
+        SCCACHE_GCS_KEY_PREFIX: step
+        SCCACHE_IDLE_TIMEOUT: '0'
+      run: |
+        # A cache that can't start must not fail the build: Cargo then compiles without it.
+        if sccache --start-server && sccache --show-stats >/dev/null; then
+          {
+            for name in SCCACHE_GCS_BUCKET SCCACHE_GCS_KEY_PATH SCCACHE_GCS_RW_MODE SCCACHE_GCS_KEY_PREFIX SCCACHE_IDLE_TIMEOUT; do
+              echo "$name=${!name}"
+            done
+            echo 'RUSTC_WRAPPER=sccache'
+          } >> "$GITHUB_ENV"
+          echo "Compiled units: shared GCS cache \`$SCCACHE_GCS_BUCKET\`, $SCCACHE_GCS_RW_MODE. sccache reports hits when the job ends." >> "$GITHUB_STEP_SUMMARY"
+        else
+          sccache --stop-server || true
+          echo '::warning::sccache could not reach the GCS compiler cache; compiling without it.'
+        fi
     - name: Restore Cargo downloads (read only)
       if: github.event_name != 'pull_request' && (github.event_name != 'push' || !(github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ovcs' || startsWith(github.ref, 'refs/heads/release/')))
       continue-on-error: true
@@ -93,33 +147,15 @@ runs:
           ~/.cargo/git/db
         key: ${{ steps.identity.outputs.registry-key }}
         restore-keys: ${{ steps.identity.outputs.registry-prefix }}
-    - name: Install compiler cache
-      id: sccache
-      continue-on-error: true
-      uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba
-      with:
-        version: v0.16.0
-    - name: Enable compiler cache
-      if: steps.sccache.outcome == 'success'
-      shell: bash
-      run: echo 'RUSTC_WRAPPER=sccache' >> "$GITHUB_ENV"
-    - name: Explain compiler reuse
+    - name: Explain the download cache
       shell: bash
       env:
-        CACHE_KEY: ${{ steps.identity.outputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}
-        CACHE_RESTORE: ${{ steps.compiler-read.outputs.cache-hit || steps.compiler-write.outputs.cache-hit }}
-        CACHE_SETUP: ${{ steps.sccache.outcome }}
+        REGISTRY_KEY: ${{ steps.identity.outputs.registry-key }}
       run: |
-        case "$CACHE_RESTORE" in
-          true) cache_snapshot='exact generation restored' ;;
-          false) cache_snapshot='no exact generation match; see cache restore log' ;;
-          *) cache_snapshot='no compatible snapshot restored' ;;
-        esac
         {
-          echo '### Rust compiler cache'
-          echo "Key: \`$CACHE_KEY\`"
-          echo "Snapshot: $cache_snapshot; sccache setup: $CACHE_SETUP; limit: 512 MiB per compilation group."
-          echo 'Cargo still builds and tests the current source. Compiler hits/misses appear in the sccache post-step.'
-          echo 'Successful PR runs save only in their merge-ref cache scope; trusted branch pushes seed shared snapshots. Other events only restore.'
-          echo 'Compiler generations include run and attempt so later source edits refresh reusable units. A missing cache compiles normally.'
+          echo '### Rust caches'
+          echo "Cargo downloads: \`$REGISTRY_KEY\`."
+          if [ -z "${RUSTC_WRAPPER:-}" ]; then
+            echo 'Compiled units are not cached in this job (sequentech/meta#14622).'
+          fi
         } >> "$GITHUB_STEP_SUMMARY"

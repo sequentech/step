@@ -24,7 +24,7 @@ export interface VotersPerDayProps {
     data: CastVotesPerDay[] | null
     /** Whether the votes failed to load, so that no data means no chart rather than loading. */
     unavailable?: boolean
-    width: number
+    width?: number | string
     height: number
     selection: VotesTimeSelection
     onSelectionChange: (selection: VotesTimeSelection) => void
@@ -56,7 +56,7 @@ const compactMenuProps = {
 export const VotesPerDay: React.FC<VotersPerDayProps> = ({
     data,
     unavailable = false,
-    width,
+    width = "100%",
     height,
     selection,
     onSelectionChange,

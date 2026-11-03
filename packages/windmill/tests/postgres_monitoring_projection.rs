@@ -642,3 +642,43 @@ async fn first_votes_are_read_since_the_last_read_and_in_full_on_a_full_pass() {
     );
     assert_eq!(*ballot_box.reads.lock().unwrap(), vec![0, 7, 0]);
 }
+
+#[tokio::test]
+async fn private_participation_never_retains_a_vote_or_refresh_timestamp() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let seed = Seed::new(&tx).await;
+    let election = seed.election("Europe").await;
+    let area = seed.area(&[election]).await;
+    pass(
+        &seed,
+        &comelec_settings(),
+        1,
+        &[account("private", Some(area), &[])],
+    )
+    .await;
+    // Give the projection a distinct historical update timestamp, so a trigger
+    // setting it to this transaction's now() cannot pass unnoticed.
+    tx.batch_execute("ALTER TABLE sequent_backend.monitoring_voter DISABLE TRIGGER set_sequent_backend_monitoring_voter_updated_at").await.unwrap();
+    tx.execute("UPDATE sequent_backend.monitoring_voter SET updated_at = '2020-01-01 00:00:00+00', first_voted_at = now() WHERE tenant_id=$1", &[&seed.event.tenant_id]).await.unwrap();
+    tx.batch_execute("ALTER TABLE sequent_backend.monitoring_voter ENABLE TRIGGER set_sequent_backend_monitoring_voter_updated_at").await.unwrap();
+    let before = seed.row(election, "private").await;
+    let private = FirstVotes::Private([((election, "private".into()))].into());
+    assert_eq!(
+        refresh_voter_activity(&tx, seed.event, &private)
+            .await
+            .unwrap(),
+        1
+    );
+    let after = seed.row(election, "private").await;
+    assert_eq!(after["has_voted"], true);
+    assert_eq!(after["first_voted_at"], Value::Null);
+    assert_eq!(after["updated_at"], before["updated_at"]);
+    assert_eq!(
+        refresh_voter_activity(&tx, seed.event, &private)
+            .await
+            .unwrap(),
+        0
+    );
+}

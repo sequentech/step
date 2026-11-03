@@ -417,6 +417,11 @@ pub enum MessageReason {
     /// content, and the message has no stored template to render again.
     #[strum(serialize = "Can't be retried: no stored template")]
     NO_STORED_TEMPLATE,
+    /// The original queued audience has no trustworthy election scope.
+    #[strum(
+        serialize = "Create a new send: participation authorization is missing or invalid"
+    )]
+    PARTICIPATION_REAUTHORIZATION_REQUIRED,
     /// A retry is due, but the voter changed their channel since: the
     /// message isn't sent on the new one.
     #[strum(serialize = "The voter's channel changed: not retried")]
@@ -496,6 +501,7 @@ impl MessageReason {
             NO_ACCOUNT_FOR_CHANNEL => "No sending account for the channel",
             INVALID_DESTINATION => "Invalid destination for the channel",
             NO_STORED_TEMPLATE => "Can't be retried: no stored template",
+            PARTICIPATION_REAUTHORIZATION_REQUIRED => "Create a new send: participation authorization is missing or invalid",
             CHANNEL_CHANGED => "The voter's channel changed: not retried",
             WORKER_STOPPED_BEFORE_SENDING => {
                 "The worker stopped before sending"

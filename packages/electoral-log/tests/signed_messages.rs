@@ -8,6 +8,10 @@
 use anyhow::Result;
 use electoral_log::messages::message::{Message, SigningData, GENERIC_EVENT};
 use electoral_log::messages::newtypes::*;
+use electoral_log::messages::privacy::{
+    pseudonym_hash, BallotCastEvidence, BallotReceivedEvidence, ForensicRead,
+    ForensicReadOperation, PrivateBallotEvent, PrivateBallotOutcome, PseudonymResolution,
+};
 use electoral_log::messages::statement::{
     StatementBody, StatementEventType, StatementHead, StatementLogType,
 };
@@ -127,6 +131,137 @@ fn assert_record(
         serde_json::from_str::<serde_json::Value>(&message.to_string())?,
         serde_json::to_value(message)?
     );
+    Ok(())
+}
+
+#[test]
+fn privacy_receipts_keep_signed_scope_and_canonical_time_without_private_identity() -> Result<()> {
+    let system = SigningKey::generate()?;
+    let public = VerificationKey::from_sk(&system)?;
+    let code = "7QKM-2HXD";
+    let received = Message::ballot_received_message(
+        code,
+        BallotReceivedEvidence {
+            tenant_id: "tenant".into(),
+            election_event_id: EVENT.into(),
+            election_id: ELECTION.into(),
+            pseudonym_hash: pseudonym_hash(code).unwrap(),
+            voter_signing_pk: "voter-public-key".into(),
+            received_ballot_json:
+                r#"{"ballot_id":"FTBE-MHRX","received_at":"2028-05-08T03:00:00Z"}"#.into(),
+            encrypted_ballot: "encrypted-payload".into(),
+        },
+        &system,
+    )?;
+    let cast = Message::privacy_cast_vote_message(
+        code,
+        BallotCastEvidence {
+            tenant_id: "tenant".into(),
+            election_event_id: EVENT.into(),
+            election_id: ELECTION.into(),
+            pseudonym_hash: pseudonym_hash(code).unwrap(),
+            ballot_id: "FTBE-MHRX".into(),
+            cast_receipt_json: r#"{"cast_at":"2028-05-08T03:00:01Z"}"#.into(),
+            voting_channel: "ONLINE".into(),
+        },
+        &system,
+    )?;
+    for (message, kind, wire_tag, timestamp) in [
+        (received, "BallotReceived", 46, 1_841_367_600),
+        (cast, "CastVote", 47, 1_841_367_601),
+    ] {
+        assert_record(&message, &public, kind, Some(ELECTION))?;
+        assert_eq!(borsh::to_vec(&message.statement.body)?[0], wire_tag);
+        assert_eq!(message.statement.head.timestamp, timestamp);
+        assert_eq!(message.ballot_id.as_deref(), Some("FTBE-MHRX"));
+        assert!(message.user_id.is_none());
+        assert_eq!(message.sender.name, code);
+        assert_eq!(message.username.as_deref(), Some(code));
+        let mut altered = Message::record_deserialize(&message.record_serialize()?)?;
+        altered.statement.head.event = EventIdString("another-event".into());
+        assert!(altered.verify(&public).is_err());
+    }
+    Ok(())
+}
+
+#[test]
+fn private_ballot_outcomes_bind_optional_id_and_persisted_action_time() -> Result<()> {
+    let system = SigningKey::generate()?;
+    let public = VerificationKey::from_sk(&system)?;
+    for (outcome, kind, ballot_id) in [
+        (PrivateBallotOutcome::Rejected, "CastVoteError", None),
+        (
+            PrivateBallotOutcome::Audited,
+            "BallotAudited",
+            Some("FTBE-MHRX".to_owned()),
+        ),
+    ] {
+        let evidence = PrivateBallotEvent {
+            election_id: ELECTION.into(),
+            pseudonym_hash: pseudonym_hash("7QKM-2HXD").unwrap(),
+            ballot_id: ballot_id.clone(),
+            outcome,
+        };
+        let message = Message::private_ballot_event_message_at(
+            EVENT,
+            "7QKM-2HXD",
+            evidence.clone(),
+            1_841_367_600,
+            &system,
+        )?;
+        assert_record(&message, &public, kind, Some(ELECTION))?;
+        assert_eq!(borsh::to_vec(&message.statement.body)?[0], 50);
+        assert_eq!(message.statement.head.timestamp, 1_841_367_600);
+        assert_eq!(message.ballot_id, ballot_id);
+        assert!(message.user_id.is_none());
+        let current =
+            Message::private_ballot_event_message(EVENT, "7QKM-2HXD", evidence.clone(), &system)?;
+        assert_record(&current, &public, kind, Some(ELECTION))?;
+        assert!(
+            Message::private_ballot_event_message(EVENT, "ABCD-EFGH", evidence, &system)
+                .unwrap_err()
+                .to_string()
+                .contains("Pseudonym does not match signed evidence")
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn forensic_and_resolution_audits_bind_the_operator_and_opaque_scope() -> Result<()> {
+    let (data, public) = signer()?;
+    let resolution = PseudonymResolution {
+        tenant_id: "tenant".into(),
+        pseudonym: "7QKM-2HXD".into(),
+        actor_id: ACTOR.into(),
+        reason: "Investigation reference 123".into(),
+    };
+    let message = Message::pseudonym_resolved_message(EVENT, resolution, &data)?;
+    assert_record(&message, &public, "PseudonymResolved", None)?;
+    assert_eq!(message.user_id.as_deref(), Some(ACTOR));
+    assert_eq!(borsh::to_vec(&message.statement.body)?[0], 48);
+    for (operation, wire) in [
+        (ForensicReadOperation::List, "list"),
+        (ForensicReadOperation::Detail, "detail"),
+        (ForensicReadOperation::Export, "export"),
+    ] {
+        let read = ForensicRead {
+            tenant_id: "tenant".into(),
+            actor_id: ACTOR.into(),
+            scope_id: "opaque-scope-123".into(),
+            operation,
+        };
+        assert_eq!(serde_json::to_value(&read)?["operation"], wire);
+        let message = Message::forensic_read_message(EVENT, read, &data)?;
+        assert_record(&message, &public, "ForensicRead", None)?;
+        assert_eq!(message.user_id.as_deref(), Some(ACTOR));
+        assert_eq!(borsh::to_vec(&message.statement.body)?[0], 49);
+        assert!(!message
+            .statement
+            .head
+            .description
+            .contains("opaque-scope-123"));
+    }
     Ok(())
 }
 
@@ -944,6 +1079,24 @@ fn an_audit_entry_is_signed_with_the_time_of_its_action() -> Result<()> {
             StatementEventType::SYSTEM,
             StatementLogType::INFO,
         ),
+        (
+            AuditStatementKind::TransmissionFileDownloaded,
+            "TransmissionFileDownloaded",
+            StatementEventType::USER,
+            StatementLogType::INFO,
+        ),
+        (
+            AuditStatementKind::VotersImported,
+            "VotersImported",
+            StatementEventType::USER,
+            StatementLogType::INFO,
+        ),
+        (
+            AuditStatementKind::ReadinessVerified,
+            "ReadinessVerified",
+            StatementEventType::USER,
+            StatementLogType::INFO,
+        ),
     ] {
         assert_eq!(kind.to_string(), name);
         assert_eq!(name.parse::<AuditStatementKind>()?, kind);
@@ -1110,5 +1263,44 @@ fn a_keycloak_event_keeps_the_time_keycloak_saw_it() -> Result<()> {
         message.statement.head.description,
         "LOGIN_ERROR invalid_user_credentials"
     );
+    Ok(())
+}
+
+#[test]
+fn a_configuration_import_authenticates_the_approved_content_hash() -> Result<()> {
+    let (data, public) = signer()?;
+    let details = ConfigurationPackageImportDetails {
+        package: ConfigurationPackageDetails {
+            action: ConfigurationPackageAction::Imported,
+            external_id: "approved-configuration".into(),
+            revision: 9,
+            manifest_sha256: "ab".repeat(32),
+            design_digests: vec![],
+        },
+        content_hash: "cd".repeat(32),
+    };
+    let mut message = Message::configuration_package_with_content_hash_message(
+        event(),
+        details,
+        &data,
+        actor(),
+        actor(),
+    )?;
+    assert_record(&message, &public, "ConfigurationPackageImported", None)?;
+    let json = serde_json::to_value(&message)?;
+    let details = &json["statement"]["body"]["ConfigurationPackageWithContentHash"][1];
+    assert_eq!(details["content_hash"], "cd".repeat(32));
+    assert_eq!(details["manifest_sha256"], "ab".repeat(32));
+    assert_eq!(
+        message.statement.head.description,
+        "Configuration approved-configuration revision 9 imported from a signed package."
+    );
+    let StatementBody::ConfigurationPackageWithContentHash(_, details) =
+        &mut message.statement.body
+    else {
+        panic!("not a configuration import with its content hash");
+    };
+    details.content_hash = "ef".repeat(32);
+    assert!(message.verify(&public).is_err());
     Ok(())
 }

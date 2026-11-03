@@ -83,6 +83,106 @@ keep the change, rebuild the image and recreate the container (the
 by the `up` command above), and run the module's tests with
 `mvn -f packages/keycloak-extensions/pom.xml -pl <module> -am verify`.
 
+### Privacy-safe authentication event storage
+
+Images containing `custom-event-listener` require these default-provider selections:
+
+```sh
+--spi-events-store--provider-default=sequent-privacy
+--spi-user-sessions--provider-default=sequent-privacy
+```
+
+The `provider-default` option keeps Keycloak's JPA provider loaded for explicit delegation.
+The exclusive `--spi-events-store--provider` option does not. Startup checks refuse a
+different default or an unavailable JPA delegate before serving authentication. Deploy the
+provider jar and these settings together; an older image without the providers cannot use them.
+
+The session provider delegates cache, persistence and cluster maintenance to the explicitly loaded
+`infinispan` provider. Before creating election-realm sessions it removes the IP address. Restarted,
+imported and offline sessions use the same boundary. Session views remove network notes and never expose an election voter's address, including
+when reached through a client session. The request connection remains intact for the
+separately authorized forensic sender. Tenant and master sessions keep their established behavior.
+Selecting the exclusive `--spi-user-sessions--provider` option would unload the required delegate;
+startup checks reject that configuration or a different default.
+
+Enabled election-realm authentication and admin audit stores remain enabled. Before persistence,
+the provider copies events, removes their IP address, and retains a known authentication-detail
+projection. Admin changes retain actor, operation, resource, outcome and safe representation
+fields while network and secret fields are redacted. An unstructured event-realm representation
+is replaced by a redaction marker. The same representation filtering protects electoral-log
+delivery. Known tenant and master realms retain their existing storage behavior; an unresolved
+realm receives the safe projection. Existing retention settings and queries are preserved,
+including the pinned JPA factory's admin-expiration callback.
+
+The original login event stays available to the separate forensic sender. Both Network Data
+Policies exclude attribution from ordinary storage; only an explicitly enabled forensic policy
+allows that sender to transmit it. This change does not delete historical audit rows.
+
+The disposable integration check uses pinned Keycloak 26.7.5 and PostgreSQL, enables audit storage
+in imported realms, tests actual database rows and custom audit delivery under both policies,
+and verifies session API/database redaction, online/offline refresh across restart, logout,
+idempotent quiesced cleanup and refusal of unsafe provider selection. Its queue and forensic endpoints use
+synthetic fixtures. It creates its own internal Docker network and containers, publishes no
+ports, and removes those resources on exit:
+
+```sh
+mvn -f packages/keycloak-extensions/pom.xml -pl custom-event-listener -am verify
+python3 packages/keycloak-extensions/custom-event-listener/src/test/integration/event_store.py
+```
+
+`--mock-image` can select an existing local image with Python 3 instead of the default
+`python:3.12-slim`. `--skip-build` reuses the test Keycloak image only when its provider jars
+already match the sources. Standalone fixtures that do not package `custom-event-listener`
+continue to use their normal provider selections.
+
+### Existing election-realm sessions
+
+Deployments upgrading from a version that stored session addresses must invalidate those sessions
+during the coordinated rollout. The read wrapper masks historical addresses, but it does not erase
+the existing database or cache copies. Use a maintenance window:
+
+1. Stop every Keycloak node and every other session writer. Discard all online/offline user and
+   client session caches on all nodes, including retained cache volumes or external cache copies.
+   Keep the fleet stopped throughout the cleanup. A database-only update while nodes run can be
+   overwritten by a stale cached session.
+2. Inventory the exact election-event realm names in the Keycloak database. For each approved realm,
+   run the bounded script against that database, repeating until `removed_sessions` is zero:
+
+   ```sh
+   psql "$KEYCLOAK_DATABASE_URL" \
+     -v realm_name=tenant-11111111-1111-4111-8111-111111111111-event-22222222-2222-4222-8222-222222222222 \
+     -v sessions_quiesced=yes \
+     -f packages/keycloak-extensions/custom-event-listener/scripts/purge_event_sessions.sql
+   ```
+
+   The realm is an example. Each transaction removes at most 5,000 online/offline session rows and
+   their client-session children. The script refuses tenant/master realm names and requires explicit
+   quiescence acknowledgement. It leaves users, credentials, audit records and other realms intact.
+3. Deploy both privacy providers and selections, then start Keycloak with empty session caches.
+   Affected voters must sign in again; existing refresh/offline tokens no longer name sessions.
+   Validate login, refresh, logout and permitted forensic capture before reopening voting access.
+4. Record cleanup counts and apply the authority's separate retention procedure to backups and
+   replicas. This script cannot erase historical exported or backed-up copies.
+
+The session provider supports the shipped persistent embedded Infinispan configuration. Deployments using a
+different session implementation must validate an equivalent redaction boundary before activation.
+
+### Going back to an earlier step
+
+`StepBack` (message-otp-authenticator) runs the previous step of a flow again; the enrollment code
+page, identity check and confirmation page offer it. Going back to the form that entered a contact
+forgets the live code or one-time link, where it went and everything a code verified (the
+`Email verified` note and the verified channel notes), and submitting that form forgets them again.
+The resend timer and the wrong-code count are kept: after any Back, the code step's first message
+waits for the last send's resend timer, and the page shows the time left. A neutral code page
+(reset) and a page whose attempts are used up never offer Back.
+
+A one-time link names the send it came from (`code-id`) and is accepted only while it is that
+session's live link. Links sent before this version carry no `code-id` and are refused as stale,
+so voters holding one at deployment request a new link. Links last for the code lifetime
+(`ttl`), so this affects only sessions in flight during the rollout.
+
+
 ## React login and OTP development
 
 `packages/keycloak-ui` is a Keycloakify workspace with a scoped Sequent

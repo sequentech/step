@@ -24,10 +24,12 @@ import org.keycloak.events.EventListenerProvider;
 import org.keycloak.events.EventType;
 import org.keycloak.events.admin.AdminEvent;
 import org.keycloak.events.admin.AuthDetails;
+import org.keycloak.models.AbstractKeycloakTransaction;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics;
 
 @JBossLog
 public class CustomEventListenerProvider implements EventListenerProvider {
@@ -36,6 +38,7 @@ public class CustomEventListenerProvider implements EventListenerProvider {
 
   private final KeycloakSession session;
   private final PgmqEventPublisher pgmqEventPublisher;
+  private final SigninNetworkDispatcher signinNetworkDispatcher;
 
   // Environment variables (read once for performance)
   private static final String TASK_NAME =
@@ -46,8 +49,16 @@ public class CustomEventListenerProvider implements EventListenerProvider {
   private final ObjectMapper om = new ObjectMapper();
 
   CustomEventListenerProvider(KeycloakSession session, PgmqEventPublisher pgmqEventPublisher) {
+    this(session, pgmqEventPublisher, null);
+  }
+
+  CustomEventListenerProvider(
+      KeycloakSession session,
+      PgmqEventPublisher pgmqEventPublisher,
+      SigninNetworkDispatcher signinNetworkDispatcher) {
     this.session = session;
     this.pgmqEventPublisher = pgmqEventPublisher;
+    this.signinNetworkDispatcher = signinNetworkDispatcher;
   }
 
   private static LogRealm logRealm(RealmModel realm) {
@@ -100,7 +111,10 @@ public class CustomEventListenerProvider implements EventListenerProvider {
           case UNKNOWN -> null;
           case KNOWN ->
               accountUsername.orElseGet(
-                  () -> Optional.ofNullable(details.get("username")).orElse("unknown"));
+                  () ->
+                      ScanovateDiagnostics.EVENT_ERROR.equals(event.getError())
+                          ? "unknown"
+                          : Optional.ofNullable(details.get("username")).orElse("unknown"));
         };
 
     // Prepare message body based on event type.
@@ -143,13 +157,22 @@ public class CustomEventListenerProvider implements EventListenerProvider {
               + CA_CERT_ISSUER_CN
               + "="
               + details.getOrDefault(CA_CERT_ISSUER_CN, "unknown");
-      body = event.getError() + " " + certInfo;
+      body = UserEventDetails.safeError(event.getError()) + " " + certInfo;
     } else {
       // Use the event error (or another appropriate field) as body for
       // non-communications events.
-      body = event.getError();
+      body = UserEventDetails.safeError(event.getError());
     }
 
+    if (!Utils.isCommunication(details)) {
+      body = UserEventDetails.safeDetailValue(body);
+    }
+    Map<String, Object> eventDetails = UserEventDetails.of(event, account);
+    if (ScanovateDiagnostics.EVENT_ERROR.equals(event.getError())) {
+      // Election boards persist body, whereas the tenant fallback persists details. Give both
+      // the same allowlisted diagnostic object; never persist legacy profile/request fields.
+      body = om.valueToTree(eventDetails).toString();
+    }
     // Publish the event to PGMQ with the complete JSON structure.
     logEvent(
         taskMessage(
@@ -160,7 +183,29 @@ public class CustomEventListenerProvider implements EventListenerProvider {
             realm.tenantId(),
             username,
             event.getTime(),
-            Map.of("details", UserEventDetails.of(event, account))));
+            Map.of("details", eventDetails)));
+
+    if (signinNetworkDispatcher != null && SigninNetworkSender.eligible(realm, event)) {
+      // A rollback must not publish successful sign-in attribution. The callback is request-local;
+      // it does not put network data in a durable task or the ordinary audit queue.
+      SigninNetworkSender.Evidence snapshot = SigninNetworkSender.snapshot(session, realm, event);
+      if (session.getTransactionManager().isActive()) {
+        session
+            .getTransactionManager()
+            .enlistAfterCompletion(
+                new AbstractKeycloakTransaction() {
+                  @Override
+                  protected void commitImpl() {
+                    signinNetworkDispatcher.submit(snapshot);
+                  }
+
+                  @Override
+                  protected void rollbackImpl() {}
+                });
+      } else {
+        signinNetworkDispatcher.submit(snapshot);
+      }
+    }
   }
 
   @Override
@@ -180,7 +225,6 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     actor.put("username", username);
     actor.put("client_id", clientIdOf(authRealm, auth.getClientId()));
     actor.put("realm", authRealm == null ? auth.getRealmId() : authRealm.getName());
-    actor.put("ip_address", auth.getIpAddress());
 
     Map<String, Object> adminEvent = new LinkedHashMap<>();
     adminEvent.put(
@@ -189,8 +233,12 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     adminEvent.put("resource_path", event.getResourcePath());
     adminEvent.put(
         "representation",
-        includeRepresentation ? AdminRepresentation.forLog(event.getRepresentation()) : null);
-    adminEvent.put("error", event.getError());
+        !includeRepresentation
+            ? null
+            : realm.kind() == LogRealm.Kind.EVENT
+                ? AdminRepresentation.forEventRealmLog(event.getRepresentation())
+                : AdminRepresentation.forLog(event.getRepresentation()));
+    adminEvent.put("error", UserEventDetails.safeError(event.getError()));
     adminEvent.put("actor", actor);
 
     logEvent(

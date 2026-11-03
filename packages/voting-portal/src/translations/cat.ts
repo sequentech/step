@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         startup: {
             error: "No s’ha pogut iniciar el portal de votació. Torneu-ho a provar.",
             retry: "Torneu-ho a provar",
@@ -83,6 +84,11 @@ const catalanTranslation: TranslationType = {
                 description:
                     "Aquesta votació s'ha resolt per aclamació. Les seves candidatures resulten elegides sense votació, per la qual cosa no es pot seleccionar cap opció ni es registra cap vot.",
             },
+            paperBallot: {
+                voteForNoMoreThan_one: "Voteu per no més de {{count}}",
+                voteForNoMoreThan_many: "Voteu per no més de {{count}}",
+                voteForNoMoreThan_other: "Voteu per no més de {{count}}",
+            },
         },
         votingScreen: {
             backButton: "Enrere",
@@ -141,6 +147,11 @@ const catalanTranslation: TranslationType = {
                 "Quan estigueu a punt, emeteu la vostra papereta perquè quedi registrada oficialment. O trieu auditar primer per confirmar que va ser capturada i xifrada correctament",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "El resultat de l’emissió no s’ha confirmat. Podeu reintentar la mateixa sol·licitud o comprovar l’identificador de la papereta abans de tornar a començar.",
+                checkBallot: "Comprova la papereta",
+            },
             acclamation: {
                 title: "Resolt per aclamació",
                 helpDialog: {
@@ -365,6 +376,9 @@ const catalanTranslation: TranslationType = {
             demoQRText: "El rastrejador de butlletes està deshabilitat en mode de demostració",
         },
         auditScreen: {
+            confirmingAudit: "Confirmant que aquesta papereta ja no es pot emetre…",
+            auditUnavailable:
+                "No s'ha pogut auditar la papereta. No se n'ha revelat el contingut. Torneu-ho a provar.",
             printButton: "Imprimir",
             restartButton: "Iniciar votació",
             title: "Comproveu la vostra papereta",

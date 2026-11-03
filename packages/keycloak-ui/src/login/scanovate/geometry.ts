@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import {DocumentFormat} from "../KcContext"
-import {CaptureStep, type Ellipse, type Rect, type Size} from "./types"
+import {CaptureStep, type Ellipse, type Point, type Rect, type Size} from "./types"
 
 export {DocumentFormat}
 
@@ -132,6 +132,27 @@ export function fitSize(video: Size, longSide: number): Size {
     return {
         width: Math.max(1, Math.round(video.width * scale)),
         height: Math.max(1, Math.round(video.height * scale)),
+    }
+}
+
+/**
+ * The part of a still uploaded for a document: the bounding box of its corners, with `margin`
+ * times the document's size on each side, in whole pixels inside the still. Face Match only
+ * finds the portrait of a document that fills much of the photo, so the whole frame of a
+ * desktop webcam, where the document is a small part of it, isn't uploaded.
+ */
+export function documentCrop(corners: Point[], still: Size, margin: number): Rect {
+    const xs = corners.map(([x]) => x)
+    const ys = corners.map(([, y]) => y)
+    const [left, right] = [Math.min(...xs), Math.max(...xs)]
+    const [top, bottom] = [Math.min(...ys), Math.max(...ys)]
+    const x = Math.max(Math.floor(left - (right - left) * margin), 0)
+    const y = Math.max(Math.floor(top - (bottom - top) * margin), 0)
+    return {
+        x,
+        y,
+        width: Math.min(Math.ceil(right + (right - left) * margin), still.width) - x,
+        height: Math.min(Math.ceil(bottom + (bottom - top) * margin), still.height) - y,
     }
 }
 

@@ -33,7 +33,7 @@ use sequent_core::monitoring::voter::{voter_facts, VoterFacts, VoterSources};
 use sequent_core::services::keycloak::get_event_realm;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use tracing::{info, instrument};
 use uuid::Uuid;
 
@@ -416,6 +416,8 @@ const ACTIVITY_BATCH: usize = 5_000;
 /// them from the event's ballot box.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FirstVotes {
+    /// Private participation contains no ballot time.
+    Private(HashSet<(Uuid, String)>),
     /// From every ballot of the event: a voter missing has no valid vote.
     All(HashMap<(Uuid, String), DateTime<Utc>>),
     /// From the ballots sequenced since the last read: a voter missing keeps
@@ -450,6 +452,7 @@ impl FirstVotes {
         current: Option<DateTime<Utc>>,
     ) -> Option<DateTime<Utc>> {
         match self {
+            FirstVotes::Private(_) => None,
             FirstVotes::All(votes) => votes.get(key).copied(),
             FirstVotes::Since(votes) => match (votes.get(key).copied(), current) {
                 (Some(read), Some(current)) => Some(read.min(current)),
@@ -554,10 +557,11 @@ pub async fn refresh_voter_activity(
     let mut decided: Vec<Option<DateTime<Utc>>> = Vec::new();
     let mut pre_enrolled: Vec<Option<DateTime<Utc>>> = Vec::new();
     let mut voted: Vec<Option<DateTime<Utc>>> = Vec::new();
+    let mut participated: Vec<bool> = Vec::new();
     for row in transaction
         .query(
             "SELECT election_id, voter_id, enrollment_state, enrollment_reason,
-                    enrollment_decided_at, pre_enrolled_at, first_voted_at
+                    enrollment_decided_at, pre_enrolled_at, first_voted_at, has_voted
              FROM sequent_backend.monitoring_voter
              WHERE tenant_id = $1 AND election_event_id = $2",
             &params,
@@ -586,7 +590,12 @@ pub async fn refresh_voter_activity(
             }
         }
         let wanted_vote = first_votes.first_vote(&(election, voter.clone()), first_voted_at);
-        let vote_changed = wanted_vote != first_voted_at;
+        let wanted_participation = match first_votes {
+            FirstVotes::Private(voters) => voters.contains(&(election, voter.clone())),
+            _ => wanted_vote.is_some(),
+        };
+        let vote_changed =
+            wanted_vote != first_voted_at || wanted_participation != row.get::<_, bool>(7);
         if !enrollment_changed && !vote_changed {
             continue;
         }
@@ -599,6 +608,7 @@ pub async fn refresh_voter_activity(
         decided.push(wanted.decided_at);
         pre_enrolled.push(pre_enrolled_at);
         voted.push(wanted_vote);
+        participated.push(wanted_participation);
     }
     for start in (0..elections.len()).step_by(ACTIVITY_BATCH) {
         let end = (start + ACTIVITY_BATCH).min(elections.len());
@@ -610,11 +620,11 @@ pub async fn refresh_voter_activity(
                      enrollment_decided_at = w.decided_at,
                      pre_enrolled_at = w.pre_enrolled_at,
                      first_voted_at = w.first_voted_at,
-                     updated_at = now()
+                     has_voted = w.has_voted
                  FROM unnest($3::uuid[], $4::text[], $5::text[], $6::text[],
-                             $7::timestamptz[], $8::timestamptz[], $9::timestamptz[])
+                             $7::timestamptz[], $8::timestamptz[], $9::timestamptz[], $10::bool[])
                      AS w(election_id, voter_id, state, reason, decided_at, pre_enrolled_at,
-                          first_voted_at)
+                          first_voted_at, has_voted)
                  WHERE v.tenant_id = $1 AND v.election_event_id = $2
                    AND v.election_id = w.election_id AND v.voter_id = w.voter_id",
                 &[
@@ -627,6 +637,7 @@ pub async fn refresh_voter_activity(
                     &&decided[start..end],
                     &&pre_enrolled[start..end],
                     &&voted[start..end],
+                    &&participated[start..end],
                 ],
             )
             .await
@@ -756,6 +767,38 @@ pub async fn read_first_votes(
     ballot_box: &dyn FirstVoteSource,
     full_pass: bool,
 ) -> Result<FirstVotes> {
+    let election_event = crate::postgres::election_event::get_election_event_by_id(
+        transaction,
+        &event.tenant_id.to_string(),
+        &event.election_event_id.to_string(),
+    )
+    .await?;
+    if election_event
+        .get_presentation()?
+        .unwrap_or_default()
+        .ballot_identity
+        == Some(sequent_core::types::vote_privacy::BallotIdentity::Pseudonym)
+    {
+        let mut participation = HashSet::new();
+        let event_id = event.election_event_id.to_string();
+        let databases = get_event_databases().await?;
+        if databases.has_event(&event_id).await? {
+            let store = databases.store(&event_id).await?;
+            let voters: Vec<String> = transaction.query(
+                "SELECT DISTINCT voter_id FROM sequent_backend.monitoring_voter WHERE tenant_id=$1 AND election_event_id=$2",
+                &[&event.tenant_id, &event.election_event_id],
+            ).await?.into_iter().map(|row| row.get(0)).collect();
+            for batch in voters.chunks(ACTIVITY_BATCH) {
+                for row in store
+                    .participation_for_voters(&event_id, batch, None)
+                    .await?
+                {
+                    participation.insert((Uuid::parse_str(&row.election_id)?, row.voter_id));
+                }
+            }
+        }
+        return Ok(FirstVotes::Private(participation));
+    }
     let recorded = watermarks(transaction, event)
         .await?
         .and_then(|marks| marks.get(FIRST_VOTES_SEQ).and_then(Value::as_i64));

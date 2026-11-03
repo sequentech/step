@@ -82,7 +82,7 @@ jobs:
     # test jobs.
     services:
       postgres:
-        image: ${{ (matrix.profile == 'wrap-map-err' || matrix.profile == 'windmill' || matrix.profile == 'harvest') && 'postgres:16' || '' }}
+        image: ${{ (matrix.profile == 'wrap-map-err' || matrix.profile == 'windmill' || matrix.profile == 'harvest' || matrix.profile == 'electoral-log-native') && 'postgres:16' || '' }}
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test

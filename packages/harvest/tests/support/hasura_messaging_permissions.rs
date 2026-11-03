@@ -75,6 +75,24 @@ fn columns(permission: &Value) -> BTreeSet<String> {
 }
 
 #[test]
+fn privacy_participation_grants_are_never_public_hasura_columns() {
+    let tables = tracked(&["scheduled_event", "tasks_execution"]);
+    assert_eq!(tables.len(), 2);
+    for (name, table) in tables {
+        for kind in [
+            "select_permissions",
+            "insert_permissions",
+            "update_permissions",
+        ] {
+            for (role, permission) in grants(&table, kind) {
+                assert!(!columns(&permission).contains("participation_authorization"),
+                    "server authorization must not be available through {name}.{kind} as {role}");
+            }
+        }
+    }
+}
+
+#[test]
 fn messaging_tables_are_tracked() {
     assert_eq!(
         tables().keys().map(String::as_str).collect::<BTreeSet<_>>(),

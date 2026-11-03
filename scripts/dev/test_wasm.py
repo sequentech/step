@@ -364,6 +364,21 @@ class FingerprintTests(WasmTestCase):
         )
         self.assertEqual(self.checkout.source_fingerprint(), before)
 
+    def test_generated_converter_package_is_not_a_build_script_input(self):
+        data = metadata(self.checkout.root)
+        data["packages"][0]["targets"].append({
+            "name": "build-script-build", "kind": ["custom-build"],
+            "src_path": str(self.checkout.packages / "sequent-core/build.rs"),
+        })
+        (self.checkout.fixtures / "metadata.json").write_text(json.dumps(data))
+        self.checkout.write("packages/sequent-core/build.rs", "fn main() {}\n")
+        before = self.checkout.source_fingerprint()
+        for name in ("index.js", "index_bg.wasm", "README.md", "package.json"):
+            self.checkout.write("packages/sequent-core/pkg-election-config/" + name, "generated")
+        self.assertEqual(self.checkout.source_fingerprint(), before)
+        self.checkout.write("packages/sequent-core/src/lib.rs", "pub fn changed() {}\n")
+        self.assertNotEqual(self.checkout.source_fingerprint(), before)
+
     def test_files_named_by_path_attributes_are_inputs(self):
         before = self.checkout.source_fingerprint()
         self.checkout.write(

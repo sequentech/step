@@ -49,7 +49,7 @@ const SECRET_ENDINGS: [&str; 15] = [
     "access_key_id",
 ];
 /// A segment that ends in `key` or `keys` after one of these names a secret.
-const SECRET_KEY_QUALIFIERS: [&str; 9] = [
+const SECRET_KEY_QUALIFIERS: [&str; 10] = [
     "api",
     "gapi",
     "private",
@@ -59,6 +59,7 @@ const SECRET_KEY_QUALIFIERS: [&str; 9] = [
     "auth",
     "client",
     "encryption",
+    "webhook",
 ];
 /// What a secret's name may end with and still name the secret.
 const SECRET_DERIVATIVES: [&str; 2] = ["_hash", "_salt"];
@@ -457,6 +458,51 @@ pub async fn stage(hasura_transaction: &Transaction<'_>, change: &AdminChange) -
     insert_audit_log_outbox(hasura_transaction, &change.entry()?)
         .await
         .context("Error queueing an administrative change")
+}
+
+/// The transaction setting that names, to `sequent_backend.audit_change()`,
+/// the admin Step's own writes are made for.
+pub const ACTOR_SETTING: &str = "sequent.audit_actor";
+
+/// From now on until the transaction ends, the rows it changes in a table
+/// with the `audit_change` trigger are logged as `actor`'s, made through
+/// `origin`, with their old and new values. `tenant_id` is the log of a row
+/// that names no tenant. A change the trigger cannot see (Keycloak, a file,
+/// a table without the trigger) still needs its own entry, staged with
+/// [`stage`].
+#[instrument(skip_all, fields(origin = %origin), err)]
+pub async fn act_for(
+    hasura_transaction: &Transaction<'_>,
+    actor: &AuditActor,
+    origin: AuditOrigin,
+    tenant_id: Uuid,
+) -> Result<()> {
+    let setting = json!({
+        "user_id": actor.user_id,
+        "username": actor.username,
+        "role": actor.role,
+        "origin": origin,
+        "tenant_id": tenant_id,
+    });
+    hasura_transaction
+        .execute(
+            "SELECT set_config($1, $2, true)",
+            &[&ACTOR_SETTING, &setting.to_string()],
+        )
+        .await
+        .context("Error naming the admin of the transaction's changes")?;
+    Ok(())
+}
+
+/// [`act_for`], for a tenant named by its id as text.
+pub async fn act_for_tenant(
+    hasura_transaction: &Transaction<'_>,
+    actor: &AuditActor,
+    origin: AuditOrigin,
+    tenant_id: &str,
+) -> Result<()> {
+    let tenant_id = Uuid::parse_str(tenant_id).context("Invalid tenant id")?;
+    act_for(hasura_transaction, actor, origin, tenant_id).await
 }
 
 /// Queues an entry of any audit kind in the caller's transaction.

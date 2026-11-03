@@ -12,6 +12,8 @@
 //! admin event covers a change whose entry could not be queued.
 
 use crate::services::dependencies::HarvestServices;
+use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
+use deadpool_postgres::Transaction;
 use rocket::http::Status;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak::redacted_attributes;
@@ -21,9 +23,10 @@ use std::collections::HashMap;
 use uuid::Uuid;
 use windmill::postgres::audit_log_outbox::AuditLogTarget;
 use windmill::services::audit_log::{
-    diff_values, stage, AdminAction, AdminChange, AuditActor, AuditObject,
-    AuditOrigin, FieldChange,
+    self as audit_log, diff_values, stage, AdminAction, AdminChange,
+    AuditActor, AuditObject, AuditOrigin, FieldChange,
 };
+use windmill::services::task_audit;
 use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 
 pub const STAFF_ACCOUNT: &str = "staff_account";
@@ -33,6 +36,7 @@ pub const PERMISSION: &str = "permission";
 pub const PHONE_BLACKLIST: &str = "phone_blacklist";
 pub const ELECTION_EVENT: &str = "election_event";
 pub const CERTIFICATE_AUTHORITY: &str = "certificate_authority";
+pub const TENANT: &str = "tenant";
 
 /// The id of an object that stands for several: a bulk deletion, an import.
 pub const MANY: &str = "*";
@@ -48,6 +52,23 @@ type RouteError = (Status, String);
 
 fn server_error(context: &str, error: impl std::fmt::Debug) -> RouteError {
     (Status::InternalServerError, format!("{context}: {error:?}"))
+}
+
+/// An audit error as the JSON error of routes that answer with one.
+pub fn json_error((status, message): RouteError) -> JsonError {
+    ErrorResponse::new(status, &message, ErrorCode::InternalServerError)
+}
+
+/// An entry that could not be queued with its change: the change is not
+/// made either.
+pub fn queue_error(error: anyhow::Error) -> RouteError {
+    server_error("Error queueing the audit entry", error)
+}
+
+/// [`queue_error`] for routes that answer with a JSON error.
+pub fn json_queue_error(error: anyhow::Error) -> JsonError {
+    tracing::error!("Error queueing the audit entry: {error:#}");
+    json_error(queue_error(error))
 }
 
 /// The admin a request comes from.
@@ -388,6 +409,72 @@ pub fn permission_created(
     .with_changes(diff_values("", None, Some(&fields)))
 }
 
+/// Objects of `kind` imported from a document: one entry for all of them,
+/// with the document and the checksum its admin declared.
+pub fn imported(
+    claims: &JwtClaims,
+    target: AuditLogTarget,
+    kind: &str,
+    document_id: &str,
+    declared_sha256: Option<&str>,
+    description: &str,
+) -> AdminChange {
+    change(
+        claims,
+        target,
+        AuditObject::new(kind, MANY, None),
+        AdminAction::Import,
+    )
+    .with_extra(task_audit::source_document(document_id, declared_sha256))
+    .with_description(description)
+}
+
+/// An export a route queued: what is exported and, when the route has them,
+/// the task that writes the file and the document it writes.
+pub fn exported(
+    claims: &JwtClaims,
+    target: AuditLogTarget,
+    object: AuditObject,
+    description: &str,
+    task_execution_id: Option<&str>,
+    document_id: Option<&str>,
+) -> AdminChange {
+    let mut extra = json!({});
+    if let Some(task_execution_id) = task_execution_id {
+        extra["task_execution_id"] = json!(task_execution_id);
+    }
+    if let Some(document_id) = document_id {
+        extra["document_id"] = json!(document_id);
+    }
+    change(claims, target, object, AdminAction::Export)
+        .with_extra(extra)
+        .with_description(description)
+}
+
+/// The rows `transaction` changes from now on, in the tables with the
+/// `audit_change` trigger, are logged as the request's admin's, with their
+/// old and new values, when the transaction commits. Call
+/// `kick_audit_log_outbox()` after the commit.
+pub async fn act_for(
+    transaction: &Transaction<'_>,
+    claims: &JwtClaims,
+) -> Result<(), RouteError> {
+    let tenant_id =
+        Uuid::parse_str(&claims.hasura_claims.tenant_id).map_err(|error| {
+            (Status::BadRequest, format!("Invalid tenant_id: {error}"))
+        })?;
+    audit_log::act_for(
+        transaction,
+        &actor(claims),
+        AuditOrigin::Harvest,
+        tenant_id,
+    )
+    .await
+    .map_err(|error| {
+        server_error("The admin of the change could not be named", error)
+    })
+}
+
 /// Queues the entry of a change that was made outside the database, and
 /// asks a worker to post it.
 pub async fn record(
@@ -421,3 +508,7 @@ pub async fn record(
 #[cfg(test)]
 #[path = "../../tests/support/audit_entries.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../../tests/support/audited_routes.rs"]
+mod audited_routes;

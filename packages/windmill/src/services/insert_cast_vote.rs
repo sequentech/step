@@ -8,8 +8,8 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::ballot_box::{accept_ballot, get_allowed_votes, BallotFormat};
 use crate::services::ballot_box_reads::cast_vote_status;
 use crate::services::cast_ballot::{
-    accept_received_cast, prepare_received_cast, stored_cast, CastBallotInput, CastBallotOutput,
-    PreparedCast, ReceivedCast,
+    prepare_received_cast, stored_cast, CastBallotInput, CastBallotOutput, PreparedCast,
+    ReceivedCast,
 };
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::get_hasura_pool;
@@ -197,7 +197,7 @@ type Accepted = (CastVote, VotingStatusChannel, Option<CastReceipt>);
 /// Maps a freshly inserted row to its `InsertCastVoteResult` from the persisted
 /// status: `in-progress` still needs Datafix processing, `valid` is final. Any
 /// other status is unreachable for a new insert and surfaces as an error.
-#[instrument(skip_all, err)]
+#[instrument(skip_all)]
 fn classify_inserted_cast_vote(
     cast_vote: InsertCastVoteOutput,
 ) -> Result<InsertCastVoteResult, CastVoteError> {
@@ -213,7 +213,7 @@ fn classify_inserted_cast_vote(
 /// Decides the status a new ballot is accepted with: Datafix events' ballots start
 /// pending so the async pipeline can confirm eligibility, ordinary events' ballots
 /// start valid. Fails closed if the Datafix configuration is malformed.
-#[instrument(skip_all, err)]
+#[instrument(skip_all)]
 fn initial_ballot_status(election_event: &ElectionEvent) -> Result<BallotStatus, CastVoteError> {
     match datafix_annotations(election_event) {
         Ok(Some(_)) => Ok(BallotStatus::Pending),
@@ -241,7 +241,7 @@ async fn release_datafix_voter_lock(lock: PgLock) {
 /// the lease. This acquires the `(tenant, event, voter)` lease, runs the status
 /// checks on a fresh connection, accepts the ballot, and always releases the lease
 /// before returning.
-#[instrument(skip_all, err)]
+#[instrument(skip_all)]
 async fn accept_datafix_ballot_locked(
     ballot: &BallotToAccept<'_>,
 ) -> Result<Accepted, CastVoteError> {
@@ -282,7 +282,7 @@ async fn accept_datafix_ballot_locked(
 /// retry cannot change, such as an exceeded revote limit or voting being
 /// closed, is terminal and surfaced as `SkipRetryFailure`, every other error
 /// propagates for the normal retry path.
-#[instrument]
+#[instrument(skip_all)]
 fn skip_or_propagate(cast_vote_err: CastVoteError) -> Result<InsertCastVoteResult, CastVoteError> {
     match cast_vote_err {
         CastVoteError::InsertFailedExceedsAllowedRevotes
@@ -400,7 +400,7 @@ impl CastVoteError {
     }
 }
 
-#[instrument(skip(input), err)]
+#[instrument(skip_all)]
 pub async fn try_insert_cast_vote(
     input: InsertCastVoteInput,
     tenant_id: &str,
@@ -422,6 +422,7 @@ pub async fn try_insert_cast_vote(
         voter_ip,
         voter_country,
         username,
+        &None,
     )
     .await?;
     match outcome {
@@ -432,7 +433,7 @@ pub async fn try_insert_cast_vote(
     }
 }
 
-#[instrument(skip(request), err)]
+#[instrument(skip_all)]
 pub(crate) async fn try_cast(
     request: CastRequest,
     tenant_id: &str,
@@ -443,6 +444,7 @@ pub(crate) async fn try_cast(
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
     username: &Option<String>,
+    user_agent: &Option<String>,
 ) -> Result<CastOutcome, CastVoteError> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -482,6 +484,11 @@ pub(crate) async fn try_cast(
     };
     let presentation = presentation_opt.unwrap_or_default();
 
+    crate::services::vote_privacy::require_signed_receipts(&election_event, Some(voting_channel))
+        .map_err(|_| CastVoteError::CheckStatusFailed("Incompatible ballot privacy policy".into()))?;
+    let private_ballot = presentation.ballot_identity
+        == Some(sequent_core::types::vote_privacy::BallotIdentity::Pseudonym);
+
     // With receipts on, the ballot box casts only what it has received from
     // this voter, on the voter's signed request.
     let received_ballot_required =
@@ -499,8 +506,14 @@ pub(crate) async fn try_cast(
             )));
         }
         CastRequest::Received(cast) => {
-            let prepared =
-                prepare_received_cast(&hasura_transaction, &election_event, voter_id, &cast).await;
+            let prepared = prepare_received_cast(
+                &hasura_transaction,
+                &election_event,
+                voter_id,
+                area_id,
+                &cast,
+            )
+            .await;
             match prepared {
                 Ok(PreparedCast::ToCast(input, received_cast)) => (input, Some(received_cast)),
                 Ok(PreparedCast::AlreadyCast(cast)) => {
@@ -511,6 +524,19 @@ pub(crate) async fn try_cast(
                 }
             }
         }
+    };
+
+    let storage_identity = received_cast
+        .as_ref()
+        .map(|cast| cast.received_ballot.voter_id.clone())
+        .unwrap_or_else(|| voter_id.to_owned());
+    let voter_id = storage_identity.as_str();
+    // Only the owned receipt's pseudonym enters ballot objects and evidence.
+    let private_username = Some(storage_identity.clone());
+    let username = if private_ballot {
+        &private_username
+    } else {
+        username
     };
 
     crate::services::receive_ballot::check_published_ballot(
@@ -552,12 +578,20 @@ pub(crate) async fn try_cast(
         )
     };
 
-    let (pseudonym_h, vote_h, voter_signature_data) = match hash_result {
+    let (mut pseudonym_h, vote_h, voter_signature_data) = match hash_result {
         Ok(hash) => hash,
         Err(cv_err) => {
             return Ok(CastOutcome::refused(cv_err));
         }
     };
+
+    if private_ballot {
+        pseudonym_h = PseudonymHash(HashWrapper::new(
+            voting_crypto::hash::hash_to_array(voter_id.as_bytes()).map_err(|_| {
+                CastVoteError::SerializeVoterIdFailed("Unable to hash pseudonym".into())
+            })?,
+        ));
+    }
 
     let electoral_log = get_electoral_log(&hasura_transaction, tenant_id, &election_event)
         .await
@@ -608,6 +642,7 @@ pub(crate) async fn try_cast(
         voter_ip,
         voter_country,
         username,
+        user_agent,
         voter_signature_data: &voter_signature_data,
         is_early_voting_area,
         pseudonym_hash: &pseudonym_h,
@@ -630,8 +665,6 @@ pub(crate) async fn try_cast(
         result
     };
 
-    let ip = format!("ip: {}", voter_ip.as_deref().unwrap_or(""),);
-    let country = format!("country: {}", voter_country.as_deref().unwrap_or(""),);
     let _audit_phase = CastVotePhase::start("audit");
     match (result, received_cast.as_ref()) {
         (Ok((accepted, _, receipt)), _) => classify_inserted_cast_vote(accepted)
@@ -645,25 +678,34 @@ pub(crate) async fn try_cast(
             }
         }
         (Err(cast_vote_err), _) => {
-            error!(err=?cast_vote_err);
+            error!("Ballot acceptance refused");
 
-            let log_result = electoral_log
-                .post_cast_vote_error(
-                    tenant_id.to_string(),
-                    election_event_id.to_string(),
-                    Some(election_id_string),
-                    pseudonym_h,
-                    cast_vote_err.to_string(),
-                    ip,
-                    country,
-                    voter_id.to_string(),
-                    username.clone(),
-                    area_id.to_string().clone(),
+            let log_result = if private_ballot {
+                crate::services::vote_privacy::queue_rejection(
+                    tenant_id,
+                    election_event_id,
+                    &election_id_string,
+                    voter_id,
                 )
-                .await;
-
-            if let Err(log_err) = log_result {
-                error!("Error posting error to the electoral log {:?}", log_err);
+                .await
+            } else {
+                electoral_log
+                    .post_cast_vote_error(
+                        tenant_id.to_string(),
+                        election_event_id.to_string(),
+                        Some(election_id_string),
+                        pseudonym_h,
+                        "Ballot acceptance refused".into(),
+                        String::new(),
+                        String::new(),
+                        voter_id.to_string(),
+                        username.clone(),
+                        area_id.to_string(),
+                    )
+                    .await
+            };
+            if log_result.is_err() {
+                error!("Could not queue ballot refusal audit");
             }
 
             skip_or_propagate(cast_vote_err).map(CastOutcome::refused_result)
@@ -754,7 +796,7 @@ pub fn check_ballot_style_binding(
     )))
 }
 
-#[instrument(skip(input), err)]
+#[instrument(skip_all)]
 pub fn deserialize_and_check_ballot(
     input: &InsertCastVoteInput,
     voter_id: &str,
@@ -822,7 +864,7 @@ pub fn deserialize_and_check_ballot(
     Ok((pseudonym_h, vote_h, signature_opt))
 }
 
-#[instrument(skip(input), err)]
+#[instrument(skip_all)]
 pub fn deserialize_and_check_multi_ballot(
     input: &InsertCastVoteInput,
     voter_id: &str,
@@ -903,6 +945,7 @@ struct BallotToAccept<'a> {
     voter_ip: &'a Option<String>,
     voter_country: &'a Option<String>,
     username: &'a Option<String>,
+    user_agent: &'a Option<String>,
     voter_signature_data: &'a Option<(VerificationKey, Signature)>,
     is_early_voting_area: bool,
     pseudonym_hash: &'a PseudonymHash,
@@ -914,7 +957,7 @@ struct BallotToAccept<'a> {
 /// Accept a vote into the event's ballot box, after checking that its election
 /// accepts votes through its channel. The ballot box enforces the revote limit and
 /// cross-area exclusivity.
-#[instrument(skip_all, err)]
+#[instrument(skip_all)]
 async fn accept_into_ballot_box(
     hasura_transaction: Transaction<'_>,
     ballot: &BallotToAccept<'_>,
@@ -930,6 +973,7 @@ async fn accept_into_ballot_box(
         voter_ip,
         voter_country,
         username,
+        user_agent,
         voter_signature_data,
         is_early_voting_area,
         pseudonym_hash,
@@ -984,15 +1028,36 @@ async fn accept_into_ballot_box(
         ballot_hash: &ballot_hash,
         voting_channel: &channel,
         status,
-        voter_ip: voter_ip.as_deref(),
-        voter_country: voter_country.as_deref(),
+        voter_ip: None,
+        voter_country: None,
         username: username.as_deref(),
         allowed_votes,
     };
     let _phase = CastVotePhase::start("accept");
     let (outcome, receipt) = match received {
         Some(received) => {
-            let (outcome, cast_at, receipt) = accept_received_cast(&accept, received).await?;
+            let forensic = election_event
+                .get_presentation()
+                .map_err(|_| CastVoteError::CheckStatusFailed("Invalid privacy policy".into()))?
+                .unwrap_or_default()
+                .network_data_policy
+                .unwrap_or_default();
+            let network = if crate::services::vote_privacy::identity_mode(election_event)
+                .map_err(|_| CastVoteError::BallotSignFailed("Invalid privacy policy".into()))?
+                == sequent_core::types::vote_privacy::BallotIdentity::Pseudonym
+                && forensic == sequent_core::types::vote_privacy::NetworkDataPolicy::ForensicStore
+            {
+                voter_ip
+                    .as_deref()
+                    .map(|ip| (ip, voter_country.as_deref(), user_agent.as_deref()))
+            } else {
+                None
+            };
+            let (outcome, cast_at, receipt) =
+                crate::services::cast_ballot::accept_received_cast_with_network(
+                    &accept, received, network,
+                )
+                .await?;
             (outcome, Some((cast_at, receipt)))
         }
         None => (
@@ -1050,7 +1115,7 @@ pub fn hash_voter_id(voter_id: &str) -> Result<Hash> {
     hash_to_array(&bytes)
 }
 
-#[instrument(skip_all, err)]
+#[instrument(skip_all)]
 async fn get_electoral_log(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -1269,7 +1334,7 @@ fn parse_voter_auth_time(auth_time: Option<i64>) -> Result<DateTime<Local>, Cast
     Ok(parsed)
 }
 
-#[instrument(skip_all, err)]
+#[instrument(skip_all)]
 pub(crate) async fn check_status(
     tenant_id: &str,
     election_event_id: &str,

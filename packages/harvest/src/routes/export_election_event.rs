@@ -2,11 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::ErrorCode;
 use anyhow::{anyhow, Context, Result};
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -18,6 +21,11 @@ use windmill::services::celery_app::get_celery_app;
 use windmill::services::electoral_log::{
     post_voter_secret_attribute_audit, ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
+};
+use windmill::services::export::integration_secrets::IntegrationSecretsExport;
+use windmill::services::participation_authorization::{
+    ParticipationAuthorization, ParticipationCommand,
+    PARTICIPATION_AUTHORIZATION,
 };
 use windmill::services::voter_secret_attributes::get_secret_attribute_config;
 use windmill::services::{password, tasks_execution::*};
@@ -37,11 +45,42 @@ pub struct ExportElectionEventOutput {
     task_execution: TasksExecution,
 }
 
-#[instrument(skip(claims, input))]
+/// Whether the archive carries the authenticator integration secrets.
+///
+/// Only on the caller's explicit request (`include_integration_secrets`),
+/// never from a caller-set `integration_secrets`, for an export the caller
+/// chose to encrypt with a password, and only for a holder of
+/// `integration-secret-read`. A request that can't be honoured is refused
+/// rather than silently exported without the secrets.
+fn integration_secrets_export(
+    claims: &JwtClaims,
+    export_config: &ExportOptions,
+) -> Result<IntegrationSecretsExport, (Status, String)> {
+    if !export_config.include_integration_secrets {
+        return Ok(IntegrationSecretsExport::OMITTED);
+    }
+    if !export_config.encrypt_with_password {
+        return Err((
+            Status::BadRequest,
+            "Exporting integration secrets requires encrypting the export with a password"
+                .to_string(),
+        ));
+    }
+    authorize(
+        claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::INTEGRATION_SECRET_READ],
+    )?;
+    Ok(IntegrationSecretsExport::INCLUDED)
+}
+
+#[instrument(skip(services, claims, input))]
 #[post("/export-election-event", format = "json", data = "<input>")]
 pub async fn export_election_event_route(
     claims: jwt::JwtClaims,
     input: Json<ExportElectionEventInput>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<ExportElectionEventOutput>, (Status, String)> {
     authorize(
         &claims,
@@ -70,6 +109,8 @@ pub async fn export_election_event_route(
     })?;
     export_config.password = None;
     export_config.contains_voter_secrets = false;
+    export_config.integration_secrets =
+        integration_secrets_export(&claims, &export_config)?;
     export_config.is_encrypted = export_config.is_encrypted
         || export_config.encrypt_with_password
         || export_config.bulletin_board
@@ -101,6 +142,50 @@ pub async fn export_election_event_route(
     }
 
     let document_id = Uuid::new_v4().to_string();
+    // An archive contains the whole event, so the caller must be allowed to
+    // read every current election. Persist that explicit upper bound.
+    let mut scope_client = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(|error| (Status::InternalServerError, error.to_string()))?;
+    let scope_tx = scope_client
+        .transaction()
+        .await
+        .map_err(|error| (Status::InternalServerError, error.to_string()))?;
+    crate::services::authorization::authorize_election_permission_labels(
+        &scope_tx,
+        &claims,
+        &election_event_id,
+        None,
+    )
+    .await?;
+    let election_ids =
+        crate::services::authorization::explicit_participation_elections(
+            &scope_tx,
+            &claims,
+            &election_event_id,
+        )
+        .await?;
+    drop(scope_tx);
+    let mut task_annotations =
+        secret_export_task_annotations_with_integration_secrets(
+            &document_id,
+            export_config.contains_voter_secrets,
+            export_config.integration_secrets,
+        );
+    task_annotations[PARTICIPATION_AUTHORIZATION] =
+        serde_json::to_value(ParticipationAuthorization {
+            tenant_id: tenant_id.clone(),
+            election_event_id: election_event_id.clone(),
+            actor_id: claims.hasura_claims.user_id.clone(),
+            command: ParticipationCommand::EventArchive,
+            command_id: document_id.clone(),
+            election_ids,
+        })
+        .map_err(|error| (Status::InternalServerError, error.to_string()))?;
     if export_config.contains_voter_secrets {
         post_voter_secret_attribute_audit(
             &tenant_id,
@@ -124,15 +209,12 @@ pub async fn export_election_event_route(
     }
 
     // Insert the task execution record
-    let task_execution = post_with_annotations(
+    let task_execution = post_with_participation(
         &tenant_id,
-        Some(&election_event_id),
+        &election_event_id,
         ETasksExecution::EXPORT_ELECTION_EVENT,
         &executer_name,
-        secret_export_task_annotations(
-            &document_id,
-            export_config.contains_voter_secrets,
-        ),
+        task_annotations,
     )
     .await
     .map_err(|error| {
@@ -158,6 +240,7 @@ pub async fn export_election_event_route(
         None
     };
     export_config.password = password.clone();
+    let integration_secrets = export_config.integration_secrets;
 
     let _celery_task = match celery_app
         .send_task(export_election_event::export_election_event::new(
@@ -189,6 +272,28 @@ pub async fn export_election_event_route(
         }
     };
 
+    let entry = audit::exported(
+        &claims,
+        audit::target(
+            &claims.hasura_claims.tenant_id,
+            Some(&body.election_event_id),
+        )?,
+        audit::election_event(&body.election_event_id),
+        // The tenant log records that service credentials were requested.
+        match integration_secrets {
+            IntegrationSecretsExport::INCLUDED => {
+                "Requested the export of the election event with its \
+                 integration secrets"
+            }
+            IntegrationSecretsExport::OMITTED => {
+                "Requested the export of the election event"
+            }
+        },
+        Some(&task_execution.id),
+        Some(&document_id),
+    );
+    audit::record(services, &entry).await?;
+
     let output = ExportElectionEventOutput {
         document_id,
         password,
@@ -198,4 +303,65 @@ pub async fn export_election_event_route(
     info!("Sent EXPORT_ELECTION_EVENT task  {:?}", &task_execution);
 
     Ok(Json(output))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_claims::Claims;
+
+    fn requested(encrypt_with_password: bool) -> ExportOptions {
+        ExportOptions {
+            encrypt_with_password,
+            include_integration_secrets: true,
+            ..ExportOptions::default()
+        }
+    }
+
+    #[test]
+    fn integration_secrets_need_the_request_the_password_and_the_permission() {
+        let reader = Claims::new("tenant", "reader")
+            .roles([Permissions::INTEGRATION_SECRET_READ])
+            .build();
+        assert_eq!(
+            integration_secrets_export(&reader, &requested(true)),
+            Ok(IntegrationSecretsExport::INCLUDED)
+        );
+
+        // An ordinary export stays secret-free, even for a holder of the
+        // permission and even when the caller forges the server's field.
+        let forged = ExportOptions {
+            encrypt_with_password: true,
+            integration_secrets: IntegrationSecretsExport::INCLUDED,
+            ..ExportOptions::default()
+        };
+        assert_eq!(
+            integration_secrets_export(&reader, &forged),
+            Ok(IntegrationSecretsExport::OMITTED)
+        );
+
+        // Requested without password encryption: refused, not downgraded.
+        let refused = integration_secrets_export(&reader, &requested(false));
+        assert_eq!(
+            refused.map_err(|(status, _)| status),
+            Err(Status::BadRequest)
+        );
+
+        // Requested without the permission, including by holders of the
+        // event-read, voter-secret or realm-attribute read permissions.
+        for claims in [
+            Claims::new("tenant", "admin")
+                .roles([
+                    Permissions::ELECTION_EVENT_READ,
+                    Permissions::KEYCLOAK_REALM_ATTRIBUTES_READ,
+                ])
+                .build(),
+            Claims::new("tenant", "voters")
+                .roles([Permissions::VOTER_SECRET_ATTRIBUTE_READ])
+                .build(),
+        ] {
+            let denied = integration_secrets_export(&claims, &requested(true));
+            assert!(denied.is_err());
+        }
+    }
 }

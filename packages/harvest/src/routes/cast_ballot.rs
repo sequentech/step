@@ -74,6 +74,7 @@ pub async fn cast_ballot(
                             .clone()
                             .map(|country_code| country_code.to_string()),
                         username: &claims.preferred_username,
+                        user_agent: &user_info.user_agent,
                     },
                 )
                 .await
@@ -91,7 +92,7 @@ pub async fn cast_ballot(
         }
         Ok(CastBallotResult::SkipRetryFailure(cast_err)) | Err(cast_err) => {
             info!(
-                "cast-ballot took {} ms to complete but failed with error={cast_err:?}",
+                "cast-ballot took {} ms to complete but was refused",
                 start.elapsed().as_millis()
             );
             return Err(cast_vote_error_response(cast_err));

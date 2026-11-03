@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 
 use sequent_core::services::connection;
@@ -18,12 +19,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
 use uuid::Uuid;
-use windmill::postgres::messaging::record_bulk_send;
+use windmill::postgres::messaging::record_bulk_send_with_participation;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::electoral_log::{
     post_voter_secret_attribute_audit, ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
 };
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 
 use crate::services;
 
@@ -73,17 +75,43 @@ async fn record_send(
         .transaction()
         .await
         .map_err(|error| internal(error.into()))?;
-    let send_id = record_bulk_send(
+    // The send's row is an admin's: the audit log keeps it as theirs.
+    audit::act_for(&tx, claims).await?;
+    let body: SendTemplateBody =
+        serde_json::from_value(input.event_payload.clone())
+            .map_err(|error| (Status::BadRequest, error.to_string()))?;
+    let permitted_elections =
+        if windmill::services::participation_authorization::needs_participation(
+            &body,
+        ) {
+            let event_id =
+                input.election_event_id.as_deref().ok_or_else(|| {
+                    (
+                        Status::BadRequest,
+                        "Participation audiences require an election event"
+                            .into(),
+                    )
+                })?;
+            Some(crate::services::authorization::explicit_participation_elections(&tx, claims, event_id).await?)
+        } else {
+            None
+        };
+    // Re-serialization removes client-supplied grant-like/unknown fields.
+    let safe_payload =
+        serde_json::to_value(&body).map_err(|error| internal(error.into()))?;
+    let send_id = record_bulk_send_with_participation(
         &tx,
         &tenant_id,
         election_event_id.as_ref(),
         Some(&claims.hasura_claims.user_id),
-        &input.event_payload,
+        &safe_payload,
+        permitted_elections,
     )
     .await
     .map_err(internal)?;
     tx.commit().await.map_err(|error| internal(error.into()))?;
-    let mut payload = input.event_payload.clone();
+    kick_audit_log_outbox();
+    let mut payload = safe_payload;
     if let Some(object) = payload.as_object_mut() {
         object
             .insert("send_id".to_string(), Value::String(send_id.to_string()));

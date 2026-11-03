@@ -18,6 +18,7 @@ mod verify;
 
 use std::env;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::{anyhow, Context as _, Result};
 use clap::{Parser, Subcommand};
@@ -146,10 +147,11 @@ async fn start(config: Config) -> Result<()> {
         "session stores in {}",
         store_directory.display()
     );
-    let boards =
-        B4Boards::new(config.b4_url, SessionStores::new(store_directory)?);
     let platform =
         PlatformClient::new(&config.platform_url, config.credentials)?;
+    let boards =
+        B4Boards::new(config.b4_url, SessionStores::new(store_directory)?)
+            .with_headers(Arc::new(platform.board_headers()));
     daemon::run(
         platform,
         SessionSet::new(config.trustee_name.clone(), secrets.clone(), boards),

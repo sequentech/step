@@ -23,7 +23,8 @@ The Reports tab allows for the configuration, generation, and scheduling of repo
    - If left blank, a default template designed by Sequent will be used.  
    - Templates control how report data is displayed (HTML code). Templates are associated with Report Types in the Templates tab.
 5. Add the appropriate **Permission Label** for the report.  
-   - This determines which users can see, generate, and preview the report.
+   - This determines which users can see, generate, and preview the report.  
+   - You can only choose a label that your own user carries (see [Assigning a Permission Label](../03-election/03-election_management_election_data.md#assigning-a-permission-label)). Otherwise the report is not saved and the Admin Portal shows **Error submitting Report**.
 6. Select **Save**.
 
 ### Repeatable Reports

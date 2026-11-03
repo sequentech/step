@@ -5,6 +5,323 @@ import englishTranslation, {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        configurationPackage: englishTranslation.translations.configurationPackage,
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        readiness: {
+            close: "Isara",
+            action: "Suriin ang kahandaan",
+            title: "Kahandaan ng halalan",
+            description:
+                "Ihambing ang opisyal na kaganapang ito sa natapos na ensayo. Kapag pumasa, itinatala ang nilagdaang ebidensiya sa log ng opisyal na kaganapan.",
+            testedEvent: "Sinubukang kaganapan",
+            archived: "Naka-archive",
+            noEvents: "Walang ibang kaganapang magagamit",
+            retry: "Subukan muli",
+            eventsError: "Hindi mai-load ang mga kaganapan ng halalan.",
+            run: "Patakbuhin ang pagsusuri",
+            running: "Sinusuri ang kahandaan…",
+            error: "Hindi makumpleto ang pagsusuri. Suriin ang mga log bago ulitin; maaaring nawala ang tugon matapos maitala ang ebidensiya.",
+            downloadError: "Hindi ma-download ang ulat. Subukan muli.",
+            success:
+                "Napatunayan ang kahandaan. Naitala ang nilagdaang ebidensiya sa mga log ng opisyal na kaganapan.",
+            failed: "Nabigo ang pagsusuri ng kahandaan. Ayusin ang mga nabigong pagsusuri at ulitin. Walang naitalang entry ng kahandaan.",
+            download: "I-download ang ulat na JSON",
+            snapshot:
+                "Ang ulat na ito ay kalagayan sa isang sandali. Ulitin pagkatapos ng mahahalagang pagbabago; hindi nito pinipirmi ang kaganapan o pinapalitan ang pag-apruba sa operasyon.",
+            results: "Mga resulta ng pagsusuri",
+            condition: "Kundisyong sinuri ng server",
+            noDetail: "Walang ibinigay na karagdagang detalye ang server para sa pagsusuring ito.",
+            reasons: "Bakit ito pumalya",
+            noArea: "walang area o hindi kilalang area",
+            eventRoles: {
+                official: "opisyal",
+                tested: "sinubukang",
+                both: "pareho",
+            },
+            scope: {
+                event: "Ang {{event}} na event",
+                election: "Ang halalang {{election}}",
+            },
+            certification: {
+                declared_sha256_missing: "walang ibinigay na SHA-256",
+                declared_sha256_mismatch: "iba ang ibinigay na SHA-256 sa SHA-256 ng file",
+                no_counts: "wala itong botante ayon sa area",
+                blank_area: "may mga botanteng walang area",
+                invalid_sha256: "hindi wasto ang SHA-256 nito",
+            },
+            findings: {
+                same_event: "Iisang event ang opisyal at ang sinubukang event.",
+                configuration_missing:
+                    "Ang {{event}} na event ay hindi na-import mula sa isang pinirmahang configuration package.",
+                configuration_incomplete:
+                    "Walang wastong halaga para sa “{{field}}” ang pinirmahang configuration ng opisyal na event.",
+                external_id_mismatch:
+                    "Galing sa magkaibang configuration ang mga event: {{official}} (opisyal) at {{tested}} (sinubukan).",
+                content_mismatch:
+                    "Magkaiba ang pinirmahang nilalaman: SHA-256 {{official}} (opisyal) at {{tested}} (sinubukan).",
+                approvers_mismatch:
+                    "Magkaiba ang mga beripikadong approver: {{only_official}} sa opisyal na event lamang at {{only_tested}} sa sinubukang event lamang.",
+                areas_mismatch:
+                    "Ang {{area}} ay nasa pinirmahang nilalaman lamang ng {{event}} na event.",
+                voter_import_missing:
+                    "Walang sertipikadong pag-import ng botante ang {{event}} na event.",
+                voter_import_in_progress:
+                    "May pag-import pa ng botante na tumatakbo sa {{event}} na event.",
+                voter_file_not_certified:
+                    "Hindi sertipikado ang huling pag-import ng botante ng {{event}} na event: {{reason}}.",
+                voter_receipt_not_signed:
+                    "Walang katugmang pinirmahang tala ng pag-import ng botante {{import_id}} ang log ng {{event}} na event.",
+                registry_count_changed:
+                    "May {{current}} botante na ngayon ang {{event}} na event sa {{area}}, pero {{imported}} ang nasa sertipikadong import nito.",
+                voter_area_not_configured:
+                    "Kasama sa mga sertipikadong botante ng {{event}} na event ang {{area}}, na wala sa pinirmahang nilalaman nito.",
+                voter_file_mismatch:
+                    "Magkaiba ang mga sertipikadong file ng botante: SHA-256 {{official}} (opisyal) at {{tested}} (sinubukan).",
+                voter_count_mismatch:
+                    "Magkaiba ang mga sertipikadong file sa {{area}}: {{official}} botante (opisyal) at {{tested}} (sinubukan).",
+                ballots_present: "May {{count}} nakaimbak na balota ang opisyal na event.",
+                received_ballots_present:
+                    "May {{count}} balotang natanggap para sa pagsusuri ang opisyal na event.",
+                tally_sessions_present: "May {{count}} tally session ang opisyal na event.",
+                status_missing: "{{scope}}: walang voting status.",
+                voting_started: "{{scope}}: ang channel na {{channel}} ay {{status}}.",
+                voting_dates_recorded:
+                    "{{scope}}: may naitalang petsa ng pagboto ang channel na {{channel}}.",
+                no_elections: "Walang halalan ang {{event}} na event.",
+                publication_missing: "Walang aktibong publikasyon ang {{event}} na event.",
+                publication_mismatch:
+                    "Hindi tumutugma ang {{design_count}} nailathalang disenyo ng balota ng {{event}} na event sa lahat ng disenyo ng pinirmahang configuration nito.",
+                publication_empty:
+                    "Hindi masuri ang mga nailathalang disenyo ng balota ng {{event}} na event laban sa isang pinirmahang configuration.",
+                channels_open:
+                    "May mga channel pa ng pagboto ang sinubukang event na hindi pa sarado.",
+                seal_at_close_off:
+                    "Hindi sinesilyuhan ng sinubukang event ang mga ballot box sa pagsasara.",
+                no_expected_boxes:
+                    "Walang inaasahang ballot box ang publikasyon ng sinubukang event.",
+                boxes_unsealed:
+                    "May {{unsealed}} hindi nasesilyuhang ballot box ang halalang {{election}} ng sinubukang event.",
+            },
+        },
+        plugins: {
+            title: "Mga plugin",
+            description:
+                "Kasama ang mga plugin sa release na ito. Kapag binuksan ang isa, idinadagdag ang menu item at mga pahintulot nito para sa tenant na ito; kapag isinara, itinatago ito at pinapanatili ang data at mga pahintulot nito.",
+            enabled: "Bukas",
+            disabled: "Sarado",
+            compatible: "Tugma",
+            incompatible: "Kailangan ng mas bagong release ang naka-save na data",
+            api: "Plugin API {{major}}",
+            permissions: "Mga pahintulot",
+            adminGroup: "ibinibigay sa admin group kapag binuksan",
+            enable: "Buksan",
+            disable: "Isara",
+            confirmEnableTitle: "Buksan ang {{name}}?",
+            confirmDisableTitle: "Isara ang {{name}}?",
+            confirmEnable:
+                "Lalabas ang {{name}} sa menu para sa mga user na may mga pahintulot nito. Gagawin ang mga pahintulot nito sa tenant na ito at ibibigay sa admin group.",
+            confirmDisable:
+                "Itatago ang {{name}} at tatanggihan ang mga kahilingan nito. Pinapanatili ang data, kasaysayan at mga pahintulot nito, at walang ibang nagbabago sa tenant.",
+            confirm: "Kumpirmahin",
+            noPermission: "Kailangan ang pahintulot na tenant-write para baguhin ang mga plugin.",
+            retry: "Subukan muli",
+            loading: "Nilo-load ang mga plugin…",
+            signIn: "Mag-sign in sa napiling tenant para magamit ang mga plugin nito.",
+            unavailable: "Hindi bahagi ng release na ito ang plugin na ito.",
+            incompatibleRoute:
+                "Kailangan ng mas bagong release ang naka-save na data ng plugin na ito. Hindi nagbago ang data nito.",
+            disabledRoute:
+                "Hindi nakabukas ang {{name}} para sa tenant na ito. Mabubuksan ito ng tenant administrator sa Settings → Mga plugin.",
+            forbidden: "Wala kang pahintulot na gamitin ang {{name}}.",
+        },
+        projects: {
+            title: "Mga proyekto",
+            subtitle:
+                "Planuhin ang gawain ng tenant sa isang timeline. Hindi kailanman binabago ng mga proyekto ang iskedyul ng halalan.",
+            cancel: "Kanselahin",
+            retry: "Subukan muli",
+            loading: "Naglo-load…",
+            list: {
+                create: "Bagong proyekto",
+                import: "Mag-import",
+                emptyTitle: "Wala pang proyekto",
+                emptyHelp:
+                    "Gumawa ng proyekto, o mag-import ng CSV file na na-export mula sa ibang proyekto.",
+                emptyViewer: "Wala pang proyektong ginawa sa tenant na ito.",
+                active_one: "Aktibo ({{count}})",
+                active_other: "Aktibo ({{count}})",
+                archived_one: "Naka-archive ({{count}})",
+                archived_other: "Naka-archive ({{count}})",
+                name: "Pangalan",
+                dates: "Mga petsa",
+                tasks: "Mga gawain",
+                timezone: "Time zone",
+                updated: "Huling pagbabago",
+                updatedBy: "{{at}} · {{actor}}",
+                archivedChip: "Naka-archive",
+                noneInTab: "Walang proyekto rito.",
+            },
+            create: {
+                title: "Bagong proyekto",
+                name: "Pangalan ng proyekto",
+                timezone: "Time zone",
+                timezoneHelp:
+                    "Lahat ng petsa sa proyekto ay inilalagay at ipinapakita sa IANA time zone na ito.",
+                submit: "Gumawa ng proyekto",
+            },
+            import: {
+                title: "Mag-import ng proyekto",
+                help: "Laging gumagawa ng bagong proyekto ang pag-import. Gumamit ng UTF-8 CSV file na may mga column na {{columns}}, gaya ng na-export mula sa isang proyekto, na may UTC offset sa bawat petsa. Walang nase-save hangga't hindi mo ginagawa ang proyekto.",
+                choose: "Pumili ng CSV file",
+                noFile: "Walang napiling file",
+                fileLimit: "Dapat hindi hihigit sa 1 MiB ang file.",
+                invalidFile: "Hindi valid na UTF-8 text ang file.",
+                valid_one: "{{count}} gawain ang handa nang i-import.",
+                valid_other: "{{count}} gawain ang handa nang i-import.",
+                invalid_one:
+                    "{{count}} sa {{total}} hilera ang may mali. Itama ang file at piliin ito muli.",
+                invalid_other:
+                    "{{count}} sa {{total}} hilera ang may mali. Itama ang file at piliin ito muli.",
+                previewTable: "Preview ng import",
+                line: "Linya",
+                result: "Pagsusuri",
+                rowValid: "Handa",
+                commit: "Gumawa ng proyekto",
+            },
+            detail: {
+                timezone: "Lahat ng petsa at oras ay nasa {{timezone}}.",
+                export: "I-export",
+                archive: "I-archive",
+                restore: "Ibalik",
+                addTask: "Magdagdag ng gawain",
+                viewOnly:
+                    "Pagbasa lamang. Kailangan ang pahintulot na projects-write para baguhin ang mga gawain.",
+                archivedNotice:
+                    "Naka-archive ang proyektong ito. Ibalik ito para baguhin ang mga gawain nito.",
+            },
+            notices: {
+                saved: "Na-save ang “{{title}}”.",
+                moved: "Na-save ang “{{title}}”: {{start}} – {{end}}.",
+                deleted: "Binura ang “{{title}}”.",
+                archived: "Na-archive ang proyekto.",
+                restored: "Naibalik ang proyekto.",
+            },
+            panel: {
+                details: "Mga detalye ng gawain",
+                edit: "I-edit ang gawain",
+                add: "Magdagdag ng gawain",
+                close: "Isara ang mga detalye ng gawain",
+                hint: "Pumili ng gawain sa timeline para makita rito ang mga detalye nito.",
+                noTasks: "Wala pang gawain ang proyektong ito.",
+            },
+            conflict: {
+                body: "May ibang nagbago sa gawaing ito ({{actor}}, {{at}}). Narito pa ang mga pagbabago mo. Suriin ang kanilang bersyon bago mag-save muli.",
+                load: "I-load ang kanilang bersyon",
+            },
+            unsaved: {
+                body: "May mga pagbabago kang hindi pa naka-save. I-save ang mga ito, o itapon para {{action}}.",
+                keep: "Ituloy ang pag-edit",
+                discard: "Itapon ang mga pagbabago",
+                actions: {
+                    open: "buksan ang “{{title}}”",
+                    add: "magdagdag ng bagong gawain",
+                    leave: "bumalik sa mga proyekto",
+                    close: "isara ang gawain",
+                    state: "baguhin ang proyekto",
+                },
+            },
+            deleteDialog: {
+                title: "Burahin ang gawain?",
+                body: "Aalisin ang “{{title}}” sa proyekto. Pinapanatili ang kasaysayan ng mga pagbabago nito.",
+                confirm: "Burahin",
+            },
+            history: {
+                task: "Kasaysayan ng pagbabago",
+                project: "Kasaysayan ng proyekto",
+                empty: "Wala pang naitalang pagbabago.",
+                more: "Ipakita ang mas lumang pagbabago",
+                by: "{{actor}} · {{at}}",
+                actions: {
+                    create: "Ginawa {{subject}}",
+                    update: "Binago {{subject}}",
+                    delete: "Binura {{subject}}",
+                    import_one: "Na-import ang {{count}} gawain",
+                    import_other: "Na-import ang {{count}} gawain",
+                    export: "Na-export bilang CSV",
+                    other: "{{action}}",
+                },
+            },
+            editor: {
+                title: "Pamagat",
+                type: "Uri",
+                status: "Katayuan",
+                start: "Simula",
+                end: "Wakas",
+                at: "Petsa at oras",
+                notes: "Mga tala",
+                order: "Pagkakasunod",
+                orderHelp:
+                    "Inililista ang mga gawain ayon sa pagkakasunod, pagkatapos ayon sa simula.",
+                timezoneNote: "Ang mga oras ay nasa {{timezone}}.",
+                offset: "UTC{{offset}}",
+                localTime: {
+                    invalid: "Maglagay ng petsa at oras mula 1900 hanggang 2200.",
+                    skipped:
+                        "Wala ang oras na ito sa {{timezone}}: nilalaktawan ito ng orasan. Pumili ng ibang oras.",
+                    repeated:
+                        "Dalawang beses nangyayari ang oras na ito sa {{timezone}}. Piliin kung alin ang tinutukoy mo.",
+                },
+                chooseInstant: "Aling pagkakataon",
+                instantChoice: "Sa UTC{{offset}}",
+                saving: "Sine-save…",
+                toFix_one: "{{count}} field na aayusin",
+                toFix_other: "{{count}} field na aayusin",
+                save: "I-save",
+                delete: "Burahin",
+            },
+            validation: {
+                title: "Maglagay ng pamagat na hindi hihigit sa 200 character.",
+                offset: "Maglagay ng mga valid na petsa.",
+                range: "Dapat pagkatapos ng simula ang wakas.",
+                milestone: "Walang wakas ang milestone.",
+                notes: "Dapat hindi hihigit sa 16,000 character ang mga tala.",
+                order: "Dapat buong numero mula 0 hanggang 1,000,000 ang pagkakasunod.",
+            },
+            status: {
+                not_started: "Hindi pa nasisimulan",
+                in_progress: "Isinasagawa",
+                done: "Tapos na",
+            },
+            type: {
+                task: "Gawain",
+                milestone: "Milestone",
+            },
+            units: {
+                days_one: "{{count}} araw",
+                days_other: "{{count}} araw",
+                hours_one: "{{count}} oras",
+                hours_other: "{{count}} oras",
+                minutes_one: "{{count}} min",
+                minutes_other: "{{count}} min",
+            },
+            timeline: {
+                title: "Timeline",
+                tasks_one: "{{count}} gawain",
+                tasks_other: "{{count}} gawain",
+                empty: "Wala pang gawain.",
+                editHelp:
+                    "Ituro o i-focus ang isang gawain para sa buod; piliin ito para i-edit sa ibaba. I-drag ang bar o gamitin ang ← → para ilipat ito nang 24 na oras; idagdag ang Shift para baguhin ang wakas.",
+                viewHelp:
+                    "Ituro o i-focus ang isang gawain para sa buod. Piliin ito para makita ang mga detalye sa ibaba.",
+                touchEditHelp:
+                    "I-tap ang isang gawain para i-edit ito sa ibaba, o i-drag ang bar para ilipat ito nang buong araw.",
+                touchViewHelp: "I-tap ang isang gawain para makita ang mga detalye nito sa ibaba.",
+                taskLabel: "{{title}}, mula {{start}} hanggang {{end}}, {{status}}",
+                milestoneLabel: "{{title}}, milestone sa {{at}}, {{status}}",
+                previewEdit: "I-click o pindutin ang Enter para i-edit",
+                previewView: "I-click o pindutin ang Enter para sa mga detalye",
+            },
+        },
         philSysID: "PhilSys ID",
         iBP: "Integrated Bar of the Philippines (IBP)",
         philippinePassport: "Pasaporte ng Pilipinas",
@@ -217,6 +534,77 @@ const tagalogTranslation: TranslationType = {
             },
         },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
+            readiness: {
+                passed: "Pumasa",
+                failed: "Nabigo",
+                checkResult: "{{outcome}}: {{description}}",
+                checkResultWithMessage:
+                    "{{outcome}}: {{description}} Naitalang kundisyon: “{{message}}”",
+                description: {
+                    VotersImported: "Na-import ang file ng mga botante.",
+                    ReadinessVerified:
+                        "Nasuri ang kahandaan ng opisyal na kaganapan laban sa sinubukang kaganapan.",
+                },
+                checks: {
+                    configuration:
+                        "Pareho ang aprubadong nilalaman, napatunayang tagapag-apruba at mga lugar ng dalawang kaganapan.",
+                    certified_voters:
+                        "Pareho ang sertipikadong file ng botante at kasalukuyang bilang ayon sa lugar ng dalawang kaganapan.",
+                    official_zero:
+                        "Hindi pa nabubuksan ang opisyal na botohan at wala itong balota o sesyon ng pagbibilang.",
+                    publication:
+                        "Tugma ang opisyal na paglalathala sa nilagdaang configuration nito.",
+                    tested_finished:
+                        "Sarado ang mga channel ng sinubukang botohan at selyado ang lahat ng inaasahang kahon ng balota.",
+                },
+                fields: {
+                    report: "Ulat ng kahandaan",
+                    passed: "Pumasa",
+                    checked_at: "Oras ng pagsusuri",
+                    evidence: "Ebidensiya",
+                    official: "Opisyal na kaganapan",
+                    tested: "Sinubukang kaganapan",
+                    official_event_id: "ID ng opisyal na kaganapan",
+                    tested_event_id: "ID ng sinubukang kaganapan",
+                    event_id: "ID ng kaganapan",
+                    election_id: "ID ng halalan",
+                    configuration: "Configuration",
+                    external_id: "Panlabas na ID",
+                    revision: "Rebisyon",
+                    content_sha256: "SHA-256 ng nilalaman",
+                    manifest_sha256: "SHA-256 ng manifest",
+                    approvers: "Mga napatunayang tagapag-apruba",
+                    areas: "Mga lugar",
+                    voters: "Pag-import ng botante",
+                    import_id: "ID ng import",
+                    document_id: "ID ng dokumento",
+                    file_name: "Pangalan ng file",
+                    sha256: "SHA-256 ng file",
+                    declared_sha256: "Idineklarang SHA-256",
+                    counts_by_area: "Mga botante ayon sa lugar",
+                    imported_at: "Oras ng pag-import",
+                    voter_log_delivered: "Naitala ang nilagdaang import",
+                    current_voter_counts: "Kasalukuyang botante ayon sa lugar",
+                    voter_import_in_progress: "Aktibo ang pag-import ng botante",
+                    status: "Katayuan",
+                    elections: "Mga halalan",
+                    ballot_count: "Mga nakaimbak na balota",
+                    received_ballot_count: "Mga balotang natanggap sa pagsusuri",
+                    tally_session_count: "Mga sesyon ng pagbibilang",
+                    publication: "Paglalathala",
+                    publication_id: "ID ng paglalathala",
+                    publication_ids: "Mga ID ng paglalathala",
+                    matches_manifest: "Tugma sa nilagdaang manifest",
+                    design_count: "Mga nailathalang disenyo",
+                    seal_at_close: "Selyuhan sa pagsasara",
+                    expected_boxes: "Mga inaasahang kahon ng balota",
+                    sealed_boxes: "Mga selyadong kahon ng balota",
+                    all_channels_closed: "Sarado ang lahat ng channel",
+                    locked_down: "Naka-lock",
+                    log_entry_id: "ID ng tala sa log",
+                },
+            },
             noPermissions: "Wala kang permiso upang ma-access ang mga log.",
             title: "Mga Log",
             subtitle:
@@ -337,6 +725,27 @@ const tagalogTranslation: TranslationType = {
                     newValue: "Bagong halaga",
                     error: "Error",
                 },
+                importedFile: {
+                    title: "Ang na-import na file",
+                    declared: "Idineklarang checksum",
+                    sha256: "SHA-256 ng file",
+                    declaredSha256: "Idineklarang SHA-256",
+                    document: "Dokumento",
+                    checksum: {
+                        undeclared: "Walang idineklara",
+                        matches: "Tugma sa file",
+                        mismatch: "Hindi tugma sa file",
+                    },
+                    counts: {
+                        count: "Mga hilera",
+                        elections: "Mga halalan",
+                        contests: "Mga paligsahan",
+                        candidates: "Mga kandidato",
+                        areas: "Mga lugar",
+                        area_contests: "Mga lugar bawat paligsahan",
+                        sections: "Mga seksyon ng configuration",
+                    },
+                },
                 deletedEvent: {
                     title: "Ang log ng binurang kaganapan ng halalan",
                     lastEntry: "Huling entry",
@@ -346,6 +755,7 @@ const tagalogTranslation: TranslationType = {
                     retired:
                         "Inalis sa pagkaka-load at iniingatan hanggang mabura ito ayon sa patakaran sa pagpapanatili",
                     task: "Gawain",
+                    systemKey: "Ang system key ng log",
                 },
                 exported: {
                     title: "Pag-export",
@@ -548,6 +958,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_APPLICATION: "I-export ang Mga Aplikasyon",
                 EXPORT_TENANT_CONFIG: "I-export ang Configurasyon ng Tenant",
                 IMPORT_TENANT_CONFIG: "I-import ang Configurasyon ng Tenant",
+                APPLY_CONFIGURATION_PACKAGE: "Ilapat ang Configuration Package",
                 RENDER_DOCUMENT_PDF: "I-render ang dokumento bilang PDF",
                 CREATE_TENANT: "Lumikha ng Tenant",
                 EXPORT_TEMPLATES: "I-export ang mga Template",
@@ -850,6 +1261,10 @@ const tagalogTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Hindi available ang data para sa kaganapang ito ng halalan.",
+            noAccessibleTabs:
+                "Wala kang access sa mga available na tab para sa kaganapang ito ng halalan.",
+
             common: {
                 subtitle: "Pag-configure ng kaganapan ng halalan.",
                 showMore: "Lakihan ang nakikita",
@@ -1021,6 +1436,11 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Naka-lockdown mula {{date}}.",
+                    scheduledEnd: "Nakatakda ang pagtatapos ng lockdown sa {{date}}.",
+                    endScheduled: "May nakatakdang pagtatapos ng lockdown.",
+                    noScheduledEnd: "Walang nakatakdang pagtatapos ng lockdown.",
+                    banner: "Naka-lockdown ang kaganapang ito ng halalan.",
                     policyLabel: "Kalagayan ng Lockdown",
                     helperText:
                         "Iiskedyul ang simula o katapusan ng panahon ng lockdown upang baguhin ang kalagayang ito.",
@@ -1066,6 +1486,15 @@ const tagalogTranslation: TranslationType = {
                 decodedBallots: {
                     policyLabel: "Isama ang mga na-decode na balota sa database ng mga resulta",
                     options: {"included": "Isama", "not-included": "Huwag isama"},
+                },
+                fileIntegrityPolicy: {
+                    policyLabel: "Integridad ng file ng mga botante",
+                    helperText:
+                        "Hingin ang hiwalay na sertipikadong SHA-256 bago mag-import ng mga botante.",
+                    options: {
+                        OPTIONAL: "Opsyonal na SHA-256",
+                        REQUIRED_SHA256: "Kinakailangang SHA-256",
+                    },
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -1397,6 +1826,8 @@ const tagalogTranslation: TranslationType = {
                 importVotersError: "Error sa pag-import ng mga Botante",
                 importElectionEventSuccess: "Matagumpay na na-import ang kaganapan ng halalan",
                 importElectionEventError: "Error sa pag-import ng kaganapan ng halalan",
+                shaRequiredHelp:
+                    "Ilagay ang sertipikadong SHA-256 na may 64 na hexadecimal na character. Kailangan ito upang mag-import.",
                 shaDialog: {
                     ok: "Oo, Mag-import nang walang Pag-check ng Integridad",
                     cancel: "Bumalik",
@@ -1419,6 +1850,9 @@ const tagalogTranslation: TranslationType = {
                 encryptWithPassword: "I-encrypt gamit ang Password",
                 passwordForcedNote:
                     "Mapoprotektahan pa rin ng password ang archive: palaging naka-encrypt ang mga ulat, aplikasyon at datos ng bulletin board. Lagyan ng tsek ang kahon para isama rin ang mga na-decrypt na lihim na field ng botante.",
+                integrationSecrets: "Mga lihim ng integrasyon (mga kredensyal ng serbisyo)",
+                integrationSecretsNote:
+                    "Kapag na-decrypt, maglalaman ang archive ng liveness secret ng Scanovate nang malinaw. Panatilihing lihim ang archive at ang password nito, at i-import lamang ito kung saan gagamitin ang serbisyong Liveness Plus na iyon.",
                 includeVoters: "Isama ang mga Botante",
                 activityLogs: "Mga Log ng Aktibidad",
                 bulletinBoard: "Bulletin Board",
@@ -1856,6 +2290,7 @@ const tagalogTranslation: TranslationType = {
                 "voter-write": "I-edit ang Botante",
                 "voter-secret-attribute-read": "Ipakita ang mga Lihim na Field ng Botante",
                 "voter-secret-attribute-write": "I-edit ang mga Lihim na Field ng Botante",
+                "integration-secret-read": "I-export ang mga Lihim ng Integrasyon",
                 "user-create": "Lumikha ng Tagagamit",
                 "user-read": "Basahin ang Tagagamit",
                 "user-write": "I-edit ang Tagagamit",
@@ -1992,6 +2427,10 @@ const tagalogTranslation: TranslationType = {
                 "application-read": "Basahin ang Aplikasyon",
                 "application-write": "I-edit ang Aplikasyon",
                 "approval-matrix-write": "I-edit ang Matrix ng Pag-apruba",
+                "readiness-check": "Suriin ang kahandaan ng halalan",
+                "forensic-read": "Basahin ang nakahiwalay na forensic na datos ng network",
+                "voter-pseudonym-resolve":
+                    "Tukuyin ang botante mula sa sagisag-panalan na may na-audit na dahilan",
                 "logs-export": "I-export ang mga Log",
                 "tenant-logs-read": "Basahin ang Log ng Tenant",
                 "tenant-logs-export": "I-export ang Log ng Tenant",
@@ -2370,6 +2809,9 @@ const tagalogTranslation: TranslationType = {
                         delete: "Sigurado ka bang tanggalin ang item na ito?",
                         sealsUnknown:
                             "Hindi masuri ang mga seal ng ballot box: kung may naka-seal itong mga ballot box, tatanggihan ang pagbura.",
+                        archiveNamed: 'Sigurado ka bang i-archive ang "{{name}}"?',
+                        unarchiveNamed: 'Sigurado ka bang i-unarchive ang "{{name}}"?',
+                        deleteNamed: 'Sigurado ka bang tanggalin ang "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2492,6 +2934,13 @@ const tagalogTranslation: TranslationType = {
                 "label": "An porma kan icon kan kahon kan mga kandidato",
                 "square-checkbox": "Parisukat na checkbox",
                 "round-checkbox": "Bilog na Kahon nin Tsek",
+            },
+            candidatesLayout: {
+                "label": "Ayos ng mga kandidato",
+                "helperText":
+                    "Ipinapakita ng grid ng papel na balota ang mga kandidato bilang mga may-numerong kahon na may bilog na pupunan, kolum bawat kolum, ayon sa Columns (4 kung walang laman). Laging listahan ang ginagamit ng mga paligsahang may ranggo.",
+                "list": "Listahan",
+                "paper-grid": "Grid ng papel na balota",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Mga Kandidato at Listahan",
@@ -2730,6 +3179,7 @@ const tagalogTranslation: TranslationType = {
                 title: "Pakete ng Transmisyon para sa Lugar '{{name}}' at Halalan na '{{eventName}}'",
                 description:
                     "Hinahayaan kang i-export ang isang Pakete ng Transmisyon sa mga Server ng Destinasyon o i-download ito.",
+                erFileSha256: "SHA-256 ng ER file:",
                 actions: {
                     sign: {
                         title: "I-regenerate",
@@ -2772,6 +3222,10 @@ const tagalogTranslation: TranslationType = {
                         emlTitle: "I-download ang EML {{date}}",
                         transmissionPackageTitle: "I-download ang Pakete ng Transmisyon {{date}}",
                         transmissionReportTitle: "I-download ang Ulat ng Transmisyon",
+                        csvTitle: "I-download ang Results CSV {{date}}",
+                        ovcsPublicKeyTitle: "I-download ang public key ng OVCS",
+                        recordError:
+                            "Hindi naitala ang pag-download, kaya hindi ito sinimulan. Subukang muli.",
                         dialog: {
                             title: "Gusto mo bang i-download ang Pakete ng Transmisyon?",
                             description:
@@ -2786,6 +3240,9 @@ const tagalogTranslation: TranslationType = {
                     description:
                         "Ipinapakita ng talahanayan sa ibaba ang katayuan ng pagpapadala sa bawat isa sa mga Server ng Destinasyon.",
                     status: "Naipadala sa {{signed}} ng {{total}}",
+                    manualReceipt: "Manwal na pagtanggap",
+                    handOver: "I-download ang package at iabot ito nang personal",
+                    sealedFor: "Naka-seal para sa key nito, SHA-256 {{key}}…",
                     table: {
                         serverName: "Pangalan ng Server",
                         sendStatus: "Katayuan ng Pagpapadala",
@@ -2799,7 +3256,8 @@ const tagalogTranslation: TranslationType = {
                         trusteeName: "Miyembro",
                         signed: "Napirmahan",
                     },
-                    status: "{{signed}} sa {{total}} Napirmahan, minimum {{minimum}}",
+                    status: "{{signed}} sa {{total}}, {{minimum}} ang kailangan",
+                    statusNoMinimum: "{{signed}} sa {{total}}",
                 },
             },
             sendToTransmissionPackageServers:
@@ -3724,6 +4182,7 @@ const tagalogTranslation: TranslationType = {
                     "insufficient-information": "Kulang na datos",
                     "no-matching-voter": "Walang tumutugmang botante",
                     "voter-already-approved": "Naaprubahan na",
+                    "EMAIL_IN_USE": "Ginagamit ng ibang botante ang email",
                     "other": "Iba pa",
                 },
                 hint: {
@@ -3966,6 +4425,8 @@ const tagalogTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Mga nako-configure na dashboard",
+            modeChangeError: "Hindi mabago ang mode ng dashboard. Subukan muli.",
             title: "Pagsubaybay",
             loading: "Nilo-load ang pagsubaybay",
             unavailableAlert:

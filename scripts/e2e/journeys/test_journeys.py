@@ -22,7 +22,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import bootstrap, fixtures
+from . import bootstrap, fixtures, transmission
 from .client import (
     B4_URL,
     ENV,
@@ -89,6 +89,9 @@ class BackendJourneys(unittest.TestCase):
         controller = ENV.get("STEP_E2E_BROWSER_TRUSTEES_URL") or ENV.get(
             "STEP_E2E_SERVER_CUSTODY_BROWSER_URL"
         )
+        # The browser-trustees controller replaces the `boardUrl` sent below
+        # with its same-origin /b4 (Harvest's public route); the server-custody
+        # observer's static origin has no forward, so it reads b4 directly.
         if not controller:
             return
         boards = self.admin.query(
@@ -219,6 +222,15 @@ class BackendJourneys(unittest.TestCase):
 
     def event_rows(self, query, **variables):
         return self.admin.query(query, {"event": self.state.event_id, **variables})
+
+    def set_election_external_id(self, election_id, external_id):
+        updated = self.admin.query(
+            """mutation ($id: uuid!, $external_id: String) {
+              update_sequent_backend_election(where: {id: {_eq: $id}}, _set: {external_id: $external_id}) { affected_rows }
+            }""",
+            {"id": election_id, "external_id": external_id},
+        )["update_sequent_backend_election"]
+        self.assertEqual(updated["affected_rows"], 1)
 
     def assert_rejected(self, errors, code, message):
         self.assertIsNotNone(errors, "the vote was accepted")
@@ -440,6 +452,37 @@ class BackendJourneys(unittest.TestCase):
         self.assertIn(
             "points at a contest that is not in the bundle", json.dumps(task["logs"])
         )
+
+    def test_2c_transmission_sample_ballot(self):
+        """T1: the ER transmission sample configuration names area A's contest and candidates before publication."""
+        self.requires("journey 2")
+        changed = transmission.loader.load(
+            self.admin,
+            transmission.CONFIG,
+            self.state.event_id,
+            self.state.elections["main"],
+            self.state.areas["A"],
+            scope=transmission.loader.SCOPE_BALLOT,
+        )
+        self.assertEqual(changed, 1 + len(fixtures.AREA["A"].candidates))
+        (contest,) = self.event_rows(
+            """query ($event: uuid!, $contest: uuid!) {
+              sequent_backend_contest(where: {election_event_id: {_eq: $event}, id: {_eq: $contest}}) {
+                annotations candidates { id annotations }
+              }
+            }""",
+            contest=self.state.contests["A"],
+        )["sequent_backend_contest"]
+        self.assertEqual(contest["annotations"]["miru:contest-id"], "1")
+        ids = {
+            candidate["id"]: candidate["annotations"]["miru:candidate-id"]
+            for candidate in contest["candidates"]
+        }
+        self.assertEqual(
+            [ids[self.state.candidates["A"][name]] for name in sorted(fixtures.AREA["A"].candidates)],
+            transmission.sample_candidates(),
+        )
+        self.passed("journey 2c")
 
     def test_3_import_voters(self):
         """Imported voters become enabled Keycloak users of the event realm, in their areas."""
@@ -1123,6 +1166,7 @@ class BackendJourneys(unittest.TestCase):
             return session["execution_status"] == "SUCCESS"
 
         wait_until("the electoral results tally", finished, timeout=900, interval=5)
+        self.state.tally_session_id = tally_id
         executions = self.admin.query(
             """query ($id: uuid!) {
               sequent_backend_tally_session_execution(where: {tally_session_id: {_eq: $id}, results_event_id: {_is_null: false}},
@@ -1238,19 +1282,50 @@ class BackendJourneys(unittest.TestCase):
         }
         archive_dir = self.cli.directory / "archive"
         archive_dir.mkdir()
-        output = self.step(
-            "export-election-event",
-            "--election-event-id",
-            self.state.event_id,
-            "--bulletin-board",
-            "--activity-logs",
-            "--publications",
-            "--tally",
-            "--include-voters",
-            "--encrypted",
-            "--output-dir",
-            str(archive_dir),
-        )
+        # The voters export names each participation column by the election's
+        # external ID and refuses an election without one. The grace election
+        # has none on purpose, so journeys 3 to 7b cover voters authorized by
+        # election ID. While this export runs its external ID is its own ID:
+        # authorization keys it by that same value, so its voters stay
+        # authorized, and the native import remaps the two fields alike. (The
+        # archived voters keep the source election ID, as they always have.)
+        grace = self.state.elections["grace"]
+        realm = event_realm(self.state.event_id)
+        for voter in fixtures.census(self.tag, {"C": 2}):
+            self.assertEqual(
+                self.keycloak.user(realm, voter.username)["attributes"][
+                    "authorized-election-ids"
+                ],
+                [grace],
+            )
+        self.set_election_external_id(grace, grace)
+        try:
+            external_ids = [
+                election["external_id"]
+                for election in self.event_rows(
+                    """query ($event: uuid!) {
+                      sequent_backend_election(where: {election_event_id: {_eq: $event}}) { external_id }
+                    }"""
+                )["sequent_backend_election"]
+            ]
+            self.assertEqual(
+                sorted(external_ids), sorted([f"e2e-main-{self.tag}", grace])
+            )
+            output = self.step(
+                "export-election-event",
+                "--election-event-id",
+                self.state.event_id,
+                "--bulletin-board",
+                "--activity-logs",
+                "--publications",
+                "--tally",
+                "--include-voters",
+                "--encrypted",
+                "--output-dir",
+                str(archive_dir),
+            )
+        finally:
+            self.set_election_external_id(grace, None)
         password = re.search(r"Export password: (\S+)", output)
         self.assertIsNotNone(
             password, "encrypted native export must return its password"
@@ -1267,6 +1342,21 @@ class BackendJourneys(unittest.TestCase):
         )
         self.assertNotEqual(recovered_id, self.state.event_id)
         recovered = self.admin.query(query, {"event": recovered_id})
+        # The import remaps the grace election's external ID with its ID, so
+        # authorization still keys it as it keys an election without one.
+        rows = self.admin.query(
+            """query ($event: uuid!) {
+              sequent_backend_election(where: {election_event_id: {_eq: $event}}) { id external_id }
+            }""",
+            {"event": recovered_id},
+        )["sequent_backend_election"]
+        self.assertEqual(len(rows), 2, rows)
+        recovered_elections = {row["external_id"]: row["id"] for row in rows}
+        main_external_id = f"e2e-main-{self.tag}"
+        self.assertIn(main_external_id, recovered_elections)
+        (grace_external_id,) = set(recovered_elections) - {main_external_id}
+        self.assertEqual(grace_external_id, recovered_elections[grace_external_id])
+        self.assertNotEqual(grace_external_id, self.state.elections["grace"])
         recovered_boards = recovered["sequent_backend_protocol_board"]
         self.assertEqual(len(recovered_boards), len(source_boards))
         self.assertEqual(
@@ -1687,8 +1777,8 @@ class BackendJourneys(unittest.TestCase):
                 browser_call(
                     "/start",
                     name=name,
+                    # The controller serves the board as a same-origin /b4.
                     keys=(ROOT / f"packages/trustee/dev/{name}.toml").read_text(),
-                    boardUrl=B4_URL,
                     platform=ENV["HASURA_ENDPOINT"],
                     token=tokens["access_token"],
                     auth={
@@ -2293,6 +2383,39 @@ class BackendJourneys(unittest.TestCase):
             timeout=120,
         )
         self.assertIn(expected_board, boards)
+        # Probe the deployed forward with real Keycloak tokens as well as
+        # running the protocol through it. Initiating an upload does not
+        # publish a message or disturb the ceremony's signed transcript.
+        messages_url = f"http://harvest:8400/b4/boards/{name}/messages"
+        origin = {"Origin": "https://unlisted.example.invalid"}
+        public = Http().get(messages_url + "?last_id=0&limit=5", headers=origin)
+        self.assertEqual(public.status, 200, public.text)
+        self.assertNotIn(
+            "access-control-allow-origin", {h.lower() for h in public.headers}
+        )
+        for authorization, expected in (
+            ({}, 401),
+            ({"Authorization": "Bearer invalid"}, 401),
+            ({"Authorization": f"Bearer {bootstrap.admin_token(self.keycloak)}"}, 401),
+            ({"Authorization": f"Bearer {token}"}, 200),
+        ):
+            response = Http().post(
+                messages_url + "/initiate",
+                json_body={"size": 1},
+                headers={**origin, **authorization},
+            )
+            self.assertEqual(response.status, expected, response.text)
+            self.assertNotIn(
+                "access-control-allow-origin",
+                {h.lower() for h in response.headers},
+            )
+            if expected == 200:
+                uuid.UUID(response.json()["message_id"])
+        confirm = Http().post(
+            f"{messages_url}/{uuid.uuid4()}/confirm",
+            json_body={"data": None, "version": "0.6"},
+        )
+        self.assertEqual(confirm.status, 401, confirm.text)
         updates = api.query("query { trustee_event_updates }")["trustee_event_updates"]
         self.assertIn(expected_board, updates["boards"])
         self.assertEqual(updates["actions"], [])
@@ -2332,3 +2455,375 @@ class BackendJourneys(unittest.TestCase):
             health = Http().get(ENV["STEP_E2E_BROWSER_TRUSTEES_URL"] + "/health").json()
             self.assertEqual(health["failures"], [])
         self.passed("trustee GraphQL API")
+
+    # ER transmission for manual receipt (VOTE-TRANSMISSION, T2 to T7)
+
+    def grant_sbei_role(self, username):
+        """Give an account the SBEI's signing role, which no group carries."""
+        user = self.keycloak.user(TENANT_REALM, username)
+        role = self.keycloak.admin("GET", f"{TENANT_REALM}/roles/miru-sign")
+        self.keycloak.admin(
+            "POST",
+            f"{TENANT_REALM}/users/{user['id']}/role-mappings/realm",
+            [role],
+            expect=(204,),
+        )
+
+    def sbei_account(self):
+        """A second signer for the Post: an administrator of the tenant, as an SBEI is."""
+        username = f"sbei-{self.tag}"
+        password = username
+        self.keycloak.admin(
+            "POST",
+            f"{TENANT_REALM}/users",
+            {
+                "username": username,
+                "enabled": True,
+                "email": f"{username}@example.invalid",
+                "emailVerified": True,
+                "firstName": "Jose",
+                "lastName": "Dela Cruz",
+                "attributes": {"tenant-id": [TENANT_ID]},
+                "groups": ["/admin"],
+            },
+            expect=(201,),
+        )
+        bootstrap.set_password(self.keycloak, username, password)
+        bootstrap.enroll_mfa(self.keycloak, username, password)
+        self.grant_sbei_role(username)
+        token = self.keycloak.password_grant(
+            TENANT_REALM,
+            "api-key-client",
+            username,
+            password,
+            ENV["API_KEY_CLIENT_SECRET"],
+        )["access_token"]
+        return username, token
+
+    def transmission_package(self):
+        (session,) = self.admin.query(
+            "query ($id: uuid!) { sequent_backend_tally_session(where: {id: {_eq: $id}}) { annotations } }",
+            {"id": self.state.tally_session_id},
+        )["sequent_backend_tally_session"]
+        packages = json.loads(
+            (session["annotations"] or {}).get(transmission.TALLY_SESSION_DATA) or "[]"
+        )
+        return next(
+            (
+                package
+                for package in packages
+                if package["election_id"] == self.state.elections["main"]
+                and package["area_id"] == self.state.areas["A"]
+            ),
+            None,
+        )
+
+    def transmission_ids(self, with_event=True):
+        ids = {
+            "election": self.state.elections["main"],
+            "area": self.state.areas["A"],
+            "session": self.state.tally_session_id,
+        }
+        if with_event:
+            ids["event"] = self.state.event_id
+        return ids
+
+    def sign_transmission_package(self, token, p12):
+        contents = (transmission.KIT / p12).read_bytes()
+        upload = Hasura(token=token).query(
+            """mutation ($size: Int!, $event: String!) {
+              get_upload_url(name: "certificate.p12", media_type: "application/x-pkcs12",
+                             size: $size, is_public: false, is_local: true,
+                             election_event_id: $event) { url document_id }
+            }""",
+            {"size": len(contents), "event": self.state.event_id},
+        )["get_upload_url"]
+        response = Http().request(
+            "PUT",
+            upload["url"],
+            data=contents,
+            headers={"Content-Type": "application/x-pkcs12"},
+        )
+        self.assertEqual(response.status, 200)
+        Hasura(token=token, role="miru-sign").query(
+            """mutation ($election: uuid!, $area: uuid!, $session: uuid!, $document: uuid!, $password: String!) {
+              upload_signature(election_id: $election, area_id: $area, tally_session_id: $session,
+                               document_id: $document, password: $password) { __typename }
+            }""",
+            {
+                **self.transmission_ids(with_event=False),
+                "document": upload["document_id"],
+                "password": transmission.P12_PASSWORD,
+            },
+        )
+
+    def download_transmission_file(self, token, document_id):
+        """Record the download as the page does, then fetch the file."""
+        recorded = Hasura(token=token, role="miru-download").query(
+            """mutation ($event: uuid!, $election: uuid!, $area: uuid!, $session: uuid!, $document: uuid!) {
+              record_transmission_download(election_event_id: $event, election_id: $election, area_id: $area,
+                                           tally_session_id: $session, document_id: $document) { file_name sha256 }
+            }""",
+            {**self.transmission_ids(), "document": document_id},
+        )["record_transmission_download"]
+        url = Hasura(token=token).query(
+            """query ($event: String, $document: String!) {
+              fetchDocument(election_event_id: $event, document_id: $document) { url }
+            }""",
+            {"event": self.state.event_id, "document": document_id},
+        )["fetchDocument"]["url"]
+        response = http_get(url)
+        self.assertEqual(response.status, 200)
+        contents = response.body
+        self.assertEqual(
+            hashlib.sha256(contents).hexdigest().upper(), recorded["sha256"], recorded
+        )
+        folder = OUTPUT / "transmission"
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / recorded["file_name"]).write_bytes(contents)
+        return recorded, contents
+
+    def verify_transmission(self, package_path, *extra, key=None):
+        return self.cli.run(
+            "step",
+            "verify-transmission-package",
+            str(package_path),
+            "--key",
+            str(key or transmission.DESTINATION_KEY),
+            "--ovcs-key",
+            str(self.cli.directory / "ovcs-public-key.pem"),
+            "--ca",
+            str(self.cli.directory / "event-ca.pem"),
+            "--certificates",
+            str(transmission.SBEI_CERTIFICATES),
+            "--required-signatures",
+            str(transmission.REQUIRED_SIGNATURES),
+            *extra,
+            check=False,
+        )
+
+    def test_d_er_transmission_manual_receipt(self):
+        """T2-T7: the ER file is generated, signed by two SBEIs, downloaded with its log, and verified on receipt."""
+        self.requires("journey 2c", "journey 7")
+        self.grant_sbei_role(ENV["ADMIN_USERNAME"])
+        admin_token = self.admin_token()
+        sbei_name, sbei_token = self.sbei_account()
+        transmission.loader.load(
+            self.admin,
+            transmission.CONFIG,
+            self.state.event_id,
+            self.state.elections["main"],
+            self.state.areas["A"],
+            [ENV["ADMIN_USERNAME"], sbei_name],
+            scope=transmission.loader.SCOPE_PACKAGE,
+        )
+
+        # T2: generate. The destination has no address: manual receipt.
+        created = Hasura(token=admin_token, role="miru-create").query(
+            """mutation ($event: uuid!, $election: uuid!, $area: uuid!, $session: uuid!) {
+              create_transmission_package(election_event_id: $event, election_id: $election, area_id: $area,
+                                          tally_session_id: $session, force: false) {
+                error_msg task_execution { id }
+              }
+            }""",
+            self.transmission_ids(),
+        )["create_transmission_package"]
+        self.assertIsNone(created["error_msg"], created)
+        task_id = created["task_execution"]["id"]
+
+        def generated():
+            (task,) = self.admin.query(
+                "query ($id: uuid!) { sequent_backend_tasks_execution(where: {id: {_eq: $id}}) { execution_status logs } }",
+                {"id": task_id},
+            )["sequent_backend_tasks_execution"]
+            if task["execution_status"] == "FAILED":
+                raise AssertionError(f"Generating the package failed: {task['logs']}")
+            return task["execution_status"] == "SUCCESS" and self.transmission_package()
+
+        package = wait_until("the transmission package", generated, timeout=300, interval=3)
+        (server,) = package["servers"]
+        self.assertEqual((server["name"], server["address"]), ("CCS Manila (SBOC)", ""))
+        (document,) = package["documents"]
+        hashes = document["sha256"]
+        self.assertRegex(hashes["eml"], r"^[0-9A-F]{64}$")
+        self.assertTrue(document["document_ids"]["csv"])
+        self.assertIn("BEGIN PUBLIC KEY", package["ovcs_public_key"])
+        self.assertEqual(document["signatures"], [])
+        sent = Hasura(token=admin_token, role="miru-send").execute(
+            """mutation ($election: uuid!, $area: uuid!, $session: uuid!) {
+              send_transmission_package(election_id: $election, area_id: $area, tally_session_id: $session) { __typename }
+            }""",
+            self.transmission_ids(with_event=False),
+        )
+        self.assertIn("receives it by hand", json.dumps(sent.get("errors")))
+
+        # T3: two of the three SBEIs sign; each signature seals the package again.
+        self.sign_transmission_package(admin_token, "sbei-madrid-1.p12")
+        self.sign_transmission_package(sbei_token, "sbei-madrid-2.p12")
+        package = self.transmission_package()
+        self.assertEqual(len(package["documents"]), 3)
+        latest = package["documents"][-1]
+        self.assertEqual(
+            sorted(s["sbei_miru_id"] for s in latest["signatures"]),
+            ["SBEI-MADRID-01", "SBEI-MADRID-02"],
+        )
+        self.assertEqual(latest["sha256"]["eml"], hashes["eml"])
+        self.assertNotEqual(latest["sha256"]["all_servers"], hashes["all_servers"])
+
+        # T4: download the package, the EML and the results CSV; each is logged.
+        ids = latest["document_ids"]
+        downloads = {
+            kind: self.download_transmission_file(sbei_token, ids[kind])
+            for kind in ("all_servers", "eml", "csv")
+        }
+        self.assertEqual(downloads["eml"][0]["sha256"], hashes["eml"])
+        self.assertEqual(downloads["all_servers"][0]["file_name"], "all_servers.zip")
+        logs = [line["log_text"] for line in self.transmission_package()["logs"]]
+        for recorded, _ in downloads.values():
+            line = f"Downloaded {recorded['file_name']} (SHA-256 {recorded['sha256']}) by "
+            self.assertTrue(any(log.startswith(line) for log in logs), (line, logs))
+        self.wait_for_log(self.state.event_id, {"TransmissionFileDownloaded": 3})
+
+        # T5: the XML is EML 510 and the CSV has the same votes as the tally.
+        eml = downloads["eml"][1].decode()
+        self.assertIn('<EML Id="510"', eml)
+        self.assertIn(f"<TransactionId>{latest['transaction_id']}</TransactionId>", eml)
+        rows = list(csv.DictReader(io.StringIO(downloads["csv"][1].decode())))
+        votes = {
+            row["candidate_id"]: int(row["votes"])
+            for row in rows
+            if row["row"] == "CANDIDATE"
+        }
+        ccs_ids = dict(
+            zip(sorted(fixtures.AREA["A"].candidates), transmission.sample_candidates())
+        )
+        self.assertEqual(
+            votes,
+            {ccs_ids[name]: count for name, count in self.expected("A").items()},
+        )
+        for candidate_id, count in votes.items():
+            self.assertRegex(
+                eml,
+                rf'IdNumber="{candidate_id}">[\s\S]*?<ValidVotes>{count}</ValidVotes>',
+            )
+
+        # T6: on the receiving computer, offline, with the destination's key.
+        (self.cli.directory / "ovcs-public-key.pem").write_text(
+            package["ovcs_public_key"]
+        )
+        (self.cli.directory / "event-ca.pem").write_text(transmission.ca_bundle())
+        received = self.cli.directory / "all_servers.zip"
+        received.write_bytes(downloads["all_servers"][1])
+        code, output = self.verify_transmission(
+            received, "--expect-sha256", transmission.grouped(hashes["eml"])
+        )
+        self.assertEqual(code, 0, output)
+        self.assertIn(transmission.STATION_ID, output)
+        self.assertIn(latest["transaction_id"], output)
+
+        # T7: altered copies are refused.
+        altered = {
+            "without-a-signature": transmission.without_a_member_signature,
+            "forged-hash": transmission.with_a_forged_hash,
+            "changed-byte": transmission.with_a_changed_byte,
+        }
+        for name, alter in altered.items():
+            path = self.cli.directory / f"{name}.zip"
+            path.write_bytes(alter(downloads["all_servers"][1]))
+            code, output = self.verify_transmission(path)
+            self.assertNotEqual(code, 0, f"{name}: {output}")
+        code, output = self.verify_transmission(
+            received, key=transmission.OTHER_DESTINATION_KEY
+        )
+        self.assertNotEqual(code, 0, output)
+        code, output = self.verify_transmission(received, "--expect-sha256", "0" * 64)
+        self.assertNotEqual(code, 0, output)
+        self.passed("ER transmission")
+
+    def test_e_transmission_report(self):
+        """The Transmission Report of the sample Post is generated as a PDF and downloaded; its fields match the sample configuration and the tally."""
+        self.requires("ER transmission")
+        token = self.admin_token()
+        generated = Hasura(token=token, role="transmission-report-generate").query(
+            """mutation ($tenant: String!, $event: uuid!, $election: uuid, $session: String) {
+              generate_transmission_report(tenant_id: $tenant, election_event_id: $event,
+                                           election_id: $election, tally_session_id: $session) {
+                document_id task_execution { id }
+              }
+            }""",
+            {
+                "tenant": TENANT_ID,
+                "event": self.state.event_id,
+                "election": self.state.elections["main"],
+                "session": self.state.tally_session_id,
+            },
+        )["generate_transmission_report"]
+        task_id = generated["task_execution"]["id"]
+
+        def finished():
+            (task,) = self.admin.query(
+                "query ($id: uuid!) { sequent_backend_tasks_execution(where: {id: {_eq: $id}}) { execution_status logs } }",
+                {"id": task_id},
+            )["sequent_backend_tasks_execution"]
+            if task["execution_status"] == "FAILED":
+                raise AssertionError(f"Generating the report failed: {task['logs']}")
+            return task["execution_status"] == "SUCCESS"
+
+        wait_until("the transmission report", finished, timeout=300, interval=3)
+        url = Hasura(token=token).query(
+            """query ($event: String, $document: String!) {
+              fetchDocument(election_event_id: $event, document_id: $document) { url }
+            }""",
+            {"event": self.state.event_id, "document": generated["document_id"]},
+        )["fetchDocument"]["url"]
+        response = http_get(url)
+        self.assertEqual(response.status, 200)
+        self.assertTrue(response.body.startswith(b"%PDF-"), response.body[:16])
+        folder = OUTPUT / "transmission"
+        folder.mkdir(parents=True, exist_ok=True)
+        pdf = folder / "transmission_report.pdf"
+        pdf.write_bytes(response.body)
+        layout = subprocess.run(
+            ["pdftotext", "-layout", str(pdf), "-"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        (folder / "transmission_report.txt").write_text(layout)
+        # The template prints titles and names in capitals.
+        text = " ".join(layout.split()).upper()
+
+        # The sample Post (one election) has one country (area A).
+        post = transmission.CONFIG["post"]["annotations"]
+        country = transmission.CONFIG["country"]["annotations"]
+        registered = int(country["miru:registered-voters"])
+        counted = len(
+            {voter for voter, area, _, _ in self.state.accepted if area == self.state.areas["A"]}
+        )
+        self.assertTrue(counted)
+        (destination,) = country["miru:area-ccs-servers"]
+        expected = [
+            "TRANSMISSION REPORT",
+            f"Geographical Region: {post['miru:geographical-region']}",
+            f"Post: {post['miru:voting-center']}",
+            f"Country: {country['miru:area-country']}",
+            f"Voting Center: {post['miru:voting-center']}",
+            f"Polling Station ID: {country['miru:area-station-id']}",
+            f"Polling Station: {country['miru:area-station-name']}",
+            f"Number of Registered Voters: {registered:,}",
+            f"Number of Ballots Counted: {counted:,}",
+            f"Voters Turnout (%): {counted / registered * 100:.2f}%",
+            f"Server name: {destination['name']} {destination['tag']}",
+            # Received by hand: the package is never sent over the network.
+            "Transmission status: Not Transmitted",
+            "Received status: Not Received",
+            "The Special Board of Election Inspectors",
+            "Results hash:",
+            "Report hash:",
+            "End of Report",
+        ]
+        for sbei in transmission.CONFIG["election_event"]["annotations"]["miru:sbei-users"]:
+            expected.append(f"{sbei['miru_name']} {sbei['miru_role']}")
+        for line in expected:
+            self.assertIn(line.upper(), text)
+        self.passed("transmission report")

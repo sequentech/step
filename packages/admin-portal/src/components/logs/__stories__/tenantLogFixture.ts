@@ -264,6 +264,9 @@ const WRITER_STOPPED_ENTRY = audit({
     details: {release: "10.0.4", last_entry_id: 5253},
 })
 
+/** The deleted event's log key, kept in the entry: the event's keys go with it. */
+export const RETIRED_SYSTEM_KEY = "bBSuL4bXEkBrqtmLXKFHmhxsZGJGCNGYXXKRpaw0go="
+
 export const DELETED_EVENT_ENTRY = audit({
     id: 5253,
     kind: "AdminChange",
@@ -283,6 +286,34 @@ export const DELETED_EVENT_ENTRY = audit({
             entries: 18442,
             status: "RETIRED",
             task_id: storyId(7, 3),
+            system_public_key: RETIRED_SYSTEM_KEY,
+        },
+    },
+})
+
+export const IMPORTED_FILE_SHA256 =
+    "4f1c9e0b7a2d3c58e6f9a1b0c2d4e6f8091a2b3c4d5e6f708192a3b4c5d6e7f8"
+export const DECLARED_SHA256 = "0e2a4c6e8a0c2e4a6c8e0a2c4e6a8c0e2a4c6e8a0c2e4a6c8e0a2c4e6a8c0e2a"
+
+/** An imported election event whose file doesn't match the checksum the admin declared. */
+export const IMPORTED_EVENT_ENTRY = audit({
+    id: 5254,
+    kind: "AdminChange",
+    timestamp: at(2, "17:02:41"),
+    account: CONFIGURATION_MANAGER,
+    description: "Imported election event Training 2028",
+    details: {
+        object: {type: "election_event", id: storyId(7, 4), name: "Training 2028"},
+        action: "import",
+        actor: actor(CONFIGURATION_MANAGER),
+        origin: "windmill",
+        changes: [],
+        extra: {
+            document_id: storyId(7, 5),
+            file_sha256: IMPORTED_FILE_SHA256,
+            declared_sha256: DECLARED_SHA256,
+            declared_checksum: "mismatch",
+            counts: {elections: 2, contests: 3, candidates: 7, areas: 4, area_contests: 6},
         },
     },
 })

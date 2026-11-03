@@ -119,10 +119,15 @@ impl<'r> FromRequest<'r> for JwtClaims {
     }
 }
 
-#[derive(Debug)]
 pub struct UserLocation {
     pub ip: Option<IpAddr>,
     pub country_code: Option<String>,
+    pub user_agent: Option<String>,
+}
+impl std::fmt::Debug for UserLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("UserLocation(<redacted>)")
+    }
 }
 
 #[rocket::async_trait]
@@ -143,7 +148,15 @@ impl<'r> FromRequest<'r> for UserLocation {
             .get_one("CF-IPCountry")
             .map(|s| s.to_string());
 
-        Outcome::Success(UserLocation { ip, country_code })
+        let user_agent = request
+            .headers()
+            .get_one("User-Agent")
+            .map(|value| value.chars().take(1024).collect());
+        Outcome::Success(UserLocation {
+            ip,
+            country_code,
+            user_agent,
+        })
     }
 }
 

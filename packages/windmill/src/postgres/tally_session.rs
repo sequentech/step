@@ -389,6 +389,51 @@ pub async fn lock_tally_session_for_update(
     Ok(())
 }
 
+/// Sets `key` of the tally session's annotations to `value`, keeping every
+/// other key. One statement, so it cannot overwrite a key another writer set
+/// since this session was read.
+#[instrument(err, skip(hasura_transaction, value))]
+pub async fn merge_tally_session_annotation(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    key: &str,
+    value: Value,
+) -> Result<()> {
+    let updated = hasura_transaction
+        .execute(
+            r#"
+            UPDATE
+                sequent_backend.tally_session
+            SET
+                annotations = (
+                    CASE WHEN jsonb_typeof(annotations) = 'object'
+                        THEN annotations
+                        ELSE '{}'::jsonb
+                    END
+                ) || jsonb_build_object($1::text, $2::jsonb)
+            WHERE
+                id = $3 AND
+                tenant_id = $4 AND
+                election_event_id = $5;
+            "#,
+            &[
+                &key,
+                &value,
+                &parse_uuid_v4(tally_session_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
+        )
+        .await
+        .with_context(|| format!("Error annotating tally session {tally_session_id}"))?;
+    if updated == 0 {
+        return Err(anyhow!("Tally Session {tally_session_id} not found"));
+    }
+    Ok(())
+}
+
 #[instrument(err, skip_all)]
 pub async fn update_tally_session_annotation(
     hasura_transaction: &Transaction<'_>,

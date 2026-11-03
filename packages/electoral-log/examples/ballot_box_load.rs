@@ -670,11 +670,11 @@ async fn reads(store: PostgresStore, args: ReadsArgs) -> Result<()> {
     .await?;
     let repeat_scans = args.repeat.min(5);
     timed("participation of the event", repeat_scans, |_| {
-        store.participation(event, None)
+        store.participation(event, None, None)
     })
     .await?;
     timed("participation of an election", repeat_scans, |_| {
-        store.participation(event, Some(&election))
+        store.participation(event, Some(&election), None)
     })
     .await?;
     timed("voters by channel", repeat_scans, |_| {

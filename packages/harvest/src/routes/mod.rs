@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pub mod api_datafix;
 pub mod applications;
+pub mod apply_configuration_package;
 pub mod approval_matrix;
 pub mod areas;
+pub mod b4;
 pub mod ballot_checks;
 pub mod ballot_publication;
 pub mod ballot_publication_prepare_preview;
@@ -58,6 +60,7 @@ pub mod monitoring_export;
 pub mod permissions;
 pub mod phone_blacklist;
 pub mod plugins;
+pub mod readiness;
 pub mod realm_attributes;
 pub mod realm_password_policy;
 pub mod receive_ballot;
@@ -84,8 +87,17 @@ pub mod ballot_files;
 pub mod electoral_log_audit;
 pub mod electoral_log_console;
 pub mod electoral_log_proofs;
+pub mod plugin_platform;
 pub mod schedule_import;
 pub mod scheduled_outcomes;
 pub mod signing;
 pub mod signing_certificates;
 pub mod task_queues;
+
+pub mod ballot_privacy;
+
+pub mod privacy_signin;
+
+pub mod receipt_document;
+
+pub mod audit_ballot;

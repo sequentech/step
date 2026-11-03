@@ -36,6 +36,7 @@ use crate::services::ballot_box_seal::expected_ballot_boxes as shared_expected_b
 use crate::services::ceremonies::serialize_logs::{
     append_tally_recount_log, append_tally_trustee_log, generate_tally_initial_log,
 };
+use crate::services::ceremonies::tally_boards::{election_areas, ELECTION_AREAS_ANNOTATION};
 use crate::services::election::ElectionHead;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
@@ -775,6 +776,12 @@ pub async fn create_tally_ceremony_with(
     if let Some(filter) = &area_filter {
         annotations[INITIALIZATION_AREA_IDS_ANNOTATION] = json!(filter);
     }
+    annotations[ELECTION_AREAS_ANNOTATION] =
+        Value::String(serde_json::to_string(&election_areas(
+            published_ballot_styles
+                .iter()
+                .map(|style| (style.election_id.as_str(), style.area_id.as_str())),
+        ))?);
 
     let keys_ceremony_policy = keys_ceremony.policy();
 

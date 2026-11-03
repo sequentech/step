@@ -42,6 +42,7 @@ import {LivenessAbort} from "../scanovate/livenessApi"
 import {cameraProblem, previewMirrored, stopStream} from "../scanovate/media"
 import type {ScanovatePageProps} from "../scanovate/pageProps"
 import {EnrollmentStep, documentName, enrollmentFrame, textFor, type Text} from "../scanovate/text"
+import {stepBack} from "../stepBack"
 import {CaptureProblem, CaptureStep, type Analyzers} from "../scanovate/types"
 
 const FLASH_MS = 700
@@ -324,6 +325,7 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
         classes,
         ...verifyFrame,
         displayMessage: state.phase === Phase.Intro,
+        back: stepBack(kcContext, text("enrollmentBack")),
     }
 
     if (problem !== null) {

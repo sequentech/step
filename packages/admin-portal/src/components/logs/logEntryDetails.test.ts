@@ -1,7 +1,16 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {ELogChangeKind, ELogOrigin, logEntryView, logValue, shortened} from "./logEntryDetails"
+import scanovateContract from "../../../../keycloak-extensions/custom-event-listener/src/test/resources/scanovate-failure-contract.json"
+
+import {
+    EImportChecksum,
+    ELogChangeKind,
+    ELogOrigin,
+    logEntryView,
+    logValue,
+    shortened,
+} from "./logEntryDetails"
 import {logFieldLabelKey, logObjectTypeKey} from "./logFieldLabels"
 
 const USER_ID = "2e9b6d14-8a3f-4c57-b0e2-9d4f1a7c3e58"
@@ -58,6 +67,22 @@ const audit = (kind: string, details: unknown, options: IOptions = {}) =>
     )
 
 describe("the head and who of any entry", () => {
+    it.each(["ForensicRead", "PseudonymResolved"])(
+        "uses a backfilled display name for historical %s without changing its message",
+        (kind) => {
+            const original = row(kind, {}, {username: null})
+            const record = {...original, username: "election-reviewer"}
+            expect(logEntryView(record).who.username).toBe("election-reviewer")
+            expect(record.message).toBe(original.message)
+            expect(JSON.parse(record.message).username).toBeNull()
+        }
+    )
+
+    it("prefers the recorded username over a later display-name projection", () => {
+        const record = {...row("PseudonymResolved", {}), username: "renamed-reviewer"}
+        expect(logEntryView(record).who.username).toBe("rosa.marin")
+    })
+
     it("reads the description, the types and who from the message", () => {
         const view = logEntryView(row("CastVote", {CastVote: []}, {sender: "Rosa Marin"}))
         expect(view).toMatchObject({
@@ -73,6 +98,7 @@ describe("the head and who of any entry", () => {
             signIn: null,
             keycloak: null,
             deletedEvent: null,
+            importedFile: null,
             exported: null,
             writer: null,
         })
@@ -273,6 +299,7 @@ describe("AdminChange", () => {
                     entries: 18442,
                     status: "RETIRED",
                     task_id: "7c1d81ab-0000-4000-8000-000000000001",
+                    system_public_key: "bBSuL4bXEkBrqtmLXKFHmhxsZGJGCNG=",
                 },
             })
         )
@@ -283,19 +310,82 @@ describe("AdminChange", () => {
             entries: "18442",
             status: "RETIRED",
             taskId: "7c1d81ab-0000-4000-8000-000000000001",
+            systemPublicKey: "bBSuL4bXEkBrqtmLXKFHmhxsZGJGCNG=",
         })
         expect(view.extra).toEqual([])
         expect(view.origin).toBe(ELogOrigin.WINDMILL)
     })
 
-    it("keeps an import's counts as extra details", () => {
+    it("reads the file an import read, with its count, and keeps other details", () => {
         const view = logEntryView(
-            audit("AdminChange", {...details, extra: {count: 12, file_sha256: "cc33", note: null}})
+            audit("AdminChange", {
+                ...details,
+                extra: {
+                    count: 12,
+                    file_sha256: "cc33",
+                    document_id: "doc-1",
+                    note: "x",
+                    gone: null,
+                },
+            })
         )
         expect(view.deletedEvent).toBeNull()
+        expect(view.importedFile).toEqual({
+            documentId: "doc-1",
+            fileSha256: "cc33",
+            declaredSha256: null,
+            declaredChecksum: null,
+            counts: [{name: "count", value: "12"}],
+        })
+        expect(view.extra).toEqual([{name: "note", value: "x"}])
+    })
+
+    it("reads an import's counts and how its declared checksum compares", () => {
+        const view = logEntryView(
+            audit("AdminChange", {
+                ...details,
+                action: "import",
+                extra: {
+                    document_id: "doc-2",
+                    file_sha256: "aa11",
+                    declared_sha256: "bb22",
+                    declared_checksum: "mismatch",
+                    counts: {elections: 2, candidates: 7, areas: 0},
+                },
+            })
+        )
+        expect(view.importedFile).toEqual({
+            documentId: "doc-2",
+            fileSha256: "aa11",
+            declaredSha256: "bb22",
+            declaredChecksum: EImportChecksum.MISMATCH,
+            counts: [
+                {name: "elections", value: "2"},
+                {name: "candidates", value: "7"},
+                {name: "areas", value: "0"},
+            ],
+        })
+        expect(view.extra).toEqual([])
+    })
+
+    it("ignores a checksum verdict it doesn't know", () => {
+        const view = logEntryView(
+            audit("AdminChange", {
+                ...details,
+                extra: {file_sha256: "aa11", declared_checksum: "maybe", counts: "many"},
+            })
+        )
+        expect(view.importedFile).toMatchObject({declaredChecksum: null, counts: []})
+    })
+
+    it("has no imported file without a computed SHA-256", () => {
+        const view = logEntryView(
+            audit("AdminChange", {...details, extra: {declared_sha256: "bb22", count: 3}})
+        )
+        expect(view.importedFile).toBeNull()
         expect(view.extra).toEqual([
-            {name: "count", value: "12"},
-            {name: "file_sha256", value: "cc33"},
+            {name: "declared_sha256", value: "bb22"},
+            {name: "count", value: "3"},
         ])
     })
 })
@@ -617,5 +707,121 @@ describe("field and object names", () => {
     it("names the object types it knows", () => {
         expect(logObjectTypeKey("staff_account")).toBe("logsScreen.entry.objectType.staff_account")
         expect(logObjectTypeKey("ballot_style")).toBeNull()
+    })
+})
+
+describe("certified import and readiness evidence", () => {
+    it("shows voter import hash, stable area counts and the authenticated actor", () => {
+        const view = logEntryView(
+            audit(
+                "VotersImported",
+                {
+                    actor: {user_id: USER_ID, username: "certified.operator", role: "voter-write"},
+                    import_id: "import-123",
+                    document_id: "document-456",
+                    file_name: "registry.csv",
+                    sha256: "ab".repeat(32),
+                    declared_sha256: "ab".repeat(32),
+                    counts_by_area: {"Area A": 12, "Area B": 0},
+                    imported_at: "2026-10-14T09:00:00Z",
+                },
+                {username: null, userId: null}
+            )
+        )
+        expect(view.who).toMatchObject({
+            username: "certified.operator",
+            userId: USER_ID,
+            role: "voter-write",
+        })
+        expect(view.extra).toEqual(
+            expect.arrayContaining([
+                {name: "import_id", value: "import-123"},
+                {name: "sha256", value: "ab".repeat(32)},
+                {name: "counts_by_area", value: "Area A: 12; Area B: 0"},
+            ])
+        )
+    })
+    it("keeps complete readiness checks and evidence visible in the event log", () => {
+        const report = {
+            official_event_id: EVENT_ID,
+            tested_event_id: "tested-event",
+            passed: true,
+            checks: [
+                {name: "configuration", passed: true, evidence: {content_sha256: "cd".repeat(32)}},
+            ],
+        }
+        const view = logEntryView(
+            audit("ReadinessVerified", {actor: {username: "operator"}, report})
+        )
+        expect(view.extra).toEqual(
+            expect.arrayContaining([
+                {name: "report", value: expect.stringContaining("tested-event")},
+                {name: "report", value: expect.stringContaining("cd".repeat(32))},
+            ])
+        )
+    })
+})
+
+describe("configuration package import evidence", () => {
+    const details = {
+        action: "Imported",
+        external_id: "approved-configuration",
+        revision: 9,
+        manifest_sha256: "ab".repeat(32),
+        design_digests: [],
+    }
+    it("shows the signed content hash separately from the manifest hash", () => {
+        const view = logEntryView(
+            row("ConfigurationPackageImported", {
+                ConfigurationPackageWithContentHash: [
+                    EVENT_ID,
+                    {...details, content_hash: "cd".repeat(32)},
+                ],
+            })
+        )
+        expect(view.extra).toEqual(
+            expect.arrayContaining([
+                {name: "content_hash", value: "cd".repeat(32)},
+                {name: "manifest_sha256", value: "ab".repeat(32)},
+            ])
+        )
+    })
+    it("shows historical import details without inventing a content hash", () => {
+        const view = logEntryView(
+            row("ConfigurationPackageImported", {
+                ConfigurationPackage: [EVENT_ID, details],
+            })
+        )
+        expect(view.extra).toContainEqual({name: "manifest_sha256", value: "ab".repeat(32)})
+        expect(view.extra.some(({name}) => name === "content_hash")).toBe(false)
+    })
+})
+
+// This exact body is asserted against the signed Rust election-board message and the Java queue producer.
+describe("Scanovate failure contract", () => {
+    it("shows every bounded field from the shared durable body", () => {
+        const view = logEntryView(
+            row("KeycloakUserEvent", scanovateContract.statement_body, {
+                userId: scanovateContract.queue_input.user_id,
+                username: scanovateContract.queue_input.username,
+                head: {event: scanovateContract.queue_input.election_event_id, log_type: "ERROR"},
+            })
+        )
+        const expected = JSON.parse(scanovateContract.queue_input.body)
+        expect(view.signIn?.error).toBe("scanovate_verification_failed")
+        expect(
+            Object.fromEntries(view.signIn!.details.map(({name, value}) => [name, value]))
+        ).toEqual(expected.details)
+        expect(view.who.userId).toBe(scanovateContract.queue_input.user_id)
+        expect(view.signIn?.text).toBeNull()
+    })
+    it("continues to display older unstructured failures", () => {
+        const view = logEntryView(
+            row("KeycloakUserEvent", {
+                KeycloakUserEvent: ["scanovate_verification_failed", "REGISTER_ERROR"],
+            })
+        )
+        expect(view.signIn?.text).toBe("scanovate_verification_failed")
+        expect(view.signIn?.details).toEqual([])
     })
 })

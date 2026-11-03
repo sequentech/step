@@ -2,13 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::{
     authorize, authorize_tally_session_permission_labels,
 };
+use crate::services::dependencies::HarvestServices;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::{self, Json};
+use rocket::State;
 use sequent_core::services::jwt;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -16,6 +19,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+use windmill::services::audit_log::AuditObject;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::tasks_execution::*;
@@ -36,11 +40,12 @@ pub struct ExportTallyResultsOutput {
     error_msg: Option<String>,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(services, claims))]
 #[post("/export-tally-results", format = "json", data = "<input>")]
 pub async fn export_tally_results_route(
     claims: jwt::JwtClaims,
     input: Json<ExportTallyResultsInput>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<ExportTallyResultsOutput>, (Status, String)> {
     let body = input.into_inner();
 
@@ -113,6 +118,19 @@ pub async fn export_tally_results_route(
             }))
         }
     };
+
+    let entry = audit::exported(
+        &claims,
+        audit::target(
+            &claims.hasura_claims.tenant_id,
+            Some(&body.election_event_id),
+        )?,
+        AuditObject::new("tally_session", &body.tally_session_id, None),
+        "Requested the export of the tally results",
+        Some(&task_execution.id),
+        Some(&document_id),
+    );
+    audit::record(services, &entry).await?;
 
     let output = ExportTallyResultsOutput {
         document_id,

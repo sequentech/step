@@ -23,8 +23,11 @@ import {SettingsIntegrations} from "@/resources/Settings/SettingsIntegrations"
 import {SettingsCountries} from "@/resources/Settings/SettingsCountries"
 import SettingsLocalization from "@/resources/Settings/SettingsLocalization"
 import {SettingsBackupRestore} from "@/resources/Settings/SettingsBackupRestore"
+import {SettingsConfigurationPackage} from "@/resources/Settings/SettingsConfigurationPackage"
+import {mayApplyPackages} from "@/resources/Settings/configurationPackage"
 import {SettingsPreviews} from "@/resources/Settings/SettingsPreviews"
 import {SettingsLogs} from "@/resources/Settings/SettingsLogs"
+import {PluginSettings} from "@/plugins/PluginSettings"
 import {
     ESettingsAccess,
     settingsAccess,
@@ -40,6 +43,9 @@ export const SettingsScreen: React.FC = () => {
         authContext.isAuthorized(true, tenantId, permission)
     )
     const [open] = useSidebarState()
+
+    // Only with every permission the package's sections need, on this tenant.
+    const showConfigurationPackage = mayApplyPackages(tenantId, authContext.isAuthorized)
 
     const showMessaging = authContext.isAuthorized(
         true,
@@ -118,6 +124,7 @@ export const SettingsScreen: React.FC = () => {
             label: t("settings.previewScreen.label"),
             component: () => <Resource name="sequent_backend_preview" list={SettingsPreviews} />,
         },
+        {label: t("plugins.title"), component: () => <PluginSettings />},
     ]
 
     return (
@@ -138,6 +145,15 @@ export const SettingsScreen: React.FC = () => {
                               {
                                   label: t("electionTypeScreen.tabs.logs"),
                                   component: () => <SettingsLogs />,
+                              },
+                          ]
+                        : []),
+                    // Last, so the tabs before it keep their tabIndex links.
+                    ...(showsConfiguration(access) && showConfigurationPackage
+                        ? [
+                              {
+                                  label: t("configurationPackage.tab"),
+                                  component: () => <SettingsConfigurationPackage />,
                               },
                           ]
                         : []),

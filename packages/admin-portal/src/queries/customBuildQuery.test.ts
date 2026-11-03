@@ -403,7 +403,6 @@ describe("action-backed lists", () => {
         ["user", "getUsers", "get_users"],
         ["role", "getRoles", "get_roles"],
         ["permission", "getPermissions", "get_permissions"],
-        ["ip_address", "GetCastVotesByIp", "get_top_votes_by_ip"],
         ["electoral_log", "listElectoralLog", "listElectoralLog"],
     ])("%s reads its page from the %s action", (resource, operation, field) => {
         const built = list(resource, {filter: {election_event_id: EVENT, tenant_id: EVENT}})
@@ -412,6 +411,29 @@ describe("action-backed lists", () => {
             data: page.items,
             total: 7,
         })
+    })
+
+    it("reads only the forensic summary for IP addresses", () => {
+        const built = list("ip_address", {
+            filter: {election_event_id: EVENT, ip: "192.0.2.10"},
+            pagination: {page: 2, perPage: 10},
+        })
+        expect(operationName(built.query)).toBe("ForensicNetworkSummary")
+        expect(built.variables).toMatchObject({
+            electionEventId: EVENT,
+            ip: "192.0.2.10",
+            offset: 10,
+            limit: 10,
+        })
+        expect(
+            built.parseResponse({
+                data: {
+                    forensic_network_summary: {
+                        payload: {items: [{id: "address", pseudonyms: ["7QKM-2HXD"]}], total: 1},
+                    },
+                },
+            })
+        ).toEqual({data: [{id: "address", pseudonyms: ["7QKM-2HXD"]}], total: 1})
     })
 
     it("keeps only the electoral log's searchable filters", () => {

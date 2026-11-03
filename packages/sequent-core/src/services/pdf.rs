@@ -1020,7 +1020,8 @@ fn print_to_pdf_once(
     let mut args = vec![
         std::ffi::OsStr::new("--disable-setuid-sandbox"),
         std::ffi::OsStr::new("--disable-dev-shm-usage"),
-        std::ffi::OsStr::new("--single-process"),
+        // Never add --single-process: Chromium 155+ aborts at startup
+        // with it, so the browser never comes up.
         std::ffi::OsStr::new("--no-zygote"),
     ];
     args.extend(network_args.iter().map(std::ffi::OsStr::new));

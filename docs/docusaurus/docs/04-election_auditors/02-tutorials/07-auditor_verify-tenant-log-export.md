@@ -94,7 +94,12 @@ The manifest:
 
 `logs` has one element per log the export read, each with that log's system public key and the number
 of its entries in the file. An export of one account with its entries in every election event has
-one element for the tenant log and one for each election event.
+one element for the tenant log and one for each election event, deleted ones included.
+
+A deleted election event's log is named `retired event <event ID>`, and its `system_public_key` is
+`null`: the event's keys were deleted with it. The tenant log's entry of the event's deletion keeps
+the public key, as `system_public_key` in its details; set it in the manifest's element before
+verifying (section 4).
 
 ## 3. Check what was loaded
 
@@ -152,8 +157,11 @@ def public_key(encoded):
 
 with psycopg.connect(sys.argv[1]) as db:
     manifest = db.execute("SELECT manifest FROM audit_log_export").fetchone()[0]
+    # A deleted event's key is not in the manifest: see section 2.
     system_keys = {
-        log["log"]: public_key(log["system_public_key"]) for log in manifest["logs"]
+        log["log"]: public_key(log["system_public_key"])
+        for log in manifest["logs"]
+        if log["system_public_key"]
     }
     rows = db.execute(
         "SELECT log, id, statement, sender_public_key, sender_signature, system_signature"
@@ -164,9 +172,13 @@ with psycopg.connect(sys.argv[1]) as db:
         checked += 1
         signatures = (
             ("sender", public_key(sender_key), sender_signature),
-            ("system", system_keys[log], system_signature),
+            ("system", system_keys.get(log), system_signature),
         )
         for name, key, signature in signatures:
+            if key is None:
+                failed += 1
+                print(f"{log} {entry}: no {name} key to verify with")
+                continue
             try:
                 key.verify(bytes(signature), bytes(statement))
             except InvalidSignature:

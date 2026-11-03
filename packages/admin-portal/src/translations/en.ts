@@ -4,6 +4,538 @@
 
 const englishTranslation = {
     translations: {
+        configurationPackage: {
+            tab: "Configuration package",
+            title: "Import a configuration package",
+            description:
+                "Apply a complete delivery exported by Election Architect: tenant configuration and settings, roles, administrators, trustees and the election event with its census. Nothing changes until the preview is applied.",
+            tenant: "Tenant: {{tenantId}}",
+            notPermitted:
+                "Importing a configuration package needs tenant-write, user-write, role-write, trustee-create, trustee-write and election-event-create on this tenant.",
+            requirements: "The package must carry",
+            censusRequired: "The election event's census",
+            sections: {
+                "tenant-configuration": "Tenant configuration",
+                "tenant-settings": "Tenant settings",
+                "role-permissions": "Role permissions",
+                "admin-accounts": "Administrator accounts",
+                "trustees": "Trustees",
+                "election-event": "Election event",
+            },
+            upload: "Upload package",
+            uploadTitle: "Upload a configuration package",
+            uploadSubtitle: "The delivery zip from removable media",
+            uploadParagraph: "It is previewed first; nothing is applied from the upload itself.",
+            documentId: "Or an uploaded document id",
+            preview: "Preview",
+            apply: "Apply",
+            blocked:
+                "The preview found blockers: fix the package or the tenant, then preview again.",
+            noTask: "The platform returned no task.",
+            mode: {preview: "Preview", apply: "Application"},
+            task: "Task {{taskId}}",
+            running: "Running…",
+            toChange: "Preview only, nothing changed: {{count}} section(s) would change.",
+            outcome: {
+                running: "Running",
+                previewed: "Previewed: nothing was changed",
+                applied: "Applied: the tenant matches the package",
+                refused:
+                    "Refused before this run applied anything; sections an earlier run applied stay applied, as their states say",
+                failed: "Failed part-way: the sections before it may be applied, as their states say",
+                unknown:
+                    "Unknown: a section could not be settled, and nothing further was submitted; check it again before retrying",
+            },
+            columns: {section: "Section", state: "State", task: "Task", details: "Details"},
+            reconciled: "reconciled",
+            blocker: "Blocked",
+            needsApply: "Would change",
+            members: "Members",
+            history: "Earlier applications",
+            applyRechecks:
+                "Applying previews the package again on the platform before anything changes, and stops at any blocker.",
+            earlierApplied: "Applied by an earlier run",
+            earlierTasks: "Tasks begun for this section: {{tasks}}",
+            inFlight: "A submission is not settled yet (task {{taskId}})",
+            stoppedWithoutRecord:
+                "Stopped without a record: sections may have been applied by this or earlier runs; preview again to see the tenant's state",
+            lastLog: "Last message: {{message}}",
+            unreadable:
+                "The task cannot be read ({{reason}}). It may still be running: check the earlier applications, or stop following it",
+            notFound: "not found in this tenant",
+            stopFollowing: "Stop following",
+            mayHaveTask:
+                "The outcome of the request is unknown, so a task may have been created: check the earlier applications before retrying.",
+            shaMismatch:
+                "The previewed package is not the one whose SHA-256 was entered ({{expected}}); it cannot be applied.",
+            confirmTitle: "Apply this package?",
+            confirmBody:
+                "This applies the previewed package to tenant {{tenantId}}. The platform previews it again first and stops at any blocker.",
+            cancel: "Cancel",
+            proposedChanges: "What applying would change",
+            shaMalformed:
+                "The SHA-256 entered is not 64 hexadecimal characters, so the package was not previewed. Enter the digest exactly, or leave it blank.",
+            nothingToChange: "Nothing: the tenant already matches the package.",
+        },
+        ballotPrivacy: {
+            title: "Ballot box log",
+            subtitle:
+                "Every ballot cast in this election, listed under a pseudonym instead of the voter's name.",
+            private: "Voters appear only as pseudonyms",
+            signed: "Signed by the election authority and the ballot box",
+            device: "Checked on your device",
+            own: "Your ballot is in the ballot box",
+            listedAs: "Listed as",
+            check: "Check my ballot",
+            copy: "Copy Ballot ID",
+            copied: "Ballot ID copied",
+            copyFailed: "Could not copy the Ballot ID. Select the code to copy it.",
+            search: "Find a Ballot ID or pseudonym",
+            placeholder: "Ballot ID or pseudonym",
+            clear: "Clear search",
+            ballots: "{{count}} ballots",
+            matches: "{{count}} of {{total}} ballots match",
+            capped: "More than {{count}} of {{total}} ballots match; type more of the code",
+            ballotId: "Ballot ID",
+            pseudonym: "Pseudonym",
+            castAt: "Cast",
+            channel: "Channel",
+            yours: "Yours",
+            channels: {
+                online: "Online",
+                kiosk: "Kiosk",
+                telephone: "Telephone",
+            },
+            previous: "Previous",
+            next: "Next",
+            rows: "Rows per page",
+            noMatch: "No Ballot ID or pseudonym starts with {{prefix}}",
+            noBallots: "No ballots have been cast yet.",
+            invalidPrefix:
+                "The codes use the digits 0 to 9 and capital letters, without I, L, O and U. Enter up to eight characters.",
+            loadError: "The ballot box log could not be loaded. Please try again.",
+            retry: "Try again",
+            help: "About the ballot box log",
+            helpText:
+                "Each voter is listed under a pseudonym, a code such as 7QKM-2HXD. The log never says who the voter is. The election authority signs which voter key each pseudonym uses. Open a ballot to check its signatures in this browser.",
+            detailTitle: "Ballot {{ballotId}}",
+            checking: "Checking the signatures…",
+            passed: "All four checks passed",
+            verified: "Checked on this device with the published keys.",
+            failed: "A check failed",
+            failedHelp: "Do not rely on this entry.",
+            pending: "Still being added to the log",
+            pendingHelp: "The signed entries may appear after a ballot is cast. Check again later.",
+            proofError: "The signed entries or published keys could not be loaded. Try again.",
+            checkLabels: {
+                binding: "Voter key registered",
+                received: "Ballot received",
+                ballotId: "Ballot ID",
+                cast: "Ballot cast",
+            },
+            checkDescriptions: {
+                binding: "The election authority signed which voter key this pseudonym uses.",
+                received: "The ballot box received a ballot signed with that voter key.",
+                ballotId: "The Ballot ID is computed from that signed ballot.",
+                cast: "The same key cast the ballot, and the ballot box confirmed the cast.",
+            },
+            states: {
+                passed: "Passed",
+                failed: "Does not match.",
+                pending: "Not in the log yet.",
+            },
+            neverPublished:
+                "Never published: the voter's name, username, IP address, country or device.",
+            download: "Download signed log entries",
+            downloadAction: "Download",
+            signedEntries: "Signed log entries ({{count}})",
+            close: "Close",
+            systemKey: "Election event log key",
+            boxKey: "Ballot box key",
+            userLogs:
+                "A voter's own entries: sign-ins and messages. Their ballots are in the log under a pseudonym, so they never appear here; only a logged resolution links the two.",
+            ballotSection: "Ballot and pseudonym",
+            admin: {
+                voterKey: "Voter key",
+                entries: "This ballot's entries, checked in this browser",
+                thisEntry: "This entry",
+                entryNumber: "Entry {{id}}",
+                receivedTitle: "Ballot {{ballotId}} received",
+                castTitle: "Ballot {{ballotId}} cast",
+                receivedHelp:
+                    "This log's system key signed that the pseudonym uses this voter key; the ballot box signed that it received a ballot signed with it, and the Ballot ID comes from that ballot.",
+                castHelp: "The same key cast it, and the ballot box confirmed the cast.",
+                pseudonymHelp: "A pseudonym, never the voter",
+                neverPublished:
+                    "No entry about a ballot names the voter or holds their IP address, country or device. Only a logged resolution links a pseudonym to its voter.",
+                signedBy: "The log's system key and the ballot box key",
+            },
+            resolution: "Pseudonym resolution",
+            resolutionHelp:
+                "The answer went only to the person who asked. The voter is never named in this log.",
+            reason: "Reason given",
+            settings: {
+                legacyNetwork:
+                    "Forensic attribution is available for new events that use voter pseudonyms. Historical and Datafix events keep their existing ballot identity mode.",
+                authority:
+                    "The election event log key {{fingerprint}} signs which voter key each pseudonym uses.",
+                loading: "Loading privacy permissions",
+                loadError: "The current privacy permissions could not be loaded.",
+                noRoles: "No role yet",
+                title: "Privacy",
+                identity: "Voter pseudonyms",
+                example: "A pseudonym looks like",
+                on: "On: ballots, the log and its exports name a pseudonym for each voter, never the voter.",
+                legacy: "This event uses the historical voter identity mode.",
+                immutable:
+                    "The identity mode is set when the event is created and cannot be changed.",
+                network: "Network data",
+                description:
+                    "The IP address, country and browser of each ballot sent. They are never kept with ballots, voter records or log entries.",
+                forensic: "Keep for forensic review",
+                forensicHelp:
+                    "Kept apart in the forensic store. Only people with Forensic Read see it, and every view is logged.",
+                none: "Do not store",
+                noneHelp:
+                    "Nothing new is kept, and the dashboard's IP Addresses list is not shown. Previously retained forensic data follows its retention policy.",
+                permissions: "Who can see or link it",
+                permissionHelp:
+                    "No preset role holds these permissions. Give them in Users and Roles to the few people who need them.",
+                forensicPermission: "Forensic Read",
+                forensicPermissionHelp: "Sees the network data in the forensic store",
+                resolvePermission: "Resolve a pseudonym",
+                resolvePermissionHelp:
+                    "Links one pseudonym to its voter, with a reason. Each use is logged.",
+                roles: "Manage in Users and Roles",
+            },
+            forensic: {
+                address: "IP address",
+                allElections: "All permitted elections",
+                exportError: "The forensic records could not be exported.",
+                subtitle:
+                    "Where ballots were sent from, by pseudonym. Only people with Forensic Read see this list, and each view is logged.",
+                store: "Forensic store",
+                ballots: "Ballots",
+                pseudonyms: "Pseudonyms",
+                first: "First ballot",
+                last: "Last ballot",
+                shared: "Shared",
+                sharedHelp:
+                    "Ballots of several pseudonyms came from this address, as from a hotel or office network.",
+                more: "+{{count}} more",
+                view: "View ballots",
+                copy: "Copy IP address",
+                detailTitle: "IP address {{ip}}",
+                detailHelp:
+                    "Opening this address was written to the election event’s log. Nobody is named here: each ballot is listed by its pseudonym.",
+                error: "The forensic records could not be loaded.",
+                empty: "No forensic ballot records for this address.",
+                emptyList: "No ballot network records yet.",
+            },
+        },
+        readiness: {
+            close: "Close",
+            action: "Check readiness",
+            title: "Election readiness",
+            description:
+                "Compare this official event with a completed rehearsal. A passing check writes signed evidence to this official event’s log.",
+            testedEvent: "Tested event",
+            archived: "Archived",
+            noEvents: "No other events available",
+            retry: "Retry",
+            eventsError: "Could not load election events.",
+            run: "Run check",
+            running: "Checking readiness…",
+            error: "The check could not be completed. Check Logs before retrying; the response may have been lost after evidence was recorded.",
+            downloadError: "Could not download the report. Try again.",
+            success:
+                "Readiness verified. Signed evidence was recorded in the official event’s Logs.",
+            failed: "Readiness failed. Resolve the failed checks and run again. No readiness entry was recorded.",
+            download: "Download JSON report",
+            snapshot:
+                "This report is a snapshot. Repeat after relevant changes; it does not freeze the event or replace operational approval.",
+            results: "Check results",
+            condition: "Condition checked by the server",
+            noDetail: "The server reported no further detail for this check.",
+            reasons: "Why it failed",
+            noArea: "no or an unknown area",
+            eventRoles: {
+                official: "official",
+                tested: "tested",
+                both: "both",
+            },
+            scope: {
+                event: "The {{event}} event",
+                election: "Election {{election}}",
+            },
+            certification: {
+                declared_sha256_missing: "no declared SHA-256 was given",
+                declared_sha256_mismatch: "the declared SHA-256 differs from the file",
+                no_counts: "it has no voters by area",
+                blank_area: "some voters have no area",
+                invalid_sha256: "its SHA-256 is invalid",
+            },
+            findings: {
+                same_event: "The official and tested events are the same event.",
+                configuration_missing:
+                    "The {{event}} event was not imported from a signed configuration package.",
+                configuration_incomplete:
+                    "The official event’s signed configuration has no valid value for “{{field}}”.",
+                external_id_mismatch:
+                    "The events come from different configurations: {{official}} (official) and {{tested}} (tested).",
+                content_mismatch:
+                    "The signed content differs: SHA-256 {{official}} (official) and {{tested}} (tested).",
+                approvers_mismatch:
+                    "The verified approvers differ: {{only_official}} only on the official event and {{only_tested}} only on the tested event.",
+                areas_mismatch: "{{area}} is only in the {{event}} event’s signed content.",
+                voter_import_missing: "The {{event}} event has no certified voter import.",
+                voter_import_in_progress: "A voter import is still running on the {{event}} event.",
+                voter_file_not_certified:
+                    "The {{event}} event’s last voter import is not certified: {{reason}}.",
+                voter_receipt_not_signed:
+                    "The {{event}} event’s log has no matching signed record of voter import {{import_id}}.",
+                registry_count_changed:
+                    "The {{event}} event now has {{current}} voters in {{area}}, but its certified import has {{imported}}.",
+                voter_area_not_configured:
+                    "The {{event}} event’s certified voters include {{area}}, which is not in its signed content.",
+                voter_file_mismatch:
+                    "The certified voter files differ: SHA-256 {{official}} (official) and {{tested}} (tested).",
+                voter_count_mismatch:
+                    "The certified files differ in {{area}}: {{official}} voters (official) and {{tested}} (tested).",
+                ballots_present: "The official event has {{count}} stored ballots.",
+                received_ballots_present:
+                    "The official event has {{count}} ballots received for review.",
+                tally_sessions_present: "The official event has {{count}} tally sessions.",
+                status_missing: "{{scope}} has no voting status.",
+                voting_started: "{{scope}}: the {{channel}} channel is {{status}}.",
+                voting_dates_recorded:
+                    "{{scope}}: the {{channel}} channel has recorded voting dates.",
+                no_elections: "The {{event}} event has no elections.",
+                publication_missing: "The {{event}} event has no active publication.",
+                publication_mismatch:
+                    "The {{event}} event’s {{design_count}} published ballot designs do not match every design of its signed configuration.",
+                publication_empty:
+                    "The {{event}} event’s published ballot designs could not be checked against a signed configuration.",
+                channels_open: "The tested event still has voting channels that have not closed.",
+                seal_at_close_off: "The tested event does not seal ballot boxes at close.",
+                no_expected_boxes: "The tested event’s publication expects no ballot boxes.",
+                boxes_unsealed:
+                    "Election {{election}} of the tested event has {{unsealed}} unsealed ballot boxes.",
+            },
+        },
+        plugins: {
+            title: "Plugins",
+            description:
+                "Plugins are bundled with this release. Turning one on adds its menu item and permissions for this tenant; turning it off hides it and keeps its data and permissions.",
+            enabled: "On",
+            disabled: "Off",
+            compatible: "Compatible",
+            incompatible: "Stored data needs a newer release",
+            api: "Plugin API {{major}}",
+            permissions: "Permissions",
+            adminGroup: "granted to the admin group when turned on",
+            enable: "Turn on",
+            disable: "Turn off",
+            confirmEnableTitle: "Turn on {{name}}?",
+            confirmDisableTitle: "Turn off {{name}}?",
+            confirmEnable:
+                "{{name}} appears in the menu for users with its permissions. Its permissions are created in this tenant and granted to the admin group.",
+            confirmDisable:
+                "{{name}} is hidden and its requests are refused. Its data, history and permissions are kept, and nothing else in the tenant changes.",
+            confirm: "Confirm",
+            noPermission: "Changing plugins needs the tenant-write permission.",
+            retry: "Retry",
+            loading: "Loading plugins…",
+            signIn: "Sign in to the selected tenant to use its plugins.",
+            unavailable: "This plugin is not part of this release.",
+            incompatibleRoute:
+                "This plugin's stored data needs a newer release. Its data is unchanged.",
+            disabledRoute:
+                "{{name}} is not turned on for this tenant. A tenant administrator can turn it on in Settings → Plugins.",
+            forbidden: "You don't have permission to use {{name}}.",
+        },
+        projects: {
+            title: "Projects",
+            subtitle: "Plan tenant work on a timeline. Projects never change election schedules.",
+            cancel: "Cancel",
+            retry: "Retry",
+            loading: "Loading…",
+            list: {
+                create: "New project",
+                import: "Import",
+                emptyTitle: "No projects yet",
+                emptyHelp: "Create a project, or import a CSV file exported from another project.",
+                emptyViewer: "No projects have been created in this tenant.",
+                active_one: "Active ({{count}})",
+                active_other: "Active ({{count}})",
+                archived_one: "Archived ({{count}})",
+                archived_other: "Archived ({{count}})",
+                name: "Name",
+                dates: "Dates",
+                tasks: "Tasks",
+                timezone: "Timezone",
+                updated: "Last change",
+                updatedBy: "{{at}} · {{actor}}",
+                archivedChip: "Archived",
+                noneInTab: "No projects here.",
+            },
+            create: {
+                title: "New project",
+                name: "Project name",
+                timezone: "Timezone",
+                timezoneHelp:
+                    "Every date in the project is entered and shown in this IANA timezone.",
+                submit: "Create project",
+            },
+            import: {
+                title: "Import a project",
+                help: "Importing always creates a new project. Use a UTF-8 CSV file with the columns {{columns}}, as exported from a project, with a UTC offset on every date. Nothing is saved until you create the project.",
+                choose: "Choose CSV file",
+                noFile: "No file chosen",
+                fileLimit: "The file must be at most 1 MiB.",
+                invalidFile: "The file is not valid UTF-8 text.",
+                valid_one: "{{count}} task is ready to import.",
+                valid_other: "{{count}} tasks are ready to import.",
+                invalid_one:
+                    "{{count}} of {{total}} rows has errors. Correct the file and choose it again.",
+                invalid_other:
+                    "{{count}} of {{total}} rows have errors. Correct the file and choose it again.",
+                previewTable: "Import preview",
+                line: "Line",
+                result: "Check",
+                rowValid: "Ready",
+                commit: "Create project",
+            },
+            detail: {
+                timezone: "All dates and times are in {{timezone}}.",
+                export: "Export",
+                archive: "Archive",
+                restore: "Restore",
+                addTask: "Add task",
+                viewOnly: "View only. Changing tasks needs the projects-write permission.",
+                archivedNotice: "This project is archived. Restore it to change its tasks.",
+            },
+            notices: {
+                saved: "Saved “{{title}}”.",
+                moved: "Saved “{{title}}”: {{start}} – {{end}}.",
+                deleted: "Deleted “{{title}}”.",
+                archived: "Project archived.",
+                restored: "Project restored.",
+            },
+            panel: {
+                details: "Task details",
+                edit: "Edit task",
+                add: "Add task",
+                close: "Close task details",
+                hint: "Select a task on the timeline to see its details here.",
+                noTasks: "This project has no tasks yet.",
+            },
+            conflict: {
+                body: "Someone else changed this task ({{actor}}, {{at}}). Your changes are still here. Review their version before saving again.",
+                load: "Load their version",
+            },
+            unsaved: {
+                body: "You have unsaved changes. Save them, or discard them to {{action}}.",
+                keep: "Keep editing",
+                discard: "Discard changes",
+                actions: {
+                    open: "open “{{title}}”",
+                    add: "add a new task",
+                    leave: "go back to the projects",
+                    close: "close the task",
+                    state: "change the project",
+                },
+            },
+            deleteDialog: {
+                title: "Delete task?",
+                body: "“{{title}}” is removed from the project. Its change history is kept.",
+                confirm: "Delete",
+            },
+            history: {
+                task: "Change history",
+                project: "Project history",
+                empty: "No changes recorded yet.",
+                more: "Show older changes",
+                by: "{{actor}} · {{at}}",
+                actions: {
+                    create: "Created {{subject}}",
+                    update: "Changed {{subject}}",
+                    delete: "Deleted {{subject}}",
+                    import_one: "Imported {{count}} task",
+                    import_other: "Imported {{count}} tasks",
+                    export: "Exported as CSV",
+                    other: "{{action}}",
+                },
+            },
+            editor: {
+                title: "Title",
+                type: "Type",
+                status: "Status",
+                start: "Start",
+                end: "End",
+                at: "Date and time",
+                notes: "Notes",
+                order: "Order",
+                orderHelp: "Tasks are listed by order, then by start.",
+                timezoneNote: "Times are in {{timezone}}.",
+                offset: "UTC{{offset}}",
+                localTime: {
+                    invalid: "Enter a date and time between 1900 and 2200.",
+                    skipped:
+                        "This time doesn't exist in {{timezone}}: the clocks skip it. Choose another time.",
+                    repeated: "This time happens twice in {{timezone}}. Choose which one you mean.",
+                },
+                chooseInstant: "Which occurrence",
+                instantChoice: "At UTC{{offset}}",
+                saving: "Saving…",
+                toFix_one: "{{count}} field to fix",
+                toFix_other: "{{count}} fields to fix",
+                save: "Save",
+                delete: "Delete",
+            },
+            validation: {
+                title: "Enter a title of at most 200 characters.",
+                offset: "Enter valid dates.",
+                range: "The end must be after the start.",
+                milestone: "A milestone has no end.",
+                notes: "Notes must be at most 16,000 characters.",
+                order: "Order must be a whole number from 0 to 1,000,000.",
+            },
+            status: {
+                not_started: "Not started",
+                in_progress: "In progress",
+                done: "Done",
+            },
+            type: {
+                task: "Task",
+                milestone: "Milestone",
+            },
+            units: {
+                days_one: "{{count}} day",
+                days_other: "{{count}} days",
+                hours_one: "{{count}} h",
+                hours_other: "{{count}} h",
+                minutes_one: "{{count}} min",
+                minutes_other: "{{count}} min",
+            },
+            timeline: {
+                title: "Timeline",
+                tasks_one: "{{count}} task",
+                tasks_other: "{{count}} tasks",
+                empty: "No tasks yet.",
+                editHelp:
+                    "Point at or focus a task for a summary; select it to edit below. Drag a bar or use ← → to move it by 24 hours; add Shift to change the end.",
+                viewHelp:
+                    "Point at or focus a task for a summary. Select it to see its details below.",
+                touchEditHelp:
+                    "Tap a task to edit it below, or drag a bar to move it by whole days.",
+                touchViewHelp: "Tap a task to see its details below.",
+                taskLabel: "{{title}}, {{start}} to {{end}}, {{status}}",
+                milestoneLabel: "{{title}}, milestone at {{at}}, {{status}}",
+                previewEdit: "Click or press Enter to edit",
+                previewView: "Click or press Enter for details",
+            },
+        },
         philippinePassport: "Passport",
         seamanBook: "Seafarer's Book",
         philSysID: "PhilSys ID",
@@ -214,6 +746,87 @@ const englishTranslation = {
             },
         },
         logsScreen: {
+            configurationPackage: {
+                imported:
+                    "Configuration {{externalId}} revision {{revision}} imported from a signed package.",
+                fields: {
+                    action: "Action",
+                    external_id: "External ID",
+                    revision: "Revision",
+                    manifest_sha256: "Manifest SHA-256",
+                    content_hash: "Content hash",
+                    design_digests: "Ballot design digests",
+                },
+            },
+            readiness: {
+                passed: "Passed",
+                failed: "Failed",
+                checkResult: "{{outcome}}: {{description}}",
+                checkResultWithMessage:
+                    "{{outcome}}: {{description}} Recorded condition: “{{message}}”",
+                description: {
+                    VotersImported: "Voter file imported.",
+                    ReadinessVerified:
+                        "Official event readiness verified against the tested event.",
+                },
+                checks: {
+                    configuration:
+                        "Both events have the same approved content, verified approvers and areas.",
+                    certified_voters:
+                        "Both events match the same certified voter file and current counts by area.",
+                    official_zero:
+                        "The official event has never opened voting and has no ballots or tally sessions.",
+                    publication: "The official publication matches its signed configuration.",
+                    tested_finished:
+                        "The tested event’s voting channels are closed and all expected ballot boxes are sealed.",
+                },
+                fields: {
+                    report: "Readiness report",
+                    passed: "Passed",
+                    checked_at: "Checked at",
+                    evidence: "Evidence",
+                    official: "Official event",
+                    tested: "Tested event",
+                    official_event_id: "Official event ID",
+                    tested_event_id: "Tested event ID",
+                    event_id: "Event ID",
+                    election_id: "Election ID",
+                    configuration: "Configuration",
+                    external_id: "External ID",
+                    revision: "Revision",
+                    content_sha256: "Content SHA-256",
+                    manifest_sha256: "Manifest SHA-256",
+                    approvers: "Verified approvers",
+                    areas: "Areas",
+                    voters: "Voter import",
+                    import_id: "Import ID",
+                    document_id: "Document ID",
+                    file_name: "File name",
+                    sha256: "File SHA-256",
+                    declared_sha256: "Declared SHA-256",
+                    counts_by_area: "Voters by area",
+                    imported_at: "Imported at",
+                    voter_log_delivered: "Signed import recorded",
+                    current_voter_counts: "Current voters by area",
+                    voter_import_in_progress: "Voter import active",
+                    status: "Status",
+                    elections: "Elections",
+                    ballot_count: "Ballots stored",
+                    received_ballot_count: "Ballots received at review",
+                    tally_session_count: "Tally sessions",
+                    publication: "Publication",
+                    publication_id: "Publication ID",
+                    publication_ids: "Publication IDs",
+                    matches_manifest: "Matches signed manifest",
+                    design_count: "Published designs",
+                    seal_at_close: "Seal at close",
+                    expected_boxes: "Expected ballot boxes",
+                    sealed_boxes: "Sealed ballot boxes",
+                    all_channels_closed: "All voting channels closed",
+                    locked_down: "Locked down",
+                    log_entry_id: "Log entry ID",
+                },
+            },
             noPermissions: "You don't have permission to access logs.",
             title: "Logs",
             subtitle:
@@ -334,6 +947,27 @@ const englishTranslation = {
                     newValue: "New value",
                     error: "Error",
                 },
+                importedFile: {
+                    title: "The imported file",
+                    declared: "Declared checksum",
+                    sha256: "SHA-256 of the file",
+                    declaredSha256: "Declared SHA-256",
+                    document: "Document",
+                    checksum: {
+                        undeclared: "None declared",
+                        matches: "Matches the file",
+                        mismatch: "Doesn't match the file",
+                    },
+                    counts: {
+                        count: "Rows",
+                        elections: "Elections",
+                        contests: "Contests",
+                        candidates: "Candidates",
+                        areas: "Areas",
+                        area_contests: "Areas per contest",
+                        sections: "Configuration sections",
+                    },
+                },
                 deletedEvent: {
                     title: "The deleted election event's log",
                     lastEntry: "Last entry",
@@ -342,6 +976,7 @@ const englishTranslation = {
                     status: "Status",
                     retired: "Unloaded and kept until it is erased under the retention policy",
                     task: "Task",
+                    systemKey: "The log's system key",
                 },
                 exported: {
                     title: "Export",
@@ -538,6 +1173,7 @@ const englishTranslation = {
                 EXPORT_APPLICATION: "Export Applications",
                 EXPORT_TENANT_CONFIG: "Export Tenant Config",
                 IMPORT_TENANT_CONFIG: "Import Tenant Config",
+                APPLY_CONFIGURATION_PACKAGE: "Apply Configuration Package",
                 RENDER_DOCUMENT_PDF: "Render Document PDF",
                 CREATE_TENANT: "Create Tenant",
                 EXPORT_TEMPLATES: "Export Templates",
@@ -835,6 +1471,10 @@ const englishTranslation = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Data is unavailable for this election event.",
+            noAccessibleTabs:
+                "You don't have access to any available tabs for this election event.",
+
             common: {
                 subtitle: "Election event configuration.",
                 showMore: "Show More",
@@ -998,6 +1638,11 @@ const englishTranslation = {
                     },
                 },
                 lockdownState: {
+                    since: "Locked down since {{date}}.",
+                    scheduledEnd: "End of lockdown scheduled for {{date}}.",
+                    endScheduled: "An end of lockdown is scheduled.",
+                    noScheduledEnd: "No end of lockdown is scheduled.",
+                    banner: "This election event is in lockdown.",
                     policyLabel: "Lockdown Status",
                     helperText:
                         "Schedule a start or end of the lockdown period to change this state.",
@@ -1043,6 +1688,15 @@ const englishTranslation = {
                     options: {
                         "included": "Include",
                         "not-included": "Don't include",
+                    },
+                },
+                fileIntegrityPolicy: {
+                    policyLabel: "Voter file integrity",
+                    helperText:
+                        "Require the independently certified SHA-256 before importing voters.",
+                    options: {
+                        OPTIONAL: "Optional SHA-256",
+                        REQUIRED_SHA256: "Required SHA-256",
                     },
                 },
                 contestEncryptionPolicy: {
@@ -1371,6 +2025,8 @@ const englishTranslation = {
                 importVotersError: "Error importing Voters",
                 importElectionEventSuccess: "Election event imported Successfully",
                 importElectionEventError: "Error importing election event",
+                shaRequiredHelp:
+                    "Enter the independently certified 64-character hexadecimal SHA-256. Import cannot proceed without it.",
                 shaDialog: {
                     ok: "Yes, Import without Integrity Check",
                     cancel: "Go Back",
@@ -1393,6 +2049,9 @@ const englishTranslation = {
                 encryptWithPassword: "Encrypt with Password",
                 passwordForcedNote:
                     "The archive will be password protected anyway: reports, applications and bulletin-board data are always encrypted. Tick the box to also include decrypted secret voter fields.",
+                integrationSecrets: "Integration secrets (service credentials)",
+                integrationSecretsNote:
+                    "The archive will contain the Scanovate liveness secret in clear text once decrypted. Keep the archive and its password secret, and import it only where that Liveness Plus service is meant to be used.",
                 includeVoters: "Include Voters",
                 activityLogs: "Activity Logs",
                 bulletinBoard: "Bulletin Board",
@@ -1822,6 +2481,7 @@ const englishTranslation = {
                 "voter-write": "Edit Voter",
                 "voter-secret-attribute-read": "Reveal Secret Voter Fields",
                 "voter-secret-attribute-write": "Edit Secret Voter Fields",
+                "integration-secret-read": "Export Integration Secrets",
                 "user-create": "Create User",
                 "user-read": "Read User",
                 "user-write": "Edit User",
@@ -1957,6 +2617,9 @@ const englishTranslation = {
                 "application-read": "Read Application",
                 "application-write": "Edit Application",
                 "approval-matrix-write": "Edit Approval Matrix",
+                "readiness-check": "Verify election readiness",
+                "forensic-read": "Read isolated forensic network data",
+                "voter-pseudonym-resolve": "Resolve a voter pseudonym with an audited reason",
                 "logs-export": "Export Logs",
                 "tenant-logs-read": "Read Tenant Logs",
                 "tenant-logs-export": "Export Tenant Logs",
@@ -2326,6 +2989,9 @@ const englishTranslation = {
                         delete: "Are you sure to delete this item?",
                         sealsUnknown:
                             "The ballot box seals could not be checked: if it has sealed ballot boxes, the delete is refused.",
+                        archiveNamed: 'Are you sure you want to archive "{{name}}"?',
+                        unarchiveNamed: 'Are you sure you want to unarchive "{{name}}"?',
+                        deleteNamed: 'Are you sure you want to delete "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2446,6 +3112,13 @@ const englishTranslation = {
                 "label": "Candidates checkbox icon shape",
                 "square-checkbox": "Square Checkbox",
                 "round-checkbox": "Round Checkbox",
+            },
+            candidatesLayout: {
+                "label": "Candidates layout",
+                "helperText":
+                    "Paper ballot grid shows candidates as numbered cells with a fill-in circle, filled column by column, using Columns (4 if empty). Ranked contests always use the list.",
+                "list": "List",
+                "paper-grid": "Paper ballot grid",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidates And Lists",
@@ -2708,6 +3381,7 @@ const englishTranslation = {
                 title: "Transmission Package for Area '{{name}}' and Election '{{eventName}}'",
                 description:
                     "Allows you to export a Transmission Package to Destination Servers or download it.",
+                erFileSha256: "ER file SHA-256:",
                 actions: {
                     send: {
                         title: "Send",
@@ -2750,6 +3424,10 @@ const englishTranslation = {
                         emlTitle: "Download EML {{date}}",
                         transmissionPackageTitle: "Download Transmission Package {{date}}",
                         transmissionReportTitle: "Download Transmission Report",
+                        csvTitle: "Download Results CSV {{date}}",
+                        ovcsPublicKeyTitle: "Download OVCS public key",
+                        recordError:
+                            "The download could not be recorded, so it was not started. Please try again.",
                         dialog: {
                             title: "Do you want to Download the Transmission Package?",
                             description:
@@ -2764,6 +3442,9 @@ const englishTranslation = {
                     description:
                         "The table below shows the sending status of each of the Destination Servers.",
                     status: "Sent to {{signed}} out of {{total}}",
+                    manualReceipt: "Manual receipt",
+                    handOver: "Download the package and hand it over",
+                    sealedFor: "Sealed for its key, SHA-256 {{key}}…",
                     table: {
                         serverName: "Server Name",
                         sendStatus: "Sending Status",
@@ -2773,7 +3454,8 @@ const englishTranslation = {
                     title: "Signatures",
                     description:
                         "Members can sign the transmission package. The table shows each member’s signing status.",
-                    status: "{{signed}} out of {{total}} Signed, {{minimum}} minimum",
+                    status: "{{signed}} of {{total}}, {{minimum}} needed",
+                    statusNoMinimum: "{{signed}} of {{total}}",
                     table: {
                         trusteeName: "Member",
                         signed: "Has Signed",
@@ -3678,6 +4360,7 @@ const englishTranslation = {
                     "insufficient-information": "Missing data",
                     "no-matching-voter": "No matching voter",
                     "voter-already-approved": "Already approved",
+                    "EMAIL_IN_USE": "Email used by another voter",
                     "other": "Other",
                 },
                 hint: {
@@ -3919,6 +4602,8 @@ const englishTranslation = {
             },
         },
         monitoring: {
+            configuredDashboards: "Configurable dashboards",
+            modeChangeError: "Could not change the dashboard mode. Try again.",
             title: "Monitoring",
             loading: "Loading monitoring",
             unavailableAlert:

@@ -149,61 +149,45 @@ fn the_dashboards_count_only_the_ballots_of_permitted_elections() {
         .await;
         assert_eq!(status, Status::Ok, "{body}");
         assert_eq!(body["total_distinct_voters"], 2);
-
-        let (status, body) = json(
-            post(
-                &client,
-                "/election-event/top-votes-by-ip",
-                &south,
-                &json!({"election_event_id": event.election_event_id}),
-            )
-            .await,
-        )
-        .await;
-        assert_eq!(status, Status::Ok, "{body}");
-        let items = body["items"].as_array().unwrap();
-        assert_eq!(items.len(), 1, "{body}");
-        assert_eq!(items[0]["election_id"], json!(open));
-        let (status, message) = text(
-            post(
-                &client,
-                "/election-event/top-votes-by-ip",
-                &south,
-                &json!({
-                    "election_event_id": event.election_event_id,
-                    "election_id": labelled,
-                }),
-            )
-            .await,
-        )
-        .await;
-        assert_eq!(status, Status::Forbidden, "{message}");
     })
 }
 
 #[test]
-fn the_top_voting_addresses_of_an_event_without_votes_are_empty() {
+fn the_retired_ip_route_requires_forensic_read_without_accessing_a_database() {
     rows::run(async {
-        let services = Services::on_test_database().await;
+        let services = Services::without_database();
         let client = services.client().await;
-        let event = rows::event(&services.hasura).await;
-        event.ballot_box(&services.hasura).await;
-
-        let (status, body) = json(
-            post(
-                &client,
-                "/election-event/top-votes-by-ip",
-                &dashboard(&event),
-                &json!({"election_event_id": event.election_event_id}),
+        let tenant = uuid::Uuid::new_v4().to_string();
+        let body =
+            json!({"election_event_id": uuid::Uuid::new_v4().to_string()});
+        for roles in [
+            vec![],
+            vec![Permissions::ADMIN_DASHBOARD_VIEW],
+            vec![Permissions::ADMIN_USER],
+        ] {
+            let claims =
+                Claims::new(&tenant, "former-dashboard-reader").roles(roles);
+            let (status, message) = text(
+                post(
+                    &client,
+                    "/election-event/top-votes-by-ip",
+                    &claims,
+                    &body,
+                )
+                .await,
             )
-            .await,
+            .await;
+            assert_eq!(status, Status::Unauthorized, "{message}");
+        }
+        let claims = Claims::new(&tenant, "forensic-reader")
+            .roles([Permissions::FORENSIC_READ]);
+        let (status, message) = text(
+            post(&client, "/election-event/top-votes-by-ip", &claims, &body)
+                .await,
         )
         .await;
-        assert_eq!(status, Status::Ok, "{body}");
-        assert_eq!(
-            body,
-            json!({"items": [], "total": {"aggregate": {"count": 0}}})
-        );
+        assert_eq!(status, Status::Gone, "{message}");
+        assert_eq!(message, "Use the audited forensic network actions");
     })
 }
 
@@ -216,13 +200,7 @@ fn dashboard_routes_answer_500_when_the_database_is_unreachable() {
             tenant_id: uuid::Uuid::new_v4().to_string(),
             election_event_id: uuid::Uuid::new_v4().to_string(),
         };
-        for (path, body) in [
-            ("/election-event/stats", stats_request(&event)),
-            (
-                "/election-event/top-votes-by-ip",
-                json!({"election_event_id": event.election_event_id}),
-            ),
-        ] {
+        for (path, body) in [("/election-event/stats", stats_request(&event))] {
             let (status, message) =
                 text(post(&client, path, &dashboard(&event), &body).await)
                     .await;

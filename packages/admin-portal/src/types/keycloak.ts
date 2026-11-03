@@ -7,6 +7,9 @@
 export const ATTR_RESET_VALUE = "NONE"
 
 export enum IPermissions {
+    PROJECTS_READ = "projects-read",
+    PROJECTS_WRITE = "projects-write",
+    PROJECTS_MANAGE = "projects-manage",
     ADMIN_USER = "admin-user",
     TENANT_CREATE = "tenant-create",
     TENANT_READ = "tenant-read",
@@ -24,6 +27,7 @@ export enum IPermissions {
     VOTER_WRITE = "voter-write",
     VOTER_SECRET_ATTRIBUTE_READ = "voter-secret-attribute-read",
     VOTER_SECRET_ATTRIBUTE_WRITE = "voter-secret-attribute-write",
+    INTEGRATION_SECRET_READ = "integration-secret-read",
     USER_CREATE = "user-create",
     USER_READ = "user-read",
     USER_WRITE = "user-write",
@@ -67,6 +71,8 @@ export enum IPermissions {
     PUBLISH_WRITE = "publish-write",
     PUBLISH_RESULTS_READ = "publish-results-read",
     PUBLISH_RESULTS_WRITE = "publish-results-write",
+    FORENSIC_READ = "forensic-read",
+    VOTER_PSEUDONYM_RESOLVE = "voter-pseudonym-resolve",
     LOGS_READ = "logs-read",
     ELECTORAL_LOG_AUDIT = "electoral-log-audit",
     ELECTORAL_LOG_CONSOLE_READ = "electoral-log-console-read",
@@ -158,6 +164,7 @@ export enum IPermissions {
     APPLICATION_READ = "application-read",
     APPLICATION_WRITE = "application-write",
     APPROVAL_MATRIX_WRITE = "approval-matrix-write",
+    READINESS_CHECK = "readiness-check",
     EE_VOTERS_COLUMNS = "ee-voters-columns",
     EE_VOTERS_FILTERS = "ee-voters-filters",
     EE_VOTERS_LOGS = "ee-voters-logs",

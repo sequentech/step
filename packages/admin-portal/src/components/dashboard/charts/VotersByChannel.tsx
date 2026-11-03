@@ -11,11 +11,11 @@ import {TotalVotersRow} from "./votersByChannelData"
 
 interface VotersByChannelProps {
     data: TotalVotersRow[]
-    width: number
+    width?: number | string
     height: number
 }
 
-export const VotersByChannel: React.FC<VotersByChannelProps> = ({data, width, height}) => {
+export const VotersByChannel: React.FC<VotersByChannelProps> = ({data, width = "100%", height}) => {
     const {t} = useTranslation()
     const visibleData = data.filter(({count}) => count > 0)
 

@@ -302,6 +302,7 @@ pub struct UserArea {
 pub struct VotesInfo {
     pub election_id: String,
     pub num_votes: usize,
+    #[serde(default, skip_serializing)]
     pub last_voted_at: String,
 }
 

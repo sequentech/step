@@ -26,6 +26,10 @@ mod types;
 mod test_claims;
 
 #[cfg(test)]
+#[path = "../tests/support/readiness_routes.rs"]
+mod readiness_routes;
+
+#[cfg(test)]
 #[path = "../tests/support/request_boundaries.rs"]
 mod request_boundaries;
 
@@ -116,11 +120,23 @@ fn build_application_with(
                 routes::ballot_publication::get_ballot_publication_changes,
                 routes::ballot_publication::generate_ballot_publication,
                 routes::ballot_publication::publish_ballot,
+                routes::receipt_document::receipt_document,
+                routes::ballot_privacy::ballot_box_log,
+                routes::ballot_privacy::ballot_box_log_authorize,
+                routes::ballot_privacy::ballot_box_own,
+                routes::ballot_privacy::ballot_box_entry,
+                routes::ballot_privacy::ballot_box_keys,
+                routes::ballot_privacy::ballot_privacy_settings,
+                routes::ballot_privacy::resolve_voter_pseudonym,
+                routes::ballot_privacy::forensic_network_summary,
+                routes::ballot_privacy::forensic_network_detail,
+
                 routes::ballot_publication_prepare_preview::prepare_ballot_publication_preview,
                 routes::voter_electoral_log::list_cast_vote_messages,
                 routes::ballot_checks::locate_ballot,
                 routes::insert_cast_vote::insert_cast_vote,
                 routes::receive_ballot::receive_ballot,
+                routes::audit_ballot::audit_ballot,
                 routes::cast_ballot::cast_ballot,
                 routes::fetch_document::fetch_document,
                 routes::document_password::get_document_password,
@@ -140,6 +156,7 @@ fn build_application_with(
                 routes::electoral_log_console::electoral_log_console_record,
                 routes::electoral_log_console::electoral_log_console_query,
                 routes::electoral_log_console::electoral_log_console_tenants,
+                routes::readiness::readiness_check,
                 routes::task_queues::task_queues_overview,
                 routes::task_queues::task_queues_throughput,
                 routes::task_queues::task_queues_messages,
@@ -153,6 +170,7 @@ fn build_application_with(
                 routes::delete_election_event::delete_election_event_f,
                 routes::delete_tenant::delete_tenant_f,
                 routes::import_tenant_config::import_tenant_config_route,
+                routes::apply_configuration_package::apply_configuration_package_route,
                 routes::export_tenant_config::export_tenant_config_route,
                 routes::export_tenant_logs::export_tenant_logs_route,
                 routes::insert_tenant::insert_tenant,
@@ -188,6 +206,8 @@ fn build_application_with(
                 routes::phone_blacklist::create_phone_blacklist_entry,
                 routes::phone_blacklist::delete_phone_blacklist_entry,
                 routes::messaging::send_message,
+                routes::privacy_signin::retain_signin_network,
+                routes::privacy_signin::signin_network_policy,
                 routes::messaging::create_messenger_link,
                 routes::messaging::messenger_link_status,
                 routes::messaging::confirm_messenger_link,
@@ -217,6 +237,9 @@ fn build_application_with(
                 routes::trustee_updates::request_server_custody,
                 routes::trustee_updates::submit_trustee_action_result,
                 routes::trustee_boards::report_trustee_board,
+                routes::b4::board_messages,
+                routes::b4::initiate_board_message,
+                routes::b4::confirm_board_message,
                 routes::tally_ceremony::create_tally_ceremony,
                 routes::tally_ceremony::authorize_tally_custody,
                 routes::keys_ceremony::custody_proof_signature_status,
@@ -241,6 +264,7 @@ fn build_application_with(
                 routes::miru_plugin::create_transmission_package,
                 routes::miru_plugin::send_transmission_package,
                 routes::miru_plugin::upload_signature,
+                routes::miru_plugin::record_transmission_download,
                 routes::export_tasks_execution::export_tasks_execution_route,
                 routes::limit_access_by_countries::limit_access_by_countries,
                 routes::export_template::export_template,
@@ -261,6 +285,7 @@ fn build_application_with(
                 routes::reports::render_document_pdf,
                 routes::reports::generate_template,
                 routes::reports::generate_report,
+                routes::reports::generate_transmission_report,
                 routes::manual_verification_pdf::get_manual_verification_pdf,
                 routes::reports::encrypt_report_route,
                 routes::results_publication::configure_results_website_policy,
@@ -272,6 +297,7 @@ fn build_application_with(
                 routes::templates::get_user_template,
                 routes::applications::verify_user_application,
                 routes::applications::change_application_status,
+                routes::applications::reject_application_email_in_use,
                 routes::export_application::export_application_route,
                 routes::import_application::import_application_route,
                 routes::trustees::export_trustees_route,
@@ -317,6 +343,12 @@ fn build_application_with(
             ],
         )
         .mount("/", routes![routes::plugins::plugin_routes])
+        .mount("/", routes![
+            routes::plugin_platform::tenant_plugins,
+            routes::plugin_platform::set_tenant_plugin_state,
+            routes::plugin_platform::execute_plugin_operation,
+        ])
+        .attach(routes::plugin_platform::registry_fairing())
         .manage(LastDatafixAccessToken::init())
         .manage(services);
     // Only with MESSAGING_FAKE_PROVIDER_ROUTES=ENABLED (development).

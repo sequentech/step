@@ -9,4 +9,5 @@ pub mod ballot_box_status;
 pub mod console;
 pub mod events;
 pub mod postgres;
+pub mod privacy;
 pub mod transfer;

@@ -198,79 +198,25 @@ pub struct GetTopCastVotesByIp {
     election_id: Option<String>,
 }
 
-#[instrument(skip(claims, services))]
+/// Historical ballot IP attribution is no longer exposed. Private network reads
+/// use the explicitly authorized and audited forensic actions.
 #[post("/election-event/top-votes-by-ip", format = "json", data = "<body>")]
 pub async fn get_election_event_top_votes_by_ip(
     claims: JwtClaims,
     body: Json<GetTopCastVotesByIp>,
-    services: &State<HarvestServices>,
+    _services: &State<HarvestServices>,
 ) -> Result<Json<DataList<CastVoteCountByIp>>, (Status, String)> {
+    let _ = body;
     authorize(
         &claims,
-        true,
+        false,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ADMIN_DASHBOARD_VIEW],
+        vec![Permissions::FORENSIC_READ],
     )?;
-
-    let input = body.into_inner();
-    let tenant_id: String = claims.hasura_claims.tenant_id.clone();
-
-    let mut hasura_db_client: DbClient = services
-        .databases
-        .hasura()
-        .await
-        .get()
-        .await
-        .map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error loading hasura db client: {err}"),
-            )
-        })?;
-    let hasura_transaction =
-        hasura_db_client.transaction().await.map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error creating a transaction: {err}"),
-            )
-        })?;
-    let elections = cast_vote_read_elections(
-        &hasura_transaction,
-        &claims,
-        &input.election_event_id,
-        input.election_id.as_deref(),
-    )
-    .await?;
-    let filter = ListCastVotesByIpFilter {
-        elections,
-        limit: input.limit,
-        offset: input.offset,
-        ip: input.ip,
-        country: input.country,
-    };
-
-    let (cast_votes_by_ip, count) = get_top_count_votes_by_ip(
-        &hasura_transaction,
-        &tenant_id,
-        &input.election_event_id,
-        filter,
-    )
-    .await
-    .map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error getting top cast votes by ip: {err}"),
-        )
-    })?;
-
-    Ok(Json(DataList {
-        items: cast_votes_by_ip,
-        total: TotalAggregate {
-            aggregate: Aggregate {
-                count: count as i64,
-            },
-        },
-    }))
+    Err((
+        Status::Gone,
+        "Use the audited forensic network actions".into(),
+    ))
 }
 
 #[cfg(test)]

@@ -8,6 +8,7 @@ import {
     normalizeSupportReference,
 } from "@/resources/Approvals/supportReference"
 import {buildQuery, buildVariables} from "ra-data-hasura"
+import {IntrospectionObjectType, IntrospectionOutputTypeRef} from "graphql"
 import {
     getElectoralLogVariables,
     getElectoralLog,
@@ -29,7 +30,7 @@ import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
 import {isString} from "lodash"
 import {COLUMNS_MAP} from "@/types/query"
-import {GetCastVotesByIp} from "./GetCastVotesByIp"
+import {FORENSIC_NETWORK_SUMMARY} from "./ForensicNetwork"
 import {GET_ELECTIONS_BY_EXTERNAL_ID} from "./GetElectionsByExternalID"
 import {LOG_FILTER_CHANNEL, LOG_FILTER_OUTCOME} from "@/components/logs/messagingLogFilters"
 
@@ -81,6 +82,51 @@ const isRawQuery = (value: unknown): boolean =>
     value !== null &&
     (value as {format?: unknown}).format === "hasura-raw-query"
 
+const GRAPHQL_INT_MIN = -2147483648
+const GRAPHQL_INT_MAX = 2147483647
+const INTEGER_REGEXP = /^-?\d+$/
+
+interface IIntrospectedResource {
+    type: IntrospectionObjectType
+}
+
+const isIntType = (type: IntrospectionOutputTypeRef): boolean => {
+    const namedType = type.kind === "NON_NULL" ? type.ofType : type
+    return namedType.kind === "SCALAR" && namedType.name === "Int"
+}
+
+/**
+ * ra-data-hasura forwards filter values as they are, so a text input (or a
+ * filter restored from the URL) sends an `Int` column a string, which Hasura
+ * rejects. Send valid GraphQL Int values as numbers and leave anything else
+ * as typed, so it is never rounded, truncated or turned into zero.
+ */
+function applyIntFilters(
+    resources: Array<IIntrospectedResource> | undefined,
+    resourceName: string,
+    filter: Record<string, unknown>
+): Record<string, unknown> {
+    const fields = resources?.find((resource) => resource.type.name === resourceName)?.type.fields
+    if (!fields) {
+        return filter
+    }
+    return Object.fromEntries(
+        Object.entries(filter).map(([key, value]) => {
+            if (typeof value !== "string" || !INTEGER_REGEXP.test(value)) {
+                return [key, value]
+            }
+            const field = fields.find((f) => f.name === key)
+            const number = Number(value)
+            return field &&
+                isIntType(field.type) &&
+                number >= GRAPHQL_INT_MIN &&
+                number <= GRAPHQL_INT_MAX
+                ? [key, number]
+                : [key, value]
+        })
+    )
+}
+
 export const customBuildQuery =
     (introspectionResults: any) => (raFetchType: any, resourceName: any, params: any) => {
         let sort: ParamsSort | undefined | null = params.sort
@@ -107,6 +153,14 @@ export const customBuildQuery =
                         delete params.filter[f]
                     }
                 })
+            }
+
+            if (params.filter) {
+                params.filter = applyIntFilters(
+                    introspectionResults?.resources,
+                    resourceName,
+                    params.filter
+                )
             }
         }
 
@@ -336,28 +390,22 @@ export const customBuildQuery =
                 },
             }
         } else if (resourceName === "ip_address" && raFetchType === "GET_LIST") {
-            const resource: any = {
-                type: {
-                    fields: [],
-                    name: "ip_address",
-                },
-            }
-
             return {
-                query: GetCastVotesByIp(params),
-                variables: buildVariables(introspectionResults)(
-                    resource,
-                    raFetchType,
-                    params,
-                    null
-                ),
-                parseResponse: (res: any) => {
-                    const response = res.data.get_top_votes_by_ip
-                    let output = {
-                        data: response.items,
-                        total: response.total.aggregate.count,
+                query: FORENSIC_NETWORK_SUMMARY,
+                variables: {
+                    electionEventId: params.filter.election_event_id,
+                    electionId: params.filter.election_id || null,
+                    ip: params.filter.ip || null,
+                    country: params.filter.country || null,
+                    limit: params.pagination?.perPage ?? 25,
+                    offset:
+                        ((params.pagination?.page ?? 1) - 1) * (params.pagination?.perPage ?? 25),
+                },
+                parseResponse: (res: {data: Record<string, unknown>}) => {
+                    const response = res.data.forensic_network_summary as {
+                        payload: {items: unknown[]; total: number}
                     }
-                    return output
+                    return {data: response.payload.items, total: response.payload.total}
                 },
             }
         } else if (resourceName === "sequent_backend_applications" && raFetchType === "GET_LIST") {

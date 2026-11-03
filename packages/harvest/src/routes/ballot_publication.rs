@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::audit;
 use crate::services::authorization::{
     authorize, authorize_election_permission_labels,
 };
@@ -37,6 +38,7 @@ use windmill::{
         cancel_for_new_publication, gate_publication,
     },
     services::signing::guard::SigningRequestSummary,
+    tasks::audit_log_outbox::kick_audit_log_outbox,
     tasks::signing_log_outbox::kick_signing_log_outbox,
     tasks::update_election_event_ballot_styles::update_election_event_ballot_styles,
     types::tasks::ETasksExecution,
@@ -131,6 +133,7 @@ async fn generate_ballot_publication_response(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    audit::act_for(&hasura_transaction, &claims).await?;
 
     authorize_election_permission_labels(
         &hasura_transaction,
@@ -245,6 +248,7 @@ async fn generate_ballot_publication_response(
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
     kick_signing_log_outbox();
+    kick_audit_log_outbox();
 
     Ok(Json(GenerateBallotPublicationOutput {
         ballot_publication_id: ballot_publication.id,
@@ -364,6 +368,9 @@ pub async fn publish_ballot(
                 ErrorCode::InternalServerError,
             )
         })?;
+    audit::act_for(&hasura_transaction, &claims)
+        .await
+        .map_err(audit::json_error)?;
     authorize_publication_permission_labels(
         &hasura_transaction,
         &claims,
@@ -397,6 +404,7 @@ pub async fn publish_ballot(
             )
         })?;
         kick_signing_log_outbox();
+        kick_audit_log_outbox();
         return Ok(Json(PublishBallotOutput {
             ballot_publication_id: input.ballot_publication_id,
             signing_request: Some(signing_request),
@@ -539,6 +547,7 @@ pub async fn publish_ballot(
         )
         .into());
     }
+    kick_audit_log_outbox();
 
     if let Err(task_error) =
         services.ledger.update_complete(&task_execution, None).await

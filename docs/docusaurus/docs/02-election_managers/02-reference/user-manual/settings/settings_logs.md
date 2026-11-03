@@ -62,7 +62,8 @@ Settings opens with the `settings-menu` permission. Its tabs then depend on two 
 
 The **Messaging** tab also needs `messaging-account-read`, as before.
 
-The **Export** button in the tab needs `tenant-logs-export`. The server checks both permissions
+The **Export** button in the tab needs `tenant-logs-export` as well as `tenant-logs-read`: an export
+is a copy of the log, so it is refused (403) to anyone who cannot read it. The server checks both permissions
 again on every request, so the tenant log cannot be read or exported through the API without them.
 New tenants give both permissions to the `admin` group; see
 [Permissions](../users-and-roles/users-and-roles_permissions.md#tenant-log-permissions).
@@ -129,7 +130,8 @@ the log type), and then shows the sections that apply to the entry:
 | **Old and new values** | One row per changed field, with **Field**, **Old value** and **New value**. Known fields carry a readable name above their path; other fields show the path alone. |
 | **Sign-in and account security** | The **Keycloak event**, the **Error**, the **Authentication** and **Credential** used, the **Failures in a row**, the **Client** and the **IP address**, followed by the other details Keycloak gave. |
 | **Change in Keycloak** | **Made in** (Keycloak's admin console, or Step's service account for a change made in the Admin Portal), the **Account** that made it with its client and IP address, the **Operation**, what it **Applies to**, the **Resource**, an **Error** if it failed, and the **New value** Keycloak stored. |
-| **The deleted election event's log** | The **Last entry** of the event's log, its **State hash**, the **Log database** it was kept in, its **Status** and the **Task** that deleted the event. |
+| **The deleted election event's log** | The **Last entry** of the event's log, its **State hash**, the **Log database** it was kept in, its **Status**, the **Task** that deleted the event and **The log's system key**, kept here because the event's keys are deleted with it. |
+| **The imported file** | For an import: whether the file matches the **Declared checksum** the administrator typed (**Matches the file**, **Doesn't match the file** or **None declared**), the **SHA-256 of the file** the task read, what the file held (elections, contests, candidates, areas and areas per contest for an election event; the configuration sections for a tenant configuration; rows for staff accounts) and the **Document**. |
 | **Export** | The **Format**, **Scope**, **Username**, range and **Timezone** of an export, its number of **Entries**, the **SHA-256 of the file** and the **Document**. |
 | **Log writer** | The **Release** that runs and the **Last entry posted**. |
 | **Details** | Other facts of the entry, such as the number of rows and the file's SHA-256 of an import. |
@@ -154,7 +156,7 @@ typed is not recorded)". The log keeps neither the username nor the email that w
 | Field | Choices |
 |---|---|
 | **Scope** | **The whole tenant log**, or **One account**. One account needs its **Username**, exactly as the list shows it. |
-| **Include this account's entries in every election event** | Offered for one account. Adds that account's entries from the log of every election event of the tenant, merged with the tenant log's by time. Each row names its log. |
+| **Include this account's entries in every election event** | Offered for one account. Adds that account's entries from the log of every election event of the tenant, deleted ones included, merged with the tenant log's by time. Each row names its log; a deleted event's rows name it as `retired event <ID>`. Its log is opened read-only for the export and closed again. |
 | **From**, **To** | Optional. The range of **Created**, both ends included, to the minute. |
 | **Timezone** | The timezone the range is read in and the file's local times are written in: the tenant log's timezone or your own. |
 | **Format** | **CSV**, **SQL** or **PDF**. |

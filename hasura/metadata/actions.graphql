@@ -1,8 +1,19 @@
 type Query {
+    tenant_plugins: PluginsRouteOutput!
     trustee_event_updates: jsonb!
 }
 
 type Mutation {
+    set_tenant_plugin_state(
+        plugin_id: String!
+        state: String!
+        expected_version: Int!
+    ): PluginsRouteOutput!
+    execute_plugin_operation(
+        plugin_id: String!
+        operation: String!
+        data: jsonb!
+    ): PluginsRouteOutput!
     request_server_custody(object: jsonb!): jsonb!
     submit_trustee_action_result(result: jsonb!): TrusteeReportOutput!
 }
@@ -54,6 +65,13 @@ type Mutation {
 
 type Mutation {
     audit_electoral_log(election_event_id: String!): taskOutput!
+}
+
+type Mutation {
+    readiness_check(
+        official_event_id: String!
+        tested_event_id: String!
+    ): jsonb!
 }
 
 type Query {
@@ -248,6 +266,16 @@ type Mutation {
         tally_session_id: uuid!
         force: Boolean!
     ): createTransmissionPackageOutput
+}
+
+type Mutation {
+    record_transmission_download(
+        election_event_id: uuid!
+        election_id: uuid!
+        area_id: uuid!
+        tally_session_id: uuid!
+        document_id: uuid!
+    ): RecordTransmissionDownloadOutput
 }
 
 type Mutation {
@@ -716,6 +744,15 @@ type Mutation {
         document_id: String!
         sha256: String
     ): templateOutput
+}
+
+type Mutation {
+    apply_configuration_package(
+        tenant_id: String!
+        document_id: String!
+        mode: String!
+        requirements: jsonb
+    ): ApplyConfigurationPackageOutput
 }
 
 type Mutation {
@@ -1330,6 +1367,7 @@ input ExportOptions {
     applications: Boolean
     tally: Boolean
     include_certificates: Boolean
+    include_integration_secrets: Boolean
 }
 
 input ApplicationVerifyBody {
@@ -1467,6 +1505,7 @@ type ElectoralLogRow {
     statement_kind: String!
     message: String!
     user_id: String!
+    username: String
 }
 
 type VoterCastVote {
@@ -1539,7 +1578,7 @@ type KeycloakUserArea {
 type VotesInfo {
     election_id: String!
     num_votes: Int!
-    last_voted_at: String!
+    last_voted_at: String
 }
 
 type KeycloakUser {
@@ -1930,6 +1969,11 @@ type createTransmissionPackageOutput {
     task_execution: tasks_execution_type
 }
 
+type RecordTransmissionDownloadOutput {
+    file_name: String!
+    sha256: String!
+}
+
 type GetEventListOutput {
     election: String!
     schedule: jsonb
@@ -2079,6 +2123,10 @@ type ExportTrusteesOutput {
 type SetVoterAuthenticationOutput {
     success: Boolean!
     message: String
+}
+
+type ApplyConfigurationPackageOutput {
+    task_execution: tasks_execution_type!
 }
 
 type ImportTenantOutput {
@@ -3226,4 +3274,72 @@ type TestMessagingAccountOutput {
 
 type UpdateEventMessagingConfigOutput {
     errors: jsonb!
+}
+
+# Ballot views expose pseudonyms; private reads have separately granted permissions.
+type Query {
+    ballot_box_log(
+        election_event_id: uuid!
+        election_id: uuid
+        prefix: String
+        cursor: String
+        limit: Int
+    ): BallotPrivacyPayload!
+    ballot_box_own(
+        election_event_id: uuid!
+        election_id: uuid
+    ): BallotPrivacyPayload!
+    ballot_box_entry(
+        election_event_id: uuid!
+        election_id: uuid!
+        ballot_id: String!
+    ): BallotPrivacyPayload!
+    ballot_box_keys(
+        election_event_id: uuid!
+        election_id: uuid!
+        ballot_id: String
+    ): BallotPrivacyPayload!
+    ballot_privacy_settings(election_event_id: uuid!): BallotPrivacyPayload!
+    forensic_network_summary(
+        election_event_id: uuid!
+        election_id: uuid
+        ip: String
+        country: String
+        limit: Int
+        offset: Int
+        operation: String
+    ): BallotPrivacyPayload!
+    forensic_network_detail(
+        election_event_id: uuid!
+        election_id: uuid
+        ip: String!
+        cursor: String
+        limit: Int
+    ): BallotPrivacyPayload!
+}
+type Mutation {
+    resolve_voter_pseudonym(
+        election_event_id: uuid!
+        pseudonym: String!
+        reason: String!
+    ): BallotPrivacyPayload!
+}
+type BallotPrivacyPayload {
+    payload: jsonb!
+}
+
+type Query {
+    receipt_document(
+        election_event_id: uuid!
+        document_id: uuid!
+    ): BallotPrivacyPayload!
+}
+
+type Mutation {
+    audit_ballot(election_id: uuid!, ballot_id: String!): AuditBallotOutput!
+}
+
+type AuditBallotOutput {
+    ballot_id: String!
+    status: String!
 }

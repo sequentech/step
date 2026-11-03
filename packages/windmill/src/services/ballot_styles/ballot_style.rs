@@ -410,6 +410,14 @@ async fn generate_election_event_ballot_styles(
     let basic_areas = areas.iter().map(|area| area.into()).collect();
     let areas_tree = TreeNode::from_areas(basic_areas)?;
     let ballot_box_key = ballot_box_key_for_publication(&transaction, &election_event).await?;
+    if let Some(receipt_key) = ballot_box_key.as_ref() {
+        crate::services::public_ballot_keys::for_publication(
+            &transaction,
+            &election_event,
+            receipt_key,
+        )
+        .await?;
+    }
 
     for area in &areas {
         create_ballot_style_postgres(

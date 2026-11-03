@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use rocket::http::Status;
@@ -83,6 +84,7 @@ pub async fn insert_tenant(
             id.clone(),
             body.slug.clone(),
             Some(task_execution.clone()),
+            Some(audit::actor(&claims)),
         ))
         .await;
 

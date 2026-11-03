@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         startup: {
             error: "Hindi masimulan ang portal ng pagboto. Pakisubukang muli.",
             retry: "Subukang muli",
@@ -83,6 +84,11 @@ const tagalogTranslation: TranslationType = {
                 description:
                     "Ang paligsahang ito ay napagpasyahan sa pamamagitan ng aklamasyon. Ang mga kandidato nito ay nahalal nang walang botohan, kaya walang opsyong mapipili at walang botong naitatala.",
             },
+            paperBallot: {
+                voteForNoMoreThan_one: "Bumoto ng hindi hihigit sa {{count}}",
+                voteForNoMoreThan_many: "Bumoto ng hindi hihigit sa {{count}}",
+                voteForNoMoreThan_other: "Bumoto ng hindi hihigit sa {{count}}",
+            },
         },
         votingScreen: {
             backButton: "Bumalik",
@@ -141,6 +147,11 @@ const tagalogTranslation: TranslationType = {
                 "I-submit ang iyong balota upang ito ay tamang maitala, o suriin ito upang tiyakin na ito ay tama ang pagkaka-encrypt.",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "Hindi pa nakumpirma ang resulta ng pagboto. Maaari mong subukan muli ang parehong kahilingan o tingnan ang Ballot ID bago magsimulang muli.",
+                checkBallot: "Tingnan ang balota",
+            },
             acclamation: {
                 title: "Napagpasyahan sa pamamagitan ng aklamasyon",
                 helpDialog: {
@@ -362,6 +373,9 @@ const tagalogTranslation: TranslationType = {
             demoQRText: "Ang ballot tracker ay hindi gumagana sa demo mode",
         },
         auditScreen: {
+            confirmingAudit: "Kinukumpirmang hindi na maaaring isumite ang balotang ito…",
+            auditUnavailable:
+                "Hindi nasuri ang balota. Hindi pa ipinapakita ang nilalaman nito. Pakisubukang muli.",
             printButton: "I-print",
             restartButton: "Simulan ang Pagboto",
             title: "Suriin ang Iyong Balota",

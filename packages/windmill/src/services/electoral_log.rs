@@ -7,11 +7,11 @@ use crate::postgres::messaging::{latest_attempt_ids, ChannelFilter};
 use crate::services::celery_app::try_get_celery_app;
 use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::electoral_log_board::ensure_tenant_log;
 use crate::services::electoral_log_board::get_board_client;
 use crate::services::electoral_log_board::get_board_signing_key;
 use crate::services::electoral_log_board::get_event_board;
 use crate::services::electoral_log_board::get_tenant_board;
+use crate::services::electoral_log_board::TenantLog;
 use crate::services::electoral_log_checkpoint_copies::{
     store_checkpoint_copy, CheckpointCopyConfig,
 };
@@ -501,6 +501,18 @@ const MONITORING_CONFIG_DELIVERY_PREFIX: &str = "monitoring-config:";
 const CONFIGURATION_PACKAGE_DELIVERY_PREFIX: &str = "configuration-package:";
 /// Prefix of the delivery IDs of report manifests: `<report manifest sha256>`.
 const REPORT_GENERATED_DELIVERY_PREFIX: &str = "report-generated:";
+/// Prefix of the delivery IDs of admin public keys: `<user ID>:<sha256 of the
+/// public key>`.
+const ADMIN_PK_DELIVERY_PREFIX: &str = "admin-public-key:";
+
+/// The delivery id of an admin's public key on the tenant's log: one per
+/// account and key.
+pub fn admin_pk_delivery_id(user_id: &str, pk_der_b64: &str) -> String {
+    format!(
+        "{ADMIN_PK_DELIVERY_PREFIX}{user_id}:{}",
+        sha256_hex(pk_der_b64.as_bytes())
+    )
+}
 
 fn approval_matrix_delivery_id(version: u32, sha256: &str) -> String {
     format!("{APPROVAL_MATRIX_DELIVERY_PREFIX}{version}:{sha256}")
@@ -609,6 +621,70 @@ pub fn flatten_election_ids(election_ids: Option<Vec<String>>) -> Option<String>
 }
 
 impl ElectoralLog {
+    /// Sign the complete successful snapshot and wait for its append. This is
+    /// deliberately not a queued success: the operator needs retained evidence.
+    pub async fn post_readiness_verified(
+        &self,
+        event_id: &str,
+        report: &crate::domain::readiness::ReadinessReport,
+        actor: &crate::services::audit_log::AuditActor,
+    ) -> Result<()> {
+        let message = self.readiness_verified_message(event_id, report, actor)?;
+        let entry_id = report
+            .log_entry_id
+            .as_ref()
+            .context("Readiness entry has no delivery identity")?;
+        self.post_with_delivery_id(&message, format!("readiness:{entry_id}"))
+            .await
+    }
+
+    /// The signed ReadinessVerified entry. It is the person's USER entry when
+    /// one ran the check, and the system's otherwise, like a generated report.
+    fn readiness_verified_message(
+        &self,
+        event_id: &str,
+        report: &crate::domain::readiness::ReadinessReport,
+        actor: &crate::services::audit_log::AuditActor,
+    ) -> Result<Message> {
+        use electoral_log::messages::statement::StatementEventType;
+        ensure!(
+            report.passed && report.checks.iter().all(|check| check.passed),
+            "Only successful readiness checks may be recorded"
+        );
+        let entry_id = report
+            .log_entry_id
+            .as_ref()
+            .context("Readiness entry has no delivery identity")?;
+        let event_type = match actor.user_id {
+            Some(_) => StatementEventType::USER,
+            None => StatementEventType::SYSTEM,
+        };
+        let entry = AuditLogEntry {
+            kind: AuditStatementKind::ReadinessVerified,
+            event_type,
+            log_type: electoral_log::messages::statement::StatementLogType::INFO,
+            description: format!(
+                "Readiness verified against event {}",
+                report.evidence.tested.event_id
+            ),
+            details_json: serde_json::to_string(
+                &serde_json::json!({"actor": actor, "report": report}),
+            )?,
+            entry_id: entry_id.clone(),
+        };
+        let timestamp = chrono::DateTime::parse_from_rfc3339(&report.checked_at)?.timestamp();
+        Message::audit_message(
+            EventIdString(event_id.into()),
+            entry,
+            u64::try_from(timestamp)?,
+            &self.sd,
+            actor.user_id.clone(),
+            actor.username.clone(),
+            None,
+            None,
+        )
+    }
+
     #[instrument(err, name = "ElectoralLog::new")]
     pub async fn new(
         hasura_transaction: &Transaction<'_>,
@@ -806,14 +882,16 @@ impl ElectoralLog {
         Ok(())
     }
 
-    /// Posts an admin user's public key to the tenant's log: the key is one
-    /// per tenant and signs the admin's entries in every election event.
+    /// Posts an admin user's public key to the tenant's log, signed with the
+    /// log's system key: the key is one per tenant and signs the admin's
+    /// entries in every election event and in the tenant's log. The entry's
+    /// delivery id is made from the account and the key, so posting the same
+    /// key again stores nothing.
     ///
-    /// Because admin users are cross election event entities, a
-    /// dummy election event id will be used instead, with value
-    /// electoral_log::messages::Message:GENERIC_EVENT.
+    /// Callers post once the admin's key is committed (`vault`), with a
+    /// `tenant_log` whose system key is committed too.
     pub async fn post_admin_pk(
-        hasura_transaction: &Transaction<'_>,
+        tenant_log: &TenantLog,
         tenant_id: &str,
         user_id: &str,
         username: Option<String>,
@@ -821,9 +899,8 @@ impl ElectoralLog {
         elections_ids: Option<String>,
         user_area_id: Option<String>,
     ) -> Result<()> {
-        let tenant_log = ensure_tenant_log(hasura_transaction, tenant_id).await?;
         let elog_database = tenant_log.board.as_str();
-        let system_sk = tenant_log.system_key;
+        let system_sk = tenant_log.system_key.clone();
         let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
 
         let message = Message::admin_public_key_message(
@@ -841,7 +918,9 @@ impl ElectoralLog {
             elog_database: elog_database.to_string(),
         };
 
-        let ret = elog.post(&message).await;
+        let ret = elog
+            .post_with_delivery_id(&message, admin_pk_delivery_id(user_id, pk_der_b64))
+            .await;
 
         if ret.is_err() {
             tracing::error!(
@@ -854,7 +933,7 @@ impl ElectoralLog {
         ret
     }
 
-    #[instrument(skip(self, pseudonym_h))]
+    #[instrument(skip_all)]
     pub async fn post_cast_vote_error(
         &self,
         tenant_id: String,
@@ -1070,12 +1149,12 @@ impl ElectoralLog {
     pub async fn post_configuration_package(
         &self,
         event_id: String,
-        details: ConfigurationPackageDetails,
+        details: ConfigurationPackageImportDetails,
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
-        let delivery_id = configuration_package_delivery_id(&details);
-        let message = Message::configuration_package_message(
+        let delivery_id = configuration_package_delivery_id(&details.package);
+        let message = Message::configuration_package_with_content_hash_message(
             EventIdString(event_id),
             details,
             &self.sd,
@@ -1226,7 +1305,7 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn post_keycloak_event(
         &self,
         event_id: String,
@@ -1236,7 +1315,9 @@ impl ElectoralLog {
         username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
-        let error_message = ErrorMessageString(error_message);
+        let error_message = ErrorMessageString(crate::services::privacy_signin::safe_error_text(
+            &error_message,
+        ));
         let event_type = KeycloakEventTypeString(event_type);
         let message = Message::keycloak_user_event(
             event,
@@ -1618,7 +1699,9 @@ impl ElectoralLog {
         area_id: Option<String>,
     ) -> Result<ElectoralLogMessage> {
         let event = EventIdString(event_id);
-        let error_message = ErrorMessageString(error_message);
+        let error_message = ErrorMessageString(crate::services::privacy_signin::safe_error_text(
+            &error_message,
+        ));
         let event_type = KeycloakEventTypeString(event_type);
         let message = &Message::keycloak_user_event(
             event,
@@ -2266,7 +2349,7 @@ async fn list_communications(
     })
 }
 
-#[instrument(err)]
+#[instrument(skip_all)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
     if let Some(filter) = input.communications_filter() {
         return list_communications(input, filter).await;
@@ -2289,7 +2372,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     })
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn get_cols_match_count_and_select(
     election_id: &str,
     user_id: &str,
@@ -2324,7 +2407,7 @@ pub fn get_cols_match_count_and_select(
 /// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input
 /// ballot_id_filter is restricted to be an even number of characters, so that can be converted
 /// to a byte array
-#[instrument(err)]
+#[instrument(skip_all)]
 pub async fn list_cast_vote_messages(
     input: GetElectoralLogBody,
     ballot_id_filter: &str,
@@ -2394,7 +2477,7 @@ pub async fn list_cast_vote_messages(
     Ok(CastVoteMessagesOutput { list, total })
 }
 
-#[instrument(err)]
+#[instrument(skip_all)]
 pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
     let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
     let board = get_event_board(&input.tenant_id, &input.election_event_id, &slug);
@@ -2535,9 +2618,15 @@ mod voter_secret_attribute_audit_tests {
 mod postgres_wiring_tests {
     use super::*;
 
-    #[tokio::test]
+    #[test]
     #[ignore = "requires a disposable ELECTORAL_LOG_PG_* database and ENV_SLUG"]
-    async fn prepared_append_list_count_and_delete_use_the_postgres_store() -> Result<()> {
+    fn prepared_append_list_count_and_delete_use_the_postgres_store() -> Result<()> {
+        crate::services::electoral_log_board::test_runtime()
+            .block_on(prepared_append_list_count_and_delete_use_the_postgres_store_on_runtime())
+    }
+
+    async fn prepared_append_list_count_and_delete_use_the_postgres_store_on_runtime() -> Result<()>
+    {
         let tenant = Uuid::new_v4().to_string();
         let event = Uuid::new_v4().to_string();
         let slug = std::env::var("ENV_SLUG")?;
@@ -3163,5 +3252,104 @@ mod permitted_election_tests {
         }))
         .unwrap();
         assert_eq!(input.permitted_election_ids, None);
+    }
+}
+
+#[cfg(test)]
+mod readiness_verified_tests {
+    use super::*;
+    use crate::domain::readiness::{evaluate, ReadinessReport};
+    use crate::services::audit_log::AuditActor;
+    use electoral_log::messages::statement::StatementEventType;
+    use voting_crypto::signing::VerificationKey;
+
+    fn passed() -> ReadinessReport {
+        let mut report = evaluate(
+            serde_json::from_value(crate::domain::readiness::tests::evidence()).unwrap(),
+            "2026-10-14T10:00:00Z".into(),
+        );
+        report.log_entry_id = Some(Uuid::new_v4().to_string());
+        report
+    }
+
+    fn operator() -> AuditActor {
+        AuditActor {
+            user_id: Some("admin-id".into()),
+            username: Some("admin".into()),
+            role: Some("admin-user".into()),
+        }
+    }
+
+    fn audit(message: &Message) -> AuditLogEntry {
+        match &message.statement.body {
+            StatementBody::Audit(entry) => entry.clone(),
+            other => panic!("Expected an audit entry, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_check_a_person_runs_is_their_signed_user_entry() {
+        let key = SigningKey::generate().unwrap();
+        let log = ElectoralLog::for_system_with_signing_key("board", &key);
+        let report = passed();
+        let message = log
+            .readiness_verified_message("official", &report, &operator())
+            .unwrap();
+        message
+            .verify(&VerificationKey::from_sk(&key).unwrap())
+            .unwrap();
+        assert_eq!(message.statement.head.event_type, StatementEventType::USER);
+        assert_eq!(message.user_id.as_deref(), Some("admin-id"));
+        assert_eq!(message.username.as_deref(), Some("admin"));
+        let entry = audit(&message);
+        assert_eq!(entry.kind, AuditStatementKind::ReadinessVerified);
+        assert_eq!(entry.event_type, StatementEventType::USER);
+        assert_eq!(&entry.entry_id, report.log_entry_id.as_ref().unwrap());
+        let details: serde_json::Value = serde_json::from_str(&entry.details_json).unwrap();
+        assert_eq!(details["report"], serde_json::to_value(&report).unwrap());
+        assert_eq!(details["actor"], serde_json::to_value(operator()).unwrap());
+    }
+
+    #[test]
+    fn a_check_without_a_person_stays_a_system_entry() {
+        let key = SigningKey::generate().unwrap();
+        let log = ElectoralLog::for_system_with_signing_key("board", &key);
+        let message = log
+            .readiness_verified_message("official", &passed(), &AuditActor::default())
+            .unwrap();
+        assert_eq!(
+            message.statement.head.event_type,
+            StatementEventType::SYSTEM
+        );
+        assert_eq!(audit(&message).event_type, StatementEventType::SYSTEM);
+        assert!(message.user_id.is_none());
+    }
+
+    #[test]
+    fn failed_or_unidentified_reports_are_never_signed() {
+        let key = SigningKey::generate().unwrap();
+        let log = ElectoralLog::for_system_with_signing_key("board", &key);
+        let mut failed = passed();
+        failed.evidence.official.ballot_count = 1;
+        let failed = ReadinessReport {
+            log_entry_id: Some(Uuid::new_v4().to_string()),
+            ..evaluate(failed.evidence, failed.checked_at)
+        };
+        assert!(!failed.passed);
+        assert!(log
+            .readiness_verified_message("official", &failed, &operator())
+            .is_err());
+        let mut forged = failed.clone();
+        forged.passed = true;
+        assert!(log
+            .readiness_verified_message("official", &forged, &operator())
+            .is_err());
+        let unidentified = ReadinessReport {
+            log_entry_id: None,
+            ..passed()
+        };
+        assert!(log
+            .readiness_verified_message("official", &unidentified, &operator())
+            .is_err());
     }
 }

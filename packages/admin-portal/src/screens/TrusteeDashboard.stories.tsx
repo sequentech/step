@@ -7,6 +7,7 @@ import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvi
 import {storyFetch} from "@/__stories__/storyNetwork"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {TrusteeDashboard} from "./TrusteeDashboard"
+import {loadBrowserTrustee} from "@/services/BrowserTrustee"
 
 type Scenario = Record<string, never>
 const meta = {
@@ -30,6 +31,8 @@ export const NativeTrustee: Story = {
             canvas.queryByRole("button", {name: "Generate signed custody proof manually"})
         ).toBeNull()
         expect(canvas.queryByRole("textbox", {name: "Tally session ID"})).toBeNull()
+        expect(canvas.queryByRole("button", {name: "Local session history"})).toBeNull()
+        await expect(canvas.getByRole("button", {name: "Refresh local history"})).toBeVisible()
     },
 }
 
@@ -51,6 +54,212 @@ export const BrowserIdentity: Story = {
     },
 }
 
+const HISTORY_PLATFORM = "https://history-fixture.invalid/graphql"
+const parentBoard = "dkg_11111111111141118111111111111111"
+const tallyBoard = "tally_22222222222242228222222222222222_1"
+const historyRender = () => (
+    <AdminStoryProvider
+        boundary={graphqlBoundary({})}
+        auth={{trustee: "trustee1", getAccessToken: () => "synthetic-trustee-token"}}
+        settings={{HASURA_URL: HISTORY_PLATFORM, WBRAID_BOARD_URL: "/b4"}}
+    >
+        <TrusteeDashboard />
+    </AdminStoryProvider>
+)
+const historyBoundary = () => {
+    storyFetch({
+        [HISTORY_PLATFORM]: () => ({
+            status: 200,
+            body: JSON.stringify({
+                data: {
+                    list_trustee_boards: {
+                        boards: [{name: tallyBoard, kind: "TALLY", parent: parentBoard}],
+                    },
+                },
+            }),
+        }),
+    })
+}
+const openHistoryEntries = async (canvasElement: HTMLElement) => {
+    const collection = await within(canvasElement).findByRole("button", {name: /^Session entries/})
+    if (collection.getAttribute("aria-expanded") === "false") await userEvent.click(collection)
+}
+const restoreHistory = async (canvasElement: HTMLElement) => {
+    const module = await loadBrowserTrustee()
+    const keys = module.BrowserTrustee.generateKeys()
+    // Canonical Shares/PublicKey: tag, configuration hash, content hash, sender index.
+    const shares = `01${"11".repeat(64)}${"22".repeat(64)}0000000000000001`
+    const publicKey = `02${"11".repeat(64)}${"33".repeat(64)}0000000000000001`
+    await userEvent.upload(
+        within(canvasElement).getByLabelText("Restore browser backup"),
+        new File(
+            [
+                JSON.stringify({
+                    version: 1,
+                    keys,
+                    board_url: "/b4",
+                    stores: [
+                        {
+                            board: parentBoard,
+                            predicates: [shares, publicKey],
+                            own_posts: [[shares, "33333333-3333-4333-8333-333333333333"]],
+                        },
+                    ],
+                }),
+            ],
+            "trustee1-browser-sessions.json",
+            {type: "application/json"}
+        )
+    )
+    await within(canvasElement).findByRole("textbox", {name: "Signing public key"})
+    await waitFor(() =>
+        expect(
+            within(canvasElement).getByRole("button", {name: "Refresh local history"})
+        ).toBeEnabled()
+    )
+    await openHistoryEntries(canvasElement)
+    return keys
+}
+
+export const RestoredLocalHistory: Story = {
+    render: historyRender,
+    beforeEach: historyBoundary,
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(canvas.getByRole("heading", {name: "Local session history"})).toBeVisible()
+        const keys = await restoreHistory(canvasElement)
+        await expect(
+            await canvas.findByText("History available · 2 records · 1 own posts")
+        ).toBeVisible()
+        const signing = (
+            canvas.getByRole("textbox", {name: "Signing public key"}) as HTMLInputElement
+        ).value
+        const database = `sequent-wbraid:/b4:${signing}:${parentBoard}`
+        const collection = canvas.getByRole("button", {name: /^Session entries/})
+        await expect(canvas.getByText(database)).toBeVisible()
+        await userEvent.click(collection)
+        await waitFor(() => expect(canvas.queryByText(database)).toBeNull())
+        expect(canvas.queryByText(parentBoard)).toBeNull()
+        expect(canvas.queryByText(/History available/)).toBeNull()
+        await expect(canvas.getByRole("button", {name: "Refresh local history"})).toBeVisible()
+        collection.focus()
+        await userEvent.keyboard("{Enter}")
+        await expect(await canvas.findByText(database)).toBeVisible()
+        await expect(canvas.getByText("History available · 2 records · 1 own posts")).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Refresh boards"}))
+        await expect(
+            await canvas.findByText("Empty history · 0 records · 0 own posts")
+        ).toBeVisible()
+        await expect(canvas.getByText("History available · 2 records · 1 own posts")).toBeVisible()
+        // The same identity reopens the durable records after locking/importing keys.
+        await userEvent.click(canvas.getByRole("button", {name: "Lock keys"}))
+        await userEvent.upload(
+            canvas.getByLabelText("Import private keys"),
+            new File([keys], "keys.toml")
+        )
+        await openHistoryEntries(canvasElement)
+        await expect(
+            await canvas.findByText("History available · 2 records · 1 own posts")
+        ).toBeVisible()
+        // An absolute URL is a different storage namespace even on the same origin.
+        await userEvent.click(canvas.getByRole("button", {name: "Lock keys"}))
+        const url = canvas.getByRole("textbox", {name: "Board service URL"})
+        await userEvent.clear(url)
+        await userEvent.type(url, `${location.origin}/b4///`)
+        await userEvent.upload(
+            canvas.getByLabelText("Import private keys"),
+            new File([keys], "keys.toml")
+        )
+        await openHistoryEntries(canvasElement)
+        await expect(await canvas.findByText(/Parent DKG history is empty/)).toBeVisible()
+        await expect(canvas.queryByText(/History available/)).toBeNull()
+        await userEvent.click(canvas.getByRole("button", {name: "Lock keys"}))
+        await userEvent.clear(url)
+        await userEvent.type(url, "/b4")
+        await userEvent.upload(
+            canvas.getByLabelText("Import private keys"),
+            new File([keys], "keys.toml")
+        )
+        await openHistoryEntries(canvasElement)
+        await expect(
+            await canvas.findByText("History available · 2 records · 1 own posts")
+        ).toBeVisible()
+    },
+}
+
+export const MissingParentHistory: Story = {
+    render: historyRender,
+    beforeEach: historyBoundary,
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.click(canvas.getByRole("button", {name: "Refresh boards"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Generate browser keys"}))
+        const collection = await canvas.findByRole("button", {name: "Session entries (2)"})
+        const history = within(canvas.getByRole("region", {name: "Local session history"}))
+        expect(collection).toHaveAttribute("aria-expanded", "false")
+        expect(history.queryByText(parentBoard)).toBeNull()
+        expect(history.queryByText(tallyBoard)).toBeNull()
+        await expect(canvas.getByRole("button", {name: "Refresh local history"})).toBeVisible()
+        await userEvent.click(collection)
+        await expect(await canvas.findByText(/Parent DKG history is empty/)).toBeVisible()
+        expect(canvas.queryByRole("button", {name: new RegExp(parentBoard)})).toBeNull()
+        expect(canvas.queryByRole("button", {name: new RegExp(tallyBoard)})).toBeNull()
+        expect(history.getAllByText("Empty history · 0 records · 0 own posts")).toHaveLength(2)
+        await expect(history.getByText(parentBoard)).toBeVisible()
+        await expect(history.getByText(tallyBoard)).toBeVisible()
+    },
+}
+
+export const UnreadableLocalHistory: Story = {
+    render: historyRender,
+    beforeEach: historyBoundary,
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const keys = await restoreHistory(canvasElement)
+        await expect(
+            await canvas.findByText("History available · 2 records · 1 own posts")
+        ).toBeVisible()
+        const signing = (
+            canvas.getByRole("textbox", {name: "Signing public key"}) as HTMLInputElement
+        ).value
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+            const request = indexedDB.open(`sequent-wbraid:/b4:${signing}:${parentBoard}`)
+            request.onsuccess = () => resolve(request.result)
+            request.onerror = () => reject(request.error)
+        })
+        try {
+            await new Promise<void>((resolve, reject) => {
+                const tx = db.transaction("predicates", "readwrite")
+                const invalid = new Uint8Array([255])
+                tx.objectStore("predicates").put(invalid, invalid)
+                tx.oncomplete = () => resolve()
+                tx.onerror = () => reject(tx.error)
+            })
+        } finally {
+            db.close()
+        }
+        await userEvent.click(canvas.getByRole("button", {name: "Refresh local history"}))
+        await expect(
+            await canvas.findByText(
+                /Unable to read local history:.*failed to deserialize persisted predicate/
+            )
+        ).toBeVisible()
+        expect(canvas.queryByText(/Empty history/)).toBeNull()
+        expect(canvas.queryByText(/History available/)).toBeNull()
+        const module = await loadBrowserTrustee()
+        const engine = new module.BrowserTrustee("trustee1", keys, "/b4")
+        try {
+            await expect(engine.sessionHistory('["../invalid"]')).rejects.toBeTruthy()
+            // A partial result must not be returned when a later board cannot be read.
+            await expect(
+                engine.sessionHistory(JSON.stringify([tallyBoard, parentBoard]))
+            ).rejects.toContain("failed to deserialize persisted predicate")
+        } finally {
+            engine.free()
+        }
+    },
+}
+
 const CUSTODY_PLATFORM = "https://custody-fixture.invalid/graphql"
 let queuedRequest: Record<string, unknown> | undefined
 let submittedProof: string | undefined
@@ -58,7 +267,12 @@ export const AutomaticTallyCustody: Story = {
     render: () => (
         <AdminStoryProvider
             boundary={graphqlBoundary({})}
-            auth={{trustee: "trustee1", username: "trustee1", isAuthenticated: true}}
+            auth={{
+                trustee: "trustee1",
+                username: "trustee1",
+                isAuthenticated: true,
+                getAccessToken: () => "synthetic-trustee-token",
+            }}
             settings={{HASURA_URL: CUSTODY_PLATFORM}}
         >
             <TrusteeDashboard />
@@ -67,8 +281,6 @@ export const AutomaticTallyCustody: Story = {
     beforeEach: () => {
         queuedRequest = undefined
         submittedProof = undefined
-        const previousToken = localStorage.getItem("token")
-        localStorage.setItem("token", "synthetic-trustee-token")
         storyFetch({
             [CUSTODY_PLATFORM]: ({body}) => {
                 const input = JSON.parse(body || "{}") as {
@@ -109,10 +321,6 @@ export const AutomaticTallyCustody: Story = {
                 throw new Error("Unexpected custody fixture operation")
             },
         })
-        return () => {
-            if (previousToken === null) localStorage.removeItem("token")
-            else localStorage.setItem("token", previousToken)
-        }
     },
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)

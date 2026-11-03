@@ -1,0 +1,100 @@
+{
+    "producer_details": {
+        "scanovate_attempt_id": "00000000-0000-4000-8000-000000000004",
+        "scanovate_case_id": "00000000-0000-4000-8000-000000000005",
+        "scanovate_stage": "validation",
+        "scanovate_error": "scanovateAttributesError",
+        "scanovate_failure_reason": "scanovateAttributesError",
+        "scanovate_can_retry": "true",
+        "scanovate_failed_attempts": "1",
+        "scanovate_entered_document_type": "passport",
+        "scanovate_entered_embassy": "missing",
+        "scanovate_entered_country": "missing",
+        "scanovate_entered_email_state": "present_redacted",
+        "scanovate_entered_phone_state": "present_redacted",
+        "scanovate_entered_document_number_state": "present_redacted",
+        "scanovate_liveness_status": "completed",
+        "scanovate_liveness_passed": "true",
+        "scanovate_face_match_document": "0.9000",
+        "scanovate_face_match_holding": "0.9000",
+        "scanovate_ocr_front_status": "completed",
+        "scanovate_ocr_front_result": "success",
+        "scanovate_ocr_back_status": "completed",
+        "scanovate_ocr_back_result": "success",
+        "scanovate_extracted_document_type": "P",
+        "scanovate_extracted_issuing_country": "PHL",
+        "scanovate_extracted_nationality": "PHL",
+        "scanovate_extracted_document_number_state": "present_redacted",
+        "scanovate_check_template_matching_valid": "true",
+        "scanovate_check_document_in_frame_valid": "true",
+        "scanovate_check_expiry_date_valid": "true",
+        "scanovate_check_face_size_valid": "true",
+        "scanovate_check_barcode_valid": "missing"
+    },
+    "queue_input": {
+        "tenant_id": "00000000-0000-4000-8000-000000000001",
+        "election_event_id": "00000000-0000-4000-8000-000000000002",
+        "user_id": "00000000-0000-4000-8000-000000000003",
+        "username": "synthetic-voter",
+        "message_type": "REGISTER_ERROR",
+        "event_time_ms": 1778511600123,
+        "body": "{\"error\":\"scanovate_verification_failed\",\"details\":{\"scanovate_attempt_id\":\"00000000-0000-4000-8000-000000000004\",\"scanovate_case_id\":\"00000000-0000-4000-8000-000000000005\",\"scanovate_stage\":\"validation\",\"scanovate_error\":\"scanovateAttributesError\",\"scanovate_failure_reason\":\"scanovateAttributesError\",\"scanovate_can_retry\":\"true\",\"scanovate_failed_attempts\":\"1\",\"scanovate_entered_document_type\":\"passport\",\"scanovate_entered_embassy\":\"missing\",\"scanovate_entered_country\":\"missing\",\"scanovate_entered_email_state\":\"present_redacted\",\"scanovate_entered_phone_state\":\"present_redacted\",\"scanovate_entered_document_number_state\":\"present_redacted\",\"scanovate_liveness_status\":\"completed\",\"scanovate_liveness_passed\":\"true\",\"scanovate_face_match_document\":\"0.9000\",\"scanovate_face_match_holding\":\"0.9000\",\"scanovate_ocr_front_status\":\"completed\",\"scanovate_ocr_front_result\":\"success\",\"scanovate_ocr_back_status\":\"completed\",\"scanovate_ocr_back_result\":\"success\",\"scanovate_extracted_document_type\":\"P\",\"scanovate_extracted_issuing_country\":\"PHL\",\"scanovate_extracted_nationality\":\"PHL\",\"scanovate_extracted_document_number_state\":\"present_redacted\",\"scanovate_check_template_matching_valid\":\"true\",\"scanovate_check_document_in_frame_valid\":\"true\",\"scanovate_check_expiry_date_valid\":\"true\",\"scanovate_check_face_size_valid\":\"true\",\"scanovate_check_barcode_valid\":\"missing\",\"scanovate_occurred_at\":\"2026-05-11T15:00:00.123Z\"}}",
+        "details": {
+            "error": "scanovate_verification_failed",
+            "details": {
+                "scanovate_attempt_id": "00000000-0000-4000-8000-000000000004",
+                "scanovate_case_id": "00000000-0000-4000-8000-000000000005",
+                "scanovate_stage": "validation",
+                "scanovate_error": "scanovateAttributesError",
+                "scanovate_failure_reason": "scanovateAttributesError",
+                "scanovate_can_retry": "true",
+                "scanovate_failed_attempts": "1",
+                "scanovate_entered_document_type": "passport",
+                "scanovate_entered_embassy": "missing",
+                "scanovate_entered_country": "missing",
+                "scanovate_entered_email_state": "present_redacted",
+                "scanovate_entered_phone_state": "present_redacted",
+                "scanovate_entered_document_number_state": "present_redacted",
+                "scanovate_liveness_status": "completed",
+                "scanovate_liveness_passed": "true",
+                "scanovate_face_match_document": "0.9000",
+                "scanovate_face_match_holding": "0.9000",
+                "scanovate_ocr_front_status": "completed",
+                "scanovate_ocr_front_result": "success",
+                "scanovate_ocr_back_status": "completed",
+                "scanovate_ocr_back_result": "success",
+                "scanovate_extracted_document_type": "P",
+                "scanovate_extracted_issuing_country": "PHL",
+                "scanovate_extracted_nationality": "PHL",
+                "scanovate_extracted_document_number_state": "present_redacted",
+                "scanovate_check_template_matching_valid": "true",
+                "scanovate_check_document_in_frame_valid": "true",
+                "scanovate_check_expiry_date_valid": "true",
+                "scanovate_check_face_size_valid": "true",
+                "scanovate_check_barcode_valid": "missing",
+                "scanovate_occurred_at": "2026-05-11T15:00:00.123Z"
+            }
+        }
+    },
+    "queue_envelope": {
+        "headers": {
+            "id": "scanovate-contract",
+            "task": "enqueue_electoral_log_event",
+            "timelimit": [null, null]
+        },
+        "body": "W1tdLHsiaW5wdXQiOnsidGVuYW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiZWxlY3Rpb25fZXZlbnRfaWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIiLCJ1c2VyX2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwidXNlcm5hbWUiOiJzeW50aGV0aWMtdm90ZXIiLCJtZXNzYWdlX3R5cGUiOiJSRUdJU1RFUl9FUlJPUiIsImV2ZW50X3RpbWVfbXMiOjE3Nzg1MTE2MDAxMjMsImJvZHkiOiJ7XCJlcnJvclwiOlwic2Nhbm92YXRlX3ZlcmlmaWNhdGlvbl9mYWlsZWRcIixcImRldGFpbHNcIjp7XCJzY2Fub3ZhdGVfYXR0ZW1wdF9pZFwiOlwiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDA0XCIsXCJzY2Fub3ZhdGVfY2FzZV9pZFwiOlwiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDA1XCIsXCJzY2Fub3ZhdGVfc3RhZ2VcIjpcInZhbGlkYXRpb25cIixcInNjYW5vdmF0ZV9lcnJvclwiOlwic2Nhbm92YXRlQXR0cmlidXRlc0Vycm9yXCIsXCJzY2Fub3ZhdGVfZmFpbHVyZV9yZWFzb25cIjpcInNjYW5vdmF0ZUF0dHJpYnV0ZXNFcnJvclwiLFwic2Nhbm92YXRlX2Nhbl9yZXRyeVwiOlwidHJ1ZVwiLFwic2Nhbm92YXRlX2ZhaWxlZF9hdHRlbXB0c1wiOlwiMVwiLFwic2Nhbm92YXRlX2VudGVyZWRfZG9jdW1lbnRfdHlwZVwiOlwicGFzc3BvcnRcIixcInNjYW5vdmF0ZV9lbnRlcmVkX2VtYmFzc3lcIjpcIm1pc3NpbmdcIixcInNjYW5vdmF0ZV9lbnRlcmVkX2NvdW50cnlcIjpcIm1pc3NpbmdcIixcInNjYW5vdmF0ZV9lbnRlcmVkX2VtYWlsX3N0YXRlXCI6XCJwcmVzZW50X3JlZGFjdGVkXCIsXCJzY2Fub3ZhdGVfZW50ZXJlZF9waG9uZV9zdGF0ZVwiOlwicHJlc2VudF9yZWRhY3RlZFwiLFwic2Nhbm92YXRlX2VudGVyZWRfZG9jdW1lbnRfbnVtYmVyX3N0YXRlXCI6XCJwcmVzZW50X3JlZGFjdGVkXCIsXCJzY2Fub3ZhdGVfbGl2ZW5lc3Nfc3RhdHVzXCI6XCJjb21wbGV0ZWRcIixcInNjYW5vdmF0ZV9saXZlbmVzc19wYXNzZWRcIjpcInRydWVcIixcInNjYW5vdmF0ZV9mYWNlX21hdGNoX2RvY3VtZW50XCI6XCIwLjkwMDBcIixcInNjYW5vdmF0ZV9mYWNlX21hdGNoX2hvbGRpbmdcIjpcIjAuOTAwMFwiLFwic2Nhbm92YXRlX29jcl9mcm9udF9zdGF0dXNcIjpcImNvbXBsZXRlZFwiLFwic2Nhbm92YXRlX29jcl9mcm9udF9yZXN1bHRcIjpcInN1Y2Nlc3NcIixcInNjYW5vdmF0ZV9vY3JfYmFja19zdGF0dXNcIjpcImNvbXBsZXRlZFwiLFwic2Nhbm92YXRlX29jcl9iYWNrX3Jlc3VsdFwiOlwic3VjY2Vzc1wiLFwic2Nhbm92YXRlX2V4dHJhY3RlZF9kb2N1bWVudF90eXBlXCI6XCJQXCIsXCJzY2Fub3ZhdGVfZXh0cmFjdGVkX2lzc3VpbmdfY291bnRyeVwiOlwiUEhMXCIsXCJzY2Fub3ZhdGVfZXh0cmFjdGVkX25hdGlvbmFsaXR5XCI6XCJQSExcIixcInNjYW5vdmF0ZV9leHRyYWN0ZWRfZG9jdW1lbnRfbnVtYmVyX3N0YXRlXCI6XCJwcmVzZW50X3JlZGFjdGVkXCIsXCJzY2Fub3ZhdGVfY2hlY2tfdGVtcGxhdGVfbWF0Y2hpbmdfdmFsaWRcIjpcInRydWVcIixcInNjYW5vdmF0ZV9jaGVja19kb2N1bWVudF9pbl9mcmFtZV92YWxpZFwiOlwidHJ1ZVwiLFwic2Nhbm92YXRlX2NoZWNrX2V4cGlyeV9kYXRlX3ZhbGlkXCI6XCJ0cnVlXCIsXCJzY2Fub3ZhdGVfY2hlY2tfZmFjZV9zaXplX3ZhbGlkXCI6XCJ0cnVlXCIsXCJzY2Fub3ZhdGVfY2hlY2tfYmFyY29kZV92YWxpZFwiOlwibWlzc2luZ1wiLFwic2Nhbm92YXRlX29jY3VycmVkX2F0XCI6XCIyMDI2LTA1LTExVDE1OjAwOjAwLjEyM1pcIn19IiwiZGV0YWlscyI6eyJlcnJvciI6InNjYW5vdmF0ZV92ZXJpZmljYXRpb25fZmFpbGVkIiwiZGV0YWlscyI6eyJzY2Fub3ZhdGVfYXR0ZW1wdF9pZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwNCIsInNjYW5vdmF0ZV9jYXNlX2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDA1Iiwic2Nhbm92YXRlX3N0YWdlIjoidmFsaWRhdGlvbiIsInNjYW5vdmF0ZV9lcnJvciI6InNjYW5vdmF0ZUF0dHJpYnV0ZXNFcnJvciIsInNjYW5vdmF0ZV9mYWlsdXJlX3JlYXNvbiI6InNjYW5vdmF0ZUF0dHJpYnV0ZXNFcnJvciIsInNjYW5vdmF0ZV9jYW5fcmV0cnkiOiJ0cnVlIiwic2Nhbm92YXRlX2ZhaWxlZF9hdHRlbXB0cyI6IjEiLCJzY2Fub3ZhdGVfZW50ZXJlZF9kb2N1bWVudF90eXBlIjoicGFzc3BvcnQiLCJzY2Fub3ZhdGVfZW50ZXJlZF9lbWJhc3N5IjoibWlzc2luZyIsInNjYW5vdmF0ZV9lbnRlcmVkX2NvdW50cnkiOiJtaXNzaW5nIiwic2Nhbm92YXRlX2VudGVyZWRfZW1haWxfc3RhdGUiOiJwcmVzZW50X3JlZGFjdGVkIiwic2Nhbm92YXRlX2VudGVyZWRfcGhvbmVfc3RhdGUiOiJwcmVzZW50X3JlZGFjdGVkIiwic2Nhbm92YXRlX2VudGVyZWRfZG9jdW1lbnRfbnVtYmVyX3N0YXRlIjoicHJlc2VudF9yZWRhY3RlZCIsInNjYW5vdmF0ZV9saXZlbmVzc19zdGF0dXMiOiJjb21wbGV0ZWQiLCJzY2Fub3ZhdGVfbGl2ZW5lc3NfcGFzc2VkIjoidHJ1ZSIsInNjYW5vdmF0ZV9mYWNlX21hdGNoX2RvY3VtZW50IjoiMC45MDAwIiwic2Nhbm92YXRlX2ZhY2VfbWF0Y2hfaG9sZGluZyI6IjAuOTAwMCIsInNjYW5vdmF0ZV9vY3JfZnJvbnRfc3RhdHVzIjoiY29tcGxldGVkIiwic2Nhbm92YXRlX29jcl9mcm9udF9yZXN1bHQiOiJzdWNjZXNzIiwic2Nhbm92YXRlX29jcl9iYWNrX3N0YXR1cyI6ImNvbXBsZXRlZCIsInNjYW5vdmF0ZV9vY3JfYmFja19yZXN1bHQiOiJzdWNjZXNzIiwic2Nhbm92YXRlX2V4dHJhY3RlZF9kb2N1bWVudF90eXBlIjoiUCIsInNjYW5vdmF0ZV9leHRyYWN0ZWRfaXNzdWluZ19jb3VudHJ5IjoiUEhMIiwic2Nhbm92YXRlX2V4dHJhY3RlZF9uYXRpb25hbGl0eSI6IlBITCIsInNjYW5vdmF0ZV9leHRyYWN0ZWRfZG9jdW1lbnRfbnVtYmVyX3N0YXRlIjoicHJlc2VudF9yZWRhY3RlZCIsInNjYW5vdmF0ZV9jaGVja190ZW1wbGF0ZV9tYXRjaGluZ192YWxpZCI6InRydWUiLCJzY2Fub3ZhdGVfY2hlY2tfZG9jdW1lbnRfaW5fZnJhbWVfdmFsaWQiOiJ0cnVlIiwic2Nhbm92YXRlX2NoZWNrX2V4cGlyeV9kYXRlX3ZhbGlkIjoidHJ1ZSIsInNjYW5vdmF0ZV9jaGVja19mYWNlX3NpemVfdmFsaWQiOiJ0cnVlIiwic2Nhbm92YXRlX2NoZWNrX2JhcmNvZGVfdmFsaWQiOiJtaXNzaW5nIiwic2Nhbm92YXRlX29jY3VycmVkX2F0IjoiMjAyNi0wNS0xMVQxNTowMDowMC4xMjNaIn19fX0seyJjYWxsYmFja3MiOm51bGwsImVycmJhY2tzIjpudWxsLCJjaGFpbiI6bnVsbCwiY2hvcmQiOm51bGx9XQ==",
+        "content-encoding": "utf-8",
+        "content-type": "application/json",
+        "properties": {
+            "body_encoding": "base64",
+            "delivery_tag": "scanovate-contract",
+            "correlation_id": "scanovate-contract"
+        }
+    },
+    "statement_body": {
+        "KeycloakUserEvent": [
+            "{\"error\":\"scanovate_verification_failed\",\"details\":{\"scanovate_attempt_id\":\"00000000-0000-4000-8000-000000000004\",\"scanovate_case_id\":\"00000000-0000-4000-8000-000000000005\",\"scanovate_stage\":\"validation\",\"scanovate_error\":\"scanovateAttributesError\",\"scanovate_failure_reason\":\"scanovateAttributesError\",\"scanovate_can_retry\":\"true\",\"scanovate_failed_attempts\":\"1\",\"scanovate_entered_document_type\":\"passport\",\"scanovate_entered_embassy\":\"missing\",\"scanovate_entered_country\":\"missing\",\"scanovate_entered_email_state\":\"present_redacted\",\"scanovate_entered_phone_state\":\"present_redacted\",\"scanovate_entered_document_number_state\":\"present_redacted\",\"scanovate_liveness_status\":\"completed\",\"scanovate_liveness_passed\":\"true\",\"scanovate_face_match_document\":\"0.9000\",\"scanovate_face_match_holding\":\"0.9000\",\"scanovate_ocr_front_status\":\"completed\",\"scanovate_ocr_front_result\":\"success\",\"scanovate_ocr_back_status\":\"completed\",\"scanovate_ocr_back_result\":\"success\",\"scanovate_extracted_document_type\":\"P\",\"scanovate_extracted_issuing_country\":\"PHL\",\"scanovate_extracted_nationality\":\"PHL\",\"scanovate_extracted_document_number_state\":\"present_redacted\",\"scanovate_check_template_matching_valid\":\"true\",\"scanovate_check_document_in_frame_valid\":\"true\",\"scanovate_check_expiry_date_valid\":\"true\",\"scanovate_check_face_size_valid\":\"true\",\"scanovate_check_barcode_valid\":\"missing\",\"scanovate_occurred_at\":\"2026-05-11T15:00:00.123Z\"}}",
+            "REGISTER_ERROR"
+        ]
+    }
+}

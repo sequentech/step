@@ -35,6 +35,7 @@ use sequent_core::types::keycloak::{
 };
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
 use std::num::NonZeroU32;
 use std::sync::LazyLock;
 use tempfile::NamedTempFile;
@@ -190,6 +191,37 @@ fn ensure_cell_allowed(
     }
 }
 
+/// A participation column (`election__…`) only reports who voted, so import
+/// never stores it. Its name can also be longer than the 63 bytes PostgreSQL
+/// keeps of an identifier.
+fn is_participation_column(column_name: &str) -> bool {
+    column_name.starts_with(ELECTION_COL_PREFIX)
+}
+
+/// Where the staging loop in `import_users_file()` puts a cell of an input
+/// column. Only `Staged` cells are written to the temp table, in input order,
+/// matching the columns `get_copy_from_query()` creates.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InputCell {
+    Staged,
+    Password,
+    Iterations,
+    Salt,
+    HashedPassword,
+    Participation,
+}
+
+fn input_cell(column_name: &str) -> InputCell {
+    match column_name {
+        name if is_participation_column(name) => InputCell::Participation,
+        PASSWORD_COL_NAME => InputCell::Password,
+        NUMBER_OF_ITERATIONS_COL_NAME => InputCell::Iterations,
+        SALT_COL_NAME => InputCell::Salt,
+        HASHED_PASSWORD_COL_NAME => InputCell::HashedPassword,
+        _ => InputCell::Staged,
+    }
+}
+
 fn sanitize_db_key(key: &String) -> String {
     key.replace(".", "_").replace("-", "_")
 }
@@ -334,6 +366,14 @@ fn get_copy_from_query(
         seen.push(sanitized);
     }
 
+    // Participation columns are checked with every other header above, so a
+    // repeated one is still refused, and are then left out of the temp table.
+    // `import_users_file()` skips their cells to match.
+    let processed_column_names = processed_column_names
+        .into_iter()
+        .filter(|column_name| !is_participation_column(column_name))
+        .collect::<Vec<String>>();
+
     // Create the table creation query
     let quoted_table_name = escape_sql_identifier(&temp_table_name);
     let create_table_query = format!(
@@ -474,7 +514,7 @@ fn get_insert_user_query(
         .filter(|col| {
             !user_entity_columns.contains(&col.as_str())
                 && !RESERVED_COL_NAMES.iter().any(|&s| s == col)
-                && !col.starts_with(ELECTION_COL_PREFIX)
+                && !is_participation_column(col)
         })
         .collect::<Vec<String>>();
 
@@ -639,6 +679,25 @@ fn get_insert_user_query(
     Ok(ret)
 }
 
+/// Counts accepted records, rather than source lines or SQL attribute rows.
+/// The insert is all-or-nothing: duplicate usernames fail its transaction.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ImportedUsersSummary {
+    pub accepted_count: u64,
+    pub counts_by_area: BTreeMap<String, u64>,
+}
+
+impl ImportedUsersSummary {
+    fn accept(&mut self, area_id: Option<&str>, areas: &HashMap<String, String>) {
+        self.accepted_count += 1;
+        let key = area_id
+            .and_then(|id| areas.get(id))
+            .cloned()
+            .unwrap_or_default();
+        *self.counts_by_area.entry(key).or_default() += 1;
+    }
+}
+
 #[instrument(err, skip(hasura_transaction))]
 pub async fn import_users_file(
     hasura_transaction: &Transaction<'_>,
@@ -650,7 +709,7 @@ pub async fn import_users_file(
     may_write_secret_attributes: bool,
     secret_write_initiator: Option<&ElectoralLogAdminContext>,
     privileges: ImportUsersPrivileges,
-) -> Result<()> {
+) -> Result<ImportedUsersSummary> {
     let mut keycloak_db_client = match get_keycloak_pool().await.get().await {
         Ok(client) => client,
         Err(err) => {
@@ -696,6 +755,17 @@ pub async fn import_users_file(
     } else {
         None
     };
+
+    let area_names: HashMap<String, String> = areas_map
+        .as_ref()
+        .map(|areas| {
+            areas
+                .iter()
+                .map(|(name, id)| (id.clone(), name.trim().to_string()))
+                .collect()
+        })
+        .unwrap_or_default();
+    let mut summary = ImportedUsersSummary::default();
 
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(separator)
@@ -870,12 +940,18 @@ pub async fn import_users_file(
         owned_data.clear();
         let user_id = Uuid::new_v4().to_string();
 
+        let mut accepted_area_id: Option<String> = None;
         let mut password_salt: Option<String> = None;
         let mut hashed_password: Option<String> = None;
         let mut num_of_iterations = *PBKDF2_ITERATIONS;
         let mut password: Option<String> = None;
         for (data, column_name) in record.iter().zip(voters_table_input_columns_names.iter()) {
             ensure_cell_allowed(column_name, data, &tenant_id, &privileges, row_number)?;
+            let cell = input_cell(column_name);
+            // Not a temp table column: see `get_copy_from_query()`.
+            if cell == InputCell::Participation {
+                continue;
+            }
             let mut processed_data = match column_name.as_str() {
                     column_name if column_name == AREA_ID_ATTR_NAME && !is_admin => {
                         match areas_map
@@ -918,6 +994,10 @@ pub async fn import_users_file(
                     _ => data.to_string(),
                 };
 
+            if column_name == AREA_ID_ATTR_NAME && !is_admin {
+                accepted_area_id = Some(processed_data.clone());
+            }
+
             if secret_names.contains(column_name) && !processed_data.is_empty() {
                 let event_id = election_event_id.as_deref().ok_or_else(|| {
                     anyhow!("Encrypted voter attributes require an election event")
@@ -932,19 +1012,18 @@ pub async fn import_users_file(
                         .join(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR);
             }
 
-            if column_name == PASSWORD_COL_NAME {
-                password = Some(data.to_string());
-            } else if column_name == NUMBER_OF_ITERATIONS_COL_NAME {
-                num_of_iterations = match data.parse::<u32>() {
-                    Ok(value) => NonZeroU32::new(value).unwrap_or(*PBKDF2_ITERATIONS),
-                    Err(_) => *PBKDF2_ITERATIONS,
-                };
-            } else if column_name == SALT_COL_NAME {
-                password_salt = Some(data.to_string());
-            } else if column_name == HASHED_PASSWORD_COL_NAME {
-                hashed_password = Some(data.to_string());
-            } else {
-                owned_data.push(processed_data);
+            match cell {
+                InputCell::Password => password = Some(data.to_string()),
+                InputCell::Iterations => {
+                    num_of_iterations = match data.parse::<u32>() {
+                        Ok(value) => NonZeroU32::new(value).unwrap_or(*PBKDF2_ITERATIONS),
+                        Err(_) => *PBKDF2_ITERATIONS,
+                    };
+                }
+                InputCell::Salt => password_salt = Some(data.to_string()),
+                InputCell::HashedPassword => hashed_password = Some(data.to_string()),
+                InputCell::Staged => owned_data.push(processed_data),
+                InputCell::Participation => {}
             }
         }
 
@@ -978,10 +1057,22 @@ pub async fn import_users_file(
 
         owned_data.push(user_id);
 
+        // Values go in by position: a row of any other length would put them
+        // under the wrong columns.
+        if owned_data.len() != voters_table_processed_columns_names.len() {
+            return Err(Error::String(format!(
+                "Row {row_number}: {} values for {} voter table columns",
+                owned_data.len(),
+                voters_table_processed_columns_names.len()
+            )));
+        }
+
         let row: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = owned_data
             .iter()
             .map(|data| data as &(dyn tokio_postgres::types::ToSql + Sync))
             .collect();
+
+        summary.accept(accepted_area_id.as_deref(), &area_names);
 
         if let Err(err) = writer.as_mut().write(row.as_slice()).await {
             return Err(Error::String(format!(
@@ -1020,13 +1111,40 @@ pub async fn import_users_file(
         )));
     }
 
-    Ok(())
+    Ok(summary)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use csv::StringRecord;
+
+    #[test]
+    fn accepted_voters_are_counted_once_under_the_stable_area_name() {
+        let areas = [
+            ("area-1".to_string(), "Area A".to_string()),
+            ("area-2".to_string(), "Area B".to_string()),
+        ]
+        .into();
+        let mut summary = ImportedUsersSummary::default();
+        summary.accept(Some("area-1"), &areas);
+        summary.accept(Some("area-1"), &areas);
+        summary.accept(Some("area-2"), &areas);
+        assert_eq!(summary.accepted_count, 3);
+        assert_eq!(
+            summary.counts_by_area,
+            [("Area A".to_string(), 2), ("Area B".to_string(), 1)].into()
+        );
+    }
+
+    #[test]
+    fn an_unassigned_voter_cannot_disappear_from_the_import_counts() {
+        let mut summary = ImportedUsersSummary::default();
+        summary.accept(None, &Default::default());
+        summary.accept(Some("missing-area"), &Default::default());
+        assert_eq!(summary.accepted_count, 2);
+        assert_eq!(summary.counts_by_area.get(""), Some(&2));
+    }
 
     /// The import writes `user_attribute.name` straight from these lists and the
     /// ballot dump reads the attribute by name, so the column has to survive
@@ -1070,6 +1188,161 @@ mod tests {
                 .expect("a duplicate column is a reason the admin can act on");
             assert_eq!(problems[0].id.as_deref(), Some("voters.duplicate-column"));
         }
+    }
+
+    /// Participation columns pass the same header checks as any other, then
+    /// stay out of the temp table: a long external ID makes a name PostgreSQL
+    /// would cut to 63 bytes. `import_users_file()` stages the cells of every
+    /// other input column, then the generated ones, in this order.
+    #[test]
+    fn participation_columns_are_checked_then_left_out_of_the_temp_table() {
+        let long = format!("election__external_id__{}", "ab".repeat(60));
+        let headers = StringRecord::from(vec![
+            "username",
+            "password",
+            long.as_str(),
+            "election__General_Election",
+            "email",
+        ]);
+        let (_, create_table, _, input_columns, processed_columns, types) =
+            get_copy_from_query(&headers).expect("query builds");
+
+        assert_eq!(
+            input_columns,
+            [
+                "username",
+                "password",
+                long.as_str(),
+                "election__General_Election",
+                "email"
+            ]
+        );
+        assert_eq!(
+            processed_columns,
+            [
+                "username",
+                "email",
+                SALT_COL_NAME,
+                HASHED_PASSWORD_COL_NAME,
+                NUMBER_OF_ITERATIONS_COL_NAME,
+                INTERNAL_USER_ID_COL_NAME,
+            ]
+        );
+        assert_eq!(types.len(), processed_columns.len());
+        assert!(!create_table.contains("election__"), "{create_table}");
+    }
+
+    /// The staging loop writes `Staged` cells in input order, then the generated
+    /// columns. Each value must land under its own temp table column, with the
+    /// participation and password cells taken out of the row.
+    #[test]
+    fn staged_cells_line_up_with_the_temp_table_columns() {
+        let headers = StringRecord::from(vec![
+            "election__external_id__6e",
+            "username",
+            "password",
+            "election__General_Election",
+            "email",
+            "area_name",
+            "custom",
+        ]);
+        let values = ["true", "ada", "secret", "", "a@b.org", "North", "kept"];
+        let (_, _, _, input_columns, processed_columns, _) =
+            get_copy_from_query(&headers).expect("query builds");
+
+        let cells = input_columns
+            .iter()
+            .zip(values)
+            .map(|(column, value)| (input_cell(column), column.as_str(), value))
+            .collect::<Vec<_>>();
+        assert_eq!(cells[0].0, InputCell::Participation);
+        assert_eq!(cells[2].0, InputCell::Password);
+        assert_eq!(cells[3].0, InputCell::Participation);
+        let staged = cells
+            .iter()
+            .filter(|(cell, _, _)| *cell == InputCell::Staged)
+            .collect::<Vec<_>>();
+        for (at, (_, column, _)) in staged.iter().enumerate() {
+            assert_eq!(processed_columns[at], *column, "value {at}");
+        }
+        assert_eq!(
+            staged
+                .iter()
+                .map(|(_, _, value)| *value)
+                .collect::<Vec<_>>(),
+            ["ada", "a@b.org", "North", "kept"]
+        );
+        assert_eq!(
+            processed_columns[staged.len()..],
+            [
+                SALT_COL_NAME,
+                HASHED_PASSWORD_COL_NAME,
+                NUMBER_OF_ITERATIONS_COL_NAME,
+                INTERNAL_USER_ID_COL_NAME,
+            ]
+        );
+    }
+
+    #[test]
+    fn repeated_participation_columns_are_still_refused() {
+        for headers in [
+            vec![
+                "username",
+                "election__General_Election",
+                "election__General_Election",
+            ],
+            vec![
+                "username",
+                "election__General-Election",
+                "election__general_election",
+            ],
+        ] {
+            let error = get_copy_from_query(&StringRecord::from(headers.clone()))
+                .expect_err(&format!("{headers:?} must be rejected"));
+            assert!(
+                error.to_string().contains("Duplicate column"),
+                "unexpected error for {headers:?}: {error}"
+            );
+        }
+    }
+
+    /// The header row the voters export writes, through a CSV round trip.
+    #[test]
+    fn exported_participation_columns_are_accepted_and_never_imported() {
+        use crate::services::election::ElectionHead;
+        use crate::services::export::export_users::get_headers;
+        let elections = ["GE-2026", "ge-2026", "GE_2026", "x".repeat(80).as_str()]
+            .iter()
+            .enumerate()
+            .map(|(at, external_id)| ElectionHead {
+                id: at.to_string(),
+                name: "General Election".to_string(),
+                alias: None,
+                external_id: Some(external_id.to_string()),
+            })
+            .collect();
+        let exported = get_headers(&Some(elections), &vec![]).expect("export headers");
+        let mut writer = csv::Writer::from_writer(vec![]);
+        writer.write_record(&exported).unwrap();
+        let bytes = writer.into_inner().unwrap();
+        let headers = csv::Reader::from_reader(bytes.as_slice())
+            .headers()
+            .unwrap()
+            .clone();
+
+        assert!(headers.iter().all(|header| HEADER_RE.is_match(header)));
+        let (table, create_table, _, input_columns, processed_columns, _) =
+            get_copy_from_query(&headers).expect("the export's own headers import");
+        assert_eq!(input_columns.len(), exported.len());
+        assert!(!create_table.contains("election__"), "{create_table}");
+        let insert = get_insert_user_query(
+            TENANT_ID.to_string(),
+            TENANT_ID.to_string(),
+            table,
+            &processed_columns,
+        )
+        .unwrap();
+        assert!(!insert.contains("election__"), "{insert}");
     }
 
     const TENANT_ID: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";

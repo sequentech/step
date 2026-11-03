@@ -5,6 +5,319 @@ import englishTranslation, {TranslationType} from "./en"
 
 const basqueTranslation: TranslationType = {
     translations: {
+        configurationPackage: englishTranslation.translations.configurationPackage,
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        readiness: {
+            close: "Itxi",
+            action: "Prestasuna egiaztatu",
+            title: "Hauteskundeen prestasuna",
+            description:
+                "Alderatu ekitaldi ofizial hau amaitutako entsegu batekin. Egiaztapena gainditzean, sinatutako froga ekitaldi ofizialaren erregistroan gordetzen da.",
+            testedEvent: "Probatutako ekitaldia",
+            archived: "Artxibatuta",
+            noEvents: "Ez dago beste ekitaldirik erabilgarri",
+            retry: "Saiatu berriro",
+            eventsError: "Ezin izan dira hauteskunde-ekitaldiak kargatu.",
+            run: "Exekutatu egiaztapena",
+            running: "Prestasuna egiaztatzen…",
+            error: "Ezin izan da egiaztapena osatu. Begiratu erregistroa berriro saiatu aurretik; erantzuna galdu egin daiteke froga gorde ondoren.",
+            downloadError: "Ezin izan da txostena deskargatu. Saiatu berriro.",
+            success:
+                "Prestasuna egiaztatuta. Sinatutako froga ekitaldi ofizialaren erregistroan gorde da.",
+            failed: "Prestasun-egiaztapenak huts egin du. Konpondu huts egindako egiaztapenak eta errepikatu. Ez da prestasun-sarrerarik gorde.",
+            download: "Deskargatu JSON txostena",
+            snapshot:
+                "Txosten hau une bateko egoera da. Errepikatu aldaketa garrantzitsuen ondoren; ez du ekitaldia izozten, eta ez du baimen operatiboa ordezkatzen.",
+            results: "Egiaztapenen emaitzak",
+            condition: "Zerbitzariak egiaztatutako baldintza",
+            noDetail: "Zerbitzariak ez du egiaztapen honi buruzko xehetasun gehiagorik eman.",
+            reasons: "Zergatik huts egin duen",
+            noArea: "eremurik gabe edo eremu ezezagun batean",
+            eventRoles: {
+                official: "ofiziala",
+                tested: "probakoa",
+                both: "biak",
+            },
+            scope: {
+                event: "Gertaera ({{event}})",
+                election: "{{election}} hauteskundea",
+            },
+            certification: {
+                declared_sha256_missing: "ez da SHA-256rik adierazi",
+                declared_sha256_mismatch: "adierazitako SHA-256a ez dator bat fitxategiarenarekin",
+                no_counts: "ez du hautesleik eremuka",
+                blank_area: "hautesle batzuek ez dute eremurik",
+                invalid_sha256: "bere SHA-256a ez da baliozkoa",
+            },
+            findings: {
+                same_event: "Gertaera ofiziala eta probakoa gertaera bera dira.",
+                configuration_missing:
+                    "Gertaera ({{event}}) ez da konfigurazio-pakete sinatu batetik inportatu.",
+                configuration_incomplete:
+                    "Gertaera ofizialaren konfigurazio sinatuak ez du baliozko baliorik «{{field}}» eremurako.",
+                external_id_mismatch:
+                    "Gertaerak konfigurazio desberdinetatik datoz: {{official}} (ofiziala) eta {{tested}} (probakoa).",
+                content_mismatch:
+                    "Eduki sinatua desberdina da: SHA-256 {{official}} (ofiziala) eta {{tested}} (probakoa).",
+                approvers_mismatch:
+                    "Onartzaile egiaztatuak desberdinak dira: {{only_official}} gertaera ofizialean bakarrik eta {{only_tested}} probakoan bakarrik.",
+                areas_mismatch: "{{area}} gertaeraren ({{event}}) eduki sinatuan bakarrik dago.",
+                voter_import_missing:
+                    "Gertaerak ({{event}}) ez du hautesleen inportazio ziurtaturik.",
+                voter_import_in_progress:
+                    "Hautesleen inportazio bat abian dago oraindik gertaeran ({{event}}).",
+                voter_file_not_certified:
+                    "Gertaeraren ({{event}}) hautesleen azken inportazioa ez dago ziurtatuta: {{reason}}.",
+                voter_receipt_not_signed:
+                    "Gertaeraren ({{event}}) erregistroak ez du {{import_id}} hautesle-inportazioari dagokion sarrera sinaturik.",
+                registry_count_changed:
+                    "Gertaerak ({{event}}) {{current}} hautesle ditu orain {{area}} eremuan, baina inportazio ziurtatuak {{imported}} ditu.",
+                voter_area_not_configured:
+                    "Gertaeraren ({{event}}) hautesle ziurtatuen artean {{area}} dago, eta hori ez dago bere eduki sinatuan.",
+                voter_file_mismatch:
+                    "Hautesleen fitxategi ziurtatuak desberdinak dira: SHA-256 {{official}} (ofiziala) eta {{tested}} (probakoa).",
+                voter_count_mismatch:
+                    "Fitxategi ziurtatuak desberdinak dira {{area}} eremuan: {{official}} hautesle (ofiziala) eta {{tested}} (probakoa).",
+                ballots_present: "Gertaera ofizialak {{count}} boto-paper gordeta ditu.",
+                received_ballots_present:
+                    "Gertaera ofizialak {{count}} boto-paper jaso ditu berrikusteko.",
+                tally_sessions_present: "Gertaera ofizialak {{count}} zenbaketa-saio ditu.",
+                status_missing: "{{scope}}: ez du bozketa-egoerarik.",
+                voting_started: "{{scope}}: {{channel}} kanala {{status}} egoeran dago.",
+                voting_dates_recorded:
+                    "{{scope}}: {{channel}} kanalak bozketa-datak erregistratuta ditu.",
+                no_elections: "Gertaerak ({{event}}) ez du hauteskunderik.",
+                publication_missing: "Gertaerak ({{event}}) ez du argitalpen aktiborik.",
+                publication_mismatch:
+                    "Gertaeraren ({{event}}) argitaratutako {{design_count}} boto-paper diseinuak ez datoz bat bere konfigurazio sinatuko diseinu guztiekin.",
+                publication_empty:
+                    "Ezin izan dira gertaeraren ({{event}}) argitaratutako boto-paper diseinuak konfigurazio sinatu batekin egiaztatu.",
+                channels_open: "Probako gertaerak oraindik itxi gabeko bozketa-kanalak ditu.",
+                seal_at_close_off: "Probako gertaerak ez ditu hautestontziak zigilatzen ixtean.",
+                no_expected_boxes: "Probako gertaeraren argitalpenak ez du hautestontzirik espero.",
+                boxes_unsealed:
+                    "Probako gertaeraren {{election}} hauteskundeak zigilatu gabeko {{unsealed}} hautestontzi ditu.",
+            },
+        },
+        plugins: {
+            title: "Pluginak",
+            description:
+                "Pluginak bertsio honetan daude. Bat aktibatzean, bere menu-elementua eta baimenak gehitzen dira maizter honetarako; desaktibatzean ezkutatu egiten da, eta bere datuak eta baimenak gordetzen dira.",
+            enabled: "Aktibatuta",
+            disabled: "Desaktibatuta",
+            compatible: "Bateragarria",
+            incompatible: "Gordetako datuek bertsio berriagoa behar dute",
+            api: "Pluginen APIa {{major}}",
+            permissions: "Baimenak",
+            adminGroup: "admin taldeari ematen zaizkio aktibatzean",
+            enable: "Aktibatu",
+            disable: "Desaktibatu",
+            confirmEnableTitle: "{{name}} aktibatu?",
+            confirmDisableTitle: "{{name}} desaktibatu?",
+            confirmEnable:
+                "{{name}} bere baimenak dituzten erabiltzaileen menuan agertzen da. Bere baimenak maizter honetan sortzen dira eta admin taldeari ematen zaizkio.",
+            confirmDisable:
+                "{{name}} ezkutatu egiten da eta bere eskaerak ukatu egiten dira. Bere datuak, historia eta baimenak gordetzen dira, eta maizterrean ez da beste ezer aldatzen.",
+            confirm: "Berretsi",
+            noPermission: "Pluginak aldatzeko tenant-write baimena behar da.",
+            retry: "Saiatu berriro",
+            loading: "Pluginak kargatzen…",
+            signIn: "Hasi saioa hautatutako maizterrean bere pluginak erabiltzeko.",
+            unavailable: "Plugin hau ez dago bertsio honetan.",
+            incompatibleRoute:
+                "Plugin honen gordetako datuek bertsio berriagoa behar dute. Bere datuak ez dira aldatu.",
+            disabledRoute:
+                "{{name}} ez dago aktibatuta maizter honetarako. Maizterraren administratzaile batek Ezarpenak → Pluginak atalean aktiba dezake.",
+            forbidden: "Ez duzu {{name}} erabiltzeko baimenik.",
+        },
+        projects: {
+            title: "Proiektuak",
+            subtitle:
+                "Planifikatu maizterraren lana denbora-lerro batean. Proiektuek ez dituzte inoiz hauteskunde-egutegiak aldatzen.",
+            cancel: "Utzi",
+            retry: "Saiatu berriro",
+            loading: "Kargatzen…",
+            list: {
+                create: "Proiektu berria",
+                import: "Inportatu",
+                emptyTitle: "Oraindik ez dago proiekturik",
+                emptyHelp:
+                    "Sortu proiektu bat, edo inportatu beste proiektu batetik esportatutako CSV fitxategi bat.",
+                emptyViewer: "Ez da proiekturik sortu maizter honetan.",
+                active_one: "Aktiboak ({{count}})",
+                active_other: "Aktiboak ({{count}})",
+                archived_one: "Artxibatuak ({{count}})",
+                archived_other: "Artxibatuak ({{count}})",
+                name: "Izena",
+                dates: "Datak",
+                tasks: "Zereginak",
+                timezone: "Ordu-zona",
+                updated: "Azken aldaketa",
+                updatedBy: "{{at}} · {{actor}}",
+                archivedChip: "Artxibatua",
+                noneInTab: "Ez dago proiekturik hemen.",
+            },
+            create: {
+                title: "Proiektu berria",
+                name: "Proiektuaren izena",
+                timezone: "Ordu-zona",
+                timezoneHelp:
+                    "Proiektuko data guztiak IANA ordu-zona honetan sartzen eta erakusten dira.",
+                submit: "Sortu proiektua",
+            },
+            import: {
+                title: "Inportatu proiektu bat",
+                help: "Inportatzeak beti proiektu berri bat sortzen du. Erabili UTF-8 CSV fitxategi bat {{columns}} zutabeekin, proiektu batetik esportatzen den bezala, data bakoitzean UTC desplazamendu batekin. Ez da ezer gordetzen proiektua sortu arte.",
+                choose: "Aukeratu CSV fitxategia",
+                noFile: "Ez da fitxategirik aukeratu",
+                fileLimit: "Fitxategiak gehienez 1 MiB izan behar du.",
+                invalidFile: "Fitxategia ez da baliozko UTF-8 testua.",
+                valid_one: "{{count}} zeregin inportatzeko prest dago.",
+                valid_other: "{{count}} zeregin inportatzeko prest daude.",
+                invalid_one:
+                    "{{total}} errenkadatatik {{count}}ek erroreak ditu. Zuzendu fitxategia eta aukeratu berriro.",
+                invalid_other:
+                    "{{total}} errenkadatatik {{count}}k erroreak dituzte. Zuzendu fitxategia eta aukeratu berriro.",
+                previewTable: "Inportazioaren aurrebista",
+                line: "Lerroa",
+                result: "Egiaztapena",
+                rowValid: "Prest",
+                commit: "Sortu proiektua",
+            },
+            detail: {
+                timezone: "Data eta ordu guztiak {{timezone}} zonan daude.",
+                export: "Esportatu",
+                archive: "Artxibatu",
+                restore: "Leheneratu",
+                addTask: "Gehitu zeregina",
+                viewOnly:
+                    "Irakurtzeko soilik. Zereginak aldatzeko projects-write baimena behar da.",
+                archivedNotice:
+                    "Proiektu hau artxibatuta dago. Leheneratu bere zereginak aldatzeko.",
+            },
+            notices: {
+                saved: "«{{title}}» gorde da.",
+                moved: "«{{title}}» gorde da: {{start}} – {{end}}.",
+                deleted: "«{{title}}» ezabatu da.",
+                archived: "Proiektua artxibatu da.",
+                restored: "Proiektua leheneratu da.",
+            },
+            panel: {
+                details: "Zereginaren xehetasunak",
+                edit: "Editatu zeregina",
+                add: "Gehitu zeregina",
+                close: "Itxi zereginaren xehetasunak",
+                hint: "Hautatu zeregin bat denbora-lerroan bere xehetasunak hemen ikusteko.",
+                noTasks: "Proiektu honek ez du zereginik oraindik.",
+            },
+            conflict: {
+                body: "Beste norbaitek aldatu du zeregin hau ({{actor}}, {{at}}). Zure aldaketak hemen daude oraindik. Berrikusi bere bertsioa berriro gorde aurretik.",
+                load: "Kargatu bere bertsioa",
+            },
+            unsaved: {
+                body: "Gorde gabeko aldaketak dituzu. Gorde itzazu, edo baztertu {{action}}.",
+                keep: "Jarraitu editatzen",
+                discard: "Baztertu aldaketak",
+                actions: {
+                    open: "«{{title}}» irekitzeko",
+                    add: "zeregin berri bat gehitzeko",
+                    leave: "proiektuetara itzultzeko",
+                    close: "zeregina ixteko",
+                    state: "proiektua aldatzeko",
+                },
+            },
+            deleteDialog: {
+                title: "Zeregina ezabatu?",
+                body: "«{{title}}» proiektutik kentzen da. Bere aldaketen historia gordetzen da.",
+                confirm: "Ezabatu",
+            },
+            history: {
+                task: "Aldaketen historia",
+                project: "Proiektuaren historia",
+                empty: "Oraindik ez da aldaketarik erregistratu.",
+                more: "Erakutsi aldaketa zaharragoak",
+                by: "{{actor}} · {{at}}",
+                actions: {
+                    create: "Sortua {{subject}}",
+                    update: "Aldatua {{subject}}",
+                    delete: "Ezabatua {{subject}}",
+                    import_one: "{{count}} zeregin inportatu da",
+                    import_other: "{{count}} zeregin inportatu dira",
+                    export: "CSV gisa esportatua",
+                    other: "{{action}}",
+                },
+            },
+            editor: {
+                title: "Izenburua",
+                type: "Mota",
+                status: "Egoera",
+                start: "Hasiera",
+                end: "Amaiera",
+                at: "Data eta ordua",
+                notes: "Oharrak",
+                order: "Ordena",
+                orderHelp:
+                    "Zereginak ordenaren arabera zerrendatzen dira, gero hasieraren arabera.",
+                timezoneNote: "Orduak {{timezone}} zonan daude.",
+                offset: "UTC{{offset}}",
+                localTime: {
+                    invalid: "Sartu 1900 eta 2200 arteko data eta ordu bat.",
+                    skipped:
+                        "Ordu hau ez da existitzen {{timezone}} zonan: erlojuek saltatu egiten dute. Aukeratu beste ordu bat.",
+                    repeated:
+                        "Ordu hau bi aldiz gertatzen da {{timezone}} zonan. Aukeratu zein den.",
+                },
+                chooseInstant: "Zein aldi",
+                instantChoice: "UTC{{offset}} orduan",
+                saving: "Gordetzen…",
+                toFix_one: "{{count}} eremu zuzendu behar da",
+                toFix_other: "{{count}} eremu zuzendu behar dira",
+                save: "Gorde",
+                delete: "Ezabatu",
+            },
+            validation: {
+                title: "Sartu gehienez 200 karaktereko izenburu bat.",
+                offset: "Sartu baliozko datak.",
+                range: "Amaierak hasieraren ondoren izan behar du.",
+                milestone: "Mugarri batek ez du amaierarik.",
+                notes: "Oharrek gehienez 16.000 karaktere izan behar dituzte.",
+                order: "Ordenak 0 eta 1.000.000 arteko zenbaki osoa izan behar du.",
+            },
+            status: {
+                not_started: "Hasi gabe",
+                in_progress: "Abian",
+                done: "Eginda",
+            },
+            type: {
+                task: "Zeregina",
+                milestone: "Mugarria",
+            },
+            units: {
+                days_one: "{{count}} egun",
+                days_other: "{{count}} egun",
+                hours_one: "{{count}} h",
+                hours_other: "{{count}} h",
+                minutes_one: "{{count}} min",
+                minutes_other: "{{count}} min",
+            },
+            timeline: {
+                title: "Denbora-lerroa",
+                tasks_one: "{{count}} zeregin",
+                tasks_other: "{{count}} zeregin",
+                empty: "Oraindik ez dago zereginik.",
+                editHelp:
+                    "Seinalatu edo fokatu zeregin bat laburpen bat ikusteko; hautatu behean editatzeko. Arrastatu barra bat edo erabili ← → 24 ordu mugitzeko; gehitu Maius amaiera aldatzeko.",
+                viewHelp:
+                    "Seinalatu edo fokatu zeregin bat laburpen bat ikusteko. Hautatu bere xehetasunak behean ikusteko.",
+                touchEditHelp:
+                    "Ukitu zeregin bat behean editatzeko, edo arrastatu barra bat egun osoak mugitzeko.",
+                touchViewHelp: "Ukitu zeregin bat bere xehetasunak behean ikusteko.",
+                taskLabel: "{{title}}, {{start}} - {{end}}, {{status}}",
+                milestoneLabel: "{{title}}, mugarria {{at}}, {{status}}",
+                previewEdit: "Egin klik edo sakatu Sartu editatzeko",
+                previewView: "Egin klik edo sakatu Sartu xehetasunak ikusteko",
+            },
+        },
         philippinePassport: "Filipinetako Pasaportea",
         seamanBook: "Marinoaren Liburua",
         philSysID: "PhilSys IDa",
@@ -217,6 +530,76 @@ const basqueTranslation: TranslationType = {
             },
         },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
+            readiness: {
+                passed: "Gainditua",
+                failed: "Huts eginda",
+                checkResult: "{{outcome}}: {{description}}",
+                checkResultWithMessage:
+                    "{{outcome}}: {{description}} Erregistratutako baldintza: «{{message}}»",
+                description: {
+                    VotersImported: "Hautesle-fitxategia inportatu da.",
+                    ReadinessVerified:
+                        "Gertaera ofizialaren prestasuna probatutako gertaerarekin egiaztatu da.",
+                },
+                checks: {
+                    configuration:
+                        "Bi gertaerek onartutako eduki, egiaztatutako onartzaile eta eremu berberak dituzte.",
+                    certified_voters:
+                        "Bi gertaerek ziurtatutako hautesle-fitxategi eta eremukako uneko kopuru berberak dituzte.",
+                    official_zero:
+                        "Gertaera ofizialak ez du inoiz bozketa ireki eta ez du botorik edo zenbaketa-saiorik.",
+                    publication: "Argitalpen ofiziala sinatutako konfigurazioarekin bat dator.",
+                    tested_finished:
+                        "Probatutako gertaeraren boto-kanalak itxita eta espero diren hautestontzi guztiak zigilatuta daude.",
+                },
+                fields: {
+                    report: "Prestasun-txostena",
+                    passed: "Gainditua",
+                    checked_at: "Egiaztapen-data",
+                    evidence: "Frogak",
+                    official: "Gertaera ofiziala",
+                    tested: "Probatutako gertaera",
+                    official_event_id: "Gertaera ofizialaren IDa",
+                    tested_event_id: "Probatutako gertaeraren IDa",
+                    event_id: "Gertaeraren IDa",
+                    election_id: "Hauteskundearen IDa",
+                    configuration: "Konfigurazioa",
+                    external_id: "Kanpoko IDa",
+                    revision: "Berrikuspena",
+                    content_sha256: "Edukiaren SHA-256",
+                    manifest_sha256: "Manifestuaren SHA-256",
+                    approvers: "Egiaztatutako onartzaileak",
+                    areas: "Eremuak",
+                    voters: "Hautesleen inportazioa",
+                    import_id: "Inportazioaren IDa",
+                    document_id: "Dokumentuaren IDa",
+                    file_name: "Fitxategiaren izena",
+                    sha256: "Fitxategiaren SHA-256",
+                    declared_sha256: "Adierazitako SHA-256",
+                    counts_by_area: "Hautesleak eremuka",
+                    imported_at: "Inportazio-data",
+                    voter_log_delivered: "Sinatutako inportazioa erregistratuta",
+                    current_voter_counts: "Uneko hautesleak eremuka",
+                    voter_import_in_progress: "Hautesleen inportazioa aktibo",
+                    status: "Egoera",
+                    elections: "Hauteskundeak",
+                    ballot_count: "Gordetako botoak",
+                    received_ballot_count: "Berrikuspenean jasotako botoak",
+                    tally_session_count: "Zenbaketa-saioak",
+                    publication: "Argitalpena",
+                    publication_id: "Argitalpenaren IDa",
+                    publication_ids: "Argitalpenen IDak",
+                    matches_manifest: "Sinatutako manifestuarekin bat dator",
+                    design_count: "Argitaratutako diseinuak",
+                    seal_at_close: "Zigilatu ixtean",
+                    expected_boxes: "Espero diren hautestontziak",
+                    sealed_boxes: "Zigilatutako hautestontziak",
+                    all_channels_closed: "Boto-kanal guztiak itxita",
+                    locked_down: "Blokeatuta",
+                    log_entry_id: "Erregistro-sarreraren IDa",
+                },
+            },
             noPermissions: "Ez duzu egunkariak atzitzeko baimenik.",
             title: "Egunkariak",
             subtitle:
@@ -338,6 +721,27 @@ const basqueTranslation: TranslationType = {
                     newValue: "Balio berria",
                     error: "Errorea",
                 },
+                importedFile: {
+                    title: "Inportatutako fitxategia",
+                    declared: "Adierazitako egiaztapen-batura",
+                    sha256: "Fitxategiaren SHA-256",
+                    declaredSha256: "Adierazitako SHA-256",
+                    document: "Dokumentua",
+                    checksum: {
+                        undeclared: "Ez da adierazi",
+                        matches: "Fitxategiarekin bat dator",
+                        mismatch: "Ez dator bat fitxategiarekin",
+                    },
+                    counts: {
+                        count: "Errenkadak",
+                        elections: "Hauteskundeak",
+                        contests: "Lehiak",
+                        candidates: "Hautagaiak",
+                        areas: "Eremuak",
+                        area_contests: "Eremuak lehiako",
+                        sections: "Konfigurazio-atalak",
+                    },
+                },
                 deletedEvent: {
                     title: "Ezabatutako hauteskunde gertaeraren egunkaria",
                     lastEntry: "Azken sarrera",
@@ -346,6 +750,7 @@ const basqueTranslation: TranslationType = {
                     status: "Egoera",
                     retired: "Deskargatuta eta gordeta, atxikipen politikaren arabera ezabatu arte",
                     task: "Ataza",
+                    systemKey: "Egunkariaren sistema-gakoa",
                 },
                 exported: {
                     title: "Esportazioa",
@@ -545,6 +950,7 @@ const basqueTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Esportatu Aplikazioak",
                 EXPORT_TENANT_CONFIG: "Esportatu Maizter Konfigurazioa",
                 IMPORT_TENANT_CONFIG: "Inportatu Maizter Konfigurazioa",
+                APPLY_CONFIGURATION_PACKAGE: "Aplikatu Konfigurazio Paketea",
                 RENDER_DOCUMENT_PDF: "Errendatu Dokumentu PDFa",
                 CREATE_TENANT: "Maizterra Sortu",
                 EXPORT_TEMPLATES: "Txantiloiak Esportatu",
@@ -843,6 +1249,10 @@ const basqueTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Datuak ez daude erabilgarri hauteskunde-ekitaldi honetarako.",
+            noAccessibleTabs:
+                "Ez duzu sarbiderik hauteskunde-ekitaldi honetako fitxa erabilgarrietara.",
+
             common: {
                 subtitle: "Hauteskunde gertaera konfigurazioa.",
                 showMore: "Erakutsi Gehiago",
@@ -1006,6 +1416,11 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Blokeatuta {{date}} unetik.",
+                    scheduledEnd: "Blokeoaren amaiera {{date}} unerako programatuta dago.",
+                    endScheduled: "Blokeoaren amaiera programatuta dago.",
+                    noScheduledEnd: "Ez dago blokeoaren amaierarik programatuta.",
+                    banner: "Hauteskunde-ekitaldi hau blokeatuta dago.",
                     policyLabel: "Blokeo Egoera",
                     helperText:
                         "Programatu blokeo-aldiaren hasiera edo amaiera egoera hau aldatzeko.",
@@ -1050,6 +1465,15 @@ const basqueTranslation: TranslationType = {
                 decodedBallots: {
                     policyLabel: "Deskodetutako boto-paperak emaitzen datu-basean sartu",
                     options: {"included": "Sartu", "not-included": "Ez sartu"},
+                },
+                fileIntegrityPolicy: {
+                    policyLabel: "Hautesleen fitxategiaren osotasuna",
+                    helperText:
+                        "Eskatu modu independentean ziurtatutako SHA-256 hautesleak inportatu aurretik.",
+                    options: {
+                        OPTIONAL: "Aukerako SHA-256",
+                        REQUIRED_SHA256: "Nahitaezko SHA-256",
+                    },
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -1383,6 +1807,8 @@ const basqueTranslation: TranslationType = {
                 importVotersError: "Errorea Bozkatzaileak inportatzerakoan",
                 importElectionEventSuccess: "Hauteskunde gertaera arrakastaz inportatua",
                 importElectionEventError: "Errorea hauteskunde gertaera inportatzerakoan",
+                shaRequiredHelp:
+                    "Sartu ziurtatutako 64 karaktereko SHA-256 hamaseitarra. Inportatzeko beharrezkoa da.",
                 shaDialog: {
                     ok: "Bai, Inportatu Osotasun Egiaztapenik gabe",
                     cancel: "Itzuli",
@@ -1405,6 +1831,9 @@ const basqueTranslation: TranslationType = {
                 encryptWithPassword: "Zifratu Pasahitzarekin",
                 passwordForcedNote:
                     "Artxiboa pasahitzarekin babestuko da nolanahi ere: txostenak, eskaerak eta iragarki-taulako datuak beti zifratzen dira. Markatu laukia bozkatzaileen eremu sekretu deszifratuak ere sartzeko.",
+                integrationSecrets: "Integrazio sekretuak (zerbitzu kredentzialak)",
+                integrationSecretsNote:
+                    "Deszifratu ondoren, artxiboak Scanovate-ren liveness sekretua testu argian izango du. Gorde artxiboa eta haren pasahitza ezkutuan, eta inportatu soilik Liveness Plus zerbitzu hori erabili behar den lekuan.",
                 includeVoters: "Sartu Bozkatzaileak",
                 activityLogs: "Jarduera Egunkariak",
                 bulletinBoard: "Iragarki Taula",
@@ -1837,6 +2266,7 @@ const basqueTranslation: TranslationType = {
                 "voter-write": "Editatu Bozkatzailea",
                 "voter-secret-attribute-read": "Erakutsi Bozkatzailearen Eremu Sekretuak",
                 "voter-secret-attribute-write": "Editatu Bozkatzailearen Eremu Sekretuak",
+                "integration-secret-read": "Esportatu Integrazio Sekretuak",
                 "user-create": "Sortu Erabiltzailea",
                 "user-read": "Irakurri Erabiltzailea",
                 "user-write": "Editatu Erabiltzailea",
@@ -1973,6 +2403,9 @@ const basqueTranslation: TranslationType = {
                 "application-read": "Irakurri Aplikazioa",
                 "application-write": "Editatu Aplikazioa",
                 "approval-matrix-write": "Editatu Onarpen Matrizea",
+                "readiness-check": "Egiaztatu hauteskundeen prestasuna",
+                "forensic-read": "Sareko datu forentse isolatuak irakurri",
+                "voter-pseudonym-resolve": "Hautesle baten ezizena argitu arrazoi ikuskatu batekin",
                 "logs-export": "Esportatu Egunkariak",
                 "tenant-logs-read": "Irakurri Maizterraren Egunkaria",
                 "tenant-logs-export": "Esportatu Maizterraren Egunkaria",
@@ -2348,6 +2781,9 @@ const basqueTranslation: TranslationType = {
                         delete: "Ziur zaude elementu hau ezabatu nahi duzula?",
                         sealsUnknown:
                             "Ezin izan dira hautestontzien zigiluak egiaztatu: hautestontzi zigilaturik badu, ezabaketa baztertu egingo da.",
+                        archiveNamed: 'Ziur zaude "{{name}}" artxibatu nahi duzula?',
+                        unarchiveNamed: 'Ziur zaude "{{name}}" desartxibatu nahi duzula?',
+                        deleteNamed: 'Ziur zaude "{{name}}" ezabatu nahi duzula?',
                     },
                     notification: {
                         success: {
@@ -2469,6 +2905,13 @@ const basqueTranslation: TranslationType = {
                 "label": "Hautagaien kontrol-laukiaren ikono forma",
                 "square-checkbox": "Kontrol-lauki Karratua",
                 "round-checkbox": "Kontrol-lauki Biribila",
+            },
+            candidatesLayout: {
+                "label": "Hautagaien antolaketa",
+                "helperText":
+                    "Paperezko txartelaren saretak hautagaiak zenbakidun gelaxka gisa erakusten ditu, betetzeko zirkulu batekin, zutabez zutabe, Zutabeak erabiliz (4 hutsik badago). Lehentasunezko bozketek zerrenda erabiltzen dute beti.",
+                "list": "Zerrenda",
+                "paper-grid": "Paperezko txartelaren sareta",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Hautagaiak eta Zerrendak",
@@ -2705,6 +3148,7 @@ const basqueTranslation: TranslationType = {
                 title: "'{{name}}' Eremuaren eta '{{eventName}}' Hauteskundearen Transmisio Paketea",
                 description:
                     "Transmisio Paketea Helburu Zerbitzarietara esportatzeko edo deskargatzeko aukera ematen du.",
+                erFileSha256: "ER fitxategiaren SHA-256:",
                 actions: {
                     send: {
                         title: "Bidali",
@@ -2747,6 +3191,10 @@ const basqueTranslation: TranslationType = {
                         emlTitle: "Deskargatu EML {{date}}",
                         transmissionPackageTitle: "Deskargatu Transmisio Paketea {{date}}",
                         transmissionReportTitle: "Deskargatu Transmisio Txostena",
+                        csvTitle: "Deskargatu emaitzen CSVa {{date}}",
+                        ovcsPublicKeyTitle: "Deskargatu OVCSren gako publikoa",
+                        recordError:
+                            "Ezin izan da deskarga erregistratu, beraz ez da hasi. Saiatu berriro.",
                         dialog: {
                             title: "Transmisio Paketea deskargatu nahi duzu?",
                             description:
@@ -2761,6 +3209,9 @@ const basqueTranslation: TranslationType = {
                     description:
                         "Beheko taulak Helburu Zerbitzari bakoitzaren bidaltze egoera erakusten du.",
                     status: "Bidalia {{signed}}/{{total}}",
+                    manualReceipt: "Eskuzko jasotzea",
+                    handOver: "Deskargatu paketea eta eman eskuz",
+                    sealedFor: "Bere gakoarentzat zigilatua, SHA-256 {{key}}…",
                     table: {
                         serverName: "Zerbitzari Izena",
                         sendStatus: "Bidaltze Egoera",
@@ -2770,7 +3221,8 @@ const basqueTranslation: TranslationType = {
                     title: "Sinadurak",
                     description:
                         "Kideek transmisio-paketea sina dezakete. Taulak kide bakoitzaren sinadura-egoera erakusten du.",
-                    status: "{{signed}}/{{total}} Sinatuak, {{minimum}} gutxienez",
+                    status: "{{signed}}/{{total}}, {{minimum}} behar dira",
+                    statusNoMinimum: "{{signed}}/{{total}}",
                     table: {
                         trusteeName: "Kidea",
                         signed: "Sinatua du",
@@ -3688,6 +4140,7 @@ const basqueTranslation: TranslationType = {
                     "insufficient-information": "Datuak falta dira",
                     "no-matching-voter": "Ez dago bat datorren bozkatzailerik",
                     "voter-already-approved": "Dagoeneko onartua",
+                    "EMAIL_IN_USE": "Beste hautesle batek erabilitako posta",
                     "other": "Bestelakoa",
                 },
                 hint: {
@@ -3929,6 +4382,8 @@ const basqueTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Aginte-panel konfiguragarriak",
+            modeChangeError: "Ezin izan da aginte-panelaren modua aldatu. Saiatu berriro.",
             title: "Monitorizazio-panelak",
             loading: "Monitorizazioa kargatzen",
             unavailableAlert:

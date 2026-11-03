@@ -10,13 +10,15 @@
 //! and whose realm is already set up is left as it is.
 
 use crate::postgres::tenant::get_tenant_ids;
+use crate::services::admin_public_key::backfill_admin_public_keys;
+use crate::services::audit_log_writer::KeycloakUsernames;
 use crate::services::database::get_hasura_pool;
 use crate::services::electoral_log_board::ensure_tenant_log;
 use crate::tasks::migrate_realm_permissions::{admin_get, retry_countdown, top_level_group};
 use anyhow::{anyhow, Context};
 use celery::task::{Task, TaskResult};
 use deadpool_postgres::Client as DbClient;
-use keycloak::types::RoleRepresentation;
+use keycloak::types::{RealmRepresentation, RoleRepresentation};
 use keycloak::KeycloakTokenSupplier;
 use sequent_core::services::keycloak::{
     get_tenant_realm, partial_import_realm_roles, IfResourceExists, KeycloakAdminClient,
@@ -31,7 +33,7 @@ pub const EVENT_LISTENER: &str = "custom-event-listener";
 
 /// What a realm needs changed to feed the tenant log, or `None` when it
 /// already does: the listener among its event listeners, and admin events
-/// with their representation.
+/// without raw representations.
 pub fn realm_log_settings(realm: &Value) -> Option<Value> {
     let mut listeners: Vec<Value> = realm["eventsListeners"]
         .as_array()
@@ -39,8 +41,8 @@ pub fn realm_log_settings(realm: &Value) -> Option<Value> {
         .unwrap_or_default();
     let listens = listeners.iter().any(|listener| listener == EVENT_LISTENER);
     let admin_events = realm["adminEventsEnabled"] == true;
-    let admin_details = realm["adminEventsDetailsEnabled"] == true;
-    if listens && admin_events && admin_details {
+    let details_disabled = realm["adminEventsDetailsEnabled"] == false;
+    if listens && admin_events && details_disabled {
         return None;
     }
     if !listens {
@@ -49,7 +51,7 @@ pub fn realm_log_settings(realm: &Value) -> Option<Value> {
     Some(json!({
         "eventsListeners": listeners,
         "adminEventsEnabled": true,
-        "adminEventsDetailsEnabled": true,
+        "adminEventsDetailsEnabled": false,
     }))
 }
 
@@ -115,6 +117,48 @@ pub fn missing_tenant_log_roles(held: &[RoleRepresentation]) -> Vec<String> {
         .map(|(permission, _)| permission.to_string())
         .filter(|role| !held.iter().any(|h| h.name.as_deref() == Some(role)))
         .collect()
+}
+
+/// Makes a realm, before it is created, what [`set_up_realm`] and
+/// [`grant_tenant_log_roles`] make an existing one: the listener among its
+/// event listeners, admin events without raw representations, and the tenant
+/// log's roles, granted to its administrators' group. A tenant's realm comes
+/// from a template that may predate the tenant log.
+pub fn prepare_realm_for_tenant_log(realm: &mut RealmRepresentation) {
+    let current = json!({
+        "eventsListeners": realm.events_listeners,
+        "adminEventsEnabled": realm.admin_events_enabled,
+        "adminEventsDetailsEnabled": realm.admin_events_details_enabled,
+    });
+    if let Some(settings) = realm_log_settings(&current) {
+        realm.events_listeners = serde_json::from_value(settings["eventsListeners"].clone()).ok();
+        realm.admin_events_enabled = Some(true);
+        realm.admin_events_details_enabled = Some(false);
+    }
+    let roles = realm
+        .roles
+        .get_or_insert_with(Default::default)
+        .realm
+        .get_or_insert_with(Vec::new);
+    for role in tenant_log_roles() {
+        if !roles.iter().any(|held| held.name == role.name) {
+            roles.push(role);
+        }
+    }
+    let admins = realm
+        .groups
+        .iter_mut()
+        .flatten()
+        .find(|group| group.name.as_deref() == Some(TENANT_LOG_GROUP));
+    if let Some(admins) = admins {
+        let held = admins.realm_roles.get_or_insert_with(Vec::new);
+        for (permission, _) in TENANT_LOG_PERMISSIONS {
+            let role = permission.to_string();
+            if !held.contains(&role) {
+                held.push(role);
+            }
+        }
+    }
 }
 
 /// Adds the tenant log's roles to a realm that lacks them and grants them to
@@ -194,11 +238,39 @@ pub async fn create_tenant_logs() -> anyhow::Result<Vec<String>> {
     Ok(tenant_ids)
 }
 
-/// Every tenant's log and realm. Every realm is tried; if any failed the
-/// result is an error naming them, after the others were set up.
+/// Posts the admin public keys every tenant's log lacks. Returns the tenants
+/// whose keys could not be posted.
+#[instrument(skip(tenant_ids))]
+pub async fn backfill_tenant_admin_keys(tenant_ids: &[String]) -> Vec<String> {
+    let usernames = KeycloakUsernames::default();
+    let mut failed = vec![];
+    for tenant_id in tenant_ids {
+        let backfilled = async {
+            let mut client = get_hasura_pool()
+                .await
+                .get()
+                .await
+                .context("Error getting hasura client")?;
+            backfill_admin_public_keys(&mut client, tenant_id, &usernames).await
+        };
+        match backfilled.await {
+            Ok(posted) => info!(tenant_id, posted, "Admin public keys in the tenant log"),
+            Err(err) => {
+                error!(tenant_id, "Admin public keys not backfilled: {err:?}");
+                failed.push(tenant_id.clone());
+            }
+        }
+    }
+    failed
+}
+
+/// Every tenant's log, admin public keys and realm. Every tenant and realm is
+/// tried; if any failed the result is an error naming them, after the others
+/// were set up.
 #[instrument(err)]
 pub async fn migrate_tenant_logs_now() -> anyhow::Result<()> {
     let tenant_ids = create_tenant_logs().await?;
+    let unannounced = backfill_tenant_admin_keys(&tenant_ids).await;
     let client = KeycloakAdminClient::pub_new().await?;
     let mut failed = vec![];
     for tenant_id in &tenant_ids {
@@ -218,13 +290,23 @@ pub async fn migrate_tenant_logs_now() -> anyhow::Result<()> {
             }
         }
     }
-    if failed.is_empty() {
-        Ok(())
-    } else {
-        Err(anyhow!(
+    let mut problems = vec![];
+    if !failed.is_empty() {
+        problems.push(format!(
             "Realms not set up for the tenant log: {}",
             failed.join(", ")
-        ))
+        ));
+    }
+    if !unannounced.is_empty() {
+        problems.push(format!(
+            "Admin public keys not posted for the tenants: {}",
+            unannounced.join(", ")
+        ));
+    }
+    if problems.is_empty() {
+        Ok(())
+    } else {
+        Err(anyhow!(problems.join("; ")))
     }
 }
 
@@ -246,13 +328,14 @@ pub async fn migrate_tenant_logs(task: &Self) -> TaskResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use keycloak::types::GroupRepresentation;
 
     #[test]
     fn a_realm_that_feeds_the_log_is_left_alone() {
         let realm = json!({
             "eventsListeners": ["jboss-logging", EVENT_LISTENER],
             "adminEventsEnabled": true,
-            "adminEventsDetailsEnabled": true,
+            "adminEventsDetailsEnabled": false,
         });
         assert_eq!(realm_log_settings(&realm), None);
     }
@@ -268,14 +351,14 @@ mod tests {
             Some(json!({
                 "eventsListeners": [EVENT_LISTENER, "jboss-logging"],
                 "adminEventsEnabled": true,
-                "adminEventsDetailsEnabled": true,
+                "adminEventsDetailsEnabled": false,
             }))
         );
-        // Only the details are missing: the listeners stay as they are.
+        // Raw representations are disabled without changing existing listeners.
         let realm = json!({
             "eventsListeners": [EVENT_LISTENER],
             "adminEventsEnabled": true,
-            "adminEventsDetailsEnabled": false,
+            "adminEventsDetailsEnabled": true,
         });
         assert_eq!(
             realm_log_settings(&realm).unwrap()["eventsListeners"],
@@ -285,6 +368,101 @@ mod tests {
             realm_log_settings(&json!({})).unwrap()["eventsListeners"],
             json!([EVENT_LISTENER])
         );
+    }
+
+    #[test]
+    fn existing_raw_admin_representations_are_disabled() {
+        for details in [Some(true), None] {
+            let mut realm = json!({
+                "eventsListeners": [EVENT_LISTENER, "metrics"],
+                "adminEventsEnabled": true,
+            });
+            if let Some(details) = details {
+                realm["adminEventsDetailsEnabled"] = json!(details);
+            }
+            assert_eq!(
+                realm_log_settings(&realm),
+                Some(json!({
+                    "eventsListeners": [EVENT_LISTENER, "metrics"],
+                    "adminEventsEnabled": true,
+                    "adminEventsDetailsEnabled": false,
+                }))
+            );
+        }
+    }
+
+    fn group(name: &str, roles: &[&str]) -> GroupRepresentation {
+        GroupRepresentation {
+            name: Some(name.to_string()),
+            realm_roles: Some(roles.iter().map(|role| role.to_string()).collect()),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_new_tenants_realm_is_created_feeding_the_log() {
+        let mut realm = RealmRepresentation {
+            events_listeners: Some(vec!["jboss-logging".into()]),
+            admin_events_enabled: Some(false),
+            groups: Some(vec![
+                group("admin", &["admin-user"]),
+                group("voters", &["voter"]),
+            ]),
+            ..Default::default()
+        };
+        prepare_realm_for_tenant_log(&mut realm);
+        assert_eq!(
+            realm.events_listeners.as_deref(),
+            Some([EVENT_LISTENER.to_string(), "jboss-logging".to_string()].as_slice())
+        );
+        assert_eq!(realm.admin_events_enabled, Some(true));
+        assert_eq!(realm.admin_events_details_enabled, Some(false));
+        let roles: Vec<_> = realm
+            .roles
+            .as_ref()
+            .and_then(|roles| roles.realm.as_ref())
+            .unwrap()
+            .iter()
+            .map(|role| role.name.clone().unwrap())
+            .collect();
+        assert_eq!(roles, ["tenant-logs-read", "tenant-logs-export"]);
+        let groups = realm.groups.as_ref().unwrap();
+        assert_eq!(
+            groups[0].realm_roles.as_deref().unwrap(),
+            ["admin-user", "tenant-logs-read", "tenant-logs-export"]
+        );
+        // Only the administrators' group is granted them.
+        assert_eq!(groups[1].realm_roles.as_deref().unwrap(), ["voter"]);
+
+        // Preparing it again changes nothing.
+        let prepared = realm.clone();
+        prepare_realm_for_tenant_log(&mut realm);
+        assert_eq!(realm, prepared);
+    }
+
+    #[test]
+    fn a_realm_without_groups_or_listeners_gets_the_listener_and_roles() {
+        let mut realm = RealmRepresentation::default();
+        prepare_realm_for_tenant_log(&mut realm);
+        assert_eq!(
+            realm.events_listeners.as_deref(),
+            Some([EVENT_LISTENER.to_string()].as_slice())
+        );
+        assert_eq!(realm.roles.unwrap().realm.unwrap().len(), 2);
+        assert!(realm.groups.is_none());
+    }
+
+    /// The development tenant realm, which new tenants are created from,
+    /// already feeds the log.
+    #[test]
+    fn the_default_tenant_realm_already_feeds_the_log() {
+        let template: RealmRepresentation = serde_json::from_str(include_str!(
+            "../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
+        ))
+        .unwrap();
+        let mut realm = template.clone();
+        prepare_realm_for_tenant_log(&mut realm);
+        assert_eq!(realm, template);
     }
 
     #[test]

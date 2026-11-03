@@ -5,6 +5,321 @@ import englishTranslation, {TranslationType} from "./en"
 
 const dutchTranslation: TranslationType = {
     translations: {
+        configurationPackage: englishTranslation.translations.configurationPackage,
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        readiness: {
+            close: "Sluiten",
+            action: "Gereedheid controleren",
+            title: "Verkiezingsgereedheid",
+            description:
+                "Vergelijk dit officiële evenement met een voltooide repetitie. Een geslaagde controle legt ondertekend bewijs vast in het logboek van het officiële evenement.",
+            testedEvent: "Getest evenement",
+            archived: "Gearchiveerd",
+            noEvents: "Geen andere evenementen beschikbaar",
+            retry: "Opnieuw proberen",
+            eventsError: "Verkiezingsevenementen konden niet worden geladen.",
+            run: "Controle uitvoeren",
+            running: "Gereedheid wordt gecontroleerd…",
+            error: "De controle kon niet worden voltooid. Bekijk het logboek voordat u het opnieuw probeert; het antwoord kan verloren zijn gegaan nadat het bewijs was vastgelegd.",
+            downloadError: "Het rapport kon niet worden gedownload. Probeer het opnieuw.",
+            success:
+                "Gereedheid bevestigd. Ondertekend bewijs is vastgelegd in het logboek van het officiële evenement.",
+            failed: "De controle is mislukt. Verhelp de mislukte controles en voer deze opnieuw uit. Er is geen gereedheidsvermelding vastgelegd.",
+            download: "JSON-rapport downloaden",
+            snapshot:
+                "Dit rapport is een momentopname. Herhaal na relevante wijzigingen; het bevriest het evenement niet en vervangt geen operationele goedkeuring.",
+            results: "Controleresultaten",
+            condition: "Voorwaarde die de server heeft gecontroleerd",
+            noDetail: "De server gaf geen verdere details voor deze controle.",
+            reasons: "Waarom het mislukte",
+            noArea: "geen of een onbekend gebied",
+            eventRoles: {
+                official: "officiële",
+                tested: "geteste",
+                both: "beide",
+            },
+            scope: {
+                event: "Het {{event}} evenement",
+                election: "Verkiezing {{election}}",
+            },
+            certification: {
+                declared_sha256_missing: "er is geen SHA-256 opgegeven",
+                declared_sha256_mismatch: "de opgegeven SHA-256 verschilt van die van het bestand",
+                no_counts: "het heeft geen kiezers per gebied",
+                blank_area: "sommige kiezers hebben geen gebied",
+                invalid_sha256: "de SHA-256 is ongeldig",
+            },
+            findings: {
+                same_event: "Het officiële en het geteste evenement zijn hetzelfde evenement.",
+                configuration_missing:
+                    "Het {{event}} evenement is niet geïmporteerd uit een ondertekend configuratiepakket.",
+                configuration_incomplete:
+                    "De ondertekende configuratie van het officiële evenement heeft geen geldige waarde voor ‘{{field}}’.",
+                external_id_mismatch:
+                    "De evenementen komen uit verschillende configuraties: {{official}} (officieel) en {{tested}} (getest).",
+                content_mismatch:
+                    "De ondertekende inhoud verschilt: SHA-256 {{official}} (officieel) en {{tested}} (getest).",
+                approvers_mismatch:
+                    "De geverifieerde goedkeurders verschillen: {{only_official}} alleen bij het officiële evenement en {{only_tested}} alleen bij het geteste evenement.",
+                areas_mismatch:
+                    "{{area}} staat alleen in de ondertekende inhoud van het {{event}} evenement.",
+                voter_import_missing:
+                    "Het {{event}} evenement heeft geen gecertificeerde kiezersimport.",
+                voter_import_in_progress:
+                    "Er loopt nog een kiezersimport bij het {{event}} evenement.",
+                voter_file_not_certified:
+                    "De laatste kiezersimport van het {{event}} evenement is niet gecertificeerd: {{reason}}.",
+                voter_receipt_not_signed:
+                    "Het logboek van het {{event}} evenement heeft geen overeenkomende ondertekende vermelding van kiezersimport {{import_id}}.",
+                registry_count_changed:
+                    "Het {{event}} evenement heeft nu {{current}} kiezers in {{area}}, maar de gecertificeerde import heeft er {{imported}}.",
+                voter_area_not_configured:
+                    "De gecertificeerde kiezers van het {{event}} evenement bevatten {{area}}, dat niet in de ondertekende inhoud staat.",
+                voter_file_mismatch:
+                    "De gecertificeerde kiezersbestanden verschillen: SHA-256 {{official}} (officieel) en {{tested}} (getest).",
+                voter_count_mismatch:
+                    "De gecertificeerde bestanden verschillen in {{area}}: {{official}} kiezers (officieel) en {{tested}} (getest).",
+                ballots_present:
+                    "Het officiële evenement heeft {{count}} opgeslagen stembiljetten.",
+                received_ballots_present:
+                    "Het officiële evenement heeft {{count}} stembiljetten ontvangen ter controle.",
+                tally_sessions_present: "Het officiële evenement heeft {{count}} telsessies.",
+                status_missing: "{{scope}} heeft geen stemstatus.",
+                voting_started: "{{scope}}: het kanaal {{channel}} is {{status}}.",
+                voting_dates_recorded:
+                    "{{scope}}: het kanaal {{channel}} heeft vastgelegde stemdatums.",
+                no_elections: "Het {{event}} evenement heeft geen verkiezingen.",
+                publication_missing: "Het {{event}} evenement heeft geen actieve publicatie.",
+                publication_mismatch:
+                    "De {{design_count}} gepubliceerde stembiljetontwerpen van het {{event}} evenement komen niet overeen met alle ontwerpen van de ondertekende configuratie.",
+                publication_empty:
+                    "De gepubliceerde stembiljetontwerpen van het {{event}} evenement konden niet worden gecontroleerd aan de hand van een ondertekende configuratie.",
+                channels_open:
+                    "Het geteste evenement heeft nog stemkanalen die niet gesloten zijn.",
+                seal_at_close_off:
+                    "Het geteste evenement verzegelt de stembussen niet bij sluiting.",
+                no_expected_boxes:
+                    "De publicatie van het geteste evenement verwacht geen stembussen.",
+                boxes_unsealed:
+                    "Verkiezing {{election}} van het geteste evenement heeft {{unsealed}} onverzegelde stembussen.",
+            },
+        },
+        plugins: {
+            title: "Plug-ins",
+            description:
+                "Plug-ins zijn meegeleverd met deze release. Een plug-in inschakelen voegt het menu-item en de rechten toe voor deze tenant; uitschakelen verbergt de plug-in en bewaart de gegevens en rechten.",
+            enabled: "Aan",
+            disabled: "Uit",
+            compatible: "Compatibel",
+            incompatible: "Opgeslagen gegevens vereisen een nieuwere release",
+            api: "Plug-in-API {{major}}",
+            permissions: "Rechten",
+            adminGroup: "toegekend aan de groep admin bij inschakelen",
+            enable: "Inschakelen",
+            disable: "Uitschakelen",
+            confirmEnableTitle: "{{name}} inschakelen?",
+            confirmDisableTitle: "{{name}} uitschakelen?",
+            confirmEnable:
+                "{{name}} verschijnt in het menu voor gebruikers met de bijbehorende rechten. De rechten worden in deze tenant aangemaakt en toegekend aan de groep admin.",
+            confirmDisable:
+                "{{name}} wordt verborgen en verzoeken worden geweigerd. De gegevens, geschiedenis en rechten blijven bewaard en verder verandert er niets in de tenant.",
+            confirm: "Bevestigen",
+            noPermission: "Plug-ins wijzigen vereist het recht tenant-write.",
+            retry: "Opnieuw proberen",
+            loading: "Plug-ins laden…",
+            signIn: "Meld je aan bij de geselecteerde tenant om de plug-ins te gebruiken.",
+            unavailable: "Deze plug-in maakt geen deel uit van deze release.",
+            incompatibleRoute:
+                "De opgeslagen gegevens van deze plug-in vereisen een nieuwere release. De gegevens zijn ongewijzigd.",
+            disabledRoute:
+                "{{name}} is niet ingeschakeld voor deze tenant. Een tenantbeheerder kan het inschakelen via Instellingen → Plug-ins.",
+            forbidden: "Je hebt geen recht om {{name}} te gebruiken.",
+        },
+        projects: {
+            title: "Projecten",
+            subtitle:
+                "Plan het werk van de tenant op een tijdlijn. Projecten wijzigen nooit verkiezingsschema's.",
+            cancel: "Annuleren",
+            retry: "Opnieuw proberen",
+            loading: "Laden…",
+            list: {
+                create: "Nieuw project",
+                import: "Importeren",
+                emptyTitle: "Nog geen projecten",
+                emptyHelp:
+                    "Maak een project of importeer een CSV-bestand dat uit een ander project is geëxporteerd.",
+                emptyViewer: "Er zijn geen projecten aangemaakt in deze tenant.",
+                active_one: "Actief ({{count}})",
+                active_other: "Actief ({{count}})",
+                archived_one: "Gearchiveerd ({{count}})",
+                archived_other: "Gearchiveerd ({{count}})",
+                name: "Naam",
+                dates: "Datums",
+                tasks: "Taken",
+                timezone: "Tijdzone",
+                updated: "Laatste wijziging",
+                updatedBy: "{{at}} · {{actor}}",
+                archivedChip: "Gearchiveerd",
+                noneInTab: "Hier zijn geen projecten.",
+            },
+            create: {
+                title: "Nieuw project",
+                name: "Projectnaam",
+                timezone: "Tijdzone",
+                timezoneHelp:
+                    "Alle datums in het project worden in deze IANA-tijdzone ingevoerd en getoond.",
+                submit: "Project maken",
+            },
+            import: {
+                title: "Een project importeren",
+                help: "Importeren maakt altijd een nieuw project. Gebruik een UTF-8-CSV-bestand met de kolommen {{columns}}, zoals geëxporteerd uit een project, met een UTC-afwijking bij elke datum. Er wordt niets opgeslagen tot je het project maakt.",
+                choose: "CSV-bestand kiezen",
+                noFile: "Geen bestand gekozen",
+                fileLimit: "Het bestand mag maximaal 1 MiB zijn.",
+                invalidFile: "Het bestand is geen geldige UTF-8-tekst.",
+                valid_one: "{{count}} taak is klaar om te importeren.",
+                valid_other: "{{count}} taken zijn klaar om te importeren.",
+                invalid_one:
+                    "{{count}} van {{total}} rijen bevat fouten. Corrigeer het bestand en kies het opnieuw.",
+                invalid_other:
+                    "{{count}} van {{total}} rijen bevatten fouten. Corrigeer het bestand en kies het opnieuw.",
+                previewTable: "Voorbeeld van de import",
+                line: "Regel",
+                result: "Controle",
+                rowValid: "Klaar",
+                commit: "Project maken",
+            },
+            detail: {
+                timezone: "Alle datums en tijden zijn in {{timezone}}.",
+                export: "Exporteren",
+                archive: "Archiveren",
+                restore: "Herstellen",
+                addTask: "Taak toevoegen",
+                viewOnly: "Alleen lezen. Taken wijzigen vereist het recht projects-write.",
+                archivedNotice: "Dit project is gearchiveerd. Herstel het om de taken te wijzigen.",
+            },
+            notices: {
+                saved: "“{{title}}” opgeslagen.",
+                moved: "“{{title}}” opgeslagen: {{start}} – {{end}}.",
+                deleted: "“{{title}}” verwijderd.",
+                archived: "Project gearchiveerd.",
+                restored: "Project hersteld.",
+            },
+            panel: {
+                details: "Taakgegevens",
+                edit: "Taak bewerken",
+                add: "Taak toevoegen",
+                close: "Taakgegevens sluiten",
+                hint: "Selecteer een taak op de tijdlijn om de gegevens hier te zien.",
+                noTasks: "Dit project heeft nog geen taken.",
+            },
+            conflict: {
+                body: "Iemand anders heeft deze taak gewijzigd ({{actor}}, {{at}}). Je wijzigingen staan er nog. Bekijk hun versie voordat je opnieuw opslaat.",
+                load: "Hun versie laden",
+            },
+            unsaved: {
+                body: "Je hebt niet-opgeslagen wijzigingen. Sla ze op, of verwerp ze om {{action}}.",
+                keep: "Verder bewerken",
+                discard: "Wijzigingen verwerpen",
+                actions: {
+                    open: "“{{title}}” te openen",
+                    add: "een nieuwe taak toe te voegen",
+                    leave: "terug te gaan naar de projecten",
+                    close: "de taak te sluiten",
+                    state: "het project te wijzigen",
+                },
+            },
+            deleteDialog: {
+                title: "Taak verwijderen?",
+                body: "“{{title}}” wordt uit het project verwijderd. De wijzigingsgeschiedenis blijft bewaard.",
+                confirm: "Verwijderen",
+            },
+            history: {
+                task: "Wijzigingsgeschiedenis",
+                project: "Projectgeschiedenis",
+                empty: "Nog geen wijzigingen vastgelegd.",
+                more: "Oudere wijzigingen tonen",
+                by: "{{actor}} · {{at}}",
+                actions: {
+                    create: "Aangemaakt {{subject}}",
+                    update: "Gewijzigd {{subject}}",
+                    delete: "Verwijderd {{subject}}",
+                    import_one: "{{count}} taak geïmporteerd",
+                    import_other: "{{count}} taken geïmporteerd",
+                    export: "Geëxporteerd als CSV",
+                    other: "{{action}}",
+                },
+            },
+            editor: {
+                title: "Titel",
+                type: "Type",
+                status: "Status",
+                start: "Begin",
+                end: "Einde",
+                at: "Datum en tijd",
+                notes: "Notities",
+                order: "Volgorde",
+                orderHelp: "Taken worden gesorteerd op volgorde en daarna op begin.",
+                timezoneNote: "Tijden zijn in {{timezone}}.",
+                offset: "UTC{{offset}}",
+                localTime: {
+                    invalid: "Voer een datum en tijd in tussen 1900 en 2200.",
+                    skipped:
+                        "Deze tijd bestaat niet in {{timezone}}: de klok slaat hem over. Kies een andere tijd.",
+                    repeated:
+                        "Deze tijd komt twee keer voor in {{timezone}}. Kies welke je bedoelt.",
+                },
+                chooseInstant: "Welke keer",
+                instantChoice: "Op UTC{{offset}}",
+                saving: "Opslaan…",
+                toFix_one: "{{count}} veld te corrigeren",
+                toFix_other: "{{count}} velden te corrigeren",
+                save: "Opslaan",
+                delete: "Verwijderen",
+            },
+            validation: {
+                title: "Voer een titel in van maximaal 200 tekens.",
+                offset: "Voer geldige datums in.",
+                range: "Het einde moet na het begin liggen.",
+                milestone: "Een mijlpaal heeft geen einde.",
+                notes: "Notities mogen maximaal 16.000 tekens bevatten.",
+                order: "De volgorde moet een geheel getal van 0 tot 1.000.000 zijn.",
+            },
+            status: {
+                not_started: "Niet begonnen",
+                in_progress: "Bezig",
+                done: "Klaar",
+            },
+            type: {
+                task: "Taak",
+                milestone: "Mijlpaal",
+            },
+            units: {
+                days_one: "{{count}} dag",
+                days_other: "{{count}} dagen",
+                hours_one: "{{count}} u",
+                hours_other: "{{count}} u",
+                minutes_one: "{{count}} min",
+                minutes_other: "{{count}} min",
+            },
+            timeline: {
+                title: "Tijdlijn",
+                tasks_one: "{{count}} taak",
+                tasks_other: "{{count}} taken",
+                empty: "Nog geen taken.",
+                editHelp:
+                    "Wijs een taak aan of geef die focus voor een samenvatting; selecteer haar om eronder te bewerken. Sleep een balk of gebruik ← → om haar 24 uur te verplaatsen; voeg Shift toe om het einde te wijzigen.",
+                viewHelp:
+                    "Wijs een taak aan of geef die focus voor een samenvatting. Selecteer haar om de gegevens eronder te zien.",
+                touchEditHelp:
+                    "Tik op een taak om haar eronder te bewerken, of sleep een balk om haar hele dagen te verplaatsen.",
+                touchViewHelp: "Tik op een taak om de gegevens eronder te zien.",
+                taskLabel: "{{title}}, van {{start}} tot {{end}}, {{status}}",
+                milestoneLabel: "{{title}}, mijlpaal op {{at}}, {{status}}",
+                previewEdit: "Klik of druk op Enter om te bewerken",
+                previewView: "Klik of druk op Enter voor de gegevens",
+            },
+        },
         philippinePassport: "Filipijns Paspoort",
         seamanBook: "Zeemansboek",
         philSysID: "PhilSys ID",
@@ -218,6 +533,77 @@ const dutchTranslation: TranslationType = {
             },
         },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
+            readiness: {
+                passed: "Geslaagd",
+                failed: "Mislukt",
+                checkResult: "{{outcome}}: {{description}}",
+                checkResultWithMessage:
+                    "{{outcome}}: {{description}} Vastgelegde voorwaarde: ‘{{message}}’",
+                description: {
+                    VotersImported: "Kiezersbestand geïmporteerd.",
+                    ReadinessVerified:
+                        "Gereedheid van het officiële evenement geverifieerd met het geteste evenement.",
+                },
+                checks: {
+                    configuration:
+                        "Beide evenementen hebben dezelfde goedgekeurde inhoud, geverifieerde goedkeurders en gebieden.",
+                    certified_voters:
+                        "Beide evenementen komen overeen met hetzelfde gecertificeerde kiezersbestand en de huidige aantallen per gebied.",
+                    official_zero:
+                        "Het officiële evenement is nooit geopend voor stemmen en bevat geen stembiljetten of telsessies.",
+                    publication:
+                        "De officiële publicatie komt overeen met de ondertekende configuratie.",
+                    tested_finished:
+                        "De stemkanalen van het geteste evenement zijn gesloten en alle verwachte stembussen zijn verzegeld.",
+                },
+                fields: {
+                    report: "Gereedheidsrapport",
+                    passed: "Geslaagd",
+                    checked_at: "Gecontroleerd op",
+                    evidence: "Bewijs",
+                    official: "Officieel evenement",
+                    tested: "Getest evenement",
+                    official_event_id: "ID officieel evenement",
+                    tested_event_id: "ID getest evenement",
+                    event_id: "Evenement-ID",
+                    election_id: "Verkiezings-ID",
+                    configuration: "Configuratie",
+                    external_id: "Externe ID",
+                    revision: "Revisie",
+                    content_sha256: "SHA-256 inhoud",
+                    manifest_sha256: "SHA-256 manifest",
+                    approvers: "Geverifieerde goedkeurders",
+                    areas: "Gebieden",
+                    voters: "Kiezersimport",
+                    import_id: "Import-ID",
+                    document_id: "Document-ID",
+                    file_name: "Bestandsnaam",
+                    sha256: "SHA-256 bestand",
+                    declared_sha256: "Opgegeven SHA-256",
+                    counts_by_area: "Kiezers per gebied",
+                    imported_at: "Geïmporteerd op",
+                    voter_log_delivered: "Ondertekende import vastgelegd",
+                    current_voter_counts: "Huidige kiezers per gebied",
+                    voter_import_in_progress: "Kiezersimport actief",
+                    status: "Status",
+                    elections: "Verkiezingen",
+                    ballot_count: "Opgeslagen stembiljetten",
+                    received_ballot_count: "Ontvangen stembiljetten bij controle",
+                    tally_session_count: "Telsessies",
+                    publication: "Publicatie",
+                    publication_id: "Publicatie-ID",
+                    publication_ids: "Publicatie-ID’s",
+                    matches_manifest: "Komt overeen met ondertekend manifest",
+                    design_count: "Gepubliceerde ontwerpen",
+                    seal_at_close: "Verzegelen bij sluiting",
+                    expected_boxes: "Verwachte stembussen",
+                    sealed_boxes: "Verzegelde stembussen",
+                    all_channels_closed: "Alle stemkanalen gesloten",
+                    locked_down: "Vergrendeld",
+                    log_entry_id: "Logboekvermelding-ID",
+                },
+            },
             noPermissions: "U hebt geen toestemming om toegang te krijgen tot de logs.",
             title: "Logs",
             subtitle:
@@ -338,6 +724,27 @@ const dutchTranslation: TranslationType = {
                     newValue: "Nieuwe waarde",
                     error: "Fout",
                 },
+                importedFile: {
+                    title: "Het geïmporteerde bestand",
+                    declared: "Opgegeven controlesom",
+                    sha256: "SHA-256 van het bestand",
+                    declaredSha256: "Opgegeven SHA-256",
+                    document: "Document",
+                    checksum: {
+                        undeclared: "Niet opgegeven",
+                        matches: "Komt overeen met het bestand",
+                        mismatch: "Komt niet overeen met het bestand",
+                    },
+                    counts: {
+                        count: "Rijen",
+                        elections: "Verkiezingen",
+                        contests: "Kiesrondes",
+                        candidates: "Kandidaten",
+                        areas: "Gebieden",
+                        area_contests: "Gebieden per kiesronde",
+                        sections: "Configuratiesecties",
+                    },
+                },
                 deletedEvent: {
                     title: "Het log van het verwijderde verkiezingsevenement",
                     lastEntry: "Laatste vermelding",
@@ -346,6 +753,7 @@ const dutchTranslation: TranslationType = {
                     status: "Status",
                     retired: "Ontladen en bewaard totdat het volgens het bewaarbeleid wordt gewist",
                     task: "Taak",
+                    systemKey: "De systeemsleutel van het log",
                 },
                 exported: {
                     title: "Export",
@@ -544,6 +952,7 @@ const dutchTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Applicaties Exporteren",
                 EXPORT_TENANT_CONFIG: "Tenantconfiguratie Exporteren",
                 IMPORT_TENANT_CONFIG: "Tenantconfiguratie Importeren",
+                APPLY_CONFIGURATION_PACKAGE: "Configuratiepakket Toepassen",
                 RENDER_DOCUMENT_PDF: "Document als PDF renderen",
                 CREATE_TENANT: "Tenant Aanmaken",
                 EXPORT_TEMPLATES: "Sjablonen Exporteren",
@@ -842,6 +1251,10 @@ const dutchTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Gegevens zijn niet beschikbaar voor dit verkiezingsevenement.",
+            noAccessibleTabs:
+                "Je hebt geen toegang tot beschikbare tabbladen voor dit verkiezingsevenement.",
+
             common: {
                 subtitle: "Configuratie verkiezingsevenement.",
                 showMore: "Toon meer",
@@ -1012,6 +1425,11 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Vergrendeld sinds {{date}}.",
+                    scheduledEnd: "Einde van de vergrendeling gepland voor {{date}}.",
+                    endScheduled: "Er is een einde van de vergrendeling gepland.",
+                    noScheduledEnd: "Er is geen einde van de vergrendeling gepland.",
+                    banner: "Dit verkiezingsevenement is vergrendeld.",
                     policyLabel: "Vergrendelingsstatus",
                     helperText:
                         "Plan het begin of einde van de vergrendelingsperiode om deze status te wijzigen.",
@@ -1058,6 +1476,15 @@ const dutchTranslation: TranslationType = {
                 decodedBallots: {
                     policyLabel: "Gedecodeerde stembiljetten opnemen in de resultaten database",
                     options: {"included": "Opnemen", "not-included": "Niet opnemen"},
+                },
+                fileIntegrityPolicy: {
+                    policyLabel: "Integriteit van het kiezersbestand",
+                    helperText:
+                        "Vereis de onafhankelijk gecertificeerde SHA-256 voordat kiezers worden geïmporteerd.",
+                    options: {
+                        OPTIONAL: "Optionele SHA-256",
+                        REQUIRED_SHA256: "Verplichte SHA-256",
+                    },
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -1390,6 +1817,8 @@ const dutchTranslation: TranslationType = {
                 importVotersError: "Fout bij importeren van kiezers",
                 importElectionEventSuccess: "Verkiezingsevenement succesvol geïmporteerd",
                 importElectionEventError: "Fout bij importeren verkiezingsevenement",
+                shaRequiredHelp:
+                    "Voer de gecertificeerde hexadecimale SHA-256 van 64 tekens in. Deze is verplicht voor de import.",
                 shaDialog: {
                     ok: "Ja, importeren zonder integriteitscontrole",
                     cancel: "Terug",
@@ -1411,6 +1840,9 @@ const dutchTranslation: TranslationType = {
                 encryptWithPassword: "Versleutelen met wachtwoord",
                 passwordForcedNote:
                     "Het archief wordt hoe dan ook met een wachtwoord beveiligd: rapporten, aanvragen en bulletinboardgegevens worden altijd versleuteld. Vink het vakje aan om ook ontsleutelde geheime kiezersvelden op te nemen.",
+                integrationSecrets: "Integratiegeheimen (servicereferenties)",
+                integrationSecretsNote:
+                    "Na ontsleuteling bevat het archief het liveness-geheim van Scanovate in leesbare tekst. Houd het archief en het wachtwoord geheim en importeer het alleen waar die Liveness Plus-dienst gebruikt moet worden.",
                 includeVoters: "Kiezers Opnemen",
                 activityLogs: "Activiteitenlogs",
                 bulletinBoard: "Prikbord",
@@ -1848,6 +2280,7 @@ const dutchTranslation: TranslationType = {
                 "voter-write": "Kiezer Bewerken",
                 "voter-secret-attribute-read": "Geheime Kiezersvelden Tonen",
                 "voter-secret-attribute-write": "Geheime Kiezersvelden Bewerken",
+                "integration-secret-read": "Integratiegeheimen Exporteren",
                 "user-create": "Gebruiker Aanmaken",
                 "user-read": "Gebruiker Lezen",
                 "user-write": "Gebruiker Bewerken",
@@ -1982,6 +2415,10 @@ const dutchTranslation: TranslationType = {
                 "application-read": "Applicatie Lezen",
                 "application-write": "Applicatie Bewerken",
                 "approval-matrix-write": "Goedkeuringsmatrix Bewerken",
+                "readiness-check": "Verkiezingsgereedheid controleren",
+                "forensic-read": "Geïsoleerde forensische netwerkgegevens lezen",
+                "voter-pseudonym-resolve":
+                    "Een kiezerspseudoniem herleiden met een gecontroleerde reden",
                 "logs-export": "Logs Exporteren",
                 "tenant-logs-read": "Tenantlog Lezen",
                 "tenant-logs-export": "Tenantlog Exporteren",
@@ -2358,6 +2795,9 @@ const dutchTranslation: TranslationType = {
                         delete: "Weet u zeker dat u dit item wilt verwijderen?",
                         sealsUnknown:
                             "De zegels van de stembussen konden niet worden gecontroleerd: als er verzegelde stembussen zijn, wordt het verwijderen geweigerd.",
+                        archiveNamed: 'Weet u zeker dat u "{{name}}" wilt archiveren?',
+                        unarchiveNamed: 'Weet u zeker dat u "{{name}}" wilt dearchiveren?',
+                        deleteNamed: 'Weet u zeker dat u "{{name}}" wilt verwijderen?',
                     },
                     notification: {
                         success: {
@@ -2480,6 +2920,13 @@ const dutchTranslation: TranslationType = {
                 "label": "Vorm icoon selectievakje kandidaten",
                 "square-checkbox": "Vierkant Selectievakje",
                 "round-checkbox": "Rond Selectievakje",
+            },
+            candidatesLayout: {
+                "label": "Indeling van kandidaten",
+                "helperText":
+                    "Het raster van het papieren stembiljet toont kandidaten als genummerde vakjes met een in te kleuren cirkel, kolom voor kolom, volgens Kolommen (4 indien leeg). Stemmingen met rangschikking gebruiken altijd de lijst.",
+                "list": "Lijst",
+                "paper-grid": "Raster van papieren stembiljet",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Kandidaten en Lijsten",
@@ -2715,6 +3162,7 @@ const dutchTranslation: TranslationType = {
                 title: "Transmissiepakket voor Gebied '{{name}}' en Verkiezing '{{eventName}}'",
                 description:
                     "Hiermee kunt u een Transmissiepakket exporteren naar Bestemmingsservers of downloaden.",
+                erFileSha256: "ER-bestand SHA-256:",
                 actions: {
                     send: {
                         title: "Verzenden",
@@ -2757,6 +3205,10 @@ const dutchTranslation: TranslationType = {
                         emlTitle: "EML Downloaden {{date}}",
                         transmissionPackageTitle: "Transmissiepakket Downloaden {{date}}",
                         transmissionReportTitle: "Transmissierapport Downloaden",
+                        csvTitle: "Resultaten-CSV downloaden {{date}}",
+                        ovcsPublicKeyTitle: "Publieke sleutel van de OVCS downloaden",
+                        recordError:
+                            "De download kon niet worden vastgelegd en is daarom niet gestart. Probeer het opnieuw.",
                         dialog: {
                             title: "Wilt u het Transmissiepakket Downloaden?",
                             description:
@@ -2771,6 +3223,9 @@ const dutchTranslation: TranslationType = {
                     description:
                         "De onderstaande tabel toont de verzendstatus van elk van de Bestemmingsservers.",
                     status: "Verzonden naar {{signed}} van {{total}}",
+                    manualReceipt: "Handmatige ontvangst",
+                    handOver: "Download het pakket en overhandig het",
+                    sealedFor: "Verzegeld voor de sleutel, SHA-256 {{key}}…",
                     table: {
                         serverName: "Servernaam",
                         sendStatus: "Verzendstatus",
@@ -2780,7 +3235,8 @@ const dutchTranslation: TranslationType = {
                     title: "Handtekeningen",
                     description:
                         "Leden kunnen het transmissiepakket ondertekenen. De tabel toont de ondertekeningsstatus van elk lid.",
-                    status: "{{signed}} van {{total}} Ondertekend, {{minimum}} minimum",
+                    status: "{{signed}} van {{total}}, {{minimum}} nodig",
+                    statusNoMinimum: "{{signed}} van {{total}}",
                     table: {
                         trusteeName: "Lid",
                         signed: "Heeft Ondertekend",
@@ -3704,6 +4160,7 @@ const dutchTranslation: TranslationType = {
                     "insufficient-information": "Ontbrekende gegevens",
                     "no-matching-voter": "Geen overeenkomende kiezer",
                     "voter-already-approved": "Al goedgekeurd",
+                    "EMAIL_IN_USE": "E-mail gebruikt door een andere kiezer",
                     "other": "Anders",
                 },
                 hint: {
@@ -3949,6 +4406,8 @@ const dutchTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Configureerbare dashboards",
+            modeChangeError: "De dashboardmodus kon niet worden gewijzigd. Probeer het opnieuw.",
             title: "Monitoring",
             loading: "Monitoring laden",
             unavailableAlert:

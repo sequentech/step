@@ -1354,19 +1354,59 @@ pub async fn record_bulk_send(
     created_by: Option<&str>,
     payload: &Value,
 ) -> Result<Uuid> {
+    record_bulk_send_with_participation(tx, tenant_id, election_event_id, created_by, payload, None)
+        .await
+}
+
+/// Called by the authenticated producer with an explicit election snapshot.
+/// The grant lives outside the publicly writable event_payload/annotations.
+pub async fn record_bulk_send_with_participation(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: Option<&Uuid>,
+    created_by: Option<&str>,
+    payload: &Value,
+    permitted_election_ids: Option<Vec<String>>,
+) -> Result<Uuid> {
+    use crate::services::participation_authorization::{
+        ParticipationAuthorization, ParticipationCommand,
+    };
     let id = Uuid::new_v4();
     let mut payload = payload.clone();
     if let Some(object) = payload.as_object_mut() {
         object.insert("send_id".to_string(), Value::String(id.to_string()));
     }
+    let grant = permitted_election_ids
+        .map(|election_ids| -> Result<Value> {
+            Ok(serde_json::to_value(ParticipationAuthorization {
+                tenant_id: tenant_id.to_string(),
+                election_event_id: election_event_id
+                    .context("Participation send needs an event")?
+                    .to_string(),
+                actor_id: created_by
+                    .context("Participation send needs an actor")?
+                    .to_string(),
+                command: ParticipationCommand::BulkSend,
+                command_id: id.to_string(),
+                election_ids,
+            })?)
+        })
+        .transpose()?;
     tx.execute(
         r#"
         INSERT INTO sequent_backend.scheduled_event
             (id, tenant_id, election_event_id, created_at, event_processor, event_payload,
-             created_by, stopped_at, archived_at)
-        VALUES ($1, $2, $3, now(), 'SEND_TEMPLATE', $4, $5, now(), now())
+             created_by, stopped_at, archived_at, participation_authorization)
+        VALUES ($1, $2, $3, now(), 'SEND_TEMPLATE', $4, $5, now(), now(), $6)
         "#,
-        &[&id, tenant_id, &election_event_id, &payload, &created_by],
+        &[
+            &id,
+            tenant_id,
+            &election_event_id,
+            &payload,
+            &created_by,
+            &grant,
+        ],
     )
     .await?;
     Ok(id)

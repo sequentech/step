@@ -17,6 +17,7 @@ export interface ILogStatementHead {
 }
 
 export interface ILogMessage {
+    ballot_id?: string | null
     user_id?: string | null
     username?: string | null
     election_id?: string | null

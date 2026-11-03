@@ -111,6 +111,12 @@ pub struct RetiredEventDatabase {
     pub database_name: String,
 }
 
+#[derive(Clone, Copy)]
+enum RetiredAccess {
+    ReadOnly,
+    PrivacyPurge,
+}
+
 /// Whose log a board is.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BoardOwner {
@@ -171,6 +177,26 @@ fn positive_env(name: &str, default: usize) -> Result<usize> {
 /// Quote a name generated here as a PostgreSQL identifier.
 fn quote_identifier(name: &str) -> String {
     format!("\"{}\"", name.replace('"', "\"\""))
+}
+
+/// Refuse new connections to a database and end the ones it has.
+async fn close_database(client: &tokio_postgres::Client, database: &str) -> Result<()> {
+    client
+        .batch_execute(&format!(
+            "ALTER DATABASE {} WITH ALLOW_CONNECTIONS false",
+            quote_identifier(database)
+        ))
+        .await
+        .with_context(|| format!("Error closing database {database}"))?;
+    client
+        .execute(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity \
+             WHERE datname = $1 AND pid <> pg_backend_pid()",
+            &[&database],
+        )
+        .await
+        .with_context(|| format!("Error ending the connections to {database}"))?;
+    Ok(())
 }
 
 /// The election event whose board this is: its name ends with `event` and the event
@@ -599,23 +625,11 @@ impl EventDatabases {
         self.forget(&event);
         // Renaming needs the right to create databases, which only the connection's
         // own role has: the owner's rights come from its membership.
-        let quoted = quote_identifier(&entry.database_name);
+        close_database(&client, &entry.database_name).await?;
         client
             .batch_execute(&format!(
-                "ALTER DATABASE {quoted} WITH ALLOW_CONNECTIONS false"
-            ))
-            .await
-            .with_context(|| format!("Error closing database {}", entry.database_name))?;
-        client
-            .execute(
-                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity \
-                 WHERE datname = $1 AND pid <> pg_backend_pid()",
-                &[&entry.database_name],
-            )
-            .await?;
-        client
-            .batch_execute(&format!(
-                "ALTER DATABASE {quoted} RENAME TO {}",
+                "ALTER DATABASE {} RENAME TO {}",
+                quote_identifier(&entry.database_name),
                 quote_identifier(&retired)
             ))
             .await
@@ -675,6 +689,170 @@ impl EventDatabases {
                 })
             })
             .collect()
+    }
+
+    /// Read a retired election event's database with `read`, given a store of one
+    /// read-only connection to it. A retired database refuses every connection, and
+    /// PostgreSQL reads no database through another's connection, so it is opened for
+    /// the read alone: under the lock that makes creations, retirements and drops take
+    /// turns, which also makes reads take turns, and closed again afterwards, its
+    /// connections ended, also when the read fails. Retired databases a stopped
+    /// process left open are closed first. Refuses a database the catalog does not
+    /// list as the tenant's retired one.
+    pub async fn read_retired_event<T, F, Fut>(
+        &self,
+        retired: &RetiredEventDatabase,
+        read: F,
+    ) -> Result<T>
+    where
+        F: FnOnce(PostgresStore) -> Fut,
+        Fut: std::future::Future<Output = Result<T>>,
+    {
+        self.with_retired_store(retired, RetiredAccess::ReadOnly, read)
+            .await
+    }
+
+    /// Visit the active database and every retained copy of this event. Each
+    /// copy uses its own bounded transaction; retries finish partially purged
+    /// copies without changing their public ballot/log evidence.
+    pub async fn purge_event_privacy(
+        &self,
+        tenant: &str,
+        event: &str,
+        scope: super::privacy::PrivacyPurge,
+        limit_per_copy: i64,
+    ) -> Result<u64> {
+        let tenant = canonical_uuid(tenant)?;
+        let event = canonical_uuid(event)?;
+        let active = self.event(&event).await?;
+        if let Some(active) = &active {
+            ensure!(
+                active.tenant_id == tenant,
+                "Retention event does not belong to tenant"
+            );
+        }
+        let retired = self
+            .retired_events(&tenant)
+            .await?
+            .into_iter()
+            .filter(|copy| copy.election_event_id == event)
+            .collect::<Vec<_>>();
+        ensure!(
+            active.is_some() || !retired.is_empty(),
+            "No active or retired event for privacy retention"
+        );
+        let mut removed = 0;
+        if active.is_some() {
+            removed += self
+                .store(&event)
+                .await?
+                .purge_privacy_batch(&event, scope.clone(), limit_per_copy)
+                .await?;
+        }
+        for copy in retired {
+            removed += self
+                .purge_retired_privacy(&copy, scope.clone(), limit_per_copy)
+                .await?;
+        }
+        Ok(removed)
+    }
+
+    /// A retention worker can remove private data without exposing a writable
+    /// retired store to callers. The catalog lock and connection closure are
+    /// identical to read-only historical verification.
+    pub async fn purge_retired_privacy(
+        &self,
+        retired: &RetiredEventDatabase,
+        scope: super::privacy::PrivacyPurge,
+        limit: i64,
+    ) -> Result<u64> {
+        let event = retired.election_event_id.clone();
+        self.with_retired_store(retired, RetiredAccess::PrivacyPurge, |store| async move {
+            let exists: bool = store
+                .client()
+                .await?
+                .query_one(
+                    "SELECT to_regclass('sequent_backend.ballot_identity') IS NOT NULL",
+                    &[],
+                )
+                .await?
+                .get(0);
+            if !exists {
+                return Ok(0);
+            }
+            store.purge_privacy_batch(&event, scope, limit).await
+        })
+        .await
+    }
+
+    async fn with_retired_store<T, F, Fut>(
+        &self,
+        retired: &RetiredEventDatabase,
+        access: RetiredAccess,
+        read: F,
+    ) -> Result<T>
+    where
+        F: FnOnce(PostgresStore) -> Fut,
+        Fut: std::future::Future<Output = Result<T>>,
+    {
+        let tenant = canonical_uuid(&retired.tenant_id)?;
+        let event = canonical_uuid(&retired.election_event_id)?;
+        self.initialize().await?;
+        let listed = self
+            .inner
+            .catalog
+            .client()
+            .await?
+            .query_opt(
+                "SELECT 1 FROM electoral_log_retired_events WHERE database_name = $1 \
+                 AND tenant_id = $2::text::uuid AND election_event_id = $3::text::uuid",
+                &[&retired.database_name, &tenant, &event],
+            )
+            .await?
+            .is_some();
+        ensure!(
+            listed,
+            "{} is not a retired database of tenant {tenant}",
+            retired.database_name
+        );
+        let client = self.locked_client().await?;
+        let read = async {
+            for left_open in client
+                .query(
+                    "SELECT r.database_name FROM electoral_log_retired_events r \
+                     JOIN pg_database d ON d.datname = r.database_name WHERE d.datallowconn",
+                    &[],
+                )
+                .await?
+            {
+                close_database(&client, left_open.try_get(0)?).await?;
+            }
+            client
+                .batch_execute(&format!(
+                    "ALTER DATABASE {} WITH ALLOW_CONNECTIONS true",
+                    quote_identifier(&retired.database_name)
+                ))
+                .await
+                .with_context(|| format!("Error opening database {}", retired.database_name))?;
+            let store = match access {
+                RetiredAccess::ReadOnly => self
+                    .inner
+                    .connection
+                    .read_only_store_of(&retired.database_name, 1)?,
+                RetiredAccess::PrivacyPurge => {
+                    self.inner.connection.store_of(&retired.database_name, 1)?
+                }
+            };
+            let result = read(store.clone()).await;
+            store.close();
+            result
+        }
+        .await;
+        let closed = close_database(&client, &retired.database_name).await;
+        Self::release(client).await;
+        let value = read?;
+        closed?;
+        Ok(value)
     }
 
     /// A connection of its own to the base database, as the role that creates and drops

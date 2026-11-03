@@ -157,8 +157,8 @@ pub struct LogEventInput {
     /// Absent from messages sent before the listener said.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub event_time_ms: Option<i64>,
-    /// What Keycloak knows of a user event beyond its type: the client, the
-    /// IP address, the error and the authentication used.
+    /// Authentication metadata without network attribution: client, error
+    /// outcome and authentication method.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub details: Option<serde_json::Value>,
     /// A Keycloak admin event, sent with [`KEYCLOAK_ADMIN_EVENT`] as the
@@ -253,6 +253,9 @@ async fn store_batch(events: &[LogEventInput]) -> anyhow::Result<()> {
         .await
         .context("Error starting keycloak transaction")?;
 
+    crate::services::privacy_signin::allocate_registered_voters(&hasura_tx, &keycloak_tx, events)
+        .await?;
+    crate::services::privacy_signin::retain_queued_signin_network(&hasura_tx, events).await?;
     let built = build_batch(
         &mut DbLookups {
             hasura: &hasura_tx,
@@ -491,8 +494,9 @@ async fn build_batch<L: BatchLookups + Send>(
 ) -> anyhow::Result<BuiltBatch> {
     let mut cache = BatchCache::default();
     let mut built = BuiltBatch::default();
-    for input in events {
-        match build_event(lookups, &mut cache, input).await {
+    for original in events {
+        let input = crate::services::privacy_signin::sanitized_event(original);
+        match build_event(lookups, &mut cache, &input).await {
             Ok(event) => {
                 for (board, entry) in event.entries {
                     built.by_board.entry(board).or_default().push(entry);
@@ -1119,18 +1123,18 @@ async fn dispatch_electoral_log_batches(
                 .unwrap_or(serde_json::Value::Null);
             // A message that cannot be parsed is dead-lettered, so it cannot block the queue.
             match parse_queued_event(message.clone()) {
-                Ok(event) => events.push(event),
-                Err(error) => {
+                Ok(event) => events.push(crate::services::privacy_signin::sanitized_event(&event)),
+                Err(_error) => {
                     tracing::error!(
                         message_id = id,
-                        "Dead-lettering an electoral-log message that cannot be parsed: {error:#}"
+                        "Dead-lettering an electoral-log message that cannot be parsed"
                     );
                     dead_letter_message(
                         &*tx,
                         dead_letters,
-                        &message,
+                        &json!({"unparseable_event": true, "original_message_id": id}),
                         DeadLetterStage::Dispatcher,
-                        &format!("{error:#}"),
+                        "Invalid Celery envelope; payload omitted for privacy",
                     )
                     .await?;
                 }
@@ -1770,7 +1774,7 @@ mod batch_build_tests {
         assert_eq!(signed_in.head.event.0, TENANT);
         assert_eq!(signed_in.head.log_type, StatementLogType::INFO);
         assert_eq!(signed_in.head.description, "LOGIN");
-        assert_eq!(text["ip_address"], "10.0.0.7");
+        assert!(text.get("ip_address").is_none());
         assert_eq!(entries[0].message.user_id.as_deref(), Some("admin-id"));
         assert_eq!(entries[0].message.username.as_deref(), Some("admin"));
         // The name typed for an unknown account is not recorded.
@@ -2000,6 +2004,54 @@ mod batch_build_tests {
             serde_json::to_value(&parsed).unwrap(),
             serde_json::to_value(&event).unwrap()
         );
+    }
+
+    #[tokio::test]
+    async fn scanovate_contract_reaches_the_signed_event_board_and_ui_body() {
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../../keycloak-extensions/custom-event-listener/src/test/resources/scanovate-failure-contract.json"
+        )).unwrap();
+        let input = parse_queued_event(fixture["queue_envelope"].clone()).unwrap();
+        assert_eq!(input.tenant_id, "00000000-0000-4000-8000-000000000001");
+        assert_eq!(
+            input.election_event_id,
+            "00000000-0000-4000-8000-000000000002"
+        );
+        let board = format!("board-{}", input.election_event_id);
+        let mut lookups = FakeLookups::new();
+        let batch = build_batch(&mut lookups, &[input]).await.unwrap();
+        assert!(batch.dead_letters.is_empty());
+        assert_eq!(batch.by_board.len(), 1);
+        let entries = &batch.by_board[&board];
+        assert_eq!(entries.len(), 1);
+        let stored = &entries[0].message;
+        assert_eq!(
+            stored.user_id.as_deref(),
+            Some("00000000-0000-4000-8000-000000000003")
+        );
+        assert_eq!(stored.username.as_deref(), Some("synthetic-voter"));
+        let decoded = Message::record_deserialize(&stored.message).unwrap();
+        let actual_body = serde_json::to_value(&decoded.statement.body).unwrap();
+        let actual_details: Value =
+            serde_json::from_str(actual_body["KeycloakUserEvent"][0].as_str().unwrap()).unwrap();
+        let expected_details: Value = serde_json::from_str(
+            fixture["statement_body"]["KeycloakUserEvent"][0]
+                .as_str()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(actual_details, expected_details);
+        assert_eq!(actual_body["KeycloakUserEvent"][1], "REGISTER_ERROR");
+        assert_eq!(decoded.statement.head.log_type, StatementLogType::ERROR);
+        assert_eq!(
+            actual_details["details"]["scanovate_check_barcode_valid"],
+            "missing"
+        );
+        assert_eq!(
+            actual_details["details"]["scanovate_occurred_at"],
+            "2026-05-11T15:00:00.123Z"
+        );
+        assert_eq!(lookups.tenant_log_calls, 0);
     }
 
     /// Keycloak's publisher produces this envelope; its tests check the same fixture.
@@ -2249,7 +2301,9 @@ mod pgmq_tests {
             )
             .await
             .unwrap();
-        assert_eq!(dead_letter.get::<_, serde_json::Value>(0), invalid);
+        let redacted = dead_letter.get::<_, serde_json::Value>(0);
+        assert_eq!(redacted["unparseable_event"], true);
+        assert!(redacted.get("original_message_id").is_some());
         let headers: serde_json::Value = dead_letter.get(1);
         assert_eq!(headers[STAGE_HEADER], "dispatcher");
         assert!(headers[ERROR_HEADER]

@@ -133,3 +133,36 @@ fn publication_failures_are_signed_errors_with_task_and_publication_context() ->
     }
     Ok(())
 }
+
+#[test]
+fn audit_evidence_signs_persisted_occurrence_time() -> Result<()> {
+    use crate::messages::privacy::{pseudonym_hash, PrivateBallotEvent, PrivateBallotOutcome};
+    let key = SigningKey::generate()?;
+    let evidence = PrivateBallotEvent {
+        election_id: "election".into(),
+        pseudonym_hash: pseudonym_hash("7QKM-2HXD").unwrap(),
+        ballot_id: Some("ABCD-1234".into()),
+        outcome: PrivateBallotOutcome::Audited,
+    };
+    let build = || {
+        Message::private_ballot_event_message_at(
+            "event",
+            "7QKM-2HXD",
+            evidence.clone(),
+            1_700_000_000,
+            &key,
+        )
+    };
+    let mut message = build()?;
+    assert_eq!(message.statement.head.timestamp, 1_700_000_000);
+    assert_eq!(message.statement.head.kind.to_string(), "BallotAudited");
+    assert_eq!(borsh::to_vec(&message)?, borsh::to_vec(&build()?)?);
+    let pk = VerificationKey::from_sk(&key)?;
+    message.verify(&pk)?;
+    message.statement.head.timestamp += 1;
+    assert!(
+        message.verify(&pk).is_err(),
+        "occurrence time must be signed"
+    );
+    Ok(())
+}

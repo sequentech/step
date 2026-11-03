@@ -5,6 +5,316 @@ import englishTranslation, {TranslationType} from "./en"
 
 const galegoTranslation: TranslationType = {
     translations: {
+        configurationPackage: englishTranslation.translations.configurationPackage,
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        readiness: {
+            close: "Pechar",
+            action: "Verificar preparación",
+            title: "Preparación electoral",
+            description:
+                "Compare este evento oficial cun ensaio finalizado. Se a verificación é satisfactoria, rexístrase evidencia asinada no rexistro do evento oficial.",
+            testedEvent: "Evento probado",
+            archived: "Arquivado",
+            noEvents: "Non hai outros eventos dispoñibles",
+            retry: "Tentar de novo",
+            eventsError: "Non se puideron cargar os eventos.",
+            run: "Executar verificación",
+            running: "Verificando preparación…",
+            error: "Non se puido completar a verificación. Revise o rexistro antes de tentalo de novo; a resposta pode terse perdido tras rexistrar a evidencia.",
+            downloadError: "Non se puido descargar o informe. Ténteo de novo.",
+            success:
+                "Preparación verificada. Rexistrouse evidencia asinada no rexistro do evento oficial.",
+            failed: "A preparación fallou. Resolva as comprobacións fallidas e repita. Non se rexistrou ningunha entrada de preparación.",
+            download: "Descargar informe JSON",
+            snapshot:
+                "Este informe é unha instantánea. Repita tras cambios relevantes; non bloquea o evento nin substitúe a aprobación operativa.",
+            results: "Resultados da verificación",
+            condition: "Condición comprobada polo servidor",
+            noDetail: "O servidor non deu máis detalle sobre esta comprobación.",
+            reasons: "Por que fallou",
+            noArea: "ningunha área ou unha área descoñecida",
+            eventRoles: {
+                official: "oficial",
+                tested: "de proba",
+                both: "ambos",
+            },
+            scope: {
+                event: "O evento {{event}}",
+                election: "A elección {{election}}",
+            },
+            certification: {
+                declared_sha256_missing: "non se indicou o SHA-256",
+                declared_sha256_mismatch: "o SHA-256 indicado non coincide co do ficheiro",
+                no_counts: "non ten votantes por área",
+                blank_area: "hai votantes sen área",
+                invalid_sha256: "o seu SHA-256 non é válido",
+            },
+            findings: {
+                same_event: "O evento oficial e o de proba son o mesmo evento.",
+                configuration_missing:
+                    "O evento {{event}} non se importou desde un paquete de configuración asinado.",
+                configuration_incomplete:
+                    "A configuración asinada do evento oficial non ten un valor válido para «{{field}}».",
+                external_id_mismatch:
+                    "Os eventos proceden de configuracións distintas: {{official}} (oficial) e {{tested}} (de proba).",
+                content_mismatch:
+                    "O contido asinado é distinto: SHA-256 {{official}} (oficial) e {{tested}} (de proba).",
+                approvers_mismatch:
+                    "Os aprobadores verificados son distintos: {{only_official}} só no evento oficial e {{only_tested}} só no de proba.",
+                areas_mismatch: "{{area}} só está no contido asinado do evento {{event}}.",
+                voter_import_missing:
+                    "O evento {{event}} non ten unha importación certificada de votantes.",
+                voter_import_in_progress:
+                    "Aínda hai unha importación de votantes en curso no evento {{event}}.",
+                voter_file_not_certified:
+                    "A última importación de votantes do evento {{event}} non está certificada: {{reason}}.",
+                voter_receipt_not_signed:
+                    "O rexistro do evento {{event}} non ten unha entrada asinada que corresponda á importación de votantes {{import_id}}.",
+                registry_count_changed:
+                    "O evento {{event}} ten agora {{current}} votantes en {{area}}, pero a súa importación certificada ten {{imported}}.",
+                voter_area_not_configured:
+                    "Os votantes certificados do evento {{event}} inclúen {{area}}, que non está no seu contido asinado.",
+                voter_file_mismatch:
+                    "Os ficheiros certificados de votantes son distintos: SHA-256 {{official}} (oficial) e {{tested}} (de proba).",
+                voter_count_mismatch:
+                    "Os ficheiros certificados difiren en {{area}}: {{official}} votantes (oficial) e {{tested}} (de proba).",
+                ballots_present: "O evento oficial ten {{count}} papeletas almacenadas.",
+                received_ballots_present:
+                    "O evento oficial ten {{count}} papeletas recibidas para revisión.",
+                tally_sessions_present: "O evento oficial ten {{count}} sesións de reconto.",
+                status_missing: "{{scope}} non ten estado de votación.",
+                voting_started: "{{scope}}: a canle {{channel}} está en {{status}}.",
+                voting_dates_recorded:
+                    "{{scope}}: a canle {{channel}} ten datas de votación rexistradas.",
+                no_elections: "O evento {{event}} non ten eleccións.",
+                publication_missing: "O evento {{event}} non ten ningunha publicación activa.",
+                publication_mismatch:
+                    "Os {{design_count}} deseños de papeleta publicados do evento {{event}} non coinciden con todos os deseños da súa configuración asinada.",
+                publication_empty:
+                    "Os deseños de papeleta publicados do evento {{event}} non se puideron comprobar cunha configuración asinada.",
+                channels_open: "O evento de proba aínda ten canles de votación sen pechar.",
+                seal_at_close_off: "O evento de proba non sela as urnas ao peche.",
+                no_expected_boxes: "A publicación do evento de proba non espera ningunha urna.",
+                boxes_unsealed:
+                    "A elección {{election}} do evento de proba ten {{unsealed}} urnas sen selar.",
+            },
+        },
+        plugins: {
+            title: "Complementos",
+            description:
+                "Os complementos inclúense nesta versión. Ao activar un engádense o seu elemento de menú e os seus permisos para este inquilino; ao desactivalo ocúltase e consérvanse os seus datos e permisos.",
+            enabled: "Activado",
+            disabled: "Desactivado",
+            compatible: "Compatible",
+            incompatible: "Os datos gardados requiren unha versión máis recente",
+            api: "API de complementos {{major}}",
+            permissions: "Permisos",
+            adminGroup: "concédense ao grupo admin ao activalo",
+            enable: "Activar",
+            disable: "Desactivar",
+            confirmEnableTitle: "Activar {{name}}?",
+            confirmDisableTitle: "Desactivar {{name}}?",
+            confirmEnable:
+                "{{name}} aparece no menú dos usuarios cos seus permisos. Os seus permisos créanse neste inquilino e concédense ao grupo admin.",
+            confirmDisable:
+                "{{name}} ocúltase e as súas solicitudes rexéitanse. Consérvanse os seus datos, historial e permisos, e non cambia nada máis no inquilino.",
+            confirm: "Confirmar",
+            noPermission: "Cambiar os complementos require o permiso tenant-write.",
+            retry: "Tentar de novo",
+            loading: "Cargando complementos…",
+            signIn: "Inicia sesión no inquilino seleccionado para usar os seus complementos.",
+            unavailable: "Este complemento non forma parte desta versión.",
+            incompatibleRoute:
+                "Os datos gardados deste complemento requiren unha versión máis recente. Os seus datos non cambiaron.",
+            disabledRoute:
+                "{{name}} non está activado para este inquilino. Un administrador do inquilino pode activalo en Axustes → Complementos.",
+            forbidden: "Non tes permiso para usar {{name}}.",
+        },
+        projects: {
+            title: "Proxectos",
+            subtitle:
+                "Planifica o traballo do inquilino nunha liña de tempo. Os proxectos nunca cambian os calendarios electorais.",
+            cancel: "Cancelar",
+            retry: "Tentar de novo",
+            loading: "Cargando…",
+            list: {
+                create: "Novo proxecto",
+                import: "Importar",
+                emptyTitle: "Aínda non hai proxectos",
+                emptyHelp: "Crea un proxecto ou importa un ficheiro CSV exportado doutro proxecto.",
+                emptyViewer: "Non se creou ningún proxecto neste inquilino.",
+                active_one: "Activos ({{count}})",
+                active_other: "Activos ({{count}})",
+                archived_one: "Arquivados ({{count}})",
+                archived_other: "Arquivados ({{count}})",
+                name: "Nome",
+                dates: "Datas",
+                tasks: "Tarefas",
+                timezone: "Fuso horario",
+                updated: "Último cambio",
+                updatedBy: "{{at}} · {{actor}}",
+                archivedChip: "Arquivado",
+                noneInTab: "Non hai proxectos aquí.",
+            },
+            create: {
+                title: "Novo proxecto",
+                name: "Nome do proxecto",
+                timezone: "Fuso horario",
+                timezoneHelp:
+                    "Todas as datas do proxecto introdúcense e móstranse neste fuso horario IANA.",
+                submit: "Crear proxecto",
+            },
+            import: {
+                title: "Importar un proxecto",
+                help: "Importar sempre crea un proxecto novo. Usa un ficheiro CSV en UTF-8 coas columnas {{columns}}, tal como se exporta dun proxecto, cun desprazamento UTC en cada data. Non se garda nada ata que crees o proxecto.",
+                choose: "Escoller ficheiro CSV",
+                noFile: "Ningún ficheiro escollido",
+                fileLimit: "O ficheiro debe ocupar como máximo 1 MiB.",
+                invalidFile: "O ficheiro non é texto UTF-8 válido.",
+                valid_one: "{{count}} tarefa está lista para importar.",
+                valid_other: "{{count}} tarefas están listas para importar.",
+                invalid_one:
+                    "{{count}} de {{total}} filas ten erros. Corrixe o ficheiro e escólleo de novo.",
+                invalid_other:
+                    "{{count}} de {{total}} filas teñen erros. Corrixe o ficheiro e escólleo de novo.",
+                previewTable: "Vista previa da importación",
+                line: "Liña",
+                result: "Comprobación",
+                rowValid: "Lista",
+                commit: "Crear proxecto",
+            },
+            detail: {
+                timezone: "Todas as datas e horas están en {{timezone}}.",
+                export: "Exportar",
+                archive: "Arquivar",
+                restore: "Restaurar",
+                addTask: "Engadir tarefa",
+                viewOnly: "Só lectura. Cambiar tarefas require o permiso projects-write.",
+                archivedNotice:
+                    "Este proxecto está arquivado. Restáurao para cambiar as súas tarefas.",
+            },
+            notices: {
+                saved: "Gardouse «{{title}}».",
+                moved: "Gardouse «{{title}}»: {{start}} – {{end}}.",
+                deleted: "Eliminouse «{{title}}».",
+                archived: "Proxecto arquivado.",
+                restored: "Proxecto restaurado.",
+            },
+            panel: {
+                details: "Detalles da tarefa",
+                edit: "Editar tarefa",
+                add: "Engadir tarefa",
+                close: "Pechar os detalles da tarefa",
+                hint: "Selecciona unha tarefa na liña de tempo para ver aquí os seus detalles.",
+                noTasks: "Este proxecto aínda non ten tarefas.",
+            },
+            conflict: {
+                body: "Outra persoa cambiou esta tarefa ({{actor}}, {{at}}). Os teus cambios seguen aquí. Revisa a súa versión antes de gardar de novo.",
+                load: "Cargar a súa versión",
+            },
+            unsaved: {
+                body: "Tes cambios sen gardar. Gárdaos ou descártaos para {{action}}.",
+                keep: "Seguir editando",
+                discard: "Descartar cambios",
+                actions: {
+                    open: "abrir «{{title}}»",
+                    add: "engadir unha tarefa nova",
+                    leave: "volver aos proxectos",
+                    close: "pechar a tarefa",
+                    state: "cambiar o proxecto",
+                },
+            },
+            deleteDialog: {
+                title: "Eliminar a tarefa?",
+                body: "«{{title}}» elimínase do proxecto. Consérvase o seu historial de cambios.",
+                confirm: "Eliminar",
+            },
+            history: {
+                task: "Historial de cambios",
+                project: "Historial do proxecto",
+                empty: "Aínda non hai cambios rexistrados.",
+                more: "Amosar cambios anteriores",
+                by: "{{actor}} · {{at}}",
+                actions: {
+                    create: "Creado {{subject}}",
+                    update: "Cambiado {{subject}}",
+                    delete: "Eliminado {{subject}}",
+                    import_one: "Importada {{count}} tarefa",
+                    import_other: "Importadas {{count}} tarefas",
+                    export: "Exportado como CSV",
+                    other: "{{action}}",
+                },
+            },
+            editor: {
+                title: "Título",
+                type: "Tipo",
+                status: "Estado",
+                start: "Inicio",
+                end: "Fin",
+                at: "Data e hora",
+                notes: "Notas",
+                order: "Orde",
+                orderHelp: "As tarefas ordénanse por orde e despois por inicio.",
+                timezoneNote: "As horas están en {{timezone}}.",
+                offset: "UTC{{offset}}",
+                localTime: {
+                    invalid: "Introduce unha data e hora entre 1900 e 2200.",
+                    skipped:
+                        "Esta hora non existe en {{timezone}}: os reloxos sáltana. Escolle outra hora.",
+                    repeated:
+                        "Esta hora ocorre dúas veces en {{timezone}}. Escolle a cal te refires.",
+                },
+                chooseInstant: "Que vez",
+                instantChoice: "En UTC{{offset}}",
+                saving: "Gardando…",
+                toFix_one: "{{count}} campo por corrixir",
+                toFix_other: "{{count}} campos por corrixir",
+                save: "Gardar",
+                delete: "Eliminar",
+            },
+            validation: {
+                title: "Introduce un título de como máximo 200 caracteres.",
+                offset: "Introduce datas válidas.",
+                range: "O fin debe ser posterior ao inicio.",
+                milestone: "Un fito non ten fin.",
+                notes: "As notas deben ter como máximo 16.000 caracteres.",
+                order: "A orde debe ser un número enteiro de 0 a 1.000.000.",
+            },
+            status: {
+                not_started: "Sen comezar",
+                in_progress: "En curso",
+                done: "Feita",
+            },
+            type: {
+                task: "Tarefa",
+                milestone: "Fito",
+            },
+            units: {
+                days_one: "{{count}} día",
+                days_other: "{{count}} días",
+                hours_one: "{{count}} h",
+                hours_other: "{{count}} h",
+                minutes_one: "{{count}} min",
+                minutes_other: "{{count}} min",
+            },
+            timeline: {
+                title: "Liña de tempo",
+                tasks_one: "{{count}} tarefa",
+                tasks_other: "{{count}} tarefas",
+                empty: "Aínda non hai tarefas.",
+                editHelp:
+                    "Sinala ou enfoca unha tarefa para ver un resumo; selecciónaa para editala abaixo. Arrastra unha barra ou usa ← → para movela 24 horas; engade Maiús para cambiar o fin.",
+                viewHelp:
+                    "Sinala ou enfoca unha tarefa para ver un resumo. Selecciónaa para ver os seus detalles abaixo.",
+                touchEditHelp:
+                    "Toca unha tarefa para editala abaixo, ou arrastra unha barra para movela días enteiros.",
+                touchViewHelp: "Toca unha tarefa para ver os seus detalles abaixo.",
+                taskLabel: "{{title}}, de {{start}} a {{end}}, {{status}}",
+                milestoneLabel: "{{title}}, fito o {{at}}, {{status}}",
+                previewEdit: "Fai clic ou preme Intro para editar",
+                previewView: "Fai clic ou preme Intro para ver os detalles",
+            },
+        },
         philippinePassport: "Pasaporte filipino",
         seamanBook: "Libro de marinero",
         philSysID: "Identificación PhilSys",
@@ -216,6 +526,76 @@ const galegoTranslation: TranslationType = {
             },
         },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
+            readiness: {
+                passed: "Superado",
+                failed: "Fallido",
+                checkResult: "{{outcome}}: {{description}}",
+                checkResultWithMessage:
+                    "{{outcome}}: {{description}} Condición rexistrada: «{{message}}»",
+                description: {
+                    VotersImported: "Ficheiro de votantes importado.",
+                    ReadinessVerified:
+                        "Preparación do evento oficial verificada co evento probado.",
+                },
+                checks: {
+                    configuration:
+                        "Ambos os eventos teñen o mesmo contido aprobado, aprobadores verificados e áreas.",
+                    certified_voters:
+                        "Ambos os eventos coinciden no ficheiro certificado de votantes e nos recontos actuais por área.",
+                    official_zero:
+                        "O evento oficial nunca abriu a votación e non ten votos nin sesións de reconto.",
+                    publication: "A publicación oficial coincide coa súa configuración asinada.",
+                    tested_finished:
+                        "As canles de votación do evento probado están pechadas e todas as urnas previstas están seladas.",
+                },
+                fields: {
+                    report: "Informe de preparación",
+                    passed: "Superado",
+                    checked_at: "Data da comprobación",
+                    evidence: "Evidencia",
+                    official: "Evento oficial",
+                    tested: "Evento probado",
+                    official_event_id: "ID do evento oficial",
+                    tested_event_id: "ID do evento probado",
+                    event_id: "ID do evento",
+                    election_id: "ID da elección",
+                    configuration: "Configuración",
+                    external_id: "ID externo",
+                    revision: "Revisión",
+                    content_sha256: "SHA-256 do contido",
+                    manifest_sha256: "SHA-256 do manifesto",
+                    approvers: "Aprobadores verificados",
+                    areas: "Áreas",
+                    voters: "Importación de votantes",
+                    import_id: "ID da importación",
+                    document_id: "ID do documento",
+                    file_name: "Nome do ficheiro",
+                    sha256: "SHA-256 do ficheiro",
+                    declared_sha256: "SHA-256 declarado",
+                    counts_by_area: "Votantes por área",
+                    imported_at: "Data da importación",
+                    voter_log_delivered: "Importación asinada rexistrada",
+                    current_voter_counts: "Votantes actuais por área",
+                    voter_import_in_progress: "Importación de votantes activa",
+                    status: "Estado",
+                    elections: "Eleccións",
+                    ballot_count: "Votos almacenados",
+                    received_ballot_count: "Votos recibidos na revisión",
+                    tally_session_count: "Sesións de reconto",
+                    publication: "Publicación",
+                    publication_id: "ID da publicación",
+                    publication_ids: "ID das publicacións",
+                    matches_manifest: "Coincide co manifesto asinado",
+                    design_count: "Deseños publicados",
+                    seal_at_close: "Selar ao peche",
+                    expected_boxes: "Urnas previstas",
+                    sealed_boxes: "Urnas seladas",
+                    all_channels_closed: "Todas as canles pechadas",
+                    locked_down: "Bloqueado",
+                    log_entry_id: "ID da entrada do rexistro",
+                },
+            },
             noPermissions: "Non tes permiso para acceder aos rexistros.",
             title: "Rexistros",
             subtitle:
@@ -337,6 +717,27 @@ const galegoTranslation: TranslationType = {
                     newValue: "Valor novo",
                     error: "Erro",
                 },
+                importedFile: {
+                    title: "O ficheiro importado",
+                    declared: "Suma de comprobación declarada",
+                    sha256: "SHA-256 do ficheiro",
+                    declaredSha256: "SHA-256 declarado",
+                    document: "Documento",
+                    checksum: {
+                        undeclared: "Non se declarou",
+                        matches: "Coincide co ficheiro",
+                        mismatch: "Non coincide co ficheiro",
+                    },
+                    counts: {
+                        count: "Filas",
+                        elections: "Eleccións",
+                        contests: "Contendas",
+                        candidates: "Candidatos",
+                        areas: "Áreas",
+                        area_contests: "Áreas por contenda",
+                        sections: "Seccións de configuración",
+                    },
+                },
                 deletedEvent: {
                     title: "O rexistro do evento electoral eliminado",
                     lastEntry: "Última entrada",
@@ -346,6 +747,7 @@ const galegoTranslation: TranslationType = {
                     retired:
                         "Descargado e conservado ata que se borre segundo a política de conservación",
                     task: "Tarefa",
+                    systemKey: "A clave de sistema do rexistro",
                 },
                 exported: {
                     title: "Exportación",
@@ -545,6 +947,7 @@ const galegoTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exportar Solicitudes",
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
+                APPLY_CONFIGURATION_PACKAGE: "Aplicar Paquete de Configuración",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
                 CREATE_TENANT: "Crear Cliente",
                 EXPORT_TEMPLATES: "Exportar Plantillas",
@@ -842,6 +1245,10 @@ const galegoTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Os datos non están dispoñibles para este evento electoral.",
+            noAccessibleTabs:
+                "Non tes acceso a ningunha pestana dispoñible deste evento electoral.",
+
             common: {
                 subtitle: "Configuración do evento electoral.",
                 showMore: "Mostrar Máis",
@@ -1012,6 +1419,11 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Bloqueado desde {{date}}.",
+                    scheduledEnd: "Fin do bloqueo programado para {{date}}.",
+                    endScheduled: "Hai un fin do bloqueo programado.",
+                    noScheduledEnd: "Non hai un fin do bloqueo programado.",
+                    banner: "Este evento electoral está bloqueado.",
                     policyLabel: "Estado de Bloqueo",
                     helperText:
                         "Programe o inicio ou o fin do período de bloqueo para cambiar este estado.",
@@ -1057,6 +1469,15 @@ const galegoTranslation: TranslationType = {
                 decodedBallots: {
                     policyLabel: "Incluír papeletas descodificadas na base de datos de resultados",
                     options: {"included": "Incluír", "not-included": "Non incluír"},
+                },
+                fileIntegrityPolicy: {
+                    policyLabel: "Integridade do ficheiro de votantes",
+                    helperText:
+                        "Esixir o SHA-256 certificado de forma independente antes de importar votantes.",
+                    options: {
+                        OPTIONAL: "SHA-256 opcional",
+                        REQUIRED_SHA256: "SHA-256 obrigatorio",
+                    },
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -1390,6 +1811,8 @@ const galegoTranslation: TranslationType = {
                 importVotersError: "Erro ao importar os Votantes",
                 importElectionEventSuccess: "Evento electoral importado correctamente",
                 importElectionEventError: "Erro ao importar o evento electoral",
+                shaRequiredHelp:
+                    "Introduza o SHA-256 hexadecimal certificado de 64 caracteres. É obrigatorio para importar.",
                 shaDialog: {
                     ok: "Si, Importar sen Verificación de Integridade",
                     cancel: "Volver Atrás",
@@ -1412,6 +1835,9 @@ const galegoTranslation: TranslationType = {
                 encryptWithPassword: "Cifrar con Contrasinal",
                 passwordForcedNote:
                     "O arquivo protexerase con contrasinal de todos os xeitos: os informes, as solicitudes e os datos do taboleiro cífranse sempre. Marca a caixa para incluír tamén os campos secretos de votante descifrados.",
+                integrationSecrets: "Segredos de integración (credenciais de servizo)",
+                integrationSecretsNote:
+                    "Unha vez descifrado, o arquivo conterá en claro o segredo de liveness de Scanovate. Garda en segredo o arquivo e o seu contrasinal, e impórtao só onde se deba usar ese servizo de Liveness Plus.",
                 includeVoters: "Incluir Votantes",
                 activityLogs: "Rexistros de Actividade",
                 bulletinBoard: "Taboleiro de Anuncios",
@@ -1846,6 +2272,7 @@ const galegoTranslation: TranslationType = {
                 "voter-write": "Editar Votante",
                 "voter-secret-attribute-read": "Mostrar Campos Secretos do Votante",
                 "voter-secret-attribute-write": "Editar Campos Secretos do Votante",
+                "integration-secret-read": "Exportar Segredos de Integración",
                 "user-create": "Crear Usuario",
                 "user-read": "Leer Usuario",
                 "user-write": "Editar Usuario",
@@ -1981,6 +2408,9 @@ const galegoTranslation: TranslationType = {
                 "application-read": "Leer Aplicación",
                 "application-write": "Editar Aplicación",
                 "approval-matrix-write": "Editar a Matriz de Aprobación",
+                "readiness-check": "Verificar a preparación electoral",
+                "forensic-read": "Ler datos forenses de rede illados",
+                "voter-pseudonym-resolve": "Resolver un pseudónimo de votante cun motivo auditado",
                 "logs-export": "Exportar Registros",
                 "tenant-logs-read": "Ler Rexistro do Inquilino",
                 "tenant-logs-export": "Exportar Rexistro do Inquilino",
@@ -2360,6 +2790,9 @@ const galegoTranslation: TranslationType = {
                         delete: "¿Estás seguro de que queres eliminar este elemento?",
                         sealsUnknown:
                             "Non se puideron comprobar os selos das urnas: se ten urnas seladas, rexeitarase a eliminación.",
+                        archiveNamed: '¿Estás seguro de que queres arquivar "{{name}}"?',
+                        unarchiveNamed: '¿Estás seguro de que queres desarquivar "{{name}}"?',
+                        deleteNamed: '¿Estás seguro de que queres eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2480,6 +2913,13 @@ const galegoTranslation: TranslationType = {
                 "label": "Forma do Icono de Caixa de Selección dos Candidatos",
                 "square-checkbox": "Caixa de Selección Cadrada",
                 "round-checkbox": "Caixa de Selección Redonda",
+            },
+            candidatesLayout: {
+                "label": "Disposición das candidaturas",
+                "helperText":
+                    "A grade de papeleta en papel mostra as candidaturas como celas numeradas cun círculo para encher, columna a columna, segundo Columnas (4 se está baleiro). As votacións por orde de preferencia sempre usan a lista.",
+                "list": "Lista",
+                "paper-grid": "Grade de papeleta en papel",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidatos e Listas",
@@ -2714,6 +3154,7 @@ const galegoTranslation: TranslationType = {
                 title: "Paquete de Transmisión para a Área '{{name}}' e Elección '{{eventName}}'",
                 description:
                     "Permítelle exportar un Paquete de Transmisión a Servidores de Destino ou descargalo.",
+                erFileSha256: "Ficheiro ER SHA-256:",
                 actions: {
                     send: {
                         title: "Enviar",
@@ -2756,6 +3197,10 @@ const galegoTranslation: TranslationType = {
                         emlTitle: "Descargar EML {{date}}",
                         transmissionPackageTitle: "Descargar Paquete de Transmisión {{date}}",
                         transmissionReportTitle: "Descargar informe de transmisión",
+                        csvTitle: "Descargar CSV de resultados {{date}}",
+                        ovcsPublicKeyTitle: "Descargar a chave pública da OVCS",
+                        recordError:
+                            "Non se puido rexistrar a descarga, así que non se iniciou. Téntao de novo.",
                         dialog: {
                             title: "¿Queres Descargar o Paquete de Transmisión?",
                             description:
@@ -2770,6 +3215,9 @@ const galegoTranslation: TranslationType = {
                     description:
                         "A táboa a continuación mostra o estado de envío de cada un dos Servidores de Destino.",
                     status: "Enviado a {{signed}} de {{total}}",
+                    manualReceipt: "Recepción manual",
+                    handOver: "Descarga o paquete e entrégao en man",
+                    sealedFor: "Selado para a súa chave, SHA-256 {{key}}…",
                     table: {
                         serverName: "Nome do Servidor",
                         sendStatus: "Estado de Envío",
@@ -2779,7 +3227,8 @@ const galegoTranslation: TranslationType = {
                     title: "Sinaturas",
                     description:
                         "Os membros poden asinar o paquete de transmisión. A táboa mostra o estado de sinatura de cada membro.",
-                    status: "{{signed}} de {{total}} Asinados, mínimo de {{minimum}}",
+                    status: "{{signed}} de {{total}}, necesítanse {{minimum}}",
+                    statusNoMinimum: "{{signed}} de {{total}}",
                     table: {
                         trusteeName: "Membro",
                         signed: "Asinou",
@@ -3698,6 +4147,7 @@ const galegoTranslation: TranslationType = {
                     "insufficient-information": "Faltan datos",
                     "no-matching-voter": "Votante non coincidente",
                     "voter-already-approved": "Xa aprobado",
+                    "EMAIL_IN_USE": "Correo usado por outro votante",
                     "other": "Outro",
                 },
                 hint: {
@@ -3938,6 +4388,8 @@ const galegoTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Paneis configurables",
+            modeChangeError: "Non se puido cambiar o modo do panel. Ténteo de novo.",
             title: "Monitorización",
             loading: "Cargando a monitorización",
             unavailableAlert:

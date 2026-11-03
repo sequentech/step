@@ -34,9 +34,10 @@
 use crate::postgres::monitoring_config::{
     advance_head, check_deferred_constraints, create_head, create_monitoring_event,
     election_event_exists, get_event_and_heads, get_event_and_revisions_at, get_head, get_heads,
-    get_revision, get_revisions, insert_revision, lock_election_event, raise_generation,
-    update_mode_and_preset, MonitoringEvent, NewRevision,
+    get_revision, get_revisions, insert_revision, lock_election_event, lock_monitoring_event,
+    raise_generation, update_mode_and_preset, MonitoringEvent, NewRevision,
 };
+use crate::services::audit_log::{self, AuditActor, AuditOrigin};
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 use deadpool_postgres::{Client, Transaction};
@@ -412,13 +413,24 @@ pub async fn get_document(
     }
 }
 
-async fn begin(client: &mut Client) -> anyhow::Result<Transaction<'_>> {
-    client
+/// Starts a change's transaction. With an `actor`, the admin a Harvest
+/// request makes the change for, the rows it writes in the audited tables
+/// are logged as theirs (SW-F-0364).
+async fn begin<'a>(
+    client: &'a mut Client,
+    event: EventRef,
+    actor: Option<&AuditActor>,
+) -> anyhow::Result<Transaction<'a>> {
+    let transaction = client
         .build_transaction()
         .isolation_level(IsolationLevel::ReadCommitted)
         .start()
         .await
-        .context("Failed to start the monitoring configuration transaction")
+        .context("Failed to start the monitoring configuration transaction")?;
+    if let Some(actor) = actor {
+        audit_log::act_for(&transaction, actor, AuditOrigin::Harvest, event.tenant_id).await?;
+    }
+    Ok(transaction)
 }
 
 /// Whether a change's transaction is to be kept.
@@ -493,11 +505,6 @@ enum Checked {
 }
 
 /// Saves or removes one document.
-#[instrument(
-    err(Debug, level = "warn"),
-    skip(client, checks, audit, author, edit),
-    fields(author = %author.id, kind = %edit.kind, key = edit.key, expected = ?edit.expected)
-)]
 pub async fn save(
     client: &mut Client,
     checks: &dyn MonitoringConfigChecks,
@@ -505,6 +512,24 @@ pub async fn save(
     event: EventRef,
     author: &Author,
     edit: DocumentEdit<'_>,
+) -> Result<SaveOutcome, SaveError> {
+    save_as(client, checks, audit, event, author, edit, None).await
+}
+
+/// [`save`], with the rows it writes logged as `actor`'s.
+#[instrument(
+    err(Debug, level = "warn"),
+    skip(client, checks, audit, author, edit, actor),
+    fields(author = %author.id, kind = %edit.kind, key = edit.key, expected = ?edit.expected)
+)]
+pub async fn save_as(
+    client: &mut Client,
+    checks: &dyn MonitoringConfigChecks,
+    audit: &dyn MonitoringConfigAudit,
+    event: EventRef,
+    author: &Author,
+    edit: DocumentEdit<'_>,
+    actor: Option<&AuditActor>,
 ) -> Result<SaveOutcome, SaveError> {
     check_author(author).map_err(SaveError::Invalid)?;
     check_target(edit.kind, edit.key).map_err(SaveError::Invalid)?;
@@ -521,7 +546,7 @@ pub async fn save(
                 .context("Failed to prepare the electoral log for the change")?;
             prepared = true;
         }
-        let transaction = begin(client).await?;
+        let transaction = begin(client, event, actor).await?;
         let result = write_save(&transaction, audit, event, author, edit, checked).await;
         if let Some(outcome) = finish(transaction, result).await? {
             return Ok(outcome);
@@ -719,7 +744,6 @@ async fn write_save(
 /// Leaves the event with exactly the preset's documents, and the Dashboard
 /// tab in `mode`. An event without monitoring configuration gets it: this is
 /// how an event is first configured.
-#[instrument(err(Debug, level = "warn"), skip(client, audit, author), fields(author = %author.id))]
 pub async fn reset_to_preset(
     client: &mut Client,
     audit: &dyn MonitoringConfigAudit,
@@ -727,6 +751,24 @@ pub async fn reset_to_preset(
     author: &Author,
     preset_id: &str,
     mode: DashboardMode,
+) -> Result<ResetOutcome, ResetError> {
+    reset_to_preset_as(client, audit, event, author, preset_id, mode, None).await
+}
+
+/// [`reset_to_preset`], with the rows it writes logged as `actor`'s.
+#[instrument(
+    err(Debug, level = "warn"),
+    skip(client, audit, author, actor),
+    fields(author = %author.id)
+)]
+pub async fn reset_to_preset_as(
+    client: &mut Client,
+    audit: &dyn MonitoringConfigAudit,
+    event: EventRef,
+    author: &Author,
+    preset_id: &str,
+    mode: DashboardMode,
+    actor: Option<&AuditActor>,
 ) -> Result<ResetOutcome, ResetError> {
     check_author(author).map_err(ResetError::Invalid)?;
     let preset = match presets::load(preset_id) {
@@ -760,7 +802,7 @@ pub async fn reset_to_preset(
         .prepare(client, event, author)
         .await
         .context("Failed to prepare the electoral log for the reset")?;
-    let transaction = begin(client).await?;
+    let transaction = begin(client, event, actor).await?;
     let result = reset_in(&transaction, audit, event, author, &preset, version, mode).await;
     finish(transaction, result).await
 }
@@ -856,9 +898,53 @@ async fn reset_in(
     ))
 }
 
+/// The shipped initial dashboard set. Its version is stored with the documents;
+/// later mode switches never upgrade or replace an event's configuration.
+pub const DEFAULT_PRESET_ID: &str = "comelec";
+
+fn default_preset() -> anyhow::Result<(presets::Preset, PresetVersion)> {
+    let preset = presets::load(DEFAULT_PRESET_ID)
+        .ok_or_else(|| anyhow!("The default monitoring preset is missing"))?
+        .map_err(|report| anyhow!("The default monitoring preset is invalid: {report}"))?;
+    let version = PresetVersion {
+        id: preset.manifest.id.clone(),
+        version: i32::try_from(preset.manifest.version)?,
+    };
+    Ok((preset, version))
+}
+
+/// Initializes a newly created event inside its creation transaction. Existing
+/// monitoring rows, including an explicit LEGACY choice, are never changed.
+/// The caller supplies the creation audit implementation; no read path calls this.
+pub async fn initialize_default_config(
+    transaction: &Transaction<'_>,
+    audit: &dyn MonitoringConfigAudit,
+    event: EventRef,
+    author: &Author,
+) -> Result<ResetOutcome, ResetError> {
+    check_author(author).map_err(ResetError::Invalid)?;
+    if !lock_election_event(transaction, event).await? {
+        return Err(ResetError::NotFound);
+    }
+    if get_event_and_heads(transaction, event).await?.is_some() {
+        return Ok(ResetOutcome::Unchanged);
+    }
+    let (preset, version) = default_preset()?;
+    let (outcome, _) = reset_in(
+        transaction,
+        audit,
+        event,
+        author,
+        &preset,
+        version,
+        DashboardMode::Configured,
+    )
+    .await?;
+    Ok(outcome)
+}
+
 /// Switches the Dashboard tab between the standard dashboard and the
 /// configured ones. The configuration is kept either way.
-#[instrument(err(Debug, level = "warn"), skip(client, audit, author), fields(author = %author.id))]
 pub async fn set_mode(
     client: &mut Client,
     audit: &dyn MonitoringConfigAudit,
@@ -866,17 +952,45 @@ pub async fn set_mode(
     author: &Author,
     mode: DashboardMode,
 ) -> Result<ModeOutcome, ModeError> {
+    set_mode_as(client, audit, event, author, mode, None).await
+}
+
+/// [`set_mode`], with the rows it writes logged as `actor`'s.
+#[instrument(
+    err(Debug, level = "warn"),
+    skip(client, audit, author, actor),
+    fields(author = %author.id)
+)]
+pub async fn set_mode_as(
+    client: &mut Client,
+    audit: &dyn MonitoringConfigAudit,
+    event: EventRef,
+    author: &Author,
+    mode: DashboardMode,
+    actor: Option<&AuditActor>,
+) -> Result<ModeOutcome, ModeError> {
     check_author(author).map_err(ModeError::Invalid)?;
     match read(client, event).await? {
-        None => return Err(ModeError::NotConfigured),
-        Some((stored, _)) if stored.mode == mode => return Ok(ModeOutcome::Unchanged),
+        None => {
+            if !election_event_exists(&*client, event).await? {
+                return Err(ModeError::NotConfigured);
+            }
+            if mode == DashboardMode::Legacy {
+                return Ok(ModeOutcome::Unchanged);
+            }
+        }
+        Some((stored, heads))
+            if stored.mode == mode && (mode == DashboardMode::Legacy || !heads.is_empty()) =>
+        {
+            return Ok(ModeOutcome::Unchanged);
+        }
         Some(_) => {}
     }
     audit
         .prepare(client, event, author)
         .await
         .context("Failed to prepare the electoral log for the switch")?;
-    let transaction = begin(client).await?;
+    let transaction = begin(client, event, actor).await?;
     let result = set_mode_in(&transaction, audit, event, author, mode).await;
     finish(transaction, result).await
 }
@@ -888,8 +1002,38 @@ async fn set_mode_in(
     author: &Author,
     mode: DashboardMode,
 ) -> Result<(ModeOutcome, Finish), ModeError> {
-    let Some(stored) = raise_generation(transaction, event).await? else {
+    // Serialize first initialization with resets and other mode switches, then
+    // inspect the locked state: a concurrent editor's documents must never reset.
+    if !lock_election_event(transaction, event).await? {
         return Err(ModeError::NotConfigured);
+    }
+    if mode == DashboardMode::Configured {
+        create_monitoring_event(transaction, event).await?;
+    }
+    lock_monitoring_event(transaction, event).await?;
+    let current = get_event_and_heads(transaction, event).await?;
+    if mode == DashboardMode::Configured
+        && current.as_ref().is_none_or(|(_, heads)| heads.is_empty())
+    {
+        let (preset, version) = default_preset()?;
+        let (reset, finish) = reset_in(transaction, audit, event, author, &preset, version, mode)
+            .await
+            .map_err(|error| match error {
+                ResetError::NotFound => ModeError::NotConfigured,
+                ResetError::Invalid(report) => ModeError::Invalid(report),
+                ResetError::Internal(error) => ModeError::Internal(error),
+                ResetError::UnknownPreset => ModeError::Internal(anyhow!("Default preset missing")),
+            })?;
+        return Ok((
+            match reset {
+                ResetOutcome::Reset { generation, .. } => ModeOutcome::Switched { generation },
+                ResetOutcome::Unchanged => ModeOutcome::Unchanged,
+            },
+            finish,
+        ));
+    }
+    let Some(stored) = raise_generation(transaction, event).await? else {
+        return Ok((ModeOutcome::Unchanged, Finish::Rollback));
     };
     if stored.mode == mode {
         return Ok((ModeOutcome::Unchanged, Finish::Rollback));

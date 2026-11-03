@@ -138,6 +138,8 @@ impl TemplateRenderer for BallotTemplate {
         .await?
         .store;
         let (event, election) = (election_event_uuid.to_string(), ballot_uui.to_string());
+        // The authenticated receipt route resolves privacy identities before
+        // queueing this task, so its payload never carries the real voter ID.
         let in_box =
             |ballot: &StoredBallot| ballot.area_id == area_id && ballot.election_id == election;
         // A ballot cast with a signed receipt goes by the receipt's Ballot ID.
@@ -161,7 +163,9 @@ impl TemplateRenderer for BallotTemplate {
 
         // Verify that the vote has been casted
         if !cast {
-            return Err(anyhow!("BallotID not found in cast votes for {voter_id}"));
+            return Err(anyhow!(
+                "The ballot was not found in this voter's cast votes"
+            ));
         }
 
         let kiosk_base = match std::env::var("KIOSK_VOTING_PORTAL_URL") {

@@ -189,3 +189,17 @@ describe("shared instances", () => {
         expect(resolveContext(outside, header, "react")).toBe(path.dirname(header))
     })
 })
+
+it("keeps both the React root and worker entry out of hot refresh", () => {
+    const main = path.join(PORTAL, "src/index.tsx")
+    const worker = path.join(PORTAL, "src/worker.ts")
+    const result = withPortalDevelopment(PORTAL, {
+        ...portalConfig("development"),
+        entry: {index: main, worker: {import: [worker]}},
+    })
+    expect(pluginNamed(result, "ReactRefreshPlugin").options.exclude).toEqual([
+        /node_modules/,
+        main,
+        worker,
+    ])
+})

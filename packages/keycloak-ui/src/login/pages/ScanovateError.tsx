@@ -9,6 +9,7 @@ import type {MessageKey} from "../i18n"
 import type {ScanovatePageProps} from "../scanovate/pageProps"
 import {EnrollmentStep, dynamicText, enrollmentFrame, textFor, type Text} from "../scanovate/text"
 import {AttemptsLeft, CheckList} from "../scanovate/parts"
+import {stepBack} from "../stepBack"
 
 const RETRY_ACTION = "retry"
 
@@ -116,6 +117,7 @@ export default function ScanovateError(props: ScanovatePageProps<"scanovate-erro
             doUseDefaultCss={doUseDefaultCss}
             classes={classes}
             {...enrollmentFrame(kcContext, i18n, EnrollmentStep.VerifyIdentity)}
+            back={stepBack(kcContext, text("enrollmentBack"))}
             symbol={<WarningIcon />}
             symbolTone={SymbolTone.Warning}
             headerNode={title.text}

@@ -10,12 +10,22 @@ export interface TrusteeKeys {
     signing_public_key: string
     share_encryption_public_key: string
 }
+export interface TrusteeHistory {
+    board_url: string
+    stores: {
+        board: string
+        database: string
+        predicates: number
+        own_posts: number
+    }[]
+}
 export interface TrusteeEngine {
     publicKeys(): string
     attest(request: string): string
     advance(boards: string): Promise<string>
     settle(board: string): void
     backup(boards: string): Promise<string>
+    sessionHistory(boards: string): Promise<string>
     restoreBackup(contents: string): Promise<string>
     free(): void
 }
@@ -35,11 +45,16 @@ export interface PublicVerificationReport {
     plaintexts: string[]
     ballot_inclusions: {ciphertext_hash: string; occurrences: number}[]
 }
-interface TrusteeModule {
+export interface TrusteeModule {
     default(options: {module_or_path: string}): Promise<unknown>
     initThreadPool(threads: number): Promise<void>
     BrowserTrustee: {
-        new (name: string, keys: string, boardUrl: string): TrusteeEngine
+        new (
+            name: string,
+            keys: string,
+            boardUrl: string,
+            tokenProvider?: () => Promise<string>
+        ): TrusteeEngine
         generateKeys(): string
     }
     WasmVerifier: {
@@ -165,6 +180,30 @@ export function parseBoards(value: unknown): TrusteeBoard[] {
     })
 }
 
+/**
+ * The board's token provider over `token`, the signed-in user's in-memory
+ * access token. It is read before each board request, so it is fresh after
+ * long computations; the trustee never persists it.
+ */
+export function boardTokenProvider(token: () => string): () => Promise<string> {
+    return async () => {
+        const current = token()
+        if (!current) throw new Error("Sign in as a trustee to reach the board service.")
+        return current
+    }
+}
+
+/** Every engine reaches the board service with the portal's current access token. */
+export function createBrowserTrustee(
+    module: Pick<TrusteeModule, "BrowserTrustee">,
+    name: string,
+    keys: string,
+    boardUrl: string,
+    token: () => string
+): TrusteeEngine {
+    return new module.BrowserTrustee(name, keys, boardUrl, boardTokenProvider(token))
+}
+
 async function trusteeGraphql<T>(
     platform: string,
     token: string,
@@ -202,16 +241,19 @@ export async function listBrowserTrusteeBoards(
     return parseBoards(data.list_trustee_boards)
 }
 
-/** One sequential cycle; callers never overlap cycles or release a busy engine. */
+/**
+ * One sequential cycle; callers never overlap cycles or release a busy engine.
+ * `token` is read before each request: `advance` can outlast an access token.
+ */
 export async function runBrowserCycle(
     engine: TrusteeEngine,
     platform: string,
-    token: string,
+    token: () => string,
     remember: (boards: TrusteeBoard[]) => void
 ): Promise<TrusteeBoard[]> {
     const data = await trusteeGraphql<{trustee_event_updates: unknown}>(
         platform,
-        token,
+        token(),
         "query TrusteeEventUpdates { trustee_event_updates }"
     )
     const boards = parseBoards(data.trustee_event_updates)
@@ -234,7 +276,7 @@ export async function runBrowserCycle(
             submit_trustee_action_result: {accepted: boolean} | null
         }>(
             platform,
-            token,
+            token(),
             "mutation SubmitTrusteeActionResult($result: jsonb!) { submit_trustee_action_result(result: $result) { accepted } }",
             {result: {id: action.id, request: action.request, ...outcome}}
         )
@@ -245,7 +287,7 @@ export async function runBrowserCycle(
     for (const report of reports) {
         const data = await trusteeGraphql<{report_trustee_board: {accepted: boolean} | null}>(
             platform,
-            token,
+            token(),
             "mutation ReportTrusteeBoard($report: jsonb!) { report_trustee_board(report: $report) { accepted } }",
             {report}
         )

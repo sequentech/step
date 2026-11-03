@@ -30,6 +30,7 @@ import org.keycloak.events.admin.OperationType;
 import org.keycloak.events.admin.ResourceType;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.KeycloakTransaction;
 import org.keycloak.models.KeycloakTransactionManager;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.RealmProvider;
@@ -66,6 +67,110 @@ class CustomEventListenerProviderEventsTest {
     provider =
         new CustomEventListenerProvider(
             session, new PgmqEventPublisher(sender, PublishFailurePolicy.FAIL_REQUEST));
+  }
+
+  @Test
+  void scanovateContractSurvivesTheRealListenerAndQueueEnvelope() throws Exception {
+    JsonNode fixture =
+        om.readTree(getClass().getResourceAsStream("/scanovate-failure-contract.json"));
+    JsonNode expected = fixture.get("queue_input").deepCopy();
+    String tenant = expected.get("tenant_id").asText();
+    String election = expected.get("election_event_id").asText();
+    String user = expected.get("user_id").asText();
+    String name = "tenant-" + tenant + "-event-" + election;
+    account(realm(name), user, "synthetic-voter");
+    Event event = event(name, EventType.REGISTER_ERROR, user, "scanovate_verification_failed");
+    Map<String, String> details = new HashMap<>();
+    fixture
+        .get("producer_details")
+        .fields()
+        .forEachRemaining(field -> details.put(field.getKey(), field.getValue().asText()));
+    // Even a legacy producer's extra fields must not become a new durable disclosure.
+    details.put("email", "person@example.invalid");
+    details.put("passport", "P123456789");
+    details.put("scanovate_raw_response", "synthetic secret");
+    details.put("code_id", "synthetic-session");
+    details.put("scanovate_http_status", "999");
+    event.setDetails(details);
+    provider.onEvent(event);
+    JsonNode actual = publishedInput();
+    ((com.fasterxml.jackson.databind.node.ObjectNode) actual)
+        .set("body", om.readTree(actual.get("body").asText()));
+    ((com.fasterxml.jackson.databind.node.ObjectNode) expected)
+        .set("body", om.readTree(expected.get("body").asText()));
+    assertEquals(expected, actual);
+    // Rust consumes this frozen envelope: tie every input field to the real Java publisher.
+    JsonNode frozenInput =
+        om.readTree(Base64.getDecoder().decode(fixture.at("/queue_envelope/body").asText()))
+            .get(1)
+            .get("input");
+    ((com.fasterxml.jackson.databind.node.ObjectNode) frozenInput)
+        .set("body", om.readTree(frozenInput.get("body").asText()));
+    assertEquals(actual, frozenInput);
+    JsonNode frozenEnvelope = fixture.get("queue_envelope");
+    assertEquals(
+        frozenEnvelope,
+        om.readTree(
+            new PgmqEventPublisher(sender, PublishFailurePolicy.FAIL_REQUEST)
+                .envelope(
+                    frozenEnvelope.at("/headers/id").asText(),
+                    "enqueue_electoral_log_event",
+                    Base64.getDecoder().decode(frozenEnvelope.get("body").asText()))));
+    assertEquals("missing", actual.at("/body/details/scanovate_check_barcode_valid").asText());
+    for (String forbidden :
+        java.util.List.of(
+            "person@", "P123456789", "synthetic secret", "synthetic-session", "999")) {
+      assertFalse(actual.toString().contains(forbidden), forbidden);
+    }
+  }
+
+  @Test
+  void successfulSignInCaptureRunsAfterCommitAndNeverChangesTheAuditPayload() throws Exception {
+    SigninNetworkDispatcher capture = mock(SigninNetworkDispatcher.class);
+    provider =
+        new CustomEventListenerProvider(
+            session, new PgmqEventPublisher(sender, PublishFailurePolicy.FAIL_REQUEST), capture);
+    account(realm(EVENT_REALM), USER_ID, "voter");
+    KeycloakTransactionManager transaction = session.getTransactionManager();
+    when(transaction.isActive()).thenReturn(true);
+    Event event = event(EVENT_REALM, EventType.LOGIN, USER_ID, null);
+    event.setDetails(Map.of("country", "ES", "user_agent", "Synthetic private browser"));
+    provider.onEvent(event);
+    verifyNoInteractions(capture, sender);
+    ArgumentCaptor<KeycloakTransaction> audit = ArgumentCaptor.forClass(KeycloakTransaction.class);
+    verify(transaction).enlistPrepare(audit.capture());
+    audit.getValue().begin();
+    audit.getValue().commit();
+    String ordinary = publishedInput().toString();
+    assertFalse(ordinary.contains("10.0.0.7"));
+    assertFalse(ordinary.contains("Synthetic private browser"));
+    assertFalse(ordinary.contains("country"));
+    ArgumentCaptor<KeycloakTransaction> after = ArgumentCaptor.forClass(KeycloakTransaction.class);
+    verify(transaction).enlistAfterCompletion(after.capture());
+    after.getValue().begin();
+    after.getValue().commit();
+    ArgumentCaptor<SigninNetworkSender.Evidence> snapshot =
+        ArgumentCaptor.forClass(SigninNetworkSender.Evidence.class);
+    verify(capture).submit(snapshot.capture());
+    assertEquals(USER_ID, snapshot.getValue().voterId());
+    assertEquals("10.0.0.7", snapshot.getValue().ip());
+  }
+
+  @Test
+  void rolledBackSignInDoesNotSendForensicAttribution() {
+    SigninNetworkDispatcher capture = mock(SigninNetworkDispatcher.class);
+    provider =
+        new CustomEventListenerProvider(
+            session, new PgmqEventPublisher(sender, PublishFailurePolicy.FAIL_REQUEST), capture);
+    account(realm(EVENT_REALM), USER_ID, "voter");
+    KeycloakTransactionManager transaction = session.getTransactionManager();
+    when(transaction.isActive()).thenReturn(true);
+    provider.onEvent(event(EVENT_REALM, EventType.LOGIN, USER_ID, null));
+    ArgumentCaptor<KeycloakTransaction> after = ArgumentCaptor.forClass(KeycloakTransaction.class);
+    verify(transaction).enlistAfterCompletion(after.capture());
+    after.getValue().begin();
+    after.getValue().rollback();
+    verifyNoInteractions(capture, sender);
   }
 
   /** A realm whose id is not its name, as in Keycloak. */
@@ -132,7 +237,6 @@ class CustomEventListenerProviderEventsTest {
              "event_time_ms": 1778511600123,
              "details": {
                "client_id": "admin-portal",
-               "ip_address": "10.0.0.7",
                "error": null,
                "auth_method": "openid-connect",
                "auth_type": "code",
@@ -174,7 +278,6 @@ class CustomEventListenerProviderEventsTest {
              "event_time_ms": 1778511600123,
              "details": {
                "client_id": "admin-portal",
-               "ip_address": "10.0.0.7",
                "error": "user_not_found",
                "auth_method": "openid-connect",
                "auth_type": "code",
@@ -219,7 +322,6 @@ class CustomEventListenerProviderEventsTest {
         om.readTree(
             """
             {"client_id": null,
-             "ip_address": "10.0.0.7",
              "error": null,
              "auth_method": null,
              "auth_type": null,
@@ -251,7 +353,6 @@ class CustomEventListenerProviderEventsTest {
         om.readTree(
             """
             {"client_id": "admin-portal",
-             "ip_address": "10.0.0.7",
              "error": null,
              "auth_method": null,
              "auth_type": null,
@@ -305,7 +406,6 @@ class CustomEventListenerProviderEventsTest {
         om.readTree(
             """
             {"client_id": "admin-portal",
-             "ip_address": "10.0.0.7",
              "error": null,
              "auth_method": "openid-connect",
              "auth_type": null,
@@ -380,7 +480,6 @@ class CustomEventListenerProviderEventsTest {
         om.readTree(
             """
             {"client_id": "admin-portal",
-             "ip_address": "10.0.0.7",
              "error": null,
              "auth_method": null,
              "auth_type": null,
@@ -462,8 +561,7 @@ class CustomEventListenerProviderEventsTest {
                  "user_id": "0b9f6c5e-7d3a-4a1e-8c2f-5e4d3c2b1a09",
                  "username": "admin",
                  "client_id": "admin-portal",
-                 "realm": "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
-                 "ip_address": "10.0.0.7"}}}
+                 "realm": "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5"}}}
             """),
         publishedInput());
   }
@@ -480,9 +578,26 @@ class CustomEventListenerProviderEventsTest {
     JsonNode input = publishedInput();
     assertEquals(ELECTION_EVENT, input.get("election_event_id").asText());
     assertEquals(TENANT, input.get("tenant_id").asText());
-    assertEquals("plain text", input.at("/admin_event/representation").asText());
+    assertEquals(AdminRepresentation.REDACTED, input.at("/admin_event/representation").asText());
     assertEquals("not_allowed", input.at("/admin_event/error").asText());
     assertEquals(TENANT_REALM, input.at("/admin_event/actor/realm").asText());
+  }
+
+  @Test
+  void eventRealmAdminAuditDoesNotReintroduceNetworkAttribution() throws Exception {
+    realm(EVENT_REALM);
+    AdminEvent event =
+        adminEvent(
+            EVENT_REALM,
+            "{\"enabled\":true,\"attributes\":{\"area\":[\"north\"],\"ip\":[\"198.51.100.7\"],\"user_agent\":[\"private-browser\"],\"country\":[\"PH\"]}}");
+    provider.onEvent(event, true);
+    JsonNode representation = publishedInput().at("/admin_event/representation");
+    assertTrue(representation.path("enabled").asBoolean());
+    assertEquals("north", representation.at("/attributes/area/0").asText());
+    assertFalse(representation.toString().contains("198.51.100"));
+    assertFalse(representation.toString().contains("private-browser"));
+    assertFalse(representation.toString().contains("PH"));
+    assertTrue(event.getRepresentation().contains("private-browser"));
   }
 
   @Test
@@ -503,8 +618,7 @@ class CustomEventListenerProviderEventsTest {
             {"user_id": "0b9f6c5e-7d3a-4a1e-8c2f-5e4d3c2b1a09",
              "username": null,
              "client_id": "id-of-admin-portal",
-             "realm": "id-of-master",
-             "ip_address": "10.0.0.7"}
+             "realm": "id-of-master"}
             """),
         input.at("/admin_event/actor"));
   }

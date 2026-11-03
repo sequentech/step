@@ -10,6 +10,7 @@
 use super::ballot_box_received::ReceivedStatus;
 use super::ballot_box_seal::is_ballot_box_sealed;
 use super::postgres::PostgresStore;
+use super::privacy::ForensicNetworkRecord;
 use anyhow::{ensure, Context, Result};
 use chrono::{DateTime, Utc};
 use std::time::{Duration, Instant};
@@ -305,6 +306,79 @@ fn partition_suffix(election_event_id: &str) -> Result<String> {
     Ok(suffix)
 }
 
+async fn received_refused_outcome(
+    client: &deadpool_postgres::Object,
+    ballot: &AcceptBallot<'_>,
+    received: &AcceptReceived<'_>,
+) -> Result<AcceptOutcome> {
+    let status = client
+        .query_opt(
+            RECEIVED_STATUS,
+            &[
+                &ballot.election_event_id,
+                &ballot.election_id,
+                &ballot.voter_id,
+                &received.ballot_id,
+                &ballot.ballot_id,
+            ],
+        )
+        .await?
+        .map(|row| row.try_get::<_, String>(0))
+        .transpose()?;
+    match status.as_deref().map(str::parse::<ReceivedStatus>) {
+        Some(Ok(ReceivedStatus::Received)) => refused_outcome(client, ballot).await,
+        Some(Ok(ReceivedStatus::Cast)) => Ok(AcceptOutcome::DuplicateBallotId),
+        Some(Ok(ReceivedStatus::Audited)) | None => Ok(AcceptOutcome::NotReceivable),
+        Some(Err(_)) => Err(anyhow::anyhow!("Unknown received ballot status {status:?}")),
+    }
+}
+
+fn check_forensic_scope(
+    ballot: &AcceptBallot<'_>,
+    record: &ForensicNetworkRecord<'_>,
+) -> Result<()> {
+    ensure!(
+        super::privacy::normalize_privacy_code(record.pseudonym).as_deref()
+            == Some(record.pseudonym),
+        "A forensic pseudonym must be canonical"
+    );
+    ensure!(
+        record.election_event_id == ballot.election_event_id
+            && record.election_id == Some(ballot.election_id)
+            && record.area_id == Some(ballot.area_id)
+            && record.pseudonym == ballot.voter_id
+            && record.event_kind == "cast",
+        "Forensic metadata does not match the accepted ballot"
+    );
+    Ok(())
+}
+
+/// Extend the existing single acceptance statement: forensic data and its
+/// summary outbox are inserted only from a successfully accepted ballot.
+fn acceptance_with_forensics(sql: &str, first: usize) -> String {
+    let delivery = first;
+    let code = first + 1;
+    let ip = first + 2;
+    let country = first + 3;
+    let agent = first + 4;
+    let recorded = first + 5;
+    sql.replace(
+        "SELECT seq, id::text FROM ballot",
+        &format!(
+            ", forensic AS (
+            INSERT INTO sequent_backend.forensic_network_record
+                (election_event_id,election_id,area_id,event_kind,delivery_id,pseudonym,
+                 ballot_id,ip,country,user_agent,recorded_at)
+            SELECT $1::text::uuid,$2::text::uuid,$4::text::uuid,'cast',${delivery},$3,
+                ${code},${ip},${country},${agent},${recorded} FROM ballot
+            ON CONFLICT (election_event_id,delivery_id) DO NOTHING RETURNING id
+        ), forensic_queued AS (
+            INSERT INTO sequent_backend.forensic_summary_pending(record_id) SELECT id FROM forensic
+        ) SELECT seq, id::text FROM ballot"
+        ),
+    )
+}
+
 impl PostgresStore {
     /// Create an election event's ballot box partitions. Idempotent.
     ///
@@ -426,6 +500,9 @@ impl PostgresStore {
                 &[&event],
             )
             .await?;
+        client.execute(
+            "DELETE FROM sequent_backend.ballot_evidence_pending WHERE election_event_id = $1::text::uuid", &[&event],
+        ).await?;
         for parent in [BALLOTS, VOTERS, RECEIVED] {
             let partition = format!("{parent}_{suffix}");
             let detach_pending: Option<bool> = client
@@ -539,30 +616,76 @@ impl PostgresStore {
         let accepted = client.query_opt(&statement, &parameters).await;
         match accepted {
             Ok(Some(row)) => Ok(accepted_outcome(&row)),
-            Ok(None) => {
-                let status = client
-                    .query_opt(
-                        RECEIVED_STATUS,
-                        &[
-                            &ballot.election_event_id,
-                            &ballot.election_id,
-                            &ballot.voter_id,
-                            &received.ballot_id,
-                            &ballot.ballot_id,
-                        ],
-                    )
-                    .await?
-                    .map(|row| row.try_get::<_, String>(0))
-                    .transpose()?;
-                match status.as_deref().map(str::parse::<ReceivedStatus>) {
-                    Some(Ok(ReceivedStatus::Received)) => refused_outcome(&client, ballot).await,
-                    Some(Ok(ReceivedStatus::Cast)) => Ok(AcceptOutcome::DuplicateBallotId),
-                    Some(Ok(ReceivedStatus::Audited)) | None => Ok(AcceptOutcome::NotReceivable),
-                    Some(Err(_)) => {
-                        Err(anyhow::anyhow!("Unknown received ballot status {status:?}"))
-                    }
-                }
-            }
+            Ok(None) => received_refused_outcome(&client, ballot, received).await,
+            Err(error) => error_outcome(error),
+        }
+    }
+
+    /// Cast and capture permitted network data atomically. A failed cast leaves
+    /// neither a forensic record nor a summary-queue entry.
+    pub async fn accept_received_ballot_with_forensics(
+        &self,
+        ballot: &AcceptBallot<'_>,
+        received: &AcceptReceived<'_>,
+        record: &ForensicNetworkRecord<'_>,
+    ) -> Result<AcceptOutcome> {
+        check_forensic_scope(ballot, record)?;
+        ensure!(
+            record.ballot_id == Some(received.ballot_id) && record.recorded_at == received.cast_at,
+            "Forensic receipt metadata does not match the cast"
+        );
+        let client = self.client().await?;
+        let statement = client
+            .prepare_cached(&acceptance_with_forensics(ACCEPT_RECEIVED, 21))
+            .await?;
+        let status = ballot.status.to_string();
+        let mut parameters = accept_parameters(ballot, &status);
+        parameters.extend_from_slice(&[
+            &received.ballot_id,
+            &received.cast_at,
+            &received.cast_signature,
+            &received.cast_receipt_signature,
+            &record.delivery_id,
+            &record.ballot_id,
+            &record.ip,
+            &record.country,
+            &record.user_agent,
+            &record.recorded_at,
+        ]);
+        match client.query_opt(&statement, &parameters).await {
+            Ok(Some(row)) => Ok(accepted_outcome(&row)),
+            Ok(None) => received_refused_outcome(&client, ballot, received).await,
+            Err(error) => error_outcome(error),
+        }
+    }
+
+    pub async fn accept_ballot_with_forensics(
+        &self,
+        ballot: &AcceptBallot<'_>,
+        record: &ForensicNetworkRecord<'_>,
+    ) -> Result<AcceptOutcome> {
+        check_forensic_scope(ballot, record)?;
+        ensure!(
+            record.ballot_id == Some(ballot.ballot_id),
+            "Forensic ballot metadata does not match the cast"
+        );
+        let client = self.client().await?;
+        let statement = client
+            .prepare_cached(&acceptance_with_forensics(ACCEPT, 17))
+            .await?;
+        let status = ballot.status.to_string();
+        let mut parameters = accept_parameters(ballot, &status);
+        parameters.extend_from_slice(&[
+            &record.delivery_id,
+            &record.ballot_id,
+            &record.ip,
+            &record.country,
+            &record.user_agent,
+            &record.recorded_at,
+        ]);
+        match client.query_opt(&statement, &parameters).await {
+            Ok(Some(row)) => Ok(accepted_outcome(&row)),
+            Ok(None) => refused_outcome(&client, ballot).await,
             Err(error) => error_outcome(error),
         }
     }
@@ -688,7 +811,9 @@ impl PostgresStore {
             .client()
             .await?
             .query(
-                "SELECT DISTINCT election_event_id::text FROM ballot_box_pending",
+                "SELECT election_event_id::text FROM ballot_box_pending
+                 UNION SELECT election_event_id::text FROM sequent_backend.ballot_evidence_pending
+                 UNION SELECT election_event_id::text FROM sequent_backend.privacy_message_pending",
                 &[],
             )
             .await
@@ -702,7 +827,9 @@ impl PostgresStore {
             .client()
             .await?
             .query_one(
-                "SELECT count(*) FROM ballot_box_pending WHERE election_event_id = $1::text::uuid",
+                "SELECT (SELECT count(*) FROM ballot_box_pending WHERE election_event_id = $1::text::uuid)
+                     + (SELECT count(*) FROM sequent_backend.ballot_evidence_pending WHERE election_event_id = $1::text::uuid)
+                     + (SELECT count(*) FROM sequent_backend.privacy_message_pending WHERE election_event_id = $1::text::uuid)",
                 &[&election_event_id],
             )
             .await?;

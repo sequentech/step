@@ -21,6 +21,7 @@ const TabStyles = {
         }
     `,
     Content: styled("div")`
+        box-sizing: border-box;
         width: 100%;
         padding: 2rem var(--2, 16px);
     `,
@@ -45,7 +46,11 @@ export const Tabs: React.FC<{
         const linked = tabId ? elements.findIndex((element) => element.id === tabId) : -1
         return linked >= 0 ? linked : Number.parseInt(baseUrl?.searchParams?.get("tabIndex") ?? "0")
     })
-    const activeTab = selectedTab ?? internalSelectedTab
+    const requestedTab = selectedTab ?? internalSelectedTab
+    const validSelection =
+        Number.isInteger(requestedTab) && requestedTab >= 0 && requestedTab < elements.length
+    // Render the fallback immediately, including while a controlled parent updates.
+    const activeTab = validSelection ? requestedTab : 0
     const selectedElement = elements[activeTab]
 
     const handleChange = (event: SyntheticEvent<Element, Event>, newValue: number) => {
@@ -54,11 +59,11 @@ export const Tabs: React.FC<{
     }
 
     React.useEffect(() => {
-        if (elements.length > 0 && activeTab >= elements.length) {
+        if (elements.length > 0 && !validSelection) {
             setInternalSelectedTab(0)
             onSelectedTabChange?.(0)
         }
-    }, [activeTab, elements.length, onSelectedTabChange])
+    }, [validSelection, elements.length, onSelectedTabChange])
 
     const SelectedComponent = selectedElement?.component
 

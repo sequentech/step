@@ -75,6 +75,15 @@ fn derived() -> Vec<AuthPresetDoc> {
                     .map(|key| (*key).to_string())
                     .collect(),
                 parameter_defaults: fallbacks(preset.name),
+                deployment_settings: preset
+                    .deployment_settings
+                    .iter()
+                    .map(|setting| DeploymentSettingDoc {
+                        config_alias: setting.config_alias.to_string(),
+                        key: setting.key.to_string(),
+                        parameter: setting.parameter.to_string(),
+                    })
+                    .collect(),
                 patch: PatchDoc {
                     patch: built.patch,
                     bind_authenticator_config: built
@@ -102,6 +111,19 @@ fn fallbacks(name: &str) -> Map<String, Value> {
             presets::PARAM_SAML_IDP_ALIAS: "client-saml-idp",
             presets::PARAM_SAML_METADATA_URL: "",
             presets::PARAM_SAML_PRINCIPAL_ATTRIBUTE: "username",
+        }) {
+            Value::Object(map) => map,
+            _ => Map::new(),
+        },
+        "biometric_authentication" => match json!({
+            presets::PARAM_SCANOVATE_OCR_URL: presets::SCANOVATE_OCR_URL_DEFAULT,
+            presets::PARAM_SCANOVATE_FACE_MATCH_URL:
+                presets::SCANOVATE_FACE_MATCH_URL_DEFAULT,
+            presets::PARAM_SCANOVATE_FACE_MATCH_MIN_SIMILARITY: "0.67",
+            presets::PARAM_ACCEPTED_PASSPORT_COUNTRIES: "ESP|PHL|ISR|NLD",
+            presets::PARAM_OTP_LENGTH: "6",
+            presets::PARAM_OTP_TTL_SECONDS: "300",
+            presets::PARAM_OTP_SENDER_ID: "Sequent",
         }) {
             Value::Object(map) => map,
             _ => Map::new(),
@@ -141,6 +163,10 @@ fn filled() -> PresetInput {
         // not, and Keycloak's config maps are stringly typed either way.
         (presets::PARAM_OTP_LENGTH.to_string(), json!(8)),
         (presets::PARAM_OTP_TTL_SECONDS.to_string(), json!(600)),
+        (
+            presets::PARAM_SCANOVATE_LIVENESS_URL.to_string(),
+            Value::String("https://login.example.org/biometric".to_string()),
+        ),
     ])
 }
 
@@ -205,6 +231,7 @@ fn an_unknown_placeholder_is_left_where_somebody_will_see_it() {
         optional_parameters: vec![],
         profile_attributes: vec![],
         parameter_defaults: Map::new(),
+        deployment_settings: vec![],
         patch: PatchDoc {
             patch: match json!({"displayName": "{{typo_here}} realm"}) {
                 Value::Object(map) => map,
@@ -233,6 +260,7 @@ fn a_placeholder_in_a_key_is_substituted_too() {
         optional_parameters: vec!["attribute".to_string()],
         profile_attributes: vec![],
         parameter_defaults: Map::new(),
+        deployment_settings: vec![],
         patch: PatchDoc {
             patch: Map::new(),
             bind_authenticator_config: None,

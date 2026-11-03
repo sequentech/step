@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_election_event::process_export_zip;
+use crate::services::export::integration_secrets::IntegrationSecretsExport;
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
 use anyhow::Context;
@@ -29,12 +30,36 @@ pub struct ExportOptions {
     pub applications: bool,
     pub tally: bool,
     pub include_certificates: bool,
+    /// The caller's explicit request to include the authenticator integration
+    /// secrets. harvest turns it into `integration_secrets` only for a
+    /// password-encrypted export by a holder of `integration-secret-read`.
+    pub include_integration_secrets: bool,
+    /// Whether the archive carries them. Set by the server only, and only
+    /// honoured with the task's persisted grant.
+    pub integration_secrets: IntegrationSecretsExport,
 }
 
 impl ExportOptions {
     pub fn validate_protocol_archive(&self) -> anyhow::Result<()> {
         anyhow::ensure!(!self.tally || self.bulletin_board,
             "Tally export requires bulletin_board so its native key and protocol history can be restored");
+        Ok(())
+    }
+
+    /// An archive with integration secrets is always encrypted with the
+    /// one-time password handed to the requester.
+    pub fn validate_integration_secrets(&self) -> anyhow::Result<()> {
+        if self.integration_secrets == IntegrationSecretsExport::OMITTED {
+            return Ok(());
+        }
+        let has_password = self
+            .password
+            .as_deref()
+            .is_some_and(|password| !password.is_empty());
+        anyhow::ensure!(
+            self.encrypt_with_password && self.is_encrypted && has_password,
+            "Exporting integration secrets requires password encryption"
+        );
         Ok(())
     }
 }
@@ -186,8 +211,54 @@ async fn export_election_event_impl(
         return Err(Error::String(error.to_string()));
     }
 
+    // The queue message may ask for integration secrets; only the persisted
+    // grant of the authenticated request allows them.
+    if let Err(error) = export_config.validate_integration_secrets().and_then(|()| {
+        validate_integration_secrets_grant(
+            &persisted_task,
+            &document_id,
+            export_config.integration_secrets,
+        )
+    }) {
+        drop(hasura_transaction);
+        update_export_fail(&persisted_task, &error.to_string()).await?;
+        return Err(Error::String(error.to_string()));
+    }
+
     // Process the export
-    match process_export_zip(&tenant_id, &election_event_id, &document_id, export_config).await {
+    let authorization = async {
+        use crate::services::participation_authorization::{
+            export_authorization, ParticipationCommand,
+        };
+        let grant =
+            export_authorization(&hasura_transaction, &tenant_id, &persisted_task.id).await?;
+        grant.validate(
+            &tenant_id,
+            &election_event_id,
+            &grant.actor_id,
+            ParticipationCommand::EventArchive,
+            &document_id,
+        )?;
+        Ok::<_, anyhow::Error>(grant)
+    }
+    .await;
+    let authorization = match authorization {
+        Ok(grant) => grant,
+        Err(error) => {
+            drop(hasura_transaction);
+            update_export_fail(&persisted_task, &error.to_string()).await?;
+            return Err(Error::String(error.to_string()));
+        }
+    };
+    match process_export_zip(
+        &tenant_id,
+        &election_event_id,
+        &document_id,
+        export_config,
+        &authorization.election_ids,
+    )
+    .await
+    {
         Ok(_) => (),
         Err(err) => {
             let err_str = format!("Failed to export election event data: {err:?}");
@@ -327,6 +398,59 @@ mod tests {
         };
 
         assert!(validate_voter_secret_export(&export_config).is_ok());
+    }
+
+    #[test]
+    fn integration_secrets_are_only_exported_password_encrypted() {
+        let included = ExportOptions {
+            password: Some("generated-password".to_string()),
+            is_encrypted: true,
+            encrypt_with_password: true,
+            integration_secrets: IntegrationSecretsExport::INCLUDED,
+            ..ExportOptions::default()
+        };
+        // A configuration-only archive: no voters or files needed.
+        assert!(included.validate_integration_secrets().is_ok());
+        for config in [
+            ExportOptions {
+                password: None,
+                ..included.clone()
+            },
+            ExportOptions {
+                password: Some(String::new()),
+                ..included.clone()
+            },
+            ExportOptions {
+                encrypt_with_password: false,
+                ..included.clone()
+            },
+            ExportOptions {
+                is_encrypted: false,
+                ..included.clone()
+            },
+        ] {
+            assert!(
+                config.validate_integration_secrets().is_err(),
+                "{:?}",
+                config.integration_secrets
+            );
+        }
+        assert!(ExportOptions::default()
+            .validate_integration_secrets()
+            .is_ok());
+    }
+
+    #[test]
+    fn the_queue_cannot_ask_for_integration_secrets_by_itself() {
+        // `include_integration_secrets` is only the caller's request; the
+        // server's decision defaults to omitted when a message lacks it.
+        let message: ExportOptions =
+            serde_json::from_value(serde_json::json!({"include_integration_secrets": true}))
+                .unwrap();
+        assert_eq!(
+            message.integration_secrets,
+            IntegrationSecretsExport::OMITTED
+        );
     }
 
     #[test]

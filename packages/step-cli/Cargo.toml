@@ -7,6 +7,8 @@ name = "step-cli"
 version = "0.1.0"
 edition = "2021"
 default-run = "step-cli"
+# tests/cli.rs gathers the integration tests into one binary.
+autotests = false
 
 [dependencies]
 protocol-board = { path = "../protocol-board" }
@@ -58,3 +60,7 @@ path = "src/main.rs"
 tempfile = "3"
 # builds the test certificates of the verify-package tests
 rcgen = { version = "0.14", default-features = false, features = ["crypto", "ring", "pem", "x509-parser"] }
+
+[[test]]
+name = "cli"
+path = "tests/cli.rs"

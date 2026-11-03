@@ -88,10 +88,16 @@ def profiles(directory, profdata):
 
 
 def package_directories(payload):
-    """Map each measured packages/<package>/src tree to its Cargo package name."""
+    """Map each measured packages/<package>/src tree to its Cargo package name.
+
+    Files outside the checkout, such as a dependency's generic code compiled
+    into an instrumented binary, belong to no measured package.
+    """
     found = {}
     for entry in payload["data"][0]["files"]:
         path = Path(entry["filename"]).resolve()
+        if not path.is_relative_to(ROOT):
+            continue
         for parent in path.parents:
             if (
                 path.is_relative_to(parent / "src")

@@ -4,10 +4,12 @@
 package sequent.keycloak.voter_enrollment;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -31,6 +33,7 @@ import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.mockito.ArgumentCaptor;
+import sequent.keycloak.authenticator.messaging.MessagingAttributes;
 
 class StoreUserDataNotesTest {
 
@@ -39,11 +42,13 @@ class StoreUserDataNotesTest {
           "code",
           "ttl",
           "one-time-link.visited",
+          "code-paced",
           "Email verified",
           "verificationCompleted",
           "verificationStatus",
           "verificationRejectionReason",
           "verificationMismatchedFields",
+          "emailInUseRejection",
           "fields_match");
 
   /**
@@ -98,6 +103,75 @@ class StoreUserDataNotesTest {
     verify(authSession).removeAuthNote("userId");
     AUTHENTICATOR_NOTES.forEach(
         note -> verify(authSession, never()).setAuthNote(eq(note), anyString()));
+  }
+
+  /**
+   * Only an identity verification step sets how the identity was established: the browser can't
+   * claim it, and data typed again drops what an earlier verification established.
+   */
+  @Test
+  void theFormCanNotSetTheIdentityMethodAndDropsAnEarlierOne() {
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+    formData.add(UserModel.FIRST_NAME, "Ana");
+    formData.add(LookupAndUpdateUser.IDENTITY_METHOD, "VERIFIED");
+
+    AuthenticationSessionModel authSession = storeNotes(formData);
+
+    verify(authSession, never()).setAuthNote(eq(LookupAndUpdateUser.IDENTITY_METHOD), anyString());
+    verify(authSession).removeAuthNote(LookupAndUpdateUser.IDENTITY_METHOD);
+    verify(authSession).setAuthNote("keyUserdata", UserModel.FIRST_NAME);
+    assertFalse(
+        Utils.isFormNote(
+            LookupAndUpdateUser.IDENTITY_METHOD, Set.of(LookupAndUpdateUser.IDENTITY_METHOD)));
+  }
+
+  /**
+   * The form submitted again (after Back) may carry another email, number or channel: what a code
+   * verified for the earlier contact, and the code or link itself, no longer holds. The resend
+   * timer and the wrong-code count are kept, so a new submit neither sends at once nor resets the
+   * limit.
+   */
+  @Test
+  void aNewFormForgetsWhatAnEarlierCodeVerified() {
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+    formData.add(UserModel.EMAIL, "other@example.test");
+
+    AuthenticationSessionModel authSession = storeNotes(formData);
+
+    for (String note :
+        List.of(
+            sequent.keycloak.authenticator.Utils.CODE,
+            sequent.keycloak.authenticator.Utils.OTL_VISITED,
+            sequent.keycloak.authenticator.Utils.EMAIL_VERIFIED,
+            MessagingAttributes.NOTE_VERIFIED_CHANNEL,
+            MessagingAttributes.NOTE_VERIFIED_DESTINATION,
+            MessagingAttributes.NOTE_VERIFIED_MESSENGER_ID,
+            MessagingAttributes.NOTE_VERIFIED_MESSENGER_PAGE,
+            MessagingAttributes.NOTE_CODE_CHANNEL,
+            MessagingAttributes.NOTE_CODE_DESTINATION,
+            MessagingAttributes.NOTE_MESSENGER_REFERENCE)) {
+      verify(authSession).removeAuthNote(note);
+    }
+    verify(authSession, never()).removeAuthNote(sequent.keycloak.authenticator.Utils.CODE_TTL);
+    verify(authSession, never())
+        .removeAuthNote(startsWith(sequent.keycloak.authenticator.Utils.CODE_ATTEMPTS));
+  }
+
+  @Test
+  void aNewFormResetsEnteredDiagnosticsAndCannotForgeTheSnapshot() {
+    String snapshot = "scanovate-diagnostic-entered";
+    String field = snapshot + ".entered_document_type";
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+    formData.add(UserModel.FIRST_NAME, "Synthetic");
+    formData.add(field, "passport");
+    formData.add(snapshot, "v1");
+    AuthenticationSessionModel session = storeNotes(formData);
+    verify(session).removeAuthNote(snapshot);
+    verify(session).removeAuthNote(field);
+    verify(session).removeAuthNote("scanovate-diagnostic-attempt");
+    verify(session, never()).setAuthNote(eq(field), anyString());
+    verify(session, never()).setAuthNote(eq(snapshot), anyString());
+    assertFalse(Utils.isFormNote(field, Set.of(field)));
   }
 
   /** An empty stored field list reads back as no fields, not as one field with an empty name. */

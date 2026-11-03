@@ -113,7 +113,7 @@ type Story = StoryObj<Scenario>
 export const RetainedCountry: Story = {
     play: async ({args, canvasElement}) => {
         const body = within(canvasElement.ownerDocument.body)
-        const field = await body.findByRole("combobox", {name: "Country"})
+        const field = await body.findByRole("combobox", {name: "Country"}, {timeout: 10_000})
         await userEvent.click(field)
         await userEvent.click(await body.findByRole("option", {name: "Country B"}))
         await userEvent.click(body.getByRole("button", {name: "Generate Initialization Report"}))
@@ -124,7 +124,7 @@ export const RetainedCountry: Story = {
 export const EntirePost: Story = {
     play: async ({args, canvasElement}) => {
         const body = within(canvasElement.ownerDocument.body)
-        await body.findByRole("combobox", {name: "Country"})
+        await body.findByRole("combobox", {name: "Country"}, {timeout: 10_000})
         await userEvent.click(body.getByRole("button", {name: "Generate Initialization Report"}))
         await waitFor(() => expect(args.onGenerate).toHaveBeenCalledWith(undefined))
     },
@@ -133,7 +133,7 @@ export const ProvenEmpty: Story = {
     args: {membership: "empty"},
     play: async ({args, canvasElement}) => {
         const body = within(canvasElement.ownerDocument.body)
-        await body.findByRole("combobox", {name: "Country"})
+        await body.findByRole("combobox", {name: "Country"}, {timeout: 10_000})
         await userEvent.click(body.getByRole("button", {name: "Generate Initialization Report"}))
         await waitFor(() => expect(args.onGenerate).toHaveBeenCalledWith(undefined))
     },

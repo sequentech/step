@@ -6,6 +6,7 @@ import {Box, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import type {TFunction} from "i18next"
 import type {IScheduledOutcomeExplanation, IScheduledOutcomeValue} from "@sequentech/ui-core"
+import {readinessCheckLines} from "./readinessLog"
 import {logDetails, outcomeChange, outcomeExplanation, type ILogMessage} from "./logMessage"
 
 /** A check or next-step value: an i18n key with its parameters. */
@@ -190,6 +191,7 @@ const TENANT_RENDERERS: Record<string, Renderer> = {
  * keyed by statement kind. Other kinds show only their description.
  */
 const RENDERERS: Record<string, Renderer> = {
+    ReadinessVerified: (t, _details, message) => readinessCheckLines(t, message),
     ...TENANT_RENDERERS,
     ScheduledOutcomeChanged: (t, details) => {
         const change = outcomeChange(details)

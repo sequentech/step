@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         startup: {
             error: "No se pudo iniciar el portal de votación. Inténtelo de nuevo.",
             retry: "Intentar de nuevo",
@@ -83,6 +84,11 @@ const spanishTranslation: TranslationType = {
                 description:
                     "Esta votación se ha resuelto por aclamación. Sus candidaturas resultan elegidas sin votación, por lo que no se puede seleccionar ninguna opción ni se registra ningún voto.",
             },
+            paperBallot: {
+                voteForNoMoreThan_one: "Vote por no más de {{count}}",
+                voteForNoMoreThan_many: "Vote por no más de {{count}}",
+                voteForNoMoreThan_other: "Vote por no más de {{count}}",
+            },
         },
         votingScreen: {
             backButton: "Atrás",
@@ -141,6 +147,11 @@ const spanishTranslation: TranslationType = {
                 "Cuando esté listo, emita su papeleta para que quede registrada oficialmente. O elija auditar primero para confirmar que fue correctamente capturada y cifrada",
         },
         reviewScreen: {
+            castRecovery: {
+                uncertain:
+                    "No se ha confirmado el resultado del envío. Puede reintentar la misma solicitud o comprobar el identificador de la papeleta antes de empezar de nuevo.",
+                checkBallot: "Comprobar papeleta",
+            },
             acclamation: {
                 title: "Resuelto por aclamación",
                 helpDialog: {
@@ -364,6 +375,9 @@ const spanishTranslation: TranslationType = {
             demoQRText: "El rastreador de papeletas está deshabilitado en modo de demostración",
         },
         auditScreen: {
+            confirmingAudit: "Confirmando que esta papeleta ya no se puede emitir…",
+            auditUnavailable:
+                "No se ha podido auditar la papeleta. Su contenido no se ha revelado. Inténtelo de nuevo.",
             printButton: "Imprimir",
             restartButton: "Iniciar votación",
             title: "Compruebe su papeleta",

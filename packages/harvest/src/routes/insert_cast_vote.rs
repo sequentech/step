@@ -88,6 +88,7 @@ pub async fn insert_cast_vote(
                             .clone()
                             .map(|country_code| country_code.to_string()),
                         username: &claims.preferred_username,
+                        user_agent: &user_info.user_agent,
                     },
                 )
                 .await
@@ -116,16 +117,16 @@ pub async fn insert_cast_vote(
         Err(e) => Err(e),
     };
 
-    let (inserted_cast_vote, pending_cast_vote_id) = insert_result
-    .map_err(|cast_vote_err| {
-        let duration = start.elapsed();
-        info!(
-            "insert-cast-vote took {} ms to complete but failed with error={cast_vote_err:?}",
-            duration.as_millis()
-        );
+    let (inserted_cast_vote, pending_cast_vote_id) =
+        insert_result.map_err(|cast_vote_err| {
+            let duration = start.elapsed();
+            info!(
+                "insert-cast-vote took {} ms to complete but was refused",
+                duration.as_millis()
+            );
 
-        cast_vote_error_response(cast_vote_err)
-    })?;
+            cast_vote_error_response(cast_vote_err)
+        })?;
 
     // If there is no error:
     let duration = start.elapsed();

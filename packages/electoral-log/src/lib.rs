@@ -1,19 +1,25 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+#[cfg(feature = "native")]
 pub mod adapters;
 pub mod domain;
 pub mod messages;
+#[cfg(feature = "native")]
 pub mod ports;
+#[cfg(feature = "native")]
 pub mod proofs;
 pub mod seal;
+#[cfg(feature = "native")]
 pub mod service;
+#[cfg(feature = "native")]
 pub mod util;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::messages::newtypes::Timestamp;
 pub use domain::*;
+#[cfg(feature = "native")]
 pub use service::BoardClient;
 
 pub fn get_schema_version() -> String {

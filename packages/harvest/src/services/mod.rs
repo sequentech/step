@@ -20,3 +20,5 @@ pub mod signing_http;
 pub mod tenant_activity;
 pub mod user_tasks;
 pub mod worker;
+
+pub mod ballot_log_cache;

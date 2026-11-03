@@ -143,7 +143,7 @@ pub fn parse_output_formats(
 
 impl ReportType {
     /// Every report type, in the order a screen lists them.
-    pub const ALL: [ReportType; 8] = [
+    pub const ALL: [ReportType; 9] = [
         ReportType::ELECTORAL_RESULTS,
         ReportType::PARTICIPATION_REPORT,
         ReportType::ACTIVITY_LOGS,
@@ -152,6 +152,7 @@ impl ReportType {
         ReportType::BALLOT_RECEIPT,
         ReportType::MANUAL_VERIFICATION,
         ReportType::CREDENTIALS,
+        ReportType::TRANSMISSION_REPORT,
     ];
 
     /// The formats a report of this type can be generated in, the first
@@ -170,7 +171,8 @@ impl ReportType {
             | ReportType::BALLOT_RECEIPT
             | ReportType::MANUAL_VERIFICATION
             | ReportType::PARTICIPATION_REPORT
-            | ReportType::CREDENTIALS => &[ReportFormat::Pdf],
+            | ReportType::CREDENTIALS
+            | ReportType::TRANSMISSION_REPORT => &[ReportFormat::Pdf],
         }
     }
 
@@ -264,6 +266,7 @@ pub enum ReportType {
     MANUAL_VERIFICATION,
     PARTICIPATION_REPORT,
     CREDENTIALS,
+    TRANSMISSION_REPORT,
 }
 
 #[cfg(test)]
@@ -292,6 +295,19 @@ mod tests {
             &[ReportFormat::Pdf, ReportFormat::Csv, ReportFormat::Sql]
         );
         assert_eq!(ReportType::BALLOT_RECEIPT.formats(), &[ReportFormat::Pdf]);
+        assert_eq!(
+            ReportType::TRANSMISSION_REPORT.formats(),
+            &[ReportFormat::Pdf]
+        );
+    }
+
+    #[test]
+    fn the_transmission_report_is_listed_among_the_report_types() {
+        assert!(ReportType::ALL.contains(&ReportType::TRANSMISSION_REPORT));
+        assert_eq!(
+            ReportType::from_str("TRANSMISSION_REPORT"),
+            Ok(ReportType::TRANSMISSION_REPORT)
+        );
     }
 
     #[test]

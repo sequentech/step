@@ -232,6 +232,37 @@ async fn a_token_signed_by_its_tenant_realm_is_verified() {
     }
 }
 
+#[test]
+fn each_refusal_has_its_own_reason_and_only_unavailable_keys_are_retried() {
+    use ServiceTokenRefusal::*;
+    let refusals = [
+        MISSING_TOKEN,
+        MALFORMED_TOKEN,
+        UNSUPPORTED_ALGORITHM,
+        NO_TENANT,
+        KEYS_UNAVAILABLE,
+        UNKNOWN_KEY,
+        BAD_SIGNATURE,
+        EXPIRED,
+        NOT_YET_VALID,
+        NOT_AN_ACCESS_TOKEN,
+        WRONG_CLIENT,
+        WRONG_ISSUER,
+        NOT_A_SERVICE_ACCOUNT,
+    ];
+    let reasons: std::collections::HashSet<_> =
+        refusals.iter().map(|refusal| refusal.reason()).collect();
+    assert_eq!(reasons.len(), refusals.len());
+    for refusal in refusals {
+        let expected = if refusal == KEYS_UNAVAILABLE {
+            Status::ServiceUnavailable
+        } else {
+            Status::Unauthorized
+        };
+        assert_eq!(refusal.status(), expected, "{refusal:?}");
+    }
+}
+
 #[rocket::async_test]
 async fn tokens_are_refused_for_one_reason_each() {
     use ServiceTokenRefusal::*;

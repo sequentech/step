@@ -228,3 +228,37 @@ fn a_malformed_voter_key_cannot_be_signed_for() {
         Err(CastVoteError::BallotSignFailed(_))
     ));
 }
+
+#[test]
+fn private_received_envelope_drops_unsigned_identity_fields_without_changing_hash() {
+    use sequent_core::ballot::{HashableBallot, SignedHashableBallot};
+    use sequent_core::encrypt::hash_ballot;
+    use sequent_core::types::vote_privacy::BallotIdentity;
+    let raw=serde_json::json!({"version":sequent_core::ballot::TYPES_VERSION,
+        "issue_date":"2028-05-08T03:00:00Z","contests":[],"config":"published-style", "ballot_style_hash":"published-hash",
+        "voter_signing_pk":"public-key","voter_ballot_signature":"signature",
+        "voter_id":"private-account","ip":"198.51.100.7","user_agent":"private device"}).to_string();
+    let before: SignedHashableBallot = serde_json::from_str(&raw).unwrap();
+    let stored = storage_ballot_content(&raw, BallotIdentity::Pseudonym, false).unwrap();
+    let after: SignedHashableBallot = serde_json::from_str(&stored).unwrap();
+    assert_eq!(before, after);
+    assert_eq!(
+        hash_ballot(&HashableBallot::try_from(&before).unwrap()).unwrap(),
+        hash_ballot(&HashableBallot::try_from(&after).unwrap()).unwrap()
+    );
+    for forbidden in ["voter_id", "198.51.100.7", "private-account", "user_agent"] {
+        assert!(!stored.contains(forbidden));
+    }
+    assert_eq!(
+        storage_ballot_content(&raw, BallotIdentity::VoterId, false).unwrap(),
+        raw
+    );
+    let mut multi: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    multi["contests"] = serde_json::json!("opaque encrypted contests");
+    let clean =
+        storage_ballot_content(&multi.to_string(), BallotIdentity::Pseudonym, true).unwrap();
+    let typed: sequent_core::multi_ballot::SignedHashableMultiBallot =
+        serde_json::from_str(&clean).unwrap();
+    assert_eq!(typed.contests, "opaque encrypted contests");
+    assert!(!clean.contains("private-account"));
+}

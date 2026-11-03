@@ -66,13 +66,14 @@ pub async fn receive_ballot(
                     .clone()
                     .map(|country_code| country_code.to_string()),
                 username: &claims.preferred_username,
+                        user_agent: &user_info.user_agent,
             },
         )
         .await
         .map_err(|receive_err| {
             let elapsed_ms = start.elapsed().as_millis();
             info!(
-                "receive-ballot took {elapsed_ms} ms to complete but failed with error={receive_err:?}"
+                "receive-ballot took {elapsed_ms} ms to complete but was refused"
             );
             cast_vote_error_response(receive_err)
         })?;

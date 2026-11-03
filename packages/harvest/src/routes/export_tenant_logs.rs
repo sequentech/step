@@ -80,7 +80,8 @@ pub fn tenant_export_request(
     Ok(request)
 }
 
-/// Exports the caller's tenant log. Without `tenant-logs-export` it refuses.
+/// Exports the caller's tenant log. Without `tenant-logs-export` it refuses,
+/// and without `tenant-logs-read` too: an export holds what the log holds.
 #[instrument(skip(claims))]
 #[post("/export-tenant-logs", format = "json", data = "<input>")]
 pub async fn export_tenant_logs_route(
@@ -92,7 +93,10 @@ pub async fn export_tenant_logs_route(
         &claims,
         false,
         Some(tenant_id.clone()),
-        vec![Permissions::TENANT_LOGS_EXPORT],
+        vec![
+            Permissions::TENANT_LOGS_EXPORT,
+            Permissions::TENANT_LOGS_READ,
+        ],
     )
     .map_err(|(_, reason)| (Status::Forbidden, reason))?;
     let request = tenant_export_request(&claims, &input)?;

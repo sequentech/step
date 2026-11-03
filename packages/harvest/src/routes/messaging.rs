@@ -7,6 +7,7 @@
 //! account and event actions. No route here is public: providers reach
 //! harvest only through the `messaging-webhooks` component.
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
 use crate::services::otp_capacity::{Admitted, Arrival};
@@ -72,6 +73,7 @@ use windmill::services::messaging::links::{
 use windmill::services::messaging::webhooks::{
     aws_events, meta_callback, meta_subscription, viber_events, WebhookOutcome,
 };
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 use windmill::tasks::send_template::find_voter;
 
 type RouteError = (Status, String);
@@ -940,6 +942,7 @@ pub async fn upsert_messaging_account(
     };
     let mut client = db_client(services).await?;
     let tx = client.transaction().await.map_err(|e| internal(e.into()))?;
+    audit::act_for(&tx, &claims).await?;
     let reentered: BTreeSet<CredentialName> = values.keys().copied().collect();
     let id = input.id.as_deref().map(parse_uuid).transpose()?;
     // Credentials typed to replace stored ones are checked first, with the
@@ -1018,6 +1021,7 @@ pub async fn upsert_messaging_account(
             .map_err(internal)?;
     }
     tx.commit().await.map_err(|e| internal(e.into()))?;
+    kick_audit_log_outbox();
     // After the answer, not inside the Hasura action (R5-18): an identity
     // change left the account unchecked, and it is checked in the
     // background, in its own transaction; a check that can't run leaves it
@@ -1180,6 +1184,7 @@ pub async fn delete_messaging_account(
     let id = parse_uuid(&body.id)?;
     let mut client = db_client(services).await?;
     let tx = client.transaction().await.map_err(|e| internal(e.into()))?;
+    audit::act_for(&tx, &claims).await?;
     match delete_account(&tx, &tenant_id, &id)
         .await
         .map_err(internal)?
@@ -1194,6 +1199,7 @@ pub async fn delete_messaging_account(
         }
     }
     tx.commit().await.map_err(|e| internal(e.into()))?;
+    kick_audit_log_outbox();
     Ok(Json(MessagingAccountOutput {
         id: id.to_string(),
         callback_url: None,
@@ -1398,6 +1404,7 @@ pub async fn replace_messaging_account_credentials(
     let values = parse_credentials(input.credentials)?;
     let mut client = db_client(services).await?;
     let tx = client.transaction().await.map_err(|e| internal(e.into()))?;
+    audit::act_for(&tx, &claims).await?;
     // Typed credentials that replace stored ones are saved only when the
     // check with them connects; otherwise the stored ones stay (BC-F11).
     let replaced = match replace_checked_credentials(
@@ -1434,6 +1441,7 @@ pub async fn replace_messaging_account_credentials(
         false => None,
     };
     tx.commit().await.map_err(|e| internal(e.into()))?;
+    kick_audit_log_outbox();
     let (report_username, report_password) = match report {
         Some(generated) => (Some(generated.username), Some(generated.password)),
         None => (None, None),
@@ -1468,6 +1476,7 @@ pub async fn check_messaging_account(
     let id = parse_uuid(&body.id)?;
     let mut client = db_client(services).await?;
     let tx = client.transaction().await.map_err(|e| internal(e.into()))?;
+    audit::act_for(&tx, &claims).await?;
     let checked =
         check_account(&tx, &tenant_id, &id, &dispatcher().await?.endpoints)
             .await
@@ -1490,6 +1499,7 @@ pub async fn check_messaging_account(
             )
         });
     tx.commit().await.map_err(|e| internal(e.into()))?;
+    kick_audit_log_outbox();
     Ok(Json(CheckOutput {
         status,
         callback_url: readiness
@@ -1629,6 +1639,7 @@ pub async fn update_event_messaging_config(
     let event_id = parse_uuid(&input.election_event_id)?;
     let mut client = db_client(services).await?;
     let tx = client.transaction().await.map_err(|e| internal(e.into()))?;
+    audit::act_for(&tx, &claims).await?;
     let projection = match save_event_messaging_config_as(
         &tx,
         &tenant_id,
@@ -1665,6 +1676,7 @@ pub async fn update_event_messaging_config(
     .await
     .map_err(internal)?;
     tx.commit().await.map_err(|e| internal(e.into()))?;
+    kick_audit_log_outbox();
     // Who is offered what changed: the voter counts are recounted.
     crate::routes::messaging_insights::recount_after_save(
         services, &tenant_id, &event_id,

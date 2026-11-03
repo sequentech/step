@@ -4,11 +4,10 @@
 
 import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import {Box, CircularProgress} from "@mui/material"
+import {StandardDashboardContent, StandardDashboardCharts} from "../DashboardContent"
 import {useQuery} from "@apollo/client"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
-import {styled} from "@mui/material/styles"
 import {Stats} from "./Stats"
-import {useTranslation} from "react-i18next"
 import {daysBefore, formatDate, getToday} from "../charts/Charts"
 import {VotesPerDay} from "../charts/VotesPerDay"
 import {
@@ -30,19 +29,11 @@ import {useGetList, useRecordContext} from "react-admin"
 import {EVotingStatus, IElectionEventStatistics, IElectionEventStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT_STATS} from "@/queries/GetElectionEventStats"
-import {getAuthUrl} from "@/services/UrlGeneration"
-import {ListIpAddress} from "@/resources/ElectionEvent/ListIpAddress"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
 import {IKeysCeremonyExecutionStatus} from "@/services/KeyCeremony"
 import {ETallyType} from "@/types/ceremonies"
-
-const Container = styled(Box)`
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-`
 
 interface DashboardElectionEventProps {
     refreshRef: any
@@ -60,20 +51,13 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
         DEFAULT_VOTES_TIME_SELECTION
     )
 
-    const cardWidth = 470
     const cardHeight = 300
     const endDate = getToday()
     const startDate = daysBefore(endDate, 6)
-    const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
-    const showIpAdresses = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.ADMIN_IP_ADDRESS_VIEW
-    )
 
     // Ensure required parameters are set before running the query.
     const canQuery = Boolean(tenantId && record?.id)
@@ -193,45 +177,13 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
         setSelected(Math.max(...data))
     }, [record?.status, keysCeremonies?.list_keys_ceremony?.items, tallySessions])
 
-    const loginUrl = useMemo(() => {
-        return getAuthUrl(
-            globalSettings.VOTING_PORTAL_URL,
-            tenantId ?? "",
-            record?.id ?? "",
-            "login"
-        )
-    }, [globalSettings.VOTING_PORTAL_URL, tenantId, record?.id])
-
-    const enrollUrl = useMemo(() => {
-        return getAuthUrl(
-            globalSettings.VOTING_PORTAL_URL,
-            tenantId ?? "",
-            record?.id ?? "",
-            "enroll"
-        )
-    }, [globalSettings.VOTING_PORTAL_URL, tenantId, record?.id])
-
-    const kioskEnrollUrl = useMemo(() => {
-        return getAuthUrl(
-            globalSettings.KIOSK_VOTING_PORTAL_URL?.trim() || globalSettings.VOTING_PORTAL_URL,
-            tenantId ?? "",
-            record?.id ?? "",
-            "login"
-        )
-    }, [
-        globalSettings.KIOSK_VOTING_PORTAL_URL,
-        globalSettings.VOTING_PORTAL_URL,
-        tenantId,
-        record?.id,
-    ])
-
     if (loading) {
         return <CircularProgress />
     }
 
     return (
         <>
-            <Box sx={{width: 1024, marginX: "auto"}} className="dashboard">
+            <StandardDashboardContent className="dashboard">
                 <BreadCrumbSteps
                     labels={[
                         "electionEventBreadcrumbSteps.created", // 0
@@ -257,51 +209,21 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
 
                     <Stats metrics={metrics} />
 
-                    <Container className="dashboard-container">
+                    <StandardDashboardCharts className="dashboard-container">
                         <VotesPerDay
                             data={(dataStats?.stats?.votes_per_day as CastVotesPerDay[]) ?? null}
                             unavailable={!!error}
-                            width={cardWidth}
                             height={cardHeight}
                             selection={votesTimeSelection}
                             onSelectionChange={setVotesTimeSelection}
                         />
                         <VotersByChannel
                             data={toVotersByChannelRows(dataStats?.stats?.voters_by_channel)}
-                            width={cardWidth}
                             height={cardHeight}
                         />
-                    </Container>
-                    {showIpAdresses && record?.id && <ListIpAddress />}
+                    </StandardDashboardCharts>
                 </Box>
-                <Box
-                    sx={{
-                        display: "flex",
-                        justifyContent: "center",
-                        gap: "20px",
-                        paddingTop: "10px",
-                    }}
-                >
-                    <a href={loginUrl ?? ""} target="_blank">
-                        {t("dashboard.voterLoginURL")}
-                    </a>
-                    <p>|</p>
-                    <a href={enrollUrl ?? ""} target="_blank">
-                        {t("dashboard.voterEnrollURL")}
-                    </a>
-                    {record?.voting_channels?.kiosk === true && (
-                        <>
-                            <p>|</p>
-                            <a
-                                href={kioskEnrollUrl ? `${kioskEnrollUrl}?kiosk` : ""}
-                                target="_blank"
-                            >
-                                {t("dashboard.voterEnrollKioskURL")}
-                            </a>
-                        </>
-                    )}
-                </Box>
-            </Box>
+            </StandardDashboardContent>
         </>
     )
 }

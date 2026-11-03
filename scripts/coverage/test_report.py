@@ -109,6 +109,16 @@ class FunctionExportTests(unittest.TestCase):
 
 
 class HarvestPolicyTests(unittest.TestCase):
+    def test_first_signin_fixture_has_the_voter_group_used_by_ordinary_ci(self):
+        root = Path(__file__).resolve().parents[2]
+        policy = tomllib.loads((root / "scripts/coverage/profiles.toml").read_text())
+        self.assertEqual(
+            policy["profiles"]["harvest"]["test_environment"].get(
+                "KEYCLOAK_VOTER_GROUP_NAME"
+            ),
+            "voter",
+        )
+
     def test_mounted_manual_verification_route_remains_measured(self):
         root = Path(__file__).resolve().parents[2]
         package = root / "packages/harvest"

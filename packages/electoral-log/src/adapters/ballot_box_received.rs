@@ -7,7 +7,8 @@
 
 use super::ballot_box_reads::{BallotContent, BallotIdMatch, StoredBallot};
 use super::postgres::PostgresStore;
-use anyhow::{anyhow, Context, Result};
+use super::privacy::BallotIdentity;
+use anyhow::{anyhow, ensure, Context, Result};
 use chrono::{DateTime, Duration, Utc};
 use strum_macros::{Display, EnumString};
 use tokio_postgres::Row;
@@ -25,6 +26,21 @@ pub enum ReceivedStatus {
     Cast,
     /// Audited by the voter: it is never cast.
     Audited,
+}
+
+/// Network evidence retained only for the first successful receipt.
+#[derive(Debug, Clone, Copy)]
+pub struct ReceivedNetwork<'a> {
+    pub ip: &'a str,
+    pub country: Option<&'a str>,
+    pub user_agent: Option<&'a str>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AuditOutcome {
+    Audited,
+    AlreadyCast,
+    NotFound,
 }
 
 /// A ballot the ballot box received.
@@ -91,7 +107,7 @@ pub struct ReceivedCastBallot {
     pub ballot: BallotContent,
 }
 
-const RECEIVED_COLUMNS: &str = "id::text, election_event_id::text, election_id::text, \
+pub(crate) const RECEIVED_COLUMNS: &str = "id::text, election_event_id::text, election_id::text, \
      area_id::text, voter_id, ballot_id, ballot_hash, content, voter_signing_pk, \
      voter_ballot_signature, received_at, key_id, received_signature, status, cast_at, \
      cast_signature, cast_receipt_signature";
@@ -99,7 +115,7 @@ const RECEIVED_COLUMNS: &str = "id::text, election_event_id::text, election_id::
 const BY_HASH: &str = "election_event_id = $1::text::uuid AND election_id = $2::text::uuid \
      AND voter_id = $3 AND ballot_hash = $4";
 
-fn received_ballot(row: &Row) -> Result<ReceivedBallot> {
+pub(crate) fn received_ballot(row: &Row) -> Result<ReceivedBallot> {
     let status: String = row.try_get(13)?;
     Ok(ReceivedBallot {
         id: row.try_get(0)?,
@@ -133,12 +149,37 @@ impl PostgresStore {
         &self,
         ballot: &ReceiveBallot<'_>,
         first_received_at: DateTime<Utc>,
+        sign: F,
+    ) -> Result<ReceiveOutcome>
+    where
+        F: FnMut(DateTime<Utc>) -> Result<ReceivedSignature> + Send,
+    {
+        self.receive_ballot_with_network(ballot, first_received_at, None, sign)
+            .await
+    }
+
+    /// Receipt, shared code reservation, evidence outbox and permitted network
+    /// attribution commit together. A replay never changes the original network.
+    pub async fn receive_ballot_with_network<F>(
+        &self,
+        ballot: &ReceiveBallot<'_>,
+        first_received_at: DateTime<Utc>,
+        network: Option<&ReceivedNetwork<'_>>,
         mut sign: F,
     ) -> Result<ReceiveOutcome>
     where
         F: FnMut(DateTime<Utc>) -> Result<ReceivedSignature> + Send,
     {
-        let client = self.client().await?;
+        let privacy =
+            self.ballot_identity(ballot.election_event_id).await? == BallotIdentity::Pseudonym;
+        ensure!(
+            network.is_none() || privacy,
+            "Forensic attribution requires pseudonyms"
+        );
+        let ip = network.map(|value| value.ip);
+        let country = network.and_then(|value| value.country);
+        let user_agent = network.and_then(|value| value.user_agent);
+        let mut client = self.client().await?;
         let by_hash = client
             .prepare_cached(&format!(
                 "SELECT {RECEIVED_COLUMNS} FROM ballot_box_received WHERE {BY_HASH}"
@@ -158,19 +199,49 @@ impl PostgresStore {
         }
         let insert = client
             .prepare_cached(&format!(
-                "INSERT INTO ballot_box_received (election_event_id, election_id, area_id, \
-                 voter_id, ballot_id, ballot_hash, content, voter_signing_pk, \
-                 voter_ballot_signature, received_at, key_id, received_signature) \
-                 VALUES ($1::text::uuid, $2::text::uuid, $3::text::uuid, $4, $5, $6, $7, $8, \
-                 $9, $10, $11, $12) \
-                 ON CONFLICT DO NOTHING RETURNING {RECEIVED_COLUMNS}"
+                "WITH received AS (
+                 INSERT INTO ballot_box_received (election_event_id, election_id, area_id,
+                 voter_id, ballot_id, ballot_hash, content, voter_signing_pk,
+                 voter_ballot_signature, received_at, key_id, received_signature)
+                 VALUES ($1::text::uuid, $2::text::uuid, $3::text::uuid, $4, $5, $6, $7, $8,
+                 $9, $10, $11, $12)
+                 ON CONFLICT DO NOTHING RETURNING *
+                 ), forensic AS (
+                    INSERT INTO sequent_backend.forensic_network_record
+                        (election_event_id,election_id,area_id,event_kind,delivery_id,pseudonym,
+                         ballot_id,ip,country,user_agent,recorded_at)
+                    SELECT election_event_id,election_id,area_id,'receive',
+                        'receive:' || election_event_id::text || ':' || ballot_id,voter_id,
+                        ballot_id,$13,$14,$15,received_at FROM received WHERE $13::text IS NOT NULL
+                    ON CONFLICT (election_event_id,delivery_id) DO NOTHING RETURNING id
+                 ), forensic_queued AS (
+                    INSERT INTO sequent_backend.forensic_summary_pending(record_id) SELECT id FROM forensic
+                 ) SELECT {RECEIVED_COLUMNS} FROM received"
             ))
             .await
             .context("Error preparing the statement that stores received ballots")?;
         for attempt in 0..RECEIVE_ATTEMPTS {
             let received_at = first_received_at + Duration::milliseconds(attempt);
             let signature = sign(received_at)?;
-            let inserted = client
+            let transaction = client.transaction().await?;
+            if privacy {
+                let reserved = transaction
+                    .query_opt(
+                        "INSERT INTO sequent_backend.ballot_code (election_event_id, code, kind)
+                     VALUES ($1::text::uuid, $2, 'ballot') ON CONFLICT DO NOTHING RETURNING code",
+                        &[&ballot.election_event_id, &signature.ballot_id],
+                    )
+                    .await?;
+                if reserved.is_none() {
+                    transaction.rollback().await?;
+                    // A simultaneous retry may have reserved this same receipt.
+                    if let Some(row) = client.query_opt(&by_hash, &hash_parameters).await? {
+                        return Ok(ReceiveOutcome::AlreadyReceived(received_ballot(&row)?));
+                    }
+                    continue;
+                }
+            }
+            let inserted = transaction
                 .query_opt(
                     &insert,
                     &[
@@ -186,13 +257,20 @@ impl PostgresStore {
                         &received_at,
                         &signature.key_id,
                         &signature.received_signature,
+                        &ip,
+                        &country,
+                        &user_agent,
                     ],
                 )
                 .await
                 .context("Error storing the received ballot")?;
             if let Some(row) = inserted {
-                return Ok(ReceiveOutcome::Received(received_ballot(&row)?));
+                let stored = received_ballot(&row)?;
+                transaction.commit().await?;
+                return Ok(ReceiveOutcome::Received(stored));
             }
+            // Roll back an unused reservation as well as the unsuccessful insert.
+            transaction.rollback().await?;
             // Either the voter's same ballot arrived on another request, or the
             // Ballot ID is taken in the election event.
             if let Some(row) = client.query_opt(&by_hash, &hash_parameters).await? {
@@ -200,6 +278,40 @@ impl PostgresStore {
             }
         }
         Ok(ReceiveOutcome::NoFreeBallotId)
+    }
+
+    /// Atomically closes the audit/cast choice for the authenticated owner.
+    /// The same row lock used by cast makes the two outcomes mutually exclusive.
+    /// Updating to audited also queues privacy evidence through the schema trigger.
+    pub async fn audit_received_ballot(
+        &self,
+        event: &str,
+        election: &str,
+        area: &str,
+        voter: &str,
+        ballot_id: &str,
+    ) -> Result<AuditOutcome> {
+        let row = self
+            .client()
+            .await?
+            .query_opt(
+                "WITH selected AS (
+                SELECT id,status FROM ballot_box_received
+                WHERE election_event_id=$1::text::uuid AND election_id=$2::text::uuid
+                    AND area_id=$3::text::uuid AND voter_id=$4 AND ballot_id=$5 FOR UPDATE
+             ), audited AS (
+                UPDATE ballot_box_received r SET status='audited'
+                FROM selected s WHERE r.election_event_id=$1::text::uuid AND r.id=s.id
+                    AND s.status='received' RETURNING r.id
+             ) SELECT status FROM selected",
+                &[&event, &election, &area, &voter, &ballot_id],
+            )
+            .await?;
+        Ok(match row.map(|row| row.get::<_, String>(0)).as_deref() {
+            Some("received" | "audited") => AuditOutcome::Audited,
+            Some("cast") => AuditOutcome::AlreadyCast,
+            _ => AuditOutcome::NotFound,
+        })
     }
 
     /// The voter's received ballot with this ballot hash in an election.
@@ -225,6 +337,43 @@ impl PostgresStore {
 
     /// The voter's received ballot with this short Ballot ID in an election, whoever
     /// else's ballot has it.
+    /// Resolve authenticated ownership in the receipt read itself. The private
+    /// identity is a query parameter only; returned ballot rows keep the pseudonym.
+    pub async fn received_ballot_for_owner(
+        &self,
+        event: &str,
+        election: &str,
+        area: &str,
+        authenticated_voter: &str,
+        ballot_id: &str,
+        mode: BallotIdentity,
+    ) -> Result<Option<ReceivedBallot>> {
+        let owner = match mode {
+            BallotIdentity::VoterId => "$3",
+            BallotIdentity::Pseudonym => {
+                "(SELECT p.pseudonym FROM sequent_backend.voter_pseudonym p
+                JOIN sequent_backend.ballot_identity i USING(election_event_id)
+                WHERE p.election_event_id=$1::text::uuid AND p.voter_id=$3
+                    AND i.mode='pseudonym' AND i.mapping_purged_at IS NULL)"
+            }
+        };
+        self.client()
+            .await?
+            .query_opt(
+                &format!(
+                    "SELECT {RECEIVED_COLUMNS} FROM ballot_box_received
+                WHERE election_event_id=$1::text::uuid AND election_id=$2::text::uuid
+                    AND voter_id={owner} AND ballot_id=$4 AND area_id=$5::text::uuid"
+                ),
+                &[&event, &election, &authenticated_voter, &ballot_id, &area],
+            )
+            .await
+            .context("Error reading the authenticated owner's receipt")?
+            .as_ref()
+            .map(received_ballot)
+            .transpose()
+    }
+
     pub async fn received_ballot_by_id(
         &self,
         election_event_id: &str,

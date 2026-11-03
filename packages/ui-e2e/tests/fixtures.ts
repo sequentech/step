@@ -18,7 +18,6 @@ export interface Fixture {
     contests: Record<string, string>
     candidates: Record<string, Record<string, string>>
     voters: Record<string, string[]>
-    voterPassword: string
     adminOtp: string
     origins: Record<"voting" | "admin" | "results" | "verifier", string>
 }
@@ -101,7 +100,7 @@ export async function login(page: Page, username: string, portal = "voting") {
         `${fixture.origins[portal as keyof Fixture["origins"]]}${eventPath}/login?lang=en`
     )
     await page.locator('input[name="username"]').fill(username)
-    await page.locator('input[name="password"]').fill(fixture.voterPassword)
+    await page.locator('input[name="password"]').fill(username)
     await page.locator("#kc-login").click()
 }
 export async function review(page: Page, username: string, candidate: string) {

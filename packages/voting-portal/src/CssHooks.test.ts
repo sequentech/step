@@ -77,6 +77,9 @@ it.each(files.map((file) => [relative(__dirname, file), file]))(
             ts.ScriptKind.TSX
         )
         const domComponents = new Set(sharedDomComponents)
+        // The shared IconButton hooks its button separately from its SVG;
+        // MUI components use className on their root element.
+        const hookProperties = new Map([["IconButton", "buttonClassName"]])
         const collect = (node: ts.Node) => {
             if (
                 ts.isImportDeclaration(node) &&
@@ -86,11 +89,15 @@ it.each(files.map((file) => [relative(__dirname, file), file]))(
                 )
             ) {
                 const clause = node.importClause
-                if (clause?.name) domComponents.add(clause.name.text)
+                if (clause?.name) {
+                    domComponents.add(clause.name.text)
+                    hookProperties.set(clause.name.text, "className")
+                }
                 if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
-                    clause.namedBindings.elements.forEach((item) =>
+                    clause.namedBindings.elements.forEach((item) => {
                         domComponents.add(item.name.text)
-                    )
+                        hookProperties.set(item.name.text, "className")
+                    })
                 }
             }
             if (
@@ -107,7 +114,7 @@ it.each(files.map((file) => [relative(__dirname, file), file]))(
         const visit = (node: ts.Node) => {
             if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
                 const tag = node.tagName.getText(source)
-                const property = tag === "IconButton" ? "buttonClassName" : "className"
+                const property = hookProperties.get(tag) ?? "className"
                 const hasHook = node.attributes.properties.some(
                     (attribute) =>
                         ts.isJsxAttribute(attribute) &&
