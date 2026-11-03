@@ -42,7 +42,7 @@ use crate::services::external::reconciliation::csv::{
 };
 use crate::services::external::reconciliation::diff::{
     diff_file_row_batch, diff_unmatched_sequent_voters, index_datafix_area_fields,
-    DatafixAreaFieldsByName, DiffItem,
+    record_file_usernames, DatafixAreaFieldsByName, DiffItem,
 };
 use crate::services::external::reconciliation::patch::{
     is_sequent_apply_stream_item, sha256_file_hex, sha256_hex, DiffItemArrayWriter,
@@ -294,17 +294,7 @@ async fn run_generate_reconciliation_patches(
         }
         total_rows += file_rows.len();
 
-        let usernames: Vec<String> = file_rows
-            .iter()
-            .map(|row| row.external_voter_id.clone())
-            .collect();
-        for username in &usernames {
-            if !all_file_usernames.insert(username.clone()) {
-                return Err(format!(
-                    "Reconciliation file contains duplicate VoterID '{username}'"
-                ));
-            }
-        }
+        let usernames = record_file_usernames(&mut all_file_usernames, &file_rows)?;
         index_datafix_area_fields(&mut area_fields_by_name, &file_rows);
 
         let mut snapshots = fetch_realm_voter_snapshots_by_usernames(
