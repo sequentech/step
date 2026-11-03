@@ -261,9 +261,7 @@ fn translated(row: &Row, prefix: &str, field: &str) -> Translated {
     for (language, keys) in i18n_objects(row, prefix) {
         if let Some(Value::String(text)) = keys.get(field) {
             if !text.trim().is_empty() {
-                by_language
-                    .entry(language)
-                    .or_insert_with(|| text.clone());
+                by_language.entry(language).or_insert_with(|| text.clone());
             }
         }
     }
@@ -294,8 +292,13 @@ fn i18n_objects(
 /// An event's portal texts: the keys of its per-language objects other than
 /// the ones the plan reads as fields of its own, which the wizard edits there.
 fn portal_texts(row: &Row) -> BTreeMap<String, BTreeMap<String, String>> {
-    const FIELDS: [&str; 5] =
-        ["name", "description", "alias", "materialsTitle", "materialsSubtitle"];
+    const FIELDS: [&str; 5] = [
+        "name",
+        "description",
+        "alias",
+        "materialsTitle",
+        "materialsSubtitle",
+    ];
     i18n_objects(row, "presentation")
         .into_iter()
         .map(|(language, keys)| {
@@ -804,8 +807,9 @@ fn hoist_common_behaviour(plan: &mut Blueprint) {
         Ok(Value::Object(map)) => map,
         _ => serde_json::Map::new(),
     };
-    let patches: Vec<serde_json::Map<String, Value>> =
-        contests().map(|contest| as_map(&contest.overrides)).collect();
+    let patches: Vec<serde_json::Map<String, Value>> = contests()
+        .map(|contest| as_map(&contest.overrides))
+        .collect();
     let Ok(Value::Object(mut defaults)) = serde_json::to_value(&plan.defaults)
     else {
         return;
@@ -813,7 +817,9 @@ fn hoist_common_behaviour(plan: &mut Blueprint) {
 
     let mut common: Vec<(String, String, Value)> = Vec::new();
     for (group, fields) in &patches[0] {
-        let Value::Object(fields) = fields else { continue };
+        let Value::Object(fields) = fields else {
+            continue;
+        };
         for (field, value) in fields {
             let shared = patches.iter().all(|patch| {
                 patch.get(group).and_then(|g| g.get(field)) == Some(value)
@@ -873,8 +879,9 @@ fn in_sheet_order(rows: &[Row]) -> Vec<&Row> {
 /// an external procedure. Reading a blank as the plan's default would change
 /// how an imported contest is counted the first time it is saved.
 fn with_template_behaviour(row: &Row) -> Row {
-    static TEMPLATE: std::sync::OnceLock<Option<serde_json::Map<String, Value>>> =
-        std::sync::OnceLock::new();
+    static TEMPLATE: std::sync::OnceLock<
+        Option<serde_json::Map<String, Value>>,
+    > = std::sync::OnceLock::new();
     let template = TEMPLATE.get_or_init(|| {
         crate::election_config::render::TemplateSet::builtin()
             .and_then(|set| set.render_json("contest", &serde_json::json!({})))
@@ -928,7 +935,8 @@ fn overrides_of(row: &Row, report: &mut Report) -> Overrides {
         }
         parsed
     }
-    let some_text = |column: &str| Some(text(row, column)).filter(|v| !v.is_empty());
+    let some_text =
+        |column: &str| Some(text(row, column)).filter(|v| !v.is_empty());
 
     Overrides {
         policies: PolicyPatch {

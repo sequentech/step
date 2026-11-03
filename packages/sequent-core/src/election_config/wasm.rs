@@ -953,11 +953,13 @@ pub fn compile_plan_js(
     // the auxiliary files above stay what the plan alone produced.
     let mut delivered = compiled.layout.clone();
     if let Some(tenant) = &tenant {
-        if let Err(problem) = crate::election_config::tenant_package::add_to_layout(
-            &mut delivered,
-            tenant,
-            &compiled.bundle.tenant_id,
-        ) {
+        if let Err(problem) =
+            crate::election_config::tenant_package::add_to_layout(
+                &mut delivered,
+                tenant,
+                &compiled.bundle.tenant_id,
+            )
+        {
             return to_js(&Output::refused(Report::from_problem(problem)))
                 .map(IBuildOutput::from);
         }
@@ -992,7 +994,10 @@ pub fn compile_plan_js(
 fn tenant_package_from(
     options: &JsValue,
 ) -> Result<
-    Result<Option<crate::election_config::tenant_package::TenantPackage>, Report>,
+    Result<
+        Option<crate::election_config::tenant_package::TenantPackage>,
+        Report,
+    >,
     JsError,
 > {
     #[derive(serde::Deserialize, Default)]

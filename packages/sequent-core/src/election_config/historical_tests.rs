@@ -3140,7 +3140,6 @@ fn a_realm_in_the_workbook_is_the_one_its_settings_apply_to() {
         .any(|w| w.message.contains("no base export")));
 }
 
-
 /// What a ballot shows and how it counts, without the identifiers and the
 /// numbering a plan assigns afresh.
 ///
@@ -3161,21 +3160,27 @@ fn ballot_of(export: &Value) -> Value {
                     .map(|(key, value)| {
                         let value = match (key.as_str(), value) {
                             ("columns", Value::Null) => json!(1),
-                            ("max_selections_per_type", Value::Null) => json!(0),
+                            ("max_selections_per_type", Value::Null) => {
+                                json!(0)
+                            }
                             _ => strip(value),
                         };
                         (key.clone(), value)
                     })
                     .collect(),
             ),
-            Value::Array(items) => Value::Array(items.iter().map(strip).collect()),
+            Value::Array(items) => {
+                Value::Array(items.iter().map(strip).collect())
+            }
             other => other.clone(),
         }
     }
     let ordered = |key: &str| {
         let mut items = export[key].as_array().cloned().unwrap_or_default();
         items.sort_by_key(|item| {
-            item["presentation"]["sort_order"].as_i64().unwrap_or(i64::MAX)
+            item["presentation"]["sort_order"]
+                .as_i64()
+                .unwrap_or(i64::MAX)
         });
         Value::Array(items.iter().map(strip).collect())
     };
@@ -3240,7 +3245,10 @@ fn wizard_edits_of_a_converted_event_win_over_its_source_cells() {
     // An export's event texts as one object per language, because its portal
     // keys are dotted.
     let mut sheets = adapted.workbook.sheets().to_vec();
-    let event = sheets.iter_mut().find(|s| s.key == "electionevent").unwrap();
+    let event = sheets
+        .iter_mut()
+        .find(|s| s.key == "electionevent")
+        .unwrap();
     let row = &mut event.rows[0];
     row.cells
         .retain(|(column, _)| !column.starts_with("presentation.i18n."));
