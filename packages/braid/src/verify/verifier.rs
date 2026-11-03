@@ -27,6 +27,7 @@ use crate::util::dbg_hash;
 use crate::verify::datalog::Target;
 use crate::verify::datalog::Verified;
 
+use std::collections::BTreeSet;
 use strand::context::Ctx;
 use strand::serialization::StrandDeserialize;
 
@@ -113,12 +114,20 @@ enum Check {
     The combination of decryption factors matches the published plaintexts.
     */
     PLAINTEXTS_VALID,
+    /*
+    The set of batches is complete:
+    1) There is at least one batch of ballots.
+    2) Every batch of ballots has published plaintexts, and is therefore a verification target.
+    3) If a list of expected batches is given, the verification targets match it exactly.
+    */
+    BATCHES_COMPLETE,
 }
 
 pub struct Verifier<C: Ctx> {
     trustee: Trustee<C>,
     board: GrpcB3,
     board_name: String,
+    expected_batches: Option<Vec<BatchNumber>>,
 }
 impl<C: Ctx> Verifier<C> {
     pub fn new(trustee: Trustee<C>, board: GrpcB3, board_name: &str) -> Verifier<C> {
@@ -126,7 +135,14 @@ impl<C: Ctx> Verifier<C> {
             trustee,
             board,
             board_name: board_name.to_string(),
+            expected_batches: None,
         }
+    }
+
+    /// Requires the verified batches to be exactly the given ones.
+    pub fn with_expected_batches(mut self, batches: Vec<BatchNumber>) -> Verifier<C> {
+        self.expected_batches = Some(batches);
+        self
     }
 
     pub async fn run(&mut self) -> Result<()> {
@@ -136,152 +152,234 @@ impl<C: Ctx> Verifier<C> {
         );
 
         let messages = self.board.get_messages(&self.board_name, -1).await?;
-        let vr = self.verify_messages(&messages)?;
+        let (messages, undecodable) = deserialize_messages(&messages);
+        let vr = verification_result(
+            &mut self.trustee,
+            &self.board_name,
+            messages,
+            undecodable,
+            self.expected_batches.as_deref(),
+        )?;
 
         // Summary
 
         info!("{}", vr);
 
-        Ok(())
+        vr.ensure_complete()
     }
+}
 
-    fn verify_messages(&mut self, messages: &[GrpcB3Message]) -> Result<VerificationResult> {
-        let mut vr = VerificationResult::new(&self.board_name);
-        vr.add_target(Check::CONFIGURATION_VALID);
-        vr.add_target(Check::MESSAGE_SIGNATURES_VALID);
-        vr.add_target(Check::MESSAGES_CFG_VALID);
-        vr.add_target(Check::PK_VALID);
+/// Deserializes board messages, skipping (and counting) those that cannot be
+/// read so that one bad message does not stop the verification.
+fn deserialize_messages(messages: &[GrpcB3Message]) -> (Vec<(Message, i64)>, usize) {
+    let mut undecodable = 0;
+    let messages = messages
+        .iter()
+        .filter_map(|m| match Message::strand_deserialize(&m.message) {
+            Ok(message) => Some((message, m.id)),
+            Err(e) => {
+                warn!("Message {} could not be deserialized: {}", m.id, e);
+                undecodable += 1;
+                None
+            }
+        })
+        .collect();
+    (messages, undecodable)
+}
 
-        let mut unverified = 0;
-        let messages: Vec<(Message, i64)> = messages
-            .iter()
-            .filter_map(|m| match Message::strand_deserialize(&m.message) {
-                Ok(message) => Some((message, m.id)),
-                Err(e) => {
-                    warn!("Message {} could not be deserialized: {}", m.id, e);
-                    unverified += 1;
-                    None
-                }
-            })
-            .collect();
+#[cfg(test)]
+fn verify_messages<C: Ctx>(
+    trustee: &mut Trustee<C>,
+    board_name: &str,
+    messages: Vec<(Message, i64)>,
+    expected_batches: Option<&[BatchNumber]>,
+) -> Result<()> {
+    let vr = verification_result(trustee, board_name, messages, 0, expected_batches)?;
 
-        let (cfg, cfg_message) = messages
-            .iter()
-            .find_map(|m| LocalBoard::<C>::verify_bootstrap(&m.0).ok())
-            .ok_or(anyhow!("No valid configuration message found"))?;
-        let cfg_h = cfg_message.statement.get_cfg_h();
-        info!("Verifying configuration [{}]", dbg_hash(&cfg_h));
+    info!("{}", vr);
 
-        vr.add_result(
-            Check::CONFIGURATION_VALID,
-            cfg.is_valid(),
-            &dbg_hash(&cfg_h),
-        );
+    vr.ensure_complete()
+}
 
-        // Ensure that all messages refer to the correct configuration
+/// Runs every check over the deserialized board messages. `undecodable` is
+/// the number of board messages that could not be deserialized; like
+/// messages whose signature does not verify, they are reported as a failed
+/// signature check instead of aborting the verification.
+fn verification_result<C: Ctx>(
+    trustee: &mut Trustee<C>,
+    board_name: &str,
+    messages: Vec<(Message, i64)>,
+    undecodable: usize,
+    expected_batches: Option<&[BatchNumber]>,
+) -> Result<VerificationResult> {
+    let mut vr = VerificationResult::new(board_name);
+    vr.add_target(Check::CONFIGURATION_VALID);
+    vr.add_target(Check::MESSAGE_SIGNATURES_VALID);
+    vr.add_target(Check::MESSAGES_CFG_VALID);
+    vr.add_target(Check::PK_VALID);
+    vr.add_target(Check::BATCHES_COMPLETE);
 
-        let correct_cfg = messages
-            .iter()
-            .filter(|m| m.0.statement.get_cfg_h() == cfg_h)
-            .count();
-        vr.add_result(
-            Check::MESSAGES_CFG_VALID,
-            correct_cfg == messages.len(),
-            &dbg_hash(&cfg_h),
-        );
+    // The first configuration message that verifies is the board's.
+    let (cfg, cfg_message) = messages
+        .iter()
+        .find_map(|m| LocalBoard::<C>::verify_bootstrap(&m.0).ok())
+        .ok_or(anyhow!("No valid configuration message found"))?;
+    let cfg_h = cfg_message.statement.get_cfg_h();
+    info!("Verifying configuration [{}]", dbg_hash(&cfg_h));
 
-        // Verify message signatures
+    vr.add_result(
+        Check::CONFIGURATION_VALID,
+        cfg.is_valid(),
+        &dbg_hash(&cfg_h),
+    );
 
-        info!("Verifying signatures for {} messages..", messages.len());
+    // Ensure that all messages refer to the correct configuration
 
-        let mut vmessages: Vec<VerifiedMessage> = vec![];
-        for (message, id) in &messages {
-            match message.verify(&cfg) {
-                Ok(verified) => vmessages.push(verified),
-                Err(e) => {
-                    warn!("Message {} failed verification: {}", id, e);
-                    unverified += 1;
-                }
+    let correct_cfg = messages
+        .iter()
+        .filter(|m| m.0.statement.get_cfg_h() == cfg_h)
+        .count();
+    vr.add_result(
+        Check::MESSAGES_CFG_VALID,
+        correct_cfg == messages.len(),
+        &dbg_hash(&cfg_h),
+    );
+
+    // Verify message signatures
+
+    info!("Verifying signatures for {} messages..", messages.len());
+
+    let mut unverified = undecodable;
+    let mut vmessages: Vec<VerifiedMessage> = vec![];
+    for (message, id) in &messages {
+        match message.verify(&cfg) {
+            Ok(verified) => vmessages.push(verified),
+            Err(e) => {
+                warn!("Message {} failed verification: {}", id, e);
+                unverified += 1;
             }
         }
-        vr.add_result(
-            Check::MESSAGE_SIGNATURES_VALID,
-            unverified == 0,
-            &vmessages.len(),
-        );
-
-        // Derive per-batch verification targets
-
-        let mut predicates = vec![];
-        // Skip the configuration message
-        for message in vmessages
-            .iter()
-            .filter(|m| m.statement.get_kind() != StatementType::Configuration)
-        {
-            let predicate =
-                Predicate::from_statement::<C>(&message.statement, message.signer_position, &cfg)?;
-            predicates.push(predicate);
-        }
-        predicates.push(Predicate::get_verifier_bootstrap_predicate(&cfg).unwrap());
-
-        info!("{}", "Deriving verification targets..".blue());
-        let (_, targets, _) = crate::verify::datalog::S.run(&predicates);
-        for t in &targets {
-            let tvr = t.get_verification_result();
-            info!("Add verification target [batch {}]", t.get_batch());
-            vr.add_child(tvr);
-        }
-
-        // Run verifying actions
-
-        info!("{}", "Running verifying actions..".blue());
-        // Trustee running in verifier mode
-        let output_messages = self.trustee.verify(messages)?;
-        info!("{}", "Verifying actions complete".blue());
-        for message in output_messages {
-            let predicate =
-                Predicate::from_statement::<C>(&message.statement, VERIFIER_INDEX, &cfg)?;
-            info!("Verifying action yields predicate [{}]", predicate);
-            predicates.push(predicate);
-        }
-
-        // Collect verification results
-
-        info!("{}", "Collecting verification results".blue());
-        let (root, _targets, verified) = crate::verify::datalog::S.run(&predicates);
-
-        let mut pk_h = None;
-        let root = root.iter().next();
-        if let Some(root) = root {
-            pk_h = Some(root.1);
-            vr.add_result(Check::PK_VALID, true, &dbg_hash(&root.1 .0));
-        }
-
-        for v in verified {
-            v.add_results(
-                &mut vr,
-                targets.iter().find(|t| t.1 == v.1).unwrap(),
-                &cfg,
-                &pk_h,
-            )?;
-        }
-
-        Ok(vr)
     }
+    vr.add_result(
+        Check::MESSAGE_SIGNATURES_VALID,
+        unverified == 0,
+        &vmessages.len(),
+    );
+
+    // Derive per-batch verification targets
+
+    let mut predicates = vec![];
+    let mut ballot_batches = BTreeSet::new();
+    // Skip the configuration message
+    for message in vmessages
+        .iter()
+        .filter(|m| m.statement.get_kind() != StatementType::Configuration)
+    {
+        let predicate =
+            Predicate::from_statement::<C>(&message.statement, message.signer_position, &cfg)?;
+        if let Predicate::Ballots(_, batch, _, _, _) = predicate {
+            ballot_batches.insert(batch);
+        }
+        predicates.push(predicate);
+    }
+    predicates.push(Predicate::get_verifier_bootstrap_predicate(&cfg).unwrap());
+
+    info!("{}", "Deriving verification targets..".blue());
+    let (_, targets, _) = crate::verify::datalog::S.run(&predicates);
+    for t in &targets {
+        let tvr = t.get_verification_result();
+        info!("Add verification target [batch {}]", t.get_batch());
+        vr.add_child(tvr);
+    }
+    let target_batches: BTreeSet<BatchNumber> = targets.iter().map(|t| t.get_batch()).collect();
+    check_batches(&mut vr, &ballot_batches, &target_batches, expected_batches);
+
+    // Run verifying actions
+
+    info!("{}", "Running verifying actions..".blue());
+    // Trustee running in verifier mode
+    let output_messages = trustee.verify(messages)?;
+    info!("{}", "Verifying actions complete".blue());
+    for message in output_messages {
+        let predicate = Predicate::from_statement::<C>(&message.statement, VERIFIER_INDEX, &cfg)?;
+        info!("Verifying action yields predicate [{}]", predicate);
+        predicates.push(predicate);
+    }
+
+    // Collect verification results
+
+    info!("{}", "Collecting verification results".blue());
+    let (root, _targets, verified) = crate::verify::datalog::S.run(&predicates);
+
+    let mut pk_h = None;
+    let root = root.iter().next();
+    if let Some(root) = root {
+        pk_h = Some(root.1);
+        vr.add_result(Check::PK_VALID, true, &dbg_hash(&root.1 .0));
+    }
+
+    for v in verified {
+        v.add_results(
+            &mut vr,
+            targets.iter().find(|t| t.1 == v.1).unwrap(),
+            &cfg,
+            &pk_h,
+        )?;
+    }
+
+    Ok(vr)
+}
+
+/// Requires a verification target for every batch with ballots and, if given,
+/// for exactly the expected batches. Missing batches are added as children
+/// with unpopulated checks so that the report names them.
+fn check_batches(
+    vr: &mut VerificationResult,
+    ballot_batches: &BTreeSet<BatchNumber>,
+    target_batches: &BTreeSet<BatchNumber>,
+    expected_batches: Option<&[BatchNumber]>,
+) {
+    let mut required: BTreeSet<BatchNumber> = ballot_batches.clone();
+    let mut unexpected = BTreeSet::new();
+    if let Some(expected) = expected_batches {
+        let expected: BTreeSet<BatchNumber> = expected.iter().cloned().collect();
+        unexpected = target_batches.difference(&expected).cloned().collect();
+        required.extend(expected);
+    }
+    let missing: BTreeSet<BatchNumber> = required.difference(target_batches).cloned().collect();
+
+    for batch in &missing {
+        vr.add_child(batch_verification_result(*batch));
+    }
+
+    let complete = !target_batches.is_empty() && missing.is_empty() && unexpected.is_empty();
+    let metadata = if complete {
+        format!("{} batches", target_batches.len())
+    } else {
+        format!(
+            "verified {:?}, missing {:?}, unexpected {:?}",
+            target_batches, missing, unexpected
+        )
+    };
+    vr.add_result(Check::BATCHES_COMPLETE, complete, &metadata);
+}
+
+fn batch_verification_result(batch: BatchNumber) -> VerificationResult {
+    let mut vr = VerificationResult::new(&batch.to_string());
+    vr.add_target(Check::BALLOTS_PK_VALID);
+    vr.add_target(Check::MIX_START_VALID);
+    vr.add_target(Check::MIX_END_VALID);
+    vr.add_target(Check::MIX_VALID);
+    vr.add_target(Check::MIX_UNIQUE_VALID);
+    vr.add_target(Check::DECRYPTION_VALID);
+    vr.add_target(Check::PLAINTEXTS_VALID);
+
+    vr
 }
 
 impl Target {
     fn get_verification_result(&self) -> VerificationResult {
-        let mut vr = VerificationResult::new(&self.get_batch().to_string());
-        vr.add_target(Check::BALLOTS_PK_VALID);
-        vr.add_target(Check::MIX_START_VALID);
-        vr.add_target(Check::MIX_END_VALID);
-        vr.add_target(Check::MIX_VALID);
-        vr.add_target(Check::MIX_UNIQUE_VALID);
-        vr.add_target(Check::DECRYPTION_VALID);
-        vr.add_target(Check::PLAINTEXTS_VALID);
-
-        vr
+        batch_verification_result(self.get_batch())
     }
     fn _get_cfg_h(&self) -> ConfigurationHash {
         self.0
@@ -414,6 +512,16 @@ impl VerificationResult {
         self.children.insert(child.name.clone(), child);
     }
 
+    fn ensure_complete(&self) -> Result<()> {
+        let (_, not_ok, _) = self.totals();
+        anyhow::ensure!(
+            not_ok == 0,
+            "Verification failed: {} required checks failed or were incomplete",
+            not_ok
+        );
+        Ok(())
+    }
+
     fn totals(&self) -> (u64, u64, usize) {
         let mut ok = 0;
         let mut not_ok = 0;
@@ -470,6 +578,344 @@ impl std::fmt::Display for VerificationResult {
 
 #[cfg(test)]
 mod tests {
+    use super::{check_batches, verify_messages, Check, VerificationResult};
+    use b3::messages::artifact::{Ballots, Configuration};
+    use b3::messages::message::Message;
+    use b3::messages::newtypes::{
+        BatchNumber, PublicKeyHash, MAX_TRUSTEES, NULL_TRUSTEE, VERIFIER_INDEX,
+    };
+    use b3::messages::statement::StatementType;
+    use std::collections::BTreeSet;
+    use std::sync::{Arc, Mutex};
+    use strand::backend::ristretto::RistrettoCtx;
+    use strand::context::Ctx;
+    use strand::elgamal::{Ciphertext, PublicKey};
+    use strand::serialization::{StrandDeserialize, StrandSerialize};
+    use strand::signature::StrandSignatureSk;
+
+    use crate::protocol::predicate::Predicate;
+    use crate::protocol::trustee2::Trustee;
+    use crate::test::protocol_test_memory::create_protocol_test;
+    use crate::test::vector_session::VectorSession;
+
+    fn result_with_check(name: &str, check: Check, result: Option<bool>) -> VerificationResult {
+        let mut verification = VerificationResult::new(name);
+        verification.add_target(check);
+        if let Some(result) = result {
+            let item = verification.targets.values_mut().next().unwrap();
+            item.result = result;
+        }
+        verification
+    }
+
+    #[test]
+    fn complete_root_and_children_succeed() {
+        let mut root = result_with_check("board", Check::CONFIGURATION_VALID, Some(true));
+        let mut child = result_with_check("batch", Check::MIX_VALID, Some(true));
+        child.add_child(result_with_check(
+            "nested",
+            Check::PLAINTEXTS_VALID,
+            Some(true),
+        ));
+        root.add_child(child);
+
+        assert!(root.ensure_complete().is_ok());
+        assert_eq!(root.totals(), (3, 0, 1));
+    }
+
+    #[test]
+    fn failed_root_check_is_rejected() {
+        let root = result_with_check("board", Check::CONFIGURATION_VALID, Some(false));
+
+        assert!(root.ensure_complete().is_err());
+    }
+
+    #[test]
+    fn missing_root_check_is_rejected() {
+        let root = result_with_check("board", Check::PK_VALID, None);
+
+        assert!(root.ensure_complete().is_err());
+    }
+
+    #[test]
+    fn failed_child_check_is_rejected() {
+        let mut root = result_with_check("board", Check::PK_VALID, Some(true));
+        root.add_child(result_with_check("batch", Check::MIX_VALID, Some(false)));
+
+        assert!(root.ensure_complete().is_err());
+    }
+
+    #[test]
+    fn missing_child_check_is_rejected() {
+        let mut root = result_with_check("board", Check::PK_VALID, Some(true));
+        root.add_child(result_with_check("batch", Check::PLAINTEXTS_VALID, None));
+
+        assert!(root.ensure_complete().is_err());
+    }
+
+    #[test]
+    fn incomplete_nested_child_is_rejected() {
+        let mut root = result_with_check("board", Check::PK_VALID, Some(true));
+        let mut child = result_with_check("batch", Check::MIX_VALID, Some(true));
+        child.add_child(result_with_check("nested", Check::PLAINTEXTS_VALID, None));
+        root.add_child(child);
+
+        assert!(root.ensure_complete().is_err());
+    }
+
+    fn batches(batches: &[BatchNumber]) -> BTreeSet<BatchNumber> {
+        batches.iter().cloned().collect()
+    }
+
+    fn checked_batches(
+        ballots: &[BatchNumber],
+        targets: &[BatchNumber],
+        expected: Option<&[BatchNumber]>,
+    ) -> VerificationResult {
+        let mut root = VerificationResult::new("board");
+        root.add_target(Check::BATCHES_COMPLETE);
+        for batch in targets {
+            let mut child = super::batch_verification_result(*batch);
+            for item in child.targets.values_mut() {
+                item.result = true;
+            }
+            root.add_child(child);
+        }
+        check_batches(&mut root, &batches(ballots), &batches(targets), expected);
+        root
+    }
+
+    #[test]
+    fn all_batches_with_targets_succeed() {
+        let root = checked_batches(&[1, 2], &[1, 2], None);
+
+        assert!(root.ensure_complete().is_ok());
+    }
+
+    #[test]
+    fn batch_without_plaintexts_is_rejected() {
+        let root = checked_batches(&[1, 2], &[1], None);
+
+        assert!(root.children.contains_key("2"));
+        assert!(root.children["2"].targets.values().all(|item| !item.result));
+        assert!(root.ensure_complete().is_err());
+    }
+
+    #[test]
+    fn board_without_batches_is_rejected() {
+        let root = checked_batches(&[], &[], None);
+
+        assert!(root.ensure_complete().is_err());
+    }
+
+    #[test]
+    fn expected_batches_match_succeeds() {
+        let root = checked_batches(&[1, 2], &[1, 2], Some(&[2, 1]));
+
+        assert!(root.ensure_complete().is_ok());
+    }
+
+    #[test]
+    fn missing_expected_batch_is_rejected() {
+        let root = checked_batches(&[1, 2], &[1, 2], Some(&[1, 2, 3]));
+
+        assert!(root.children.contains_key("3"));
+        assert!(root.ensure_complete().is_err());
+    }
+
+    #[test]
+    fn unexpected_batch_is_rejected() {
+        let root = checked_batches(&[1, 2], &[1, 2], Some(&[1]));
+
+        assert!(root.ensure_complete().is_err());
+    }
+
+    fn run_board<C: Ctx + 'static>(ctx: C, batches: usize) -> Vec<(Message, i64)> {
+        let threshold = [1, 2];
+        let test = create_protocol_test(3, &threshold, ctx.clone()).unwrap();
+        let remote = Arc::new(Mutex::new(test.remote));
+        let mut sessions: Vec<VectorSession<C>> = test
+            .trustees
+            .into_iter()
+            .map(|t| VectorSession::new(t, Arc::clone(&remote)))
+            .collect();
+
+        let mut dkg_pk = None;
+        for _ in 0..30 {
+            sessions.iter_mut().for_each(|s| s.step());
+            dkg_pk = sessions[0].get_dkg_public_key_nohash();
+            if dkg_pk.is_some() {
+                break;
+            }
+        }
+        let dkg_pk = dkg_pk.unwrap();
+        let pk_h = strand::hash::hash_to_array(&dkg_pk.strand_serialize().unwrap()).unwrap();
+        let pk = PublicKey::from_element(&dkg_pk.pk, &ctx);
+
+        let mut selected_trustees = [NULL_TRUSTEE; MAX_TRUSTEES];
+        selected_trustees[0..threshold.len()].copy_from_slice(&threshold);
+        let mut rng = ctx.get_rng();
+        for batch in 1..=batches {
+            let ballots: Vec<Ciphertext<C>> = (0..10)
+                .map(|_| pk.encrypt(&ctx.encode(&ctx.rnd_plaintext(&mut rng)).unwrap()))
+                .collect();
+            let message = Message::ballots_msg(
+                &test.cfg,
+                batch,
+                &Ballots::new(ballots),
+                selected_trustees,
+                PublicKeyHash(crate::util::hash_from_vec(&pk_h).unwrap()),
+                &test.protocol_manager,
+            )
+            .unwrap();
+            remote.lock().unwrap().add(message);
+        }
+
+        let decryptor = threshold[0] - 1;
+        for _ in 0..30 {
+            sessions.iter_mut().for_each(|s| s.step());
+            let decrypted = (1..=batches)
+                .filter(|b| {
+                    sessions[decryptor]
+                        .get_plaintexts_nohash(*b, decryptor)
+                        .is_some()
+                })
+                .count();
+            if decrypted == batches {
+                break;
+            }
+        }
+
+        let remote = remote.lock().unwrap();
+        remote
+            .messages
+            .iter()
+            .map(|m| (Message::strand_deserialize(&m.message).unwrap(), m.id))
+            .collect()
+    }
+
+    fn verify_board<C: Ctx>(
+        messages: Vec<(Message, i64)>,
+        expected_batches: Option<&[BatchNumber]>,
+    ) -> anyhow::Result<()> {
+        let mut trustee: Trustee<C> = Trustee::new(
+            "Verifier".to_string(),
+            "board".to_string(),
+            StrandSignatureSk::gen().unwrap(),
+            strand::symm::gen_key(),
+            None,
+            None,
+        );
+        verify_messages(&mut trustee, "board", messages, expected_batches)
+    }
+
+    fn assert_incomplete(result: anyhow::Result<()>) {
+        let error = result.unwrap_err().to_string();
+        assert!(
+            error.contains("required checks failed or were incomplete"),
+            "{}",
+            error
+        );
+    }
+
+    #[test]
+    fn verifier_requires_plaintexts_for_every_batch() {
+        let messages = run_board(RistrettoCtx, 2);
+
+        let copy = |messages: &Vec<(Message, i64)>| -> Vec<(Message, i64)> {
+            messages
+                .iter()
+                .map(|(m, id)| (m.try_clone().unwrap(), *id))
+                .collect()
+        };
+
+        assert!(verify_board::<RistrettoCtx>(copy(&messages), None).is_ok());
+        assert!(verify_board::<RistrettoCtx>(copy(&messages), Some(&[1, 2])).is_ok());
+        assert_incomplete(verify_board::<RistrettoCtx>(copy(&messages), Some(&[1])));
+        assert_incomplete(verify_board::<RistrettoCtx>(
+            copy(&messages),
+            Some(&[1, 2, 3]),
+        ));
+
+        let without_plaintexts: Vec<(Message, i64)> = copy(&messages)
+            .into_iter()
+            .filter(|(m, _)| {
+                !(m.statement.get_kind() == StatementType::Plaintexts
+                    && m.statement.get_batch_number() == 2)
+            })
+            .collect();
+        assert!(without_plaintexts.len() < messages.len());
+        assert_incomplete(verify_board::<RistrettoCtx>(without_plaintexts, None));
+
+        let without_batches: Vec<(Message, i64)> = copy(&messages)
+            .into_iter()
+            .filter(|(m, _)| m.statement.get_batch_number() == 0)
+            .collect();
+        assert_incomplete(verify_board::<RistrettoCtx>(without_batches, None));
+    }
+
+    /// The datalog verdict must depend on the verifier's own confirmation that
+    /// it recomputed the plaintexts, not only on the published records.
+    #[test]
+    fn verified_requires_verifier_plaintexts_confirmation() {
+        let messages = run_board(RistrettoCtx, 2);
+        let cfg_message = messages
+            .iter()
+            .find(|m| m.0.statement.get_kind() == StatementType::Configuration)
+            .unwrap();
+        let cfg_bytes = cfg_message.0.artifact.as_ref().unwrap();
+        let cfg = Configuration::<RistrettoCtx>::strand_deserialize(cfg_bytes).unwrap();
+
+        let mut predicates = vec![];
+        for (message, _) in &messages[1..] {
+            let verified = message.verify(&cfg).unwrap();
+            predicates.push(
+                Predicate::from_statement::<RistrettoCtx>(
+                    &verified.statement,
+                    verified.signer_position,
+                    &cfg,
+                )
+                .unwrap(),
+            );
+        }
+        predicates.push(Predicate::get_verifier_bootstrap_predicate(&cfg).unwrap());
+
+        let mut trustee: Trustee<RistrettoCtx> = Trustee::new(
+            "Verifier".to_string(),
+            "board".to_string(),
+            StrandSignatureSk::gen().unwrap(),
+            strand::symm::gen_key(),
+            None,
+            None,
+        );
+        let outputs = trustee.verify(messages).unwrap();
+        let mut outputs_without_confirmation = vec![];
+        for message in &outputs {
+            let predicate =
+                Predicate::from_statement::<RistrettoCtx>(&message.statement, VERIFIER_INDEX, &cfg)
+                    .unwrap();
+            predicates.push(predicate);
+            if message.statement.get_kind() != StatementType::PlaintextsSigned
+                || message.statement.get_batch_number() != 2
+            {
+                outputs_without_confirmation.push(predicate);
+            }
+        }
+        let base: Vec<Predicate> = predicates[..predicates.len() - outputs.len()].to_vec();
+
+        let (_, _, verified) = crate::verify::datalog::S.run(&predicates);
+        assert_eq!(verified.len(), 2);
+
+        let mut partial = base;
+        partial.extend(outputs_without_confirmation);
+        let (_, _, verified) = crate::verify::datalog::S.run(&partial);
+        let batches: BTreeSet<BatchNumber> = verified.iter().map(|v| v.1).collect();
+        assert_eq!(batches, BTreeSet::from([1]));
+    }
+}
+
+#[cfg(test)]
+mod board_message_tests {
     use super::*;
     use crate::protocol::board::local2::tests::{remote, TestBoard};
     use strand::backend::ristretto::RistrettoCtx;
@@ -493,7 +939,7 @@ mod tests {
             version: b3::get_schema_version(),
         });
 
-        let trustee = Trustee::<RistrettoCtx>::new(
+        let mut trustee = Trustee::<RistrettoCtx>::new(
             "Verifier".to_string(),
             "board".to_string(),
             StrandSignatureSk::gen().unwrap(),
@@ -501,9 +947,8 @@ mod tests {
             None,
             None,
         );
-        let mut verifier = Verifier::new(trustee, GrpcB3::new("http://127.0.0.1:1"), "board");
-
-        let vr = verifier.verify_messages(&messages).unwrap();
+        let (decoded, undecodable) = deserialize_messages(&messages);
+        let vr = verification_result(&mut trustee, "board", decoded, undecodable, None).unwrap();
 
         assert!(vr.targets[&Check::CONFIGURATION_VALID].result);
         assert!(!vr.targets[&Check::MESSAGE_SIGNATURES_VALID].result);

@@ -10,6 +10,7 @@ static AWS_CONFIG: OnceCell<SdkConfig> = OnceCell::const_new();
 
 pub const AWS_S3_PRIVATE_URI_ENV: &str = "AWS_S3_PRIVATE_URI";
 pub const AWS_S3_PUBLIC_URI_ENV: &str = "AWS_S3_PUBLIC_URI";
+pub const AWS_S3_PUBLIC_BUCKET_ENV: &str = "AWS_S3_PUBLIC_BUCKET";
 
 /// Resolves the AWS region from the environment and keeps the default chain
 /// as a fallback so local and deployed runtimes share the same lookup flow.
