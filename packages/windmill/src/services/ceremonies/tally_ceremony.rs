@@ -20,6 +20,9 @@ use crate::postgres::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
+use crate::services::ceremonies::election_electorates::{
+    election_areas, ELECTION_AREAS_ANNOTATION,
+};
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_recount_log, append_tally_trustee_log, generate_tally_initial_log,
@@ -110,6 +113,7 @@ pub async fn find_last_tally_session_execution_and_all_related_data(
         &tenant_id,
         &election_event_id,
         &election_ids,
+        None,
     )
     .await?;
 
@@ -316,9 +320,14 @@ pub async fn create_tally_ceremony(
     let delegated_voting_policy = election_event.get_delegated_voting_policy();
     let weighted_voting_policy = election_event.get_weighted_voting_policy();
     let batch_anonymity_policy = election_event.get_batch_anonymity_policy();
-    let published_ballot_style_rows =
-        get_ballot_styles_by_elections(transaction, &tenant_id, &election_event_id, &election_ids)
-            .await?;
+    let published_ballot_style_rows = get_ballot_styles_by_elections(
+        transaction,
+        &tenant_id,
+        &election_event_id,
+        &election_ids,
+        None,
+    )
+    .await?;
     let published_ballot_styles = published_ballot_style_rows
         .iter()
         .map(|published| {
@@ -555,6 +564,11 @@ pub async fn create_tally_ceremony(
     let annotations: Value = json!({
         "executer_username": username,
         "executer_user_id": user_id,
+        ELECTION_AREAS_ANNOTATION: serde_json::to_string(&election_areas(
+            published_ballot_styles
+                .iter()
+                .map(|style| (style.election_id.as_str(), style.area_id.as_str())),
+        ))?,
     });
 
     let keys_ceremony_policy = keys_ceremony.policy();
