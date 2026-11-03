@@ -69,6 +69,7 @@ public final class StepBack {
     log.infov("toPreviousStep: running {0} again", redo);
     // setExecutionStatus stores the change; the map Keycloak hands out is only a view.
     redo.forEach(id -> authSession.setExecutionStatus(id, ExecutionStatus.CHALLENGED));
+    authSession.setAuthNote(Utils.CODE_PACED, "true");
     context.forceChallenge(Response.seeOther(context.getRefreshUrl(false)).build());
     return true;
   }

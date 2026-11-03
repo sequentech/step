@@ -91,6 +91,7 @@ public class Utils {
                   sequent.keycloak.authenticator.Utils.CODE_TTL,
                   sequent.keycloak.authenticator.Utils.CODE_ATTEMPTS,
                   sequent.keycloak.authenticator.Utils.OTL_VISITED,
+                  sequent.keycloak.authenticator.Utils.CODE_PACED,
                   sequent.keycloak.authenticator.Utils.EMAIL_VERIFIED,
                   LookupAndUpdateUser.VERIFICATION_COMPLETED,
                   LookupAndUpdateUser.VERIFICATION_STATUS,
@@ -249,8 +250,10 @@ public class Utils {
     for (String field : ScanovateDiagnostics.ENTERED_FIELDS) {
       sessionModel.removeAuthNote(ScanovateDiagnostics.ENTERED_NOTE + "." + field);
     }
-    // The data was typed again: what an earlier verification established no longer holds.
+    // The data was typed again: what an earlier verification established no longer holds, nor
+    // what an earlier code verified (the contact or channel may have changed).
     sessionModel.removeAuthNote(LookupAndUpdateUser.IDENTITY_METHOD);
+    sequent.keycloak.authenticator.Utils.forgetCodeAndVerification(sessionModel);
   }
 
   /** We retrieve the user data stored in the session notes and create a new user in this realm. */

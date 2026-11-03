@@ -210,6 +210,8 @@ export type KcContextExtensionPerPage = {
         codeJustSent?: boolean
         // A send was attempted now, delivered or not: the resend countdown starts.
         resendTimerStarted?: boolean
+        // Seconds until a resend is allowed, when the page is shown without a send.
+        resendSecondsLeft?: number
         resendTimer?: string
         ttl?: string
         codeLength?: string

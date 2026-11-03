@@ -123,9 +123,10 @@ public class MessageOTPAuthenticator
       return;
     }
     if (StepBack.requested(parameters)) {
-      if (StepBack.toPreviousStep(context)) {
-        // The code must not verify a contact the voter may change on an earlier step.
-        authSession.removeAuthNote(Utils.CODE);
+      if (offersBack(context, configMap, deferredUser) && StepBack.toPreviousStep(context)) {
+        // Neither the code nor what an earlier code verified may stand for a contact the voter may
+        // change on an earlier step.
+        Utils.forgetCodeAndVerification(authSession);
       } else {
         intiateForm(context, FormRequest.SHOW);
       }
@@ -673,8 +674,14 @@ public class MessageOTPAuthenticator
         }
       }
 
+      // After Back (StepBack) the step's first code waits for the resend timer of the last one,
+      // whatever contact it goes to now. Otherwise a step without a live code sends one at once.
+      boolean paced = authSession.getAuthNote(Utils.CODE_PACED) != null;
+      boolean noCode = isOtl ? paced && !"false".equals(otlVisited) : code == null;
       boolean firstSend =
-          request == FormRequest.SHOW && !failedSend && ((code == null && !isOtl) || ttl == null);
+          request == FormRequest.SHOW
+              && !failedSend
+              && (ttl == null || (noCode && (!paced || allowResend)));
       boolean send = firstSend || (resend && allowResend);
       boolean codeJustSent = false;
       if (send) {
@@ -708,15 +715,11 @@ public class MessageOTPAuthenticator
         log.info("OTP not resent because we had another one already");
       }
 
+      // Back left no live code: the page says so, and its countdown shows the wait left.
+      LoginFormsProvider form =
+          paced && noCode && !send ? context.form().setInfo(NO_CODE_KEY) : context.form();
       context.challenge(
-          codeForm(
-              context,
-              context.form(),
-              configMap,
-              messageCourier,
-              deferredUser,
-              codeJustSent,
-              send));
+          codeForm(context, form, configMap, messageCourier, deferredUser, codeJustSent, send));
     } catch (Exception error) {
       log.error("Error resending OTP");
       if (neutral && !deferredUser) {
@@ -813,6 +816,19 @@ public class MessageOTPAuthenticator
     return channel.map(c -> context.form().getMessage(c.labelKey())).orElse("");
   }
 
+  /**
+   * Whether the code page offers Back, and so accepts it. Not once the attempts are used up: only a
+   * restart is left. Never on a neutral page: whether the previous step set a user tells whether
+   * the identifier has an account (R3-04).
+   */
+  private static boolean offersBack(
+      AuthenticationFlowContext context, Map<String, String> configMap, boolean deferredUser) {
+    return Utils.CodePageDisclosure.of(configMap, deferredUser) != Utils.CodePageDisclosure.NEUTRAL
+        && !Utils.attemptsExhausted(
+            context.getAuthenticationSession(), configMap, challenge(context))
+        && StepBack.available(context);
+  }
+
   /** The code page saying the session's attempts are used up, with a link to start again. */
   private Response exhaustedForm(
       AuthenticationFlowContext context,
@@ -847,7 +863,16 @@ public class MessageOTPAuthenticator
         .setAttribute("isOtl", "true".equals(configMap.get(Utils.ONE_TIME_LINK)))
         .setAttribute("ttl", configMap.get(Utils.CODE_TTL))
         .setAttribute("codeDisclosure", disclosure.name())
-        .setAttribute(StepBack.ATTRIBUTE, StepBack.available(context));
+        .setAttribute(StepBack.ATTRIBUTE, offersBack(context, configMap, deferredUser));
+    if (!resendTimerStarted) {
+      // A page shown again without a send continues the last send's countdown.
+      Utils.resendSecondsLeft(
+              authSession.getAuthNote(Utils.CODE_TTL),
+              configMap.get(Utils.CODE_TTL),
+              configMap.get(Utils.RESEND_ACTIVATION_TIMER),
+              System.currentTimeMillis())
+          .ifPresent(left -> form.setAttribute("resendSecondsLeft", left));
+    }
     if (disclosure == Utils.CodePageDisclosure.NEUTRAL) {
       // Nothing about the account: no channel, destination, sender or Messenger link.
       setNeutralMessengerAttributes(form, authSession, context.getRealm());

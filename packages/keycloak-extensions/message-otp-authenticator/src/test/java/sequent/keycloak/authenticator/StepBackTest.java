@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -104,6 +105,8 @@ class StepBackTest {
 
     assertEquals(ExecutionStatus.CHALLENGED, statuses.get(form.getId()));
     assertRedirectedToTheFlow();
+    // The code step reached again waits for the resend timer.
+    verify(authSession).setAuthNote(Utils.CODE_PACED, "true");
   }
 
   @Test
@@ -118,6 +121,7 @@ class StepBackTest {
     assertEquals(ExecutionStatus.SUCCESS, statuses.get(form.getId()));
     assertEquals(ExecutionStatus.CHALLENGED, statuses.get(code.getId()));
     assertRedirectedToTheFlow();
+    verify(authSession).setAuthNote(Utils.CODE_PACED, "true");
   }
 
   @Test
@@ -161,6 +165,7 @@ class StepBackTest {
     assertFalse(StepBack.toPreviousStep(context));
 
     verify(context, never()).forceChallenge(any());
+    verify(authSession, never()).setAuthNote(eq(Utils.CODE_PACED), anyString());
   }
 
   @Test
@@ -175,6 +180,7 @@ class StepBackTest {
 
     assertEquals(ExecutionStatus.SUCCESS, statuses.get(form.getId()));
     verify(context, never()).forceChallenge(any());
+    verify(authSession, never()).setAuthNote(eq(Utils.CODE_PACED), anyString());
   }
 
   @Test
