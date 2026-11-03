@@ -158,6 +158,12 @@ fn import_failure_problems(
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 2)]
 pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution) -> Result<()> {
+    execute(body, task_execution).await
+}
+
+/// The task's work, also run in-process by the package application, which
+/// must not wait on another task in its own queue. Not retried there.
+pub async fn execute(body: ImportUsersBody, task_execution: TasksExecution) -> Result<()> {
     match run_import_users(&body, &task_execution).await {
         Ok(()) => Ok(()),
         Err(err) => {

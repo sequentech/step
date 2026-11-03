@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const galegoTranslation: TranslationType = {
     translations: {
+        configurationPackage: englishTranslation.translations.configurationPackage,
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Pechar",
@@ -946,6 +947,7 @@ const galegoTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exportar Solicitudes",
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
+                APPLY_CONFIGURATION_PACKAGE: "Aplicar Paquete de Configuración",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
                 CREATE_TENANT: "Crear Cliente",
                 EXPORT_TEMPLATES: "Exportar Plantillas",
@@ -1833,6 +1835,9 @@ const galegoTranslation: TranslationType = {
                 encryptWithPassword: "Cifrar con Contrasinal",
                 passwordForcedNote:
                     "O arquivo protexerase con contrasinal de todos os xeitos: os informes, as solicitudes e os datos do taboleiro cífranse sempre. Marca a caixa para incluír tamén os campos secretos de votante descifrados.",
+                integrationSecrets: "Segredos de integración (credenciais de servizo)",
+                integrationSecretsNote:
+                    "Unha vez descifrado, o arquivo conterá en claro o segredo de liveness de Scanovate. Garda en segredo o arquivo e o seu contrasinal, e impórtao só onde se deba usar ese servizo de Liveness Plus.",
                 includeVoters: "Incluir Votantes",
                 activityLogs: "Rexistros de Actividade",
                 bulletinBoard: "Taboleiro de Anuncios",
@@ -2267,6 +2272,7 @@ const galegoTranslation: TranslationType = {
                 "voter-write": "Editar Votante",
                 "voter-secret-attribute-read": "Mostrar Campos Secretos do Votante",
                 "voter-secret-attribute-write": "Editar Campos Secretos do Votante",
+                "integration-secret-read": "Exportar Segredos de Integración",
                 "user-create": "Crear Usuario",
                 "user-read": "Leer Usuario",
                 "user-write": "Editar Usuario",
@@ -2784,6 +2790,9 @@ const galegoTranslation: TranslationType = {
                         delete: "¿Estás seguro de que queres eliminar este elemento?",
                         sealsUnknown:
                             "Non se puideron comprobar os selos das urnas: se ten urnas seladas, rexeitarase a eliminación.",
+                        archiveNamed: '¿Estás seguro de que queres arquivar "{{name}}"?',
+                        unarchiveNamed: '¿Estás seguro de que queres desarquivar "{{name}}"?',
+                        deleteNamed: '¿Estás seguro de que queres eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2904,6 +2913,13 @@ const galegoTranslation: TranslationType = {
                 "label": "Forma do Icono de Caixa de Selección dos Candidatos",
                 "square-checkbox": "Caixa de Selección Cadrada",
                 "round-checkbox": "Caixa de Selección Redonda",
+            },
+            candidatesLayout: {
+                "label": "Disposición das candidaturas",
+                "helperText":
+                    "A grade de papeleta en papel mostra as candidaturas como celas numeradas cun círculo para encher, columna a columna, segundo Columnas (4 se está baleiro). As votacións por orde de preferencia sempre usan a lista.",
+                "list": "Lista",
+                "paper-grid": "Grade de papeleta en papel",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidatos e Listas",
@@ -4131,6 +4147,7 @@ const galegoTranslation: TranslationType = {
                     "insufficient-information": "Faltan datos",
                     "no-matching-voter": "Votante non coincidente",
                     "voter-already-approved": "Xa aprobado",
+                    "EMAIL_IN_USE": "Correo usado por outro votante",
                     "other": "Outro",
                 },
                 hint: {
@@ -4371,6 +4388,8 @@ const galegoTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Paneis configurables",
+            modeChangeError: "Non se puido cambiar o modo do panel. Ténteo de novo.",
             title: "Monitorización",
             loading: "Cargando a monitorización",
             unavailableAlert:

@@ -540,6 +540,20 @@ html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visib
 .sequent-auth .auth-progress span.current {
     background: #43e3a1;
 }
+.sequent-auth .auth-back-form {
+    margin: 0;
+}
+.sequent-auth .auth-back {
+    min-height: 44px;
+    margin-block: -12px 12px;
+    margin-inline-start: -8px;
+    padding-inline: 8px;
+    color: #0f054c;
+    font-weight: 600;
+}
+.sequent-auth[dir="rtl"] .auth-back svg {
+    transform: rotate(180deg);
+}
 .sequent-auth .auth-symbol.warning {
     background: #fdf1e3;
     color: #a2560b;

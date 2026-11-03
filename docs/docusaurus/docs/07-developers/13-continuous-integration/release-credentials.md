@@ -59,6 +59,23 @@ tags. Until step 5, they keep reading the repository secrets.
 Image builds read the `<service>:buildcache` registry cache. Only builds that
 push images (`push: true`) write it.
 
+## Building selected images
+
+The manual **Build Docker images** workflow (`pr_build.yml`) accepts an image
+scope: `all` retains the complete release matrix; `authoring` builds only
+`election-architect` and `delivery-orchestrator`. It forwards the selected tag
+and push setting and does not trigger Beyond releases or GitOps deployments.
+Existing release callers default to `all`.
+
+Choose the exact reviewed workflow ref when dispatching. The images use that
+Step commit and its recorded Beyond gitlink. Architect also requires the
+Step `packages/` tree to match the Step commit pinned by Beyond. Update both
+source provenance and the gitlinks before publication; do not bypass the check.
+The existing `release` environment still controls access to publication
+credentials. A pushed image's digest and both source commits are recorded in
+the job summary, and its OCI labels record those commits. Promote and deploy
+the verified digest rather than inferring provenance from a tag alone.
+
 ## Workflow check
 
 The `Workflow policy` workflow runs `.github/scripts/check_workflow_secrets.py`
@@ -75,3 +92,5 @@ Run it locally with:
 python3 .github/scripts/check_workflow_secrets.py .github/workflows
 python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 ```
+
+For a public Architect-only rollout, select `scope=architect`. It excludes Delivery while retaining the same source guard, provenance output and release environment.

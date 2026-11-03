@@ -4,6 +4,7 @@
 package sequent.keycloak.scanovate_authenticator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static sequent.keycloak.scanovate_authenticator.CaptureMediaTest.JPEG;
 import static sequent.keycloak.scanovate_authenticator.TestJson.json;
@@ -54,6 +55,26 @@ class OcrClientTest {
 
     assertThrows(IOException.class, () -> client(transport).recognize("passport", JPEG, "r"));
     assertEquals(List.of(), sleeps);
+  }
+
+  @Test
+  void vendorBodiesAndTransportMessagesAreNeverAttachedToExceptions() {
+    for (FakeTransport transport :
+        List.of(
+            new FakeTransport().reply(422, "secret=synthetic person@example.invalid P123456789"),
+            new FakeTransport().reply(200, "{malformed secret=synthetic"),
+            new FakeTransport()
+                .fail("https://example.invalid/?secret=synthetic")
+                .fail("person@example.invalid")
+                .fail("P123456789"))) {
+      IOException error =
+          assertThrows(IOException.class, () -> client(transport).recognize("passport", JPEG, "r"));
+      for (Throwable cause = error; cause != null; cause = cause.getCause()) {
+        assertFalse(cause.toString().contains("synthetic"));
+        assertFalse(cause.toString().contains("person@"));
+        assertFalse(cause.toString().contains("P123456789"));
+      }
+    }
   }
 
   @Test

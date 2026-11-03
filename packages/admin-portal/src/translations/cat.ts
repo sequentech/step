@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        configurationPackage: englishTranslation.translations.configurationPackage,
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Tanca",
@@ -555,6 +556,7 @@ const catalanTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exportar Sol·licituds",
                 EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
                 IMPORT_TENANT_CONFIG: "Importa la Configuració del Llogater",
+                APPLY_CONFIGURATION_PACKAGE: "Aplica el Paquet de Configuració",
                 RENDER_DOCUMENT_PDF: "Generar el document PDF",
                 CREATE_TENANT: "Crear Llogater",
                 EXPORT_TEMPLATES: "Exportar plantilles",
@@ -1843,6 +1845,9 @@ const catalanTranslation: TranslationType = {
                 encryptWithPassword: "Xifrar amb Contrasenya",
                 passwordForcedNote:
                     "L'arxiu es protegirà amb contrasenya igualment: els informes, les sol·licituds i les dades del tauler sempre es xifren. Marca la casella per incloure també els camps secrets de votant desxifrats.",
+                integrationSecrets: "Secrets d'integració (credencials de servei)",
+                integrationSecretsNote:
+                    "Un cop desxifrat, el fitxer contindrà en clar el secret de liveness de Scanovate. Mantén en secret el fitxer i la seva contrasenya, i importa'l només on s'hagi d'utilitzar aquest servei de Liveness Plus.",
                 includeVoters: "Incloure Votants",
                 activityLogs: "Registres d'Activitat",
                 bulletinBoard: "Tauler d'Anuncis",
@@ -2277,6 +2282,7 @@ const catalanTranslation: TranslationType = {
                 "voter-write": "Editar Votant",
                 "voter-secret-attribute-read": "Mostrar Camps Secrets del Votant",
                 "voter-secret-attribute-write": "Editar Camps Secrets del Votant",
+                "integration-secret-read": "Exportar Secrets d'Integració",
                 "user-create": "Crear Usuari",
                 "user-read": "Llegir Usuari",
                 "user-write": "Editar Usuari",
@@ -2802,6 +2808,9 @@ const catalanTranslation: TranslationType = {
                         delete: "Estàs segur de que vols eliminar aquest element?",
                         sealsUnknown:
                             "No s'han pogut comprovar els segells de les urnes: si té urnes segellades, l'esborrat es rebutjarà.",
+                        archiveNamed: 'Estàs segur de que vols arxivar "{{name}}"?',
+                        unarchiveNamed: 'Estàs segur de que vols desarxivar "{{name}}"?',
+                        deleteNamed: 'Estàs segur de que vols eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2922,6 +2931,13 @@ const catalanTranslation: TranslationType = {
                 "label": "Forma de la icona de la casella de verificació dels candidats",
                 "square-checkbox": "Caixa de verificació quadrada",
                 "round-checkbox": "Caixa de verificació rodona",
+            },
+            candidatesLayout: {
+                "label": "Disposició de les candidatures",
+                "helperText":
+                    "La graella de papereta de paper mostra les candidatures com a cel·les numerades amb un cercle per omplir, columna per columna, segons Columnes (4 si és buit). Les votacions per ordre de preferència sempre fan servir la llista.",
+                "list": "Llista",
+                "paper-grid": "Graella de papereta de paper",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidats I Llistes",
@@ -4150,6 +4166,7 @@ const catalanTranslation: TranslationType = {
                     "insufficient-information": "Dades insuficients",
                     "no-matching-voter": "Votant no trobat",
                     "voter-already-approved": "Ja aprovat",
+                    "EMAIL_IN_USE": "Correu usat per un altre votant",
                     "other": "Altre",
                 },
                 hint: {
@@ -4390,6 +4407,8 @@ const catalanTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Taulers configurables",
+            modeChangeError: "No s’ha pogut canviar el mode del tauler. Torneu-ho a provar.",
             title: "Monitoratge",
             loading: "Carregant el monitoratge",
             unavailableAlert:

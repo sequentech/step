@@ -919,6 +919,12 @@ class RepositoryModelTest(unittest.TestCase):
         selection = self.model.select(from_files(ROOT, paths, ROOT))
         return selection, {decision.check.id for decision in selection.selected()}
 
+    def test_sbom_script_selects_its_tests_without_frontend_fallback(self):
+        selection, checks = self.select("scripts/sbom/inventory_rules.py")
+        self.assertIn("python:scripts-sbom", checks)
+        self.assertNotIn("python:scripts-dev", checks)
+        self.assertFalse(any("admin-portal" in check for check in checks))
+
     def test_every_tracked_file_is_claimed(self):
         output = subprocess.run(
             ["git", "ls-files", "-z"],

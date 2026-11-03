@@ -11,7 +11,9 @@ carries a real event realm; voters log in with username and password.
   external ID.
 - The grace election has area C, a 15 minute grace period, and no external
   ID, so its voters are authorized by election ID (as `step-cli step
-  generate-voters` writes them).
+  generate-voters` writes them). Journey 8 exports voters, which needs an
+  external ID for every election, so only while it exports does this election
+  take its own ID as external ID: authorization keys it by the same value.
 """
 
 import copy

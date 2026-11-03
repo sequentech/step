@@ -35,6 +35,8 @@ export const Details: Story = {
             "value",
             "retry"
         )
+        const back = canvas.getByRole("button", {name: "Back"}).closest("form")
+        await expect(back?.querySelector('input[name="action"]')).toHaveAttribute("value", "retry")
     },
 }
 

@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import scanovateContract from "../../../../keycloak-extensions/custom-event-listener/src/test/resources/scanovate-failure-contract.json"
+
 import {
     EImportChecksum,
     ELogChangeKind,
@@ -792,5 +794,34 @@ describe("configuration package import evidence", () => {
         )
         expect(view.extra).toContainEqual({name: "manifest_sha256", value: "ab".repeat(32)})
         expect(view.extra.some(({name}) => name === "content_hash")).toBe(false)
+    })
+})
+
+// This exact body is asserted against the signed Rust election-board message and the Java queue producer.
+describe("Scanovate failure contract", () => {
+    it("shows every bounded field from the shared durable body", () => {
+        const view = logEntryView(
+            row("KeycloakUserEvent", scanovateContract.statement_body, {
+                userId: scanovateContract.queue_input.user_id,
+                username: scanovateContract.queue_input.username,
+                head: {event: scanovateContract.queue_input.election_event_id, log_type: "ERROR"},
+            })
+        )
+        const expected = JSON.parse(scanovateContract.queue_input.body)
+        expect(view.signIn?.error).toBe("scanovate_verification_failed")
+        expect(
+            Object.fromEntries(view.signIn!.details.map(({name, value}) => [name, value]))
+        ).toEqual(expected.details)
+        expect(view.who.userId).toBe(scanovateContract.queue_input.user_id)
+        expect(view.signIn?.text).toBeNull()
+    })
+    it("continues to display older unstructured failures", () => {
+        const view = logEntryView(
+            row("KeycloakUserEvent", {
+                KeycloakUserEvent: ["scanovate_verification_failed", "REGISTER_ERROR"],
+            })
+        )
+        expect(view.signIn?.text).toBe("scanovate_verification_failed")
+        expect(view.signIn?.details).toEqual([])
     })
 })
