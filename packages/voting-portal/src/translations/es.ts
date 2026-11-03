@@ -255,6 +255,8 @@ const spanishTranslation: TranslationType = {
                     "Su sesión ha expirado. Por favor, inténtelo de nuevo desde el principio.",
                 CAST_VOTE_BallotIdMismatch:
                     "El identificador de la papeleta no coincide con el del voto emitido.",
+                CAST_VOTE_BallotStyleMismatch:
+                    "Su papeleta no coincide con la que está publicada actualmente para esta elección. Por favor, recargue la página e inténtelo de nuevo, o contacte con soporte para obtener ayuda.",
                 SESSION_STORAGE_ERROR:
                     "El almacenamiento de sesión no está disponible. Por favor, inténtelo de nuevo o contacte con el soporte.",
                 PARSE_BALLOT_DATA_ERROR:
@@ -585,6 +587,15 @@ const spanishTranslation: TranslationType = {
                 username: "Usuario",
                 ballot_id: "ID de Papeleta",
                 message: "Mensaje",
+            },
+            pagination: {
+                rowsPerPage: "Filas por página:",
+                displayedRows: "{{from}}–{{to}} de {{total}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} de más de {{to}}",
+                firstPage: "Ir a la primera página",
+                lastPage: "Ir a la última página",
+                nextPage: "Ir a la página siguiente",
+                previousPage: "Ir a la página anterior",
             },
         },
     },
