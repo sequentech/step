@@ -10,20 +10,14 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -41,6 +35,7 @@ import org.keycloak.protocol.oidc.mappers.TokenIntrospectionTokenMapper;
 import org.keycloak.protocol.oidc.mappers.UserInfoTokenMapper;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.IDToken;
+import sequent.keycloak.authenticator.harvest.ServiceAccountTokenClient;
 import sequent.keycloak.realm.RealmNames;
 
 /**
@@ -55,13 +50,10 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
         UserInfoTokenMapper,
         TokenIntrospectionTokenMapper {
 
-  private String keycloakUrl = System.getenv("KEYCLOAK_URL");
-  private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
-  private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
+  private final ServiceAccountTokenClient tokenClient;
   private String hasuraEndpoint = System.getenv("HASURA_ENDPOINT");
   private final HttpClient client = HttpClient.newHttpClient();
   private final ObjectMapper objectMapper = new ObjectMapper();
-  private static final ObjectMapper TOKEN_RESPONSE_MAPPER = new ObjectMapper();
 
   private static final List<ProviderConfigProperty> configProperties =
       new ArrayList<ProviderConfigProperty>();
@@ -112,6 +104,14 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
   }
 
   public static final String PROVIDER_ID = "authorized-elections-oidc-usermodel-attribute-mapper";
+
+  public AuthorizedElectionsUserAttributeMapper() {
+    this(ServiceAccountTokenClient.fromEnvironment());
+  }
+
+  AuthorizedElectionsUserAttributeMapper(ServiceAccountTokenClient tokenClient) {
+    this.tokenClient = tokenClient;
+  }
 
   public List<ProviderConfigProperty> getConfigProperties() {
     return configProperties;
@@ -338,76 +338,8 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
         false);
   }
 
-  public Optional<String> authenticate(String tenantId) {
-    String url =
-        this.keycloakUrl
-            + "/realms/"
-            + getTenantRealmName(tenantId)
-            + "/protocol/openid-connect/token";
-    Map<String, String> data = new LinkedHashMap<>();
-    data.put("client_id", this.clientId);
-    data.put("scope", "openid");
-    data.put("client_secret", this.clientSecret);
-    data.put("grant_type", "client_credentials");
-
-    HttpRequest request =
-        HttpRequest.newBuilder()
-            .uri(URI.create(url))
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .POST(HttpRequest.BodyPublishers.ofString(buildTokenRequestForm(data)))
-            .build();
-
-    HttpResponse<String> response;
-    try {
-      response = client.sendAsync(request, HttpResponse.BodyHandlers.ofString()).join();
-    } catch (CompletionException e) {
-      log.errorv(
-          "Token request for tenant {0} failed: {1}",
-          tenantId, e.getCause() != null ? e.getCause().getClass().getName() : e.getMessage());
-      return Optional.empty();
-    }
-
-    Optional<String> accessToken = parseAccessToken(response.body());
-    if (accessToken.isEmpty()) {
-      log.errorv(
-          "Token response for tenant {0} did not contain an access token (HTTP {1})",
-          tenantId, response.statusCode());
-    }
-    return accessToken;
-  }
-
-  static String buildTokenRequestForm(Map<String, String> data) {
-    return data.entrySet().stream()
-        .map(
-            entry ->
-                URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8)
-                    + "="
-                    + URLEncoder.encode(
-                        Objects.toString(entry.getValue(), ""), StandardCharsets.UTF_8))
-        .collect(Collectors.joining("&"));
-  }
-
-  static Optional<String> parseAccessToken(String responseBody) {
-    if (responseBody == null || responseBody.isBlank()) {
-      return Optional.empty();
-    }
-    try {
-      JsonNode accessToken = TOKEN_RESPONSE_MAPPER.readTree(responseBody).path("access_token");
-      if (!accessToken.isTextual() || accessToken.asText().isBlank()) {
-        return Optional.empty();
-      }
-      return Optional.of(accessToken.asText());
-    } catch (IOException e) {
-      return Optional.empty();
-    }
-  }
-
-  private static IOException missingServiceToken(String tenantId) {
-    return new IOException("Could not obtain a service account token for tenant " + tenantId);
-  }
-
-  private String getTenantRealmName(String tenantId) {
-    return "tenant-" + tenantId;
+  public String authenticate(String tenantId) throws IOException {
+    return tokenClient.fetchAccessToken(ServiceAccountTokenClient.tenantRealmName(tenantId));
   }
 
   // Cache results for each electionEventId with expiration after 5 minutes
@@ -428,7 +360,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       return cachedResult;
     }
 
-    String token = authenticate(tenantId).orElseThrow(() -> missingServiceToken(tenantId));
+    String token = authenticate(tenantId);
 
     // Construct GraphQL query using a text block (Java 15+)
     String query =
@@ -518,7 +450,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
         tenantId, electionEventId);
 
     try {
-      String token = authenticate(tenantId).orElseThrow(() -> missingServiceToken(tenantId));
+      String token = authenticate(tenantId);
 
       // GraphQL query to get area_contest with nested contest information
       String query =
