@@ -9,13 +9,14 @@ use anyhow::Context;
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::secret::SecretString;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 pub struct ExportOptions {
-    pub password: Option<String>,
+    pub password: Option<SecretString>,
     pub is_encrypted: bool,
     pub encrypt_with_password: bool,
     pub include_voters: bool,
@@ -36,7 +37,7 @@ fn validate_voter_secret_export(export_config: &ExportOptions) -> Result<()> {
         return Ok(());
     }
 
-    let has_password = match export_config.password.as_deref() {
+    let has_password = match export_config.password.as_ref() {
         Some(password) => !password.is_empty(),
         None => false,
     };
@@ -263,7 +264,7 @@ mod tests {
 
     fn authorized_secret_export() -> ExportOptions {
         ExportOptions {
-            password: Some("generated-password".to_string()),
+            password: Some("generated-password".into()),
             is_encrypted: true,
             encrypt_with_password: true,
             include_voters: true,
@@ -312,5 +313,14 @@ mod tests {
     #[test]
     fn election_event_exports_ack_only_after_execution() {
         assert_eq!(export_election_event::DEFAULTS.acks_late, Some(true));
+    }
+
+    #[test]
+    fn debug_output_and_task_spans_do_not_show_the_password() {
+        let config = authorized_secret_export();
+        let debug = format!("{config:?}");
+        assert!(!debug.contains("generated-password"), "{debug}");
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["password"], "generated-password");
     }
 }
