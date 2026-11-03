@@ -9,7 +9,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -36,6 +35,7 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.mockito.MockedStatic;
+import sequent.keycloak.authenticator.harvest.ServiceAccountTokenClient;
 import sequent.keycloak.harvest.HarvestEndpoint;
 import sequent.keycloak.harvest.HarvestTlsPolicy;
 
@@ -150,8 +150,9 @@ class LookupAndUpdateUserTest {
    */
   private void runAuthenticate(AuthenticationFlowContext context) throws IOException {
     startHarvest();
-    LookupAndUpdateUser authenticator = spy(new LookupAndUpdateUser());
-    doNothing().when(authenticator).authenticate(anyString());
+    ServiceAccountTokenClient tokenClient = mock(ServiceAccountTokenClient.class);
+    when(tokenClient.fetchAccessToken(anyString())).thenReturn("service-token");
+    LookupAndUpdateUser authenticator = spy(new LookupAndUpdateUser(tokenClient, (String) null));
     Map<String, String> environment =
         Map.of(
             HarvestEndpoint.ENV_HARVEST_URL,
