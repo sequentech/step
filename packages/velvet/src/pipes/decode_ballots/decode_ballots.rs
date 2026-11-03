@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::pipes::error::{Error, Result};
-use crate::pipes::pipe_inputs::{PipeInputs, BALLOTS_FILE};
+use crate::pipes::pipe_inputs::{
+    batch_file_name, list_batch_files, remove_batch_files, PipeInputs, BALLOTS_FILE,
+};
 use crate::pipes::Pipe;
 use num_bigint::BigUint;
 use sequent_core::ballot::Contest;
@@ -52,12 +54,20 @@ impl DecodeBallots {
                 }
             }
 
-            let plaintext =
-                plaintext.map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
-
-            let decoded_vote = contest
-                .decode_plaintext_contest_bigint(&plaintext)
-                .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+            let decoded_vote = match plaintext {
+                Ok(plaintext) => contest
+                    .decode_plaintext_contest_bigint(&plaintext)
+                    .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?,
+                // A line that is not a number, such as MALFORMED_PLAINTEXT_LINE,
+                // stands for a plaintext that did not decode.
+                Err(_) => {
+                    warn!(
+                        "Counting an undecodable ballot of contest {} as invalid",
+                        contest.id
+                    );
+                    DecodedVoteContest::undecodable(contest)
+                }
+            };
 
             decoded_ballots.push(decoded_vote);
         }
@@ -88,54 +98,118 @@ impl Pipe for DecodeBallots {
 
         tasks.par_iter().try_for_each(
             |(election_input, contest_input, area_input)| -> Result<()> {
-                let path_ballots = PipeInputs::build_path(
+                let area_ballots_dir = PipeInputs::build_path(
                     self.pipe_inputs.root_path_ballots.as_path(),
                     &election_input.id,
                     Some(&contest_input.id),
                     Some(&area_input.id),
-                )
-                .join(BALLOTS_FILE);
+                );
 
-                let res =
-                    DecodeBallots::decode_ballots(path_ballots.as_path(), &contest_input.contest);
+                let output_dir = PipeInputs::build_path(
+                    self.pipe_inputs
+                        .cli
+                        .output_dir
+                        .join(PipeNameOutputDir::DecodeBallots.as_ref())
+                        .as_path(),
+                    &election_input.id,
+                    Some(&contest_input.id),
+                    Some(&area_input.id),
+                );
+                remove_batch_files(&output_dir, OUTPUT_DECODED_BALLOTS_FILE)?;
 
-                match res {
-                    Ok(decoded_ballots) => {
-                        let mut output_path = PipeInputs::build_path(
-                            self.pipe_inputs
-                                .cli
-                                .output_dir
-                                .join(PipeNameOutputDir::DecodeBallots.as_ref())
-                                .as_path(),
-                            &election_input.id,
-                            Some(&contest_input.id),
-                            Some(&area_input.id),
-                        );
-
-                        fs::create_dir_all(&output_path)?;
-                        output_path.push(OUTPUT_DECODED_BALLOTS_FILE);
-                        let file = File::create(&output_path)
-                            .map_err(|e| Error::FileAccess(output_path.clone(), e))?;
-
-                        serde_json::to_writer(file, &decoded_ballots)?;
-                        Ok(())
-                    }
-                    Err(e) => {
-                        if let Error::FileAccess(file, _) = &e {
-                            warn!(
-                                "[{}] File not found: {} -- Not processed",
-                                PipeName::DecodeBallots.as_ref(),
-                                file.display()
-                            );
-                            Ok(())
-                        } else {
-                            Err(e)
-                        }
-                    }
+                // One file, unless the area's ballots were split into weight
+                // batches: then one per batch, each decoded on its own and
+                // written under its batch's name for do_tally to count.
+                let ballot_files = list_batch_files(&area_ballots_dir, BALLOTS_FILE)?;
+                if ballot_files.is_empty() {
+                    warn!(
+                        "[{}] File not found: {} -- Not processed",
+                        PipeName::DecodeBallots.as_ref(),
+                        area_ballots_dir.join(BALLOTS_FILE).display()
+                    );
+                    return Ok(());
                 }
+
+                fs::create_dir_all(&output_dir)?;
+
+                for (path_ballots, multiplier) in ballot_files {
+                    let decoded_ballots = DecodeBallots::decode_ballots(
+                        path_ballots.as_path(),
+                        &contest_input.contest,
+                    )?;
+
+                    let output_path =
+                        output_dir.join(batch_file_name(OUTPUT_DECODED_BALLOTS_FILE, multiplier));
+                    let file = File::create(&output_path)
+                        .map_err(|e| Error::FileAccess(output_path.clone(), e))?;
+
+                    serde_json::to_writer(file, &decoded_ballots)?;
+                }
+                Ok(())
             },
         )?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fixtures::contests::get_contest_1;
+    use crate::pipes::pipe_inputs::MALFORMED_PLAINTEXT_LINE;
+    use sequent_core::plaintext::DecodedVoteChoice;
+    use std::io::Write;
+    use uuid::Uuid;
+
+    /// A line that does not decode into a ballot is counted as an implicitly
+    /// invalid ballot, and the lines around it still decode.
+    #[test]
+    fn decode_ballots_counts_malformed_line_as_invalid() {
+        let contest = get_contest_1(&Uuid::new_v4(), &Uuid::new_v4(), &Uuid::new_v4());
+        let vote = DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .enumerate()
+                .map(|(index, candidate)| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: if index == 0 { 0 } else { -1 },
+                    write_in_text: None,
+                })
+                .collect(),
+        };
+        let encoded = contest
+            .encode_plaintext_contest_bigint(&vote)
+            .expect("vote should encode");
+        let mut file = tempfile::NamedTempFile::new().expect("temp file");
+        writeln!(
+            file,
+            "{encoded}\n{MALFORMED_PLAINTEXT_LINE}\nnot-a-number\n{encoded}\n"
+        )
+        .expect("write ballots");
+
+        let decoded =
+            DecodeBallots::decode_ballots(file.path(), &contest).expect("ballots should decode");
+
+        assert_eq!(decoded.len(), 4);
+        for index in [0, 3] {
+            assert!(!decoded[index].is_invalid());
+            assert!(decoded[index]
+                .choices
+                .iter()
+                .any(|choice| choice.id == contest.candidates[0].id && choice.is_selected()));
+        }
+        for index in [1, 2] {
+            assert!(decoded[index].is_invalid());
+            assert!(!decoded[index].is_explicit_invalid);
+            assert_eq!(decoded[index], DecodedVoteContest::undecodable(&contest));
+        }
     }
 }
