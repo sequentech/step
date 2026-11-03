@@ -8,12 +8,14 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::ballot::ElectionPresentation;
+use sequent_core::election_config::package_verify::ConfigurationSigningPolicy;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::postgres::election;
 use windmill::services::database::get_hasura_pool;
+use windmill::services::import::configuration_package;
 use windmill::services::import::import_election_event::ensure_election_audit_boards;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -52,6 +54,23 @@ pub async fn create_election(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    // Where signed packages are required, election data arrives only through
+    // the signed import.
+    let signing = configuration_package::tenant_setting(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    if signing.is_some_and(|signing| {
+        signing.policy == ConfigurationSigningPolicy::Required
+    }) {
+        return Err((
+            Status::Forbidden,
+            "Elections are created only by the signed import".into(),
+        ));
+    }
 
     let election = election::create_election(
         &hasura_transaction,

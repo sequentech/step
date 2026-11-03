@@ -261,6 +261,10 @@ type Mutation {
 }
 
 type Mutation {
+    archive_election_event(election_event_id: String!): ArchiveElectionEvent
+}
+
+type Mutation {
     delete_tenant(tenant_id: String!): DeleteTenant
 }
 
@@ -1884,6 +1888,10 @@ type DeleteElectionEvent {
     id: String
     task_execution: tasks_execution_type
     error_msg: String
+}
+
+type ArchiveElectionEvent {
+    id: String!
 }
 
 type DeleteTenant {

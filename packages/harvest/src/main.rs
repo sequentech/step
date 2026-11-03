@@ -157,6 +157,7 @@ fn build_application_with(
                 routes::import_candidates::import_candidates_route,
                 routes::insert_election_event::import_election_event_f,
                 routes::delete_election_event::delete_election_event_f,
+                routes::archive_election_event::archive_election_event_f,
                 routes::delete_tenant::delete_tenant_f,
                 routes::import_tenant_config::import_tenant_config_route,
                 routes::export_tenant_config::export_tenant_config_route,

@@ -20,6 +20,7 @@ import {divContainer} from "@/components/styles/Menu"
 import {useApolloClient, useMutation} from "@apollo/client"
 import {DeleteElectionEvent, DeleteElectionEventMutation} from "@/gql/graphql"
 import {DELETE_ELECTION_EVENT} from "@/queries/DeleteElectionEvent"
+import {ARCHIVE_ELECTION_EVENT} from "@/queries/ArchiveElectionEvent"
 import {IPermissions} from "@/types/keycloak"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
@@ -120,6 +121,15 @@ export default function MenuAction({
             },
         }
     )
+    const [archive_election_event] = useMutation<{
+        archive_election_event?: {id: string} | null
+    }>(ARCHIVE_ELECTION_EVENT, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.ELECTION_EVENT_ARCHIVE,
+            },
+        },
+    })
 
     const notify = useNotify()
 
@@ -209,27 +219,22 @@ export default function MenuAction({
         const {action, payload} = selectedActionModal
 
         if (action === Action.Archive) {
-            update(
-                payload.type,
-                {
-                    id: payload.id,
-                    data: {is_archived: true},
-                    previousData: {is_archived: false},
-                },
-                {
-                    onSuccess() {
-                        refetch()
-                        notify(t("sideMenu.menuActions.messages.notification.success.archive"), {
-                            type: "success",
-                        })
-                    },
-                    onError() {
-                        notify(t("sideMenu.menuActions.messages.notification.error.archive"), {
-                            type: "error",
-                        })
-                    },
+            try {
+                const {data} = await archive_election_event({
+                    variables: {electionEventId: payload.id},
+                })
+                if (!data?.archive_election_event?.id) {
+                    throw new Error("The election event was not archived")
                 }
-            )
+                refetch()
+                notify(t("sideMenu.menuActions.messages.notification.success.archive"), {
+                    type: "success",
+                })
+            } catch {
+                notify(t("sideMenu.menuActions.messages.notification.error.archive"), {
+                    type: "error",
+                })
+            }
         } else if (action === Action.Unarchive) {
             await update(
                 payload.type,

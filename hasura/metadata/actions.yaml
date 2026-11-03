@@ -593,6 +593,22 @@ actions:
       permissions:
           - role: election-event-delete
           - role: admin-user
+    - name: archive_election_event
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/archive-election-event
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value_from_env: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-event-archive
     - name: delete_tenant
       definition:
           kind: synchronous
@@ -3311,6 +3327,7 @@ custom_types:
         - name: SetCustomUrlOutput
         - name: SetCustomUrlsOutput
         - name: DeleteElectionEvent
+        - name: ArchiveElectionEvent
         - name: ExportTasksExecutionOutput
         - name: createTransmissionPackageOutput
         - name: GetEventListOutput

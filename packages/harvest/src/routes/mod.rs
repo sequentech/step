@@ -4,6 +4,7 @@
 pub mod api_datafix;
 pub mod applications;
 pub mod approval_matrix;
+pub mod archive_election_event;
 pub mod areas;
 pub mod ballot_checks;
 pub mod ballot_publication;
