@@ -14,15 +14,54 @@ import {
     step,
     telemetryUrl,
 } from "./fixtures"
+import type {Page} from "@playwright/test"
 import {readFile, writeFile} from "node:fs/promises"
 import {resolve} from "node:path"
 import {loadCore} from "@sequentech/ui-test-kit/wasm/node"
 
 test.describe.configure({mode: "serial"})
 
+/** The voter's bearer token, as the voting portal sends it with its GraphQL requests. */
+function voterAuthorization(page: Page) {
+    const headers: Promise<string | undefined>[] = []
+    page.on("request", (request) => {
+        if (request.method() === "POST" && request.url().includes("/v1/graphql"))
+            headers.push(request.allHeaders().then((all) => all.authorization))
+    })
+    return async () => {
+        const authorization = (await Promise.all(headers)).filter(Boolean).at(-1)
+        expect(authorization).toMatch(/^Bearer /)
+        return authorization!
+    }
+}
+
+/** The voter's own cast votes in the event's ballot box, all or those matching a ballot ID. */
+async function voterCastVotes(
+    authorization: string,
+    match: {electionId: string; ballotId: string} | null = null
+) {
+    const response = await fetch("http://graphql-engine:8080/v1/graphql", {
+        method: "POST",
+        headers: {"content-type": "application/json", authorization},
+        body: JSON.stringify({
+            query: `query($event: String!, $election: String, $ballot: String) { cast_votes: get_voter_cast_votes(election_event_id: $event, election_id: $election, ballot_id: $ballot) { id ballot_id content election_id election_event_id area_id status } }`,
+            variables: {
+                event: fixture.eventId,
+                election: match?.electionId ?? null,
+                ballot: match?.ballotId ?? null,
+            },
+        }),
+    })
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.errors).toBeUndefined()
+    return body.data.cast_votes as Record<string, unknown>[]
+}
+
 test("audit downloads independently decode the selected candidate without storing a cast", async ({
     page,
 }) => {
+    const authorization = voterAuthorization(page)
     await review(page, fixture.voters.A[0], "Alice")
     const ballotId = (await page.getByText(/^Your Ballot ID:/).textContent())?.match(
         /[0-9a-f]{64}/
@@ -48,11 +87,7 @@ test("audit downloads independently decode the selected candidate without storin
     expect(decoded[0].choices.filter(({selected}: {selected: number}) => selected >= 0)).toEqual([
         {id: fixture.candidates.A.Alice, selected: 0, write_in_text: null},
     ])
-    const data = await db<{sequent_backend_cast_vote: unknown[]}>(
-        `query($event: uuid!) { sequent_backend_cast_vote(where:{election_event_id:{_eq:$event}}) { id } }`,
-        {event: fixture.eventId}
-    )
-    expect(data.sequent_backend_cast_vote).toEqual([])
+    expect(await voterCastVotes(await authorization())).toEqual([])
 })
 
 test("real PKCE login, signed ballot files, selection, cast and receipt agree with the database", async ({
@@ -71,6 +106,7 @@ test("real PKCE login, signed ballot files, selection, cast and receipt agree wi
         if (request.url().includes("/protocol/openid-connect/auth?"))
             authorizations.push(new URL(request.url()))
     })
+    const authorization = voterAuthorization(page)
     await review(page, fixture.voters.A[0], "Alice")
     expect(authorizations.length).toBeGreaterThan(0)
     expect(authorizations[0].searchParams.get("code_challenge_method")).toBe("S256")
@@ -87,19 +123,19 @@ test("real PKCE login, signed ballot files, selection, cast and receipt agree wi
     expect(body.errors).toBeUndefined()
     const receipt = body.data.insert_cast_vote
     await expect(page.getByTestId("ballot-id").first()).toHaveText(receipt.ballot_id)
-    const data = await db<{sequent_backend_cast_vote: unknown[]}>(
-        `query($id: uuid!) { sequent_backend_cast_vote(where:{id:{_eq:$id}}) { ballot_id content election_id election_event_id area_id cast_ballot_signature voter_id_string } }`,
-        {id: receipt.id}
-    )
-    expect(data.sequent_backend_cast_vote).toEqual([
+    const stored = await voterCastVotes(await authorization(), {
+        electionId: fixture.elections.main,
+        ballotId: receipt.ballot_id,
+    })
+    expect(stored).toEqual([
         {
+            id: receipt.id,
             ballot_id: receipt.ballot_id,
             content: receipt.content,
             election_id: fixture.elections.main,
             election_event_id: fixture.eventId,
             area_id: fixture.areas.A,
-            cast_ballot_signature: `\\x${Buffer.from(receipt.cast_ballot_signature).toString("hex")}`,
-            voter_id_string: receipt.voter_id_string,
+            status: "valid",
         },
     ])
     expect(receipt.cast_ballot_signature).toHaveLength(64)
@@ -143,6 +179,7 @@ test("a permitted revote replaces the choice and a stale third ballot is rejecte
     browser,
     violations,
 }) => {
+    const authorization = voterAuthorization(page)
     await review(page, fixture.voters.A[0], "Carol")
     const secondContext = await browser.newContext({
         locale: "en-US",
@@ -166,18 +203,14 @@ test("a permitted revote replaces the choice and a stale third ballot is rejecte
         ])
         await expect(page.getByRole("alert")).toContainText("You have exceeded the revote limit")
         await expect(page).toHaveURL(/\/review/)
-        const receipt = JSON.parse(await readFile(resolve(output, "receipt.json"), "utf8"))
-        const rows = await db<{sequent_backend_cast_vote: unknown[]}>(
-            `query($event: uuid!, $voter: String!) { sequent_backend_cast_vote(where:{election_event_id:{_eq:$event}, voter_id_string:{_eq:$voter}}) { id } }`,
-            {event: fixture.eventId, voter: receipt.voter_id_string}
-        )
-        expect(rows.sequent_backend_cast_vote).toHaveLength(2)
+        expect(await voterCastVotes(await authorization())).toHaveLength(2)
     } finally {
         await secondContext.close()
     }
 })
 
 test("closing the event rejects a ballot already prepared in the browser", async ({page}) => {
+    const authorization = voterAuthorization(page)
     await review(page, fixture.voters.A[2], "Carol")
     await step(
         "update-event-voting-status",
@@ -195,11 +228,7 @@ test("closing the event rejects a ballot already prepared in the browser", async
     await expect(page.getByRole("alert")).toContainText(
         "This election does not allow casting a vote"
     )
-    const rows = await db<{sequent_backend_cast_vote: unknown[]}>(
-        `query($event: uuid!) { sequent_backend_cast_vote(where:{election_event_id:{_eq:$event}}) { id } }`,
-        {event: fixture.eventId}
-    )
-    expect(rows.sequent_backend_cast_vote).toHaveLength(2)
+    expect(await voterCastVotes(await authorization())).toEqual([])
 })
 
 test("an administrator signs in with actual two-factor authentication and reads the imported event", async ({

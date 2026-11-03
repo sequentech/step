@@ -363,6 +363,7 @@ const meta = {
                 return {data: publication() as unknown as RecordType}
             },
         })
+        await boundary.ready
         return () => {
             expect(boundary.unexpected).toEqual([])
             expect(data.unexpected).toEqual([])
@@ -416,7 +417,20 @@ export const EventGenerationAndPublication: Story = {
     },
 }
 
-export const GenerationRequestFailureRestoresList: Story = {
+/** The details keep a failure's reason until the user goes back to the list. */
+async function failureShown(canvasElement: HTMLElement, reason: string) {
+    const canvas = within(canvasElement)
+    // The error notification is an alert too.
+    const title = await canvas.findByText("Error publishing ballot publication")
+    const alert = title.closest("[role=alert]") as HTMLElement
+    await expect(alert).toHaveTextContent(reason)
+    await expect(canvas.getByRole("button", {name: "Publish Changes"})).toBeDisabled()
+    await userEvent.click(canvas.getByRole("button", {name: "Back"}))
+    await expect(await canvas.findByRole("button", {name: "Generate Publication"})).toBeEnabled()
+    expect(canvas.queryByText("Error publishing ballot publication")).toBeNull()
+}
+
+export const GenerationRequestFailureKeepsItsReason: Story = {
     args: {generationFails: true},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
@@ -426,9 +440,7 @@ export const GenerationRequestFailureRestoresList: Story = {
                 within(document.body).getByText("Error loading ballot publication")
             ).toBeVisible()
         )
-        await expect(
-            await canvas.findByRole("button", {name: "Generate Publication"})
-        ).toBeEnabled()
+        await failureShown(canvasElement, "Synthetic publication generation unavailable")
         expect(
             boundary.calls.filter(({name}) => name === "GetTaskById" || name === "PublishBallot")
         ).toEqual([])
@@ -471,9 +483,7 @@ export const FailedGenerationTaskShowsItsReasonWithoutPublishing: Story = {
                 )
             ).toBeVisible()
         )
-        await expect(
-            await canvas.findByRole("button", {name: "Generate Publication"})
-        ).toBeEnabled()
+        await failureShown(canvasElement, "Synthetic ballot exceeded maximum size")
         expect(
             boundary.calls.filter(({name}) =>
                 ["GetBallotPublicationChange", "PublishBallot"].includes(name)

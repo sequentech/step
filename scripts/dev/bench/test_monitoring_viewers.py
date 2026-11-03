@@ -3,15 +3,20 @@
 
 import base64
 import json
+import subprocess
 import unittest
+from unittest import mock
 
+from . import monitoring_viewers
 from .__main__ import parser
 from .monitoring_viewers import (
     PROFILES,
     Cycle,
     ScreenProfile,
+    Stack,
     ViewerSetup,
     count_renderer_calls,
+    event_database,
     latency_summary,
     markdown_table,
     parse_docker_stats,
@@ -21,6 +26,7 @@ from .monitoring_viewers import (
     render_error,
     render_requests,
     selector_values,
+    source_reads,
     token_expiry,
     viewer_counts,
     viewer_setups,
@@ -280,14 +286,14 @@ class PercentileTest(unittest.TestCase):
 
 class TableStatsTest(unittest.TestCase):
     TSV = (
-        "sequent_backend\tcast_vote\t10\t100\t5\t50\t3\n"
+        "sequent_backend\tmonitoring_voter\t10\t100\t5\t50\t3\n"
         "sequent_backend\tapplications\t1\t0\t0\t0\t0\n"
     )
 
     def test_parses_psql_unaligned_output(self):
         stats = parse_table_stats(self.TSV)
         self.assertEqual(
-            stats["sequent_backend.cast_vote"],
+            stats["sequent_backend.monitoring_voter"],
             {
                 "seq_scan": 10,
                 "seq_tup_read": 100,
@@ -304,12 +310,12 @@ class TableStatsTest(unittest.TestCase):
     def test_deltas_and_reads(self):
         before = parse_table_stats(self.TSV)
         after = parse_table_stats(
-            "sequent_backend\tcast_vote\t12\t130\t6\t52\t3\n"
+            "sequent_backend\tmonitoring_voter\t12\t130\t6\t52\t3\n"
             "sequent_backend\tapplications\t1\t0\t0\t0\t0\n"
         )
         deltas = read_deltas(before, after)
         self.assertEqual(
-            deltas["sequent_backend.cast_vote"],
+            deltas["sequent_backend.monitoring_voter"],
             {
                 "scans": 3,
                 "tuples_read": 32,
@@ -322,7 +328,89 @@ class TableStatsTest(unittest.TestCase):
 
     def test_a_table_only_after_counts_from_zero(self):
         deltas = read_deltas({}, parse_table_stats(self.TSV))
-        self.assertEqual(deltas["sequent_backend.cast_vote"]["scans"], 15)
+        self.assertEqual(deltas["sequent_backend.monitoring_voter"]["scans"], 15)
+
+
+EVENT = "7C9E6679-7425-40DE-944B-E07FC1F90AE7"
+EVENT_HEX = "7c9e6679742540de944be07fc1f90ae7"
+
+
+class SourceReadsTest(unittest.TestCase):
+    def test_the_event_database_is_named_after_the_base_database(self):
+        self.assertEqual(
+            event_database("electoral_log", EVENT), f"electoral_log_{EVENT_HEX}"
+        )
+
+    def test_sources_include_the_events_ballot_box(self):
+        counters = {"scans": 1, "tuples_read": 2, "seq_scan": 0, "idx_scan": 1}
+        deltas = {
+            table: dict(counters, n_tup_ins=0)
+            for table in (
+                "sequent_backend.monitoring_voter",
+                "sequent_backend.monitoring_snapshot",
+                "keycloak:public.user_entity",
+                f"electoral-log:public.ballot_box_ballot_{EVENT_HEX}",
+                "electoral-log:public.ballot_box_pending",
+                f"electoral-log:public.ballot_box_voter_{EVENT_HEX}",
+                "public.ballot_box_pending",
+            )
+        }
+        self.assertEqual(
+            sorted(source_reads(deltas, EVENT)),
+            [
+                f"electoral-log:public.ballot_box_ballot_{EVENT_HEX}",
+                "electoral-log:public.ballot_box_pending",
+                "keycloak:public.user_entity",
+                "sequent_backend.monitoring_voter",
+            ],
+        )
+
+    def test_each_database_is_read_with_its_own_prefix(self):
+        stack = Stack(
+            backend_container="postgres",
+            backend_database="postgres",
+            keycloak_container="postgres-keycloak",
+            keycloak_database="postgres",
+            electoral_log_container="postgres",
+            electoral_log_database=event_database("electoral_log", EVENT),
+            harvest_container="harvest",
+            containers=[],
+        )
+        database = f"electoral_log_{EVENT_HEX}"
+        outputs = {
+            ("postgres", "postgres", "sequent_backend"): "applications\t1",
+            ("postgres-keycloak", "postgres", "public"): "credential\t2",
+            ("postgres", database, "public"): "ballot_box_pending\t3",
+        }
+        calls = []
+
+        def run(command, **_):
+            container = command[command.index("exec") + 1]
+            name = command[command.index("-d") + 1]
+            schema = command[-1].split("schemaname = '")[1].split("'")[0]
+            calls.append((container, name, schema))
+            table, scans = outputs[(container, name, schema)].split("\t")
+            row = f"{schema}\t{table}\t{scans}\t0\t0\t0\t0\n"
+            return subprocess.CompletedProcess(command, 0, stdout=row)
+
+        with mock.patch.object(monitoring_viewers.subprocess, "run", side_effect=run):
+            stats = stack.table_stats()
+        self.assertEqual(
+            calls,
+            [
+                ("postgres", "postgres", "sequent_backend"),
+                ("postgres-keycloak", "postgres", "public"),
+                ("postgres", database, "public"),
+            ],
+        )
+        self.assertEqual(
+            {name: values["seq_scan"] for name, values in stats.items()},
+            {
+                "sequent_backend.applications": 1,
+                "keycloak:public.credential": 2,
+                "electoral-log:public.ballot_box_pending": 3,
+            },
+        )
 
 
 class HarvestLogTest(unittest.TestCase):

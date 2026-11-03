@@ -33,7 +33,8 @@
 /// between a b4 instance and a trustee is a hard error — no backward
 /// compatibility. One bump per format change.
 pub fn schema_version() -> String {
-    "1".to_string()
+    // Null mix bodies bind their input; pre-binding readers must reject them.
+    "2".to_string()
 }
 
 use anyhow::{anyhow, Result};

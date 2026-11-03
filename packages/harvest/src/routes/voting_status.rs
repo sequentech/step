@@ -1,7 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
+use crate::services::audit;
+use crate::services::authorization::{
+    authorize, authorize_election_permission_labels,
+};
 use crate::services::dependencies::HarvestServices;
 use crate::services::signing_gate::{
     caller, signing_required, waiting, Guarded,
@@ -25,6 +28,7 @@ use windmill::services::signing::actions::voting::{
 use windmill::services::signing::actions::{event_ids, is_required};
 use windmill::services::signing::guard::SigningRequestSummary;
 use windmill::services::{election_event_status, voting_status};
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 use windmill::tasks::seal_ballot_boxes::kick_ballot_box_sealer;
 use windmill::tasks::signing_log_outbox::kick_signing_log_outbox;
 
@@ -107,8 +111,8 @@ async fn update_event_status_response(
 
     let input = body.into_inner();
     let tenant_id = &claims.hasura_claims.tenant_id;
-    let user_id = claims.hasura_claims.user_id;
-    let username = claims.preferred_username;
+    let user_id = claims.hasura_claims.user_id.clone();
+    let username = claims.preferred_username.clone();
 
     let mut hasura_db_client: DbClient =
         services.databases.hasura().await.get().await.map_err(|e| {
@@ -121,6 +125,15 @@ async fn update_event_status_response(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    audit::act_for(&hasura_transaction, &claims).await?;
+
+    authorize_election_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        None,
+    )
+    .await?;
 
     // While opening or closing a Post needs signatures, the whole event
     // doesn't open or close at once. Pausing is not a signing action.
@@ -155,6 +168,7 @@ async fn update_event_status_response(
         .commit()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    kick_audit_log_outbox();
     // The close may have created ballot box seals to make (VOTE-FREEZE).
     if input.voting_status == VotingStatus::CLOSED {
         kick_ballot_box_sealer();
@@ -222,6 +236,15 @@ async fn update_election_status_response(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    audit::act_for(&hasura_transaction, &claims).await?;
+
+    authorize_election_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        Some(std::slice::from_ref(&input.election_id)),
+    )
+    .await?;
 
     // Opening and closing a Post may need signatures first.
     let outcome = gate_election_status(
@@ -240,6 +263,7 @@ async fn update_election_status_response(
             .await
             .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
         kick_signing_log_outbox();
+        kick_audit_log_outbox();
         return Ok(Json(UpdateElectionVotingStatusOutput {
             election_id: input.election_id,
             signing_request: Some(signing_request),
@@ -263,6 +287,7 @@ async fn update_election_status_response(
         .commit()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    kick_audit_log_outbox();
     // The close may have created ballot box seals to make (VOTE-FREEZE).
     if input.voting_status == VotingStatus::CLOSED {
         kick_ballot_box_sealer();
@@ -273,3 +298,7 @@ async fn update_election_status_response(
         signing_request: None,
     }))
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/voting_status_routes.rs"]
+mod route_tests;

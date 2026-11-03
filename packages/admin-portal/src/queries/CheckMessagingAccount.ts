@@ -7,6 +7,8 @@ export const CHECK_MESSAGING_ACCOUNT = gql`
     mutation CheckMessagingAccount($id: uuid!) {
         check_messaging_account(id: $id) {
             status
+            callback_url
+            callback_reason
         }
     }
 `

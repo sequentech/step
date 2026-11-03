@@ -141,6 +141,17 @@ async function notified(message: string) {
 const saveButton = (canvasElement: HTMLElement) =>
     within(canvasElement).getByRole("button", {name: "Save"})
 
+export const PrivacyFollowsBallotDesign: Story = {
+    play: async ({canvasElement}) => {
+        await loaded(canvasElement)
+        const design = section(canvasElement, "ballotDesign").closest(".MuiAccordion-root")
+        const privacy = section(canvasElement, "ballotPrivacy.settings.title").closest(
+            ".MuiAccordion-root"
+        )
+        expect(design?.nextElementSibling).toBe(privacy)
+    },
+}
+
 async function editDescription(canvasElement: HTMLElement) {
     const canvas = await loaded(canvasElement)
     const description = canvas.getByRole("textbox", {name: field("description")})
@@ -160,6 +171,16 @@ export const Populated: Story = {
         await expect(
             canvas.getByRole("button", {name: i18n.t("googleMeet.generateButton")})
         ).toBeVisible()
+        const actions = canvas
+            .getByRole("button", {name: edit("importCandidates")})
+            .closest(".list-actions")
+        expect(actions).not.toBeNull()
+        const readiness = within(actions as HTMLElement).getByRole("button", {
+            name: i18n.t("readiness.action"),
+        })
+        await expect(readiness).toBeVisible()
+        expect(readiness.getBoundingClientRect().left).toBeGreaterThanOrEqual(0)
+        expect(readiness.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth)
         expect(saveButton(canvasElement)).toBeDisabled()
         await waitFor(() =>
             expect(operations()).toEqual(
@@ -263,6 +284,7 @@ export const WithoutRealmAttributes: Story = {
     play: async ({canvasElement}) => {
         const canvas = await loaded(canvasElement)
         expect(canvas.queryByRole("button", {name: edit("realm_attributes")})).toBeNull()
+        expect(canvas.queryByRole("button", {name: i18n.t("readiness.action")})).toBeNull()
         expect(canvas.queryByRole("button", {name: i18n.t("googleMeet.generateButton")})).toBeNull()
         expect(canvas.getByRole("textbox", {name: field("name")})).toBeEnabled()
         await waitFor(() => expect(operations()).toContain("GetRealmPasswordPolicy"))

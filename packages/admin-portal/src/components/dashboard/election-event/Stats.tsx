@@ -8,8 +8,6 @@ import {useTranslation} from "react-i18next"
 import {formatNumber} from "@/services/Numbers"
 import FenceIcon from "@mui/icons-material/Fence"
 import GroupIcon from "@mui/icons-material/Group"
-import MarkEmailReadOutlinedIcon from "@mui/icons-material/MarkEmailReadOutlined"
-import SmsOutlinedIcon from "@mui/icons-material/SmsOutlined"
 import {styled} from "@mui/material/styles"
 import {ChannelIcon} from "@sequentech/ui-essentials"
 import StatItem from "../StatItem"
@@ -67,16 +65,7 @@ export const Stats: React.FC<StatsProps> = ({metrics}) => {
                 count={formatNumber(metrics.areasCount)}
                 label={String(t("electionEventScreen.stats.areas"))}
             ></StatItem>
-            <StatItem
-                icon={<MarkEmailReadOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={formatNumber(metrics.emailsSentCount)}
-                label={String(t("electionEventScreen.stats.sentEmails"))}
-            ></StatItem>
-            <StatItem
-                icon={<SmsOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={formatNumber(metrics.smsSentCount)}
-                label={String(t("electionEventScreen.stats.sentSMS"))}
-            ></StatItem>
+            {/* Messages sent, in channel order: WhatsApp, Viber, Messenger, SMS, Email. */}
             {INSTANT_CHANNELS.map((channel) => (
                 <StatItem
                     key={channel}
@@ -85,6 +74,16 @@ export const Stats: React.FC<StatsProps> = ({metrics}) => {
                     label={String(t(`messaging.stats.sent.${channel}`))}
                 ></StatItem>
             ))}
+            <StatItem
+                icon={<ChannelIcon channel={EMessageChannel.SMS} sx={{fontSize: iconSize}} />}
+                count={formatNumber(metrics.smsSentCount)}
+                label={String(t("electionEventScreen.stats.sentSMS"))}
+            ></StatItem>
+            <StatItem
+                icon={<ChannelIcon channel={EMessageChannel.EMAIL} sx={{fontSize: iconSize}} />}
+                count={formatNumber(metrics.emailsSentCount)}
+                label={String(t("electionEventScreen.stats.sentEmails"))}
+            ></StatItem>
         </CardList>
     )
 }

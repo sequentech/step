@@ -1060,9 +1060,16 @@ async fn an_admin_alone_cannot_loosen_the_published_copy() {
         )
         .await
         .unwrap_err();
-    assert_eq!(
+    // PostgreSQL 18 reports RESTRICT separately from a foreign-key violation.
+    // Both reject this delete through the protected styles' same constraint.
+    assert!(matches!(
         error.code(),
         Some(&tokio_postgres::error::SqlState::FOREIGN_KEY_VIOLATION)
+            | Some(&tokio_postgres::error::SqlState::RESTRICT_VIOLATION)
+    ));
+    assert_eq!(
+        error.as_db_error().unwrap().constraint(),
+        Some("ballot_style_election_event_id_tenant_id_ballot_publication_")
     );
     tx.rollback().await.unwrap();
     assert_eq!(

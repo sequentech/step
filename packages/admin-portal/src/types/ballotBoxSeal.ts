@@ -84,6 +84,8 @@ export enum EBallotBoxWaitingReason {
     CHANNEL_HAS_BALLOTS = "channel_has_ballots",
     /** Datafix votes are in progress (`datafix_votes:3`). */
     DATAFIX_VOTES = "datafix_votes",
+    /** Ballots of the box aren't on the electoral log yet (`sequencer:3`): the sequencer adds them. */
+    SEQUENCER = "sequencer",
     /** Another run was sealing it. */
     BUSY = "busy",
     /** The attempt failed and is retried (`error:<short>`). */

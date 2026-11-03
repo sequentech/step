@@ -29,6 +29,7 @@ pub fn build(
         "packages/voting-load/worker.rs",
         "packages/voting-load/scale.k6.js",
         "packages/voting-load/replay.k6.js",
+        "packages/voting-load/url-1.0.0.js",
         "packages/voting-load/bootstrap.k6.js",
         "packages/step-cli/src/load/config.rs",
         "packages/step-cli/src/load/files.rs",

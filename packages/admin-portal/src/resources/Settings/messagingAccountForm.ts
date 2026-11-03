@@ -7,7 +7,6 @@ import {
     EMessagePurpose,
     EMessagingProvider,
     EProviderApproval,
-    EReadinessPolicy,
     IAccountLimits,
     IAccountSender,
     IMessagingAccount,
@@ -17,18 +16,15 @@ import {
 } from "@/types/messaging"
 import {
     accountCapabilities,
+    accountIdentity,
+    checkedForAnotherIdentity,
+    isUnsupportedProvider,
     providerCapabilities,
     providersForChannel,
     purposeReadiness,
+    requiredCredentials,
     typedCredentials,
 } from "@/services/messaging"
-import {
-    IHttpApiForm,
-    emptyHttpApiForm,
-    httpFormFromSender,
-    httpFormProblems,
-    httpSenderFromForm,
-} from "./httpApiSender"
 
 export const DEFAULT_META_API_VERSION = "v23.0"
 
@@ -73,17 +69,13 @@ export const senderFields = (provider: EMessagingProvider): ISenderField[] => {
         case EMessagingProvider.VIBER_INFOBIP:
             return [field("base_url", true), field("sender", true)]
         case EMessagingProvider.HTTP_API:
-            return [field("label")]
         case EMessagingProvider.CONSOLE:
+            // Unsupported: nothing to edit; the account is shown to be replaced.
             return []
     }
 }
 
-/**
- * Providers an administrator can pick for a channel: the channel's own, then
- * the ones that serve any channel, whose account is saved with the chosen
- * channel.
- */
+/** Providers an administrator can pick for a new account of a channel: its own adapters. */
 export const selectableProviders = (channel: EMessageChannel): EMessagingProvider[] =>
     providersForChannel(channel)
 
@@ -96,6 +88,7 @@ export interface IViberTemplateRow {
 export interface IAccountFormLimits {
     messagesPerSecond: string
     otpReservedPerSecond: string
+    otpConcurrency: string
     allowedCallingCodes: string
 }
 
@@ -105,10 +98,8 @@ export interface IAccountFormValues {
     name: string
     sender: Record<string, string>
     viberTemplates: IViberTemplateRow[]
-    http: IHttpApiForm
     limits: IAccountFormLimits
     providerApproval: EProviderApproval
-    readiness: EReadinessPolicy
     isDefault: boolean
     credentials: Partial<Record<ECredentialName, string>>
 }
@@ -130,10 +121,13 @@ export const emptyAccountForm = (
     name: "",
     sender: initialSender(provider),
     viberTemplates: [],
-    http: emptyHttpApiForm(),
-    limits: {messagesPerSecond: "", otpReservedPerSecond: "", allowedCallingCodes: ""},
+    limits: {
+        messagesPerSecond: "",
+        otpReservedPerSecond: "",
+        otpConcurrency: "",
+        allowedCallingCodes: "",
+    },
     providerApproval: EProviderApproval.PENDING,
-    readiness: EReadinessPolicy.PROVIDER_CHECK,
     isDefault: false,
     credentials: {},
 })
@@ -147,14 +141,13 @@ export const withProvider = (
     provider,
     sender: initialSender(provider),
     viberTemplates: [],
-    http: emptyHttpApiForm(),
     credentials: {},
 })
 
 /**
- * Switches a new account to another channel. A provider that serves any
- * channel is kept with what was entered; otherwise the channel's first
- * provider is selected.
+ * Switches a new account to another channel. A provider of that channel is
+ * kept with what was entered; otherwise the channel's first provider is
+ * selected.
  */
 export const withChannel = (
     values: IAccountFormValues,
@@ -195,14 +188,13 @@ export const formFromAccount = (account: IMessagingAccount): IAccountFormValues 
         account.sender.provider === EMessagingProvider.VIBER_INFOBIP
             ? viberRows(account.sender.approved_templates)
             : [],
-    http: httpFormFromSender(account.sender),
     limits: {
         messagesPerSecond: countText(account.limits?.messages_per_second),
         otpReservedPerSecond: countText(account.limits?.otp_reserved_per_second),
+        otpConcurrency: countText(account.limits?.otp_concurrency),
         allowedCallingCodes: (account.limits?.allowed_calling_codes ?? []).join(", "),
     },
     providerApproval: account.provider_approval ?? EProviderApproval.PENDING,
-    readiness: account.readiness ?? EReadinessPolicy.PROVIDER_CHECK,
     isDefault: account.is_default,
     credentials: {},
 })
@@ -294,7 +286,7 @@ export const senderFromForm = (values: IAccountFormValues): IAccountSender => {
                 approved_templates: viberTemplates(values.viberTemplates),
             }
         case EMessagingProvider.HTTP_API:
-            return httpSenderFromForm(values.sender.label ?? "", values.http)
+            return {provider: EMessagingProvider.HTTP_API}
         case EMessagingProvider.CONSOLE:
             return {provider: EMessagingProvider.CONSOLE}
     }
@@ -307,6 +299,7 @@ const count = (text: string): number | null => (COUNT.test(text.trim()) ? Number
 export const limitsFromForm = (values: IAccountFormValues): IAccountLimits => ({
     messages_per_second: count(values.limits.messagesPerSecond),
     otp_reserved_per_second: count(values.limits.otpReservedPerSecond),
+    otp_concurrency: count(values.limits.otpConcurrency),
     allowed_calling_codes: parseCallingCodes(values.limits.allowedCallingCodes).codes,
 })
 
@@ -314,19 +307,82 @@ export enum EAccountFormError {
     REQUIRED = "REQUIRED",
     NOT_A_COUNT = "NOT_A_COUNT",
     OTP_ABOVE_TOTAL = "OTP_ABOVE_TOTAL",
+    /** Codes sent at once: 0 would never send a code. */
+    AT_LEAST_ONE = "AT_LEAST_ONE",
     INVALID_CALLING_CODE = "INVALID_CALLING_CODE",
     DUPLICATE_LANGUAGE = "DUPLICATE_LANGUAGE",
     NOT_A_URL = "NOT_A_URL",
-    INVALID_HTTP_CONFIG = "INVALID_HTTP_CONFIG",
+    /** A removed provider: the account can't be saved, only replaced. */
+    UNSUPPORTED_PROVIDER = "UNSUPPORTED_PROVIDER",
+    /**
+     * The address the credentials are sent to changed, and the credentials
+     * weren't entered again. The backend refuses it with the same reason.
+     */
+    CREDENTIALS_FOLLOW_ENDPOINT = "CREDENTIALS_FOLLOW_ENDPOINT",
 }
 
-const HTTP_URL = /^https?:\/\/\S+$/
+/**
+ * The sender field holding the address an account's credentials are sent to,
+ * like `account_endpoint` in windmill: the Graph API base, the Infobip base or
+ * the SMTP server. `null` for providers that name none.
+ */
+export const endpointField = (provider: EMessagingProvider): string | null => {
+    switch (provider) {
+        case EMessagingProvider.WHATSAPP_CLOUD_API:
+        case EMessagingProvider.MESSENGER_SEND_API:
+            return "api_base_url"
+        case EMessagingProvider.VIBER_INFOBIP:
+            return "base_url"
+        case EMessagingProvider.SMTP:
+            return "server_url"
+        default:
+            return null
+    }
+}
+
+const endpointOf = (sender: Record<string, string>, key: string): string | null =>
+    (sender[key] ?? "").trim().replace(/\/+$/, "") || null
+
+/** Whether the form moves the account's credentials to another address. */
+export const endpointChanged = (
+    original: IAccountFormValues | undefined,
+    values: IAccountFormValues
+): boolean => {
+    const key = endpointField(values.provider)
+    return (
+        !!original &&
+        !!key &&
+        original.provider === values.provider &&
+        endpointOf(original.sender, key) !== endpointOf(values.sender, key)
+    )
+}
+
+/**
+ * Credentials that must be entered again before the form can be saved: all
+ * the provider needs to send, when the address they go to changed (the same
+ * rule as `endpoint_change_refusal`). Empty otherwise.
+ */
+export const credentialsToReenter = (
+    original: IAccountFormValues | undefined,
+    values: IAccountFormValues
+): ECredentialName[] =>
+    endpointChanged(original, values)
+        ? requiredCredentials(values.provider).filter((name) => !values.credentials[name])
+        : []
+
+// Provider endpoints carry the stored credentials, so they must be https.
+const HTTPS_URL = /^https:\/\/\S+$/
 
 /** Errors by field path; empty when the form can be saved. */
 export const validateAccountForm = (
-    values: IAccountFormValues
+    values: IAccountFormValues,
+    /** The stored account, when editing one. */
+    original?: IAccountFormValues
 ): Record<string, EAccountFormError> => {
     const errors: Record<string, EAccountFormError> = {}
+    if (isUnsupportedProvider(values.provider)) {
+        errors.provider = EAccountFormError.UNSUPPORTED_PROVIDER
+    }
     if (!values.name.trim()) {
         errors.name = EAccountFormError.REQUIRED
     }
@@ -335,10 +391,12 @@ export const validateAccountForm = (
             errors[`sender.${key}`] = EAccountFormError.REQUIRED
         }
     }
-    const {messagesPerSecond, otpReservedPerSecond, allowedCallingCodes} = values.limits
+    const {messagesPerSecond, otpReservedPerSecond, otpConcurrency, allowedCallingCodes} =
+        values.limits
     for (const [key, text] of [
         ["messagesPerSecond", messagesPerSecond],
         ["otpReservedPerSecond", otpReservedPerSecond],
+        ["otpConcurrency", otpConcurrency],
     ]) {
         if (text.trim() && count(text) === null) {
             errors[`limits.${key}`] = EAccountFormError.NOT_A_COUNT
@@ -348,6 +406,9 @@ export const validateAccountForm = (
     const reserved = count(otpReservedPerSecond)
     if (total !== null && reserved !== null && reserved > total) {
         errors["limits.otpReservedPerSecond"] = EAccountFormError.OTP_ABOVE_TOTAL
+    }
+    if (count(otpConcurrency) === 0) {
+        errors["limits.otpConcurrency"] = EAccountFormError.AT_LEAST_ONE
     }
     if (parseCallingCodes(allowedCallingCodes).invalid.length) {
         errors["limits.allowedCallingCodes"] = EAccountFormError.INVALID_CALLING_CODE
@@ -365,18 +426,23 @@ export const validateAccountForm = (
             seen.add(key)
         })
     }
-    const apiBaseUrl = optional(values, "api_base_url")
-    if (
-        senderFields(values.provider).some(({key}) => key === "api_base_url") &&
-        apiBaseUrl &&
-        !HTTP_URL.test(apiBaseUrl)
-    ) {
-        errors["sender.api_base_url"] = EAccountFormError.NOT_A_URL
-    }
-    if (values.provider === EMessagingProvider.HTTP_API) {
-        for (const part of Object.keys(httpFormProblems(values.http))) {
-            errors[`http.${part}`] = EAccountFormError.INVALID_HTTP_CONFIG
+    for (const key of ["api_base_url", "base_url"]) {
+        const url = optional(values, key)
+        if (
+            senderFields(values.provider).some((candidate) => candidate.key === key) &&
+            url &&
+            !HTTPS_URL.test(url)
+        ) {
+            errors[`sender.${key}`] = EAccountFormError.NOT_A_URL
         }
+    }
+    const endpoint = endpointField(values.provider)
+    if (
+        endpoint &&
+        !errors[`sender.${endpoint}`] &&
+        credentialsToReenter(original, values).length
+    ) {
+        errors[`sender.${endpoint}`] = EAccountFormError.CREDENTIALS_FOLLOW_ENDPOINT
     }
     return errors
 }
@@ -388,8 +454,12 @@ export interface IUpsertAccountVariables {
     sender: IAccountSender
     limits: IAccountLimits
     providerApproval: EProviderApproval | null
-    readiness: EReadinessPolicy
     isDefault: boolean
+    /**
+     * Credentials typed in the form, stored in the same transaction as the
+     * account, so an address change and its credentials are saved together.
+     */
+    credentials: Partial<Record<ECredentialName, string>> | null
 }
 
 /** The variables of `upsert_messaging_account` for the form. */
@@ -405,8 +475,8 @@ export const upsertAccountVariables = (
     providerApproval: requiresProviderApproval(values.provider, values.channel)
         ? values.providerApproval
         : null,
-    readiness: values.readiness,
     isDefault: values.isDefault,
+    credentials: credentialsPayload(values),
 })
 
 /** Typed credentials to replace, or null when none was typed. */
@@ -420,28 +490,31 @@ export const credentialsPayload = (
 }
 
 export interface IAccountReadiness {
-    /** Where the readiness comes from: the provider's check or an administrator. */
-    policy: EReadinessPolicy
-    /** What the last check told; not used when an administrator confirmed the account. */
+    /** What the last check told. */
     connected: boolean
     purposes: Record<EMessagePurpose, IPurposeReadiness>
 }
 
+/** Readiness always comes from the provider's check. */
 export const accountReadiness = (account: IMessagingAccount): IAccountReadiness => {
-    const policy = account.readiness ?? EReadinessPolicy.PROVIDER_CHECK
     const capabilities = accountCapabilities(account)
     const readiness = (purpose: EMessagePurpose) =>
         purposeReadiness(
+            account.provider,
             capabilities,
             account.provider_approval,
-            policy,
             account.status,
             purpose,
-            null
+            null,
+            accountIdentity(account.sender)
         )
     return {
-        policy,
-        connected: account.status?.connected ?? false,
+        // A check of another identity (an earlier number or Page) says
+        // nothing about the account as it is now.
+        connected:
+            (account.status?.connected ?? false) &&
+            !isUnsupportedProvider(account.provider) &&
+            !checkedForAnotherIdentity(account),
         purposes: {
             [EMessagePurpose.OTP]: readiness(EMessagePurpose.OTP),
             [EMessagePurpose.NOTICE]: readiness(EMessagePurpose.NOTICE),

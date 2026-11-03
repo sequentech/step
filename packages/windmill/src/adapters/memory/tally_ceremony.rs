@@ -6,11 +6,11 @@ use crate::domain::tally_ceremony::TallyExecuter;
 use crate::ports::tally_ceremony::{
     BallotBoxSealState, DecryptionSet, ElectionEventReader, ElectionsById, EnvironmentSlug,
     KeysCeremonyReader, NewTallySession, TallyCeremonyAudit, TallyCreationReader,
-    TallyEventSnapshot, TallySessions, TrusteePrivateKeys,
+    TallyEventSnapshot, TallySessions, TrusteeCustody,
 };
 use anyhow::{anyhow, Result};
-use b4::messages::newtypes::BatchNumber;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::ceremonies::BatchNumber;
 use sequent_core::types::ceremonies::{TallyCeremonyStatus, TallyExecutionStatus, TallyRunReason};
 use sequent_core::types::hasura::core::{
     Area, AreaContest, BallotStyle, Contest, Election, ElectionEvent, KeysCeremony, TallySession,
@@ -39,12 +39,12 @@ pub enum TallyCall {
     ApprovedTallySheets,
     BallotBoxSeals,
     GetKeysCeremony,
-    GetPrivateKey,
+    VerifyCustodyProof,
     GetElections,
     GetElectionEvent,
     EnvSlug,
     TallyOpened,
-    KeyRestored,
+    CustodyAuthorizationd,
     KeyInsertionStarted,
     TallyClosed,
 }
@@ -60,7 +60,7 @@ pub enum TallyAuditEntry {
         user_id: String,
         username: String,
     },
-    KeyRestored {
+    CustodyAuthorizationd {
         board_name: String,
         tenant_id: String,
         election_event_id: String,
@@ -122,7 +122,7 @@ struct State {
     /// (tenant, event, seal).
     ballot_box_seals: Vec<(String, String, BallotBoxSealState)>,
     keys_ceremonies: Vec<KeysCeremony>,
-    private_keys: HashMap<(String, String), String>,
+    custody: HashMap<(String, String), String>,
     elections: Vec<Election>,
     election_events: Vec<ElectionEvent>,
     env_slug: String,
@@ -297,8 +297,8 @@ impl InMemoryTallyCeremony {
         self.state().keys_ceremonies.push(keys_ceremony);
     }
 
-    pub fn add_private_key(&self, keys_ceremony_id: &str, trustee_name: &str, key: &str) {
-        self.state().private_keys.insert(
+    pub fn add_custody_proof(&self, keys_ceremony_id: &str, trustee_name: &str, key: &str) {
+        self.state().custody.insert(
             (keys_ceremony_id.to_string(), trustee_name.to_string()),
             key.to_string(),
         );
@@ -769,21 +769,24 @@ impl KeysCeremonyReader for InMemoryTallyCeremony {
     }
 }
 
-impl TrusteePrivateKeys for InMemoryTallyCeremony {
-    async fn encrypted_private_key(
+impl TrusteeCustody for InMemoryTallyCeremony {
+    async fn verifies(
         &self,
         _tenant_id: &str,
         _election_event_id: &str,
         trustee_name: &str,
         keys_ceremony: &KeysCeremony,
-    ) -> Result<String> {
+        _tally_session_id: &str,
+        proof: &str,
+    ) -> Result<bool> {
         let state = self.state();
-        state.check(TallyCall::GetPrivateKey)?;
-        state
-            .private_keys
+        state.check(TallyCall::VerifyCustodyProof)?;
+        let expected = state
+            .custody
             .get(&(keys_ceremony.id.clone(), trustee_name.to_string()))
             .cloned()
-            .ok_or_else(|| anyhow!("can't get trustee public key"))
+            .ok_or_else(|| anyhow!("can't get trustee public key"))?;
+        Ok(expected == proof)
     }
 }
 
@@ -855,7 +858,7 @@ impl TallyCeremonyAudit for InMemoryTallyCeremony {
         )
     }
 
-    async fn key_restored(
+    async fn custody_authorized(
         &self,
         board_name: &str,
         tenant_id: &str,
@@ -865,8 +868,8 @@ impl TallyCeremonyAudit for InMemoryTallyCeremony {
         claims: &JwtClaims,
     ) -> Result<()> {
         self.record(
-            TallyCall::KeyRestored,
-            TallyAuditEntry::KeyRestored {
+            TallyCall::CustodyAuthorizationd,
+            TallyAuditEntry::CustodyAuthorizationd {
                 board_name: board_name.to_string(),
                 tenant_id: tenant_id.to_string(),
                 election_event_id: election_event_id.to_string(),

@@ -36,9 +36,3 @@ else
     nix-collect-garbage -d &> /dev/null
 fi
 disk-usage "Nix garbage collected"
-
-echo "Cleaning ImmuDB database..."
-docker compose rm -fs immudb &> /dev/null
-docker volume rm -f "${COMPOSE_PROJECT_NAME}_immudb_data" &> /dev/null
-docker compose up -d --no-recreate immudb &> /dev/null
-disk-usage "ImmuDB cleaned up"

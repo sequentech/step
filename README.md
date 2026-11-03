@@ -33,7 +33,7 @@ guarantees.
 - **Keycloak** - Identity and access management
 - **PostgreSQL** - Data persistence
 - **React** - Frontend user interfaces
-- **ImmuDB** - Tamper-evident audit logging
+- **Trellis** - Merkle-tree proofs for the PostgreSQL electoral log
 
 ## Getting Started
 
@@ -52,7 +52,6 @@ The development environment includes:
 - **Hasura Console** at http://127.0.0.1:8080
 - **Voting Portal** at http://127.0.0.1:3000
 - **Admin Portal** at http://127.0.0.1:3002
-- **ImmuDB Console** at http://127.0.0.1:3325
 - **Silo S3 console** at http://127.0.0.1:9001
 
 The `minio` service uses [Silo](https://github.com/pgsty/silo), an AGPLv3 MinIO fork,
@@ -87,7 +86,7 @@ See the [Documentation](https://docs.sequentech.io/docusaurus/main/) for detaile
 ├── packages/               # Monorepo packages (Cargo + Yarn workspace)
 │   ├── admin-portal/       # Admin interface (React)
 │   ├── voting-portal/      # Voter interface (React)
-│   ├── braid/              # Cryptographic mixnet (Rust)
+│   ├── wbraid/             # Native cryptographic backend (Rust)
 │   ├── sequent-core/       # Shared core libraries (Rust)
 │   ├── ui-essentials/      # Shared UI components
 │   └── ...                 # Other packages
@@ -138,9 +137,12 @@ automatically run docker compose logs on start up, for convenience.
 [direnv]: https://direnv.net/
 [devenv]: https://devenv.sh/
 
-## Immudb
+## Electoral log
 
-You can enter the Immudb web console at http://localhost:3325 and the user/pass is `immudb:immudb`.
+The electoral log is stored in a dedicated PostgreSQL database and committed to
+per-board Trellis Merkle logs. See the
+[electoral log design](docs/docusaurus/docs/07-developers/13-electoral-log/01-electoral-log-design.md)
+for how it works, its configuration, proofs and verification.
 
 ## Keycloak default realms
 
@@ -246,28 +248,19 @@ code in `packages/windmill/src/hasura/`. Otherwise the build might fail.
 
 ## Creating Trustees
 
-By default the trustees in this repo are configured to use a predefined configuration/
-set of keys. This is useful for development because these trustees are also added to
-the hasura/postgres database. This configuration is set using the `TRUSTEE_CONFIG`
-environment paramenter in the docker-compose.yml file.
+The dev trustees use the checked-in keys files `packages/trustee/dev/trustee1.toml`
+and `trustee2.toml`, whose public keys are listed on the
+[Trustee](docs/docusaurus/docs/07-developers/09-braid/trustee.md) docs page.
 
-However if you want the trustees to generate their own unique public/private keys and
-configuration this is is what you need to do:
-
-First unset the `TRUSTEE_CONFIG` environment variable or set it to a file path that
-doesn't exist. Then, when the trustee docker container is up, get the keys from the trustee:
+To give a trustee new keys, create a keys file from `packages/`:
 
 ```bash
-docker exec -it trustee1 cat /opt/braid/trustee.toml | grep pk
+cargo run -p trustee -- generate --trustee-config <path>
 ```
 
-Which will give a result similar to:
-
-```bash
-signing_key_pk = "YqYrRVXmPhBsWwwCgsOfw15RwUqZP9EhwmxuHKU5E8k"
-```
-
-Then add the trustee in the admin portal with the key, in this case `YqYrRVXmPhBsWwwCgsOfw15RwUqZP9EhwmxuHKU5E8k`.
+It prints the two public keys, `public_key` and `share_encryption_public_key`,
+to register for the trustee under **Settings → Trustees** in the admin portal.
+Then point the trustee's `TRUSTEE_CONFIG_PATH` at the new file.
 
 ## Running Trustees
 

@@ -6,7 +6,8 @@ import type {StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
 import {RecordContextProvider} from "react-admin"
 import {i18n} from "@sequentech/ui-core"
-import type {IMiruTransmissionPackageData} from "@/types/miru"
+import {theme} from "@sequentech/ui-essentials"
+import type {IMiruCcsServer, IMiruTransmissionPackageData} from "@/types/miru"
 import {AdminStoryProvider, EVENT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {resourceBoundary} from "@/__stories__/resourceBoundary"
 import {storyFetch} from "@/__stories__/storyNetwork"
@@ -21,6 +22,10 @@ import {
 } from "@/resources/Tally/__stories__/TallyFixture"
 import {
     AREA_TRUSTEES_ANNOTATION,
+    ER_FILE_SHA256,
+    MANUAL_KEY_SHA256,
+    MANUAL_SERVER,
+    MIRU_SERVERS,
     SBEI_USERS_ANNOTATION,
     miruDocuments,
     miruPackage,
@@ -61,16 +66,26 @@ interface Scenario {
         | SigningRequestStatus.Waiting
         | SigningRequestStatus.Executed
         | SigningRequestStatus.Cancelled
+    /** The package's destinations, instead of the three network servers. */
+    servers?: IMiruCcsServer[]
+    /** The signatures the area needs, instead of two. */
+    threshold?: number
+    /** A package generated before the files' hashes were stored. */
+    withoutHashes?: boolean
 }
 
 /** The transmit-results rule asks for two signatures. */
 const REQUIRED = 2
 const SIGNING_REQUEST = {id: REQUEST_ID, code: CODE, required: REQUIRED}
 
-const packageOf = ({signed, sentTo, signingRequest}: Scenario) =>
+const packageOf = ({signed, sentTo, signingRequest, servers, threshold, withoutHashes}: Scenario) =>
     miruPackage({
-        documents: miruDocuments(signed, sentTo),
+        documents: miruDocuments(signed, sentTo).map((document) =>
+            withoutHashes ? {...document, sha256: undefined} : document
+        ),
         signing_request: signingRequest ? SIGNING_REQUEST : undefined,
+        ...(servers ? {servers} : {}),
+        ...(threshold === undefined ? {} : {threshold}),
     })
 
 /** The transmission request as the signing panel shows it. */
@@ -145,6 +160,7 @@ const meta = {
         service: {control: "inline-radio", options: ["success", "failure"]},
         roles: {table: {disable: true}},
         onBack: {table: {disable: true}},
+        servers: {table: {disable: true}},
     },
     globals: {workflow: EStoryWorkflow.RESULTS},
     beforeEach: async ({args}) => {
@@ -244,9 +260,9 @@ async function loaded(canvasElement: HTMLElement) {
             i18n.t("tally.transmissionPackage.title", {name: "North district", eventName: "-"})
         )
     ).toBeVisible()
-    // The execution reports two trustees; the package needs two signatures.
+    // The area has three SBEIs; the package needs two signatures.
     await canvas.findByText(
-        i18n.t("tally.transmissionPackage.signatures.status", {signed: 1, total: 2, minimum: 2}),
+        i18n.t("tally.transmissionPackage.signatures.status", {signed: 1, total: 3, minimum: 2}),
         {exact: false}
     )
     return canvas
@@ -308,7 +324,7 @@ export const SendAfterConfirmation: Story = {
         await within(canvasElement).findByText(
             i18n.t("tally.transmissionPackage.signatures.status", {
                 signed: 2,
-                total: 2,
+                total: 3,
                 minimum: 2,
             })
         )
@@ -335,7 +351,7 @@ export const SendFailureNotifies: Story = {
         await within(canvasElement).findByText(
             i18n.t("tally.transmissionPackage.signatures.status", {
                 signed: 2,
-                total: 2,
+                total: 3,
                 minimum: 2,
             })
         )
@@ -544,7 +560,7 @@ export const SignaturesNeededReplaceTheCertificateUpload: Story = {
         await canvas.findByText(
             i18n.t("tally.transmissionPackage.signatures.status", {
                 signed: 0,
-                total: 2,
+                total: 3,
                 minimum: REQUIRED,
             }),
             {exact: false}
@@ -663,5 +679,182 @@ export const RequiredRuleWithoutARequestHidesTheLegacyUpload: Story = {
                 headers: {"x-hasura-role": "signing-rules-read"},
             },
         ])
+    },
+}
+
+/** A theme colour as the browser computes it. */
+const rgb = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map((start) => parseInt(hex.slice(start, start + 2), 16))
+    return `rgb(${r}, ${g}, ${b})`
+}
+
+const destinations = (key: string, values?: Record<string, string | number>) =>
+    i18n.t(`tally.transmissionPackage.destinationServers.${key}`, values)
+const signaturesChip = (canvasElement: HTMLElement) =>
+    within(canvasElement).findByTestId("signatures-status")
+
+export const ErFileSha256UnderTheTitle: Story = {
+    globals: {permissions: EStoryPermissions.ADMIN},
+    play: async ({canvasElement}) => {
+        await loaded(canvasElement)
+        const line = within(canvasElement).getByTestId("er-file-sha256")
+        await expect(line).toBeVisible()
+        expect(line).toHaveTextContent(
+            `${i18n.t("tally.transmissionPackage.erFileSha256")} ` +
+                ER_FILE_SHA256.match(/.{8}/g)?.join(" ")
+        )
+    },
+}
+
+export const PackageWithoutHashesShowsNoSha256: Story = {
+    args: {withoutHashes: true},
+    globals: {permissions: EStoryPermissions.ADMIN},
+    play: async ({canvasElement}) => {
+        await loaded(canvasElement)
+        expect(within(canvasElement).queryByTestId("er-file-sha256")).toBeNull()
+    },
+}
+
+export const ManualReceiptHasNoSend: Story = {
+    parameters: {
+        expectedFailure: {
+            reason: "The expanded destinations and logs accordions expose two regions without distinct names.",
+            a11y: ["landmark-unique"],
+        },
+    },
+    args: {signed: ["sbei-1", "sbei-2"], servers: [MANUAL_SERVER]},
+    globals: {permissions: EStoryPermissions.ADMIN},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText(destinations("manualReceipt"))).toBeVisible()
+        expect(canvas.queryByRole("button", {name: "send transmission package"})).toBeNull()
+        expect(
+            canvas.queryByText(destinations("status", {signed: 0, total: 1}), {exact: false})
+        ).toBeNull()
+        await userEvent.click(canvas.getByText(destinations("title")))
+        await expect(await canvas.findByText(destinations("handOver"))).toBeVisible()
+        await expect(
+            await canvas.findByText(
+                destinations("sealedFor", {key: MANUAL_KEY_SHA256.slice(0, 16)})
+            )
+        ).toBeVisible()
+        await expect(canvas.getByRole("button", {name: "export election data"})).toBeVisible()
+        expect(mutations()).toEqual([])
+    },
+}
+
+export const MixedDestinationsKeepSend: Story = {
+    args: {signed: ["sbei-1", "sbei-2"], servers: [MANUAL_SERVER, ...MIRU_SERVERS]},
+    globals: {permissions: EStoryPermissions.ADMIN},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        // Only the network destinations are counted and sent to.
+        await expect(
+            await canvas.findByText(destinations("status", {signed: 0, total: 3}))
+        ).toBeVisible()
+        await expect(canvas.getByRole("button", {name: "send transmission package"})).toBeEnabled()
+    },
+}
+
+export const SignaturesChipBelowTheNeeded: Story = {
+    args: {signed: ["sbei-1"]},
+    globals: {permissions: EStoryPermissions.ADMIN},
+    play: async ({canvasElement}) => {
+        await loaded(canvasElement)
+        const chip = await signaturesChip(canvasElement)
+        expect(chip).toHaveTextContent(
+            i18n.t("tally.transmissionPackage.signatures.status", {
+                signed: 1,
+                total: 3,
+                minimum: 2,
+            })
+        )
+        expect(chip.dataset.state).toBe("below-needed")
+        expect(getComputedStyle(chip).backgroundColor).toBe(rgb(theme.palette.warning.main))
+    },
+}
+
+export const SignaturesChipOnceTheNeededAreIn: Story = {
+    args: {signed: ["sbei-1", "sbei-2"]},
+    globals: {permissions: EStoryPermissions.ADMIN},
+    play: async ({canvasElement}) => {
+        const chip = await signaturesChip(canvasElement)
+        await waitFor(() =>
+            expect(chip).toHaveTextContent(
+                i18n.t("tally.transmissionPackage.signatures.status", {
+                    signed: 2,
+                    total: 3,
+                    minimum: 2,
+                })
+            )
+        )
+        expect(chip.dataset.state).toBe("reached")
+        expect(getComputedStyle(chip).backgroundColor).toBe(rgb(theme.palette.brandSuccess))
+    },
+}
+
+export const SignaturesChipWithoutAMinimum: Story = {
+    args: {signed: [], threshold: 0},
+    globals: {permissions: EStoryPermissions.ADMIN},
+    play: async ({canvasElement}) => {
+        const chip = await signaturesChip(canvasElement)
+        await waitFor(() =>
+            expect(chip).toHaveTextContent(
+                i18n.t("tally.transmissionPackage.signatures.statusNoMinimum", {
+                    signed: 0,
+                    total: 3,
+                })
+            )
+        )
+        expect(chip.dataset.state).toBe("reached")
+    },
+}
+
+/** The page fits the screen: nothing scrolls sideways and Download stays in view. */
+async function fitsTheScreen(canvasElement: HTMLElement) {
+    const canvas = await loaded(canvasElement)
+    const download = canvas.getByRole("button", {name: "export election data"})
+    await expect(download).toBeVisible()
+    const box = download.getBoundingClientRect()
+    expect(box.right).toBeLessThanOrEqual(window.innerWidth)
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+    return canvas
+}
+
+export const PhoneLayout: Story = {
+    args: {signed: ["sbei-1"], servers: [MANUAL_SERVER]},
+    globals: {
+        permissions: EStoryPermissions.ADMIN,
+        viewport: {value: "iphone12", isRotated: false},
+    },
+    play: async ({canvasElement}) => {
+        const canvas = await fitsTheScreen(canvasElement)
+        // The title and the buttons stack.
+        const title = canvas.getByText(
+            i18n.t("tally.transmissionPackage.title", {name: "North district", eventName: "-"})
+        )
+        const download = canvas.getByRole("button", {name: "export election data"})
+        expect(download.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+            title.getBoundingClientRect().bottom
+        )
+        // A section's chip wraps below its title.
+        const chip = await signaturesChip(canvasElement)
+        const sectionTitle = canvas.getByText(i18n.t("tally.transmissionPackage.signatures.title"))
+        expect(chip.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+            sectionTitle.getBoundingClientRect().bottom
+        )
+        // Each log line shows its date above its entry, in one cell.
+        const logLine = canvas.getByText("Transmission package created").closest("tr")
+        if (!logLine) throw new Error("Missing log line")
+        expect(logLine.querySelectorAll("th, td")).toHaveLength(1)
+    },
+}
+
+export const TabletLayout: Story = {
+    args: {signed: ["sbei-1"], servers: [MANUAL_SERVER]},
+    globals: {permissions: EStoryPermissions.ADMIN, viewport: {value: "ipad10p", isRotated: false}},
+    play: async ({canvasElement}) => {
+        await fitsTheScreen(canvasElement)
+        await expect(await signaturesChip(canvasElement)).toBeVisible()
     },
 }

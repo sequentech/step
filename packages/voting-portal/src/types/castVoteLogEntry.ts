@@ -6,6 +6,4 @@ export interface ICastVoteEntry {
     statement_timestamp: number
     statement_kind: string
     ballot_id: string
-    username: string | null
-    message: string | null
 }

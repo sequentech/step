@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Ballot box seals (migration `1791000001600_ballot_box_seal`): seals are
-//! permanent, a box whose seal is past `pending` takes no `cast_vote`
-//! writes, the sealer's advisory lock orders casts around the seal, and the
-//! event's seal policy is locked once voting has opened.
+//! Ballot box seals in the Hasura database (migration
+//! `1791000001600_ballot_box_seal` and the ones after it): the seal rows are
+//! permanent and follow their status flow, the seal record's document is
+//! kept, and the event's seal settings are locked once voting has opened.
+//! The guard of the ballots is in the event's electoral-log database: its
+//! tests are electoral-log's `tests/ballot_box.rs`.
 
 #![recursion_limit = "256"]
 
@@ -14,16 +16,13 @@ mod schema;
 use chrono::{Duration, Utc};
 use deadpool_postgres::Transaction;
 use serde_json::{json, Value};
-use std::time::Duration as StdDuration;
 use tokio_postgres::types::ToSql;
 use uuid::Uuid;
 use windmill::postgres::ballot_box_seal::{
-    any_for_election, any_for_event, ballot_box_lock_key, get_for_box, get_for_update,
-    insert_pending, list_due_pending, list_for_elections, list_open_work_ids,
-    list_sealed_unpublished, lock_box, mark_failed, mark_published, mark_sealed,
-    set_close_provenance, BallotBoxSealStatus, ClosedBy, ClosedBySigner, NewPendingSeal,
-    PublishedFields, SealedFields, BALLOT_BOX_SEALED_ERROR,
-    BALLOT_BOX_SEAL_REQUIRES_READ_COMMITTED_ERROR,
+    any_for_election, any_for_event, get_for_box, get_for_update, insert_pending, list_due_pending,
+    list_for_elections, list_open_work_ids, list_sealed_unpublished, mark_failed, mark_published,
+    mark_sealed, set_close_provenance, BallotBoxSealStatus, ClosedBy, ClosedBySigner,
+    NewPendingSeal, PublishedFields, SealLogRecord, SealedFields,
 };
 use windmill::postgres::trusted_write;
 
@@ -108,6 +107,15 @@ fn pending(w: &World, area: Uuid, deadline_in: Duration) -> NewPendingSeal {
     }
 }
 
+/// Where a seal's record is on the event's electoral log.
+fn log_record() -> SealLogRecord {
+    SealLogRecord {
+        delivery_id: "ballot-box-seal:event:election:area".into(),
+        log_uid: Uuid::from_u128(42),
+        leaf_index: 7,
+    }
+}
+
 fn sealed_fields() -> SealedFields {
     SealedFields {
         sealed_at: Utc::now(),
@@ -116,24 +124,8 @@ fn sealed_fields() -> SealedFields {
         seal_hash: "ab".repeat(64),
         manifest: vec![1, 2, 3],
         signed_message: vec![4, 5, 6],
+        log_record: log_record(),
     }
-}
-
-/// Casts a ballot of a new voter into `area`.
-async fn cast(tx: &Transaction<'_>, w: &World, area: Uuid) -> Result<u64, tokio_postgres::Error> {
-    tx.execute(
-        "INSERT INTO sequent_backend.cast_vote
-             (tenant_id, election_event_id, election_id, area_id, voter_id_string, status)
-         VALUES ($1, $2, $3, $4, $5, 'valid')",
-        &[
-            &w.tenant,
-            &w.event,
-            &w.election,
-            &area,
-            &Uuid::new_v4().to_string(),
-        ],
-    )
-    .await
 }
 
 /// Runs `sql` expecting a refusal, rolling back to before it; returns the
@@ -155,104 +147,52 @@ async fn refused(
     (db.code().code().to_owned(), db.message().to_owned())
 }
 
+/// A failed seal keeps the record of its failure, or none when the event
+/// has no electoral log, and is final.
 #[tokio::test]
-async fn lock_key_is_the_sql_key() {
+async fn a_failed_seal_is_final() {
     let pool = schema::pool().await;
     let mut client = pool.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = world(&tx).await;
-    let sql: String = tx
-        .query_one(
-            "SELECT sequent_backend.ballot_box_lock_key($1, $2, $3, $4)",
-            &[&w.tenant, &w.event, &w.election, &w.area],
-        )
-        .await
-        .unwrap()
-        .get(0);
-    assert_eq!(
-        sql,
-        ballot_box_lock_key(&w.tenant, &w.event, &w.election, &w.area)
-    );
-}
-
-#[tokio::test]
-async fn a_sealed_box_refuses_every_cast_vote_write() {
-    let pool = schema::pool().await;
-    let mut client = pool.get().await.unwrap();
-    let tx = client.transaction().await.unwrap();
-    let w = world(&tx).await;
-    assert_eq!(
-        insert_pending(&tx, &[pending(&w, w.area, Duration::zero())])
-            .await
-            .unwrap(),
-        1
-    );
-    // Pending: the box still takes ballots.
-    cast(&tx, &w, w.area).await.unwrap();
-    let seal = list_for_elections(&tx, &w.tenant, &w.event, &[w.election])
-        .await
-        .unwrap()
-        .remove(0);
-    mark_sealed(&tx, &seal.id, &sealed_fields()).await.unwrap();
-
-    let insert = "INSERT INTO sequent_backend.cast_vote
-             (tenant_id, election_event_id, election_id, area_id, voter_id_string)
-         VALUES ($1, $2, $3, $4, 'late')";
-    let refusal = refused(&tx, insert, &[&w.tenant, &w.event, &w.election, &w.area]).await;
-    assert_eq!(
-        refusal,
-        ("42501".to_owned(), BALLOT_BOX_SEALED_ERROR.to_owned())
-    );
-    let update = "UPDATE sequent_backend.cast_vote SET status = 'discarded'
-         WHERE election_id = $1 AND area_id = $2";
-    assert_eq!(
-        refused(&tx, update, &[&w.election, &w.area]).await.1,
-        BALLOT_BOX_SEALED_ERROR
-    );
-    let delete = "DELETE FROM sequent_backend.cast_vote WHERE election_id = $1 AND area_id = $2";
-    assert_eq!(
-        refused(&tx, delete, &[&w.election, &w.area]).await.1,
-        BALLOT_BOX_SEALED_ERROR
-    );
-    // Moving a ballot out of or into a sealed box is refused too.
-    cast(&tx, &w, w.other_area).await.unwrap();
-    let move_in = "UPDATE sequent_backend.cast_vote SET area_id = $2
-         WHERE election_id = $1 AND area_id = $3";
-    assert_eq!(
-        refused(&tx, move_in, &[&w.election, &w.area, &w.other_area])
-            .await
-            .1,
-        BALLOT_BOX_SEALED_ERROR
-    );
-    // Other boxes are untouched.
-    cast(&tx, &w, w.other_area).await.unwrap();
-}
-
-#[tokio::test]
-async fn a_failed_box_stays_locked() {
-    let pool = schema::pool().await;
-    let mut client = pool.get().await.unwrap();
-    let tx = client.transaction().await.unwrap();
-    let w = world(&tx).await;
-    insert_pending(&tx, &[pending(&w, w.area, Duration::zero())])
+    insert_pending(
+        &tx,
+        &[
+            pending(&w, w.area, Duration::zero()),
+            pending(&w, w.other_area, Duration::zero()),
+        ],
+    )
+    .await
+    .unwrap();
+    let seals = list_for_elections(&tx, &w.tenant, &w.event, &[w.election])
         .await
         .unwrap();
-    let seal = list_for_elections(&tx, &w.tenant, &w.event, &[w.election])
-        .await
-        .unwrap()
-        .remove(0);
-    mark_failed(&tx, &seal.id, "ballot id mismatch")
+    let (with_record, without_record) = (seals[0].id, seals[1].id);
+    // Half a record is refused.
+    let partial = "UPDATE sequent_backend.ballot_box_seal
+         SET status = 'failed', failure_reason = 'x', log_delivery_id = 'd' WHERE id = $1";
+    assert_eq!(refused(&tx, partial, &[&with_record]).await.0, "42501");
+    mark_failed(&tx, &with_record, "ballot id mismatch", Some(&log_record()))
         .await
         .unwrap();
-    let insert = "INSERT INTO sequent_backend.cast_vote
-             (tenant_id, election_event_id, election_id, area_id, voter_id_string)
-         VALUES ($1, $2, $3, $4, 'late')";
-    assert_eq!(
-        refused(&tx, insert, &[&w.tenant, &w.event, &w.election, &w.area])
-            .await
-            .1,
-        BALLOT_BOX_SEALED_ERROR
-    );
+    mark_failed(&tx, &without_record, "no board", None)
+        .await
+        .unwrap();
+    let row = get_for_update(&tx, &with_record).await.unwrap().unwrap();
+    assert_eq!(row.status, BallotBoxSealStatus::Failed);
+    assert_eq!(row.log_record, Some(log_record()));
+    let row = get_for_update(&tx, &without_record).await.unwrap().unwrap();
+    assert_eq!(row.log_record, None);
+    for sql in [
+        "UPDATE sequent_backend.ballot_box_seal SET failure_reason = 'other' WHERE id = $1",
+        "UPDATE sequent_backend.ballot_box_seal SET log_leaf_index = 8 WHERE id = $1",
+        "UPDATE sequent_backend.ballot_box_seal SET status = 'pending' WHERE id = $1",
+    ] {
+        assert_eq!(refused(&tx, sql, &[&with_record]).await.0, "42501", "{sql}");
+    }
+    assert!(mark_sealed(&tx, &without_record, &sealed_fields())
+        .await
+        .is_err());
     assert!(any_for_event(&tx, &w.tenant, &w.event).await.unwrap());
 }
 
@@ -328,9 +268,19 @@ async fn seals_are_permanent_and_follow_their_status_flow() {
     assert_eq!(locked.status, BallotBoxSealStatus::Pending);
     assert_eq!(locked.close_request_id, Some(request));
     assert_eq!(locked.closed_by, signed);
+    // A seal is stored with its record on the electoral log.
+    let no_record = "UPDATE sequent_backend.ballot_box_seal
+         SET status = 'sealed', sealed_at = now(), ballots_in_box = 0, ballots_counted = 0,
+             seal_hash = 'ab', manifest = '\\x01', signed_message = '\\x02'
+         WHERE id = $1";
+    assert_eq!(refused(&tx, no_record, &[&id]).await.0, "42501");
     mark_sealed(&tx, &id, &sealed_fields()).await.unwrap();
+    assert_eq!(
+        get_for_update(&tx, &id).await.unwrap().unwrap().log_record,
+        Some(log_record())
+    );
     // Sealed rows don't move back, nor take a failure or new provenance.
-    assert!(mark_failed(&tx, &id, "late").await.is_err());
+    assert!(mark_failed(&tx, &id, "late", None).await.is_err());
     assert_eq!(
         set_close_provenance(
             &tx,
@@ -344,8 +294,12 @@ async fn seals_are_permanent_and_follow_their_status_flow() {
         .unwrap(),
         0
     );
-    let tamper = "UPDATE sequent_backend.ballot_box_seal SET seal_hash = 'cd' WHERE id = $1";
-    assert_eq!(refused(&tx, tamper, &[&id]).await.0, "42501");
+    for tamper in [
+        "UPDATE sequent_backend.ballot_box_seal SET seal_hash = 'cd' WHERE id = $1",
+        "UPDATE sequent_backend.ballot_box_seal SET log_leaf_index = 8 WHERE id = $1",
+    ] {
+        assert_eq!(refused(&tx, tamper, &[&id]).await.0, "42501", "{tamper}");
+    }
     assert_eq!(
         list_sealed_unpublished(&tx, 1000)
             .await
@@ -357,20 +311,24 @@ async fn seals_are_permanent_and_follow_their_status_flow() {
     );
 
     // The publication fields are set once, then published is final.
+    let document = Uuid::new_v4();
     tx.execute(
-        "UPDATE sequent_backend.ballot_box_seal SET log_entry_id = 7 WHERE id = $1",
-        &[&id],
+        "UPDATE sequent_backend.ballot_box_seal SET public_document_id = $2 WHERE id = $1",
+        &[&id, &document],
     )
     .await
     .unwrap();
-    let rewrite = "UPDATE sequent_backend.ballot_box_seal SET log_entry_id = 8 WHERE id = $1";
-    assert_eq!(refused(&tx, rewrite, &[&id]).await.0, "42501");
+    let rewrite =
+        "UPDATE sequent_backend.ballot_box_seal SET public_document_id = $2 WHERE id = $1";
+    assert_eq!(
+        refused(&tx, rewrite, &[&id, &Uuid::new_v4()]).await.0,
+        "42501"
+    );
     // A public record has a public path (voting never opened here, so the
     // record policy is still free).
     set_record_policy(&tx, &w, json!("public")).await;
     let published = PublishedFields {
-        log_entry_id: 7,
-        public_document_id: Uuid::new_v4(),
+        public_document_id: document,
         public_path: Some(format!("ballot-box-seals/{}/{}.json", w.election, w.area)),
         published_at: Utc::now(),
     };
@@ -401,10 +359,9 @@ async fn a_restricted_record_is_published_without_a_public_path() {
     mark_sealed(&tx, &id, &sealed_fields()).await.unwrap();
     // The document id is still required.
     let no_document = "UPDATE sequent_backend.ballot_box_seal
-         SET status = 'published', log_entry_id = 7, published_at = now() WHERE id = $1";
+         SET status = 'published', published_at = now() WHERE id = $1";
     assert_eq!(refused(&tx, no_document, &[&id]).await.0, "42501");
     let published = PublishedFields {
-        log_entry_id: 7,
         public_document_id: Uuid::new_v4(),
         public_path: None,
         published_at: Utc::now(),
@@ -452,7 +409,7 @@ async fn the_public_path_follows_the_record_policy() {
     let mut client = pool.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let publish = "UPDATE sequent_backend.ballot_box_seal
-         SET status = 'published', log_entry_id = 7, public_document_id = $2,
+         SET status = 'published', public_document_id = $2,
              public_path = $3, published_at = now()
          WHERE id = $1";
     let path = Some("ballot-box-seals/e/a.json".to_string());
@@ -518,7 +475,6 @@ async fn a_published_record_keeps_its_document() {
         &tx,
         &id,
         &PublishedFields {
-            log_entry_id: 7,
             public_document_id: document,
             public_path: None,
             published_at: Utc::now(),
@@ -690,10 +646,10 @@ async fn sealed_tables_refuse_truncate() {
         .id;
     mark_sealed(&tx, &id, &sealed_fields()).await.unwrap();
     assert_eq!(
-        refused(&tx, "TRUNCATE sequent_backend.cast_vote", &[])
+        refused(&tx, "TRUNCATE sequent_backend.ballot_box_seal", &[])
             .await
-            .1,
-        BALLOT_BOX_SEALED_ERROR
+            .0,
+        "42501"
     );
 }
 
@@ -870,151 +826,6 @@ async fn the_record_policy_is_free_when_the_event_does_not_seal() {
     )
     .await
     .unwrap();
-}
-
-/// A cast that arrives while the sealer holds the box waits, then sees the
-/// seal and is refused.
-#[tokio::test]
-async fn a_cast_during_the_seal_waits_and_is_refused() {
-    let pool = schema::pool().await;
-    let w = {
-        let mut client = pool.get().await.unwrap();
-        let tx = client.transaction().await.unwrap();
-        let w = world(&tx).await;
-        insert_pending(&tx, &[pending(&w, w.area, Duration::zero())])
-            .await
-            .unwrap();
-        tx.commit().await.unwrap();
-        w
-    };
-    let mut sealer_client = pool.get().await.unwrap();
-    let sealer = sealer_client.transaction().await.unwrap();
-    let seal = list_for_elections(&sealer, &w.tenant, &w.event, &[w.election])
-        .await
-        .unwrap()
-        .remove(0);
-    lock_box(&sealer, &seal.lock_key()).await.unwrap();
-
-    let caster_pool = pool.clone();
-    let (tenant, event, election, area) = (w.tenant, w.event, w.election, w.area);
-    let caster = tokio::spawn(async move {
-        let mut client = caster_pool.get().await.unwrap();
-        let tx = client.transaction().await.unwrap();
-        let w = World {
-            tenant,
-            event,
-            election,
-            area,
-            other_area: area,
-        };
-        let result = cast(&tx, &w, area).await;
-        result.map_err(|error| error.as_db_error().map(|db| db.message().to_owned()))
-    });
-    tokio::time::sleep(StdDuration::from_millis(300)).await;
-    assert!(!caster.is_finished(), "the cast waits for the seal");
-
-    get_for_update(&sealer, &seal.id).await.unwrap().unwrap();
-    mark_sealed(&sealer, &seal.id, &sealed_fields())
-        .await
-        .unwrap();
-    sealer.commit().await.unwrap();
-
-    let result = tokio::time::timeout(StdDuration::from_secs(10), caster)
-        .await
-        .expect("the cast resumes after the seal")
-        .unwrap();
-    assert_eq!(result, Err(Some(BALLOT_BOX_SEALED_ERROR.to_owned())));
-}
-
-/// Above READ COMMITTED a write's snapshot could miss a seal committed while
-/// it waited for the box lock, so a seal-at-close event refuses it; an event
-/// that doesn't seal is unaffected.
-#[tokio::test]
-async fn repeatable_read_writes_are_refused_only_when_the_event_seals() {
-    let pool = schema::pool().await;
-    let mut client = pool.get().await.unwrap();
-    let tx = client.transaction().await.unwrap();
-    tx.batch_execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
-        .await
-        .unwrap();
-    let sealing = world_with_policy(&tx, SEAL_AT_CLOSE).await;
-    let not_sealing = world_with_policy(&tx, DO_NOT_SEAL).await;
-    let insert = "INSERT INTO sequent_backend.cast_vote
-             (tenant_id, election_event_id, election_id, area_id, voter_id_string)
-         VALUES ($1, $2, $3, $4, 'voter')";
-    assert_eq!(
-        refused(
-            &tx,
-            insert,
-            &[
-                &sealing.tenant,
-                &sealing.event,
-                &sealing.election,
-                &sealing.area
-            ],
-        )
-        .await,
-        (
-            "42501".to_owned(),
-            BALLOT_BOX_SEAL_REQUIRES_READ_COMMITTED_ERROR.to_owned()
-        )
-    );
-    cast(&tx, &not_sealing, not_sealing.area).await.unwrap();
-}
-
-/// A cast already inside its transaction when the sealer arrives holds the
-/// box: the sealer's lock waits for its commit, then the seal sees it.
-#[tokio::test]
-async fn a_cast_before_the_seal_commits_first_and_is_sealed() {
-    let pool = schema::pool().await;
-    let w = {
-        let mut client = pool.get().await.unwrap();
-        let tx = client.transaction().await.unwrap();
-        let w = world(&tx).await;
-        insert_pending(&tx, &[pending(&w, w.area, Duration::zero())])
-            .await
-            .unwrap();
-        tx.commit().await.unwrap();
-        w
-    };
-    let mut caster_client = pool.get().await.unwrap();
-    let caster = caster_client.transaction().await.unwrap();
-    cast(&caster, &w, w.area).await.unwrap();
-
-    let sealer_pool = pool.clone();
-    let sealer = tokio::spawn(async move {
-        let mut client = sealer_pool.get().await.unwrap();
-        let tx = client.transaction().await.unwrap();
-        let key = ballot_box_lock_key(&w.tenant, &w.event, &w.election, &w.area);
-        lock_box(&tx, &key).await.unwrap();
-        let seal = list_for_elections(&tx, &w.tenant, &w.event, &[w.election])
-            .await
-            .unwrap()
-            .remove(0);
-        get_for_update(&tx, &seal.id).await.unwrap().unwrap();
-        let in_box: i64 = tx
-            .query_one(
-                "SELECT count(*) FROM sequent_backend.cast_vote
-                 WHERE tenant_id = $1 AND election_event_id = $2
-                   AND election_id = $3 AND area_id = $4",
-                &[&w.tenant, &w.event, &w.election, &w.area],
-            )
-            .await
-            .unwrap()
-            .get(0);
-        mark_sealed(&tx, &seal.id, &sealed_fields()).await.unwrap();
-        tx.commit().await.unwrap();
-        in_box
-    });
-    tokio::time::sleep(StdDuration::from_millis(300)).await;
-    assert!(!sealer.is_finished(), "the sealer waits for the cast");
-
-    caster.commit().await.unwrap();
-    let in_box = tokio::time::timeout(StdDuration::from_secs(10), sealer)
-        .await
-        .expect("the sealer resumes after the cast commits")
-        .unwrap();
-    assert_eq!(in_box, 1, "the seal sees the cast that committed first");
 }
 
 /// One box's full seal comes from `get_for_box`; the lists leave the large

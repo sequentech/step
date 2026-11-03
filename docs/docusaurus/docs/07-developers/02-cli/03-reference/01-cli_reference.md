@@ -27,7 +27,7 @@ cli step <command> --help
 ## Configuration
 
 Configure CLI with your environment credentials:
-This is a mandatory first command to setup the credentials in order to use the CLI 
+This is a mandatory first command to setup the credentials in order to use the CLI
 
 ```bash
 cli step step config \
@@ -189,7 +189,7 @@ cli step export-election-event \
 * `--tally` – Include election event tally *(optional)*
 * `--encrypted `– Encrypt the exported package *(optional)*
 * `--output-dir` – Directory where the export will be saved *(optional, default: ./data)*
-  
+
 > Note: The export is forced to be encrypted if you include any sensitive data flags, specifically: `--bulletin-board`, `--reports`, `--applications`, or `--tally`.
 
 ---
@@ -310,6 +310,8 @@ cli step start-key-ceremony \
 * `--threshold` – Minimum trustees required *(optional, default: 2)*
 * `--election-id` – Election ID *(optional)*
 * `--name` – Ceremony name *(optional)*
+* `--automatic` – Skip manual custody confirmation; native or browser runners
+  still perform distributed key generation *(optional)*
 
 ---
 
@@ -318,13 +320,20 @@ cli step start-key-ceremony \
 ```bash
 cli step complete-key-ceremony \
   --election-event-id <ELECTION_EVENT_ID> \
-  --key-ceremony-id <KEY_CEREMONY_ID>
+  --key-ceremony-id <KEY_CEREMONY_ID> \
+  --trustee-config /secure/trustee.toml
 ```
 
 * `--election-event-id` – Election event ID **(required)**
 * `--key-ceremony-id` – Key ceremony ID **(required)**
+* `--trustee-config` – Local native trustee identity file **(required)**
 
-The command downloads the trustee's encrypted private key, stores it in the `keys` directory next to the CLI binary, in a file named after the key ceremony, and then checks it. Once the key passes the check, it is also stored as the election event's key, which `confirm-key-tally` uses. A checked key can no longer be downloaded, so running the command again checks the key ceremony's stored copy instead.
+The command downloads a public custody request and stores it in the `keys`
+directory next to the CLI binary. It signs the request with the local identity
+and submits the public custody proof. Once accepted, the request is also retained
+for `confirm-key-tally`. When request download is no longer available, a repeat
+invocation uses the ceremony's stored request. The identity file and election
+shares stay on the trustee machine.
 
 ---
 
@@ -349,11 +358,17 @@ cli step start-tally \
 ```bash
 cli step confirm-key-tally \
   --election-event-id <ELECTION_EVENT_ID> \
-  --tally-id <TALLY_ID>
+  --tally-id <TALLY_ID> \
+  --trustee-config /secure/trustee.toml
 ```
 
 * `--election-event-id` – Election event ID **(required)**
 * `--tally-id` – Tally ceremony ID **(required)**
+* `--trustee-config` – Local native trustee identity file **(required)**
+
+The command reads the retained public custody request, binds a new proof to the
+tally session, and signs it locally. It submits only that public proof. Keep the
+trustee runner active with its saved protocol state for mixing and decryption.
 
 ---
 
@@ -477,7 +492,7 @@ cli step render-template \
 ---
 
 ## Generate Voters
-This command create csv file with voters within the `working-directory` path. 
+This command create csv file with voters within the `working-directory` path.
 > Required additional confituration at `external_config.json` in the `working-directory` (election_event_json_file and generate_voters fields)
 
 ```bash
@@ -492,8 +507,8 @@ cli step generate-voters \
 ---
 
 ## Duplicate Votes
-This command duplicate ***existing*** cast_vote row.
-> Required additional confituration at `external_config.json` in the `working-directory` (realm_name, duplicate_votes  fields)
+This command casts a copy of an ***existing*** ballot of the election event's ballot box for each of the first `--num-votes` voters of the realm, through the ballot box's revote and area rules.
+> Required additional confituration at `external_config.json` in the `working-directory` (realm_name, tenant_id, election_event_id, duplicate_votes fields). `duplicate_votes.row_id_to_clone` is the ballot's ID in the ballot box, as returned when it was cast.
 
 ```bash
 cli step duplicate-votes \
@@ -525,7 +540,7 @@ cli step create-applications \
 ---
 
 ## Create Electoral Logs
-Create electoral logs in immudb.
+Create electoral log entries in the PostgreSQL electoral log. Uses the `ELECTORAL_LOG_PG_*` connection settings.
 > Required additional confituration at `external_config.json` in the `working-directory` (tenant_id, election_event_id, election_id, area_id and realm_name fields)
 
 ```bash
@@ -536,6 +551,18 @@ cli step create-electoral-logs \
 
 * `--working-directory` – Working directory path **(required)**
 * `--num-logs` – Number of logs **(required)**
+
+---
+
+## Audit Electoral Log
+Start an electoral-log audit task for an election event, wait for it to finish and print its logs. Requires the `electoral-log-audit` permission. The command fails when the audit reports findings or cannot run.
+```bash
+cli step audit-electoral-log \
+  --election-event-id <ELECTION_EVENT_ID>
+```
+
+* `--election-event-id` – Election event to audit **(required)**
+* `--timeout-secs` – Seconds to wait for the audit *(default: 1800)*
 
 ---
 
@@ -555,16 +582,29 @@ cli step hash-passwords \
 ---
 
 ## Export Cast Votes CSV
-This command accesses immudb bulletin board and exports in a csv file the casted ballots ballot_id.
+This command reads an election event's electoral log and exports the `ballot_id` of each cast ballot to a CSV file. It connects using the `ELECTORAL_LOG_PG_*` settings.
 ```bash
 cli step export-cast-votes \
-  --server-url <IMMUDB_URL> \
-  --username <USERNAME> \
-  --password <PASSWORD> \
-  --board-db <BOARD_DB_NAME>
+  --board-db <BOARD_NAME> \
+  --output <OUTPUT_CSV_PATH>
 ```
 
-* `--server-url` – ImmuDB server URL (`IMMUDB_SERVER_URL`) **(required)**
-* `--username` – ImmuDB username (`IMMUDB_USER`) **(required)**
-* `--password` – ImmuDB password (`IMMUDB_PASSWORD`) **(required)**
-* `--board-db` – Bulletin board database name **(required)**
+* `--board-db` – Electoral-log board name **(required)**
+* `--output` – Output CSV file *(default: `output.csv`)*
+
+The file is written as `<output>.partial` and renamed to `<output>` only when the export completes. On any error the command removes the partial file, leaves an existing `<output>` unchanged and exits with a non-zero status.
+
+
+## Certified voter import and readiness
+
+`step-cli step import-voters --election-event-id <ID> --file-path <CSV> --sha256 <SHA256>`
+imports a voter file with the independently certified expected hash. Events
+configured with `REQUIRED_SHA256` refuse an absent hash. The import command waits
+for completion and exits nonzero when the task fails.
+
+`step-cli step readiness-check --official <ID> --tested <ID>` compares the official
+event with a closed and sealed tested event. It writes a JSON report to stdout
+and exits nonzero on a failed check or unconfirmed signed-log delivery. A pass
+records `ReadinessVerified` in the official event log. See
+[Certified imports and readiness checks](../02-tutorials/07-cli-tutorials-readiness.md)
+for prerequisites, report fields and evidence retention.

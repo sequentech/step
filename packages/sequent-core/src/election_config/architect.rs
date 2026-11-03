@@ -742,6 +742,32 @@ pub struct Blueprint {
     /// plan written before this field is unchanged.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub reports: Vec<PlannedReport>,
+
+    /// The event's `encryption_protocol`, when it is not the template's.
+    ///
+    /// `None` leaves `election_event.hbs`'s `RSA256`. A string because the value
+    /// space is the platform's, not this crate's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub encryption_protocol: Option<String>,
+
+    /// The event's annotations the wizard has no field for, carried verbatim.
+    ///
+    /// Integrations key their configuration here — COMELEC's Miru transmission
+    /// reads `miru:*` — so a plan read from an export keeps them and a rebuild
+    /// writes them back. The IVR keys are not in here: [`Self::ivr`] and
+    /// [`Self::ivr_prompt`] are, and those are written over these.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub annotations: BTreeMap<String, String>,
+
+    /// An export to build on, when the caller gives none.
+    ///
+    /// Set by `plan_from_event` to the export's event row and Keycloak realm,
+    /// minus what the plan models itself. Merged *under* the build exactly as
+    /// [`BuildOptions::base_export`] is, so the event's presentation rules the
+    /// wizard has no screen for and the realm's own flows and locales survive a
+    /// rebuild. An explicit `BuildOptions::base_export` wins over this.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_export: Option<serde_json::Value>,
 }
 
 /// One report the platform generates.
@@ -1072,6 +1098,14 @@ pub struct PlannedArea {
     /// `check_voting_channels` refuses the reverse combination too.
     #[serde(default)]
     pub allow_early_voting: bool,
+
+    /// A line about the area, for administrators. Not shown to voters.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub description: String,
+
+    /// Annotations carried verbatim. See [`Blueprint::annotations`].
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub annotations: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1172,6 +1206,10 @@ pub struct PlannedElection {
     pub shared: Option<Overrides>,
     #[serde(default)]
     pub contests: Vec<PlannedContest>,
+
+    /// Annotations carried verbatim. See [`Blueprint::annotations`].
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub annotations: BTreeMap<String, String>,
 }
 
 /// The values `#[serde(default = "…")]` gives a plan that omits them.
@@ -1197,6 +1235,7 @@ impl Default for PlannedElection {
             permission_label: String::new(),
             shared: None,
             contests: Vec::new(),
+            annotations: BTreeMap::new(),
         }
     }
 }
@@ -1277,6 +1316,10 @@ pub struct PlannedContest {
     /// areas explicitly is how a contest becomes local to some of them.
     #[serde(default)]
     pub areas: Vec<String>,
+
+    /// Annotations carried verbatim. See [`Blueprint::annotations`].
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub annotations: BTreeMap<String, String>,
 }
 
 /// Shown, because a voter being able to confirm their own ballot arrived is the
@@ -1379,6 +1422,10 @@ pub struct PlannedCandidate {
     /// A photograph, shown beside the name on the ballot.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image: Option<CandidateImage>,
+
+    /// Annotations carried verbatim. See [`Blueprint::annotations`].
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub annotations: BTreeMap<String, String>,
 }
 
 /// One voter-facing help document in a plan.
@@ -3206,6 +3253,25 @@ fn ivr_prompt_cell(prompt: &Translated) -> Option<Cell> {
     serde_json::to_string(&said).ok().map(Cell::text)
 }
 
+/// The column an entity's carried annotations travel in.
+///
+/// The whole object in one cell, which `coerce_scalar` parses because it is
+/// bracketed — one column per key would split `miru:a.b` on its dot. Its values
+/// stay strings, which is what the platform's `string: string` annotations want.
+/// The IVR annotations are control columns and are written over it by `build`.
+const ANNOTATIONS_COLUMN: &str = "annotations";
+
+/// Carried annotations as a cell, or a blank one when there are none — so the
+/// template's own value stands and a plan without any compiles as it did.
+fn annotations_cell(annotations: &BTreeMap<String, String>) -> Cell {
+    if annotations.is_empty() {
+        return Cell::Blank;
+    }
+    serde_json::to_string(annotations)
+        .map(Cell::text)
+        .unwrap_or(Cell::Blank)
+}
+
 fn i18n_columns(
     prefix: &str,
     field: &str,
@@ -3404,6 +3470,20 @@ fn event_sheet(
         row.push(cell);
     }
 
+    if !plan.annotations.is_empty() {
+        columns.push(ANNOTATIONS_COLUMN.to_string());
+        row.push(annotations_cell(&plan.annotations));
+    }
+
+    if let Some(protocol) = plan
+        .encryption_protocol
+        .as_ref()
+        .filter(|protocol| !protocol.is_empty())
+    {
+        columns.push("encryption_protocol".to_string());
+        row.push(Cell::text(protocol.clone()));
+    }
+
     // The file, if there is one, wins over a typed link. Named rather than embedded,
     // the way the Materials sheet names its documents: a cell cannot hold bytes, so
     // the sheet says `logo.png` and the file travels beside the workbook. `build.rs`
@@ -3545,6 +3625,13 @@ fn elections_sheet(
     if spoken {
         columns.push("annotations.ivr:i18n".to_string());
     }
+    let annotated = plan
+        .elections
+        .iter()
+        .any(|election| !election.annotations.is_empty());
+    if annotated {
+        columns.push(ANNOTATIONS_COLUMN.to_string());
+    }
 
     let rows = plan
         .elections
@@ -3573,6 +3660,9 @@ fn elections_sheet(
                     ivr_prompt_cell(&election.ivr_prompt)
                         .unwrap_or(Cell::Blank),
                 );
+            }
+            if annotated {
+                row.push(annotations_cell(&election.annotations));
             }
             row
         })
@@ -3611,6 +3701,15 @@ fn contests_sheet(
     if spoken {
         columns.push("annotations.ivr:i18n".to_string());
     }
+    let annotated = plan.elections.iter().any(|election| {
+        election
+            .contests
+            .iter()
+            .any(|contest| !contest.annotations.is_empty())
+    });
+    if annotated {
+        columns.push(ANNOTATIONS_COLUMN.to_string());
+    }
 
     let mut rows = Vec::new();
     for election in &plan.elections {
@@ -3636,6 +3735,9 @@ fn contests_sheet(
                 row.push(
                     ivr_prompt_cell(&contest.ivr_prompt).unwrap_or(Cell::Blank),
                 );
+            }
+            if annotated {
+                row.push(annotations_cell(&contest.annotations));
             }
             rows.push(row);
         }
@@ -3683,6 +3785,17 @@ fn candidates_sheet(
     if spoken {
         columns.push("annotations.ivr:i18n".to_string());
     }
+    let annotated = plan.elections.iter().any(|election| {
+        election.contests.iter().any(|contest| {
+            contest
+                .candidates
+                .iter()
+                .any(|candidate| !candidate.annotations.is_empty())
+        })
+    });
+    if annotated {
+        columns.push(ANNOTATIONS_COLUMN.to_string());
+    }
 
     // `None` only when the event has no `external_id`, which `check_identity`
     // reports before this runs. An image on such a plan simply gets no identifier.
@@ -3716,6 +3829,9 @@ fn candidates_sheet(
                         ivr_prompt_cell(&candidate.ivr_prompt)
                             .unwrap_or(Cell::Blank),
                     );
+                }
+                if annotated {
+                    row.push(annotations_cell(&candidate.annotations));
                 }
                 rows.push(row);
             }
@@ -3768,6 +3884,9 @@ fn candidates_sheet(
                     // And the spoken prompt, for the same reason: a write-in
                     // slot has none, and the column still has to line up.
                     if spoken {
+                        row.push(Cell::Blank);
+                    }
+                    if annotated {
                         row.push(Cell::Blank);
                     }
                     rows.push(row);
@@ -4356,7 +4475,7 @@ fn text_or_blank(value: &str) -> Cell {
 }
 
 fn areas_sheet(plan: &Blueprint) -> Result<Sheet, Problem> {
-    let columns = vec![
+    let mut columns = vec![
         "external_id".to_string(),
         "name".to_string(),
         "parent.external_id".to_string(),
@@ -4379,11 +4498,22 @@ fn areas_sheet(plan: &Blueprint) -> Result<Sheet, Problem> {
         );
     }
 
+    // Only when an area has one, like the IVR prompt columns elsewhere: a blank
+    // column on every bundle is a diff on every rebuild.
+    let described = plan.areas.iter().any(|area| !area.description.is_empty());
+    if described {
+        columns.push("description".to_string());
+    }
+    let annotated = plan.areas.iter().any(|area| !area.annotations.is_empty());
+    if annotated {
+        columns.push(ANNOTATIONS_COLUMN.to_string());
+    }
+
     let rows = plan
         .areas
         .iter()
         .map(|area| {
-            vec![
+            let mut row = vec![
                 Cell::text(area.external_id.clone()),
                 Cell::text(area.name.clone()),
                 match &area.parent_external_id {
@@ -4403,7 +4533,14 @@ fn areas_sheet(plan: &Blueprint) -> Result<Sheet, Problem> {
                 } else {
                     NO_EARLY_VOTING
                 }),
-            ]
+            ];
+            if described {
+                row.push(text_or_blank(&area.description));
+            }
+            if annotated {
+                row.push(annotations_cell(&area.annotations));
+            }
+            row
         })
         .collect();
 
@@ -4829,6 +4966,11 @@ pub fn compile_plan(request: Compile<'_>) -> Result<Compiled, Report> {
         images: plan_images(plan, sources),
         ceremony_policy: plan.ceremony_policy.clone(),
         materials: plan_materials(plan, sources),
+        // The export the plan was read from, unless the caller brought one.
+        base_export: options
+            .base_export
+            .clone()
+            .or_else(|| plan.base_export.clone()),
         ..options.clone()
     };
     let mut bundle = build(&workbook, templates, &with_ceremony, sources)?;

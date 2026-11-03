@@ -26,6 +26,10 @@ describe("overwriteTranslations", () => {
                         page: {
                             baseOnly: "Base only",
                             title: "Base title",
+                            item_one: "{{count}} base item",
+                            item_other: "{{count}} base items",
+                            legacyItem_one: "{{count}} legacy base item",
+                            legacyItem_other: "{{count}} legacy base items",
                         },
                     },
                 },
@@ -155,6 +159,48 @@ describe("overwriteTranslations", () => {
 
         overwriteTranslations(undefined, votingOptions)
         expect(i18n.t("page.title")).toBe(baseTitle)
+    })
+
+    it("applies an unsuffixed override to every plural form the bundle defines", () => {
+        overwriteTranslations(
+            {i18n: {en: {"resultsPortal:page.item": "Custom item"}}},
+            resultsOptions
+        )
+
+        expect(i18n.t("page.item", {count: 1})).toBe("Custom item")
+        expect(i18n.t("page.item", {count: 5})).toBe("Custom item")
+
+        overwriteTranslations(undefined, resultsOptions)
+
+        expect(i18n.t("page.item", {count: 1})).toBe("1 base item")
+        expect(i18n.t("page.item", {count: 5})).toBe("5 base items")
+        expect(i18n.exists("page.item")).toBe(false)
+    })
+
+    it("keeps an explicit plural-form override over the unsuffixed one", () => {
+        overwriteTranslations(
+            {
+                i18n: {
+                    en: {
+                        "resultsPortal:page.item_one": "Exactly {{count}} custom item",
+                        "resultsPortal:page.item": "Custom item",
+                    },
+                },
+            },
+            resultsOptions
+        )
+
+        expect(i18n.t("page.item", {count: 1})).toBe("Exactly 1 custom item")
+        expect(i18n.t("page.item", {count: 5})).toBe("Custom item")
+
+        overwriteTranslations(undefined, resultsOptions)
+    })
+
+    it("applies an unsuffixed legacy override to every plural form", () => {
+        overwriteTranslations({i18n: {en: {"page.legacyItem": "Legacy custom item"}}}, false)
+
+        expect(i18n.t("page.legacyItem", {count: 1})).toBe("Legacy custom item")
+        expect(i18n.t("page.legacyItem", {count: 5})).toBe("Legacy custom item")
     })
 
     it("preserves the legacy boolean and omitted-argument API", () => {

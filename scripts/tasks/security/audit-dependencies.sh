@@ -405,7 +405,6 @@ audit_yarn "/workspaces/step/packages/ballot-verifier" "ballot-verifier"
 # ============================================================================
 print_section "Browserstack Packages (npm)"
 
-audit_npm "/workspaces/step/packages/strand/browserstack" "strand/browserstack"
 audit_npm "/workspaces/step/packages/sequent-core/browserstack" "sequent-core/browserstack"
 audit_npm "/workspaces/step/packages/ballot-verifier/browserstack" "ballot-verifier/browserstack"
 

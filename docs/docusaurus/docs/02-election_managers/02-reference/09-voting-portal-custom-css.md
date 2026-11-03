@@ -104,13 +104,35 @@ configuration field is required.
 | Instructions                 | `.instructions-title`, `.instructions-description`, `.instructions-steps`, `.instructions-step`, `.instructions-select-step`, `.instructions-review-step`, `.instructions-cast-step`                                                                                                                                                                                                                                                                                                         |
 | Eligibility declaration      | `.security-confirmation` (complete declaration), `.security-confirmation-checkbox`, `.security-confirmation-label`                                                                                                                                                                                                                                                                                                                                                                           |
 | Start actions                | `.start-voting-button`, `.decline-to-vote-button`                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Contests and choices         | `.contest`, `.contest-container`, `.contest-title`, `.contest-description`, `.contest-options-toggle`, `.candidates-container`, `.candidates-list`, `.candidates-list-title`, `.candidates-list-toggle`, `.candidates-list-checkbox`, `.candidates-selected-count`, `.candidate-item`, `.candidate-title`, `.candidate-description`, `.candidate-checkbox`, `.candidate-input`, `.candidate-writein-textfield`, `.candidate-position-select`, `.candidate-position-label`, `.candidate-link` |
+| Contests and choices         | `.contest`, `.contest-container`, `.contest-title`, `.contest-description`, `.contest-options-toggle`, `.candidates-container`, `.candidates-list`, `.candidates-list-title`, `.candidates-list-toggle`, `.candidates-list-checkbox`, `.candidates-selected-count`, `.candidate-item`, `.candidate-title`, `.candidate-description`, `.candidate-checkbox`, `.candidate-input`, `.candidate-writein-textfield`, `.candidate-position-select`, `.candidate-position-label`, `.candidate-link`, paper ballot grid: `.contest-paper-heading`, `.contest-paper-subtitle`, `.candidates-paper-grid`, `.paper-candidate`, `.paper-candidate-checked`, `.paper-candidate-mark`, `.paper-candidate-name` |
 | Vote/Review actions          | `.back-button`, `.clear-selection-button`, `.next-button`, `.edit-ballot-button`, `.audit-button`, `.cast-ballot-button`, `.cast-ballot-error`                                                                                                                                                                                                                                                                                                                                               |
 | Review tracker               | `.hash-container`, `.hash-text`, `.hash-actions`, `.hash-copy-button`, `.hash-help-button`, `.hash-copy-status`                                                                                                                                                                                                                                                                                                                                                                              |
 | Locator search/result        | `.ballot-locator-content`, `.ballot-locator-search`, `.ballot-locator-result`, `.ballot-id-field` (whole field), `.ballot-id-input`, `.ballot-id-error`, `.ballot-lookup-status`, `.ballot-content-description`, `.ballot-content`, `.locate-ballot-button`, `.locate-again-button`, `.back-button`                                                                                                                                                                                          |
 | Locator tabs/logs            | `.ballot-locator-tabs`, `.ballot-lookup-tab`, `.ballot-lookup-panel`, `.cast-vote-logs-tab`, `.cast-vote-logs-panel`, `.cast-vote-logs-title`, `.cast-vote-logs-table`, `.cast-vote-logs-pagination`, `.cast-vote-log-copy-button`                                                                                                                                                                                                                                                           |
 
 Validation messages also retain their [message-specific CSS hooks](./08-ballot-errors-custom-css.md).
+
+## Supported CSS features
+
+The voting portal applies Custom CSS after removing the parts that load files from
+other sites or add text to the page:
+
+- `url()` must point to the voting portal's own origin, the public files bucket or
+  a `data:` URI. A declaration with any other URL is skipped, so host images in the
+  public bucket instead of linking to another site.
+- Only `@media`, `@supports`, `@container`, `@layer` and `@keyframes` at-rules are
+  kept. `@import` and `@font-face` rules are skipped, as are `image-set()`,
+  `image()` and `src()` values.
+- `content`, `quotes`, `list-style`, `list-style-type`, `text-overflow`,
+  `text-emphasis`, `text-emphasis-style` and `hyphenate-character` are skipped when
+  their value has a non-empty string or a `var()` reference. `content: ""` for
+  decorative pseudo-elements still works.
+- Comments are removed. Declarations, rules and at-rules with backslash escapes,
+  control characters or `//` outside a string are skipped.
+- If the stylesheet cannot be parsed, for example because of an unbalanced brace
+  or quote, none of it is applied.
+
+The same rules apply to the CSS of ballot styles that were published earlier.
 
 ## Confirmation Ballot ID
 
@@ -179,3 +201,30 @@ Portalled surfaces also expose `.dialog-container`, `.dialog-backdrop`,
 `.candidate-preference-paper`, `.candidate-preference-options`, `.header-tooltip`
 and `.header-tooltip-content`. The audit dialogs have their own
 `.audit-ballot-id-help-dialog`, `.audit-help-dialog` and `.audit-download-help-dialog` hooks.
+
+### Private ballot logs and cast recovery
+
+Pseudonymous ballot logs use `.ballot-box-log`. Search and pagination controls
+expose `.ballot-box-log-search`, `.ballot-box-log-clear-button`,
+`.ballot-box-log-page-size`, `.ballot-box-log-previous-button` and
+`.ballot-box-log-next-button`. The voter's own receipt uses
+`.ballot-box-log-own-ballot`, with `.ballot-box-log-own-check-button` and
+`.ballot-box-log-copy-button`. Public rows use `.ballot-box-log-row` on the
+desktop table and `.ballot-box-log-mobile-row` on the phone list; their check
+controls are `.ballot-box-log-check-button` and `.ballot-box-log-mobile-check-button`.
+Loading, error, empty and count messages expose `.ballot-box-log-loading`,
+`.ballot-box-log-error`, `.ballot-box-log-empty` and `.ballot-box-log-count`.
+
+The portalled proof dialog uses `.ballot-proof-dialog`, `.ballot-proof-title`,
+`.ballot-proof-content`, `.ballot-proof-loading`, `.ballot-proof-error`,
+`.ballot-proof-actions`, `.ballot-proof-retry-button` and `.ballot-proof-close-button`.
+The help dialog uses the `.ballot-box-log-help-*` family, including
+`.ballot-box-log-help-dialog` and `.ballot-box-log-help-close-button`. The portal
+stylesheet scope described above also applies to these dialogs.
+
+Pending audit confirmation exposes `.audit-confirmation-loading`,
+`.audit-confirmation-error` and `.audit-confirmation-retry-button`. Cast recovery
+after secondary authentication uses `.review-cast-recovery`, with
+`.review-cast-recovery-loading`, `.review-cast-recovery-error`,
+`.review-cast-recovery-retry-button`, `.review-cast-recovery-back-button` and
+`.review-cast-recovery-check-button`.

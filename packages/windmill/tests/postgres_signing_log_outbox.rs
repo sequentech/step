@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! The signing log outbox worker against the real outbox table, with an
-//! in-memory board that keeps delivery receipts as immudb does: entries are
-//! posted once each, in order, a failure stops the event until a later
-//! pass, and signing steps never wait for the board.
+//! in-memory board that holds each delivery once, as the electoral log
+//! does: entries are posted once each, in order, a failure stops the event
+//! until a later pass, and signing steps never wait for the board.
 
 #[path = "support/schema.rs"]
 mod schema;
@@ -18,10 +18,10 @@ use electoral_log::ElectoralLogMessage;
 use serde_json::json;
 use std::collections::HashMap;
 use std::time::Duration;
-use strand::serialization::StrandDeserialize;
-use strand::signature::StrandSignatureSk;
 use tokio::sync::{oneshot, Mutex};
 use uuid::Uuid;
+use voting_crypto::signing::SigningKey;
+use voting_crypto::RecordDeserialize;
 use windmill::postgres::signing::{
     list_signing_log_outbox_events, SigningLogOutboxRow, SigningLogOutboxUser,
 };
@@ -92,7 +92,7 @@ struct TestKeys {
 
 impl TestKeys {
     fn new() -> Self {
-        let sk = StrandSignatureSk::generate().unwrap();
+        let sk = SigningKey::generate().unwrap();
         TestKeys {
             sd: SigningData::new(sk.clone(), "", sk),
             prepared: vec![],
@@ -121,8 +121,9 @@ impl SigningLogKeys for TestKeys {
 /// What the board shows, in the order it was posted.
 type Posted = Vec<(Uuid, StatementEventType)>;
 
-/// A board in memory with immudb's receipts: a delivery whose id it holds
-/// with the same payload is not written again. A call is all or nothing.
+/// A board in memory that holds each delivery once: a delivery whose id it
+/// holds with the same payload is not written again. A call is all or
+/// nothing.
 /// It fails on request: before writing, or after (the write lands but its
 /// answer is lost).
 #[derive(Default)]
@@ -145,7 +146,7 @@ impl MemoryBoard {
         self.entries
             .iter()
             .map(|entry| {
-                let message = Message::strand_deserialize(&entry.message).unwrap();
+                let message = Message::record_deserialize(&entry.message).unwrap();
                 match message.statement.body {
                     StatementBody::Signing(entry) => {
                         (Uuid::parse_str(&entry.step_id).unwrap(), entry.event_type)
@@ -198,8 +199,8 @@ impl SigningLogBoard for MemoryBoard {
 const USER: StatementEventType = StatementEventType::USER;
 const SYSTEM: StatementEventType = StatementEventType::SYSTEM;
 
-/// A pass inside the test's transaction: the snapshot, then the entries up
-/// to it, one step (two entries) per board transaction.
+/// A pass inside the test's transaction: the snapshot, then at most `rows`
+/// entries up to it, in one board transaction.
 async fn pass_in(
     tx: &Transaction<'_>,
     s: Scope,
@@ -208,11 +209,7 @@ async fn pass_in(
 ) -> Result<Option<OutboxPass>> {
     match outbox_snapshot(tx, s.tenant, s.event, Duration::from_secs(2)).await? {
         OutboxSnapshot::Ready(up_to_id) => {
-            let batch = OutboxBatch {
-                up_to_id,
-                rows,
-                per_transaction: 2,
-            };
+            let batch = OutboxBatch { up_to_id, rows };
             post_outbox_snapshot(
                 tx,
                 s.tenant,
@@ -357,7 +354,6 @@ async fn a_pass_posts_up_to_its_snapshot() {
     let batch = OutboxBatch {
         up_to_id,
         rows: 200,
-        per_transaction: 16,
     };
     let keys = TestKeys::new();
     let pass = post_outbox_snapshot(&tx, s.tenant, s.event, &keys, &mut board, "b", batch)
@@ -378,9 +374,10 @@ async fn a_pass_posts_up_to_its_snapshot() {
     );
 }
 
-/// A failed board transaction stops the event: the entries after it wait,
-/// so the board keeps the order. Its first entry is marked failed, and the
-/// event waits out a backoff before the next pass goes on from there.
+/// A failed board transaction stops the event: none of its entries is
+/// posted and the entries after it wait, so the board keeps the order. Its
+/// first entry is marked failed, and the event waits out a backoff before
+/// the next pass goes on from there.
 #[tokio::test]
 async fn a_failure_stops_the_event_until_the_next_pass() {
     let pool = schema::pool().await;
@@ -394,8 +391,10 @@ async fn a_failure_stops_the_event_until_the_next_pass() {
         refuse: of(second, SYSTEM),
         ..Default::default()
     };
-    let pass = pass_in(&tx, s, &mut board, 200).await.unwrap().unwrap();
+    let pass = pass_in(&tx, s, &mut board, 2).await.unwrap().unwrap();
     assert_eq!(pass.posted, 2);
+    let pass = pass_in(&tx, s, &mut board, 200).await.unwrap().unwrap();
+    assert_eq!(pass.posted, 0);
     assert!(pass.failed.is_some());
     assert_eq!(board.posted(), vec![(first, USER), (first, SYSTEM)]);
     let rows = outbox(&tx, s).await;
@@ -459,7 +458,7 @@ async fn a_retry_after_a_lost_answer_posts_no_duplicate() {
         lose_answer: of(first, SYSTEM),
         ..Default::default()
     };
-    let pass = pass_in(&tx, s, &mut board, 200).await.unwrap().unwrap();
+    let pass = pass_in(&tx, s, &mut board, 2).await.unwrap().unwrap();
     assert_eq!(pass.posted, 0);
     assert!(pass.failed.is_some());
     assert_eq!(board.posted(), vec![(first, USER), (first, SYSTEM)]);
@@ -592,7 +591,6 @@ async fn one_worker_per_event_and_every_event_per_pass() {
     let batch = OutboxBatch {
         up_to_id: i64::MAX,
         rows: 200,
-        per_transaction: 16,
     };
     let keys = TestKeys::new();
     let mut first = MemoryBoard::default();

@@ -23,7 +23,7 @@ pub fn eligible_trustees(
         .into_iter()
         .filter(|trustee| {
             policy == CeremoniesPolicy::AUTOMATED_CEREMONIES
-                || (trustee.status == TallyTrusteeStatus::KEY_RESTORED
+                || (trustee.status == TallyTrusteeStatus::CUSTODY_CONFIRMED
                     && signatures.counts(&trustee.name))
         })
         .map(|trustee| trustee.name)

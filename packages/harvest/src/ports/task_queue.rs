@@ -12,8 +12,19 @@ use std::sync::Arc;
 #[rocket::async_trait]
 pub trait TaskQueue: Send + Sync {
     /// Handlers connect where they always have, some of them before writing
-    /// anything else, so an unavailable broker stops those requests first.
-    async fn connect(&self) -> Arc<dyn TaskBroker>;
+    /// anything else, so an unreachable task-queue database stops those
+    /// requests first.
+    async fn connect(&self) -> anyhow::Result<Arc<dyn TaskBroker>>;
+}
+
+impl dyn TaskQueue {
+    /// Connects and sends one task.
+    pub async fn send_task<T: Task + 'static>(
+        &self,
+        signature: Signature<T>,
+    ) -> anyhow::Result<AsyncResult> {
+        Ok(self.connect().await?.send_task(signature).await?)
+    }
 }
 
 #[rocket::async_trait]

@@ -18,6 +18,12 @@ TZ=America/Toronto yarn --cwd ui-essentials jest useSelectElectionCountdown.test
 ```
 
 The ordinary test command runs the full package/test type check before Jest.
+
+`BallotLogProof.test.tsx` checks the shared proof display in this package: failed
+checks take priority over pending evidence, unpublished entries permit retry,
+and downloaded JSON retains the original scoped evidence and published keys.
+These tests mock the WASM verifier boundary; they do not verify cryptography.
+Native Core tests and the real WASM browser suite cover signed proof verification.
 It also runs in the existing frontend CI job. The browser runner needs Node
 22.22 or newer and Google Chrome; `UI_ESSENTIALS_TEST_CHROME_PATH` can select a
 different Chromium executable. The browser fixture serves synthetic data on

@@ -249,3 +249,44 @@ async fn a_cast_that_keeps_failing_answers_with_the_last_failure() {
     );
     assert_eq!(services.cast_votes.cast_attempts().len(), 6);
 }
+
+#[path = "privacy_trace.rs"]
+mod privacy_trace;
+
+#[rocket::async_test]
+async fn cast_success_and_refusal_do_not_trace_private_attribution_at_any_level(
+) {
+    let services = Services::without_database().with_cast_votes(
+        ScriptedCastVotes::casting([
+            Ok(CastBallotResult::Cast(receipt())),
+            Ok(CastBallotResult::SkipRetryFailure(
+                CastVoteError::AreaNotFound,
+            )),
+        ]),
+    );
+    let client = services.client().await;
+    let claims = Claims::new(TENANT_ID, "privacy-capture-voter-0123")
+        .username("privacy-capture-name-0123")
+        .azp("voting-portal")
+        .area(AREA_ID)
+        .election_event(EVENT_ID)
+        .authorized_elections(&[ELECTION_ID])
+        .roles([VoterPermissions::CAST_VOTE]);
+    let logs=privacy_trace::capture(async {
+        for expected in [Status::Ok,Status::NotFound] {
+            let response=client.post("/cast-ballot").header(ContentType::JSON).header(bearer(&claims))
+                .header(Header::new("CF-Connecting-IP","198.51.100.73"))
+                .header(Header::new("CF-IPCountry","AQ"))
+                .header(Header::new("User-Agent","privacy-capture-agent-0123"))
+                .body(json!({"ballot_id":BALLOT_ID,"election_id":ELECTION_ID,"cast_signature":"synthetic-cast-signature"}).to_string())
+                .dispatch().await;
+            assert_eq!(response.status(),expected);
+        }
+    }).await;
+    assert!(
+        logs.contains("cast_ballot"),
+        "cast route span was not captured"
+    );
+    privacy_trace::assert_private(&logs, BALLOT_ID);
+    assert_eq!(services.cast_votes.cast_attempts().len(), 2);
+}

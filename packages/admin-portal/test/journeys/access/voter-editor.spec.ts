@@ -45,17 +45,14 @@ const alice = user(ALICE_ID, "alice", {
     },
 })
 
-const castVote = {
-    id: "15151515-1515-4515-8515-151515151501",
-    tenant_id: TENANT_ID,
-    election_event_id: IDS.event,
-    election_id: IDS.election,
-    area_id: AREA_ID,
-    voter_id_string: ALICE_ID,
-    status: "CAST",
-    created_at: FIXED_TIME,
-    last_updated_at: FIXED_TIME,
+const votedAlice = {
+    ...alice,
+    votes_info: [{election_id: IDS.election, num_votes: 1, last_voted_at: FIXED_TIME}],
 }
+
+/** The editor's own read of the voter, with their votes from the ballot box. */
+const isVoterRead = (body: {operationName?: string; variables?: Record<string, unknown>}) =>
+    body.operationName === "getUsers" && Array.isArray(body.variables?.userIds)
 
 test.describe("voter editor with secret field access", () => {
     test.use({
@@ -178,7 +175,7 @@ test.describe("voter editor with secret field access", () => {
 test.describe("voter editor without the voted-voter permission", () => {
     test.use({roles: [...VOTER_TAB_ROLES, "voter-write"]})
 
-    test("enables voter fields when a delayed cast history proves the voter has not voted", async ({
+    test("enables voter fields when the delayed votes read proves the voter has not voted", async ({
         page,
         portal,
     }) => {
@@ -189,7 +186,7 @@ test.describe("voter editor without the voted-voter permission", () => {
         })
         let waiting = false
         await page.route("**/v1/graphql", async (route) => {
-            if (route.request().postDataJSON().operationName === "sequent_backend_cast_vote") {
+            if (isVoterRead(route.request().postDataJSON())) {
                 waiting = true
                 await heldHistory
             }
@@ -218,13 +215,13 @@ test.describe("voter editor without the voted-voter permission", () => {
     })
 
     test("keeps a voter who has already voted read-only", async ({page, portal}) => {
-        mockVoters(portal, {attributes: ATTRIBUTES, users: [alice], castVotes: [castVote]})
+        mockVoters(portal, {attributes: ATTRIBUTES, users: [votedAlice]})
         await openVoters(page, portal)
         await rowAction(page, "Edit")
         const drawer = page.getByRole("dialog")
         await expect(drawer.getByRole("textbox", {name: "Nickname"})).toHaveValue("ally")
         await expect
-            .poll(() => portal.graphql.callsTo("sequent_backend_cast_vote").length)
+            .poll(() => portal.graphql.callsTo("getUsers").filter(isVoterRead).length)
             .toBeGreaterThan(0)
 
         await expect(drawer.getByRole("textbox", {name: "Email", exact: true})).toBeDisabled({

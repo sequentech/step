@@ -39,7 +39,11 @@ cfg_if::cfg_if! {
                             .await
                             .map_err(|err| format!("could not retrieve file {} (bucket: {}) from S3: {:?}", input_path.clone(), bucket.clone(), err))?
                     ).map_err(|_| format!("provided document is not valid UTF-8"))?;
-                    let pdf = pdf::render_pdf(html, pdf_options)
+                    let pdf = pdf::render_pdf(
+                        html,
+                        pdf_options,
+                        sequent_core::services::pdf::PdfResourcePolicy::default(),
+                    )
                         .map_err(|err| format!("could not render PDF due to error: {:?}", err))?;
                     s3::upload_data_to_s3(
                         pdf.into(),
@@ -91,6 +95,7 @@ mod aws_contracts {
         let error = render_pdf(Input::Raw {
             html: "<p>synthetic</p>".into(),
             pdf_options: None,
+            resource_policy: Default::default(),
         })
         .await
         .unwrap_err();

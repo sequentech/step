@@ -19,7 +19,9 @@ use super::ballot_box_seal::{self, CloseProvenance};
 use super::initialization_scope::{
     initialization_refusal_for, initialization_refusals, name_list, post_display_name,
 };
-use super::voting_status::update_board_on_status_change;
+use super::voting_status::{
+    queue_voting_checkpoint, update_board_on_status_change, voting_checkpoint_reason,
+};
 
 /// A policy or state transition refusal safe for action clients to display.
 /// Storage and external-service errors retain their ordinary internal error type.
@@ -336,6 +338,7 @@ async fn update_event_voting_status_impl(
     // The board learns of the change once it is saved (and its seals made).
     let mut board_posts: Vec<(VotingStatusChannel, Vec<String>)> = vec![];
 
+    let mut logged_changes = 0_usize;
     for channel in channels {
         if source == VotingStatusUpdateSource::Scheduled {
             let elections_ids = apply_scheduled_event_channel(
@@ -530,6 +533,11 @@ async fn update_event_voting_status_impl(
         )
         .await
         .with_context(|| "Error updating electoral board on status change")?;
+        logged_changes += 1;
+    }
+
+    if let Some(reason) = voting_checkpoint_reason(new_status).filter(|_| logged_changes > 0) {
+        queue_voting_checkpoint(&tenant_id, election_event_id, reason).await;
     }
 
     Ok((election_event, skipped))

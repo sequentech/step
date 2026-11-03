@@ -6,7 +6,6 @@ import Typography from "@mui/material/Typography"
 import Paper, {PaperProps} from "@mui/material/Paper"
 import Box from "@mui/material/Box"
 import {useNavigate} from "react-router-dom"
-import {Link as RouterLink} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 import Skeleton from "@mui/material/Skeleton"
@@ -40,11 +39,6 @@ import {
 } from "@sequentech/ui-core"
 import {getConfirmationContests} from "../services/confirmationContests"
 import {getBallotStyleDefaultLanguageCode} from "../services/defaultLanguageCode"
-
-const StyledLink = styled(RouterLink)`
-    margin: auto 0;
-    text-decoration: none;
-`
 
 const HorizontalWrap = styled(Box)`
     display: flex;
@@ -113,18 +107,21 @@ const BallotIdSection: React.FC<BallotIdSectionProps> = ({confirmationBallot, ba
 
     return (
         <>
-            <Typography variant="h5">{t("confirmationScreen.ballotIdTitle")}</Typography>
+            <Typography variant="h5" component="h1">
+                {t("confirmationScreen.ballotIdTitle")}
+            </Typography>
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {t("confirmationScreen.ballotIdDescription")}
             </Typography>
             <HorizontalWrap>
-                <Typography variant="h5" fontSize="16px" width="106px">
+                <Typography variant="h5" component="p" fontSize="16px" width="106px">
                     {t("confirmationScreen.decodedBallotId")}
                 </Typography>
                 <BallotIdContainer variant={VariantType.Info}>
                     <OneLine variant="info">{confirmationBallot?.ballot_hash}</OneLine>
                     <IconButton
                         icon={faCircleQuestion}
+                        ariaLabel={t("confirmationScreen.decodedBallotIdHelpDialog.title")}
                         sx={{
                             fontSize: "unset",
                             lineHeight: "unset",
@@ -147,7 +144,7 @@ const BallotIdSection: React.FC<BallotIdSectionProps> = ({confirmationBallot, ba
                 </BallotIdContainer>
             </HorizontalWrap>
             <HorizontalWrap>
-                <Typography variant="h5" fontSize="16px" width="106px">
+                <Typography variant="h5" component="p" fontSize="16px" width="106px">
                     {t("confirmationScreen.yourBallotId")}
                 </Typography>
                 <Box sx={{overflow: "auto"}}>
@@ -184,6 +181,7 @@ const BallotIdSection: React.FC<BallotIdSectionProps> = ({confirmationBallot, ba
                         </OneLine>
                         <IconButton
                             icon={faCircleQuestion}
+                            ariaLabel={t("confirmationScreen.userBallotIdHelpDialog.title")}
                             sx={{
                                 fontSize: "unset",
                                 lineHeight: "unset",
@@ -225,12 +223,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({importPath}) => {
 
     return (
         <ActionsContainer sx={{marginBottom: "20px", marginTop: "10px"}}>
-            <StyledLink to={importPath} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
-                <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                    <Icon icon={faAngleLeft} size="sm" />
-                    <span>{t("confirmationScreen.backButton")}</span>
-                </StyledButton>
-            </StyledLink>
+            <StyledButton
+                href={importPath}
+                sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+            >
+                <Icon icon={faAngleLeft} size="sm" />
+                <span>{t("confirmationScreen.backButton")}</span>
+            </StyledButton>
             <StyledButton
                 onClick={triggerPrint}
                 variant="secondary"
@@ -290,11 +289,12 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
     return (
         <>
             <HorizontalWrap marginTop="26px">
-                <Typography variant="h5">
+                <Typography variant="h5" component="h2">
                     {t("confirmationScreen.verifySelectionsTitle")}
                 </Typography>
                 <IconButton
                     icon={faCircleQuestion}
+                    ariaLabel={t("confirmationScreen.verifySelectionsHelpDialog.title")}
                     sx={{
                         fontSize: "unset",
                         lineHeight: "unset",
@@ -321,16 +321,11 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
                     <Skeleton variant="text" />
                     <Skeleton variant="text" />
                 </>
-            ) : (
-                <>
-                    <Typography variant="h5" textAlign="left">
-                        {confirmationBallot?.election_config.description}
-                    </Typography>
-                    <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                        {confirmationBallot?.election_config.description}
-                    </Typography>
-                </>
-            )}
+            ) : confirmationBallot?.election_config.description?.trim() ? (
+                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                    {confirmationBallot?.election_config.description}
+                </Typography>
+            ) : null}
             {isLoading ? (
                 <>
                     <Skeleton variant="text" />
@@ -350,7 +345,9 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
                                 contestId: voteQuestion.contest_id,
                             })}
                             markedInvalidLabel={t("confirmationScreen.markedInvalid")}
-                            pointsLabel={(points) => t("confirmationScreen.points", {points})}
+                            pointsLabel={(points) =>
+                                t("confirmationScreen.points", {count: points})
+                            }
                             isDeclineToVotePolicyEnabled={isDeclineToVotePolicyEnabled}
                             declineToVoteLabel={t("confirmationScreen.declineToVote")}
                             isBlankBallotsPolicyEnabled={isBlankBallotsPolicyEnabled}

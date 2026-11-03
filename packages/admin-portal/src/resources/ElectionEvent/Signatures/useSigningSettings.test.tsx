@@ -54,7 +54,11 @@ const recordingClient = (isAdminUser: boolean) => {
         link: new ApolloLink((operation) => {
             const explicit = operation.getContext().headers?.["x-hasura-role"]
             roles[operation.operationName] =
-                explicit ?? getOperationRole(operation, false, isAdminUser)
+                explicit ??
+                getOperationRole(
+                    operation,
+                    (role) => isAdminUser && role === IPermissions.ADMIN_USER
+                )
             return new Observable((observer) => {
                 observer.next({data: {}})
                 observer.complete()

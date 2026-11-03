@@ -93,9 +93,9 @@ The voter's device sends the election, the Ballot ID and the voter's Cast signat
 - the ballot has not been cast or audited;
 - the election is open for the voter's channel, and the revote rules allow one more vote.
 
-It then inserts the cast vote with the content of the received ballot, marks the received ballot as cast and signs the cast receipt, all in one transaction, and answers only after the commit. The cast vote's time is the receipt's cast time.
+It signs the cast receipt, then stores the cast vote with the content of the received ballot and marks the received ballot as cast, in one write to the election event's ballot box, and answers only once that write is stored. The cast vote's time is the receipt's cast time. A refused cast leaves the received ballot waiting to be cast.
 
-- Casting again with the same Cast signature returns the same receipt, so a lost answer can be retried.
+- Casting again with the same Cast signature returns the same receipt, so a lost answer can be retried. Two requests with the same cast at the same time store it once, and both get its receipt.
 - Another voter's Ballot ID, an unknown Ballot ID, an audited ballot, a ballot already cast with another signature and a Cast signature that does not verify are refused with a client error, and nothing is cast.
 - A cast that sends the ballot itself (`insert_cast_vote`) is refused while receipts are on, except for telephone voting.
 
@@ -149,4 +149,4 @@ Each statement has its own domain, so a signature made for one never verifies as
 
 Changing any byte of the ballot, of either voter signature or of either ballot box signature changes the Ballot ID or breaks a signature. Shared test vectors are in `packages/sequent-core/tests/ballot_receipts.rs`.
 
-Received ballots are stored in `sequent_backend.received_ballot` with their status: `received`, `cast` or `audited`. A cast ballot keeps its cast time, the voter's Cast signature and the ballot box's Cast receipt signature there. A cast vote names the received ballot it was cast from in `cast_vote.received_ballot_id` and keeps the receipt signature in `cast_vote.cast_receipt_signature`.
+Received ballots are stored in the election event's ballot box, in the `ballot_box_received` table of the event's electoral-log database, with their status: `received`, `cast` or `audited`. A cast ballot keeps its cast time, the voter's Cast signature and the ballot box's Cast receipt signature there. The cast vote is a ballot of the ballot box like any other: its ballot ID is the hexadecimal ballot hash of the Received statement, which is also the Ballot ID of its cast-vote record in the event's log. The received ballot links the receipt's Ballot ID to it through that hash.

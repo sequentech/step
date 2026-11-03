@@ -2,19 +2,24 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {useMemo} from "react"
-import {useGetMany, useListContext} from "react-admin"
+import {useGetMany, useGetOne, useListContext} from "react-admin"
 import {
     ELogTimeZonePolicy,
     type IElectionEventPresentation,
     type IElectionPresentation,
+    type ITenantSettings,
 } from "@sequentech/ui-core"
-import type {Sequent_Backend_Election} from "@/gql/graphql"
-import {logTimeZone, primaryTimeZone} from "@/lib/timezones/zonedFormat"
+import type {Sequent_Backend_Election, Sequent_Backend_Tenant} from "@/gql/graphql"
+import {DEFAULT_TIME_ZONE, logTimeZone, primaryTimeZone} from "@/lib/timezones/zonedFormat"
+import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useEventPresentation, type ZonedEventRef} from "@/hooks/useZonedFormat"
 import {useMyTimeZone} from "@/providers/EventTimeZoneProvider"
 import {logMessage} from "./logMessage"
+import {ELogScope} from "./logScope"
 
 export interface ILogZones {
+    /** The log the zones are of. */
+    scope: ELogScope
     presentation?: IElectionEventPresentation
     primary: string
     /** Rows can be in different zones: the ELECTION policy with several configured zones. */
@@ -31,6 +36,7 @@ export const useLogZones = (event: ZonedEventRef): ILogZones => {
         const configured = presentation?.timezones?.configured ?? []
         const primary = primaryTimeZone(presentation)
         return {
+            scope: ELogScope.EVENT,
             presentation,
             primary,
             byElection:
@@ -39,6 +45,30 @@ export const useLogZones = (event: ZonedEventRef): ILogZones => {
             choices: Array.from(new Set([primary, ...configured, myZone])),
         }
     }, [presentation, myZone])
+}
+
+/**
+ * The tenant log's zones: the tenant setting `logs_timezone` (UTC when not
+ * set), then mine. The tenant is read only when `enabled`.
+ */
+export const useTenantLogZones = (enabled = true): ILogZones => {
+    const [tenantId] = useTenantStore()
+    const myZone = useMyTimeZone()
+    const {data: tenant} = useGetOne<Sequent_Backend_Tenant>(
+        "sequent_backend_tenant",
+        {id: tenantId ?? ""},
+        {enabled: enabled && !!tenantId}
+    )
+    const configured = (tenant?.settings as ITenantSettings | undefined)?.logs_timezone
+    return useMemo(() => {
+        const primary = configured || DEFAULT_TIME_ZONE
+        return {
+            scope: ELogScope.TENANT,
+            primary,
+            byElection: false,
+            choices: Array.from(new Set([primary, myZone])),
+        }
+    }, [configured, myZone])
 }
 
 /**
@@ -73,7 +103,9 @@ export const useLogRowZone = (zones: ILogZones): ((electionId?: string | null) =
                 (election.presentation ?? undefined) as IElectionPresentation | undefined,
             ])
         )
+        // Every entry of the tenant log is in the tenant's log zone.
+        if (zones.scope === ELogScope.TENANT) return () => zones.primary
         return (electionId) =>
             logTimeZone(zones.presentation, electionId ? presentations.get(electionId) : undefined)
-    }, [elections, zones.presentation])
+    }, [elections, zones.presentation, zones.scope, zones.primary])
 }

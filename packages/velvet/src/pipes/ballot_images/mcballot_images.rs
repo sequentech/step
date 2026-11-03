@@ -19,7 +19,7 @@ use rayon::ThreadPoolBuilder;
 use sequent_core::ballot::{Candidate, CandidatesOrder, Contest, StringifiedPeriodDates};
 use sequent_core::ballot_codec::multi_ballot::DecodedBallotChoices;
 use sequent_core::election_config::manifest::ConfigurationStamp;
-use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest, InvalidPlaintextErrorType};
 use sequent_core::services::{pdf, reports};
 use sequent_core::signatures::ecies_encrypt::ecies_sign_data_bulk;
 use sequent_core::signatures::ecies_encrypt::SignRequest;
@@ -33,9 +33,9 @@ use std::fs::OpenOptions;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use strand::hash::{hash_b64, hash_sha256};
 use tokio::runtime::Runtime;
 use tracing::{info, instrument};
+use voting_crypto::hash::{hash_b64, hash_sha256};
 
 #[cfg(test)]
 #[path = "../../../tests/support/ballot_image_boundaries.rs"]
@@ -267,12 +267,20 @@ impl MCBallotImages {
                 .map(|val| val.to_string())
                 .unwrap_or(DEFAULT_MCBALLOT_TITLE.to_string());
             let encoded_vote = qr_encode_choices(&cds, &title);
-            let is_blank = cds.iter().all(|choice| choice.is_blank());
+            // A ballot that did not decode has no marks, but it is a null vote
+            // and not a blank one.
+            let has_encoding_error = ballot.mcballot.choices.iter().any(|contest| {
+                contest
+                    .invalid_errors
+                    .iter()
+                    .any(|error| error.error_type == InvalidPlaintextErrorType::EncodingError)
+            });
+            let is_blank = !has_encoding_error && cds.iter().all(|choice| choice.is_blank());
 
             let bd = BallotData {
                 id: ballot.mcballot.serial_number.clone().unwrap_or_default(),
                 encoded_vote,
-                is_invalid: ballot.mcballot.is_explicit_invalid,
+                is_invalid: ballot.mcballot.is_explicit_invalid || has_encoding_error,
                 is_blank,
                 contest_choices: cds,
             };

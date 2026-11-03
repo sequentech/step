@@ -35,9 +35,6 @@
     "min_age": 18,
     "max_age": 90
   },
-  "duplicate_votes": {
-    "row_id_to_clone": "a2d4b909-ea96-4de8-b1c1-57a392d1d5b3"
-  },
   "generate_applications": {
     "applicant_data": {
       "email":"",
@@ -48,7 +45,6 @@
       "firstName":"",
       "dateOfBirth":"",
       "termsOfService":"termsOfServiceText",
-      "emailAndOrMobile":"sequent.read-only.mobile-number;email",
       "sequent.read-only.id-card-type":"driversLicense",
       "sequent.read-only.mobile-number":"",
       "sequent.read-only.id-card-number":"",
@@ -65,7 +61,7 @@
       "unset-attributes":"email,sequent.read-only.mobile-number,sequent.read-only.id-card-number-validated",
       "rejection_message":null,
       "search-attributes":"firstName,middleName,lastName,embassy,dateOfBirth",
-      "update-attributes":"sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,emailAndOrMobile,sequent.read-only.id-card-number,sequent.read-only.id-card-type",
+      "update-attributes":"sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,sequent.read-only.id-card-number,sequent.read-only.id-card-type",
       "manual_verify_reason":null
     }
   }

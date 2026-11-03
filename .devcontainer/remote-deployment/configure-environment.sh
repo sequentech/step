@@ -83,11 +83,26 @@ sed -i.bak "s|^MASTER_SECRET=.*|MASTER_SECRET=$MASTER_SECRET|g" "$ENV_FILE" && r
 
 KEYCLOAK_JSON_FILE="$DEVCONTAINER_DIR/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
 
+# Imported realm users must never inherit deployment-template passwords or OTPs.
+STRIP_USER_CREDENTIALS_JQ='
+  (.users[]? |= del(.credentials))
+  | (.users[]? | select(.username == "admin") | .requiredActions)
+    |= ((. // []) + ["UPDATE_PASSWORD"] | unique)
+'
+if ! jq "$STRIP_USER_CREDENTIALS_JQ" "$KEYCLOAK_JSON_FILE" > "$KEYCLOAK_JSON_FILE.tmp"; then
+  rm -f "$KEYCLOAK_JSON_FILE.tmp"
+  echo "Unable to remove user credentials from $KEYCLOAK_JSON_FILE" >&2
+  exit 1
+fi
+mv "$KEYCLOAK_JSON_FILE.tmp" "$KEYCLOAK_JSON_FILE" || exit 1
+
 KEYCLOAK_CLIENT_SECRET=$(generate_base64 32)
 KEYCLOAK_CLI_CLIENT_SECRET=$(generate_base64 32)
 HASURA_GRAPHQL_ADMIN_SECRET=$(generate_base64 32)
 AWS_S3_ROOT_PASSWORD=$(generate_base64 32)
 KEYCLOAK_ADMIN_PASSWORD=$(generate_base64 32)
+MESSAGING_RELAY_SECRET=$(generate_hex 32)
+sed -i.bak "s|^MESSAGING_RELAY_SECRET=.*|MESSAGING_RELAY_SECRET=$MESSAGING_RELAY_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 
 sed -i.bak "s|^KEYCLOAK_CLIENT_SECRET=.*|KEYCLOAK_CLIENT_SECRET=$KEYCLOAK_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 jq --arg secret "$KEYCLOAK_CLIENT_SECRET" '(.clients[] | select(.clientId == "service-account") | .secret) = $secret' "$KEYCLOAK_JSON_FILE" > "$KEYCLOAK_JSON_FILE.tmp" && mv "$KEYCLOAK_JSON_FILE.tmp" "$KEYCLOAK_JSON_FILE"
@@ -105,6 +120,7 @@ sed -i.bak "s|^KEYCLOAK_ADMIN_CLIENT_SECRET=.*|KEYCLOAK_ADMIN_CLIENT_SECRET=$KEY
 
 echo "  ✓ Generated MASTER_SECRET (32 bytes hex)"
 echo "  ✓ Generated Keycloak client secrets"
+echo "  ✓ Generated MESSAGING_RELAY_SECRET (32 bytes hex)"
 echo "  ✓ Set SECRETS_BACKEND=EnvVarMasterSecret"
 echo ""
 
@@ -124,6 +140,10 @@ sed -i.bak "s|minio-[a-zA-Z0-9_-]*\.\${DOMAIN}|minio-$SUBDOMAIN_SUFFIX.\${DOMAIN
 # Update hostname variables for webpack dev server
 sed -i.bak "s|^VOTING_PORTAL_HOSTNAME=.*|VOTING_PORTAL_HOSTNAME=voting-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 sed -i.bak "s|^ADMIN_PORTAL_HOSTNAME=.*|ADMIN_PORTAL_HOSTNAME=admin-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+
+# Point the default tenant realm's admin-portal client at the admin portal
+ADMIN_PORTAL_URL="https://admin-$SUBDOMAIN_SUFFIX.$DOMAIN"
+jq --arg url "$ADMIN_PORTAL_URL" '(.clients[] | select(.clientId == "admin-portal")) |= (.rootUrl = $url | .baseUrl = $url | .redirectUris = [$url + "/*"])' "$KEYCLOAK_JSON_FILE" > "$KEYCLOAK_JSON_FILE.tmp" && mv "$KEYCLOAK_JSON_FILE.tmp" "$KEYCLOAK_JSON_FILE"
 
 # Step 4: Configure nginx
 echo "[4/4] Configuring nginx reverse proxy..."

@@ -345,6 +345,20 @@ test("GraphQL response data must satisfy the schema and queued errors are consum
     expect(fixture.violations.list()).toHaveLength(1)
 })
 
+test("GraphQL mock data may answer an aliased field by its alias or its field name", async () => {
+    const fixture = graphqlFixture()
+    const query = "query Greeting($name: String!) { welcome: greeting(name: $name) }"
+    fixture.graphql.on("Greeting", () => ({data: {welcome: "Hello by alias"}}))
+    expect(bodyOf((await fixture.send(query)) as MockFulfillment)).toEqual({
+        data: {welcome: "Hello by alias"},
+    })
+    fixture.graphql.on("Greeting", () => ({data: {greeting: "Hello by field"}}))
+    expect(bodyOf((await fixture.send(query)) as MockFulfillment)).toEqual({
+        data: {welcome: "Hello by field"},
+    })
+    expect(fixture.violations.list()).toEqual([])
+})
+
 test("S3 delivers exact bytes, HEAD metadata, expiring URL overrides and detects missing objects", () => {
     const violations = new ViolationLog()
     const s3 = new S3Mock({origin, violations})
@@ -535,3 +549,47 @@ for (const [path, method, allowed] of [
         expect(violations.list()).toHaveLength(allowed ? 0 : 1)
     })
 }
+
+test("OIDC messaging channels are empty for realms without messaging", () => {
+    const fixture = oidcFixture()
+    const response = fixture.oidc.handle(
+        request("/keycloak/realms/election/messaging-channels")
+    ) as MockFulfillment
+    expect(response.status).toBe(200)
+    expect(bodyOf(response)).toEqual({code_channels: []})
+    expect(fixture.violations.list()).toEqual([])
+})
+
+test("OIDC messaging channels are scoped to a configured realm", () => {
+    const violations = new ViolationLog()
+    const oidc = new OidcMock({
+        origin,
+        violations,
+        realms: ["election", "other"].map((name) => ({
+            name,
+            clients: ["voting-portal"],
+            user: {id: "synthetic-user", username: "voter"},
+            messagingCodeChannels: name === "election" ? ["WHATSAPP", "SMS"] : [],
+        })),
+    })
+    for (const [realm, channels] of [
+        ["election", ["WHATSAPP", "SMS"]],
+        ["other", []],
+    ] as const) {
+        const response = oidc.handle(
+            request(`/keycloak/realms/${realm}/messaging-channels`)
+        ) as MockFulfillment
+        expect(response.status).toBe(200)
+        expect(bodyOf(response)).toEqual({code_channels: channels})
+    }
+    expect(violations.list()).toEqual([])
+    const wrongMethod = oidc.handle(
+        request("/keycloak/realms/election/messaging-channels", "POST")
+    ) as MockFulfillment
+    const unknownRealm = oidc.handle(
+        request("/keycloak/realms/unconfigured/messaging-channels")
+    ) as MockFulfillment
+    expect(wrongMethod.status).toBe(404)
+    expect(unknownRealm.status).toBe(404)
+    expect(violations.list()).toHaveLength(2)
+})

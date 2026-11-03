@@ -262,7 +262,7 @@ export const PendingRequestsNotice: Story = {
 }
 
 export const TrusteeActionOnOff: Story = {
-    args: {organization: Organization.StudentCouncil, action: SigningAction.ConfirmKeyShare},
+    args: {organization: Organization.StudentCouncil, action: SigningAction.ConfirmCustodyProof},
     play: async ({args}) => {
         const panel = await drawer()
         const toggle = panel.getByLabelText(label("rule.trusteesSign"))
@@ -275,7 +275,7 @@ export const TrusteeActionOnOff: Story = {
         await userEvent.click(saveButton(panel))
         await waitFor(() => expect(args.onSaved).toHaveBeenCalledOnce())
         expect(savedRule()[0].variables).toMatchObject({
-            action: SigningAction.ConfirmKeyShare,
+            action: SigningAction.ConfirmCustodyProof,
             requirement: SigningRequirement.Required,
             signatures: 1,
             requester_signing: RequesterSigning.Allowed,
@@ -285,7 +285,7 @@ export const TrusteeActionOnOff: Story = {
 }
 
 export const TrusteeActionOn: Story = {
-    args: {action: SigningAction.ContributeKeyShare},
+    args: {action: SigningAction.ContributeCustodyProof},
     play: async () => {
         const panel = await drawer()
         await expect(panel.getByLabelText(label("rule.trusteesSign"))).toBeChecked()
@@ -504,7 +504,7 @@ const automatedCeremoniesRefusal: Story["play"] = async ({args}) => {
 export const AutomaticKeyCeremonyRefused: Story = {
     args: {
         organization: Organization.StudentCouncil,
-        action: SigningAction.ConfirmKeyShare,
+        action: SigningAction.ConfirmCustodyProof,
         refuse: {code: "invalid", reason: "automated-ceremonies"},
     },
     play: automatedCeremoniesRefusal,
@@ -513,7 +513,7 @@ export const AutomaticKeyCeremonyRefused: Story = {
 export const AutomaticTallyStepRefused: Story = {
     args: {
         organization: Organization.StudentCouncil,
-        action: SigningAction.ContributeKeyShare,
+        action: SigningAction.ContributeCustodyProof,
         refuse: {code: "invalid", reason: "automated-ceremonies"},
     },
     play: automatedCeremoniesRefusal,

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::{
     create_transmission_package_service::{
-        generate_all_servers_document, update_transmission_package_annotations,
+        generate_all_servers_document, resealed_document, update_transmission_package_annotations,
     },
     eml_generator::{
         find_miru_annotation, prepend_miru_annotation, MiruElectionEventAnnotations,
@@ -487,17 +487,16 @@ pub async fn upload_transmission_package_signature_service(
     let Some(first_document) = new_transmission_package_data.documents.first() else {
         return Err(anyhow!("Missing initial document"));
     };
-    new_transmission_package_data.documents.push(MiruDocument {
-        document_ids: MiruDocumentIds {
-            eml: first_document.document_ids.eml.clone(),
-            xz: first_document.document_ids.xz.clone(),
-            all_servers: all_servers_document.id.clone(),
-        },
-        transaction_id: first_document.transaction_id.clone(),
-        servers_sent_to: vec![],
-        created_at: now_local.to_rfc3339(),
-        signatures: new_miru_signatures,
-    });
+    let resealed = resealed_document(
+        first_document,
+        &all_servers_document,
+        &rendered_xml_hash,
+        now_local.to_rfc3339(),
+        new_miru_signatures,
+    );
+    new_transmission_package_data.documents.push(resealed);
+    new_transmission_package_data.ovcs_public_key =
+        Some(all_servers_document.ovcs_public_key.clone());
     update_transmission_package_annotations(
         &hasura_transaction,
         tenant_id,

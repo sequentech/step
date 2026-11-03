@@ -26,14 +26,14 @@ hasura --> harvest
 
 ## 2. Harvest to Windmill - immediate asynchronous task
 
-Hasura executes an action that calls to an API callback in Harvest, which in 
-turns writes send to RabbitMQ a task to be executed by a Windmill worker. This
+Hasura executes an action that calls to an API callback in Harvest, which in
+turn enqueues a task in the task queue (PGMQ) for a Windmill worker. This
 allows the execution of longer, more resource-intensive tasks in an asychronous
 fashion.
 
-Example: Creation of an Election Event. It requires the creation of an 
-ImmuBoard (meaning the creation of an Immudb Database) and this is resource 
-intensive enough that it requires the execution in a background task worker 
+Example: Creation of an Election Event. It requires the creation of an
+electoral-log database and a native wbraid bulletin board, and this is resource
+intensive enough that it requires the execution in a background task worker
 (a Windmill worker).
 
 ```mermaid
@@ -63,10 +63,10 @@ Second, it provides a better
 [back pressure](https://medium.com/@jayphelps/backpressure-explained-the-flow-of-data-through-software-2350b3e77ce7)
 mechanism when used in conjunction with a suitable prefetch_count.
 
-## 3. Harvest to Windmill Beat - asynchronous scheduled task 
+## 3. Harvest to Windmill Beat - asynchronous scheduled task
 
 Hasura executes an action that calls to an API callback in Harvest, which in
-turns writes send to RabbitMQ a task to be executed by a Windmill Beat to 
+turn enqueues a task in the task queue (PGMQ) for Windmill Beat to
 schedule a task to be executed at a specific date and time or recurrently.
 
 Example: scheduled reports. These reports should be generated at a specific date
@@ -76,7 +76,7 @@ Even though the `Baskets` concept is not implemented yet in Rusty-celery, the
 [baskets feature issue](https://github.com/rusty-celery/rusty-celery/issues/53)
 has some relevant dicussion about what are repercussions of this type of tasks.
 
-More information in 
+More information in
 [Rusty-Celery Beat](https://docs.rs/celery/latest/celery/beat/index.html).
 
 ```mermaid
@@ -89,14 +89,14 @@ harvest --(scheduled)--> windmill-beat
 ## 4. Windmill Beat - asychronous recurrent task
 
 By configuration, specific tasks can be configured to execute recurrently every
-given time period. In this pathway the task is generated internally and forever, 
+given time period. In this pathway the task is generated internally and forever,
 not by any external user request.
 
-Example: Typically this will only be used to perform pooling in the bulletin 
+Example: Typically this will only be used to perform pooling in the bulletin
 boards, to watch for changes such as the availability of the public key of an
 election or the decrypted ballots of a tally.
 
-More information in 
+More information in
 [Rusty-Celery Beat](https://docs.rs/celery/latest/celery/beat/index.html) and
 [Rusty-Celery Beat DeltaSchedule](https://docs.rs/celery/latest/celery/beat/struct.DeltaSchedule.html)
 

@@ -12,10 +12,13 @@ exactly what a seed created and nothing else.
   import-voters``), which COPYs a CSV straight into the event realm's Keycloak
   tables. Their usernames start with ``mon-scale-`` and their emails end with
   ``@mon-scale.invalid``; cleanup deletes only accounts matching both.
-- Votes and applications are inserted through Hasura with the admin secret,
-  each carrying the ``mon-scale-seed`` annotation that cleanup filters on.
-  The votes have no ballot content: a tally of the event would fail on them,
-  so they are opt-in (``--with-votes``) and meant for a throwaway event.
+- Applications are inserted through Hasura with the admin secret, each
+  carrying the ``mon-scale-seed`` annotation that cleanup filters on.
+- Votes are inserted into the event's ballot box, in its electoral-log
+  database, as ``valid`` ballots of the format ``mon-scale-seed``, which
+  cleanup filters on. They have no ballot content and no record on the
+  board: a tally of the event would fail on them, so they are opt-in
+  (``--with-votes``) and meant for a throwaway event.
 
 The stack's clients are imported only when a command talks to it; the pure
 planning functions work without any settings, which the tests rely on.
@@ -44,7 +47,8 @@ from typing import Any
 
 PREFIX = "mon-scale-"
 EMAIL_DOMAIN = "@mon-scale.invalid"
-# The annotation key every inserted vote and application carries.
+# The annotation key every inserted application carries, and the format of
+# every inserted ballot.
 MARKER = "mon-scale-seed"
 AREA_ATTRIBUTE = "area-id"
 # Above this many voters a seed needs --force.
@@ -370,7 +374,7 @@ def seeded_account(user: Mapping[str, Any]) -> Account:
 
 
 def marked_rows(tenant_id: str, event_id: str) -> dict[str, Any]:
-    """The Hasura filter for the votes and applications a seed inserted."""
+    """The Hasura filter for the applications a seed inserted."""
     return {
         "tenant_id": {"_eq": tenant_id},
         "election_event_id": {"_eq": event_id},
@@ -379,9 +383,9 @@ def marked_rows(tenant_id: str, event_id: str) -> dict[str, Any]:
 
 
 def allows_revote(num_allowed_revotes: int | None) -> bool:
-    """Whether a second valid vote passes the cast_vote revote trigger.
+    """Whether the ballot box accepts a voter's second vote in an election.
 
-    The trigger reads a missing limit as 1 vote and 0 as unlimited.
+    A missing limit is 1 vote and 0 is unlimited.
     """
     allowed = 1 if num_allowed_revotes is None else num_allowed_revotes
     return allowed == 0 or allowed >= 2
@@ -406,18 +410,23 @@ class VotePlan:
     now: datetime
 
 
+def seeded_ballot_id(tag: str, number: int) -> str:
+    """The Ballot ID of a seed's ``number``-th ballot: unique in the event."""
+    return hashlib.sha256(f"{MARKER}/{tag}/{number}".encode()).hexdigest()
+
+
 def plan_votes(
     accounts: Sequence[Account],
     areas: Mapping[str, Area],
     revote_limits: Mapping[str, int | None],
     plan: VotePlan,
     rng: random.Random,
-    tenant_id: str,
     event_id: str,
     tag: str,
 ) -> list[dict[str, Any]]:
     """Valid votes of about ``turnout`` of the voters, in each election of
-    their area, and a later revote where the election allows one."""
+    their area, and a later revote where the election allows one, in the
+    order they were cast."""
     if plan.days < 1:
         raise SeedError("--vote-days must be at least 1")
     start = plan.now - timedelta(days=plan.days)
@@ -425,18 +434,13 @@ def plan_votes(
     votes = []
 
     def vote(account: Account, area: Area, election: str, at: datetime) -> None:
-        stamp = _stamp(min(at, latest))
         votes.append(
             {
-                "tenant_id": tenant_id,
                 "election_event_id": event_id,
                 "election_id": election,
                 "area_id": area.id,
-                "voter_id_string": account.user_id,
-                "status": "valid",
-                "created_at": stamp,
-                "last_updated_at": stamp,
-                "annotations": {MARKER: tag},
+                "voter_id": account.user_id,
+                "accepted_at": _stamp(min(at, latest)),
             }
         )
 
@@ -451,6 +455,9 @@ def plan_votes(
             vote(account, area, election, at)
             if revotes and allows_revote(revote_limits.get(election)):
                 vote(account, area, election, at + timedelta(hours=rng.uniform(1, 48)))
+    votes.sort(key=lambda vote: vote["accepted_at"])
+    for number, vote in enumerate(votes):
+        vote["ballot_id"] = seeded_ballot_id(tag, number)
     return votes
 
 
@@ -567,26 +574,75 @@ EVENT = """query ($tenant: uuid!, $event: uuid!) {
     where: {tenant_id: {_eq: $tenant}, election_event_id: {_eq: $event}}
   ) { aggregate { count } }
 }"""
-MARKED = """query ($votes: sequent_backend_cast_vote_bool_exp!,
-                   $applications: sequent_backend_applications_bool_exp!) {
-  sequent_backend_cast_vote_aggregate(where: $votes) { aggregate { count } }
+MARKED = """query ($applications: sequent_backend_applications_bool_exp!) {
   sequent_backend_applications_aggregate(where: $applications) {
     aggregate { count }
   }
-}"""
-INSERT_VOTES = """mutation ($objects: [sequent_backend_cast_vote_insert_input!]!) {
-  insert_sequent_backend_cast_vote(objects: $objects) { affected_rows }
 }"""
 INSERT_APPLICATIONS = """mutation (
   $objects: [sequent_backend_applications_insert_input!]!
 ) {
   insert_sequent_backend_applications(objects: $objects) { affected_rows }
 }"""
-DELETE_MARKED = """mutation ($votes: sequent_backend_cast_vote_bool_exp!,
-                      $applications: sequent_backend_applications_bool_exp!) {
-  delete_sequent_backend_cast_vote(where: $votes) { affected_rows }
+DELETE_MARKED = """mutation ($applications: sequent_backend_applications_bool_exp!) {
   delete_sequent_backend_applications(where: $applications) { affected_rows }
 }"""
+
+# The event's database in the electoral-log server's catalog.
+EVENT_DATABASE = (
+    "SELECT database_name FROM electoral_log_events WHERE election_event_id = %s::uuid"
+)
+COUNT_BALLOTS = (
+    "SELECT count(*) FROM ballot_box_ballot "
+    "WHERE election_event_id = %s::uuid AND format = %s"
+)
+INSERT_BALLOT = (
+    "INSERT INTO ballot_box_ballot (election_event_id, ballot_id, election_id, "
+    "area_id, voter_id, format, content, pseudonym_hash, ballot_hash, "
+    "voting_channel, status, accepted_at) VALUES (%s::uuid, %s, %s::uuid, "
+    "%s::uuid, %s, %s, '', %s, %s, 'ONLINE', 'valid', %s::timestamptz)"
+)
+# Each seeded voter's vote count and latest ballot per election, as casting
+# keeps them.
+UPSERT_VOTERS = """
+INSERT INTO ballot_box_voter (election_event_id, election_id, voter_id, area_id,
+                              votes, last_ballot_id, updated_at)
+SELECT election_event_id, election_id, voter_id,
+       (array_agg(area_id ORDER BY seq DESC))[1], count(*),
+       (array_agg(ballot_id ORDER BY seq DESC))[1], max(accepted_at)
+FROM ballot_box_ballot
+WHERE election_event_id = %s::uuid AND format = %s
+GROUP BY election_event_id, election_id, voter_id
+ON CONFLICT (election_event_id, election_id, voter_id) DO UPDATE SET
+    votes = EXCLUDED.votes, last_ballot_id = EXCLUDED.last_ballot_id,
+    updated_at = EXCLUDED.updated_at
+"""
+DELETE_VOTERS = """
+DELETE FROM ballot_box_voter v
+USING (SELECT DISTINCT election_id, voter_id FROM ballot_box_ballot
+       WHERE election_event_id = %s::uuid AND format = %s) s
+WHERE v.election_event_id = %s::uuid
+  AND v.election_id = s.election_id AND v.voter_id = s.voter_id
+"""
+DELETE_BALLOTS = (
+    "DELETE FROM ballot_box_ballot WHERE election_event_id = %s::uuid AND format = %s"
+)
+
+
+def ballot_row(vote: Mapping[str, Any]) -> tuple[Any, ...]:
+    """The insert parameters of a planned vote: hashes stand in for the
+    voter's pseudonym and the ballot's hash."""
+    return (
+        vote["election_event_id"],
+        vote["ballot_id"],
+        vote["election_id"],
+        vote["area_id"],
+        vote["voter_id"],
+        MARKER,
+        hashlib.sha512(f"{MARKER}/voter/{vote['voter_id']}".encode()).digest(),
+        hashlib.sha512(f"{MARKER}/ballot/{vote['ballot_id']}".encode()).digest(),
+        vote["accepted_at"],
+    )
 
 
 def say(message: str = "") -> None:
@@ -708,11 +764,51 @@ class Stack:
 
     def marked(self) -> tuple[int, int]:
         where = marked_rows(self.tenant_id, self.event_id)
-        data = self.hasura.query(MARKED, {"votes": where, "applications": where})
+        data = self.hasura.query(MARKED, {"applications": where})
+        with self.ballot_box() as ballot_box:
+            votes = ballot_box.execute(
+                COUNT_BALLOTS, (self.event_id, MARKER)
+            ).fetchone()[0]
         return (
-            data["sequent_backend_cast_vote_aggregate"]["aggregate"]["count"],
+            votes,
             data["sequent_backend_applications_aggregate"]["aggregate"]["count"],
         )
+
+    @contextmanager
+    def ballot_box(self) -> Iterator[Any]:
+        """A connection to the event's database on the electoral-log server,
+        whose ballot box holds the event's votes."""
+        import psycopg
+
+        environment = self.context.environment
+        settings = {
+            "host": environment["ELECTORAL_LOG_PG_HOST"],
+            "port": environment.get("ELECTORAL_LOG_PG_PORT", "5432"),
+            "user": environment["ELECTORAL_LOG_PG_USER"],
+            "password": environment["ELECTORAL_LOG_PG_PASSWORD"],
+        }
+        with psycopg.connect(
+            dbname=environment["ELECTORAL_LOG_PG_DATABASE"], **settings
+        ) as catalog:
+            row = catalog.execute(EVENT_DATABASE, (self.event_id,)).fetchone()
+        if row is None:
+            raise SeedError(
+                f"election event {self.event_id} has no electoral-log database"
+            )
+        with psycopg.connect(dbname=row[0], **settings) as connection:
+            yield connection
+
+    def insert_votes(self, votes: Sequence[Mapping[str, Any]], size: int) -> int:
+        """Inserts the planned votes in order, one transaction per batch, then
+        the voters' vote counts."""
+        with self.ballot_box() as ballot_box:
+            for batch in batches(votes, size):
+                rows = [ballot_row(vote) for vote in batch]
+                with ballot_box.transaction(), ballot_box.cursor() as cursor:
+                    cursor.executemany(INSERT_BALLOT, rows)
+            with ballot_box.transaction():
+                ballot_box.execute(UPSERT_VOTERS, (self.event_id, MARKER))
+        return len(votes)
 
     def open_cli(self, explicit: str | None) -> None:
         from scripts.dev.scenario.settings import find_step_cli
@@ -746,9 +842,14 @@ class Stack:
 
     def delete_marked(self) -> tuple[int, int]:
         where = marked_rows(self.tenant_id, self.event_id)
-        data = self.hasura.query(DELETE_MARKED, {"votes": where, "applications": where})
+        data = self.hasura.query(DELETE_MARKED, {"applications": where})
+        with self.ballot_box() as ballot_box, ballot_box.transaction():
+            ballot_box.execute(
+                DELETE_VOTERS, (self.event_id, MARKER, self.event_id)
+            )
+            votes = ballot_box.execute(DELETE_BALLOTS, (self.event_id, MARKER)).rowcount
         return (
-            data["delete_sequent_backend_cast_vote"]["affected_rows"],
+            votes,
             data["delete_sequent_backend_applications"]["affected_rows"],
         )
 
@@ -883,12 +984,11 @@ def _seed(stack: Stack, arguments: argparse.Namespace, options: Options) -> int:
             event.revote_limits,
             plan,
             rng,
-            options.tenant_id,
             options.event_id,
             tag,
         )
         with phase(f"insert {len(rows)} votes"):
-            stack.insert(INSERT_VOTES, rows, options.db_batch)
+            stack.insert_votes(rows, options.db_batch)
     if options.with_applications:
         rows = plan_applications(
             accounts,
@@ -917,8 +1017,8 @@ def command_cleanup(arguments: argparse.Namespace, options: Options) -> int:
             users = stack.seeded_users()
             votes, applications = stack.marked()
         say(
-            f"seeded: {len(users)} voters in {stack.realm}, {votes} votes, "
-            f"{applications} applications annotated {MARKER}"
+            f"seeded: {len(users)} voters in {stack.realm}, {votes} votes of the "
+            f"format {MARKER}, {applications} applications annotated {MARKER}"
         )
         if arguments.dry_run:
             say("dry run: nothing deleted")
@@ -973,8 +1073,9 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--with-votes",
         action="store_true",
-        help="also insert valid cast votes. They carry no ballot content, so a "
-        "tally of the event fails afterwards: use a throwaway event",
+        help="also insert valid ballots into the event's ballot box. They carry "
+        "no ballot content and no record on the board, so a tally of the event "
+        "fails afterwards: use a throwaway event",
     )
     parser.add_argument(
         "--with-applications",
@@ -999,7 +1100,10 @@ def _parser() -> argparse.ArgumentParser:
         help="voters per imported file (default 10000)",
     )
     parser.add_argument(
-        "--db-batch", type=int, default=1_000, help="rows per Hasura insert"
+        "--db-batch",
+        type=int,
+        default=1_000,
+        help="rows per Hasura or ballot box insert",
     )
     parser.add_argument(
         "--workers",

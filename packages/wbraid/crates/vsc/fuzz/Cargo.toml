@@ -85,3 +85,10 @@ path = "fuzz_targets/verify_schnorr_ristretto.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "verify_ny_strip_all_ristretto"
+path = "fuzz_targets/verify_ny_strip_all_ristretto.rs"
+test = false
+doc = false
+bench = false

@@ -11,13 +11,26 @@ import {
     eventRecord,
     keysCeremonyRecord,
     trusteeRecords,
+    STORY_IDS,
     type StoryRecord,
 } from "@/__stories__/fixtures"
 import {IKeysCeremonyExecutionStatus, IKeysCeremonyTrusteeStatus} from "@/services/KeyCeremony"
 
 export const KEYS_CEREMONY_RESOURCE = "sequent_backend_keys_ceremony"
-/** Base64 of the synthetic encrypted private key the service hands out. */
-export const PRIVATE_KEY = "c3ludGhldGljLWVuY3J5cHRlZC1rZXk="
+/** Public artifacts exchanged with the locally operated trustee tool. */
+export const CUSTODY_REQUEST = JSON.stringify({
+    tenant_id: STORY_IDS.tenant,
+    election_event_id: STORY_IDS.event,
+    keys_ceremony_id: STORY_IDS.keysCeremony,
+    tally_session_id: null,
+    trustee_name: "trustee1",
+    signing_public_key: "synthetic-signing-public-key",
+    share_encryption_public_key: "synthetic-share-encryption-public-key",
+})
+export const CUSTODY_PROOF = JSON.stringify({
+    request: JSON.parse(CUSTODY_REQUEST),
+    signature: "synthetic-public-custody-signature",
+})
 
 export function ceremonyEvent(
     policy: EElectionEventCeremoniesPolicy = EElectionEventCeremoniesPolicy.MANUAL_CEREMONIES
@@ -37,12 +50,21 @@ export function ceremony(
     overrides: Partial<StoryRecord<Sequent_Backend_Keys_Ceremony>> = {}
 ): Sequent_Backend_Keys_Ceremony {
     const base = keysCeremonyRecord()
-    const success = execution_status === IKeysCeremonyExecutionStatus.SUCCESS
+    const generated =
+        trustees.length > 0 &&
+        trustees.every((status) =>
+            [
+                IKeysCeremonyTrusteeStatus.KEY_GENERATED,
+                IKeysCeremonyTrusteeStatus.CUSTODY_REQUEST_RETRIEVED,
+                IKeysCeremonyTrusteeStatus.CUSTODY_CONFIRMED,
+            ].includes(status)
+        )
     return {
         ...base,
         execution_status,
         status: {
-            public_key: success ? "synthetic-public-key" : undefined,
+            public_key: generated ? "synthetic-public-key" : null,
+            public_key_hash: generated ? "synthetic-public-key-hash" : null,
             trustees: trustees.map((status, index) => ({name: trusteeRecords[index].name, status})),
             logs: [{created_date: "2026-01-05T09:00:00Z", log_text: "Created keys ceremony"}],
         },

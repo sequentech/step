@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::iter::Map;
 use std::str::FromStr;
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
 use crate::services::signing_gate::{caller, waiting, Guarded};
@@ -27,8 +28,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
 use windmill::services::application::{
-    confirm_application, get_group_names, reject_application,
+    confirm_application, get_group_names,
+    reject_accepted_application_email_in_use, reject_application,
     verify_application, ApplicationAnnotations, ApplicationVerificationResult,
+    EmailInUseRejection,
 };
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::signing::actions::voter::{
@@ -36,6 +39,7 @@ use windmill::services::signing::actions::voter::{
 };
 use windmill::services::signing::guard::SigningRequestSummary;
 use windmill::services::users::check_is_user_verified;
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 use windmill::tasks::send_template::send_template;
 use windmill::tasks::signing_log_outbox::kick_signing_log_outbox;
 use windmill::types::application::{
@@ -96,6 +100,11 @@ pub async fn verify_user_application(
                 ErrorCode::GetTransactionFailed,
             )
         })?;
+    // The service account verifies on the applicant's behalf: the entries of
+    // the rows it writes name it as the actor.
+    audit::act_for(&hasura_transaction, &claims)
+        .await
+        .map_err(audit::json_error)?;
 
     let mut keycloak_db_client: DbClient =
         get_keycloak_pool().await.get().await.map_err(|e| {
@@ -140,8 +149,124 @@ pub async fn verify_user_application(
             ErrorCode::InternalServerError,
         )
     })?;
+    kick_audit_log_outbox();
 
     Ok(Json(result))
+}
+
+/// No `Debug`: it carries the live enrollment session, which is never logged.
+#[derive(Deserialize)]
+pub struct EmailInUseRejectionBody {
+    tenant_id: String,
+    election_event_id: String,
+    application_id: String,
+    /// The Keycloak enrollment session that sent the application.
+    session_id: String,
+    /// The voter the application matched, that Keycloak was about to update.
+    user_id: String,
+}
+
+#[derive(Serialize, Debug)]
+pub struct EmailInUseRejectionOutput {
+    application_status: ApplicationStatus,
+}
+
+/// Keycloak rejects an enrollment windmill accepted when, about to update the
+/// matched voter, it finds the applicant's email already taken: the
+/// application must not stay accepted. Only the tenant's service account can
+/// ask, for an application of the enrollment session and matched voter it
+/// names; the checks that decide it are all made again here. Asking again
+/// once rejected succeeds without changing anything, so a lost answer can be
+/// retried.
+#[instrument(skip_all)]
+#[post("/reject-application-email-in-use", format = "json", data = "<body>")]
+pub async fn reject_application_email_in_use(
+    claims: jwt::JwtClaims,
+    body: Json<EmailInUseRejectionBody>,
+) -> Result<Json<EmailInUseRejectionOutput>, JsonError> {
+    let input = body.into_inner();
+    info!(
+        "Rejecting application {} as email in use",
+        input.application_id
+    );
+
+    // The tenant's own service account only: no super admin tenant.
+    authorize(
+        &claims,
+        false,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::SERVICE_ACCOUNT],
+    )
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::Unauthorized,
+            &format!("{:?}", e),
+            ErrorCode::Unauthorized,
+        )
+    })?;
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            internal(format!("Error obtaining hasura pool: {e:?}"))
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("{:?}", e),
+                ErrorCode::GetTransactionFailed,
+            )
+        })?;
+    audit::act_for(&hasura_transaction, &claims)
+        .await
+        .map_err(audit::json_error)?;
+
+    let mut keycloak_db_client: DbClient =
+        get_keycloak_pool().await.get().await.map_err(|e| {
+            internal(format!("Error obtaining keycloak pool: {e:?}"))
+        })?;
+    let keycloak_transaction =
+        keycloak_db_client.transaction().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("{:?}", e),
+                ErrorCode::GetTransactionFailed,
+            )
+        })?;
+
+    let rejection = reject_accepted_application_email_in_use(
+        &hasura_transaction,
+        &keycloak_transaction,
+        &input.tenant_id,
+        &input.election_event_id,
+        &input.application_id,
+        &input.session_id,
+        &input.user_id,
+    )
+    .await
+    .map_err(|e| internal(format!("Error rejecting application: {e:?}")))?;
+
+    match rejection {
+        EmailInUseRejection::Refused(refusal) => {
+            return Err(ErrorResponse::new(
+                Status::Conflict,
+                &refusal.to_string(),
+                ErrorCode::ApplicationNotRejectable,
+            ));
+        }
+        EmailInUseRejection::AlreadyRejected => {}
+        EmailInUseRejection::Rejected(_) => {
+            hasura_transaction
+                .commit()
+                .await
+                .map_err(|e| internal(format!("commit failed: {e:?}")))?;
+            kick_audit_log_outbox();
+        }
+    }
+
+    Ok(Json(EmailInUseRejectionOutput {
+        application_status: ApplicationStatus::REJECTED,
+    }))
 }
 
 #[derive(Deserialize, Debug)]
@@ -224,6 +349,9 @@ pub async fn change_application_status(
                 ErrorCode::GetTransactionFailed,
             )
         })?;
+    audit::act_for(&hasura_transaction, &claims)
+        .await
+        .map_err(audit::json_error)?;
 
     let user_id = &claims.hasura_claims.user_id;
     let admin_name = claims
@@ -328,6 +456,7 @@ pub async fn change_application_status(
                 .await
                 .map_err(|e| internal(format!("Commit failed: {e:?}")))?;
             kick_signing_log_outbox();
+            kick_audit_log_outbox();
             return Ok(Json(ApplicationChangeStatusOutput {
                 message: None,
                 error: None,
@@ -364,6 +493,7 @@ pub async fn change_application_status(
             ErrorCode::InternalServerError,
         )
     })?;
+    kick_audit_log_outbox();
 
     Ok(Json(ApplicationChangeStatusOutput {
         message: Some("Success".to_string()),

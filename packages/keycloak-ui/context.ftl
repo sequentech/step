@@ -8,7 +8,8 @@ window.kcContext.sequent = {
     loginValidationPolicy: "${(realm.attributes['login-validation-policy']!'BROWSER')?js_string}",
     loginHintUsernamePolicy: "${(realm.attributes['loginHintUsernamePolicy']!'EDITABLE')?js_string}",
     voterAccessibilitySettingsPolicy: "${(realm.attributes['voter-accessibility-settings-policy']!'disabled')?js_string}",
-    audioInstructionsPolicy: "${(realm.attributes['audio-instructions-policy']!'disabled')?js_string}"
+    audioInstructionsPolicy: "${(realm.attributes['audio-instructions-policy']!'disabled')?js_string}"<#if msg("loginCustomCss") != "loginCustomCss">,
+    loginCustomCss: decodeHtmlEntities("${msg("loginCustomCss")?js_string}")</#if>
 };
 <#if courier??>
 window.kcContext.courier = "${courier?string?js_string}";
@@ -20,6 +21,16 @@ window.kcContext.sequentRegistration = {
     credentialFieldPosition: "${(realm.attributes['credential-field-position']!'LAST')?js_string}",
     hiddenAttributes: [<#list hiddenProfileAttributes![] as name>decodeHtmlEntities("${name?js_string}")<#sep>, </#list>],
     lockedAttributes: [<#list loginHintReadOnlyAttributes![] as name>decodeHtmlEntities("${name?js_string}")<#sep>, </#list>]
+};
+</#if>
+<#-- What the voter submitted in the channel choice, when the form comes back with errors. -->
+<#if register?? && register.formData??>
+window.kcContext.messagingFormData = {
+<#list ["sequent.otp-channel", "sequent.whatsapp-number", "sequent.viber-number", "sequent.message-consent"] as field>
+<#if (register.formData[field])?? && register.formData[field]?is_string>
+    "${field}": decodeHtmlEntities("${register.formData[field]?js_string}"),
+</#if>
+</#list>
 };
 </#if>
 <#-- Fields without a value are listed too. -->
@@ -66,14 +77,25 @@ window.kcContext.enrollmentOutcome = {
     "messageChannel.EMAIL", "messageChannel.SMS", "messageChannel.WHATSAPP",
     "messageChannel.VIBER", "messageChannel.MESSENGER",
     "messageOtp.auth.sentTo", "messageOtp.auth.sentToChannel", "messageOtp.auth.openApp",
-    "messageOtp.otherWay.title", "messageOtp.otherWay.help", "messageOtp.otherWay.send",
-    "messageOtp.choose.title", "messageOtp.choose.help", "messageOtp.choose.option",
+    "messageOtp.auth.tooManyAttempts", "messageOtp.auth.restart", "messageOtp.auth.neutralSent",
     "messageOtp.delivery.unknown", "messageOtp.delivery.failed",
-    "messageOtp.messenger.title", "messageOtp.messenger.intro", "messageOtp.messenger.connect",
+    "messageOtp.messenger.title", "messageOtp.messenger.ifMessenger",
+    "messageOtp.messenger.intro", "messageOtp.messenger.introPage",
+    "messageOtp.messenger.connect",
+    "messageOtp.messenger.connectHelp", "messageOtp.messenger.open",
     "messageOtp.messenger.step1", "messageOtp.messenger.step2", "messageOtp.messenger.step3",
-    "messageOtp.messenger.word", "messageOtp.messenger.scan", "messageOtp.messenger.check",
+    "messageOtp.messenger.scanStep1", "messageOtp.messenger.scanStep2",
+    "messageOtp.messenger.scanStep3", "messageOtp.messenger.getStarted",
+    "messageOtp.messenger.scan", "messageOtp.messenger.check",
     "messageOtp.messenger.pending", "messageOtp.messenger.codeSent", "messageOtp.messenger.expired",
-    "forgotPassword.success.channel.message",
+    "messageOtp.messenger.reconnect",
+    "messageOtp.pending.channel", "messageOtp.pending.channelAddress",
+    "messageOtp.pending.reference", "messageOtp.pending.copyReference",
+    "messageOtp.pending.referenceCopied",
+    "messaging.channelChoice.label", "messaging.channelChoice.help",
+    "messaging.number.WHATSAPP", "messaging.number.VIBER", "messaging.number.help",
+    "messaging.consent",
+    "forgotPassword.success.contact.message",
     "resetAppOtp.auth.enterContactTitle", "resetAppOtp.auth.sendCodeButton",
     "resetAppOtp.auth.enterOtpTitle", "resetAppOtp.auth.sentToContact",
     "resetAppOtp.auth.changeContact", "resetAppOtp.auth.verifyButton",

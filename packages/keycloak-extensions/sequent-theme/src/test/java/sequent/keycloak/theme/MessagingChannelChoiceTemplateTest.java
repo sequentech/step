@@ -65,7 +65,7 @@ class MessagingChannelChoiceTemplateTest {
   }
 
   @Test
-  void offersOnlyThePostsChannelsWithTheirNumberConsentAndNoticeChoice() throws Exception {
+  void offersOnlyThePostsChannelsWithTheirNumberAndConsentAndNoNoticeChoice() throws Exception {
     String html = render(model(Map.of("sequent.otp-channel", "WHATSAPP"), ""));
 
     assertTrue(html.contains("name=\"sequent.otp-channel\" value=\"EMAIL\""));
@@ -76,14 +76,53 @@ class MessagingChannelChoiceTemplateTest {
             "type=\"tel\" id=\"sequent.whatsapp-number\" name=\"sequent.whatsapp-number\""));
     assertTrue(html.contains("value=\"3:WHATSAPP\""));
     assertTrue(html.contains("value=\"3:MESSENGER\""));
-    assertTrue(html.contains("name=\"sequent.notice-channel\" value=\"EMAIL\""));
+    assertFalse(html.contains("sequent.notice-channel"));
     assertTrue(
         html.contains(
             "[messaging.consent|&lt;b&gt;Commission&lt;/b&gt;|[messageChannel.WHATSAPP]]"));
     assertTrue(html.contains("[messageOtp.messenger.connectHelp|Synthetic Page]"));
     assertTrue(html.contains("src=\"/resources/js/messaging-channel-choice.js\""));
-    assertEquals(2, html.split("\\bhidden>", -1).length - 1);
+    // The two channels not selected keep their details hidden, and so does the Post help.
+    assertEquals(3, html.split("\\bhidden>", -1).length - 1);
     assertFalse(html.contains("<b>Commission</b>"));
+  }
+
+  /** KC-R5 and plan §2.5: consent for every channel, email and SMS included. */
+  /** R3-22: the Messenger hint has its "Connect Messenger" label, as the React form shows. */
+  @Test
+  void theMessengerHintIsLabelledConnectMessenger() throws Exception {
+    String html = render(model(Map.of("sequent.otp-channel", "MESSENGER"), ""));
+    int label = html.indexOf("[messageOtp.messenger.connect]");
+    assertTrue(label >= 0, html);
+    assertTrue(label < html.indexOf("[messageOtp.messenger.connectHelp|Synthetic Page]"));
+  }
+
+  @Test
+  void everyChannelAsksForConsent() throws Exception {
+    Map<String, Object> model = model(Map.of(), "");
+    model.put("messagingChannels", List.of("SMS", "EMAIL"));
+    String html = render(model);
+    assertTrue(html.contains("value=\"3:SMS\""));
+    assertTrue(html.contains("value=\"3:EMAIL\""));
+  }
+
+  /** KC-F9: the page carries each Post's channels and refreshes them when the Post changes. */
+  @Test
+  void thePageCarriesEachPostsChannels() throws Exception {
+    Map<String, Object> model = model(Map.of(), "");
+    model.put("messagingAllChannels", List.of("WHATSAPP", "VIBER", "MESSENGER", "EMAIL"));
+    model.put("messagingPostAttribute", "embassy");
+    model.put("messagingChannelsByPostJson", "{\"Madrid\":[\"VIBER\",\"EMAIL\"]}");
+    String html = render(model);
+    assertTrue(html.contains("data-post-attribute=\"embassy\""));
+    assertTrue(
+        html.contains(
+            "data-channels-by-post=\"{&quot;Madrid&quot;:[&quot;VIBER&quot;,&quot;EMAIL&quot;]}\""));
+    // Viber is rendered for the script, hidden until a Post that offers it is selected.
+    assertTrue(html.contains("data-messaging-option=\"VIBER\"\n                    hidden"));
+    assertTrue(html.contains("[messaging.channelChoice.help|__post__]"));
+    String script = Files.readString(LOGIN.resolve("resources/js/messaging-channel-choice.js"));
+    assertTrue(script.contains("field.addEventListener(\"change\", showPostChannels)"));
   }
 
   @Test

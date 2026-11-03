@@ -68,7 +68,7 @@ for (const legacyName of [undefined, "Practice without legacy marker"]) {
                             },
                         ],
                     },
-                    sequent_backend_cast_vote: completedPractice
+                    cast_votes: completedPractice
                         ? [
                               {
                                   id: "90000000-0000-4000-8000-000000000002",

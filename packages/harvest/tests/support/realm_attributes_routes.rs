@@ -129,6 +129,34 @@ async fn public_edits_preserve_server_owned_enrollment_authority() {
             .await,
         (Status::Ok, json!({"updated": true}))
     );
+    // Each edit that changed an attribute is an entry of the event's log;
+    // the refused ones left none.
+    let audited: Vec<Value> = rows::query(
+        &services.hasura,
+        "SELECT details FROM sequent_backend.audit_log_outbox
+         WHERE election_event_id = $1::text::uuid AND user_id = 'operator'
+         ORDER BY seq",
+        &[&event.election_event_id],
+    )
+    .await
+    .iter()
+    .map(|row| {
+        let details: Value = row.get(0);
+        assert_eq!(
+            details["object"],
+            json!({"type": "election_event", "id": event.election_event_id, "name": null})
+        );
+        assert_eq!(details["action"], "update");
+        details["changes"].clone()
+    })
+    .collect();
+    assert_eq!(
+        audited,
+        vec![
+            json!([{"path": "realm_attributes.operator_note", "old": "old", "new": "new"}]),
+            json!([{"path": "realm_attributes.operator_note", "old": "old", "new": "other"}]),
+        ]
+    );
     let requests = peer.finish();
     let writes: Vec<_> =
         requests.iter().filter(|r| r.method == "PUT").collect();
@@ -221,6 +249,25 @@ async fn password_policy_snapshot_waits_for_the_event_scheduling_writer() {
         .await,
         (Status::Ok, json!({"updated": true}))
     );
+    let audited = rows::query(
+        &services.hasura,
+        "SELECT details -> 'changes' FROM sequent_backend.audit_log_outbox
+         WHERE election_event_id = $1::text::uuid AND user_id = 'operator'",
+        &[&event.election_event_id],
+    )
+    .await;
+    assert_eq!(audited.len(), 1);
+    assert_eq!(
+        audited[0].get::<_, Value>(0),
+        json!([
+            {"path": "password_policy.include_digits", "new": true},
+            {"path": "password_policy.include_lowercase", "new": true},
+            {"path": "password_policy.include_special_characters", "new": false},
+            {"path": "password_policy.include_uppercase", "new": true},
+            {"path": "password_policy.maximum_length", "new": 64},
+            {"path": "password_policy.minimum_length", "new": 8},
+        ])
+    );
     let requests = peer.finish();
     let write = requests.iter().find(|r| r.method == "PUT").unwrap().json();
     assert_eq!(write["attributes"][ENROLLMENT_WINDOWS_ATTRIBUTE], "null");
@@ -306,15 +353,15 @@ async fn public_realm_writers_refuse_invalid_lock_targets_before_identity_access
         "SELECT to_jsonb(e) FROM sequent_backend.election_event e WHERE id = $1", &[&event_id],
     ).await.unwrap().get(0);
     let client = services.client().await;
-    for (path, permission, body, message) in [
+    for (path, permission, body) in [
         ("/update-realm-attributes", sequent_core::types::permissions::Permissions::KEYCLOAK_REALM_ATTRIBUTES_WRITE,
-            json!({"election_event_id": "not-a-uuid", "attributes": {"operator_note": "new"}}), "Failed to update realm attributes"),
+            json!({"election_event_id": "not-a-uuid", "attributes": {"operator_note": "new"}})),
         ("/update-realm-password-policy", sequent_core::types::permissions::Permissions::ELECTION_EVENT_WRITE,
-            password_policy_body("not-a-uuid"), "Failed to update realm password policy"),
+            password_policy_body("not-a-uuid")),
     ] {
         let claims = Claims::new(&event.tenant_id, "operator").roles([permission]);
         assert_eq!(json(post(&client, path, &claims, &body).await).await,
-            (Status::InternalServerError, json!({"message": message, "extensions": {"code": "InternalServerError"}})));
+            (Status::BadRequest, json!({"message": "election_event_id must be a UUID", "extensions": {"code": "UuidParseFailed"}})));
     }
     assert!(
         peer.finish().is_empty(),

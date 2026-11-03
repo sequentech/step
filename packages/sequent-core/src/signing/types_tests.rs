@@ -138,14 +138,14 @@ fn actions_map_to_their_scope_mode_document_and_group() {
             G::ConfigurationAndKeys,
         ),
         (
-            SigningAction::ConfirmKeyShare,
+            SigningAction::ConfirmCustodyProof,
             S::Trustee,
             M::Gate,
             D::NoDocument,
             G::ConfigurationAndKeys,
         ),
         (
-            SigningAction::ContributeKeyShare,
+            SigningAction::ContributeCustodyProof,
             S::Trustee,
             M::Gate,
             D::NoDocument,
@@ -184,7 +184,7 @@ fn a_missing_rule_keeps_todays_behaviour() {
 #[test]
 fn a_trustee_signs_their_own_step_once() {
     let stored = SigningRule {
-        action: SigningAction::ContributeKeyShare,
+        action: SigningAction::ContributeCustodyProof,
         requirement: SigningRequirement::Required,
         signatures: 3,
         requester_signing: RequesterSigning::NotAllowed,
@@ -196,7 +196,7 @@ fn a_trustee_signs_their_own_step_once() {
         stored.requester_signing_effective(),
         RequesterSigning::Allowed
     );
-    let default = SigningRule::default_for(SigningAction::ConfirmKeyShare);
+    let default = SigningRule::default_for(SigningAction::ConfirmCustodyProof);
     assert_eq!(default.required(), 1);
     assert_eq!(
         default.requester_signing_effective(),
@@ -241,7 +241,7 @@ fn a_rule_needs_at_least_one_signature() {
     );
     // A trustee rule needs one signature whatever it stores, but the stored
     // count is still at least 1: the database refuses 0 for every rule.
-    let trustee = SigningRule::default_for(SigningAction::ConfirmKeyShare);
+    let trustee = SigningRule::default_for(SigningAction::ConfirmCustodyProof);
     assert_eq!(trustee.validate(), Ok(()));
     assert_eq!(
         SigningRule {
@@ -540,10 +540,10 @@ fn subjects_serialize_to_the_documented_shapes() {
         serde_json::to_value(KeyCeremonySubject {
             keys_ceremony_id: "k".into(),
             trustee_id: "t".into(),
-            key_share_sha256: "h".into(),
+            custody_proof_sha256: "h".into(),
         })
         .unwrap(),
-        json!({"keys_ceremony_id": "k", "trustee_id": "t", "key_share_sha256": "h"})
+        json!({"keys_ceremony_id": "k", "trustee_id": "t", "custody_proof_sha256": "h"})
     );
 }
 

@@ -9,17 +9,19 @@ use base64::Engine as _;
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::seal::{
     ballot_hash, build, fingerprint, BallotBoxSealManifest, SealDisposition, SealEntry, SealRecord,
-    SealRecordCloseRequest, SealRecordNames, SealRecordSigner, DEFAULT_SEAL_CHANNEL,
-    SEAL_FORMAT_V1,
+    SealRecordCloseRequest, SealRecordLogEntry, SealRecordNames, SealRecordSigner,
+    DEFAULT_SEAL_CHANNEL, SEAL_FORMAT_V1,
 };
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
-use strand::serialization::StrandSerialize;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use voting_crypto::signing::{SigningKey, VerificationKey};
+use voting_crypto::RecordSerialize;
 
 const ELECTION: &str = "election-1";
 const AREA: &str = "area-1";
 const CSV_HEADER: &str = "created,election_id,area_id,hash_voter_id,ballot_id,voting_channel";
+/// The event log the record's entry is in.
+const LOG_UID: &str = "6f1c2b9e-4a7d-4e2f-9c3b-1d5e8a0f7b42";
 
 /// A stored Ballot ID: 64 hex digits.
 fn ballot_id(digit: char) -> String {
@@ -38,7 +40,7 @@ fn entry(digit: char, disposition: SealDisposition, weight: u64) -> SealEntry {
 
 struct Sealed {
     record: SealRecord,
-    system_pk: StrandSignaturePk,
+    system_pk: VerificationKey,
 }
 
 fn sample_entries() -> Vec<SealEntry> {
@@ -67,24 +69,20 @@ fn manifest(entries: Vec<SealEntry>) -> BallotBoxSealManifest {
 }
 
 fn sealed() -> Sealed {
-    let sk = StrandSignatureSk::generate().unwrap();
+    let sk = SigningKey::generate().unwrap();
     sealed_by(sk.clone(), sk, sample_entries())
 }
 
 /// A seal of `entries` whose message has `sender_sk` as sender and `sk` as
 /// system key.
-fn sealed_by(
-    sender_sk: StrandSignatureSk,
-    sk: StrandSignatureSk,
-    entries: Vec<SealEntry>,
-) -> Sealed {
+fn sealed_by(sender_sk: SigningKey, sk: SigningKey, entries: Vec<SealEntry>) -> Sealed {
     sealed_manifest(sender_sk, sk, manifest(entries))
 }
 
 /// A seal of `manifest`, signed as is.
 fn sealed_manifest(
-    sender_sk: StrandSignatureSk,
-    sk: StrandSignatureSk,
+    sender_sk: SigningKey,
+    sk: SigningKey,
     manifest: BallotBoxSealManifest,
 ) -> Sealed {
     let built = build(manifest).unwrap();
@@ -97,10 +95,10 @@ fn sealed_manifest(
         &signing,
     )
     .unwrap();
-    let system_pk = StrandSignaturePk::from_sk(&sk).unwrap();
+    let system_pk = VerificationKey::from_sk(&sk).unwrap();
     let record = SealRecord::from_parts(
         &built.bytes,
-        &message.strand_serialize().unwrap(),
+        &message.record_serialize().unwrap(),
         &system_pk,
         SealRecordNames {
             election_event: "General Election".to_string(),
@@ -121,7 +119,13 @@ fn sealed_manifest(
                 },
             ],
         }),
-        48213,
+        SealRecordLogEntry {
+            id: 48213,
+            statement_kind: "BallotBoxSealed".to_string(),
+            delivery_id: Some(format!("ballot-box-seal:event:{ELECTION}:{AREA}")),
+            log_uid: Some(LOG_UID.to_string()),
+            leaf_index: Some(1342),
+        },
     )
     .unwrap();
     Sealed { record, system_pk }
@@ -155,6 +159,24 @@ fn verify(record: &Path, args: &[&str]) -> (Output, String) {
     (output, stdout)
 }
 
+/// A record written before the log's leaves were recorded names its entry
+/// by id, and still verifies.
+#[test]
+fn verify_seal_record_without_a_leaf_names_its_entry_id() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut sealed = sealed();
+    sealed.record.log_entry.delivery_id = None;
+    sealed.record.log_entry.log_uid = None;
+    sealed.record.log_entry.leaf_index = None;
+    let path = write_record(directory.path(), &sealed.record);
+    let json = std::fs::read_to_string(&path).unwrap();
+    assert!(!json.contains("leaf_index"), "{json}");
+
+    let (output, stdout) = verify(&path, &[]);
+    assert!(output.status.success(), "{stdout}");
+    assert!(stdout.contains("- Log entry          #48213 (not signed)"));
+}
+
 #[test]
 fn verify_seal_valid_record_reports_every_check_and_exits_zero() {
     let directory = tempfile::tempdir().unwrap();
@@ -174,7 +196,9 @@ fn verify_seal_valid_record_reports_every_check_and_exits_zero() {
         " ".repeat(21),
         sealed.record.seal_hash
     )));
-    assert!(stdout.contains("- Log entry          #48213 (not signed)"));
+    assert!(stdout.contains(&format!(
+        "- Log entry          leaf 1342 of log {LOG_UID} (not signed)"
+    )));
     assert!(stdout.contains("closed, grace deadline and seal in order"));
     assert!(stdout.contains("Sealed at     2028-05-08 11:01:14 UTC"));
     assert!(stdout.contains("4 in the box, 2 counted"));
@@ -237,7 +261,7 @@ fn verify_seal_changed_time_fails_the_manifest() {
 #[test]
 fn verify_seal_another_key_fails_the_expected_key() {
     let record = sealed().record;
-    let other = StrandSignaturePk::from_sk(&StrandSignatureSk::generate().unwrap()).unwrap();
+    let other = VerificationKey::from_sk(&SigningKey::generate().unwrap()).unwrap();
     assert_refused(
         &record,
         &["--expected-key", &fingerprint(&other).unwrap()],
@@ -245,7 +269,7 @@ fn verify_seal_another_key_fails_the_expected_key() {
     );
     assert_refused(
         &record,
-        &["--expected-key", &other.to_der_b64_string().unwrap()],
+        &["--expected-key", &other.to_b64_string().unwrap()],
         "✗ Expected key",
     );
 }
@@ -333,7 +357,7 @@ fn verify_seal_cast_votes_mismatch_lists_both_sides_and_fails() {
 fn verify_seal_re_signed_under_another_key_without_expected_key_names_the_unchecked_key() {
     // A forger seals altered entries with their own key and puts it in the
     // record: only a trusted key can tell, so the verdict must say so.
-    let forger = StrandSignatureSk::generate().unwrap();
+    let forger = SigningKey::generate().unwrap();
     let mut entries = sample_entries();
     entries.push(entry('e', SealDisposition::Counted, 1));
     let sealed = sealed_by(forger.clone(), forger, entries);
@@ -351,8 +375,8 @@ fn verify_seal_re_signed_under_another_key_without_expected_key_names_the_unchec
 #[test]
 fn verify_seal_sender_that_is_not_the_system_key_fails() {
     let sealed = sealed_by(
-        StrandSignatureSk::generate().unwrap(),
-        StrandSignatureSk::generate().unwrap(),
+        SigningKey::generate().unwrap(),
+        SigningKey::generate().unwrap(),
         sample_entries(),
     );
     assert_refused(&sealed.record, &[], "✗ Sender signature");
@@ -436,7 +460,7 @@ fn verify_seal_time_in_another_offset_fails_and_prints_no_unverified_time() {
 
 #[test]
 fn verify_seal_manifest_rules_fail_even_when_signed() {
-    let sk = StrandSignatureSk::generate().unwrap();
+    let sk = SigningKey::generate().unwrap();
     let mut over_census = manifest(sample_entries());
     over_census.eligible_voters = 1;
     let sealed = sealed_manifest(sk.clone(), sk.clone(), over_census);

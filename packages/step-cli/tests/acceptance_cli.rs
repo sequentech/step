@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Exit codes of `step-cli acceptance`, which scripts use as the stage's verdict.
+use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome, BallotStatus};
 use sequent_core::{
     ballot::{HashableBallot, SignedHashableBallot},
     encrypt::{encrypt_decoded_contest, hash_ballot_sha512},
@@ -16,7 +17,10 @@ use std::{
     process::{Command, Output},
     thread,
 };
-use strand::backend::ristretto::RistrettoCtx;
+use uuid::Uuid;
+use voting_crypto::RistrettoCtx;
+use windmill::services::ballot_box::BallotFormat;
+use windmill::services::electoral_log_board::get_event_databases;
 
 const STAGE: &str = "id: demo\ntitle: Demo\nchecks:\n  - id: seen\n    title: Seen\n    method: witnessed\n  - id: optional\n    title: Optional\n    severity: advisory\n    method: witnessed\n";
 
@@ -207,7 +211,7 @@ fn run_needs_a_session_before_it_records_anything() {
 }
 
 /// Answer the session refresh and the acceptance queries of one voter who voted.
-fn election_event(server: TcpListener, requests: usize, logged_hash: Vec<u8>, content: String) {
+fn election_event(server: TcpListener, requests: usize, logged_hash: Vec<u8>) {
     for _ in 0..requests {
         let (mut stream, _) = server.accept().unwrap();
         let mut reader = BufReader::new(stream.try_clone().unwrap());
@@ -250,14 +254,9 @@ fn election_event(server: TcpListener, requests: usize, logged_hash: Vec<u8>, co
                     json!({"ballot_id": "ballot-1", "statement": {"body": {"CastVoteWithChannel":
                     ["election", [0], logged_hash, "", "", "ONLINE"]}}}),
                 )
-            } else if query.contains("AcceptanceBallotStyles") {
-                json!({"data": {"sequent_backend_ballot_style": [{"area_id": "area-1"}]}})
             } else {
-                assert!(query.contains("AcceptanceCastVotes"), "{query}");
-                json!({"data": {"sequent_backend_cast_vote": [
-                    {"voter_id_string": "voter-1", "ballot_id": "ballot-1", "content": content,
-                     "created_at": "2100-01-01T00:00:00+00:00"}
-                ]}})
+                assert!(query.contains("AcceptanceBallotStyles"), "{query}");
+                json!({"data": {"sequent_backend_ballot_style": [{"area_id": "area-1"}]}})
             }
         };
         let body = response.to_string();
@@ -270,7 +269,49 @@ fn election_event(server: TcpListener, requests: usize, logged_hash: Vec<u8>, co
     }
 }
 
+/// The voter's ballot, accepted into the election event's ballot box on the
+/// server `ELECTORAL_LOG_PG_*` names and recorded by the sequencer.
+fn cast_vote(event: &str, content: &str) {
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
+        let store = get_event_databases()
+            .await
+            .expect("ELECTORAL_LOG_PG_* must name the test PostgreSQL server")
+            .create_event(&Uuid::new_v4().to_string(), event)
+            .await
+            .unwrap();
+        store.create_ballot_box(event).await.unwrap();
+        let (election, area) = (Uuid::new_v4().to_string(), Uuid::new_v4().to_string());
+        let format = BallotFormat::HashableBallot.to_string();
+        let outcome = store
+            .accept_ballot(&AcceptBallot {
+                election_event_id: event,
+                election_id: &election,
+                area_id: &area,
+                voter_id: "voter-1",
+                ballot_id: "ballot-1",
+                format: &format,
+                content,
+                voter_signature: None,
+                pseudonym_hash: &[0; 64],
+                ballot_hash: &[0; 64],
+                voting_channel: "ONLINE",
+                status: BallotStatus::Valid,
+                voter_ip: None,
+                voter_country: None,
+                username: None,
+                allowed_votes: 0,
+            })
+            .await
+            .unwrap();
+        let AcceptOutcome::Accepted { seq, .. } = outcome else {
+            panic!("the ballot is refused: {outcome:?}");
+        };
+        store.remove_pending(event, &[seq]).await.unwrap();
+    });
+}
+
 #[test]
+#[ignore = "requires the electoral-log PostgreSQL server ELECTORAL_LOG_PG_* names"]
 fn run_decides_the_automatic_checks_from_the_election_event() {
     let ballot = encrypt_decoded_contest(
         &RistrettoCtx,
@@ -283,6 +324,7 @@ fn run_decides_the_automatic_checks_from_the_election_event() {
     let content = serde_json::to_string(&signed).unwrap();
 
     for (logged_hash, passes) in [(hash.to_vec(), true), (vec![0; 64], false)] {
+        let event = Uuid::new_v4().to_string();
         let server = TcpListener::bind("127.0.0.1:0").unwrap();
         let cli = Cli::with_endpoint(&format!("http://{}", server.local_addr().unwrap()));
         let created = cli.run(&["init", "--output", "voting.yaml"]);
@@ -293,13 +335,13 @@ fn run_decides_the_automatic_checks_from_the_election_event() {
             "--ledger",
             "ledger.jsonl",
             "--election-event-id",
-            "event",
+            &event,
         ]);
         assert!(opened.status.success(), "{}", text(&opened.stderr));
+        cast_vote(&event, &content);
 
-        // One session refresh, then the voter, both log kinds, the styles and the cast votes.
-        let content = content.clone();
-        let peer = thread::spawn(move || election_event(server, 6, logged_hash, content));
+        // One session refresh, then the voter, both log kinds and the styles.
+        let peer = thread::spawn(move || election_event(server, 5, logged_hash));
         let output = cli.run(&[
             "run",
             "ledger.jsonl",

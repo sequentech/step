@@ -5,6 +5,7 @@
 package sequent.keycloak.voter_enrollment;
 
 import static java.util.Arrays.asList;
+import static sequent.keycloak.authenticator.Utils.EMAIL_VERIFIED;
 import static sequent.keycloak.authenticator.Utils.PHONE_NUMBER_ATTRIBUTE;
 import static sequent.keycloak.authenticator.Utils.sendConfirmation;
 import static sequent.keycloak.authenticator.Utils.sendConfirmationDiffPost;
@@ -51,6 +52,7 @@ import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
+import org.keycloak.models.ModelDuplicateException;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.UserCredentialModel;
@@ -69,13 +71,13 @@ import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
 import sequent.keycloak.authenticator.harvest.ServiceAccountTokenClient;
 import sequent.keycloak.authenticator.messaging.NoticeRecipient;
+import sequent.keycloak.authenticator.messaging.VoterChannels;
 
 /** Lookups an user using a field */
 @JBossLog
 @AutoService(AuthenticatorFactory.class)
 public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory {
   public static final String MOBILE_NUMBER_FIELD = "sequent.read-only.mobile-number";
-  private static final String EMAIL_VERIFIED = "Email verified";
 
   public static final String PROVIDER_ID = "lookup-and-update-user";
   public static final String SEARCH_ATTRIBUTES = "search-attributes";
@@ -84,7 +86,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
   /**
    * Auth note an identity verification step sets to say how the applicant's identity was
-   * established: VERIFIED or MANUAL_ENTRY. The approval matrix decides with it.
+   * established, see {@link IdentityMethod}. The approval matrix decides with it. A form can't set
+   * it, see {@link Utils#isFormNote(String, java.util.Set)}.
    */
   public static final String IDENTITY_METHOD = "identity-method";
 
@@ -104,8 +107,46 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
   public static final String VERIFICATION_COMPLETED = "verificationCompleted";
   public static final String VERIFICATION_STATUS = "verificationStatus";
-  private static final String VERIFICATION_REJECTION_REASON = "verificationRejectionReason";
-  private static final String VERIFICATION_MISSMATCHED_FIELDS = "verificationMismatchedFields";
+  static final String VERIFICATION_REJECTION_REASON = "verificationRejectionReason";
+  static final String VERIFICATION_MISMATCHED_FIELDS = "verificationMismatchedFields";
+  static final String FIELDS_MATCH = "fields_match";
+
+  /** The pending page support reference from the application record. */
+  static final String SUPPORT_REFERENCE_NOTE = "sequent.support-reference";
+
+  static final String SUPPORT_REFERENCE_ATTRIBUTE = "supportReference";
+
+  /**
+   * An enrollment windmill accepted but Keycloak rejects as EMAIL_IN_USE, until windmill records
+   * the rejection: its {@link LateRejection}. While set, a reload asks windmill again instead of
+   * showing a result.
+   */
+  static final String EMAIL_IN_USE_REJECTION_NOTE = "emailInUseRejection";
+
+  /** The path of harvest's late EMAIL_IN_USE rejection. */
+  static final String REJECT_EMAIL_IN_USE_PATH = "/reject-application-email-in-use";
+
+  /** The application rejected late as EMAIL_IN_USE, and the voter it matched. */
+  record LateRejection(String applicationId, String userId) {
+    String toNote() {
+      return (applicationId == null ? "" : applicationId) + " " + userId;
+    }
+
+    static LateRejection fromNote(String note) {
+      String[] parts = note.split(" ", 2);
+      return new LateRejection(parts[0], parts.length > 1 ? parts[1] : "");
+    }
+  }
+
+  /** How windmill answered a late EMAIL_IN_USE rejection. */
+  enum LateRejectionOutcome {
+    /** Windmill's application is rejected, now or by an earlier request. */
+    RECORDED,
+    /** Windmill's own checks refused it. */
+    REFUSED,
+    /** Windmill couldn't be asked, or didn't answer. */
+    FAILED
+  }
 
   // Enumerate the rejection reasons
   private enum VerificationRejectionReason {
@@ -113,6 +154,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     NO_VOTER,
     ALREADY_APPROVED,
     IDENTITY_NOT_VERIFIED,
+    EMAIL_IN_USE,
     OTHER,
     NO_REASON_GIVEN;
 
@@ -128,14 +170,21 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       return NO_REASON_GIVEN;
     }
 
-    // Java self method.
-    // Self Method to check if the rejection reason is ALREADY_APPROVED
-    public boolean isAlreadyApproved() {
-      return this == ALREADY_APPROVED;
+    // Rejections that aren't about the applicant's data, so there are no mismatches to show
+    public boolean hidesMismatches() {
+      return this == ALREADY_APPROVED || this == EMAIL_IN_USE;
     }
   }
 
-  private final ServiceAccountTokenClient tokenClient = ServiceAccountTokenClient.fromEnvironment();
+  /** Shared, so its token cache serves every request. */
+  private static final ServiceAccountTokenClient tokenClient = ServiceAccountTokenClient.shared();
+
+  /** 5 s to connect; each request has 10 s more. */
+  private static final java.time.Duration CONNECT_TIMEOUT = java.time.Duration.ofSeconds(5);
+
+  private static final java.time.Duration REQUEST_TIMEOUT = java.time.Duration.ofSeconds(10);
+  private static final HttpClient HARVEST_CLIENT =
+      HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
   private String harvestUrl = System.getenv("HARVEST_DOMAIN");
   private String access_token;
 
@@ -150,13 +199,20 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
     // Prevent multiple submissions
     if (completedVerification) {
+      String lateRejection =
+          context.getAuthenticationSession().getAuthNote(EMAIL_IN_USE_REJECTION_NOTE);
+      if (lateRejection != null) {
+        // Windmill hasn't recorded the rejection yet: ask again rather than show a result
+        rejectEmailInUse(context, LateRejection.fromNote(lateRejection));
+        return;
+      }
       String template = null;
       String verificationStatus =
           context.getAuthenticationSession().getAuthNote(VERIFICATION_STATUS);
       String rejectionReason =
           context.getAuthenticationSession().getAuthNote(VERIFICATION_REJECTION_REASON);
       String verificationMismatchedFields =
-          context.getAuthenticationSession().getAuthNote(VERIFICATION_MISSMATCHED_FIELDS);
+          context.getAuthenticationSession().getAuthNote(VERIFICATION_MISMATCHED_FIELDS);
 
       log.infov("authenticate(): verificationStatus {0}", verificationStatus);
       log.infov("authenticate(): rejectionReason {0}", rejectionReason);
@@ -244,10 +300,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     annotationsMap.put(UNSET_ATTRIBUTES, unsetAttributes);
     annotationsMap.put("credentials", credentials);
     annotationsMap.put("sessionId", sessionId);
-    String identityMethod = context.getAuthenticationSession().getAuthNote(IDENTITY_METHOD);
-    if (identityMethod != null) {
-      annotationsMap.put(IDENTITY_METHOD, identityMethod);
-    }
+    putIdentityMethod(annotationsMap, context.getAuthenticationSession());
     annotationsMap.put(
         NO_MATCHING_VOTER_POLICY,
         NoMatchingVoterPolicy.fromConfig(config.getConfig().get(NO_MATCHING_VOTER_POLICY)).name());
@@ -272,6 +325,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     String rejectionReason = null;
     JsonNode fieldsMatchNode = null;
     Map<String, String> applicantDataMap = null;
+    String applicationId = null;
 
     try {
       applicantDataMap =
@@ -343,6 +397,18 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           rejectionMessage);
 
       context.getAuthenticationSession().setAuthNote(VERIFICATION_STATUS, verificationStatus);
+      // The application record's id gives the reference the voter quotes to support. Older harvest
+      // versions don't return it; the page then shows no reference.
+      JsonNode applicationIdNode = verificationResult.get("application_id");
+      applicationId =
+          applicationIdNode == null || applicationIdNode.isNull()
+              ? null
+              : applicationIdNode.asText();
+      SupportReference.of(applicationId)
+          .ifPresentOrElse(
+              reference ->
+                  context.getAuthenticationSession().setAuthNote(SUPPORT_REFERENCE_NOTE, reference),
+              () -> log.info("verifyApplication(): no application id; no support reference"));
       context
           .getAuthenticationSession()
           .setAuthNote(VERIFICATION_REJECTION_REASON, rejectionReason);
@@ -371,7 +437,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       }
 
       // Store the fields_match in the auth session
-      context.getAuthenticationSession().setAuthNote("fields_match", fieldsMatch);
+      context.getAuthenticationSession().setAuthNote(FIELDS_MATCH, fieldsMatch);
 
       log.infov("Stored fields_match in auth session: {0}", fieldsMatch);
 
@@ -398,7 +464,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       try {
         context
             .getAuthenticationSession()
-            .setAuthNote(VERIFICATION_MISSMATCHED_FIELDS, om.writeValueAsString(mismatchedFields));
+            .setAuthNote(VERIFICATION_MISMATCHED_FIELDS, om.writeValueAsString(mismatchedFields));
       } catch (JsonProcessingException e) {
         e.printStackTrace();
         throw new IllegalStateException(e);
@@ -437,13 +503,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
         if ("REJECTED".equals(verificationStatus)) {
 
-          // Do not show the mismatches details if the rejection reason is that it was alrady
-          // approved
-          if (!VerificationRejectionReason.fromString(rejectionReason).isAlreadyApproved()) {
-            log.infov("Application was not already approved.");
+          if (!VerificationRejectionReason.fromString(rejectionReason).hidesMismatches()) {
             context.form().setAttribute("mismatchedFields", mismatchedFields);
           } else {
-            log.infov("Application was already approved, not showing mismatches.");
+            log.infov("Rejected as {0}, not showing mismatches.", rejectionReason);
           }
 
           Response form =
@@ -489,11 +552,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     String email = user.getEmail();
     String username = user.getUsername();
 
-    context
-        .getEvent()
-        .detail(Details.USERNAME, username)
-        .detail(Details.REGISTER_METHOD, "form")
-        .detail(Details.EMAIL, email);
+    context.getEvent().detail(Details.USERNAME, username).detail(Details.REGISTER_METHOD, "form");
 
     // Fail if the user does have set any of the specified attributes
     Optional<String> unsetAttributesChecked =
@@ -514,6 +573,20 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       return;
     }
 
+    // Keycloak keeps emails unique: setting another voter's email would fail
+    // and roll back the whole update
+    List<String> newEmail = Utils.getAttributeValuesFromAuthNote(context, "email");
+    if (emailInUse(
+        context.getSession(),
+        context.getRealm(),
+        user,
+        updateAttributesList,
+        newEmail == null || newEmail.isEmpty() ? null : newEmail.get(0))) {
+      log.error("authenticate(): the email belongs to another user");
+      rejectEmailInUse(context, new LateRejection(applicationId, user.getId()));
+      return;
+    }
+
     // User was found and is verified to be an updateable user: we then
     // update user attributes and set it as the current auth context user
     // for other authentication models in the authentication flow
@@ -522,7 +595,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     EnrollmentChannels.persist(
         user,
         context.getAuthenticationSession(),
-        telUserAttribute(context),
+        sequent.keycloak.authenticator.Utils.getRealmName(context.getRealm()),
         EnrollmentChannels.consentVersion(context.getRealm()),
         Instant.now());
 
@@ -646,6 +719,26 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     }
   }
 
+  /** The identity method a verification step established, empty when none did. */
+  public static Optional<IdentityMethod> identityMethod(AuthenticationSessionModel authSession) {
+    String note = authSession.getAuthNote(IDENTITY_METHOD);
+    Optional<IdentityMethod> method = IdentityMethod.fromNote(note);
+    if (note != null && method.isEmpty()) {
+      log.warnv("identityMethod(): ignoring the unknown identity method {0}", note);
+    }
+    return method;
+  }
+
+  /**
+   * Adds the identity method to the application's annotations, only when a verification step
+   * established a known one.
+   */
+  static void putIdentityMethod(
+      Map<String, Object> annotations, AuthenticationSessionModel authSession) {
+    identityMethod(authSession)
+        .ifPresent(method -> annotations.put(IDENTITY_METHOD, method.name()));
+  }
+
   private static String telUserAttribute(AuthenticationFlowContext context) {
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     String attribute = config == null ? null : config.getConfig().get(TEL_USER_ATTRIBUTE);
@@ -659,8 +752,15 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         context.getAuthenticationSession(), telUserAttribute(context));
   }
 
-  /** Tells the pending page which channel the enrollment result will be sent to. */
+  /**
+   * Tells the pending page where the enrollment result will be sent: {@code noticeChannel} (the
+   * voter's one channel) and {@code noticeAddress} (its destination, masked; empty for Messenger).
+   */
   private static void setNoticeChannel(AuthenticationFlowContext context) {
+    String reference = context.getAuthenticationSession().getAuthNote(SUPPORT_REFERENCE_NOTE);
+    if (reference != null) {
+      context.form().setAttribute(SUPPORT_REFERENCE_ATTRIBUTE, reference);
+    }
     MessageCourier messageCourier =
         MessageCourier.fromString(
             context.getAuthenticatorConfig().getConfig().get(MESSAGE_COURIER_ATTRIBUTE));
@@ -668,8 +768,15 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       return;
     }
     enrollmentRecipient(context)
-        .expectedChannel(messageCourier)
-        .ifPresent(channel -> context.form().setAttribute("noticeChannel", channel.name()));
+        .channel()
+        .ifPresent(
+            channel ->
+                context
+                    .form()
+                    .setAttribute("noticeChannel", channel.channel().name())
+                    .setAttribute(
+                        "noticeAddress",
+                        VoterChannels.display(channel.channel(), channel.destination())));
   }
 
   private HashMap<String, String> getMismatchedFields(
@@ -783,7 +890,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       if (attributeName.equals("email")) {
         // Only assume email is valid if it's verified
         if (user.isEmailVerified() && user.getEmail() != null && !user.getEmail().isBlank()) {
-          log.info("checkUnsetAttributes(): user has email=" + user.getEmail());
+          log.info("checkUnsetAttributes(): user has an email");
           return Optional.of("User has email attribute set but it should be unset");
         }
       } else {
@@ -806,10 +913,180 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     return Optional.empty();
   }
 
+  /**
+   * Whether the enrollment would set an email another user of the realm has, in a realm that keeps
+   * emails unique. A realm that allows duplicate emails accepts it.
+   */
+  static boolean emailInUse(
+      KeycloakSession session,
+      RealmModel realm,
+      UserModel user,
+      List<String> updateAttributes,
+      String email) {
+    if (email == null
+        || email.isBlank()
+        || !updateAttributes.contains("email")
+        || realm.isDuplicateEmailsAllowed()) {
+      return false;
+    }
+    UserModel holder;
+    try {
+      holder = session.users().getUserByEmail(realm, email.trim());
+    } catch (ModelDuplicateException several) {
+      // Several users have it, so at least one is not this voter
+      return true;
+    }
+    return holder != null && !holder.getId().equals(user.getId());
+  }
+
+  /**
+   * Rejects, after windmill accepted it, an enrollment whose email another voter has. Windmill
+   * rejects these itself, so this only happens when another voter takes the email in between, or
+   * with a windmill that doesn't check.
+   *
+   * <p>Windmill must record the rejection first: until it does, the session keeps {@link
+   * #EMAIL_IN_USE_REJECTION_NOTE}, the voter sees an error, and a reload asks windmill again. Only
+   * once recorded do the session notes say REJECTED, so a reload shows the rejection again (never
+   * the success page), and the voter is told as for any rejection.
+   */
+  void rejectEmailInUse(AuthenticationFlowContext context, LateRejection rejection) {
+    String reason = VerificationRejectionReason.EMAIL_IN_USE.name();
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    String sessionId = authSession.getParentSession().getId();
+    authSession.setAuthNote(EMAIL_IN_USE_REJECTION_NOTE, rejection.toNote());
+
+    LateRejectionOutcome outcome = recordEmailInUseRejection(context, rejection);
+    if (outcome != LateRejectionOutcome.RECORDED) {
+      log.errorv(
+          "rejectEmailInUse(): windmill didn't record the rejection of application {0}: {1}",
+          rejection.applicationId(), outcome);
+      context.getEvent().detail("email_in_use_rejection", outcome.name()).error(reason);
+      // Refused for good: asking again won't help, so the voter is told to start again. A reload
+      // still asks again, and never shows a result windmill hasn't recorded.
+      context.failureChallenge(
+          AuthenticationFlowError.INTERNAL_ERROR,
+          context
+              .form()
+              .setError(
+                  outcome == LateRejectionOutcome.REFUSED
+                      ? Utils.ERROR_EMAIL_IN_USE_NOT_RECORDED
+                      : Utils.ERROR_GENERATING_APPROVAL,
+                  sessionId)
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+      return;
+    }
+
+    authSession.setAuthNote(VERIFICATION_STATUS, "REJECTED");
+    authSession.setAuthNote(VERIFICATION_REJECTION_REASON, reason);
+    authSession.removeAuthNote(VERIFICATION_MISMATCHED_FIELDS);
+    authSession.setAuthNote(VERIFICATION_COMPLETED, Boolean.toString(Boolean.TRUE));
+    authSession.removeAuthNote(EMAIL_IN_USE_REJECTION_NOTE);
+
+    context.challenge(
+        context
+            .form()
+            .setAttribute("rejectReason", reason)
+            .createForm("registration-rejected-finish.ftl"));
+    context.getEvent().error(reason);
+
+    try {
+      sendRejectCommunication(
+          context.getSession(),
+          context.getRealm(),
+          MessageCourier.fromString(
+              context.getAuthenticatorConfig().getConfig().get(MESSAGE_COURIER_ATTRIBUTE)),
+          authSession.getAuthNote("email"),
+          authSession.getAuthNote(PHONE_NUMBER_ATTRIBUTE),
+          reason,
+          new HashMap<>(),
+          enrollmentRecipient(context),
+          context);
+    } catch (Exception error) {
+      log.errorv("rejectEmailInUse(): the rejection was not sent: {0}", error);
+      context.failureChallenge(
+          AuthenticationFlowError.INTERNAL_ERROR,
+          context
+              .form()
+              .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+    }
+  }
+
+  /** Asks windmill to record the late rejection, and how it answered. */
+  LateRejectionOutcome recordEmailInUseRejection(
+      AuthenticationFlowContext context, LateRejection rejection) {
+    if (rejection.applicationId() == null
+        || rejection.applicationId().isBlank()
+        || rejection.userId().isBlank()) {
+      // An older harvest that doesn't name the application
+      return LateRejectionOutcome.FAILED;
+    }
+    int status;
+    try {
+      status = postEmailInUseRejection(context, rejection);
+    } catch (IOException error) {
+      log.errorv("recordEmailInUseRejection(): {0}", error);
+      return LateRejectionOutcome.FAILED;
+    } catch (InterruptedException error) {
+      Thread.currentThread().interrupt();
+      return LateRejectionOutcome.FAILED;
+    }
+    log.infov("recordEmailInUseRejection(): status {0}", status);
+    if (status == Response.Status.OK.getStatusCode()) {
+      return LateRejectionOutcome.RECORDED;
+    }
+    return status == Response.Status.CONFLICT.getStatusCode()
+        ? LateRejectionOutcome.REFUSED
+        : LateRejectionOutcome.FAILED;
+  }
+
+  /** Posts the late rejection to harvest, as the tenant's service account; its HTTP status. */
+  int postEmailInUseRejection(AuthenticationFlowContext context, LateRejection rejection)
+      throws IOException, InterruptedException {
+    String realmId = context.getRealm().getId();
+    String tenantId = getTenantId(context.getSession(), realmId);
+    return sendEmailInUseRejection(
+        this.harvestUrl,
+        tokenClient.fetchAccessToken(ServiceAccountTokenClient.tenantRealmName(tenantId)),
+        tenantId,
+        getElectionEventId(context.getSession(), realmId),
+        context.getAuthenticationSession().getParentSession().getId(),
+        rejection);
+  }
+
+  /**
+   * Sends harvest's {@link #REJECT_EMAIL_IN_USE_PATH} request: the body names the application, the
+   * enrollment session and the matched voter, as harvest's {@code EmailInUseRejectionBody}.
+   */
+  static int sendEmailInUseRejection(
+      String harvestDomain,
+      String token,
+      String tenantId,
+      String electionEventId,
+      String sessionId,
+      LateRejection rejection)
+      throws IOException, InterruptedException {
+    Map<String, String> body = new HashMap<>();
+    body.put("tenant_id", tenantId);
+    body.put("election_event_id", electionEventId);
+    body.put("application_id", rejection.applicationId());
+    body.put("session_id", sessionId);
+    body.put("user_id", rejection.userId());
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .uri(URI.create("http://" + harvestDomain + REJECT_EMAIL_IN_USE_PATH))
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer " + token)
+            .timeout(REQUEST_TIMEOUT)
+            .POST(HttpRequest.BodyPublishers.ofString(new ObjectMapper().writeValueAsString(body)))
+            .build();
+    return HARVEST_CLIENT.send(request, HttpResponse.BodyHandlers.ofString()).statusCode();
+  }
+
   private void updateUserAttributes(
       UserModel user, AuthenticationFlowContext context, List<String> attributes) {
     // Get the fields_match from auth session
-    String fieldsMatchStr = context.getAuthenticationSession().getAuthNote("fields_match");
+    String fieldsMatchStr = context.getAuthenticationSession().getAuthNote(FIELDS_MATCH);
     log.infov("Fields match from auth session: {0}", fieldsMatchStr);
 
     ObjectMapper objectMapper = new ObjectMapper();
@@ -1080,7 +1357,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String annotations,
       String labels)
       throws IOException, InterruptedException {
-    HttpClient client = HttpClient.newHttpClient();
+    HttpClient client = HARVEST_CLIENT;
     String url = "http://" + this.harvestUrl + "/verify-application";
     String requestBody =
         String.format(
@@ -1097,11 +1374,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             .uri(URI.create(url))
             .header("Content-Type", "application/json")
             .header("Authorization", "Bearer " + this.access_token)
+            .timeout(REQUEST_TIMEOUT)
             .POST(HttpRequest.BodyPublishers.ofString(requestBody))
             .build();
 
     HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-    log.infov("Verification response: {0}", response);
+    log.infov("verifyApplication(): status {0}", response.statusCode());
 
     return response;
   }

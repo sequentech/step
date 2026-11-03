@@ -102,6 +102,7 @@ const SAVED_PRESENTATION_DEFAULTS = {
     voter_certificate_policy: "disabled",
     voter_accessibility_settings_policy: "disabled",
     audio_instructions_policy: "disabled",
+    batch_anonymity_policy: "warn",
 }
 
 async function save(page: Page, portal: AdminPortal) {
@@ -231,6 +232,7 @@ test("exports an encrypted archive, tracks its task and reveals the generated pa
             applications: false,
             tally: true,
             include_certificates: false,
+            include_integration_secrets: false,
         },
     })
     expect(call.headers["x-hasura-role"]).toBe("election-event-read")
@@ -416,6 +418,7 @@ test("exports chosen content unencrypted and marks a failed export task", async 
             applications: false,
             tally: false,
             include_certificates: true,
+            include_integration_secrets: false,
         },
     })
     await expect(page.getByText("Task: Export Election Event", {exact: true})).toBeVisible()

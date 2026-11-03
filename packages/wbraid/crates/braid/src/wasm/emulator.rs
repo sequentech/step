@@ -58,7 +58,7 @@ use std::collections::HashSet;
 use std::marker::PhantomData;
 
 use cryptography::context::{Context, RistrettoCtx};
-use cryptography::cryptosystem::elgamal::{Ciphertext, KeyPair, PublicKey};
+use cryptography::cryptosystem::elgamal::{KeyPair, PublicKey};
 use cryptography::traits::groups::CryptographicGroup;
 use cryptography::utils::serialization::{Deserializable, Serializable};
 use cryptography::utils::signatures::SignatureScheme;
@@ -171,7 +171,7 @@ fn configuration_for(
         width,
         keys.share.iter().map(|kp| kp.pkey.y.clone()).collect(),
         PhantomData,
-    );
+    )?;
     let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
     Ok((cfg, cfg_hash))
 }

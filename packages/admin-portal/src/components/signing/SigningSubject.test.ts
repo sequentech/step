@@ -100,13 +100,19 @@ describe("the rows that explain an action beside what it signs", () => {
         ])
     })
 
-    it("says a trustee's key share was checked and where it is recorded", () => {
-        expect(subjectNotes(t, SigningAction.ConfirmKeyShare)).toEqual([
-            {label: "Your key share", value: "Checked: it is your key share for this ceremony"},
+    it("says a trustee's custody proof was checked and where it is recorded", () => {
+        expect(subjectNotes(t, SigningAction.ConfirmCustodyProof)).toEqual([
+            {
+                label: "Your custody proof",
+                value: "Checked: it is your custody proof for this ceremony",
+            },
             {label: "Recorded in", value: "The keys ceremony and the bulletin board"},
         ])
-        expect(subjectNotes(t, SigningAction.ContributeKeyShare)).toEqual([
-            {label: "Your key share", value: "Checked: it is your key share for this ceremony"},
+        expect(subjectNotes(t, SigningAction.ContributeCustodyProof)).toEqual([
+            {
+                label: "Your custody proof",
+                value: "Checked: it is your custody proof for this ceremony",
+            },
             {label: "Recorded in", value: "The tally session"},
         ])
     })

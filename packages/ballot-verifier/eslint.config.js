@@ -14,6 +14,7 @@ export default [
         ignores: [
             "node_modules/**",
             "dist/**",
+            "dist-vite/**",
             "coverage/**",
             "storybook-static/**",
             "test-results/**",

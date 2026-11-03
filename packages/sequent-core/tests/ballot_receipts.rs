@@ -22,7 +22,7 @@ use sequent_core::ballot_receipt::{
 };
 use sequent_core::encrypt::hash_ballot_style;
 use sequent_core::fixtures::ballot_codec::get_writein_ballot_style;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use voting_crypto::signing::{SigningKey, VerificationKey};
 
 /// PKCS#8 v1 Ed25519 keys whose seeds are 32 bytes of 0x01 and of 0x02.
 const BALLOT_BOX_SK: &str =
@@ -38,18 +38,18 @@ const CAST_AT: &str = "2028-05-08T03:04:05.678Z";
 const CAST_SIGNATURE: &str = "sJuZoBaypaHpQejzUs/ANBe8AYx8OsYQq61dPFzYJONC1Buw/h1WuPRamzANQi/g2qIomDAHDIZj7cHe1dzFAg==";
 const CAST_RECEIPT_SIGNATURE: &str = "nrig3o+JjRR4/37Rjqs22Q0Lnba5yy93pA5HPST33irYTlbi3MhMTJEvjla6YR/Cn8li4UcapIzRWLm7hooMBQ==";
 
-fn ballot_box_sk() -> StrandSignatureSk {
-    StrandSignatureSk::from_der_b64_string(BALLOT_BOX_SK).unwrap()
+fn ballot_box_sk() -> SigningKey {
+    SigningKey::from_b64_string(BALLOT_BOX_SK).unwrap()
 }
 
 fn published_key() -> BallotBoxKey {
-    ballot_box_key(&StrandSignaturePk::from_sk(&ballot_box_sk()).unwrap())
+    ballot_box_key(&VerificationKey::from_sk(&ballot_box_sk()).unwrap())
         .unwrap()
 }
 
 fn statement() -> ReceivedStatement {
-    let voter_sk = StrandSignatureSk::from_der_b64_string(VOTER_SK).unwrap();
-    let voter_pk = StrandSignaturePk::from_sk(&voter_sk).unwrap();
+    let voter_sk = SigningKey::from_b64_string(VOTER_SK).unwrap();
+    let voter_pk = VerificationKey::from_sk(&voter_sk).unwrap();
     ReceivedStatement {
         tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5".into(),
         election_event_id: "33f18502-a67c-4853-8333-a58630663559".into(),
@@ -57,7 +57,7 @@ fn statement() -> ReceivedStatement {
         ballot_hash:
             "0b1f6a5c2d7e4f809a1b2c3d4e5f60718293a4b5c6d7e8f9000102030405060"
                 .into(),
-        voter_signing_pk: voter_pk.to_der_b64_string().unwrap(),
+        voter_signing_pk: voter_pk.to_b64_string().unwrap(),
         voter_ballot_signature: voter_sk
             .sign(b"fixture-ballot")
             .unwrap()
@@ -72,8 +72,8 @@ fn received() -> ReceivedBallot {
     sign_received_ballot(&ballot_box_sk(), statement()).unwrap()
 }
 
-fn voter_sk() -> StrandSignatureSk {
-    StrandSignatureSk::from_der_b64_string(VOTER_SK).unwrap()
+fn voter_sk() -> SigningKey {
+    SigningKey::from_b64_string(VOTER_SK).unwrap()
 }
 
 fn cast_signature() -> String {
@@ -216,7 +216,7 @@ fn every_signed_field_changes_the_verdict() {
     let valid = received();
     verify_received_ballot(&key, &valid).unwrap();
 
-    let other_voter = StrandSignatureSk::generate().unwrap();
+    let other_voter = SigningKey::generate().unwrap();
     let mutations: Vec<(&str, Box<dyn Fn(&mut ReceivedBallot)>)> = vec![
         ("tenant", Box::new(|r| r.statement.tenant_id.push('0'))),
         (
@@ -232,9 +232,9 @@ fn every_signed_field_changes_the_verdict() {
             "voter key",
             Box::new(move |r| {
                 r.statement.voter_signing_pk =
-                    StrandSignaturePk::from_sk(&other_voter)
+                    VerificationKey::from_sk(&other_voter)
                         .unwrap()
-                        .to_der_b64_string()
+                        .to_b64_string()
                         .unwrap()
             }),
         ),
@@ -265,9 +265,9 @@ fn every_signed_field_changes_the_verdict() {
 #[test]
 fn a_receipt_from_another_key_is_not_the_ballot_boxs() {
     let key = published_key();
-    let forger = StrandSignatureSk::generate().unwrap();
+    let forger = SigningKey::generate().unwrap();
     let forger_key =
-        ballot_box_key(&StrandSignaturePk::from_sk(&forger).unwrap()).unwrap();
+        ballot_box_key(&VerificationKey::from_sk(&forger).unwrap()).unwrap();
 
     let mut statement = statement();
     statement.key_id = forger_key.key_id.clone();
@@ -416,7 +416,7 @@ fn only_the_key_that_signed_the_ballot_casts_it() {
     )
     .unwrap();
 
-    let other_voter = StrandSignatureSk::generate().unwrap();
+    let other_voter = SigningKey::generate().unwrap();
     let by_another_key = sign_cast_statement(
         &other_voter,
         &statement.election_id,
@@ -491,7 +491,7 @@ fn every_signed_field_of_the_cast_receipt_changes_the_verdict() {
     let valid = cast_receipt();
     verify_cast_receipt(&key, &valid).unwrap();
 
-    let other_voter = StrandSignatureSk::generate().unwrap();
+    let other_voter = SigningKey::generate().unwrap();
     let mutations: Vec<(&str, Box<dyn Fn(&mut CastReceipt)>)> = vec![
         (
             "event",
@@ -537,9 +537,9 @@ fn every_signed_field_of_the_cast_receipt_changes_the_verdict() {
 #[test]
 fn a_cast_receipt_from_another_key_is_not_the_ballot_boxs() {
     let key = published_key();
-    let forger = StrandSignatureSk::generate().unwrap();
+    let forger = SigningKey::generate().unwrap();
     let forger_key =
-        ballot_box_key(&StrandSignaturePk::from_sk(&forger).unwrap()).unwrap();
+        ballot_box_key(&VerificationKey::from_sk(&forger).unwrap()).unwrap();
 
     let mut statement = cast_statement();
     statement.key_id = forger_key.key_id;
@@ -620,10 +620,10 @@ fn the_kept_key_casts_only_the_ballot_it_signed() {
 
     // Going back to the ballot signs a new one with a new key: the earlier
     // ballot can no longer be cast from this device.
-    let next_key = StrandSignatureSk::generate().unwrap();
-    let next_pk = StrandSignaturePk::from_sk(&next_key)
+    let next_key = SigningKey::generate().unwrap();
+    let next_pk = VerificationKey::from_sk(&next_key)
         .unwrap()
-        .to_der_b64_string()
+        .to_b64_string()
         .unwrap();
     keep_voter_signing_key(election_id, next_key);
     assert_eq!(

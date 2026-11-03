@@ -450,3 +450,49 @@ async fn the_test_panel_reports_what_keeps_the_rules_from_being_saved() {
         json!([{"code": "ACCEPTS_MANUAL_ENTRY", "rule": 2}])
     );
 }
+
+#[test]
+fn a_saved_matrix_is_logged_with_the_version_and_rules_it_replaces() {
+    use chrono::Utc;
+    use windmill::services::approval_matrix::store::SavedMatrix;
+    let saved = |version: i32, matrix: Value| SavedMatrix {
+        version,
+        matrix: serde_json::from_value(matrix).unwrap(),
+        sha256: format!("sha-{version}"),
+        created_at: Utc::now(),
+        created_by: None,
+        created_by_username: None,
+    };
+    let tenant = "4f1c6b38-9f5e-4a59-8d3b-2a7f0c1e5d61";
+    let event = "b7e2d915-3c4a-4e8f-9a61-5d0f2c8b7e43";
+    let claims = Claims::new(tenant, USER_ID).build();
+    let first = saved(1, association());
+
+    let created = super::matrix_change(&claims, event, None, &first).unwrap();
+    assert_eq!(created.describe(), "Saved version 1 of the approval matrix");
+    assert_eq!(created.target.election_event_id.unwrap().to_string(), event);
+    assert!(created.changes.iter().all(|change| change.old.is_none()));
+    assert!(created
+        .changes
+        .iter()
+        .any(|change| change.path == "version"));
+
+    let second = saved(2, association());
+    let replaced =
+        super::matrix_change(&claims, event, Some(&first), &second).unwrap();
+    let paths: Vec<&str> = replaced
+        .changes
+        .iter()
+        .map(|change| change.path.as_str())
+        .collect();
+    assert_eq!(paths, vec!["version"], "the same rules change nothing else");
+    assert_eq!(replaced.object.name.as_deref(), Some("version 2"));
+
+    assert!(super::matrix_change(
+        &Claims::new("not-a-tenant", USER_ID).build(),
+        event,
+        None,
+        &first
+    )
+    .is_err());
+}

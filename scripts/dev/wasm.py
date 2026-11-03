@@ -97,7 +97,7 @@ COMPILER_ENV = (
 )
 
 LIB_KINDS = frozenset({"lib", "rlib", "cdylib", "dylib", "staticlib", "proc-macro"})
-SKIPPED_DIRS = frozenset({"target", "node_modules", "pkg"})
+SKIPPED_DIRS = frozenset({"target", "node_modules", "pkg", "pkg-election-config"})
 SKIPPED_SUFFIXES = ("~", ".swp", ".swo", ".bak", ".orig", ".rej", ".rs.bk")
 MISSING = "missing"
 TREE_LINE = re.compile(r"^(?P<name>\S+) v(?P<version>\S+)(?P<rest>.*)$")

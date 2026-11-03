@@ -5,7 +5,6 @@ import {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
-        "welcome": "Commençons : Importez le bulletin auditable...",
         "404": {
             title: "Page non trouvée",
             subtitle: "La page que vous cherchez n'existe pas",
@@ -33,6 +32,18 @@ const frenchTranslation: TranslationType = {
                 "Il y a eu un problème lors de l'importation du vote auditable. Avez-vous choisi le bon fichier ?",
             importErrorMoreInfo: "Plus d'informations",
             importErrorTitle: "Erreur",
+            ciphertextErrorTitle: "La vérification du vote a échoué",
+            ciphertextErrorDescription:
+                "Le texte chiffré de ce vote auditable ne correspond pas au chiffrement du texte en clair et de l'aléa qu'il contient. Ce vote n'est pas fiable.",
+            verificationErrorTitle: "La vérification du vote a échoué",
+            unpublishedStyleErrorDescription:
+                "Ce vote auditable ne correspond à aucun bulletin publié pour cet événement électoral ; il ne peut donc pas être vérifié.",
+            unavailableStyleErrorDescription:
+                "Les bulletins publiés pour cet événement électoral n'ont pas pu être chargés ; ce vote auditable ne peut donc pas encore être vérifié. Veuillez réessayer.",
+            styleErrorDescription:
+                "Le style de vote de ce vote auditable n'est pas celui publié pour l'élection : sa clé publique ou ses scrutins et candidats diffèrent, ou il n'est pas publié. Ce vote n'est pas fiable.",
+            legacyBallotWarning:
+                "Ce vote auditable utilise un ancien format dont l'identifiant de vote ne couvre pas le style de vote. Son identifiant ne peut pas confirmer que le vote a été chiffré avec la clé publiée de l'élection.",
             useSampleLink: "Utiliser un vote exemple",
             nextButton: "Continuer",
             ballotIdLabel: "ID du bulletin",
@@ -71,12 +82,14 @@ const frenchTranslation: TranslationType = {
                     "Les sélections suivantes du bulletin ont été décodées du bulletin que vous avez importé. Veuillez les revoir et vous assurer qu'elles correspondent aux sélections que vous avez faites sur le Portail de Vote. Si vos sélections ne correspondent pas, veuillez contacter les autorités électorales...",
             },
             markedInvalid: "Vote explicitement marqué invalide",
-            points: "({{points}} Points)",
-            contestNotFound: "Question non trouvée : {{contestId}}",
+            points_one: "({{count}} Point)",
+            points_many: "({{count}} Points)",
+            points_other: "({{count}} Points)",
+            contestNotFound: "Scrutin non trouvé : {{contestId}}",
             declineToVote: "A choisi de ne pas voter",
             blankBallot: "Bulletin blanc",
             acclamationDescription:
-                "Ce vote a été acquis par acclamation. Ses candidat(e)s sont élu(e)s sans scrutin : aucune option ne peut être sélectionnée et aucune voix n'est enregistrée.",
+                "Ce scrutin a été tranché par acclamation. Ses candidat(e)s sont élu(e)s sans vote : aucune option ne peut être sélectionnée et aucune voix n'est enregistrée.",
         },
         "footer": {
             poweredBy: "Propulsé par <1></1>",
@@ -90,15 +103,9 @@ const frenchTranslation: TranslationType = {
                     "Erreur de conversion des octets de l'option de vote écrite en chaîne UTF-8 : {{errorMessage}}",
                 ballotTooLarge: "Vote plus grand que prévu",
             },
-            implicit: {
-                selectedMax:
-                    "Le nombre d'options sélectionnées {{numSelected}} est supérieur au maximum {{max}}",
-                selectedMin:
-                    "Le nombre d'options sélectionnées {{numSelected}} est inférieur au minimum {{min}}",
-            },
             explicit: {
                 notAllowed:
-                    "Vote marqué explicitement comme invalide mais la question ne le permet pas",
+                    "Vote marqué explicitement comme invalide mais le scrutin ne le permet pas",
             },
         },
     },

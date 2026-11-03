@@ -47,6 +47,14 @@ export function ArrowIcon() {
     )
 }
 
+export function BackIcon() {
+    return (
+        <Icon>
+            <path d="M19 12H5m6-6-6 6 6 6" />
+        </Icon>
+    )
+}
+
 export function GlobeIcon() {
     return (
         <Icon>

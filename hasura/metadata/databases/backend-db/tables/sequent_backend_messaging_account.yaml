@@ -1,6 +1,9 @@
 table:
     name: messaging_account
     schema: sequent_backend
+# Never `webhook_key`: the callback URL comes from the
+# `messaging_account_callback_url` action. Only `messaging-account-read` sees
+# `credentials`, which holds when each was replaced, never a value.
 select_permissions:
     - comment: ""
       permission:
@@ -19,30 +22,6 @@ select_permissions:
               - status
               - tenant_id
               - updated_at
-              - webhook_key
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      role: admin-user
-    - comment: ""
-      permission:
-          columns:
-              - channel
-              - created_at
-              - credentials
-              - id
-              - is_default
-              - limits
-              - name
-              - provider
-              - provider_approval
-              - readiness
-              - sender
-              - status
-              - tenant_id
-              - updated_at
-              - webhook_key
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -53,6 +32,27 @@ select_permissions:
           columns:
               - channel
               - created_at
+              - id
+              - is_default
+              - limits
+              - name
+              - provider
+              - provider_approval
+              - readiness
+              - sender
+              - status
+              - tenant_id
+              - updated_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      role: messaging-config-read
+    - comment: ""
+      permission:
+          columns:
+              - channel
+              - created_at
               - credentials
               - id
               - is_default
@@ -65,7 +65,8 @@ select_permissions:
               - status
               - tenant_id
               - updated_at
-              - webhook_key
-          filter: {}
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
       role: service-account

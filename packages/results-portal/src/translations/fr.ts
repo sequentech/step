@@ -49,11 +49,12 @@ const frenchTranslation: TranslationType = {
             signedInAccess: "Accès connecté",
             acclaimed: "Élu par acclamation",
             acclamationNote:
-                "Élu par acclamation. Ce vote a été acquis sans scrutin : aucune voix n'a été enregistrée.",
+                "Élu par acclamation. Ce scrutin a été tranché sans vote : aucune voix n'a été enregistrée.",
             published: "Publié",
             notPublishedYet: "Pas encore publié",
-            position: "{{count}} position",
-            position_plural: "{{count}} positions",
+            position_one: "{{count}} position",
+            position_many: "{{count}} positions",
+            position_other: "{{count}} positions",
             fallbackElectionName: "Élection",
             fallbackContestName: "Scrutin {{contestId}}",
             state: {

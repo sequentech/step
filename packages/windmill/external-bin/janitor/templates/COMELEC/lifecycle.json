@@ -90,6 +90,7 @@
         "unsigned_scheduled_close": "run-as-system"
     },
     "ballot_box_seal_policy": "seal-at-close",
+    "file_integrity_policy": "REQUIRED_SHA256",
     "posts": [
         {
             "post": "BANGKOK PE",

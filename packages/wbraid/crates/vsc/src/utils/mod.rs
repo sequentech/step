@@ -10,6 +10,8 @@ pub mod error;
 /// Hashing utilities and [context][`crate::context::Context`] dependency.
 pub mod hash;
 
+pub mod profile;
+
 /// Random number generation utilities and [context][`crate::context::Context`] dependency.
 pub mod rng;
 

@@ -251,8 +251,8 @@ pub async fn export_monitoring(
         to,
         document_id: document_id.clone(),
     };
-    let broker = services.tasks.connect().await;
-    if let Err(send_error) = broker
+    if let Err(send_error) = services
+        .tasks
         .send_task(
             windmill::tasks::export_monitoring_data::export_monitoring_data::new(
                 request,

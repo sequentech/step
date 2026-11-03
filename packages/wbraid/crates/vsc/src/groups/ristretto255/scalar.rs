@@ -110,7 +110,10 @@ impl Serializable for RistrettoScalar {
     }
 }
 
+/// ristretto255 scalars encode as 32 canonical bytes.
 impl Deserializable for RistrettoScalar {
+    const FIXED_WIDTH: Option<usize> = Some(32);
+
     fn read(input: &mut &[u8]) -> Result<Self, CryptographyError> {
         let bytes = take(input, 32)?;
         let array: [u8; 32] = bytes.try_into().expect("take returns exactly 32 bytes");

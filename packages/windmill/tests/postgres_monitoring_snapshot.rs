@@ -18,7 +18,7 @@ use sequent_core::monitoring::sources::{DataSourceId, Measure, PendingProducer};
 use serde_json::json;
 use uuid::Uuid;
 use windmill::postgres::monitoring_config::EventRef;
-use windmill::services::monitoring::projection::refresh_voter_activity;
+use windmill::services::monitoring::projection::{refresh_voter_activity, FirstVotes};
 use windmill::services::monitoring::snapshot::{
     complete_snapshot, count_event, count_run, live_snapshot, prune_snapshots, read_scope,
     request_election_set, scope_catalogue, start_run, PassOutcome, Recount, ScopeRead,
@@ -955,10 +955,19 @@ async fn change(client: &Client, event: &Event, statement: &str) {
 }
 
 /// Brings the voters' enrollment and first votes up to date, as a pass
-/// does before it counts.
-async fn project_activity(client: &mut Client, event: &Event) {
+/// does before it counts, with the valid votes `voted` (by election and
+/// voter) cast since the last pass.
+async fn project_activity(client: &mut Client, event: &Event, voted: &[(Uuid, &str)]) {
+    let since = FirstVotes::Since(
+        voted
+            .iter()
+            .map(|(election, voter)| ((*election, voter.to_string()), chrono::Utc::now()))
+            .collect(),
+    );
     let tx = client.transaction().await.unwrap();
-    refresh_voter_activity(&tx, event.event).await.unwrap();
+    refresh_voter_activity(&tx, event.event, &since)
+        .await
+        .unwrap();
     tx.commit().await.unwrap();
 }
 
@@ -1007,19 +1016,7 @@ async fn a_pass_counts_again_whenever_what_it_counts_from_moved() {
     );
     let mut shown = revision;
 
-    change(
-        &client,
-        &event,
-        &format!(
-            "INSERT INTO sequent_backend.cast_vote
-                 (tenant_id, election_event_id, election_id, area_id, voter_id_string, status,
-                  created_at)
-             VALUES ($1, $2, '{}', '{area}', 'ana', 'valid', now())",
-            event.madrid
-        ),
-    )
-    .await;
-    project_activity(&mut client, &event).await;
+    project_activity(&mut client, &event, &[(event.madrid, "ana")]).await;
     shown = counted_again(&mut client, &event, &settings, shown, "a vote").await;
 
     change(
@@ -1034,7 +1031,7 @@ async fn a_pass_counts_again_whenever_what_it_counts_from_moved() {
         ),
     )
     .await;
-    project_activity(&mut client, &event).await;
+    project_activity(&mut client, &event, &[]).await;
     shown = counted_again(&mut client, &event, &settings, shown, "an application").await;
 
     change(

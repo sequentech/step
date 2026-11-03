@@ -152,6 +152,7 @@ pub fn create_ballot_style(
         .transpose()?
         .unwrap_or_default();
 
+    let keys_ceremony_id = election.keys_ceremony_id.clone();
     let ballot_style = ballot::BallotStyle {
         id,
         tenant_id: election.tenant_id,
@@ -163,6 +164,8 @@ pub fn create_ballot_style(
             Some(key) => ballot::PublicKeyConfig {
                 public_key: key,
                 is_demo: false,
+                keys_ceremony_id,
+                configuration_id: None,
             },
             None => ballot::PublicKeyConfig {
                 public_key: match demo_public_key {
@@ -170,6 +173,8 @@ pub fn create_ballot_style(
                     None => demo_public_key_from_env()?,
                 },
                 is_demo: true,
+                keys_ceremony_id: None,
+                configuration_id: None,
             },
         }),
         area_id: area.id,

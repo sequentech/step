@@ -25,7 +25,7 @@ import {
     IMessagingAccount,
     MESSAGE_PURPOSES,
 } from "@/types/messaging"
-import {accountCapabilities, recipientKind} from "@/services/messaging"
+import {recipientKind} from "@/services/messaging"
 import {TEST_MESSAGING_ACCOUNT} from "@/queries/TestMessagingAccount"
 
 interface ITestMessagingAccountResult {
@@ -56,27 +56,16 @@ export const testStateSeverity = (state: EMessageAttemptState): AlertColor => {
 }
 
 /**
- * Whether a test names the approved template to send. Infobip's Viber accounts
- * list their own; a configured provider takes one, and needs it for the
- * purposes it declares as template-only.
+ * Whether a test names the approved template to send. WhatsApp needs one;
+ * Infobip's Viber accounts list their own.
  */
 export const testTemplateField = (
     account: IMessagingAccount,
-    purpose: EMessagePurpose
-): {offered: boolean; required: boolean} => {
-    switch (account.provider) {
-        case EMessagingProvider.WHATSAPP_CLOUD_API:
-            return {offered: true, required: true}
-        case EMessagingProvider.HTTP_API:
-            return {
-                offered: true,
-                required:
-                    accountCapabilities(account)?.template_required_for.includes(purpose) ?? false,
-            }
-        default:
-            return {offered: false, required: false}
-    }
-}
+    _purpose: EMessagePurpose
+): {offered: boolean; required: boolean} =>
+    account.provider === EMessagingProvider.WHATSAPP_CLOUD_API
+        ? {offered: true, required: true}
+        : {offered: false, required: false}
 
 export interface IMessagingTestDialogProps {
     account: IMessagingAccount

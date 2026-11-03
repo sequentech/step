@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {atViewport} from "../../../../../test-support/storybook/viewport"
+import {expectDashboardChartLayout} from "../__stories__/chartLayout"
 import React, {createRef} from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
 import {RecordContextProvider} from "react-admin"
-import {initCore} from "@sequentech/ui-core"
 import {AdminStoryProvider, TENANT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {resourceBoundary} from "@/__stories__/resourceBoundary"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
@@ -33,8 +34,6 @@ import {
 interface Scenario {
     /** What the statistics query does. */
     stats: "records" | "loading" | "error"
-    /** Whether the event offers kiosk voting. */
-    kiosk: boolean
     onMount: () => void
 }
 
@@ -45,11 +44,9 @@ const refreshRef = createRef<HTMLButtonElement>()
 const hasTally = (workflow: EStoryWorkflow) =>
     [EStoryWorkflow.TALLY, EStoryWorkflow.RESULTS].includes(workflow)
 
-function Fixture({kiosk, onMount}: Scenario) {
+function Fixture({onMount}: Scenario) {
     const {permissions, workflow} = useStoryGlobals()
-    const event = eventRecord(workflow, {
-        voting_channels: {online: true, kiosk, early_voting: false, telephone: false},
-    })
+    const event = eventRecord(workflow)
     return (
         <AdminStoryProvider boundary={graphql} dataProvider={data.provider} role={permissions}>
             <RecordContextProvider value={event}>
@@ -69,17 +66,9 @@ const progressDefect = {
 const meta = {
     title: "Admin/Dashboard/Election event/DashboardElectionEvent",
     component: DashboardElectionEvent,
-    args: {stats: "records", kiosk: false, onMount: fn()},
+    args: {stats: "records", onMount: fn()},
     argTypes: {stats: {control: "inline-radio", options: ["records", "loading", "error"]}},
-    parameters: {
-        expectedFailure: {
-            reason: "React-admin row selection of the IP address list labels a MUI 7 span instead of its checkbox.",
-            a11y: ["aria-prohibited-attr", "label"],
-        },
-    },
     beforeEach: async ({args, globals}) => {
-        // The voter portal links come from sequent-core.
-        await initCore()
         const {workflow} = readStoryGlobals(globals)
         data = resourceBoundary({
             sequent_backend_tally_session: hasTally(workflow) ? [tallySessionRecord(workflow)] : [],
@@ -175,14 +164,11 @@ export const Populated: Story = {
             "x-hasura-role":
                 permissions === EStoryPermissions.TRUSTEE ? "trustee-ceremony" : "admin-ceremony",
         })
-        const login = canvas.getByRole("link", {name: "Voter Login URL"})
-        expect(login.getAttribute("href")).toContain("voting.admin-story.invalid")
-        expect(canvas.queryByRole("link", {name: "Voter Enroll Kiosk URL"})).toBeNull()
-        if (permissions === EStoryPermissions.ADMIN) {
-            await expect(await canvas.findByRole("row", {name: /192\.0\.2\.10/})).toBeVisible()
-        } else {
-            expect(canvas.queryByText("IP Addresses")).not.toBeInTheDocument()
-        }
+        // The voter links are the dashboard tab's (VoterPortalLinks), under every dashboard mode.
+        expect(canvas.queryByRole("link", {name: /^Voter /})).toBeNull()
+        // Preset roles do not grant forensic access; default events do not retain networks.
+        expect(canvas.queryByText("IP Addresses")).not.toBeInTheDocument()
+        expect(data.calls.map(({args}) => args[0])).not.toContain("ip_address")
         expect(args.onMount).toHaveBeenCalled()
     },
 }
@@ -226,20 +212,6 @@ export const TrusteeWithoutIpAddresses: Story = {
     },
 }
 
-export const KioskEnrollLink: Story = {
-    args: {kiosk: true},
-    globals: {permissions: EStoryPermissions.ADMIN_LIGHT},
-    parameters: {expectedFailure: null},
-    play: async ({canvasElement}) => {
-        const link = await within(canvasElement).findByRole("link", {
-            name: "Voter Enroll Kiosk URL",
-        })
-        expect(link.getAttribute("href")).toMatch(
-            /^https:\/\/kiosk\.admin-story\.invalid\/.*\?kiosk$/
-        )
-    },
-}
-
 export const ChangeTheTimeResolution: Story = {
     globals: {permissions: EStoryPermissions.ADMIN_LIGHT},
     parameters: {expectedFailure: null},
@@ -269,3 +241,12 @@ export const RefreshRefetchesTheStats: Story = {
         await waitFor(() => expect(statsCalls()).toHaveLength(2))
     },
 }
+
+export const ResponsiveCharts: Story = {
+    ...atViewport(1440),
+    play: async ({canvasElement}) => {
+        await expectDashboardChartLayout(canvasElement)
+    },
+}
+export const ResponsiveChartsTablet: Story = {...ResponsiveCharts, ...atViewport(820)}
+export const ResponsiveChartsPhone: Story = {...ResponsiveCharts, ...atViewport(390)}

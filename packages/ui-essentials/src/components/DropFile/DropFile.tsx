@@ -12,11 +12,12 @@ import {theme} from "../../services/theme"
 
 interface DropFileProps {
     handleFiles: (files: FileList) => void | Promise<void>
+    multiple?: boolean
     accept?: string
     formatLabel?: string
 }
 
-const DropFile: React.FC<DropFileProps> = ({handleFiles, accept, formatLabel}) => {
+const DropFile: React.FC<DropFileProps> = ({handleFiles, accept, formatLabel, multiple}) => {
     const {t} = useTranslation()
     const inputRef = useRef<HTMLInputElement | null>(null)
 
@@ -25,6 +26,7 @@ const DropFile: React.FC<DropFileProps> = ({handleFiles, accept, formatLabel}) =
             errorMessage={t("dragNDrop.importError")}
             handleFiles={handleFiles}
             accept={accept}
+            multiple={multiple}
             ref={inputRef}
         >
             <div

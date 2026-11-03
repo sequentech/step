@@ -54,29 +54,6 @@ admin-portal,util,^0.12.5,MIT,Node.js's util module for all engines
 admin-portal,uuid,9.0.0,MIT,RFC9562 UUIDs
 admin-portal,web-vitals,^5.1.0,Apache-2.0,Easily measure performance metrics in JavaScript
 admin-portal,idb,7.1.1,ISC,A small wrapper that makes IndexedDB usable
-b3,borsh,1.5,MIT OR Apache-2.0,Binary Object Representation Serializer for Hashing
-b3,strum,0.27,MIT,Helpful macros for working with enums and strings
-b3,anyhow,1.0,MIT OR Apache-2.0,Flexible concrete Error type built on std::error::Error
-b3,rayon,1.5,MIT OR Apache-2.0,Simple work-stealing parallelism for Rust
-b3,futures,0.3,MIT OR Apache-2.0,"An implementation of futures and streams featuring zero allocations, composability, and iterator-like interfaces."
-b3,config,0.15,MIT OR Apache-2.0,Layered configuration system for Rust applications.
-b3,log,0.4,MIT OR Apache-2.0,A lightweight logging facade for Rust
-b3,tracing,0.1,MIT,Application-level tracing for Rust.
-b3,tracing-log,0.2,MIT,Provides compatibility between `tracing` and the `log` crate.
-b3,tracing-attributes,0.1,MIT,Procedural macro attributes for automatically instrumenting functions.
-b3,tracing-subscriber,0.3,MIT,Utilities for implementing and composing `tracing` subscribers.
-b3,tracing-tree,0.4,MIT OR Apache-2.0,A Tracing Layer which prints a tree of spans and events.
-b3,cfg-if,1.0,MIT OR Apache-2.0,"A macro to ergonomically define an item depending on a large number of #[cfg] parameters. Structured like an if-else chain, the first matching branch is the item that gets emitted."
-b3,hex,0.4,MIT OR Apache-2.0,Encoding and decoding data into/from hexadecimal representation.
-b3,base64,0.22,MIT OR Apache-2.0,encodes and decodes base64 as bytes or utf8
-b3,serde,1.0,MIT OR Apache-2.0,A generic serialization/deserialization framework
-b3,toml,0.8,MIT OR Apache-2.0,A native Rust encoder and decoder of TOML-formatted files and streams. Provides implementations of the standard Serialize/Deserialize traits for TOML data to facilitate deserializing and serializing Rust structures.
-b3,tonic,0.13,MIT,"A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility."
-b3,prost,0.13,Apache-2.0,A Protocol Buffers implementation for the Rust Language.
-b3,tokio,1.38,MIT,"An event-driven, non-blocking I/O platform for writing asynchronous I/O backed applications."
-b3,tokio-postgres,0.7,MIT OR Apache-2.0,"A native, asynchronous PostgreSQL client"
-b3,bb8-postgres,0.9,MIT,Full-featured async (tokio-based) postgres connection pool (like r2d2)
-b3,clap,4.0,MIT OR Apache-2.0,"A simple to use, efficient, and full-featured Command Line Argument Parser"
 ballot-verifier,@apollo/client,3.8.0,MIT,A fully-featured caching GraphQL client.
 ballot-verifier,@fortawesome/fontawesome-svg-core,^7.0.1,MIT,"The iconic font, CSS, and SVG framework"
 ballot-verifier,@fortawesome/free-brands-svg-icons,^7.0.1,(CC-BY-4.0 AND MIT),"The iconic font, CSS, and SVG framework"
@@ -96,39 +73,6 @@ ballot-verifier,@reduxjs/toolkit,1.9.5,MIT,"The official, opinionated, batteries
 ballot-verifier,@emotion/react,11.14.0,MIT,> Simple styling in React.
 ballot-verifier,@emotion/styled,11.14.1,MIT,styled API for emotion
 ballot-verifier,web-vitals,^5.1.0,Apache-2.0,Easily measure performance metrics in JavaScript
-braid,rand,0.9,MIT OR Apache-2.0,Random number generators and other randomness functionality.
-braid,getrandom,=0.2,MIT OR Apache-2.0,A small cross-platform library for retrieving random data from system source
-braid,crepe,0.1,MIT OR Apache-2.0,Datalog in Rust as a procedural macro
-braid,strum,0.27,MIT,Helpful macros for working with enums and strings
-braid,rayon,1.5,MIT OR Apache-2.0,Simple work-stealing parallelism for Rust
-braid,tonic,0.13,MIT,"A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility."
-braid,rusqlite,0.32,MIT,Ergonomic wrapper for SQLite
-braid,serde_json,1.0,MIT OR Apache-2.0,A JSON serialization file format
-braid,colored,3.0,MPL-2.0,The most simple way to add colors in your terminal
-braid,clap,4.0,MIT OR Apache-2.0,"A simple to use, efficient, and full-featured Command Line Argument Parser"
-braid,tokio,1.40,MIT,"An event-driven, non-blocking I/O platform for writing asynchronous I/O backed applications."
-braid,rustc-hash,2.0,Apache-2.0 OR MIT,"A speedy, non-cryptographic hashing algorithm used by rustc"
-braid,log,0.4,MIT OR Apache-2.0,A lightweight logging facade for Rust
-braid,tracing,0.1,MIT,Application-level tracing for Rust.
-braid,tracing-log,0.2,MIT,Provides compatibility between `tracing` and the `log` crate.
-braid,tracing-attributes,0.1,MIT,Procedural macro attributes for automatically instrumenting functions.
-braid,tracing-subscriber,0.3,MIT,Utilities for implementing and composing `tracing` subscribers.
-braid,tracing-tree,0.4,MIT OR Apache-2.0,A Tracing Layer which prints a tree of spans and events.
-braid,cfg-if,1.0,MIT OR Apache-2.0,"A macro to ergonomically define an item depending on a large number of #[cfg] parameters. Structured like an if-else chain, the first matching branch is the item that gets emitted."
-braid,hex,0.4,MIT OR Apache-2.0,Encoding and decoding data into/from hexadecimal representation.
-braid,base64,0.22,MIT OR Apache-2.0,encodes and decodes base64 as bytes or utf8
-braid,serde,1.0,MIT OR Apache-2.0,A generic serialization/deserialization framework
-braid,toml,0.8,MIT OR Apache-2.0,A native Rust encoder and decoder of TOML-formatted files and streams. Provides implementations of the standard Serialize/Deserialize traits for TOML data to facilitate deserializing and serializing Rust structures.
-braid,anyhow,1.0,MIT OR Apache-2.0,Flexible concrete Error type built on std::error::Error
-braid,thiserror,2.0,MIT OR Apache-2.0,derive(Error)
-braid,wasm-bindgen-rayon,1.0,Apache-2.0,Adapter for using Rayon-based concurrency on the Web
-braid,wasm-bindgen,=0.2,MIT OR Apache-2.0,Easy support for interacting between JS and Rust.
-braid,tracing-wasm,0.2,MIT OR Apache-2.0,tracing subscriber for browser WASM
-braid,reedline-repl-rs,1.0,MIT,Library to generate a fancy REPL for your application based on reedline and clap
-braid,ascii_table,4.0,MIT,Print ASCII tables to the terminal
-braid,async-trait,0.1,MIT OR Apache-2.0,Type erasure for async trait methods
-braid,tikv-jemallocator,0.6,MIT/Apache-2.0,A Rust allocator backed by jemalloc
-braid,tikv-jemalloc-ctl,0.6,MIT/Apache-2.0,A safe wrapper over jemalloc's control and introspection APIs
 e2e,rocket,0.5,MIT OR Apache-2.0,"Web framework with a focus on usability, security, extensibility, and speed."
 e2e,serde,1.0,MIT OR Apache-2.0,A generic serialization/deserialization framework
 e2e,serde_json,1.0,MIT OR Apache-2.0,A JSON serialization file format
@@ -147,8 +91,6 @@ electoral-log,serde,1.0,MIT OR Apache-2.0,A generic serialization/deserializatio
 electoral-log,strum,0.27,MIT,Helpful macros for working with enums and strings
 electoral-log,strum_macros,0.27,MIT,Helpful macros for working with enums and strings
 electoral-log,tokio,1.38,MIT,"An event-driven, non-blocking I/O platform for writing asynchronous I/O backed applications."
-electoral-log,tokio-stream,0.1,MIT,Utilities to work with `Stream` and `tokio`.
-electoral-log,tonic,0.13,MIT,"A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility."
 electoral-log,hex,0.4,MIT OR Apache-2.0,Encoding and decoding data into/from hexadecimal representation.
 electoral-log,serde_json,1.0,MIT OR Apache-2.0,A JSON serialization file format
 electoral-log,log,0.4,MIT OR Apache-2.0,A lightweight logging facade for Rust
@@ -182,28 +124,6 @@ harvest,tracing,0.1,MIT,Application-level tracing for Rust.
 harvest,deadpool-postgres,0.14,MIT OR Apache-2.0,Dead simple async pool for tokio-postgres
 harvest,tokio-postgres,0.7,MIT OR Apache-2.0,"A native, asynchronous PostgreSQL client"
 harvest,regex,1.10,MIT OR Apache-2.0,An implementation of regular expressions for Rust. This implementation uses finite automata and guarantees linear time matching on all inputs.
-immu-board,anyhow,1.0,MIT OR Apache-2.0,Flexible concrete Error type built on std::error::Error
-immu-board,clap,4.0,MIT OR Apache-2.0,"A simple to use, efficient, and full-featured Command Line Argument Parser"
-immu-board,tokio,1.31,MIT,"An event-driven, non-blocking I/O platform for writing asynchronous I/O backed applications."
-immu-board,tonic,0.13,MIT,"A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility."
-immu-board,hex,0.4,MIT OR Apache-2.0,Encoding and decoding data into/from hexadecimal representation.
-immu-board,log,0.4,MIT OR Apache-2.0,A lightweight logging facade for Rust
-immu-board,tracing,0.1,MIT,Application-level tracing for Rust.
-immu-board,tracing-log,0.2,MIT,Provides compatibility between `tracing` and the `log` crate.
-immu-board,tracing-attributes,0.1,MIT,Procedural macro attributes for automatically instrumenting functions.
-immu-board,tracing-subscriber,0.3,MIT,Utilities for implementing and composing `tracing` subscribers.
-immu-board,tracing-tree,0.4,MIT OR Apache-2.0,A Tracing Layer which prints a tree of spans and events.
-immudb-rs,anyhow,1.0,MIT OR Apache-2.0,Flexible concrete Error type built on std::error::Error
-immudb-rs,tonic,0.13,MIT,"A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility."
-immudb-rs,prost,0.13,Apache-2.0,A Protocol Buffers implementation for the Rust Language.
-immudb-rs,prost-types,0.13,Apache-2.0,Prost definitions of Protocol Buffers well known types.
-immudb-rs,serde,1.0,MIT OR Apache-2.0,A generic serialization/deserialization framework
-immudb-rs,log,0.4,MIT OR Apache-2.0,A lightweight logging facade for Rust
-immudb-rs,tracing,0.1,MIT,Application-level tracing for Rust.
-immudb-rs,tracing-log,0.2,MIT,Provides compatibility between `tracing` and the `log` crate.
-immudb-rs,tracing-attributes,0.1,MIT,Procedural macro attributes for automatically instrumenting functions.
-immudb-rs,tracing-subscriber,0.3,MIT,Utilities for implementing and composing `tracing` subscribers.
-immudb-rs,tracing-tree,0.4,MIT OR Apache-2.0,A Tracing Layer which prints a tree of spans and events.
 keycloak-extensions,jakarta.validation:jakarta.validation-api,3.1.1,Apache License 2.0,Jakarta Validation API
 keycloak-extensions,org.projectlombok:lombok,1.18.40,The MIT License,"Spice up your java: Automatic Resource Management, automatic generation of getters, setters, equals, hashCode and toString, and more!"
 keycloak-extensions,com.sun.mail:javax.mail,1.6.2,N/A,
@@ -224,8 +144,6 @@ sequent-core,wasm-bindgen,=0.2.100,MIT OR Apache-2.0,Easy support for interactin
 sequent-core,serde-wasm-bindgen,0.6,MIT,Native Serde adapter for wasm-bindgen
 sequent-core,web-sys,0.3,MIT OR Apache-2.0,"Bindings for all Web APIs, a procedurally generated crate from WebIDL"
 sequent-core,cfg-if,1.0,MIT OR Apache-2.0,"A macro to ergonomically define an item depending on a large number of #[cfg] parameters. Structured like an if-else chain, the first matching branch is the item that gets emitted."
-sequent-core,ed25519-dalek,=2.1,BSD-3-Clause,"Fast and efficient ed25519 EdDSA key generations, signing, and verification in pure Rust."
-sequent-core,curve25519-dalek,=4.1,BSD-3-Clause,A pure-Rust implementation of group operations on ristretto255 and Curve25519
 sequent-core,aws-config,1.6,Apache-2.0,AWS SDK config and credential provider implementations.
 sequent-core,aws-sdk-sesv2,1.70,Apache-2.0,AWS SDK for Amazon Simple Email Service
 sequent-core,aws-sdk-sns,1.63,Apache-2.0,AWS SDK for Amazon Simple Notification Service
@@ -296,38 +214,6 @@ step-cli,hex,0.4,MIT OR Apache-2.0,Encoding and decoding data into/from hexadeci
 step-cli,ring,0.17,Apache-2.0 AND ISC,An experiment.
 step-cli,sha2,0.10,MIT OR Apache-2.0,"Pure Rust implementation of the SHA-2 hash function family including SHA-224, SHA-256, SHA-384, and SHA-512."
 step-cli,base64,0.22,MIT OR Apache-2.0,encodes and decodes base64 as bytes or utf8
-strand,curve25519-dalek,=4.1,BSD-3-Clause,A pure-Rust implementation of group operations on ristretto255 and Curve25519
-strand,num-bigint,0.4,MIT/Apache-2.0,Big integer implementation for Rust
-strand,num-traits,0.2,MIT OR Apache-2.0,Numeric traits for generic mathematics
-strand,num-integer,0.1,MIT OR Apache-2.0,Integer traits and functions
-strand,num-modular,=0.5,Apache-2.0,"Implementation of efficient integer division and modular arithmetic operations with generic number types. Supports various backends including num-bigint, etc.."
-strand,malachite,0.6,LGPL-3.0-only,"Arbitrary-precision arithmetic, with efficient algorithms partially derived from GMP, FLINT, and MPFR."
-strand,rug,~1.23,LGPL-3.0+,"Arbitrary-precision integers, rational, floating-point and complex numbers based on GMP, MPFR and MPC."
-strand,ed25519-dalek,=2.1,BSD-3-Clause,"Fast and efficient ed25519 EdDSA key generations, signing, and verification in pure Rust."
-strand,ecdsa,0.16,Apache-2.0 OR MIT,"Pure Rust implementation of the Elliptic Curve Digital Signature Algorithm (ECDSA) as specified in FIPS 186-4 (Digital Signature Standard), providing RFC6979 deterministic signatures as well as support for added entropy"
-strand,p384,0.13,Apache-2.0 OR MIT,"Pure Rust implementation of the NIST P-384 (a.k.a. secp384r1) elliptic curve as defined in SP 800-186 with support for ECDH, ECDSA signing/verification, and general purpose curve arithmetic support."
-strand,x509-parser,0.17.0,MIT OR Apache-2.0,Parser for the X.509 v3 format (RFC 5280 certificates)
-strand,rcgen,=0.14.3,MIT OR Apache-2.0,Rust X.509 certificate generator
-strand,rustls-pki-types,=1.13.0,MIT OR Apache-2.0,Shared types for the rustls PKI ecosystem
-strand,chacha20poly1305,0.10,Apache-2.0 OR MIT,"Pure Rust implementation of the ChaCha20Poly1305 Authenticated Encryption with Additional Data Cipher (RFC 8439) with optional architecture-specific hardware acceleration. Also contains implementations of the XChaCha20Poly1305 extended nonce variant of ChaCha20Poly1305, and the reduced-round ChaCha8Poly1305 and ChaCha12Poly1305 lightweight variants."
-strand,generic-array,=0.14,MIT,Generic types implementing functionality of arrays
-strand,sha2,0.10,MIT OR Apache-2.0,"Pure Rust implementation of the SHA-2 hash function family including SHA-224, SHA-256, SHA-384, and SHA-512."
-strand,sha3,0.10,MIT OR Apache-2.0,"Pure Rust implementation of SHA-3, a family of Keccak-based hash functions including the SHAKE family of eXtendable-Output Functions (XOFs), as well as the accelerated variant TurboSHAKE"
-strand,borsh,1.5,MIT OR Apache-2.0,Binary Object Representation Serializer for Hashing
-strand,base64,0.22.1,MIT OR Apache-2.0,encodes and decodes base64 as bytes or utf8
-strand,rand,=0.8,MIT OR Apache-2.0,Random number generators and other randomness functionality.
-strand,rand_core,0.9,MIT OR Apache-2.0,Core random number generator traits and tools for implementation.
-strand,getrandom,=0.2,MIT OR Apache-2.0,A small cross-platform library for retrieving random data from system source
-strand,wasm-bindgen-rayon,1.3,Apache-2.0,Adapter for using Rayon-based concurrency on the Web
-strand,wasm-bindgen,=0.2.100,MIT OR Apache-2.0,Easy support for interacting between JS and Rust.
-strand,serde-wasm-bindgen,0.6,MIT,Native Serde adapter for wasm-bindgen
-strand,web-sys,0.3,MIT OR Apache-2.0,"Bindings for all Web APIs, a procedurally generated crate from WebIDL"
-strand,openssl,0.10,Apache-2.0,OpenSSL bindings
-strand,rayon,1.5,MIT OR Apache-2.0,Simple work-stealing parallelism for Rust
-strand,cfg-if,1.0,MIT OR Apache-2.0,"A macro to ergonomically define an item depending on a large number of #[cfg] parameters. Structured like an if-else chain, the first matching branch is the item that gets emitted."
-strand,thiserror,2.0,MIT OR Apache-2.0,derive(Error)
-strand,serde,1.0.215,MIT OR Apache-2.0,A generic serialization/deserialization framework
-strand,hex,0.4,MIT OR Apache-2.0,Encoding and decoding data into/from hexadecimal representation.
 ui-core,html-react-parser,5.2.8,MIT,HTML to React parser.
 ui-core,i18next,^25.5.2,MIT,i18next internationalization framework
 ui-core,i18next-browser-languagedetector,^8.2.0,MIT,language detector used in browser environment for i18next
@@ -400,7 +286,6 @@ windmill,strum,0.27,MIT,Helpful macros for working with enums and strings
 windmill,strum_macros,0.27,MIT,Helpful macros for working with enums and strings
 windmill,base64,0.22,MIT OR Apache-2.0,encodes and decodes base64 as bytes or utf8
 windmill,celery,N/A,Apache-2.0,Rust implementation of Celery
-windmill,lapin,2.5,MIT,AMQP client library
 windmill,rayon,1.5,MIT OR Apache-2.0,Simple work-stealing parallelism for Rust
 windmill,tokio,1.32,MIT,"An event-driven, non-blocking I/O platform for writing asynchronous I/O backed applications."
 windmill,async-trait,0.1,MIT OR Apache-2.0,Type erasure for async trait methods
@@ -460,3 +345,27 @@ windmill,rustls,0.23.32,Apache-2.0 OR ISC OR MIT,Rustls is a modern TLS library 
 wrap-map-err,syn,2.0,MIT OR Apache-2.0,Parser for Rust source code
 wrap-map-err,quote,1.0,MIT OR Apache-2.0,Quasi-quoting macro quote!(...)
 wrap-map-err,proc-macro2,1.0,MIT OR Apache-2.0,A substitute implementation of the compiler's `proc_macro` API to decouple token-based libraries from the procedural macro use case.
+electoral-log,tokio-stream,0.1,MIT,Utilities to work with `Stream` and `tokio`.
+electoral-log,tonic,0.13,MIT,"A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility."
+immu-board,anyhow,1.0,MIT OR Apache-2.0,Flexible concrete Error type built on std::error::Error
+immu-board,clap,4.0,MIT OR Apache-2.0,"A simple to use, efficient, and full-featured Command Line Argument Parser"
+immu-board,tokio,1.31,MIT,"An event-driven, non-blocking I/O platform for writing asynchronous I/O backed applications."
+immu-board,tonic,0.13,MIT,"A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility."
+immu-board,hex,0.4,MIT OR Apache-2.0,Encoding and decoding data into/from hexadecimal representation.
+immu-board,log,0.4,MIT OR Apache-2.0,A lightweight logging facade for Rust
+immu-board,tracing,0.1,MIT,Application-level tracing for Rust.
+immu-board,tracing-log,0.2,MIT,Provides compatibility between `tracing` and the `log` crate.
+immu-board,tracing-attributes,0.1,MIT,Procedural macro attributes for automatically instrumenting functions.
+immu-board,tracing-subscriber,0.3,MIT,Utilities for implementing and composing `tracing` subscribers.
+immu-board,tracing-tree,0.4,MIT OR Apache-2.0,A Tracing Layer which prints a tree of spans and events.
+immudb-rs,anyhow,1.0,MIT OR Apache-2.0,Flexible concrete Error type built on std::error::Error
+immudb-rs,tonic,0.13,MIT,"A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility."
+immudb-rs,prost,0.13,Apache-2.0,A Protocol Buffers implementation for the Rust Language.
+immudb-rs,prost-types,0.13,Apache-2.0,Prost definitions of Protocol Buffers well known types.
+immudb-rs,serde,1.0,MIT OR Apache-2.0,A generic serialization/deserialization framework
+immudb-rs,log,0.4,MIT OR Apache-2.0,A lightweight logging facade for Rust
+immudb-rs,tracing,0.1,MIT,Application-level tracing for Rust.
+immudb-rs,tracing-log,0.2,MIT,Provides compatibility between `tracing` and the `log` crate.
+immudb-rs,tracing-attributes,0.1,MIT,Procedural macro attributes for automatically instrumenting functions.
+immudb-rs,tracing-subscriber,0.3,MIT,Utilities for implementing and composing `tracing` subscribers.
+immudb-rs,tracing-tree,0.4,MIT OR Apache-2.0,A Tracing Layer which prints a tree of spans and events.

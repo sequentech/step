@@ -1,0 +1,15 @@
+mutation ConfirmKeyCustody(
+        $electionEventId: String!
+        $keysCeremonyId: String!
+        $custodyProofJson: String!
+    ) {
+        confirm_key_custody(
+            object: {
+                election_event_id: $electionEventId
+                keys_ceremony_id: $keysCeremonyId
+                custody_proof_json: $custodyProofJson
+            }
+        ) {
+            is_valid
+        }
+    }

@@ -16,6 +16,7 @@ aws-config = "1.6"
 aws-credential-types = "1"
 aws-sdk-sesv2 = "1.70"
 aws-sdk-sns = "1.63"
+base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 hex = "0.4"
 hmac = "0.12"

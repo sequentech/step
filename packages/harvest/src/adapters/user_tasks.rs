@@ -12,14 +12,15 @@ use sequent_core::types::permissions::Permissions;
 use serde_json::Value;
 use std::sync::Arc;
 use uuid::Uuid;
-use windmill::services::celery_app::get_celery_app;
+use windmill::services::audit_log::AuditActor;
+use windmill::services::celery_app::try_get_celery_app;
 use windmill::services::electoral_log::{
     post_voter_secret_attribute_audit, ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
 };
 use windmill::services::export::export_users::ExportBody;
 use windmill::services::tasks_execution::{
-    post, post_with_annotations, secret_export_task_annotations, update_fail,
+    post, post_with_participation, secret_export_task_annotations, update_fail,
 };
 use windmill::tasks::{export_users, import_users};
 use windmill::types::tasks::ETasksExecution;
@@ -48,9 +49,9 @@ impl UserTaskLedger for WindmillUserTaskLedger {
         executed_by: &str,
         annotations: Value,
     ) -> anyhow::Result<TasksExecution> {
-        post_with_annotations(
+        post_with_participation(
             tenant_id,
-            Some(event_id),
+            event_id,
             ETasksExecution::EXPORT_VOTERS,
             executed_by,
             annotations,
@@ -69,6 +70,27 @@ impl UserTaskLedger for WindmillUserTaskLedger {
 pub struct ClaimsUserTaskAuthorization;
 
 impl UserTaskAuthorization for ClaimsUserTaskAuthorization {
+    async fn participation_elections(
+        &self,
+        claims: &JwtClaims,
+        event_id: &str,
+    ) -> UserTaskResult<Vec<String>> {
+        let mut client = windmill::services::database::get_hasura_pool()
+            .await
+            .get()
+            .await
+            .map_err(|error| {
+                (Status::InternalServerError, error.to_string())
+            })?;
+        let tx = client.transaction().await.map_err(|error| {
+            (Status::InternalServerError, error.to_string())
+        })?;
+        crate::services::authorization::explicit_participation_elections(
+            &tx, claims, event_id,
+        )
+        .await
+    }
+
     fn authorize(
         &self,
         claims: &JwtClaims,
@@ -83,8 +105,13 @@ pub struct CeleryUserTaskDispatch;
 
 impl UserTaskDispatch for CeleryUserTaskDispatch {
     type Connection = Arc<Celery>;
-    async fn connect(&self) -> Self::Connection {
-        get_celery_app().await
+    async fn connect(&self) -> Result<Self::Connection, UserTaskSendFailure> {
+        try_get_celery_app()
+            .await
+            .map_err(|error| UserTaskSendFailure {
+                display: format!("{error:#}"),
+                debug: format!("{error:?}"),
+            })
     }
     async fn import(
         &self,
@@ -107,12 +134,14 @@ impl UserTaskDispatch for CeleryUserTaskDispatch {
         input: ExportBody,
         document_id: String,
         task: Option<TasksExecution>,
+        actor: AuditActor,
     ) -> Result<(), UserTaskSendFailure> {
         connection
             .send_task(export_users::export_users::new(
                 input,
                 document_id,
                 task,
+                Some(actor),
             ))
             .await
             .map(|_| ())

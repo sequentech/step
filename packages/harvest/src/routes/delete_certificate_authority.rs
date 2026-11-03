@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -15,6 +16,7 @@ use uuid::Uuid;
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::certificate_authority::delete_certificate_authority as delete_certs;
 use windmill::services::database::get_hasura_pool;
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeleteCertificateAuthorityInput {
@@ -58,6 +60,10 @@ pub async fn delete_certificate_authority_route(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
+    // Windmill commits the transaction; the certificates it adds or
+    // removes are logged as this admin's (audit_change).
+    audit::act_for(&hasura_transaction, &claims).await?;
+
     let election_event = get_election_event_by_id(
         &hasura_transaction,
         &tenant_id_str,
@@ -92,6 +98,7 @@ pub async fn delete_certificate_authority_route(
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    kick_audit_log_outbox();
 
     Ok(Json(DeleteCertificateAuthorityOutput { deleted_count }))
 }

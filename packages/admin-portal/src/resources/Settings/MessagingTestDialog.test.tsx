@@ -25,8 +25,12 @@ const account: IMessagingAccount = {
     tenant_id: "tenant-1",
     channel: EMessageChannel.VIBER,
     provider: EMessagingProvider.VIBER_INFOBIP,
-    name: "COMELEC Viber",
-    sender: {provider: EMessagingProvider.VIBER_INFOBIP, base_url: "https://x", sender: "COMELEC"},
+    name: "Staff Association Viber",
+    sender: {
+        provider: EMessagingProvider.VIBER_INFOBIP,
+        base_url: "https://x",
+        sender: "Staff Association",
+    },
     is_default: true,
 }
 
@@ -133,23 +137,22 @@ describe("MessagingTestDialog", () => {
         expect(mockTest.mock.calls[0][0].variables.language).toBe("en_US")
     })
 
-    it("offers a custom HTTP API the template, required for its template-only purposes", () => {
-        const custom = (templateRequiredFor: EMessagePurpose[]): IMessagingAccount => ({
+    it("asks WhatsApp for its approved template, and no other provider", () => {
+        const whatsapp: IMessagingAccount = {
             ...account,
-            provider: EMessagingProvider.HTTP_API,
+            channel: EMessageChannel.WHATSAPP,
+            provider: EMessagingProvider.WHATSAPP_CLOUD_API,
             sender: {
-                provider: EMessagingProvider.HTTP_API,
-                send: {url: "https://partner.example"},
-                template_required_for: templateRequiredFor,
+                provider: EMessagingProvider.WHATSAPP_CLOUD_API,
+                business_account_id: "1",
+                phone_number_id: "2",
+                display_phone_number: "+34 600 000 214",
+                api_version: "v23.0",
             },
-        })
-        expect(testTemplateField(custom([EMessagePurpose.OTP]), EMessagePurpose.OTP)).toEqual({
+        }
+        expect(testTemplateField(whatsapp, EMessagePurpose.NOTICE)).toEqual({
             offered: true,
             required: true,
-        })
-        expect(testTemplateField(custom([EMessagePurpose.OTP]), EMessagePurpose.NOTICE)).toEqual({
-            offered: true,
-            required: false,
         })
         expect(testTemplateField(account, EMessagePurpose.OTP)).toEqual({
             offered: false,

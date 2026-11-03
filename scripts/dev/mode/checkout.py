@@ -114,10 +114,10 @@ class Checkout:
 
 
 def load_checkout(root: Path = REPOSITORY_ROOT) -> Checkout:
-    """Reads ``.devcontainer/.env``, writing it first on the host if missing.
+    """Reads development defaults and local overrides without rewriting them.
 
-    Inside a container the host path of the checkout is unknown, so a missing
-    file is an error there instead.
+    Generate a missing local file on the host. Inside a container the host path
+    of the checkout is unknown, so a missing file is an error there instead.
     """
     path = root / ENV_FILE
     if not path.is_file():
@@ -130,4 +130,9 @@ def load_checkout(root: Path = REPOSITORY_ROOT) -> Checkout:
         )
         if completed.returncode != 0 or not path.is_file():
             raise CheckoutError(f"{INITIALIZE_COMMAND} failed")
-    return Checkout(root, parse_dotenv(path.read_text(encoding="utf-8")))
+    defaults = root / ".devcontainer/.env.development"
+    env = (
+        parse_dotenv(defaults.read_text(encoding="utf-8")) if defaults.is_file() else {}
+    )
+    env.update(parse_dotenv(path.read_text(encoding="utf-8")))
+    return Checkout(root, env)

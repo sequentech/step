@@ -7,6 +7,7 @@
 //! version.
 
 use crate::ports::electoral_log::ApprovalMatrixLog;
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
@@ -17,6 +18,7 @@ use rocket::State;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::collections::BTreeMap;
 use tracing::instrument;
 use windmill::postgres::election_event::get_election_event_by_id;
@@ -25,11 +27,16 @@ use windmill::services::approval_matrix::evaluate::{
     decide, Invariant, MatrixSource, MatrixVersion, RuleInputs,
 };
 use windmill::services::approval_matrix::store::{
-    get_latest_approval_matrix, insert_approval_matrix,
+    get_latest_approval_matrix, insert_approval_matrix, SavedMatrix,
 };
 use windmill::services::approval_matrix::{
     ApprovalMatrix, FieldMatch, IdentityMethod, MatrixError, BUILT_IN_VERSION,
 };
+use windmill::services::audit_log::{
+    diff_values, stage, AdminAction, AdminChange, AuditObject,
+};
+use windmill::services::task_audit;
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 use windmill::types::application::{
     ApplicationRejectReason, ApplicationStatus,
 };
@@ -262,6 +269,43 @@ pub struct SaveApprovalMatrixInput {
     matrix: ApprovalMatrix,
 }
 
+/// The entry of a saved matrix: its version and rules before and after.
+/// The matrix table has no audit trigger, so the route writes it by hand,
+/// in the transaction of the change.
+fn matrix_change(
+    claims: &JwtClaims,
+    election_event_id: &str,
+    previous: Option<&SavedMatrix>,
+    saved: &SavedMatrix,
+) -> anyhow::Result<AdminChange> {
+    fn fields(matrix: &SavedMatrix) -> anyhow::Result<serde_json::Value> {
+        Ok(json!({
+            "version": matrix.version,
+            "matrix": serde_json::to_value(&matrix.matrix)?,
+        }))
+    }
+    let old_fields = previous.map(fields).transpose()?;
+    let version_name = format!("version {}", saved.version);
+    Ok(audit::change(
+        claims,
+        task_audit::target(
+            &claims.hasura_claims.tenant_id,
+            Some(election_event_id),
+        )?,
+        AuditObject::new(
+            "approval_matrix",
+            election_event_id,
+            Some(version_name.as_str()),
+        ),
+        AdminAction::Update,
+    )
+    .with_changes(diff_values("", old_fields.as_ref(), Some(&fields(saved)?)))
+    .with_description(format!(
+        "Saved version {} of the approval matrix",
+        saved.version
+    )))
+}
+
 /// Saves the rules as the election event's next version, with its
 /// electoral-log entry.
 #[instrument(skip(claims, services))]
@@ -296,6 +340,14 @@ pub async fn save_approval_matrix(
             )
         })?;
 
+    let previous = get_latest_approval_matrix(
+        &transaction,
+        tenant_id,
+        &body.election_event_id,
+    )
+    .await
+    .map_err(|error| internal("Failed to read the approval matrix", error))?;
+
     let saved = insert_approval_matrix(
         &transaction,
         tenant_id,
@@ -327,10 +379,22 @@ pub async fn save_approval_matrix(
             internal("Failed to post the electoral log message", error)
         })?;
 
+    let change = matrix_change(
+        &claims,
+        &body.election_event_id,
+        previous.as_ref(),
+        &saved,
+    )
+    .map_err(audit::json_queue_error)?;
+    stage(&transaction, &change)
+        .await
+        .map_err(audit::json_queue_error)?;
+
     transaction
         .commit()
         .await
         .map_err(|error| internal("Failed to commit the transaction", error))?;
+    kick_audit_log_outbox();
 
     Ok(Json(output(
         saved.matrix_version(),

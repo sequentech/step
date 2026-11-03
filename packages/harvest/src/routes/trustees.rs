@@ -2,16 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
 use anyhow::{anyhow, Context, Result};
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+use windmill::services::audit_log::AuditObject;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::export_election_event::{self, ExportOptions};
@@ -29,11 +33,12 @@ pub struct ExportTrusteesOutput {
     task_execution: TasksExecution,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(services, claims))]
 #[post("/export-trustees", format = "json", data = "<input>")]
 pub async fn export_trustees_route(
     claims: jwt::JwtClaims,
     input: Json<ExportTrusteesInput>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<ExportTrusteesOutput>, (Status, String)> {
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let body = input.into_inner();
@@ -94,6 +99,16 @@ pub async fn export_trustees_route(
                 format!("Error sending export_trustees task: {error:?}"),
             )
         })?;
+
+    let entry = audit::exported(
+        &claims,
+        audit::target(&claims.hasura_claims.tenant_id, None)?,
+        AuditObject::new("trustee", audit::MANY, None),
+        "Requested the export of the trustees",
+        Some(&task_execution.id),
+        Some(&document_id),
+    );
+    audit::record(services, &entry).await?;
 
     let output = ExportTrusteesOutput {
         document_id,

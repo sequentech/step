@@ -4,8 +4,8 @@
 
 use crate::domain::tally_ceremony::TallyExecuter;
 use crate::postgres::ballot_box_seal::BallotBoxSealStatus;
-use b4::messages::newtypes::BatchNumber;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::ceremonies::BatchNumber;
 use sequent_core::types::ceremonies::{TallyCeremonyStatus, TallyExecutionStatus, TallyRunReason};
 use sequent_core::types::hasura::core::{
     Area, AreaContest, BallotStyle, Contest, Election, ElectionEvent, KeysCeremony, TallySession,
@@ -201,16 +201,17 @@ pub trait KeysCeremonyReader: Sync {
     ) -> impl Future<Output = anyhow::Result<KeysCeremony>> + Send;
 }
 
-/// The private keys trustees generated in a keys ceremony, as stored
-/// (encrypted) on its bulletin board.
-pub trait TrusteePrivateKeys: Sync {
-    fn encrypted_private_key(
+/// Verifies scoped custody of the native trustee's local keys.
+pub trait TrusteeCustody: Sync {
+    fn verifies(
         &self,
         tenant_id: &str,
         election_event_id: &str,
         trustee_name: &str,
         keys_ceremony: &KeysCeremony,
-    ) -> impl Future<Output = anyhow::Result<String>> + Send;
+        tally_session_id: &str,
+        proof: &str,
+    ) -> impl Future<Output = anyhow::Result<bool>> + Send;
 }
 
 pub trait ElectionsById: Sync {
@@ -249,7 +250,7 @@ pub trait TallyCeremonyAudit: Sync {
     ) -> impl Future<Output = anyhow::Result<()>> + Send;
 
     /// Signed by the trustee's user, identified by `claims`.
-    fn key_restored(
+    fn custody_authorized(
         &self,
         board_name: &str,
         tenant_id: &str,

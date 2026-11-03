@@ -9,6 +9,7 @@ use crate::{
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
+use sequent_core::types::voter_import::FileIntegrityPolicy;
 use std::{
     thread::sleep,
     time::{Duration, Instant},
@@ -30,6 +31,10 @@ pub struct ImportVoters {
 
     #[arg(long, default_value_t = false)]
     is_local: bool,
+
+    /// Independently certified SHA-256 of the exact voter file bytes
+    #[arg(long, value_parser = certified_sha256)]
+    sha256: Option<String>,
 }
 
 #[derive(GraphQLQuery)]
@@ -43,7 +48,12 @@ pub struct ImportUsers;
 impl ImportVoters {
     /// Preserve import failures in the process exit status.
     pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
-        import_voters(&self.election_event_id, &self.file_path, self.is_local)?;
+        import_voters_with_sha256(
+            &self.election_event_id,
+            &self.file_path,
+            self.is_local,
+            self.sha256.as_deref(),
+        )?;
         println!("{}", "Success! Voters imported successfully!".green());
         Ok(())
     }
@@ -54,6 +64,18 @@ pub fn import_voters(
     file_path: &str,
     is_local: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    import_voters_with_sha256(election_event_id, file_path, is_local, None)
+}
+
+/// Legacy programmatic callers keep optional integrity; the server enforces
+/// the event's configured policy. A supplied digest is never computed locally.
+pub fn import_voters_with_sha256(
+    election_event_id: &str,
+    file_path: &str,
+    is_local: bool,
+    declared_sha256: Option<&str>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let sha256 = FileIntegrityPolicy::OPTIONAL.validate_declared_sha256(declared_sha256)?;
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
@@ -67,7 +89,7 @@ pub fn import_voters(
         tenant_id: config.tenant_id.clone(),
         document_id,
         election_event_id: Some(election_event_id.to_string()),
-        sha256: None,
+        sha256,
     };
 
     let request_body = ImportUsers::build_query(variables);
@@ -96,6 +118,12 @@ pub fn import_voters(
         }
         sleep(polling_interval);
     }
+}
+
+fn certified_sha256(value: &str) -> Result<String, String> {
+    FileIntegrityPolicy::REQUIRED_SHA256
+        .validate_declared_sha256(Some(value))?
+        .ok_or_else(|| "A certified file SHA-256 is required".to_string())
 }
 
 /// Classify terminal task states before deciding whether another poll is useful.

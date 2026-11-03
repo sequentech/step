@@ -8,13 +8,6 @@ from uuid import UUID, uuid4
 
 from psycopg.types.json import Jsonb
 
-INSERT_VOTE = """
-    INSERT INTO sequent_backend.cast_vote
-        (tenant_id, election_event_id, election_id, voter_id_string, area_id,
-         status, content, ballot_id, cast_ballot_signature)
-    VALUES (%s, %s, %s, %s, %s, %s, %s, 'ballot', %s)
-"""
-
 
 @dataclass
 class Election:
@@ -75,14 +68,6 @@ class Election:
         ).fetchone()
         return row[0]
 
-    def vote_parameters(self, voter, area=None, status="valid", content="ballot"):
-        """Return INSERT parameters, using the default area unless an override is supplied."""
-        return (*self.scope, voter, area or self.area, status, content, bytes(64))
-
-    def vote(self, connection, voter, area=None, status="valid"):
-        """Insert a fixture ballot through the real eligibility trigger."""
-        connection.execute(INSERT_VOTE, self.vote_parameters(voter, area, status))
-
 
 @dataclass
 class VotingEvent:
@@ -90,16 +75,6 @@ class VotingEvent:
 
     elections: list
     areas: list
-
-    def for_voter(self, voter_number):
-        # A returning voter keeps the same election and area in both seeded and
-        # measured ballots. Areas vary between voters, never within their history.
-        """Return the election assigned to this voter by the same mapping used for seeded ballots."""
-        return self.elections[voter_number % len(self.elections)]
-
-    def area_for_voter(self, voter_number):
-        """Return the stable area assignment used for both prior and measured ballots."""
-        return self.areas[voter_number % len(self.areas)]
 
     @classmethod
     def create(
@@ -164,6 +139,6 @@ def clear_workload(connection):
     """Remove prior scenarios so table cardinalities match the report exactly."""
     connection.execute(
         "TRUNCATE sequent_backend.scheduled_event, sequent_backend.election, "
-        "sequent_backend.election_voting_window, sequent_backend.cast_vote, "
+        "sequent_backend.election_voting_window, "
         "sequent_backend.area, sequent_backend.election_event, sequent_backend.secret"
     )

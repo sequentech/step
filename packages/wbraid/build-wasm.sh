@@ -5,8 +5,7 @@
 
 # Build WASM client with atomics support for wasm-bindgen-rayon.
 #
-# Bash twin of build-wasm.ps1 for the devcontainer, modeled on
-# packages/braid/scripts/build-wasm.sh: no nightly toolchain override —
+# Bash twin of build-wasm.ps1 for the devcontainer: no nightly toolchain override —
 # RUSTC_BOOTSTRAP=1 lets the stable toolchain (which ships rust-src) accept
 # the nightly-only bits that crates/braid/.cargo/config.toml asks for
 # ([unstable] build-std and the atomics/shared-memory rustflags).

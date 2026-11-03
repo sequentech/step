@@ -45,7 +45,7 @@ The drawer shows the action, where it is started and what it does, then:
 - **A request expires after**: one of the expiry options. An expired request can't be
   signed and its signatures no longer count.
 
-For the trustees' key steps (**Confirm a key share** and **Contribute a key share**) the
+For the trustees' custody steps (**Confirm a key share** and **Contribute a key share**) the
 drawer only switches **Trustees sign this step** on or off: each trustee signs their own
 step, and the key ceremony sets how many trustees take part.
 

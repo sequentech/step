@@ -1,8 +1,11 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::audit_log::{AdminAction, AdminChange, AuditActor, AuditObject};
+use crate::services::ballot_box::get_voter_ballot_states;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::election::is_election_event_locked_down;
+use crate::services::task_audit;
 use crate::services::tasks_execution::{update_complete_with_annotations, update_fail};
 use crate::services::users::{list_users, list_users_with_vote_info, ListUsersFilter};
 use crate::types::error::{Error, Result};
@@ -23,6 +26,13 @@ const RESOLVE_PAGE_SIZE: i32 = 1000;
 /// Failures recorded verbatim on the task before the rest are summarised, so a
 /// wholesale failure cannot blow up the task_execution row.
 const MAX_REPORTED_FAILURES: usize = 50;
+
+const VOTER_HAS_BALLOT: &str = "the voter has cast a ballot";
+
+/// The deleted ids an audit entry lists.
+const MAX_AUDITED_IDS: usize = 1000;
+
+const VOTER: &str = "voter";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeleteUsersOutput {
@@ -49,6 +59,7 @@ pub async fn delete_users(
     user_ids: Option<Vec<String>>,
     filter: Option<ListUsersFilter>,
     task_execution: Option<TasksExecution>,
+    audit_actor: Option<AuditActor>,
 ) -> Result<()> {
     ensure_election_event_not_locked(&task_execution).await?;
 
@@ -80,6 +91,17 @@ pub async fn delete_users(
     // destructive operation.
     ensure_election_event_not_locked(&task_execution).await?;
 
+    let voters_with_ballots = match voters_with_active_ballots(&task_execution).await {
+        Ok(voters) => voters,
+        Err(err) => {
+            return fail(
+                &task_execution,
+                format!("Failed to check the voters' ballots: {err}"),
+            )
+            .await;
+        }
+    };
+
     let total = ids.len();
     info!("Deleting {total} voters from realm {realm}");
 
@@ -95,11 +117,26 @@ pub async fn delete_users(
     };
 
     let mut failures: Vec<String> = vec![];
-    let mut deleted: usize = 0;
+    let mut deleted_ids: Vec<&String> = vec![];
     for id in &ids {
+        if voters_with_ballots.contains(id) {
+            failures.push(format!("{id}: {VOTER_HAS_BALLOT}"));
+            continue;
+        }
         match client.delete_user(&realm, id).await {
-            Ok(_) => deleted += 1,
+            Ok(_) => deleted_ids.push(id),
             Err(err) => failures.push(format!("{id}: {err}")),
+        }
+    }
+    let deleted = deleted_ids.len();
+
+    if deleted > 0 {
+        if let Err(err) = audit_deleted(&task_execution, audit_actor, &deleted_ids, total).await {
+            return fail(
+                &task_execution,
+                format!("Deleted {deleted} of {total} voters, but the audit entry could not be queued: {err:#}"),
+            )
+            .await;
         }
     }
 
@@ -136,6 +173,41 @@ pub async fn delete_users(
     Ok(())
 }
 
+/// The entry of a run's deletions, in the election event's log. The ids are
+/// listed up to [`MAX_AUDITED_IDS`]; a larger run records its count.
+fn deleted_voters_change(
+    task: &TasksExecution,
+    actor: Option<AuditActor>,
+    deleted_ids: &[&String],
+    total: usize,
+) -> anyhow::Result<AdminChange> {
+    let target = task_audit::target(&task.tenant_id, task.election_event_id.as_deref())?;
+    let mut extra = json!({"count": deleted_ids.len(), "total": total, "task_id": task.id});
+    if deleted_ids.len() <= MAX_AUDITED_IDS {
+        extra["ids"] = json!(deleted_ids);
+    }
+    Ok(task_audit::change(
+        actor,
+        target,
+        AuditObject::new(VOTER, task_audit::MANY, None),
+        AdminAction::Delete,
+    )
+    .with_extra(extra)
+    .with_description(format!("Deleted {} voter accounts", deleted_ids.len())))
+}
+
+async fn audit_deleted(
+    task_execution: &Option<TasksExecution>,
+    actor: Option<AuditActor>,
+    deleted_ids: &[&String],
+    total: usize,
+) -> anyhow::Result<()> {
+    let task = task_execution
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("Missing task execution record"))?;
+    task_audit::record(deleted_voters_change(task, actor, deleted_ids, total)?).await
+}
+
 async fn ensure_election_event_not_locked(task_execution: &Option<TasksExecution>) -> Result<()> {
     let Some(task) = task_execution else {
         return fail(
@@ -163,6 +235,29 @@ async fn ensure_election_event_not_locked(task_execution: &Option<TasksExecution
             .await
         }
     }
+}
+
+/// The voters of the task's election event with a valid or in-progress
+/// ballot. Deleting one would leave that ballot out of the tally.
+async fn voters_with_active_ballots(
+    task_execution: &Option<TasksExecution>,
+) -> anyhow::Result<HashSet<String>> {
+    let task = task_execution
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("Missing task execution record"))?;
+    let election_event_id = task
+        .election_event_id
+        .as_deref()
+        .ok_or_else(|| anyhow::anyhow!("Missing election event id"))?;
+    let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await?;
+    let hasura_transaction = hasura_db_client.transaction().await?;
+    let states =
+        get_voter_ballot_states(&hasura_transaction, &task.tenant_id, election_event_id).await?;
+    Ok(states
+        .into_iter()
+        .filter(|(_, state)| state.has_active_vote())
+        .map(|(voter_id, _)| voter_id)
+        .collect())
 }
 
 /// Marks the task failed and returns the same message as the task error, so the
@@ -260,4 +355,81 @@ async fn resolve_ids(filter: ListUsersFilter) -> Result<Vec<String>> {
     }
 
     Ok(all)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::audit_log::AuditOrigin;
+    use chrono::Local;
+
+    const TENANT_ID: &str = "4f1c6b38-9f5e-4a59-8d3b-2a7f0c1e5d61";
+    const EVENT_ID: &str = "b7e2d915-3c4a-4e8f-9a61-5d0f2c8b7e43";
+
+    fn task() -> TasksExecution {
+        TasksExecution {
+            id: "task-id".to_string(),
+            tenant_id: TENANT_ID.to_string(),
+            election_event_id: Some(EVENT_ID.to_string()),
+            name: "Delete Voters".to_string(),
+            task_type: "DELETE_VOTERS".to_string(),
+            execution_status: "IN_PROGRESS".to_string(),
+            created_at: Local::now(),
+            start_at: None,
+            end_at: None,
+            annotations: None,
+            labels: None,
+            logs: None,
+            executed_by_user: "Ada".to_string(),
+        }
+    }
+
+    fn admin() -> AuditActor {
+        AuditActor {
+            user_id: Some("admin-id".into()),
+            username: Some("ada".into()),
+            role: Some("admin-user".into()),
+        }
+    }
+
+    #[test]
+    fn a_run_is_one_entry_in_the_event_log_with_the_deleted_ids() {
+        let ids = ["voter-1".to_string(), "voter-2".to_string()];
+        let deleted: Vec<&String> = ids.iter().collect();
+        let change = deleted_voters_change(&task(), Some(admin()), &deleted, 3).unwrap();
+
+        assert_eq!(
+            change.target.election_event_id.map(|id| id.to_string()),
+            Some(EVENT_ID.to_string())
+        );
+        assert_eq!(change.object, AuditObject::new(VOTER, "*", None));
+        assert_eq!(change.action, AdminAction::Delete);
+        assert_eq!(change.actor, admin());
+        assert_eq!(change.origin, AuditOrigin::Windmill);
+        assert_eq!(
+            change.extra,
+            json!({"count": 2, "total": 3, "task_id": "task-id", "ids": ["voter-1", "voter-2"]})
+        );
+        assert_eq!(change.describe(), "Deleted 2 voter accounts");
+    }
+
+    #[test]
+    fn a_large_run_records_its_count_without_the_ids() {
+        let ids: Vec<String> = (0..=MAX_AUDITED_IDS)
+            .map(|n| format!("voter-{n}"))
+            .collect();
+        let deleted: Vec<&String> = ids.iter().collect();
+        let change = deleted_voters_change(&task(), None, &deleted, ids.len()).unwrap();
+
+        assert_eq!(change.extra["count"], MAX_AUDITED_IDS + 1);
+        assert!(change.extra.get("ids").is_none());
+        assert_eq!(change.actor, AuditActor::default());
+    }
+
+    #[test]
+    fn a_task_without_a_readable_tenant_cannot_be_audited() {
+        let mut task = task();
+        task.tenant_id = "tenant".to_string();
+        assert!(deleted_voters_change(&task, None, &[], 0).is_err());
+    }
 }

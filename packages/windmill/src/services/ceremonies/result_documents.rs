@@ -46,7 +46,6 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use strand::hash::hash_b64;
 use tokio::task;
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
@@ -55,6 +54,7 @@ use velvet::pipes::generate_reports::{
 };
 use velvet::pipes::pipe_inputs::{PREFIX_ALL_AREAS, PREFIX_CONTEST, PREFIX_ELECTION};
 use velvet::pipes::report_manifest::read_folder_manifest;
+use voting_crypto::hash::hash_b64;
 
 use crate::domain::tally_ceremony::{EXECUTER_USERNAME_ANNOTATION, EXECUTER_USER_ID_ANNOTATION};
 use crate::postgres::tally_session::get_tally_session_by_id;

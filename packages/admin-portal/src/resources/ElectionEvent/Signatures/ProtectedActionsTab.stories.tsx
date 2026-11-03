@@ -121,8 +121,8 @@ async function expectRules(canvasElement: HTMLElement, organization: Organizatio
                 .join("")
         )
         if (
-            action === SigningAction.ConfirmKeyShare ||
-            action === SigningAction.ContributeKeyShare
+            action === SigningAction.ConfirmCustodyProof ||
+            action === SigningAction.ContributeCustodyProof
         ) {
             expect([signatures, expires]).toEqual([label("protectedActions.eachTrustee"), "–"])
         } else {

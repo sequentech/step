@@ -6,7 +6,7 @@
 //! hash, the seal record (public or restricted) and the pure checks that
 //! windmill's sealer, the tally and `step-cli verify-ballot-box-seal` share.
 //!
-//! A ballot box is the `cast_vote` rows of one (tenant, event, election,
+//! A ballot box is the `ballot_box_ballot` rows of one (event, election,
 //! area). The manifest lists every one of them, in any status, and its
 //! SHA-512 (the seal hash) goes to the event's electoral log in a signed
 //! `BallotBoxSealed` statement.
@@ -19,11 +19,12 @@ use base64::{engine::general_purpose, Engine as _};
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::{DateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
-use strand::hash::{hash_sha256, hash_to_array, Hash};
-use strand::serialization::{StrandDeserialize, StrandSerialize};
-use strand::signature::StrandSignaturePk;
 use strum_macros::Display;
+use voting_crypto::hash::{hash_sha256, hash_to_array, Hash};
+use voting_crypto::signing::VerificationKey;
+use voting_crypto::{RecordDeserialize, RecordSerialize};
 
+use crate::domain::StoredRecord;
 use crate::messages::message::Message;
 use crate::messages::statement::{StatementBody, StatementType};
 
@@ -93,7 +94,7 @@ pub struct SealEntry {
     /// (see [`ballot_hash`]). Hex in JSON.
     #[serde(with = "hash_hex")]
     pub ballot_hash: Hash,
-    /// The stored `cast_vote.ballot_id`, verbatim.
+    /// The stored `ballot_box_ballot.ballot_id`, verbatim.
     pub ballot_id: String,
     pub disposition: SealDisposition,
     /// Multiplicity for a counted ballot (1, the delegate count or the vote
@@ -146,11 +147,11 @@ impl BallotBoxSealManifest {
     }
 
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
-        Ok(self.strand_serialize()?)
+        Ok(self.record_serialize()?)
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
-        Ok(Self::strand_deserialize(bytes)?)
+        Ok(Self::record_deserialize(bytes)?)
     }
 }
 
@@ -188,7 +189,7 @@ pub fn build(mut manifest: BallotBoxSealManifest) -> Result<BuiltSeal> {
 /// The first 16 bytes of SHA-256 over the key's SPKI DER (the bytes whose
 /// base64 the record carries), as 8 groups of 4 uppercase hex digits:
 /// `AAA1 D55F 6B1D 555E 0C3A 9F21 7B44 E0D2`.
-pub fn fingerprint(pk: &StrandSignaturePk) -> Result<String> {
+pub fn fingerprint(pk: &VerificationKey) -> Result<String> {
     let digest = hash_sha256(&pk.to_der()?)?;
     let hex = hex::encode_upper(&digest[..FINGERPRINT_BYTES]);
     Ok(hex
@@ -319,9 +320,32 @@ pub struct SealRecordCloseRequest {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct SealRecordLogEntry {
-    /// The electoral log entry id of the `BallotBoxSealed` message.
+    /// The electoral log entry id of the `BallotBoxSealed` message in the
+    /// database that stores the event's log.
     pub id: i64,
     pub statement_kind: String,
+    /// The entry's delivery ID, the identity of its log and its leaf in that
+    /// log, which name the entry wherever the log is copied. Records written
+    /// before they were recorded have none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delivery_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub log_uid: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub leaf_index: Option<i64>,
+}
+
+impl SealRecordLogEntry {
+    /// The `BallotBoxSealed` entry the log stored as `record`.
+    pub fn sealed(record: &StoredRecord) -> SealRecordLogEntry {
+        SealRecordLogEntry {
+            id: record.id,
+            statement_kind: StatementType::BallotBoxSealed.to_string(),
+            delivery_id: Some(record.delivery_id.clone()),
+            log_uid: Some(record.log_uid.hyphenated().to_string()),
+            leaf_index: Some(record.leaf_index),
+        }
+    }
 }
 
 /// The seal record of one ballot box: a public or a restricted (private)
@@ -368,18 +392,19 @@ pub struct SealRecordNames {
 
 impl SealRecord {
     /// Builds the record from the seal row's stored bytes: the manifest and
-    /// the signed message, both exactly as stored.
+    /// the signed message, both exactly as stored, and where the log stores
+    /// the message.
     pub fn from_parts(
         manifest_bytes: &[u8],
         signed_message: &[u8],
-        system_pk: &StrandSignaturePk,
+        system_pk: &VerificationKey,
         names: SealRecordNames,
         close_request: Option<SealRecordCloseRequest>,
-        log_entry_id: i64,
+        log_entry: SealRecordLogEntry,
     ) -> Result<SealRecord> {
         let manifest = BallotBoxSealManifest::from_bytes(manifest_bytes)
             .context("the stored manifest does not decode")?;
-        let message = Message::strand_deserialize(signed_message)
+        let message = Message::record_deserialize(signed_message)
             .map_err(|error| anyhow!("the stored message does not decode: {error}"))?;
         Ok(SealRecord {
             format: manifest.format.clone(),
@@ -406,11 +431,8 @@ impl SealRecord {
             },
             close_request,
             seal_hash: hex::encode(seal_hash(manifest_bytes)?),
-            log_entry: SealRecordLogEntry {
-                id: log_entry_id,
-                statement_kind: StatementType::BallotBoxSealed.to_string(),
-            },
-            system_public_key: system_pk.to_der_b64_string()?,
+            log_entry,
+            system_public_key: system_pk.to_b64_string()?,
             message: serde_json::to_value(&message)?,
             message_b64: general_purpose::STANDARD.encode(signed_message),
             entries: manifest.entries.clone(),
@@ -447,7 +469,7 @@ pub fn parse_time(text: &str) -> Result<u64> {
 /// The key a verifier expects the log to be signed with.
 #[derive(Clone)]
 pub enum ExpectedKey {
-    PublicKey(StrandSignaturePk),
+    PublicKey(VerificationKey),
     /// As [`fingerprint`] prints it; spaces, colons and case are ignored.
     Fingerprint(String),
 }
@@ -460,12 +482,12 @@ impl ExpectedKey {
             return Ok(ExpectedKey::Fingerprint(text.to_string()));
         }
         Ok(ExpectedKey::PublicKey(
-            StrandSignaturePk::from_der_b64_string(text.trim())
+            VerificationKey::from_b64_string(text.trim())
                 .map_err(|error| anyhow!("not a fingerprint nor a base64 key: {error}"))?,
         ))
     }
 
-    fn matches(&self, pk: &StrandSignaturePk) -> Result<bool> {
+    fn matches(&self, pk: &VerificationKey) -> Result<bool> {
         Ok(match self {
             ExpectedKey::PublicKey(expected) => expected.to_der()? == pk.to_der()?,
             ExpectedKey::Fingerprint(expected) => {
@@ -723,7 +745,7 @@ pub fn verify_record(
     let message_bytes = general_purpose::STANDARD
         .decode(&record.message_b64)
         .or_else(|error| fail(Step::Message, format!("the message is not base64: {error}")))?;
-    let message = Message::strand_deserialize(&message_bytes).or_else(|error| {
+    let message = Message::record_deserialize(&message_bytes).or_else(|error| {
         fail(
             Step::Message,
             format!("the message does not decode: {error}"),
@@ -755,7 +777,7 @@ pub fn verify_record(
     }
 
     let system_pk =
-        StrandSignaturePk::from_der_b64_string(&record.system_public_key).or_else(|error| {
+        VerificationKey::from_b64_string(&record.system_public_key).or_else(|error| {
             fail(
                 Step::SystemSignature,
                 format!("the system key does not decode: {error}"),
@@ -763,7 +785,7 @@ pub fn verify_record(
         })?;
     let statement_bytes = message
         .statement
-        .strand_serialize()
+        .record_serialize()
         .or_else(|error| fail(Step::Message, error.to_string()))?;
     system_pk
         .verify(&message.system_signature, &statement_bytes)
@@ -815,7 +837,7 @@ pub fn verify_record(
 /// Serde for a 64-byte hash as lowercase hex.
 mod hash_hex {
     use serde::{Deserialize, Deserializer, Serializer};
-    use strand::hash::Hash;
+    use voting_crypto::hash::Hash;
 
     pub fn serialize<S: Serializer>(hash: &Hash, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_str(&hex::encode(hash))
