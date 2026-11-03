@@ -69,6 +69,9 @@ public class Utils {
   public static final String SESSION_ID = "session_id";
   public static final String ERROR_GENERATING_APPROVAL = "approvalGenerationError";
 
+  /** Windmill refused to record a late EMAIL_IN_USE rejection: the voter must start again. */
+  public static final String ERROR_EMAIL_IN_USE_NOT_RECORDED = "emailInUseRejectionNotRecorded";
+
   private static final String KEYS_USERDATA = "keyUserdata";
   private static final String KEYS_USERDATA_SEPARATOR = ";";
   private static final List<String> DEFAULT_KEYS_USERDATA =
@@ -96,6 +99,7 @@ public class Utils {
                   LookupAndUpdateUser.VERIFICATION_STATUS,
                   LookupAndUpdateUser.VERIFICATION_REJECTION_REASON,
                   LookupAndUpdateUser.VERIFICATION_MISMATCHED_FIELDS,
+                  LookupAndUpdateUser.EMAIL_IN_USE_REJECTION_NOTE,
                   LookupAndUpdateUser.FIELDS_MATCH,
                   LookupAndUpdateUser.IDENTITY_METHOD,
                   KEYS_USERDATA,

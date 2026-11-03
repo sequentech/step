@@ -6,7 +6,10 @@ use super::approval_matrix::evaluate::{
 };
 use super::approval_matrix::store::get_current_approval_matrix;
 use super::approval_matrix::{FieldMatch, IdentityMethod};
-use super::users::{get_user_ids_by_email, lookup_users, FilterOption, ListUsersFilter};
+use super::users::{
+    check_is_user_verified, get_realm_email_uniqueness, get_user_ids_by_email, get_username_by_id,
+    lookup_users, EmailUniqueness, FilterOption, ListUsersFilter,
+};
 use crate::postgres::application::get_permission_label_from_post;
 use crate::postgres::area::get_elections_by_area;
 use crate::postgres::area::get_event_areas;
@@ -29,7 +32,10 @@ use crate::tasks::send_template::{first_attribute, get_variables, render_content
 use crate::types::application::ApplicationRejectReason;
 use crate::types::application::NoMatchingVoterPolicy;
 use crate::{
-    postgres::application::{insert_application, update_application_status},
+    postgres::application::{
+        get_application_for_update, insert_application, reject_accepted_automatic_application,
+        update_application_status,
+    },
     types::application::ApplicationStatus,
     types::application::ApplicationType,
 };
@@ -57,6 +63,7 @@ use sequent_core::types::keycloak::{
 use sequent_core::types::templates::{EmailConfig, SendTemplateBody, SmsConfig, TemplateMethod};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, HashMap};
 use strum_macros::Display;
 use tracing::{debug, event, info, instrument, warn, Level};
@@ -166,9 +173,13 @@ pub async fn verify_application(
     let (result, decision) =
         automatic_verification(users.clone(), &matrix, &annotations, applicant_data)?;
     let result = match applicant_data.get(EMAIL_FIELD) {
-        Some(email) if result.application_status == ApplicationStatus::ACCEPTED => {
+        Some(email)
+            if result.application_status == ApplicationStatus::ACCEPTED
+                && updates_email(annotations.update_attributes.as_deref()) =>
+        {
+            let uniqueness = get_realm_email_uniqueness(keycloak_transaction, &realm).await?;
             let holders = get_user_ids_by_email(keycloak_transaction, &realm, email).await?;
-            reject_duplicate_email(result, &holders)
+            reject_duplicate_email(result, uniqueness, &holders)
         }
         _ => result,
     };
@@ -176,7 +187,10 @@ pub async fn verify_application(
 
     // Set the annotations
     let annotations = ApplicationAnnotations {
-        session_id: annotations.session_id.clone(),
+        session_id: annotations
+            .session_id
+            .as_ref()
+            .map(|session| EnrollmentSession(session_digest(&session.0))),
         credentials: annotations.credentials.clone(),
         verified_by: None,
         rejection_reason: result.rejection_reason.clone(),
@@ -386,9 +400,24 @@ fn build_manual_verify_reason(fields_match: HashMap<String, bool>) -> String {
     format!("Mismatch at {}", mismatch_fields)
 }
 
+/// An enrollment's Keycloak session, as Keycloak sends it or as its digest.
+/// Its `Debug` hides it: a live session must never reach the logs.
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct EnrollmentSession(String);
+
+impl std::fmt::Debug for EnrollmentSession {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("EnrollmentSession(..)")
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ApplicationAnnotations {
-    session_id: Option<String>,
+    /// The enrollment's Keycloak session, which Keycloak sends as
+    /// `sessionId`. Stored only as its [`session_digest`].
+    #[serde(alias = "sessionId")]
+    session_id: Option<EnrollmentSession>,
     credentials: Option<Value>,
     verified_by: Option<String>,
     rejection_reason: Option<ApplicationRejectReason>,
@@ -596,16 +625,39 @@ fn automatic_verification(
     Ok((result, record))
 }
 
-/// Rejects an accepted enrollment whose email another voter already has:
-/// Keycloak keeps emails unique, so the voter couldn't be updated.
+/// Whether the enrollment flow's `update-attributes` setting writes the
+/// applicant's email on the voter.
+fn updates_email(update_attributes: Option<&str>) -> bool {
+    update_attributes.is_some_and(|attributes| {
+        attributes
+            .split(',')
+            .any(|attribute| attribute.trim() == EMAIL_FIELD)
+    })
+}
+
+/// Whether setting the email would clash with another user: the realm keeps
+/// emails unique and someone other than `user_id` has it.
+fn email_held_by_another(
+    uniqueness: EmailUniqueness,
+    email_holders: &[String],
+    user_id: Option<&str>,
+) -> bool {
+    uniqueness == EmailUniqueness::UNIQUE
+        && email_holders
+            .iter()
+            .any(|holder| Some(holder.as_str()) != user_id)
+}
+
+/// Rejects an accepted enrollment whose email another voter already has, in
+/// a realm that keeps emails unique: the voter couldn't be updated.
 fn reject_duplicate_email(
     result: ApplicationVerificationResult,
+    uniqueness: EmailUniqueness,
     email_holders: &[String],
 ) -> ApplicationVerificationResult {
-    let held_by_another = email_holders
-        .iter()
-        .any(|holder| Some(holder) != result.user_id.as_ref());
-    if result.application_status != ApplicationStatus::ACCEPTED || !held_by_another {
+    if result.application_status != ApplicationStatus::ACCEPTED
+        || !email_held_by_another(uniqueness, email_holders, result.user_id.as_deref())
+    {
         return result;
     }
     ApplicationVerificationResult {
@@ -1119,6 +1171,171 @@ pub async fn reject_application(
     .map_err(|err| anyhow!("Error sending communication response: {err}"))?;
 
     Ok(application)
+}
+
+/// How an application keeps the enrollment session that sent it: a digest,
+/// so the stored annotations don't give the live session away.
+fn session_digest(session_id: &str) -> String {
+    format!(
+        "sha256:{}",
+        hex::encode(Sha256::digest(session_id.as_bytes()))
+    )
+}
+
+/// Why an accepted application can't be rejected late as `EMAIL_IN_USE`.
+#[allow(non_camel_case_types)]
+#[derive(Display, Debug, PartialEq, Eq, Clone, Copy)]
+pub enum EmailInUseRefusal {
+    APPLICATION_NOT_FOUND,
+    NOT_THE_ENROLLMENT_SESSION,
+    NOT_AUTOMATICALLY_ACCEPTED,
+    NOT_THE_MATCHED_VOTER,
+    EMAIL_NOT_UPDATED,
+    EMAIL_NOT_IN_USE,
+    VOTER_ALREADY_ENROLLED,
+}
+
+#[derive(Debug)]
+pub enum EmailInUseRejection {
+    Rejected(Application),
+    /// An earlier request rejected it; its answer may have been lost.
+    AlreadyRejected,
+    Refused(EmailInUseRefusal),
+}
+
+/// What the late check decides for an application.
+#[derive(Debug, PartialEq, Eq)]
+enum EmailInUseCheck {
+    Reject,
+    AlreadyRejected,
+    Refuse(EmailInUseRefusal),
+}
+
+/// What the late check knows of an application, its matched voter and the
+/// applicant's email.
+struct EmailInUseFacts<'a> {
+    application: &'a Application,
+    session_id: &'a str,
+    user_id: &'a str,
+    voter_username: Option<&'a str>,
+    voter_enrolled: bool,
+    uniqueness: EmailUniqueness,
+    email_holders: &'a [String],
+}
+
+fn application_text<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
+    value.get(key).and_then(Value::as_str)
+}
+
+/// Whether the application can be rejected late as `EMAIL_IN_USE`. It must
+/// belong to the asking enrollment session and its matched voter. It is
+/// rejected only while still automatically accepted, writing the email, which
+/// another user has in a realm with unique emails, and with the voter not
+/// enrolled. One this check already rejected stays so, for retries.
+fn check_email_in_use_rejection(facts: &EmailInUseFacts) -> EmailInUseCheck {
+    let application = facts.application;
+    let annotation = |key| {
+        application
+            .annotations
+            .as_ref()
+            .and_then(|annotations| application_text(annotations, key))
+    };
+    if annotation("session_id") != Some(session_digest(facts.session_id).as_str()) {
+        return EmailInUseCheck::Refuse(EmailInUseRefusal::NOT_THE_ENROLLMENT_SESSION);
+    }
+    let applicant_username = application_text(&application.applicant_data, "username");
+    if applicant_username.map_or(true, str::is_empty) || applicant_username != facts.voter_username
+    {
+        return EmailInUseCheck::Refuse(EmailInUseRefusal::NOT_THE_MATCHED_VOTER);
+    }
+    let automatic = application.verification_type == ApplicationType::AUTOMATIC.to_string();
+    if automatic
+        && application.status == ApplicationStatus::REJECTED.to_string()
+        && annotation("rejection_reason") == Some("EMAIL_IN_USE")
+    {
+        return EmailInUseCheck::AlreadyRejected;
+    }
+    if !automatic || application.status != ApplicationStatus::ACCEPTED.to_string() {
+        return EmailInUseCheck::Refuse(EmailInUseRefusal::NOT_AUTOMATICALLY_ACCEPTED);
+    }
+    let email = application_text(&application.applicant_data, EMAIL_FIELD);
+    if !updates_email(annotation("update-attributes"))
+        || email.map_or(true, |email| email.trim().is_empty())
+    {
+        return EmailInUseCheck::Refuse(EmailInUseRefusal::EMAIL_NOT_UPDATED);
+    }
+    if !email_held_by_another(facts.uniqueness, facts.email_holders, Some(facts.user_id)) {
+        return EmailInUseCheck::Refuse(EmailInUseRefusal::EMAIL_NOT_IN_USE);
+    }
+    if facts.voter_enrolled {
+        return EmailInUseCheck::Refuse(EmailInUseRefusal::VOTER_ALREADY_ENROLLED);
+    }
+    EmailInUseCheck::Reject
+}
+
+/// Rejects as `EMAIL_IN_USE` an application windmill accepted when Keycloak,
+/// about to update the voter `user_id`, finds the email already taken. It
+/// rechecks everything here, under a lock on the application (see
+/// [`check_email_in_use_rejection`]). Keycloak tells the applicant, as for the
+/// other automatic rejections.
+#[instrument(skip(hasura_transaction, keycloak_transaction, session_id), err)]
+pub async fn reject_accepted_application_email_in_use(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    application_id: &str,
+    session_id: &str,
+    user_id: &str,
+) -> Result<EmailInUseRejection> {
+    let Some(application) = get_application_for_update(
+        hasura_transaction,
+        application_id,
+        tenant_id,
+        election_event_id,
+    )
+    .await?
+    else {
+        return Ok(EmailInUseRejection::Refused(
+            EmailInUseRefusal::APPLICATION_NOT_FOUND,
+        ));
+    };
+    let realm = get_event_realm(tenant_id, election_event_id);
+    let email = application_text(&application.applicant_data, EMAIL_FIELD).unwrap_or_default();
+    let voter_username = get_username_by_id(keycloak_transaction, &realm, user_id).await?;
+    let email_holders = get_user_ids_by_email(keycloak_transaction, &realm, email).await?;
+    let facts = EmailInUseFacts {
+        application: &application,
+        session_id,
+        user_id,
+        voter_username: voter_username.as_deref(),
+        voter_enrolled: check_is_user_verified(keycloak_transaction, &realm, user_id).await?,
+        uniqueness: get_realm_email_uniqueness(keycloak_transaction, &realm).await?,
+        email_holders: &email_holders,
+    };
+    match check_email_in_use_rejection(&facts) {
+        EmailInUseCheck::Reject => {}
+        EmailInUseCheck::AlreadyRejected => return Ok(EmailInUseRejection::AlreadyRejected),
+        EmailInUseCheck::Refuse(refusal) => {
+            info!("Not rejecting application {application_id} as email in use: {refusal}");
+            return Ok(EmailInUseRejection::Refused(refusal));
+        }
+    }
+    let reason = serde_json::to_value(ApplicationRejectReason::EMAIL_IN_USE)?;
+    Ok(
+        match reject_accepted_automatic_application(
+            hasura_transaction,
+            application_id,
+            tenant_id,
+            election_event_id,
+            &reason,
+        )
+        .await?
+        {
+            Some(application) => EmailInUseRejection::Rejected(application),
+            None => EmailInUseRejection::Refused(EmailInUseRefusal::NOT_AUTOMATICALLY_ACCEPTED),
+        },
+    )
 }
 
 /// The applicant data keys that carry the verified channel, written by
@@ -1675,7 +1892,11 @@ mod tests {
 
     #[test]
     fn accepted_enrollment_with_another_voters_email_is_rejected() {
-        let result = reject_duplicate_email(accepted_census_result(), &["other-voter".to_string()]);
+        let result = reject_duplicate_email(
+            accepted_census_result(),
+            EmailUniqueness::UNIQUE,
+            &["other-voter".to_string()],
+        );
 
         assert_eq!(result.application_status, ApplicationStatus::REJECTED);
         assert_eq!(result.application_type, ApplicationType::AUTOMATIC);
@@ -1687,7 +1908,7 @@ mod tests {
 
     #[test]
     fn accepted_enrollment_with_an_unused_email_stays_accepted() {
-        let result = reject_duplicate_email(accepted_census_result(), &[]);
+        let result = reject_duplicate_email(accepted_census_result(), EmailUniqueness::UNIQUE, &[]);
 
         assert_eq!(result.application_status, ApplicationStatus::ACCEPTED);
         assert_eq!(result.rejection_reason, None);
@@ -1695,7 +1916,11 @@ mod tests {
 
     #[test]
     fn accepted_enrollment_with_the_matched_voters_own_email_stays_accepted() {
-        let result = reject_duplicate_email(accepted_census_result(), &["voter-id".to_string()]);
+        let result = reject_duplicate_email(
+            accepted_census_result(),
+            EmailUniqueness::UNIQUE,
+            &["voter-id".to_string()],
+        );
 
         assert_eq!(result.application_status, ApplicationStatus::ACCEPTED);
     }
@@ -1710,9 +1935,275 @@ mod tests {
         )
         .unwrap();
 
-        let result = reject_duplicate_email(pending, &["other-voter".to_string()]);
+        let result = reject_duplicate_email(
+            pending,
+            EmailUniqueness::UNIQUE,
+            &["other-voter".to_string()],
+        );
 
         assert_eq!(result.application_status, ApplicationStatus::PENDING);
+    }
+
+    /// A realm that allows duplicate emails updates the voter whoever else
+    /// has the email, so the enrollment stays accepted.
+    #[test]
+    fn a_realm_allowing_duplicate_emails_keeps_the_enrollment_accepted() {
+        let result = reject_duplicate_email(
+            accepted_census_result(),
+            EmailUniqueness::DUPLICATES_ALLOWED,
+            &["other-voter".to_string(), "third-voter".to_string()],
+        );
+
+        assert_eq!(result.application_status, ApplicationStatus::ACCEPTED);
+        assert_eq!(result.rejection_reason, None);
+    }
+
+    /// Only a flow that writes the email on the voter can clash with
+    /// another voter's.
+    #[test]
+    fn only_a_flow_updating_the_email_checks_it() {
+        assert!(updates_email(Some("firstName, email ,lastName")));
+        assert!(updates_email(Some("email")));
+        assert!(!updates_email(Some(
+            "firstName,sequent.read-only.mobile-number"
+        )));
+        assert!(!updates_email(Some("emailVerified")));
+        assert!(!updates_email(Some("")));
+        assert!(!updates_email(None));
+    }
+
+    /// Keycloak sends the session as `sessionId`; it is kept only as a
+    /// digest.
+    #[test]
+    fn the_enrollment_session_is_stored_as_a_digest() {
+        let annotations: ApplicationAnnotations =
+            serde_json::from_value(serde_json::json!({"sessionId": "session-1"})).unwrap();
+
+        assert_eq!(
+            annotations.session_id,
+            Some(EnrollmentSession("session-1".to_string()))
+        );
+        assert!(!format!("{annotations:?}").contains("session-1"));
+        let digest = session_digest("session-1");
+        assert!(digest.starts_with("sha256:"));
+        assert!(!digest.contains("session-1"));
+        assert_ne!(digest, session_digest("session-2"));
+    }
+
+    const LATE_SESSION: &str = "enrollment-session";
+    const LATE_VOTER_ID: &str = "voter-id";
+    const LATE_VOTER_USERNAME: &str = "voter";
+
+    /// An application windmill accepted automatically for the voter, from
+    /// the enrollment session, whose flow writes the email.
+    fn accepted_application() -> Application {
+        Application {
+            id: "00000000-0000-4000-8000-000000000001".to_string(),
+            created_at: None,
+            updated_at: None,
+            tenant_id: "00000000-0000-4000-8000-000000000002".to_string(),
+            election_event_id: "00000000-0000-4000-8000-000000000003".to_string(),
+            area_id: None,
+            applicant_id: "null".to_string(),
+            applicant_data: serde_json::json!({
+                "email": "voter@example.com",
+                "username": LATE_VOTER_USERNAME,
+            }),
+            labels: None,
+            annotations: Some(serde_json::json!({
+                "session_id": session_digest(LATE_SESSION),
+                "update-attributes": "firstName,email,sequent.read-only.mobile-number",
+            })),
+            verification_type: ApplicationType::AUTOMATIC.to_string(),
+            status: ApplicationStatus::ACCEPTED.to_string(),
+        }
+    }
+
+    fn late_check(application: &Application, other_holder: bool) -> EmailInUseCheck {
+        late_check_with(
+            application,
+            LATE_SESSION,
+            other_holder,
+            false,
+            EmailUniqueness::UNIQUE,
+        )
+    }
+
+    fn late_check_with(
+        application: &Application,
+        session_id: &str,
+        other_holder: bool,
+        voter_enrolled: bool,
+        uniqueness: EmailUniqueness,
+    ) -> EmailInUseCheck {
+        let holders = if other_holder {
+            vec!["other-voter".to_string()]
+        } else {
+            vec![LATE_VOTER_ID.to_string()]
+        };
+        check_email_in_use_rejection(&EmailInUseFacts {
+            application,
+            session_id,
+            user_id: LATE_VOTER_ID,
+            voter_username: Some(LATE_VOTER_USERNAME),
+            voter_enrolled,
+            uniqueness,
+            email_holders: &holders,
+        })
+    }
+
+    fn refused(refusal: EmailInUseRefusal) -> EmailInUseCheck {
+        EmailInUseCheck::Refuse(refusal)
+    }
+
+    #[test]
+    fn an_accepted_application_whose_email_another_voter_took_is_rejected() {
+        assert_eq!(
+            late_check(&accepted_application(), true),
+            EmailInUseCheck::Reject
+        );
+    }
+
+    /// Keycloak retries when the answer was lost: the rejection it already
+    /// made stands, and the retry succeeds.
+    #[test]
+    fn a_retry_after_the_rejection_succeeds_without_rejecting_again() {
+        let mut application = accepted_application();
+        application.status = ApplicationStatus::REJECTED.to_string();
+        application.annotations.as_mut().unwrap()["rejection_reason"] =
+            serde_json::json!("EMAIL_IN_USE");
+
+        assert_eq!(
+            late_check(&application, true),
+            EmailInUseCheck::AlreadyRejected
+        );
+        // Even once the other voter no longer has the email
+        assert_eq!(
+            late_check(&application, false),
+            EmailInUseCheck::AlreadyRejected
+        );
+    }
+
+    #[test]
+    fn an_application_rejected_for_another_reason_is_refused() {
+        let mut application = accepted_application();
+        application.status = ApplicationStatus::REJECTED.to_string();
+        application.annotations.as_mut().unwrap()["rejection_reason"] =
+            serde_json::json!("NO_VOTER");
+
+        assert_eq!(
+            late_check(&application, true),
+            refused(EmailInUseRefusal::NOT_AUTOMATICALLY_ACCEPTED)
+        );
+    }
+
+    /// An officer's decision is never overwritten.
+    #[test]
+    fn a_manual_decision_is_refused() {
+        for status in [ApplicationStatus::ACCEPTED, ApplicationStatus::REJECTED] {
+            let mut application = accepted_application();
+            application.verification_type = ApplicationType::MANUAL.to_string();
+            application.status = status.to_string();
+            application.annotations.as_mut().unwrap()["rejection_reason"] =
+                serde_json::json!("EMAIL_IN_USE");
+
+            assert_eq!(
+                late_check(&application, true),
+                refused(EmailInUseRefusal::NOT_AUTOMATICALLY_ACCEPTED)
+            );
+        }
+    }
+
+    #[test]
+    fn a_pending_application_is_refused() {
+        let mut application = accepted_application();
+        application.verification_type = ApplicationType::MANUAL.to_string();
+        application.status = ApplicationStatus::PENDING.to_string();
+
+        assert_eq!(
+            late_check(&application, true),
+            refused(EmailInUseRefusal::NOT_AUTOMATICALLY_ACCEPTED)
+        );
+    }
+
+    /// Another enrollment session can't reject the application, nor can any
+    /// for an application stored without its session.
+    #[test]
+    fn an_application_of_another_session_is_refused() {
+        assert_eq!(
+            late_check_with(
+                &accepted_application(),
+                "other-session",
+                true,
+                false,
+                EmailUniqueness::UNIQUE
+            ),
+            refused(EmailInUseRefusal::NOT_THE_ENROLLMENT_SESSION)
+        );
+        let mut legacy = accepted_application();
+        legacy.annotations = Some(serde_json::json!({"update-attributes": "email"}));
+        assert_eq!(
+            late_check(&legacy, true),
+            refused(EmailInUseRefusal::NOT_THE_ENROLLMENT_SESSION)
+        );
+    }
+
+    #[test]
+    fn an_application_matching_another_voter_is_refused() {
+        let mut application = accepted_application();
+        application.applicant_data["username"] = serde_json::json!("other");
+
+        assert_eq!(
+            late_check(&application, true),
+            refused(EmailInUseRefusal::NOT_THE_MATCHED_VOTER)
+        );
+    }
+
+    #[test]
+    fn a_flow_not_updating_the_email_is_refused() {
+        let mut application = accepted_application();
+        application.annotations.as_mut().unwrap()["update-attributes"] =
+            serde_json::json!("firstName,sequent.read-only.mobile-number");
+
+        assert_eq!(
+            late_check(&application, true),
+            refused(EmailInUseRefusal::EMAIL_NOT_UPDATED)
+        );
+    }
+
+    /// Only the voter has the email, or the realm allows duplicates: the
+    /// voter can be updated, so there is nothing to reject.
+    #[test]
+    fn an_email_not_in_use_by_another_is_refused() {
+        assert_eq!(
+            late_check(&accepted_application(), false),
+            refused(EmailInUseRefusal::EMAIL_NOT_IN_USE)
+        );
+        assert_eq!(
+            late_check_with(
+                &accepted_application(),
+                LATE_SESSION,
+                true,
+                false,
+                EmailUniqueness::DUPLICATES_ALLOWED
+            ),
+            refused(EmailInUseRefusal::EMAIL_NOT_IN_USE)
+        );
+    }
+
+    /// A voter that was enrolled keeps its accepted application.
+    #[test]
+    fn an_enrolled_voter_is_refused() {
+        assert_eq!(
+            late_check_with(
+                &accepted_application(),
+                LATE_SESSION,
+                true,
+                true,
+                EmailUniqueness::UNIQUE
+            ),
+            refused(EmailInUseRefusal::VOTER_ALREADY_ENROLLED)
+        );
     }
 
     #[test]
@@ -1721,7 +2212,10 @@ mod tests {
             serde_json::to_string(&ApplicationRejectReason::EMAIL_IN_USE).unwrap(),
             r#""EMAIL_IN_USE""#
         );
-        assert_eq!(ApplicationRejectReason::EMAIL_IN_USE.to_string(), "email-in-use");
+        assert_eq!(
+            ApplicationRejectReason::EMAIL_IN_USE.to_string(),
+            "email-in-use"
+        );
     }
 
     #[test]
