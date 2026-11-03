@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Historical SQL and workbook import | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4147/docs/developers/development-environment/historical-import"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Historical SQL and workbook import | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4147/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4147/docs/developers/development-environment/historical-import"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4147/docs/developers/development-environment/historical-import" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4147/docs/developers/development-environment/historical-import" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Historical SQL and workbook import","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4147/docs/developers/development-environment/historical-import"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4147/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4147/assets/js/runtime~main.575b2972.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4147/assets/js/runtime~main.b1db2578.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4147/assets/js/main.7e139f34.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -111,7 +111,17 @@ Mapped text uses declared UTF-8 or MySQL latin1 encoding. Binary content remains
 in the unmodified original; this profile does not publish candidate photographs
 from opaque blobs.</p>
 <p>The workbook contains <code>ElectionEvent</code>, <code>Elections</code>, <code>Areas</code>,
-<code>ScheduledEvents</code> and <code>CcsServers</code>. Blank styling rows are not records.
+<code>ScheduledEvents</code> and <code>CcsServers</code>, and optionally <code>Parameters</code>. Blank styling
+rows are not records. <code>Parameters</code> goes to the build unchanged, as in an
+authoring workbook: that is where realm settings the dump cannot hold belong,
+such as <code>keycloak_event_realm.displayName</code> (which otherwise follows the event
+name) and the login page&#x27;s <code>login_custom_css</code>. Without a base export they reach
+the realm patch beside the package, not the realm itself.</p>
+<p>A cell holds at most 32,767 characters, and a stylesheet can be longer. A column
+headed <code>&lt;column&gt;+</code> directly after <code>&lt;column&gt;</code> (or after another <code>&lt;column&gt;+</code>)
+continues it: a row&#x27;s text there is joined onto the column&#x27;s, left to right,
+before the cell is read. This holds for every workbook sheet, and the workbook
+writer splits longer text the same way.
 Election aliases must be unique because schedules refer to aliases. Several
 election rows may share a post; they remain separate contexts.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="defaults-workbook">Defaults workbook<a href="#defaults-workbook" class="hash-link" aria-label="Direct link to Defaults workbook" title="Direct link to Defaults workbook" translate="no">​</a></h3>
@@ -121,7 +131,19 @@ carries only what the dump does not hold, and the elections and areas are
 derived from the dump, so the same workbook serves any dump of that source.</p>
 <ul>
 <li class=""><strong>Elections</strong>: one per polling center that a <code>pop</code> row places voters in,
-named and aliased by its <code>POLLING_PLACE</code>.</li>
+named and aliased by its <code>POLLING_PLACE</code>. An <code>ElectionDefaults</code> sheet gives
+elections their other columns, <code>name</code> included. A row without a
+<code>polling_place</code> applies to every election; a row with one applies to the
+elections whose polling place it matches, as a whole name or a pattern with
+one <code>*</code> (<code>*-T</code>, <code>* PE</code>), and the most specific match goes on top: a whole name
+before a pattern, then the pattern that spells out more. Two equally specific
+matches, a second row for the same pattern, and <code>alias</code> or <code>election_post</code>
+columns are refused; a pattern that matches nothing is not, since one defaults
+workbook serves every dump. <code>{place}</code> in a value is what the <code>*</code> stood for,
+written as a voter reads it (<code>ABU DHABI</code> becomes <code>Abu Dhabi</code>), or the whole
+polling place as its embassy label reads. The alias stays the polling place,
+because schedules name elections by it; <code>presentation.i18n.&lt;lang&gt;.alias</code> is
+the alias voters see.</li>
 <li class=""><strong>Areas</strong>: one per precinct cluster (<code>pop.CLUSTERPOLLCENTER</code>), named by the
 historical name rule below and described by the cluster&#x27;s own polling place.
 Without its own polling center, every precinct row of that cluster must refer
