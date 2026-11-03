@@ -137,7 +137,18 @@ in the unmodified original; this profile does not publish candidate photographs
 from opaque blobs.
 
 The workbook contains `ElectionEvent`, `Elections`, `Areas`,
-`ScheduledEvents` and `CcsServers`. Blank styling rows are not records.
+`ScheduledEvents` and `CcsServers`, and optionally `Parameters`. Blank styling
+rows are not records. `Parameters` goes to the build unchanged, as in an
+authoring workbook: that is where realm settings the dump cannot hold belong,
+such as `keycloak_event_realm.displayName` (which otherwise follows the event
+name) and the login page's `login_custom_css`. Without a base export they reach
+the realm patch beside the package, not the realm itself.
+
+A cell holds at most 32,767 characters, and a stylesheet can be longer. A column
+headed `<column>+` directly after `<column>` (or after another `<column>+`)
+continues it: a row's text there is joined onto the column's, left to right,
+before the cell is read. This holds for every workbook sheet, and the workbook
+writer splits longer text the same way.
 Election aliases must be unique because schedules refer to aliases. Several
 election rows may share a post; they remain separate contexts.
 
@@ -149,7 +160,19 @@ carries only what the dump does not hold, and the elections and areas are
 derived from the dump, so the same workbook serves any dump of that source.
 
 - **Elections**: one per polling center that a `pop` row places voters in,
-  named and aliased by its `POLLING_PLACE`.
+  named and aliased by its `POLLING_PLACE`. An `ElectionDefaults` sheet gives
+  elections their other columns, `name` included. A row without a
+  `polling_place` applies to every election; a row with one applies to the
+  elections whose polling place it matches, as a whole name or a pattern with
+  one `*` (`*-T`, `* PE`), and the most specific match goes on top: a whole name
+  before a pattern, then the pattern that spells out more. Two equally specific
+  matches, a second row for the same pattern, and `alias` or `election_post`
+  columns are refused; a pattern that matches nothing is not, since one defaults
+  workbook serves every dump. `{place}` in a value is what the `*` stood for,
+  written as a voter reads it (`ABU DHABI` becomes `Abu Dhabi`), or the whole
+  polling place as its embassy label reads. The alias stays the polling place,
+  because schedules name elections by it; `presentation.i18n.<lang>.alias` is
+  the alias voters see.
 - **Areas**: one per precinct cluster (`pop.CLUSTERPOLLCENTER`), named by the
   historical name rule below and described by the cluster's own polling place.
   Without its own polling center, every precinct row of that cluster must refer

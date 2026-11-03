@@ -2843,3 +2843,134 @@ fn post_qualification_column_alias_collisions_are_refused() {
         }
     }
 }
+
+/// An `ElectionDefaults` sheet with these `(polling_place, column, value)` rows.
+fn election_defaults(rows: &[(&str, &[(&str, &str)])]) -> Vec<u8> {
+    let rows: Vec<Row> = rows
+        .iter()
+        .enumerate()
+        .map(|(i, (place, cells))| {
+            let mut cells: Vec<(&str, Value)> =
+                cells.iter().map(|(c, v)| (*c, json!(v))).collect();
+            cells.insert(0, ("polling_place", json!(place)));
+            row("ElectionDefaults", i, cells)
+        })
+        .collect();
+    defaults_workbook_with(|sheets| {
+        sheets.push(rows_sheet("ElectionDefaults", rows))
+    })
+}
+
+#[test]
+fn election_defaults_name_elections_by_polling_place_pattern() {
+    let sql = post_qualification_overseas();
+    let xlsx = election_defaults(&[
+        ("", &[("annotations.miru_election_name", "Vote")]),
+        (
+            "Post *",
+            &[
+                ("name", "General Election"),
+                ("presentation.i18n.en.alias", "{place} – General Election"),
+            ],
+        ),
+        // Matches nothing in this dump, which is not an error.
+        ("*-T", &[("name", "Test Voting")]),
+    ]);
+    let adapted = adapt(&sql, &xlsx, &defaulted()).unwrap();
+    let elections = adapted.workbook.rows("elections");
+    assert_eq!(elections.len(), 1);
+    let election = &elections[0];
+    assert_eq!(
+        election.text("presentation.i18n.en.name"),
+        Some("General Election")
+    );
+    assert_eq!(
+        election.text("presentation.i18n.en.alias"),
+        Some("One – General Election")
+    );
+    assert_eq!(
+        election.text("annotations.miru:election-name"),
+        Some("Vote")
+    );
+    // The identity schedules use stays the polling place.
+    assert_eq!(election.text("alias"), Some("Post One"));
+    assert_eq!(
+        election.text("external_id"),
+        Some("center:P01:context:Post One")
+    );
+}
+
+#[test]
+fn a_whole_polling_place_beats_a_pattern_and_reads_as_its_embassy() {
+    let sql = post_qualification_overseas();
+    let xlsx = election_defaults(&[
+        ("Post *", &[("name", "Pattern")]),
+        ("Post One", &[("name", "Exact {place}")]),
+    ]);
+    let adapted = adapt(&sql, &xlsx, &defaulted()).unwrap();
+    assert_eq!(
+        adapted.workbook.rows("elections")[0].text("presentation.i18n.en.name"),
+        Some("Exact Post ONE")
+    );
+}
+
+#[test]
+fn election_defaults_refuse_what_they_cannot_say() {
+    let sql = post_qualification_overseas();
+    for (rows, expected) in [
+        (
+            vec![("Post*", [("name", "A")]), ("* One", [("name", "B")])],
+            "matches two patterns equally",
+        ),
+        (
+            vec![("Post *", [("name", "A")]), ("Post *", [("name", "B")])],
+            "one row at most",
+        ),
+        (vec![("*a*", [("name", "A")])], "one * at most"),
+        (vec![("Post *", [("alias", "A")])], "set its name instead"),
+    ] {
+        let rows: Vec<(&str, &[(&str, &str)])> = rows
+            .iter()
+            .map(|(place, cells)| (*place, cells.as_slice()))
+            .collect();
+        let refused =
+            adapt(&sql, &election_defaults(&rows), &defaulted()).unwrap_err();
+        assert!(
+            refused.report.problems[0].message.contains(expected),
+            "{expected}: {:?}",
+            refused.report.problems
+        );
+    }
+}
+
+#[test]
+fn a_supplemental_parameters_sheet_reaches_the_realm() {
+    let sql = post_qualification_overseas();
+    let xlsx = defaults_workbook_with(|sheets| {
+        sheets.push(rows_sheet(
+            "Parameters",
+            vec![row(
+                "Parameters",
+                0,
+                vec![
+                    ("type", json!("settings")),
+                    ("key", json!("keycloak_event_realm.displayName")),
+                    ("value", json!("Election Office")),
+                ],
+            )],
+        ))
+    });
+    let adapted = adapt(&sql, &xlsx, &defaulted()).unwrap();
+    let built = build(
+        &adapted.workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap();
+    // After the name derived from the event, so it wins.
+    assert_eq!(
+        built.realm_patch.patch["displayName"],
+        json!("Election Office")
+    );
+}

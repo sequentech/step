@@ -287,19 +287,33 @@ impl Sheet {
             });
         };
 
-        let headers = read_headers(&name, header_cells)?;
+        let (headers, continues) = read_headers(&name, header_cells)?;
         let multi_value = multi_value_columns(&key);
 
         let mut rows = Vec::new();
         for (offset, cells) in grid.iter().skip(1).enumerate() {
             // +1 for the header row, +1 because spreadsheets count from one.
             let number = offset + 2;
-            if let Some(row) =
-                read_row(&name, number, &headers, cells, multi_value)
-            {
+            if let Some(row) = read_row(
+                &name,
+                number,
+                &headers,
+                &continues,
+                cells,
+                multi_value,
+            ) {
                 rows.push(row);
             }
         }
+        // A continuation is part of the column it continues, not a column.
+        let headers = headers
+            .into_iter()
+            .zip(&continues)
+            .map(|(header, base)| match base {
+                Some(_) => String::new(),
+                None => header,
+            })
+            .collect();
 
         Ok(Sheet {
             name,
@@ -318,11 +332,19 @@ impl Sheet {
     }
 }
 
+/// The headers, and for each one the column it continues, if any.
+///
+/// A spreadsheet cell holds at most 32,767 characters, and a stylesheet can be
+/// longer. So a column headed `<column>+` right after `<column>` (or after
+/// another `<column>+`) continues it: a row's text there is joined onto the
+/// column's own, left to right, before the cell is read. A header ending in `+`
+/// anywhere else is an ordinary column, as it always was.
 fn read_headers(
     sheet_name: &str,
     cells: &[Cell],
-) -> Result<Vec<String>, Problem> {
+) -> Result<(Vec<String>, Vec<Option<usize>>), Problem> {
     let mut headers: Vec<String> = Vec::with_capacity(cells.len());
+    let mut continues: Vec<Option<usize>> = Vec::with_capacity(cells.len());
 
     for (index, cell) in cells.iter().enumerate() {
         let header = match cell {
@@ -340,7 +362,17 @@ fn read_headers(
             }
         };
 
-        if !header.is_empty() {
+        let base = header.strip_suffix('+').and_then(|stem| {
+            let previous = index.checked_sub(1)?;
+            match continues[previous] {
+                Some(base) if headers[base] == stem => Some(base),
+                None if !stem.is_empty() && headers[previous] == stem => {
+                    Some(previous)
+                }
+                _ => None,
+            }
+        });
+        if base.is_none() && !header.is_empty() {
             if let Some(first) = headers.iter().position(|seen| seen == &header)
             {
                 return Err(Problem::error(
@@ -357,9 +389,10 @@ fn read_headers(
             }
         }
         headers.push(header);
+        continues.push(base);
     }
 
-    Ok(headers)
+    Ok((headers, continues))
 }
 
 /// One data row, or `None` if it holds nothing.
@@ -367,12 +400,34 @@ fn read_row(
     sheet_name: &str,
     number: usize,
     headers: &[String],
+    continues: &[Option<usize>],
     cells: &[Cell],
     multi_value: &[&str],
 ) -> Option<Row> {
     let mut values: Vec<(String, Value)> = Vec::new();
 
-    for (header, cell) in headers.iter().zip(cells) {
+    // Join each continued column's text first, so the whole is read as one cell.
+    let mut joined: Vec<Option<Cell>> = vec![None; cells.len()];
+    for (index, cell) in cells.iter().enumerate() {
+        let Some(&Some(base)) = continues.get(index) else {
+            continue;
+        };
+        if cell.is_blank() {
+            continue;
+        }
+        let whole = joined[base].get_or_insert_with(|| {
+            Cell::Text(cells.get(base).map(cell_text).unwrap_or_default())
+        });
+        if let Cell::Text(text) = whole {
+            text.push_str(&cell_text(cell));
+        }
+    }
+
+    for (index, (header, cell)) in headers.iter().zip(cells).enumerate() {
+        if matches!(continues.get(index), Some(Some(_))) {
+            continue;
+        }
+        let cell = joined[index].as_ref().unwrap_or(cell);
         if header.is_empty() || cell.is_blank() {
             continue;
         }
@@ -391,6 +446,20 @@ fn read_row(
         number,
         cells: values,
     })
+}
+
+/// A cell's text as the author typed it, for joining a continued column.
+fn cell_text(cell: &Cell) -> String {
+    match cell {
+        Cell::Blank => String::new(),
+        Cell::Text(text) => text.clone(),
+        other => match crate::election_config::paths::coerce_scalar_cell(other)
+        {
+            Some(Value::String(text)) => text,
+            Some(value) => value.to_string(),
+            None => String::new(),
+        },
+    }
 }
 
 /// A whole authoring document: normalised sheets of coerced rows.
@@ -638,6 +707,52 @@ mod tests {
         assert_eq!(sheet.headers, vec!["a", "", "c"]);
         assert_eq!(sheet.rows[0].cells.len(), 2);
         assert_eq!(sheet.rows[0].get("c"), Some(&json!("3")));
+    }
+
+    #[test]
+    fn a_continued_column_joins_left_to_right_before_it_is_read() {
+        // A spreadsheet cell holds 32,767 characters; a stylesheet can be longer.
+        let sheet = Sheet::from_grid(
+            "ElectionEvent",
+            &grid(vec![
+                vec![text("css"), text("css+"), text("css+"), text("name")],
+                vec![text("a { "), text("color: red"), text(" }"), text("x")],
+                // Bracketed only once joined, so it is read as JSON then.
+                vec![text("[1,"), Cell::Blank, text("2]"), text("y")],
+                vec![
+                    Cell::Blank,
+                    text("only the rest"),
+                    Cell::Blank,
+                    text("z"),
+                ],
+            ]),
+        )
+        .unwrap();
+        assert_eq!(sheet.headers, vec!["css", "", "", "name"]);
+        assert_eq!(sheet.rows[0].get("css"), Some(&json!("a { color: red }")));
+        assert_eq!(sheet.rows[0].cells.len(), 2);
+        assert_eq!(sheet.rows[1].get("css"), Some(&json!([1, 2])));
+        assert_eq!(sheet.rows[2].get("css"), Some(&json!("only the rest")));
+    }
+
+    #[test]
+    fn a_plus_header_elsewhere_is_an_ordinary_column() {
+        let sheet = Sheet::from_grid(
+            "Notes",
+            &grid(vec![
+                vec![text("c++"), text("css"), text("name+")],
+                vec![text("1"), text("2"), text("3")],
+            ]),
+        )
+        .unwrap();
+        assert_eq!(sheet.headers, vec!["c++", "css", "name+"]);
+        assert_eq!(sheet.rows[0].get("name+"), Some(&json!("3")));
+        // A continuation is not a second column of the same name either.
+        assert!(Sheet::from_grid(
+            "Notes",
+            &grid(vec![vec![text("css+"), text("css+")]]),
+        )
+        .is_err());
     }
 
     #[test]

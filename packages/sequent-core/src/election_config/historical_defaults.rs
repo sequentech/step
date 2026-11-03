@@ -15,7 +15,15 @@
 //!
 //! - **Elections**: one per polling center that a `pop` row places voters in,
 //!   named and aliased by its `POLLING_PLACE`. A center no `pop` row uses has no
-//!   voters and gets no election; it is counted as excluded.
+//!   voters and gets no election; it is counted as excluded. An
+//!   `ElectionDefaults` row gives elections its other columns, `name` included:
+//!   one without a `polling_place` every election, one with a pattern the
+//!   elections whose `POLLING_PLACE` it matches (`*-T`, `* PE`, or a whole
+//!   name), the most specific pattern on top. `{place}` in a value is what the
+//!   `*` stood for, written as a voter reads it (`ABU DHABI` is `Abu Dhabi`), or
+//!   the whole polling place as its embassy label reads (`Bangkok PE`). The alias stays the polling place, since
+//!   schedules name elections by it. A pattern no election matches is not an
+//!   error: one defaults workbook serves every dump.
 //! - **Areas**: one per precinct cluster (`pop.CLUSTERPOLLCENTER`), named by the
 //!   historical rule (the barangay's name, or the municipality's when the barangay
 //!   is named after its own post) and described by the cluster's own polling
@@ -170,21 +178,36 @@ pub(super) fn derive(
         .at(&unused.origin(Some("name"))));
     }
 
-    let elections = posts
-        .iter()
-        .enumerate()
-        .map(|(i, post)| {
-            row(
-                "Elections",
-                i,
-                vec![
-                    ("election_post", json!(post)),
-                    ("alias", json!(post)),
-                    ("name", json!(post)),
-                ],
-            )
-        })
-        .collect();
+    let (election_defaults, election_patterns) = election_rows(defaults)?;
+    let mut elections = Vec::new();
+    for (i, post) in posts.iter().enumerate() {
+        let mut election = row(
+            "Elections",
+            i,
+            vec![
+                ("election_post", json!(post)),
+                ("alias", json!(post)),
+                ("name", json!(post)),
+            ],
+        );
+        let matched = most_specific(&election_patterns, post)?;
+        let every = election_defaults
+            .as_ref()
+            .map(|given| (given, post.as_str()));
+        for (given, place) in every.into_iter().chain(matched) {
+            // A whole post reads as its embassy label does; a part of one is a
+            // place name.
+            let place = if place == post {
+                super::format_embassy(place)
+            } else {
+                super::format_place(place)
+            };
+            for (column, value) in given.without(&[POLLING_PLACE]) {
+                super::set(&mut election, &column, with_place(value, &place));
+            }
+        }
+        elections.push(election);
+    }
     let mut schedules = Vec::new();
     let mut schedule_rows = Vec::new();
     for given in defaults.rows("scheduledevents") {
@@ -213,7 +236,10 @@ pub(super) fn derive(
             .sheets()
             .iter()
             .filter(|sheet| {
-                !matches!(sheet.key.as_str(), "areas" | "scheduledevents")
+                !matches!(
+                    sheet.key.as_str(),
+                    "areas" | "scheduledevents" | SHEET_ELECTION_DEFAULTS
+                )
             })
             .cloned(),
     );
@@ -222,6 +248,143 @@ pub(super) fn derive(
         areas_by_precinct,
         schedule_rows,
     })
+}
+
+/// The sheet a defaults workbook names its elections in. Not `Elections`, whose
+/// presence is what makes a workbook a full one.
+const SHEET_ELECTION_DEFAULTS: &str = "electiondefaults";
+const POLLING_PLACE: &str = "polling_place";
+
+/// A polling-place pattern: a whole name, or one `*` standing for any text.
+struct Pattern {
+    prefix: String,
+    suffix: Option<String>,
+    row: Row,
+}
+
+impl Pattern {
+    /// What the `*` stands for, or the whole name; `None` when it does not match.
+    fn capture<'a>(&self, place: &'a str) -> Option<&'a str> {
+        match &self.suffix {
+            None => (place == self.prefix).then_some(place),
+            Some(suffix) => place
+                .strip_prefix(self.prefix.as_str())
+                .and_then(|rest| rest.strip_suffix(suffix.as_str()))
+                .filter(|middle| !middle.is_empty()),
+        }
+    }
+
+    /// A whole name over any pattern, then the one that spells out more.
+    fn specificity(&self) -> (bool, usize) {
+        (
+            self.suffix.is_none(),
+            self.prefix.len() + self.suffix.as_ref().map_or(0, String::len),
+        )
+    }
+}
+
+/// The `ElectionDefaults` row without a pattern, and the rows with one.
+fn election_rows(
+    defaults: &Workbook,
+) -> Result<(Option<Row>, Vec<Pattern>), Problem> {
+    let mut every = None;
+    let mut patterns: Vec<Pattern> = Vec::new();
+    for given in defaults.rows(SHEET_ELECTION_DEFAULTS) {
+        // The identity a schedule names an election by, and the post it is.
+        if let Some(column) = ["alias", "election_post"]
+            .into_iter()
+            .find(|column| given.get(column).is_some())
+        {
+            return Err(Problem::error(
+                Code::InvalidValue,
+                given.origin(Some(column)).to_string(),
+                "an election's alias and post are its polling place; set its name instead",
+            )
+            .at(&given.origin(Some(column))));
+        }
+        let origin = given.origin(Some(POLLING_PLACE));
+        let duplicate = match given.text(POLLING_PLACE).map(str::trim) {
+            None | Some("") => every.replace(given.clone()).is_some(),
+            Some(text) => {
+                let pattern = match text.split_once('*') {
+                    None => Pattern {
+                        prefix: text.to_string(),
+                        suffix: None,
+                        row: given.clone(),
+                    },
+                    Some((prefix, suffix)) if !suffix.contains('*') => {
+                        Pattern {
+                            prefix: prefix.to_string(),
+                            suffix: Some(suffix.to_string()),
+                            row: given.clone(),
+                        }
+                    }
+                    Some(_) => {
+                        return Err(Problem::error(
+                            Code::InvalidValue,
+                            origin.to_string(),
+                            "a polling place pattern has one * at most",
+                        )
+                        .at(&origin));
+                    }
+                };
+                let seen = patterns.iter().any(|p| {
+                    p.prefix == pattern.prefix && p.suffix == pattern.suffix
+                });
+                patterns.push(pattern);
+                seen
+            }
+        };
+        if duplicate {
+            return Err(Problem::error(
+                Code::DuplicateId,
+                origin.to_string(),
+                "a defaults workbook gives each polling place pattern, and every election, one row at most",
+            )
+            .at(&origin));
+        }
+    }
+    Ok((every, patterns))
+}
+
+/// The most specific pattern matching `place`, with what its `*` stood for.
+fn most_specific<'a>(
+    patterns: &'a [Pattern],
+    place: &'a str,
+) -> Result<Option<(&'a Row, &'a str)>, Problem> {
+    let mut best: Option<(&Pattern, &str)> = None;
+    for pattern in patterns {
+        let Some(captured) = pattern.capture(place) else {
+            continue;
+        };
+        match best {
+            Some((other, _)) if other.specificity() > pattern.specificity() => {
+            }
+            Some((other, _))
+                if other.specificity() == pattern.specificity() =>
+            {
+                let origin = pattern.row.origin(Some(POLLING_PLACE));
+                return Err(Problem::error(
+                    Code::ConflictingColumns,
+                    origin.to_string(),
+                    format!(
+                        "polling place {place} matches two patterns equally; make one more specific"
+                    ),
+                )
+                .at(&origin));
+            }
+            _ => best = Some((pattern, captured)),
+        }
+    }
+    Ok(best.map(|(pattern, captured)| (&pattern.row, captured)))
+}
+
+/// `value` with `{place}` in its text replaced.
+fn with_place(value: Value, place: &str) -> Value {
+    match value {
+        Value::String(text) => Value::String(text.replace("{place}", place)),
+        other => other,
+    }
 }
 
 /// The `Areas` row without a name, and the rows with one by name.

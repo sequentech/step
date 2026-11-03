@@ -907,6 +907,7 @@ fn map(
             "areas",
             "scheduledevents",
             "ccsservers",
+            "parameters",
         ]
         .contains(&sheet.key.as_str())
         {
@@ -1728,6 +1729,11 @@ fn map(
     if !voter_rows.is_empty() {
         sheets.push(rows_sheet("Voters", voter_rows));
     }
+    // What the dump cannot hold about the realm (its display name, the login
+    // stylesheet) is the build's to check, the same as for any workbook.
+    if let Some(parameters) = workbook.sheet("parameters") {
+        sheets.push(parameters.clone());
+    }
     summary.generated_rows = sheets
         .iter()
         .map(|s| (s.name.clone(), s.rows.len()))
@@ -1788,23 +1794,34 @@ fn format_embassy(value: &str) -> String {
     let Some((last, head)) = words.split_last() else {
         return String::new();
     };
-    const SPECIAL: [&str; 4] = ["D.C.", "DC", "SAR", "ROC"];
-    let mut out: Vec<String> = head
-        .iter()
-        .map(|w| {
-            if SPECIAL.contains(&w.to_uppercase().as_str()) {
-                w.to_uppercase()
-            } else {
-                title_word(w)
-            }
-        })
-        .collect();
+    let mut out: Vec<String> = head.iter().map(|w| place_word(w)).collect();
     out.push(if last.chars().count() <= 3 {
         last.to_uppercase()
     } else {
         title_word(last)
     });
     out.join(" ")
+}
+
+/// Words a place name keeps in capitals.
+const SPECIAL: [&str; 4] = ["D.C.", "DC", "SAR", "ROC"];
+
+fn place_word(word: &str) -> String {
+    if SPECIAL.contains(&word.to_uppercase().as_str()) {
+        word.to_uppercase()
+    } else {
+        title_word(word)
+    }
+}
+
+/// A place as a voter reads it: `ABU DHABI` is `Abu Dhabi`, every word title-cased
+/// the way [`format_embassy`] does all but a post's last one.
+fn format_place(value: &str) -> String {
+    value
+        .split_whitespace()
+        .map(place_word)
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// Derive the canonical `(country, embassy)` attribute values from a resolved area
