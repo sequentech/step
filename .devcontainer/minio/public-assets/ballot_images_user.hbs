@@ -136,9 +136,9 @@
     window.onload = function () {
       const ballotData = {{{ to_json data.ballot_data }
     }};
-    const eventId = '{{expr data.ballot_data.0.contest_choices.0.contest.election_event_id}}';
-    const electionId = '{{expr data.ballot_data.0.contest_choices.0.contest.election_id}}';
-    const precientId = '{{expr data.election_annotations.clustered_precint_id}}';
+    const eventId = {{{js_string (expr data.ballot_data.0.contest_choices.0.contest.election_event_id)}}};
+    const electionId = {{{js_string (expr data.ballot_data.0.contest_choices.0.contest.election_id)}}};
+    const precientId = {{{js_string (expr data.election_annotations.clustered_precint_id)}}};
 
     ballotData.forEach((ballot, index) => {
       let ballotId = `${ballot.id}`;
