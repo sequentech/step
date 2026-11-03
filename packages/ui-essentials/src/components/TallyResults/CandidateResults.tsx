@@ -6,6 +6,7 @@ import React, {useMemo} from "react"
 import {Box, Typography} from "@mui/material"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import type {Props as ApexChartProps} from "react-apexcharts"
+import {useNumberFormat, type ENumberFormatPolicy} from "@sequentech/ui-core"
 import {
     CANDIDATE_CHART_COLORS,
     DATA_GRID_INITIAL_STATE,
@@ -26,6 +27,7 @@ import {
     buildCandidateChartData,
     mergeLabels,
     percentOrDash,
+    pieChartNumberFormatOptions,
     toFiniteNumber,
     valueOrDash,
 } from "./utils"
@@ -53,7 +55,8 @@ const winningPositionComparator = (left: NumericValue, right: NumericValue) => {
 const classToken = (value: string | number) => String(value).replace(/[^a-zA-Z0-9_-]/g, "-")
 
 const useCandidateResultColumns = (
-    labels: ResultsAndParticipationLabels
+    labels: ResultsAndParticipationLabels,
+    policy: ENumberFormatPolicy
 ): GridColDef<CandidateResultRow>[] =>
     useMemo(
         () => [
@@ -74,7 +77,7 @@ const useCandidateResultColumns = (
                 minWidth: 140,
                 editable: false,
                 renderCell: (props: GridRenderCellParams<CandidateResultRow, NumericValue>) =>
-                    valueOrDash(props.value),
+                    valueOrDash(props.value, policy),
                 align: "right",
                 headerAlign: "right",
                 headerClassName: "seq-tally-results-candidate-results__votes-heading",
@@ -87,7 +90,7 @@ const useCandidateResultColumns = (
                 minWidth: 150,
                 editable: false,
                 renderCell: (props: GridRenderCellParams<CandidateResultRow, NumericValue>) =>
-                    percentOrDash(props.value),
+                    percentOrDash(props.value, policy),
                 align: "right",
                 headerAlign: "right",
                 headerClassName: "seq-tally-results-candidate-results__percent-heading",
@@ -100,7 +103,7 @@ const useCandidateResultColumns = (
                 minWidth: 150,
                 editable: false,
                 renderCell: (props: GridRenderCellParams<CandidateResultRow, NumericValue>) =>
-                    valueOrDash(props.value),
+                    valueOrDash(props.value, policy),
                 sortComparator: winningPositionComparator,
                 align: "right",
                 headerAlign: "right",
@@ -108,7 +111,7 @@ const useCandidateResultColumns = (
                 cellClassName: "seq-tally-results-candidate-results__position-cell",
             },
         ],
-        [labels.options, labels.castVotes, labels.castVotesPercent, labels.winningPosition]
+        [labels.options, labels.castVotes, labels.castVotesPercent, labels.winningPosition, policy]
     )
 
 export const CandidateResultsChart: React.FC<CandidateResultsChartProps> = ({
@@ -117,6 +120,7 @@ export const CandidateResultsChart: React.FC<CandidateResultsChartProps> = ({
     labels,
 }) => {
     const mergedLabels = useMemo(() => mergeLabels(labels), [labels])
+    const {policy} = useNumberFormat()
     const chartData = useMemo(
         () => buildCandidateChartData(results, mergedLabels),
         [results, mergedLabels]
@@ -130,10 +134,11 @@ export const CandidateResultsChart: React.FC<CandidateResultsChartProps> = ({
                 },
                 responsive: RESPONSIVE_PIE_OPTIONS,
                 colors: CANDIDATE_CHART_COLORS,
+                ...pieChartNumberFormatOptions(policy),
             }),
             series: chartData.map((item) => item.value),
         }),
-        [chartData]
+        [chartData, policy]
     )
 
     if (!results.length || !chartData.length) {
@@ -160,11 +165,12 @@ export const CandidateResults: React.FC<CandidateResultsProps> = ({
     labels,
 }) => {
     const mergedLabels = useMemo(() => mergeLabels(labels), [labels])
+    const {policy} = useNumberFormat()
     const hasCandidateChartData = useMemo(
         () => candidates.some((candidate) => (toFiniteNumber(candidate.castVotes) ?? 0) > 0),
         [candidates]
     )
-    const columns = useCandidateResultColumns(mergedLabels)
+    const columns = useCandidateResultColumns(mergedLabels, policy)
     const gridHeight = Math.min(Math.max(candidates.length * 52 + 116, 260), 680)
 
     return (

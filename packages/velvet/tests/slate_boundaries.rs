@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 use velvet::pipes::do_tally::counting_algorithm::{
     plurality_at_large::PluralityAtLarge, CountingAlgorithm,
 };
-use velvet::pipes::do_tally::tally::Tally;
+use velvet::pipes::do_tally::tally::{Tally, TallyBallot};
 use velvet::pipes::do_tally::ContestResult;
 
 const TRUSTEES: &str = "trustees";
@@ -79,7 +79,7 @@ fn count(ballots: Vec<DecodedVoteContest>) -> ContestResult {
         contest: trustees(),
         ballots: ballots
             .into_iter()
-            .map(|ballot| (ballot, Weight::default()))
+            .map(|ballot| TallyBallot::new(ballot, Weight::default()))
             .collect(),
         census: 10,
         auditable_votes: 0,
