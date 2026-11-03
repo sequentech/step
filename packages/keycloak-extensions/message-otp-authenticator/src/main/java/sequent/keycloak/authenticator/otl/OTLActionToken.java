@@ -19,6 +19,7 @@ public class OTLActionToken extends DefaultActionToken {
   private static final String JSON_FIELD_AUTH_NOTE_NAMES = "auth-note-names";
   private static final String JSON_FIELD_IS_DEFERRED_USER = "is-deferred-user";
   private static final String JSON_FIELD_REDIRECT_URI = "redirect-uri";
+  private static final String JSON_FIELD_CODE_ID = "code-id";
 
   @JsonProperty(JSON_FIELD_SESSION_ID)
   private String originalCompoundSessionId;
@@ -32,6 +33,10 @@ public class OTLActionToken extends DefaultActionToken {
   @JsonProperty(JSON_FIELD_IS_DEFERRED_USER)
   private boolean isDeferredUser;
 
+  /** The send the link came from: the session's code id when it was sent. */
+  @JsonProperty(JSON_FIELD_CODE_ID)
+  private String codeId;
+
   public OTLActionToken(
       String userId,
       int absoluteExpirationInSecs,
@@ -39,7 +44,8 @@ public class OTLActionToken extends DefaultActionToken {
       String[] authNoteNames,
       boolean isDeferredUser,
       String redirectUri,
-      String clientId) {
+      String clientId,
+      String codeId) {
     super(userId, TOKEN_TYPE, absoluteExpirationInSecs, null, null);
     log.info(
         "OTLActionToken: userId="
@@ -61,6 +67,7 @@ public class OTLActionToken extends DefaultActionToken {
     setAuthNoteNames(authNoteNames);
     setIsDeferredUser(isDeferredUser);
     setRedirectUri(redirectUri);
+    this.codeId = codeId;
   }
 
   OTLActionToken() {
@@ -111,5 +118,9 @@ public class OTLActionToken extends DefaultActionToken {
 
   public String getRedirectUri() {
     return this.redirectUri;
+  }
+
+  public String getCodeId() {
+    return codeId;
   }
 }

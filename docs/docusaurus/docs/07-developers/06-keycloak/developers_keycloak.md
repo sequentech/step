@@ -167,6 +167,21 @@ the existing database or cache copies. Use a maintenance window:
 The session provider supports the shipped persistent embedded Infinispan configuration. Deployments using a
 different session implementation must validate an equivalent redaction boundary before activation.
 
+### Going back to an earlier step
+
+`StepBack` (message-otp-authenticator) runs the previous step of a flow again; the enrollment code
+page, identity check and confirmation page offer it. Going back to the form that entered a contact
+forgets the live code or one-time link, where it went and everything a code verified (the
+`Email verified` note and the verified channel notes), and submitting that form forgets them again.
+The resend timer and the wrong-code count are kept: after any Back, the code step's first message
+waits for the last send's resend timer, and the page shows the time left. A neutral code page
+(reset) and a page whose attempts are used up never offer Back.
+
+A one-time link names the send it came from (`code-id`) and is accepted only while it is that
+session's live link. Links sent before this version carry no `code-id` and are refused as stale,
+so voters holding one at deployment request a new link. Links last for the code lifetime
+(`ttl`), so this affects only sessions in flight during the rollout.
+
 
 ## React login and OTP development
 

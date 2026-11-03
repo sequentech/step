@@ -44,6 +44,10 @@ pub enum ApplicationRejectReason {
     ALREADY_APPROVED,
     #[strum(to_string = "identity-not-verified")]
     IDENTITY_NOT_VERIFIED,
+    /// The applicant's email belongs to another voter, and Keycloak keeps
+    /// emails unique.
+    #[strum(to_string = "email-in-use")]
+    EMAIL_IN_USE,
     #[default]
     #[strum(to_string = "other")]
     OTHER, //mandatory comment

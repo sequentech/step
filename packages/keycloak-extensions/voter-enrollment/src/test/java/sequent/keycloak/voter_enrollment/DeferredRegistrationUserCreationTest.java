@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
@@ -795,6 +796,66 @@ class DeferredRegistrationUserCreationTest {
     when(request.getHttpMethod()).thenReturn("POST");
     action.buildPage(context, form);
     verify(form).setFormData(any());
+  }
+
+  @Test
+  void backFromALaterStepShowsWhatTheVoterEnteredButNotThePassword() {
+    DeferredRegistrationUserCreation action = new DeferredRegistrationUserCreation();
+    FormContext context = mock(FormContext.class);
+    LoginFormsProvider form = mock(LoginFormsProvider.class);
+    AuthenticatorConfigModel config = mock(AuthenticatorConfigModel.class);
+    HttpRequest request = mock(HttpRequest.class);
+    AuthenticationSessionModel authenticationSession = mock(AuthenticationSessionModel.class);
+
+    Map<String, String> configValues = new java.util.HashMap<>();
+    configValues.put(DeferredRegistrationUserCreation.FORM_MODE, "REGISTRATION");
+    when(context.getAuthenticatorConfig()).thenReturn(config);
+    when(config.getConfig()).thenReturn(configValues);
+    when(context.getHttpRequest()).thenReturn(request);
+    when(context.getAuthenticationSession()).thenReturn(authenticationSession);
+    Map<String, String> notes =
+        Map.of(
+            "keyUserdata", "email;firstName;password;password-confirm;termsAccepted",
+            "email", "voter@example.com",
+            "firstName", "Maria",
+            "password", "synthetic-secret",
+            "password-confirm", "synthetic-secret",
+            "termsAccepted", "on");
+    when(authenticationSession.getAuthNote(anyString()))
+        .thenAnswer(i -> notes.get(i.getArgument(0)));
+
+    when(request.getHttpMethod()).thenReturn("POST");
+    action.buildPage(context, form);
+    verify(form, never()).setFormData(any());
+
+    when(request.getHttpMethod()).thenReturn("GET");
+    action.buildPage(context, form);
+    MultivaluedMap<String, String> expectedFormData = new MultivaluedHashMap<>();
+    expectedFormData.putSingle("email", "voter@example.com");
+    expectedFormData.putSingle("firstName", "Maria");
+    expectedFormData.putSingle("termsAccepted", "on");
+    verify(form).setFormData(eq(expectedFormData));
+  }
+
+  @Test
+  void aFirstVisitHasNothingEntered() {
+    DeferredRegistrationUserCreation action = new DeferredRegistrationUserCreation();
+    FormContext context = mock(FormContext.class);
+    LoginFormsProvider form = mock(LoginFormsProvider.class);
+    AuthenticatorConfigModel config = mock(AuthenticatorConfigModel.class);
+    HttpRequest request = mock(HttpRequest.class);
+    AuthenticationSessionModel authenticationSession = mock(AuthenticationSessionModel.class);
+
+    Map<String, String> configValues = new java.util.HashMap<>();
+    configValues.put(DeferredRegistrationUserCreation.FORM_MODE, "REGISTRATION");
+    when(context.getAuthenticatorConfig()).thenReturn(config);
+    when(config.getConfig()).thenReturn(configValues);
+    when(context.getHttpRequest()).thenReturn(request);
+    when(request.getHttpMethod()).thenReturn("GET");
+    when(context.getAuthenticationSession()).thenReturn(authenticationSession);
+
+    action.buildPage(context, form);
+    verify(form, never()).setFormData(any());
   }
 
   @Test
