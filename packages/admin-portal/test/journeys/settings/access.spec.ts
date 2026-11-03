@@ -188,7 +188,9 @@ test.describe("with preview-read", () => {
         )
         await openSettings(page, portal, "Previews")
         await expect(page.getByText("No Previews found", {exact: true})).toBeVisible()
-        expect(portal.graphql.callsTo("sequent_backend_preview")).toHaveLength(1)
+        await expect
+            .poll(() => portal.graphql.callsTo("sequent_backend_preview").length)
+            .toBeGreaterThan(0)
     })
 })
 

@@ -59,6 +59,27 @@ pub async fn import_tenant_config(
     task_execution: TasksExecution,
     audit_actor: Option<AuditActor>,
 ) -> Result<()> {
+    execute(
+        object,
+        tenant_id,
+        document_id,
+        sha256,
+        task_execution,
+        audit_actor,
+    )
+    .await
+}
+
+/// The task's work, also run in-process by the package application, which
+/// must not wait on another task in its own queue.
+pub async fn execute(
+    object: ImportOptions,
+    tenant_id: String,
+    document_id: String,
+    sha256: Option<String>,
+    task_execution: TasksExecution,
+    audit_actor: Option<AuditActor>,
+) -> Result<()> {
     let task_execution_clone = task_execution.clone();
 
     let object = object.clone();

@@ -260,8 +260,11 @@ services:
       - ../packages/trustee/dev/trustee1.toml:/etc/step-e2e/trustee.toml:ro
       - trustee1_data:/opt/trustee/message_store
     command: !reset []
-    entrypoint: ["/opt/step-e2e/bin/trustee", "start", "--b4-url", "http://b4v6:3005", "--trustee-config", "/etc/step-e2e/trustee.toml"]
+    entrypoint: ["/opt/step-e2e/bin/trustee", "start", "--b4-url", "http://${HARVEST_DOMAIN}/b4", "--trustee-config", "/etc/step-e2e/trustee.toml"]
+    # The board is reached through Harvest's authenticated /b4 forward.
     depends_on: !override
+      harvest:
+        condition: service_healthy
       b4v6:
         condition: service_healthy
 
@@ -274,8 +277,11 @@ services:
       - ../packages/trustee/dev/trustee2.toml:/etc/step-e2e/trustee.toml:ro
       - trustee2_data:/opt/trustee/message_store
     command: !reset []
-    entrypoint: ["/opt/step-e2e/bin/trustee", "start", "--b4-url", "http://b4v6:3005", "--trustee-config", "/etc/step-e2e/trustee.toml"]
+    entrypoint: ["/opt/step-e2e/bin/trustee", "start", "--b4-url", "http://${HARVEST_DOMAIN}/b4", "--trustee-config", "/etc/step-e2e/trustee.toml"]
+    # The board is reached through Harvest's authenticated /b4 forward.
     depends_on: !override
+      harvest:
+        condition: service_healthy
       b4v6:
         condition: service_healthy
 

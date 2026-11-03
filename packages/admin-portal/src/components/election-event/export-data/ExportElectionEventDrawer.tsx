@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useState} from "react"
+import React, {useContext, useState} from "react"
 import {Typography} from "@mui/material"
 import {ExportElectionEventMutation} from "@/gql/graphql"
 import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
@@ -17,6 +17,8 @@ import {ETasksExecution} from "@/types/tasksExecution"
 import {WidgetProps} from "@/components/Widget"
 import {DecryptHelp, PasswordDialog} from "./PasswordDialog"
 import {decryptionCommand} from "@/resources/Reports/ListReports"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {useTenantStore} from "@/providers/TenantContextProvider"
 
 const StyledCheckbox = styled(Checkbox)({
     size: "small",
@@ -50,6 +52,12 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     const [applications, setApplications] = useState(false)
     const [tally, setTally] = useState(false)
     const [certificates, setCertificates] = useState(false)
+    const [integrationSecrets, setIntegrationSecrets] = useState(false)
+    const auth = useContext(AuthContext)
+    const [tenantId] = useTenantStore()
+    // The server checks it again; the option is only offered to those who hold it.
+    const canExportIntegrationSecrets =
+        !!tenantId && auth.isAuthorized(true, tenantId, IPermissions.INTEGRATION_SECRET_READ)
 
     const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
         context: {
@@ -73,6 +81,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         setApplications(false)
         setTally(false)
         setCertificates(false)
+        setIntegrationSecrets(false)
     }
 
     const confirmExportAction = async () => {
@@ -99,6 +108,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         applications: applications,
                         tally: tally,
                         include_certificates: certificates,
+                        include_integration_secrets: integrationSecrets,
                     },
                 },
             })
@@ -139,6 +149,21 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         }
     }
 
+    // Integration secrets only travel in a password-encrypted archive.
+    const toggleIntegrationSecrets = (newValue: boolean) => {
+        setIntegrationSecrets(newValue)
+        if (newValue) {
+            setEncryptWithPassword(true)
+        }
+    }
+
+    const toggleEncryptWithPassword = (newValue: boolean) => {
+        setEncryptWithPassword(newValue)
+        if (!newValue) {
+            setIntegrationSecrets(false)
+        }
+    }
+
     const toggleTallyCheckBox = (newValue: boolean) => {
         setTally(newValue)
         if (newValue) {
@@ -169,7 +194,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         control={
                             <Checkbox
                                 checked={encryptWithPassword}
-                                onChange={() => setEncryptWithPassword(!encryptWithPassword)}
+                                onChange={() => toggleEncryptWithPassword(!encryptWithPassword)}
                             />
                         }
                         className="export-encrypt-with-password"
@@ -274,6 +299,27 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         }
                         label={String(t("electionEventScreen.export.certificates"))}
                     />
+                    {canExportIntegrationSecrets ? (
+                        <FormControlLabel
+                            control={
+                                <StyledCheckbox
+                                    checked={integrationSecrets}
+                                    onChange={() => toggleIntegrationSecrets(!integrationSecrets)}
+                                />
+                            }
+                            className="export-integration-secrets"
+                            label={String(t("electionEventScreen.export.integrationSecrets"))}
+                        />
+                    ) : null}
+                    {integrationSecrets ? (
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            className="export-integration-secrets-note"
+                        >
+                            {t("electionEventScreen.export.integrationSecretsNote")}
+                        </Typography>
+                    ) : null}
                 </FormGroup>
             </Dialog>
             {openPasswordDialog && password && (

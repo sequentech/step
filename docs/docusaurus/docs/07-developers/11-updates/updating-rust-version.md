@@ -48,7 +48,7 @@ Update the `toolchain` version in these workflow files:
       target: x86_64-unknown-linux-musl
   ```
 
-- **`.github/workflows/lint_prettify.yml`** (line 102)
+- **`.github/workflows/lint_prettify.yml`** (line 86)
   ```yaml
   - name: Install Rust
     uses: dtolnay/rust-toolchain@stable

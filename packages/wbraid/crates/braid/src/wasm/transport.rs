@@ -16,7 +16,9 @@
 //! The `fetch` futures are `!Send`, which is why the [`Transport`] seam is `?Send`
 //! (spec Option B). Runs on the page's main thread (`window`).
 
-use anyhow::{anyhow, bail, Result};
+use std::rc::Rc;
+
+use anyhow::{anyhow, bail, Context as _, Result};
 use async_trait::async_trait;
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
@@ -31,13 +33,15 @@ use b4::api_types::{
     InitiateMessageRequest, InitiateMessageResponse,
 };
 
-use crate::board::transport::{StagedRef, Transport};
+use crate::board::transport::{RequestHeaders, StagedRef, Transport};
 
 /// Browser `fetch` client for a single b4 board. Not parameterized by `C`: it
 /// moves opaque bytes, and the `Transport<C>` impl (de)serializes per `C`.
 pub struct WasmHttpTransport {
     base_url: String,
     board: String,
+    /// Extra headers for the board service's own requests; `None` sends none.
+    headers: Option<Rc<dyn RequestHeaders>>,
 }
 
 impl WasmHttpTransport {
@@ -45,6 +49,27 @@ impl WasmHttpTransport {
         Self {
             base_url: base_url.trim_end_matches('/').to_string(),
             board: board.to_string(),
+            headers: None,
+        }
+    }
+
+    /// Send `headers` with every request to the board service: the message
+    /// list, `initiate` and `confirm`. They are asked for before each request
+    /// and never sent to the presigned storage URLs.
+    pub fn with_headers(mut self, headers: Rc<dyn RequestHeaders>) -> Self {
+        self.headers = Some(headers);
+        self
+    }
+
+    /// The embedder's headers for one request to the board service itself.
+    /// Presigned storage requests never carry them.
+    async fn board_headers(&self) -> Result<Vec<(String, String)>> {
+        match &self.headers {
+            Some(headers) => headers
+                .headers()
+                .await
+                .context("failed to get the board request headers"),
+            None => Ok(Vec::new()),
         }
     }
 
@@ -55,7 +80,7 @@ impl WasmHttpTransport {
         let body = serde_json::to_string(&CreateBoardRequest {
             name: board.to_string(),
         })?;
-        let resp = fetch_with_body("POST", &url, Some(&body))
+        let resp = fetch_with_body("POST", &url, Some(&body), &[])
             .await
             .map_err(js_err)?;
         if !resp.ok() {
@@ -68,7 +93,10 @@ impl WasmHttpTransport {
     /// exact-match (§10.1). S3-backed bodies are downloaded via the presigned URL.
     pub async fn fetch_raw(&self) -> Result<Vec<Vec<u8>>> {
         let url = format!("{}/boards/{}/messages", self.base_url, self.board);
-        let resp = fetch_with_body("GET", &url, None).await.map_err(js_err)?;
+        let headers = self.board_headers().await?;
+        let resp = fetch_with_body("GET", &url, None, &headers)
+            .await
+            .map_err(js_err)?;
         if !resp.ok() {
             bail!("failed to fetch messages: HTTP {}", resp.status());
         }
@@ -95,7 +123,9 @@ impl WasmHttpTransport {
                     let url = m
                         .download_url
                         .ok_or_else(|| anyhow!("S3 message missing download_url"))?;
-                    let resp = fetch_with_body("GET", &url, None).await.map_err(js_err)?;
+                    let resp = fetch_with_body("GET", &url, None, &[])
+                        .await
+                        .map_err(js_err)?;
                     if !resp.ok() {
                         bail!("failed to download S3 body: HTTP {}", resp.status());
                     }
@@ -115,7 +145,8 @@ impl WasmHttpTransport {
     async fn stage_bytes(&self, bytes: Vec<u8>) -> Result<StagedRef> {
         let initiate_url = format!("{}/boards/{}/messages/initiate", self.base_url, self.board);
         let init_body = serde_json::to_string(&InitiateMessageRequest { size: bytes.len() })?;
-        let resp = fetch_with_body("POST", &initiate_url, Some(&init_body))
+        let headers = self.board_headers().await?;
+        let resp = fetch_with_body("POST", &initiate_url, Some(&init_body), &headers)
             .await
             .map_err(js_err)?;
         if !resp.ok() {
@@ -154,7 +185,8 @@ impl WasmHttpTransport {
             data: None,
             version: schema_version(),
         })?;
-        let confirm = fetch_with_body("POST", &confirm_url, Some(&confirm_body))
+        let headers = self.board_headers().await?;
+        let confirm = fetch_with_body("POST", &confirm_url, Some(&confirm_body), &headers)
             .await
             .map_err(js_err)?;
         if !confirm.ok() {
@@ -208,8 +240,14 @@ fn js_err(e: JsValue) -> anyhow::Error {
     anyhow!("{:?}", e)
 }
 
-/// `fetch` with an optional JSON string body (`Content-Type: application/json`).
-async fn fetch_with_body(method: &str, url: &str, body: Option<&str>) -> Result<Response, JsValue> {
+/// `fetch` with an optional JSON string body (`Content-Type: application/json`)
+/// and `headers` added to the request.
+async fn fetch_with_body(
+    method: &str,
+    url: &str,
+    body: Option<&str>,
+    headers: &[(String, String)],
+) -> Result<Response, JsValue> {
     let opts = RequestInit::new();
     opts.set_method(method);
     opts.set_mode(RequestMode::Cors);
@@ -219,6 +257,9 @@ async fn fetch_with_body(method: &str, url: &str, body: Option<&str>) -> Result<
     let request = Request::new_with_str_and_init(url, &opts)?;
     if body.is_some() {
         request.headers().set("Content-Type", "application/json")?;
+    }
+    for (name, value) in headers {
+        request.headers().set(name, value)?;
     }
     let window = web_sys::window().ok_or_else(|| JsValue::from_str("no window"))?;
     let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;

@@ -16,7 +16,6 @@ from .client import (
     http_get,
     wait_until,
 )
-from .fixtures import VOTER_PASSWORD
 
 
 def portal_query(name):
@@ -54,7 +53,7 @@ class Portal:
             "voting-portal",
             self.redirect_uri,
             username,
-            VOTER_PASSWORD,
+            username,
         )
         token = tokens["access_token"]
 

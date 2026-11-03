@@ -420,3 +420,71 @@ async fn a_widget_checks_saves_and_draws_through_the_real_renderer() {
     let svg = body["svg"].as_str().unwrap();
     assert!(svg.starts_with("<svg") && svg.contains("<text"), "{svg}");
 }
+
+#[rocket::async_test]
+async fn enabling_defaults_requires_write_permission_and_an_unlocked_event() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let reader = Claims::new(&event.tenant_id, "configurator")
+        .roles([Permissions::MONITORING_CONFIGURE]);
+    let request = json!({"election_event_id": event.election_event_id, "mode": "CONFIGURED"});
+    let (status, _) =
+        json(post(&client, "/monitoring/set-mode", &reader, &request).await)
+            .await;
+    assert_eq!(status, Status::Unauthorized);
+    event
+        .present(&services.hasura, json!({"locked_down": "locked-down"}))
+        .await;
+    let (status, body) = call(
+        &client,
+        "/monitoring/set-mode",
+        &event,
+        json!({"mode": "CONFIGURED"}),
+    )
+    .await;
+    assert_eq!(status, Status::Forbidden, "{body}");
+    assert_eq!(body["extensions"]["code"], "MONITORING_LOCKED_DOWN");
+    let (_, body) =
+        call(&client, "/monitoring/list-config", &event, json!({})).await;
+    assert_eq!(body["mode"], "LEGACY");
+    assert!(body["documents"].as_array().unwrap().is_empty());
+    assert!(services.monitoring_audit.changes().is_empty());
+}
+
+#[rocket::async_test]
+async fn first_enable_can_be_customized_and_toggled_without_resetting() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let (status, body) = call(
+        &client,
+        "/monitoring/set-mode",
+        &event,
+        json!({"mode": "CONFIGURED"}),
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    let (yaml, revision) = widget(&client, &event, "turnout-summary").await;
+    let customized = yaml.replace("title: Voter turnout", "title: My turnout");
+    assert_ne!(yaml, customized);
+    let (status, body) =
+        save_widget(&client, &event, "turnout-summary", &customized, revision)
+            .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    for mode in ["LEGACY", "CONFIGURED", "CONFIGURED"] {
+        let (status, body) = call(
+            &client,
+            "/monitoring/set-mode",
+            &event,
+            json!({"mode": mode}),
+        )
+        .await;
+        assert_eq!(status, Status::Ok, "{body}");
+    }
+    let (after, after_revision) =
+        widget(&client, &event, "turnout-summary").await;
+    assert_eq!(after, customized);
+    assert_eq!(after_revision, revision + 1);
+    assert_eq!(services.monitoring_audit.changes().len(), 4);
+}

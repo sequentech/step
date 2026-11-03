@@ -33,11 +33,17 @@ use std::path::{Component, Path, PathBuf};
 #[derive(Args)]
 #[command(about)]
 pub struct BuildElectionEvent {
-    /// Path to the authoring workbook
-    #[arg(short = 'w', long, value_name = "WORKBOOK")]
-    workbook: PathBuf,
+    /// Path to the authoring workbook. With --historical-sql it is the optional
+    /// supplemental workbook; without it, the decisions' `supplement` stands in.
+    #[arg(
+        short = 'w',
+        long,
+        value_name = "WORKBOOK",
+        required_unless_present = "historical_sql"
+    )]
+    workbook: Option<PathBuf>,
 
-    /// Historical data-only SQL used with the supplemental workbook
+    /// Historical data-only SQL, legacy or post-qualification schema
     #[arg(long, value_name = "SQL", requires = "historical_decisions")]
     historical_sql: Option<PathBuf>,
 
@@ -127,8 +133,13 @@ impl BuildElectionEvent {
             }
         }
 
-        let bytes = fs::read(&self.workbook)
-            .with_context(|| format!("could not read {}", self.workbook.display()))?;
+        let bytes = self
+            .workbook
+            .as_ref()
+            .map(|path| {
+                fs::read(path).with_context(|| format!("could not read {}", path.display()))
+            })
+            .transpose()?;
         let workbook = if let Some(sql_path) = &self.historical_sql {
             use sequent_core::election_config::historical::{adapt, HistoricalOptions};
             let sql = fs::read(sql_path).context("could not read historical SQL")?;
@@ -140,7 +151,7 @@ impl BuildElectionEvent {
                 &fs::read(decisions_path).context("could not read historical decisions")?,
             )
             .context("invalid historical decisions JSON")?;
-            match adapt(&sql, &bytes, &decisions) {
+            match adapt(&sql, bytes.as_deref(), &decisions) {
                 Ok(adapted) => {
                     println!("{}", serde_json::to_string_pretty(&adapted.summary)?);
                     adapted.workbook
@@ -152,6 +163,10 @@ impl BuildElectionEvent {
                 }
             }
         } else {
+            // clap requires --workbook without --historical-sql.
+            let Some(bytes) = bytes else {
+                return Err(anyhow!("a workbook is required"));
+            };
             read_xlsx(&bytes).map_err(problem_error)?
         };
 
@@ -198,7 +213,11 @@ impl BuildElectionEvent {
                 return Err(anyhow!(
                     "{} problem(s) in {}",
                     report.errors().count(),
-                    self.workbook.display()
+                    self.workbook
+                        .as_ref()
+                        .or(self.historical_sql.as_ref())
+                        .map(|path| path.display().to_string())
+                        .unwrap_or_default()
                 ));
             }
         };
@@ -560,7 +579,7 @@ mod tests {
             let command = BuildElectionEvent {
                 historical_sql: None,
                 historical_decisions: None,
-                workbook: path,
+                workbook: Some(path),
                 out: root.path().join("out"),
                 tenant_id: Some(TENANT.to_string()),
                 base_export: None,
@@ -676,7 +695,7 @@ mod tests {
     #[test]
     fn an_unknown_auth_preset_is_refused_before_the_workbook_is_read() {
         let mut fixture = Fixture::new(b"never read");
-        fixture.command.workbook = fixture.root.path().join("missing.xlsx");
+        fixture.command.workbook = Some(fixture.root.path().join("missing.xlsx"));
         fixture.command.auth_preset = Some("carrier-pigeon".to_string());
 
         let error = fixture.error();
@@ -700,7 +719,7 @@ mod tests {
         let error = fixture.error();
         assert!(error.starts_with("error: "), "{error}");
 
-        fixture.command.workbook = fixture.root.path().join("missing.xlsx");
+        fixture.command.workbook = Some(fixture.root.path().join("missing.xlsx"));
         let error = fixture.error();
         assert!(error.contains("could not read"), "{error}");
     }
@@ -837,7 +856,7 @@ mod tests {
         }
         assert!(!outside.exists());
     }
-    fn historical_fixture() -> Fixture {
+    fn historical_fixture(event_name: Option<&str>) -> Fixture {
         let mut sql=String::from("CREATE TABLE `allbgy` (`ID_BARANGAY` text, `AREANAME` text); INSERT INTO `allbgy` VALUES ('B01','Area One');\nCREATE TABLE `allmun` (`ID_CITY` text, `AREANAME` text); INSERT INTO `allmun` VALUES ('001002','City One');\nCREATE TABLE `polling_centers` (`ID` text, `POLLING_PLACE` text); INSERT INTO `polling_centers` VALUES ('P01','Post One');\nCREATE TABLE `pop` (`CLUSTERPOLLCENTER` text, `POLLCENTER_CODE` text, `PROV_CODE` text, `MUN_CODE` text, `BRGY_CODE` text); INSERT INTO `pop` VALUES ('B01','P01','001','002','003');\nCREATE TABLE `trans_route` (`TRANS_SOURCE_ID` text, `TRANS_DEST_ID` text); INSERT INTO `trans_route` VALUES ('0010020003','DEST01');\nCREATE TABLE `seat` (`DISTRICTCODE` text, `CONTEST` text, `ELIGIBLEAMOUNT` int, `GEOCODE` text); INSERT INTO `seat` VALUES ('S01','Example Seat',1,'G01');\nCREATE TABLE `contest` (`POSTCODE` text, `POSTNAME` text, `SORT_ORDER` int); INSERT INTO `contest` VALUES ('C01','Example Seat',1);\nCREATE TABLE `candidate` (`CAND_CODE` text, `NAMEONBALLOT` text, `POST_CODE` text, `DISTRICTCODE` text, `NOMINATEDBY` text); INSERT INTO `candidate` VALUES ('0007','Example Candidate','C01','S01','PR01');\nCREATE TABLE `party_list` (`CODE_PARTY` text, `SHORT_NAME` text, `NAME_PARTY` text); INSERT INTO `party_list` VALUES ('PR01','EP','Example Party');\nCREATE TABLE `geographical` (`GEOCODE` text); INSERT INTO `geographical` VALUES ('G01');\nCREATE TABLE `voters` (`ID` text); INSERT INTO `voters` VALUES ('private-voter-id');\n");
         for name in [
             "allprov",
@@ -850,10 +869,16 @@ mod tests {
         let grids = vec![
             (
                 "ElectionEvent",
-                vec![
-                    vec![text("name"), text("annotations.miru_election_event_id")],
-                    vec![text("Synthetic event"), text("fixture")],
-                ],
+                match event_name {
+                    Some(name) => vec![
+                        vec![text("name"), text("annotations.miru_election_event_id")],
+                        vec![text(name), text("fixture")],
+                    ],
+                    None => vec![
+                        vec![text("annotations.miru_election_event_id")],
+                        vec![text("fixture")],
+                    ],
+                },
             ),
             (
                 "Elections",
@@ -890,7 +915,7 @@ mod tests {
     }
     #[test]
     fn historical_sources_build_through_the_shared_validator_and_native_writer() {
-        let mut fixture = historical_fixture();
+        let mut fixture = historical_fixture(Some("Synthetic event"));
         fixture.command.check_only = true;
         fixture.command.build().unwrap();
         assert!(!fixture.directory().exists());
@@ -917,10 +942,27 @@ mod tests {
         assert!(!zip
             .file_names()
             .any(|name| name.starts_with("export_voters-")));
+        let realm: serde_json::Value = serde_json::from_slice(
+            &fs::read(fixture.directory().join("keycloak_event_realm_patch.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(realm["patch"]["displayName"], "Synthetic event");
+    }
+    /// An event without a name would show voters and administrators `-`, so
+    /// the conversion refuses it and nothing is written.
+    #[test]
+    fn a_historical_event_without_a_name_is_refused_before_anything_is_written() {
+        let mut fixture = historical_fixture(None);
+        let error = fixture.error();
+        assert!(
+            error.contains("historical source conversion refused"),
+            "{error}"
+        );
+        assert!(!fixture.directory().exists());
     }
     #[test]
     fn historical_io_decision_and_conversion_failures_never_write_a_package() {
-        let mut fixture = historical_fixture();
+        let mut fixture = historical_fixture(Some("Synthetic event"));
         fixture.command.historical_sql = Some(fixture.root.path().join("missing.sql"));
         assert!(fixture.error().contains("could not read historical SQL"));
         fixture.command.historical_sql = Some(fixture.file("synthetic.sql", b"SELECT 1;"));
@@ -946,7 +988,7 @@ mod tests {
     /// candidate of a contest the source does not have through as "outside".
     #[test]
     fn a_dangling_historical_candidate_reference_never_writes_a_package() {
-        let mut fixture = historical_fixture();
+        let mut fixture = historical_fixture(Some("Synthetic event"));
         let mut sql = fs::read(fixture.command.historical_sql.as_ref().unwrap()).unwrap();
         sql.extend_from_slice(
             b"INSERT INTO `candidate` VALUES ('0008','Dangling Example','C99','S01',NULL);",

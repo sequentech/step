@@ -2,9 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Rocket 0.5 logs requests outside the route handler. Scope routine trustee
-//! check logging to its request task so shared authorization and SQL helpers
-//! keep their usual levels for every other caller.
+//! Rocket 0.5 logs requests outside the route handler. Scope the logging of
+//! routine polls (trustee checks and board reads) to their request task so
+//! shared authorization and SQL helpers keep their usual levels for every
+//! other caller.
 
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::http::Method;
@@ -45,9 +46,36 @@ pub fn fairing() -> TrusteeCheckLogging {
     TrusteeCheckLogging
 }
 
-fn is_check(request: &Request<'_>) -> bool {
-    request.method() == Method::Get
-        && request.uri().path().as_str() == TRUSTEE_BOARDS_PATH
+/// The routine polls a trustee repeats while it works.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RoutineCheck {
+    /// `GET /trustee/boards`: the boards the trustee has work on.
+    TrusteeBoards,
+    /// `GET /b4/boards/<board>/messages`: a board's messages.
+    BoardMessages,
+}
+
+impl RoutineCheck {
+    /// What a failed poll is logged as.
+    fn failure(self) -> &'static str {
+        match self {
+            RoutineCheck::TrusteeBoards => "trustee board check failed",
+            RoutineCheck::BoardMessages => "board messages read failed",
+        }
+    }
+}
+
+fn routine_check(request: &Request<'_>) -> Option<RoutineCheck> {
+    if request.method() != Method::Get {
+        return None;
+    }
+    let path = request.uri().path();
+    if path.as_str() == TRUSTEE_BOARDS_PATH {
+        return Some(RoutineCheck::TrusteeBoards);
+    }
+    let segments: Vec<&str> = path.segments().collect();
+    matches!(segments.as_slice(), ["b4", "boards", _, "messages"])
+        .then_some(RoutineCheck::BoardMessages)
 }
 
 #[rocket::async_trait]
@@ -66,7 +94,7 @@ impl Fairing for TrusteeCheckLogging {
         // Local clients can dispatch several requests from the same task.
         if let Ok(mut checks) = CHECKS.lock() {
             checks.remove(&task);
-            if is_check(request) {
+            if routine_check(request).is_some() {
                 let check = request.local_cache(|| Check {
                     task,
                     marker: Arc::new(()),
@@ -81,13 +109,16 @@ impl Fairing for TrusteeCheckLogging {
         request: &'r Request<'_>,
         response: &mut Response<'r>,
     ) {
-        if is_check(request) && !response.status().class().is_success() {
+        let Some(check) = routine_check(request) else {
+            return;
+        };
+        if !response.status().class().is_success() {
             if let Some(task) = try_id() {
                 if let Ok(mut checks) = CHECKS.lock() {
                     checks.remove(&task);
                 }
             }
-            tracing::warn!(status = %response.status(), "trustee board check failed");
+            tracing::warn!(status = %response.status(), "{}", check.failure());
         }
     }
 }

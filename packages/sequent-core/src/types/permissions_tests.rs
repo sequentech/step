@@ -772,7 +772,7 @@ fn every_realm_grants_the_tenant_log_to_its_administrators_and_feeds_it() {
             "{name}: {listeners:?}"
         );
         assert_eq!(realm["adminEventsEnabled"], true, "{name}");
-        assert_eq!(realm["adminEventsDetailsEnabled"], true, "{name}");
+        assert_eq!(realm["adminEventsDetailsEnabled"], false, "{name}");
     }
 }
 

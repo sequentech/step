@@ -54,6 +54,10 @@ pub enum Permissions {
     VOTER_SECRET_ATTRIBUTE_READ,
     #[strum(serialize = "voter-secret-attribute-write")]
     VOTER_SECRET_ATTRIBUTE_WRITE,
+    /// Export the Scanovate `liveness-secret` and download archives that
+    /// carry it.
+    #[strum(serialize = "integration-secret-read")]
+    INTEGRATION_SECRET_READ,
     #[strum(serialize = "user-create")]
     USER_CREATE,
     #[strum(serialize = "user-read")]

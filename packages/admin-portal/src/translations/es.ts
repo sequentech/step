@@ -5,6 +5,79 @@ import englishTranslation, {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        configurationPackage: {
+            tab: "Paquete de configuración",
+            title: "Importar un paquete de configuración",
+            description:
+                "Aplica una entrega completa exportada por Election Architect: configuración y ajustes del cliente, roles, administradores, autoridades y el evento electoral con su censo. Nada cambia hasta que se aplica la vista previa.",
+            tenant: "Cliente: {{tenantId}}",
+            notPermitted:
+                "Importar un paquete de configuración requiere tenant-write, user-write, role-write, trustee-create, trustee-write y election-event-create en este cliente.",
+            requirements: "El paquete debe incluir",
+            censusRequired: "El censo del evento electoral",
+            sections: {
+                "tenant-configuration": "Configuración del cliente",
+                "tenant-settings": "Ajustes del cliente",
+                "role-permissions": "Permisos de roles",
+                "admin-accounts": "Cuentas de administración",
+                "trustees": "Autoridades",
+                "election-event": "Evento electoral",
+            },
+            upload: "Subir paquete",
+            uploadTitle: "Subir un paquete de configuración",
+            uploadSubtitle: "El zip de la entrega, desde un medio extraíble",
+            uploadParagraph: "Primero se previsualiza; la subida por sí sola no aplica nada.",
+            documentId: "O el id de un documento ya subido",
+            preview: "Vista previa",
+            apply: "Aplicar",
+            blocked:
+                "La vista previa encontró bloqueos: corrige el paquete o el cliente y vuelve a previsualizar.",
+            noTask: "La plataforma no devolvió ninguna tarea.",
+            mode: {preview: "Vista previa", apply: "Aplicación"},
+            task: "Tarea {{taskId}}",
+            running: "En curso…",
+            toChange: "Solo vista previa, nada ha cambiado: {{count}} sección(es) cambiarían.",
+            outcome: {
+                running: "En curso",
+                previewed: "Previsualizado: no se cambió nada",
+                applied: "Aplicado: el cliente coincide con el paquete",
+                refused:
+                    "Rechazado antes de que esta ejecución aplicara nada; las secciones que aplicó una ejecución anterior siguen aplicadas, según su estado",
+                failed: "Falló a mitad: las secciones anteriores pueden estar aplicadas, según su estado",
+                unknown:
+                    "Desconocido: una sección no pudo resolverse y no se envió nada más; compruébela antes de reintentar",
+            },
+            columns: {section: "Sección", state: "Estado", task: "Tarea", details: "Detalles"},
+            reconciled: "conciliado",
+            blocker: "Bloqueado",
+            needsApply: "Cambiaría",
+            members: "Miembros",
+            history: "Aplicaciones anteriores",
+            applyRechecks:
+                "Aplicar vuelve a previsualizar el paquete en la plataforma antes de cambiar nada, y se detiene ante cualquier bloqueo.",
+            earlierApplied: "Aplicado por una ejecución anterior",
+            earlierTasks: "Tareas iniciadas para esta sección: {{tasks}}",
+            inFlight: "Hay un envío sin resolver (tarea {{taskId}})",
+            stoppedWithoutRecord:
+                "Detenido sin registro: esta ejecución o una anterior pueden haber aplicado secciones; previsualice de nuevo para ver el estado del cliente",
+            lastLog: "Último mensaje: {{message}}",
+            unreadable:
+                "No se puede leer la tarea ({{reason}}). Puede seguir en curso: compruebe las aplicaciones anteriores o deje de seguirla",
+            notFound: "no encontrada en este cliente",
+            stopFollowing: "Dejar de seguir",
+            mayHaveTask:
+                "Se desconoce el resultado de la petición, así que puede haberse creado una tarea: compruebe las aplicaciones anteriores antes de reintentar.",
+            shaMismatch:
+                "El paquete previsualizado no es el del SHA-256 introducido ({{expected}}); no se puede aplicar.",
+            confirmTitle: "¿Aplicar este paquete?",
+            confirmBody:
+                "Esto aplica el paquete previsualizado al cliente {{tenantId}}. La plataforma lo vuelve a previsualizar primero y se detiene ante cualquier bloqueo.",
+            cancel: "Cancelar",
+            proposedChanges: "Lo que cambiaría al aplicar",
+            shaMalformed:
+                "El SHA-256 introducido no tiene 64 caracteres hexadecimales, así que el paquete no se ha previsualizado. Introduzca el resumen exacto o déjelo en blanco.",
+            nothingToChange: "Nada: el cliente ya coincide con el paquete.",
+        },
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Cerrar",
@@ -944,6 +1017,7 @@ const spanishTranslation: TranslationType = {
                 EXPORT_APPLICATION: "Exportar Solicitudes",
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
+                APPLY_CONFIGURATION_PACKAGE: "Aplicar Paquete de Configuración",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
                 CREATE_TENANT: "Crear Inquilino",
                 EXPORT_TEMPLATES: "Exportar Plantillas",
@@ -1835,6 +1909,9 @@ const spanishTranslation: TranslationType = {
                 encryptWithPassword: "Cifrar con Contraseña",
                 passwordForcedNote:
                     "El archivo se protegerá con contraseña de todos modos: los informes, las solicitudes y los datos del tablón se cifran siempre. Marca la casilla para incluir también los campos secretos de votante descifrados.",
+                integrationSecrets: "Secretos de integración (credenciales de servicio)",
+                integrationSecretsNote:
+                    "Una vez descifrado, el archivo contendrá en claro el secreto de liveness de Scanovate. Mantén en secreto el archivo y su contraseña, e impórtalo solo donde deba usarse ese servicio de Liveness Plus.",
                 includeVoters: "Incluir Votantes",
                 activityLogs: "Registros de Actividad",
                 bulletinBoard: "Tablón de Anuncios",
@@ -2268,6 +2345,7 @@ const spanishTranslation: TranslationType = {
                 "voter-write": "Editar Votante",
                 "voter-secret-attribute-read": "Mostrar Campos Secretos del Votante",
                 "voter-secret-attribute-write": "Editar Campos Secretos del Votante",
+                "integration-secret-read": "Exportar Secretos de Integración",
                 "user-create": "Crear Usuario",
                 "user-read": "Leer Usuario",
                 "user-write": "Editar Usuario",
@@ -2785,6 +2863,9 @@ const spanishTranslation: TranslationType = {
                         delete: "¿Está seguro de que desea eliminar este elemento?",
                         sealsUnknown:
                             "No se pudieron comprobar los sellos de las urnas: si tiene urnas selladas, se rechazará el borrado.",
+                        archiveNamed: '¿Está seguro de que desea archivar "{{name}}"?',
+                        unarchiveNamed: '¿Está seguro de que desea desarchivar "{{name}}"?',
+                        deleteNamed: '¿Está seguro de que desea eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2905,6 +2986,13 @@ const spanishTranslation: TranslationType = {
                 "label": "Forma del icono de la casilla de verificación de los candidatos",
                 "square-checkbox": "Casilla de verificación cuadrada",
                 "round-checkbox": "Casilla de verificación redonda",
+            },
+            candidatesLayout: {
+                "label": "Disposición de las candidaturas",
+                "helperText":
+                    "La cuadrícula de papeleta en papel muestra las candidaturas como celdas numeradas con un círculo para rellenar, columna a columna, según Columnas (4 si está vacío). Las votaciones por orden de preferencia siempre usan la lista.",
+                "list": "Lista",
+                "paper-grid": "Cuadrícula de papeleta en papel",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidatos Y Listas",
@@ -4139,6 +4227,7 @@ const spanishTranslation: TranslationType = {
                     "insufficient-information": "Datos faltantes",
                     "no-matching-voter": "Votante no coincidente",
                     "voter-already-approved": "Ya aprobado",
+                    "EMAIL_IN_USE": "Correo usado por otro votante",
                     "other": "Otro",
                 },
                 hint: {
@@ -4379,6 +4468,8 @@ const spanishTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Paneles configurables",
+            modeChangeError: "No se pudo cambiar el modo del panel. Inténtelo de nuevo.",
             title: "Monitorización",
             loading: "Cargando la monitorización",
             unavailableAlert:

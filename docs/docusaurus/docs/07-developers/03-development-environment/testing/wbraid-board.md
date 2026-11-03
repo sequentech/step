@@ -21,5 +21,17 @@ exclusive pagination, malformed requests, missing boards, inline/S3 boundaries,
 foreign keys and durable reads. Archived boards retain their existing messages
 and reject new insertions at the storage boundary.
 
+Harvest's authenticated board writes use Windmill's trustee membership lookup.
+`packages/windmill/tests/postgres_trustee_boards.rs` checks membership of the
+same tenant and keys ceremony, missing claims, unknown trustees and boards,
+lookup failures, and the report errors existing callers receive. The fixture
+creates a private database from the Hasura migrations and rolls back each test.
+With `HASURA_DB__*` pointing to a disposable PostgreSQL server, run from
+`packages/` in the pinned devenv shell:
+
+```sh
+CARGO_TARGET_DIR="$PWD/rust-local-target" cargo test -p windmill --test postgres_trustee_boards
+```
+
 Application audit records use the independent immudb backend. Its disposable
 database contracts are described in the [electoral-log test guide](./electoral-log.md).

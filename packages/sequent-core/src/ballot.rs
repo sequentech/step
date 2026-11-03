@@ -976,6 +976,35 @@ pub enum CandidatesIconCheckboxPolicy {
     ROUND_CHECKBOX, // RadioButton icon
 }
 
+/// How a contest's candidates are laid out on the ballot screen.
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    Copy,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum CandidatesLayout {
+    /// One card per candidate, in `columns` columns.
+    #[strum(serialize = "list")]
+    #[serde(rename = "list")]
+    #[default]
+    List,
+    /// A dense grid of numbered cells with a fill-in circle, filled column
+    /// by column, like a printed paper ballot.
+    #[strum(serialize = "paper-grid")]
+    #[serde(rename = "paper-grid")]
+    PaperGrid,
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     Debug,
@@ -1995,6 +2024,10 @@ pub struct ContestPresentation {
     pub types_presentation: Option<HashMap<String, Option<TypePresentation>>>,
     pub sort_order: Option<i64>,
     pub columns: Option<u64>,
+    /// Skipped in Borsh so that published ballot styles keep their hashes.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidates_layout: Option<CandidatesLayout>,
 }
 
 impl ContestPresentation {
@@ -2023,6 +2056,7 @@ impl ContestPresentation {
             duplicated_rank_policy: Some(EDuplicatedRankPolicy::default()),
             preference_gaps_policy: Some(EPreferenceGapsPolicy::default()),
             columns: None,
+            candidates_layout: None,
         }
     }
 }
@@ -4144,6 +4178,94 @@ mod ballot_box_seal_policy_tests {
         };
         assert_eq!(
             borsh::to_vec(&sealed).unwrap(),
+            borsh::to_vec(&legacy).unwrap()
+        );
+    }
+}
+
+#[cfg(test)]
+mod candidates_layout_tests {
+    use super::*;
+
+    #[test]
+    fn the_default_is_the_list() {
+        assert_eq!(CandidatesLayout::default(), CandidatesLayout::List);
+    }
+
+    #[test]
+    fn the_layout_round_trips_through_its_names() {
+        for (layout, name) in [
+            (CandidatesLayout::List, "list"),
+            (CandidatesLayout::PaperGrid, "paper-grid"),
+        ] {
+            assert_eq!(
+                serde_json::to_value(layout).unwrap(),
+                serde_json::json!(name)
+            );
+            assert_eq!(
+                serde_json::from_value::<CandidatesLayout>(serde_json::json!(
+                    name
+                ))
+                .unwrap(),
+                layout
+            );
+            assert_eq!(layout.to_string(), name);
+            assert_eq!(name.parse::<CandidatesLayout>().unwrap(), layout);
+        }
+    }
+
+    #[test]
+    fn an_unknown_layout_is_rejected() {
+        assert!(
+            serde_json::from_value::<CandidatesLayout>(serde_json::json!(
+                "grid"
+            ))
+            .is_err()
+        );
+        assert!("grid".parse::<CandidatesLayout>().is_err());
+    }
+
+    #[test]
+    fn a_presentation_without_the_field_has_no_layout() {
+        let presentation: ContestPresentation =
+            serde_json::from_value(serde_json::json!({"columns": 2})).unwrap();
+        assert_eq!(presentation.candidates_layout, None);
+        assert_eq!(ContestPresentation::new().candidates_layout, None);
+    }
+
+    #[test]
+    fn an_absent_layout_is_not_written() {
+        let value =
+            serde_json::to_value(ContestPresentation::default()).unwrap();
+        assert!(value.get("candidates_layout").is_none());
+    }
+
+    #[test]
+    fn a_presentation_reads_and_writes_the_paper_grid() {
+        let presentation: ContestPresentation =
+            serde_json::from_value(serde_json::json!({
+                "candidates_layout": "paper-grid"
+            }))
+            .unwrap();
+        assert_eq!(
+            presentation.candidates_layout,
+            Some(CandidatesLayout::PaperGrid)
+        );
+        assert_eq!(
+            serde_json::to_value(&presentation).unwrap()["candidates_layout"],
+            serde_json::json!("paper-grid")
+        );
+    }
+
+    #[test]
+    fn the_layout_does_not_change_the_ballot_style_bytes() {
+        let legacy = ContestPresentation::default();
+        let paper = ContestPresentation {
+            candidates_layout: Some(CandidatesLayout::PaperGrid),
+            ..ContestPresentation::default()
+        };
+        assert_eq!(
+            borsh::to_vec(&paper).unwrap(),
             borsh::to_vec(&legacy).unwrap()
         );
     }

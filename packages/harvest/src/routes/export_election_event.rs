@@ -22,6 +22,7 @@ use windmill::services::electoral_log::{
     post_voter_secret_attribute_audit, ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
 };
+use windmill::services::export::integration_secrets::IntegrationSecretsExport;
 use windmill::services::participation_authorization::{
     ParticipationAuthorization, ParticipationCommand,
     PARTICIPATION_AUTHORIZATION,
@@ -42,6 +43,36 @@ pub struct ExportElectionEventOutput {
     document_id: String,
     password: Option<String>,
     task_execution: TasksExecution,
+}
+
+/// Whether the archive carries the authenticator integration secrets.
+///
+/// Only on the caller's explicit request (`include_integration_secrets`),
+/// never from a caller-set `integration_secrets`, for an export the caller
+/// chose to encrypt with a password, and only for a holder of
+/// `integration-secret-read`. A request that can't be honoured is refused
+/// rather than silently exported without the secrets.
+fn integration_secrets_export(
+    claims: &JwtClaims,
+    export_config: &ExportOptions,
+) -> Result<IntegrationSecretsExport, (Status, String)> {
+    if !export_config.include_integration_secrets {
+        return Ok(IntegrationSecretsExport::OMITTED);
+    }
+    if !export_config.encrypt_with_password {
+        return Err((
+            Status::BadRequest,
+            "Exporting integration secrets requires encrypting the export with a password"
+                .to_string(),
+        ));
+    }
+    authorize(
+        claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::INTEGRATION_SECRET_READ],
+    )?;
+    Ok(IntegrationSecretsExport::INCLUDED)
 }
 
 #[instrument(skip(services, claims, input))]
@@ -78,6 +109,8 @@ pub async fn export_election_event_route(
     })?;
     export_config.password = None;
     export_config.contains_voter_secrets = false;
+    export_config.integration_secrets =
+        integration_secrets_export(&claims, &export_config)?;
     export_config.is_encrypted = export_config.is_encrypted
         || export_config.encrypt_with_password
         || export_config.bulletin_board
@@ -137,10 +170,12 @@ pub async fn export_election_event_route(
         )
         .await?;
     drop(scope_tx);
-    let mut task_annotations = secret_export_task_annotations(
-        &document_id,
-        export_config.contains_voter_secrets,
-    );
+    let mut task_annotations =
+        secret_export_task_annotations_with_integration_secrets(
+            &document_id,
+            export_config.contains_voter_secrets,
+            export_config.integration_secrets,
+        );
     task_annotations[PARTICIPATION_AUTHORIZATION] =
         serde_json::to_value(ParticipationAuthorization {
             tenant_id: tenant_id.clone(),
@@ -205,6 +240,7 @@ pub async fn export_election_event_route(
         None
     };
     export_config.password = password.clone();
+    let integration_secrets = export_config.integration_secrets;
 
     let _celery_task = match celery_app
         .send_task(export_election_event::export_election_event::new(
@@ -243,7 +279,16 @@ pub async fn export_election_event_route(
             Some(&body.election_event_id),
         )?,
         audit::election_event(&body.election_event_id),
-        "Requested the export of the election event",
+        // The tenant log records that service credentials were requested.
+        match integration_secrets {
+            IntegrationSecretsExport::INCLUDED => {
+                "Requested the export of the election event with its \
+                 integration secrets"
+            }
+            IntegrationSecretsExport::OMITTED => {
+                "Requested the export of the election event"
+            }
+        },
         Some(&task_execution.id),
         Some(&document_id),
     );
@@ -258,4 +303,65 @@ pub async fn export_election_event_route(
     info!("Sent EXPORT_ELECTION_EVENT task  {:?}", &task_execution);
 
     Ok(Json(output))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_claims::Claims;
+
+    fn requested(encrypt_with_password: bool) -> ExportOptions {
+        ExportOptions {
+            encrypt_with_password,
+            include_integration_secrets: true,
+            ..ExportOptions::default()
+        }
+    }
+
+    #[test]
+    fn integration_secrets_need_the_request_the_password_and_the_permission() {
+        let reader = Claims::new("tenant", "reader")
+            .roles([Permissions::INTEGRATION_SECRET_READ])
+            .build();
+        assert_eq!(
+            integration_secrets_export(&reader, &requested(true)),
+            Ok(IntegrationSecretsExport::INCLUDED)
+        );
+
+        // An ordinary export stays secret-free, even for a holder of the
+        // permission and even when the caller forges the server's field.
+        let forged = ExportOptions {
+            encrypt_with_password: true,
+            integration_secrets: IntegrationSecretsExport::INCLUDED,
+            ..ExportOptions::default()
+        };
+        assert_eq!(
+            integration_secrets_export(&reader, &forged),
+            Ok(IntegrationSecretsExport::OMITTED)
+        );
+
+        // Requested without password encryption: refused, not downgraded.
+        let refused = integration_secrets_export(&reader, &requested(false));
+        assert_eq!(
+            refused.map_err(|(status, _)| status),
+            Err(Status::BadRequest)
+        );
+
+        // Requested without the permission, including by holders of the
+        // event-read, voter-secret or realm-attribute read permissions.
+        for claims in [
+            Claims::new("tenant", "admin")
+                .roles([
+                    Permissions::ELECTION_EVENT_READ,
+                    Permissions::KEYCLOAK_REALM_ATTRIBUTES_READ,
+                ])
+                .build(),
+            Claims::new("tenant", "voters")
+                .roles([Permissions::VOTER_SECRET_ATTRIBUTE_READ])
+                .build(),
+        ] {
+            let denied = integration_secrets_export(&claims, &requested(true));
+            assert!(denied.is_err());
+        }
+    }
 }

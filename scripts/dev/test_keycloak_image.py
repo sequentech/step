@@ -19,7 +19,8 @@ COMELEC = ROOT / "packages/windmill/external-bin/janitor/templates/COMELEC/keycl
 IMAGE_BUILDS = {
     ".devcontainer/docker-compose.yml": "scripts: ../scripts",
     ".devcontainer/docker-compose-remote.yml": "scripts: ../scripts",
-    ".github/workflows/reusable_build_push.yml": "scripts=./scripts",
+    # reusable_build_push.yml takes its matrix, build contexts included, from here.
+    ".github/scripts/build_images.json": "scripts=./scripts",
     ".github/workflows/reusable_build_push_root.yml": "scripts=./scripts",
 }
 

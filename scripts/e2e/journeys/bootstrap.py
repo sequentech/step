@@ -183,6 +183,24 @@ def enroll_trustees(keycloak):
         )
 
 
+def configure_api_client(keycloak):
+    """Give this isolated stack's generated client the synthetic fixture secret.
+
+    Tenant creation rotates client secrets, so the template secret is not the
+    credential of the new realm. Both step-cli and the trustee fixtures use
+    this configured value for their authenticated requests.
+    """
+    clients = keycloak.admin("GET", f"{TENANT_REALM}/clients?clientId=api-key-client")
+    if len(clients) != 1:
+        raise AssertionError(f"Expected one api-key-client in {TENANT_REALM}")
+    keycloak.admin(
+        "PUT",
+        f"{TENANT_REALM}/clients/{clients[0]['id']}",
+        {"enabled": True, "secret": ENV["API_KEY_CLIENT_SECRET"]},
+        expect=(204,),
+    )
+
+
 def admin_token(keycloak):
     """An administrator token from the API key client, the one step-cli uses."""
     return keycloak.password_grant(
@@ -269,6 +287,7 @@ def main():
         timeout=300,
     )
     mark("JWKS published")
+    configure_api_client(keycloak)
     set_admin_password(keycloak)
     enrolled = enroll_admin_mfa(keycloak)
     mark("administrator enrolled" if enrolled else "administrator already enrolled")

@@ -87,6 +87,9 @@ summary = "step-dev developer commands and the selection model"
 # air-gap bundle test reads its files.
 test_inputs = ["scripts/airgap-files/**", "packages/windmill/external-bin/janitor/signing_preset.py", "packages/windmill/external-bin/janitor/approval_matrix_preset.py", "packages/windmill/external-bin/janitor/templates/COMELEC/**", "packages/windmill/external-bin/janitor/templates/association/**", "scripts/e2e/journeys/fixtures.py", "packages/voting-load/fixtures/election.json"]
 
+[units.scripts-sbom]
+summary = "Source inventory and rights-schedule preparation"
+
 [units.scripts-coverage]
 summary = "Coverage runners and reporters"
 
@@ -264,6 +267,10 @@ globs = ["scripts/dev/**", "scripts/gen-tz-defaults.mjs"]
 units = ["scripts-dev"]
 
 [[paths]]
+globs = ["scripts/sbom/**"]
+units = ["scripts-sbom"]
+
+[[paths]]
 globs = ["scripts/coverage/**"]
 units = ["scripts-coverage"]
 
@@ -281,6 +288,8 @@ globs = [
     "scripts/assurance/**",
     "scripts/tasks/**",
     "scripts/build-airgapped.sh",
+    "scripts/check-deployment-env-templates.sh",
+    "scripts/test-check-deployment-env-templates.sh",
     "scripts/generate_voters.py",
     "scripts/loc.sh",
     "scripts/replacements.sh",
@@ -318,9 +327,10 @@ units = ["admin-portal", "keycloak-ui"]
 globs = ["packages/ECIESEncryption/**"]
 units = ["ecies"]
 
+# step-cli's build script embeds every voting-load file in the binary.
 [[paths]]
 globs = ["packages/voting-load/**"]
-units = ["voting-load"]
+units = ["voting-load", "step-cli"]
 
 [[paths]]
 globs = ["packages/loadtesting/**"]
@@ -370,7 +380,7 @@ focus = ["yarn", "jest", "--runInBand"]
 workflows = ["frontend-coverage.yml"]
 [checks.also_workflows]
 ui-core = ["tests.yml"]
-ui-essentials = ["tests.yml", "lint_prettify.yml"]
+ui-essentials = ["tests.yml"]
 voting-portal = ["tests.yml"]
 admin-portal = ["tests.yml"]
 results-portal = ["lint_prettify.yml"]
@@ -769,7 +779,7 @@ kind = "test"
 runner = "cargo"
 cost = "integration"
 cwd = "packages"
-command = "cargo test --locked -p step-cli --test acceptance_cli -- --ignored"
+command = "cargo test --locked -p step-cli --test cli -- --ignored acceptance_cli::"
 requires = ["postgres-server"]
 workflows = ["tests.yml"]
 [checks.env]
@@ -909,6 +919,17 @@ trigger = "changed"
 cwd = "."
 command = "ruff check --config scripts/dev/ruff.toml scripts/dev"
 requires = ["ruff"]
+
+[[checks]]
+id = "python:scripts-sbom"
+units = ["scripts-sbom"]
+kind = "test"
+runner = "python"
+cost = "fast"
+cwd = "."
+command = "python3 -m unittest discover -s scripts/sbom -p 'test_*.py'"
+focus = ["python3", "-m", "unittest"]
+tests = ["scripts/sbom/test_*.py"]
 
 [[checks]]
 id = "python:scripts-coverage"
