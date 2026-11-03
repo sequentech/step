@@ -19,6 +19,8 @@ jobs:
           #- service: braid # these take too long!
           - service: harvest
           - service: strand
+          - service: strand
+            extra: --features fips_core
           - service: immu-board
           - service: immudb-rs
           - service: sequent-core
