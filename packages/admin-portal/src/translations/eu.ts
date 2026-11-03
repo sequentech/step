@@ -469,6 +469,7 @@ const basqueTranslation: TranslationType = {
                 customUrls: "URL Aurrizki Pertsonalizatuak",
                 votingPeriod: "Bozketa Aldia",
                 language: "Hizkuntza",
+                languageAndRegion: "Hizkuntza eta eskualdea",
                 allowed: "Baimendutako Bozketa Kanalak",
                 materials: "Laguntza Materialak",
                 ballotDesign: "Bozketa Diseinua",
@@ -705,6 +706,13 @@ const basqueTranslation: TranslationType = {
                         "browser-detect": "Arakatzailetik detektatu",
                         "force-default": "Lehenetsia behartu",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Zenbakien formatuaren politika",
+                    helperText:
+                        "Emaitzetako, paneletako eta txostenetako zenbakiei aplikatzen zaie.",
+                    unknownPolicy:
+                        "'{{policy}}' formatu ezezaguna, honela erakusten da: {{sample}}",
                 },
             },
             error: {
@@ -1045,6 +1053,29 @@ const basqueTranslation: TranslationType = {
                 options: {
                     "gold-level": "Urre maila Autentifikazioa",
                     "no-gold-level": "Ez da Urre maila Autentifikaziorik",
+                },
+            },
+            slates: {
+                enable: {
+                    label: "Gaitu hautagai-zerrendak",
+                    helper: "Gaituta dagoenean, hautesleek izendun hautagai-zerrenda bat hauta dezakete eta edozein lehia alda dezakete, hautagai independenteak barne.",
+                },
+                disable: {
+                    confirm: "Desgaitu hautagai-zerrendak",
+                    message_one:
+                        "Hauteskunde honek hautagai-zerrenda {{count}} du. Hautagai-zerrendak desgaitzen badituzu, gordetzean ezabatuko da.",
+                    message_many:
+                        "Hauteskunde honek {{count}} hautagai-zerrenda ditu. Hautagai-zerrendak desgaitzen badituzu, gordetzean ezabatuko dira.",
+                    message_other:
+                        "Hauteskunde honek {{count}} hautagai-zerrenda ditu. Hautagai-zerrendak desgaitzen badituzu, gordetzean ezabatuko dira.",
+                },
+                mobileCandidateLists: {
+                    label: "Hautagaien zerrendak mugikorrean",
+                    helper: "Nola agertzen den hasieran hautagai-zerrenda bakoitzaren hautagaien zerrenda mugikorrean: Tolestuta edo Zabalduta. Hautesleek beti ireki edo itxi dezakete edozein zerrenda. Mahaigainean hautagai guztiak erakusten dira beti.",
+                    options: {
+                        collapsed: "Tolestuta",
+                        expanded: "Zabalduta",
+                    },
                 },
             },
             startScreenTitlePolicy: {
@@ -1764,6 +1795,7 @@ const basqueTranslation: TranslationType = {
             election: "Sortu Hauteskundea",
             contest: "Sortu Galdera",
             candidate: "Sortu Hautagaia",
+            slate: "Sortu Hautagai-zerrenda bat",
         },
         importResource: {
             electionEvent: "Inportatu Hauteskunde Gertaera",
@@ -1803,12 +1835,16 @@ const basqueTranslation: TranslationType = {
                     election: "Kendu Hauteskunde hau",
                     contest: "Kendu Galdera hau",
                     candidate: "Kendu Hautagaia hau",
+                    slate: "Kendu Hautagai-zerrenda hau",
                 },
                 messages: {
                     confirm: {
                         archive: "Ziur zaude elementu hau artxibatu nahi duzula?",
                         unarchive: "Ziur zaude elementu hau desartxibatu nahi duzula?",
                         delete: "Ziur zaude elementu hau ezabatu nahi duzula?",
+                        archiveNamed: 'Ziur zaude "{{name}}" artxibatu nahi duzula?',
+                        unarchiveNamed: 'Ziur zaude "{{name}}" desartxibatu nahi duzula?',
+                        deleteNamed: 'Ziur zaude "{{name}}" ezabatu nahi duzula?',
                     },
                     notification: {
                         success: {
@@ -1866,6 +1902,38 @@ const basqueTranslation: TranslationType = {
             createCandidateSuccess: "Hautagaia sortua",
             createCandidateError: "Errorea hautagaia sortzerakoan",
         },
+        slateScreen: {
+            common: {
+                subtitle: "Hautagai-zerrendaren konfigurazioa.",
+                newSlate: "Hautagai-zerrenda berria",
+                notFound: "Hautagai-zerrenda hau ez da existitzen.",
+            },
+            tabs: {
+                data: "Datuak",
+            },
+            edit: {
+                general: "Orokorra",
+                members: "Kideak",
+            },
+            field: {
+                name: "Izena",
+                alias: "Ezizena",
+                description: "Deskribapena",
+                externalId: "Kanpoko IDa",
+            },
+            members: {
+                helper: "Esleitu lehia bakoitzeko gehienezko hautagai kopurura arte. Utzi lehia bat hutsik hautagai-zerrenda honek lehia hori bete gabe uzteko. Inongo hautagai-zerrendatan ez dauden hautagaiak Independente gisa agertzen dira lehia horretan.",
+                contest: "Lehia",
+                candidate: "Hautagaia",
+                noCandidate: "Hautagairik ez",
+            },
+            messages: {
+                saved: "Hautagai-zerrenda gorde da",
+                invalid: "Ezin da hautagai-zerrenda gorde. Zuzendu behean zerrendatutako arazoak.",
+                error: "Ezin izan da hautagai-zerrenda gorde.",
+                unreadable: "Ezin da hauteskundearen hautagai-zerrenden konfigurazioa irakurri.",
+            },
+        },
         contestScreen: {
             common: {
                 subtitle: "Galdera konfigurazioa.",
@@ -1909,6 +1977,7 @@ const basqueTranslation: TranslationType = {
                 "warn-only-in-review": "Abisatu Berrikuspena",
                 "warn": "Abisatu",
                 "warn-and-alert": "Abisatu eta Alerta",
+                "warn-and-confirm-in-review": "Abisatu eta Berretsi Berrikuspenean",
             },
             invalidVotePolicy: {
                 "label": "Baliogabeko Boto Politika",
@@ -2103,6 +2172,8 @@ const basqueTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Zenbakizko emaitzak osatuta daude. Txostenak sortzen ari dira oraindik.",
             errorUploadingSignature: "Errorea izan da sinadura igotzean",
             downloadTransmissionPackage: "Deskargatu Transmisio Paketea",
             resultsPublication: {

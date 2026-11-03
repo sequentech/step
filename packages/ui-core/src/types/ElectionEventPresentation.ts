@@ -207,6 +207,19 @@ export type VotingPortalDateTimeFormat =
     | EVotingPortalDateTimeFormat
     | IVotingPortalCustomDateTimeFormat
 
+/**
+ * How an election event writes numbers such as vote counts and percentages,
+ * named after its thousands separator, then its decimal separator. Mirrors the
+ * Rust `NumberFormatPolicy`.
+ */
+export enum ENumberFormatPolicy {
+    COMMA_PERIOD = "comma-period",
+    PERIOD_COMMA = "period-comma",
+    SPACE_COMMA = "space-comma",
+    SPACE_PERIOD = "space-period",
+    APOSTROPHE_PERIOD = "apostrophe-period",
+}
+
 export interface IElectionEventPresentation {
     i18n?: Record<string, Record<string, string>>
     materials?: IElectionEventMaterials
@@ -236,4 +249,10 @@ export interface IElectionEventPresentation {
     delegated_voting_policy: EElectionEventDelegatedVotingPolicy
     voting_portal_datetime_format?: VotingPortalDateTimeFormat
     batch_anonymity_policy?: EElectionEventBatchAnonymityPolicy
+    /**
+     * An `ENumberFormatPolicy` code. Events saved before the policy existed
+     * have none, or `null`, and an event from a newer version can name a code
+     * this version doesn't know. Read it with `resolveNumberFormatPolicy`.
+     */
+    number_format_policy?: string | null
 }

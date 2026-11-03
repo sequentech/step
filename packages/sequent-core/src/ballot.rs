@@ -17,6 +17,9 @@ use crate::types::ceremonies::{
 };
 use crate::types::hasura::core as hasura_core;
 use crate::types::hasura::core::{Area, ElectionEvent};
+use crate::types::number_format::{
+    deserialize_lenient_number_format_policy, NumberFormatPolicy,
+};
 use ::core::convert::TryInto;
 use anyhow::anyhow;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -1188,6 +1191,15 @@ pub struct ElectionEventPresentation {
     pub voting_portal_datetime_format: Option<VotingPortalDateTimeFormat>,
     #[borsh(skip)]
     pub batch_anonymity_policy: Option<BatchAnonymityPolicy>,
+    /// Absent in events created before it existed, which then use the
+    /// default. Left out of Borsh: ballot styles embed this presentation,
+    /// and their Borsh bytes are part of what each voter signs.
+    #[borsh(skip)]
+    #[serde(
+        default,
+        deserialize_with = "deserialize_lenient_number_format_policy"
+    )]
+    pub number_format_policy: Option<NumberFormatPolicy>,
 }
 
 impl ElectionEvent {
@@ -1339,6 +1351,9 @@ pub enum EUnderVotePolicy {
     #[strum(serialize = "warn-and-alert")]
     #[serde(rename = "warn-and-alert")]
     WARN_AND_ALERT,
+    #[strum(serialize = "warn-and-confirm-in-review")]
+    #[serde(rename = "warn-and-confirm-in-review")]
+    WARN_AND_CONFIRM_IN_REVIEW,
 }
 
 #[allow(non_camel_case_types)]
@@ -3198,10 +3213,18 @@ mod presentation_borsh_compat_tests {
         assert_eq!(borsh::to_vec(&event_with_results).unwrap(), event_bytes);
         let event_with_batch_policy = ElectionEventPresentation {
             batch_anonymity_policy: Some(BatchAnonymityPolicy::REFUSE),
-            ..event_presentation
+            ..event_presentation.clone()
         };
         assert_eq!(
             borsh::to_vec(&event_with_batch_policy).unwrap(),
+            event_bytes
+        );
+        let event_with_number_format = ElectionEventPresentation {
+            number_format_policy: Some(NumberFormatPolicy::PeriodComma),
+            ..event_presentation
+        };
+        assert_eq!(
+            borsh::to_vec(&event_with_number_format).unwrap(),
             event_bytes
         );
 
