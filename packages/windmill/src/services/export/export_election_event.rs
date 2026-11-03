@@ -685,7 +685,7 @@ pub async fn process_export_zip(
     }
 
     // add protocol manager secrets
-    if export_config.bulletin_board || export_config.activity_logs || export_config.publications {
+    if export_config.includes_protocol_manager_keys() {
         // read protocol manager keys (one per board)
         let protocol_manager_keys_filename = format!(
             "{}-{}.csv",
@@ -787,9 +787,11 @@ pub async fn process_export_zip(
         .map_err(|e| anyhow!("Error finalizing ZIP file: {e:?}"))?;
 
     // Encrypt ZIP file if required
-    let encryption_password = export_config.password.unwrap_or("".to_string());
-    if 0 == encryption_password.len() && (export_config.bulletin_board || export_config.reports) {
-        return Err(anyhow!("Bulletin Board requires password"));
+    let encryption_password = export_config.password.clone().unwrap_or_default();
+    if encryption_password.is_empty() && export_config.requires_encryption() {
+        return Err(anyhow!(
+            "This export holds protocol manager keys, reports or applications and requires a password"
+        ));
     }
     let encrypted_zip_path = zip_path.with_extension("ezip");
     if encryption_password.len() > 0 {
