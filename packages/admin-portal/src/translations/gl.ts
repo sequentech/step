@@ -472,6 +472,7 @@ const galegoTranslation: TranslationType = {
                 customUrls: "Prefixo de URLs Personalizados",
                 votingPeriod: "Período de Votación",
                 language: "Idioma",
+                languageAndRegion: "Idioma e rexión",
                 allowed: "Canles de Votación Permitidas",
                 materials: "Materiais de Soporte",
                 ballotDesign: "Deseño da Papeleta",
@@ -705,6 +706,11 @@ const galegoTranslation: TranslationType = {
                         "browser-detect": "Detectar desde o navegador",
                         "force-default": "Forzar predeterminado",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Política de formato de números",
+                    helperText: "Aplícase aos números dos resultados, os taboleiros e os informes.",
+                    unknownPolicy: "Formato descoñecido '{{policy}}', amósase como {{sample}}",
                 },
             },
             error: {
@@ -1045,6 +1051,29 @@ const galegoTranslation: TranslationType = {
                 options: {
                     "gold-level": "Autenticación de nivel ouro",
                     "no-gold-level": "Sen autenticación de nivel ouro",
+                },
+            },
+            slates: {
+                enable: {
+                    label: "Habilitar candidaturas",
+                    helper: "Se está habilitado, os votantes poden escoller unha candidatura con nome e cambiar calquera contenda, incluídos os candidatos independentes.",
+                },
+                disable: {
+                    confirm: "Deshabilitar candidaturas",
+                    message_one:
+                        "Esta elección ten {{count}} candidatura. Ao deshabilitar as candidaturas eliminarase ao gardar.",
+                    message_many:
+                        "Esta elección ten {{count}} candidaturas. Ao deshabilitar as candidaturas eliminaranse ao gardar.",
+                    message_other:
+                        "Esta elección ten {{count}} candidaturas. Ao deshabilitar as candidaturas eliminaranse ao gardar.",
+                },
+                mobileCandidateLists: {
+                    label: "Listas de candidatos no móbil",
+                    helper: "Como aparece inicialmente a lista de candidatos de cada candidatura no móbil: Contraídas ou Despregadas. Os votantes sempre poden abrir ou pechar calquera lista. No escritorio móstranse sempre todos os candidatos.",
+                    options: {
+                        collapsed: "Contraídas",
+                        expanded: "Despregadas",
+                    },
                 },
             },
             startScreenTitlePolicy: {
@@ -1770,6 +1799,7 @@ const galegoTranslation: TranslationType = {
             election: "Crear unha Elección",
             contest: "Crear unha Pregunta",
             candidate: "Crear un Candidato",
+            slate: "Crear unha Candidatura",
         },
         importResource: {
             electionEvent: "Importar un Evento Electoral",
@@ -1809,12 +1839,16 @@ const galegoTranslation: TranslationType = {
                     election: "Eliminar esta Elección",
                     contest: "Eliminar esta Pregunta",
                     candidate: "Eliminar este Candidato",
+                    slate: "Eliminar esta Candidatura",
                 },
                 messages: {
                     confirm: {
                         archive: "¿Estás seguro de que queres arquivar este elemento?",
                         unarchive: "¿Estás seguro de que queres desarquivar este elemento?",
                         delete: "¿Estás seguro de que queres eliminar este elemento?",
+                        archiveNamed: '¿Estás seguro de que queres arquivar "{{name}}"?',
+                        unarchiveNamed: '¿Estás seguro de que queres desarquivar "{{name}}"?',
+                        deleteNamed: '¿Estás seguro de que queres eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -1872,6 +1906,38 @@ const galegoTranslation: TranslationType = {
             createCandidateSuccess: "Candidato creado",
             createCandidateError: "Erro ao crear o candidato",
         },
+        slateScreen: {
+            common: {
+                subtitle: "Configuración da candidatura.",
+                newSlate: "Nova candidatura",
+                notFound: "Esta candidatura non existe.",
+            },
+            tabs: {
+                data: "Datos",
+            },
+            edit: {
+                general: "Xeral",
+                members: "Membros",
+            },
+            field: {
+                name: "Nome",
+                alias: "Alias",
+                description: "Descrición",
+                externalId: "ID externo",
+            },
+            members: {
+                helper: "Asigna ata o número máximo de candidatos de cada contenda. Deixa unha contenda baleira para que esta candidatura non a cubra. Os candidatos que non están en ningunha candidatura aparecen como Independentes nesa contenda.",
+                contest: "Contenda",
+                candidate: "Candidato",
+                noCandidate: "Sen candidato",
+            },
+            messages: {
+                saved: "Candidatura gardada",
+                invalid: "Non se pode gardar a candidatura. Corrixe os problemas indicados abaixo.",
+                error: "Non se puido gardar a candidatura.",
+                unreadable: "Non se pode ler a configuración de candidaturas da elección.",
+            },
+        },
         contestScreen: {
             common: {
                 subtitle: "Configuración da pregunta.",
@@ -1915,6 +1981,7 @@ const galegoTranslation: TranslationType = {
                 "warn-only-in-review": "Avisar na Revisión",
                 "warn": "Avisar",
                 "warn-and-alert": "Avisar e Alertar",
+                "warn-and-confirm-in-review": "Avisar e Confirmar na Revisión",
             },
             invalidVotePolicy: {
                 "label": "Política de Voto Nulo",
@@ -2106,6 +2173,8 @@ const galegoTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Os resultados numéricos están completos. Os informes aínda se están xerando.",
             errorUploadingSignature: "Houbo un erro ao cargar a sinatura",
             downloadTransmissionPackage: "Descargar Paquete de Transmisión",
             resultsPublication: {

@@ -468,6 +468,7 @@ const englishTranslation = {
                 customUrls: "Custom URLs Prefix",
                 votingPeriod: "Voting Period",
                 language: "Language",
+                languageAndRegion: "Language & Region",
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
                 ballotDesign: "Ballot Design",
@@ -697,6 +698,11 @@ const englishTranslation = {
                         "browser-detect": "Browser Detect",
                         "force-default": "Force Default",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Number Format Policy",
+                    helperText: "Applies to the numbers shown in results, dashboards and reports.",
+                    unknownPolicy: "Unknown format '{{policy}}', shown as {{sample}}",
                 },
             },
             error: {
@@ -1033,6 +1039,29 @@ const englishTranslation = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            slates: {
+                enable: {
+                    label: "Enable slates",
+                    helper: "When enabled, voters can select a named slate and change any race, including Independent candidates.",
+                },
+                disable: {
+                    confirm: "Turn off slates",
+                    message_one:
+                        "This election has {{count}} slate. Turning slates off deletes it when you save.",
+                    message_many:
+                        "This election has {{count}} slates. Turning slates off deletes them when you save.",
+                    message_other:
+                        "This election has {{count}} slates. Turning slates off deletes them when you save.",
+                },
+                mobileCandidateLists: {
+                    label: "Mobile candidate lists",
+                    helper: "How each slate's candidate list first appears on phones: Collapsed or Expanded. Voters can still open or close any list. Desktop always shows every candidate.",
+                    options: {
+                        collapsed: "Collapsed",
+                        expanded: "Expanded",
+                    },
                 },
             },
             startScreenTitlePolicy: {
@@ -1743,6 +1772,7 @@ const englishTranslation = {
             election: "Create an Election",
             contest: "Create a Contest",
             candidate: "Create a Candidate",
+            slate: "Create a Slate",
         },
         importResource: {
             electionEvent: "Import an Election Event",
@@ -1782,12 +1812,16 @@ const englishTranslation = {
                     election: "Remove this Election",
                     contest: "Remove this Contest",
                     candidate: "Remove this Candidate",
+                    slate: "Remove this Slate",
                 },
                 messages: {
                     confirm: {
                         archive: "Are you sure to archive this item?",
                         unarchive: "Are you sure to unarchive this item?",
                         delete: "Are you sure to delete this item?",
+                        archiveNamed: 'Are you sure you want to archive "{{name}}"?',
+                        unarchiveNamed: 'Are you sure you want to unarchive "{{name}}"?',
+                        deleteNamed: 'Are you sure you want to delete "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -1845,6 +1879,38 @@ const englishTranslation = {
             createCandidateSuccess: "Candidate created",
             createCandidateError: "Error creating candidate",
         },
+        slateScreen: {
+            common: {
+                subtitle: "Slate configuration.",
+                newSlate: "New slate",
+                notFound: "This slate does not exist.",
+            },
+            tabs: {
+                data: "Data",
+            },
+            edit: {
+                general: "General",
+                members: "Members",
+            },
+            field: {
+                name: "Name",
+                alias: "Alias",
+                description: "Description",
+                externalId: "External ID",
+            },
+            members: {
+                helper: "Assign up to the maximum number of candidates for each contest. Leave a contest empty so this slate undervotes that race. Candidates not assigned to any slate appear as Independent in that race.",
+                contest: "Contest",
+                candidate: "Candidate",
+                noCandidate: "No candidate",
+            },
+            messages: {
+                saved: "Slate saved",
+                invalid: "The slate cannot be saved. Fix the problems listed below.",
+                error: "The slate could not be saved.",
+                unreadable: "The election's slate configuration cannot be read.",
+            },
+        },
         contestScreen: {
             common: {
                 subtitle: "Contest configuration.",
@@ -1888,6 +1954,7 @@ const englishTranslation = {
                 "warn-only-in-review": "Warn in Review",
                 "warn": "Warn",
                 "warn-and-alert": "Warn and Alert",
+                "warn-and-confirm-in-review": "Warn and Confirm in Review",
             },
             invalidVotePolicy: {
                 "label": "Invalid Vote Policy",
@@ -2081,6 +2148,8 @@ const englishTranslation = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Numeric results are complete. Reports are still being generated.",
             errorUploadingSignature: "There was an error uploading signature",
             downloadTransmissionPackage: "Download Transmission Package",
             resultsPublication: {
