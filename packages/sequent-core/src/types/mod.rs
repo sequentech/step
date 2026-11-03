@@ -8,6 +8,7 @@ pub mod error;
 #[cfg(feature = "default_features")]
 pub mod hasura;
 pub mod keycloak;
+pub mod number_format;
 #[cfg(feature = "default_features")]
 pub mod participation;
 pub mod permissions;

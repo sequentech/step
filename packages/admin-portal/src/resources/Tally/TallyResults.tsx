@@ -42,6 +42,7 @@ import {convertContestsArray} from "./utils"
 import {LoadingResults} from "./TallyElectionsResults"
 
 interface TallyResultsProps {
+    completeElectionIds: string[]
     tally: Sequent_Backend_Tally_Session | undefined
     resultsEventId: string | null
     loading?: boolean
@@ -79,7 +80,8 @@ const withoutNestedContestData = (contest: TallyContestRow): Sequent_Backend_Con
 
 const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResultsProps>> = memo(
     (props: TallyResultsProps): React.JSX.Element => {
-        const {tally, resultsEventId, onCreateTransmissionPackage, loading} = props
+        const {tally, resultsEventId, onCreateTransmissionPackage, loading, completeElectionIds} =
+            props
 
         const {t, i18n} = useTranslation()
         const tallyData = useAtomValue(tallyQueryData)
@@ -327,6 +329,8 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
 
         const renderElectionActions = useCallback(
             (selection: TallyResultsSelection) => {
+                if (!selection.electionId || !completeElectionIds.includes(selection.electionId))
+                    return null
                 const documentsList = getElectionDocuments(selection)
                 if (!documentsList || !canExportCeremony || !tally?.id) return null
 
@@ -348,6 +352,7 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
                 )
             },
             [
+                completeElectionIds,
                 canExportCeremony,
                 getElectionAlias,
                 getElectionDocuments,
@@ -360,6 +365,8 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
 
         const renderContestActions = useCallback(
             (selection: TallyResultsSelection) => {
+                if (!selection.electionId || !completeElectionIds.includes(selection.electionId))
+                    return null
                 const documents = getContestDocuments(selection)
                 if (
                     !documents ||
@@ -383,11 +390,13 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
                     />
                 )
             },
-            [aliasRenderer, canExportCeremony, getContestDocuments, tally?.id]
+            [aliasRenderer, canExportCeremony, completeElectionIds, getContestDocuments, tally?.id]
         )
 
         const renderAreaActions = useCallback(
             (selection: TallyResultsSelection) => {
+                if (!selection.electionId || !completeElectionIds.includes(selection.electionId))
+                    return null
                 const documents = getAreaDocuments(selection)
                 if (
                     !documents ||
@@ -411,11 +420,13 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
                     />
                 )
             },
-            [aliasRenderer, canExportCeremony, getAreaDocuments, tally?.id]
+            [aliasRenderer, canExportCeremony, completeElectionIds, getAreaDocuments, tally?.id]
         )
 
         const renderResult = useCallback(
             (selection: TallyResultsSelection) => {
+                if (!selection.electionId || !completeElectionIds.includes(selection.electionId))
+                    return <LoadingResults />
                 const contest = selection.contest?.data
                 if (!contest) {
                     return (
@@ -450,7 +461,7 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
                     />
                 )
             },
-            [resultsEventId, t]
+            [completeElectionIds, resultsEventId, t]
         )
 
         if (!tallyData) {
