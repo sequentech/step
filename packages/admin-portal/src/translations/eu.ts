@@ -1833,6 +1833,9 @@ const basqueTranslation: TranslationType = {
                         archive: "Ziur zaude elementu hau artxibatu nahi duzula?",
                         unarchive: "Ziur zaude elementu hau desartxibatu nahi duzula?",
                         delete: "Ziur zaude elementu hau ezabatu nahi duzula?",
+                        archiveNamed: 'Ziur zaude "{{name}}" artxibatu nahi duzula?',
+                        unarchiveNamed: 'Ziur zaude "{{name}}" desartxibatu nahi duzula?',
+                        deleteNamed: 'Ziur zaude "{{name}}" ezabatu nahi duzula?',
                     },
                     notification: {
                         success: {
@@ -2160,6 +2163,8 @@ const basqueTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Zenbakizko emaitzak osatuta daude. Txostenak sortzen ari dira oraindik.",
             errorUploadingSignature: "Errorea izan da sinadura igotzean",
             downloadTransmissionPackage: "Deskargatu Transmisio Paketea",
             resultsPublication: {

@@ -1855,6 +1855,9 @@ const frenchTranslation: TranslationType = {
                         archive: "Êtes-vous sûr de vouloir archiver cet élément ?",
                         unarchive: "Êtes-vous sûr de vouloir désarchiver cet élément ?",
                         delete: "Êtes-vous sûr de vouloir supprimer cet élément ?",
+                        archiveNamed: 'Êtes-vous sûr de vouloir archiver "{{name}}" ?',
+                        unarchiveNamed: 'Êtes-vous sûr de vouloir désarchiver "{{name}}" ?',
+                        deleteNamed: 'Êtes-vous sûr de vouloir supprimer "{{name}}" ?',
                     },
                     notification: {
                         success: {
@@ -2186,6 +2189,8 @@ const frenchTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Les résultats numériques sont complets. Les rapports sont encore en cours de génération.",
             errorUploadingSignature:
                 "Une erreur s'est produite lors du téléchargement de la signature",
             downloadTransmissionPackage: "Télécharger le paquet",
