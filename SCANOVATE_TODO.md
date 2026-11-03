@@ -113,7 +113,7 @@ isn't used.
 - [ ] Set `keycloak_scanovate_liveness_url`,
       `keycloak_scanovate_liveness_secret` and
       `keycloak_scanovate_face_match_url` in the janitor spreadsheets.
-- [ ] Stop writing the ignored `ocr-url` and `capture-sides` in the realm
+- [x] Stop writing the ignored `ocr-url` and `capture-sides` in the realm
       templates (sequent-core presets, COMELEC janitor template, step-cli
       sample data), and drop `keycloak_scanovate_ocr_url`.
 - [ ] Decide how voters enroll with the documents the OCR service can't read

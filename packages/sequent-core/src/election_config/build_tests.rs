@@ -2333,10 +2333,9 @@ fn the_deployments_liveness_secret_survives_the_biometric_preset() {
         scanovate["config"]["liveness-secret"],
         json!("kept-by-the-deployment")
     );
-    assert_eq!(
-        scanovate["config"]["ocr-url"],
-        json!("https://ocr.example.org")
-    );
+    // A workbook that still names an OCR URL builds, and the value is not
+    // written: Keycloak no longer calls OCR.
+    assert!(scanovate["config"].get("ocr-url").is_none());
     // A parameter wins over the realm's own value.
     assert_eq!(
         scanovate["config"]["liveness-url"],
@@ -2399,7 +2398,7 @@ fn biometric_authentication_builds_without_its_service_urls() {
         },
     );
     let scanovate = scanovate_config(&bundle);
-    assert_eq!(scanovate["ocr-url"], json!("http://scanovate-ocr:5040"));
+    assert!(scanovate.get("ocr-url").is_none());
     assert_eq!(
         scanovate["face-match-url"],
         json!("http://scanovate-face-match:3000")

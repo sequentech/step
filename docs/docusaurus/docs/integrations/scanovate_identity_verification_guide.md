@@ -196,10 +196,9 @@ before the capture starts. The sides to scan are up to OCR: its
 its data page).
 
 The settings of our earlier capture page, `ocr-url` (Keycloak no longer calls
-OCR), `capture-sides`, `video-seconds` and `max-image-bytes`, are ignored.
-Realm templates still write `ocr-url` and `capture-sides` (sequent-core's
-presets, the COMELEC janitor template and the sample election event), which
-is harmless.
+OCR), `capture-sides`, `video-seconds` and `max-image-bytes`, are ignored, and
+no realm template writes them any more. A realm or an Election Architect
+profile that still has them keeps working.
 
 Realms configured for the B-Trust integration keep working once their
 services are set, since the old settings (`base-url`, `client-id`,
@@ -361,7 +360,6 @@ is registered, not their nationality.
 
 | Setting | Default |
 | --- | --- |
-| `keycloak_scanovate_ocr_url` | empty, and ignored: the template still writes it as `ocr-url` |
 | `keycloak_scanovate_liveness_url` | empty |
 | `keycloak_scanovate_liveness_secret` | empty |
 | `keycloak_scanovate_face_match_url` | empty |
@@ -446,7 +444,7 @@ enrolls voters with the Scanovate services of the dev container:
 
 | File | Contents |
 | --- | --- |
-| `election-event.json` | The *Scanovate Enrollment Demo* election event: one area (`Japan - Tokyo PE`), one election and one contest. Its Keycloak realm is the COMELEC realm template with enrollment enabled, the `sequent-ui-voting` login theme, and `scanovate-registration` pointing to the services of the dev container (`https://localhost:8443/biometric` and `http://scanovate-face-match:3000`). Like the template, it reads passports with the `passport` OCR type (`ocr-types`); its `ocr-url` and `capture-sides` are ignored. |
+| `election-event.json` | The *Scanovate Enrollment Demo* election event: one area (`Japan - Tokyo PE`), one election and one contest. Its Keycloak realm is the COMELEC realm template with enrollment enabled, the `sequent-ui-voting` login theme, and `scanovate-registration` pointing to the services of the dev container (`https://localhost:8443/biometric` and `http://scanovate-face-match:3000`). Like the template, it reads passports with the `passport` OCR type (`ocr-types`). |
 | `voters.csv` | The voter registry: `JUAN DELA CRUZ`, born `1990-01-01`, registered at the Tokyo PE. |
 
 The data read from the document must match a voter of the registry, so to

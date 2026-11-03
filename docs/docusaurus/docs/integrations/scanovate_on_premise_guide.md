@@ -887,9 +887,5 @@ location ~ ^/realms/[^/]+/identity-verification/ {
 - Size the servers for the expected concurrent sessions (see the requirements
   in [Running them in the development environment](#running-them-in-the-development-environment)),
   and set `max_active_sessions` of Liveness Plus to match.
-- The authenticator ignores `ocr-url` and `capture-sides`, which the realm
-  templates (sequent-core's presets, the COMELEC janitor template) still
-  write: Keycloak no longer calls OCR, and OCR's `scan_config.json` decides
-  the sides it scans.
 - The PAD image carries a license that expires on 2027-10-04: renew it with
   Scanovate before then.
