@@ -168,7 +168,10 @@ crepe! {
     MixSigned(cfg_h, batch, ballots_h, _target_h, VERIFIER_INDEX),
     Ballots(cfg_h, batch, ballots_h, _, selected),
     Plaintexts(cfg_h, batch, plaintexts_h, dfactors_hs, last_ciphertexts_h, decryption_pk_h, selected[0] - 1),
-    // The plaintexts must have been recomputed and signed by the verifier itself
+    // The verifier must have recomputed the plaintexts itself (SignPlaintexts
+    // verifies the decryption factors and proofs and compares the result with
+    // the published artifact), over the last mix it verified. The published
+    // Plaintexts record alone is not evidence of that check.
     PlaintextsSigned(cfg_h, batch, plaintexts_h, dfactors_hs, last_ciphertexts_h, decryption_pk_h, VERIFIER_INDEX),
     !MixRepeat(cfg_h, batch),
     let new_mixing_hs = MixingHashes(hashes_add(mixing_hs.0, last_ciphertexts_h.0));
