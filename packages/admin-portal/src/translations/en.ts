@@ -4222,6 +4222,7 @@ const englishTranslation = {
                 unnamed: "Unnamed applicant",
                 waiting: "Waiting {{time}}",
                 applied: "Applied {{date}}",
+                anyStatus: "Any status",
                 empty: {
                     title: "Nothing here",
                     text: "Enrollments with this status will appear here. Try another search or status.",
@@ -4270,6 +4271,20 @@ const englishTranslation = {
                 applied: "Applied {{date}}",
                 waiting: "Waiting {{time}}",
                 whyTitle: "Why this needs a person",
+                override: {
+                    OFFICER: "{{name}} decided this enrollment instead of the rule.",
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "The rule approves, but details typed by hand are never approved automatically, so a person decides.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "The rule approves, but the voter is already enrolled, so the enrollment was rejected.",
+                    NO_VOTER_NOT_ACCEPTED:
+                        "The rule approves, but no voter was found in the registry, so the enrollment was rejected.",
+                    OTHERWISE_NOT_ACCEPTED: "The last rule can't approve, so a person decides.",
+                    SEVERAL_VOTERS:
+                        "The rule approves more than one voter of the registry, so a person decides.",
+                    SETTINGS:
+                        "The election event's enrollment settings changed the rule's decision.",
+                },
                 decisionTitle: "How this was decided",
                 rule: "Rule {{rule}} of matrix version {{version}}",
                 ruleLast: "Last rule of matrix version {{version}}",

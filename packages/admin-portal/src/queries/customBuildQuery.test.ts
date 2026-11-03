@@ -499,10 +499,36 @@ describe("elections by external id", () => {
             meta: {filter: {election_event_id: EVENT}},
         })
         expect(operationName(built.query)).toBe("GetElectionsByExternalId")
-        expect(built.variables).toEqual({external_ids: ["101", "102"], election_event_id: EVENT})
+        expect(built.variables).toEqual({
+            external_ids: ["101", "102"],
+            ids: [],
+            election_event_id: EVENT,
+        })
         const rows = [{id: ELECTION, external_id: "101", alias: "mayor"}]
         expect(built.parseResponse({data: {sequent_backend_election: rows}})).toEqual({
-            data: [{id: "101", external_id: "101", alias: "mayor"}],
+            data: [
+                {id: "101", election_id: ELECTION, external_id: "101", alias: "mayor"},
+                {id: "102", election_id: null, external_id: "102", presentation: null},
+            ],
+        })
+    })
+
+    it("also asks for the values that are election ids", () => {
+        const built = build("GET_MANY", "sequent_backend_election_by_external_id", {
+            ids: [ELECTION, "mayor"],
+            meta: {filter: {election_event_id: EVENT}},
+        })
+        expect(built.variables).toEqual({
+            external_ids: [ELECTION, "mayor"],
+            ids: [ELECTION],
+            election_event_id: EVENT,
+        })
+        const rows = [{id: ELECTION, external_id: null}]
+        expect(built.parseResponse({data: {sequent_backend_election: rows}})).toEqual({
+            data: [
+                {id: ELECTION, election_id: ELECTION, external_id: null},
+                {id: "mayor", election_id: null, external_id: "mayor", presentation: null},
+            ],
         })
     })
 
@@ -510,7 +536,7 @@ describe("elections by external id", () => {
         const built = build("GET_MANY", "sequent_backend_election_by_external_id", {
             meta: {filter: {electionEventId: EVENT}},
         })
-        expect(built.variables).toEqual({external_ids: [], election_event_id: EVENT})
+        expect(built.variables).toEqual({external_ids: [], ids: [], election_event_id: EVENT})
         expect(built.parseResponse({data: {}})).toEqual({data: []})
     })
 })

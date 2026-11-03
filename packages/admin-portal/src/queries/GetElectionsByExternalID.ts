@@ -4,10 +4,14 @@
 import {gql} from "@apollo/client"
 
 export const GET_ELECTIONS_BY_EXTERNAL_ID = gql`
-    query GetElectionsByExternalId($external_ids: [String!]!, $election_event_id: uuid) {
+    query GetElectionsByExternalId(
+        $external_ids: [String!]!
+        $ids: [uuid!]!
+        $election_event_id: uuid
+    ) {
         sequent_backend_election(
             where: {
-                external_id: {_in: $external_ids}
+                _or: [{external_id: {_in: $external_ids}}, {id: {_in: $ids}}]
                 _and: [{election_event_id: {_eq: $election_event_id}}]
             }
         ) {

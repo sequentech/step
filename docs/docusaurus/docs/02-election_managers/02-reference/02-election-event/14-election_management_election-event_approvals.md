@@ -19,7 +19,7 @@ Which of the three happens is decided by the election event's **approval matrix*
 
 ## The queue
 
-The tab opens on the enrollments that need review. Each row shows:
+The tab lists the enrollments of every status, the newest first. Each row shows:
 
 | Column | What it shows |
 |---|---|
@@ -30,8 +30,9 @@ The tab opens on the enrollments that need review. Each row shows:
 | Status | Needs review, Approved or Rejected |
 
 - **Search** finds enrollments by any text the voter gave: name, email or ID number.
-- **Status** switches between the enrollments that need review and those already approved or
-  rejected. **Add filter** filters by verification, IDs or any voter attribute.
+- **Status** shows only the enrollments that need review, those approved or those rejected; the
+  tab opens again on the status chosen last. **Add filter** filters by verification, IDs or any
+  voter attribute.
 - **Columns** shows more columns (verification, verified by, IDs and every voter attribute) and
   changes their order.
 - The menu at the end of a row opens the enrollment, or the rule that decided it.

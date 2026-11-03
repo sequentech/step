@@ -4036,6 +4036,7 @@ const tagalogTranslation: TranslationType = {
                 unnamed: "Aplikanteng walang pangalan",
                 waiting: "{{time}} nang naghihintay",
                 applied: "Nag-apply noong {{date}}",
+                anyStatus: "Anumang status",
                 empty: {
                     title: "Walang laman dito",
                     text: "Lalabas dito ang mga pagpapatalang may ganitong katayuan. Subukan ang ibang paghahanap o katayuan.",
@@ -4087,6 +4088,22 @@ const tagalogTranslation: TranslationType = {
                 applied: "Nag-apply noong {{date}}",
                 waiting: "{{time}} nang naghihintay",
                 whyTitle: "Bakit kailangan nito ng isang tao",
+                override: {
+                    OFFICER:
+                        "Si {{name}} ang nagpasya sa enrollment na ito sa halip na ang panuntunan.",
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "Inaaprubahan ito ng panuntunan, pero hindi kailanman awtomatikong inaaprubahan ang mga detalyeng manu-manong itinipa, kaya isang tao ang magpapasya.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "Inaaprubahan ito ng panuntunan, pero naka-enroll na ang botante, kaya tinanggihan ang enrollment.",
+                    NO_VOTER_NOT_ACCEPTED:
+                        "Inaaprubahan ito ng panuntunan, pero walang nakitang botante sa registry, kaya tinanggihan ang enrollment.",
+                    OTHERWISE_NOT_ACCEPTED:
+                        "Hindi makapag-apruba ang huling panuntunan, kaya isang tao ang magpapasya.",
+                    SEVERAL_VOTERS:
+                        "Higit sa isang botante ng registry ang inaaprubahan ng panuntunan, kaya isang tao ang magpapasya.",
+                    SETTINGS:
+                        "Binago ng mga setting ng enrollment ng election event ang desisyon ng panuntunan.",
+                },
                 decisionTitle: "Paano ito napagpasyahan",
                 rule: "Panuntunan {{rule}} ng bersyon {{version}} ng matrix",
                 ruleLast: "Huling panuntunan ng bersyon {{version}} ng matrix",

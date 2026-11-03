@@ -3996,6 +3996,7 @@ const basqueTranslation: TranslationType = {
                 unnamed: "Izenik gabeko eskatzailea",
                 waiting: "Zain: {{time}}",
                 applied: "Eskaera-data: {{date}}",
+                anyStatus: "Edozein egoera",
                 empty: {
                     title: "Ez dago ezer hemen",
                     text: "Egoera hau duten izen-emateak hemen agertuko dira. Saiatu beste bilaketa edo egoera batekin.",
@@ -4045,6 +4046,21 @@ const basqueTranslation: TranslationType = {
                 applied: "Eskaera-data: {{date}}",
                 waiting: "Zain: {{time}}",
                 whyTitle: "Zergatik behar den pertsona bat",
+                override: {
+                    OFFICER: "{{name}}(e)k erabaki du izen-emate hau, ez arauak.",
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "Arauak onartzen du, baina eskuz idatzitako datuak ez dira inoiz automatikoki onartzen; beraz, pertsona batek erabakiko du.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "Arauak onartzen du, baina hautesleak izena emanda dauka jada; beraz, izen-ematea baztertu da.",
+                    NO_VOTER_NOT_ACCEPTED:
+                        "Arauak onartzen du, baina ez da hautesle-erroldan aurkitu; beraz, izen-ematea baztertu da.",
+                    OTHERWISE_NOT_ACCEPTED:
+                        "Azken arauak ezin du onartu; beraz, pertsona batek erabakiko du.",
+                    SEVERAL_VOTERS:
+                        "Arauak erroldako hautesle bat baino gehiago onartzen ditu; beraz, pertsona batek erabakiko du.",
+                    SETTINGS:
+                        "Hauteskunde-gertaeraren izen-emate ezarpenek arauaren erabakia aldatu dute.",
+                },
                 decisionTitle: "Nola erabaki zen",
                 rule: "Matrizearen {{version}}. bertsioko {{rule}}. araua",
                 ruleLast: "Matrizearen {{version}}. bertsioko azken araua",

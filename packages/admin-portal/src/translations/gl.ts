@@ -4005,6 +4005,7 @@ const galegoTranslation: TranslationType = {
                 unnamed: "Solicitante sen nome",
                 waiting: "Leva {{time}} agardando",
                 applied: "Solicitada o {{date}}",
+                anyStatus: "Calquera estado",
                 empty: {
                     title: "Aquí non hai nada",
                     text: "As inscricións con este estado aparecerán aquí. Probe con outra busca ou outro estado.",
@@ -4054,6 +4055,21 @@ const galegoTranslation: TranslationType = {
                 applied: "Solicitada o {{date}}",
                 waiting: "Leva {{time}} agardando",
                 whyTitle: "Por que fai falta unha persoa",
+                override: {
+                    OFFICER: "{{name}} decidiu esta inscrición en lugar da regra.",
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "A regra aproba, pero os datos escritos a man nunca se aproban automaticamente, así que decide unha persoa.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "A regra aproba, pero o votante xa está inscrito, así que a inscrición rexeitouse.",
+                    NO_VOTER_NOT_ACCEPTED:
+                        "A regra aproba, pero non se atopou o votante no censo, así que a inscrición rexeitouse.",
+                    OTHERWISE_NOT_ACCEPTED:
+                        "A última regra non pode aprobar, así que decide unha persoa.",
+                    SEVERAL_VOTERS:
+                        "A regra aproba máis dun votante do censo, así que decide unha persoa.",
+                    SETTINGS:
+                        "A configuración de inscrición do evento electoral cambiou a decisión da regra.",
+                },
                 decisionTitle: "Como se decidiu",
                 rule: "Regra {{rule}} da versión {{version}} da matriz",
                 ruleLast: "Última regra da versión {{version}} da matriz",
