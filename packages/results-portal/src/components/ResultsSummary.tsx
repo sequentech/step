@@ -15,8 +15,15 @@ import {
     Typography,
 } from "@mui/material"
 import ReactApexChart, {Props as ApexChartProps} from "react-apexcharts"
-import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {
+    formatNumber,
+    formatPercentOne,
+    isNumber,
+    useNumberFormat,
+    type ENumberFormatPolicy,
+} from "@sequentech/ui-core"
+import {
+    pieChartNumberFormatOptions,
     TALLY_RESULTS_PIE_HEIGHT,
     TALLY_RESULTS_PIE_PANEL_WIDTH,
     withEscapedChartText,
@@ -32,9 +39,10 @@ interface ResultsSummaryProps {
     locale: string
 }
 
-const percent = (value: unknown): string => (isNumber(value) ? formatPercentOne(value) : "-")
-const valueOrDash = (value: unknown): string | number =>
-    typeof value === "string" || typeof value === "number" ? value : "-"
+const percent = (value: unknown, policy: ENumberFormatPolicy): string =>
+    isNumber(value) ? formatPercentOne(value, policy) : "-"
+const valueOrDash = (value: unknown, policy: ENumberFormatPolicy): string =>
+    finiteNumber(value) === null ? "-" : formatNumber(value as string | number, policy)
 const stringOrUndefined = (value: unknown): string | undefined =>
     typeof value === "string" && value.length > 0 ? value : undefined
 const sameId = (left: unknown, right: unknown): boolean =>
@@ -70,6 +78,7 @@ const GeneralInformationChart: React.FC<GeneralInformationChartProps> = ({
     result,
 }) => {
     const {t} = useTranslation()
+    const {policy} = useNumberFormat()
     const chartData = useMemo(() => {
         const eligibleCensus = finiteNumber(result.elegible_census)
         const totalVoters = finiteNumber(result.total_voters)
@@ -112,10 +121,11 @@ const GeneralInformationChart: React.FC<GeneralInformationChartProps> = ({
                         },
                     },
                 ],
+                ...pieChartNumberFormatOptions(policy),
             }),
             series: chartData.map((item) => item.value),
         }),
-        [chartData]
+        [chartData, policy]
     )
 
     if (chartData.length === 0) {
@@ -165,6 +175,7 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
     locale,
 }) => {
     const {t} = useTranslation()
+    const {policy} = useNumberFormat()
     const showBlankBallotsColumn = useMemo(
         () => resultsElections.some((row) => isNumber(row.blank_ballots)),
         [resultsElections]
@@ -304,27 +315,27 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
                                                 className="seq-results-summary__eligible-cell"
                                                 align="right"
                                             >
-                                                {valueOrDash(result.elegible_census)}
+                                                {valueOrDash(result.elegible_census, policy)}
                                             </TableCell>
                                             <TableCell
                                                 className="seq-results-summary__counted-cell"
                                                 align="right"
                                             >
-                                                {valueOrDash(result.total_voters)}
+                                                {valueOrDash(result.total_voters, policy)}
                                             </TableCell>
                                             {showBlankBallotsColumn && (
                                                 <TableCell
                                                     className="seq-results-summary__blank-ballots-cell"
                                                     align="right"
                                                 >
-                                                    {valueOrDash(result.blank_ballots)}
+                                                    {valueOrDash(result.blank_ballots, policy)}
                                                 </TableCell>
                                             )}
                                             <TableCell
                                                 className="seq-results-summary__participation-cell"
                                                 align="right"
                                             >
-                                                {percent(result.total_voters_percent)}
+                                                {percent(result.total_voters_percent, policy)}
                                             </TableCell>
                                         </TableRow>
                                     )
