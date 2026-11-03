@@ -29,7 +29,7 @@ use super::producers::{
     poll_state, produce, voting_status, ElectionSet, Enrollment, EventFacts, LoginRow, Post,
     SourceFigures, SourceStatus, VoterRow,
 };
-use super::projection::{load_event_places, refresh_voter_projection};
+use super::projection::{load_event_places, refresh_voter_projection, FirstVoteSource};
 use crate::postgres::monitoring_config::EventRef;
 use crate::services::time_zones::event_time_zone;
 use crate::types::miru_plugin::{MiruServerDocumentStatus, MiruTallySessionData};
@@ -456,6 +456,8 @@ pub struct PassOptions<'a> {
     pub voter_group: &'a str,
     pub full_pass_every: Duration,
     pub now: DateTime<Utc>,
+    /// Where the voters' first votes are read.
+    pub ballot_box: &'a dyn FirstVoteSource,
 }
 
 /// One pass of `event`. The caller holds the event's lock.
@@ -501,6 +503,7 @@ pub async fn refresh_event_snapshot(
             options.voter_group,
             options.now,
             options.full_pass_every,
+            options.ballot_box,
         )
         .await
         {
@@ -1260,7 +1263,7 @@ pub async fn load_facts(
     let stream = transaction
         .query_raw(
             "SELECT voter_id, election_id, region, country, dims, pre_enrolled_at,
-                    first_voted_at, enrollment_state, enrollment_reason, enrollment_decided_at,
+                    first_voted_at, has_voted, enrollment_state, enrollment_reason, enrollment_decided_at,
                     credentials_at
              FROM sequent_backend.monitoring_voter
              WHERE tenant_id = $1 AND election_event_id = $2
@@ -1285,6 +1288,7 @@ pub async fn load_facts(
             dims: serde_json::from_value(dims).unwrap_or_default(),
             pre_enrolled_at: row.get("pre_enrolled_at"),
             first_voted_at: row.get("first_voted_at"),
+            has_voted: row.get("has_voted"),
             enrollment: enrollment(state),
             enrollment_reason: row.get("enrollment_reason"),
             enrollment_decided_at: row.get("enrollment_decided_at"),

@@ -210,12 +210,12 @@ export interface ISubjectNote {
 /** The keys of each action's notes, under `signing.notes`. */
 const NOTES: Partial<Record<SigningAction, Array<[label: string, value: string]>>> = {
     [SigningAction.ApproveVoter]: [["afterApproval", "afterApprovalValue"]],
-    [SigningAction.ConfirmKeyShare]: [
-        ["keyShare", "keyShareChecked"],
+    [SigningAction.ConfirmCustodyProof]: [
+        ["custodyProof", "custodyProofChecked"],
         ["recordedIn", "recordedInCeremony"],
     ],
-    [SigningAction.ContributeKeyShare]: [
-        ["keyShare", "keyShareChecked"],
+    [SigningAction.ContributeCustodyProof]: [
+        ["custodyProof", "custodyProofChecked"],
         ["recordedIn", "recordedInTally"],
     ],
 }

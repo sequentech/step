@@ -149,7 +149,12 @@ describe("ballotBoxRowStatus", () => {
         expect(ballotBoxRowStatus(undefined, before)).toBe(EBallotBoxRowStatus.OPEN)
     })
     it("is overdue at once when the sealer says what holds it", () => {
-        for (const reason of ["channel_open:KIOSK", "datafix_votes:2", "error:vault"]) {
+        for (const reason of [
+            "channel_open:KIOSK",
+            "datafix_votes:2",
+            "sequencer:1",
+            "error:vault",
+        ]) {
             expect(
                 ballotBoxRowStatus(
                     seal(EBallotBoxSealStatus.PENDING, {
@@ -179,6 +184,7 @@ describe("the reason a pending box isn't sealed is shown inline", () => {
         ["channel_not_enabled:KIOSK", "dashboard.ballotBoxes.why.channelNotEnabled"],
         ["channel_has_ballots:TELEPHONE", "dashboard.ballotBoxes.why.channelHasBallots"],
         ["datafix_votes:3", 'dashboard.ballotBoxes.why.datafixVotes {"count":3}'],
+        ["sequencer:2", 'dashboard.ballotBoxes.why.sequencer {"count":2}'],
         ["error:keystore", "dashboard.ballotBoxes.why.errorCategory.keystore"],
         ["error:board", "dashboard.ballotBoxes.why.errorCategory.board"],
         ["error:ballots", "dashboard.ballotBoxes.why.errorCategory.ballots"],

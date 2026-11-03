@@ -217,13 +217,8 @@ export const LogOut: Story = {
 
 export const SignedOut: Story = {
     args: {signedIn: false},
-    parameters: {
-        // The open menu hides the header, and with it the nested banners.
-        expectedFailure: {
-            reason: "The profile menu's grey email lacks contrast on the highlighted item.",
-            a11y: ["color-contrast"],
-        },
-    },
+    // The open menu hides the header and its nested banners.
+    parameters: {expectedFailure: null},
     play: async ({canvasElement}) => {
         await userEvent.click(profileButton(canvasElement))
         const menu = await within(document.body).findByRole("menu")

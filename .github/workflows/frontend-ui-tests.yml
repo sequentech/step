@@ -19,7 +19,8 @@ jobs:
     if: fromJSON(inputs.selection).ui_jobs.stories
     name: ${{ matrix.package }} stories (${{ matrix.shard }}/${{ matrix.shards }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # Admin shards can spend nearly 20 minutes in setup and browser interactions.
+    timeout-minutes: ${{ matrix.package == 'admin-portal' && 30 || 20 }}
     container: mcr.microsoft.com/playwright:v1.62.1-noble
     strategy:
       fail-fast: false
@@ -82,7 +83,7 @@ jobs:
       matrix:
         include: ${{ fromJSON(inputs.selection).journeys }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: ${{ matrix.package == 'admin-portal' && 30 || 20 }}
     container: mcr.microsoft.com/playwright:v1.62.1-noble
     env:
       CI: true

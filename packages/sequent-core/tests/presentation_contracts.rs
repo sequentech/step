@@ -17,7 +17,7 @@ fn persisted_event_presentation_distinguishes_absence_from_invalid_configuration
 ) {
     let mut event: core::ElectionEvent = serde_json::from_value(json!({
         "id": "event", "tenant_id": "north", "is_archived": false,
-        "encryption_protocol": "STRAND"
+        "encryption_protocol": "WBRAID"
     }))
     .unwrap();
     assert_eq!(event.get_presentation().unwrap(), None);

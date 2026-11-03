@@ -4,6 +4,8 @@
 
 import {useMutation} from "@apollo/client/react"
 import {useTranslation} from "react-i18next"
+import {useStore} from "react-redux"
+import type {RootState} from "../store/store"
 import {
     IBallotBoxKey,
     ICastReceipt,
@@ -17,6 +19,8 @@ import {castVoteErrorMessage} from "../services/CastVoteErrors"
 import {CastBallotsErrorType} from "../services/VotingPortalError"
 import {addCastVotes} from "../store/castVotes/castVotesSlice"
 import {useAppDispatch} from "../store/hooks"
+import {clearAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
+import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDataSlice"
 
 // A ballot the ballot box received at review, with the voter's signed request
 // to cast it. It holds no key, so it can wait in the session for a fresh
@@ -49,13 +53,18 @@ export const signReceivedCast = (
 export const useCastReceivedBallot = () => {
     const {t} = useTranslation()
     const dispatch = useAppDispatch()
+    const store = useStore<RootState>()
     const [castBallot] = useMutation<CastBallotMutation>(CAST_BALLOT)
     const {verifyCastReceipt, forgetVoterSigningKey} = provideBallotService()
 
     return async (
         {receivedBallot, ballotBoxKey, castSignature}: IReceivedCast,
-        setErrorMsg: (msg: string) => void
+        reportError: (msg: string) => void,
+        isCurrent: () => boolean = () => true
     ): Promise<boolean> => {
+        const setErrorMsg = (message: string) => {
+            if (isCurrent()) reportError(message)
+        }
         let answer: NonNullable<CastBallotMutation["cast_ballot"]>
         try {
             const result = await castBallot({
@@ -106,7 +115,20 @@ export const useCastReceivedBallot = () => {
             return false
         }
 
-        forgetVoterSigningKey(receivedBallot.election_id)
+        if (!isCurrent()) return false
+
+        const currentBallot =
+            store.getState().auditableBallots[receivedBallot.election_id]?.auditableBallot
+        if (!currentBallot || currentBallot.ballot_hash === receivedBallot.ballot_hash) {
+            forgetVoterSigningKey(receivedBallot.election_id)
+            dispatch(clearAuditableBallot(receivedBallot.election_id))
+        }
+        dispatch(
+            setConfirmationScreenData({
+                electionId: receivedBallot.election_id,
+                confirmationScreenData: {ballotId: receivedBallot.ballot_id, isDemo: false},
+            })
+        )
         dispatch(
             addCastVotes([
                 {

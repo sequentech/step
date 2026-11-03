@@ -234,7 +234,7 @@ test("creates an event then refreshes the scoped tree after task completion", as
             tenant_id: TENANT_ID,
             name: "Created council",
             description: "Annual council election",
-            encryption_protocol: "RSA256",
+            encryption_protocol: "WBRAID",
             is_archived: false,
             presentation: {
                 language_conf: {enabled_language_codes: ["en"], default_language_code: "en"},

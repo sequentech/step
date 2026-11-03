@@ -14,21 +14,15 @@ import {
 } from "react-admin"
 import {Preview, ContentCopy} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
-import {
-    GetBallotPublicationChangesOutput,
-    GetDocumentByNameQuery,
-    PrepareBallotPublicationPreviewMutation,
-    Sequent_Backend_Support_Material_Select_Column,
-} from "@/gql/graphql"
+import {PrepareBallotPublicationPreviewMutation, GetTaskByIdQuery} from "@/gql/graphql"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
+import {gql, useApolloClient, useMutation, useQuery} from "@apollo/client"
 import {PREPARE_BALLOT_PUBLICATION_PREVIEW} from "@/queries/PrepareBallotPublicationPreview"
-import {GET_AREAS} from "@/queries/GetAreas"
+import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
+import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {TenantContext} from "@/providers/TenantContextProvider"
-import {GET_DOCUMENT_BY_NAME} from "@/queries/GetDocumentByName"
 import {CircularProgress} from "@mui/material"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
-import {WidgetProps} from "@/components/Widget"
 import {ETasksExecution} from "@/types/tasksExecution"
 
 enum ActionType {
@@ -39,16 +33,17 @@ interface EditPreviewProps {
     publicationId?: string | Identifier | null
     electionEventId: Identifier | undefined
     close?: () => void
-    ballotData: GetBallotPublicationChangesOutput | null
 }
 
 export const EditPreview: React.FC<EditPreviewProps> = (props) => {
-    const {publicationId: publicationId, close, electionEventId, ballotData} = props
+    const {publicationId, close, electionEventId} = props
     const {t} = useTranslation()
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
-    const [sourceAreas, setSourceAreas] = useState([])
+    const [sourceAreas, setSourceAreas] = useState<Array<{id: string; name: string}>>([])
+    const client = useApolloClient()
+    const [taskId, setTaskId] = useState<string | null>(null)
     const [preparePreview] = useMutation<PrepareBallotPublicationPreviewMutation>(
         PREPARE_BALLOT_PUBLICATION_PREVIEW
     )
@@ -57,81 +52,123 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     const [areaId, setAreaId] = useState<string | null>(null)
     const [documentId, setDocumentId] = useState<string | null | undefined>(null)
     const [action, setAction] = useState<ActionType | null>(null)
-    const [getDocumentByName] = useLazyQuery<GetDocumentByNameQuery>(GET_DOCUMENT_BY_NAME)
-    const {data: areas} = useQuery(GET_AREAS, {
-        variables: {
-            electionEventId,
-        },
+    const {data: taskData} = useQuery<GetTaskByIdQuery>(GET_TASK_BY_ID, {
+        variables: {task_id: taskId},
+        skip: !taskId,
+        pollInterval: taskId ? globalSettings.QUERY_POLL_INTERVAL_MS : 0,
     })
 
-    //Show only relevant areas in dropdown
-    const areaIds = useMemo(() => {
-        const areaIds =
-            ballotData?.current?.ballot_styles?.map((style: any) => ({
-                id: style.area_id,
-            })) || []
-
-        return areaIds
-    }, [ballotData])
-
+    // Load identifiers, not the truncated and potentially very large EML diff.
     useEffect(() => {
-        if (areas) {
-            const filtered = areas.sequent_backend_area.filter((area: any) =>
-                areaIds.some((areaId: any) => areaId.id === area.id)
-            )
-            setSourceAreas(filtered)
-        }
-    }, [areas, areaIds])
-
-    // This useEffect handles file upload
-    useEffect(() => {
-        const preparePreviewData = async () => {
-            let currWidget: WidgetProps = addWidget(
-                ETasksExecution.PREPARE_PUBLICATION_PREVIEW,
-                undefined
-            )
-            try {
-                let {data} = await preparePreview({
-                    variables: {
-                        electionEventId: electionEventId,
-                        ballotPublicationId: publicationId,
-                    },
+        let active = true
+        setSourceAreas([])
+        const loadAreas = async () => {
+            const result: Array<{id: string; name: string}> = []
+            for (let offset = 0; ; offset += 1000) {
+                const {data} = await client.query({
+                    query: gql`
+                        query PublicationPreviewAreas(
+                            $publicationId: uuid!
+                            $eventId: uuid!
+                            $offset: Int!
+                        ) {
+                            sequent_backend_ballot_style(
+                                where: {
+                                    ballot_publication_id: {_eq: $publicationId}
+                                    election_event_id: {_eq: $eventId}
+                                }
+                                distinct_on: area_id
+                                order_by: {area_id: asc}
+                                limit: 1000
+                                offset: $offset
+                            ) {
+                                area_id
+                            }
+                        }
+                    `,
+                    variables: {publicationId, eventId: electionEventId, offset},
+                    fetchPolicy: "network-only",
                 })
-                if (!data?.prepare_ballot_publication_preview?.document_id) {
-                    console.log(data?.prepare_ballot_publication_preview?.error_msg)
-                    updateWidgetFail(currWidget.identifier)
-                    notifyActionError()
-                    return
+                if (!active) return
+                const ids = data.sequent_backend_ballot_style.map(
+                    (style: {area_id: string}) => style.area_id
+                )
+                if (ids.length) {
+                    const {data: areas} = await client.query({
+                        query: gql`
+                            query PublicationPreviewAreaNames($ids: [uuid!]!, $eventId: uuid!) {
+                                sequent_backend_area(
+                                    where: {id: {_in: $ids}, election_event_id: {_eq: $eventId}}
+                                ) {
+                                    id
+                                    name
+                                }
+                            }
+                        `,
+                        variables: {ids, eventId: electionEventId},
+                        fetchPolicy: "network-only",
+                    })
+                    result.push(...areas.sequent_backend_area)
                 }
-
-                const task_id = data?.prepare_ballot_publication_preview?.task_execution?.id
-                task_id
-                    ? setWidgetTaskId(currWidget.identifier, task_id, () =>
-                          onSuccessPreparePreview()
-                      )
-                    : updateWidgetFail(currWidget.identifier)
-                return data?.prepare_ballot_publication_preview?.document_id
-            } catch (_error) {
-                setIsUploading(false)
-                currWidget && updateWidgetFail(currWidget.identifier)
-                notifyActionError()
-                return
+                if (ids.length < 1000) break
             }
+            if (active) setSourceAreas(result)
         }
-
-        const handleDocumentProcess = async () => {
-            const docId = await preparePreviewData()
-            setDocumentId(docId)
+        if (publicationId && electionEventId) {
+            loadAreas().catch(() => {
+                if (active) notify(t("publish.dialog.error_preview"), {type: "error"})
+            })
         }
-
-        if (isUploading && areaId && undefined !== Sequent_Backend_Support_Material_Select_Column) {
-            handleDocumentProcess()
+        return () => {
+            active = false
         }
-    }, [isUploading, areaId])
+    }, [client, publicationId, electionEventId, notify, t])
 
-    const onSuccessPreparePreview = () => {
-        setIsUploading(false) // This will trigger and validate the condition in useEffect for action (open or copy)
-    }
+    const task = taskData?.sequent_backend_tasks_execution?.[0]
+    useEffect(() => {
+        if (!taskId || task?.id !== taskId) return
+        if (task.execution_status === ETaskExecutionStatus.SUCCESS) {
+            setTaskId(null)
+            setIsUploading(false)
+        } else if (task.execution_status === ETaskExecutionStatus.FAILED) {
+            setTaskId(null)
+            setDocumentId(null)
+            setAction(null)
+            setIsUploading(false)
+            notify(t("publish.dialog.error_preview"), {type: "error"})
+        }
+    }, [taskId, task, notify, t])
+
+    useEffect(() => {
+        let active = true
+        if (!isUploading || taskId || documentId) return
+        const widget = addWidget(ETasksExecution.PREPARE_PUBLICATION_PREVIEW, undefined)
+        preparePreview({variables: {electionEventId, ballotPublicationId: publicationId}})
+            .then(({data}) => {
+                const output = data?.prepare_ballot_publication_preview
+                if (output?.error_msg || !output?.document_id || !output.task_execution?.id) {
+                    throw new Error(output?.error_msg || "Preview task was not created")
+                }
+                setWidgetTaskId(widget.identifier, output.task_execution.id)
+                if (active) {
+                    setDocumentId(output.document_id)
+                    setTaskId(output.task_execution.id)
+                }
+            })
+            .catch(() => {
+                updateWidgetFail(widget.identifier)
+                if (active) {
+                    setDocumentId(null)
+                    setAction(null)
+                    setIsUploading(false)
+                    notify(t("publish.dialog.error_preview"), {type: "error"})
+                }
+            })
+        return () => {
+            active = false
+        }
+    }, [isUploading])
+
     const onPreviewClick = async (res: any) => {
         if (!documentId) {
             setIsUploading(true)
@@ -144,14 +181,6 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             setIsUploading(true)
         }
         setAction(ActionType.Copy)
-    }
-
-    const notifyActionError = () => {
-        if (action === ActionType.Copy) {
-            notify(t("publish.preview.copy_error"), {type: "error"})
-        } else if (action === ActionType.Open) {
-            notify(t("publish.dialog.error_preview"), {type: "error"})
-        }
     }
 
     // This useEffect handles logic for action (open or copy)
@@ -176,7 +205,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             }
         }
 
-        if (documentId && !isUploading) {
+        if (documentId && !isUploading && !taskId) {
             const previewUrl = getPreviewUrl(documentId)
             if (previewUrl && action === ActionType.Copy) {
                 copyPreviewLink(previewUrl)
@@ -184,12 +213,12 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                 openPreview(previewUrl)
             }
         }
-    }, [documentId, action, isUploading])
+    }, [documentId, action, isUploading, taskId])
 
     // Create preview url from data
     const previewUrlTemplate = useMemo(() => {
         return `${globalSettings.VOTING_PORTAL_URL}/preview/${tenantId}`
-    }, [globalSettings.VOTING_PORTAL_URL, publicationId])
+    }, [globalSettings.VOTING_PORTAL_URL, tenantId])
 
     const getPreviewUrl = useCallback(
         (documentId: string | undefined | null) => {

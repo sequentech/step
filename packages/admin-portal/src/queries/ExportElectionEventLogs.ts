@@ -10,6 +10,10 @@ export const EXPORT_ELECTION_EVENT_LOGS = gql`
         $createdFrom: String
         $createdTo: String
         $timeZone: String
+        $scope: String
+        $electionId: String
+        $areaId: String
+        $username: String
     ) {
         export_election_event_logs(
             election_event_id: $electionEventId
@@ -17,6 +21,10 @@ export const EXPORT_ELECTION_EVENT_LOGS = gql`
             created_from: $createdFrom
             created_to: $createdTo
             time_zone: $timeZone
+            scope: $scope
+            election_id: $electionId
+            area_id: $areaId
+            username: $username
         ) {
             document_id
             task_execution {

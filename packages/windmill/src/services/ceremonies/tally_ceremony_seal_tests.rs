@@ -121,8 +121,8 @@ fn closed_event(presentation: Value) -> InMemoryTallyCeremony {
             "trustee_ids": [], "threshold": 2, "execution_status": "SUCCESS",
             "settings": {"policy": "manual-ceremonies"},
             "status": {"stop_date": null, "public_key": "public-key", "logs": [], "trustees": [
-                {"name": "alice", "status": "KEY_CHECKED"},
-                {"name": "bob", "status": "KEY_CHECKED"},
+                {"name": "alice", "status": "CUSTODY_CONFIRMED"},
+                {"name": "bob", "status": "CUSTODY_CONFIRMED"},
             ]},
         }))
         .unwrap(),
@@ -133,8 +133,8 @@ fn closed_event(presentation: Value) -> InMemoryTallyCeremony {
             "id": "execution", "tenant_id": TENANT, "election_event_id": EVENT,
             "current_message_id": 7, "tally_session_id": SESSION,
             "status": {"stop_date": null, "logs": [], "elections_status": [], "trustees": [
-                {"name": "alice", "status": "KEY_RESTORED"},
-                {"name": "bob", "status": "KEY_RESTORED"},
+                {"name": "alice", "status": "CUSTODY_CONFIRMED"},
+                {"name": "bob", "status": "CUSTODY_CONFIRMED"},
             ]},
         }))
         .unwrap(),

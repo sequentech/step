@@ -342,7 +342,7 @@ export function executionStatus(workflow: EStoryWorkflow): ITallyCeremonyStatus 
     return {
         trustees: trusteeRecords.slice(0, 2).map(({name}) => ({
             name: String(name),
-            status: ITallyTrusteeStatus.KEY_RESTORED,
+            status: ITallyTrusteeStatus.CUSTODY_CONFIRMED,
         })),
         elections_status: [
             {

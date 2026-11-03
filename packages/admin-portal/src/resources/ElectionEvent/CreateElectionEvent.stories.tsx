@@ -148,7 +148,7 @@ function assertLanguage(language_conf: Record<string, unknown>) {
             tenant_id: TENANT_ID,
             name: "Council event",
             description: "Annual council election",
-            encryption_protocol: "RSA256",
+            encryption_protocol: "WBRAID",
             is_archived: false,
             presentation: expect.objectContaining({
                 language_conf,

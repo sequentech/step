@@ -11,32 +11,30 @@ use clap::Parser;
 use dotenv::dotenv;
 use sequent_core::util::init_log::init_log;
 use std::collections::HashMap;
-use std::sync::LazyLock;
+use std::str::FromStr;
 use tokio::runtime::Builder;
 use tracing::{event, Level};
+use windmill::services::audit_log_writer::{record_log_writer, LogWriterEvent};
 use windmill::services::celery_app::{self as celery_cfg, Queue};
+use windmill::services::database::get_hasura_pool;
 use windmill::services::monitoring::cadence;
 use windmill::services::probe::{setup_probe, AppName};
+use windmill::services::task_queues::set_up_task_queue_database;
 use windmill::services::tasks_semaphore::init_semaphore;
 
-fn get_queue_name(queue: Queue) -> String {
-    let slug = std::env::var("ENV_SLUG")
-        .with_context(|| "missing env var ENV_SLUG")
-        .unwrap();
-    queue.queue_name(&slug)
-}
-
-static BEAT_QUEUE_NAME: LazyLock<String> = LazyLock::new(|| get_queue_name(Queue::Beat));
+/// How often, and how many times, the start of the log writer is tried.
+const LOG_WRITER_START_RETRY: std::time::Duration = std::time::Duration::from_secs(15);
+const LOG_WRITER_START_ATTEMPTS: usize = 40;
 
 #[derive(Debug, Parser, Clone)]
 #[command(name = "windmill", about = "Windmill task queue prosumer.")]
 enum CeleryOpt {
     Consume {
-        #[arg(short, long, num_args(1..), default_values_t = vec![BEAT_QUEUE_NAME.clone()])]
+        #[arg(short, long, num_args(1..), default_values_t = vec![Queue::Beat.queue_name().to_string()])]
         queues: Vec<String>,
         #[arg(short, long, default_value = "100")]
         prefetch_count: u16,
-        #[arg(short, long)]
+        #[arg(short, long, default_value_t = true)]
         acks_late: bool,
         #[arg(short, long, default_value = "4")]
         task_max_retries: u32,
@@ -48,6 +46,28 @@ enum CeleryOpt {
         worker_threads: Option<usize>,
     },
     Produce,
+    /// Install PGMQ and create the queues in the task-queue database, as its owner.
+    SetupQueueDatabase,
+}
+
+/// Resolve the queues to consume. A queue may also be given with the `ENV_SLUG_` prefix that
+/// queue names had when environments shared a broker.
+fn normalize_consumed_queues(slug: &str, inputs: &[String]) -> Result<Vec<String>> {
+    let legacy_prefix = format!("{slug}_");
+    inputs
+        .iter()
+        .map(|input| {
+            Queue::from_str(input)
+                .or_else(|_| {
+                    input
+                        .strip_prefix(&legacy_prefix)
+                        .ok_or(strum::ParseError::VariantNotFound)
+                        .and_then(Queue::from_str)
+                })
+                .map(|queue| queue.queue_name().to_string())
+                .map_err(|_| anyhow!("Unknown queue {input}"))
+        })
+        .collect()
 }
 
 fn find_duplicates(input: Vec<&str>) -> Vec<&str> {
@@ -65,10 +85,47 @@ fn find_duplicates(input: Vec<&str>) -> Vec<&str> {
     duplicates
 }
 
+/// Queues the log writer's start or stop in every tenant's log. A failure is
+/// logged: the worker starts and stops whether or not it can be recorded.
+/// Returns whether it was recorded.
+async fn record_log_writer_event(event: LogWriterEvent) -> bool {
+    let recorded = async {
+        let mut client = get_hasura_pool().await.get().await?;
+        record_log_writer(&mut client, event).await
+    }
+    .await;
+    match recorded {
+        Ok(tenants) => {
+            event!(
+                Level::INFO,
+                "Log writer {event:?} recorded for {tenants} tenants"
+            );
+            true
+        }
+        Err(error) => {
+            event!(Level::WARN, "Log writer {event:?} not recorded: {error:#}");
+            false
+        }
+    }
+}
+
+/// Records the writer's start in the background, trying again while the
+/// database is not ready, as when the worker starts before the migrations ran.
+fn record_log_writer_start() {
+    tokio::spawn(async {
+        for _ in 0..LOG_WRITER_START_ATTEMPTS {
+            if record_log_writer_event(LogWriterEvent::Started).await {
+                return;
+            }
+            tokio::time::sleep(LOG_WRITER_START_RETRY).await;
+        }
+    });
+}
+
 fn read_worker_threads(opt: &CeleryOpt) -> usize {
     match opt.clone() {
         CeleryOpt::Consume { worker_threads, .. } => worker_threads,
-        CeleryOpt::Produce => None,
+        CeleryOpt::Produce | CeleryOpt::SetupQueueDatabase => None,
     }
     .unwrap_or(num_cpus::get())
 }
@@ -96,6 +153,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn async_main(opt: CeleryOpt) -> Result<()> {
     init_log(true);
+    if let CeleryOpt::SetupQueueDatabase = opt {
+        let installation = set_up_task_queue_database().await?;
+        event!(
+            Level::INFO,
+            "Task-queue database set up with {} queues (PGMQ: {:?})",
+            Queue::all_names().len(),
+            installation
+        );
+        return Ok(());
+    }
     setup_probe(AppName::WINDMILL).await;
 
     let cpus = celery_cfg::get_worker_threads();
@@ -122,31 +189,82 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
 
             let celery_app = celery_cfg::get_celery_app().await;
             celery_app.display_pretty().await;
-            let queues: Vec<String> = queues_input
+            let queues = normalize_consumed_queues(&slug, &queues_input)?;
+
+            for (queue, purpose) in [
+                (
+                    Queue::ElectoralLogEvent,
+                    "is read only by the electoral-log dispatcher",
+                ),
+                (
+                    Queue::ElectoralLogDeadLetter,
+                    "holds electoral-log events for inspection and replay",
+                ),
+            ] {
+                let name = queue.queue_name();
+                if queues.iter().any(|consumed| consumed == name) {
+                    return Err(anyhow!(
+                        "{name} {purpose}; a worker consuming it would discard its events"
+                    ));
+                }
+            }
+            let copies =
+                windmill::services::electoral_log_checkpoint_copies::CheckpointCopyConfig::from_env()?;
+            event!(
+                Level::INFO,
+                "Electoral-log checkpoint copies: {}, bucket {}, {} lock for {} days",
+                copies.policy,
+                copies.bucket,
+                copies.lock_mode,
+                copies.retention_days
+            );
+            if queues
                 .iter()
-                .map(|queue_name| {
-                    if queue_name.starts_with(&slug) {
-                        queue_name.clone()
-                    } else {
-                        format!("{}_{}", slug, queue_name)
-                    }
-                })
-                .collect();
+                .any(|consumed| consumed == Queue::Beat.queue_name())
+            {
+                let retention = windmill::tasks::purge_queue_archives::retention()?;
+                event!(
+                    Level::INFO,
+                    "Task-queue archives are kept for {} hours",
+                    retention.as_secs() / 3600
+                );
+            }
+            if queues
+                .iter()
+                .any(|consumed| consumed == Queue::ElectoralLogBeat.queue_name())
+            {
+                let limits = windmill::tasks::electoral_log::BatchLimits::from_env()?;
+                event!(
+                    Level::INFO,
+                    "Electoral-log dispatcher batch limits: {} events, {} bytes",
+                    limits.max_events,
+                    limits.max_bytes
+                );
+            }
 
             let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
             let duplicates = find_duplicates(vec_str.clone());
             if !duplicates.is_empty() {
                 return Err(anyhow!("Found duplicate queues: {:?}", duplicates));
             }
-            let queues = celery_cfg::durable_electoral_log_consumer_queues(queues, &slug);
-            let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
             celery_cfg::set_queues(queues.clone());
             // Read now rather than at the first pass, so the cadence and any
             // value it had to replace are logged when the worker starts.
             cadence::configured();
+            // The worker of this queue posts the audit log outbox: its start
+            // and its stop are entries of every tenant's log.
+            let writes_logs = queues
+                .iter()
+                .any(|consumed| consumed == Queue::ElectoralLogBeat.queue_name());
+            if writes_logs {
+                record_log_writer_start();
+            }
             celery_cfg::set_is_app_active(true);
             celery_app.consume_from(&vec_str[..]).await?;
             celery_cfg::set_is_app_active(false);
+            if writes_logs {
+                record_log_writer_event(LogWriterEvent::Stopped).await;
+            }
             celery_app.close().await?;
         }
         CeleryOpt::Produce => {
@@ -154,6 +272,27 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             event!(Level::INFO, "No new tasks to produce");
             celery_app.close().await?;
         }
+        CeleryOpt::SetupQueueDatabase => {}
     };
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn consumed_queues_accept_plain_and_legacy_prefixed_names() {
+        let inputs = ["short_queue", "dev_beat", "dev_tally_queue"].map(String::from);
+        assert_eq!(
+            normalize_consumed_queues("dev", &inputs).unwrap(),
+            ["short_queue", "beat", "tally_queue"]
+        );
+        for unknown in ["prod_short_queue", "dev_", "unknown_queue", ""] {
+            assert!(
+                normalize_consumed_queues("dev", &[unknown.to_string()]).is_err(),
+                "{unknown}"
+            );
+        }
+    }
 }

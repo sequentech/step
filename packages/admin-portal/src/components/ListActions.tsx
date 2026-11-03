@@ -128,6 +128,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                         <Button
                             onClick={(e: React.MouseEvent<HTMLElement>) => openExportMenu(e)}
                             label={String(t("common.label.export"))}
+                            aria-label={String(t("common.label.export"))}
                             disabled={isExportDisabled}
                         >
                             <DownloadIcon />
@@ -140,6 +141,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                         <Button
                             onClick={doExport}
                             label={String(t("common.label.export"))}
+                            aria-label={String(t("common.label.export"))}
                             disabled={isExportDisabled}
                         >
                             <DownloadIcon />

@@ -68,11 +68,14 @@ export enum EBallotBoxRowStatus {
     SEALING = "sealing",
     /** Past its deadline and the sealer is on it (it takes up to a minute). */
     DUE = "due",
-    /** Past its deadline and held: a channel, Datafix votes, an error, or no sealer running. */
+    /**
+     * Past its deadline and held: a channel, Datafix votes, ballots the sequencer hasn't
+     * added to the log, an error, or no sealer running.
+     */
     OVERDUE = "overdue",
-    /** Sealed and locked; its entry on the bulletin board is being posted. */
+    /** Sealed, locked and on the bulletin board; its seal record is being published. */
     PUBLISHING = "publishing",
-    /** Sealed and on the bulletin board. */
+    /** Sealed, and its seal record is published. */
     SEALED = "sealed",
     /** Not sealed: an incident. The ballot box stays locked. */
     FAILED = "failed",
@@ -105,6 +108,7 @@ export const ballotBoxRowStatus = (
                 waiting === EBallotBoxWaitingReason.CHANNEL_NOT_ENABLED ||
                 waiting === EBallotBoxWaitingReason.CHANNEL_HAS_BALLOTS ||
                 waiting === EBallotBoxWaitingReason.DATAFIX_VOTES ||
+                waiting === EBallotBoxWaitingReason.SEQUENCER ||
                 waiting === EBallotBoxWaitingReason.ERROR
             return held || isStale(seal, now)
                 ? EBallotBoxRowStatus.OVERDUE
@@ -404,6 +408,11 @@ const BallotBoxesTable: React.FC<{
                 }
                 if (waiting?.reason === EBallotBoxWaitingReason.DATAFIX_VOTES) {
                     return t("dashboard.ballotBoxes.why.datafixVotes", {
+                        count: Number(waiting.detail) || 0,
+                    })
+                }
+                if (waiting?.reason === EBallotBoxWaitingReason.SEQUENCER) {
+                    return t("dashboard.ballotBoxes.why.sequencer", {
                         count: Number(waiting.detail) || 0,
                     })
                 }

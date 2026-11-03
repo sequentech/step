@@ -18,3 +18,10 @@ To run storybook, execute `yarn storybook`, then open `localhost:6006`.
 
 See the [testing guide](../../docs/docusaurus/docs/07-developers/03-development-environment/testing/ballot-verifier.md)
 for commands, fixtures and coverage scope.
+
+The optional BrowserStack smoke test generates and verifies a new wbraid sample
+ballot through the current portal controls. Point `BALLOT_VERIFIER_URL` at the
+configured verifier's tenant/event start route with `?lang=en`, set the
+BrowserStack credentials, and run `npm run local` from `browserstack/`. Published
+ballot audit, tampering and tracker checks use the fixture-backed Playwright
+journeys described in the testing guide.

@@ -18,13 +18,14 @@ import {
     taskHandler,
     taskWidgetDefects,
 } from "@/components/tally/__stories__/DownloadFixture"
-import type {GetBallotPublicationChangesOutput} from "@/gql/graphql"
 import {WidgetsContextProvider} from "@/providers/WidgetsContextProvider"
 import {EditPreview} from "./EditPreview"
 
 interface Scenario {
     /** Whether the preview service rejects the request. */
     preparationFails: boolean
+    /** How the background task that renders the preview ends. */
+    task: "SUCCESS" | "FAILED"
     /** What writing to the clipboard does. */
     clipboard: "granted" | "denied"
     close: () => void
@@ -40,28 +41,32 @@ const TASK_ID = storyId(8, 7)
 const PREVIEW_URL = `https://voting.admin-story.invalid/preview/${TENANT_ID}/${DOCUMENT_ID}/${STORY_IDS.area}/${PUBLICATION_ID}`
 
 /** The publication has a ballot style for the north district only. */
-const BALLOT_DATA = {
-    previous: null,
-    current: {
-        ballot_publication_id: PUBLICATION_ID,
-        ballot_styles: [{id: storyId(9, 2), area_id: STORY_IDS.area}],
-    },
-} as GetBallotPublicationChangesOutput
+const PUBLICATION_AREA_IDS = [STORY_IDS.area]
 
 const meta = {
     title: "Admin/Publish/EditPreview",
     component: EditPreview,
-    args: {preparationFails: false, clipboard: "granted", close: fn()},
+    args: {preparationFails: false, task: "SUCCESS", clipboard: "granted", close: fn()},
     argTypes: {
+        task: {control: "inline-radio", options: ["SUCCESS", "FAILED"]},
         clipboard: {control: "inline-radio", options: ["granted", "denied"]},
         close: {table: {disable: true}},
     },
     beforeEach: async ({args}) => {
         graphql = graphqlBoundary(
             {
-                sequent_backend_area: () => ({
+                PublicationPreviewAreas: ({variables}) => ({
                     data: {
-                        sequent_backend_area: areaRecords().map(({id, name}) => ({id, name})),
+                        sequent_backend_ballot_style: PUBLICATION_AREA_IDS.slice(
+                            variables.offset
+                        ).map((area_id) => ({area_id})),
+                    },
+                }),
+                PublicationPreviewAreaNames: ({variables}) => ({
+                    data: {
+                        sequent_backend_area: areaRecords()
+                            .filter(({id}) => variables.ids.includes(id))
+                            .map(({id, name}) => ({id, name})),
                     },
                 }),
                 PrepareBallotPublicationPreview: () =>
@@ -79,7 +84,7 @@ const meta = {
                                   },
                               },
                           },
-                ...taskHandler("SUCCESS", "PREPARE_PUBLICATION_PREVIEW"),
+                ...taskHandler(args.task, "PREPARE_PUBLICATION_PREVIEW"),
             },
             {schema: true}
         )
@@ -107,7 +112,6 @@ const meta = {
                 <EditPreview
                     publicationId={PUBLICATION_ID}
                     electionEventId={EVENT_ID}
-                    ballotData={BALLOT_DATA}
                     close={close}
                 />
             </WidgetsContextProvider>
@@ -120,7 +124,7 @@ type Story = StoryObj<Scenario>
 async function chooseNorth(canvasElement: HTMLElement) {
     const canvas = within(canvasElement)
     await waitFor(() =>
-        expect(graphql.calls.map(({name}) => name)).toContain("sequent_backend_area")
+        expect(graphql.calls.map(({name}) => name)).toContain("PublicationPreviewAreaNames")
     )
     await userEvent.click(canvas.getByRole("combobox", {name: "Select Area for Preview"}))
     await userEvent.click(
@@ -148,10 +152,15 @@ export const Populated: Story = {
                     .map((option) => option.textContent)
             ).toEqual(["North district"])
         )
+        // Area ids come from the publication's ballot styles, not its truncated diff.
         expect(graphql.calls).toEqual([
             expect.objectContaining({
-                name: "sequent_backend_area",
-                variables: {electionEventId: EVENT_ID},
+                name: "PublicationPreviewAreas",
+                variables: {publicationId: PUBLICATION_ID, eventId: EVENT_ID, offset: 0},
+            }),
+            expect.objectContaining({
+                name: "PublicationPreviewAreaNames",
+                variables: {ids: PUBLICATION_AREA_IDS, eventId: EVENT_ID},
             }),
         ])
         await userEvent.keyboard("{Escape}")
@@ -209,5 +218,20 @@ export const PreparationFails: Story = {
         await expect(await within(document.body).findByText("FAILED")).toBeVisible()
         expect(opened).toEqual([])
         expect(args.close).not.toHaveBeenCalled()
+    },
+}
+
+export const PreviewTaskFails: Story = {
+    args: {task: "FAILED"},
+    parameters: taskWidgetDefects("FAILED"),
+    play: async ({canvasElement, args}) => {
+        const canvas = await chooseNorth(canvasElement)
+        await userEvent.click(canvas.getByRole("button", {name: "Preview"}))
+        await notice("Error previewing publication")
+        await expect(await within(document.body).findByText("FAILED")).toBeVisible()
+        // The document of a failed task is never opened.
+        expect(opened).toEqual([])
+        expect(args.close).not.toHaveBeenCalled()
+        await waitFor(() => expect(canvas.getByRole("button", {name: "Preview"})).toBeEnabled())
     },
 }

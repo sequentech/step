@@ -42,6 +42,7 @@ enum StepCommands {
     BuildElectionEvent(commands::build_election_event::BuildElectionEvent),
     CompilePlan(commands::compile_plan::CompilePlan),
     Config(commands::configure::Config),
+    AuditElectoralLog(commands::audit_electoral_log::AuditElectoralLogCLI),
     CreateTenant(commands::create_tenant::CreateTenant),
     CreateElectionEvent(commands::create_election_event::CreateElectionEventCLI),
     CreateElection(commands::create_election::CreateElection),
@@ -66,7 +67,7 @@ enum StepCommands {
     UpdateTally(commands::update_tally_status::UpdateTallyStatus),
     SubmitTallyResolution(commands::submit_tally_resolution::SubmitTallyResolution),
     TallySheet(commands::tally_sheet::TallySheetCommand),
-    ConfirmKeyTally(commands::confirm_tally_ceremoney_key::ConfirmKeyForTally),
+    ConfirmKeyTally(commands::authorize_tally_custody::AuthorizeTallyCustodyCommand),
     RenderTemplate(commands::render_template::RenderTemplate),
     GenerateVoters(commands::generate_voters::GenerateVoters),
     DuplicateVotes(commands::duplicate_votes::DuplicateVotes),
@@ -84,6 +85,7 @@ enum StepCommands {
     RevokeResultsPublication(commands::results_publication::RevokeResultsPublication),
     ExportTenantConfig(commands::export_tenant_config::ExportTenantConfig),
     ImportTenantConfig(commands::import_tenant_config::ImportTenantConfig),
+    ApplyConfigurationPackage(commands::apply_configuration_package::ApplyConfigurationPackage),
     ListTrustees(commands::get_trustees::ListTrustees),
     CreateTrustee(commands::create_trustee::CreateTrustee),
     DownloadDocument(commands::download_document::DownloadDocument),
@@ -92,6 +94,9 @@ enum StepCommands {
     MigrateRegistrationFlows(commands::migrate_registration_flows::MigrateRegistrationFlows),
     VerifyBallotBoxSeal(commands::verify_ballot_box_seal::VerifyBallotBoxSeal),
     VerifyPackage(commands::verify_package::VerifyPackage),
+    ReadinessCheck(commands::readiness_check::ReadinessCheck),
+    ResolveVoterPseudonym(commands::resolve_voter_pseudonym::ResolveVoterPseudonym),
+    VerifyTransmissionPackage(commands::verify_transmission_package::VerifyTransmissionPackage),
 }
 
 fn main() {
@@ -114,6 +119,7 @@ fn main() {
             StepCommands::BuildElectionEvent(cmd) => cmd.run(),
             StepCommands::CompilePlan(cmd) => cmd.run(),
             StepCommands::Config(cmd) => cmd.run(),
+            StepCommands::AuditElectoralLog(audit) => exit_on_error(audit.run()),
             StepCommands::CreateTenant(create_tenant) => exit_on_error(create_tenant.run()),
             StepCommands::CreateElectionEvent(create_event) => create_event.run(),
             StepCommands::CreateElection(create_election) => create_election.run(),
@@ -121,7 +127,9 @@ fn main() {
             StepCommands::CreateCandidate(create_candidate) => create_candidate.run(),
             StepCommands::CreateArea(create_area) => create_area.run(),
             StepCommands::CreateAreaContest(create_area_contest) => create_area_contest.run(),
-            StepCommands::ExportCastVotes(export_cast_votes) => export_cast_votes.run(),
+            StepCommands::ExportCastVotes(export_cast_votes) => {
+                exit_on_error(export_cast_votes.run())
+            }
             StepCommands::ExportElectionEvent(export_election_event) => export_election_event.run(),
             StepCommands::ImportElection(import) => import.run(),
             StepCommands::ImportVoters(import_voters) => exit_on_error(import_voters.run()),
@@ -167,6 +175,7 @@ fn main() {
             }
             StepCommands::ExportTenantConfig(export) => exit_on_error(export.run()),
             StepCommands::ImportTenantConfig(import) => exit_on_error(import.run()),
+            StepCommands::ApplyConfigurationPackage(apply) => exit_on_error(apply.run()),
             StepCommands::ListTrustees(list) => exit_on_error(list.run()),
             StepCommands::CreateTrustee(create) => exit_on_error(create.run()),
             StepCommands::DownloadDocument(download) => exit_on_error(download.run()),
@@ -181,6 +190,9 @@ fn main() {
                 exit_on_error(verify.run().map_err(|error| format!("{error:#}")))
             }
             StepCommands::VerifyPackage(cmd) => cmd.run(),
+            StepCommands::ReadinessCheck(cmd) => exit_on_error(cmd.run()),
+            StepCommands::ResolveVoterPseudonym(cmd) => exit_on_error(cmd.run()),
+            StepCommands::VerifyTransmissionPackage(cmd) => cmd.run(),
         },
     }
 }
@@ -188,7 +200,7 @@ fn main() {
 /// Give scripts a nonzero status while leaving the detailed error on stderr.
 fn exit_on_error(result: Result<(), impl std::fmt::Display>) {
     if let Err(error) = result {
-        eprintln!("Error! {error}");
+        eprintln!("Error! {error:#}");
         std::process::exit(1);
     }
 }

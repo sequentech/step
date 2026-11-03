@@ -171,8 +171,8 @@ describe("rules", () => {
                 group: SigningActionGroup.ConfigurationAndKeys,
                 actions: [
                     SigningAction.ApproveConfiguration,
-                    SigningAction.ConfirmKeyShare,
-                    SigningAction.ContributeKeyShare,
+                    SigningAction.ConfirmCustodyProof,
+                    SigningAction.ContributeCustodyProof,
                 ],
             },
         ])
@@ -403,7 +403,7 @@ describe("rule drafts", () => {
 
     it("switches trustee actions only on or off", () => {
         const trustee: ISigningRule = {
-            action: SigningAction.ConfirmKeyShare,
+            action: SigningAction.ConfirmCustodyProof,
             requirement: SigningRequirement.NotRequired,
             signatures: 1,
             requester_signing: RequesterSigning.NotAllowed,
@@ -418,7 +418,7 @@ describe("rule drafts", () => {
         }
         expect(ruleInputOf(EVENT, trustee, draft, ["trustee"])).toEqual({
             election_event_id: EVENT,
-            action: SigningAction.ConfirmKeyShare,
+            action: SigningAction.ConfirmCustodyProof,
             requirement: SigningRequirement.Required,
             signatures: 1,
             requester_signing: RequesterSigning.Allowed,

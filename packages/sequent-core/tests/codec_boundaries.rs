@@ -123,11 +123,13 @@ fn encryption_propagates_invalid_candidate_encoding_after_validating_contest_ids
         encrypt_multi_ballot, DEFAULT_PUBLIC_KEY_RISTRETTO_STR,
     };
     use sequent_core::error::BallotError;
-    use strand::backend::ristretto::RistrettoCtx;
+    use voting_crypto::RistrettoCtx;
     let mut config = style(&[contest()]);
     config.public_key = Some(PublicKeyConfig {
         public_key: DEFAULT_PUBLIC_KEY_RISTRETTO_STR.into(),
         is_demo: true,
+        keys_ceremony_id: None,
+        configuration_id: None,
     });
     encrypt_multi_ballot(&RistrettoCtx, &choices(&["a"]), &config).unwrap();
     // Contest identity and public key are valid, so the rejection must come

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::*;
+use chrono::Duration;
 use sequent_core::ballot_receipt::verify_received_ballot;
-use strand::signature::StrandSignaturePk;
+use voting_crypto::signing::VerificationKey;
 
 fn envelope(public_key: Option<&str>, signature: Option<&str>) -> BallotEnvelope {
     BallotEnvelope {
@@ -90,18 +91,30 @@ fn the_received_time_is_signed_to_the_millisecond() {
     let time = Utc.timestamp_nanos(1_841_367_600_007_654_321);
 
     assert_eq!(
-        format_received_at(&truncate_to_milliseconds(time).unwrap()),
+        format_signed_time(&truncate_to_milliseconds(time).unwrap()),
         "2028-05-08T03:00:00.007Z"
     );
 }
 
 #[test]
-fn the_ballot_box_signs_a_receipt_voters_can_check_with_its_published_key() {
-    let signing_key = StrandSignatureSk::generate().unwrap();
-    let voter_key = StrandSignatureSk::generate().unwrap();
-    let voter_signing_pk = StrandSignaturePk::from_sk(&voter_key)
+fn signed_times_keep_milliseconds_and_utc() {
+    assert_eq!(
+        format_signed_time(&Utc.timestamp_millis_opt(1_841_367_600_007).unwrap()),
+        "2028-05-08T03:00:00.007Z"
+    );
+    assert_eq!(
+        format_signed_time(&Utc.timestamp_millis_opt(1_841_367_600_000).unwrap()),
+        "2028-05-08T03:00:00.000Z"
+    );
+}
+
+#[test]
+fn a_stored_ballot_reads_back_as_the_receipt_the_ballot_box_signed() {
+    let signing_key = SigningKey::generate().unwrap();
+    let voter_key = SigningKey::generate().unwrap();
+    let voter_signing_pk = VerificationKey::from_sk(&voter_key)
         .unwrap()
-        .to_der_b64_string()
+        .to_b64_string()
         .unwrap();
     let voter_ballot_signature = voter_key.sign(b"ballot").unwrap().to_b64_string().unwrap();
     let (tenant, event, election) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
@@ -109,7 +122,56 @@ fn the_ballot_box_signs_a_receipt_voters_can_check_with_its_published_key() {
         tenant_id: &tenant,
         election_event_id: &event,
         election_id: &election,
-        voter_id: "voter",
+        ballot_hash: "ballot-hash",
+    };
+    let received_at = truncate_to_milliseconds(Utc::now()).unwrap();
+    let received = sign_received(
+        &signing_key,
+        &scope,
+        &voter_signing_pk,
+        &voter_ballot_signature,
+        &received_at,
+    )
+    .unwrap();
+    let stored = StoredReceivedBallot {
+        id: Uuid::new_v4().to_string(),
+        election_event_id: event.to_string(),
+        election_id: election.to_string(),
+        area_id: Uuid::new_v4().to_string(),
+        voter_id: "voter".into(),
+        ballot_id: received.ballot_id.clone(),
+        ballot_hash: "ballot-hash".into(),
+        content: "ciphertext".into(),
+        voter_signing_pk,
+        voter_ballot_signature,
+        received_at,
+        key_id: received.statement.key_id.clone(),
+        received_signature: received.received_signature.clone(),
+        status: electoral_log::adapters::ballot_box_received::ReceivedStatus::Received,
+        cast_at: None,
+        cast_signature: None,
+        cast_receipt_signature: None,
+    };
+
+    let read_back = stored_receipt(&tenant, stored);
+    assert_eq!(read_back, received);
+    verify_received_ballot(&published_key(&signing_key).unwrap(), &read_back).unwrap();
+}
+
+#[test]
+fn the_ballot_box_signs_a_receipt_voters_can_check_with_its_published_key() {
+    let signing_key = SigningKey::generate().unwrap();
+    let voter_key = SigningKey::generate().unwrap();
+    let voter_signing_pk = VerificationKey::from_sk(&voter_key)
+        .unwrap()
+        .to_b64_string()
+        .unwrap();
+    let voter_ballot_signature = voter_key.sign(b"ballot").unwrap().to_b64_string().unwrap();
+    let (tenant, event, election) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
+    let scope = ReceivedBallotScope {
+        tenant_id: &tenant,
+        election_event_id: &event,
+        election_id: &election,
         ballot_hash: "ballot-hash",
     };
     let received_at = truncate_to_milliseconds(Utc::now()).unwrap();
@@ -146,13 +208,12 @@ fn the_ballot_box_signs_a_receipt_voters_can_check_with_its_published_key() {
 
 #[test]
 fn a_malformed_voter_key_cannot_be_signed_for() {
-    let signing_key = StrandSignatureSk::generate().unwrap();
+    let signing_key = SigningKey::generate().unwrap();
     let (tenant, event, election) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
     let scope = ReceivedBallotScope {
         tenant_id: &tenant,
         election_event_id: &event,
         election_id: &election,
-        voter_id: "voter",
         ballot_hash: "ballot-hash",
     };
 
@@ -166,4 +227,38 @@ fn a_malformed_voter_key_cannot_be_signed_for() {
         ),
         Err(CastVoteError::BallotSignFailed(_))
     ));
+}
+
+#[test]
+fn private_received_envelope_drops_unsigned_identity_fields_without_changing_hash() {
+    use sequent_core::ballot::{HashableBallot, SignedHashableBallot};
+    use sequent_core::encrypt::hash_ballot;
+    use sequent_core::types::vote_privacy::BallotIdentity;
+    let raw=serde_json::json!({"version":sequent_core::ballot::TYPES_VERSION,
+        "issue_date":"2028-05-08T03:00:00Z","contests":[],"config":"published-style", "ballot_style_hash":"published-hash",
+        "voter_signing_pk":"public-key","voter_ballot_signature":"signature",
+        "voter_id":"private-account","ip":"198.51.100.7","user_agent":"private device"}).to_string();
+    let before: SignedHashableBallot = serde_json::from_str(&raw).unwrap();
+    let stored = storage_ballot_content(&raw, BallotIdentity::Pseudonym, false).unwrap();
+    let after: SignedHashableBallot = serde_json::from_str(&stored).unwrap();
+    assert_eq!(before, after);
+    assert_eq!(
+        hash_ballot(&HashableBallot::try_from(&before).unwrap()).unwrap(),
+        hash_ballot(&HashableBallot::try_from(&after).unwrap()).unwrap()
+    );
+    for forbidden in ["voter_id", "198.51.100.7", "private-account", "user_agent"] {
+        assert!(!stored.contains(forbidden));
+    }
+    assert_eq!(
+        storage_ballot_content(&raw, BallotIdentity::VoterId, false).unwrap(),
+        raw
+    );
+    let mut multi: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    multi["contests"] = serde_json::json!("opaque encrypted contests");
+    let clean =
+        storage_ballot_content(&multi.to_string(), BallotIdentity::Pseudonym, true).unwrap();
+    let typed: sequent_core::multi_ballot::SignedHashableMultiBallot =
+        serde_json::from_str(&clean).unwrap();
+    assert_eq!(typed.contests, "opaque encrypted contests");
+    assert!(!clean.contains("private-account"));
 }

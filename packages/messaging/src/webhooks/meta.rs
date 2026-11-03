@@ -3,9 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Meta webhooks (WhatsApp Cloud API and Messenger): the subscription
-//! handshake, payload signatures and the events Step uses.
+//! handshake, payload signatures and the events Step uses. Messages voters
+//! write are dropped here: only statuses, Get Started and referrals, and
+//! WhatsApp's `user_changed_number` system messages pass.
 
-use super::{DeliveredUpTo, InboundMessage, MessengerReferral, StatusReport, WebhookEvent};
+use super::{
+    DeliveredUpTo, MessengerContact, MessengerReferral, NumberChange, StatusReport, WebhookEvent,
+};
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, TimeZone, Utc};
 use hmac::{Hmac, Mac};
@@ -120,9 +124,10 @@ pub fn parse_events(account: &AccountSender, body: &[u8]) -> Result<Vec<WebhookE
 }
 
 fn whatsapp_events(value: &Value) -> Vec<WebhookEvent> {
-    let statuses = value["statuses"].as_array().cloned().unwrap_or_default();
-    let messages = value["messages"].as_array().cloned().unwrap_or_default();
-    let mut events: Vec<WebhookEvent> = statuses
+    let mut events: Vec<WebhookEvent> = value["statuses"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
         .iter()
         .filter_map(|status| {
             Some(WebhookEvent::Status(StatusReport {
@@ -136,14 +141,29 @@ fn whatsapp_events(value: &Value) -> Vec<WebhookEvent> {
             }))
         })
         .collect();
-    events.extend(messages.iter().filter_map(|message| {
-        Some(WebhookEvent::Inbound(InboundMessage {
-            from: format!("+{}", message["from"].as_str()?),
-            provider_message_id: message["id"].as_str()?.to_string(),
-            has_text: message["type"] == "text",
-            at: timestamp(&message["timestamp"]),
-        }))
-    }));
+    // Incoming `messages` are not kept or answered. Only the system message
+    // saying a person changed their number is read, and only its numbers
+    // (never its text).
+    events.extend(
+        value["messages"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .filter(|message| {
+                message["type"] == "system" && message["system"]["type"] == "user_changed_number"
+            })
+            .filter_map(|message| {
+                Some(WebhookEvent::NumberChanged(NumberChange {
+                    old_number: message["from"].as_str()?.to_string(),
+                    new_number: message["system"]["new_wa_id"]
+                        .as_str()
+                        .or_else(|| message["system"]["wa_id"].as_str())
+                        .map(str::to_string),
+                    at: timestamp(&message["timestamp"]),
+                }))
+            }),
+    );
     events
 }
 
@@ -160,7 +180,6 @@ fn messenger_events(event: &Value) -> Vec<WebhookEvent> {
         events.push(WebhookEvent::MessengerReferral(MessengerReferral {
             page_scoped_id: psid.to_string(),
             reference: reference.to_string(),
-            linking_word: None,
             at,
         }));
     }
@@ -187,35 +206,14 @@ fn messenger_events(event: &Value) -> Vec<WebhookEvent> {
             up_to,
         }));
     }
-    let message = &event["message"];
-    if !message.is_null() && message["is_echo"] != true {
-        if let Some(mid) = message["mid"].as_str() {
-            events.push(WebhookEvent::Inbound(InboundMessage {
-                from: psid.to_string(),
-                provider_message_id: mid.to_string(),
-                has_text: message["text"].is_string(),
-                at,
-            }));
-            if referral.is_none() {
-                if let Some(text) = message["text"].as_str() {
-                    events.push(WebhookEvent::MessengerReferral(MessengerReferral {
-                        page_scoped_id: psid.to_string(),
-                        reference: String::new(),
-                        linking_word: Some(text.trim().to_string()),
-                        at,
-                    }));
-                }
-            }
-        }
-    }
+    // Get Started without a reference opens the window and nothing else.
+    // Any postback counts, not only the Get Started payload (the Page owner
+    // sets that payload, so Step can't know it, and a menu button press is
+    // also the person writing to the Page, which opens Meta's 24-hour
+    // window). Text the voter writes is dropped.
     if !event["postback"].is_null() && referral.is_none() {
-        events.push(WebhookEvent::Inbound(InboundMessage {
-            from: psid.to_string(),
-            provider_message_id: event["postback"]["mid"]
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            has_text: false,
+        events.push(WebhookEvent::MessengerGetStarted(MessengerContact {
+            page_scoped_id: psid.to_string(),
             at,
         }));
     }
@@ -274,6 +272,33 @@ mod tests {
         );
     }
 
+    /// BC-F19: the number-change system message is read for its numbers
+    /// only; other incoming messages stay dropped.
+    #[test]
+    fn whatsapp_number_changes_are_parsed() {
+        let body = json!({
+            "object": "whatsapp_business_account",
+            "entry": [{"id": "waba-1", "changes": [{"field": "messages", "value": {
+                "metadata": {"phone_number_id": "pn-1"},
+                "messages": [
+                    {"from": "639171234567", "id": "wamid.s", "timestamp": "1760000000",
+                     "type": "system", "system": {"body": "User A changed from +63 917 123 4567 to +63 917 765 4321",
+                     "wa_id": "639177654321", "type": "user_changed_number"}},
+                    {"from": "639171234567", "id": "wamid.t", "type": "text", "text": {"body": "hi"}}
+                ]
+            }}]}]
+        });
+        let events = parse_events(&whatsapp_account(), body.to_string().as_bytes()).unwrap();
+        assert_eq!(
+            events,
+            vec![WebhookEvent::NumberChanged(NumberChange {
+                old_number: "639171234567".to_string(),
+                new_number: Some("639177654321".to_string()),
+                at: Utc.timestamp_opt(1760000000, 0).single(),
+            })]
+        );
+    }
+
     #[test]
     fn signatures_are_checked_over_the_raw_body() {
         let body = br#"{"object":"page"}"#;
@@ -297,7 +322,7 @@ mod tests {
     }
 
     #[test]
-    fn whatsapp_statuses_and_messages_are_parsed() {
+    fn whatsapp_statuses_are_parsed_and_incoming_messages_dropped() {
         let body = json!({
             "object": "whatsapp_business_account",
             "entry": [{
@@ -320,7 +345,7 @@ mod tests {
             }]
         });
         let events = parse_events(&whatsapp_account(), body.to_string().as_bytes()).unwrap();
-        assert_eq!(events.len(), 3);
+        assert_eq!(events.len(), 2);
         assert_eq!(
             events[0],
             WebhookEvent::Status(StatusReport {
@@ -335,10 +360,6 @@ mod tests {
             &events[1],
             WebhookEvent::Status(StatusReport { state: MessageAttemptState::FAILED, error_code: Some(code), .. })
                 if code == "131026"
-        ));
-        assert!(matches!(
-            &events[2],
-            WebhookEvent::Inbound(InboundMessage { from, has_text: true, .. }) if from == "+639171234567"
         ));
     }
 
@@ -369,7 +390,7 @@ mod tests {
     }
 
     #[test]
-    fn messenger_referrals_deliveries_and_linking_words_are_parsed() {
+    fn messenger_referrals_get_started_and_deliveries_are_parsed_and_text_dropped() {
         let body = json!({
             "object": "page",
             "entry": [{
@@ -385,7 +406,9 @@ mod tests {
                     {"sender": {"id": "page-1"}, "recipient": {"id": "page-1"}, "timestamp": 1790000000003_i64,
                      "message": {"mid": "m_echo", "text": "echo", "is_echo": true}},
                     {"sender": {"id": "psid-4"}, "recipient": {"id": "another-page"}, "timestamp": 1790000000004_i64,
-                     "referral": {"ref": "ref-other"}}
+                     "referral": {"ref": "ref-other"}},
+                    {"sender": {"id": "psid-5"}, "recipient": {"id": "page-1"}, "timestamp": 1790000000005_i64,
+                     "postback": {"title": "Get Started", "payload": "GET_STARTED"}}
                 ]
             }]
         });
@@ -395,7 +418,6 @@ mod tests {
             WebhookEvent::MessengerReferral(MessengerReferral {
                 page_scoped_id: "psid-1".to_string(),
                 reference: "ref-abc".to_string(),
-                linking_word: None,
                 at: Utc.timestamp_millis_opt(1_790_000_000_000).single(),
             })
         );
@@ -411,12 +433,14 @@ mod tests {
                     .unwrap(),
             })
         );
-        assert!(matches!(&events[4], WebhookEvent::Inbound(m) if m.from == "psid-3"));
-        assert!(matches!(
-            &events[5],
-            WebhookEvent::MessengerReferral(MessengerReferral { linking_word: Some(word), .. })
-                if word == "VOTE-4821"
-        ));
-        assert_eq!(events.len(), 6);
+        // The typed text and the echo are dropped; there is no linking word.
+        assert_eq!(
+            events[4],
+            WebhookEvent::MessengerGetStarted(MessengerContact {
+                page_scoped_id: "psid-5".to_string(),
+                at: Utc.timestamp_millis_opt(1_790_000_000_005).single(),
+            })
+        );
+        assert_eq!(events.len(), 5);
     }
 }

@@ -10,6 +10,7 @@ import {
 import {serveDist} from "@sequentech/ui-test-kit/server/static"
 import {loadCore} from "@sequentech/ui-test-kit/wasm/node"
 import type {IDecodedVoteContest} from "sequent-core"
+import {EElectionEventContestEncryptionPolicy} from "@sequentech/ui-core"
 import {verifierServices, eventPath, serveVerifier, routeVerifier} from "./fixtures"
 
 const test = votingTest.extend<{}, {verifierDist: Awaited<ReturnType<typeof serveDist>>}>({
@@ -28,57 +29,72 @@ const test = votingTest.extend<{}, {verifierDist: Awaited<ReturnType<typeof serv
     ],
 })
 
-test("voting portal audit download verifies unchanged in the production verifier", async ({
-    page,
-    context,
-    portal,
-    verifierDist,
-}) => {
-    await page.goto(`${portal.origin}${votingEventPath}?lang=en`)
-    await page.getByRole("button", {name: /click to vote/i}).click()
-    await page.getByRole("button", {name: "Start Voting", exact: true}).click()
-    await page.getByRole("checkbox", {name: /Alice Example/}).check()
-    await page.getByRole("button", {name: "Next", exact: true}).click()
-    const hash = (await page.getByText(/^Your Ballot ID:/).textContent())?.match(
-        /[0-9a-f]{64}/
-    )?.[0]
-    expect(hash).toMatch(/^[0-9a-f]{64}$/)
-    await page.getByRole("button", {name: "Audit ballot", exact: true}).click()
-    await page.getByRole("button", {name: "Yes, discard my ballot to audit"}).click()
-    const downloading = page.waitForEvent("download")
-    await page.getByRole("button", {name: "Download", exact: true}).click()
-    const download = await downloading
-    const bytes = await readFile((await download.path())!)
-    const core = await loadCore()
-    const decoded = core.decode_auditable_ballot_js(
-        JSON.parse(bytes.toString())
-    ) as IDecodedVoteContest[]
-    expect(decoded[0].choices.filter(({selected}) => selected >= 0)).toEqual([
-        {id: IDS.alice, selected: 0, write_in_text: null},
-    ])
-    expect(portal.graphql.callsTo("InsertCastVote")).toEqual([])
-
-    // A second application origin in this context starts a separate OIDC session.
-    const verifier = verifierServices(verifierDist.origin)
-    const unroute = await routeVerifier(context, verifier)
-    try {
-        await page.goto(`${verifier.origin}${eventPath}`)
-        await page.getByTestId("drop-input-file").setInputFiles({
-            name: download.suggestedFilename(),
-            mimeType: "application/json",
-            buffer: bytes,
-        })
-        await page.getByRole("textbox", {name: "Ballot ID", exact: true}).fill(hash!)
+for (const policy of [
+    EElectionEventContestEncryptionPolicy.SINGLE_CONTEST,
+    EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS,
+]) {
+    test(`voting portal ${policy} audit download verifies unchanged in the production verifier`, async ({
+        page,
+        context,
+        portal,
+        verifierDist,
+    }) => {
+        Object.assign(portal.data.event.presentation, {contest_encryption_policy: policy})
+        portal.data.style.ballot_eml = JSON.stringify(portal.data.ballot)
+        portal.publish()
+        await page.goto(`${portal.origin}${votingEventPath}?lang=en`)
+        await page.getByRole("button", {name: /click to vote/i}).click()
+        await page.getByRole("button", {name: "Start Voting", exact: true}).click()
+        await page.getByRole("checkbox", {name: /Alice Example/}).check()
         await page.getByRole("button", {name: "Next", exact: true}).click()
-        await expect(
-            page.getByRole("heading", {name: "Verify your ballot selections"})
-        ).toBeVisible()
-        await expect(page.getByText("Alice Example", {exact: true})).toBeVisible()
-        await expect(page.getByText("Bob Example", {exact: true})).toHaveCount(0)
-        await expect(page.getByText(hash!, {exact: true})).toHaveCount(2)
-        expect(verifier.oidc.tokenRequests[0]).toMatchObject({status: 200, pkce: "valid"})
-    } finally {
-        await unroute()
-        expect(verifier.violations.list(), "unexpected verifier requests").toEqual([])
-    }
-})
+        const hash = (await page.getByText(/^Your Ballot ID:/).textContent())?.match(
+            /[0-9a-f]{64}/
+        )?.[0]
+        expect(hash).toMatch(/^[0-9a-f]{64}$/)
+        await page.getByRole("button", {name: "Audit ballot", exact: true}).click()
+        await page.getByRole("button", {name: "Yes, discard my ballot to audit"}).click()
+        const downloading = page.waitForEvent("download")
+        await page.getByRole("button", {name: "Download", exact: true}).click()
+        const download = await downloading
+        const bytes = await readFile((await download.path())!)
+        const core = await loadCore()
+        const audit = JSON.parse(bytes.toString())
+        expect(typeof audit.config.public_key.configuration_id).toBe("string")
+        const multiple = policy === EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+        expect(typeof audit.contests === "string").toBe(multiple)
+        const decoded = (
+            multiple
+                ? core.decode_auditable_multi_ballot_js(audit)
+                : core.decode_auditable_ballot_js(audit)
+        ) as IDecodedVoteContest[]
+        expect(decoded[0].choices.filter(({selected}) => selected >= 0)).toEqual([
+            {id: IDS.alice, selected: 0, write_in_text: null},
+        ])
+        expect(portal.graphql.callsTo("InsertCastVote")).toEqual([])
+
+        // A second application origin in this context starts a separate OIDC session.
+        const verifier = verifierServices(verifierDist.origin)
+        const unroute = await routeVerifier(context, verifier)
+        try {
+            verifier.publishedStyles.push(portal.data.ballot)
+            await page.goto(`${verifier.origin}${eventPath}`)
+            await page.getByTestId("drop-input-file").setInputFiles({
+                name: download.suggestedFilename(),
+                mimeType: "application/json",
+                buffer: bytes,
+            })
+            await page.getByRole("textbox", {name: "Ballot ID", exact: true}).fill(hash!)
+            await page.getByRole("button", {name: "Next", exact: true}).click()
+            await expect(
+                page.getByRole("heading", {name: "Verify your ballot selections"})
+            ).toBeVisible()
+            await expect(page.getByText("Alice Example", {exact: true})).toBeVisible()
+            await expect(page.getByText("Bob Example", {exact: true})).toHaveCount(0)
+            await expect(page.getByText(hash!, {exact: true})).toHaveCount(2)
+            expect(verifier.oidc.tokenRequests[0]).toMatchObject({status: 200, pkce: "valid"})
+        } finally {
+            await unroute()
+            expect(verifier.violations.list(), "unexpected verifier requests").toEqual([])
+        }
+    })
+}

@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
+use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use anyhow::{anyhow, Context, Result};
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -11,6 +13,7 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
@@ -32,20 +35,37 @@ pub struct ImportTenantConfigOutput {
     task_execution: Option<TasksExecution>,
 }
 
+fn authorize_import_tenant_config(
+    claims: &JwtClaims,
+    input: &ImportTenantConfigInput,
+) -> Result<(), (Status, String)> {
+    authorize(
+        claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::TENANT_WRITE],
+    )
+}
+
 #[instrument(skip(claims))]
 #[post("/import-tenant-config", format = "json", data = "<input>")]
 pub async fn import_tenant_config_route(
     claims: jwt::JwtClaims,
     input: Json<ImportTenantConfigInput>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<ImportTenantConfigOutput>, (Status, String)> {
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::TENANT_WRITE],
-    )?;
-
     let body = input.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::ImportTenantConfig,
+        json!({
+            "tenant_id": body.tenant_id,
+            "document_id": body.document_id,
+            "sha256": body.sha256,
+        }),
+    );
+    authorize_import_tenant_config(&claims, &body)?;
+
     let executer_name = claims
         .name
         .clone()
@@ -75,6 +95,7 @@ pub async fn import_tenant_config_route(
             body.document_id.clone(),
             body.sha256.clone(),
             task_execution.clone(),
+            Some(audit::actor(&claims)),
         ))
         .await
         .map_err(|error| {
@@ -94,4 +115,43 @@ pub async fn import_tenant_config_route(
     };
 
     Ok(Json(output))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::authorization::test_claims::{
+        admin_claims, CALLER_TENANT_ID, OTHER_TENANT_ID,
+    };
+
+    fn input(tenant_id: &str) -> ImportTenantConfigInput {
+        ImportTenantConfigInput {
+            tenant_id: tenant_id.to_string(),
+            document_id: "document".to_string(),
+            import_configurations: ImportOptions {
+                include_tenant: Some(true),
+                include_keycloak: Some(true),
+                include_roles: Some(true),
+            },
+            sha256: None,
+        }
+    }
+
+    #[test]
+    fn import_tenant_config_rejects_tenant_other_than_callers() {
+        let claims = admin_claims(CALLER_TENANT_ID, &["tenant-write"]);
+        let result =
+            authorize_import_tenant_config(&claims, &input(OTHER_TENANT_ID));
+        assert_eq!(result.unwrap_err().0, Status::Unauthorized);
+    }
+
+    #[test]
+    fn import_tenant_config_accepts_callers_tenant() {
+        let claims = admin_claims(CALLER_TENANT_ID, &["tenant-write"]);
+        assert!(authorize_import_tenant_config(
+            &claims,
+            &input(CALLER_TENANT_ID)
+        )
+        .is_ok());
+    }
 }

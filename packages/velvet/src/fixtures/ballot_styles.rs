@@ -24,6 +24,8 @@ pub fn get_ballot_style_1(
         public_key: Some(PublicKeyConfig {
             public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4".into(),
             is_demo: false,
+            keys_ceremony_id: None,
+            configuration_id: None,
         }),
         area_id: area_id.to_string(),
         area_presentation: None,
@@ -61,6 +63,8 @@ pub fn generate_ballot_style(
         public_key: Some(PublicKeyConfig {
             public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4".into(),
             is_demo: false,
+            keys_ceremony_id: None,
+            configuration_id: None,
         }),
         area_id: area_id.to_string(),
         area_presentation: None,

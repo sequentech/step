@@ -19,7 +19,6 @@ export const VOTER_TAB_ROLES = [
     "election-event-voters-tab",
     "voter-read",
     "area-read",
-    "cast-vote-read",
 ]
 
 export interface ProfileAttribute {
@@ -138,7 +137,6 @@ export interface VotersOptions {
     event?: Record<string, unknown>
     attributes?: ProfileAttribute[]
     users?: Record<string, unknown>[]
-    castVotes?: Record<string, unknown>[]
     total?: number
 }
 
@@ -194,14 +192,6 @@ export function mockVoters(portal: PortalServices, options: VotersOptions = {}) 
         data: {
             sequent_backend_election: [],
             sequent_backend_election_aggregate: {aggregate: {count: 0}},
-        },
-    }))
-    portal.graphql.on("sequent_backend_cast_vote", () => ({
-        data: {
-            sequent_backend_cast_vote: options.castVotes ?? [],
-            sequent_backend_cast_vote_aggregate: {
-                aggregate: {count: options.castVotes?.length ?? 0},
-            },
         },
     }))
     return state

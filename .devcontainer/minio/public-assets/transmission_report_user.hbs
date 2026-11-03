@@ -80,6 +80,56 @@
             <table class="stats-table">
               <tr>
                 <td class="key">
+                  <strong>Geographical Region:</strong>
+                </td>
+                <td class="value">
+                  {{sanitize_html (expr geographical_region)}}
+                </td>
+              </tr>
+              <tr>
+                <td class="key post">
+                  <strong>Post:</strong>
+                </td>
+                <td class="value">
+                  {{sanitize_html (expr post)}}
+                </td>
+              </tr>
+              <tr>
+                <td class="key">
+                  <strong>Country:</strong>
+                </td>
+                <td class="value">
+                  {{sanitize_html (expr country)}}
+                </td>
+              </tr>
+              <tr>
+                <td class="key">
+                  <strong>Voting Center:</strong>
+                </td>
+                <td class="value">
+                  {{sanitize_html (expr voting_center)}}
+                </td>
+              </tr>
+              <tr>
+                <td class="key">
+                  <strong>Polling Station ID:</strong>
+                </td>
+                <td class="value">
+                  {{sanitize_html (expr station_id)}}
+                </td>
+              </tr>
+              <tr>
+                <td class="key">
+                  <strong>Polling Station:</strong>
+                </td>
+                <td class="value">
+                  {{sanitize_html (expr station_name)}}
+                </td>
+              </tr>
+            </table>
+            <table class="stats-table">
+              <tr>
+                <td class="key">
                   <strong>Number of Registered Voters:</strong>
                 </td>
                 <td class="value">
@@ -106,6 +156,101 @@
       </tr>
       <!-- END of additional sections -->
 
+      <!-- Transmission destinations section -->
+      {{#each servers}}
+      <tr>
+        <td>
+          <div>
+            <table class="stats-table servers-table">
+              <tr>
+                <td class="key servers-key">
+                  <strong>Server name:</strong>
+                </td>
+                <td class="value servers-value">
+                  {{sanitize_html (expr this.server_name)}} {{sanitize_html (expr this.server_code)}}
+                </td>
+              </tr>
+              <tr>
+                <td class="key servers-key">
+                  <strong>Transmission status:</strong>
+                </td>
+                <td class="value servers-value">
+                  {{sanitize_html (expr this.transmitted)}}{{#if this.date_transmitted}} / {{datetime_zone this.date_transmitted output_format="%B %d, %Y %H:%M"}}{{/if}}
+                </td>
+              </tr>
+              <tr>
+                <td class="key servers-key">
+                  <strong>Received status:</strong>
+                </td>
+                <td class="value servers-value">
+                  {{sanitize_html (expr this.received)}}{{#if this.date_received}} / {{datetime_zone this.date_received output_format="%B %d, %Y %H:%M"}}{{/if}}
+                </td>
+              </tr>
+            </table>
+          </div>
+        </td>
+      </tr>
+      {{/each}}
+      <!-- END Transmission destinations section -->
+
+      <!-- Signatures section -->
+      <tr class="inspectors-title">
+        <td>
+          <div>
+            <p>
+              <strong>The Special Board of Election Inspectors</strong>
+            </p>
+          </div>
+        </td>
+      </tr>
+      {{#each inspectors}}
+      <tr class="inspector-signature">
+        <td align="center">
+          <div class="box"></div>
+          <p>Right Thumbmark</p>
+          <p>
+            <strong class="inspector-name">{{sanitize_html (expr this.name)}}</strong>
+            <br />{{sanitize_html (expr this.role)}}
+            <br />(Signature above printed full name)
+          </p>
+        </td>
+      </tr>
+      {{/each}}
+      <tr class="watchers-title">
+        <td align="center">
+          <div>
+            <p>
+              <strong>Watchers:</strong>
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr class="watcher-signature">
+        <td align="center">
+          <div>
+            <hr />
+            <p>(Signature above printed full name)</p>
+          </div>
+        </td>
+      </tr>
+      <tr class="watcher-signature">
+        <td align="center">
+          <div>
+            <hr />
+            <p>(Signature above printed full name)</p>
+          </div>
+        </td>
+      </tr>
+      <tr class="watcher-signature">
+        <td align="center">
+          <div>
+            <hr />
+            <p>(Signature above printed full name)</p>
+          </div>
+        </td>
+      </tr>
+      <!-- END Signatures section -->
+
       <!-- Title secondary section -->
       <!-- QR CODES section -->
       <tr class="qr-codes">
@@ -122,6 +267,10 @@
       <tr>
         <td class="sys-info">
           <div>
+            {{#if ../execution_annotations.results_hash}}
+            <span class="word-break">Results hash: {{sanitize_html (expr
+              ../execution_annotations.results_hash)}}</span><br />
+            {{/if}}
             <span class="word-break">Report hash: {{sanitize_html (expr
               ../execution_annotations.report_hash)}}</span><br />
               {{#if ../execution_annotations.configuration_revision}}

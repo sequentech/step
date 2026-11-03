@@ -207,6 +207,10 @@ export const CreateATrustee: Story = {
         ).toHaveLength(1)
         await userEvent.type(form.getByRole("textbox", {name: "Name"}), "trustee3")
         await userEvent.type(form.getByRole("textbox", {name: "Public key"}), "a2V5IHRocmVl")
+        await userEvent.type(
+            form.getByRole("textbox", {name: "Share encryption public key"}),
+            "synthetic-share-encryption-key"
+        )
         await userEvent.click(form.getByRole("button", {name: "Save"}))
         await waitFor(() =>
             expect(data.writes).toEqual([
@@ -214,7 +218,12 @@ export const CreateATrustee: Story = {
                     method: "create",
                     resource: TRUSTEE_RESOURCE,
                     params: {
-                        data: {name: "trustee3", public_key: "a2V5IHRocmVl", tenant_id: TENANT_ID},
+                        data: {
+                            name: "trustee3",
+                            public_key: "a2V5IHRocmVl",
+                            share_encryption_public_key: "synthetic-share-encryption-key",
+                            tenant_id: TENANT_ID,
+                        },
                     },
                 },
             ])

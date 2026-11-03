@@ -6,7 +6,7 @@ use crate::domain::tally_ceremony::TallyExecuter;
 use crate::ports::tally_ceremony::{
     BallotBoxSealState, DecryptionSet, ElectionEventReader, ElectionsById, EnvironmentSlug,
     KeysCeremonyReader, NewTallySession, TallyCeremonyAudit, TallyCreationReader,
-    TallyEventSnapshot, TallySessions, TrusteePrivateKeys,
+    TallyEventSnapshot, TallySessions, TrusteeCustody,
 };
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
@@ -27,14 +27,14 @@ use crate::postgres::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
-use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
+use crate::services::ceremonies::keys_ceremony::custody_request;
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution_and_all_related_data;
 use crate::services::electoral_log::ElectoralLog;
 use anyhow::{Context, Result};
-use b4::messages::newtypes::BatchNumber;
 use deadpool_postgres::Transaction;
 use futures::try_join;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::ceremonies::BatchNumber;
 use sequent_core::types::ceremonies::{TallyCeremonyStatus, TallyExecutionStatus, TallyRunReason};
 use sequent_core::types::hasura::core::{
     BallotStyle, Election, ElectionEvent, KeysCeremony, TallySession, TallySessionExecution,
@@ -214,7 +214,12 @@ impl TallySessions for PgTallySessions<'_> {
     }
 
     async fn next_batch(&self, tenant_id: &str, election_event_id: &str) -> Result<BatchNumber> {
-        get_tally_session_highest_batch(self.transaction, tenant_id, election_event_id).await
+        Ok(
+            get_tally_session_highest_batch(self.transaction, tenant_id, election_event_id)
+                .await?
+                .try_into()
+                .context("negative tally batch")?,
+        )
     }
 
     async fn insert_contest(
@@ -231,7 +236,9 @@ impl TallySessions for PgTallySessions<'_> {
             election_event_id,
             area_id,
             contest_id.clone(),
-            batch,
+            batch
+                .try_into()
+                .context("tally batch exceeds database range")?,
             tally_session_id,
             election_id,
         )
@@ -429,33 +436,37 @@ impl KeysCeremonyReader for PgKeysCeremonies<'_> {
     }
 }
 
-/// Reads a trustee's encrypted private key from the keys ceremony board.
-pub struct BoardTrusteePrivateKeys<'a> {
+/// Checks a scoped native custody proof against the immutable DKG committee.
+pub struct NativeTrusteeCustody<'a> {
     transaction: &'a Transaction<'a>,
 }
 
-impl<'a> BoardTrusteePrivateKeys<'a> {
+impl<'a> NativeTrusteeCustody<'a> {
     pub fn new(transaction: &'a Transaction<'a>) -> Self {
         Self { transaction }
     }
 }
 
-impl TrusteePrivateKeys for BoardTrusteePrivateKeys<'_> {
-    async fn encrypted_private_key(
+impl TrusteeCustody for NativeTrusteeCustody<'_> {
+    async fn verifies(
         &self,
         tenant_id: &str,
         election_event_id: &str,
         trustee_name: &str,
         keys_ceremony: &KeysCeremony,
-    ) -> Result<String> {
-        find_trustee_private_key(
+        tally_session_id: &str,
+        proof: &str,
+    ) -> Result<bool> {
+        custody_request(
             self.transaction,
             tenant_id,
             election_event_id,
             trustee_name,
             keys_ceremony,
+            Some(tally_session_id),
         )
-        .await
+        .await?
+        .verifies(proof)
     }
 }
 
@@ -526,7 +537,7 @@ impl TallyCeremonyAudit for ElectoralLogTallyAudit<'_> {
             .with_context(|| ELECTORAL_LOG_POST_FAILED)
     }
 
-    async fn key_restored(
+    async fn custody_authorized(
         &self,
         board_name: &str,
         tenant_id: &str,

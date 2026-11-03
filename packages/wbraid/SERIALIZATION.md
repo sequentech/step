@@ -47,6 +47,12 @@ lengths, and tag bytes. `deser` adds the format's **single** strictness check:
 input exhausted. Nothing else needs validating, because the encoding states
 nothing twice.
 
+`Deserializable` also carries a hint, `const FIXED_WIDTH: Option<usize>`: the
+encoded width when every value of the type has the same one — the fixed-width
+leaves, arrays of them, and structs of them (the derive sums its fields) — and
+`None` otherwise. It describes the encoding, it does not change it; its one
+use is the parallel list decoding of §5.
+
 ## 3. The encoding rules — the entire format
 
 1. **Fixed-width leaves** — integers (`u8`–`u128` big-endian; `usize` as
@@ -124,10 +130,19 @@ decompressed point.**
   deserializing peer would apply it unilaterally, asserting nothing. DKG
   outputs are plain `elgamal::PublicKey`/`elgamal::Ciphertext`; the threshold
   lives where it is enforced, in `Recipient`/`combine`'s const parameters.
-- **No dedicated large-collection type.** `Vec<T>` with fixed-size `T` already
-  has the compact encoding (a count, then raw elements). Parallel
-  serialization for very large collections remains possible *behind this same
-  encoding* — tracked as `PERFORMANCE.md` work item 3.
+- **No dedicated large-collection type.** `Vec<T>` already has the compact
+  encoding (a count, then raw elements), and the parallelism a large
+  collection wants lives *behind this same encoding*: from
+  `PAR_MIN_ELEMENTS` (1024) elements up, `Vec<T>::write` encodes the elements
+  on the rayon pool into their own buffers and concatenates them, for any
+  element type, and `Vec<T>::read` decodes them on the pool when the element
+  width is known (`FIXED_WIDTH`), taking `count × width` bytes up front so
+  the boundaries are computable and no allocation exceeds the input. The
+  bytes produced and accepted are identical to the sequential loops', and
+  each element still passes through the same `read`; the differential tests
+  in `serialization/tests.rs` pin acceptance, values and the reported error
+  against a sequential reference on valid, corrupted, truncated, extended and
+  mis-counted lists on both sides of the threshold.
 - **Non-goals**: versioning, schema evolution, derive support for enums,
   zero-copy, type-level size computation (a prior exploration of
   `generic_const_exprs` for compile-time sizes was abandoned as

@@ -20,8 +20,8 @@ configurations; the `devcontainer` CLI selects one with `--config`.
 | Mode | Configuration | Compose services | Dev servers | Use |
 | --- | --- | --- | --- | --- |
 | `ui-only` | `.devcontainer/ui-only/devcontainer.json` | `devcontainer` | Storybook 6006–6011 (default `ui-essentials`), workbench 5173, portals 3000–3004 | Stories and screens on fixtures |
-| `ui-keycloak` | `.devcontainer/ui-keycloak/devcontainer.json` | adds `postgres-keycloak` and `keycloak` (8090), which starts without Harvest | Storybook 6006–6011 | Login and account themes |
-| `backend` | `.devcontainer/backend/devcontainer.json` | the `base` profile: databases, MinIO, RabbitMQ, ImmuDB, Keycloak, Hasura, Harvest, Windmill, beat and B4 | none | Rust services, Hasura, step-cli |
+| `ui-keycloak` | `.devcontainer/ui-keycloak/devcontainer.json` | adds `postgres-keycloak` and `keycloak` (8090), which starts without Harvest and only logs its electoral-log events | Storybook 6006–6011 | Login and account themes |
+| `backend` | `.devcontainer/backend/devcontainer.json` | the `base` profile: databases (the electoral log's and the task queues' among them), MinIO, Keycloak, Hasura, Harvest, Windmill, beat and B4 | none | Rust services, Hasura, step-cli |
 | `full` | `.devcontainer/devcontainer.json` | as `backend` | portals 3000–3004 (default voting 3000 and admin 3002), Storybook, workbench 5173 | End-to-end work in the portals |
 
 ```sh
@@ -50,6 +50,11 @@ Compose project publishes a port or holds a container name the mode needs.
 Reopening the folder with another configuration attaches to the running
 devcontainer without starting that mode's services: run `step-dev mode switch`,
 or **Dev Containers: Rebuild Container** and pick the configuration.
+
+For browser key ceremonies, use the dedicated development accounts and local
+forwarded ports in [browser trustee setup](../09-wbraid/trustee-configuration.md#browser-trustee-accounts).
+`scripts/dev/step-dev browser_trustees` provisions the accounts on an existing
+realm without resetting their passwords or MFA or changing native trustee accounts.
 
 ### Opt-in Scanovate services
 
@@ -86,9 +91,18 @@ parent at `/workspaces` and again at its host path, where git worktree links
 resolve. Service containers build into the checkout's own `packages/target`;
 local Cargo builds use `rust-local-target`.
 
-Harvest, Windmill and beat each run their own `cargo run` command. Cargo-watch
-finds the current crate's local dependency directories automatically: a Harvest
-leaf edit affects Harvest, while a Windmill edit also affects Harvest and beat.
+From `.devcontainer`, `docker compose up harvest windmill beat` loads base-service
+defaults from the tracked `.env.development`. The checkout's local `.env`
+overrides those defaults, including explicitly empty values. Settings introduced
+after that local file was created therefore work without shell exports or
+rewriting local configuration.
+
+Harvest runs `cargo run`; Windmill and beat each build their own binary and run
+it in a restart loop (`.devcontainer/restart-worker.sh`), so a worker that exits
+starts again after five seconds and a compile error waits for the next change.
+Cargo-watch finds the current crate's local dependency directories
+automatically: a Harvest leaf edit affects Harvest, while a Windmill edit also
+affects Harvest and beat.
 Keep the per-service feature graphs separate; compiling the packages together can
 enable extra dependency features and invalidate the subsequent service build.
 
@@ -294,6 +308,7 @@ scripts/dev/step-dev scenario list
 scripts/dev/step-dev scenario up kiosk-voter         # kiosk voting open
 scripts/dev/step-dev scenario up completed-ceremony  # keys ceremony, ballots, online voting open
 scripts/dev/step-dev scenario up published-results   # votes cast, tallied, results published
+scripts/dev/step-dev scenario up messaging           # messaging on the fake provider; also messaging-second-organization
 scripts/dev/step-dev scenario urls kiosk-voter
 scripts/dev/step-dev scenario status
 scripts/dev/step-dev scenario reset kiosk-voter
@@ -304,9 +319,11 @@ task, ceremony and publication status, and prints the portal links and the synth
 voter credentials. The event is recorded in `.cache/scenarios/<Compose project>/` and
 carries owner annotations; the next `up` checks both and continues from the furthest
 stage that still holds. `reset` deletes only that event. Ceremonies start `trustee1`
-and `trustee2`, which no mode starts; their first start builds the braid image. On a
-new stack the first `up` enrolls the tenant administrator's email code, as the journeys
-do; the admin portal then asks for it, and the Keycloak container log shows it.
+and `trustee2`, which no mode starts; their first start builds the native trustee image. On a
+new stack the first `up` gives the tenant administrator the password in
+`ADMIN_PORTAL_TEST_PASSWORD`, which the realm template does not carry, and enrolls its
+email code, as the journeys do; the admin portal then asks for it, and the Keycloak
+container log shows it.
 `VOTING_PORTAL_URL`, `BALLOT_VERIFIER_URL` and `RESULTS_PORTAL_URL` select the printed
 portals, and `--step-cli` another step-cli build.
 
@@ -457,6 +474,22 @@ reason. `--graph` prints the units and edges; `--json` prints a versioned
 document with `base`, `fallback`, `files`, `units` and `checks` (`selected`,
 `reasons`, `cost`, `cwd`, `command`, `env`, `requires`, `workflows`) for CI.
 
+### Pre-push hook
+
+```sh
+git config core.hooksPath scripts/dev/hooks
+```
+
+The hook runs the lint and format checks that the pushed commits select (Rust
+`cargo fmt`, ESLint and Prettier per frontend package, REUSE, Ruff, Hasura),
+the same commands as `lint_prettify.yml`. A new branch counts from its merge
+base with `origin/ovcs`. In this default mode it skips checks whose tools
+aren't installed, and frontend ones until `packages/` has its dependencies,
+saying so. `STEP_PRE_PUSH=tests` runs `step-dev test --affected` over the
+pushed changes instead: the fast tests and the lint checks, failing on checks
+whose tools are missing. `STEP_PRE_PUSH=off` disables the hook, and
+`git push --no-verify` skips it once.
+
 ## Benchmarks
 
 `scripts/dev/step-dev bench` times these loops for any checkout given with
@@ -497,7 +530,7 @@ repeats the workflow without an edit.
 
 `monitoring-viewers` is a load test, not a loop timing. It simulates
 concurrent viewers of a monitoring dashboard against a running stack; see
-[Viewer load benchmark](../13-monitoring/01-monitoring-architecture.md#viewer-load-benchmark).
+[Viewer load benchmark](../15-monitoring/01-monitoring-architecture.md#viewer-load-benchmark).
 
 `workspace` and `ci` run on the host, with the Dev Containers CLI and `gh`.
 `workspace` never uses the default Docker daemon: a cold sample creates a fresh
@@ -533,6 +566,13 @@ reuse shared-library and portal builds from the same immutable run; every
 selected test reruns. The four admin journey shards use one production build.
 Admin-portal stories run in three shards; the first also type-checks the stories,
 checks the widget inventory and builds the catalogue.
+The org runs at most 60 jobs at once, so small jobs are grouped: the six small
+crates (`electoral-log`, `trellis`, `pgmq-broker`, `messaging`, `voting-crypto`,
+`wrap-map-err`) share a `small-crates` runner, each tested from its own
+directory; the sequent-core feature gates run in one job; and the selected Python
+suites run in one tooling job. The PostgreSQL contracts of `electoral-log`,
+`step-cli` and Trellis run on their own runner, selected by their own checks, so
+a step-cli change no longer starts the Windmill job.
 
 `Required feedback checks` rejects failed, cancelled, missing or unexpectedly
 skipped managed jobs. It covers `Tests` and its reusable frontend UI workflow;
@@ -563,30 +603,32 @@ retry can consume a successful earlier producer from that run. Tests rerun in
 both cases. Before the first base cache has been populated, a new PR has a cold
 cache; rerunning the PR demonstrates its own warm cache path.
 
-### Rust compiler caches
+### Rust caches
 
-Rust test and CLI jobs restore Cargo downloads separately from a bounded local
-sccache store. The compiler key includes OS/architecture, rustc identity,
-workspace manifests and Cargo configuration, the actual workspace lockfile,
-profiles, features, targets and compiler flags. Source edits reuse compatible
-units; compiler restore prefixes retain that full identity, including the
-lockfile. Cargo still builds and runs tests every time, and sccache validates each
-compilation's inputs.
-A snapshot hit never skips a test.
-
-The job summary reports the key and restore status; the sccache post-step reports
-compiler hits, misses and unsupported calls. Each compiler snapshot is limited
-to 512 MiB. Successful PR runs save within their merge ref, which
+Rust test and CLI jobs restore Cargo downloads, keyed on the workspace lockfile;
+exact hits skip saving. Successful PR runs save within their merge ref, which
 [GitHub excludes from the base branch and other PRs](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache);
-successful pushes to `main`, `ovcs` and
-`release/**` seed shared snapshots. Other events, including manual runs and
-`pull_request_target`, only restore. Run-and-attempt generation keys save newly
-compiled units after source edits without changing the compatibility identity.
-Cargo download caches retain fixed lockfile keys and skip saving on exact hits.
-Set `STEP_RUST_CACHE_EPOCH` to a new value to reset compiler compatibility.
-GitHub may evict older generations within its repository cache quota. A
-missing download or compiler snapshot builds normally; an unavailable sccache
-installer falls back to rustc. To reproduce an identity locally:
+successful pushes to `main`, `ovcs` and `release/**` seed the shared copy, and
+other events only restore. A missing download cache builds normally.
+
+Compiled units go to a shared sccache store in the GCS bucket
+`sequent-platform-ci-compile-cache`, which keeps each unit for 30 days. The
+`STEP_COMPILE_CACHE` repository variable turns it on with a JSON object:
+`bucket`, `provider` (the Workload Identity provider) and the `reader` and
+`writer` service accounts. Jobs get a GitHub OIDC token (`id-token: write`)
+and exchange it for one of the two identities: pushes to `main`, `ovcs` and
+`release/**` write, and every other run, PRs included, only reads, so a PR
+can't plant units that a protected branch later reuses. Fork PRs get no OIDC
+token and compile without the cache, as does any job where sccache can't
+reach the bucket. The infrastructure is in gitops at
+`iac/catalog/gcp/ci-compile-cache`.
+
+This replaces a bounded 512 MiB sccache store in the GitHub Actions cache: on
+`ovcs` it hit 0.66% of Rust compilations in the Windmill job, because the
+store filled and evicted units as it wrote them, and it once crashed
+mid-build ([meta#14622](https://github.com/sequentech/meta/issues/14622)).
+The identity script still names each job's output directory and download key.
+To reproduce one locally:
 
 ```sh
 scripts/dev/step-dev rust_cache --name sequent-core --lockfile packages/Cargo.lock \

@@ -33,6 +33,8 @@ export interface OidcRealm {
     name: string
     clients: string[]
     user: OidcUser
+    /** Public code channels offered by the realm; none in ordinary voting fixtures. */
+    messagingCodeChannels?: string[]
     /** Extra access token claims, such as `https://hasura.io/jwt/claims`. */
     claims?: (context: OidcClaimsContext) => Record<string, unknown>
 }
@@ -261,6 +263,8 @@ export class OidcMock {
                 return this.token(realm, request)
             case "GET protocol/openid-connect/logout":
                 return this.logout(realm, request)
+            case "GET messaging-channels":
+                return json(200, {code_channels: realm.messagingCodeChannels ?? []})
             case "GET account":
                 return this.account(realm, request)
             default:

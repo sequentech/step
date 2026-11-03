@@ -1,0 +1,149 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import React, {useCallback, useRef, useState} from "react"
+import {Button} from "@mui/material"
+import {useTranslation} from "react-i18next"
+import {
+    signingRequestOf,
+    useOptionalSigningRequest,
+    useSignedAction,
+    type ISigningRequiredReply,
+} from "@/hooks/useSignedAction"
+import type {ISigningPanelData} from "@/lib/signing/api"
+import {hex} from "@/lib/signing/der"
+import {SigningRequestStatus} from "@/lib/signing/types"
+
+/** Public custody-proof JSON and its hash or approval request. */
+export interface ICustodyProofSubmission {
+    custodyProofJson: string
+    custodyProofSha256?: string
+    signingRequestId?: string
+}
+
+/**
+ * What `/confirm-key-custody` and `/authorize-tally-custody` answer; `signing_request`
+ * is the request the trustee signs before the step is recorded.
+ */
+export interface ICustodyProofAnswer extends ISigningRequiredReply {
+    is_valid: boolean
+}
+
+export enum CustodyProofCheck {
+    /** The step was recorded. */
+    Verified = "verified",
+    /** The proof does not match the trustee and ceremony. */
+    Invalid = "invalid",
+    /** The trustee signs first; the step is recorded once they have signed. */
+    Signing = "signing",
+}
+
+/** SHA-256 of the public custody-proof text (UTF-8), lowercase hex: what the approval binds. */
+export const custodyProofSha256 = async (text: string): Promise<string> =>
+    hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)))
+
+export interface ICustodyProofSigningOptions {
+    submit: (submission: ICustodyProofSubmission) => Promise<ICustodyProofAnswer>
+    /** The step was recorded with the trustee's signature. */
+    onRecorded: () => void
+    /** Recording the signed step failed; `error` says why. */
+    onFailed: (error: string) => void
+}
+
+/**
+ * A trustee's custody confirmation behind their own approval
+ * signature: the public proof is checked and hashed here; when the event's rule needs
+ * signatures the route answers a request naming that hash, the signing panel
+ * opens, and once the trustee has signed the step is taken again with the
+ * request. The public proof goes to the step's route; the approval binds its hash.
+ * Private identities and election shares remain with the trustee.
+ */
+export const useCustodyProofSigning = ({
+    submit,
+    onRecorded,
+    onFailed,
+}: ICustodyProofSigningOptions) => {
+    const {t} = useTranslation()
+    const signing = useOptionalSigningRequest()
+    const openSigned = useSignedAction()
+    // The file's text stays in memory only until the signed step is taken.
+    const custodyProof = useRef<string | null>(null)
+    const finishing = useRef(false)
+    const [waiting, setWaiting] = useState(false)
+
+    const finish = useCallback(
+        async (requestId: string) => {
+            if (finishing.current) return
+            const text = custodyProof.current
+            if (text === null) {
+                // E.g. after a reload: the file has to be dropped again.
+                onFailed(t("signing.custodyProof.dropAgain"))
+                return
+            }
+            finishing.current = true
+            try {
+                const answer = await submit({custodyProofJson: text, signingRequestId: requestId})
+                setWaiting(false)
+                if (!answer.is_valid) {
+                    onFailed(t("signing.custodyProof.notTaken"))
+                    return
+                }
+                signing?.close()
+                onRecorded()
+            } catch (error) {
+                setWaiting(false)
+                onFailed(error instanceof Error ? error.message : String(error))
+            } finally {
+                custodyProof.current = null
+                finishing.current = false
+            }
+        },
+        [submit, onRecorded, onFailed, signing, t]
+    )
+
+    const isCompleted = (data: ISigningPanelData) =>
+        data.request.status === SigningRequestStatus.Completed
+
+    const check = useCallback(
+        async (text: string): Promise<CustodyProofCheck> => {
+            custodyProof.current = null
+            setWaiting(false)
+            const answer = await submit({
+                custodyProofJson: text,
+                custodyProofSha256: await custodyProofSha256(text),
+            })
+            if (!answer.is_valid) return CustodyProofCheck.Invalid
+            if (!signingRequestOf(answer)) return CustodyProofCheck.Verified
+            custodyProof.current = text
+            // The panel opens with the signing dialog, as for every protected action.
+            const opened = openSigned(answer, {
+                onChange: (data) => {
+                    if (isCompleted(data)) {
+                        finish(data.request.id).catch(() => undefined)
+                    }
+                },
+                // A request signed earlier (e.g. before a reload) is recorded from its panel.
+                completionActions: (data) =>
+                    isCompleted(data) ? (
+                        <Button
+                            variant="contained"
+                            onClick={() => {
+                                finish(data.request.id).catch(() => undefined)
+                            }}
+                        >
+                            {t("signing.custodyProof.record")}
+                        </Button>
+                    ) : null,
+            })
+            if (!opened) {
+                custodyProof.current = null
+                throw new Error(t("signing.widget.cantSign"))
+            }
+            setWaiting(true)
+            return CustodyProofCheck.Signing
+        },
+        [submit, openSigned, finish, t]
+    )
+
+    return {check, waiting}
+}

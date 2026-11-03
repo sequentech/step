@@ -11,9 +11,9 @@ use std::fs;
 use std::fs::File;
 use std::io::{self, Read, Seek, Write};
 use std::path::PathBuf;
-use strand::hash::hash_sha256;
 use tempfile::tempdir;
 use tracing::{info, instrument};
+use voting_crypto::hash::hash_sha256;
 
 pub const ECIES_TOOL_PATH: &str = "/usr/local/bin/ecies-tool.jar";
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -84,8 +84,6 @@ const CollapseToggleButton = styled(Button)(({theme}) => ({
     },
     "&&:focus": {
         border: "none",
-        outline: `2px solid ${theme.palette.brandSuccess}`,
-        outlineOffset: "-4px",
     },
 }))
 

@@ -55,7 +55,7 @@ read it.
 ## Known gaps
 
 - **No electoral log entry for the migration's revisions.** A migration
-  can't write the electoral log (immudb). The revisions it writes are told
+  can't write the electoral log (each event's own database). The revisions it writes are told
   apart by their author id (`system:1791000000100_event_time_zones`, and
   `…:down` for the ones `down.sql` writes) and by their generation, which
   no logged change claims.

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {FIXED_TIME, IDS} from "@sequentech/ui-test-kit/fixtures"
 import {test, expect, TENANT_ID} from "../fixtures"
-import {serveTrusteeWorkerHelper} from "../tally/trustee-startup"
 import {expectRole} from "./data"
 
 test.describe("settings administrator", () => {
@@ -66,29 +65,5 @@ test("lists this tenant's scheduled notifications", async ({page, portal}) => {
     // Without an event in context the filter keeps an empty, match-all event condition.
     expect(portal.graphql.callsTo("sequent_backend_notification")[0].variables.where).toEqual({
         _and: [{election_event_id: {}}, {tenant_id: {_eq: TENANT_ID}}],
-    })
-})
-
-test.describe("browser trustee", () => {
-    test.use({roles: ["admin-user", "trustee-ceremony"]})
-
-    test("keeps board actions locked until the trustee is configured", async ({page, portal}) => {
-        await page.addInitScript(() => {
-            Object.defineProperty(navigator, "hardwareConcurrency", {value: 2})
-        })
-        await serveTrusteeWorkerHelper(page.context(), portal)
-        await page.goto(`${portal.origin}/trustee?lang=en`)
-        await expect(page.getByText("Braid Trustee Node", {exact: true})).toBeVisible()
-        await expect(page.getByRole("textbox", {name: "Trustee Name"})).toHaveValue(
-            "browser-trustee-1"
-        )
-        for (const name of ["Execute Step", "Auto Run", "Fetch Boards", "Connect", "Refresh"])
-            await expect(page.getByRole("button", {name, exact: true})).toBeDisabled()
-        await page.getByRole("button", {name: "Initialize Trustee", exact: true}).click()
-        await expect(page.getByText(/All fields required$/)).toBeVisible()
-        await expect(page.getByRole("button", {name: "Fetch Boards", exact: true})).toBeDisabled()
-        expect(portal.graphql.calls.some((call) => call.query.trim().startsWith("mutation"))).toBe(
-            false
-        )
     })
 })

@@ -36,8 +36,9 @@ signatures — rather than a separate model of it:
 
 Everything else — design record, fault model, property catalog, how to run,
 and roadmap — is in `STATERIGHT.md` (per-commit measurement log:
-`STATERIGHT-log.md`). The retired vs_lift harnesses remain in-tree,
-read-only, under `crates/braid/vs_lift/` for reference.
+`STATERIGHT-log.md`). The vs_lift harnesses this work was mined from are not
+in this tree: `crates/braid/vs_lift/` was removed at import and is recoverable
+from `feat/braid-0.6.3/main` (`PROVENANCE.md`).
 
 ---
 
@@ -59,6 +60,12 @@ Two suites carry them:
   covering every composition rule (fixed leaves, `String`, `Option`, `Vec`
   including byte vectors, arrays, nesting, `PhantomData`, group
   elements/scalars), both contexts, all-fixed and variable struct shapes.
+  Since the parallel list paths (`SERIALIZATION.md` §5), it also carries a
+  large-fixed-list property — lists of 1024 to 1064 group elements, the
+  region where `Vec<T>` encodes and decodes on the rayon pool — under P1 and
+  the mutation form of P2, per curve; and the unit tests beside it pin the
+  parallel decoder against a sequential reference for acceptance, value and
+  error text on valid, corrupted, truncated, extended and mis-counted lists.
 - `braid/tests/serialization_properties.rs` — the two braid-specific
   boundaries: `ProtocolMessage` (untrusted-board bytes, pre-signature) and
   `Predicate` (anti-rewrite persistence), over valid, mutated, and random
@@ -97,21 +104,52 @@ deserializer target embeds the strictness oracle — `if let Ok(v) =
 T::deser(data) { assert_eq!(v.ser(), data) }` — so coverage-guided fuzzing
 hunts panics *and* canonicality violations in one pass.
 
+**The parallel list paths are fuzzed too.** `Vec<T>` switches to the rayon
+pool from `PAR_MIN_ELEMENTS` elements (1024 in production — about 32 KB of
+input for a point list, beyond what a fuzzer feeds), so under `cfg(fuzzing)`,
+which `cargo fuzz` sets for the whole build, the threshold is 4: every
+deserializer target below exercises the parallel encoder and decoder on
+ordinary short lists, and the oracle checks their bytes like any other.
+The 2026-09-24 baseline below was taken with it.
+
 - `crates/vsc/fuzz`: deserializer oracles for ElGamal and Naor-Yung
   ciphertexts, shuffle proofs, and DKG dealings (`VerifiableShare`, including
-  checking-value proofs), plus two verify-boundary targets — Naor-Yung
-  verify-and-strip (the PlEq verifier) and Schnorr verification — running
-  accepted adversarial inputs against fixed, deterministically derived keys,
-  and the pre-existing `encode_bytes`/`encode_scalar` targets.
+  checking-value proofs), plus verify-boundary targets running accepted
+  adversarial inputs against fixed, deterministically derived keys —
+  Naor-Yung verify-and-strip per item (the PlEq verifier), Schnorr
+  verification, and **the batched Naor-Yung verification**
+  (`verify_ny_strip_all_ristretto`): lists of up to 16 ballots drawn from a
+  fixed pool of valid ones, each optionally corrupted by one byte, checked
+  differentially — `strip_all` (`verify_batch` and its per-item attribution
+  fallback, the path braid's first mix runs) must accept exactly when every
+  per-item `strip` accepts, return the same ciphertexts in order, and never
+  report `BatchVerificationInconsistent` — and the pre-existing
+  `encode_bytes`/`encode_scalar` targets.
 - `crates/braid/fuzz`: oracles for `ProtocolMessage` and `Predicate`.
 
-**How to run — vsc** (any platform; `cargo fuzz` needs the nightly toolchain,
-which is this workspace's default). From `crates/vsc`:
+**The fuzz crates' lockfiles are committed.** Each fuzz crate is its own
+cargo workspace, so without its own `Cargo.lock` cargo would resolve its
+dependencies afresh from crates.io on every fresh machine — and the
+`p256`/`elliptic-curve` release-candidate family then drifts from what the
+wbraid workspace pins (`ff 0.14.0` instead of `0.13.1`, and the build fails
+inside `p256` with `FieldElement: Field` unsatisfied). The committed locks
+were derived from the workspace's. **When the workspace's `Cargo.lock` changes
+a cryptographic dependency, refresh them the same way** — copy it in and let
+cargo resolve the rest:
 
 ```sh
-cargo fuzz list                                        # enumerate the targets
-cargo fuzz run deser_ny_ciphertext_ristretto           # fuzz until Ctrl-C
-cargo fuzz run deser_ny_ciphertext_ristretto -- -max_total_time=300
+cp Cargo.lock crates/vsc/fuzz/Cargo.lock       # from the workspace root (wbraid/)
+cp Cargo.lock crates/braid/fuzz/Cargo.lock
+(cd crates/vsc/fuzz && cargo +nightly fuzz build)   # re-resolves only what the copy lacks
+```
+
+**How to run — vsc** (any platform; `cargo fuzz` needs a nightly toolchain and this
+workspace pins stable, so invoke it as `cargo +nightly fuzz`). From `crates/vsc`:
+
+```sh
+cargo +nightly fuzz list                                        # enumerate the targets
+cargo +nightly fuzz run deser_ny_ciphertext_ristretto           # fuzz until Ctrl-C
+cargo +nightly fuzz run deser_ny_ciphertext_ristretto -- -max_total_time=300
 ```
 
 libFuzzer options go after the `--` separator: `-max_total_time=<seconds>`
@@ -120,8 +158,8 @@ bounds a run (deeper campaigns = raise it); `-help=1` lists the rest.
 **How to run — braid** (Linux only, see below). From the **workspace root**:
 
 ```sh
-cargo fuzz run deser_predicate --fuzz-dir crates/braid/fuzz -- -max_total_time=300
-cargo fuzz run deser_protocol_message_ristretto --fuzz-dir crates/braid/fuzz -- -max_total_time=300
+cargo +nightly fuzz run deser_predicate --fuzz-dir crates/braid/fuzz -- -max_total_time=300
+cargo +nightly fuzz run deser_protocol_message_ristretto --fuzz-dir crates/braid/fuzz -- -max_total_time=300
 ```
 
 Two platform constraints, one of which shapes the command:
@@ -140,6 +178,16 @@ Two platform constraints, one of which shapes the command:
 
 Smoke baselines, all clean (zero crashes, zero bijection violations):
 
+- vsc (2026-09-24, Windows host, 60s/target, `PAR_MIN_ELEMENTS` = 4 under
+  `cfg(fuzzing)` so the parallel list encoder and decoder are on every path):
+  six targets — the four deserializer oracles (`deser_shuffle_proof`, `deser_verifiable_share`, `deser_eg_ciphertext`, `deser_ny_ciphertext`, all `_ristretto`) and the two verify-boundary targets (`verify_ny_strip`, `verify_schnorr`) — ~6.8M executions total, no crash, no bijection violation; the seeded corpora persisted under `crates/vsc/fuzz/corpus/` (gitignored).
+- braid (2026-09-24, Linux under WSL, `-max_total_time=120`, same threshold):
+  both targets, ~150k executions (`deser_predicate` 66.7k, `deser_protocol_message_ristretto` 83.0k), no finding; the corpora grew from 94/80 entries at the August baseline to 337/330, so the oracle's accept path — a valid predicate or protocol message re-serializing to its own bytes through the parallel list paths — is exercised, not only rejections. Built with `CARGO_TARGET_DIR` on the WSL filesystem and the lock seeded as above; `g++` is the one extra prerequisite (libFuzzer's runtime).
+- vsc `verify_ny_strip_all_ristretto` (2026-09-26, Windows host, 120 s, new
+  target): ~23k executions, no crash and no disagreement between the batched
+  and per-item verifiers; 484 corpus entries (the highest coverage of the vsc
+  targets — every run executes the batch, and every corrupted list the
+  attribution fallback).
 - vsc (2026-08-28, Windows host, 40s/target): eight targets — the six
   serialization-campaign targets plus `encode_bytes_ristretto` and
   `encode_scalar_bytes_ristretto` — ~7.9M executions total.

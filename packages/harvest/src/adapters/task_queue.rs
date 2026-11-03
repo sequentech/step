@@ -7,15 +7,16 @@ use celery::error::CeleryError;
 use celery::task::AsyncResult;
 use celery::Celery;
 use std::sync::Arc;
-use windmill::services::celery_app::get_celery_app;
+use windmill::services::celery_app::try_get_celery_app;
 
 /// Windmill's process-wide Celery app, connected on first use.
 pub struct CeleryTaskQueue;
 
 #[rocket::async_trait]
 impl TaskQueue for CeleryTaskQueue {
-    async fn connect(&self) -> Arc<dyn TaskBroker> {
-        get_celery_app().await
+    async fn connect(&self) -> anyhow::Result<Arc<dyn TaskBroker>> {
+        let app: Arc<dyn TaskBroker> = try_get_celery_app().await?;
+        Ok(app)
     }
 }
 

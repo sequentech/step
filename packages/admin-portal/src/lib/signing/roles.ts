@@ -45,8 +45,8 @@ const START_PERMISSIONS: Record<SigningAction, IPermissions> = {
     [SigningAction.TransmitResults]: IPermissions.MIRU_CREATE,
     [SigningAction.ApproveVoter]: IPermissions.APPLICATION_WRITE,
     [SigningAction.ApproveConfiguration]: IPermissions.PUBLISH_WRITE,
-    [SigningAction.ConfirmKeyShare]: IPermissions.TRUSTEE_CEREMONY,
-    [SigningAction.ContributeKeyShare]: IPermissions.TRUSTEE_CEREMONY,
+    [SigningAction.ConfirmCustodyProof]: IPermissions.TRUSTEE_CEREMONY,
+    [SigningAction.ContributeCustodyProof]: IPermissions.TRUSTEE_CEREMONY,
 }
 
 /**

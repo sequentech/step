@@ -6,7 +6,7 @@
 //! electoral log and the task queue. The database traits use distinct method
 //! names so that one store can implement all of them.
 
-use crate::domain::keys_ceremony::{KeygenAuditEntry, KeysBoardMessages, NewKeysCeremony};
+use crate::domain::keys_ceremony::{KeygenAuditEntry, NewKeysCeremony};
 use anyhow::Result;
 use sequent_core::types::hasura::core::{Election, ElectionEvent, KeysCeremony, Trustee};
 use serde_json::Value;
@@ -40,6 +40,16 @@ pub trait KeysCeremonies: Sync {
     fn insert_keys_ceremony(
         &self,
         keys_ceremony: NewKeysCeremony,
+    ) -> impl Future<Output = Result<()>> + Send;
+
+    /// Store the native signed configuration and manager before publishing.
+    fn persist_dkg(
+        &self,
+        tenant_id: &str,
+        event_id: &str,
+        ceremony_id: &str,
+        dkg: &protocol_board::DkgBoard,
+        manager: &protocol_board::BoardManager,
     ) -> impl Future<Output = Result<()>> + Send;
 
     /// Fails when the ceremony doesn't exist.
@@ -120,47 +130,6 @@ pub trait KeysCeremonyElectionEvents: Sync {
         tenant_id: &str,
         election_event_id: &str,
     ) -> impl Future<Output = Result<ElectionEvent>> + Send;
-}
-
-/// The bulletin boards where the trustees generate the election keys.
-pub trait KeysBoard: Sync {
-    /// How the board identifies the sender of a message.
-    type Sender: PartialEq + Send + Sync;
-
-    /// The board of the keys ceremony of a single election.
-    fn election_board(&self, tenant_id: &str, election_id: &str) -> Result<String>;
-
-    fn configuration_exists(&self, board_name: &str) -> impl Future<Output = Result<bool>> + Send;
-
-    /// Posts the ceremony configuration, which starts the key generation.
-    fn create_keys(
-        &self,
-        tenant_id: &str,
-        election_event_id: &str,
-        board_name: &str,
-        trustee_public_keys: Vec<String>,
-        threshold: usize,
-    ) -> impl Future<Output = Result<()>> + Send;
-
-    /// Fails until every trustee has posted its share of the public key.
-    fn public_key(&self, board_name: &str) -> impl Future<Output = Result<String>> + Send;
-
-    /// The key generation messages, with log entries for those posted since
-    /// `logs_since`, in seconds since the Unix epoch.
-    fn public_key_messages(
-        &self,
-        board_name: &str,
-        logs_since: u64,
-    ) -> impl Future<Output = Result<KeysBoardMessages<Self::Sender>>> + Send;
-
-    /// The sender identity of a trustee, from its stored public key.
-    fn trustee_sender(&self, trustee_public_key: &str) -> Result<Self::Sender>;
-
-    fn trustee_encrypted_private_key(
-        &self,
-        board_name: &str,
-        trustee_public_key: &str,
-    ) -> impl Future<Output = Result<String>> + Send;
 }
 
 /// The electoral log.

@@ -34,6 +34,8 @@ export function getWeekLegend(date: Date): Array<string> {
 
 export const StyledPaper = styled(Paper)`
     padding: 16px;
+    box-sizing: border-box;
+    min-width: 0;
 `
 
 export const Separator = styled(Box)`
@@ -79,13 +81,16 @@ export default function CardChart({
                 sx={{
                     display: "flex",
                     alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 1.5,
+                    minHeight: 28,
                     cursor: collapsible ? "pointer" : "default",
                 }}
                 onClick={handleExpandClick}
             >
                 <Typography
                     fontSize="16px"
-                    sx={{marginBottom: 0}}
+                    sx={{m: 0, minWidth: 0, overflowWrap: "anywhere"}}
                     color={theme.palette.customGrey.main}
                 >
                     {title}
@@ -96,6 +101,7 @@ export default function CardChart({
                             display: "flex",
                             alignItems: "center",
                             marginLeft: "auto",
+                            flexShrink: 0,
                         }}
                         onClick={(event) => event.stopPropagation()}
                     >

@@ -207,6 +207,22 @@ async fn event(tx: &Transaction<'_>, tenant: &str) -> String {
     id.to_string()
 }
 
+async fn election(tx: &Transaction<'_>, tenant: &str, event: &str) -> String {
+    let id = Uuid::new_v4();
+    tx.execute(
+        "INSERT INTO sequent_backend.election (id, tenant_id, election_event_id)
+         VALUES ($1, $2, $3)",
+        &[
+            &id,
+            &Uuid::parse_str(tenant).unwrap(),
+            &Uuid::parse_str(event).unwrap(),
+        ],
+    )
+    .await
+    .unwrap();
+    id.to_string()
+}
+
 /// A tenant's event imported from a package that sets `settings`.
 async fn imported_event(tx: &Transaction<'_>, settings: Vec<ReportSetting>) -> (String, String) {
     let tenant = tenant(tx).await;
@@ -424,8 +440,8 @@ async fn the_tally_prints_the_copies_the_event_sets_for_its_reports() {
 
     assert_eq!(copies(ReportType::ELECTORAL_RESULTS).await, None);
 
-    let first_election = Uuid::new_v4().to_string();
-    let second_election = Uuid::new_v4().to_string();
+    let first_election = election(&tx, &tenant, &event).await;
+    let second_election = election(&tx, &tenant, &event).await;
     insert_reports(
         &tx,
         &tenant,

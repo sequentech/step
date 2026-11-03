@@ -13,21 +13,21 @@
 
 x-e2e-profiles: &e2e-profiles
   type: bind
-  source: ${STEP_E2E_OUTPUT_DIR:?set STEP_E2E_OUTPUT_DIR to a writable directory}/coverage/profiles
+  source: ${STEP_E2E_OUTPUT_DIR:-../.cache/backend-e2e/default}/coverage/profiles
   target: /profiles
 
 services:
-  immudb-init:
-    volumes:
-      - *e2e-profiles
-    environment:
-      LLVM_PROFILE_FILE: /profiles/immudb-init-%m.profraw
-
   harvest:
     volumes:
       - *e2e-profiles
     environment:
       LLVM_PROFILE_FILE: /profiles/harvest-%m.profraw
+
+  messaging-webhooks:
+    volumes:
+      - *e2e-profiles
+    environment:
+      LLVM_PROFILE_FILE: /profiles/messaging-webhooks-%m.profraw
 
   windmill:
     volumes:
@@ -42,12 +42,12 @@ services:
     environment:
       LLVM_PROFILE_FILE: /profiles/beat-%c%m.profraw
 
-  b4:
+  b4v6:
     init: true
     volumes:
       - *e2e-profiles
     environment:
-      LLVM_PROFILE_FILE: /profiles/b4-%c%m.profraw
+      LLVM_PROFILE_FILE: /profiles/b4v6-%c%m.profraw
 
   trustee1:
     init: true

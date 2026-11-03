@@ -302,6 +302,17 @@ export function tallyWorld(portal: AdminPortal) {
     })
     table(portal, "sequent_backend_tally_session", () => state.sessions)
     table(portal, "sequent_backend_tally_session_execution", () => [execution])
+    portal.graphql.on("ListTallyKeyRestoreState", () => ({
+        data: {
+            sequent_backend_tally_session: state.sessions.map(({id, execution_status}) => ({
+                id,
+                execution_status,
+            })),
+            sequent_backend_tally_session_execution: [
+                {tally_session_id: execution.tally_session_id, status: execution.status},
+            ],
+        },
+    }))
     table(portal, "sequent_backend_tally_session_resolution", () => state.resolutions)
     table(portal, "sequent_backend_tally_session_contest", () => [])
     table(portal, "sequent_backend_results_event", () =>

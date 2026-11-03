@@ -26,7 +26,10 @@ use crate::util::version::HISTORICAL_DEFAULT_VERSION;
 use super::report::Report;
 
 /// Everything an election event import carries.
-#[derive(Debug, Serialize, Deserialize, Clone)]
+///
+/// `Debug` is written by hand: the realm can carry authenticator integration
+/// secrets, so it is never formatted.
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ImportElectionEventSchema {
     /// The tenant the bundle was exported from.
     ///
@@ -77,6 +80,10 @@ pub struct ImportElectionEventSchema {
     pub reports: Vec<Report>,
 
     pub keys_ceremonies: Option<Vec<KeysCeremony>>,
+    /// Native board lineage and immutable signed manager messages.
+    #[serde(default)]
+    pub protocol_boards:
+        Option<Vec<crate::types::protocol_board::ProtocolBoard>>,
     pub applications: Option<Vec<Application>>,
 
     /// Voter-facing help documents — rules, candidate statements, a guide to voting.
@@ -121,12 +128,41 @@ pub struct ImportElectionEventSchema {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub approval_matrix: Option<Value>,
 
+    /// The event's messaging configuration (`messaging_event_config`).
+    ///
+    /// Absent (older bundles, or an event without one): nothing is imported,
+    /// and the event sends email and SMS as events without one do. It names
+    /// the tenant's sending accounts, which aren't part of the bundle: the
+    /// import keeps their ids, and a channel whose account the importing
+    /// tenant lacks shows as an unknown account until it is chosen again.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub messaging_config: Option<Value>,
+
     /// The platform version that wrote the bundle.
     ///
     /// Defaults to the first version that recorded one, so bundles predating the
     /// field still import.
     #[serde(default = "default_version")]
     pub version: String,
+}
+
+impl std::fmt::Debug for ImportElectionEventSchema {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ImportElectionEventSchema")
+            .field("tenant_id", &self.tenant_id)
+            .field(
+                "keycloak_event_realm",
+                &self.keycloak_event_realm.as_ref().map(|_| "<redacted>"),
+            )
+            .field("election_event", &self.election_event.id)
+            .field("elections", &self.elections.len())
+            .field("contests", &self.contests.len())
+            .field("candidates", &self.candidates.len())
+            .field("areas", &self.areas.len())
+            .field("version", &self.version)
+            .finish_non_exhaustive()
+    }
 }
 
 fn default_version() -> String {
@@ -312,5 +348,20 @@ mod tests {
         let parsed: Result<ImportElectionEventSchema, _> =
             serde_json::from_value(tree);
         assert!(parsed.is_err());
+    }
+
+    #[test]
+    fn debug_never_formats_the_realm() {
+        let mut bundle: ImportElectionEventSchema =
+            serde_json::from_str(MINIMAL).unwrap();
+        let synthetic = "synthetic-liveness-secret-debug";
+        bundle.keycloak_event_realm = Some(serde_json::json!({
+            "authenticatorConfig": [{"alias": "scanovate-registration",
+                "config": {"liveness-secret": synthetic}}]
+        }));
+        for formatted in [format!("{bundle:?}"), format!("{bundle:#?}")] {
+            assert!(!formatted.contains(synthetic), "{formatted}");
+            assert!(formatted.contains("<redacted>"));
+        }
     }
 }

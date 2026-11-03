@@ -159,9 +159,7 @@ test("cast log sorting and paging send scoped variables and display returned row
                     {
                         statement_timestamp: Date.parse(FIXED_TIME) / 1000,
                         statement_kind: "CAST_VOTE",
-                        ballot_id: "ab12",
-                        username: `voter-${variables.offset ?? 0}`,
-                        message: "Ballot accepted",
+                        ballot_id: `ab${12 + Number(variables.offset ?? 0)}`,
                     },
                 ],
             },
@@ -169,7 +167,7 @@ test("cast log sorting and paging send scoped variables and display returned row
     }))
     await page.goto(`${portal.origin}${locatorPath}?lang=en`)
     await page.getByRole("tab", {name: "Logs", exact: true}).click()
-    await expect(page.getByRole("cell", {name: "voter-0", exact: true})).toBeVisible()
+    await expect(page.getByRole("cell", {name: "ab12", exact: true})).toBeVisible()
     expect(portal.graphql.callsTo("listCastVoteMessages")[0].variables).toMatchObject({
         tenantId: IDS.tenant,
         electionEventId: IDS.event,
@@ -180,13 +178,13 @@ test("cast log sorting and paging send scoped variables and display returned row
         orderBy: {id: "desc"},
     })
     await page.clock.runFor(600)
-    await page.getByRole("button", {name: "Username", exact: true}).click()
+    await page.getByRole("button", {name: "Ballot ID", exact: true}).click()
     await expect
         .poll(() => portal.graphql.callsTo("listCastVoteMessages").at(-1)?.variables.orderBy)
-        .toEqual({username: "asc"})
+        .toEqual({ballot_id: "asc"})
     await page.clock.runFor(600)
     await page.getByRole("button", {name: "Go to next page"}).click()
-    await expect(page.getByRole("cell", {name: "voter-5", exact: true})).toBeVisible()
+    await expect(page.getByRole("cell", {name: "ab17", exact: true})).toBeVisible()
     expect(portal.graphql.callsTo("listCastVoteMessages").at(-1)?.variables).toMatchObject({
         offset: 5,
         limit: 5,

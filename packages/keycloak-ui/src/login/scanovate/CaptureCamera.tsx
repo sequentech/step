@@ -20,6 +20,7 @@ import {
     DOCUMENT_ANALYSIS_SIDE,
     FACE_ANALYSIS_SIDE,
     FrameSampler,
+    documentStill,
     drawStill,
     encodeStill,
     grabStill,
@@ -288,7 +289,9 @@ export default function CaptureCamera(props: CaptureCameraProps) {
             }
         }
         // The live frames are small: the photo itself must show the whole document, sharp and
-        // large enough for the OCR, or it isn't uploaded.
+        // large enough for the OCR, or it isn't uploaded. Only the document and a margin around
+        // it are uploaded, at full resolution: Face Match misses the portrait of a document
+        // that is a small part of the photo.
         const captureDocument = async (): Promise<boolean> => {
             const state = input.current
             const size = videoSize(video)
@@ -319,7 +322,9 @@ export default function CaptureCamera(props: CaptureCameraProps) {
                     busy = false
                     return false
                 }
-                const blob = await encodeStill(still)
+                const blob = await encodeStill(
+                    check.corners === null ? still : documentStill(still, check.corners)
+                )
                 input.current?.onCaptured(step, blob)
                 return true
             } catch {

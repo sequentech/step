@@ -64,8 +64,19 @@ pub async fn ensure_checks_open(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<(), (Status, String)> {
+    let pool = get_hasura_pool().await;
+    ensure_checks_open_with_pool(&pool, tenant_id, election_event_id).await
+}
+
+/// Uses the same managed database as the route that read the event.
+#[instrument(skip(pool), err(Debug))]
+pub async fn ensure_checks_open_with_pool(
+    pool: &deadpool_postgres::Pool,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<(), (Status, String)> {
     let period: anyhow::Result<ChecksPeriod> = async {
-        let mut client = get_hasura_pool().await.get().await?;
+        let mut client = pool.get().await?;
         let transaction = client.transaction().await?;
         let period = get_checks_period(
             &transaction,

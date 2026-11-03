@@ -20,6 +20,8 @@ impl TryFrom<Row> for TrusteeWrapper {
         Ok(TrusteeWrapper(Trustee {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             public_key: item.try_get::<_, Option<String>>("public_key")?,
+            share_encryption_public_key: item
+                .try_get::<_, Option<String>>("share_encryption_public_key")?,
             name: item.try_get::<_, Option<String>>("name")?,
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
             created_at: item.get("created_at"),
@@ -145,4 +147,40 @@ pub async fn get_all_trustees(
         .collect::<Result<Vec<Trustee>>>()?;
 
     Ok(elements)
+}
+
+/// Register a native trustee's two public keys in the tenant, as the
+/// Settings → Trustees form does. Returns the new row's id.
+#[instrument(err, skip(hasura_transaction, public_key, share_encryption_public_key))]
+pub async fn insert_trustee(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    name: &str,
+    public_key: &str,
+    share_encryption_public_key: &str,
+) -> Result<String> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO sequent_backend.trustee
+                    (tenant_id, name, public_key, share_encryption_public_key)
+                VALUES ($1, $2, $3, $4)
+                RETURNING id;
+            "#,
+        )
+        .await?;
+    let row = hasura_transaction
+        .query_one(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &name,
+                &public_key,
+                &share_encryption_public_key,
+            ],
+        )
+        .await
+        .with_context(|| format!("Error registering trustee {name}"))?;
+    let id: Uuid = row.get("id");
+    Ok(id.to_string())
 }

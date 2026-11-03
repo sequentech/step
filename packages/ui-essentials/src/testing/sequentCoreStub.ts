@@ -136,6 +136,12 @@ export const sign_ballot_cast_js = outOfScope("sign_ballot_cast_js")
 export const forget_voter_signing_key_js = outOfScope("forget_voter_signing_key_js")
 export const verify_cast_receipt_js = outOfScope("verify_cast_receipt_js")
 export const normalize_ballot_id_js = outOfScope("normalize_ballot_id_js")
+export const verify_auditable_ballot_ciphertext_js = outOfScope(
+    "verify_auditable_ballot_ciphertext_js"
+)
+export const verify_auditable_multi_ballot_ciphertext_js = outOfScope(
+    "verify_auditable_multi_ballot_ciphertext_js"
+)
 
 // Defaults the portal reads at start-up. Real values, so a component that asks
 // gets something the platform would actually send.

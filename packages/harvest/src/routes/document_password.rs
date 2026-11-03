@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::access::document_extra_permissions;
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use deadpool_postgres::Client as DbClient;
@@ -14,8 +15,10 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{error, instrument};
 use windmill::postgres::document::get_document;
+use windmill::services::audit_log::{stage, AdminAction, AuditObject};
 use windmill::services::database::get_hasura_pool;
 use windmill::services::document_password::read_password;
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 
 #[derive(Debug, Deserialize)]
 pub struct GetDocumentPasswordInput {
@@ -83,6 +86,9 @@ pub async fn get_document_password(
             internal_error("Failed to read document")
         })?
         .ok_or_else(unavailable)?;
+    if document.is_ballot_receipt() {
+        return Err(unavailable());
+    }
     let annotations = document
         .annotations
         .map(serde_json::from_value::<DocumentAnnotations>)
@@ -119,10 +125,30 @@ pub async fn get_document_password(
     })?
     .ok_or_else(unavailable)?;
 
+    // Revealing a document's password is logged with the reveal: both
+    // commit together.
+    let target =
+        audit::target(&tenant_id, document.election_event_id.as_deref())
+            .map_err(audit::json_error)?;
+    let change = audit::change(
+        &claims,
+        target,
+        AuditObject::new("document", &document.id, document.name.as_deref()),
+        AdminAction::Export,
+    )
+    .with_description(format!(
+        "Revealed the password of document {}",
+        document.name.as_deref().unwrap_or(&document.id)
+    ));
+    stage(&transaction, &change)
+        .await
+        .map_err(audit::json_queue_error)?;
+
     transaction
         .commit()
         .await
         .map_err(|_| internal_error("Failed to finish password retrieval"))?;
+    kick_audit_log_outbox();
 
     Ok(Json(GetDocumentPasswordOutput {
         password: secret.password,

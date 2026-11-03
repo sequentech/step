@@ -7560,10 +7560,6 @@ braces@^2.3.2, braces@^3.0.3, braces@~3.0.2:
   dependencies:
     fill-range "^7.1.1"
 
-"braid-wasm@file:./admin-portal/rust/braid-wasm-0.1.0.tgz":
-  version "0.1.0"
-  resolved "file:./admin-portal/rust/braid-wasm-0.1.0.tgz#e9e3df52efe38dff1c47370611ca226ac3d68143"
-
 brorand@^1.0.1, brorand@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/brorand/-/brorand-1.1.0.tgz#12c25efe40a45e3c323eb8675a0a0ce57b22371f"
@@ -16088,19 +16084,23 @@ sentence-case@^3.0.4:
 
 "sequent-core@file:./admin-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#2b43db0bf5b119839619a27bfc29664515040da9"
+  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#be71d5c00b8b2bacd57b7516cf5e2907b23843f6"
 
 "sequent-core@file:./ballot-verifier/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#2b43db0bf5b119839619a27bfc29664515040da9"
+  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#be71d5c00b8b2bacd57b7516cf5e2907b23843f6"
 
 "sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#2b43db0bf5b119839619a27bfc29664515040da9"
+  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#be71d5c00b8b2bacd57b7516cf5e2907b23843f6"
 
 "sequent-core@file:voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:voting-portal/rust/sequent-core-0.1.0.tgz#2b43db0bf5b119839619a27bfc29664515040da9"
+  resolved "file:voting-portal/rust/sequent-core-0.1.0.tgz#be71d5c00b8b2bacd57b7516cf5e2907b23843f6"
+
+"sequent-election-config@file:./admin-portal/rust/sequent-election-config-0.1.0.tgz":
+  version "0.1.0"
+  resolved "file:./admin-portal/rust/sequent-election-config-0.1.0.tgz#7510ecdd8a870a20bbdb052f129bf078e4503faf"
 
 serialize-javascript@^6.0.0, serialize-javascript@^6.0.2, serialize-javascript@^7.0.5:
   version "7.1.1"
@@ -17975,6 +17975,10 @@ watchpack@^2.5.2:
   integrity sha512-6i/00NBjP4yGPs+caKSyRfpTF/8Torsu0MOW3mMzIbhgISFder8i7xbqgHlLMwJrdiN8ndBV3UA1/AfzPSr+jg==
   dependencies:
     graceful-fs "^4.1.2"
+
+"wbraid-trustee@file:./admin-portal/rust/wbraid-trustee-0.1.0.tgz":
+  version "0.1.0"
+  resolved "file:./admin-portal/rust/wbraid-trustee-0.1.0.tgz#e66f37ab7e68ebdd37cfdc0cb607617a3f90baee"
 
 wbuf@^1.1.0, wbuf@^1.7.3:
   version "1.7.3"

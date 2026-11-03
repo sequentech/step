@@ -16,7 +16,6 @@ import {Box, CircularProgress} from "@mui/material"
 import {ApolloProvider} from "@apollo/client"
 import {SettingsContext} from "./SettingsContextProvider"
 import {getOperationRole} from "@/services/Permissions"
-import {IPermissions} from "@/types/keycloak"
 import {getTimeZoneValidationMessage} from "@/services/graphqlActionError"
 
 interface ApolloContextValues {
@@ -61,11 +60,7 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
                 return {}
             }
             // return the headers to the context so httpLink can read them
-            const operationRole = getOperationRole(
-                operation,
-                hasRole(IPermissions.TRUSTEE_CEREMONY),
-                hasRole(IPermissions.ADMIN_USER)
-            )
+            const operationRole = getOperationRole(operation, hasRole)
 
             return {
                 headers: {

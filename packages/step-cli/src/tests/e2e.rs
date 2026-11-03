@@ -5,10 +5,9 @@
 use super::init_loadero::init_loadero_tests;
 use crate::{
     commands::{
-        complete_key_ceremony::complete_ceremony, configure::create_config,
-        confirm_tally_ceremoney_key::confirm_key, create_voter::create_voter,
-        import_election_event::import, publish_changes::publish_changes,
-        start_key_ceremony::start_ceremony as start_key_ceremony,
+        authorize_tally_custody::confirm_key, complete_key_ceremony::complete_ceremony,
+        configure::create_config, create_voter::create_voter, import_election_event::import,
+        publish_changes::publish_changes, start_key_ceremony::start_ceremony as start_key_ceremony,
         start_tally::start_ceremony as start_tally_ceremony,
         update_event_voting_status::update_event_voting_status,
         update_tally_status::update_status as update_tally_status, update_voter::edit_voter,

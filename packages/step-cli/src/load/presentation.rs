@@ -40,7 +40,11 @@ fn chart(db: &Connection, input: &Input, summary: &Summary) -> Result<String> {
     );
     let points = input.settings.reporting.cdf_points;
     let mut curves = Vec::new();
-    for (stage, color) in [(Stage::Status, "#087f76"), (Stage::Cast, "#4576b8")] {
+    for (stage, color) in [
+        (Stage::Keycloak, "#a05a22"),
+        (Stage::Status, "#087f76"),
+        (Stage::Cast, "#4576b8"),
+    ] {
         let fractions: Vec<_> = (0..points)
             .map(|index| index as f64 / (points - 1) as f64)
             .collect();
@@ -82,8 +86,8 @@ fn chart(db: &Connection, input: &Input, summary: &Summary) -> Result<String> {
         write!(
             svg,
             r##"<polyline fill="none" stroke="{color}" stroke-width="2.5" points="{coordinates}"/><path d="M370,{}h26" stroke="{color}" stroke-width="2.5"/><text x="405" y="{}">{}</text>"##,
-            188 + index * 20,
-            192 + index * 20,
+            168 + index * 20,
+            172 + index * 20,
             stage.label()
         )?;
     }
@@ -166,13 +170,17 @@ pub fn render(directory: &Path, db: &Connection, input: &Input, result: &Summary
     let mut latency_rows = String::new();
     for stage in Stage::ALL {
         let values = &result.latency[stage.column()];
-        if values["p50"].is_some() {
+        {
             write!(
                 latency_rows,
-                r#"<tr><td>{}</td><td class="num">{}</td><td class="num">{}</td></tr>"#,
+                r#"<tr><td>{}</td><td class="num">{}</td><td class="num">{}</td><td class="num">{}</td><td class="num">{}</td><td class="num">{}</td><td class="num">{}</td></tr>"#,
                 stage.label(),
+                number(values["count"], ""),
+                number(values["mean"], "ms"),
                 number(values["p50"], "ms"),
-                number(values["p99"], "ms")
+                number(values["p95"], "ms"),
+                number(values["p99"], "ms"),
+                number(values["max"], "ms")
             )?;
         }
     }

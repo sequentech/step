@@ -1,0 +1,37 @@
+table:
+    name: message_latest_attempt
+    schema: sequent_backend
+# The latest attempt of each message (a view on the delivery ledger): the
+# drawer's last failure, the Logs filter and the event tab's counts. The same
+# safe columns as `message` for `messaging-config-read`; nothing else reads
+# it through Hasura, and a view takes no writes.
+select_permissions:
+    - comment: ""
+      permission:
+          columns:
+              - accepted_at
+              - account_id
+              - attempt
+              - channel
+              - created_at
+              - delivered_at
+              - direction
+              - election_event_id
+              - error
+              - failure
+              - failed_at
+              - id
+              - language
+              - logical_key
+              - masked_destination
+              - purpose
+              - state
+              - template_alias
+              - tenant_id
+              - updated_at
+              - voter_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      role: messaging-config-read

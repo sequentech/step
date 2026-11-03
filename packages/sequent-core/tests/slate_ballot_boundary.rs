@@ -29,7 +29,7 @@ use sequent_core::plaintext::{
 use sequent_core::types::ceremonies::CountingAlgType;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
-use strand::backend::ristretto::RistrettoCtx;
+use voting_crypto::RistrettoCtx;
 
 const ELECTION: &str = "officers";
 
@@ -436,17 +436,17 @@ fn a_cast_ballot_has_one_ciphertext_per_contest_and_decodes_to_candidates() {
             encrypt_decoded_contest(&RistrettoCtx, &votes, &style).unwrap();
 
         // The ballot verifier shows what the review screen showed.
-        let decoded = map_to_decoded_contest::<RistrettoCtx>(&audit).unwrap();
+        let decoded = map_to_decoded_contest(&audit).unwrap();
         assert_eq!(marked(&decoded), on_every_contest(&style, &marks));
 
         // What is cast names the contests and nothing else.
         let signed = SignedHashableBallot::try_from(&audit).unwrap();
         assert_eq!(
             signed
-                .deserialize_contests::<RistrettoCtx>()
+                .deserialize_contests()
                 .unwrap()
                 .iter()
-                .map(|contest| contest.contest_id.clone())
+                .flat_map(|contest| contest.contest_ids.clone())
                 .collect::<Vec<_>>(),
             contest_ids
         );
@@ -486,16 +486,12 @@ fn a_cast_multi_contest_ballot_decodes_to_candidates_too() {
             encrypt_decoded_multi_contest(&RistrettoCtx, &votes, &style)
                 .unwrap();
 
-        let decoded =
-            map_to_decoded_multi_contest::<RistrettoCtx>(&audit).unwrap();
+        let decoded = map_to_decoded_multi_contest(&audit).unwrap();
         assert_eq!(marked(&decoded), on_every_contest(&style, &marks));
 
         let hashable = HashableMultiBallot::try_from(&audit).unwrap();
         assert_eq!(
-            hashable
-                .deserialize_contests::<RistrettoCtx>()
-                .unwrap()
-                .contest_ids,
+            hashable.deserialize_contests().unwrap().contest_ids,
             contest_ids
         );
         assert_eq!(

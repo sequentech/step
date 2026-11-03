@@ -27,8 +27,10 @@ DECLARE
         'sealed_at', 'ballots_in_box', 'ballots_counted', 'seal_hash',
         'manifest', 'signed_message', 'election_name', 'area_name'
     ];
+    -- The seal's (or the failure's) record on the event's electoral log.
+    log_fields text[] := ARRAY['log_delivery_id', 'log_uid', 'log_leaf_index'];
     publication_fields text[] := ARRAY[
-        'log_entry_id', 'public_document_id', 'public_path', 'published_at'
+        'public_document_id', 'public_path', 'published_at'
     ];
 BEGIN
     IF TG_OP = 'DELETE' THEN
@@ -42,9 +44,10 @@ BEGIN
            AND NEW.sealed_at IS NULL AND NEW.ballots_in_box IS NULL
            AND NEW.ballots_counted IS NULL AND NEW.seal_hash IS NULL
            AND NEW.manifest IS NULL AND NEW.signed_message IS NULL
-           AND NEW.failure_reason IS NULL AND NEW.log_entry_id IS NULL
+           AND NEW.failure_reason IS NULL AND NEW.log_delivery_id IS NULL
+           AND NEW.log_uid IS NULL AND NEW.log_leaf_index IS NULL
            AND NEW.public_document_id IS NULL AND NEW.public_path IS NULL
-           AND NEW.published_at IS NULL AND NEW.failure_posted_at IS NULL
+           AND NEW.published_at IS NULL
            AND NEW.election_name IS NULL AND NEW.area_name IS NULL THEN
             RETURN NEW;
         END IF;
@@ -59,40 +62,36 @@ BEGIN
             RETURN NEW;
         END IF;
         IF NEW.status = 'sealed'
-           AND to_jsonb(NEW) - provenance - seal_fields - 'status'
-               = to_jsonb(OLD) - provenance - seal_fields - 'status'
+           AND to_jsonb(NEW) - provenance - seal_fields - log_fields - 'status'
+               = to_jsonb(OLD) - provenance - seal_fields - log_fields - 'status'
            AND NEW.sealed_at IS NOT NULL AND NEW.ballots_in_box IS NOT NULL
            AND NEW.ballots_counted IS NOT NULL AND NEW.seal_hash IS NOT NULL
-           AND NEW.manifest IS NOT NULL AND NEW.signed_message IS NOT NULL THEN
+           AND NEW.manifest IS NOT NULL AND NEW.signed_message IS NOT NULL
+           AND NEW.log_delivery_id IS NOT NULL AND NEW.log_uid IS NOT NULL
+           AND NEW.log_leaf_index IS NOT NULL THEN
             RETURN NEW;
         END IF;
         IF NEW.status = 'failed'
-           AND to_jsonb(NEW) - provenance - 'failure_reason' - 'status'
+           AND to_jsonb(NEW) - provenance - log_fields - 'failure_reason' - 'status'
                - 'election_name' - 'area_name'
-               = to_jsonb(OLD) - provenance - 'failure_reason' - 'status'
+               = to_jsonb(OLD) - provenance - log_fields - 'failure_reason' - 'status'
                - 'election_name' - 'area_name'
-           AND NEW.failure_reason IS NOT NULL THEN
+           AND NEW.failure_reason IS NOT NULL
+           AND (NEW.log_delivery_id IS NULL) = (NEW.log_uid IS NULL)
+           AND (NEW.log_uid IS NULL) = (NEW.log_leaf_index IS NULL) THEN
             RETURN NEW;
         END IF;
     ELSIF OLD.status = 'sealed' THEN
         IF NEW.status IN ('sealed', 'published')
            AND to_jsonb(NEW) - publication_fields - 'status'
                = to_jsonb(OLD) - publication_fields - 'status'
-           AND (OLD.log_entry_id IS NULL OR NEW.log_entry_id IS NOT DISTINCT FROM OLD.log_entry_id)
            AND (OLD.public_document_id IS NULL OR NEW.public_document_id IS NOT DISTINCT FROM OLD.public_document_id)
            AND (OLD.public_path IS NULL OR NEW.public_path IS NOT DISTINCT FROM OLD.public_path)
            AND (OLD.published_at IS NULL OR NEW.published_at IS NOT DISTINCT FROM OLD.published_at)
            AND (NEW.status = 'sealed' OR (
-                NEW.log_entry_id IS NOT NULL AND NEW.public_document_id IS NOT NULL
+                NEW.public_document_id IS NOT NULL
                 AND NEW.published_at IS NOT NULL
            )) THEN
-            RETURN NEW;
-        END IF;
-    ELSIF OLD.status = 'failed' THEN
-        IF NEW.status = 'failed'
-           AND OLD.failure_posted_at IS NULL
-           AND NEW.failure_posted_at IS NOT NULL
-           AND to_jsonb(NEW) - 'failure_posted_at' = to_jsonb(OLD) - 'failure_posted_at' THEN
             RETURN NEW;
         END IF;
     END IF;

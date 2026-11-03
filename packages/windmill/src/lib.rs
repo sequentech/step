@@ -5,6 +5,10 @@
 #[macro_use]
 extern crate quick_error;
 
+// Shared database fixtures also compile inside this crate's unit tests.
+#[cfg(test)]
+extern crate self as windmill;
+
 pub mod adapters;
 pub mod domain;
 pub mod ports;

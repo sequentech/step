@@ -76,6 +76,8 @@ packages/voting-portal/test-results/
 # ignore artifacts for airgapped environments
 airgapped-artifacts
 
+# trustee session stores, where the dev compose services mount them
+packages/trustee/message_store/
 # Package coverage reports contain generated HTML and local absolute paths.
 /coverage/
 

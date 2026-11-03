@@ -33,10 +33,12 @@ use crate::postgres::tally_results_publication::{
     NewTallyResultsPublication, TallyResultsPublication,
 };
 use crate::postgres::tally_session_execution::get_tally_session_execution_documents;
+use crate::services::audit_log::{act_for_tenant, AuditActor, AuditOrigin};
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::{
     get_document_as_temp_file, upload_and_return_document, upload_and_return_public_event_document,
 };
+use crate::tasks::audit_log_outbox::kick_audit_log_outbox;
 use crate::types::results_publication::{
     ConfigureResultsWebsitePolicyInput, ConfigureResultsWebsitePolicyOutput,
     ContestPublicationState, FetchResultsArtifactInput, FetchResultsArtifactOutput,
@@ -1536,6 +1538,7 @@ pub async fn cleanup_revoked_results_publication(
 pub async fn configure_results_website_policy_request(
     tenant_id: &str,
     input: &ConfigureResultsWebsitePolicyInput,
+    actor: &AuditActor,
 ) -> ResultsPublicationServiceResult<ConfigureResultsWebsitePolicyOutput> {
     let mut client = get_hasura_pool()
         .await
@@ -1546,10 +1549,12 @@ pub async fn configure_results_website_policy_request(
         .transaction()
         .await
         .context("Failed to start results website policy transaction")?;
+    act_for_tenant(&tx, actor, AuditOrigin::Harvest, tenant_id).await?;
     let output = configure_results_website_policy(&tx, tenant_id, input).await?;
     tx.commit()
         .await
         .context("Failed to commit results website policy")?;
+    kick_audit_log_outbox();
 
     let mut client = get_hasura_pool()
         .await
@@ -1605,9 +1610,12 @@ async fn validate_publication_source(
 }
 
 /// Runs each step of a publication request in its own transaction.
-struct HasuraPublicationRequestSteps;
+struct HasuraPublicationRequestSteps<'a> {
+    /// The admin the publication is inserted for.
+    actor: &'a AuditActor,
+}
 
-impl ResultsPublicationRequestSteps for HasuraPublicationRequestSteps {
+impl ResultsPublicationRequestSteps for HasuraPublicationRequestSteps<'_> {
     async fn validate(
         &self,
         tenant_id: &str,
@@ -1648,12 +1656,14 @@ impl ResultsPublicationRequestSteps for HasuraPublicationRequestSteps {
             .transaction()
             .await
             .context("Failed to start publication transaction")?;
+        act_for_tenant(&tx, self.actor, AuditOrigin::Harvest, publication.tenant_id).await?;
         let publication = PgResultsPublications { transaction: &tx }
             .insert_publishing(publication)
             .await?;
         tx.commit()
             .await
             .context("Failed to commit publication transaction")?;
+        kick_audit_log_outbox();
         Ok(publication)
     }
 
@@ -1784,9 +1794,10 @@ pub async fn request_results_website_publication(
     username: Option<String>,
     executed_by_user: &str,
     input: &PublishResultsWebsiteInput,
+    actor: &AuditActor,
 ) -> ResultsPublicationServiceResult<PublishResultsWebsiteOutput> {
     start_results_website_publication(
-        &HasuraPublicationRequestSteps,
+        &HasuraPublicationRequestSteps { actor },
         &CeleryResultsPublicationTasks,
         tenant_id,
         user_id,
@@ -2026,6 +2037,7 @@ pub async fn revoke_results_publication_request(
     user_id: &str,
     username: Option<String>,
     input: &RevokeResultsPublicationInput,
+    actor: &AuditActor,
 ) -> ResultsPublicationServiceResult<RevokeResultsPublicationOutput> {
     let mut client = get_hasura_pool()
         .await
@@ -2036,6 +2048,7 @@ pub async fn revoke_results_publication_request(
         .transaction()
         .await
         .context("Failed to start results revocation transaction")?;
+    act_for_tenant(&tx, actor, AuditOrigin::Harvest, tenant_id).await?;
     let publication = revoke_results_publication(
         &PgResultsPublications { transaction: &tx },
         &ElectoralLogResultsPublicationAudit { transaction: &tx },
@@ -2048,6 +2061,7 @@ pub async fn revoke_results_publication_request(
     tx.commit()
         .await
         .context("Failed to commit results revocation")?;
+    kick_audit_log_outbox();
 
     let mut client = get_hasura_pool()
         .await

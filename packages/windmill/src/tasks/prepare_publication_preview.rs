@@ -1,17 +1,17 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::document::get_support_material_documents;
+use crate::postgres::ballot_publication::get_ballot_publication_by_id;
+use crate::postgres::document::{get_document, get_support_material_documents};
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::ballot_styles::ballot_publication::get_publication_json;
 use crate::services::ballot_styles::publication_files::{
     publication_snapshot, PublicationSnapshot,
 };
-use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
-use crate::services::election_event_status::get_election_status;
 use crate::services::external::utils::remove_datafix_annotations;
+use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::{
     services::tasks_execution::{update_complete, update_fail},
     types::error::Result,
@@ -19,7 +19,6 @@ use crate::{
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::VotingStatus;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::core::{Document, SupportMaterial};
@@ -72,29 +71,27 @@ pub async fn prepare_publication_preview(
     task_execution: TasksExecution,
     document_id: String,
 ) -> Result<()> {
-    let mut hasura_db_client = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| format!("Failed to get db connection: {e:?}"))?;
-
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|e| format!("Failed to get db transaction: {e:?}"))?;
-
-    let result = prepare_publication_preview_task(
-        &hasura_transaction,
-        tenant_id,
-        election_event_id,
-        ballot_publication_id,
-        document_id,
-    )
+    let output_document_id = document_id.clone();
+    let result = provide_hasura_transaction(move |tx| {
+        Box::pin(async move {
+            prepare_publication_preview_task(
+                tx,
+                tenant_id,
+                election_event_id,
+                ballot_publication_id,
+                document_id,
+            )
+            .await?;
+            Ok(())
+        })
+    })
     .await;
 
     match result {
-        Ok(document_id) => {
-            let _res = update_complete(&task_execution, Some(document_id.clone())).await;
+        Ok(()) => {
+            update_complete(&task_execution, Some(output_document_id))
+                .await
+                .map_err(|err| format!("Error completing publication preview task: {err:?}"))?;
             Ok(())
         }
         Err(err) => {
@@ -113,6 +110,36 @@ pub async fn prepare_publication_preview_task(
     ballot_publication_id: String,
     document_id: String,
 ) -> AnyhowResult<String> {
+    let publication = get_ballot_publication_by_id(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+    )
+    .await?
+    .context("Publication not found")?;
+    anyhow::ensure!(
+        publication.is_generated == Some(true),
+        "Publication is not generated"
+    );
+
+    // Completion bookkeeping can be retried after the document transaction committed.
+    if let Some(document) = get_document(
+        hasura_transaction,
+        &tenant_id,
+        Some(election_event_id.clone()),
+        &document_id,
+    )
+    .await?
+    {
+        anyhow::ensure!(
+            document.name.as_deref() == Some(format!("{ballot_publication_id}.json").as_str())
+                && document.is_public == Some(true),
+            "Preview document scope mismatch"
+        );
+        return Ok(document_id);
+    }
+
     let ballot_styles_json = get_publication_json(
         &hasura_transaction,
         tenant_id.clone(),
@@ -128,12 +155,26 @@ pub async fn prepare_publication_preview_task(
             .await
             .with_context(|| "Can't find election event")?;
 
-    let election_event_json =
+    let mut election_event_json =
         serde_json::to_value(election_event).with_context(|| "Error serializing election event")?;
 
-    let elections_json =
+    let mut elections_json =
         get_elections_json_with_open_status(&hasura_transaction, &tenant_id, &election_event_id)
             .await?;
+    open_preview_election(&mut election_event_json);
+    if let Some(elections) = elections_json.as_array_mut() {
+        elections.retain(|election| {
+            election["id"].as_str().is_some_and(|id| {
+                publication
+                    .election_ids
+                    .as_ref()
+                    .is_some_and(|ids| ids.iter().any(|election_id| election_id == id))
+            })
+        });
+        for election in elections {
+            open_preview_election(election);
+        }
+    }
     let (support_materials_json, documents_json) =
         get_support_material_documents_json(&hasura_transaction, &tenant_id, &election_event_id)
             .await?;
@@ -203,22 +244,24 @@ pub async fn get_elections_json_with_open_status(
     tenant_id: &str,
     election_event_id: &str,
 ) -> AnyhowResult<Value> {
-    let mut elections = get_elections(&hasura_transaction, tenant_id, election_event_id)
+    let elections = get_elections(&hasura_transaction, tenant_id, election_event_id)
         .await
         .with_context(|| "Can't find open elections")?;
-
-    for election in elections.iter_mut() {
-        election.status = Some(open_for_voting(election.status.take())?);
+    let mut elections_json =
+        serde_json::to_value(elections).with_context(|| "Error serializing open elections")?;
+    if let Some(elections) = elections_json.as_array_mut() {
+        for election in elections {
+            open_preview_election(election);
+        }
     }
-
-    serde_json::to_value(elections).with_context(|| "Error serializing open elections")
+    Ok(elections_json)
 }
 
-/// The status with online voting open, keeping the rest of it.
-fn open_for_voting(status: Option<Value>) -> AnyhowResult<Value> {
-    let mut status = get_election_status(status).unwrap_or_default();
-    status.voting_status = VotingStatus::OPEN;
-    serde_json::to_value(status).with_context(|| "Error serializing election status")
+fn open_preview_election(election: &mut Value) {
+    if !election["status"].is_object() {
+        election["status"] = serde_json::json!({});
+    }
+    election["status"]["voting_status"] = Value::String("OPEN".to_owned());
 }
 
 /// The event and elections with what the publication was written with in place
@@ -395,19 +438,40 @@ mod tests {
 
     #[test]
     fn preview_elections_are_open_for_voting_and_keep_the_rest_of_their_status() {
-        let status = open_for_voting(Some(json!({
+        let mut election = json!({"id": "election", "status": {
             "voting_status": "CLOSED",
             "kiosk_voting_status": "PAUSED",
             "is_published": true,
-        })))
-        .expect("status");
-        assert_eq!(status["voting_status"], "OPEN");
-        assert_eq!(status["kiosk_voting_status"], "PAUSED");
-        assert_eq!(status["is_published"], true);
+        }});
+        open_preview_election(&mut election);
+        assert_eq!(election["status"]["voting_status"], "OPEN");
+        assert_eq!(election["status"]["kiosk_voting_status"], "PAUSED");
+        assert_eq!(election["status"]["is_published"], true);
 
-        for missing in [None, Some(json!(null)), Some(json!("unreadable"))] {
-            let status = open_for_voting(missing).expect("status");
-            assert_eq!(status["voting_status"], "OPEN");
+        for mut election in [
+            json!({"id": "election"}),
+            json!({"id": "election", "status": null}),
+            json!({"id": "election", "status": "unreadable"}),
+        ] {
+            open_preview_election(&mut election);
+            assert_eq!(election["status"]["voting_status"], "OPEN");
+        }
+    }
+
+    #[test]
+    fn publication_preview_opens_closed_and_missing_status_without_changing_metadata() {
+        for status in [
+            Value::Null,
+            serde_json::json!({"voting_status":"CLOSED", "kiosk_voting_status":"PAUSED"}),
+        ] {
+            let mut election =
+                serde_json::json!({"id":"election", "description":"frozen", "status":status});
+            open_preview_election(&mut election);
+            assert_eq!(election["status"]["voting_status"], "OPEN");
+            assert_eq!(election["description"], "frozen");
+            if status.is_object() {
+                assert_eq!(election["status"]["kiosk_voting_status"], "PAUSED");
+            }
         }
     }
 }

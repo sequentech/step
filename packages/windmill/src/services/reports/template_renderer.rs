@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::document_visibility::{
+    report_document_name, report_document_purpose, DocumentVisibility,
+};
 use super::generation::{
     attach_report_manifest, bundle, copy_template_data, delivered_manifest, manifest_log,
     report_copies, task_with_log, write_report_manifest, Delivery, GeneratedFile, ReportCopy,
@@ -896,6 +899,11 @@ pub trait TemplateRenderer: Debug {
 
         let contains_voter_secrets =
             generate_mode == GenerateReportMode::REAL && !declared_secret_names.is_empty();
+        let document_visibility = DocumentVisibility::for_report(
+            &self.get_report_type(),
+            contains_voter_secrets,
+            generate_mode == GenerateReportMode::REAL,
+        );
         let is_real = generate_mode == GenerateReportMode::REAL;
         let items_count = self.count_items(&hasura_transaction).await?.unwrap_or(0);
         let report_options = ext_cfg.report_options.clone();
@@ -1051,6 +1059,9 @@ pub trait TemplateRenderer: Debug {
             );
         }
 
+        for file in &mut generated {
+            file.name = report_document_name(&self.get_report_type(), is_real, &file.name);
+        }
         // For an event imported from a signed configuration, the hash
         // manifest of what was just written.
         let report_manifest = stamp
@@ -1065,7 +1076,7 @@ pub trait TemplateRenderer: Debug {
         )?;
         let (final_file_path, final_report_name, mimetype) = (
             delivered.path.clone(),
-            delivered.name.clone(),
+            report_document_name(&self.get_report_type(), is_real, &delivered.name),
             delivered.media_type.clone(),
         );
         let requester = ReportRequester::named(
@@ -1080,6 +1091,8 @@ pub trait TemplateRenderer: Debug {
         } else {
             DocumentAnnotations::default()
         };
+
+        annotations.purpose = report_document_purpose(&self.get_report_type(), is_real);
 
         // A report whose action needs signatures gets its signature page,
         // and is kept as a signing document only.
@@ -1197,7 +1210,7 @@ pub trait TemplateRenderer: Debug {
                             .context("The report's document id is no UUID")?,
                     },
                     file_name: final_report_name.clone(),
-                    is_public: !contains_voter_secrets,
+                    is_public: document_visibility.is_public(),
                     // Released wrapped in its password, as it would have been.
                     encryption: if report.as_ref().is_some_and(|report| {
                         report.encryption_policy == EReportEncryption::ConfiguredPassword
@@ -1326,7 +1339,7 @@ pub trait TemplateRenderer: Debug {
                 Some(election_event_id.to_string()),
                 &enc_report_name,
                 Some(document_id.to_string()),
-                !contains_voter_secrets,
+                document_visibility.is_public(),
                 &annotations,
             )
             .await
@@ -1367,7 +1380,7 @@ pub trait TemplateRenderer: Debug {
                 Some(election_event_id.to_string()),
                 &final_report_name,
                 Some(document_id.to_string()),
-                !contains_voter_secrets,
+                document_visibility.is_public(),
                 &annotations,
             )
             .await

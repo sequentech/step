@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Reads the voting records through Hasura with the tenant administrator's
-//! session, the same data the Admin Portal shows.
+//! session, the same data the Admin Portal shows, and the stored ballots from
+//! the election event's ballot box.
+use super::ballot_box;
 use super::voting::{LoggedCast, StoredBallot, UserEvent, Voter, VotingRecords};
 use crate::ports::graphql::GraphqlClient;
 use anyhow::{anyhow, bail, Context, Result};
@@ -11,7 +13,7 @@ use electoral_log::messages::statement::{StatementLogType, StatementType};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
-use windmill::services::{cast_votes::CastVoteStatus, users::FilterOption};
+use windmill::services::users::FilterOption;
 
 const GET_VOTER: &str = "query AcceptanceVoter($body: GetUsersInput!) {
   get_users(body: $body) { items { id username enabled area { id name } } }
@@ -30,13 +32,6 @@ const PUBLISHED_AREAS: &str =
     deleted_at: {_is_null: true},
     ballot_publication: {published_at: {_is_null: false}, deleted_at: {_is_null: true}}
   }) { area_id }
-}";
-
-const CAST_VOTES: &str = "query AcceptanceCastVotes($tenant: uuid!, $event: uuid!, $voters: [String!], $status: String) {
-  sequent_backend_cast_vote(order_by: {created_at: asc}, where: {
-    tenant_id: {_eq: $tenant}, election_event_id: {_eq: $event},
-    voter_id_string: {_in: $voters}, status: {_eq: $status}
-  }) { voter_id_string ballot_id content created_at }
 }";
 
 /// Rows per request of the election event's log.
@@ -65,14 +60,6 @@ struct User {
 struct LogRow {
     statement_timestamp: i64,
     message: String,
-}
-
-#[derive(Deserialize)]
-struct CastVoteRow {
-    voter_id_string: Option<String>,
-    ballot_id: Option<String>,
-    content: Option<String>,
-    created_at: DateTime<Utc>,
 }
 
 impl<G: GraphqlClient> HasuraRecords<G> {
@@ -197,27 +184,7 @@ impl<G: GraphqlClient> VotingRecords for HasuraRecords<G> {
     }
 
     fn stored_ballots(&self, event: &str, voter_ids: &[String]) -> Result<Vec<StoredBallot>> {
-        let rows: Vec<CastVoteRow> = self.query(
-            CAST_VOTES,
-            json!({
-                "tenant": self.tenant_id,
-                "event": event,
-                "voters": voter_ids,
-                "status": CastVoteStatus::Valid.to_string(),
-            }),
-            &["sequent_backend_cast_vote"],
-        )?;
-        Ok(rows
-            .into_iter()
-            .filter_map(|row| {
-                Some(StoredBallot {
-                    voter_id: row.voter_id_string?,
-                    ballot_id: row.ballot_id.unwrap_or_default(),
-                    content: row.content.unwrap_or_default(),
-                    cast_at: row.created_at,
-                })
-            })
-            .collect())
+        ballot_box::stored_ballots(event, voter_ids)
     }
 
     fn logged_casts(&self, event: &str, voter_id: &str) -> Result<Vec<LoggedCast>> {
@@ -383,21 +350,6 @@ mod tests {
         assert_eq!(
             records.graphql.requests()[0]["variables"]["filter"]["statement_kind"],
             "CastVote"
-        );
-    }
-
-    #[test]
-    fn only_valid_cast_votes_of_the_tenant_and_event_are_read() {
-        let records = records(QueuedGraphql::default().respond(json!({"data": {"sequent_backend_cast_vote": [
-            {"voter_id_string": "v", "ballot_id": "b", "content": "c", "created_at": "2028-01-10T09:00:00.5+00:00"},
-            {"voter_id_string": null, "ballot_id": "x", "content": "c", "created_at": "2028-01-10T09:00:00+00:00"}
-        ]}})));
-        let ballots = records.stored_ballots("event", &["v".into()]).unwrap();
-        assert_eq!(ballots.len(), 1);
-        assert_eq!(ballots[0].ballot_id, "b");
-        assert_eq!(
-            records.graphql.requests()[0]["variables"],
-            json!({"tenant": "tenant", "event": "event", "voters": ["v"], "status": "valid"})
         );
     }
 

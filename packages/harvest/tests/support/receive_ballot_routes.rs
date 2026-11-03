@@ -187,3 +187,45 @@ async fn a_closed_election_and_a_storage_failure_keep_the_cast_answers() {
         );
     }
 }
+
+#[path = "privacy_trace.rs"]
+mod privacy_trace;
+
+/// This guards the real HTTP/request-guard/route boundary; the scripted port
+/// deliberately isolates it from native storage tracing; that coverage needs
+/// a separate integration run.
+#[rocket::async_test]
+async fn receive_success_and_refusal_do_not_trace_private_attribution_at_any_level(
+) {
+    let services = Services::without_database().with_cast_votes(
+        ScriptedCastVotes::receiving([
+            Ok(received()),
+            Err(CastVoteError::AreaNotFound),
+        ]),
+    );
+    let client = services.client().await;
+    let claims = Claims::new(TENANT_ID, "privacy-capture-voter-0123")
+        .username("privacy-capture-name-0123")
+        .azp("voting-portal")
+        .area(AREA_ID)
+        .election_event(EVENT_ID)
+        .authorized_elections(&[ELECTION_ID])
+        .roles([VoterPermissions::CAST_VOTE]);
+    let logs=privacy_trace::capture(async {
+        for expected in [Status::Ok,Status::NotFound] {
+            let response=client.post("/receive-ballot").header(ContentType::JSON).header(bearer(&claims))
+                .header(Header::new("CF-Connecting-IP","198.51.100.73"))
+                .header(Header::new("CF-IPCountry","AQ"))
+                .header(Header::new("User-Agent","privacy-capture-agent-0123"))
+                .body(json!({"ballot_id":"private-ballot-hash-0123","election_id":ELECTION_ID,"content":"encrypted ballot"}).to_string())
+                .dispatch().await;
+            assert_eq!(response.status(),expected);
+        }
+    }).await;
+    assert!(
+        logs.contains("receive_ballot"),
+        "receive route span was not captured"
+    );
+    privacy_trace::assert_private(&logs, "private-ballot-hash-0123");
+    assert_eq!(services.cast_votes.receive_attempts().len(), 2);
+}

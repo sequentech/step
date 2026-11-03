@@ -29,12 +29,13 @@ select_permissions:
               - election_event_id
               - election_id
               - election_name
-              - failure_posted_at
               - failure_reason
               - grace_deadline
               - id
               - last_attempt_at
-              - log_entry_id
+              - log_delivery_id
+              - log_leaf_index
+              - log_uid
               - public_document_id
               - public_path
               - published_at
@@ -62,12 +63,13 @@ select_permissions:
               - election_event_id
               - election_id
               - election_name
-              - failure_posted_at
               - failure_reason
               - grace_deadline
               - id
               - last_attempt_at
-              - log_entry_id
+              - log_delivery_id
+              - log_leaf_index
+              - log_uid
               - public_document_id
               - public_path
               - published_at
@@ -95,12 +97,13 @@ select_permissions:
               - election_event_id
               - election_id
               - election_name
-              - failure_posted_at
               - failure_reason
               - grace_deadline
               - id
               - last_attempt_at
-              - log_entry_id
+              - log_delivery_id
+              - log_leaf_index
+              - log_uid
               - manifest
               - public_document_id
               - public_path
@@ -128,12 +131,13 @@ select_permissions:
               - election_event_id
               - election_id
               - election_name
-              - failure_posted_at
               - failure_reason
               - grace_deadline
               - id
               - last_attempt_at
-              - log_entry_id
+              - log_delivery_id
+              - log_leaf_index
+              - log_uid
               - public_document_id
               - public_path
               - published_at

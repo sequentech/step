@@ -9,10 +9,12 @@ import ElectionHeader from "../../components/ElectionHeader"
 import {EditCandidateData} from "./EditCandidateData"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {configuredLanguage, useInheritedLanguage} from "@/hooks/usePresentationName"
 
 export const CandidateTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Candidate>()
     const aliasRenderer = useAliasRenderer()
+    const inheritedLanguage = useInheritedLanguage(record)
     const {setCandidateIdFlag, setContestIdFlag, setElectionEventIdFlag} =
         useElectionEventTallyStore()
 
@@ -27,7 +29,7 @@ export const CandidateTabs: React.FC = () => {
     return (
         <>
             <ElectionHeader
-                title={aliasRenderer(record) || ""}
+                title={aliasRenderer(record, configuredLanguage(record) ?? inheritedLanguage) || ""}
                 subtitle="candidateScreen.common.subtitle"
             />
             <TabbedShowLayout>

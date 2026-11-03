@@ -67,13 +67,44 @@ const reapplyTranslationOverrides = (
         return reappliedOverride
     })
 
+const PLURAL_SUFFIXES = ["zero", "one", "two", "few", "many", "other"]
+
+/**
+ * Overrides stored before a key was split into plural forms target the bare
+ * key, but when `count` is passed i18next looks up `key_<form>` first, so the
+ * bundled plural forms would shadow them. Copy such an override onto every
+ * plural form the bundle defines, unless the override sets that form itself.
+ */
+const expandUnsuffixedPluralOverrides = (
+    language: string,
+    translations: Record<string, string>
+): Record<string, string> => {
+    const expanded: Record<string, string> = {}
+
+    Object.entries(translations).forEach(([key, value]) => {
+        PLURAL_SUFFIXES.forEach((suffix) => {
+            const pluralKey = `${key}_${suffix}`
+            if (
+                !(pluralKey in translations) &&
+                i18n.getResource(language, "translations", pluralKey) !== undefined
+            ) {
+                expanded[pluralKey] = value
+            }
+        })
+        expanded[key] = value
+    })
+
+    return expanded
+}
+
 const applyTranslationOverrides = (
     overrides: Record<string, Record<string, string>> | undefined
 ): IAppliedTranslationOverride[] => {
     const appliedOverrides: IAppliedTranslationOverride[] = []
 
     Object.entries(overrides ?? {}).forEach(([language, translations]) => {
-        Object.entries(translations).forEach(([key, value]) => {
+        const expanded = expandUnsuffixedPluralOverrides(language, translations)
+        Object.entries(expanded).forEach(([key, value]) => {
             appliedOverrides.push({
                 key,
                 language,
@@ -304,7 +335,8 @@ export function overwriteTranslations(
             const currentResources = i18n.getResourceBundle(language, "translations") || {}
             const nestedTranslations: TranslationTree = {}
 
-            Object.entries(translations).forEach(([key, value]) => {
+            const expanded = expandUnsuffixedPluralOverrides(language, translations)
+            Object.entries(expanded).forEach(([key, value]) => {
                 // Persist only text leaves; malformed JSON must not become a
                 // null parent when a following key traverses the same path.
                 if (typeof value !== "string") return

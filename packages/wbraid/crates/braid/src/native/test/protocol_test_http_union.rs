@@ -18,7 +18,7 @@
 use anyhow::{anyhow, Result};
 use log::info;
 use rand::seq::IndexedRandom;
-use rand::Rng;
+use rand::RngExt;
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::marker::PhantomData;
@@ -73,10 +73,8 @@ async fn run_with_width<C: Context, const W: usize>(
     let n_trustees = setup_rng.random_range(2..=MAX_TRUSTEES);
     let n_threshold = setup_rng.random_range(2..=n_trustees);
     let all: Vec<TrusteeIndex> = (1..=n_trustees).collect();
-    let mixing_trustees: Vec<TrusteeIndex> = all
-        .choose_multiple(&mut setup_rng, n_threshold)
-        .cloned()
-        .collect();
+    let mixing_trustees: Vec<TrusteeIndex> =
+        all.sample(&mut setup_rng, n_threshold).cloned().collect();
 
     // Fresh board names per run so re-runs never collide on b4's persistent store.
     let run_id: u64 = setup_rng.random();
@@ -109,7 +107,7 @@ async fn run_with_width<C: Context, const W: usize>(
         W,
         share_enc_keys,
         PhantomData,
-    );
+    )?;
     let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
     let cfg_message = ProtocolMessage::<C>::configuration(&pm, DATE, &cfg);
 

@@ -48,8 +48,9 @@ class FakeDocker:
         self.delayed_inspections = 0
         self.reveal_after = 3
         self.foreign_owner = False
+        self.volume_remove_seconds = 0
 
-    def run(self, kind, action, *arguments, **_kwargs):
+    def run(self, kind, action, *arguments, timeout=None, **_kwargs):
         if kind in ("logs", "cp"):
             return subprocess.CompletedProcess(
                 [], 0, "retained daemon diagnostics\n", ""
@@ -76,6 +77,11 @@ class FakeDocker:
             objects[name] = arguments[1].split("=", 1)[1]
             self.peak_volumes = max(self.peak_volumes, len(objects))
         elif action == "rm":
+            if kind == "volume" and self.volume_remove_seconds:
+                # Deleting a seeded store outlives a CLI timeout; the daemon keeps it.
+                self.clock += min(self.volume_remove_seconds, timeout)
+                if self.volume_remove_seconds > timeout:
+                    raise subprocess.TimeoutExpired(["docker", kind, action], timeout)
             del objects[name]
         else:
             raise AssertionError((kind, action, arguments))
@@ -225,6 +231,26 @@ class SmokeTests(unittest.TestCase):
         self.assertIn("limited to 1/3", cold["notes"][0])
         self.assertEqual(warm["summary"]["n"], 10)
         self.assertEqual(warm["summary"]["median"], 3)
+        self.assertEqual(self.docker.objects, {"container": {}, "volume": {}})
+
+    def test_slow_seeded_volume_removal_between_fresh_samples_completes(self):
+        self.docker.volume_remove_seconds = 60
+        runs = self.series()
+        cold, warm = [json.loads(run.path.read_text()) for run in runs]
+        self.assertEqual(cold["summary"]["n"], 3)
+        self.assertEqual(warm["summary"]["n"], 10)
+        self.assertEqual(self.docker.peak_volumes, 1)
+        self.assertEqual(self.docker.objects, {"container": {}, "volume": {}})
+
+    def test_volume_removal_time_counts_against_the_fresh_series_budget(self):
+        self.docker.cold_create_seconds = 124
+        self.docker.duration = 16
+        self.docker.volume_remove_seconds = 100
+        runs = self.series()
+        cold, warm = [json.loads(run.path.read_text()) for run in runs]
+        self.assertEqual(cold["summary"]["n"], 2)
+        self.assertIn("limited to 2/3", cold["notes"][0])
+        self.assertEqual(warm["summary"]["n"], 10)
         self.assertEqual(self.docker.objects, {"container": {}, "volume": {}})
 
     def test_zero_exit_without_the_tools_and_wasm_target_is_not_ready(self):

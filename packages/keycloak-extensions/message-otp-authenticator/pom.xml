@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<aws.version>2.33.9</aws.version>
-		<keycloak.version>26.6.1</keycloak.version>
+		<keycloak.version>26.7.0</keycloak.version>
 		<maven.compiler.release>17</maven.compiler.release>
 		<maven.compiler.version>3.14.0</maven.compiler.version>
 		<maven.shade.version>3.6.1</maven.shade.version>
@@ -95,6 +95,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<artifactId>twilio</artifactId>
 			<version>10.9.2</version>
 			<scope>compile</scope>
+		</dependency>
+
+		<!-- QR code of the Messenger link, rendered server-side. Keycloak ships zxing 3.4.0
+			 (/opt/keycloak/lib/lib/main/com.google.zxing.core-3.4.0.jar), so it is not bundled. -->
+		<dependency>
+			<groupId>com.google.zxing</groupId>
+			<artifactId>core</artifactId>
+			<version>3.4.0</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<!-- JUnit 5 -->

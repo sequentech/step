@@ -8,6 +8,7 @@
 //! of the stage. `run` decides the automatic checks from the event's records and
 //! `record` stores what a witness observed. `verdict` reads the ledger back:
 //! one failed critical check fails the stage.
+mod ballot_box;
 mod definition;
 mod hasura;
 mod ledger;
@@ -61,7 +62,9 @@ pub enum Command {
         #[arg(long)]
         recorder: Option<String>,
     },
-    /// Decide the automatic checks from the election event's records.
+    /// Decide the automatic checks from the election event's records. The stored
+    /// ballots are read from the event's ballot box on the server that
+    /// `ELECTORAL_LOG_PG_*` names.
     Run {
         /// Ledger written by open.
         ledger: PathBuf,

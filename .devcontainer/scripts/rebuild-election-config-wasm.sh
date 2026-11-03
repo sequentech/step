@@ -29,13 +29,22 @@ echo "==> Checking versions..."
 rustc --version
 wasm-pack --version
 
+# Older Binaryen can export the funcref table as __wbindgen_externrefs:
+# https://github.com/wasm-bindgen/wasm-bindgen/issues/4528
+optimizer_version=$(wasm-opt --version)
+optimizer_major=$(printf '%s\n' "$optimizer_version" | sed -nE 's/^wasm-opt version ([0-9]+).*/\1/p')
+if [[ ! "$optimizer_major" =~ ^[0-9]+$ ]] || ((optimizer_major < 110)); then
+    echo "error: Binaryen >= 110 is required; use the repository Nix environment." >&2
+    exit 1
+fi
+
 echo "==> Building ${PACKAGE_NAME} WASM..."
 # `--locked`, and it is load-bearing rather than tidiness.
 #
 # Without it cargo is free to re-resolve, and the set it chooses need not be the
 # one `Cargo.lock` records. The WASM build depends on that set: curve25519-dalek
 # 5.0 pulls `getrandom 0.4` beside the `0.3.4` this repository pins, and each line
-# compiles for `wasm32-unknown-unknown` only because `strand/Cargo.toml` names it
+# compiles for `wasm32-unknown-unknown` only because `wbraid/crates/vsc/Cargo.toml` names it
 # directly with `wasm_js` on. A resolution that brings in another getrandom line
 # fails with
 #
@@ -56,7 +65,7 @@ wasm-pack build \
 echo "==> Checking that the package exports what only its features provide..."
 # An export behind a feature disappears without a build error when the feature
 # list above loses that feature.
-for exported in verifyConfigurationPackage openConfiguration; do
+for exported in verifyConfigurationPackage openConfiguration buildFromHistorical historicalImportInfo; do
     if ! grep -q "export function ${exported}(" "${OUT_DIR}/index.d.ts"; then
         echo "error: ${OUT_DIR}/index.d.ts does not export ${exported}" >&2
         exit 1
@@ -71,10 +80,31 @@ node -e '
   const path = process.argv[1] + "/package.json";
   const manifest = JSON.parse(fs.readFileSync(path, "utf8"));
   manifest.name = process.argv[2];
+  manifest.type = "module";
   manifest.description =
     "Reading, building and validating a Sequent election event import, in the browser";
   fs.writeFileSync(path, JSON.stringify(manifest, null, 2) + "\n");
 ' "${OUT_DIR}" "${PACKAGE_NAME}"
+
+echo "==> Checking the generated module runs..."
+node --input-type=module - "$OUT_DIR" <<'NODE'
+import {readFileSync} from "node:fs";
+import {resolve} from "node:path";
+import {pathToFileURL} from "node:url";
+const directory = resolve(process.argv[2]);
+const core = await import(pathToFileURL(directory + "/index.js").href);
+await core.default({module_or_path: readFileSync(directory + "/index_bg.wasm")});
+const info = core.historicalImportInfo();
+if (info.abiVersion !== 1 || info.profile !== "legacy-seat-v1" || info.packageVersion !== "0.1.0") {
+  throw new Error("historical converter ABI/profile/version mismatch");
+}
+const checked = core.buildFromHistorical(
+  new TextEncoder().encode("SELECT 1;"), new Uint8Array(), {}, {}
+);
+if (checked.output.archive || checked.output.report.problems[0]?.code !== "unreadable") {
+  throw new Error("historical import must refuse executable SQL without producing files");
+}
+NODE
 
 echo "==> Packing..."
 # `npm pack` rather than `wasm-pack pack`, which takes the *crate* directory and

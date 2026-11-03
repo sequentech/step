@@ -13,10 +13,13 @@ use crate::traits::groups::GroupElement;
 use crate::traits::groups::GroupScalar;
 use crate::traits::groups::ReplGroupOps;
 use crate::traits::groups::ReplScalarOps;
+use std::array;
+
 use crate::utils::error::Error;
 use crate::utils::error::ErrorContext;
 use crate::utils::hash;
 use crate::utils::serialization::Serializable;
+use crate::utils::serialization::par_ser;
 
 use canonical_derive::Canonical;
 use rand::RngExt;
@@ -168,13 +171,15 @@ impl<C: Context, const W: usize> ShuffleChallenges<C, W> for NativeChallenges {
         permuted_ciphertexts: &[Ciphertext<C, W>],
         context: &[u8],
     ) -> Result<(Vec<u8>, Vec<C::Scalar>), Error> {
+        // The element/ciphertext lists are serialized in parallel (byte-identical
+        // to `Vec::ser`); their point compression is the dominant transcript cost.
         let a = [
             C::generator().ser(),
-            generators.to_vec().ser(),
-            pedersen_commitments.to_vec().ser(),
+            par_ser(generators),
+            par_ser(pedersen_commitments),
             pk.ser(),
-            ciphertexts.to_vec().ser(),
-            permuted_ciphertexts.to_vec().ser(),
+            par_ser(ciphertexts),
+            par_ser(permuted_ciphertexts),
             context.to_vec(),
         ];
         let input: Vec<&[u8]> = a.iter().map(Vec::as_slice).collect();
@@ -183,15 +188,18 @@ impl<C: Context, const W: usize> ShuffleChallenges<C, W> for NativeChallenges {
         hash::update_hasher(&mut hasher, &input, &Shuffler::<C, W>::DS_TAGS_CHALLENGE_E);
         let bytes = hasher.finalize();
 
-        let mut ret = Vec::with_capacity(ciphertexts.len());
-        for i in 0..ciphertexts.len() {
-            // Cannot use platform dependent type in random oracle
-            let i_u64 = i as u64;
-            let prefix = bytes.clone();
-            let inputs: &[&[u8]] = &[prefix.as_slice(), &i_u64.to_be_bytes()];
-            let ds_tags: &[&[u8]; 2] = &[b"prefix", b"shuffle_proof_challenge_e_counter"];
-            ret.push(C::G::hash_to_scalar(inputs, ds_tags)?);
-        }
+        // Independent per-index derivations; parallelism cannot change the
+        // per-index transcript, so the output matches the sequential loop.
+        let ret = (0..ciphertexts.len())
+            .into_par_iter()
+            .map(|i| {
+                // Cannot use platform dependent type in random oracle
+                let i_u64 = i as u64;
+                let inputs: &[&[u8]] = &[bytes.as_slice(), &i_u64.to_be_bytes()];
+                let ds_tags: &[&[u8]; 2] = &[b"prefix", b"shuffle_proof_challenge_e_counter"];
+                C::G::hash_to_scalar(inputs, ds_tags)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         Ok((bytes.to_vec(), ret))
     }
 
@@ -203,9 +211,9 @@ impl<C: Context, const W: usize> ShuffleChallenges<C, W> for NativeChallenges {
     ) -> Result<C::Scalar, Error> {
         let a = [
             seed.to_vec(),
-            commitments.big_b_n.ser(),
+            par_ser(&commitments.big_b_n),
             commitments.big_a_prime.ser(),
-            commitments.big_b_prime_n.ser(),
+            par_ser(&commitments.big_b_prime_n),
             commitments.big_c_prime.ser(),
             commitments.big_d_prime.ser(),
             commitments.big_f_prime.ser(),
@@ -340,22 +348,21 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let e_prime_n = permutation
             .apply_inverse(&e_n)
             .expect("permutation.len() == e_n.len()");
+        // Serial: sampling N scalars is too cheap for rayon to pay for — ~8 ms
+        // saved at N = 1e5, under 0.1% of proving (benches/parallel_tradeoff.rs).
         let b_n: Vec<C::Scalar> = (0..big_n).map(|_| C::random_scalar()).collect();
-        // h_1 is at index 0
-        let mut big_b_previous = &self.h_generators[0];
-        let mut big_b_n = vec![];
-        let g_b_n: Vec<C::Element> = b_n.clone().into_par_iter().map(|b| g.exp(&b)).collect();
-        for (i, g_b) in g_b_n.iter().enumerate() {
-            let big_b_factor = big_b_previous.exp(e_prime_n[i]);
-            let big_b_i = g_b.mul(&big_b_factor);
-            big_b_n.push(big_b_i);
-            big_b_previous = &big_b_n[i];
-        }
+        // Bridging commitments via the closed form (§5.3), replacing the serial
+        // recurrence. d_n (the discrete-log recurrence, reused as the Step-4
+        // response `d`) and p_n (prefix products, reused for B') come back with
+        // it. h_1 is at generator index 0.
+        let e_prime_scalars: Vec<C::Scalar> = e_prime_n.iter().map(|&e| e.clone()).collect();
+        let BridgingChain { big_b_n, d_n, p_n } =
+            bridging_commitments::<C>(&g, &self.h_generators[0], &b_n, &e_prime_scalars);
 
         // b) Proof commitments
         let alpha = C::random_scalar();
+        // Serial: scalar sampling, see `b_n` above (benches/parallel_tradeoff.rs).
         let (beta_n, epsilon_n): (Vec<C::Scalar>, Vec<C::Scalar>) = (0..big_n)
-            .into_par_iter()
             .map(|_| (C::random_scalar(), C::random_scalar()))
             .collect();
         let gamma = C::random_scalar();
@@ -363,59 +370,61 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let mut rng = C::get_rng();
         let phi = <[C::Scalar; W]>::random(&mut rng);
 
-        // A'
-        let h_n_epsilon_n = self
-            .h_generators
-            .clone()
-            .into_par_iter()
-            .zip(epsilon_n.clone().into_par_iter());
-        let h_n_epsilon_n = h_n_epsilon_n.map(|(h, e)| h.exp(&e));
-        let h_n_epsilon_n_fold = h_n_epsilon_n
-            .into_par_iter()
-            .reduce(C::Element::one, |acc, next| acc.mul(&next));
-        // let h_n_epsilon_n_fold: C::Element = h_n_epsilon_n_fold.collect();
-        let big_a_prime = g.exp(&alpha);
-        let big_a_prime = big_a_prime.mul(&h_n_epsilon_n_fold);
+        // A' = g^alpha · ∏ h_i^{epsilon_i}. epsilon is secret, so the multi-exp
+        // is the constant-time path; g^alpha uses the fixed-base table.
+        let h_refs: Vec<&C::Element> = self.h_generators.iter().collect();
+        let h_n_epsilon_n_fold = C::Element::multi_exp(&h_refs, &epsilon_n)?;
+        let big_a_prime = C::G::g_exp(&alpha).mul(&h_n_epsilon_n_fold);
 
-        // B'
-        // We need to start this calculation at big_b_0, which is = h_1
-        let h_1_iter = rayon::iter::once(&self.h_generators[0]);
-
-        // the last value of big_b_0_n, B_N, is not used in this calculation, it is used later when computing big_d
-        // cannot underflow, ciphertexts.len() > 0
-        #[allow(clippy::arithmetic_side_effects)]
-        let except_last = &big_b_n[0..big_b_n.len() - 1];
-        let big_b_0_n_minus_1 = h_1_iter.chain(except_last.into_par_iter());
-
-        let big_b_n_epsilon_n = big_b_0_n_minus_1
-            .into_par_iter()
-            .zip(epsilon_n.clone().into_par_iter());
-        let big_b_n_epsilon_n_beta_n = big_b_n_epsilon_n.zip(beta_n.clone().into_par_iter());
-        let big_b_prime_n: Vec<C::Element> = big_b_n_epsilon_n_beta_n
-            .into_par_iter()
-            .map(|((big_b, e), beta)| {
-                let g_beta = g.exp(&beta);
-                let big_b_epsilon = big_b.exp(&e);
-
-                g_beta.mul(&big_b_epsilon)
+        // B' = g^{beta_i + d_{i-1}·epsilon_i} · h_1^{p_{i-1}·epsilon_i}, the
+        // closed-form follow-on of the bridging chain (§5.4), with d_0 = 0 and
+        // p_0 = 1. Two fixed-base batches, replacing the per-element
+        // variable-base B_{i-1}^{epsilon_i}. All exponents are secret, and
+        // `exp_many` is constant-time.
+        let g_exps: Vec<C::Scalar> = (0..big_n)
+            .map(|i| {
+                let d_prev = if i == 0 {
+                    C::Scalar::zero()
+                } else {
+                    // cannot underflow, i > 0
+                    #[allow(clippy::arithmetic_side_effects)]
+                    d_n[i - 1].clone()
+                };
+                beta_n[i].add(&d_prev.mul(&epsilon_n[i]))
             })
             .collect();
+        let h1_exps: Vec<C::Scalar> = (0..big_n)
+            .map(|i| {
+                let p_prev = if i == 0 {
+                    C::Scalar::one()
+                } else {
+                    // cannot underflow, i > 0
+                    #[allow(clippy::arithmetic_side_effects)]
+                    p_n[i - 1].clone()
+                };
+                p_prev.mul(&epsilon_n[i])
+            })
+            .collect();
+        let g_part = C::generator().exp_many(&g_exps);
+        let h1_part = self.h_generators[0].exp_many(&h1_exps);
+        let big_b_prime_n: Vec<C::Element> = g_part
+            .iter()
+            .zip(h1_part.iter())
+            .map(|(a, b)| a.mul(b))
+            .collect();
 
-        // F'
-        let w_prime_n_epsilon_n = permuted_ciphertexts
-            .clone()
-            .into_par_iter()
-            .zip(epsilon_n.clone().into_par_iter());
-        let w_prime_n_epsilon_n = w_prime_n_epsilon_n
-            .into_par_iter()
-            .map(|(w, e)| w.map_ref(|uv| uv.dist_exp(&e)));
-        let w_prime_n_epsilon_n = fold_values(
-            w_prime_n_epsilon_n,
-            <[[C::Element; W]; 2]>::one,
-            |acc, next| acc.mul(next),
-        );
-        let big_f_prime = Ciphertext::<C, W>(w_prime_n_epsilon_n);
-        let big_f_prime: Ciphertext<C, W> = big_f_prime.re_encrypt(&phi.neg(), &self.pk.y);
+        // F' = Enc(1; -phi) · ∏ w'_i^{epsilon_i}. epsilon is secret, so the
+        // componentwise product is the constant-time dist multi-exp.
+        let fp_u_bases: Vec<[C::Element; W]> =
+            permuted_ciphertexts.iter().map(|w| w.u().clone()).collect();
+        let fp_v_bases: Vec<[C::Element; W]> =
+            permuted_ciphertexts.iter().map(|w| w.v().clone()).collect();
+        let big_f_prime_prod: [[C::Element; W]; 2] = [
+            <[C::Element; W]>::dist_multi_exp(&fp_u_bases, &epsilon_n)?,
+            <[C::Element; W]>::dist_multi_exp(&fp_v_bases, &epsilon_n)?,
+        ];
+        let big_f_prime: Ciphertext<C, W> =
+            Ciphertext::<C, W>(big_f_prime_prod).re_encrypt(&phi.neg(), &self.pk.y);
 
         // C'
         let big_c_prime = g.exp(&gamma);
@@ -441,37 +450,32 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         ///////////////// Step 4 /////////////////
 
         // a
-        let r_n_e_prime_n = commitment_exponents.par_iter().zip(e_prime_n.par_iter());
-        let r_n_e_prime_n = r_n_e_prime_n.map(|(r, e)| r.mul(e));
-        let a = r_n_e_prime_n.reduce(C::Scalar::zero, |acc, next| acc.add(&next));
+        // Serial: scalar inner product, too cheap for rayon to pay
+        // (benches/parallel_tradeoff.rs).
+        let a = commitment_exponents
+            .iter()
+            .zip(e_prime_n.iter())
+            .map(|(r, e)| r.mul(e))
+            .fold(C::Scalar::zero(), |acc, next| acc.add(&next));
 
         // c
         let c = commitment_exponents
             .iter()
             .fold(C::Scalar::zero(), |acc, next| acc.add(next));
 
-        // f
-        let s_n_e_n = encryption_exponents.par_iter().zip(e_n.par_iter());
-        let s_n_e_n = s_n_e_n.map(|(s, e)| s.dist_mul(e));
-        let f = fold_values(s_n_e_n, <[C::Scalar; W]>::zero, |acc, next| acc.add(next));
+        // f = Σ (s_i ⊙ e_i). Serial: N width-W scalar mul+adds, too cheap for
+        // rayon to pay (benches/parallel_tradeoff.rs). This is the only
+        // remaining fold over the shuffle's width-W values — the point-valued
+        // products (A′, F′, big_f, V5) are all multi-exps now.
+        let f = encryption_exponents
+            .iter()
+            .zip(e_n.iter())
+            .map(|(s, e)| s.dist_mul(e))
+            .fold(<[C::Scalar; W]>::zero(), |acc, next| acc.add(&next));
 
-        // d_n
-        // "sets d1 = b1 and computes di = bi + e′i*di−1 for i ∈ [N]"
-        // This means we start the computation at i = 1 (which is i = 2 in EVS)
-        // and our vector d_n has d_n[0] = b_n[0] (d1 = b1 in EVS)
-        let mut d_n = vec![b_n[0].clone()];
-        #[cfg_attr(
-            feature = "custom-warnings",
-            crate::warning("Figure out how this skip(1) behaves")
-        )]
-        for (i, b) in b_n.iter().enumerate().skip(1) {
-            // cannot underflow, skip(1) starts at 1
-            #[allow(clippy::arithmetic_side_effects)]
-            let e_prime_d = e_prime_n[i].mul(&d_n[i - 1]);
-            let sum = b.add(&e_prime_d);
-            d_n.push(sum);
-        }
-        // d
+        // d = d_N: the last of the recurrence `bridging_commitments` already
+        // computed (d_1 = b_1, d_i = b_i + e'_i·d_{i-1}), reused rather than
+        // recomputed here.
         // cannot underflow, d_n.len() > 0
         #[allow(clippy::arithmetic_side_effects)]
         let d = &d_n[d_n.len() - 1];
@@ -480,8 +484,11 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let k_a = v.mul(&a).add(&alpha);
 
         // k_b
-        let b_n_beta_n = b_n.par_iter().zip(beta_n.par_iter());
-        let k_b_n: Vec<C::Scalar> = b_n_beta_n
+        // Serial: scalar mul+add, too cheap for rayon to pay
+        // (benches/parallel_tradeoff.rs). Same for k_e_n below.
+        let k_b_n: Vec<C::Scalar> = b_n
+            .iter()
+            .zip(beta_n.iter())
             .map(|(b, beta)| {
                 let vb = v.mul(b);
                 vb.add(beta)
@@ -489,7 +496,7 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
             .collect();
 
         // k_e_n
-        let e_prime_n_epsilon_n = e_prime_n.par_iter().zip(epsilon_n.par_iter());
+        let e_prime_n_epsilon_n = e_prime_n.iter().zip(epsilon_n.iter());
         let k_e_n: Vec<C::Scalar> = e_prime_n_epsilon_n
             .map(|(e, epsilon)| {
                 let ve = v.mul(e);
@@ -611,21 +618,23 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
 
         ///////////////// Step 5 /////////////////
 
-        // A (comes from Step 1 in evs)
-        let e_n_u_n = e_n.par_iter().zip(commitments.u_n.par_iter());
-        let big_a_n = e_n_u_n.map(|(e, u)| u.exp(e));
-        let big_a: C::Element = big_a_n.reduce(C::Element::one, |acc, next| acc.mul(&next));
+        // A (comes from Step 1 in evs). Vartime multi-exp: `e_n` is public.
+        let u_refs: Vec<&C::Element> = commitments.u_n.iter().collect();
+        let big_a = C::Element::vartime_multi_exp(&u_refs, &e_n)?;
 
-        // F (comes from Step 1 in evs)
-        let e_n_w_n = e_n.par_iter().zip(ciphertexts.par_iter());
-        let big_f_n = e_n_w_n.map(|(e, w)| w.map_ref(|uv| uv.dist_exp(e)));
-        // let big_f_n = e_n_w_n.map(|(e, w)| array::from_fn(|i| w.0[i].dist_exp(&e)));
-        let big_f: [[C::Element; W]; 2] =
-            fold_values(big_f_n, <[[C::Element; W]; 2]>::one, |acc, next| {
-                acc.mul(next)
-            });
+        // F (comes from Step 1 in evs). Componentwise vartime multi-exp over
+        // the 2W ciphertext columns; `e_n` is public.
+        let f_u_bases: Vec<[C::Element; W]> = ciphertexts.iter().map(|w| w.u().clone()).collect();
+        let f_v_bases: Vec<[C::Element; W]> = ciphertexts.iter().map(|w| w.v().clone()).collect();
+        let big_f: [[C::Element; W]; 2] = [
+            <[C::Element; W]>::dist_vartime_multi_exp(&f_u_bases, &e_n)?,
+            <[C::Element; W]>::dist_vartime_multi_exp(&f_v_bases, &e_n)?,
+        ];
 
         // C
+        // Serial: an N-element point product folds in ~12 ms at N = 1e5, and
+        // rayon's ~10 ms saving is under 0.1% of verification
+        // (benches/parallel_tradeoff.rs); a plain fold is clearer.
         let u_n_fold = commitments
             .u_n
             .iter()
@@ -637,9 +646,8 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let big_c = u_n_fold.mul(&h_n_fold.inv());
 
         // D
-        let e_n_fold = e_n
-            .into_par_iter()
-            .reduce(C::Scalar::one, |acc, next| acc.mul(&next));
+        // Serial: scalar product, see the point product above.
+        let e_n_fold = e_n.iter().fold(C::Scalar::one(), |acc, next| acc.mul(next));
         let h1_e_n_fold = self.h_generators[0].exp(&e_n_fold);
         // this is B_N
         // cannot underflow, ciphertexts.len() > 0
@@ -652,44 +660,57 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
 
         ////// Verification 1 //////
 
-        let h_n_k_e_n = self.h_generators.par_iter().zip(responses.k_e_n.par_iter());
-        let h_n_k_e_n = h_n_k_e_n.map(|(h, k)| h.exp(k));
-        let h_n_k_e_n_fold = h_n_k_e_n.reduce(C::Element::one, |acc, next| acc.mul(&next));
+        // Vartime multi-exp: the responses `k_e_n` are public (part of the proof).
+        let h_refs: Vec<&C::Element> = self.h_generators.iter().collect();
+        let h_n_k_e_n_fold = C::Element::vartime_multi_exp(&h_refs, &responses.k_e_n)?;
         let g_k_a = g.exp(&responses.k_a);
         let lhs_1 = big_a.exp(&v).mul(&commitments.big_a_prime);
         let rhs_1 = g_k_a.mul(&h_n_k_e_n_fold);
 
-        ////// Verification 2 //////
+        ////// Verification 2 (batched) //////
+        //
+        // The N elementwise checks `B_i^v · B'_i == g^{k_b_i} · B_{i-1}^{k_e_i}`
+        // (with B_0 = h_1) are combined into one random-weighted check --
+        // Bellare-Garay-Rabin small-exponent batching:
+        //
+        //   ∏ B_i^{v·t_i} · ∏ B'_i^{t_i} == g^{Σ t_i·k_b_i} · ∏ B_{i-1}^{t_i·k_e_i}
+        //
+        // The t_i are the verifier's OWN randomness -- not part of the
+        // transcript -- so this needs no prover coordination and no
+        // `ShuffleChallenges` change; it is purely verifier-internal, and the
+        // Verificatum-interop path is unaffected. Soundness error <= 1/q per
+        // failing equation (full-width t_i). This replaces 3N exponentiations
+        // with two multi-exps (sizes 2N and N).
+        let big_n = ciphertexts.len();
+        let t_n: Vec<C::Scalar> = (0..big_n).map(|_| C::random_scalar()).collect();
 
-        // We need to start this calculation at big_b_0, which is = h_1
-        let h_1_iter = rayon::iter::once(big_b_0);
-        // the last value of big_b_0_n, B_N, is not used in this calculation, it is used later when computing big_d
-        let big_b_n = &commitments.big_b_n;
+        // LHS = ∏ B_i^{v·t_i} · ∏ B'_i^{t_i} -- one multi-exp of size 2N.
+        let mut lhs2_bases: Vec<&C::Element> = commitments.big_b_n.iter().collect();
+        lhs2_bases.extend(commitments.big_b_prime_n.iter());
+        let mut lhs2_exps: Vec<C::Scalar> = t_n.iter().map(|t| v.mul(t)).collect();
+        lhs2_exps.extend(t_n.iter().cloned());
+        let lhs_2 = C::Element::vartime_multi_exp(&lhs2_bases, &lhs2_exps)?;
+
+        // RHS = g^{Σ t_i·k_b_i} · ∏ B_{i-1}^{t_i·k_e_i}, with B_{i-1} running
+        // over [h_1, B_1, ..., B_{N-1}].
+        let sum_t_kb = t_n
+            .iter()
+            .zip(responses.k_b_n.iter())
+            .map(|(t, k_b)| t.mul(k_b))
+            .fold(C::Scalar::zero(), |acc, x| acc.add(&x));
+        let mut rhs2_bases: Vec<&C::Element> = Vec::with_capacity(big_n);
+        rhs2_bases.push(big_b_0);
         // cannot underflow, ciphertexts.len() > 0
         #[allow(clippy::arithmetic_side_effects)]
-        let except_last = &big_b_n[0..big_b_n.len() - 1];
-        let big_b_0_n_minus_1 = h_1_iter.chain(except_last.into_par_iter());
-
-        let big_b_0_n_minus_1_k_e_n = big_b_0_n_minus_1.zip(responses.k_e_n.par_iter());
-        let big_b_0_n_minus_1_k_e_n_k_b_n = big_b_0_n_minus_1_k_e_n.zip(responses.k_b_n.par_iter());
-
-        let rhs_2: Vec<C::Element> = big_b_0_n_minus_1_k_e_n_k_b_n
-            .map(|((b, k_e), k_b)| {
-                let b_k_e = b.exp(k_e);
-                let g_k_b = g.exp(k_b);
-
-                g_k_b.mul(&b_k_e)
-            })
+        rhs2_bases.extend(commitments.big_b_n[..big_n - 1].iter());
+        let rhs2_exps: Vec<C::Scalar> = t_n
+            .iter()
+            .zip(responses.k_e_n.iter())
+            .map(|(t, k_e)| t.mul(k_e))
             .collect();
-
-        let big_b_prime_n = &commitments.big_b_prime_n;
-        let big_b_n_big_b_prime_n = big_b_n.par_iter().zip(big_b_prime_n.par_iter());
-        let lhs_2: Vec<C::Element> = big_b_n_big_b_prime_n
-            .map(|(big_b, big_b_prime)| {
-                let big_b_v = big_b.exp(&v);
-                big_b_v.mul(big_b_prime)
-            })
-            .collect();
+        let rhs_2 = g
+            .exp(&sum_t_kb)
+            .mul(&C::Element::vartime_multi_exp(&rhs2_bases, &rhs2_exps)?);
 
         ////// Verification 3 //////
 
@@ -709,13 +730,16 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let big_f_v = big_f.map(|uv| uv.dist_exp(&v));
         let lhs_5 = big_f_v.mul(&big_f_prime.0);
 
-        let w_prime_n = permuted_ciphertexts;
-        let w_prime_n_k_e_n = w_prime_n.par_iter().zip(responses.k_e_n.par_iter());
-        let w_prime_n_k_e_n = w_prime_n_k_e_n.map(|(w, k)| w.map_ref(|uv| uv.dist_exp(k)));
-        let w_prime_n_k_e_n_fold =
-            fold_values(w_prime_n_k_e_n, <[[C::Element; W]; 2]>::one, |acc, next| {
-                acc.mul(next)
-            });
+        // Componentwise vartime multi-exp over the 2W output-ciphertext columns;
+        // the responses `k_e_n` are public.
+        let v5_u_bases: Vec<[C::Element; W]> =
+            permuted_ciphertexts.iter().map(|w| w.u().clone()).collect();
+        let v5_v_bases: Vec<[C::Element; W]> =
+            permuted_ciphertexts.iter().map(|w| w.v().clone()).collect();
+        let w_prime_n_k_e_n_fold: [[C::Element; W]; 2] = [
+            <[C::Element; W]>::dist_vartime_multi_exp(&v5_u_bases, &responses.k_e_n)?,
+            <[C::Element; W]>::dist_vartime_multi_exp(&v5_v_bases, &responses.k_e_n)?,
+        ];
 
         let one = [g, self.pk.y.clone()].map(|gy| gy.repl_exp(&responses.k_f.neg()));
         let rhs_5 = one.mul(&w_prime_n_k_e_n_fold);
@@ -743,34 +767,38 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
     ) -> Result<PermutationData<C, W>, Error> {
         let (r_n, s_n) = Self::gen_private_exponents(ciphertexts.len());
 
-        let r_permuted = permutation.apply(&r_n)?;
+        let r_permuted: Vec<C::Scalar> = permutation.apply(&r_n)?.into_iter().cloned().collect();
         let h_permuted = permutation.apply(&self.h_generators)?;
         let w_permuted = permutation.apply_inverse(ciphertexts)?;
         let s_permuted = permutation.apply_inverse(&s_n)?;
 
-        let r_h_permuted = r_permuted.into_par_iter().zip(h_permuted.into_par_iter());
-        #[cfg_attr(
-            feature = "custom-warnings",
-            crate::warning("The following code is not optimized. Parallelize with rayon")
-        )]
-        let u_n: Vec<C::Element> = r_h_permuted
-            .into_par_iter()
-            .map(|(r, h)| {
-                let g = C::generator();
-                let g_r = g.exp(r);
-                g_r.mul(h)
-            })
+        // u_i = g^{r_π(i)} · h_π(i): one fixed-base batch over the permuted
+        // commitment exponents (secret — `exp_many` is constant-time), then a
+        // multiplication per element.
+        let g = C::generator();
+        let g_r = g.exp_many(&r_permuted);
+        let u_n: Vec<C::Element> = g_r
+            .par_iter()
+            .zip(h_permuted.par_iter())
+            .map(|(g_r, h)| g_r.mul(h))
             .collect();
 
-        let s_w_permuted = w_permuted.into_par_iter().zip(s_permuted.into_par_iter());
-
-        #[cfg_attr(
-            feature = "custom-warnings",
-            crate::warning("The following code is not optimized. Parallelize with rayon")
-        )]
-        let w_prime_n: Vec<Ciphertext<C, W>> = s_w_permuted
-            .into_par_iter()
-            .map(|(c, s)| c.re_encrypt(s, &self.pk.y))
+        // w'_i = w_π⁻¹(i) · (g^{s_i}, y^{s_i}) componentwise: the N·W
+        // re-encryption exponents flattened, one fixed-base batch per leg (both
+        // secret, constant-time), reassembled per ciphertext.
+        let s_flat: Vec<C::Scalar> = s_permuted.iter().flat_map(|s| s.iter().cloned()).collect();
+        let g_s = g.exp_many(&s_flat);
+        let y_s = self.pk.y.exp_many(&s_flat);
+        let leg = |chunk: &[C::Element]| -> [C::Element; W] {
+            // `par_chunks_exact(W)` yields exactly W elements per chunk.
+            #[allow(clippy::indexing_slicing)]
+            array::from_fn(|k| chunk[k].clone())
+        };
+        let w_prime_n: Vec<Ciphertext<C, W>> = w_permuted
+            .par_iter()
+            .zip(g_s.par_chunks_exact(W))
+            .zip(y_s.par_chunks_exact(W))
+            .map(|((c, g_s), y_s)| Ciphertext::<C, W>(c.0.mul(&[leg(g_s), leg(y_s)])))
             .collect();
 
         let ret = PermutationData::new(r_n, s_n, u_n, w_prime_n);
@@ -804,108 +832,62 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
     ];
 }
 
-/// Fold the values of a parallel iterator into one, combining with `combine`
-/// from `identity()`.
-///
-/// This is the seam between two fold strategies, selected at compile time by
-/// the `bounded-combine` feature so they can be benchmarked against each
-/// other. This definition is the default: rayon's recursive `reduce`, fused
-/// with the upstream `map` (nothing is materialized). Its stack use grows
-/// with input length, `W` and run-time work stealing, because each split
-/// dispatches a stack frame carrying `T`-sized accumulators -- measured on
-/// Windows x64 at `W = 100`, pool threads need 4 MiB at `N = 100`, 8 MiB at
-/// `N = 1,000` and 16 MiB at `N = 10,000`.
-///
-/// Both strategies combine the operands in their original order, so for the
-/// associative operations used here the result -- and therefore any proof
-/// derived from it -- is identical across the two.
-#[cfg(not(feature = "bounded-combine"))]
-fn fold_values<T, I, Ident, Combine>(items: I, identity: Ident, combine: Combine) -> T
-where
-    I: IntoParallelIterator<Item = T>,
-    T: Send + Sync,
-    Ident: Fn() -> T + Send + Sync,
-    Combine: Fn(T, &T) -> T + Send + Sync,
-{
-    items
-        .into_par_iter()
-        .reduce(identity, |acc, next| combine(acc, &next))
+/// The output of [`bridging_commitments`]: the commitments and the two scalar
+/// recurrences reused downstream.
+#[allow(clippy::struct_field_names)] // the `_n` suffix is the protocol's vector notation
+struct BridgingChain<C: Context> {
+    /// The bridging commitments `B_1, ..., B_N`.
+    big_b_n: Vec<C::Element>,
+    /// The discrete-log recurrence `d_i` (`d_N` is the Step-4 response `d`).
+    d_n: Vec<C::Scalar>,
+    /// The prefix products `p_i = ∏_{k≤i} e'_k` (reused for `B'`).
+    p_n: Vec<C::Scalar>,
 }
 
-/// Fold the values of a parallel iterator into one, combining with `combine`
-/// from `identity()`.
+/// The bridging commitments `B_i` of the shuffle proof (PROTOCOL.md §6.3), via
+/// the closed form `B_i = g^{d_i}·h_1^{p_i}` instead of the sequential
+/// recurrence `B_0 = h_1, B_i = g^{b_i}·B_{i-1}^{e'_i}`.
 ///
-/// This is the seam between two fold strategies, selected at compile time by
-/// the `bounded-combine` feature so they can be benchmarked against each
-/// other. This definition is the `bounded-combine` strategy: the values are
-/// materialized and handed to [`bounded_combine`], whose stack use is bounded
-/// by a small constant independent of input length and scheduling. The cost
-/// is the materialization itself, `len * size_of::<T>()` bytes of heap held
-/// for the duration of the fold.
+/// The recurrence is inherently serial (each `B_i` needs `B_{i-1}`) — the one
+/// unparallelizable stretch in the prover. The closed form is two fixed-base
+/// batches over `g` and `h_1`, fully parallel, with exponents
 ///
-/// Both strategies combine the operands in their original order, so for the
-/// associative operations used here the result -- and therefore any proof
-/// derived from it -- is identical across the two.
-#[cfg(feature = "bounded-combine")]
-fn fold_values<T, I, Ident, Combine>(items: I, identity: Ident, combine: Combine) -> T
-where
-    I: IntoParallelIterator<Item = T>,
-    T: Send + Sync,
-    Ident: Fn() -> T + Send + Sync,
-    Combine: Fn(T, &T) -> T + Send + Sync,
-{
-    let values: Vec<T> = items.into_par_iter().collect();
-    bounded_combine(&values, identity, combine)
-}
-
-/// Chunk-count multiplier for [`bounded_combine`]. This is used to
-/// create a number of chunks proportional to the available thread count.
-#[cfg(feature = "bounded-combine")]
-const BOUNDED_COMBINE_CHUNKS_PER_THREAD: usize = 4;
-
-/// Combine `items` via `combine`, starting from `identity()`.
+/// ```text
+///   d_i = b_i + e'_i·d_{i-1}   (the discrete log of B_i base g; d_1 = b_1)
+///   p_i = ∏_{k≤i} e'_k          (prefix product; p_1 = e'_1)
+/// ```
 ///
-/// Splits `items` into a number of chunks proportional to the available
-/// thread count (not to `items.len()`), folds each chunk with a plain
-/// sequential loop, and combines the resulting handful of partial values
-/// with another plain sequential loop. Rayon's own recursive `reduce`
-/// dispatches roughly one stack frame per split, and how many splits stay
-/// unstolen (and so execute nested, rather than unwinding first) depends on
-/// thread contention at run time, not just on `items.len()`; when combined
-/// values are large, that recursion's stack cost is not bounded independent
-/// of scheduling. Pre-chunking here bounds the recursive dispatch depth to
-/// a small constant, and each chunk's own fold uses a loop, not recursion,
-/// so no combined value is ever carried through a deep call stack.
-#[cfg(feature = "bounded-combine")]
-fn bounded_combine<T, Ident, Combine>(items: &[T], identity: Ident, combine: Combine) -> T
-where
-    T: Sync + Send,
-    Ident: Fn() -> T + Sync,
-    Combine: Fn(T, &T) -> T + Sync,
-{
-    if items.is_empty() {
-        return identity();
+/// built by two cheap sequential scalar scans. Returns [`BridgingChain`]: `d`
+/// is also the Step-4 response `d = d_N`, so it is computed once here rather
+/// than again later, and `p` feeds the matching `big_b_prime_n` closed form.
+///
+/// `d` and `p` are as secret as `b`/`e'`, and [`exp_many`](GroupElement::exp_many)
+/// is constant-time, so nothing here leaks the permutation.
+fn bridging_commitments<C: Context>(
+    g: &C::Element,
+    h_1: &C::Element,
+    b_n: &[C::Scalar],
+    e_prime_n: &[C::Scalar],
+) -> BridgingChain<C> {
+    let n = b_n.len();
+    let mut d_n: Vec<C::Scalar> = Vec::with_capacity(n);
+    let mut p_n: Vec<C::Scalar> = Vec::with_capacity(n);
+    for i in 0..n {
+        if i == 0 {
+            d_n.push(b_n[0].clone());
+            p_n.push(e_prime_n[0].clone());
+        } else {
+            // cannot underflow, i > 0
+            #[allow(clippy::arithmetic_side_effects)]
+            let prev = i - 1;
+            d_n.push(b_n[i].add(&e_prime_n[i].mul(&d_n[prev])));
+            p_n.push(p_n[prev].mul(&e_prime_n[i]));
+        }
     }
-    let num_chunks = rayon::current_num_threads()
-        .max(1)
-        .saturating_mul(BOUNDED_COMBINE_CHUNKS_PER_THREAD)
-        .min(items.len());
-    let chunk_size = items.len().div_ceil(num_chunks);
-    let partials: Vec<T> = items
-        .par_chunks(chunk_size)
-        .map(|chunk| {
-            let mut acc = identity();
-            for next in chunk {
-                acc = combine(acc, next);
-            }
-            acc
-        })
-        .collect();
-    let mut result = identity();
-    for partial in &partials {
-        result = combine(result, partial);
-    }
-    result
+    let g_d = g.exp_many(&d_n);
+    let h1_p = h_1.exp_many(&p_n);
+    let big_b_n: Vec<C::Element> = g_d.iter().zip(h1_p.iter()).map(|(a, b)| a.mul(b)).collect();
+    BridgingChain { big_b_n, d_n, p_n }
 }
 
 /// Convenience structure to hold re-encryption and permutation data
@@ -1269,35 +1251,64 @@ mod tests {
     use crate::cryptosystem::elgamal::Ciphertext;
     use crate::cryptosystem::elgamal::KeyPair;
     use crate::traits::groups::CryptographicGroup;
+    use crate::traits::groups::GroupElement;
+    use crate::traits::groups::GroupScalar;
     use crate::utils::serialization::{Deserializable, Serializable};
     use crate::zkp::shuffle::Permutation;
     use crate::zkp::shuffle::ShuffleProof;
     use crate::zkp::shuffle::Shuffler;
 
-    /// [`bounded_combine`](super::bounded_combine) must agree with a plain
-    /// sequential fold -- including on an empty input (identity) and on inputs
-    /// shorter than the chunk count.
-    #[cfg(feature = "bounded-combine")]
     #[test]
-    fn test_bounded_combine_matches_sequential() {
-        use crate::traits::groups::GroupScalar;
-        type Scalar = <RCtx as Context>::Scalar;
+    fn test_apply_permutation_matches_definition_ristretto() {
+        test_apply_permutation_matches_definition::<RCtx>();
+    }
 
-        for len in [0usize, 1, 3, 100, 1000] {
-            let values: Vec<Scalar> = (0..len)
-                .map(|i| {
-                    let i: u32 = i.try_into().expect("len < u32::MAX");
-                    Scalar::from(i)
-                })
-                .collect();
+    #[test]
+    fn test_apply_permutation_matches_definition_p256() {
+        test_apply_permutation_matches_definition::<PCtx>();
+    }
 
-            let expected = values
-                .iter()
-                .fold(Scalar::zero(), |acc, next| acc.add(next));
-            let actual = super::bounded_combine(&values, Scalar::zero, |acc, next| acc.add(next));
+    /// The batched permutation step equals its per-element definition over
+    /// the exponents it reports: `uᵢ = g^{r_π(i)} · h_π(i)` and
+    /// `w′ᵢ = ReEnc(w_π⁻¹(i); s_π⁻¹(i))`.
+    fn test_apply_permutation_matches_definition<Ctx: Context>() {
+        let n = 37;
+        let keypair = KeyPair::<Ctx>::generate();
+        let ciphertexts: Vec<Ciphertext<Ctx, 3>> = (0..n)
+            .map(|_| {
+                keypair
+                    .pkey
+                    .encrypt(&array::from_fn(|_| Ctx::random_element()))
+            })
+            .collect();
+        let generators = Ctx::G::ind_generators(n, b"apply_permutation test").unwrap();
+        let shuffler = Shuffler::<Ctx, 3>::new(generators.clone(), keypair.pkey.clone());
+        let permutation = Permutation::generate::<Ctx>(n);
 
-            assert_eq!(expected, actual, "mismatch at len {len}");
-        }
+        let data = shuffler
+            .apply_permutation(&permutation, &ciphertexts)
+            .unwrap();
+
+        let g = Ctx::generator();
+        let r_perm = permutation.apply(&data.commitment_exponents).unwrap();
+        let h_perm = permutation.apply(&generators).unwrap();
+        let expected_u: Vec<Ctx::Element> = r_perm
+            .iter()
+            .zip(h_perm.iter())
+            .map(|(r, h)| g.exp(r).mul(h))
+            .collect();
+        assert_eq!(data.pedersen_commitments, expected_u);
+
+        let w_perm = permutation.apply_inverse(&ciphertexts).unwrap();
+        let s_perm = permutation
+            .apply_inverse(&data.encryption_exponents)
+            .unwrap();
+        let expected_w: Vec<Ciphertext<Ctx, 3>> = w_perm
+            .iter()
+            .zip(s_perm.iter())
+            .map(|(c, s)| c.re_encrypt(s, &keypair.pkey.y))
+            .collect();
+        assert_eq!(data.permuted_ciphertexts, expected_w);
     }
 
     #[test]
@@ -1320,6 +1331,21 @@ mod tests {
         test_shuffle_invalid::<RCtx, 4>();
         test_shuffle_invalid::<RCtx, 5>();
         test_shuffle_invalid::<RCtx, 5>();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[crate::warning("Miri test fails (Stacked Borrows)")]
+    fn test_shuffle_batched_v2_rejects_ristretto() {
+        test_shuffle_batched_v2_rejects::<RCtx, 2>();
+        test_shuffle_batched_v2_rejects::<RCtx, 3>();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[crate::warning("Miri test fails (Stacked Borrows)")]
+    fn test_shuffle_batched_v2_rejects_p256() {
+        test_shuffle_batched_v2_rejects::<PCtx, 2>();
     }
 
     #[test]
@@ -1426,6 +1452,82 @@ mod tests {
         let not_ok = shuffler.verify(&ciphertexts[1..].to_vec(), &pciphertexts, &proof, &vec![]);
 
         assert!(not_ok.is_err());
+    }
+
+    /// Batched Verification 2 must reject a proof whose `k_b_n` response is
+    /// tampered. `k_b` appears *only* in V2 and does not feed the challenge
+    /// `v` (derived from the commitments alone), so corrupting it isolates the
+    /// batched check: if the random-weighted batch were unsound, this would
+    /// slip through.
+    fn test_shuffle_batched_v2_rejects<C: Context, const W: usize>() {
+        let count = 10;
+        let keypair: KeyPair<C> = KeyPair::generate();
+
+        let messages: Vec<[C::Element; W]> = (0..count)
+            .map(|_| array::from_fn(|_| C::random_element()))
+            .collect();
+        let ciphertexts: Vec<Ciphertext<C, W>> =
+            messages.iter().map(|m| keypair.encrypt(m)).collect();
+
+        let generators = C::G::ind_generators(count, &vec![]).unwrap();
+        let shuffler = Shuffler::<C, W>::new(generators, keypair.pkey);
+
+        let (pciphertexts, mut proof) = shuffler.shuffle(&ciphertexts, &vec![]).unwrap();
+        assert!(
+            shuffler
+                .verify(&ciphertexts, &pciphertexts, &proof, &vec![])
+                .unwrap()
+        );
+
+        // Tamper one V2-only response; the challenge is unaffected, so only the
+        // batched V2 equation can catch this.
+        proof.responses.k_b_n[0] = proof.responses.k_b_n[0].add(&C::Scalar::one());
+        assert!(
+            !shuffler
+                .verify(&ciphertexts, &pciphertexts, &proof, &vec![])
+                .unwrap()
+        );
+    }
+
+    /// The bridging-chain closed form `B_i = g^{d_i}·h_1^{p_i}` must reproduce
+    /// the sequential recurrence `B_0 = h_1, B_i = g^{b_i}·B_{i-1}^{e'_i}`
+    /// exactly, for several N including N = 1 (PERFORMANCE.md §2). Bit-identity
+    /// here is what keeps the proof — and Verificatum interop — unchanged.
+    fn test_bridging_closed_form_matches_loop<C: Context>() {
+        use crate::zkp::shuffle::bridging_commitments;
+        for n in [1usize, 2, 5, 10, 65] {
+            let g = C::generator();
+            let mut rng = C::get_rng();
+            let h_1 = C::Element::random(&mut rng);
+            let b_n: Vec<C::Scalar> = (0..n).map(|_| C::random_scalar()).collect();
+            let e_prime_n: Vec<C::Scalar> = (0..n).map(|_| C::random_scalar()).collect();
+
+            // Sequential recurrence (the original loop), B_0 = h_1.
+            let mut expected: Vec<C::Element> = Vec::with_capacity(n);
+            let mut prev = h_1.clone();
+            for i in 0..n {
+                let b_i = g.exp(&b_n[i]).mul(&prev.exp(&e_prime_n[i]));
+                expected.push(b_i.clone());
+                prev = b_i;
+            }
+
+            let chain = bridging_commitments::<C>(&g, &h_1, &b_n, &e_prime_n);
+            assert_eq!(chain.big_b_n, expected, "closed form disagrees at N = {n}");
+        }
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[crate::warning("Miri test fails (Stacked Borrows)")]
+    fn test_bridging_closed_form_ristretto() {
+        test_bridging_closed_form_matches_loop::<RCtx>();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[crate::warning("Miri test fails (Stacked Borrows)")]
+    fn test_bridging_closed_form_p256() {
+        test_bridging_closed_form_matches_loop::<PCtx>();
     }
 
     fn test_shuffle_label<C: Context>() {

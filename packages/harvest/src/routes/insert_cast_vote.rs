@@ -88,6 +88,7 @@ pub async fn insert_cast_vote(
                             .clone()
                             .map(|country_code| country_code.to_string()),
                         username: &claims.preferred_username,
+                        user_agent: &user_info.user_agent,
                     },
                 )
                 .await
@@ -116,16 +117,16 @@ pub async fn insert_cast_vote(
         Err(e) => Err(e),
     };
 
-    let (inserted_cast_vote, pending_cast_vote_id) = insert_result
-    .map_err(|cast_vote_err| {
-        let duration = start.elapsed();
-        info!(
-            "insert-cast-vote took {} ms to complete but failed with error={cast_vote_err:?}",
-            duration.as_millis()
-        );
+    let (inserted_cast_vote, pending_cast_vote_id) =
+        insert_result.map_err(|cast_vote_err| {
+            let duration = start.elapsed();
+            info!(
+                "insert-cast-vote took {} ms to complete but was refused",
+                duration.as_millis()
+            );
 
-        cast_vote_error_response(cast_vote_err)
-    })?;
+            cast_vote_error_response(cast_vote_err)
+        })?;
 
     // If there is no error:
     let duration = start.elapsed();
@@ -159,8 +160,8 @@ pub(crate) async fn enqueue_datafix_cast_vote(
     cast_vote: &InsertCastVoteOutput,
 ) {
     let cast_vote_id = &cast_vote.id;
-    let celery_app = services.tasks.connect().await;
-    match celery_app
+    match services
+        .tasks
         .send_task(process_cast_vote::process_cast_vote::new(
             cast_vote.tenant_id.clone(),
             cast_vote.election_event_id.clone(),
@@ -342,6 +343,11 @@ pub(crate) fn cast_vote_error_response(
             Status::BadRequest,
             &msg,
             ErrorCode::BallotIdMismatch,
+        ),
+        CastVoteError::GetBallotStyleFailed(_) => ErrorResponse::new(
+            Status::InternalServerError,
+            ErrorCode::InternalServerError.to_string().as_str(),
+            ErrorCode::InternalServerError,
         ),
     }
 }

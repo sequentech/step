@@ -3,49 +3,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! One-time Messenger link references. Only keyed digests are stored, so a
-//! database read does not reveal a usable reference.
+//! database read does not reveal a usable reference. A link is completed
+//! only by opening it (Get Started or a referral): there is no word to type.
 
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
-use rand::{rngs::OsRng, Rng, RngCore};
+use rand::{rngs::OsRng, RngCore};
 use sequent_core::types::messaging::{MessengerLinkState, MessengerPage};
 use sha2::Sha256;
-
-/// Letters and digits without look-alikes (no 0/O, 1/I/L).
-const LINK_WORD_ALPHABET: &[u8] = b"ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
 /// 256 random bits, hex encoded. Fits the `m.me` `ref` parameter.
 pub fn new_reference() -> String {
     let mut bytes = [0u8; 32];
     OsRng.fill_bytes(&mut bytes);
     hex::encode(bytes)
-}
-
-/// Eight characters in two groups, such as `K7QM-2XPA`, for voters who type
-/// it in the chat instead of opening the link.
-pub fn new_link_word() -> String {
-    let mut rng = OsRng;
-    let mut word: String = (0..8)
-        .map(|_| LINK_WORD_ALPHABET[rng.gen_range(0..LINK_WORD_ALPHABET.len())] as char)
-        .collect();
-    word.insert(4, '-');
-    word
-}
-
-/// Canonical form of a typed link word: case, spaces and the separator do
-/// not matter.
-pub fn normalize_link_word(raw: &str) -> String {
-    let compact: String = raw
-        .chars()
-        .filter(|c| c.is_ascii_alphanumeric())
-        .map(|c| c.to_ascii_uppercase())
-        .collect();
-    if compact.len() == 8 {
-        format!("{}-{}", &compact[..4], &compact[4..])
-    } else {
-        compact
-    }
 }
 
 pub fn digest(key: &[u8], value: &str) -> Result<String> {
@@ -108,24 +80,10 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
-    fn references_and_words_are_random_and_well_formed() {
+    fn references_are_random_and_well_formed() {
         let references: HashSet<String> = (0..100).map(|_| new_reference()).collect();
         assert_eq!(references.len(), 100);
         assert!(references.iter().all(|r| r.len() == 64));
-        let word = new_link_word();
-        assert_eq!(word.len(), 9);
-        assert_eq!(&word[4..5], "-");
-        assert!(word
-            .chars()
-            .filter(|c| *c != '-')
-            .all(|c| LINK_WORD_ALPHABET.contains(&(c as u8))));
-    }
-
-    #[test]
-    fn typed_words_are_normalized() {
-        assert_eq!(normalize_link_word(" k7qm 2xpa "), "K7QM-2XPA");
-        assert_eq!(normalize_link_word("K7QM-2XPA"), "K7QM-2XPA");
-        assert_eq!(normalize_link_word("hello"), "HELLO");
     }
 
     #[test]

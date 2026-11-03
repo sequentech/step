@@ -37,6 +37,10 @@ const defaults = {
     hash_auditable_multi_ballot_js: noAnswer("hash_auditable_multi_ballot_js"),
     verify_ballot_signature_js: noAnswer("verify_ballot_signature_js"),
     verify_multi_ballot_signature_js: noAnswer("verify_multi_ballot_signature_js"),
+    verify_auditable_ballot_ciphertext_js: noAnswer("verify_auditable_ballot_ciphertext_js"),
+    verify_auditable_multi_ballot_ciphertext_js: noAnswer(
+        "verify_auditable_multi_ballot_ciphertext_js"
+    ),
     generate_sample_auditable_ballot_js: noAnswer("generate_sample_auditable_ballot_js"),
 } satisfies Record<string, Binding>
 
@@ -73,5 +77,7 @@ export const {
     hash_auditable_multi_ballot_js,
     verify_ballot_signature_js,
     verify_multi_ballot_signature_js,
+    verify_auditable_ballot_ciphertext_js,
+    verify_auditable_multi_ballot_ciphertext_js,
     generate_sample_auditable_ballot_js,
 } = sequentCore

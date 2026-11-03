@@ -4,13 +4,16 @@
 use super::datafix_types::*;
 use super::utils::*;
 
-use crate::postgres::cast_vote::{get_voter_cast_vote_state, VoterCastVoteState};
+use crate::services::ballot_box::get_voter_ballot_state;
 use crate::services::database::get_hasura_pool;
 use crate::services::pg_lock::PgLock;
-use crate::services::users::{list_users, FilterOption, ListUsersFilter};
+use crate::services::users::{
+    changed_census_attributes, list_users, FilterOption, ListUsersFilter,
+};
 use anyhow::Result;
 use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use electoral_log::adapters::ballot_box_status::VoterBallotState;
 use electoral_log::messages::newtypes::ExtApiRequestDirection;
 use keycloak::KeycloakError;
 use rocket::serde::json::Json;
@@ -176,9 +179,27 @@ pub async fn update_datafix_voter(
         })?;
         hash_map.insert(DATE_OF_BIRTH.to_string(), vec![birthdate]);
     }
-    let attributes = Some(hash_map);
 
     let user_id = get_user_id(keycloak_transaction, realm, &username).await?;
+    let previous_user = client.get_user(realm, &user_id).await.map_err(|e| {
+        error!("Error loading user before updating it: {e:?}");
+        DatafixResponse::error(DatafixErrorCode::InternalError)
+    })?;
+    if !changed_census_attributes(&previous_user, voter_info.enabled, &hash_map).is_empty() {
+        let state =
+            get_voter_ballot_state(hasura_transaction, tenant_id, election_event_id, &user_id)
+                .await
+                .map_err(|err| {
+                    error!(
+                "Error checking for an active online vote before updating a Datafix voter: {err}"
+            );
+                    DatafixResponse::error(DatafixErrorCode::InternalError)
+                })?;
+        if let Some(error_code) = active_vote_error(&state) {
+            return Err(DatafixResponse::error(error_code));
+        }
+    }
+    let attributes = Some(hash_map);
     let _user = client
         .edit_user(
             realm,
@@ -464,10 +485,10 @@ pub async fn release_inbound_voter_lock(lock: PgLock) {
 }
 
 /// Maps a non-discarded vote state to the inbound API error contract.
-fn active_vote_error(state: &VoterCastVoteState) -> Option<DatafixErrorCode> {
-    if state.has_unresolved_vote {
+fn active_vote_error(state: &VoterBallotState) -> Option<DatafixErrorCode> {
+    if state.has_pending {
         Some(DatafixErrorCode::VoterStateUnresolved)
-    } else if state.has_valid_vote {
+    } else if state.has_valid {
         Some(DatafixErrorCode::VoterVotedOnline)
     } else {
         None
@@ -493,14 +514,10 @@ pub async fn ensure_voter_has_no_active_vote(
     .await?;
     let realm = get_event_realm(&claims.tenant_id, &election_event_id);
     let user_id = get_user_id(keycloak_transaction, &realm, username).await?;
-    let tenant_id = parse_uuid_v4(&claims.tenant_id)
-        .map_err(|_| DatafixResponse::error(DatafixErrorCode::InternalError))?;
-    let election_event_uuid = parse_uuid_v4(&election_event_id)
-        .map_err(|_| DatafixResponse::error(DatafixErrorCode::InternalError))?;
-    let state = get_voter_cast_vote_state(
+    let state = get_voter_ballot_state(
         hasura_transaction,
-        &tenant_id,
-        &election_event_uuid,
+        &claims.tenant_id,
+        &election_event_id,
         &user_id,
     )
     .await
@@ -534,14 +551,10 @@ pub async fn ensure_inbound_reenable_is_safe(
     .await?;
     let realm = get_event_realm(&claims.tenant_id, &election_event_id);
     let user_id = get_user_id(keycloak_transaction, &realm, username).await?;
-    let tenant_id = parse_uuid_v4(&claims.tenant_id)
-        .map_err(|_| DatafixResponse::error(DatafixErrorCode::InternalError))?;
-    let election_event_uuid = parse_uuid_v4(&election_event_id)
-        .map_err(|_| DatafixResponse::error(DatafixErrorCode::InternalError))?;
-    let state = get_voter_cast_vote_state(
+    let state = get_voter_ballot_state(
         hasura_transaction,
-        &tenant_id,
-        &election_event_uuid,
+        &claims.tenant_id,
+        &election_event_id,
         &user_id,
     )
     .await
@@ -558,8 +571,8 @@ pub async fn ensure_inbound_reenable_is_safe(
         DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
     let attributes = user.attributes.unwrap_or_default();
-    if state.has_unresolved_vote
-        || state.has_valid_vote
+    if state.has_pending
+        || state.has_valid
         || voted_via_internet(&attributes)
         || voted_via_not_internet_channel(&attributes)
     {
@@ -671,8 +684,8 @@ mod tests {
         active_vote_error, create_user_error_response, plan_unmark_voter_edit,
         valid_inbound_voting_channel,
     };
-    use crate::postgres::cast_vote::VoterCastVoteState;
     use crate::services::external::datafix_types::DatafixErrorCode;
+    use electoral_log::adapters::ballot_box_status::VoterBallotState;
     use keycloak::KeycloakError;
     use rocket::http::Status;
     use sequent_core::types::keycloak::{
@@ -734,23 +747,23 @@ mod tests {
     #[test]
     fn active_vote_guard_distinguishes_in_progress_and_valid_votes() {
         assert_eq!(
-            active_vote_error(&VoterCastVoteState {
-                has_unresolved_vote: true,
-                has_valid_vote: false,
+            active_vote_error(&VoterBallotState {
+                has_pending: true,
+                has_valid: false,
             }),
             Some(DatafixErrorCode::VoterStateUnresolved)
         );
         assert_eq!(
-            active_vote_error(&VoterCastVoteState {
-                has_unresolved_vote: false,
-                has_valid_vote: true,
+            active_vote_error(&VoterBallotState {
+                has_pending: false,
+                has_valid: true,
             }),
             Some(DatafixErrorCode::VoterVotedOnline)
         );
         assert_eq!(
-            active_vote_error(&VoterCastVoteState {
-                has_unresolved_vote: false,
-                has_valid_vote: false,
+            active_vote_error(&VoterBallotState {
+                has_pending: false,
+                has_valid: false,
             }),
             None
         );

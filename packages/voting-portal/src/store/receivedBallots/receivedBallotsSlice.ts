@@ -27,10 +27,13 @@ export const receivedBallotsSlice = createSlice({
 
             return state
         },
+        clearReceivedBallot: (state, action: PayloadAction<string>) => {
+            delete state[action.payload]
+        },
     },
 })
 
-export const {setReceivedBallot} = receivedBallotsSlice.actions
+export const {setReceivedBallot, clearReceivedBallot} = receivedBallotsSlice.actions
 
 export const selectReceivedBallot = (electionId: string) => (state: RootState) =>
     state.receivedBallots[electionId]

@@ -150,6 +150,7 @@ fn sound() -> Blueprint {
                         disabled: false,
 
                         image: None,
+                        annotations: Default::default(),
                     },
                     PlannedCandidate {
                         external_id: "bob".to_string(),
@@ -161,10 +162,12 @@ fn sound() -> Blueprint {
                         disabled: false,
 
                         image: None,
+                        annotations: Default::default(),
                     },
                 ],
                 areas: vec![],
                 overrides: Overrides::default(),
+                annotations: Default::default(),
             }],
             ..Default::default()
         }],
@@ -208,6 +211,8 @@ fn compiled(plan: &Blueprint) -> Bundle {
         // the strongest argument yet that this helper should call `compile_plan`
         // rather than reproduce it.
         materials: plan_materials(plan, &sources_of(plan)),
+        // The fifth.
+        base_export: plan.base_export.clone(),
         ..BuildOptions::default()
     };
     match build(&workbook, &templates, &options, &Sources::default()) {
@@ -675,6 +680,7 @@ fn a_multi_winner_contest_elects_what_the_plan_says() {
         disabled: false,
 
         image: None,
+        annotations: Default::default(),
     });
 
     let bundle = compiled(&plan);
@@ -703,6 +709,7 @@ fn a_blank_option_is_marked_as_one_rather_than_becoming_a_candidate() {
             disabled: false,
 
             image: None,
+            annotations: Default::default(),
         });
 
     let bundle = compiled(&plan);
@@ -737,6 +744,7 @@ fn a_candidate_who_stood_down_is_delivered_as_disabled() {
             explicit_invalid: false,
             disabled: true,
             image: None,
+            annotations: Default::default(),
         });
 
     let bundle = compiled(&plan);
@@ -1385,6 +1393,7 @@ fn blank_and_invalid_options_do_not_count_as_candidates() {
         disabled: false,
 
         image: None,
+        annotations: Default::default(),
     });
     contest.max_votes = 2;
     contest.winners = 2;
@@ -1413,12 +1422,16 @@ fn areas_inside_each_other_are_refused_by_the_plan_validator() {
             name: "North".to_string(),
             parent_external_id: Some("south".to_string()),
             allow_early_voting: false,
+            description: String::new(),
+            annotations: Default::default(),
         },
         PlannedArea {
             external_id: "south".to_string(),
             name: "South".to_string(),
             parent_external_id: Some("north".to_string()),
             allow_early_voting: false,
+            description: String::new(),
+            annotations: Default::default(),
         },
     ];
 
@@ -1556,18 +1569,24 @@ fn districted() -> Blueprint {
             name: "North Region".to_string(),
             parent_external_id: None,
             allow_early_voting: false,
+            description: String::new(),
+            annotations: Default::default(),
         },
         PlannedArea {
             external_id: "local-1".to_string(),
             name: "North Local 1".to_string(),
             parent_external_id: Some("region-north".to_string()),
             allow_early_voting: false,
+            description: String::new(),
+            annotations: Default::default(),
         },
         PlannedArea {
             external_id: "local-2".to_string(),
             name: "North Local 2".to_string(),
             parent_external_id: Some("region-north".to_string()),
             allow_early_voting: false,
+            description: String::new(),
+            annotations: Default::default(),
         },
     ];
     // The president is everywhere; the local officer is one local's business.
@@ -1591,8 +1610,10 @@ fn districted() -> Blueprint {
             disabled: false,
 
             image: None,
+            annotations: Default::default(),
         }],
         areas: vec!["local-1".to_string()],
+        annotations: Default::default(),
     });
     plan
 }
@@ -1786,6 +1807,8 @@ fn a_plan_may_carry_its_own_census() {
         name: "North Local 1".into(),
         parent_external_id: None,
         allow_early_voting: false,
+        description: String::new(),
+        annotations: Default::default(),
     }];
     let voters = vec![
         PlannedVoter {
@@ -2002,6 +2025,8 @@ fn the_caller_may_bring_the_census_and_the_files() {
         name: "North Local 1".into(),
         parent_external_id: None,
         allow_early_voting: false,
+        description: String::new(),
+        annotations: Default::default(),
     }];
     // A logo the plan names and does not carry, which is what a plan opened from a
     // save file looks like.
@@ -2172,6 +2197,8 @@ fn the_census_comes_from_the_source() {
         name: "North Local 1".into(),
         parent_external_id: None,
         allow_early_voting: false,
+        description: String::new(),
+        annotations: Default::default(),
     }];
 
     let census = Sources {
@@ -2224,6 +2251,8 @@ fn the_census_check_names_what_is_wrong_with_a_row() {
         name: "North Local 1".into(),
         parent_external_id: None,
         allow_early_voting: false,
+        description: String::new(),
+        annotations: Default::default(),
     }];
 
     let named = |voters: Vec<PlannedVoter>| -> Vec<String> {
@@ -2374,6 +2403,8 @@ fn a_voter_in_an_area_that_does_not_exist_is_refused() {
         name: "North Local 1".into(),
         parent_external_id: None,
         allow_early_voting: false,
+        description: String::new(),
+        annotations: Default::default(),
     }];
     let voters = vec![PlannedVoter {
         username: "ada".into(),
@@ -2404,6 +2435,8 @@ fn a_census_that_ignores_the_districting_says_so_once() {
         name: "North Local 1".into(),
         parent_external_id: None,
         allow_early_voting: false,
+        description: String::new(),
+        annotations: Default::default(),
     }];
     let voters: Vec<PlannedVoter> = (0..5)
         .map(|index| PlannedVoter {
