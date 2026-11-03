@@ -136,6 +136,8 @@ const basqueTranslation: TranslationType = {
                     "Boto-konfigurazio baliogabea: galderak esplizituki baliogabe diren {{count}} hautagai definitzen ditu, baina bakarra onartzen da.",
                 multipleExplicitBlankCandidates:
                     "Boto-konfigurazio baliogabea: galderak esplizituki zuri gisa markatutako {{count}} hautagai definitzen ditu, baina bakarra onartzen da.",
+                invalidSlateConfiguration:
+                    "Boto-konfigurazio baliogabea: hautagai-zerrendak ez dira baliozkoak ({{reason}}).",
             },
         },
         ballotHash: "Zure Txartelaren IDa: {{ballotId}}",
