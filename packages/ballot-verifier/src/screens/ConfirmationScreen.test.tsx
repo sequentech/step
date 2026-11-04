@@ -26,7 +26,7 @@ const eventPath = `/tenant/${IDS.tenant}/event/${IDS.event}`
 const ballotId = "5c".repeat(32)
 // Changes the first character only, as the journeys do.
 const otherBallotId = `0${ballotId.slice(1)}`
-const mismatchError = "Does’t match the decoded ballot ID"
+const mismatchError = "Doesn’t match the decoded ballot ID"
 
 const verified = (
     style: IBallotStyle = ballotStyle(),

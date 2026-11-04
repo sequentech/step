@@ -81,7 +81,7 @@ export const Primary: Story = {
         ).toBeVisible()
         await expect(canvas.getByText("Alice Example", {exact: true})).toBeVisible()
         await expect(
-            canvas.queryByText("Does’t match the decoded ballot ID")
+            canvas.queryByText("Doesn’t match the decoded ballot ID")
         ).not.toBeInTheDocument()
         await expect(canvas.getAllByText(hash)).toHaveLength(2)
     },
@@ -90,7 +90,7 @@ export const MismatchedId: Story = {
     args: {ballotId: "cd".repeat(32)},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(canvas.getByText("Does’t match the decoded ballot ID")).toBeVisible()
+        await expect(canvas.getByText("Doesn’t match the decoded ballot ID")).toBeVisible()
         await expect(canvas.queryByText("Alice Example")).not.toBeInTheDocument()
         await expect(
             canvas.queryByRole("heading", {name: "Verify your ballot selections"})

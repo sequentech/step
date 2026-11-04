@@ -604,7 +604,7 @@ const englishTranslation = {
                 title: "Edit Election Type",
             },
             tabs: {
-                votingChannels: "VOTING CHANELS",
+                votingChannels: "VOTING CHANNELS",
                 electionTypes: "ELECTION TYPES",
                 languages: "LANGUAGES",
                 localization: "LOCALIZATION",
