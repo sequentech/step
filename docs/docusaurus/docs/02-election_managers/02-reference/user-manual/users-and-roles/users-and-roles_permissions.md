@@ -67,7 +67,7 @@ keys.
 |---|---|
 | List votes by IP address for the whole election event | `admin-dashboard-view` and `admin-ip-address-view` |
 | List votes by IP address for one election | `admin-dashboard-view` and either `admin-ip-address-view` or `election-ip-address-view` |
-| Create a role | `role-create`; to give it permissions, also `role-write` and `user-permission-write` |
+| Create a role | `role-create`; to give it permissions or client roles, also `role-write` and `user-permission-write` |
 | Generate the ballot-images report | `report-generate` |
 | Export activity logs | `logs-export` |
 
