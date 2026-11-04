@@ -35,7 +35,7 @@ function Fixture({canWrite}: Scenario) {
                 value={{
                     ...auth,
                     isAuthorized: (_super, _tenant, permission) =>
-                        canWrite && permission === "election-event-write",
+                        canWrite && permission === "election-event-create",
                 }}
             >
                 <SettingsContext.Provider

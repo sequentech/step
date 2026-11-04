@@ -5,7 +5,65 @@ import englishTranslation, {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        copyableFingerprint: {
+            copy: "Kopyahin ang kumpletong SHA-256",
+            copied: "Nakopya na ang kumpletong SHA-256",
+            copyError:
+                "Hindi makopya ang SHA-256. Ituro ang pinaikling value para mabasa ito nang buo.",
+        },
+        attackDetection: {
+            title: "Pagtukoy ng atake",
+            description:
+                "Itakda ang mga threshold na ito kasama ang tagapag-organisa ng halalan habang naghahanda. Inihahambing ng sistema ang naka-log na aktibidad sa mga threshold at itinatala ang mga posibleng atake para sa lupon ng halalan. Hindi nagla-lock ng account at hindi naglilimita ng mga request ang mga setting na ito.",
+            permission:
+                "Kailangan ang pahintulot ng administrator para ma-configure ang pagtukoy ng atake.",
+            loading: "Nilo-load ang mga setting ng pagtukoy ng atake",
+            readFailed:
+                "Hindi ma-verify ang mga setting ng kasalukuyang tenant. Mag-reload bago gumawa ng mga pagbabago.",
+            failedLogins: "Mga nabigong login kada minuto, lahat ng account",
+            failedLoginsHelp:
+                "Maglagay ng buong numero mula 1 hanggang 100,000. Nagtatala ang sistema ng posibleng atake kapag lumampas sa numerong ito ang mga nabigong login ng lahat ng account sa loob ng isang minuto.",
+            accountFailures: "Mga nabigong pag-sign in kada account bago ang alerto",
+            accountFailuresHelp:
+                "Maglagay ng buong numero mula 1 hanggang 100,000. Kapag umabot ang isang account sa bilang na ito ng mga nabigong pag-sign in, nagtatala ang sistema ng posibleng atake sa log ng halalan ng kaganapan ng halalan (sa bawat kaganapan ng halalan ng tenant para sa mga account ng staff), at nakikita ito ng lupon ng halalan sa tab na Dashboard ng kaganapan ng halalan. Sama-samang binibilang kada realm ang mga pagkabigong iniuulat ng external na authentication server nang walang account.",
+            requests: "Mga request kada minuto, mga external na interface",
+            requestsHelp:
+                "Maglagay ng buong numero mula 1 hanggang 10,000,000. Saklaw ng bilang ang mga external na interface, kasama ang mga request na hindi authenticated.",
+            save: "I-save ang mga setting ng pagtukoy ng atake",
+            saved: "Na-save at na-verify ang mga setting ng pagtukoy ng atake. Dapat aprubahan ng lupon ang na-update na configuration bago ang execution.",
+            saveFailed:
+                "Hindi na-save at na-verify ang mga setting. I-reload ang kasalukuyang mga value at suriin ang yugto ng halalan bago subukang muli.",
+        },
         securityTests: englishTranslation.translations.securityTests,
+        tsfIntegrity: {
+            title: "Integridad ng software ng TOE",
+            description:
+                "Inihahambing ang software na tumatakbo sa mga server sa tinanggap na paghahatid, hiwalay sa mga self-test; kapag may pagkakaiba, nalalagay ang kaganapan sa halalan sa estadong nangangailangan ng recovery.",
+            run: "I-verify ang software ng TOE",
+            running: "Nakapila o tumatakbo ang pag-verify",
+            queued: "Nakapila ang pag-verify. Lalabas dito ang resulta kapag natapos ang gawain sa background.",
+            none: "Hindi pa na-verify ang software ng TOE para sa kaganapan sa halalan na ito.",
+            started: "Nagsimula",
+            requestedBy: "Hiniling ni",
+            toeReference: "Reference ng TOE",
+            digestList: "SHA-256 ng tinanggap na listahan ng digest",
+            digestListHelp: "Ihambing ito sa value na naitala noong tinanggap ang paghahatid.",
+            parts: "Mga bahagi ng TOE",
+            part: "Bahagi",
+            acceptedDigest: "Tinanggap na digest",
+            runningContainers: "Mga tumatakbong container",
+            result: "Resulta",
+            outcome: {
+                verified: "Tumutugma sa tinanggap na paghahatid",
+                different: "Naiiba sa tinanggap na paghahatid",
+                unverifiable: "Hindi ma-verify",
+            },
+            partOutcome: {
+                verified: "Tumutugma",
+                different: "Naiiba",
+                unverifiable: "Hindi ma-verify",
+            },
+        },
         verificationExport: englishTranslation.translations.verificationExport,
         philSysID: "PhilSys ID",
         iBP: "Integrated Bar of the Philippines (IBP)",
@@ -207,7 +265,7 @@ const tagalogTranslation: TranslationType = {
         logsScreen: {
             noPermissions: "Wala kang permiso upang ma-access ang mga log.",
             title: "Mga Log",
-            subtitle: "Pangkalahatang mga log ng pangunahing at IAM na database",
+            subtitle: "Ang log ng halalan ng kaganapan ng halalan na ito",
             actions: {
                 csv: "I-export sa CSV",
                 pdf: "I-export sa PDF",
@@ -2077,7 +2135,6 @@ const tagalogTranslation: TranslationType = {
                 create: "Lumikha",
                 delete: "Tanggalin",
                 archive: "I-archive",
-                unarchive: "I-unarchive",
                 cancel: "I-cancel",
                 edit: "I-edit",
                 yes: "Oo",
@@ -2163,12 +2220,6 @@ const tagalogTranslation: TranslationType = {
                 archive: {
                     electionEvent: "I-archive ang Kaganapan ng Halalan",
                 },
-                unarchive: {
-                    electionEvent: "I-unarchive ang Kaganapan ng Halalan",
-                    election: "I-unarchive ang Halalan",
-                    contest: "I-unarchive ang Paligsahan",
-                    candidate: "I-unarchive ang Kandidato",
-                },
                 remove: {
                     electionEvent: "Tanggalin ang Kaganapan ng Halalan",
                     election: "Tanggalin ang Halalan",
@@ -2178,7 +2229,6 @@ const tagalogTranslation: TranslationType = {
                 messages: {
                     confirm: {
                         archive: "Sigurado ka bang i-archive ang item na ito?",
-                        unarchive: "Sigurado ka bang i-unarchive ang item na ito?",
                         delete: "Sigurado ka bang tanggalin ang item na ito?",
                         sealsUnknown:
                             "Hindi masuri ang mga seal ng ballot box: kung may naka-seal itong mga ballot box, tatanggihan ang pagbura.",
@@ -2186,13 +2236,11 @@ const tagalogTranslation: TranslationType = {
                     notification: {
                         success: {
                             archive: "Ang item ay na-archive na",
-                            unarchive: "Ang item ay na-unarchive na",
                             delete: "Ang item ay natanggal na",
                             reloading: "Wait. Ang pahina ay na-reload na sa iba pang mga oras.",
                         },
                         error: {
                             archive: "Error habang sinusubukang i-archive ang item na ito",
-                            unarchive: "Error habang sinusubukang i-unarchive ang item na ito",
                             delete: "Error habang sinusubukang tanggalin ang item na ito",
                             deleteSealedElection:
                                 "May naka-seal na mga ballot box ang halalang ito at hindi ito mabubura. I-archive na lang ang election event nito.",

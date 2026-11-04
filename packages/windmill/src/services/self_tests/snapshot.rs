@@ -31,6 +31,16 @@ async fn rows_digest(
     Ok(hex::encode(hash.finalize()))
 }
 
+/// Each enabled account of the tenant realm with what it was granted directly.
+const STAFF_ACCOUNTS: &str = "SELECT u.id, jsonb_build_object(
+        'account', jsonb_build_array(u.username, u.service_account_client_link),
+        'attributes', (SELECT coalesce(jsonb_agg(jsonb_build_array(a.name, coalesce(a.value, a.long_value)) ORDER BY a.name, coalesce(a.value, a.long_value)), '[]') FROM user_attribute a WHERE a.user_id = u.id AND a.name <> 'locale'),
+        'grants', (SELECT coalesce(jsonb_agg(g ORDER BY g), '[]') FROM (
+            SELECT 'role:' || m.role_id AS g FROM user_role_mapping m WHERE m.user_id = u.id
+            UNION ALL
+            SELECT 'group:' || m.group_id FROM user_group_membership m WHERE m.user_id = u.id) grants))
+    FROM user_entity u JOIN realm r ON r.id = u.realm_id WHERE r.name = $1 AND u.enabled ORDER BY u.id";
+
 pub async fn capture(tx: &Transaction<'_>, tenant: &str, event: &str) -> Result<Value> {
     let mut data = serde_json::Map::new();
     // Status and scheduled lockdown are protected lifecycle attributes, not
@@ -69,13 +79,12 @@ pub async fn capture(tx: &Transaction<'_>, tenant: &str, event: &str) -> Result<
     let mut access = serde_json::Map::new();
     let realms = vec![format!("tenant-{tenant}"), realm];
     // Include role assignments as well as definitions: a newly granted role is a configuration change.
+    // The staff accounts of the tenant realm are compared separately, by staff_only_narrowed().
     for (name,sql) in [
         ("realms","SELECT to_jsonb(r) FROM realm r WHERE r.name=ANY($1) ORDER BY r.id"),
         ("realm_attributes","SELECT to_jsonb(a) FROM realm_attribute a JOIN realm r ON r.id=a.realm_id WHERE r.name=ANY($1) ORDER BY a.name,a.value"),
         ("clients","SELECT to_jsonb(c) FROM client c JOIN realm r ON r.id=c.realm_id WHERE r.name=ANY($1) ORDER BY c.id"),
         ("client_attributes","SELECT to_jsonb(a) FROM client_attributes a JOIN client c ON c.id=a.client_id JOIN realm r ON r.id=c.realm_id WHERE r.name=ANY($1) ORDER BY a.client_id,a.name"),
-        ("staff_accounts","SELECT jsonb_build_object('id',u.id,'enabled',u.enabled,'username',u.username,'service',u.service_account_client_link) FROM user_entity u JOIN realm r ON r.id=u.realm_id WHERE r.name=($1::text[])[1] ORDER BY u.id"),
-        ("staff_attributes","SELECT to_jsonb(a) FROM user_attribute a JOIN user_entity u ON u.id=a.user_id JOIN realm r ON r.id=u.realm_id WHERE r.name=($1::text[])[1] AND a.name<>'locale' ORDER BY a.user_id,a.name,a.id"),
         ("group_attributes","SELECT to_jsonb(a) FROM group_attribute a JOIN keycloak_group g ON g.id=a.group_id JOIN realm r ON r.id=g.realm_id WHERE r.name=ANY($1) ORDER BY a.group_id,a.name,a.id"),
         ("role_attributes","SELECT to_jsonb(a) FROM role_attribute a JOIN keycloak_role k ON k.id=a.role_id JOIN realm r ON r.id=k.realm_id WHERE r.name=ANY($1) ORDER BY a.role_id,a.name,a.id"),
         ("authentication_flows","SELECT to_jsonb(a) FROM authentication_flow a JOIN realm r ON r.id=a.realm_id WHERE r.name=ANY($1) ORDER BY a.id"),
@@ -85,10 +94,18 @@ pub async fn capture(tx: &Transaction<'_>, tenant: &str, event: &str) -> Result<
         ("roles","SELECT to_jsonb(k) FROM keycloak_role k JOIN realm r ON r.id=k.realm_id WHERE r.name=ANY($1) ORDER BY k.id"),
         ("groups","SELECT to_jsonb(g) FROM keycloak_group g JOIN realm r ON r.id=g.realm_id WHERE r.name=ANY($1) ORDER BY g.id"),
         ("group_roles","SELECT to_jsonb(gm) FROM group_role_mapping gm JOIN keycloak_group g ON g.id=gm.group_id JOIN realm r ON r.id=g.realm_id WHERE r.name=ANY($1) ORDER BY gm.group_id,gm.role_id"),
-        ("memberships","SELECT to_jsonb(m) FROM user_group_membership m JOIN user_entity u ON u.id=m.user_id JOIN realm r ON r.id=u.realm_id WHERE r.name=ANY($1) ORDER BY m.user_id,m.group_id"),
-        ("user_roles","SELECT to_jsonb(m) FROM user_role_mapping m JOIN user_entity u ON u.id=m.user_id JOIN realm r ON r.id=u.realm_id WHERE r.name=ANY($1) ORDER BY m.user_id,m.role_id"),
+        ("memberships","SELECT to_jsonb(m) FROM user_group_membership m JOIN user_entity u ON u.id=m.user_id JOIN realm r ON r.id=u.realm_id WHERE r.name=($1::text[])[2] ORDER BY m.user_id,m.group_id"),
+        ("user_roles","SELECT to_jsonb(m) FROM user_role_mapping m JOIN user_entity u ON u.id=m.user_id JOIN realm r ON r.id=u.realm_id WHERE r.name=($1::text[])[2] ORDER BY m.user_id,m.role_id"),
         ("composites","SELECT to_jsonb(c) FROM composite_role c JOIN keycloak_role k ON k.id=c.composite JOIN realm r ON r.id=k.realm_id WHERE r.name=ANY($1) ORDER BY c.composite,c.child_role"),
     ] {access.insert(name.into(),json!(rows_digest(&kt,sql,&[&realms]).await?));}
+    let mut staff = serde_json::Map::new();
+    for row in kt.query(STAFF_ACCOUNTS, &[&realms[0]]).await? {
+        let account: Value = row.try_get(1)?;
+        staff.insert(
+            row.try_get(0)?,
+            json!({"account":digest(&account["account"]),"attributes":digest(&account["attributes"]),"grants":account["grants"]}),
+        );
+    }
     kt.commit().await?;
     access.insert(
         "hasura_metadata".into(),
@@ -127,14 +144,41 @@ pub async fn capture(tx: &Transaction<'_>, tenant: &str, event: &str) -> Result<
         "self_test_settings".into(),
         json!(super::settings(tx, tenant, event).await?),
     );
-    let attack=tx.query_one("SELECT jsonb_build_object('failed_logins_per_minute',COALESCE(s.failed_logins_per_minute,20),'requests_per_minute',COALESCE(s.requests_per_minute,2000)) FROM sequent_backend.tenant t LEFT JOIN sequent_backend.attack_detection_settings s ON s.tenant_id=t.id WHERE t.id=$1::text::uuid", &[&tenant]).await?;
+    let attack=tx.query_one("SELECT jsonb_build_object('failed_logins_per_minute',COALESCE(s.failed_logins_per_minute,20),'requests_per_minute',COALESCE(s.requests_per_minute,2000),'account_failure_threshold',COALESCE(s.account_failure_threshold,5)) FROM sequent_backend.tenant t LEFT JOIN sequent_backend.attack_detection_settings s ON s.tenant_id=t.id WHERE t.id=$1::text::uuid", &[&tenant]).await?;
     access.insert(
         "attack_detection_settings".into(),
         attack.try_get::<_, Value>(0)?,
     );
     Ok(
-        json!({"election_data":digest(&Value::Object(data)),"access_control":digest(&Value::Object(access))}),
+        json!({"election_data":digest(&Value::Object(data)),"access_control":digest(&Value::Object(access)),"staff":staff}),
     )
+}
+
+/// A person who leaves during an election must be able to lose access at once:
+/// an account may be disabled, removed or lose grants, but no enabled account,
+/// attribute or grant may appear. A snapshot without staff accounts never passes.
+pub fn staff_only_narrowed(from: &Value, to: &Value) -> bool {
+    let (Some(from), Some(to)) = (from["staff"].as_object(), to["staff"].as_object()) else {
+        return false;
+    };
+    to.iter().all(|(id, account)| {
+        from.get(id).is_some_and(|before| {
+            account["account"] == before["account"]
+                && account["attributes"] == before["attributes"]
+                && account["grants"].as_array().is_some_and(|grants| {
+                    before["grants"]
+                        .as_array()
+                        .is_some_and(|allowed| grants.iter().all(|g| allowed.contains(g)))
+                })
+        })
+    })
+}
+
+/// Whether a later capture keeps an earlier one, apart from narrowed staff access.
+pub fn unchanged_since(start: &Value, current: &Value) -> bool {
+    start["election_data"] == current["election_data"]
+        && start["access_control"] == current["access_control"]
+        && staff_only_narrowed(start, current)
 }
 
 fn authenticated_bytes(tenant: &str, event: &str, publication: &str, snapshot: &Value) -> Vec<u8> {
@@ -225,6 +269,49 @@ mod tests {
         ] {
             assert!(public.verify(&signature, &bytes).is_err());
         }
+    }
+
+    fn staff(accounts: Value) -> Value {
+        json!({"election_data":"data","access_control":"access","staff":accounts})
+    }
+
+    #[test]
+    fn staff_access_can_only_narrow_after_the_approval() {
+        let account = |grants: Value| json!({"account":"a","attributes":"b","grants":grants});
+        let approved = staff(json!({
+            "leaver":account(json!(["group:board","role:x"])),
+            "other":account(json!(["group:board"])),
+        }));
+        // Disabled or removed accounts are no longer listed.
+        for narrowed in [
+            staff(json!({"other":account(json!(["group:board"]))})),
+            staff(
+                json!({"leaver":account(json!(["role:x"])),"other":account(json!(["group:board"]))}),
+            ),
+            staff(json!({})),
+            approved.clone(),
+        ] {
+            assert!(staff_only_narrowed(&approved, &narrowed));
+            assert!(unchanged_since(&approved, &narrowed));
+        }
+        for widened in [
+            staff(json!({"new":account(json!([]))})),
+            staff(json!({"other":account(json!(["group:board","role:y"]))})),
+            staff(json!({"other":{"account":"renamed","attributes":"b","grants":["group:board"]}})),
+            staff(json!({"other":{"account":"a","attributes":"changed","grants":["group:board"]}})),
+            staff(json!({"other":{"account":"a","attributes":"b"}})),
+        ] {
+            assert!(!staff_only_narrowed(&approved, &widened));
+            assert!(!unchanged_since(&approved, &widened));
+        }
+        // A baseline approved before staff accounts were listed never passes.
+        let old = json!({"election_data":"data","access_control":"access"});
+        assert!(!staff_only_narrowed(&old, &approved));
+        assert!(!staff_only_narrowed(&approved, &old));
+        // Other parts of the snapshot still have to be identical.
+        let other = json!({"election_data":"data","access_control":"other","staff":{}});
+        assert!(staff_only_narrowed(&approved, &other));
+        assert!(!unchanged_since(&approved, &other));
     }
 }
 

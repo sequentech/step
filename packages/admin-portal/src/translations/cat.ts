@@ -5,7 +5,64 @@ import englishTranslation, {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        copyableFingerprint: {
+            copy: "Copia el SHA-256 complet",
+            copied: "S'ha copiat el SHA-256 complet",
+            copyError:
+                "No s'ha pogut copiar el SHA-256. Assenyaleu el valor abreujat per llegir-lo sencer.",
+        },
+        attackDetection: {
+            title: "Detecció d'atacs",
+            description:
+                "Fixeu aquests llindars amb l'organitzador de l'elecció durant la preparació. El sistema compara l'activitat registrada amb els llindars i registra els possibles atacs per a la junta electoral. Aquesta configuració no bloqueja comptes ni limita les sol·licituds.",
+            permission: "Cal permís d'administrador per configurar la detecció d'atacs.",
+            loading: "S'està carregant la configuració de detecció d'atacs",
+            readFailed:
+                "No s'ha pogut verificar la configuració del llogater actual. Recarregueu la pàgina abans de fer canvis.",
+            failedLogins: "Inicis de sessió fallits per minut, tots els comptes",
+            failedLoginsHelp:
+                "Introduïu un nombre enter d'1 a 100.000. El sistema registra un possible atac quan els inicis de sessió fallits de tots els comptes en un minut superen aquest nombre.",
+            accountFailures: "Inicis de sessió fallits per compte abans d'una alerta",
+            accountFailuresHelp:
+                "Introduïu un nombre enter d'1 a 100.000. Quan un compte arriba a aquest nombre d'inicis de sessió fallits, el sistema registra un possible atac al registre electoral de l'esdeveniment electoral (al de tots els esdeveniments electorals del llogater si és un compte del personal), i la junta electoral el veu a la pestanya Tauler de Control de l'esdeveniment electoral. Les fallades que el servidor d'autenticació extern notifica sense cap compte es compten juntes per realm.",
+            requests: "Sol·licituds per minut, interfícies externes",
+            requestsHelp:
+                "Introduïu un nombre enter d'1 a 10.000.000. El recompte cobreix les interfícies externes, incloses les sol·licituds no autenticades.",
+            save: "Desa la configuració de detecció d'atacs",
+            saved: "S'ha desat i verificat la configuració de detecció d'atacs. La junta ha d'aprovar la configuració actualitzada abans de l'execució.",
+            saveFailed:
+                "La configuració no s'ha desat ni verificat. Recarregueu els valors actuals i comproveu la fase de l'elecció abans de tornar-ho a provar.",
+        },
         securityTests: englishTranslation.translations.securityTests,
+        tsfIntegrity: {
+            title: "Integritat del programari del TOE",
+            description:
+                "Compara el programari en execució als servidors amb el lliurament acceptat, per separat de les autoproves; una diferència posa l'esdeveniment electoral en l'estat de recuperació requerida.",
+            run: "Verifica el programari del TOE",
+            running: "Verificació a la cua o en curs",
+            queued: "Verificació a la cua. El resultat apareixerà aquí quan acabi la tasca en segon pla.",
+            none: "El programari del TOE encara no s'ha verificat per a aquest esdeveniment electoral.",
+            started: "Inici",
+            requestedBy: "Sol·licitat per",
+            toeReference: "Referència del TOE",
+            digestList: "SHA-256 de la llista de resums acceptada",
+            digestListHelp: "Compareu-lo amb el valor registrat en acceptar el lliurament.",
+            parts: "Parts del TOE",
+            part: "Part",
+            acceptedDigest: "Resum acceptat",
+            runningContainers: "Contenidors en execució",
+            result: "Resultat",
+            outcome: {
+                verified: "Coincideix amb el lliurament acceptat",
+                different: "Difereix del lliurament acceptat",
+                unverifiable: "No s'ha pogut verificar",
+            },
+            partOutcome: {
+                verified: "Coincideix",
+                different: "Difereix",
+                unverifiable: "No s'ha pogut verificar",
+            },
+        },
         verificationExport: englishTranslation.translations.verificationExport,
         philippinePassport: "Passaport filipí",
         seamanBook: "Llibreta de mariner",
@@ -283,7 +340,7 @@ const catalanTranslation: TranslationType = {
         logsScreen: {
             noPermissions: "No tens permís per accedir a les bitàcoles.",
             title: "Bitàcoles",
-            subtitle: "Bitàcoles generals de les bases de dades principal i de IAM.",
+            subtitle: "El registre electoral d'aquest esdeveniment electoral",
             actions: {
                 csv: "Exportar en CSV",
                 pdf: "Exportar en PDF",
@@ -2082,7 +2139,6 @@ const catalanTranslation: TranslationType = {
                 create: "Crear",
                 delete: "Esborrar",
                 archive: "Arxivar",
-                unarchive: "Desarxivar",
                 cancel: "Cancel·lar",
                 edit: "Editar",
                 yes: "Sí",
@@ -2168,12 +2224,6 @@ const catalanTranslation: TranslationType = {
                 archive: {
                     electionEvent: "Arxivar aquest Esdeveniment Electoral",
                 },
-                unarchive: {
-                    electionEvent: "Desarxivar aquest Esdeveniment Electoral",
-                    election: "Desarxivar aquesta Elecció",
-                    contest: "Desarxivar aquesta Pregunta",
-                    candidate: "Desarxivar aquest Candidat",
-                },
                 remove: {
                     electionEvent: "Eliminar aquest Esdeveniment Electoral",
                     election: "Eliminar aquesta Elecció",
@@ -2183,7 +2233,6 @@ const catalanTranslation: TranslationType = {
                 messages: {
                     confirm: {
                         archive: "Estàs segur de que vols arxivar aquest element?",
-                        unarchive: "Estàs segur de que vols desarxivar aquest element?",
                         delete: "Estàs segur de que vols eliminar aquest element?",
                         sealsUnknown:
                             "No s'han pogut comprovar els segells de les urnes: si té urnes segellades, l'esborrat es rebutjarà.",
@@ -2191,13 +2240,11 @@ const catalanTranslation: TranslationType = {
                     notification: {
                         success: {
                             archive: "L'element ha estat arxivat",
-                            unarchive: "L'element ha estat desarxivat",
                             delete: "L'element ha estat eliminat",
                             reloading: "Espera. La pàgina serà recarregada en alguns moments",
                         },
                         error: {
                             archive: "Error intentant arxivar aquest element",
-                            unarchive: "Error intentant desarxivar aquest element",
                             delete: "Error intentant eliminar aquest element",
                             deleteSealedElection:
                                 "Aquesta elecció té urnes segellades i no es pot esborrar. En lloc d'això, arxiveu el seu esdeveniment electoral.",

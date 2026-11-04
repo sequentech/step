@@ -5,7 +5,65 @@ import englishTranslation, {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        copyableFingerprint: {
+            copy: "Copiar el SHA-256 completo",
+            copied: "Se ha copiado el SHA-256 completo",
+            copyError:
+                "No se pudo copiar el SHA-256. Señale el valor abreviado para leerlo completo.",
+        },
+        attackDetection: {
+            title: "Detección de ataques",
+            description:
+                "Fije estos umbrales con el organizador de la elección durante la preparación. El sistema compara la actividad registrada con los umbrales y registra los posibles ataques para la junta electoral. Esta configuración no bloquea cuentas ni limita las solicitudes.",
+            permission:
+                "Se requiere permiso de administrador para configurar la detección de ataques.",
+            loading: "Cargando la configuración de detección de ataques",
+            readFailed:
+                "No se pudo verificar la configuración del inquilino actual. Recargue la página antes de hacer cambios.",
+            failedLogins: "Inicios de sesión fallidos por minuto, todas las cuentas",
+            failedLoginsHelp:
+                "Introduzca un número entero de 1 a 100.000. El sistema registra un posible ataque cuando los inicios de sesión fallidos de todas las cuentas en un minuto superan este número.",
+            accountFailures: "Inicios de sesión fallidos por cuenta antes de una alerta",
+            accountFailuresHelp:
+                "Introduzca un número entero de 1 a 100.000. Cuando una cuenta alcanza este número de inicios de sesión fallidos, el sistema registra un posible ataque en el registro electoral del evento electoral (en el de todos los eventos electorales del inquilino si es una cuenta del personal), y la junta electoral lo ve en la pestaña Panel de Control del evento electoral. Los fallos que el servidor de autenticación externo notifica sin una cuenta se cuentan juntos por realm.",
+            requests: "Solicitudes por minuto, interfaces externas",
+            requestsHelp:
+                "Introduzca un número entero de 1 a 10.000.000. El recuento abarca las interfaces externas, incluidas las solicitudes no autenticadas.",
+            save: "Guardar la configuración de detección de ataques",
+            saved: "Configuración de detección de ataques guardada y verificada. La junta debe aprobar la configuración actualizada antes de la ejecución.",
+            saveFailed:
+                "La configuración no se guardó ni se verificó. Recargue los valores actuales y compruebe la fase de la elección antes de volver a intentarlo.",
+        },
         securityTests: englishTranslation.translations.securityTests,
+        tsfIntegrity: {
+            title: "Integridad del software del TOE",
+            description:
+                "Compara el software en ejecución en los servidores con la entrega aceptada, por separado de las autopruebas; una diferencia pone el evento electoral en el estado de recuperación requerida.",
+            run: "Verificar el software del TOE",
+            running: "Verificación en cola o en curso",
+            queued: "Verificación en cola. El resultado aparecerá aquí cuando termine la tarea en segundo plano.",
+            none: "El software del TOE aún no se ha verificado para este evento electoral.",
+            started: "Inicio",
+            requestedBy: "Solicitado por",
+            toeReference: "Referencia del TOE",
+            digestList: "SHA-256 de la lista de resúmenes aceptada",
+            digestListHelp: "Compárelo con el valor registrado al aceptar la entrega.",
+            parts: "Partes del TOE",
+            part: "Parte",
+            acceptedDigest: "Resumen aceptado",
+            runningContainers: "Contenedores en ejecución",
+            result: "Resultado",
+            outcome: {
+                verified: "Coincide con la entrega aceptada",
+                different: "Difiere de la entrega aceptada",
+                unverifiable: "No se pudo verificar",
+            },
+            partOutcome: {
+                verified: "Coincide",
+                different: "Difiere",
+                unverifiable: "No se pudo verificar",
+            },
+        },
         verificationExport: englishTranslation.translations.verificationExport,
         philippinePassport: "Pasaporte filipino",
         seamanBook: "Libro de marinero",
@@ -206,7 +264,7 @@ const spanishTranslation: TranslationType = {
         logsScreen: {
             noPermissions: "No tienes permiso para acceder a las bitácoras.",
             title: "Bitácoras",
-            subtitle: "Bitácoras generales de las baseses de datos principal y de IAM.",
+            subtitle: "El registro electoral de este evento electoral",
             column: {
                 id: "ID",
                 statement_kind: "Tipo de declaración",
@@ -2069,7 +2127,6 @@ const spanishTranslation: TranslationType = {
                 create: "Crear",
                 delete: "Borrar",
                 archive: "Archivar",
-                unarchive: "Desarchivar",
                 cancel: "Cancelar",
                 edit: "Editar",
                 yes: "Sí",
@@ -2155,12 +2212,6 @@ const spanishTranslation: TranslationType = {
                 archive: {
                     electionEvent: "Archivar este Evento Electoral",
                 },
-                unarchive: {
-                    electionEvent: "Desarchivar este Evento Electoral",
-                    election: "Desarchivar esta Elección",
-                    contest: "Desarchivar esta Pregunta",
-                    candidate: "Desarchivar este Candidato",
-                },
                 remove: {
                     electionEvent: "Eliminar este Evento Electoral",
                     election: "Eliminar esta Elección",
@@ -2170,7 +2221,6 @@ const spanishTranslation: TranslationType = {
                 messages: {
                     confirm: {
                         archive: "¿Está seguro de que desea archivar este elemento?",
-                        unarchive: "¿Está seguro de que desea desarchivar este elemento?",
                         delete: "¿Está seguro de que desea eliminar este elemento?",
                         sealsUnknown:
                             "No se pudieron comprobar los sellos de las urnas: si tiene urnas selladas, se rechazará el borrado.",
@@ -2178,13 +2228,11 @@ const spanishTranslation: TranslationType = {
                     notification: {
                         success: {
                             archive: "El elemento ha sido archivado",
-                            unarchive: "El elemento ha sido desarchivado",
                             delete: "El elemento ha sido eliminado",
                             reloading: "Espere. La página se recargara en unos momentos",
                         },
                         error: {
                             archive: "Error al intentar archivar este elemento",
-                            unarchive: "Error al intentar desarchivar este elemento",
                             delete: "Error al intentar eliminar este elemento",
                             deleteSealedElection:
                                 "Esta elección tiene urnas selladas y no se puede borrar. Archive su evento electoral en su lugar.",

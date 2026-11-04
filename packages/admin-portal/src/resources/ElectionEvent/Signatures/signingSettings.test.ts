@@ -41,6 +41,7 @@ import {
     requestStatus,
     ruleInputOf,
     ruleOf,
+    fullFingerprint,
     shortFingerprint,
     signaturesAccess,
     sortRolesByName,
@@ -518,6 +519,13 @@ describe("certificates", () => {
         expect(shortFingerprint("F7:08:0F:24:AA:55:BB:66:CC:77:FE:78")).toBe("F7:08:0F:24:…:FE:78")
         expect(shortFingerprint("a1b2c3")).toBe("A1:B2:C3")
         expect(shortFingerprint(null)).toBe("")
+        expect(fullFingerprint("f7080f24aa55bb66cc77fe78")).toBe(
+            "F7:08:0F:24:AA:55:BB:66:CC:77:FE:78"
+        )
+        expect(fullFingerprint("F7:08:0F:24:AA:55:BB:66:CC:77:FE:78")).toBe(
+            "F7:08:0F:24:AA:55:BB:66:CC:77:FE:78"
+        )
+        expect(fullFingerprint(null)).toBe("")
     })
 
     it("sends an issuer file as PEM text, or its DER bytes as base64", () => {

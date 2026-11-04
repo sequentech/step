@@ -12,6 +12,7 @@ import React, {ReactElement, useContext, useEffect, useMemo, useRef, useState} f
 import {
     DatagridConfigurable,
     FunctionField,
+    Identifier,
     List,
     SelectInput,
     TextField,
@@ -58,7 +59,7 @@ import {
     type GetScheduledOutcomesData,
 } from "@/queries/Lifecycle"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
-import {isVotingTransition} from "./CreateScheduledEvent"
+import {isLockdownPeriod, isVotingTransition} from "./CreateScheduledEvent"
 import {ACTIVE_SCHEDULED_EVENTS} from "@/services/ScheduledEvent"
 import {
     ScheduleBanners,
@@ -131,6 +132,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         canCreateScheduledEvent,
         canDeleteScheduledEvent,
         showScheduledEventColumns,
+        onlyLockdownPeriod,
     } = useScheduledEventPermissions()
 
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES, {
@@ -246,6 +248,11 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         },
         {enabled: !!electionEventId, refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS}
     )
+    // Importing or applying changes the other dates too, and rows of theirs can't be changed.
+    const canChangeAllDates = canWriteScheduledEvent && !onlyLockdownPeriod
+    const canChangeRow = (id: Identifier) =>
+        !onlyLockdownPeriod ||
+        isLockdownPeriod(allScheduledEvents?.find((event) => event.id === id)?.event_processor)
     const unpublished = useMemo(
         () =>
             unpublishedEventIds(
@@ -332,12 +339,12 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         {
             icon: <EditIcon className="edit-voter-icon" />,
             action: (id) => editAction(id),
-            showAction: () => canWriteScheduledEvent,
+            showAction: (id) => canWriteScheduledEvent && canChangeRow(id),
         },
         {
             icon: <DeleteIcon className="delete-voter-icon" />,
             action: (id) => deleteAction(id),
-            showAction: () => canDeleteScheduledEvent,
+            showAction: (id) => canDeleteScheduledEvent && canChangeRow(id),
             label: t(`common.label.delete`),
             className: "delete-voter-icon",
         },
@@ -352,7 +359,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
             <Typography variant="h4" paragraph>
                 {t(`eventsScreen.empty.header`)}
             </Typography>
-            {canCreateScheduledEvent || canWriteScheduledEvent ? (
+            {canCreateScheduledEvent || canChangeAllDates ? (
                 <>
                     <Typography variant="body1" paragraph>
                         {t(`eventsScreen.empty.body`)}
@@ -369,7 +376,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                                 {t(`eventsScreen.empty.button`)}
                             </Button>
                         ) : null}
-                        {canWriteScheduledEvent ? (
+                        {canChangeAllDates ? (
                             <Button
                                 variant="secondary"
                                 startIcon={<UploadIcon />}
@@ -439,7 +446,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         return !event.stopped_at && !!date && !hasOffset(date)
                     }).length
                 }
-                canApply={canWriteScheduledEvent}
+                canApply={canChangeAllDates}
                 zoneOf={zones.zoneOf}
                 scheduledEvents={allScheduledEvents ?? []}
             />
@@ -467,7 +474,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 actions={
                     <ListActions
                         withColumns={showScheduledEventColumns}
-                        withImport={canWriteScheduledEvent}
+                        withImport={canChangeAllDates}
                         doImport={() => setOpenImport(true)}
                         withExport={canWriteScheduledEvent}
                         doExport={doExport}
@@ -576,6 +583,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     isEditEvent={isEditEvent}
                     selectedEventId={selectedEventId}
                     getElectionName={getElectionName}
+                    onlyLockdownPeriod={onlyLockdownPeriod}
                 />
             </ResourceListStyles.Drawer>
             {openImport ? (

@@ -241,21 +241,7 @@ export const ArchivedEvent: Story = {
     args: {isArchivedTab: true},
     play: async ({canvasElement}) => {
         const menu = await openActions(canvasElement)
-        expect(actionNames(menu)).toEqual([
-            "Unarchive this Election Event",
-            "Remove this Election Event",
-        ])
-        await userEvent.click(
-            within(menu).getByRole("menuitem", {name: "Unarchive this Election Event"})
-        )
-        await confirm("Unarchive", /Are you sure to unarchive this item/)
-        await notified("The item has been unarchived")
-        expect(services.data.writes).toEqual([
-            expect.objectContaining({
-                method: "update",
-                params: expect.objectContaining({id: EVENT_ID, data: {is_archived: false}}),
-            }),
-        ])
+        expect(actionNames(menu)).toEqual(["Remove this Election Event"])
     },
 }
 

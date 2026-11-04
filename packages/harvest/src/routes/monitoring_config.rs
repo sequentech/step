@@ -6,11 +6,11 @@
 //! saving or removing it, resetting the event to a preset and switching the
 //! Dashboard tab; and reading the documents and their revisions.
 //!
-//! Reading and checking need `monitoring-configure`; a change also needs
-//! `election-event-write`, and the event must not be locked down. A change
-//! is by the token's subject. Windmill's configuration store makes each
-//! change as one transaction, after the policy and the chart engine have
-//! accepted it, and has the electoral log record it before it commits.
+//! Reading, checking and changing need `monitoring-configure`; a change also
+//! needs an event that is not locked down. A change is by the token's
+//! subject. Windmill's configuration store makes each change as one
+//! transaction, after the policy and the chart engine have accepted it, and
+//! has the electoral log record it before it commits.
 
 use crate::ports::monitoring_renderer::{ColorScheme, RenderBoard};
 use crate::routes::monitoring::authorize_monitoring;
@@ -49,16 +49,6 @@ use windmill::services::monitoring::config_store::{
 
 fn configure(claims: &JwtClaims) -> MonitoringResult<()> {
     authorize_monitoring(claims, vec![Permissions::MONITORING_CONFIGURE])
-}
-
-fn configure_and_write(claims: &JwtClaims) -> MonitoringResult<()> {
-    authorize_monitoring(
-        claims,
-        vec![
-            Permissions::MONITORING_CONFIGURE,
-            Permissions::ELECTION_EVENT_WRITE,
-        ],
-    )
 }
 
 /// The event's configuration as one set; empty for an event never
@@ -334,7 +324,7 @@ pub async fn save_config(
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<SaveConfigOutput>> {
-    configure_and_write(&claims)?;
+    configure(&claims)?;
     let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
     let edit = match (input.change, input.yaml.as_deref()) {
@@ -423,7 +413,7 @@ pub async fn reset_config_to_preset(
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<GenerationOutput>> {
-    configure_and_write(&claims)?;
+    configure(&claims)?;
     let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
     let mut client = hasura_client(services).await?;
@@ -523,7 +513,7 @@ pub async fn set_dashboard_mode(
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<SetModeOutput>> {
-    configure_and_write(&claims)?;
+    configure(&claims)?;
     let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
     let mut client = hasura_client(services).await?;

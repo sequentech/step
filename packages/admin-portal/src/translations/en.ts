@@ -4,6 +4,34 @@
 
 const englishTranslation = {
     translations: {
+        copyableFingerprint: {
+            copy: "Copy the complete SHA-256",
+            copied: "The complete SHA-256 was copied",
+            copyError:
+                "The SHA-256 could not be copied. Point at the shortened value to read it whole.",
+        },
+        attackDetection: {
+            title: "Attack detection",
+            description:
+                "Set these thresholds with the election organizer during preparation. The system compares logged activity with the thresholds and records potential attacks for the election board. These settings do not lock accounts or limit requests.",
+            permission: "Administrator permission is required to configure attack detection.",
+            loading: "Loading attack detection settings",
+            readFailed:
+                "The current tenant's settings could not be verified. Reload before making changes.",
+            failedLogins: "Failed logins per minute, all accounts",
+            failedLoginsHelp:
+                "Enter a whole number from 1 to 100,000. The system records a potential attack when the failed logins of all accounts in one minute exceed this number.",
+            accountFailures: "Failed sign-ins per account before an alert",
+            accountFailuresHelp:
+                "Enter a whole number from 1 to 100,000. When an account reaches this number of failed sign-ins, the system records a potential attack in the electoral log of the election event (of every election event of the tenant for staff accounts), and the election board sees it in the election event's tab Dashboard. Failures that the external authentication server reports without an account count together per realm.",
+            requests: "Requests per minute, external interfaces",
+            requestsHelp:
+                "Enter a whole number from 1 to 10,000,000. The count covers the external interfaces, including unauthenticated requests.",
+            save: "Save attack detection settings",
+            saved: "Attack detection settings saved and verified. The board must approve the updated configuration before execution.",
+            saveFailed:
+                "The settings were not saved and verified. Reload the current values and check the election phase before trying again.",
+        },
         securityTests: {
             title: "Security and self-tests",
             intro: "Security checks run in the background. You can leave this page and return to the results. Mandatory checks also run at the required lifecycle transitions.",
@@ -68,7 +96,6 @@ const englishTranslation = {
                 "before-resume": "Before resuming voting",
                 "periodic": "Periodic check",
                 "after-maintenance": "After maintenance",
-                "after-import": "After a configuration import",
                 "after-pause": "After pausing voting",
                 "before-counting": "Before counting",
             },
@@ -93,6 +120,35 @@ const englishTranslation = {
                 sent: "Accepted by mail transport",
                 failed: "Delivery failed",
                 uncertain: "Delivery outcome unknown",
+            },
+        },
+        tsfIntegrity: {
+            title: "TOE software integrity",
+            description:
+                "Compares the software running on the servers with the accepted delivery, separately from the self-tests; a difference puts the election event in the recovery-required state.",
+            run: "Verify the TOE software",
+            running: "Verification queued or running",
+            queued: "Verification queued. The result will appear here when the background task finishes.",
+            none: "The TOE software has not been verified for this election event yet.",
+            started: "Started",
+            requestedBy: "Requested by",
+            toeReference: "TOE reference",
+            digestList: "SHA-256 of the accepted digest list",
+            digestListHelp: "Compare it with the value recorded at delivery acceptance.",
+            parts: "TOE parts",
+            part: "Part",
+            acceptedDigest: "Accepted digest",
+            runningContainers: "Running containers",
+            result: "Result",
+            outcome: {
+                verified: "Matches the accepted delivery",
+                different: "Differs from the accepted delivery",
+                unverifiable: "Could not verify",
+            },
+            partOutcome: {
+                verified: "Matches",
+                different: "Differs",
+                unverifiable: "Could not verify",
             },
         },
         verificationExport: {
@@ -304,7 +360,7 @@ const englishTranslation = {
         logsScreen: {
             noPermissions: "You don't have permission to access logs.",
             title: "Logs",
-            subtitle: "General logs of the main and IAM databases",
+            subtitle: "The electoral log of this election event",
             actions: {
                 csv: "Export in CSV",
                 pdf: "Export in PDF",
@@ -2136,7 +2192,6 @@ const englishTranslation = {
                 create: "Create",
                 delete: "Delete",
                 archive: "Archive",
-                unarchive: "Unarchive",
                 cancel: "Cancel",
                 edit: "Edit",
                 yes: "Yes",
@@ -2222,12 +2277,6 @@ const englishTranslation = {
                 archive: {
                     electionEvent: "Archive this Election Event",
                 },
-                unarchive: {
-                    electionEvent: "Unarchive this Election Event",
-                    election: "Unarchive this election",
-                    contest: "Unarchive this Contest",
-                    candidate: "Unarchive this Candidate",
-                },
                 remove: {
                     electionEvent: "Remove this Election Event",
                     election: "Remove this Election",
@@ -2237,7 +2286,6 @@ const englishTranslation = {
                 messages: {
                     confirm: {
                         archive: "Are you sure to archive this item?",
-                        unarchive: "Are you sure to unarchive this item?",
                         delete: "Are you sure to delete this item?",
                         sealsUnknown:
                             "The ballot box seals could not be checked: if it has sealed ballot boxes, the delete is refused.",
@@ -2245,13 +2293,11 @@ const englishTranslation = {
                     notification: {
                         success: {
                             archive: "The item has been archived",
-                            unarchive: "The item has been unarchived",
                             delete: "The item has been deleted",
                             reloading: "Wait. The page will be reloaded in a few moments.",
                         },
                         error: {
                             archive: "Error while trying to archive this item",
-                            unarchive: "Error while trying to unarchive this item",
                             delete: "Error while trying to delete this item",
                             deleteSealedElection:
                                 "This election has sealed ballot boxes and cannot be deleted. Archive its election event instead.",

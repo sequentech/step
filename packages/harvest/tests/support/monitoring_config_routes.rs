@@ -21,7 +21,6 @@ fn configurator(event: &Event) -> Claims {
         .roles([
             Permissions::MONITORING_VIEW,
             Permissions::MONITORING_CONFIGURE,
-            Permissions::ELECTION_EVENT_WRITE,
         ])
 }
 
@@ -209,7 +208,7 @@ async fn an_engine_error_blocks_a_save_and_an_engine_warning_does_not() {
 }
 
 #[rocket::async_test]
-async fn changes_need_election_event_write_and_an_event_not_locked_down() {
+async fn changes_need_monitoring_configure_and_an_event_not_locked_down() {
     let services = Services::on_test_database().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
@@ -217,7 +216,7 @@ async fn changes_need_election_event_write_and_an_event_not_locked_down() {
     let (yaml, revision) = widget(&client, &event, "turnout-summary").await;
 
     let reader = Claims::new(&event.tenant_id, "configurator")
-        .roles([Permissions::MONITORING_CONFIGURE]);
+        .roles([Permissions::MONITORING_VIEW]);
     let (status, body) = json(
         post(
             &client,

@@ -10,11 +10,12 @@ const mockDirect = jest.fn(),
     mockReload = jest.fn(),
     mockUseMutation = jest.fn()
 let mockCanArchive = false
+let mockCanCreate = false
+let mockCanDelete = true
 const mockQuery = jest.fn(async () => ({data: {sequent_backend_ballot_box_seal: [{id: "seal"}]}}))
 jest.mock("react-router-dom", () => ({useNavigate: () => jest.fn()}))
 jest.mock("react-admin", () => ({
     useDelete: () => [mockDirect],
-    useUpdate: () => [jest.fn()],
     useNotify: () => mockNotify,
     useRedirect: () => jest.fn(),
 }))
@@ -58,7 +59,8 @@ jest.mock("./TreeMenu", () => ({
 }))
 jest.mock("../use-tree-menu-hook", () => ({
     useActionPermissions: () => ({
-        canDeleteElectionEvent: true,
+        canCreateElectionEvent: mockCanCreate,
+        canDeleteElectionEvent: mockCanDelete,
         canDeleteElection: true,
         canArchiveElectionEvent: mockCanArchive,
     }),
@@ -82,13 +84,13 @@ jest.mock("@/providers/CreateElectionEventContextProvider", () => ({
 jest.mock("@/providers/WidgetsContextProvider", () => ({
     useWidgetStore: () => [() => ({identifier: "task"}), jest.fn(), jest.fn()],
 }))
-function Fixture({election = false}: {election?: boolean}) {
+function Fixture({election = false, archived = false}: {election?: boolean; archived?: boolean}) {
     const ref = useRef<HTMLDivElement>(null)
     const [anchor, setAnchor] = useState<HTMLParagraphElement | null>(null)
     return (
         <div ref={ref}>
             <MenuAction
-                isArchivedTab={false}
+                isArchivedTab={archived}
                 resourceId={election ? "election" : "event"}
                 resourceName="Fixture"
                 resourceType={
@@ -114,6 +116,8 @@ async function remove(election = false) {
 beforeEach(() => {
     jest.clearAllMocks()
     mockCanArchive = false
+    mockCanCreate = false
+    mockCanDelete = true
     mockProtected.mockResolvedValue({
         data: {
             delete_election_event: {
@@ -186,4 +190,30 @@ test("an archive the server refuses is reported as an error", async () => {
             {type: "error"}
         )
     )
+})
+test("an archived event offers only Remove, also to who can archive", async () => {
+    mockCanArchive = true
+    mockCanCreate = true
+    render(<Fixture archived />)
+    fireEvent.click(screen.getByRole("button", {name: "Actions: Fixture"}))
+    const items = await screen.findAllByRole("menuitem")
+    expect(items.map((item) => item.textContent)).toEqual(["Remove event"])
+    expect(screen.queryByRole("separator")).toBeNull()
+})
+test("an archived event has no actions menu without the delete permission", () => {
+    mockCanArchive = true
+    mockCanCreate = true
+    mockCanDelete = false
+    render(<Fixture archived />)
+    expect(screen.queryByRole("button", {name: "Actions: Fixture"})).toBeNull()
+})
+test("a current event keeps its actions menu with the archive permission alone", async () => {
+    mockCanArchive = true
+    mockCanDelete = false
+    render(<Fixture />)
+    fireEvent.click(screen.getByRole("button", {name: "Actions: Fixture"}))
+    const items = await screen.findAllByRole("menuitem")
+    expect(items.map((item) => item.textContent)).toEqual([
+        "sideMenu.menuActions.archive.electionEvent",
+    ])
 })

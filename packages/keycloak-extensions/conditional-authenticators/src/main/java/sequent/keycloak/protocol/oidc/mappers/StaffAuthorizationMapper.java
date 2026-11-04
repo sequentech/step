@@ -34,8 +34,7 @@ public final class StaffAuthorizationMapper extends AbstractOIDCProtocolMapper
       "signing-rules-read", "signing-rules-write", "signing-checks-read", "signing-checks-write",
       "signing-certificates-read", "signing-certificates-register", "signing-certificates-revoke",
       "signing-issuers-read", "signing-issuers-write", "template-read", "template-write", "template-create",
-      "communication-template-read", "communication-template-write", "communication-template-create",
-      "messaging-config-write");
+      "communication-template-read", "communication-template-write", "communication-template-create");
 
   static Set<String> separated(Collection<String> roles) {
     Set<String> result = new HashSet<>(roles);

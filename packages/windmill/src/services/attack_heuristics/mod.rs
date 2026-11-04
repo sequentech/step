@@ -67,28 +67,31 @@ pub async fn record_auth(input: &AuthFailure) -> Result<()> {
 }
 pub async fn settings(tenant: &str) -> Result<Value> {
     let db = get_hasura_pool().await.get().await?;
-    let row=db.query_one("SELECT COALESCE(s.failed_logins_per_minute,20),COALESCE(s.requests_per_minute,2000) FROM sequent_backend.tenant t LEFT JOIN sequent_backend.attack_detection_settings s ON s.tenant_id=t.id WHERE t.id=$1::text::uuid", &[&tenant]).await?;
+    let row=db.query_one("SELECT COALESCE(s.failed_logins_per_minute,20),COALESCE(s.requests_per_minute,2000),COALESCE(s.account_failure_threshold,5) FROM sequent_backend.tenant t LEFT JOIN sequent_backend.attack_detection_settings s ON s.tenant_id=t.id WHERE t.id=$1::text::uuid", &[&tenant]).await?;
     Ok(
-        json!({"failed_logins_per_minute":row.try_get::<_,i64>(0)?,"requests_per_minute":row.try_get::<_,i64>(1)?}),
+        json!({"failed_logins_per_minute":row.try_get::<_,i64>(0)?,"requests_per_minute":row.try_get::<_,i64>(1)?,"account_failure_threshold":row.try_get::<_,i32>(2)?}),
     )
 }
-pub fn rates(value: &Value) -> Result<(i64, i64)> {
+pub fn rates(value: &Value) -> Result<(i64, i64, i32)> {
     let object = value.as_object().context("Settings must be an object")?;
-    ensure!(object.len() == 2, "Unexpected attack detection settings");
+    ensure!(object.len() == 3, "Unexpected attack detection settings");
     let failures = value["failed_logins_per_minute"]
         .as_i64()
         .context("Failed login rate must be an integer")?;
     let requests = value["requests_per_minute"]
         .as_i64()
         .context("Request rate must be an integer")?;
+    let account_threshold = value["account_failure_threshold"]
+        .as_i64()
+        .context("Account failure threshold must be an integer")?;
     ensure!(
-        policy::valid_rates(failures, requests),
+        policy::valid_rates(failures, requests, account_threshold),
         "Attack rates must be positive and within the documented limits"
     );
-    Ok((failures, requests))
+    Ok((failures, requests, i32::try_from(account_threshold)?))
 }
 pub async fn update_settings(tenant: &str, actor: &str, value: &Value) -> Result<()> {
-    let (failures, requests) = rates(value)?;
+    let (failures, requests, account_threshold) = rates(value)?;
     let mut db = get_hasura_pool().await.get().await?;
     let tx = db.transaction().await?;
     tx.query_one(
@@ -118,7 +121,7 @@ pub async fn update_settings(tenant: &str, actor: &str, value: &Value) -> Result
         !active,
         "Attack thresholds cannot change during election execution; configure before approval"
     );
-    tx.execute("INSERT INTO sequent_backend.attack_detection_settings(tenant_id,failed_logins_per_minute,requests_per_minute,updated_by) VALUES($1::text::uuid,$2,$3,$4) ON CONFLICT(tenant_id) DO UPDATE SET failed_logins_per_minute=$2,requests_per_minute=$3,updated_by=$4,updated_at=clock_timestamp()", &[&tenant,&failures,&requests,&actor]).await?;
+    tx.execute("INSERT INTO sequent_backend.attack_detection_settings(tenant_id,failed_logins_per_minute,requests_per_minute,account_failure_threshold,updated_by) VALUES($1::text::uuid,$2,$3,$4,$5) ON CONFLICT(tenant_id) DO UPDATE SET failed_logins_per_minute=$2,requests_per_minute=$3,account_failure_threshold=$4,updated_by=$5,updated_at=clock_timestamp()", &[&tenant,&failures,&requests,&account_threshold,&actor]).await?;
     let details = json!({"actor":actor,"settings":value});
     tx.execute("INSERT INTO sequent_backend.lifecycle_notice(tenant_id,election_event_id,kind,details) SELECT tenant_id,id,'AttackDetectionSettingsChanged',$2 FROM sequent_backend.election_event WHERE tenant_id=$1::text::uuid", &[&tenant,&details]).await?;
     tx.commit().await?;
@@ -286,15 +289,28 @@ mod tests {
     #[test]
     fn threshold_settings_are_explicit_positive_bounded_integers() {
         assert_eq!(
-            rates(&json!({"failed_logins_per_minute":20,"requests_per_minute":2000})).unwrap(),
-            (20, 2000)
+            rates(&json!({"failed_logins_per_minute":20,"requests_per_minute":2000,"account_failure_threshold":5})).unwrap(),
+            (20, 2000, 5)
         );
+        for threshold in [1, 100000] {
+            assert_eq!(
+                rates(&json!({"failed_logins_per_minute":20,"requests_per_minute":2000,"account_failure_threshold":threshold})).unwrap().2,
+                threshold
+            );
+        }
         for bad in [
             json!({}),
-            json!({"failed_logins_per_minute":0,"requests_per_minute":2000}),
-            json!({"failed_logins_per_minute":20.5,"requests_per_minute":2000}),
-            json!({"failed_logins_per_minute":20,"requests_per_minute":10000001}),
+            json!({"failed_logins_per_minute":20,"requests_per_minute":2000}),
+            json!({"failed_logins_per_minute":0,"requests_per_minute":2000,"account_failure_threshold":5}),
+            json!({"failed_logins_per_minute":20.5,"requests_per_minute":2000,"account_failure_threshold":5}),
+            json!({"failed_logins_per_minute":20,"requests_per_minute":10000001,"account_failure_threshold":5}),
+            json!({"failed_logins_per_minute":20,"requests_per_minute":2000,"account_failure_threshold":0}),
+            json!({"failed_logins_per_minute":20,"requests_per_minute":2000,"account_failure_threshold":-1}),
+            json!({"failed_logins_per_minute":20,"requests_per_minute":2000,"account_failure_threshold":1.5}),
+            json!({"failed_logins_per_minute":20,"requests_per_minute":2000,"account_failure_threshold":100001}),
+            json!({"failed_logins_per_minute":20,"requests_per_minute":2000,"account_failure_threshold":"5"}),
             json!({"failed_logins_per_minute":20,"requests_per_minute":2000,"enabled":false}),
+            json!({"failed_logins_per_minute":20,"requests_per_minute":2000,"account_failure_threshold":5,"enabled":false}),
         ] {
             assert!(rates(&bad).is_err());
         }

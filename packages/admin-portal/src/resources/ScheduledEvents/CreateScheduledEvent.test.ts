@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {fireEvent, render, screen, waitFor} from "@testing-library/react"
-import CreateEvent, {warningParams} from "./CreateScheduledEvent"
+import CreateEvent, {EventProcessors, isLockdownPeriod, warningParams} from "./CreateScheduledEvent"
 import {adminDateTimeFormat} from "@/components/timezones/timeZoneService"
 
 jest.mock("@sequentech/ui-core", () => ({
@@ -338,6 +338,68 @@ it("words a warning's wall times, zone and election", () => {
         time_zone: "GMT+4",
     })
 })
+describe("where only the lockdown period can be scheduled", () => {
+    const lockdownProps = {...props, onlyLockdownPeriod: true}
+    const typeSelect = () => screen.getByRole("combobox", {name: /eventsScreen.eventType.label/})
+    it("offers only its two types and saves the one chosen", async () => {
+        render(React.createElement(CreateEvent, lockdownProps))
+        fireEvent.mouseDown(typeSelect())
+        expect(screen.getAllByRole("option").map(({textContent}) => textContent)).toEqual([
+            "eventsScreen.eventType.START_LOCKDOWN_PERIOD",
+            "eventsScreen.eventType.END_LOCKDOWN_PERIOD",
+        ])
+        fireEvent.click(
+            screen.getByRole("option", {name: "eventsScreen.eventType.END_LOCKDOWN_PERIOD"})
+        )
+        enterTime()
+        fireEvent.click(screen.getByText("Save"))
+        await waitFor(() =>
+            expect(mockSave).toHaveBeenCalledWith({
+                variables: expect.objectContaining({
+                    eventProcessor: "END_LOCKDOWN_PERIOD",
+                    electionId: null,
+                    votingChannels: undefined,
+                }),
+            })
+        )
+    })
+    it("starts on Start Lockdown Period, even when the policy loads after the form opens", async () => {
+        const view = render(React.createElement(CreateEvent, props))
+        expect(typeSelect().textContent).toBe("eventsScreen.eventType.START_VOTING_PERIOD")
+        view.rerender(React.createElement(CreateEvent, lockdownProps))
+        expect(typeSelect().textContent).toBe("eventsScreen.eventType.START_LOCKDOWN_PERIOD")
+        enterTime()
+        fireEvent.click(screen.getByText("Save"))
+        await waitFor(() =>
+            expect(mockSave).toHaveBeenCalledWith({
+                variables: expect.objectContaining({eventProcessor: "START_LOCKDOWN_PERIOD"}),
+            })
+        )
+    })
+    it("keeps the type of an edited row", () => {
+        mockEvent = {
+            event_processor: "END_LOCKDOWN_PERIOD",
+            event_payload: {},
+            cron_config: {scheduled_date: "2027-01-01T12:00:00Z"},
+        }
+        render(
+            React.createElement(CreateEvent, {
+                ...lockdownProps,
+                isEditEvent: true,
+                selectedEventId: "schedule",
+            })
+        )
+        expect(typeSelect().textContent).toBe("eventsScreen.eventType.END_LOCKDOWN_PERIOD")
+    })
+    it("knows the lockdown types", () => {
+        expect(Object.values(EventProcessors).filter(isLockdownPeriod)).toEqual([
+            EventProcessors.START_LOCKDOWN_PERIOD,
+            EventProcessors.END_LOCKDOWN_PERIOD,
+        ])
+        expect(isLockdownPeriod(null)).toBe(false)
+    })
+})
+
 describe("new save warnings", () => {
     const zones = jest.requireActual("../../../../ui-core/src/services/timeZones")
     const text = {

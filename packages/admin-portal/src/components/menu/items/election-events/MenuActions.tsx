@@ -4,7 +4,7 @@
 
 import React, {RefObject} from "react"
 import {useNavigate} from "react-router-dom"
-import {useDelete, useNotify, useRedirect, useUpdate} from "react-admin"
+import {useDelete, useNotify, useRedirect} from "react-admin"
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz"
 import AddCircleIcon from "@mui/icons-material/AddCircle"
 import DeleteIcon from "@mui/icons-material/Delete"
@@ -55,7 +55,6 @@ enum Action {
     Import,
     Remove,
     Archive,
-    Unarchive,
 }
 
 type ActionPayload = {
@@ -110,7 +109,6 @@ export default function MenuAction({
     const redirect = useRedirect()
 
     const [deleteOne] = useDelete()
-    const [update] = useUpdate()
     const [delete_election_event] = useMutation<DeleteElectionEventMutation>(
         DELETE_ELECTION_EVENT,
         {
@@ -194,10 +192,7 @@ export default function MenuAction({
 
         if (action === Action.Add) {
             navigate(getNavLinkCreate(parentData, payload.type))
-        } else if (
-            payload.type === "sequent_backend_election_event" &&
-            (action === Action.Archive || action === Action.Unarchive)
-        ) {
+        } else if (payload.type === "sequent_backend_election_event" && action === Action.Archive) {
             setSelectedActionModal({action, payload})
             setOpenArchiveModal(true)
         } else if (action === Action.Remove) {
@@ -216,48 +211,21 @@ export default function MenuAction({
             return
         }
 
-        const {action, payload} = selectedActionModal
-
-        if (action === Action.Archive) {
-            try {
-                const {data} = await archive_election_event({
-                    variables: {electionEventId: payload.id},
-                })
-                if (!data?.archive_election_event?.id) {
-                    throw new Error("The election event was not archived")
-                }
-                refetch()
-                notify(t("sideMenu.menuActions.messages.notification.success.archive"), {
-                    type: "success",
-                })
-            } catch {
-                notify(t("sideMenu.menuActions.messages.notification.error.archive"), {
-                    type: "error",
-                })
+        try {
+            const {data} = await archive_election_event({
+                variables: {electionEventId: selectedActionModal.payload.id},
+            })
+            if (!data?.archive_election_event?.id) {
+                throw new Error("The election event was not archived")
             }
-        } else if (action === Action.Unarchive) {
-            await update(
-                payload.type,
-                {
-                    id: payload.id,
-                    data: {is_archived: false},
-                    previousData: {is_archived: true},
-                },
-
-                {
-                    onSuccess() {
-                        refetch()
-                        notify(t("sideMenu.menuActions.messages.notification.success.unarchive"), {
-                            type: "success",
-                        })
-                    },
-                    onError() {
-                        notify(t("sideMenu.menuActions.messages.notification.error.unarchive"), {
-                            type: "error",
-                        })
-                    },
-                }
-            )
+            refetch()
+            notify(t("sideMenu.menuActions.messages.notification.success.archive"), {
+                type: "success",
+            })
+        } catch {
+            notify(t("sideMenu.menuActions.messages.notification.error.archive"), {
+                type: "error",
+            })
         }
     }
 
@@ -417,7 +385,7 @@ export default function MenuAction({
         <>
             <StyledIconContainer>
                 {((!isArchivedTab && (canShowCreate || canShowDelete || canArchiveElectionEvent)) ||
-                    (isArchivedTab && (canArchiveElectionEvent || canShowDelete))) && (
+                    (isArchivedTab && canShowDelete)) && (
                     <StyledActionsButton
                         type="button"
                         aria-label={`${t("common.label.actions")}: ${resourceName}`}
@@ -489,13 +457,13 @@ export default function MenuAction({
                         canShowCreate &&
                         canShowDelete && <Divider key="divider1" />}
 
-                    {isItemElectionEventType && canArchiveElectionEvent && (
+                    {isItemElectionEventType && !isArchivedTab && canArchiveElectionEvent && (
                         <MenuItem
                             dir={i18n.dir(i18n.language)}
                             key={Action.Archive}
                             className={`menu-action-archive-${resourceType}`}
                             onClick={() =>
-                                handleAction(isArchivedTab ? Action.Unarchive : Action.Archive, {
+                                handleAction(Action.Archive, {
                                     id: resourceId,
                                     name: resourceName,
                                     type: resourceType,
@@ -505,15 +473,14 @@ export default function MenuAction({
                             <ListItemIcon>
                                 <InventoryIcon color="error" />
                             </ListItemIcon>
-                            {isArchivedTab
-                                ? t("sideMenu.menuActions.unarchive.electionEvent")
-                                : t("sideMenu.menuActions.archive.electionEvent")}
+                            {t("sideMenu.menuActions.archive.electionEvent")}
                         </MenuItem>
                     )}
 
-                    {canArchiveElectionEvent && canShowCreate && canShowDelete && (
-                        <Divider key="divider2" />
-                    )}
+                    {!isArchivedTab &&
+                        canArchiveElectionEvent &&
+                        canShowCreate &&
+                        canShowDelete && <Divider key="divider2" />}
 
                     {canShowDelete && (
                         <MenuItem
@@ -541,11 +508,7 @@ export default function MenuAction({
             <Dialog
                 variant="warning"
                 open={openArchiveModal}
-                ok={
-                    selectedActionModal?.action === Action.Archive
-                        ? t("common.label.archive")
-                        : t("common.label.unarchive")
-                }
+                ok={t("common.label.archive")}
                 cancel={String(t("common.label.cancel"))}
                 title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
@@ -555,9 +518,7 @@ export default function MenuAction({
                     setOpenArchiveModal(false)
                 }}
             >
-                {selectedActionModal?.action === Action.Archive
-                    ? t("sideMenu.menuActions.messages.confirm.archive")
-                    : t("sideMenu.menuActions.messages.confirm.unarchive")}
+                {t("sideMenu.menuActions.messages.confirm.archive")}
             </Dialog>
 
             <Dialog

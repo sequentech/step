@@ -13,6 +13,17 @@ pub async fn run_self_tests(
     Ok(())
 }
 #[wrap_map_err::wrap_map_err(TaskError)]
+#[celery::task(max_retries = 0)]
+pub async fn run_tsf_integrity_check(
+    tenant_id: String,
+    election_event_id: String,
+    check_id: String,
+) -> Result<()> {
+    crate::services::self_tests::tsf_integrity::execute(&tenant_id, &election_event_id, &check_id)
+        .await?;
+    Ok(())
+}
+#[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0, expires = 15)]
 pub async fn schedule_self_tests() -> Result<()> {
     use crate::services::{database::get_hasura_pool, electoral_log_audit_deadline::AuditDeadline};

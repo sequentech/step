@@ -23,10 +23,8 @@ fn viewer(event: &Event) -> Claims {
 }
 
 fn configurator(event: &Event) -> Claims {
-    Claims::new(&event.tenant_id, "configurator").roles([
-        Permissions::MONITORING_CONFIGURE,
-        Permissions::ELECTION_EVENT_WRITE,
-    ])
+    Claims::new(&event.tenant_id, "configurator")
+        .roles([Permissions::MONITORING_CONFIGURE])
 }
 
 /// Resets the event to the COMELEC preset; the generation it made.

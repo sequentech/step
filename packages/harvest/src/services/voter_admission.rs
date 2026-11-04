@@ -64,7 +64,12 @@ pub fn lifecycle_fairing() -> rocket::fairing::AdHoc {
                         )
                         .await
                         {
-                            Ok(Ok(())) => registered = true,
+                            Ok(Ok(())) => {
+                                if !registered {
+                                    windmill::services::self_tests::startup_runs();
+                                }
+                                registered = true;
+                            }
                             _ => tracing::warn!(
                                 "Harvest lifecycle lease could not be updated"
                             ),

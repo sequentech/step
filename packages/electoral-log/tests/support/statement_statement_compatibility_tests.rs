@@ -308,7 +308,24 @@ fn statement_type_borsh_discriminants_are_append_only() {
         borsh::to_vec(&StatementType::ApprovalMatrixUpdated).unwrap(),
         vec![57]
     );
-    assert!(borsh::from_slice::<StatementType>(&[62]).is_err());
+    assert_eq!(
+        borsh::to_vec(&StatementType::TsfIntegrityCheck).unwrap(),
+        vec![67]
+    );
+    assert!(borsh::from_slice::<StatementType>(&[68]).is_err());
+}
+
+#[test]
+fn a_tsf_integrity_check_has_its_own_statement_type() {
+    let event = EventIdString("event".to_string());
+    let body =
+        StatementBody::SelfTest(event.clone(), "tsf-integrity".to_string(), "{}".to_string());
+    let head = StatementHead::from_body(event, &body);
+    assert_eq!(
+        borsh::to_vec(&head.kind).unwrap(),
+        borsh::to_vec(&StatementType::TsfIntegrityCheck).unwrap()
+    );
+    assert_eq!(head.description, "Self-test tsf-integrity: {}");
 }
 
 fn report_generated(document_id: Option<&str>) -> StatementBody {

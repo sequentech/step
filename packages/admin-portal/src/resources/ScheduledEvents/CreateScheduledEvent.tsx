@@ -102,6 +102,8 @@ interface CreateEventProps {
     isEditEvent?: boolean
     selectedEventId?: string
     getElectionName: (scheduledEvent: Sequent_Backend_Scheduled_Event) => string
+    /** A new row can only be a lockdown period: the other dates come with the signed import. */
+    onlyLockdownPeriod?: boolean
 }
 
 export enum EventProcessors {
@@ -162,6 +164,11 @@ export const isVotingTransition = (eventProcessor: string | null | undefined): b
     eventProcessor === EventProcessors.START_VOTING_PERIOD ||
     eventProcessor === EventProcessors.END_VOTING_PERIOD
 
+/** The scheduled events that stay outside the signed import. */
+export const isLockdownPeriod = (eventProcessor: string | null | undefined): boolean =>
+    eventProcessor === EventProcessors.START_LOCKDOWN_PERIOD ||
+    eventProcessor === EventProcessors.END_LOCKDOWN_PERIOD
+
 const VotingChannelsInput: FC<{
     value: VotingStatusChannel[]
     onChange: (channels: VotingStatusChannel[]) => void
@@ -209,6 +216,7 @@ const CreateEvent: FC<CreateEventProps> = ({
     isEditEvent,
     selectedEventId,
     getElectionName,
+    onlyLockdownPeriod,
 }) => {
     const {t} = useTranslation()
     const [isLoading, setIsLoading] = useState(false)
@@ -264,12 +272,17 @@ const CreateEvent: FC<CreateEventProps> = ({
             : zonedValueOf(edited.local, edited.timezone, timeZones)
     // Only the event's configured zones can be saved.
     const unconfiguredZone = !!zoned && !zones.configured.includes(zoned.timezone)
-    const [eventType, setEventType] = useState<EventProcessors>(
+    const [chosenEventType, setEventType] = useState<EventProcessors>(
         isEditEvent
             ? ((selectedEvent?.event_processor as EventProcessors | null) ??
                   EventProcessors.START_VOTING_PERIOD)
             : EventProcessors.START_VOTING_PERIOD
     )
+    // The policy may load after the form opens. An edited row keeps its type.
+    const eventType =
+        !isEditEvent && onlyLockdownPeriod && !isLockdownPeriod(chosenEventType)
+            ? EventProcessors.START_LOCKDOWN_PERIOD
+            : chosenEventType
     useEffect(() => {
         if (!isEditEvent || !selectedEvent) return
         setEventType(selectedEvent.event_processor as EventProcessors)
@@ -414,11 +427,18 @@ const CreateEvent: FC<CreateEventProps> = ({
                         onChange={(e: any) => setEventType(e.target.value)}
                         disabled={isEditEvent || isLoading}
                     >
-                        {Object.values(EventProcessors).map((processor) => (
-                            <MenuItem key={processor} value={processor}>
-                                {t(`eventsScreen.eventType.${processor}`)}
-                            </MenuItem>
-                        ))}
+                        {Object.values(EventProcessors)
+                            .filter(
+                                (processor) =>
+                                    isEditEvent ||
+                                    !onlyLockdownPeriod ||
+                                    isLockdownPeriod(processor)
+                            )
+                            .map((processor) => (
+                                <MenuItem key={processor} value={processor}>
+                                    {t(`eventsScreen.eventType.${processor}`)}
+                                </MenuItem>
+                            ))}
                     </Select>
                 </FormControl>
                 <FormControl fullWidth>

@@ -8,10 +8,11 @@ use crate::services::authorization::{
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::{anyhow, Result};
 use chrono::Utc;
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::ballot::VotingStatusChannel;
+use sequent_core::election_config::package_verify::ConfigurationSigningPolicy;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::types::scheduled_event::{
@@ -23,8 +24,36 @@ use windmill::services::database::get_hasura_pool;
 use windmill::services::election_dates::{
     self, InvalidSchedule, ScheduleInput, ScheduleWarning,
 };
+use windmill::services::import::configuration_package;
 use windmill::services::schedule_recompute;
 use windmill::services::signing::log::Actor;
+
+/// Where signed packages are required, election dates arrive only through
+/// the signed import.
+pub(crate) const DATES_ONLY_BY_SIGNED_IMPORT: &str =
+    "Election dates change only by the signed import";
+
+pub(crate) async fn signed_import_required(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+) -> Result<bool> {
+    let signing =
+        configuration_package::tenant_setting(hasura_transaction, tenant_id)
+            .await?;
+    Ok(signing.is_some_and(|signing| {
+        signing.policy == ConfigurationSigningPolicy::Required
+    }))
+}
+
+/// The lockdown period is not part of the election data, so it stays
+/// editable where the other dates do not.
+fn is_lockdown_period(event_processor: &EventProcessors) -> bool {
+    matches!(
+        event_processor,
+        EventProcessors::START_LOCKDOWN_PERIOD
+            | EventProcessors::END_LOCKDOWN_PERIOD
+    )
+}
 
 #[derive(Deserialize, Debug)]
 pub struct ManageElectionDatesBody {
@@ -118,6 +147,27 @@ pub async fn manage_election_dates(
         };
         ErrorResponse::new(status, &message, code)
     })?;
+
+    if !is_lockdown_period(&input.event_processor)
+        && signed_import_required(
+            &hasura_transaction,
+            &claims.hasura_claims.tenant_id,
+        )
+        .await
+        .map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("{e:?}"),
+                ErrorCode::InternalServerError,
+            )
+        })?
+    {
+        return Err(ErrorResponse::new(
+            Status::Forbidden,
+            DATES_ONLY_BY_SIGNED_IMPORT,
+            ErrorCode::Unauthorized,
+        ));
+    }
 
     let actor = actor(&claims);
     let schedule = ScheduleInput {
@@ -234,6 +284,20 @@ pub async fn apply_schedule_recompute(
         .transaction()
         .await
         .map_err(|e| internal(&e))?;
+    // The recompute applies every pending row at once.
+    if signed_import_required(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+    )
+    .await
+    .map_err(|e| internal(&e))?
+    {
+        return Err(ErrorResponse::new(
+            Status::Forbidden,
+            DATES_ONLY_BY_SIGNED_IMPORT,
+            ErrorCode::Unauthorized,
+        ));
+    }
     let now = Utc::now();
     let refresh_enrollment = schedule_recompute::enrollment_changes_pending(
         &hasura_transaction,
@@ -304,7 +368,21 @@ fn validate_voting_channels(
 mod voting_channel_validation_tests {
     use super::*;
     use sequent_core::types::scheduled_event::ONLINE_WITH_EARLY_VOTING_START_ERROR;
+    use strum::IntoEnumIterator;
     use VotingStatusChannel::{EARLY_VOTING, KIOSK, ONLINE};
+
+    #[test]
+    fn only_the_lockdown_period_is_outside_the_signed_import() {
+        let outside: Vec<_> =
+            EventProcessors::iter().filter(is_lockdown_period).collect();
+        assert_eq!(
+            outside,
+            vec![
+                EventProcessors::START_LOCKDOWN_PERIOD,
+                EventProcessors::END_LOCKDOWN_PERIOD,
+            ]
+        );
+    }
 
     #[test]
     fn start_schedule_opening_online_and_early_voting_is_a_bad_request() {

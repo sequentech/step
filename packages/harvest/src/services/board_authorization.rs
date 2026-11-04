@@ -27,6 +27,63 @@ fn operation_prerequisite(message: String) -> String {
     .to_string()
 }
 
+/// What the board signs. Counting is bound to its parameters and lifecycle
+/// generation: evidence recorded while the board signs does not restart the
+/// signatures.
+fn signed_subject(
+    action: SigningAction,
+    operation: &str,
+    parameters: Value,
+    lifecycle_generation: i64,
+    source_revision: i64,
+    permission_labels: Vec<String>,
+) -> Value {
+    let mut subject = serde_json::json!({
+        "operation": operation,
+        "parameters": parameters,
+        "lifecycle_generation": lifecycle_generation,
+        "permission_labels": permission_labels,
+    });
+    if action != SigningAction::StartTally {
+        subject["source_revision"] = source_revision.into();
+    }
+    subject
+}
+
+#[cfg(test)]
+mod signed_subject_tests {
+    use super::*;
+
+    #[test]
+    fn counting_is_not_bound_to_the_execution_revision() {
+        let counting = signed_subject(
+            SigningAction::StartTally,
+            "start-tally",
+            serde_json::json!({"election_ids": ["e"]}),
+            4,
+            17,
+            vec![],
+        );
+        assert!(counting.get("source_revision").is_none());
+        assert_eq!(counting["lifecycle_generation"], 4);
+        assert_eq!(counting["parameters"]["election_ids"][0], "e");
+    }
+
+    #[test]
+    fn other_operations_stay_bound_to_the_execution_revision() {
+        for action in [
+            SigningAction::ImportElectionData,
+            SigningAction::ExportExecutionData,
+            SigningAction::DeleteExecutionData,
+            SigningAction::ReadVotersRegister,
+        ] {
+            let subject =
+                signed_subject(action, "operation", Value::Null, 4, 17, vec![]);
+            assert_eq!(subject["source_revision"], 17);
+        }
+    }
+}
+
 #[cfg(test)]
 mod prerequisite_tests {
     use super::operation_prerequisite;
@@ -147,11 +204,6 @@ pub async fn authorize_operation(
         .await
         .map_err(|e| (Status::Conflict, operation_prerequisite(e.to_string())))?;
     }
-    if action == SigningAction::StartTally {
-        election_lifecycle::require_counting_test(&tx, tenant, event)
-            .await
-            .map_err(|e| (Status::Conflict, operation_prerequisite(e.to_string())))?;
-    }
     let source_revision =
         windmill::services::board_operations::source_revision(
             &tx, tenant, event,
@@ -179,9 +231,27 @@ pub async fn authorize_operation(
     } else {
         subject
     };
-    let subject = serde_json::json!({"operation": operation, "parameters": subject,
-        "lifecycle_generation": state.generation, "source_revision": source_revision,
-        "permission_labels": sequent_core::services::jwt::decode_permission_labels(claims)});
+    let subject = signed_subject(
+        action,
+        operation,
+        subject,
+        state.generation,
+        source_revision,
+        sequent_core::services::jwt::decode_permission_labels(claims),
+    );
+    if action == SigningAction::StartTally {
+        election_lifecycle::require_counting_test(
+            &tx,
+            tenant,
+            event,
+            &caller.user_id,
+            &subject,
+        )
+        .await
+        .map_err(|e| {
+            (Status::Conflict, operation_prerequisite(e.to_string()))
+        })?;
+    }
     let outcome = board_gate::gate(
         &tx, &caller, tenant_id, event_id, action, operation, subject,
     )

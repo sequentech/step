@@ -3153,7 +3153,6 @@
       "realmRoles": [
         "election-event-create",
         "election-event-read",
-        "election-event-write",
         "election-event-delete",
         "election-event-archive",
         "election-execution-export",

@@ -5,13 +5,18 @@
 //! The schedule as a CSV file (VOTE-LIFECYCLE): preview an uploaded file,
 //! import it, and export the event's schedule.
 
+use crate::routes::election_dates::{
+    signed_import_required, DATES_ONLY_BY_SIGNED_IMPORT,
+};
 use crate::services::authorization::authorize;
+use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use windmill::services::database::get_hasura_pool;
 use windmill::services::schedule_csv::{
     export_schedule_document, import_schedule_document,
     preview_schedule_document, ImportOutcome, RowsWithErrors, ScheduleAuthor,
@@ -43,6 +48,30 @@ fn authorize_schedule(claims: &JwtClaims) -> Result<(), (Status, String)> {
     )
 }
 
+async fn refuse_under_signed_import(
+    claims: &JwtClaims,
+) -> Result<(), (Status, String)> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    let required = signed_import_required(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    if required {
+        return Err((Status::Forbidden, DATES_ONLY_BY_SIGNED_IMPORT.into()));
+    }
+    Ok(())
+}
+
 /// A file that isn't a schedule, or has row errors, is the caller's to fix
 /// (400); anything else is ours (500).
 fn schedule_error(error: anyhow::Error) -> (Status, String) {
@@ -62,6 +91,7 @@ pub async fn preview_schedule_import(
     input: Json<ScheduleDocumentInput>,
 ) -> Result<Json<SchedulePreview>, (Status, String)> {
     authorize_schedule(&claims)?;
+    refuse_under_signed_import(&claims).await?;
     let input = input.into_inner();
     let preview = preview_schedule_document(
         &claims.hasura_claims.tenant_id,
@@ -80,6 +110,7 @@ pub async fn import_schedule(
     input: Json<ScheduleDocumentInput>,
 ) -> Result<Json<ImportOutcome>, (Status, String)> {
     authorize_schedule(&claims)?;
+    refuse_under_signed_import(&claims).await?;
     let input = input.into_inner();
     let request =
         crate::services::board_authorization::authorize_import_document(

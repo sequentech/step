@@ -67,7 +67,14 @@ impl Message {
         sd: &SigningData,
     ) -> Result<Self> {
         anyhow::ensure!(
-            ["started", "completed", "settings-changed", "probe"].contains(&stage),
+            [
+                "started",
+                "completed",
+                "settings-changed",
+                "probe",
+                "tsf-integrity"
+            ]
+            .contains(&stage),
             "Unknown self-test audit stage"
         );
         Self::from_body(

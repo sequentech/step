@@ -43,7 +43,7 @@ import {
     lifecycleSnapshotEntry,
     lifecycleSchedule,
 } from "./__stories__/LifecycleScheduleFixture"
-import {eventRecord} from "@/__stories__/fixtures"
+import {eventRecord, tenantRecord} from "@/__stories__/fixtures"
 import {MyTimeZoneProvider, adminDateTimeFormat} from "@/components/timezones/timeZoneService"
 import {
     MY_TIME_ZONE,
@@ -75,6 +75,8 @@ interface Scenario {
     /** A row was edited after publication, a tz database update moved one, a row has no offset. */
     changes: boolean
     storedInAnotherZone?: boolean
+    /** Whether the tenant requires signed packages, and the event has a lockdown row. */
+    signedImportRequired?: boolean
 }
 
 const CONFIGURATIONS: Record<"overseas" | "madrid", () => ITimeZoneConfiguration> = {
@@ -101,6 +103,8 @@ const outcomesOf = (configuration: Scenario["configuration"]): Array<IScheduledO
 
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
+
+const LOCKDOWN_ID = "lockdown-start"
 
 const ALL_ROLES = [
     IPermissions.SCHEDULED_EVENT_WRITE,
@@ -164,8 +168,27 @@ const meta = {
             }
             schedule[2].cron_config = {scheduled_date: "2028-04-09T00:00:00"}
         }
+        if (args.signedImportRequired) {
+            schedule.push({
+                ...schedule[0],
+                id: LOCKDOWN_ID,
+                event_processor: EventProcessors.START_LOCKDOWN_PERIOD,
+                event_payload: {election_id: null},
+            })
+        }
         data = resourceBoundary(
             {
+                sequent_backend_tenant: [
+                    args.signedImportRequired
+                        ? {
+                              ...tenantRecord,
+                              settings: {
+                                  ...tenantRecord.settings,
+                                  configuration_signing: {policy: "required"},
+                              },
+                          }
+                        : tenantRecord,
+                ],
                 [SCHEDULED_EVENT_RESOURCE]: args.populated ? schedule : [],
                 [ELECTION_RESOURCE]: configuration
                     ? lifecycleElections(configuration)
@@ -575,6 +598,30 @@ export const ImportIntoEmptySchedule: Story = {
         await expect(form.getByText(i18n.t("lifecycle.import.title"))).toBeVisible()
         await expect(form.getByRole("button", {name: i18n.t("common.label.import")})).toBeDisabled()
         await userEvent.click(form.getByRole("button", {name: i18n.t("common.label.cancel")}))
+    },
+}
+/** Where signed packages are required, only the lockdown period is changed here. */
+export const SignedImportRequired: Story = {
+    args: {signedImportRequired: true},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const lockdown = within(
+            await eventRow(canvasElement, EventProcessors.START_LOCKDOWN_PERIOD)
+        )
+        const start = within(await eventRow(canvasElement, EventProcessors.START_VOTING_PERIOD))
+        await waitFor(() => expect(start.queryAllByRole("button")).toEqual([]))
+        await expect(lockdown.getAllByRole("button")).toHaveLength(2)
+        expect(canvas.queryByRole("button", {name: i18n.t("common.label.import")})).toBeNull()
+        await userEvent.click(canvas.getByRole("button", {name: i18n.t("common.label.add")}))
+        const form = within(await drawer())
+        await userEvent.click(
+            form.getByRole("combobox", {name: new RegExp(i18n.t("eventsScreen.eventType.label"))})
+        )
+        const options = await within(document.body).findAllByRole("option")
+        expect(options.map(({textContent}) => textContent)).toEqual([
+            i18n.t("eventsScreen.eventType.START_LOCKDOWN_PERIOD"),
+            i18n.t("eventsScreen.eventType.END_LOCKDOWN_PERIOD"),
+        ])
     },
 }
 export const EmptyScheduleReadOnly: Story = {

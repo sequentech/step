@@ -1,8 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 //! Pure FAU_SAA.3 policy; telemetry absence never means no attacks.
-pub fn valid_rates(failed_logins: i64, requests: i64) -> bool {
-    (1..=100_000).contains(&failed_logins) && (1..=10_000_000).contains(&requests)
+pub fn valid_rates(failed_logins: i64, requests: i64, account_failures: i64) -> bool {
+    (1..=100_000).contains(&failed_logins)
+        && (1..=10_000_000).contains(&requests)
+        && (1..=100_000).contains(&account_failures)
 }
 pub fn fresh_source(updated: i64, now: i64) -> bool {
     updated <= now && now.saturating_sub(updated) <= 30_000
@@ -20,10 +22,15 @@ mod tests {
     use super::*;
     #[test]
     fn zero_negative_and_unbounded_rates_cannot_disable_detection() {
-        assert!(!valid_rates(0, 20));
-        assert!(!valid_rates(-1, 20));
-        assert!(!valid_rates(20, 10_000_001));
-        assert!(valid_rates(20, 2000));
+        assert!(!valid_rates(0, 20, 5));
+        assert!(!valid_rates(-1, 20, 5));
+        assert!(!valid_rates(20, 10_000_001, 5));
+        assert!(!valid_rates(20, 2000, 0));
+        assert!(!valid_rates(20, 2000, -1));
+        assert!(!valid_rates(20, 2000, 100_001));
+        assert!(valid_rates(20, 2000, 5));
+        assert!(valid_rates(20, 2000, 1));
+        assert!(valid_rates(20, 2000, 100_000));
     }
     #[test]
     fn unknown_and_stale_activity_never_mean_zero_requests() {

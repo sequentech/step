@@ -5,7 +5,65 @@ import englishTranslation, {TranslationType} from "./en"
 
 const galegoTranslation: TranslationType = {
     translations: {
+        copyableFingerprint: {
+            copy: "Copiar o SHA-256 completo",
+            copied: "Copiouse o SHA-256 completo",
+            copyError:
+                "Non se puido copiar o SHA-256. Sinale o valor abreviado para lelo completo.",
+        },
+        attackDetection: {
+            title: "Detección de ataques",
+            description:
+                "Fixe estes limiares co organizador da elección durante a preparación. O sistema compara a actividade rexistrada cos limiares e rexistra os posibles ataques para a xunta electoral. Esta configuración non bloquea contas nin limita as solicitudes.",
+            permission:
+                "Requírese permiso de administrador para configurar a detección de ataques.",
+            loading: "Cargando a configuración de detección de ataques",
+            readFailed:
+                "Non se puido verificar a configuración do inquilino actual. Recargue a páxina antes de facer cambios.",
+            failedLogins: "Inicios de sesión fallidos por minuto, todas as contas",
+            failedLoginsHelp:
+                "Introduza un número enteiro de 1 a 100.000. O sistema rexistra un posible ataque cando os inicios de sesión fallidos de todas as contas nun minuto superan este número.",
+            accountFailures: "Inicios de sesión fallidos por conta antes dunha alerta",
+            accountFailuresHelp:
+                "Introduza un número enteiro de 1 a 100.000. Cando unha conta alcanza este número de inicios de sesión fallidos, o sistema rexistra un posible ataque no rexistro electoral do evento electoral (no de todos os eventos electorais do inquilino se é unha conta do persoal), e a xunta electoral pode velo na lapela Taboleiro do evento electoral. Os fallos que o servidor de autenticación externo notifica sen unha conta cóntanse xuntos por realm.",
+            requests: "Solicitudes por minuto, interfaces externas",
+            requestsHelp:
+                "Introduza un número enteiro de 1 a 10.000.000. O reconto abrangue as interfaces externas, incluídas as solicitudes non autenticadas.",
+            save: "Gardar a configuración de detección de ataques",
+            saved: "Configuración de detección de ataques gardada e verificada. A xunta debe aprobar a configuración actualizada antes da execución.",
+            saveFailed:
+                "A configuración non se gardou nin se verificou. Recargue os valores actuais e comprobe a fase da elección antes de tentalo de novo.",
+        },
         securityTests: englishTranslation.translations.securityTests,
+        tsfIntegrity: {
+            title: "Integridade do software do TOE",
+            description:
+                "Compara o software en execución nos servidores coa entrega aceptada, por separado das autoprobas; unha diferenza pon o evento electoral no estado de recuperación requirida.",
+            run: "Verificar o software do TOE",
+            running: "Verificación en cola ou en curso",
+            queued: "Verificación en cola. O resultado aparecerá aquí cando remate a tarefa en segundo plano.",
+            none: "O software do TOE aínda non se verificou para este evento electoral.",
+            started: "Inicio",
+            requestedBy: "Solicitado por",
+            toeReference: "Referencia do TOE",
+            digestList: "SHA-256 da lista de resumos aceptada",
+            digestListHelp: "Compáreo co valor rexistrado ao aceptar a entrega.",
+            parts: "Partes do TOE",
+            part: "Parte",
+            acceptedDigest: "Resumo aceptado",
+            runningContainers: "Contedores en execución",
+            result: "Resultado",
+            outcome: {
+                verified: "Coincide coa entrega aceptada",
+                different: "Difire da entrega aceptada",
+                unverifiable: "Non se puido verificar",
+            },
+            partOutcome: {
+                verified: "Coincide",
+                different: "Difire",
+                unverifiable: "Non se puido verificar",
+            },
+        },
         verificationExport: englishTranslation.translations.verificationExport,
         philippinePassport: "Pasaporte filipino",
         seamanBook: "Libro de marinero",
@@ -206,7 +264,7 @@ const galegoTranslation: TranslationType = {
         logsScreen: {
             noPermissions: "Non tes permiso para acceder aos rexistros.",
             title: "Rexistros",
-            subtitle: "Rexistros xerais das bases de datos principal e IAM",
+            subtitle: "O rexistro electoral deste evento electoral",
             actions: {
                 csv: "Exportar en CSV",
                 pdf: "Exportar en PDF",
@@ -2068,7 +2126,6 @@ const galegoTranslation: TranslationType = {
                 create: "Crear",
                 delete: "Eliminar",
                 archive: "Arquivar",
-                unarchive: "Desarquivar",
                 cancel: "Cancelar",
                 edit: "Editar",
                 yes: "Si",
@@ -2154,12 +2211,6 @@ const galegoTranslation: TranslationType = {
                 archive: {
                     electionEvent: "Arquivar este Evento Electoral",
                 },
-                unarchive: {
-                    electionEvent: "Desarquivar este Evento Electoral",
-                    election: "Desarquivar esta Elección",
-                    contest: "Desarquivar esta Pregunta",
-                    candidate: "Desarquivar este Candidato",
-                },
                 remove: {
                     electionEvent: "Eliminar este Evento Electoral",
                     election: "Eliminar esta Elección",
@@ -2169,7 +2220,6 @@ const galegoTranslation: TranslationType = {
                 messages: {
                     confirm: {
                         archive: "¿Estás seguro de que queres arquivar este elemento?",
-                        unarchive: "¿Estás seguro de que queres desarquivar este elemento?",
                         delete: "¿Estás seguro de que queres eliminar este elemento?",
                         sealsUnknown:
                             "Non se puideron comprobar os selos das urnas: se ten urnas seladas, rexeitarase a eliminación.",
@@ -2177,13 +2227,11 @@ const galegoTranslation: TranslationType = {
                     notification: {
                         success: {
                             archive: "O elemento foi arquivado",
-                            unarchive: "O elemento foi desarquivado",
                             delete: "O elemento foi eliminado",
                             reloading: "Espere. La página se recargara en unos momentos",
                         },
                         error: {
                             archive: "Erro ao tentar arquivar este elemento",
-                            unarchive: "Erro ao tentar desarquivar este elemento",
                             delete: "Erro ao tentar eliminar este elemento",
                             deleteSealedElection:
                                 "Esta elección ten urnas seladas e non se pode eliminar. No seu lugar, arquive o seu evento electoral.",

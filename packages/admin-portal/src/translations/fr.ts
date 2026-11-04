@@ -5,7 +5,66 @@ import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        copyableFingerprint: {
+            copy: "Copier le SHA-256 complet",
+            copied: "Le SHA-256 complet a été copié",
+            copyError:
+                "Le SHA-256 n'a pas pu être copié. Pointez la valeur abrégée pour la lire en entier.",
+        },
+        attackDetection: {
+            title: "Détection d'attaques",
+            description:
+                "Définissez ces seuils avec l'organisateur de l'élection pendant la préparation. Le système compare l'activité journalisée aux seuils et enregistre les attaques potentielles pour la commission électorale. Ces paramètres ne verrouillent pas les comptes et ne limitent pas les requêtes.",
+            permission:
+                "L'autorisation d'administrateur est requise pour configurer la détection d'attaques.",
+            loading: "Chargement des paramètres de détection d'attaques",
+            readFailed:
+                "Les paramètres du locataire actuel n'ont pas pu être vérifiés. Rechargez la page avant d'apporter des modifications.",
+            failedLogins: "Échecs de connexion par minute, tous les comptes",
+            failedLoginsHelp:
+                "Saisissez un nombre entier de 1 à 100 000. Le système enregistre une attaque potentielle lorsque les échecs de connexion de tous les comptes en une minute dépassent ce nombre.",
+            accountFailures: "Échecs de connexion par compte avant une alerte",
+            accountFailuresHelp:
+                "Saisissez un nombre entier de 1 à 100 000. Lorsqu'un compte atteint ce nombre d'échecs de connexion, le système enregistre une attaque potentielle dans le journal électoral de l'événement électoral (dans celui de tous les événements électoraux du locataire pour les comptes du personnel), et la commission électorale la voit dans l'onglet Tableau de Bord de l'événement électoral. Les échecs que le serveur d'authentification externe signale sans compte sont comptés ensemble par realm.",
+            requests: "Requêtes par minute, interfaces externes",
+            requestsHelp:
+                "Saisissez un nombre entier de 1 à 10 000 000. Le décompte couvre les interfaces externes, y compris les requêtes non authentifiées.",
+            save: "Enregistrer les paramètres de détection d'attaques",
+            saved: "Paramètres de détection d'attaques enregistrés et vérifiés. La commission doit approuver la configuration mise à jour avant l'exécution.",
+            saveFailed:
+                "Les paramètres n'ont pas été enregistrés et vérifiés. Rechargez les valeurs actuelles et vérifiez la phase de l'élection avant de réessayer.",
+        },
         securityTests: englishTranslation.translations.securityTests,
+        tsfIntegrity: {
+            title: "Intégrité du logiciel de la TOE",
+            description:
+                "Compare le logiciel en cours d'exécution sur les serveurs à la livraison acceptée, indépendamment des autotests ; une différence place l'événement électoral dans l'état de récupération requise.",
+            run: "Vérifier le logiciel de la TOE",
+            running: "Vérification en file d'attente ou en cours",
+            queued: "Vérification en file d'attente. Le résultat apparaîtra ici à la fin de la tâche en arrière-plan.",
+            none: "Le logiciel de la TOE n'a pas encore été vérifié pour cet événement électoral.",
+            started: "Début",
+            requestedBy: "Demandé par",
+            toeReference: "Référence de la TOE",
+            digestList: "SHA-256 de la liste d'empreintes acceptée",
+            digestListHelp:
+                "Comparez-le à la valeur enregistrée lors de l'acceptation de la livraison.",
+            parts: "Parties de la TOE",
+            part: "Partie",
+            acceptedDigest: "Empreinte acceptée",
+            runningContainers: "Conteneurs en cours d'exécution",
+            result: "Résultat",
+            outcome: {
+                verified: "Conforme à la livraison acceptée",
+                different: "Diffère de la livraison acceptée",
+                unverifiable: "Vérification impossible",
+            },
+            partOutcome: {
+                verified: "Conforme",
+                different: "Diffère",
+                unverifiable: "Vérification impossible",
+            },
+        },
         verificationExport: englishTranslation.translations.verificationExport,
         philippinePassport: "Passeport philippin",
         seamanBook: "Livret de marin",
@@ -207,7 +266,7 @@ const frenchTranslation: TranslationType = {
         logsScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
             title: "Journaux",
-            subtitle: "Journaux généraux des bases de données principale et IAM.",
+            subtitle: "Le journal électoral de cet événement électoral",
             actions: {
                 csv: "Exporter en CSV",
                 pdf: "Exporter en PDF",
@@ -2085,7 +2144,6 @@ const frenchTranslation: TranslationType = {
                 create: "Créer",
                 delete: "Supprimer",
                 archive: "Archiver",
-                unarchive: "Désarchiver",
                 cancel: "Annuler",
                 edit: "Éditer",
                 yes: "Oui",
@@ -2172,12 +2230,6 @@ const frenchTranslation: TranslationType = {
                 archive: {
                     electionEvent: "Archiver cet Événement Électoral",
                 },
-                unarchive: {
-                    electionEvent: "Désarchiver cet Événement Électoral",
-                    election: "Désarchiver cette Élection",
-                    contest: "Désarchiver ce Scrutin",
-                    candidate: "Désarchiver ce Candidat",
-                },
                 remove: {
                     electionEvent: "Supprimer cet Événement Électoral",
                     election: "Supprimer cette Élection",
@@ -2187,7 +2239,6 @@ const frenchTranslation: TranslationType = {
                 messages: {
                     confirm: {
                         archive: "Êtes-vous sûr de vouloir archiver cet élément ?",
-                        unarchive: "Êtes-vous sûr de vouloir désarchiver cet élément ?",
                         delete: "Êtes-vous sûr de vouloir supprimer cet élément ?",
                         sealsUnknown:
                             "Les scellés des urnes n'ont pas pu être vérifiés : si l'élément a des urnes scellées, la suppression est refusée.",
@@ -2195,14 +2246,12 @@ const frenchTranslation: TranslationType = {
                     notification: {
                         success: {
                             archive: "L'élément a été archivé",
-                            unarchive: "L'élément a été désarchivé",
                             delete: "L'élément a été supprimé",
                             reloading:
                                 "Veuillez patienter. La page va se recharger dans quelques instants.",
                         },
                         error: {
                             archive: "Erreur lors de la tentative d'archivage de cet élément",
-                            unarchive: "Erreur lors de la tentative de désarchivage de cet élément",
                             delete: "Erreur lors de la tentative de suppression de cet élément",
                             deleteSealedElection:
                                 "Cette élection a des urnes scellées et ne peut pas être supprimée. Archivez plutôt son événement électoral.",

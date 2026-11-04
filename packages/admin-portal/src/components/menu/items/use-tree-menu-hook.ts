@@ -35,11 +35,6 @@ export function useActionPermissions() {
         tenantId,
         IPermissions.ELECTION_EVENT_CREATE
     )
-    const canWriteElectionEvent = authContext.isAuthorized(
-        true,
-        tenantId,
-        IPermissions.ELECTION_EVENT_WRITE
-    )
     const canDeleteElectionEvent = authContext.isAuthorized(
         true,
         tenantId,
@@ -92,7 +87,6 @@ export function useActionPermissions() {
         canCreateElectionEvent,
         canReadElectionEvent,
         canDeleteElectionEvent,
-        canWriteElectionEvent,
         canArchiveElectionEvent,
         canWriteElection,
         canReadElection,

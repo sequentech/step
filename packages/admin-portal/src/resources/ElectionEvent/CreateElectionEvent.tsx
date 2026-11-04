@@ -212,7 +212,7 @@ export const CreateElectionList: React.FC = () => {
     /**
      * permissions
      */
-    const {canWriteElectionEvent} = useActionPermissions()
+    const {canCreateElectionEvent} = useActionPermissions()
 
     return (
         <>
@@ -229,7 +229,7 @@ export const CreateElectionList: React.FC = () => {
                 onSubmit={handleSubmit}
                 toolbar={
                     <Toolbar>
-                        {canWriteElectionEvent && (
+                        {canCreateElectionEvent && (
                             <SaveButton
                                 className="election-event-save-button"
                                 disabled={isLoading}

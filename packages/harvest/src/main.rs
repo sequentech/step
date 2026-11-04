@@ -232,6 +232,7 @@ fn build_application_with(
                 routes::attack_heuristics::update_attack_detection_settings,
                 routes::attack_heuristics::get_attack_detections,
                 routes::self_tests::run_self_tests,
+                routes::self_tests::run_tsf_integrity_check,
                 routes::self_tests::get_self_tests,
                 routes::self_tests::update_self_test_settings,
                 routes::tally_ceremony::update_tally_ceremony,

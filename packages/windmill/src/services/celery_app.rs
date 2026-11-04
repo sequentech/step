@@ -3,7 +3,9 @@
 
 use crate::services::database::try_get_queue_pool;
 use crate::tasks::attack_heuristics::{evaluate_attack_activity, record_attack_auth_failure};
-use crate::tasks::self_tests::{reconcile_security_alerts, run_self_tests, schedule_self_tests};
+use crate::tasks::self_tests::{
+    reconcile_security_alerts, run_self_tests, run_tsf_integrity_check, schedule_self_tests,
+};
 use anyhow::{anyhow, Context, Result};
 use celery::prelude::Task;
 use celery::Celery;
@@ -298,6 +300,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             evaluate_attack_activity,
             record_attack_auth_failure,
             run_self_tests,
+            run_tsf_integrity_check,
             schedule_self_tests,
             reconcile_security_alerts,
             create_keys,
@@ -392,6 +395,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             evaluate_attack_activity::NAME => Queue::Beat.queue_name(),
             record_attack_auth_failure::NAME => Queue::Short.queue_name(),
             run_self_tests::NAME => Queue::Reports.queue_name(),
+            run_tsf_integrity_check::NAME => Queue::Short.queue_name(),
             schedule_self_tests::NAME => Queue::Beat.queue_name(),
             reconcile_security_alerts::NAME => Queue::Beat.queue_name(),
             create_keys::NAME => Queue::Short.queue_name(),

@@ -32,7 +32,6 @@ pub fn configurator(event: &Event) -> Claims {
         .roles([
             Permissions::MONITORING_VIEW,
             Permissions::MONITORING_CONFIGURE,
-            Permissions::ELECTION_EVENT_WRITE,
         ])
 }
 
@@ -1161,7 +1160,6 @@ async fn a_malformed_request_is_refused_as_every_monitoring_refusal_is() {
         .roles([
             Permissions::MONITORING_VIEW,
             Permissions::MONITORING_CONFIGURE,
-            Permissions::ELECTION_EVENT_WRITE,
         ]);
     for path in MONITORING_ROUTES {
         let mut malformed = vec![

@@ -14,7 +14,6 @@ pub enum SelfTestTrigger {
     BeforeResume,
     Periodic,
     AfterMaintenance,
-    AfterImport,
     AfterPause,
     BeforeCounting,
 }
@@ -109,12 +108,10 @@ impl SelfTestSettings {
         for (i, trigger) in self.additional_conditions.iter().enumerate() {
             if !matches!(
                 trigger,
-                SelfTestTrigger::AfterImport
-                    | SelfTestTrigger::AfterPause
-                    | SelfTestTrigger::BeforeCounting
+                SelfTestTrigger::AfterPause | SelfTestTrigger::BeforeCounting
             ) || self.additional_conditions[..i].contains(trigger)
             {
-                return Err("Additional conditions must be distinct after-import, after-pause or before-counting");
+                return Err("Additional conditions must be distinct after-pause or before-counting");
             }
         }
         Ok(())
@@ -161,5 +158,33 @@ mod tests {
             ..Default::default()
         };
         assert!(s.validate().is_err());
+    }
+    #[test]
+    fn additional_conditions_are_distinct_after_pause_or_before_counting() {
+        let with = |additional_conditions| SelfTestSettings {
+            additional_conditions,
+            ..Default::default()
+        };
+        assert!(with(vec![
+            SelfTestTrigger::AfterPause,
+            SelfTestTrigger::BeforeCounting
+        ])
+        .validate()
+        .is_ok());
+        assert!(with(vec![
+            SelfTestTrigger::AfterPause,
+            SelfTestTrigger::AfterPause
+        ])
+        .validate()
+        .is_err());
+    }
+    #[test]
+    fn after_import_is_no_longer_a_condition() {
+        assert!(serde_json::from_value::<SelfTestSettings>(
+            serde_json::json!({
+                "additional_conditions": ["after-import"]
+            })
+        )
+        .is_err());
     }
 }

@@ -340,12 +340,21 @@ pub async fn read_checkpoint_copies(
     Ok(result)
 }
 
+/// What comparing the published checkpoints with their write-once copies found.
+#[derive(Debug, Default)]
+pub struct CrossCheck {
+    pub findings: Vec<String>,
+    /// How many of `findings` can also follow from an interrupted or best-effort
+    /// publication: a row without its copy, or a copy without its row.
+    pub unconfirmed: usize,
+}
+
 /// Compare the checkpoints published to the Hasura database with their write-once
 /// copies.
 pub fn cross_check(
     published: &[PublishedCheckpoint],
     copies: &[PublishedCheckpoint],
-) -> Vec<String> {
+) -> CrossCheck {
     let rows: BTreeMap<(Uuid, i64), &PublishedCheckpoint> = published
         .iter()
         .map(|row| ((row.log_uid, row.tree_size), row))
@@ -357,18 +366,21 @@ pub fn cross_check(
             .or_default()
             .insert(copy.root.as_str());
     }
-    let mut findings = Vec::new();
+    let mut result = CrossCheck::default();
     for ((log_uid, size), roots) in &copied {
         if roots.len() > 1 {
-            findings.push(format!(
+            result.findings.push(format!(
                 "The write-once copy of the checkpoint at size {size} of log {log_uid} was overwritten with a different root"
             ));
         }
         match rows.get(&(*log_uid, *size)) {
-            None => findings.push(format!(
-                "The checkpoint at size {size} of log {log_uid} has a write-once copy but no published row: the row was deleted"
-            )),
-            Some(row) if !roots.contains(row.root.as_str()) => findings.push(format!(
+            None => {
+                result.unconfirmed += 1;
+                result.findings.push(format!(
+                    "The checkpoint at size {size} of log {log_uid} has a write-once copy but no published row: the row was deleted"
+                ));
+            }
+            Some(row) if !roots.contains(row.root.as_str()) => result.findings.push(format!(
                 "The published checkpoint at size {size} of log {log_uid} differs from its write-once copy"
             )),
             Some(_) => {}
@@ -376,12 +388,13 @@ pub fn cross_check(
     }
     for (log_uid, size) in rows.keys() {
         if !copied.contains_key(&(*log_uid, *size)) {
-            findings.push(format!(
+            result.unconfirmed += 1;
+            result.findings.push(format!(
                 "The published checkpoint at size {size} of log {log_uid} has no write-once copy"
             ));
         }
     }
-    findings
+    result
 }
 
 #[cfg(test)]
@@ -459,7 +472,7 @@ mod tests {
     #[test]
     fn matching_copies_have_no_findings() {
         let published = [checkpoint(1, 5, "a"), checkpoint(1, 9, "b")];
-        assert!(cross_check(&published, &published).is_empty());
+        assert!(cross_check(&published, &published).findings.is_empty());
     }
 
     #[test]
@@ -475,7 +488,9 @@ mod tests {
             checkpoint(1, 5, "f"),
             checkpoint(1, 9, "b"),
         ];
-        let findings = cross_check(&published, &copies);
+        let found = cross_check(&published, &copies);
+        assert_eq!(found.unconfirmed, 2);
+        let findings = found.findings;
         assert_eq!(findings.len(), 4, "{findings:?}");
         assert!(findings[0].contains("size 3") && findings[0].contains("was deleted"));
         assert!(findings[1].contains("size 5") && findings[1].contains("overwritten"));
@@ -505,7 +520,9 @@ mod tests {
             .unwrap();
         assert_eq!(read.copies, vec![original.clone()]);
         assert!(read.findings.is_empty(), "{:?}", read.findings);
-        assert!(cross_check(&[original.clone()], &read.copies).is_empty());
+        assert!(cross_check(&[original.clone()], &read.copies)
+            .findings
+            .is_empty());
 
         let client = get_shared_s3_client(S3Endpoint::Server).await.unwrap();
         let key = copy_key(&tenant, &event, &Uuid::from_u128(1), 5);
@@ -549,7 +566,7 @@ mod tests {
             "{:?}",
             read.findings
         );
-        let findings = cross_check(&[original], &read.copies);
+        let findings = cross_check(&[original], &read.copies).findings;
         assert!(
             findings
                 .iter()

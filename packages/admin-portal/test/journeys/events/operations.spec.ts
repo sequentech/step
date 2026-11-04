@@ -60,52 +60,45 @@ test.describe("event sidebar actions", () => {
         await expect(page.getByRole("link", {name: "Council election", exact: true})).toHaveCount(0)
     })
 
-    for (const archived of [false, true]) {
-        test(`${archived ? "unarchives" : "archives"} the selected event only after confirmation`, async ({
-            page,
-            portal,
-        }) => {
-            let current = electionEvent({is_archived: archived})
-            mockEvent(portal, () => current)
-            portal.graphql.on("election_events_tree", ({variables}) => ({
-                data: {
-                    sequent_backend_election_event:
-                        variables.isArchived === current.is_archived ? [current] : [],
-                },
-            }))
-            portal.graphql.on("update_sequent_backend_election_event", ({variables}) => {
-                current = {...current, ...(variables._set as object)}
-                return {
-                    data: {
-                        update_sequent_backend_election_event: {
-                            affected_rows: 1,
-                            returning: [current],
-                        },
-                    },
-                }
-            })
-            await openEvent(page, portal)
-            if (archived) await page.getByText("Archived", {exact: true}).click()
-            const action = archived ? "Unarchive" : "Archive"
-            const canceled = await sidebarAction(page, `${action} this Election Event`)
-            await canceled.getByRole("button", {name: "Cancel", exact: true}).click()
-            expect(portal.graphql.callsTo("update_sequent_backend_election_event")).toHaveLength(0)
-            const confirmed = await sidebarAction(page, `${action} this Election Event`)
-            await confirmed.getByRole("button", {name: action, exact: true}).click()
-            await expect(
-                page.getByText(`The item has been ${archived ? "unarchived" : "archived"}`, {
-                    exact: true,
-                })
-            ).toBeVisible()
-            const calls = portal.graphql.callsTo("update_sequent_backend_election_event")
-            expect(calls).toHaveLength(1)
-            expect(calls[0].variables).toEqual({
-                where: {id: {_eq: EVENT_ID}},
-                _set: {is_archived: !archived},
-            })
-            expect(calls[0].headers["x-hasura-role"]).toBe("election-event-write")
-        })
+    function mockTree(portal: AdminPortal, event: () => ReturnType<typeof electionEvent>) {
+        mockEvent(portal, event)
+        portal.graphql.on("election_events_tree", ({variables}) => ({
+            data: {
+                sequent_backend_election_event:
+                    variables.isArchived === event().is_archived ? [event()] : [],
+            },
+        }))
     }
+
+    test("archives the selected event only after confirmation", async ({page, portal}) => {
+        let current = electionEvent({is_archived: false})
+        mockTree(portal, () => current)
+        portal.graphql.on("ArchiveElectionEvent", () => {
+            current = {...current, is_archived: true}
+            return {data: {archive_election_event: {id: EVENT_ID}}}
+        })
+        await openEvent(page, portal)
+        const canceled = await sidebarAction(page, "Archive this Election Event")
+        await canceled.getByRole("button", {name: "Cancel", exact: true}).click()
+        expect(portal.graphql.callsTo("ArchiveElectionEvent")).toHaveLength(0)
+        const confirmed = await sidebarAction(page, "Archive this Election Event")
+        await confirmed.getByRole("button", {name: "Archive", exact: true}).click()
+        await expect(page.getByText("The item has been archived", {exact: true})).toBeVisible()
+        const calls = portal.graphql.callsTo("ArchiveElectionEvent")
+        expect(calls).toHaveLength(1)
+        expect(calls[0].variables).toEqual({electionEventId: EVENT_ID})
+        expect(calls[0].headers["x-hasura-role"]).toBe("election-event-archive")
+    })
+
+    test("offers only removal for an archived event", async ({page, portal}) => {
+        const archived = electionEvent({is_archived: true})
+        mockTree(portal, () => archived)
+        await openEvent(page, portal)
+        await page.getByText("Archived", {exact: true}).click()
+        await page.getByRole("link", {name: "Council election", exact: true}).hover()
+        await page.locator(".menu-actions-sequent_backend_election_event #MoreHorizIcon").click()
+        await expect(page.getByRole("menuitem")).toHaveText(["Remove this Election Event"])
+    })
 })
 
 const logRoles = [...EVENT_ROLES, "election-event-logs-tab", "logs-read", "logs-export"]

@@ -370,13 +370,20 @@ export function commonName(dn: string): string {
     return match ? match[1].trim() : dn
 }
 
+const fingerprintBytes = (hex: string | null | undefined): string[] =>
+    (hex ?? "")
+        .replace(/[^0-9a-f]/gi, "")
+        .toUpperCase()
+        .match(/.{2}/g) ?? []
+
+/** "F7:08:0F:24:AA:…": every byte of a hex fingerprint, as openssl prints it. */
+export function fullFingerprint(hex: string | null | undefined): string {
+    return fingerprintBytes(hex).join(":")
+}
+
 /** "F7:08:0F:24:…:FE:78": the first four and last two bytes of a hex fingerprint. */
 export function shortFingerprint(hex: string | null | undefined): string {
-    const bytes =
-        (hex ?? "")
-            .replace(/[^0-9a-f]/gi, "")
-            .toUpperCase()
-            .match(/.{2}/g) ?? []
+    const bytes = fingerprintBytes(hex)
     if (bytes.length <= 6) return bytes.join(":")
     return [...bytes.slice(0, 4), "…", ...bytes.slice(-2)].join(":")
 }

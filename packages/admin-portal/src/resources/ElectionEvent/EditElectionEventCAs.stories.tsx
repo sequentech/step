@@ -222,7 +222,7 @@ export const Populated: Story = {
             canvas.getByRole("button", {name: i18n.t("common.label.import")})
         ).toBeVisible()
         await expect(await shownButton(canvasElement, i18n.t("common.label.export"))).toBeVisible()
-        expect(within(root).getAllByRole("button")).toHaveLength(2)
+        expect(within(root).getAllByRole("button")).toHaveLength(3)
         expect(data.calls.find(({method}) => method === "getList")?.args[1]).toMatchObject({
             filter: {tenant_id: TENANT_ID, election_event_id: EVENT_ID},
         })
@@ -266,7 +266,7 @@ export const ReadOnly: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         const root = await rootRow(canvasElement)
-        expect(within(root).getAllByRole("button")).toHaveLength(1)
+        expect(within(root).getAllByRole("button")).toHaveLength(2)
         expect(canvas.queryByRole("button", {name: i18n.t("common.label.import")})).toBeNull()
         await expect(await shownButton(canvasElement, i18n.t("common.label.export"))).toBeVisible()
     },
@@ -286,7 +286,7 @@ export const ViewACertificate: Story = {
     parameters: {widgets: ["ViewCAContent", "LabelValue"]},
     play: async ({canvasElement}) => {
         const root = await rootRow(canvasElement)
-        await userEvent.click(within(root).getAllByRole("button")[0])
+        await userEvent.click(within(root).getAllByRole("button")[1])
         const body = within(document.body)
         const title = await body.findByText(ca("viewDialog.title"))
         await waitFor(() => expect(title).toBeVisible())
@@ -327,7 +327,7 @@ export const ViewACertificateWithoutFingerprint: Story = {
 export const DeleteACertificate: Story = {
     play: async ({canvasElement}) => {
         const root = await rootRow(canvasElement)
-        await userEvent.click(within(root).getAllByRole("button")[1])
+        await userEvent.click(within(root).getAllByRole("button")[2])
         await confirm(i18n.t("common.label.delete"), i18n.t("common.message.delete"))
         await waitFor(() =>
             expect(operations("DeleteCertificateAuthority")[0]?.variables).toEqual({
@@ -346,7 +346,7 @@ export const DeleteFails: Story = {
     args: {mutations: "error"},
     play: async ({canvasElement}) => {
         const root = await rootRow(canvasElement)
-        await userEvent.click(within(root).getAllByRole("button")[1])
+        await userEvent.click(within(root).getAllByRole("button")[2])
         await confirm(i18n.t("common.label.delete"), i18n.t("common.message.delete"))
         await notified(ca("notify.deleteError", {error: ""}))
         await expect(await rootRow(canvasElement)).toBeVisible()

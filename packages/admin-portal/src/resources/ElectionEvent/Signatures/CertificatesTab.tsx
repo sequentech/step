@@ -64,6 +64,7 @@ import {
     filterCertificates,
     issuerUpload,
     personName,
+    fullFingerprint,
     shortFingerprint,
 } from "./signingSettings"
 import {
@@ -77,9 +78,15 @@ import {
     useWriteError,
 } from "./useSigningSettings"
 import {CERTIFICATE_FILES, FileButton, RegisterCertificateDialog} from "./RegisterCertificateDialog"
+import {CopyableFingerprint} from "@/components/CopyableFingerprint"
 import type {ISignaturesSubTabProps} from "./ProtectedActionsTab"
 
 const mono = {fontFamily: "monospace", fontSize: "0.75rem"}
+
+const Fingerprint: React.FC<{sha256: string | null}> = ({sha256}) =>
+    sha256 ? (
+        <CopyableFingerprint value={fullFingerprint(sha256)} short={shortFingerprint(sha256)} />
+    ) : null
 
 /**
  * Dates, and times with the zone's name, in the event's time zone, as the
@@ -255,7 +262,7 @@ const TrustedIssuersCard: React.FC<ICardProps & {issuers: IStaffIssuer[]}> = ({
                                 </TableCell>
                                 <TableCell>{date(issuer.not_after)}</TableCell>
                                 <TableCell sx={mono}>
-                                    {shortFingerprint(issuer.fingerprint_sha256)}
+                                    <Fingerprint sha256={issuer.fingerprint_sha256} />
                                 </TableCell>
                                 {access.issuersWrite && (
                                     <TableCell align="right">
@@ -650,7 +657,7 @@ const RegisteredCertificatesCard: React.FC<ICardProps & {certificates: IStaffCer
                                 <TableCell>
                                     <div>{commonName(certificate.subject)}</div>
                                     <Box sx={mono}>
-                                        {shortFingerprint(certificate.fingerprint_sha256)}
+                                        <Fingerprint sha256={certificate.fingerprint_sha256} />
                                     </Box>
                                 </TableCell>
                                 <TableCell>{commonName(certificate.issuer)}</TableCell>

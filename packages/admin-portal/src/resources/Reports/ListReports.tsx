@@ -126,10 +126,14 @@ const ActionsPopUp: React.FC<ActionsPopUpProps> = ({actions, report, canWriteRep
                     !canWriteReport)
             )
         }
-        return actions.filter((action) => !isShowAction(action))
+        return actions.filter(
+            (action) =>
+                !isShowAction(action) && (!action.showAction || action.showAction(report.id))
+        )
     }, [report])
 
-    return <ListActionsMenu actions={filteredActions} />
+    // A report with no action left for this account has no menu to open.
+    return filteredActions.length > 0 ? <ListActionsMenu actions={filteredActions} /> : null
 }
 
 // filter by permission-labels

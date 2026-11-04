@@ -20,7 +20,11 @@ jest.mock("@/providers/TenantContextProvider", () => ({useTenantStore: () => ["t
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({t: (_key: string, text: string) => text}),
 }))
-const settings = {failed_logins_per_minute: 20, requests_per_minute: 2000}
+const settings = {
+    failed_logins_per_minute: 20,
+    requests_per_minute: 2000,
+    account_failure_threshold: 5,
+}
 const read = (tenant = "tenant-a") => ({
     request: {query: GET_ATTACK_SETTINGS},
     result: {data: {get_attack_detection_settings: {tenant_id: tenant, settings}}},
@@ -61,6 +65,57 @@ it("does not submit zero, fractional or excessive thresholds", async () => {
         fireEvent.change(field, {target: {value}})
         expect(screen.getByRole("button", {name: /Save attack/})).toBeDisabled()
     }
+})
+
+it("does not submit a zero, fractional or excessive account failure threshold", async () => {
+    render(
+        <MockedProvider mocks={[read()]}>
+            <SettingsAttackDetection />
+        </MockedProvider>
+    )
+    const field = await screen.findByRole("spinbutton", {name: /Failed sign-ins per account/})
+    expect(field).toHaveValue(5)
+    const button = screen.getByRole("button", {name: /Save attack/})
+    for (const value of ["0", "-1", "1.5", "100001", ""]) {
+        fireEvent.change(field, {target: {value}})
+        expect(button).toBeDisabled()
+    }
+    for (const value of ["1", "100000"]) {
+        fireEvent.change(field, {target: {value}})
+        expect(button).toBeEnabled()
+    }
+})
+
+it("never replaces a missing account failure threshold with a default", async () => {
+    const {account_failure_threshold: _missing, ...older} = settings
+    const mocks = [
+        {
+            ...read(),
+            result: {
+                data: {get_attack_detection_settings: {tenant_id: "tenant-a", settings: older}},
+            },
+        },
+    ]
+    render(
+        <MockedProvider mocks={mocks}>
+            <SettingsAttackDetection />
+        </MockedProvider>
+    )
+    await screen.findByText(/could not be verified/i)
+    expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument()
+})
+
+it("explains what happens when an account reaches the threshold", async () => {
+    render(
+        <MockedProvider mocks={[read()]}>
+            <SettingsAttackDetection />
+        </MockedProvider>
+    )
+    expect(
+        await screen.findByText(/records a potential attack in the electoral log/)
+    ).toHaveTextContent(
+        /election board sees it in Monitoring.*without an account count together per realm/
+    )
 })
 
 it("reports a refused update without claiming it was saved", async () => {
@@ -112,6 +167,68 @@ it("confirms a save only after the current tenant's network read-back matches", 
     })
     fireEvent.click(await screen.findByRole("button", {name: /Save attack/}))
     await waitFor(() => expect(screen.getByText(/saved and verified/i)).toBeInTheDocument())
+})
+
+it("saves the account failure threshold and confirms it after the read-back", async () => {
+    const changed = {...settings, account_failure_threshold: 3}
+    const mocks = [
+        read(),
+        {
+            request: {query: SAVE_ATTACK_SETTINGS, variables: {settings: changed}},
+            result: {
+                data: {
+                    update_attack_detection_settings: {tenant_id: "tenant-a", settings: changed},
+                },
+            },
+        },
+        {
+            ...read(),
+            result: {
+                data: {get_attack_detection_settings: {tenant_id: "tenant-a", settings: changed}},
+            },
+        },
+    ]
+    render(
+        <MockedProvider mocks={mocks}>
+            <SettingsAttackDetection />
+        </MockedProvider>
+    )
+    fireEvent.change(await screen.findByRole("spinbutton", {name: /Failed sign-ins per account/}), {
+        target: {value: "3"},
+    })
+    fireEvent.click(await screen.findByRole("button", {name: /Save attack/}))
+    await waitFor(() => expect(screen.getByText(/saved and verified/i)).toBeInTheDocument())
+})
+
+it("does not confirm a save when the account failure threshold reads back differently", async () => {
+    const mocks = [
+        read(),
+        {
+            request: {query: SAVE_ATTACK_SETTINGS, variables: {settings}},
+            result: {data: {update_attack_detection_settings: {tenant_id: "tenant-a", settings}}},
+        },
+        {
+            ...read(),
+            result: {
+                data: {
+                    get_attack_detection_settings: {
+                        tenant_id: "tenant-a",
+                        settings: {...settings, account_failure_threshold: 6},
+                    },
+                },
+            },
+        },
+    ]
+    render(
+        <MockedProvider mocks={mocks}>
+            <SettingsAttackDetection />
+        </MockedProvider>
+    )
+    fireEvent.click(await screen.findByRole("button", {name: /Save attack/}))
+    await screen.findByText(/were not saved/i)
+    expect(
+        screen.queryByText(/^Attack detection settings saved and verified/i)
+    ).not.toBeInTheDocument()
 })
 
 it("does not confirm a save when read-back differs from the approved input", async () => {

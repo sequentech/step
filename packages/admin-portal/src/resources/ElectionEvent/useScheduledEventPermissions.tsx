@@ -4,6 +4,7 @@
 
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useContext} from "react"
+import {useGetOne} from "react-admin"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 
@@ -39,10 +40,19 @@ export function useScheduledEventPermissions() {
      * Permissions
      */
 
+    // Where signed packages are required, the other dates arrive only through the signed import.
+    const {data: tenant} = useGetOne(
+        "sequent_backend_tenant",
+        {id: tenantId},
+        {enabled: !!tenantId}
+    )
+    const onlyLockdownPeriod = tenant?.settings?.configuration_signing?.policy === "required"
+
     return {
         canWriteScheduledEvent,
         canCreateScheduledEvent,
         canDeleteScheduledEvent,
         showScheduledEventColumns,
+        onlyLockdownPeriod,
     }
 }

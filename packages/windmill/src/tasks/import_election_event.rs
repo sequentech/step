@@ -100,12 +100,6 @@ pub async fn import_election_event(
 
     match &result {
         Ok(_) => {
-            crate::services::self_tests::additional(
-                &tenant_id,
-                &election_event_id,
-                sequent_core::self_tests::SelfTestTrigger::AfterImport,
-            )
-            .await?;
             // Execute database maintenance
             info!("Performing mainteinance after election event import.");
             vacuum_analyze_direct().await?;

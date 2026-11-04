@@ -17,22 +17,14 @@ import {
     useRefresh,
 } from "react-admin"
 import {useMutation} from "@apollo/client"
-import {
-    Alert,
-    Box,
-    Button,
-    Chip,
-    CircularProgress,
-    Drawer,
-    Tooltip,
-    Typography,
-} from "@mui/material"
+import {Alert, Box, Button, Chip, CircularProgress, Drawer, Typography} from "@mui/material"
 import DeleteIcon from "@mui/icons-material/Delete"
 import DownloadIcon from "@mui/icons-material/Download"
 import UploadFileIcon from "@mui/icons-material/UploadFile"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import {Dialog, DropFile} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "@/components/ActionButons"
+import {CopyableFingerprint} from "@/components/CopyableFingerprint"
 import {useTranslation} from "react-i18next"
 import {useEventZonedFormat} from "@/hooks/useZonedFormat"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -514,18 +506,18 @@ export const EditElectionEventCAs: React.FC = () => {
                         label={t("certificateAuthorities.columns.fingerprint")}
                         render={(ca: any) =>
                             ca.fingerprint_sha256 ? (
-                                <Tooltip title={ca.fingerprint_sha256} placement="top">
-                                    <Typography
-                                        variant="body2"
-                                        sx={{fontFamily: "monospace", fontSize: "0.75rem"}}
-                                    >
-                                        {ca.fingerprint_sha256.slice(
+                                <Typography
+                                    variant="body2"
+                                    sx={{fontFamily: "monospace", fontSize: "0.75rem"}}
+                                >
+                                    <CopyableFingerprint
+                                        value={ca.fingerprint_sha256}
+                                        short={`${ca.fingerprint_sha256.slice(
                                             0,
                                             FINGERPRINT_TRUNCATE_LENGTH
-                                        )}
-                                        …
-                                    </Typography>
-                                </Tooltip>
+                                        )}…`}
+                                    />
+                                </Typography>
                             ) : (
                                 "—"
                             )

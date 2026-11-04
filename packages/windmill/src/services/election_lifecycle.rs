@@ -11,8 +11,11 @@ use anyhow::{anyhow, ensure, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
-use sequent_core::election_lifecycle::{policy, ElectoralPhase, LifecycleState, SafetyState};
+use sequent_core::election_lifecycle::{
+    policy, ElectoralPhase, LifecycleRefusal, LifecycleState, SafetyState,
+};
 use sequent_core::self_tests::{SelfTestOutcome, SelfTestRun, SelfTestTrigger};
+use sequent_core::signing::SigningAction;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use serde_json::{json, Value};
 
@@ -20,6 +23,13 @@ use serde_json::{json, Value};
 /// follow the event's independently configured interval.
 const OPENING_CHECK_MAX_AGE_SECONDS: i64 = 300;
 const LEASE_SECONDS: i64 = 45;
+const NONEMPTY_BOX_REASON: &str = "Ballot box not empty at the start of the election";
+const CHANNEL_STATUS_FIELDS: [&str; 4] = [
+    "voting_status",
+    "kiosk_voting_status",
+    "early_voting_status",
+    "telephone_voting_status",
+];
 
 pub async fn state(tx: &Transaction<'_>, tenant: &str, event: &str) -> Result<LifecycleState> {
     let row=tx.query_opt("SELECT phase,safety,generation,reason FROM sequent_backend.election_lifecycle WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid", &[&tenant,&event]).await?
@@ -205,12 +215,7 @@ pub async fn enter_failure(
             } else {
                 "election_event_id"
             };
-            for field in [
-                "voting_status",
-                "kiosk_voting_status",
-                "early_voting_status",
-                "telephone_voting_status",
-            ] {
+            for field in CHANNEL_STATUS_FIELDS {
                 tx.execute(&format!("UPDATE sequent_backend.{table} SET status=jsonb_set(status,ARRAY['{field}'],'\"PAUSED\"'::jsonb) WHERE tenant_id=$1::text::uuid AND {id}=$2::text::uuid AND status->>'{field}'='OPEN'"), &[&tenant,&event]).await?;
             }
         }
@@ -289,28 +294,45 @@ async fn opening_passed(
     event: &str,
     generation: i64,
     trigger: SelfTestTrigger,
+    max_age_seconds: i64,
 ) -> Result<bool> {
     let trigger = serde_json::to_value(trigger)?
         .as_str()
         .context("Invalid test trigger")?
         .to_owned();
-    Ok(tx.query_one("SELECT COALESCE((SELECT outcome='passed' AND trigger=$4 AND finished_at BETWEEN clock_timestamp()-($5::bigint*interval '1 second') AND clock_timestamp() FROM sequent_backend.self_test_run WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid AND generation=$3 AND finished_at IS NOT NULL ORDER BY finished_at DESC,id DESC LIMIT 1),false) AND NOT EXISTS(SELECT 1 FROM sequent_backend.self_test_run WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid AND outcome='unrecoverable-failure')", &[&tenant,&event,&generation,&trigger,&OPENING_CHECK_MAX_AGE_SECONDS]).await?.try_get(0)?)
+    Ok(tx.query_one("SELECT COALESCE((SELECT outcome='passed' AND trigger=$4 AND finished_at BETWEEN clock_timestamp()-($5::bigint*interval '1 second') AND clock_timestamp() FROM sequent_backend.self_test_run WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid AND generation=$3 AND finished_at IS NOT NULL ORDER BY finished_at DESC,id DESC LIMIT 1),false) AND NOT EXISTS(SELECT 1 FROM sequent_backend.self_test_run WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid AND outcome='unrecoverable-failure')", &[&tenant,&event,&generation,&trigger,&max_age_seconds]).await?.try_get(0)?)
+}
+
+/// A counting check may finish up to the opening window before the board's request,
+/// which then waits for its signatures for as long as its rule allows.
+fn counting_check_max_age(request_age_seconds: Option<i64>) -> i64 {
+    OPENING_CHECK_MAX_AGE_SECONDS + request_age_seconds.unwrap_or(0).max(0)
 }
 
 /// A configured before-counting check is a precondition, not a background
-/// check that would race the tally. The caller retries with fresh board approval.
-pub async fn require_counting_test(tx: &Transaction<'_>, tenant: &str, event: &str) -> Result<()> {
+/// check that would race the tally. It holds when the board's request is created
+/// and when it executes; `subject` identifies that request. The caller retries
+/// with fresh board approval.
+pub async fn require_counting_test(
+    tx: &Transaction<'_>,
+    tenant: &str,
+    event: &str,
+    requester: &str,
+    subject: &Value,
+) -> Result<()> {
     let selected:bool=tx.query_one("SELECT COALESCE((SELECT settings->'additional_conditions' ? 'before-counting' FROM sequent_backend.self_test_settings WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid),false)", &[&tenant,&event]).await?.try_get(0)?;
     if !selected {
         return Ok(());
     }
     let current = state(tx, tenant, event).await?;
+    let request_age: Option<i64> = tx.query_opt("SELECT EXTRACT(EPOCH FROM clock_timestamp()-created_at)::bigint FROM sequent_backend.signing_request WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid AND action=$3 AND requested_by=$4 AND subject=$5 AND status IN ('waiting','completed') AND executed_at IS NULL AND (expires_at IS NULL OR expires_at>clock_timestamp()) ORDER BY created_at DESC LIMIT 1", &[&tenant,&event,&SigningAction::StartTally.to_string(),&requester,subject]).await?.map(|row|row.try_get(0)).transpose()?;
     if opening_passed(
         tx,
         tenant,
         event,
         current.generation,
         SelfTestTrigger::BeforeCounting,
+        counting_check_max_age(request_age),
     )
     .await?
     {
@@ -333,6 +355,10 @@ async fn boxes_empty(tx: &Transaction<'_>, tenant: &str, event: &str) -> Result<
     // valid-ballot count would miss staged or rejected ballots at first start.
     let row=client.query_one("SELECT NOT EXISTS(SELECT 1 FROM ballot_box_ballot WHERE election_event_id=$1::text::uuid) AND NOT EXISTS(SELECT 1 FROM ballot_box_received WHERE election_event_id=$1::text::uuid)", &[&event]).await?;
     Ok(row.try_get(0)?)
+}
+
+async fn election_paused(tx: &Transaction<'_>, tenant: &str, event: &str) -> Result<bool> {
+    Ok(tx.query_one("SELECT EXISTS(SELECT 1 FROM sequent_backend.election WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid AND status->>'voting_status'='PAUSED')", &[&tenant,&event]).await?.try_get(0)?)
 }
 
 async fn request_activity_live(tx: &Transaction<'_>) -> Result<bool> {
@@ -370,6 +396,13 @@ pub async fn before_status_change(
     if *status != VotingStatus::OPEN {
         return Ok(());
     }
+    if scheduled {
+        let paused = election_paused(tx, tenant, event).await?;
+        policy::scheduled_opening_allowed(&current, paused).map_err(|reason| match reason {
+            LifecycleRefusal::Maintenance => anyhow!("A scheduled start does not open voting during maintenance mode or a board pause; the election board must start or resume voting"),
+            reason => anyhow!("Voting cannot open: {reason}. Review the election's lifecycle status and self-test results."),
+        })?;
+    }
     ensure!(
         request_activity_live(tx).await?,
         "Required external request monitoring is unavailable or stale; restore its trustworthy observations before starting or resuming voting"
@@ -386,7 +419,15 @@ pub async fn before_status_change(
     } else {
         SelfTestTrigger::BeforeResume
     };
-    let passed = opening_passed(tx, tenant, event, current.generation, trigger).await?;
+    let passed = opening_passed(
+        tx,
+        tenant,
+        event,
+        current.generation,
+        trigger,
+        OPENING_CHECK_MAX_AGE_SECONDS,
+    )
+    .await?;
     let empty = if current.phase == ElectoralPhase::Preparation {
         boxes_empty(tx, tenant, event).await?
     } else {
@@ -402,12 +443,17 @@ pub async fn before_status_change(
         services_live(tx).await?,
     );
     match decision {
-        Ok(())=>Ok(()),
-        Err(sequent_core::election_lifecycle::LifecycleRefusal::SelfTestRequired)=>{
-            queue_required_test(tenant,event,trigger);
+        Ok(()) => Ok(()),
+        Err(LifecycleRefusal::SelfTestRequired) => {
+            queue_required_test(tenant, event, trigger);
             Err(anyhow!("The required self-test has been requested. Wait for all six checks to pass in Security and self-tests, then retry the board action."))
         }
-        Err(reason)=>Err(anyhow!("Voting cannot open: {reason}. Review the election's lifecycle status and self-test results.")),
+        Err(reason) => {
+            if reason == LifecycleRefusal::EmptyBoxCheck {
+                queue_nonempty_box_failure(tenant, event);
+            }
+            Err(anyhow!("Voting cannot open: {reason}. Review the election's lifecycle status and self-test results."))
+        }
     }
 }
 
@@ -435,16 +481,75 @@ fn queue_required_test(tenant: &str, event: &str, trigger: SelfTestTrigger) {
     });
 }
 
+/// The refused status transaction rolls back, so the secure state commits on its
+/// own once that transaction has released the safety lock.
+fn queue_nonempty_box_failure(tenant: &str, event: &str) {
+    let tenant = tenant.to_owned();
+    let event = event.to_owned();
+    tokio::spawn(async move {
+        let entered = tokio::time::timeout(
+            std::time::Duration::from_secs(20),
+            enter_nonempty_box_failure(&tenant, &event),
+        )
+        .await;
+        if !matches!(entered, Ok(Ok(()))) {
+            tracing::error!(%tenant,%event,"Could not record a ballot box that is not empty; voting remains closed");
+        }
+    });
+}
+
+async fn enter_nonempty_box_failure(tenant: &str, event: &str) -> Result<()> {
+    let mut client = get_hasura_pool().await.get().await?;
+    let tx = client.transaction().await?;
+    tx.batch_execute("SET LOCAL lock_timeout='10s'").await?;
+    tx.query_one(
+        "SELECT pg_advisory_xact_lock(hashtextextended($1,848527))",
+        &[&format!("{tenant}:{event}")],
+    )
+    .await?;
+    let current = state(&tx, tenant, event).await?;
+    if current.phase == ElectoralPhase::Preparation
+        && policy::maintenance_entry_needed(&current, NONEMPTY_BOX_REASON)
+    {
+        enter_failure(
+            &tx,
+            tenant,
+            event,
+            SafetyState::Recoverable,
+            NONEMPTY_BOX_REASON,
+            json!({}),
+        )
+        .await?;
+    }
+    tx.commit().await?;
+    Ok(())
+}
+
+/// Wait for the status transaction that holds the safety lock to end, so that what
+/// follows reads the state it committed.
+async fn wait_for_status_change(tenant: &str, event: &str) -> Result<()> {
+    let mut client = get_hasura_pool().await.get().await?;
+    let tx = client.transaction().await?;
+    tx.batch_execute("SET LOCAL lock_timeout='10s'").await?;
+    tx.query_one(
+        "SELECT pg_advisory_xact_lock_shared(hashtextextended($1,848527))",
+        &[&format!("{tenant}:{event}")],
+    )
+    .await?;
+    tx.commit().await?;
+    Ok(())
+}
+
 pub fn queue_optional_test(tenant: &str, event: &str, trigger: SelfTestTrigger) {
     let tenant = tenant.to_owned();
     let event = event.to_owned();
     tokio::spawn(async move {
+        let queued = async {
+            wait_for_status_change(&tenant, &event).await?;
+            crate::services::self_tests::additional(&tenant, &event, trigger).await
+        };
         if !matches!(
-            tokio::time::timeout(
-                std::time::Duration::from_secs(10),
-                crate::services::self_tests::additional(&tenant, &event, trigger)
-            )
-            .await,
+            tokio::time::timeout(std::time::Duration::from_secs(25), queued).await,
             Ok(Ok(()))
         ) {
             tracing::error!(%tenant,%event,?trigger,"Could not queue configured additional self-test");
@@ -511,8 +616,13 @@ pub async fn after_status_change(
             }
         }
         VotingStatus::PAUSED => {
-            queue_optional_test(tenant, event, SelfTestTrigger::AfterPause);
             tx.execute("UPDATE sequent_backend.election_lifecycle SET generation=generation+1 WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid", &[&tenant,&event]).await?;
+            // Voters are refused by their election's own status, so an event-wide
+            // pause must reach the elections for the next passed test not to readmit them.
+            for field in CHANNEL_STATUS_FIELDS {
+                tx.execute(&format!("UPDATE sequent_backend.election e SET status=jsonb_set(e.status,ARRAY['{field}'],'\"PAUSED\"'::jsonb) FROM sequent_backend.election_event p WHERE p.tenant_id=e.tenant_id AND p.id=e.election_event_id AND e.tenant_id=$1::text::uuid AND e.election_event_id=$2::text::uuid AND e.status->>'{field}'='OPEN' AND p.status->>'{field}'='PAUSED'"), &[&tenant,&event]).await?;
+            }
+            queue_optional_test(tenant, event, SelfTestTrigger::AfterPause);
         }
         VotingStatus::NOT_STARTED => {
             return Err(anyhow!(
@@ -622,19 +732,14 @@ async fn reconcile_scheduled_starts(tenant: &str, event: &str) -> Result<()> {
     let tx = client.transaction().await?;
     let current = state(&tx, tenant, event).await?;
     let failed:bool=tx.query_one("SELECT EXISTS(SELECT 1 FROM sequent_backend.self_test_run WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid AND outcome IN ('recoverable-failure','unrecoverable-failure'))", &[&tenant,&event]).await?.try_get(0)?;
+    let paused = election_paused(&tx, tenant, event).await?;
     if (current.phase == ElectoralPhase::Preparation && failed)
-        || (current.phase == ElectoralPhase::Execution
-            && current.safety != SafetyState::Operational)
-        || current.safety == SafetyState::Unrecoverable
+        || policy::scheduled_opening_allowed(&current, paused).is_err()
     {
         return Ok(());
     }
     let baseline:bool=tx.query_one("SELECT EXISTS(SELECT 1 FROM sequent_backend.self_test_baseline WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid)", &[&tenant,&event]).await?.try_get(0)?;
     if !baseline {
-        return Ok(());
-    }
-    let paused:bool=tx.query_one("SELECT EXISTS(SELECT 1 FROM sequent_backend.election WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid AND status->>'voting_status'='PAUSED')", &[&tenant,&event]).await?.try_get(0)?;
-    if paused {
         return Ok(());
     }
     let schedules = find_scheduled_event_by_election_event_id(&tx, tenant, event).await?;
@@ -691,6 +796,9 @@ async fn monitor_event(tenant: &str, event: &str) -> Result<()> {
     let current = state(&tx, tenant, event).await?;
     let allowed:bool=tx.query_one("SELECT voter_allowed FROM sequent_backend.election_lifecycle_access WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid", &[&tenant,&event]).await?.try_get(0)?;
     let irreversible:bool=tx.query_one("SELECT EXISTS(SELECT 1 FROM sequent_backend.self_test_run WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid AND outcome='unrecoverable-failure')", &[&tenant,&event]).await?.try_get(0)?;
+    // A board pause denies voters until a test of its new generation passes. That
+    // is neither a failed nor an expired self-test.
+    let paused = election_paused(&tx, tenant, event).await?;
     if irreversible && current.safety != SafetyState::Unrecoverable {
         enter_failure(
             &tx,
@@ -701,7 +809,9 @@ async fn monitor_event(tenant: &str, event: &str) -> Result<()> {
             json!({}),
         )
         .await?;
-    } else if current.safety == SafetyState::Operational && (!live || !allowed || !activity_live) {
+    } else if current.safety == SafetyState::Operational
+        && (!live || !activity_live || (!allowed && !paused))
+    {
         enter_failure(
             &tx,
             tenant,
@@ -802,4 +912,22 @@ async fn flush_notices() -> Result<()> {
     }
     tx.commit().await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_counting_check_may_predate_its_request_by_the_opening_window() {
+        assert_eq!(counting_check_max_age(None), OPENING_CHECK_MAX_AGE_SECONDS);
+        assert_eq!(
+            counting_check_max_age(Some(3600)),
+            OPENING_CHECK_MAX_AGE_SECONDS + 3600
+        );
+        assert_eq!(
+            counting_check_max_age(Some(-5)),
+            OPENING_CHECK_MAX_AGE_SECONDS
+        );
+    }
 }

@@ -59,6 +59,13 @@ fn tally_response_error((status, message): (Status, String)) -> JsonError {
     ErrorResponse::new(status, &message, code)
 }
 
+/// The board's next step, such as waiting for a required self-test.
+fn prerequisite_reason(payload: &serde_json::Value) -> Option<&str> {
+    (payload.pointer("/extensions/code")?.as_str()? == "operation-prerequisite")
+        .then(|| payload["message"].as_str())
+        .flatten()
+}
+
 fn tally_service_error(error: anyhow::Error) -> (Status, String) {
     if let Some(validation) = error.downcast_ref::<TallyValidationError>() {
         (Status::BadRequest, validation.to_string())
@@ -115,6 +122,9 @@ pub async fn create_tally_ceremony(
                             crate::services::signing_http::SigningErrorCode::SigningRequired,
                             payload["message"].as_str().unwrap_or("Board authorisation required"))
                             .with("signing_request",request.clone()));
+                    }
+                    if let Some(reason)=prerequisite_reason(&payload) {
+                        return Guarded::Route(ErrorResponse::new(status,reason,ErrorCode::TallyValidation));
                     }
                 }
                 Guarded::Route(tally_response_error((status,message)))
@@ -752,6 +762,24 @@ mod tally_error_tests {
             "Election selected: end its voting period before tallying."
         );
         assert_eq!(body["extensions"]["code"], "TallyValidation");
+    }
+
+    #[test]
+    fn only_a_board_prerequisite_reaches_the_board_with_its_message() {
+        let prerequisite = serde_json::json!({
+            "message": "Wait for all six checks to pass.",
+            "extensions": { "code": "operation-prerequisite" }
+        });
+        assert_eq!(
+            prerequisite_reason(&prerequisite),
+            Some("Wait for all six checks to pass.")
+        );
+        let other = serde_json::json!({
+            "message": "private database details",
+            "extensions": { "code": "other" }
+        });
+        assert_eq!(prerequisite_reason(&other), None);
+        assert_eq!(prerequisite_reason(&serde_json::json!({})), None);
     }
 
     #[test]

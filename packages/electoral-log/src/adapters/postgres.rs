@@ -845,6 +845,17 @@ impl AuditReport {
         }
         findings
     }
+
+    /// How many of [`Self::findings`] follow from a log with no stored tree yet.
+    pub fn unbuilt_tree_findings(&self) -> usize {
+        let tree = &self.tree;
+        if !tree.unbuilt {
+            return 0;
+        }
+        1 + usize::from(tree.node_mismatches > 0)
+            + usize::from(tree.dense && tree.stored_nodes != tree.expected_nodes())
+            + usize::from(tree.dense && !tree.root_matches)
+    }
 }
 
 #[derive(Default)]
@@ -1204,10 +1215,38 @@ mod tests {
             .findings()
             .iter()
             .any(|finding| finding.contains("must be rebuilt")));
+        assert_eq!(unbuilt.unbuilt_tree_findings(), unbuilt.findings().len());
         for report in broken.into_iter().chain([unbuilt]) {
             assert!(!report.is_clean(), "{report:?}");
             assert!(!report.findings().is_empty(), "{report:?}");
         }
+    }
+
+    #[test]
+    fn only_the_findings_of_a_missing_tree_count_as_unbuilt() {
+        let unbuilt = AuditReport {
+            hash_mismatch_count: 1,
+            tree: TreeAudit {
+                unbuilt: true,
+                dense: true,
+                leaves: 2,
+                committed_size: 2,
+                node_mismatches: 1,
+                ..TreeAudit::default()
+            },
+            ..AuditReport::default()
+        };
+        assert_eq!(unbuilt.findings().len(), 5, "{:?}", unbuilt.findings());
+        // Everything but the leaf commitment mismatch.
+        assert_eq!(unbuilt.unbuilt_tree_findings(), 4);
+        let built = AuditReport {
+            tree: TreeAudit {
+                unbuilt: false,
+                ..unbuilt.tree.clone()
+            },
+            ..unbuilt
+        };
+        assert_eq!(built.unbuilt_tree_findings(), 0);
     }
 
     /// The JSON that `EXPLAIN (FORMAT JSON)` returns.

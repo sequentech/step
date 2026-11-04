@@ -32,6 +32,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {useEventZonedFormat} from "@/hooks/useZonedFormat"
+import {TsfIntegritySection, type TsfIntegrityCheck} from "./TsfIntegritySection"
 
 export const GET_SECURITY_TESTS = gql`
     mutation GetSecurityTests($event: String!) {
@@ -40,6 +41,7 @@ export const GET_SECURITY_TESTS = gql`
             runs
             baseline_present
             notifications
+            tsf_integrity
         }
     }
 `
@@ -51,6 +53,14 @@ export const GET_SECURITY_LIFECYCLE = gql`
 export const RUN_SECURITY_TESTS = gql`
     mutation RunSecurityTests($event: String!, $trigger: String!) {
         run_self_tests(election_event_id: $event, trigger: $trigger) {
+            task_id
+            state
+        }
+    }
+`
+export const RUN_TSF_INTEGRITY_CHECK = gql`
+    mutation RunTsfIntegrityCheck($event: String!) {
+        run_tsf_integrity_check(election_event_id: $event) {
             task_id
             state
         }
@@ -95,6 +105,7 @@ interface Tests {
     runs: Run[]
     baseline_present: boolean
     notifications: Notice[]
+    tsf_integrity?: TsfIntegrityCheck | null
 }
 interface Lifecycle {
     phase: string
@@ -111,7 +122,7 @@ const CHECKS = [
     "access-control",
     "clock",
 ]
-const EXTRA_TRIGGERS = ["after-import", "after-pause", "before-counting"]
+const EXTRA_TRIGGERS = ["after-pause", "before-counting"]
 
 export default function SecurityTab() {
     const record = useRecordContext()
@@ -216,6 +227,16 @@ export default function SecurityTab() {
                     context: asRole(IPermissions.SELF_TEST_RUN),
                 }),
             "securityTests.queued"
+        )
+    const verify = () =>
+        perform(
+            () =>
+                client.mutate({
+                    mutation: RUN_TSF_INTEGRITY_CHECK,
+                    variables: {event},
+                    context: asRole(IPermissions.SELF_TEST_RUN),
+                }),
+            "tsfIntegrity.queued"
         )
     const save = () =>
         perform(
@@ -436,6 +457,13 @@ export default function SecurityTab() {
                     </Accordion>
                 ))}
             </Box>
+            <TsfIntegritySection
+                check={tests?.tsf_integrity}
+                loaded={!!tests}
+                disabled={!canRun || busy || !tests || readError}
+                onVerify={() => void verify()}
+                format={format}
+            />
             {!!tests?.notifications.length && (
                 <Box>
                     <Typography variant="h6">{t("securityTests.notifications")}</Typography>

@@ -5,7 +5,65 @@ import englishTranslation, {TranslationType} from "./en"
 
 const dutchTranslation: TranslationType = {
     translations: {
+        copyableFingerprint: {
+            copy: "De volledige SHA-256 kopiëren",
+            copied: "De volledige SHA-256 is gekopieerd",
+            copyError:
+                "De SHA-256 kon niet worden gekopieerd. Wijs de verkorte waarde aan om deze volledig te lezen.",
+        },
+        attackDetection: {
+            title: "Aanvalsdetectie",
+            description:
+                "Stel deze drempels tijdens de voorbereiding vast met de verkiezingsorganisator. Het systeem vergelijkt de gelogde activiteit met de drempels en registreert mogelijke aanvallen voor de verkiezingscommissie. Deze instellingen vergrendelen geen accounts en beperken geen verzoeken.",
+            permission: "Beheerdersrechten zijn vereist om aanvalsdetectie te configureren.",
+            loading: "Instellingen voor aanvalsdetectie laden",
+            readFailed:
+                "De instellingen van de huidige tenant konden niet worden geverifieerd. Laad de pagina opnieuw voordat u wijzigingen aanbrengt.",
+            failedLogins: "Mislukte inlogpogingen per minuut, alle accounts",
+            failedLoginsHelp:
+                "Voer een geheel getal in van 1 tot 100.000. Het systeem registreert een mogelijke aanval wanneer de mislukte inlogpogingen van alle accounts in één minuut dit aantal overschrijden.",
+            accountFailures: "Mislukte inlogpogingen per account vóór een waarschuwing",
+            accountFailuresHelp:
+                "Voer een geheel getal in van 1 tot 100.000. Wanneer een account dit aantal mislukte inlogpogingen bereikt, registreert het systeem een mogelijke aanval in het verkiezingslog van het verkiezingsevenement (in dat van alle verkiezingsevenementen van de tenant bij personeelsaccounts), en ziet de verkiezingscommissie dit op het tabblad Dashboard van het verkiezingsevenement. Mislukte pogingen die de externe authenticatieserver zonder account meldt, worden per realm samen geteld.",
+            requests: "Verzoeken per minuut, externe interfaces",
+            requestsHelp:
+                "Voer een geheel getal in van 1 tot 10.000.000. De telling omvat de externe interfaces, inclusief niet-geauthenticeerde verzoeken.",
+            save: "Instellingen voor aanvalsdetectie opslaan",
+            saved: "Instellingen voor aanvalsdetectie opgeslagen en geverifieerd. De commissie moet de bijgewerkte configuratie vóór de uitvoering goedkeuren.",
+            saveFailed:
+                "De instellingen zijn niet opgeslagen en geverifieerd. Laad de huidige waarden opnieuw en controleer de verkiezingsfase voordat u het opnieuw probeert.",
+        },
         securityTests: englishTranslation.translations.securityTests,
+        tsfIntegrity: {
+            title: "Integriteit van de TOE-software",
+            description:
+                "Vergelijkt de software die op de servers draait met de geaccepteerde levering, los van de zelftests; een verschil zet het verkiezingsevenement in de status 'herstel vereist'.",
+            run: "De TOE-software verifiëren",
+            running: "Verificatie in de wachtrij of bezig",
+            queued: "Verificatie in de wachtrij. Het resultaat verschijnt hier wanneer de achtergrondtaak is voltooid.",
+            none: "De TOE-software is voor dit verkiezingsevenement nog niet geverifieerd.",
+            started: "Gestart",
+            requestedBy: "Aangevraagd door",
+            toeReference: "TOE-referentie",
+            digestList: "SHA-256 van de geaccepteerde digestlijst",
+            digestListHelp:
+                "Vergelijk deze met de waarde die bij de acceptatie van de levering is vastgelegd.",
+            parts: "TOE-onderdelen",
+            part: "Onderdeel",
+            acceptedDigest: "Geaccepteerde digest",
+            runningContainers: "Actieve containers",
+            result: "Resultaat",
+            outcome: {
+                verified: "Komt overeen met de geaccepteerde levering",
+                different: "Wijkt af van de geaccepteerde levering",
+                unverifiable: "Kon niet worden geverifieerd",
+            },
+            partOutcome: {
+                verified: "Komt overeen",
+                different: "Wijkt af",
+                unverifiable: "Kon niet worden geverifieerd",
+            },
+        },
         verificationExport: englishTranslation.translations.verificationExport,
         philippinePassport: "Filipijns Paspoort",
         seamanBook: "Zeemansboek",
@@ -208,7 +266,7 @@ const dutchTranslation: TranslationType = {
         logsScreen: {
             noPermissions: "U hebt geen toestemming om toegang te krijgen tot de logs.",
             title: "Logs",
-            subtitle: "Algemene logs van de hoofd- en IAM-databases",
+            subtitle: "Het verkiezingslog van dit verkiezingsevenement",
             actions: {
                 csv: "Exporteren als CSV",
                 pdf: "Exporteren als PDF",
@@ -2067,7 +2125,6 @@ const dutchTranslation: TranslationType = {
                 create: "Aanmaken",
                 delete: "Verwijderen",
                 archive: "Archiveren",
-                unarchive: "Dearchiveren",
                 cancel: "Annuleren",
                 edit: "Bewerken",
                 yes: "Ja",
@@ -2153,12 +2210,6 @@ const dutchTranslation: TranslationType = {
                 archive: {
                     electionEvent: "Dit Verkiezingsevenement archiveren",
                 },
-                unarchive: {
-                    electionEvent: "Dit Verkiezingsevenement dearchiveren",
-                    election: "Deze verkiezing dearchiveren",
-                    contest: "Deze Stemming dearchiveren",
-                    candidate: "Deze Kandidaat dearchiveren",
-                },
                 remove: {
                     electionEvent: "Dit Verkiezingsevenement verwijderen",
                     election: "Deze Verkiezing verwijderen",
@@ -2168,7 +2219,6 @@ const dutchTranslation: TranslationType = {
                 messages: {
                     confirm: {
                         archive: "Weet u zeker dat u dit item wilt archiveren?",
-                        unarchive: "Weet u zeker dat u dit item wilt dearchiveren?",
                         delete: "Weet u zeker dat u dit item wilt verwijderen?",
                         sealsUnknown:
                             "De zegels van de stembussen konden niet worden gecontroleerd: als er verzegelde stembussen zijn, wordt het verwijderen geweigerd.",
@@ -2176,14 +2226,12 @@ const dutchTranslation: TranslationType = {
                     notification: {
                         success: {
                             archive: "Het item is gearchiveerd",
-                            unarchive: "Het item is gedearchiveerd",
                             delete: "Het item is verwijderd",
                             reloading:
                                 "Wacht. De pagina wordt binnen enkele ogenblikken opnieuw geladen.",
                         },
                         error: {
                             archive: "Fout bij het archiveren van dit item",
-                            unarchive: "Fout bij het dearchiveren van dit item",
                             delete: "Fout bij het verwijderen van dit item",
                             deleteSealedElection:
                                 "Deze verkiezing heeft verzegelde stembussen en kan niet worden verwijderd. Archiveer in plaats daarvan het verkiezingsevenement.",

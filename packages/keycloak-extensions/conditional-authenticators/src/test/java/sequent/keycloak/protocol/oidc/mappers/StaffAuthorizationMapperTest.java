@@ -23,6 +23,10 @@ class StaffAuthorizationMapperTest {
   @Test void administratorsCannotImportOrCreateElectionContexts() {
     assertEquals(Set.of("admin-user"),StaffAuthorizationMapper.separated(Set.of("admin-user","election-event-create")));
   }
+  @Test void administratorsKeepNoMessagingPermissions() {
+    assertEquals(Set.of("admin-user"),StaffAuthorizationMapper.separated(Set.of("admin-user","messaging-config-read",
+        "messaging-config-write","messaging-account-read","messaging-account-write")));
+  }
   @Test void boardAccountsKeepTheirScopedDataAndApprovalPermissions() {
     Set<String> board=Set.of("voter-read","sign-open-voting","signing-requests-cancel","election-event-read","election-event-create");
     assertEquals(board,StaffAuthorizationMapper.separated(board));

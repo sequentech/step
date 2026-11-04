@@ -2,10 +2,11 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {fireEvent, render, screen, waitFor} from "@testing-library/react"
+import {fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import SecurityTab, {
     GET_SECURITY_TESTS,
     RUN_SECURITY_TESTS,
+    RUN_TSF_INTEGRITY_CHECK,
     SAVE_SECURITY_SETTINGS,
     START_POST_PROCESSING,
 } from "./SecurityTab"
@@ -13,6 +14,7 @@ import {IPermissions} from "@/types/keycloak"
 
 let mockPhase = "preparation"
 let mockRuns: unknown[] = []
+let mockTsfIntegrity: unknown = null
 let mockFresh = false
 let mockRoles = new Set<string>()
 const mockNotify = jest.fn()
@@ -30,6 +32,7 @@ const mockMutate = jest.fn(async (request) => {
                     baseline_present: true,
                     notifications: [],
                     runs: mockRuns,
+                    tsf_integrity: mockTsfIntegrity,
                 },
             },
         }
@@ -46,6 +49,17 @@ const mockMutate = jest.fn(async (request) => {
             },
         ]
         return {data: {run_self_tests: {task_id: "pending-run", state: "queued"}}}
+    }
+    if (request.mutation === RUN_TSF_INTEGRITY_CHECK) {
+        mockTsfIntegrity = {
+            id: "pending-check",
+            requested_by: "admin1",
+            started_at: "2026-10-27T12:00:00Z",
+            finished_at: null,
+            outcome: null,
+            result: {},
+        }
+        return {data: {run_tsf_integrity_check: {task_id: "pending-check", state: "queued"}}}
     }
     return {data: {}}
 })
@@ -97,6 +111,7 @@ beforeEach(() => {
     mockPhase = "preparation"
     mockFresh = false
     mockRuns = []
+    mockTsfIntegrity = null
     mockRoles = new Set([
         IPermissions.SELF_TEST_READ,
         IPermissions.SELF_TEST_RUN,
@@ -189,4 +204,132 @@ it("lets an administrator read lifecycle and configure tests without any board d
         })
     )
     expect(screen.queryByRole("button", {name: "Start post-processing"})).toBeNull()
+})
+
+describe("TOE software integrity", () => {
+    const VERIFY = "Verify the TOE software"
+    const ACCEPTED = `sha256:aaaaaaaa${"0".repeat(50)}bbbbbb`
+    const LIST_SHA256 = "c".repeat(64)
+    const finished = (outcome: string, result: object) => ({
+        id: "check",
+        requested_by: "board1",
+        started_at: "2026-10-27T12:00:00Z",
+        finished_at: "2026-10-27T12:00:01Z",
+        outcome,
+        result: {
+            toe_reference: "Sequent Voting Platform",
+            digest_list_sha256: LIST_SHA256,
+            parts: [],
+            ...result,
+        },
+    })
+    const part = (name: string, outcome: string, detail: string | null = null) => ({
+        part: name,
+        accepted_digest: ACCEPTED,
+        running: 2,
+        outcome,
+        detail,
+    })
+
+    it("reads the latest check with the status", () => {
+        expect(GET_SECURITY_TESTS.loc?.source.body).toContain("tsf_integrity")
+    })
+
+    it("starts a check with the run permission, apart from the suite, and prevents a duplicate click", async () => {
+        render(<SecurityTab />)
+        const verify = await screen.findByRole("button", {name: VERIFY})
+        await waitFor(() => expect((verify as HTMLButtonElement).disabled).toBe(false))
+        expect(
+            screen.getByText("The TOE software has not been verified for this election event yet.")
+        ).toBeTruthy()
+        fireEvent.click(verify)
+        await waitFor(() =>
+            expect(mockMutate).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    mutation: RUN_TSF_INTEGRITY_CHECK,
+                    variables: {event: "event"},
+                    context: {headers: {"x-hasura-role": IPermissions.SELF_TEST_RUN}},
+                })
+            )
+        )
+        await waitFor(() =>
+            expect(
+                (
+                    screen.getByRole("button", {
+                        name: "Verification queued or running",
+                    }) as HTMLButtonElement
+                ).disabled
+            ).toBe(true)
+        )
+        expect(screen.getByText("admin1")).toBeTruthy()
+        expect(
+            mockMutate.mock.calls.some(([request]) => request.mutation === RUN_SECURITY_TESTS)
+        ).toBe(false)
+        expect(
+            (screen.getByRole("button", {name: "Run self-tests"}) as HTMLButtonElement).disabled
+        ).toBe(false)
+    })
+
+    it("does not let a user without the run permission start a check", async () => {
+        mockRoles = new Set([IPermissions.SELF_TEST_READ])
+        mockTsfIntegrity = finished("verified", {})
+        render(<SecurityTab />)
+        await screen.findByText("Matches the accepted delivery")
+        expect((screen.getByRole("button", {name: VERIFY}) as HTMLButtonElement).disabled).toBe(
+            true
+        )
+    })
+
+    it("shows a match with who ran it, the TOE reference, the parts and the digest list", async () => {
+        mockTsfIntegrity = finished("verified", {parts: [part("braid", "verified")]})
+        render(<SecurityTab />)
+        await screen.findByText("Matches the accepted delivery")
+        expect(screen.getByText("2026-10-27T12:00:00Z")).toBeTruthy()
+        expect(screen.getByText("board1")).toBeTruthy()
+        expect(screen.getByText("Sequent Voting Platform")).toBeTruthy()
+        expect(screen.getByText(LIST_SHA256)).toBeTruthy()
+        const row = within(screen.getByRole("table", {name: "TOE parts"})).getByRole("row", {
+            name: /^braid/,
+        })
+        expect(within(row).getByText("aaaaaaaa…bbbbbb")).toHaveProperty("title", ACCEPTED)
+        expect(within(row).getByRole("cell", {name: "2"})).toBeTruthy()
+        expect(within(row).getByText("Matches")).toBeTruthy()
+    })
+
+    it("names the part that differs and the reason it gives", async () => {
+        const detail = "A container uses an image other than the accepted one"
+        mockTsfIntegrity = finished("different", {
+            parts: [part("harvest", "different", detail), part("braid", "unverifiable", null)],
+        })
+        render(<SecurityTab />)
+        await screen.findByText("Differs from the accepted delivery")
+        const row = screen.getByRole("row", {name: /^harvest/})
+        expect(within(row).getByText("Differs")).toBeTruthy()
+        expect(within(row).getByText(detail)).toBeTruthy()
+    })
+
+    it("shows why a check could not verify, without a table when no part was compared", async () => {
+        mockTsfIntegrity = finished("unverifiable", {
+            reason: "The host image observation is stale",
+        })
+        render(<SecurityTab />)
+        await screen.findByText("Could not verify")
+        expect(screen.getByText("The host image observation is stale")).toBeTruthy()
+        expect(screen.queryByRole("table", {name: "TOE parts"})).toBeNull()
+        expect(screen.getByText(LIST_SHA256)).toBeTruthy()
+    })
+
+    it("omits what a check could not read", async () => {
+        mockTsfIntegrity = {
+            ...finished("unverifiable", {
+                reason: "The check did not complete",
+                toe_reference: null,
+                digest_list_sha256: null,
+            }),
+        }
+        render(<SecurityTab />)
+        await screen.findByText("The check did not complete")
+        expect(screen.queryByText("TOE reference")).toBeNull()
+        expect(screen.queryByText("SHA-256 of the accepted digest list")).toBeNull()
+    })
 })

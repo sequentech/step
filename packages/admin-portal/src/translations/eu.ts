@@ -5,7 +5,64 @@ import englishTranslation, {TranslationType} from "./en"
 
 const basqueTranslation: TranslationType = {
     translations: {
+        copyableFingerprint: {
+            copy: "Kopiatu SHA-256 osoa",
+            copied: "SHA-256 osoa kopiatu da",
+            copyError:
+                "Ezin izan da SHA-256 kopiatu. Jarri kurtsorea balio laburtuaren gainean osorik irakurtzeko.",
+        },
+        attackDetection: {
+            title: "Erasoen detekzioa",
+            description:
+                "Ezarri atalase hauek hauteskundeen antolatzailearekin prestaketan. Sistemak erregistratutako jarduera atalaseekin alderatzen du, eta balizko erasoak erregistratzen ditu hauteskunde-batzordearentzat. Ezarpen hauek ez dituzte kontuak blokeatzen, ezta eskaerak mugatzen ere.",
+            permission: "Administratzaile-baimena behar da erasoen detekzioa konfiguratzeko.",
+            loading: "Erasoen detekzioaren ezarpenak kargatzen",
+            readFailed:
+                "Ezin izan dira uneko maizterraren ezarpenak egiaztatu. Birkargatu orria aldaketak egin aurretik.",
+            failedLogins: "Huts egindako saio-hasierak minutuan, kontu guztiak",
+            failedLoginsHelp:
+                "Idatzi 1 eta 100.000 arteko zenbaki oso bat. Sistemak balizko eraso bat erregistratzen du kontu guztien huts egindako saio-hasierek minutu batean kopuru hori gainditzen dutenean.",
+            accountFailures: "Huts egindako saio-hasierak kontu bakoitzeko, alerta baino lehen",
+            accountFailuresHelp:
+                "Idatzi 1 eta 100.000 arteko zenbaki oso bat. Kontu bat huts egindako saio-hasieren kopuru horretara iristen denean, sistemak balizko eraso bat erregistratzen du hauteskunde-gertaeraren hauteskunde-erregistroan (langileen kontuetan, maizterraren hauteskunde-gertaera guztienean), eta hauteskunde-batzordeak hauteskunde-gertaeraren Panela fitxan ikusten du. Kanpoko autentifikazio-zerbitzariak konturik gabe jakinarazten dituen hutsegiteak elkarrekin zenbatzen dira realm bakoitzean.",
+            requests: "Eskaerak minutuan, kanpoko interfazeak",
+            requestsHelp:
+                "Idatzi 1 eta 10.000.000 arteko zenbaki oso bat. Zenbaketak kanpoko interfazeak hartzen ditu, autentifikatu gabeko eskaerak barne.",
+            save: "Gorde erasoen detekzioaren ezarpenak",
+            saved: "Erasoen detekzioaren ezarpenak gorde eta egiaztatu dira. Batzordeak konfigurazio eguneratua onartu behar du exekuzioaren aurretik.",
+            saveFailed:
+                "Ezarpenak ez dira gorde eta egiaztatu. Birkargatu uneko balioak eta egiaztatu hauteskundeen fasea berriro saiatu aurretik.",
+        },
         securityTests: englishTranslation.translations.securityTests,
+        tsfIntegrity: {
+            title: "TOE softwarearen osotasuna",
+            description:
+                "Zerbitzarietan exekutatzen ari den softwarea onartutako entregarekin alderatzen du, autoprobetatik bereizita; desberdintasun batek hauteskunde-gertaera berreskuratzea behar duen egoeran jartzen du.",
+            run: "Egiaztatu TOE softwarea",
+            running: "Egiaztapena ilaran edo abian",
+            queued: "Egiaztapena ilaran dago. Emaitza hemen agertuko da atzeko planoko zeregina amaitzean.",
+            none: "TOE softwarea oraindik ez da egiaztatu hauteskunde-gertaera honetarako.",
+            started: "Hasiera",
+            requestedBy: "Eskatzailea",
+            toeReference: "TOEren erreferentzia",
+            digestList: "Onartutako laburpen-zerrendaren SHA-256",
+            digestListHelp: "Alderatu entrega onartzean erregistratutako balioarekin.",
+            parts: "TOEren zatiak",
+            part: "Zatia",
+            acceptedDigest: "Onartutako laburpena",
+            runningContainers: "Exekutatzen ari diren edukiontziak",
+            result: "Emaitza",
+            outcome: {
+                verified: "Onartutako entregarekin bat dator",
+                different: "Onartutako entregatik desberdina da",
+                unverifiable: "Ezin izan da egiaztatu",
+            },
+            partOutcome: {
+                verified: "Bat dator",
+                different: "Desberdina da",
+                unverifiable: "Ezin izan da egiaztatu",
+            },
+        },
         verificationExport: englishTranslation.translations.verificationExport,
         philippinePassport: "Filipinetako Pasaportea",
         seamanBook: "Marinoaren Liburua",
@@ -207,7 +264,7 @@ const basqueTranslation: TranslationType = {
         logsScreen: {
             noPermissions: "Ez duzu egunkariak atzitzeko baimenik.",
             title: "Egunkariak",
-            subtitle: "Datu-base nagusi eta IAMaren egunkari orokorrak",
+            subtitle: "Hauteskunde-gertaera honen hauteskunde-erregistroa",
             actions: {
                 csv: "CSV formatuan esportatu",
                 pdf: "PDF formatuan esportatu",
@@ -2057,7 +2114,6 @@ const basqueTranslation: TranslationType = {
                 create: "Sortu",
                 delete: "Ezabatu",
                 archive: "Artxibatu",
-                unarchive: "Desartxibatu",
                 cancel: "Ezeztatu",
                 edit: "Editatu",
                 yes: "Bai",
@@ -2143,12 +2199,6 @@ const basqueTranslation: TranslationType = {
                 archive: {
                     electionEvent: "Artxibatu Hauteskunde Gertaera hau",
                 },
-                unarchive: {
-                    electionEvent: "Desartxibatu Hauteskunde Gertaera hau",
-                    election: "Desartxibatu hauteskunde hau",
-                    contest: "Desartxibatu Galdera hau",
-                    candidate: "Desartxibatu Hautagaia hau",
-                },
                 remove: {
                     electionEvent: "Kendu Hauteskunde Gertaera hau",
                     election: "Kendu Hauteskunde hau",
@@ -2158,7 +2208,6 @@ const basqueTranslation: TranslationType = {
                 messages: {
                     confirm: {
                         archive: "Ziur zaude elementu hau artxibatu nahi duzula?",
-                        unarchive: "Ziur zaude elementu hau desartxibatu nahi duzula?",
                         delete: "Ziur zaude elementu hau ezabatu nahi duzula?",
                         sealsUnknown:
                             "Ezin izan dira hautestontzien zigiluak egiaztatu: hautestontzi zigilaturik badu, ezabaketa baztertu egingo da.",
@@ -2166,13 +2215,11 @@ const basqueTranslation: TranslationType = {
                     notification: {
                         success: {
                             archive: "Elementua artxibatu da",
-                            unarchive: "Elementua desartxibatu da",
                             delete: "Elementua ezabatu da",
                             reloading: "Itxaron. Orria une batez berriro kargatuko da.",
                         },
                         error: {
                             archive: "Errorea elementu hau artxibatzen saiatzean",
-                            unarchive: "Errorea elementu hau desartxibatzen saiatzean",
                             delete: "Errorea elementu hau ezabatzen saiatzean",
                             deleteSealedElection:
                                 "Hauteskunde honek hautestontzi zigilatuak ditu eta ezin da ezabatu. Artxibatu bere hauteskunde-gertaera horren ordez.",

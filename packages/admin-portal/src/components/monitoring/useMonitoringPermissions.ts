@@ -26,7 +26,7 @@ export function monitoringLock(
 
 export interface MonitoringPermissions {
     view: EMonitoringCapability
-    /** Changing dashboards, widgets and themes: also needs event edit and an open event. */
+    /** Changing dashboards, widgets and themes: also needs an open event. */
     configure: EMonitoringCapability
 }
 
@@ -42,10 +42,7 @@ export function useMonitoringPermissions(
     return {
         view: capability(view),
         configure: capability(
-            view &&
-                has(IPermissions.MONITORING_CONFIGURE) &&
-                has(IPermissions.ELECTION_EVENT_WRITE) &&
-                lock === EMonitoringLock.OPEN
+            view && has(IPermissions.MONITORING_CONFIGURE) && lock === EMonitoringLock.OPEN
         ),
     }
 }

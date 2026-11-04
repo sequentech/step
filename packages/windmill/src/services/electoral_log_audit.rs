@@ -61,6 +61,16 @@ pub struct AuditResult {
     pub published_checkpoints: usize,
     /// Integrity problems found; empty when the log is consistent.
     pub findings: Vec<String>,
+    /// How many of `findings` report unavailable evidence, or a state ordinary
+    /// operation also leaves, rather than a verified difference from the records.
+    pub unverified_findings: usize,
+}
+
+impl AuditResult {
+    /// Whether any finding is a verified difference from the records.
+    pub fn has_verified_findings(&self) -> bool {
+        self.findings.len() > self.unverified_findings
+    }
 }
 
 /// After a tally completes: publish a checkpoint of the event's electoral log and
@@ -464,12 +474,15 @@ async fn audit_snapshot(tenant_id: &str, election_event_id: &str) -> Result<Audi
         .cloned()
         .partition(|publication| publication.board_name == board);
     let (mut checkpoints, mut findings) = check_publications(&board, &expected_signer, &own);
+    let mut unverified_findings = 0;
     let copies = CheckpointCopyConfig::from_env()?;
     if copies.policy != CheckpointCopyPolicy::Off {
         match read_checkpoint_copies(&copies, tenant_id, election_event_id).await {
             Ok(read) => {
                 findings.extend(read.findings);
-                findings.extend(cross_check(&own, &read.copies));
+                let crossed = cross_check(&own, &read.copies);
+                unverified_findings += crossed.unconfirmed;
+                findings.extend(crossed.findings);
                 let (copied, copy_findings) = check_labelled_publications(
                     &board,
                     CheckpointSigner::Expected(&expected_signer),
@@ -483,13 +496,17 @@ async fn audit_snapshot(tenant_id: &str, election_event_id: &str) -> Result<Audi
                     }
                 }
             }
-            Err(error) => findings.push(format!(
-                "Could not read the write-once checkpoint copies: {error:#}"
-            )),
+            Err(error) => {
+                unverified_findings += 1;
+                findings.push(format!(
+                    "Could not read the write-once checkpoint copies: {error:#}"
+                ));
+            }
         }
     }
     let store = get_event_store(election_event_id).await?;
     let report = store.audit(&board, &checkpoints).await?;
+    unverified_findings += report.unbuilt_tree_findings();
     findings.extend(report.findings());
     // Audit every current Post board against its registered signer, and every
     // sealed continuation against its source checkpoints. No board is skipped.
@@ -501,6 +518,7 @@ async fn audit_snapshot(tenant_id: &str, election_event_id: &str) -> Result<Audi
         }
         let origin = classify(name, &current_posts);
         if matches!(origin, AuditLogOrigin::Imported) && log.state != LogState::Sealed {
+            unverified_findings += 1;
             findings.push(format!(
                 "Log {name} is not sealed and is not a current event or Post board"
             ));
@@ -516,10 +534,12 @@ async fn audit_snapshot(tenant_id: &str, election_event_id: &str) -> Result<Audi
             }
             AuditLogOrigin::Imported => check_imported_publications(name, &publications),
         };
+        let audit = store.audit(name, &checkpoints).await?;
+        unverified_findings += audit.unbuilt_tree_findings();
         findings.extend(
             signature_findings
                 .into_iter()
-                .chain(store.audit(name, &checkpoints).await?.findings())
+                .chain(audit.findings())
                 .map(|finding| format!("Log {name}: {finding}")),
         );
     }
@@ -546,6 +566,7 @@ async fn audit_snapshot(tenant_id: &str, election_event_id: &str) -> Result<Audi
         root: report.root,
         published_checkpoints: published.len(),
         findings,
+        unverified_findings,
     })
 }
 
@@ -914,5 +935,20 @@ mod periodic_checkpoint_tests {
     fn a_log_smaller_than_its_last_checkpoint_is_an_error() {
         let error = periodic_check(4, Some(5)).unwrap_err().to_string();
         assert!(error.contains("rolled back"), "{error}");
+    }
+
+    #[test]
+    fn only_findings_beyond_the_unverified_ones_are_verified() {
+        let audit = |findings: usize, unverified_findings| AuditResult {
+            board: String::new(),
+            tree_size: 0,
+            root: String::new(),
+            published_checkpoints: 0,
+            findings: vec![String::new(); findings],
+            unverified_findings,
+        };
+        assert!(!audit(0, 0).has_verified_findings());
+        assert!(!audit(2, 2).has_verified_findings());
+        assert!(audit(3, 2).has_verified_findings());
     }
 }

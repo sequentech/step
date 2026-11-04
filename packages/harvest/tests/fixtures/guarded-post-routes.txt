@@ -7,6 +7,10 @@
 /acknowledge-support-materials
 /applications/support-reference
 /apply-reconciliation-changes
+/archive-election-event
+/attack-detection/get
+/attack-detection/settings/get
+/attack-detection/settings/update
 /cast-ballot
 /change-application-status
 /confirm-key-custody
@@ -36,6 +40,8 @@
 /edit-user
 /election-event/stats
 /election-event/top-votes-by-ip
+/election-lifecycle/post-processing
+/election-lifecycle/status
 /election/stats
 /electoral-log
 /electoral-log-console/page
@@ -60,6 +66,7 @@
 /export-tenant-users
 /export-trustees
 /export-users
+/export-verification-transcript
 /fetch-document
 /fetch-results-artifact
 /generate-ballot-publication
@@ -155,6 +162,10 @@
 /revoke-results-publication
 /save-approval-matrix
 /scheduled-event
+/self-tests/get
+/self-tests/run
+/self-tests/settings
+/self-tests/tsf-integrity
 /set-custom-url
 /set-google-service-account-key
 /set-role-permission

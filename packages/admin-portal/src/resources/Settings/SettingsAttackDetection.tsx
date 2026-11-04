@@ -27,6 +27,7 @@ export const SAVE_ATTACK_SETTINGS = gql`
 interface Rates {
     failed_logins_per_minute: number
     requests_per_minute: number
+    account_failure_threshold: number
 }
 interface SettingsResult {
     tenant_id: string
@@ -44,12 +45,14 @@ const positiveInteger = (value: unknown, maximum: number): value is number =>
 const validRates = (value: Rates | undefined): value is Rates =>
     !!value &&
     positiveInteger(value.failed_logins_per_minute, 100000) &&
-    positiveInteger(value.requests_per_minute, 10000000)
+    positiveInteger(value.requests_per_minute, 10000000) &&
+    positiveInteger(value.account_failure_threshold, 100000)
 const matches = (result: SettingsResult | undefined, tenant: string, expected: Rates) =>
     result?.tenant_id === tenant &&
     validRates(result.settings) &&
     result.settings.failed_logins_per_minute === expected.failed_logins_per_minute &&
-    result.settings.requests_per_minute === expected.requests_per_minute
+    result.settings.requests_per_minute === expected.requests_per_minute &&
+    result.settings.account_failure_threshold === expected.account_failure_threshold
 
 export function SettingsAttackDetection() {
     const {t} = useTranslation()
@@ -68,6 +71,7 @@ export function SettingsAttackDetection() {
         SAVE_ATTACK_SETTINGS
     )
     const [failedLogins, setFailedLogins] = useState("")
+    const [accountFailures, setAccountFailures] = useState("")
     const [requests, setRequests] = useState("")
     const [state, setState] = useState(SaveState.Idle)
     const result = data?.get_attack_detection_settings
@@ -77,11 +81,13 @@ export function SettingsAttackDetection() {
     }, [tenantId])
     useEffect(() => {
         setFailedLogins(verified ? String(result!.settings.failed_logins_per_minute) : "")
+        setAccountFailures(verified ? String(result!.settings.account_failure_threshold) : "")
         setRequests(verified ? String(result!.settings.requests_per_minute) : "")
     }, [tenantId, result, verified])
     const selected: Rates = {
         failed_logins_per_minute: Number(failedLogins),
         requests_per_minute: Number(requests),
+        account_failure_threshold: Number(accountFailures),
     }
     const update = async () => {
         if (
@@ -138,7 +144,7 @@ export function SettingsAttackDetection() {
             <Typography>
                 {t(
                     "attackDetection.description",
-                    "Set these rates with the election organizer during preparation. The system compares logged activity with the thresholds and records potential attacks for the election board. These settings do not disable account lockout or rate-limit requests."
+                    "Set these thresholds with the election organizer during preparation. The system compares logged activity with the thresholds and records potential attacks for the election board. These settings do not disable account lockout or rate-limit requests."
                 )}
             </Typography>
             <TextField
@@ -154,7 +160,26 @@ export function SettingsAttackDetection() {
                 error={!positiveInteger(selected.failed_logins_per_minute, 100000)}
                 helperText={t(
                     "attackDetection.failedLoginsHelp",
-                    "Enter a whole number from 1 to 100,000. Per-account authentication failure protection also remains active."
+                    "Enter a whole number from 1 to 100,000. The system records a potential attack when the failed logins of all accounts in one minute exceed this number."
+                )}
+            />
+            <TextField
+                type="number"
+                label={t(
+                    "attackDetection.accountFailures",
+                    "Failed sign-ins per account before an alert"
+                )}
+                value={accountFailures}
+                inputProps={{min: 1, max: 100000, step: 1}}
+                disabled={state === SaveState.Saving || loading}
+                onChange={(event) => {
+                    setAccountFailures(event.target.value)
+                    setState(SaveState.Idle)
+                }}
+                error={!positiveInteger(selected.account_failure_threshold, 100000)}
+                helperText={t(
+                    "attackDetection.accountFailuresHelp",
+                    "Enter a whole number from 1 to 100,000. When an account reaches this number of failed sign-ins, the system records a potential attack in the electoral log of the election event (of every election event of the tenant for staff accounts), and the election board sees it in Monitoring. Failures that the external authentication server reports without an account count together per realm."
                 )}
             />
             <TextField

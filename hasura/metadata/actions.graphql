@@ -3224,11 +3224,12 @@ type Mutation {
 # Complete background security self-tests (first delivery, version 1.0).
 type Mutation {
     run_self_tests(election_event_id: String!, trigger: String): SelfTestStartOutput!
+    run_tsf_integrity_check(election_event_id: String!): SelfTestStartOutput!
     get_self_tests(election_event_id: String!): SelfTestStatusOutput!
     update_self_test_settings(election_event_id: String!, settings: jsonb!): SelfTestSettingsOutput!
 }
 type SelfTestStartOutput { task_id: String! state: String! }
-type SelfTestStatusOutput { settings: jsonb! runs: jsonb! baseline_present: Boolean! notifications: jsonb! }
+type SelfTestStatusOutput { settings: jsonb! runs: jsonb! baseline_present: Boolean! notifications: jsonb! tsf_integrity: jsonb }
 type SelfTestSettingsOutput { settings: jsonb! }
 
 # Logged activity attack heuristics.

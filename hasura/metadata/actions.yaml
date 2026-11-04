@@ -154,6 +154,20 @@ actions:
       permissions:
           - role: self-test-run
           - role: admin-user
+    - name: run_tsf_integrity_check
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/self-tests/tsf-integrity
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: self-test-run
+          - role: admin-user
     - name: get_self_tests
       definition:
           kind: synchronous

@@ -91,6 +91,29 @@ pub async fn run_self_tests(
     .map_err(error)?;
     Ok(Json(json!({"task_id":task.id,"state":"queued"})))
 }
+#[post("/self-tests/tsf-integrity", format = "json", data = "<body>")]
+pub async fn run_tsf_integrity_check(
+    body: Json<Input>,
+    claims: JwtClaims,
+) -> Result<Json<Value>, (Status, String)> {
+    let input = body.into_inner();
+    AuditDeadline::database()
+        .run(authorize_event(
+            &claims,
+            &input.election_event_id,
+            Permissions::SELF_TEST_RUN,
+        ))
+        .await
+        .map_err(error)??;
+    let id = self_tests::tsf_integrity::enqueue(
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+        claims.preferred_username.as_ref().unwrap_or(&claims.sub),
+    )
+    .await
+    .map_err(error)?;
+    Ok(Json(json!({"task_id":id,"state":"queued"})))
+}
 #[post("/self-tests/get", format = "json", data = "<body>")]
 pub async fn get_self_tests(
     body: Json<Input>,
@@ -139,6 +162,7 @@ pub async fn update_self_test_settings(
         .run(self_tests::update_settings(
             &claims.hasura_claims.tenant_id,
             &input.election_event_id,
+            claims.preferred_username.as_ref().unwrap_or(&claims.sub),
             &settings,
         ))
         .await

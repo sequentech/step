@@ -428,7 +428,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                                 )
                             }}
                         />
-                        <MessageField source="message" />
+                        <MessageField source="message" initialLength={50} />
                     </DatagridConfigurable>
                 </LedgerStates>
             </List>

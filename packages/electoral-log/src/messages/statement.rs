@@ -47,6 +47,7 @@ impl StatementHead {
                     "started" => StatementType::SelfTestStarted,
                     "completed" => StatementType::SelfTestCompleted,
                     "settings-changed" => StatementType::SelfTestSettingsChanged,
+                    "tsf-integrity" => StatementType::TsfIntegrityCheck,
                     _ => StatementType::SelfTestProbe,
                 },
                 description: format!("Self-test {stage}: {details}"),
@@ -858,6 +859,7 @@ pub enum StatementType {
     SelfTestSettingsChanged,
     SelfTestProbe,
     LifecycleSecurityEvent,
+    TsfIntegrityCheck,
 }
 
 #[derive(

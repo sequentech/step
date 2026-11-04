@@ -31,7 +31,7 @@ const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
 const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
-const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 194;
+const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 205;
 
 const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
@@ -1279,7 +1279,8 @@ async fn schedule_recompute_noops_and_scope_refusals_preserve_stored_dates() {
          (id, tenant_id, election_event_id, event_processor, cron_config, annotations)
          VALUES ($1,$2,$3,'END_VOTING_PERIOD',$4,$5)",
         &[&id, &tenant, &event_id, &cron, &annotations]).await;
-    let other = Claims::new(&uuid::Uuid::new_v4().to_string(), USER_ID)
+    let other_tenant = rows::event(&services.hasura).await.tenant_id;
+    let other = Claims::new(&other_tenant, USER_ID)
         .roles([Permissions::SCHEDULED_EVENT_WRITE]);
     assert_eq!(
         response_json(
@@ -1292,6 +1293,137 @@ async fn schedule_recompute_noops_and_scope_refusals_preserve_stored_dates() {
         "SELECT cron_config, annotations FROM sequent_backend.scheduled_event WHERE id = $1", &[&id]).await;
     assert_eq!(saved[0].get::<_, Value>("cron_config"), cron);
     assert_eq!(saved[0].get::<_, Value>("annotations"), annotations);
+}
+
+#[rocket::async_test]
+async fn required_signing_leaves_only_the_lockdown_period_to_date_directly() {
+    const TEST: &str = "request_boundaries::required_signing_leaves_only_the_lockdown_period_to_date_directly";
+    if !is_isolated_child() {
+        run_isolated_with_postgres(TEST, "http://127.0.0.1:9", true);
+        return;
+    }
+    use crate::route_services::{
+        json as response_json, post, rows, text, Services,
+    };
+    const REFUSAL: &str = "Election dates change only by the signed import";
+    let services = Services::on_test_database().await;
+    let database: String =
+        rows::query(&services.hasura, "SELECT current_database() AS name", &[])
+            .await[0]
+            .get("name");
+    // These routes use Windmill's global pool, unlike routes using managed state.
+    std::env::set_var("HASURA_DB__DBNAME", database);
+    // Signing trust is set before a tenant's first election event.
+    let tenant = uuid::Uuid::new_v4();
+    let roots =
+        "-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----\n";
+    rows::execute(
+        &services.hasura,
+        "INSERT INTO sequent_backend.tenant (id, slug, settings)
+         VALUES ($1, $2, $3)",
+        &[
+            &tenant,
+            &tenant.to_string(),
+            &json!({"configuration_signing": {
+                "policy": "required", "required_approvals": 2,
+                "package_roots": roots, "staff_roots": roots}}),
+        ],
+    )
+    .await;
+    let event = rows::event_of(&services.hasura, &tenant.to_string()).await;
+    let event_id = uuid::Uuid::parse_str(&event.election_event_id).unwrap();
+    let cron = json!({"scheduled_date": "2099-01-01T10:00:00Z",
+        "local": "2099-01-01T10:00", "timezone": "UTC"});
+    rows::execute(
+        &services.hasura,
+        "INSERT INTO sequent_backend.scheduled_event
+         (id, tenant_id, election_event_id, event_processor, cron_config)
+         VALUES ($1,$2,$3,'START_VOTING_PERIOD',$4)",
+        &[&uuid::Uuid::new_v4(), &tenant, &event_id, &cron],
+    )
+    .await;
+    let client = services.client().await;
+    let writer = Claims::new(&event.tenant_id, USER_ID)
+        .roles([Permissions::SCHEDULED_EVENT_WRITE]);
+    let dates = |event_id: &str, event_processor: &str| {
+        json!({
+            "election_event_id": event_id,
+            "event_processor": event_processor,
+            "local_date_time": "2099-01-02T10:00",
+            "time_zone": "UTC",
+        })
+    };
+    let dated = || async {
+        rows::query(
+            &services.hasura,
+            "SELECT event_processor, cron_config
+             FROM sequent_backend.scheduled_event
+             WHERE election_event_id = $1 ORDER BY event_processor",
+            &[&event_id],
+        )
+        .await
+        .iter()
+        .map(|row| (row.get("event_processor"), row.get("cron_config")))
+        .collect::<Vec<(String, Value)>>()
+    };
+
+    for processor in ["START_VOTING_PERIOD", "END_VOTING_PERIOD"] {
+        let body = dates(&event.election_event_id, processor);
+        let (status, error) = response_json(
+            post(&client, "/manage-election-dates", &writer, &body).await,
+        )
+        .await;
+        assert_eq!(status, Status::Forbidden);
+        assert_eq!(error["extensions"]["code"], "Unauthorized");
+        assert_eq!(error["message"], REFUSAL);
+    }
+    let (status, error) = response_json(
+        post(
+            &client,
+            "/apply-schedule-recompute",
+            &writer,
+            &json!({"election_event_id": event.election_event_id}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Forbidden);
+    assert_eq!(error["message"], REFUSAL);
+    let file = json!({
+        "election_event_id": event.election_event_id,
+        "document_id": uuid::Uuid::new_v4().to_string(),
+    });
+    for route in ["/preview-schedule-import", "/import-schedule"] {
+        assert_eq!(
+            text(post(&client, route, &writer, &file).await).await,
+            (Status::Forbidden, REFUSAL.to_string())
+        );
+    }
+    assert_eq!(
+        dated().await,
+        vec![("START_VOTING_PERIOD".to_string(), cron)]
+    );
+
+    for processor in ["START_LOCKDOWN_PERIOD", "END_LOCKDOWN_PERIOD"] {
+        let body = dates(&event.election_event_id, processor);
+        let (status, saved) = response_json(
+            post(&client, "/manage-election-dates", &writer, &body).await,
+        )
+        .await;
+        assert_eq!((status, &saved["error_msg"]), (Status::Ok, &Value::Null));
+    }
+    assert_eq!(dated().await.len(), 3);
+
+    // Without the policy the same request saves.
+    let open = rows::event(&services.hasura).await;
+    let writer = Claims::new(&open.tenant_id, USER_ID)
+        .roles([Permissions::SCHEDULED_EVENT_WRITE]);
+    let body = dates(&open.election_event_id, "START_VOTING_PERIOD");
+    let (status, saved) = response_json(
+        post(&client, "/manage-election-dates", &writer, &body).await,
+    )
+    .await;
+    assert_eq!((status, &saved["error_msg"]), (Status::Ok, &Value::Null));
 }
 
 #[rocket::async_test]

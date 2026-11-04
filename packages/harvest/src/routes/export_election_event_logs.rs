@@ -55,7 +55,7 @@ pub async fn export_election_event_logs_route(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::REPORT_WRITE],
+        vec![Permissions::LOGS_EXPORT],
     )?;
 
     let body = input.into_inner();

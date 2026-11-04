@@ -25,5 +25,33 @@ it.each(Object.entries({cat, es, eu, fr, gl, nl, tl}))(
                 readFailed: expect.any(String),
             })
         )
+        expect(Object.keys(locale.translations.attackDetection).sort()).toEqual(
+            Object.keys(en.translations.attackDetection).sort()
+        )
+        expect(locale.translations.attackDetection.accountFailures).not.toEqual(
+            en.translations.attackDetection.accountFailures
+        )
+        expect(locale.translations.copyableFingerprint).toEqual({
+            copy: expect.any(String),
+            copied: expect.any(String),
+            copyError: expect.any(String),
+        })
+        expect(locale.translations.copyableFingerprint.copy).not.toEqual(
+            en.translations.copyableFingerprint.copy
+        )
+        expect(Object.keys(locale.translations.tsfIntegrity).sort()).toEqual(
+            Object.keys(en.translations.tsfIntegrity).sort()
+        )
+        expect(locale.translations.tsfIntegrity.run).not.toEqual(en.translations.tsfIntegrity.run)
+        for (const group of ["outcome", "partOutcome"] as const) {
+            expect(locale.translations.tsfIntegrity[group]).toEqual({
+                verified: expect.any(String),
+                different: expect.any(String),
+                unverifiable: expect.any(String),
+            })
+            expect(locale.translations.tsfIntegrity[group].different).not.toEqual(
+                en.translations.tsfIntegrity[group].different
+            )
+        }
     }
 )
