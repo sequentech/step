@@ -4146,7 +4146,7 @@ const frenchTranslation: TranslationType = {
                 compareNote:
                     "Pour les noms, la casse, les accents et les traits d'union sont ignorés.",
                 compareJoint:
-                    "Pour les permis de conduire et les livrets de marin, le prénom et le deuxième prénom sont comparés ensemble.",
+                    "Pour les permis de conduire, les livrets de marin et les passeports lus par le scanner, le prénom et le deuxième prénom sont comparés ensemble.",
                 applicationId: "ID de la demande",
                 copy: "Copier",
                 copied: "Copié",

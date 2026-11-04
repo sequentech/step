@@ -4323,7 +4323,7 @@ const englishTranslation = {
                 differs: "Different",
                 compareNote: "Names ignore capital letters, accents and hyphens.",
                 compareJoint:
-                    "For driver's licenses and seafarer's books, first and middle name are compared together.",
+                    "For driver's licenses, seafarer's books and passports read by the scanner, first and middle name are compared together.",
                 applicationId: "Application ID",
                 copy: "Copy",
                 copied: "Copied",

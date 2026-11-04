@@ -76,6 +76,7 @@ use unicode_normalization::char::decompose_canonical;
 const ID_CARD_TYPE_FIELD: &str = "sequent.read-only.id-card-type";
 const EMAIL_FIELD: &str = "email";
 const FIRST_NAME_FIELD: &str = "firstName";
+const MIDDLE_NAME_FIELD: &str = "middleName";
 const FIRST_AND_MIDDLE_NAME_FIELD: &str = "firstName.middleName";
 const SEVERAL_VOTERS_MATCH_REASON: &str = "Several registry voters match";
 
@@ -337,6 +338,15 @@ fn get_filter_from_applicant_data(
             }
             "embassy" => {
                 // Ignore embassy to speed up user lookup
+            }
+            MIDDLE_NAME_FIELD
+                if GivenNames::of(applicant_data) == GivenNames::TOGETHER
+                    && applicant_data
+                        .get(MIDDLE_NAME_FIELD)
+                        .is_none_or(|middle_name| middle_name.trim().is_empty()) =>
+            {
+                // The middle name is among the given names, in the first
+                // name: an empty one would only find voters without it.
             }
             _ => {
                 let value = applicant_data
@@ -668,6 +678,38 @@ fn reject_duplicate_email(
     }
 }
 
+/// How the applicant's identity document gives the first and middle names.
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum GivenNames {
+    /// In two fields, compared with the voter's first and middle names.
+    SEPARATE,
+    /// In one field, compared with the voter's first and middle names
+    /// joined.
+    TOGETHER,
+}
+
+impl GivenNames {
+    fn of(applicant_data: &HashMap<String, String>) -> Self {
+        let card_type = applicant_data.get(ID_CARD_TYPE_FIELD).map(String::as_str);
+        let has_middle_name = applicant_data
+            .get(MIDDLE_NAME_FIELD)
+            .is_some_and(|middle_name| !middle_name.trim().is_empty());
+        let is = |card: ECardType| card_type == Some(card.to_string().as_str());
+        if is(ECardType::SEAMANS_BOOK) || is(ECardType::DRIVER_LICENSE) {
+            GivenNames::TOGETHER
+        } else if is(ECardType::PHILIPPINE_PASSPORT) && !has_middle_name {
+            // A passport's machine-readable zone has a single given names
+            // field, the middle name included, which is how the passport
+            // reader returns them. A middle name typed apart is compared
+            // apart, as before.
+            GivenNames::TOGETHER
+        } else {
+            GivenNames::SEPARATE
+        }
+    }
+}
+
 #[instrument(err)]
 fn check_mismatches(
     user: &User,
@@ -684,19 +726,14 @@ fn check_mismatches(
         user.id, fields_to_check, fields_to_check_unset
     );
 
-    // Check if the card type is seamans_book or driver_license
-    let card_type_flag = applicant_data
-        .get(ID_CARD_TYPE_FIELD)
-        .is_some_and(|card_type| {
-            *card_type == ECardType::SEAMANS_BOOK.to_string()
-                || *card_type == ECardType::DRIVER_LICENSE.to_string()
-        });
+    let given_names = GivenNames::of(applicant_data);
 
     for field_to_check in fields_to_check.split(",") {
         let field_to_check = field_to_check.trim();
 
-        // Special handling for firstName when card_type_flag is true
-        if card_type_flag {
+        // The first and middle names are compared together when the
+        // document gives them together.
+        if given_names == GivenNames::TOGETHER {
             if field_to_check == "middleName" {
                 continue;
             } else if field_to_check == "firstName" {

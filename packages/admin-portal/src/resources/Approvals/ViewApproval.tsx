@@ -64,6 +64,7 @@ import {
     displayValue,
     initials,
     joinList,
+    jointNames,
     listAnnotation,
     rankCandidates,
     searchFilters,
@@ -83,8 +84,6 @@ import {
     TagRow,
 } from "./approvalStyles"
 
-const JOINT_NAME_DOCUMENTS = ["seamanBook", "driversLicense"]
-const ID_CARD_TYPE_FIELD = "sequent.read-only.id-card-type"
 /** How many registry voters each lookup asks for. */
 const LOOKUP_SIZE = 10
 /** How many registry voters the step offers. */
@@ -298,7 +297,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
     const canDecide = !isAccepted
     const identity = decision?.identity ?? null
     const typedByHand = identity === EIdentityMethod.MANUAL_ENTRY
-    const jointNames = JOINT_NAME_DOCUMENTS.includes(data[ID_CARD_TYPE_FIELD] ?? "")
+    const namesTogether = jointNames(data)
     const chosenCandidate = candidates.find((candidate) => candidate.voter.id === chosen)
     const best = candidates.find((candidate) => !candidate.alreadyEnrolled)
     const officer = decidedBy(task)
@@ -827,7 +826,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                             onSearch={setSearch}
                             loading={lookup.isLoading}
                             failed={lookup.isError}
-                            jointNames={jointNames}
+                            jointNames={namesTogether}
                         />
                     )}
                     {section("decide", "", decideStep)}

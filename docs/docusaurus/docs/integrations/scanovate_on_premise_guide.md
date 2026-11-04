@@ -683,6 +683,16 @@ screenshots and the frames. See
 rules read: the same fields as before, such as `/document_number`,
 `/first_name_english`, `/issuing_country_code` and `/date_of_birth`.
 
+The passport reader returns the names of the MRZ: `last_name_english` is the
+primary identifier and `first_name_english` every given name, the middle name
+included (`JUAN<CARLOS<SANTOS` gives `JUAN CARLOS SANTOS`). There is no middle
+name field. Store `first_name_english` in `firstName` and no `middleName`: the
+registry lookup then compares the passport's given names with the voter's first
+and middle name joined (see
+[Approvals](../02-election_managers/02-reference/02-election-event/14-election_management_election-event_approvals.md#what-we-compare)),
+so a voter with a middle name in the registry is matched, and one whose middle
+name differs isn't.
+
 The service reads the MRZ in the OCR-B typeface. With the `passport` type,
 `template_matching_valid` and `document_in_frame_valid` are always `true`: they
 don't check the document's authenticity.

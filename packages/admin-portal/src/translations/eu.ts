@@ -4103,7 +4103,7 @@ const basqueTranslation: TranslationType = {
                 compareNote:
                     "Izenetan ez dira kontuan hartzen maiuskulak, azentuak eta marratxoak.",
                 compareJoint:
-                    "Gidabaimenetan eta itsasgizon-liburuetan, izena eta bigarren izena batera alderatzen dira.",
+                    "Gidabaimenetan, itsasgizon-liburuetan eta eskanerrak irakurritako pasaporteetan, izena eta bigarren izena batera alderatzen dira.",
                 applicationId: "Eskaeraren IDa",
                 copy: "Kopiatu",
                 copied: "Kopiatuta",

@@ -36,6 +36,8 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -812,11 +814,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       if (!field.getValue().asBoolean()) {
         String key = field.getKey();
         String value = null;
-        // Special case for first and middle name (for DL and SB)
+        // First and middle names compared together (driver's license, seaman's book, passport)
         if (key.equals("firstName.middleName")) {
-          String firstName = applicantDataMap.get("firstName");
-          String middleName = applicantDataMap.get("middleName");
-          value = firstName != null ? firstName : "" + ", " + middleName != null ? middleName : "";
+          value = givenNames(applicantDataMap.get("firstName"), applicantDataMap.get("middleName"));
           key = "First name, Middle name";
         } else {
           value = applicantDataMap.get(key);
@@ -846,6 +846,19 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       }
     }
     return mismatchedFields;
+  }
+
+  /**
+   * The first and middle names, separated by a comma, leaving out the missing ones.
+   *
+   * @return null if both are missing
+   */
+  static String givenNames(String firstName, String middleName) {
+    String names =
+        Stream.of(firstName, middleName)
+            .filter(name -> name != null && !name.isBlank())
+            .collect(Collectors.joining(", "));
+    return names.isEmpty() ? null : names;
   }
 
   private String getAttributeDisplayName(

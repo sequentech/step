@@ -4120,7 +4120,7 @@ const dutchTranslation: TranslationType = {
                 differs: "Anders",
                 compareNote: "Bij namen tellen hoofdletters, accenten en koppeltekens niet mee.",
                 compareJoint:
-                    "Bij rijbewijzen en zeemansboekjes worden voornaam en tweede naam samen vergeleken.",
+                    "Bij rijbewijzen, zeemansboekjes en door de scanner gelezen paspoorten worden voornaam en tweede naam samen vergeleken.",
                 applicationId: "Aanvraag-ID",
                 copy: "Kopiëren",
                 copied: "Gekopieerd",

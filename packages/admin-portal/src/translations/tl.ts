@@ -4144,7 +4144,7 @@ const tagalogTranslation: TranslationType = {
                 compareNote:
                     "Hindi isinasaalang-alang sa mga pangalan ang malaki at maliit na titik, mga tuldik at gitling.",
                 compareJoint:
-                    "Para sa mga lisensya sa pagmamaneho at seafarer's book, pinagsamang inihahambing ang unang pangalan at gitnang pangalan.",
+                    "Para sa mga lisensya sa pagmamaneho, seafarer's book at pasaporteng binasa ng scanner, pinagsamang inihahambing ang unang pangalan at gitnang pangalan.",
                 applicationId: "ID ng aplikasyon",
                 copy: "Kopyahin",
                 copied: "Nakopya",

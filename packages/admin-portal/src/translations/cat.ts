@@ -4129,7 +4129,7 @@ const catalanTranslation: TranslationType = {
                 differs: "Diferent",
                 compareNote: "En els noms no es tenen en compte majúscules, accents ni guionets.",
                 compareJoint:
-                    "Per a permisos de conduir i llibretes de mariner, el nom i el segon nom es comparen junts.",
+                    "Per a permisos de conduir, llibretes de mariner i passaports llegits per l'escàner, el nom i el segon nom es comparen junts.",
                 applicationId: "ID de la sol·licitud",
                 copy: "Copia",
                 copied: "Copiat",
