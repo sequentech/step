@@ -36,7 +36,8 @@ use std::time::SystemTime;
 use tracing::{error, info, instrument};
 
 /// The permissions the migration adds, with the English label Users and
-/// Roles shows for each, which becomes the role's description.
+/// Roles shows for each, which becomes the role's description. Integration
+/// secrets retain the existing realm template's more explicit description.
 pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 29] = [
     (
         Permissions::FORENSIC_READ,
@@ -134,7 +135,7 @@ pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 29] = [
     ),
     (
         Permissions::INTEGRATION_SECRET_READ,
-        "Export Integration Secrets",
+        "Export authenticator integration secrets and download archives carrying them",
     ),
 ];
 

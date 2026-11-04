@@ -59,7 +59,12 @@ fn migrated_labels_in_the_portal() -> BTreeMap<String, String> {
 
 #[test]
 fn the_migration_adds_release_permissions_with_their_labels() {
-    let expected = migrated_labels_in_the_portal();
+    let mut expected = migrated_labels_in_the_portal();
+    // Preserve the established template description; the portal uses a shorter label.
+    expected.insert(
+        Permissions::INTEGRATION_SECRET_READ.to_string(),
+        "Export authenticator integration secrets and download archives carrying them".to_string(),
+    );
     assert_eq!(expected.len(), 29, "{expected:?}");
     let roles: BTreeMap<String, String> = migrated_roles()
         .into_iter()
