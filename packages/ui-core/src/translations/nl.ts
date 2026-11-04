@@ -594,6 +594,10 @@ const dutchTranslation: TranslationType = {
                         lead: "Bestand ontbreekt",
                         text: "Bestand ontbreekt — '{{file}}' wordt genoemd en niets hier bevat het. Een lege archiefvermelding laat de import mislukken in plaats van een bestand kwijt te raken.",
                     },
+                    "masked-integration-secret": {
+                        lead: "Gemaskeerd integratiegeheim",
+                        text: "Gemaskeerd integratiegeheim — de Scanovate-configuratie '{{config}}' bevat de plaatshouder van Keycloak (**********) in plaats van het liveness-geheim, dus importeren zou de plaatshouder installeren. Exporteer het evenement opnieuw met integratiegeheimen; een configuratie die Scanovate met een andere authenticator deelt, heeft eerst een eigen configuratie nodig.",
+                    },
                     "not-a-bundle": {
                         lead: "Geen export van een verkiezingsevenement",
                         text: "Geen export van een verkiezingsevenement — het bestand is gelezen maar heeft niet de vorm van een export: {{reason}}",

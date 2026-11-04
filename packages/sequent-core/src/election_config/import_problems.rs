@@ -66,6 +66,26 @@ pub fn cannot_decrypt() -> Problem {
     .id("file.cannot-decrypt")
 }
 
+/// A realm whose Scanovate authenticator configuration holds Keycloak's export
+/// placeholder, `**********`, instead of its `liveness-secret`: importing it
+/// would install the placeholder as the credential. Names the configuration
+/// and the setting, never a value.
+pub fn masked_integration_secret(config: &str, key: &str) -> Problem {
+    Problem::error(
+        Code::InvalidValue,
+        FILE,
+        format!(
+            "the Scanovate authenticator configuration '{config}' holds Keycloak's \
+             masked placeholder instead of its {key}; export the event again with \
+             integration secrets included (a configuration shared with another \
+             authenticator needs its own first)"
+        ),
+    )
+    .id("file.masked-integration-secret")
+    .detail("config", config)
+    .detail("key", key)
+}
+
 /// Exported by a version of the platform this one cannot import.
 pub fn incompatible_version(found: &str, current: &str) -> Problem {
     Problem::error(
@@ -194,6 +214,10 @@ mod tests {
             not_a_bundle("missing field `elections`"),
             unreadable_archive("no JSON file found"),
             cannot_decrypt(),
+            masked_integration_secret(
+                "scanovate-registration",
+                "liveness-secret",
+            ),
             incompatible_version("8.1.0", "9.2.0"),
             checksum_mismatch("aa", "bb"),
             vote_weight_not_a_number(4, "vote-weight", "x", 100),

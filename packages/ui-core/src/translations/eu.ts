@@ -593,6 +593,10 @@ const basqueTranslation: TranslationType = {
                         lead: "Fitxategia falta da",
                         text: 'Fitxategia falta da — "{{file}}" aipatzen da eta hemen ez dago ezer hura duenik. Artxiboko sarrera huts batek inportazioa huts eginarazten du, fitxategi bat galdu beharrean.',
                     },
+                    "masked-integration-secret": {
+                        lead: "Integrazio-sekretu ezkutatua",
+                        text: "Integrazio-sekretu ezkutatua — Scanovate-ren '{{config}}' konfigurazioak Keycloak-en marka (**********) du liveness sekretuaren ordez, eta inportatuz gero marka hori instalatuko litzateke. Esportatu gertaera berriro integrazio-sekretuak barne; Scanovate-k beste autentifikatzaile batekin partekatzen duen konfigurazio batek berea behar du lehenik.",
+                    },
                     "not-a-bundle": {
                         lead: "Ez da hauteskunde-gertaera baten esportazioa",
                         text: "Ez da hauteskunde-gertaera baten esportazioa — fitxategia irakurri da, baina ez du horren forma: {{reason}}",

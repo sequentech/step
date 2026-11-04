@@ -597,6 +597,10 @@ const galegoTranslation: TranslationType = {
                         lead: "Falta un ficheiro",
                         text: "Falta un ficheiro — nomease «{{file}}» e aquí non hai nada que o conteña. Unha entrada de arquivo baleira fai fallar a importación en vez de perder un ficheiro.",
                     },
+                    "masked-integration-secret": {
+                        lead: "Segredo de integración enmascarado",
+                        text: "Segredo de integración enmascarado — a configuración de Scanovate «{{config}}» contén o marcador de Keycloak (**********) no canto do seu segredo de liveness, así que importala instalaría o marcador. Exporta de novo o evento incluíndo os segredos de integración; unha configuración que Scanovate comparte con outro autenticador precisa antes unha propia.",
+                    },
                     "not-a-bundle": {
                         lead: "Non é unha exportación de evento electoral",
                         text: "Non é unha exportación de evento electoral — o ficheiro leuse pero non ten a súa forma: {{reason}}",
