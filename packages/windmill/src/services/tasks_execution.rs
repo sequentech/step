@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::tasks_execution::{insert_tasks_execution, update_task_execution_status};
+use crate::postgres::tasks_execution::{
+    fail_task_execution_if_in_progress, insert_tasks_execution, update_task_execution_status,
+};
 use crate::services::serialize_tasks_logs::*;
 use crate::types::tasks::ETasksExecution;
 use anyhow::{Context, Result};
@@ -93,6 +95,24 @@ pub async fn update_fail(task: &TasksExecution, err_message: &str) -> Result<(),
     )
     .await
     .context("Failed to update task execution record with failure status")?;
+
+    Ok(())
+}
+
+/// Fails a task only if it is still in progress, keeping any final status a
+/// worker has already written.
+pub async fn update_fail_if_in_progress(
+    task: &TasksExecution,
+    err_message: &str,
+) -> Result<(), anyhow::Error> {
+    let new_logs = serde_json::to_value(append_general_log(
+        &task.logs,
+        &("Error: ".to_owned() + err_message),
+    ))?;
+
+    fail_task_execution_if_in_progress(&task.tenant_id, &task.id, new_logs)
+        .await
+        .context("Failed to update task execution record with failure status")?;
 
     Ok(())
 }
