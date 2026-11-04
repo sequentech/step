@@ -44,7 +44,6 @@ pub const PARAM_SAML_PRINCIPAL_ATTRIBUTE: &str = "saml_principal_attribute";
 pub const PARAM_OTP_SENDER_ID: &str = "otp_sender_id";
 pub const PARAM_OTP_LENGTH: &str = "otp_length";
 pub const PARAM_OTP_TTL_SECONDS: &str = "otp_ttl_seconds";
-pub const PARAM_SCANOVATE_OCR_URL: &str = "scanovate_ocr_url";
 pub const PARAM_SCANOVATE_LIVENESS_URL: &str = "scanovate_liveness_url";
 pub const PARAM_SCANOVATE_FACE_MATCH_URL: &str = "scanovate_face_match_url";
 pub const PARAM_SCANOVATE_FACE_MATCH_MIN_SIMILARITY: &str =
@@ -90,7 +89,6 @@ pub const PASSPORT_COUNTRY_CHECK_FLOW: &str = "passport-country-check";
 pub const SCANOVATE_CONFIG_ALIAS: &str = "scanovate-registration";
 pub const SCANOVATE_LIVENESS_SECRET: &str = "liveness-secret";
 pub const SCANOVATE_LIVENESS_URL: &str = "liveness-url";
-pub const SCANOVATE_OCR_URL_DEFAULT: &str = "http://scanovate-ocr:5040";
 pub const SCANOVATE_FACE_MATCH_URL_DEFAULT: &str =
     "http://scanovate-face-match:3000";
 pub const BIOMETRIC_OTP_CONFIG: &str = "biometric-registration-otp";
@@ -687,12 +685,7 @@ fn biometric_patch(input: &PresetInput) -> RealmPatch {
             {
                 "alias": SCANOVATE_CONFIG_ALIAS,
                 "config": {
-                    "ocr-url": input.text(
-                        PARAM_SCANOVATE_OCR_URL,
-                        SCANOVATE_OCR_URL_DEFAULT,
-                    ),
                     "ocr-types": "{\"philippinePassport\": \"passport\"}",
-                    "capture-sides": "{\"philippinePassport\": [\"front\"]}",
                     "face-match-url": input.text(
                         PARAM_SCANOVATE_FACE_MATCH_URL,
                         SCANOVATE_FACE_MATCH_URL_DEFAULT,
@@ -784,7 +777,6 @@ pub const PRESETS: &[AuthPreset] = &[
         build: biometric_patch,
         required_parameters: &[],
         optional_parameters: &[
-            PARAM_SCANOVATE_OCR_URL,
             PARAM_SCANOVATE_LIVENESS_URL,
             PARAM_SCANOVATE_FACE_MATCH_URL,
             PARAM_ACCEPTED_PASSPORT_COUNTRIES,
@@ -1192,7 +1184,7 @@ mod tests {
 
     fn biometric(values: &[(&str, &str)]) -> RealmPatch {
         let mut given = vec![
-            (PARAM_SCANOVATE_OCR_URL, "https://ocr.example.org"),
+            ("scanovate_ocr_url", "https://ocr.example.org"),
             (PARAM_SCANOVATE_LIVENESS_URL, "https://liveness.example.org"),
             (PARAM_SCANOVATE_FACE_MATCH_URL, "https://match.example.org"),
         ];
@@ -1315,7 +1307,10 @@ mod tests {
     fn the_scanovate_step_reads_a_passport_and_stores_its_country() {
         let patch = biometric(&[]);
         let scanovate = config(&patch, SCANOVATE_CONFIG_ALIAS);
-        assert_eq!(scanovate["ocr-url"], json!("https://ocr.example.org"));
+        // The voter's browser goes through OCR's own page under the
+        // liveness-url, which also decides which sides it scans.
+        assert!(scanovate.get("ocr-url").is_none());
+        assert!(scanovate.get("capture-sides").is_none());
         assert_eq!(
             scanovate["liveness-url"],
             json!("https://liveness.example.org")
@@ -1381,11 +1376,18 @@ mod tests {
     fn the_internal_services_default_to_their_deployed_names() {
         let patch = get("biometric_authentication").unwrap().build(&input(&[]));
         let scanovate = config(&patch, SCANOVATE_CONFIG_ALIAS);
-        assert_eq!(scanovate["ocr-url"], json!(SCANOVATE_OCR_URL_DEFAULT));
         assert_eq!(
             scanovate["face-match-url"],
             json!(SCANOVATE_FACE_MATCH_URL_DEFAULT)
         );
+    }
+
+    #[test]
+    fn the_preset_asks_for_no_ocr_url() {
+        // Keycloak no longer calls OCR; a profile that still gives one imports
+        // all the same and the value is not read.
+        let preset = get("biometric_authentication").unwrap();
+        assert!(!preset.consumes().contains(&"scanovate_ocr_url"));
     }
 
     #[test]
@@ -1468,11 +1470,9 @@ mod tests {
         let preset = get("biometric_authentication").unwrap();
         assert!(preset.uses_otp);
         assert!(preset.required_parameters.is_empty());
-        for parameter in [
-            PARAM_SCANOVATE_OCR_URL,
-            PARAM_SCANOVATE_LIVENESS_URL,
-            PARAM_SCANOVATE_FACE_MATCH_URL,
-        ] {
+        for parameter in
+            [PARAM_SCANOVATE_LIVENESS_URL, PARAM_SCANOVATE_FACE_MATCH_URL]
+        {
             assert!(
                 preset.optional_parameters.contains(&parameter),
                 "{parameter}"

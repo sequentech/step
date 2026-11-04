@@ -4,6 +4,7 @@
 package sequent.keycloak.scanovate_authenticator;
 
 import com.google.auto.service.AutoService;
+import java.util.Arrays;
 import java.util.List;
 import org.keycloak.Config;
 import org.keycloak.authentication.Authenticator;
@@ -18,32 +19,31 @@ import org.keycloak.provider.ProviderConfigurationBuilder;
 public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
   public static final String PROVIDER_ID = "scanovate-authenticator";
 
-  public static final String OCR_URL = "ocr-url";
   public static final String OCR_TYPES = "ocr-types";
   public static final String DOC_ID_TYPE = "doc-id-type";
   public static final String USER_STATUS = "user-status";
   public static final String ATTRIBUTES_TO_VALIDATE = "attributes-to-validate";
   public static final String ATTRIBUTES_TO_STORE = "attributes-to-store";
   public static final String MAX_ATTEMPTS = "max-attempts";
-  public static final String CAPTURE_SIDES = "capture-sides";
-  public static final String VIDEO_SECONDS = "video-seconds";
-  public static final String MAX_IMAGE_BYTES = "max-image-bytes";
   public static final String LIVENESS_URL = "liveness-url";
   public static final String LIVENESS_SECRET = "liveness-secret";
   public static final String LIVENESS_RESULT_WAIT_SECONDS = "liveness-result-wait-seconds";
   public static final String FACE_MATCH_URL = "face-match-url";
   public static final String FACE_MATCH_MIN_SIMILARITY = "face-match-min-similarity";
+  public static final String HOLDING_PHOTO = "holding-photo";
+
+  /** Holding time of the holding photo; the key of the earlier capture page's setting. */
+  public static final String HOLDING_SECONDS = "video-seconds";
+
+  public static final int DEFAULT_HOLDING_SECONDS = 5;
 
   public static final String DEFAULT_DOC_ID_TYPE = "sequent.read-only.id-card-type";
   public static final String DEFAULT_USER_STATUS = "sequent.read-only.id-card-number-validated";
   public static final int DEFAULT_MAX_RETRIES = 3;
   public static final int DEFAULT_MAX_ATTEMPTS = 3;
-  public static final int DEFAULT_VIDEO_SECONDS = 5;
-  public static final int DEFAULT_MAX_IMAGE_BYTES = 2 * 1024 * 1024;
   public static final int DEFAULT_LIVENESS_RESULT_WAIT_SECONDS = 15;
 
   static final String DEFAULT_OCR_TYPES = "{\"default\": \"passport\"}";
-  static final String DEFAULT_CAPTURE_SIDES = "{\"default\": [\"front\", \"back\"]}";
   static final String DEFAULT_FACE_MATCH_MIN_SIMILARITY = "{\"default\": 0.67}";
 
   static final String DEFAULT_ATTRIBUTES_TO_VALIDATE =
@@ -146,48 +146,41 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
   public List<ProviderConfigProperty> getConfigProperties() {
     return ProviderConfigurationBuilder.create()
         .property()
-        .name(OCR_URL)
-        .label("OCR URL")
-        .helpText(
-            "Internal base URL of the on-premise Scanovate OCR service, e.g."
-                + " http://scanovate-ocr:5040. Only Keycloak calls it.")
-        .type(ProviderConfigProperty.STRING_TYPE)
-        .add()
-        .property()
         .name(OCR_TYPES)
         .label("OCR types")
         .helpText(
             "JSON object keyed by document type (the value of the document type auth note), with"
                 + " a \"default\" key for any other document type, giving how the OCR service reads"
-                + " it, e.g. {\"philippinePassport\": \"passport\"}. Document types without one are"
-                + " rejected.")
+                + " it (the ocr_type of its capture page), e.g. {\"philippinePassport\":"
+                + " \"passport\"}. Document types without one are rejected.")
         .type(ProviderConfigProperty.TEXT_TYPE)
         .defaultValue(DEFAULT_OCR_TYPES)
         .add()
         .property()
         .name(LIVENESS_URL)
-        .label("Liveness Plus URL")
+        .label("Scanovate pages URL")
         .helpText(
-            "Base URL of the on-premise Scanovate Liveness Plus service as the voter's browser"
-                + " reaches it, https://<keycloak host>/biometric in our deployments. The capture"
-                + " page calls its API under /liveness.")
+            "Base URL of the on-premise Scanovate OCR and Liveness Plus services as the voter's"
+                + " browser reaches them, https://<keycloak host>/biometric in our deployments: the"
+                + " capture page embeds their own pages, <URL>/ocr/ and <URL>/liveness/.")
         .type(ProviderConfigProperty.STRING_TYPE)
         .add()
         .property()
         .name(LIVENESS_SECRET)
-        .label("Liveness Plus callback secret")
+        .label("Scanovate callback secret")
         .helpText(
-            "Secret that Liveness Plus sends in the secret query parameter of the"
-                + " onprem.token_verification_url and onprem.callback_url of its"
+            "Secret that OCR and Liveness Plus send in the secret query parameter of the"
+                + " onprem.token_verification_url and onprem.callback_url of their"
                 + " service_config.json. The voter's browser never sees it.")
         .type(ProviderConfigProperty.PASSWORD)
         .secret(true)
         .add()
         .property()
         .name(LIVENESS_RESULT_WAIT_SECONDS)
-        .label("Liveness result wait")
+        .label("Result wait")
         .helpText(
-            "Seconds to wait for the result callback of Liveness Plus once the voter is done.")
+            "Seconds to wait for the result callback of OCR or Liveness Plus once the voter is"
+                + " done.")
         .type(ProviderConfigProperty.STRING_TYPE)
         .defaultValue(String.valueOf(DEFAULT_LIVENESS_RESULT_WAIT_SECONDS))
         .add()
@@ -205,10 +198,30 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
         .helpText(
             "JSON object keyed by document type (the value of the document type auth note), with"
                 + " a \"default\" key for any other document type, giving the minimum similarity,"
-                + " above 0 and up to 1, for the voter's face to match the ID and the photo holding"
-                + " it. The Face Match threshold applies if it is stricter.")
+                + " above 0 and up to 1, for the voter's live face to match the portrait OCR read from"
+                + " the document. The Face Match threshold applies if it is stricter.")
         .type(ProviderConfigProperty.TEXT_TYPE)
         .defaultValue(DEFAULT_FACE_MATCH_MIN_SIMILARITY)
+        .add()
+        .property()
+        .name(HOLDING_PHOTO)
+        .label("Holding photo")
+        .helpText(
+            "REQUIRED: after Scanovate's document scan and face check, the voter takes a photo of"
+                + " themselves holding the document next to their face, which must match their"
+                + " live face, with the same minimum similarity. NONE: no such photo.")
+        .type(ProviderConfigProperty.LIST_TYPE)
+        .options(Arrays.stream(HoldingPhotoPolicy.values()).map(Enum::name).toList())
+        .defaultValue(HoldingPhotoPolicy.REQUIRED.name())
+        .add()
+        .property()
+        .name(HOLDING_SECONDS)
+        .label("Holding time")
+        .helpText(
+            "Seconds the voter holds the ID next to their face, still, before its photo is taken"
+                + " automatically.")
+        .type(ProviderConfigProperty.STRING_TYPE)
+        .defaultValue(String.valueOf(DEFAULT_HOLDING_SECONDS))
         .add()
         .property()
         .name(DOC_ID_TYPE)
@@ -254,34 +267,6 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
         .helpText("Failed verifications allowed before the voter is rejected.")
         .type(ProviderConfigProperty.STRING_TYPE)
         .defaultValue(String.valueOf(DEFAULT_MAX_ATTEMPTS))
-        .add()
-        .property()
-        .name(CAPTURE_SIDES)
-        .label("Document sides to capture")
-        .helpText(
-            "JSON object keyed by document type (the value of the document type auth note), or"
-                + " \"default\" for any other document type, listing the sides to capture:"
-                + " [\"front\"] or [\"front\", \"back\"]. Document types without an entry capture"
-                + " both sides.")
-        .type(ProviderConfigProperty.TEXT_TYPE)
-        .defaultValue(DEFAULT_CAPTURE_SIDES)
-        .add()
-        .property()
-        .name(VIDEO_SECONDS)
-        .label("Holding time")
-        .helpText("Seconds the voter holds the ID next to their face before its photo is taken.")
-        .type(ProviderConfigProperty.STRING_TYPE)
-        .defaultValue(String.valueOf(DEFAULT_VIDEO_SECONDS))
-        .add()
-        .property()
-        .name(MAX_IMAGE_BYTES)
-        .label("Maximum image size")
-        .helpText(
-            "Maximum size in bytes of each captured photo (2 MiB by default, at most 8 MiB). The"
-                + " capture page uploads each photo in its own request, which must fit in the body"
-                + " limit of any reverse proxy in front of Keycloak.")
-        .type(ProviderConfigProperty.STRING_TYPE)
-        .defaultValue(String.valueOf(DEFAULT_MAX_IMAGE_BYTES))
         .add()
         .build();
   }

@@ -4,39 +4,95 @@ import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
 import type {DeepPartial} from "keycloakify/tools/DeepPartial"
 import {createKcPageStory} from "../KcPageStory"
-import {ScanovateSide, type KcContext} from "../KcContext"
-import {CaptureEnvironmentContext} from "../scanovate/environment"
-import {
-    SyntheticScene,
-    failingCamera,
-    fakeLiveness,
-    fakeServices,
-    fakeUploads,
-    sceneForFacing,
-    syntheticCamera,
-} from "../scanovate/fakes"
-import {CapturePart, type CaptureUpload} from "../scanovate/form"
-import {LivenessRejection, LivenessStatus, type LivenessConnector} from "../scanovate/livenessApi"
-import {expectStickyActions} from "../scanovate/stickyActions"
-import {UploadRejection} from "../scanovate/uploads"
-import {CaptureStep, DocumentStatus, FaceStatus, type CaptureServices} from "../scanovate/types"
+import type {KcContext} from "../KcContext"
+import {ScanovateErrorCode} from "../scanovate/types"
 
 const {KcPageStory} = createKcPageStory({pageId: "scanovate-capture.ftl"})
 
 type CaptureContext = DeepPartial<Extract<KcContext, {pageId: "scanovate-capture.ftl"}>>
 
+// Stand-ins for Scanovate's OCR and Liveness Plus pages: they post the same
+// messages to the parent window as the real ones, when a button is pressed.
+const FAKE_ERRORS = [
+    ScanovateErrorCode.CameraPermissionBlocked,
+    ScanovateErrorCode.SessionExpired,
+    ScanovateErrorCode.ServerError,
+    ScanovateErrorCode.UserPressedClose,
+    ScanovateErrorCode.InvalidToken,
+]
+
+function fakeScanovatePage(service: string): string {
+    const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fake Scanovate ${service}</title>
+</head>
+<body style="font-family: sans-serif; margin: 16px">
+<h1>Fake Scanovate ${service}</h1>
+<button type="button" data-message="done">Finish</button>
+<button type="button" data-message="hide-iframe">Hide</button>
+${FAKE_ERRORS.map((code) => `<button type="button" data-code="${code}">Fail ${code}</button>`).join("\n")}
+<script>
+    const session = "fake-${service}-session"
+    for (const message of ["js-load-success", "css-load-success", "iframe-loaded", "ui-loaded"]) {
+        window.parent.postMessage(message, "*")
+    }
+    window.parent.postMessage({type: "init", service_session_id: session, message: "init"}, "*")
+    for (const button of document.querySelectorAll("button")) {
+        button.addEventListener("click", () => {
+            const code = button.dataset.code
+            if (code !== undefined) {
+                window.parent.postMessage({
+                    type: "error",
+                    service_session_id: session,
+                    message: "error",
+                    error_code: Number(code),
+                    error_message: "fake error",
+                    result_path: "/result",
+                }, "*")
+            } else if (button.dataset.message === "done") {
+                window.parent.postMessage({
+                    type: "done",
+                    service_session_id: session,
+                    message: "process completed successfully",
+                    result_path: "/result",
+                    session_data: {},
+                }, "*")
+            } else {
+                window.parent.postMessage(button.dataset.message, "*")
+            }
+        })
+    }
+</script>
+</body>
+</html>`
+    // A blob URL keeps the page's origin, as Scanovate's pages under /biometric/ do.
+    return URL.createObjectURL(new Blob([html], {type: "text/html"}))
+}
+
+const FAKE_OCR = fakeScanovatePage("OCR")
+const FAKE_LIVENESS = fakeScanovatePage("Liveness Plus")
+
 type Args = {
     locale?: "en" | "es"
     kcContext?: CaptureContext
-    services?: CaptureServices
-    startAt?: CaptureStep
 }
 
-function CaptureStory({locale, kcContext, services = fakeServices({}), startAt}: Args) {
+function CaptureStory({locale, kcContext = {}}: Args) {
     return (
-        <CaptureEnvironmentContext.Provider value={{services, startAt}}>
-            <KcPageStory locale={locale} kcContext={kcContext} />
-        </CaptureEnvironmentContext.Provider>
+        <KcPageStory
+            locale={locale}
+            kcContext={{
+                ...kcContext,
+                scanovate: {
+                    ocr: {url: FAKE_OCR},
+                    liveness: {url: FAKE_LIVENESS},
+                    ...kcContext.scanovate,
+                },
+            }}
+        />
     )
 }
 
@@ -49,74 +105,65 @@ export default meta
 
 type Story = StoryObj<typeof meta>
 
-// Form submissions are kept in the page so the checking card stays visible,
-// and the uploads before them are recorded.
+// Form submissions are kept in the page so the cards stay visible.
 const submissions: FormData[] = []
-const uploads: CaptureUpload[] = []
 function keepSubmissions() {
     submissions.length = 0
-    uploads.length = 0
     const keep = (event: SubmitEvent) => {
         event.preventDefault()
         if (event.target instanceof HTMLFormElement) {
-            submissions.push(new FormData(event.target))
+            submissions.push(new FormData(event.target, event.submitter))
         }
     }
     document.addEventListener("submit", keep, true)
     return () => document.removeEventListener("submit", keep, true)
 }
 
-const phone = () => window.matchMedia("(max-width: 720px)").matches
-
-// Phones list the finished parts as chips, larger screens as a list of steps.
-async function expectDone(canvasElement: HTMLElement, chip: string, step: string) {
-    const canvas = within(canvasElement)
-    if (phone()) {
-        await expect(canvas.getByText(chip, {selector: ".capture-chips li"})).toBeVisible()
-    } else {
-        await expect(canvas.getByText(step, {selector: ".desk-steps li.done"})).toBeVisible()
-    }
-}
-
-async function expectCounter(canvasElement: HTMLElement, counter: string) {
-    if (phone()) {
-        await expect(within(canvasElement).getByText(counter)).toBeVisible()
-    }
-}
-
-const holdingId = syntheticCamera((facing) => {
-    const scene = sceneForFacing(facing)
-    return scene === SyntheticScene.Face ? SyntheticScene.FaceWithDocument : scene
-})
-
-async function pill(canvasElement: HTMLElement, text: string) {
+async function scanovateFrame(canvasElement: HTMLElement, url: string) {
+    let frame: HTMLIFrameElement | null = null
     await waitFor(
-        () => expect(canvasElement.querySelector(".capture-pill")).toHaveTextContent(text),
+        () => {
+            frame = canvasElement.querySelector<HTMLIFrameElement>(".scanovate-frame iframe")
+            expect(frame?.getAttribute("src")).toBe(url)
+            expect(frame?.contentDocument?.querySelector("button")).not.toBeNull()
+        },
         {timeout: 5000}
     )
+    return frame as unknown as HTMLIFrameElement
 }
 
-export const Intro: Story = {
+/** Presses a button of the fake Scanovate page, which posts its message to the page. */
+async function press(canvasElement: HTMLElement, url: string, name: string) {
+    const frame = await scanovateFrame(canvasElement, url)
+    const button = within(frame.contentDocument!.body).getByRole("button", {name})
+    button.click()
+    return frame
+}
+
+async function heading(canvasElement: HTMLElement, name: string) {
+    return within(canvasElement).findByRole("heading", {level: 1, name}, {timeout: 5000})
+}
+
+export const DocumentStep: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(
-            await canvas.findByRole("heading", {level: 1, name: "Verify your identity"})
-        ).toBeVisible()
+        await expect(await heading(canvasElement, "Scan your ID")).toBeVisible()
         await expect(canvas.getByText("Step 3 of 4 · Verify identity")).toBeVisible()
         await expect(canvas.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "3")
         await expect(
             canvas.getByText(
-                "We will take photos of your Driver’s License and a short video of your face to confirm it is you. It takes about 2 minutes."
+                "Follow the instructions below to scan your Driver’s License. Then we will check your face."
             )
         ).toBeVisible()
-        await expect(canvas.getByText("Front and back of your ID")).toBeVisible()
-        await expect(canvas.getByText("Have your Driver’s License with you.")).toBeVisible()
         await expect(canvas.queryByText(/more time/)).not.toBeInTheDocument()
-        await expectStickyActions(canvas.getByRole("button", {name: "Start"}))
+        const frame = await scanovateFrame(canvasElement, FAKE_OCR)
+        await expect(frame).toHaveAttribute("allow", "camera *; microphone *")
+        await expect(frame).toHaveAccessibleName("ID scan")
+        await waitFor(() => expect(frame.ownerDocument.activeElement).toBe(frame))
     },
 }
 
-export const IntroAfterInvalidCapture: Story = {
+export const DocumentStepAfterRetry: Story = {
     args: {
         kcContext: {
             message: {
@@ -128,7 +175,7 @@ export const IntroAfterInvalidCapture: Story = {
     },
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await canvas.findByRole("heading", {level: 1})
+        await heading(canvasElement, "Scan your ID")
         await expect(canvas.getByRole("alert")).toHaveTextContent(
             "We couldn’t use the photos or the video."
         )
@@ -136,596 +183,356 @@ export const IntroAfterInvalidCapture: Story = {
     },
 }
 
-export const IntroGenericDocument: Story = {
-    args: {kcContext: {scanovate: {documentType: "default", sides: [ScanovateSide.Front]}}},
+export const DocumentStepGenericDocument: Story = {
+    args: {kcContext: {scanovate: {documentType: "default"}}},
     play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await canvas.findByRole("heading", {level: 1})
-        await expect(canvas.getByText("Your ID")).toBeVisible()
-        await expect(canvas.getByText("Have your ID with you.")).toBeVisible()
+        await heading(canvasElement, "Scan your ID")
+        await expect(within(canvasElement).getByText(/to scan your ID\./)).toBeVisible()
     },
 }
 
-export const IntroSpanish: Story = {
+export const DocumentStepSpanish: Story = {
     args: {locale: "es"},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(
-            await canvas.findByRole("heading", {level: 1, name: "Verifique su identidad"})
-        ).toBeVisible()
+        await expect(await heading(canvasElement, "Escanee su documento")).toBeVisible()
         await expect(canvas.getByText("Paso 3 de 4 · Verificar identidad")).toBeVisible()
     },
 }
 
-export const FrontGlare: Story = {
-    args: {
-        startAt: CaptureStep.Front,
-        services: fakeServices({document: {statuses: [DocumentStatus.Glare]}}),
-    },
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await expect(
-            await canvas.findByRole("heading", {level: 1, name: "Front of your ID"})
-        ).toBeVisible()
-        await pill(canvasElement, "Tilt your ID to remove the glare")
-        await expect(canvas.getByRole("button", {name: "Take photo"})).toBeDisabled()
-        await expectCounter(canvasElement, "Driver’s License · 1 of 4")
-    },
-}
-
-export const FrontTilted: Story = {
-    args: {
-        startAt: CaptureStep.Front,
-        services: fakeServices({document: {statuses: [DocumentStatus.Tilted]}}),
-    },
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await canvas.findByRole("heading", {level: 1, name: "Front of your ID"})
-        await pill(canvasElement, "Hold your ID flat, facing the camera")
-        await expect(canvas.getByRole("button", {name: "Take photo"})).toBeDisabled()
-    },
-}
-
-/** A still too blurred for the OCR isn't kept: the voter is told why and the capture goes on. */
-export const BlurryStillIsRetaken: Story = {
-    args: {
-        startAt: CaptureStep.Front,
-        services: fakeServices({
-            document: {statuses: [DocumentStatus.Ready]},
-            still: {statuses: [DocumentStatus.Blurry, DocumentStatus.Ready]},
-        }),
-    },
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await canvas.findByRole("heading", {level: 1, name: "Front of your ID"})
-        await pill(canvasElement, "Hold steady so your ID is sharp")
-        await expect(
-            await canvas.findByRole("heading", {level: 1, name: "Back of your ID"}, {timeout: 5000})
-        ).toBeVisible()
-    },
-}
-
-const holdingStill = fakeServices({
-    document: {statuses: [DocumentStatus.HoldStill], stability: 0.6},
-})
-
-export const FrontHoldStill: Story = {
-    args: {startAt: CaptureStep.Front, services: holdingStill},
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await canvas.findByRole("heading", {level: 1, name: "Front of your ID"})
-        await pill(canvasElement, "Hold still, capturing…")
-        await waitFor(() => expect(canvas.getByRole("button", {name: "Take photo"})).toBeEnabled())
-    },
-}
-
-export const ShutterTakesPhoto: Story = {
-    args: {startAt: CaptureStep.Front, services: holdingStill},
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await canvas.findByRole("heading", {level: 1, name: "Front of your ID"})
-        const shutter = canvas.getByRole("button", {name: "Take photo"})
-        await waitFor(() => expect(shutter).toBeEnabled())
-        await userEvent.click(shutter)
-        await expect(
-            await canvas.findByRole("heading", {level: 1, name: "Back of your ID"})
-        ).toBeVisible()
-        await expectDone(canvasElement, "Front", "Front of your ID")
-    },
-}
-
-export const BackTurnOver: Story = {
-    args: {
-        startAt: CaptureStep.Back,
-        services: fakeServices({document: {statuses: [DocumentStatus.NoDocument]}}),
-    },
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await canvas.findByRole("heading", {level: 1, name: "Back of your ID"})
-        await pill(canvasElement, "Turn your ID over")
-        await expectCounter(canvasElement, "Driver’s License · 2 of 4")
-    },
-}
-
-export const FaceHoldStill: Story = {
-    args: {
-        startAt: CaptureStep.Face,
-        services: fakeServices({face: {statuses: [FaceStatus.HoldStill], stability: 0.62}}),
-    },
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await canvas.findByRole("heading", {level: 1, name: "Your face"})
-        await pill(canvasElement, "Look at the camera and hold still")
-        await expectDone(canvasElement, "Back", "Back of your ID")
-        await expect(canvasElement.querySelector(".capture-video")).toHaveClass("mirrored")
-    },
-}
-
-export const FaceTooDark: Story = {
-    args: {
-        startAt: CaptureStep.Face,
-        services: fakeServices({face: {statuses: [FaceStatus.TooDark]}}),
-    },
-    play: async ({canvasElement}) => {
-        await within(canvasElement).findByRole("heading", {level: 1, name: "Your face"})
-        await pill(canvasElement, "Find a brighter place")
-    },
-}
-
-export const VideoNeedsId: Story = {
-    args: {
-        startAt: CaptureStep.Video,
-        services: fakeServices({
-            camera: holdingId,
-            face: {statuses: [FaceStatus.Ready]},
-            document: {statuses: [DocumentStatus.NoDocument]},
-        }),
-    },
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await canvas.findByRole("heading", {level: 1, name: "You holding your ID"})
-        await pill(canvasElement, "Hold your ID next to your face")
-        await expect(canvasElement.querySelector(".capture-rec")).toBeNull()
-    },
-}
-
-export const VideoRecording: Story = {
-    args: {
-        startAt: CaptureStep.Video,
-        kcContext: {scanovate: {videoSeconds: 60}},
-        services: fakeServices({
-            camera: holdingId,
-            face: {statuses: [FaceStatus.Ready]},
-            document: {statuses: [DocumentStatus.HoldStill]},
-        }),
-    },
-    play: async ({canvasElement}) => {
-        await within(canvasElement).findByRole("heading", {level: 1})
-        await pill(canvasElement, "Recording, keep still")
-        await waitFor(() =>
-            expect(canvasElement.querySelector(".capture-rec")).toHaveTextContent("REC 0:0")
-        )
-        await expectDone(canvasElement, "Face", "Your face")
-    },
-}
-
-export const HelpSheet: Story = {
-    args: {startAt: CaptureStep.Front},
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await canvas.findByRole("heading", {level: 1, name: "Front of your ID"})
-        await userEvent.click(canvas.getByRole("button", {name: "Help"}))
-        const dialog = await within(document.body).findByRole("dialog", {
-            name: "Tips for this step",
-        })
-        await waitFor(() =>
-            expect(
-                within(dialog).getByText("Keep all four corners inside the frame.")
-            ).toBeVisible()
-        )
-        await userEvent.click(within(dialog).getByRole("button", {name: "Got it"}))
-        await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
-    },
-}
-
-export const StopReturnsToIntro: Story = {
-    args: {startAt: CaptureStep.Face},
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await canvas.findByRole("heading", {level: 1, name: "Your face"})
-        await userEvent.click(canvas.getByRole("button", {name: "Stop and go back"}))
-        const dialog = await within(document.body).findByRole("dialog", {
-            name: "Stop verifying your identity?",
-        })
-        await userEvent.click(within(dialog).getByRole("button", {name: "Stop"}))
-        await expect(
-            await canvas.findByRole("heading", {level: 1, name: "Verify your identity"})
-        ).toBeVisible()
-    },
-}
-
-export const CameraDenied: Story = {
-    args: {services: fakeServices({camera: failingCamera("NotAllowedError")})},
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await userEvent.click(await canvas.findByRole("button", {name: "Start"}))
-        await expect(
-            await canvas.findByRole("heading", {level: 1, name: "Allow access to your camera"})
-        ).toBeVisible()
-        await userEvent.click(canvas.getByRole("button", {name: "Back to start"}))
-        await canvas.findByRole("heading", {level: 1, name: "Verify your identity"})
-    },
-}
-
-export const CameraNotFound: Story = {
-    args: {services: fakeServices({camera: failingCamera("NotFoundError")})},
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await userEvent.click(await canvas.findByRole("button", {name: "Start"}))
-        await canvas.findByRole("heading", {level: 1, name: "We couldn’t find a camera"})
-        await expect(canvas.getByRole("button", {name: "Try again"})).toBeVisible()
-        await expectStickyActions(canvas.getByRole("button", {name: "Try again"}))
-    },
-}
-
-export const CameraInUse: Story = {
-    args: {services: fakeServices({camera: failingCamera("NotReadableError")})},
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await userEvent.click(await canvas.findByRole("button", {name: "Start"}))
-        await canvas.findByRole("heading", {level: 1, name: "Your camera is in use"})
-    },
-}
-
-export const InsecureContext: Story = {
-    args: {services: fakeServices({camera: failingCamera("InsecureContextError")})},
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await userEvent.click(await canvas.findByRole("button", {name: "Start"}))
-        await canvas.findByRole("heading", {
-            level: 1,
-            name: "The camera can’t be used on this page",
-        })
-    },
-}
-
-export const AnalyzerFailed: Story = {
-    args: {services: fakeServices({analyzersFail: true})},
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await userEvent.click(await canvas.findByRole("button", {name: "Start"}))
-        await canvas.findByRole("heading", {
-            level: 1,
-            name: "We couldn’t prepare the camera check",
-        })
-    },
-}
-
-export const Checking: Story = {
-    args: {
-        startAt: CaptureStep.Video,
-        kcContext: {scanovate: {videoSeconds: 1}},
-        services: fakeServices({
-            face: {statuses: [FaceStatus.Ready]},
-            document: {statuses: [DocumentStatus.HoldStill]},
-        }),
-    },
+export const WithStepBack: Story = {
+    args: {kcContext: {stepBack: true}},
     beforeEach: keepSubmissions,
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
+        await heading(canvasElement, "Scan your ID")
+        await userEvent.click(canvas.getByRole("button", {name: "Back"}))
+        await waitFor(() => expect(submissions).toHaveLength(1))
+        await expect(submissions[0].get("back")).toBe("true")
+    },
+}
+
+/** The OCR page finished: the Liveness Plus page takes its place. */
+export const FaceStep: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await heading(canvasElement, "Scan your ID")
+        await press(canvasElement, FAKE_OCR, "Finish")
+        await expect(await heading(canvasElement, "Check your face")).toBeVisible()
         await expect(
-            await canvas.findByRole(
-                "heading",
-                {level: 1, name: "Checking your identity"},
-                {timeout: 8000}
+            canvas.getByText(
+                "Your ID is scanned. Follow the instructions below so we can confirm it is you in front of the camera."
             )
         ).toBeVisible()
+        const frame = await scanovateFrame(canvasElement, FAKE_LIVENESS)
+        await expect(frame).toHaveAccessibleName("Face check")
+        // ID R&D's face capture takes a frame much smaller than the window
+        // for open DevTools and refuses to start, so it fills the window.
+        await waitFor(() => {
+            const box = frame.getBoundingClientRect()
+            expect([box.left, box.top, box.width, box.height]).toEqual([
+                0,
+                0,
+                window.innerWidth,
+                window.innerHeight,
+            ])
+        })
+    },
+}
+
+/** Both pages finished: the page only moves the flow on, Keycloak has the results. */
+export const Checking: Story = {
+    beforeEach: keepSubmissions,
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await press(canvasElement, FAKE_OCR, "Finish")
+        await heading(canvasElement, "Check your face")
+        await press(canvasElement, FAKE_LIVENESS, "Finish")
+        await expect(await heading(canvasElement, "Checking your identity")).toBeVisible()
+        await expect(canvas.getByText("ID scan and face check finished")).toBeVisible()
         await expect(canvas.getByText("Checking your ID and your face")).toBeVisible()
         await waitFor(() => expect(submissions).toHaveLength(1))
+        await expect([...submissions[0].entries()]).toEqual([["action", "capture"]])
     },
 }
 
-/** The whole flow with automatic captures, up to the uploads and the submission. */
-export const AutomaticCapture: Story = {
-    args: {
-        kcContext: {scanovate: {videoSeconds: 1}},
-        services: fakeServices({
-            uploads: fakeUploads(uploads),
-            document: {
-                statuses: [
-                    DocumentStatus.NoDocument,
-                    DocumentStatus.NoDocument,
-                    DocumentStatus.Ready,
-                ],
-            },
-            face: {statuses: [FaceStatus.Ready]},
-        }),
+/** Only the embedded page that is showing moves the capture on. */
+export const IgnoresOtherMessages: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await heading(canvasElement, "Scan your ID")
+        window.postMessage(
+            {type: "done", service_session_id: "forged", message: "process completed"},
+            "*"
+        )
+        await press(canvasElement, FAKE_OCR, "Hide")
+        await new Promise((resolve) => setTimeout(resolve, 300))
+        await expect(canvas.getByRole("heading", {level: 1})).toHaveTextContent("Scan your ID")
     },
+}
+
+export const CameraProblem: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const first = await press(
+            canvasElement,
+            FAKE_OCR,
+            `Fail ${ScanovateErrorCode.CameraPermissionBlocked}`
+        )
+        await expect(await heading(canvasElement, "We couldn’t use your camera")).toBeVisible()
+        await expect(canvas.getByText(/Allow camera access for this site/)).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Try again"}))
+        await heading(canvasElement, "Scan your ID")
+        const again = await scanovateFrame(canvasElement, FAKE_OCR)
+        await expect(again).not.toBe(first)
+    },
+}
+
+/** Closing the Liveness Plus page offers to open it again, on the same step. */
+export const ClosedOnFaceStep: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await press(canvasElement, FAKE_OCR, "Finish")
+        await heading(canvasElement, "Check your face")
+        await press(canvasElement, FAKE_LIVENESS, `Fail ${ScanovateErrorCode.UserPressedClose}`)
+        await expect(await heading(canvasElement, "The scan was closed")).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Try again"}))
+        await expect(await heading(canvasElement, "Check your face")).toBeVisible()
+        await scanovateFrame(canvasElement, FAKE_LIVENESS)
+    },
+}
+
+export const SessionExpired: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await press(canvasElement, FAKE_OCR, `Fail ${ScanovateErrorCode.SessionExpired}`)
+        await expect(await heading(canvasElement, "The scan timed out")).toBeVisible()
+        await expect(canvas.getByRole("button", {name: "Try again"})).toBeVisible()
+        await expect(canvas.getByRole("button", {name: "Start over"})).toBeVisible()
+    },
+}
+
+export const GenericProblem: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await press(canvasElement, FAKE_OCR, `Fail ${ScanovateErrorCode.ServerError}`)
+        await expect(await heading(canvasElement, "The scan didn’t finish")).toBeVisible()
+        await expect(
+            canvas.getByText("Check your internet connection and try again.")
+        ).toBeVisible()
+    },
+}
+
+/** An invalid token can only be replaced by Keycloak: start over, without using an attempt. */
+export const InvalidToken: Story = {
     beforeEach: keepSubmissions,
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await userEvent.click(await canvas.findByRole("button", {name: "Start"}))
-        await canvas.findByRole(
-            "heading",
-            {level: 1, name: "Checking your identity"},
-            {timeout: 12000}
-        )
+        await press(canvasElement, FAKE_OCR, `Fail ${ScanovateErrorCode.InvalidToken}`)
+        await expect(await heading(canvasElement, "Start the verification again")).toBeVisible()
+        await expect(canvas.queryByRole("button", {name: "Try again"})).not.toBeInTheDocument()
+        await userEvent.click(canvas.getByRole("button", {name: "Start over"}))
         await waitFor(() => expect(submissions).toHaveLength(1))
-        await expect([...submissions[0].keys()]).toEqual(["action"])
-        await expect(submissions[0].get("action")).toBe("capture")
-        // The voter's face reaches Keycloak from Liveness Plus, never from the page
-        await expect(uploads.map(({part}) => part)).toEqual([
-            CapturePart.Front,
-            CapturePart.Back,
-            CapturePart.Holding,
-        ])
-        for (const {blob} of uploads) await expect(blob.size).toBeGreaterThan(0)
-        await expect(uploads[2].blob.type).toBe("image/jpeg")
+        await expect([...submissions[0].entries()]).toEqual([["action", "retry"]])
     },
 }
 
-const croppedUploads: CaptureUpload[] = []
+/** A voter stuck in a Scanovate page can ask for new tokens. */
+export const StartOverDuringStep: Story = {
+    beforeEach: keepSubmissions,
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await heading(canvasElement, "Scan your ID")
+        await userEvent.click(canvas.getByRole("button", {name: "Start over"}))
+        await waitFor(() => expect(submissions).toHaveLength(1))
+        await expect([...submissions[0].entries()]).toEqual([["action", "retry"]])
+    },
+}
+
+// The holding photo: Keycloak's page takes it with its own camera and uploads
+// it with the page's one-time token before submitting the capture.
+const HOLDING = {
+    url: "/realms/r/identity-verification/capture/holding",
+    token: "page-token",
+    seconds: 1,
+}
+const withHolding = {scanovate: {holding: HOLDING}}
 
 /**
- * The photo of the document is cropped to it and a margin, at full resolution: Face Match misses
- * the portrait of a document that is a small part of the camera frame.
+ * A front camera that films a test card, still unless `moving`, and the
+ * uploads the page makes.
  */
-export const FrontPhotoIsCropped: Story = {
-    args: {
-        kcContext: {scanovate: {videoSeconds: 1, sides: [ScanovateSide.Front]}},
-        services: fakeServices({
-            uploads: fakeUploads(croppedUploads),
-            document: {statuses: [DocumentStatus.Ready]},
-            // A document 500 × 320 px, inside the synthetic camera frame in both orientations
-            stillCorners: [
-                [100, 200],
-                [600, 200],
-                [600, 520],
-                [100, 520],
-            ],
-            face: {statuses: [FaceStatus.Ready]},
-        }),
-    },
-    beforeEach: () => {
-        croppedUploads.length = 0
-        return keepSubmissions()
-    },
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await userEvent.click(await canvas.findByRole("button", {name: "Start"}))
-        await waitFor(() => expect(croppedUploads.length).toBeGreaterThan(0), {timeout: 12000})
-        const front = croppedUploads.find(({part}) => part === CapturePart.Front)
-        await expect(front?.blob.type).toBe("image/jpeg")
-        const photo = await createImageBitmap(front!.blob)
-        // 10% of the document's size around it: 50 px across and 32 px down on each side
-        await expect({width: photo.width, height: photo.height}).toEqual({width: 600, height: 384})
-    },
+type Uploads = {url: string; init: RequestInit}[]
+const uploads: Uploads = []
+function fakeCameraAndUploads(status = 200, camera = true, moving = false) {
+    uploads.length = 0
+    const devices = navigator.mediaDevices
+    const realGetUserMedia = devices.getUserMedia
+    const realFetch = window.fetch
+    const canvas = document.createElement("canvas")
+    canvas.width = 640
+    canvas.height = 480
+    const paint = canvas.getContext("2d")!
+    let tick = 0
+    // Repainted all the time, as a camera delivers frames; only `moving` changes them.
+    const timer = setInterval(() => {
+        tick++
+        const x = moving ? (tick * 97) % 460 : 380
+        paint.fillStyle = "#0d796a"
+        paint.fillRect(0, 0, canvas.width, canvas.height)
+        paint.fillStyle = "#ffffff"
+        paint.fillRect(x, 160, 180, 240)
+    }, 50)
+    devices.getUserMedia = async () => {
+        if (!camera) throw new DOMException("Permission denied", "NotAllowedError")
+        return canvas.captureStream(20)
+    }
+    window.fetch = async (input, init) => {
+        const url = typeof input === "string" ? input : input.toString()
+        if (url === HOLDING.url) {
+            uploads.push({url, init: init ?? {}})
+            return new Response("{}", {status})
+        }
+        return realFetch(input, init)
+    }
+    const cleanSubmissions = keepSubmissions()
+    return () => {
+        clearInterval(timer)
+        devices.getUserMedia = realGetUserMedia
+        window.fetch = realFetch
+        cleanSubmissions()
+    }
 }
 
-export const UploadFailed: Story = {
-    args: {
-        startAt: CaptureStep.Video,
-        kcContext: {scanovate: {videoSeconds: 1}},
-        services: fakeServices({
-            face: {statuses: [FaceStatus.Ready]},
-            document: {statuses: [DocumentStatus.HoldStill]},
-            uploads: fakeUploads([], UploadRejection.Failed),
-        }),
-    },
-    beforeEach: keepSubmissions,
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await expect(
-            await canvas.findByRole(
-                "heading",
-                {level: 1, name: "We couldn’t send your photos"},
-                {timeout: 8000}
-            )
-        ).toBeVisible()
-        await expect(canvas.getByText("Check your connection and try again.")).toBeVisible()
-        await expect(submissions).toHaveLength(0)
-        await expect(canvas.getByRole("button", {name: "Try again"})).toBeVisible()
-    },
+async function throughScanovate(canvasElement: HTMLElement) {
+    await press(canvasElement, FAKE_OCR, "Finish")
+    await heading(canvasElement, "Check your face")
+    await press(canvasElement, FAKE_LIVENESS, "Finish")
+    return heading(canvasElement, "Take a photo holding your ID")
 }
 
-export const UploadExpired: Story = {
-    args: {
-        startAt: CaptureStep.Video,
-        kcContext: {scanovate: {videoSeconds: 1}},
-        services: fakeServices({
-            face: {statuses: [FaceStatus.Ready]},
-            document: {statuses: [DocumentStatus.HoldStill]},
-            uploads: fakeUploads([], UploadRejection.InvalidToken),
-        }),
-    },
-    beforeEach: keepSubmissions,
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await expect(
-            await canvas.findByRole(
-                "heading",
-                {level: 1, name: "Start the verification again"},
-                {timeout: 8000}
-            )
-        ).toBeVisible()
-        await expect(canvas.getByRole("button", {name: "Start over"})).toBeVisible()
-        await expect(submissions).toHaveLength(0)
-    },
-}
-
-// Liveness Plus is faked: it answers the face frames with the given statuses.
-const livenessContext = (): CaptureContext => ({
-    scanovate: {
-        liveness: {url: "https://localhost/biometric/liveness", token: "token", caseId: "case"},
-    },
-})
-
-const faceReady = (liveness: LivenessConnector) =>
-    fakeServices({face: {statuses: [FaceStatus.Ready]}, liveness})
-
-export const LivenessIntro: Story = {
-    args: {kcContext: livenessContext()},
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await expect(
-            await canvas.findByText(
-                "We will take photos of your Driver’s License and a short video of your face to confirm it is you. It takes about 2 minutes."
-            )
-        ).toBeVisible()
-        await expect(canvas.getByText("Your face")).toBeVisible()
-        await expect(canvas.getByText("You holding your ID")).toBeVisible()
-    },
-}
-
-export const LivenessAsksForABetterFrame: Story = {
-    args: {
-        kcContext: livenessContext(),
-        startAt: CaptureStep.Face,
-        services: faceReady(fakeLiveness([LivenessStatus.FaceTooSmall])),
-    },
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await canvas.findByRole("heading", {level: 1, name: "Your face"})
-        await pill(canvasElement, "Checking your face, hold still…")
-        await pill(canvasElement, "Move a little closer")
-        await expect(canvas.getByRole("heading", {level: 1, name: "Your face"})).toBeVisible()
-    },
-}
-
-export const LivenessScannedMovesOn: Story = {
-    args: {
-        kcContext: livenessContext(),
-        startAt: CaptureStep.Face,
-        services: faceReady(fakeLiveness([LivenessStatus.Ok, LivenessStatus.ScanCompleted])),
-    },
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await expect(
-            await canvas.findByRole(
-                "heading",
-                {level: 1, name: "You holding your ID"},
-                {timeout: 8000}
-            )
-        ).toBeVisible()
-        await expectDone(canvasElement, "Face", "Your face")
-    },
-}
-
-export const LivenessHoldingSubmitsPhoto: Story = {
-    args: {
-        kcContext: {
-            ...livenessContext(),
-            scanovate: {...livenessContext().scanovate, videoSeconds: 1},
-        },
-        startAt: CaptureStep.Video,
-        services: fakeServices({
-            camera: holdingId,
-            face: {statuses: [FaceStatus.Ready]},
-            document: {statuses: [DocumentStatus.HoldStill]},
-            uploads: fakeUploads(uploads),
-        }),
-    },
-    beforeEach: keepSubmissions,
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await expect(
-            await canvas.findByRole(
-                "heading",
-                {level: 1, name: "Checking your identity"},
-                {timeout: 8000}
-            )
-        ).toBeVisible()
-        await expect(canvas.getByText("Photos and face check received")).toBeVisible()
-        await waitFor(() => expect(submissions).toHaveLength(1))
-        await expect([...submissions[0].keys()]).toEqual(["action"])
-        await expect(uploads.map(({part}) => part)).toEqual([
-            CapturePart.Front,
-            CapturePart.Back,
-            CapturePart.Holding,
-        ])
-        const holding = uploads[2].blob
-        await expect(holding.type).toBe("image/jpeg")
-        await expect(holding.size).toBeGreaterThan(0)
-    },
-}
-
-export const LivenessFailed: Story = {
-    args: {
-        kcContext: livenessContext(),
-        startAt: CaptureStep.Face,
-        services: faceReady(fakeLiveness([LivenessStatus.ServerError])),
-    },
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await expect(
-            await canvas.findByRole(
-                "heading",
-                {level: 1, name: "The face check didn’t finish"},
-                {timeout: 8000}
-            )
-        ).toBeVisible()
-        await userEvent.click(canvas.getByRole("button", {name: "Try again"}))
-        await canvas.findByRole("heading", {level: 1, name: "Your face"})
-    },
-}
-
-export const LivenessTokenUsedUp: Story = {
-    args: {
-        kcContext: livenessContext(),
-        startAt: CaptureStep.Face,
-        services: faceReady(fakeLiveness([], LivenessRejection.InvalidToken)),
-    },
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await expect(
-            await canvas.findByRole(
-                "heading",
-                {level: 1, name: "Start the verification again"},
-                {timeout: 8000}
-            )
-        ).toBeVisible()
-        await expect(canvas.getByRole("button", {name: "Start over"})).toBeVisible()
-    },
-}
-
-// The whole liveness capture at a pace people can follow, for walkthroughs and
-// reviews: the ID is found after a few hints, the face needs one better frame,
-// and the voter then holds the ID next to their face.
-const walkthroughDocument = [
-    ...Array<DocumentStatus>(25).fill(DocumentStatus.NoDocument),
-    ...Array<DocumentStatus>(25).fill(DocumentStatus.TooFar),
-    ...Array<DocumentStatus>(25).fill(DocumentStatus.Glare),
-    ...Array<DocumentStatus>(25).fill(DocumentStatus.HoldStill),
-    DocumentStatus.Ready,
-]
-const walkthroughFace = [
-    ...Array<FaceStatus>(35).fill(FaceStatus.NoFace),
-    ...Array<FaceStatus>(35).fill(FaceStatus.TooFar),
-    ...Array<FaceStatus>(35).fill(FaceStatus.HoldStill),
-    FaceStatus.Ready,
-]
-const holding = () =>
-    [...document.querySelectorAll("h1, h2")].some((heading) =>
-        heading.textContent?.includes("You holding your ID")
+/** The photo the page takes by itself once the image held still. */
+async function autoPhoto(canvasElement: HTMLElement) {
+    return within(canvasElement).findByRole(
+        "img",
+        {name: "Your photo holding your ID"},
+        {timeout: 8000}
     )
+}
 
-export const Walkthrough: Story = {
-    args: {
-        kcContext: {
-            themeName: "sequent-ui-voting",
-            scanovate: {...livenessContext().scanovate, videoSeconds: 4},
-        },
-        services: fakeServices({
-            camera: syntheticCamera((facing) => {
-                const scene = sceneForFacing(facing)
-                return scene === SyntheticScene.Face && holding()
-                    ? SyntheticScene.FaceWithDocument
-                    : scene
-            }),
-            document: {statuses: walkthroughDocument, stability: 0.5},
-            face: {statuses: walkthroughFace, stability: 0.5},
-            liveness: fakeLiveness([LivenessStatus.FaceTooSmall, LivenessStatus.ScanCompleted]),
-        }),
+/**
+ * After the face check, the voter holds still with their ID: the page counts
+ * down, takes the photo by itself, and the voter checks it and sends it.
+ */
+export const HoldingStep: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () => fakeCameraAndUploads(),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await throughScanovate(canvasElement)).toBeVisible()
+        await expect(
+            canvas.getByText(
+                "Hold your Driver’s License open next to your face, with both your face and its photo in view, and keep still: the photo is taken by itself."
+            )
+        ).toBeVisible()
+        await expect(canvas.getByLabelText("Camera")).toBeVisible()
+        await expect(canvas.queryByRole("button", {name: "Take photo"})).toBeNull()
+        await expect(await canvas.findByText(/^Hold still: \d$/, {}, {timeout: 5000})).toBeVisible()
+        await expect(canvas.getByRole("progressbar", {name: "Holding still"})).toBeVisible()
+        await expect(await autoPhoto(canvasElement)).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Use this photo"}))
+
+        await waitFor(() => expect(submissions).toHaveLength(1))
+        await expect([...submissions[0].entries()]).toEqual([["action", "capture"]])
+        await expect(uploads).toHaveLength(1)
+        const {init} = uploads[0]
+        await expect(init.method).toBe("PUT")
+        await expect(init.headers).toEqual({
+            "X-Capture-Token": "page-token",
+            "Content-Type": "image/jpeg",
+        })
+        const body = init.body as Blob
+        await expect(body.type).toBe("image/jpeg")
+        await expect(body.size).toBeGreaterThan(0)
     },
-    beforeEach: keepSubmissions,
+}
+
+/** While the image moves, the page waits and no photo is taken. */
+export const HoldingWhileMoving: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () => fakeCameraAndUploads(200, true, true),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await expect(
+            await canvas.findByText("Hold your ID next to your face and keep still.")
+        ).toBeVisible()
+        await new Promise((resolve) => setTimeout(resolve, 2500))
+        await expect(canvas.queryByRole("img", {name: "Your photo holding your ID"})).toBeNull()
+        await expect(canvas.getByRole("progressbar", {name: "Holding still"})).toHaveAttribute(
+            "aria-valuenow",
+            "0"
+        )
+        await expect(uploads).toHaveLength(0)
+    },
+}
+
+/** A photo the voter doesn't like is taken again, without uploading it. */
+export const HoldingRetake: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () => fakeCameraAndUploads(),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await autoPhoto(canvasElement)
+        await userEvent.click(canvas.getByRole("button", {name: "Take it again"}))
+        await expect(canvas.getByLabelText("Camera")).toBeVisible()
+        await expect(canvas.queryByRole("img", {name: "Your photo holding your ID"})).toBeNull()
+        await expect(await autoPhoto(canvasElement)).toBeVisible()
+        await expect(uploads).toHaveLength(0)
+        await expect(submissions).toHaveLength(0)
+    },
+}
+
+/** A failed upload is said plainly, and the voter takes the photo again. */
+export const HoldingUploadFails: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () => fakeCameraAndUploads(500),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await autoPhoto(canvasElement)
+        await userEvent.click(canvas.getByRole("button", {name: "Use this photo"}))
+        await expect(await heading(canvasElement, "We couldn’t send your photo")).toBeVisible()
+        await expect(submissions).toHaveLength(0)
+        await userEvent.click(canvas.getByRole("button", {name: "Try again"}))
+        await expect(await heading(canvasElement, "Take a photo holding your ID")).toBeVisible()
+    },
+}
+
+/** An expired page token needs a new page from Keycloak. */
+export const HoldingTokenExpired: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () => fakeCameraAndUploads(401),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await autoPhoto(canvasElement)
+        await userEvent.click(canvas.getByRole("button", {name: "Use this photo"}))
+        await expect(await heading(canvasElement, "Start the verification again")).toBeVisible()
+        await expect(canvas.queryByRole("button", {name: "Try again"})).toBeNull()
+    },
+}
+
+/** Without the camera, the voter gets the camera help. */
+export const HoldingWithoutCamera: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () => fakeCameraAndUploads(200, false),
+    play: async ({canvasElement}) => {
+        await press(canvasElement, FAKE_OCR, "Finish")
+        await heading(canvasElement, "Check your face")
+        await press(canvasElement, FAKE_LIVENESS, "Finish")
+        await expect(await heading(canvasElement, "We couldn’t use your camera")).toBeVisible()
+        await expect(uploads).toHaveLength(0)
+    },
 }

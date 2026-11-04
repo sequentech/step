@@ -116,7 +116,6 @@ fn fallbacks(name: &str) -> Map<String, Value> {
             _ => Map::new(),
         },
         "biometric_authentication" => match json!({
-            presets::PARAM_SCANOVATE_OCR_URL: presets::SCANOVATE_OCR_URL_DEFAULT,
             presets::PARAM_SCANOVATE_FACE_MATCH_URL:
                 presets::SCANOVATE_FACE_MATCH_URL_DEFAULT,
             presets::PARAM_SCANOVATE_FACE_MATCH_MIN_SIMILARITY: "0.67",

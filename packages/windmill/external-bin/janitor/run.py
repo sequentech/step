@@ -815,7 +815,6 @@ def gen_keycloak_context(excel_data, areas_dict):
 
     # These values are rendered inside JSON strings, so they are escaped
     string_mappings = {
-        "scanovate_ocr_url": ("keycloak_scanovate_ocr_url", ""),
         "scanovate_liveness_url": ("keycloak_scanovate_liveness_url", ""),
         "scanovate_liveness_secret": ("keycloak_scanovate_liveness_secret", ""),
         "scanovate_face_match_url": ("keycloak_scanovate_face_match_url", ""),
