@@ -609,6 +609,7 @@ describe("Ballot ID copy visibility", () => {
                         electionId: "election-1",
                         confirmationScreenData: {
                             ballotId: BALLOT_ID,
+                            ballotHash: BALLOT_ID,
                             isDemo: false,
                             auditButtonCfg: auditButtonCfg ?? EVotingPortalAuditButtonCfg.SHOW,
                         },
@@ -956,6 +957,7 @@ describe("ballot received by the ballot box at review", () => {
                     electionId: "election-1",
                     confirmationScreenData: {
                         ballotId: RECEIVED_BALLOT_ID,
+                        ballotHash: BALLOT_ID,
                         isDemo: false,
                         auditButtonCfg: EVotingPortalAuditButtonCfg.SHOW,
                     },
@@ -991,6 +993,23 @@ describe("ballot received by the ballot box at review", () => {
 
         expect(screen.getByText(BALLOT_ID)).toBeInTheDocument()
         expect(screen.queryByText(RECEIVED_BALLOT_ID)).toBeNull()
+    })
+
+    it("copies the full Ballot ID on the confirmation screen after a re-authentication", async () => {
+        setUpState({storedConfirmation: true})
+        mockState.confirmationScreenData["election-1"] = {
+            ballotId: RECEIVED_BALLOT_ID,
+            ballotHash: BALLOT_ID,
+            isDemo: false,
+            auditButtonCfg: EVotingPortalAuditButtonCfg.SHOW,
+        }
+        const user = userEvent.setup()
+        const writeText = jest.spyOn(navigator.clipboard, "writeText").mockResolvedValue()
+        renderRoute(<ConfirmationScreen />, "confirmation")
+
+        expect(screen.getByText(RECEIVED_BALLOT_ID)).toBeInTheDocument()
+        await user.click(screen.getByRole("button", {name: "reviewScreen.copyBallotId"}))
+        expect(writeText).toHaveBeenLastCalledWith(BALLOT_ID)
     })
 
     it("shows the ballot box's Ballot ID and copies the full one on both screens", async () => {

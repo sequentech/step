@@ -7,6 +7,9 @@ import type {EVotingPortalAuditButtonCfg} from "@sequentech/ui-core"
 
 export interface ConfirmationScreenData {
     ballotId: string
+    // The full Ballot ID for the copy icon: the auditable ballot is gone after
+    // the re-authentication reload.
+    ballotHash?: string
     isDemo: boolean
     auditButtonCfg?: EVotingPortalAuditButtonCfg
 }

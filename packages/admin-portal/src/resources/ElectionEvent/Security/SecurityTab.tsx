@@ -299,7 +299,11 @@ export default function SecurityTab() {
                 >
                     {["requested", "before-start", "before-resume", "before-counting"].map(
                         (value) => (
-                            <MenuItem key={value} value={value}>
+                            <MenuItem
+                                key={value}
+                                value={value}
+                                disabled={value !== "requested" && !tests?.baseline_present}
+                            >
                                 {t(`securityTests.trigger.${value}`)}
                             </MenuItem>
                         )

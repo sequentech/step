@@ -19,6 +19,7 @@ let mockFresh = false
 let mockRoles = new Set<string>()
 const mockNotify = jest.fn()
 const mockReauthenticate = jest.fn(async (_url: string) => {})
+let mockBaselinePresent = true
 const mockMutate = jest.fn(async (request) => {
     if (request.mutation === GET_SECURITY_TESTS)
         return {
@@ -29,7 +30,7 @@ const mockMutate = jest.fn(async (request) => {
                         timeout_seconds: 60,
                         additional_conditions: [],
                     },
-                    baseline_present: true,
+                    baseline_present: mockBaselinePresent,
                     notifications: [],
                     runs: mockRuns,
                     tsf_integrity: mockTsfIntegrity,
@@ -108,6 +109,7 @@ jest.mock("react-i18next", () => ({
 }))
 
 beforeEach(() => {
+    mockBaselinePresent = true
     mockPhase = "preparation"
     mockFresh = false
     mockRuns = []
@@ -148,6 +150,19 @@ it("queues a purpose-bound background test with the run permission and prevents 
     )
     expect(screen.getByText("Ballot-box integrity")).toBeTruthy()
     expect(screen.getByText("Clock synchronization")).toBeTruthy()
+})
+
+it("offers only the on-request purpose before the first approval", async () => {
+    mockBaselinePresent = false
+    render(<SecurityTab />)
+    await screen.findByText(/The board-approved configuration baseline is not yet available/)
+    fireEvent.mouseDown(screen.getByRole("combobox", {name: "Purpose of the test"}))
+    const disabled = async (name: string) =>
+        (await screen.findByRole("option", {name})).getAttribute("aria-disabled") === "true"
+    expect(await disabled("On request")).toBe(false)
+    expect(await disabled("Before starting voting")).toBe(true)
+    expect(await disabled("Before resuming voting")).toBe(true)
+    expect(await disabled("Before counting")).toBe(true)
 })
 
 it("keeps settings immutable during execution even for an administrator", async () => {

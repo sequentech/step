@@ -373,7 +373,7 @@ const ConfirmationScreen: React.FC = () => {
             } else {
                 return {
                     ballotIdStored: confirmationScreenData.ballotId,
-                    ballotHashStored: undefined,
+                    ballotHashStored: confirmationScreenData.ballotHash,
                     isDemoStored: confirmationScreenData.isDemo,
                 }
             }

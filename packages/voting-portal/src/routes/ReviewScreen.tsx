@@ -819,6 +819,7 @@ export const ReviewScreen: React.FC = () => {
                 confirmationScreenData: {
                     ballotId:
                         ballotData.receivedCast?.receivedBallot.ballot_id ?? ballotData.ballotId,
+                    ballotHash: ballotData.ballotId,
                     isDemo: ballotData.isDemo,
                     auditButtonCfg: ballotData.auditButtonCfg,
                 },

@@ -189,11 +189,15 @@ fn audit_verdict(
     Ok(None)
 }
 
-/// A start-up run before the first approval has no board-approved values to
-/// compare with. It authorises nothing: an opening requires its own trigger and
-/// voters require the execution phase.
+/// A start-up or on-request run before the first approval has no board-approved
+/// values to compare with. It authorises nothing: an opening requires its own
+/// trigger and voters require the execution phase.
 fn nothing_to_compare(trigger: SelfTestTrigger, phase: ElectoralPhase, baseline: bool) -> bool {
-    trigger == SelfTestTrigger::Startup && phase == ElectoralPhase::Preparation && !baseline
+    matches!(
+        trigger,
+        SelfTestTrigger::Startup | SelfTestTrigger::Requested
+    ) && phase == ElectoralPhase::Preparation
+        && !baseline
 }
 
 fn classify(check: SelfTestCheck, result: Result<Option<String>>) -> (SelfTestOutcome, String) {
@@ -678,28 +682,29 @@ mod tests {
     }
 
     #[test]
-    fn only_a_startup_run_in_preparation_with_no_baseline_skips_the_comparison() {
-        assert!(nothing_to_compare(
-            SelfTestTrigger::Startup,
-            ElectoralPhase::Preparation,
-            false
-        ));
-        assert!(!nothing_to_compare(
-            SelfTestTrigger::Startup,
-            ElectoralPhase::Preparation,
-            true
-        ));
-        for phase in [
-            ElectoralPhase::Execution,
-            ElectoralPhase::Evaluation,
-            ElectoralPhase::PostProcessing,
-        ] {
-            assert!(!nothing_to_compare(SelfTestTrigger::Startup, phase, false));
+    fn only_a_startup_or_requested_run_in_preparation_with_no_baseline_skips_the_comparison() {
+        for trigger in [SelfTestTrigger::Startup, SelfTestTrigger::Requested] {
+            assert!(nothing_to_compare(
+                trigger,
+                ElectoralPhase::Preparation,
+                false
+            ));
+            assert!(!nothing_to_compare(
+                trigger,
+                ElectoralPhase::Preparation,
+                true
+            ));
+            for phase in [
+                ElectoralPhase::Execution,
+                ElectoralPhase::Evaluation,
+                ElectoralPhase::PostProcessing,
+            ] {
+                assert!(!nothing_to_compare(trigger, phase, false));
+            }
         }
         for trigger in [
             SelfTestTrigger::ElectionStartTime,
             SelfTestTrigger::BeforeStart,
-            SelfTestTrigger::Requested,
             SelfTestTrigger::BeforeResume,
             SelfTestTrigger::Periodic,
             SelfTestTrigger::AfterMaintenance,
