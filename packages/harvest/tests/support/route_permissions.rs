@@ -171,7 +171,14 @@ fn cases() -> Vec<Case> {
         case!(Voter, "/acknowledge-support-materials", {"election_event_id": EVENT_ID, "document_ids": []}, [ACK_SUPPORT_MATERIALS], BACKEND, UNAUTHORIZED),
         case!(UuidTenant, "/apply-schedule-recompute", {"election_event_id": UUID_EVENT_ID}, [SCHEDULED_EVENT_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/archive-election-event", {"election_event_id": EVENT_ID}, [ELECTION_EVENT_ARCHIVE], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/attack-detection/settings/get", {}, [ADMIN_USER, TENANT_WRITE], BACKEND, UNAUTHORIZED),
+        case!(
+            Admin,
+            "/attack-detection/settings/get",
+            {},
+            [ADMIN_USER, TENANT_WRITE],
+            BACKEND,
+            UNAUTHORIZED
+        ),
         case!(Admin, "/attack-detection/settings/update", {"settings": {}}, [ADMIN_USER, TENANT_WRITE], BAD_REQUEST, UNAUTHORIZED),
         case!(Admin, "/election-lifecycle/post-processing", {"election_event_id": EVENT_ID}, [ELECTION_STATE_WRITE], FORBIDDEN, UNAUTHORIZED),
         case!(Gold, "/election-lifecycle/post-processing", {"election_event_id": EVENT_ID}, [ELECTION_STATE_WRITE], BACKEND, UNAUTHORIZED),

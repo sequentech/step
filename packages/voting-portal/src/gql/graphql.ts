@@ -1535,6 +1535,7 @@ export type SelfTestStatusOutput = {
   notifications: Scalars['jsonb']['output'];
   runs: Scalars['jsonb']['output'];
   settings: Scalars['jsonb']['output'];
+  tsf_integrity?: Maybe<Scalars['jsonb']['output']>;
 };
 
 export type SetCustomUrlsOutput = {
@@ -2627,6 +2628,7 @@ export type Mutation_Root = {
   /** Revoke an active results website publication */
   revokeResultsPublication: RevokeResultsPublicationOutput;
   run_self_tests: SelfTestStartOutput;
+  run_tsf_integrity_check: SelfTestStartOutput;
   /** Save the enrollment approval matrix as a new version */
   save_approval_matrix: ApprovalMatrixOutput;
   /** Save lifecycle policies and log their changed scheduled outcomes */
@@ -5378,6 +5380,12 @@ export type Mutation_RootRevokeResultsPublicationArgs = {
 export type Mutation_RootRun_Self_TestsArgs = {
   election_event_id: Scalars['String']['input'];
   trigger?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** mutation root */
+export type Mutation_RootRun_Tsf_Integrity_CheckArgs = {
+  election_event_id: Scalars['String']['input'];
 };
 
 
