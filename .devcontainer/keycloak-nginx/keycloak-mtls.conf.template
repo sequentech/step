@@ -110,14 +110,17 @@ server {
     }
 
     # Called by OCR and Liveness Plus on the internal network only, never by
-    # browsers.
-    location ~ ^/realms/[^/]+/identity-verification/ {
+    # browsers. The capture page's upload of the photo holding the ID,
+    # identity-verification/capture/holding, goes through to Keycloak.
+    location ~ ^/realms/[^/]+/identity-verification/(ocr|liveness)/ {
         return 404;
     }
 
     location / {
         set $keycloak_upstream http://keycloak:${KC_HTTP_PORT};
         proxy_pass $keycloak_upstream;
+        # The photo of the voter holding their ID (Keycloak caps it at 8 MiB).
+        client_max_body_size 10m;
 
         # Intercept Keycloak-proxied 400s so the server-block error_page above
         # can redirect them. proxy_buffering on is required with variable-based

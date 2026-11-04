@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.scanovate_authenticator;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -21,10 +22,58 @@ class IdentityVerificationResourceTest {
   private final OnPremSessions sessions =
       new OnPremSessions(OnPremService.LIVENESS, store, millis -> {});
   private final OnPremSessions ocr = new OnPremSessions(OnPremService.OCR, store, millis -> {});
+  private final HoldingPhotos photos = new HoldingPhotos(store);
   private final IdentityVerificationResource resource =
       new IdentityVerificationResource(
           mock(KeycloakSession.class),
-          (service, ignored) -> service == OnPremService.OCR ? ocr : sessions);
+          (service, ignored) -> service == OnPremService.OCR ? ocr : sessions,
+          ignored -> photos);
+
+  private static java.io.InputStream body(byte[] content) {
+    return new java.io.ByteArrayInputStream(content);
+  }
+
+  @Test
+  void storesTheHoldingPhotoOfAnIssuedToken() {
+    String token = photos.create();
+
+    Response response = resource.uploadHoldingPhoto(token, body(JPEG));
+
+    assertEquals(200, response.getStatus());
+    assertEquals(MediaType.APPLICATION_JSON_TYPE, response.getMediaType());
+    assertArrayEquals(JPEG, photos.photo(token).orElseThrow());
+  }
+
+  @Test
+  void refusesHoldingPhotosItCannotUse() {
+    String token = photos.create();
+
+    assertEquals(401, resource.uploadHoldingPhoto(null, body(JPEG)).getStatus());
+    assertEquals(401, resource.uploadHoldingPhoto("forged", body(JPEG)).getStatus());
+    assertEquals(400, resource.uploadHoldingPhoto(token, null).getStatus());
+    assertEquals(400, resource.uploadHoldingPhoto(token, body(new byte[0])).getStatus());
+    assertEquals(415, resource.uploadHoldingPhoto(token, body("GIF89a".getBytes())).getStatus());
+    assertEquals(
+        413,
+        resource
+            .uploadHoldingPhoto(
+                token, body(java.util.Arrays.copyOf(JPEG, HoldingPhotos.MAX_UPLOAD_BYTES + 1)))
+            .getStatus());
+    assertTrue(photos.photo(token).isEmpty());
+  }
+
+  @Test
+  void anUnreadableUploadIsABadRequest() {
+    java.io.InputStream broken =
+        new java.io.InputStream() {
+          @Override
+          public int read() throws java.io.IOException {
+            throw new java.io.IOException("reset");
+          }
+        };
+
+    assertEquals(400, resource.uploadHoldingPhoto(photos.create(), broken).getStatus());
+  }
 
   /** The voter's browser sees these requests: they must not name the identity provider. */
   @Test

@@ -16,6 +16,7 @@ import {
 } from "../scanovate/capture"
 import {ACTION_PARAM, CaptureAction} from "../scanovate/form"
 import type {ScanovatePageProps} from "../scanovate/pageProps"
+import {HoldingCamera} from "../scanovate/HoldingCamera"
 import {AttemptsLeft} from "../scanovate/parts"
 import {EnrollmentStep, documentName, enrollmentFrame, textFor, type Text} from "../scanovate/text"
 import {CaptureProblem, CaptureStage} from "../scanovate/types"
@@ -26,6 +27,7 @@ const PROBLEMS: Record<CaptureProblem, [MessageKey, MessageKey]> = {
     [CaptureProblem.Expired]: ["scanovateSessionExpiredTitle", "scanovateSessionExpiredText"],
     [CaptureProblem.InvalidToken]: ["scanovateStartAgainTitle", "scanovateStartAgainText"],
     [CaptureProblem.Closed]: ["scanovateClosedTitle", "scanovateClosedText"],
+    [CaptureProblem.Upload]: ["scanovateUploadProblemTitle", "scanovateUploadProblemText"],
     [CaptureProblem.Generic]: ["scanovateProblemTitle", "scanovateProblemText"],
 }
 
@@ -53,7 +55,11 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
     const {kcContext, i18n, Template, doUseDefaultCss, classes} = props
     const {scanovate, url} = kcContext
     const text = textFor(kcContext, i18n)
-    const [state, dispatch] = useReducer(captureReducer, undefined, initialCaptureState)
+    const [state, dispatch] = useReducer(
+        captureReducer,
+        scanovate.holding !== undefined,
+        initialCaptureState
+    )
     const formRef = useRef<HTMLFormElement | null>(null)
 
     // Keycloak has the results from Scanovate already: the form only moves the flow on.
@@ -122,7 +128,35 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
         )
     }
 
-    const frame = FRAMES[state.stage]
+    if (state.stage === CaptureStage.Holding && scanovate.holding !== undefined) {
+        const title = text("scanovateHoldingStepTitle")
+        const lead = text(
+            "scanovateHoldingStepLead",
+            documentName(kcContext, i18n, scanovate.documentType).text
+        )
+        return (
+            <Template
+                {...card}
+                displayMessage={false}
+                symbol={<IdCardIcon />}
+                headerNode={title.text}
+                titleLang={title.lang}
+            >
+                <p className="auth-lead" lang={lead.lang}>
+                    {lead.text}
+                </p>
+                <HoldingCamera
+                    key={state.attempt}
+                    text={text}
+                    holding={scanovate.holding}
+                    dispatch={dispatch}
+                />
+                <StartOver text={text} loginAction={url.loginAction} />
+            </Template>
+        )
+    }
+
+    const frame = FRAMES[state.stage as FrameStage]
     const title = text(frame.title)
     const lead = text(frame.lead, documentName(kcContext, i18n, scanovate.documentType).text)
     const Symbol = frame.symbol

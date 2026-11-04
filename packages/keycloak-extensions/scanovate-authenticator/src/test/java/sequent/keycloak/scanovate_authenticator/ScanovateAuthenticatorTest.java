@@ -81,6 +81,9 @@ class ScanovateAuthenticatorTest {
   /** The portrait in {@link OcrResultsTest#PASSPORT_RESPONSE}. */
   private static final byte[] PORTRAIT = "hello".getBytes(StandardCharsets.US_ASCII);
 
+  /** The photo of the voter holding their document that the capture page uploads. */
+  private static final byte[] HOLDING = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 'h', 'o', 'l', 'd'};
+
   private final Map<String, String> config = new HashMap<>();
   private final Map<String, String> authNotes = new HashMap<>();
   private final MultivaluedHashMap<String, String> formParams = new MultivaluedHashMap<>();
@@ -92,6 +95,7 @@ class ScanovateAuthenticatorTest {
   private MockedStatic<Utils> utils;
   private OnPremSessions livenessSessions;
   private OnPremSessions ocrSessions;
+  private HoldingPhotos holdingPhotos;
 
   /** What OCR reads from the document in its result callback. */
   private JsonNode ocrResponse;
@@ -208,6 +212,7 @@ class ScanovateAuthenticatorTest {
     OnPremSessionsTest.MemoryStore store = new OnPremSessionsTest.MemoryStore();
     livenessSessions = new OnPremSessions(OnPremService.LIVENESS, store, millis -> {});
     ocrSessions = new OnPremSessions(OnPremService.OCR, store, millis -> {});
+    holdingPhotos = new HoldingPhotos(store);
     ocrResponse = json(PASSPORT_RESPONSE);
     faceMatch = mock(FaceMatchClient.class);
     when(faceMatch.compare(any(), any())).thenReturn(match(0.9));
@@ -218,7 +223,8 @@ class ScanovateAuthenticatorTest {
             settings -> {
               faceMatchSettings.add(settings);
               return faceMatch;
-            });
+            },
+            ignored -> holdingPhotos);
 
     KeycloakSession session = mock(KeycloakSession.class);
     SecurityHeadersProvider headersProvider = mock(SecurityHeadersProvider.class);
@@ -468,11 +474,22 @@ class ScanovateAuthenticatorTest {
     }
   }
 
-  /** A voter whose document OCR read and whose liveness passed submits the capture. */
+  /** The capture page uploads the photo of the voter holding their document. */
+  private void holdingPhoto() {
+    assertEquals(
+        HoldingPhotos.UploadOutcome.STORED,
+        holdingPhotos.store(authNotes.get(ScanovateAuthenticator.HOLDING_TOKEN_NOTE), HOLDING));
+  }
+
+  /**
+   * A voter whose document OCR read and whose liveness passed uploads the photo holding their
+   * document and submits the capture.
+   */
   private String passedCapture() {
     String token = startCapture();
     ocrResult();
     livenessResult(token, true);
+    holdingPhoto();
     submitCapture();
     return token;
   }
@@ -514,6 +531,15 @@ class ScanovateAuthenticatorTest {
                 + "&token="
                 + authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE)),
         page.get(ScanovateAuthenticator.FTL_LIVENESS));
+    assertEquals(
+        Map.of(
+            ScanovateAuthenticator.FTL_PAGE_URL,
+            "/realms/r/identity-verification/capture/holding",
+            ScanovateAuthenticator.FTL_UPLOAD_TOKEN,
+            authNotes.get(ScanovateAuthenticator.HOLDING_TOKEN_NOTE),
+            ScanovateAuthenticator.FTL_HOLDING_SECONDS,
+            5),
+        page.get(ScanovateAuthenticator.FTL_HOLDING));
   }
 
   private void verifyError(ScanovateError error, boolean canRetry) {
@@ -718,6 +744,7 @@ class ScanovateAuthenticatorTest {
     formParams.clear();
     ocrResult();
     livenessResult(authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE), true);
+    holdingPhoto();
     submitCapture();
     authenticator.action(context);
     post(FormAction.CONFIRM);
@@ -869,8 +896,10 @@ class ScanovateAuthenticatorTest {
     authenticator.action(context);
 
     verify(faceMatch).compare(PORTRAIT, JPEG);
+    verify(faceMatch).compare(HOLDING, JPEG);
     verify(event).detail(ScanovateAuthenticator.EVENT_DETAIL_CASE_ID, caseId);
     verify(event).detail(ScanovateAuthenticator.EVENT_DETAIL_FACE_MATCH_DOCUMENT, "0.9000");
+    verify(event).detail(ScanovateAuthenticator.EVENT_DETAIL_FACE_MATCH_HOLDING, "0.9000");
     assertEquals("JUAN", authNotes.get("firstName"));
     assertEquals("VERIFIED", authNotes.get(STATUS_NOTE));
     assertNull(caseId());
@@ -885,6 +914,126 @@ class ScanovateAuthenticatorTest {
     assertNull(authNotes.get(ScanovateAuthenticator.OCR_TOKEN_NOTE));
     assertFalse(livenessSessions.verify(token, caseId, "callback-secret"));
     assertFalse(ocrSessions.verify(ocrToken, caseId, "callback-secret"));
+    assertNull(authNotes.get(ScanovateAuthenticator.HOLDING_TOKEN_NOTE));
+  }
+
+  @Test
+  void theCapturePageGetsATokenForTheHoldingPhoto() {
+    startCapture();
+    String first = authNotes.get(ScanovateAuthenticator.HOLDING_TOKEN_NOTE);
+    holdingPhoto();
+
+    // A refresh issues a new token and forgets the photo of the earlier one
+    authenticator.authenticate(context);
+
+    String second = authNotes.get(ScanovateAuthenticator.HOLDING_TOKEN_NOTE);
+    assertNotNull(second);
+    assertNotEquals(first, second);
+    assertTrue(holdingPhotos.photo(first).isEmpty());
+    assertEquals(HoldingPhotos.UploadOutcome.UNAUTHORIZED, holdingPhotos.store(first, HOLDING));
+  }
+
+  @Test
+  void aHoldingPhotoOfSomeoneElseCountsAsAnAttempt() throws IOException {
+    passedCapture();
+    when(faceMatch.compare(HOLDING, JPEG)).thenReturn(match(0.3));
+
+    authenticator.action(context);
+
+    verifyFailedAttempt(ScanovateError.FACE_MISMATCH.messageKey());
+    assertEquals("face_holding", lastFailure().get("scanovate_stage"));
+    assertEquals("0.3000", lastFailure().get("scanovate_face_match_holding"));
+    assertNull(authNotes.get(ScanovateAuthenticator.HOLDING_TOKEN_NOTE));
+  }
+
+  @Test
+  void aHoldingPhotoWithoutAFaceCountsAsAnAttempt() throws IOException {
+    passedCapture();
+    when(faceMatch.compare(HOLDING, JPEG)).thenReturn(new FaceComparison(false, 0.0, 0.67, 0, 1));
+
+    authenticator.action(context);
+
+    verifyFailedAttempt(ScanovateError.FACE_NOT_FOUND.messageKey());
+    assertEquals("face_holding", lastFailure().get("scanovate_stage"));
+  }
+
+  @Test
+  void aCaptureWithoutTheHoldingPhotoIsRejectedWithoutComparingIt() throws IOException {
+    String token = startCapture();
+    ocrResult();
+    livenessResult(token, true);
+    submitCapture();
+
+    authenticator.action(context);
+
+    verify(faceMatch).compare(PORTRAIT, JPEG);
+    verify(faceMatch, never()).compare(HOLDING, JPEG);
+    verifyError(ScanovateError.CAPTURE_INVALID, true);
+    assertNull(authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
+    assertEquals("face_holding", lastFailure().get("scanovate_stage"));
+    assertNull(authNotes.get(STATUS_NOTE));
+    assertNull(caseId());
+  }
+
+  @Test
+  void theDocumentFaceIsComparedBeforeTheHoldingPhoto() throws IOException {
+    passedCapture();
+    when(faceMatch.compare(PORTRAIT, JPEG)).thenReturn(match(0.3));
+
+    authenticator.action(context);
+
+    verify(faceMatch, never()).compare(HOLDING, JPEG);
+    verifyFailedAttempt(ScanovateError.FACE_MISMATCH.messageKey());
+  }
+
+  @Test
+  void withoutTheHoldingPhotoPolicyThereIsNoThirdStep() throws IOException {
+    config.put(ScanovateAuthenticatorFactory.HOLDING_PHOTO, HoldingPhotoPolicy.NONE.name());
+    String token = startCapture();
+
+    assertFalse(capturePage().containsKey(ScanovateAuthenticator.FTL_HOLDING));
+    assertNull(authNotes.get(ScanovateAuthenticator.HOLDING_TOKEN_NOTE));
+
+    ocrResult();
+    livenessResult(token, true);
+    submitCapture();
+    authenticator.action(context);
+
+    verify(faceMatch).compare(PORTRAIT, JPEG);
+    verify(faceMatch, never()).compare(HOLDING, JPEG);
+    assertEquals("VERIFIED", authNotes.get(STATUS_NOTE));
+  }
+
+  @Test
+  void theHoldingTimeIsConfigurable() {
+    config.put(ScanovateAuthenticatorFactory.HOLDING_SECONDS, "3");
+
+    startCapture();
+
+    @SuppressWarnings("unchecked")
+    Map<String, Object> holding =
+        (Map<String, Object>) capturePage().get(ScanovateAuthenticator.FTL_HOLDING);
+    assertEquals(3, holding.get(ScanovateAuthenticator.FTL_HOLDING_SECONDS));
+  }
+
+  @Test
+  void anInvalidHoldingTimeIsAConfigurationError() {
+    config.put(ScanovateAuthenticatorFactory.HOLDING_SECONDS, "0");
+
+    authenticator.authenticate(context);
+
+    verifyError(ScanovateError.INTERNAL, false);
+    assertEquals("capture", lastFailure().get("scanovate_config_component"));
+  }
+
+  @Test
+  void anUnknownHoldingPhotoPolicyIsAConfigurationError() {
+    config.put(ScanovateAuthenticatorFactory.HOLDING_PHOTO, "SOMETIMES");
+
+    authenticator.authenticate(context);
+
+    verifyError(ScanovateError.INTERNAL, false);
+    assertEquals("capture", lastFailure().get("scanovate_config_component"));
   }
 
   @Test

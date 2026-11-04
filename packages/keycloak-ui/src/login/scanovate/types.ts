@@ -1,13 +1,17 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// The steps of the capture page: Scanovate's own pages, embedded one after the other.
+// The steps of the capture page: Scanovate's own pages, embedded one after the
+// other, and then, when Keycloak asks for it, the page's own photo of the voter
+// holding their document.
 export enum CaptureStage {
     // Scanovate's OCR page scans the document.
     Document = "DOCUMENT",
     // Scanovate's Liveness Plus page checks the voter's face.
     Face = "FACE",
-    // Both are done: the page hands over to Keycloak, which has the results.
+    // The voter takes a photo of themselves holding their document.
+    Holding = "HOLDING",
+    // All done: the page hands over to Keycloak, which has the results.
     Checking = "CHECKING",
 }
 
@@ -19,6 +23,8 @@ export enum CaptureProblem {
     InvalidToken = "INVALID_TOKEN",
     // The voter closed the Scanovate page.
     Closed = "CLOSED",
+    // The holding photo couldn't be sent to Keycloak.
+    Upload = "UPLOAD",
     Generic = "GENERIC",
 }
 
