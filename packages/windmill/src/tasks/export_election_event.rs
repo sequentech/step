@@ -27,6 +27,13 @@ pub struct ExportOptions {
     pub tally: bool,
 }
 
+impl ExportOptions {
+    /// The export holds the protocol manager signing keys of the event's boards.
+    pub fn includes_protocol_manager_keys(&self) -> bool {
+        self.bulletin_board || self.activity_logs || self.publications
+    }
+}
+
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]

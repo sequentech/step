@@ -22,6 +22,23 @@ pub struct CreateRoleBody {
     role: Role,
 }
 
+/// Giving the new role permissions is what /set-role-permission does, so it
+/// needs that route's permissions as well.
+fn authorize_create_role(
+    claims: &jwt::JwtClaims,
+    tenant_id: &str,
+    role: &Role,
+) -> Result<(), (Status, String)> {
+    let mut required = vec![Permissions::ROLE_CREATE];
+    let has_permissions = role.permissions.iter().flatten().next().is_some();
+    let has_client_roles = role.client_roles.iter().flatten().next().is_some();
+    if has_permissions || has_client_roles {
+        required.push(Permissions::USER_PERMISSION_WRITE);
+        required.push(Permissions::ROLE_WRITE);
+    }
+    authorize(claims, true, Some(tenant_id.to_string()), required)
+}
+
 #[instrument(skip(claims))]
 #[post("/create-role", format = "json", data = "<body>")]
 pub async fn create_role(
@@ -29,12 +46,7 @@ pub async fn create_role(
     body: Json<CreateRoleBody>,
 ) -> Result<Json<Role>, (Status, String)> {
     let input = body.into_inner();
-    authorize(
-        &claims,
-        true,
-        Some(input.tenant_id.clone()),
-        vec![Permissions::ROLE_READ],
-    )?;
+    authorize_create_role(&claims, &input.tenant_id, &input.role)?;
     let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
@@ -235,4 +247,82 @@ pub async fn delete_role(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     Ok(Json(Default::default()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::authorization::test_claims::{
+        admin_claims, CALLER_TENANT_ID,
+    };
+
+    fn empty_role() -> Role {
+        Role {
+            id: None,
+            name: Some("new-role".to_string()),
+            permissions: None,
+            access: None,
+            attributes: None,
+            client_roles: None,
+        }
+    }
+
+    #[test]
+    fn creating_a_role_needs_role_create_not_role_read() {
+        let role = empty_role();
+        let reader = admin_claims(CALLER_TENANT_ID, &["role-read"]);
+        let error = authorize_create_role(&reader, CALLER_TENANT_ID, &role)
+            .unwrap_err();
+        assert_eq!(error.0, Status::Unauthorized);
+        let creator = admin_claims(CALLER_TENANT_ID, &["role-create"]);
+        assert!(
+            authorize_create_role(&creator, CALLER_TENANT_ID, &role).is_ok()
+        );
+    }
+
+    #[test]
+    fn an_empty_permission_list_needs_only_role_create() {
+        let role = Role {
+            permissions: Some(vec![]),
+            ..empty_role()
+        };
+        let creator = admin_claims(CALLER_TENANT_ID, &["role-create"]);
+        assert!(
+            authorize_create_role(&creator, CALLER_TENANT_ID, &role).is_ok()
+        );
+    }
+
+    #[test]
+    fn giving_a_new_role_permissions_needs_the_permission_writing_rights() {
+        let with_permissions = Role {
+            permissions: Some(vec!["voter-export".to_string()]),
+            ..empty_role()
+        };
+        let with_client_roles = Role {
+            client_roles: Some(std::collections::HashMap::from([(
+                "realm-management".to_string(),
+                vec!["realm-admin".to_string()],
+            )])),
+            ..empty_role()
+        };
+        for role in [with_permissions, with_client_roles] {
+            for granted in [
+                &["role-create"][..],
+                &["role-create", "role-write"],
+                &["role-create", "user-permission-write"],
+            ] {
+                let claims = admin_claims(CALLER_TENANT_ID, granted);
+                let error =
+                    authorize_create_role(&claims, CALLER_TENANT_ID, &role)
+                        .unwrap_err();
+                assert_eq!(error.0, Status::Unauthorized, "{granted:?}");
+            }
+            let manager = admin_claims(
+                CALLER_TENANT_ID,
+                &["role-create", "role-write", "user-permission-write"],
+            );
+            assert!(authorize_create_role(&manager, CALLER_TENANT_ID, &role)
+                .is_ok());
+        }
+    }
 }

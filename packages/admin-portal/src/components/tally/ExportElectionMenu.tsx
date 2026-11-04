@@ -21,6 +21,7 @@ import {StyledAppAtom} from "@/App"
 import {ETemplateType} from "@/types/templates"
 import {GenerateReport} from "./GenerateReport"
 import {GeneratePDF} from "./GeneratePdf"
+import {useReportsPermissions} from "@/resources/Reports/useReportsPermissions"
 
 interface PerformDownloadProps {
     onDownload: () => void
@@ -112,6 +113,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         onCreateTransmissionPackage,
     } = props
     const {globalSettings} = useContext(SettingsContext)
+    const {canGenerateReports} = useReportsPermissions()
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const [performDownload, setPerformDownload] = useState<IDocumentData | null>(null)
@@ -288,6 +290,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                     ) : null}
                     {globalSettings?.ACTIVATE_MIRU_EXPORT &&
                     tallyType !== ETallyType.INITIALIZATION_REPORT &&
+                    canGenerateReports &&
                     electionId ? (
                         <>
                             <GenerateReport

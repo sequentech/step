@@ -3,8 +3,37 @@ id: admin_portal_reference_user_manual_users_and_roles_permissions
 title: Admin Portal Reference User Manual Users And Roles Permissions
 ---
 
+Permissions are assigned to roles under **Users and Roles** > **Roles**. A user receives the
+permissions of the roles assigned to them.
 
+## Exports and Other Sensitive Actions
 
-This is a placeholder page for the section: Permissions.
+An election-event export needs `election-event-read`, which covers the event configuration and its
+scheduled events. Each other kind of data it includes needs the permission that exports or reads
+that data on its own:
 
-Content will be added here soon.
+| Included data | Permission |
+|---|---|
+| Voters | `voter-export` |
+| Applications | `application-export` |
+| Activity logs | `logs-export` and `export-ceremony` |
+| Tally | `tally-results-read` |
+| Reports | `report-read` |
+| Publications | `publish-export` and `export-ceremony` |
+| Bulletin board (keys ceremonies and boards) | `export-ceremony` |
+| Documents | `document-download` |
+
+Activity logs and publications need `export-ceremony` because the archive then holds the event's
+protocol manager keys. The separate activity-log export below needs only `logs-export` and holds no
+keys.
+
+| Action | Required permissions |
+|---|---|
+| List votes by IP address for the whole election event | `admin-dashboard-view` and `admin-ip-address-view` |
+| List votes by IP address for one election | `admin-dashboard-view` and either `admin-ip-address-view` or `election-ip-address-view` |
+| Create a role | `role-create`; to give it permissions or client roles, also `role-write` and `user-permission-write` |
+| Generate the ballot-images or vote-receipts report | `report-generate` |
+| Export activity logs | `logs-export` |
+
+The portal sends role creation and the votes-by-IP lists with its default role, so using them there
+also needs `admin-user`.
