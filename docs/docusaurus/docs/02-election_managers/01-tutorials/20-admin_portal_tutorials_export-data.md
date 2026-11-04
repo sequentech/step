@@ -58,6 +58,12 @@ authenticator, identity-provider and client secrets never do. Downloading the
 archive or its password also requires `integration-secret-read`, and such
 archives are never included in the **S3 Files** of later exports.
 
+Existing tenant realms receive `integration-secret-read` through the existing
+realm-permission migration when Windmill beat starts after the upgrade. As in
+the new-tenant templates, only the full `admin` group receives it automatically,
+not `admin-light` or other groups. Administrators must refresh their session
+after the migration to receive the new permission.
+
 Anyone holding the archive and its password holds the secret. Importing the
 archive installs the realm configuration as it is, including the secret and its
 `liveness-url`; Liveness Plus must use the same secret for the imported event to

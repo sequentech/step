@@ -2042,7 +2042,7 @@
       {
         "id": "e408df40-7304-4031-9a33-5ef693d94abb",
         "name": "integration-secret-read",
-        "description": "Export authenticator integration secrets and download archives carrying them",
+        "description": "Export Integration Secrets",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
