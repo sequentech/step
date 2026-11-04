@@ -56,6 +56,16 @@ pub async fn fetch_document(
         },
     )?;
 
+    let document = windmill::postgres::document::get_document(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        input.election_event_id.clone(),
+        &input.document_id,
+    )
+    .await
+    .map_err(|error| (Status::InternalServerError, error.to_string()))?
+    .ok_or_else(|| (Status::NotFound, "Document not found".into()))?;
+    windmill::services::ceremonies::result_readiness::require_complete_result_document(&hasura_transaction, &claims.hasura_claims.tenant_id, &document, None).await.map_err(|error| (Status::Conflict,error.to_string()))?;
     let url = documents::get_document_url(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
