@@ -8,10 +8,9 @@ import {ArrowIcon, CopyIcon, WarningIcon} from "../icons"
 import type {MessageKey} from "../i18n"
 import type {ScanovatePageProps} from "../scanovate/pageProps"
 import {EnrollmentStep, dynamicText, enrollmentFrame, textFor, type Text} from "../scanovate/text"
+import {ACTION_PARAM, CaptureAction} from "../scanovate/form"
 import {AttemptsLeft, CheckList} from "../scanovate/parts"
 import {stepBack} from "../stepBack"
-
-const RETRY_ACTION = "retry"
 
 const CAPTURE_TIPS: MessageKey[] = [
     "scanovateTipLight",
@@ -140,7 +139,7 @@ export default function ScanovateError(props: ScanovatePageProps<"scanovate-erro
                         action={url.loginAction}
                         className="auth-actions"
                     >
-                        <input type="hidden" name="action" value={RETRY_ACTION} />
+                        <input type="hidden" name={ACTION_PARAM} value={CaptureAction.Retry} />
                         <Button
                             type="submit"
                             variant="contained"

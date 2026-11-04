@@ -594,6 +594,10 @@ const catalanTranslation: TranslationType = {
                         lead: "Falta un fitxer",
                         text: "Falta un fitxer — s'esmenta «{{file}}» i aquí no hi ha res que el contingui. Una entrada d'arxiu buida fa fallar la importació en lloc de perdre un fitxer.",
                     },
+                    "masked-integration-secret": {
+                        lead: "Secret d'integració emmascarat",
+                        text: "Secret d'integració emmascarat — la configuració d'Scanovate «{{config}}» conté el marcador de Keycloak (**********) en lloc del seu secret de liveness, de manera que importar-la instal·laria el marcador. Exporta l'esdeveniment de nou incloent-hi els secrets d'integració; una configuració que Scanovate comparteix amb un altre autenticador primer en necessita una de pròpia.",
+                    },
                     "not-a-bundle": {
                         lead: "No és una exportació d'esdeveniment electoral",
                         text: "No és una exportació d'esdeveniment electoral — el fitxer s'ha llegit però no en té la forma: {{reason}}",

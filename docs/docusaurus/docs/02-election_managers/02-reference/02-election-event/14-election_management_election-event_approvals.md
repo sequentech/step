@@ -64,8 +64,8 @@ An approved enrollment opens with how it was decided and its details. A rejected
 still be approved with the same steps.
 
 The registry comparison on this page ignores capital letters, accents and hyphens in the same way
-the rules do, and compares first and middle name together for a driver's license and a seafarer's
-book.
+the rules do, and compares first and middle name together for a driver's license, a seafarer's
+book and a passport read by the scanner.
 
 ## Approval matrix
 
@@ -77,7 +77,10 @@ shows its version and who saved it, and has three parts.
 The voter details that are compared with the registry voter, for example first name, middle name,
 last name, date of birth and embassy. Names ignore capital letters, accents and hyphens. For a
 driver's license and a seafarer's book, first and middle name are compared together: the first name
-carries the result and the middle name has none of its own.
+carries the result and the middle name has none of its own. So are those of a passport read by the
+scanner: its machine-readable zone has a single field for the given names, the middle name included,
+and they are compared with the registry voter's first and middle name joined. A passport enrollment
+with a middle name of its own, typed apart, compares the two apart.
 
 Select a detail to stop or start comparing it, and **Compare another detail** to add any other
 voter attribute. Conditions on a detail that is no longer compared are removed from the rules.

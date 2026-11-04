@@ -58,8 +58,10 @@ realm without resetting their passwords or MFA or changing native trustee accoun
 
 ### Opt-in Scanovate services
 
-The identity verification of enrollment (Liveness Plus with its PAD server, Face
-Match and OCR) belongs to the `scanovate` Compose profile, which no mode starts:
+The identity verification of enrollment (OCR and Liveness Plus, whose capture
+pages `keycloak-nginx` serves under `https://localhost:8443/biometric/`,
+Liveness Plus's presentation and injection attack detection servers, and Face
+Match) belongs to the `scanovate` Compose profile, which no mode starts:
 its images are private, in our ECR mirror, and need about 18 GB of memory. To
 work on enrollment, start them next to `backend` or `full`, from the host, in the
 checkout:

@@ -4189,7 +4189,7 @@ const spanishTranslation: TranslationType = {
                 compareNote:
                     "En los nombres no se tienen en cuenta mayúsculas, acentos ni guiones.",
                 compareJoint:
-                    "Para permisos de conducir y libretas de marino, el nombre y el segundo nombre se comparan juntos.",
+                    "Para permisos de conducir, libretas de marino y pasaportes leídos por el escáner, el nombre y el segundo nombre se comparan juntos.",
                 applicationId: "ID de la solicitud",
                 copy: "Copiar",
                 copied: "Copiado",

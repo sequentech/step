@@ -1,0 +1,78 @@
+{
+  "title": {
+    "color": "white",
+    "background_color": "transparent",
+    "font_family": "Roboto-Bold, Roboto, Arial, sans-serif",
+    "font_size": "25px",
+    "font_weight": "bold",
+    "padding": "0 5px",
+    "border_radius": "5px"
+  },
+  "instruction": {
+    "color": "white",
+    "background_color": "rgba(13,121,106,0.85)",
+    "font_family": "Roboto-Regular, Roboto, Arial, sans-serif",
+    "font_size": "25px",
+    "font_weight": "normal",
+    "padding": "0 5px",
+    "border_radius": "5px"
+  },
+  "frame": {
+    "overlay_background": {
+      "background_color": "rgb(0,0,0)",
+      "background_opacity": "0.7"
+    },
+    "border_radius": 20,
+    "color": "white",
+    "width": 3,
+    "segment_color": "#43e3a1"
+  },
+  "close_button": {
+    "size": "60px",
+    "color": "white",
+    "visible": true
+  },
+  "loading_screen": {
+    "background_color": "#FFFFFF",
+    "shield_color": "#0d796a",
+    "shield_icon": {
+      "asset": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJTZWN1cmUgc2hpZWxkIj4KICA8IS0tCiAgICBSZWNvbG9yYWJsZSBzaGllbGQgaWNvbiAoY29tcGFjdCBwcm9wb3J0aW9ucykuCiAgICBPdmVycmlkZSBjb2xvcnMgdmlhIENTUyBjdXN0b20gcHJvcGVydGllcyBvbiB0aGUgLnNoaWVsZC1pY29uIGdyb3VwOgogICAgICBzaGllbGQtZmlsbC1saWdodCAocmlnaHQgaGFsZiksIHNoaWVsZC1maWxsLWRhcmsgKGxlZnQgaGFsZiksCiAgICAgIGxvY2stZmlsbCAocGFkbG9jayksIGxvY2sta2V5aG9sZSAoa2V5aG9sZSkuCiAgICBPciBlZGl0IHRoZSBmYWxsYmFjayBoZXggdmFsdWVzIGRpcmVjdGx5IGluIHRoZSBmaWxsIGF0dHJpYnV0ZXMgYmVsb3cuCiAgLS0+CiAgPGRlZnM+CiAgICA8Y2xpcFBhdGggaWQ9InNoaWVsZENsaXAiPgogICAgICA8cGF0aCBkPSJNIDEwMCAzNiBMIDE2MCA1NiBMIDE2MCAxMTAgQyAxNjAgMTQ0IDEzNCAxNjggMTAwIDE4MCBDIDY2IDE2OCA0MCAxNDQgNDAgMTEwIEwgNDAgNTYgWiIvPgogICAgPC9jbGlwUGF0aD4KICA8L2RlZnM+CgogIDxnIGNsYXNzPSJzaGllbGQtaWNvbiI+CiAgICA8IS0tIFJpZ2h0IGxpZ2h0ZXIgaGFsZjogZnVsbCBzaGllbGQgZmlsbGVkIHdpdGggbGlnaHQgdG9uZSAtLT4KICAgIDxwYXRoIGlkPSJzaGllbGQtcmlnaHQiCiAgICAgICAgICBkPSJNIDEwMCAzNiBMIDE2MCA1NiBMIDE2MCAxMTAgQyAxNjAgMTQ0IDEzNCAxNjggMTAwIDE4MCBDIDY2IDE2OCA0MCAxNDQgNDAgMTEwIEwgNDAgNTYgWiIKICAgICAgICAgIGZpbGw9InZhcigtLXNoaWVsZC1maWxsLWxpZ2h0LCAjZTVmM2VkKSIvPgoKICAgIDwhLS0gTGVmdCBkYXJrZXIgaGFsZjogcmVjdGFuZ2xlIGNsaXBwZWQgdG8gdGhlIHNoaWVsZCwgc3BsaXQgYXQgY2VudGVyIHg9MTAwIC0tPgogICAgPHJlY3QgaWQ9InNoaWVsZC1sZWZ0IiB4PSIwIiB5PSIwIiB3aWR0aD0iMTAwIiBoZWlnaHQ9IjIwMCIKICAgICAgICAgIGZpbGw9InZhcigtLXNoaWVsZC1maWxsLWRhcmssICNjZmU3ZGYpIgogICAgICAgICAgY2xpcC1wYXRoPSJ1cmwoI3NoaWVsZENsaXApIi8+CgogICAgPCEtLSBQYWRsb2NrIHNoYWNrbGUgLS0+CiAgICA8cGF0aCBpZD0ibG9jay1zaGFja2xlIgogICAgICAgICAgZD0iTSA4NyAxMDIgTCA4NyA5MiBBIDEzIDEzIDAgMCAxIDExMyA5MiBMIDExMyAxMDIiCiAgICAgICAgICBmaWxsPSJub25lIgogICAgICAgICAgc3Ryb2tlPSJ2YXIoLS1sb2NrLWZpbGwsICMwZDc5NmEpIgogICAgICAgICAgc3Ryb2tlLXdpZHRoPSI3IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KCiAgICA8IS0tIFBhZGxvY2sgYm9keSAtLT4KICAgIDxyZWN0IGlkPSJsb2NrLWJvZHkiIHg9Ijc4IiB5PSIxMDAiIHdpZHRoPSI0NCIgaGVpZ2h0PSIzOCIgcng9IjciCiAgICAgICAgICBmaWxsPSJ2YXIoLS1sb2NrLWZpbGwsICMwZDc5NmEpIi8+CgogICAgPCEtLSBLZXlob2xlIC0tPgogICAgPGNpcmNsZSBpZD0ibG9jay1rZXlob2xlLXRvcCIgY3g9IjEwMCIgY3k9IjExNCIgcj0iNSIKICAgICAgICAgICAgZmlsbD0idmFyKC0tbG9jay1rZXlob2xlLCAjRkZGRkZGKSIvPgogICAgPHBhdGggaWQ9ImxvY2sta2V5aG9sZS1zbG90IgogICAgICAgICAgZD0iTSA5NyAxMTYgTCAxMDMgMTE2IEwgMTAyIDEyOCBMIDk4IDEyOCBaIgogICAgICAgICAgZmlsbD0idmFyKC0tbG9jay1rZXlob2xlLCAjRkZGRkZGKSIvPgogIDwvZz4KPC9zdmc+Cg==",
+      "width_percentage": 40,
+      "visible": true
+    },
+    "spinner_color": "#0d796a",
+    "spinner_size_percentage": 80,
+    "spinner_visible": true,
+    "direction": "auto",
+    "loading_screen_title": {
+      "color": "#173449",
+      "background_color": "transparent",
+      "font_family": "Roboto-Bold, Roboto, Arial, sans-serif",
+      "font_size": "27px",
+      "font_weight": "bold",
+      "padding": "0 5px",
+      "border_radius": "5px"
+    },
+    "loading_screen_subtitle": {
+      "color": "#5b6e7b",
+      "background_color": "transparent",
+      "font_family": "Roboto-Regular, Roboto, Arial, sans-serif",
+      "font_size": "23px",
+      "font_weight": "normal",
+      "padding": "0 5px",
+      "border_radius": "5px"
+    },
+    "loading_screen_hint": {
+      "color": "#5b6e7b",
+      "background_color": "transparent",
+      "font_family": "Roboto-Regular, Roboto, Arial, sans-serif",
+      "font_size": "16px",
+      "font_weight": "normal",
+      "padding": "0 5px",
+      "border_radius": "5px"
+    }
+  },
+  "success_indicator": {
+    "checkmark_color": "#43e3a1"
+  }
+}

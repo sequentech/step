@@ -922,8 +922,10 @@ pub async fn insert_election_event_db(
 ///
 /// This function is a thin wrapper around `replace_realm_ids()` that processes the election event
 /// import schema and replaces most UUIDs with new ones, while keeping certain IDs unchanged
-/// (like tenant_id and optionally election_event_id). It also automatically preserves UUIDs
-/// referenced in Keycloak authenticator configurations.
+/// (like tenant_id and optionally election_event_id). `replace_realm_ids` keeps the UUIDs of a
+/// top-level `authenticatorConfig` only, which an import document does not have, so the realm's
+/// authenticator settings are remapped too; the Scanovate secret and endpoint are put back
+/// afterwards (`restore_remapped_integration_secrets`).
 ///
 /// # Arguments
 /// * `data_str` - The original JSON string representation of the import data
@@ -952,7 +954,7 @@ pub fn replace_ids(
     ));
 
     // Use replace_realm_ids which handles:
-    // - Preserving UUIDs in Keycloak authenticator configurations
+    // - Preserving UUIDs of a top-level authenticatorConfig (none in an import document)
     // - Preserving tenant_id and election_event_id in the keep list before UUID replacement
     // - Applying explicit tenant_id and election_event_id replacements after UUID replacement
     let (mut new_data, mut replacement_map) = replace_realm_ids(
@@ -1000,6 +1002,10 @@ pub fn replace_ids(
 
     // Parse the modified JSON string back into the structured format
     let mut data: ImportElectionEventSchema = deserialize_str(&new_data)?;
+    crate::services::export::integration_secrets::restore_remapped_integration_secrets(
+        original_data.keycloak_event_realm.as_ref(),
+        data.keycloak_event_realm.as_mut(),
+    );
     validate_import_scope(&data, &tenant_id, &election_event_id)?;
     if let (Some(original_ceremonies), Some(imported_ceremonies), Some(boards)) = (
         &original_data.keys_ceremonies,
@@ -1237,7 +1243,36 @@ pub async fn get_election_event_schema(
         .context(message)
     })?;
     check_bundle(&original_data)?;
+    reject_masked_integration_secrets(&original_data)?;
     replace_ids(data_str, &original_data, event_id, tenant_id.clone())
+}
+
+/// Refuses a bundle whose realm would install Keycloak's export placeholder
+/// as a Scanovate `liveness-secret`.
+///
+/// An export made without integration secrets carries `**********` in their
+/// place, and Keycloak stores an imported realm's authenticator settings as
+/// given. Nothing is stripped or taken from elsewhere: the operator exports
+/// the event again with integration secrets included. Names configurations,
+/// never values.
+fn reject_masked_integration_secrets(data: &ImportElectionEventSchema) -> Result<()> {
+    use crate::services::export::integration_secrets::{
+        masked_integration_secret_configs, SCANOVATE_LIVENESS_SECRET_KEY,
+    };
+    let Some(realm) = data.keycloak_event_realm.as_ref() else {
+        return Ok(());
+    };
+    let masked = masked_integration_secret_configs(realm);
+    if masked.is_empty() {
+        return Ok(());
+    }
+    Err(reject(
+        "election event file",
+        import_problems::masked_integration_secret(
+            &masked.join(", "),
+            SCANOVATE_LIVENESS_SECRET_KEY,
+        ),
+    ))
 }
 
 /// Run the shared validation, refusing the import if it found anything fatal.
@@ -1311,7 +1346,9 @@ pub async fn process_election_event_file(
         tenant_id.clone(),
     )
     .await
-    .map_err(|err| anyhow!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}: {err}"))?;
+    // Context, not a re-formatted message: a refusal's structured problems
+    // must survive to the task's annotations (`problems_of`).
+    .with_context(|| format!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}"))?;
 
     let election_ids: Vec<String> = data
         .elections
@@ -3096,6 +3133,62 @@ mod tests {
         assert!(!ids.is_empty());
     }
 
+    /// meta#14666: a bundle whose realm holds Keycloak's export placeholder as
+    /// the Scanovate secret is refused before anything is installed, naming
+    /// the configuration; the same bundle with a real secret gets through
+    /// with that secret unchanged.
+    #[tokio::test]
+    async fn a_masked_scanovate_secret_does_not_import() {
+        std::env::set_var(ENV_VAR_APP_VERSION, DEV_APP_VERSION);
+        // Synthetic values only.
+        let with_secret = |secret: &str| {
+            let mut bundle: serde_json::Value =
+                serde_json::from_str(&a_bundle_with_a_dangling_election())
+                    .expect("the fixture parses");
+            bundle["contests"][0]["election_id"] =
+                serde_json::json!("e1000000-0000-5000-8000-000000000000");
+            bundle["keycloak_event_realm"] = serde_json::json!({
+                "authenticationFlows": [{"authenticationExecutions": [
+                    {"authenticator": "scanovate-authenticator",
+                     "authenticatorConfig": "scanovate-registration"}]}],
+                "authenticatorConfig": [{"alias": "scanovate-registration", "config": {
+                    "liveness-url": "https://liveness.example.test/callback",
+                    "liveness-secret": secret}}]
+            });
+            bundle.to_string()
+        };
+
+        let error = get_election_event_schema(&with_secret("**********"), None, TENANT.to_string())
+            .await
+            .expect_err("a masked Scanovate secret must not be installed");
+        assert_eq!(
+            problem_id(&error).as_deref(),
+            Some("file.masked-integration-secret")
+        );
+        let problems = crate::services::import::rejection::problems_of(&error).unwrap();
+        assert_eq!(
+            problems[0].details.get("config").map(String::as_str),
+            Some("scanovate-registration")
+        );
+        assert_eq!(
+            problems[0].details.get("key").map(String::as_str),
+            Some("liveness-secret")
+        );
+        // The refusal names the configuration and setting, never a value.
+        let shown = format!("{error:#} {problems:?}");
+        assert!(!shown.contains("liveness.example.test"));
+
+        let secret = "synthetic-liveness-secret-imported";
+        let (schema, _) = get_election_event_schema(&with_secret(secret), None, TENANT.to_string())
+            .await
+            .expect("a real secret imports");
+        let realm = schema.keycloak_event_realm.expect("the realm travels");
+        assert_eq!(
+            realm["authenticatorConfig"][0]["config"]["liveness-secret"],
+            secret
+        );
+    }
+
     /// An export from before names moved into `presentation` keeps them.
     #[tokio::test]
     async fn an_old_export_keeps_its_names() {
@@ -3430,6 +3523,82 @@ mod import_scope_tests {
             tenant_id.to_string(),
         )
         .map(|(data, _)| data)
+    }
+
+    /// meta#14666: an authorized export carries the Scanovate secret, and
+    /// import must install it, with its endpoint, exactly as exported, even
+    /// when either is or contains a UUID the archive also uses as an id.
+    #[test]
+    fn an_exported_uuid_shaped_scanovate_secret_survives_id_remapping() {
+        // Synthetic values only.
+        let (source_tenant, source_event, config_id) = (new_id(), new_id(), new_id());
+        let uuid_secret = "5e0c7a1e-0000-4000-8000-00000000c0de";
+        let embedded_secret = "prefix-6f1d0000-0000-4000-8000-0000000000aa-suffix";
+        let endpoint = format!(
+            "https://liveness.example.test/t/{source_tenant}/e/{source_event}/c/{config_id}/{uuid_secret}"
+        );
+        let scanovate = |alias: &str, secret: &str| {
+            json!({"alias": alias, "config": {
+                "liveness-url": endpoint, "liveness-secret": secret}})
+        };
+        let mut input = bundle(&source_tenant, &source_event);
+        let mut configs = vec![
+            scanovate("uuid-secret", uuid_secret),
+            scanovate("tenant-id-secret", &source_tenant),
+            scanovate("event-id-secret", &source_event),
+            scanovate("config-id-secret", &config_id),
+            scanovate("embedded-uuid-secret", embedded_secret),
+            // Another authenticator's settings keep their remapping.
+            json!({"alias": "other", "config": {
+                "liveness-secret": uuid_secret, "unrelated-reference": uuid_secret}}),
+        ];
+        configs[0]["id"] = json!(config_id);
+        let executions: Vec<Value> = configs
+            .iter()
+            .map(|config| {
+                let alias = config["alias"].as_str().unwrap();
+                let authenticator = if alias == "other" {
+                    "conditional-user-attribute"
+                } else {
+                    "scanovate-authenticator"
+                };
+                json!({"authenticator": authenticator, "authenticatorConfig": alias})
+            })
+            .collect();
+        input["keycloak_event_realm"] = json!({
+            "authenticationFlows": [{"authenticationExecutions": executions}],
+            "authenticatorConfig": configs,
+            // The same UUIDs used as references elsewhere are still remapped.
+            "attributes": {"synthetic-reference": uuid_secret}
+        });
+        let target_tenant = new_id();
+        let imported = import(&input, None, &target_tenant).unwrap();
+
+        // The event's own ids are remapped as before.
+        assert_eq!(imported.tenant_id, target_tenant);
+        assert_ne!(imported.election_event.id, source_event);
+        let realm = imported.keycloak_event_realm.unwrap();
+        let configs = realm["authenticatorConfig"].as_array().unwrap();
+        assert_ne!(configs[0]["id"], config_id.as_str());
+        assert_ne!(realm["attributes"]["synthetic-reference"], uuid_secret);
+        assert_ne!(configs[5]["config"]["unrelated-reference"], uuid_secret);
+        assert_ne!(configs[5]["config"]["liveness-secret"], uuid_secret);
+        // The Scanovate settings arrive as exported.
+        let expected: [&str; 5] = [
+            uuid_secret,
+            &source_tenant,
+            &source_event,
+            &config_id,
+            embedded_secret,
+        ];
+        for (config, secret) in configs.iter().zip(expected) {
+            assert_eq!(
+                config["config"]["liveness-secret"], secret,
+                "{}",
+                config["alias"]
+            );
+            assert_eq!(config["config"]["liveness-url"], endpoint.as_str());
+        }
     }
 
     #[test]

@@ -198,6 +198,97 @@ pub fn embed_integration_secrets(
     Ok(())
 }
 
+/// The aliases of the configurations a Scanovate execution uses whose
+/// `liveness-secret` is Keycloak's export placeholder, `**********`, rather
+/// than a secret.
+///
+/// Keycloak stores an imported realm's authenticator settings as given, so
+/// importing such a configuration would install the placeholder as the
+/// credential: Liveness Plus callbacks would then fail while Keycloak's
+/// console, which masks the setting either way, looks the same. An import
+/// refuses these instead (see `reject_masked_integration_secrets`). Only the
+/// exact placeholder counts; no value is read beyond comparing with it.
+pub fn masked_integration_secret_configs(realm: &Value) -> Vec<String> {
+    let providers = config_providers(realm);
+    let configs = realm.get("authenticatorConfig").and_then(Value::as_array);
+    configs
+        .into_iter()
+        .flatten()
+        .filter_map(|config| {
+            let alias = config.get("alias")?.as_str()?;
+            if !providers
+                .get(alias)?
+                .contains(SCANOVATE_AUTHENTICATOR_PROVIDER)
+            {
+                return None;
+            }
+            let secret = config.get("config")?.get(SCANOVATE_LIVENESS_SECRET_KEY)?;
+            (secret.as_str() == Some(KEYCLOAK_MASKED_SECRET)).then(|| alias.to_string())
+        })
+        .collect()
+}
+
+/// Puts each `liveness-secret`, and the `liveness-url` it belongs to, of the
+/// archive's realm back after import has remapped the archive's UUIDs.
+///
+/// Import gives every UUID-shaped text in the archive a fresh UUID, so that
+/// rows and references do not collide with the source event's. The Scanovate
+/// secret and endpoint are neither: they are issued by the Liveness Plus
+/// service, and one that is, or contains, a UUID (even the source tenant's,
+/// event's or configuration's) must reach Keycloak exactly as exported, or
+/// the destination holds a credential or endpoint Scanovate never issued.
+/// Only these two settings of the configurations only Scanovate executions use
+/// are restored, together, in the configuration they came from; every other
+/// setting, and the same UUID elsewhere in the archive, is still remapped.
+/// The caller passes the same document before and after remapping, which
+/// rewrites text inside strings and keeps every array's order, so the
+/// configurations pair up by position; the length check is only a guard.
+pub fn restore_remapped_integration_secrets(
+    original: Option<&Value>,
+    remapped: Option<&mut Value>,
+) {
+    let Some(original) = original else {
+        return;
+    };
+    let providers = config_providers(original);
+    let originals = original
+        .get("authenticatorConfig")
+        .and_then(Value::as_array);
+    let remapped = remapped
+        .and_then(|realm| realm.get_mut("authenticatorConfig"))
+        .and_then(Value::as_array_mut);
+    let (Some(originals), Some(remapped)) = (originals, remapped) else {
+        return;
+    };
+    if originals.len() != remapped.len() {
+        return;
+    }
+    for (original, remapped) in originals.iter().zip(remapped.iter_mut()) {
+        // As on export: only configurations no other authenticator uses.
+        let scanovate_only = original
+            .get("alias")
+            .and_then(Value::as_str)
+            .and_then(|alias| providers.get(alias))
+            .is_some_and(|used_by| {
+                used_by.len() == 1 && used_by.contains(SCANOVATE_AUTHENTICATOR_PROVIDER)
+            });
+        if !scanovate_only {
+            continue;
+        }
+        let (Some(original), Some(settings)) = (
+            original.get("config").and_then(Value::as_object),
+            remapped.get_mut("config").and_then(Value::as_object_mut),
+        ) else {
+            continue;
+        };
+        for key in [SCANOVATE_LIVENESS_SECRET_KEY, SCANOVATE_LIVENESS_URL_KEY] {
+            if let Some(value @ Value::String(_)) = original.get(key) {
+                settings.insert(key.to_string(), value.clone());
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -346,5 +437,88 @@ mod tests {
         let row = stored(SECRET);
         assert!(!format!("{row:?}").contains(SECRET));
         assert!(!format!("{:#?}", row.value).contains(SECRET));
+    }
+
+    #[test]
+    fn restoring_secrets_needs_the_same_configurations() {
+        let flows = json!([{"authenticationExecutions": [
+            {"authenticator": SCANOVATE_AUTHENTICATOR_PROVIDER, "authenticatorConfig": ALIAS},
+            {"authenticator": "conditional-user-attribute", "authenticatorConfig": "other"}]}]);
+        let original = json!({"authenticationFlows": flows, "authenticatorConfig": [
+            {"alias": ALIAS, "config": {"liveness-secret": SECRET, "liveness-url": ENDPOINT,
+                        "max-attempts": "original"}},
+            {"alias": "other", "config": {"liveness-secret": SECRET}}]});
+        let remapped_secret = json!({"authenticationFlows": flows, "authenticatorConfig": [
+            {"alias": ALIAS, "config": {"liveness-secret": "remapped", "liveness-url": "remapped",
+                        "max-attempts": "remapped"}},
+            {"alias": "other", "config": {"liveness-secret": "remapped"}}]});
+
+        let mut restored = remapped_secret.clone();
+        restore_remapped_integration_secrets(Some(&original), Some(&mut restored));
+        let settings = &restored["authenticatorConfig"][0]["config"];
+        assert_eq!(settings["liveness-secret"], SECRET);
+        assert_eq!(settings["liveness-url"], ENDPOINT);
+        // Every other setting, and other authenticators' settings, keep
+        // their remapping.
+        assert_eq!(settings["max-attempts"], "remapped");
+        assert_eq!(
+            restored["authenticatorConfig"][1]["config"]["liveness-secret"],
+            "remapped"
+        );
+
+        // Configurations out of step, or no realm: nothing is restored.
+        let mut extra = json!({"authenticationFlows": flows, "authenticatorConfig": [
+            {"alias": ALIAS, "config": {"liveness-secret": "remapped"}},
+            {"config": {}}, {"config": {}}]});
+        restore_remapped_integration_secrets(Some(&original), Some(&mut extra));
+        assert_eq!(
+            extra["authenticatorConfig"][0]["config"]["liveness-secret"],
+            "remapped"
+        );
+        let mut untouched = remapped_secret.clone();
+        restore_remapped_integration_secrets(None, Some(&mut untouched));
+        assert_eq!(untouched, remapped_secret);
+        restore_remapped_integration_secrets(Some(&original), None);
+    }
+
+    #[test]
+    fn only_a_scanovate_placeholder_secret_is_reported() {
+        let configs = |secret: &str, other: &str| {
+            json!({
+                "authenticationFlows": [{"authenticationExecutions": [
+                    {"authenticator": SCANOVATE_AUTHENTICATOR_PROVIDER,
+                     "authenticatorConfig": ALIAS},
+                    {"authenticator": "conditional-user-attribute",
+                     "authenticatorConfig": "other"}
+                ]}],
+                "authenticatorConfig": [
+                    {"alias": ALIAS, "config": {
+                        "liveness-url": ENDPOINT, "liveness-secret": secret}},
+                    {"alias": "other", "config": {"liveness-secret": other}},
+                    // Unused by any execution: not installed as a Scanovate secret.
+                    {"alias": "unused", "config": {
+                        "liveness-secret": KEYCLOAK_MASKED_SECRET}}
+                ]
+            })
+        };
+        assert_eq!(
+            masked_integration_secret_configs(&configs(KEYCLOAK_MASKED_SECRET, SECRET)),
+            vec![ALIAS.to_string()]
+        );
+        // A real secret, or a placeholder in another authenticator's settings,
+        // is not one.
+        assert!(
+            masked_integration_secret_configs(&configs(SECRET, KEYCLOAK_MASKED_SECRET)).is_empty()
+        );
+        assert!(masked_integration_secret_configs(&json!({})).is_empty());
+        // A configuration Scanovate shares with another authenticator still
+        // installs the placeholder as Scanovate's secret: reported too.
+        let mut shared = configs(KEYCLOAK_MASKED_SECRET, SECRET);
+        shared["authenticationFlows"][0]["authenticationExecutions"][1]["authenticatorConfig"] =
+            json!(ALIAS);
+        assert_eq!(
+            masked_integration_secret_configs(&shared),
+            vec![ALIAS.to_string()]
+        );
     }
 }

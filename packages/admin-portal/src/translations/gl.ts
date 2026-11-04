@@ -4110,7 +4110,7 @@ const galegoTranslation: TranslationType = {
                 differs: "Distinto",
                 compareNote: "Nos nomes non se teñen en conta maiúsculas, acentos nin guións.",
                 compareJoint:
-                    "Para permisos de conducir e libretas de mariño, o nome e o segundo nome compáranse xuntos.",
+                    "Para permisos de conducir, libretas de mariño e pasaportes lidos polo escáner, o nome e o segundo nome compáranse xuntos.",
                 applicationId: "ID da solicitude",
                 copy: "Copiar",
                 copied: "Copiado",

@@ -596,6 +596,10 @@ const englishTranslation = {
                         lead: "File missing",
                         text: "File missing — '{{file}}' is named and nothing here holds it. An empty archive entry fails the import rather than losing a file.",
                     },
+                    "masked-integration-secret": {
+                        lead: "Masked integration secret",
+                        text: "Masked integration secret — the Scanovate configuration '{{config}}' holds Keycloak's placeholder (**********) instead of its liveness secret, so importing it would install the placeholder. Export the event again with integration secrets included; a configuration Scanovate shares with another authenticator needs its own first.",
+                    },
                     "not-a-bundle": {
                         lead: "Not an election event export",
                         text: "Not an election event export — the file was read but does not have the shape of one: {{reason}}",
