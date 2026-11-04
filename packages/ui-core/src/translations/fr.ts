@@ -599,6 +599,10 @@ const frenchTranslation: TranslationType = {
                         lead: "Fichier manquant",
                         text: "Fichier manquant — '{{file}}' est nommé et rien ici ne le contient. Une entrée d'archive vide fait échouer l'importation plutôt que de perdre un fichier.",
                     },
+                    "masked-integration-secret": {
+                        lead: "Secret d'intégration masqué",
+                        text: "Secret d'intégration masqué — la configuration Scanovate « {{config}} » contient l'espace réservé de Keycloak (**********) au lieu de son secret de liveness ; l'importer installerait cet espace réservé. Exportez de nouveau l'événement en incluant les secrets d'intégration ; une configuration que Scanovate partage avec un autre authentificateur doit d'abord avoir la sienne.",
+                    },
                     "not-a-bundle": {
                         lead: "Pas un export d'événement électoral",
                         text: "Pas un export d'événement électoral — le fichier a été lu mais n'en a pas la structure : {{reason}}",

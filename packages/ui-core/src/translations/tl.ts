@@ -595,6 +595,10 @@ const tagalogTranslation: TranslationType = {
                         lead: "Nawawala ang file",
                         text: "Nawawala ang file — binanggit ang '{{file}}' at walang anumang narito na naglalaman nito. Pinapabigo ng walang lamang entry sa archive ang import sa halip na mawalan ng file.",
                     },
+                    "masked-integration-secret": {
+                        lead: "Naka-mask na integration secret",
+                        text: "Naka-mask na integration secret — ang Scanovate configuration na '{{config}}' ay may placeholder ng Keycloak (**********) sa halip na ang liveness secret nito, kaya ang pag-import nito ay mag-i-install ng placeholder. I-export muli ang event nang kasama ang integration secrets; ang configuration na ibinabahagi ng Scanovate sa ibang authenticator ay kailangan munang magkaroon ng sarili.",
+                    },
                     "not-a-bundle": {
                         lead: "Hindi export ng election event",
                         text: "Hindi export ng election event — nabasa ang file pero wala itong hugis ng isang export: {{reason}}",
