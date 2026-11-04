@@ -21,7 +21,7 @@
 //! and points at cells — parsing `sheet 'Voters' row 12 column 'email'` back apart
 //! is what it exists to prevent.
 
-use crate::election_config::paths::{coerce_cell, expand, Cell};
+use crate::election_config::paths::{coerce_cell, expand, split_path, Cell};
 use crate::election_config::problem::{Code, Problem};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -237,15 +237,45 @@ impl Row {
     }
 
     /// The row as a nested object, ready to deep-merge onto a template.
+    ///
+    /// An `annotations.<key>` cell arrives as text whatever it looks like: the
+    /// platform reads annotations as `string: string`, and a `true`, a `3` or a
+    /// bracketed list coerced into JSON would make the whole map unreadable.
     pub fn overrides(
         &self,
         exclude: &[&str],
     ) -> Result<Map<String, Value>, Problem> {
-        expand(&self.without(exclude)).map_err(|problem| Problem {
+        let fields: Vec<(String, Value)> = self
+            .without(exclude)
+            .into_iter()
+            .map(|(header, value)| {
+                let value = if is_annotation_column(&header) {
+                    annotation_text(value)
+                } else {
+                    value
+                };
+                (header, value)
+            })
+            .collect();
+        expand(&fields).map_err(|problem| Problem {
             // Re-point at the cell: `expand` only knows the header.
             path: self.origin(Some(problem.path.as_str())).to_string(),
             ..problem
         })
+    }
+}
+
+/// `annotations.<key>`: one annotation, as opposed to the whole object.
+fn is_annotation_column(header: &str) -> bool {
+    let path = split_path(header);
+    path.len() == 2 && path[0] == "annotations"
+}
+
+/// An annotation's value as the text the platform stores.
+fn annotation_text(value: Value) -> Value {
+    match value {
+        Value::Null | Value::String(_) => value,
+        other => Value::String(other.to_string()),
     }
 }
 
@@ -863,6 +893,45 @@ mod tests {
             json!({
                 "presentation": {"i18n": {"en": {"name": "President"}}},
                 "max_votes": 3,
+            })
+        );
+    }
+
+    #[test]
+    fn annotation_cells_stay_text_whatever_they_look_like() {
+        // `Annotations` is `string: string`; one boolean and none of it reads.
+        let sheet = Sheet::from_grid(
+            "ElectionEvent",
+            &grid(vec![
+                vec![
+                    text("annotations.miru:use-root-ca"),
+                    text("annotations.miru:sbei-users"),
+                    text("annotations.code"),
+                    text("annotations.note"),
+                    text("presentation.flag"),
+                ],
+                vec![
+                    text("true"),
+                    text(r#"[{"username":"a"}]"#),
+                    Cell::Float(7.0),
+                    text("plain"),
+                    text("true"),
+                ],
+            ]),
+        )
+        .unwrap();
+
+        let overrides = sheet.rows[0].overrides(&[]).unwrap();
+        assert_eq!(
+            Value::Object(overrides),
+            json!({
+                "annotations": {
+                    "miru:use-root-ca": "true",
+                    "miru:sbei-users": r#"[{"username":"a"}]"#,
+                    "code": "7",
+                    "note": "plain",
+                },
+                "presentation": {"flag": true},
             })
         );
     }
