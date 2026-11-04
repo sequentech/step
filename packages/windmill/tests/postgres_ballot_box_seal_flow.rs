@@ -36,8 +36,9 @@ use electoral_log::{Filter, LogEntry, LogQuery, SqlCompOperators, TextColumn};
 use event_database::{EventDatabase, Vote};
 use sequent_core::ballot::BallotBoxSealRecordPolicy;
 use sequent_core::ballot::{
-    EGracePeriodPolicy, ElectionEventStatus, ElectionPresentation, ElectionStatus,
-    SignedHashableBallot, VotingPeriodEnd, VotingStatus, VotingStatusChannel, TYPES_VERSION,
+    DelegatedVotingPolicy, EGracePeriodPolicy, ElectionEventPresentation, ElectionEventStatus,
+    ElectionPresentation, ElectionStatus, SignedHashableBallot, VotingPeriodEnd, VotingStatus,
+    VotingStatusChannel, WeightedVotingPolicy, TYPES_VERSION,
 };
 use serde_json::{json, Value};
 use std::collections::{BTreeSet, HashSet};
@@ -59,8 +60,8 @@ use windmill::services::ballot_box_seal::seal::{
 };
 use windmill::services::ballot_box_seal::sink::{closing_ballot_boxes, PendingSealSink};
 use windmill::services::ballot_box_seal::{
-    is_ballot_box_sealed, on_close, Census, CloseProvenance, ProductionSealEnvironment,
-    SealEnvironment,
+    error_category, is_ballot_box_sealed, multiplicity_column, on_close, published_ballot_styles,
+    Census, CloseProvenance, ProductionSealEnvironment, SealEnvironment, SealErrorCategory,
 };
 use windmill::services::election_event_status::{
     scheduled_change_applies, update_event_voting_status, update_scheduled_event_voting_status,
@@ -74,6 +75,7 @@ use windmill::services::signing::actions::voting::{
     ClosingSignature, PostCloser, SealRecord as CloseRecord, StatusCloser,
 };
 use windmill::services::signing::actions::SealRecordSink;
+use windmill::services::users::VoterMultiplicityColumn;
 use windmill::services::voting_status::update_election_status;
 
 const ADMIN: &str = "admin";
@@ -3367,5 +3369,159 @@ fn a_status_change_does_not_wait_for_the_signing_lock() {
         tx.commit().await.unwrap();
         drop(held);
         w.finish().await;
+    })
+}
+
+/// What the seal's ballot style reader returns for the world's election, as
+/// (election id, area id).
+async fn published_style_boxes(w: &World) -> Vec<(String, String)> {
+    let mut client = w.client().await;
+    let tx = client.transaction().await.unwrap();
+    published_ballot_styles(
+        &tx,
+        &w.tenant.to_string(),
+        &w.event.to_string(),
+        &[w.election().to_string()],
+    )
+    .await
+    .unwrap()
+    .into_iter()
+    .map(|style| (style.election_id, style.area_id))
+    .collect()
+}
+
+/// The seal reads the styles of a generated and published publication only:
+/// generating it isn't enough, and retiring it takes its styles away.
+#[test]
+fn the_seal_reads_only_the_styles_of_a_live_published_publication() {
+    event_database::run(async {
+        let w = world(Options::default()).await;
+        let publication = Uuid::new_v4();
+        bypass(
+            &w,
+            "INSERT INTO sequent_backend.ballot_publication
+                 (id, tenant_id, election_event_id, is_generated)
+             VALUES ($1, $2, $3, true)",
+            &[&publication, &w.tenant, &w.event],
+        )
+        .await;
+        let style = Uuid::new_v4();
+        let ballot_eml = json!({
+            "id": style.to_string(),
+            "tenant_id": w.tenant.to_string(),
+            "election_event_id": w.event.to_string(),
+            "election_id": w.election().to_string(),
+            "area_id": w.areas[1].to_string(),
+            "contests": [],
+        })
+        .to_string();
+        bypass(
+            &w,
+            "INSERT INTO sequent_backend.ballot_style
+                 (id, tenant_id, election_event_id, election_id, area_id, ballot_eml,
+                  ballot_publication_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            &[
+                &style,
+                &w.tenant,
+                &w.event,
+                &w.election(),
+                &w.areas[1],
+                &ballot_eml,
+                &publication,
+            ],
+        )
+        .await;
+        assert!(
+            published_style_boxes(&w).await.is_empty(),
+            "a generated publication supplies no style before it is published"
+        );
+
+        bypass(
+            &w,
+            "UPDATE sequent_backend.ballot_publication SET published_at = now()
+             WHERE tenant_id = $1 AND id = $2",
+            &[&w.tenant, &publication],
+        )
+        .await;
+        assert_eq!(
+            published_style_boxes(&w).await,
+            vec![(w.election().to_string(), w.areas[1].to_string())]
+        );
+
+        bypass(
+            &w,
+            "UPDATE sequent_backend.ballot_publication SET deleted_at = now()
+             WHERE tenant_id = $1 AND id = $2",
+            &[&w.tenant, &publication],
+        )
+        .await;
+        assert!(
+            published_style_boxes(&w).await.is_empty(),
+            "a retired publication supplies no style"
+        );
+        w.finish().await;
+    })
+}
+
+/// The census's multiplicity column follows the event's voting policy. With
+/// both policies on, delegated voting decides.
+#[test]
+fn the_census_column_follows_the_event_voting_policy() {
+    let column = |delegated, weighted| {
+        multiplicity_column(&ElectionEventPresentation {
+            delegated_voting_policy: delegated,
+            weighted_voting_policy: weighted,
+            ..Default::default()
+        })
+    };
+    let enabled = Some(DelegatedVotingPolicy::ENABLED);
+    let by_voter = Some(WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING);
+
+    assert_eq!(column(None, None), VoterMultiplicityColumn::None);
+    assert_eq!(
+        column(
+            Some(DelegatedVotingPolicy::DISABLED),
+            Some(WeightedVotingPolicy::AREAS_WEIGHTED_VOTING)
+        ),
+        VoterMultiplicityColumn::None
+    );
+    assert_eq!(
+        column(enabled.clone(), None),
+        VoterMultiplicityColumn::DelegateCount
+    );
+    assert_eq!(
+        column(None, by_voter.clone()),
+        VoterMultiplicityColumn::VoteWeight
+    );
+    assert_eq!(
+        column(enabled, by_voter),
+        VoterMultiplicityColumn::DelegateCount
+    );
+}
+
+/// A sealer error's category is its tag, else `database` for a database
+/// error anywhere in its chain, else `other`.
+#[test]
+fn a_sealer_error_is_categorised_by_its_tag_then_its_cause() {
+    assert_eq!(
+        error_category(&anyhow::anyhow!("failed").context(SealErrorCategory::Census)),
+        SealErrorCategory::Census
+    );
+    assert_eq!(
+        error_category(&anyhow::anyhow!("failed")),
+        SealErrorCategory::Other
+    );
+    event_database::run(async {
+        let pool = schema::pool().await;
+        let client = pool.get().await.unwrap();
+        let cause = client
+            .batch_execute("SELECT * FROM sequent_backend.no_such_table")
+            .await
+            .unwrap_err();
+        assert_eq!(
+            error_category(&anyhow::Error::new(cause).context("Reading the box")),
+            SealErrorCategory::Database
+        );
     })
 }

@@ -537,7 +537,7 @@ pub fn census_from_csv(
 }
 
 /// The event's published ballot styles of the given elections: the styles
-/// of a generated or published ballot publication (what the tally reads).
+/// of a generated and published ballot publication (what the tally reads).
 pub async fn published_ballot_styles(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
