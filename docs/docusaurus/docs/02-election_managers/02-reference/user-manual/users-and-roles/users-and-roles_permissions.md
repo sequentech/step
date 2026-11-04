@@ -246,3 +246,5 @@ keys.
 | Create a role | `role-create` |
 | Generate the ballot-images report | `report-generate` |
 | Export activity logs | `logs-export` |
+
+The portal sends role creation with its default role, so using it there also needs `admin-user`.
