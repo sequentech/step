@@ -93,7 +93,8 @@ beforeEach(() => {
 
 test("the integration-secrets option is offered only with integration-secret-read", () => {
     renderDrawer()
-    expect(screen.getByRole("checkbox", {name: SECRETS})).not.toBeChecked()
+    expect(screen.getByRole("checkbox", {name: SECRETS})).toBeChecked()
+    expect(screen.getByRole("checkbox", {name: ENCRYPT})).toBeChecked()
     expect(mockAuthorized).toHaveBeenCalledWith(
         true,
         "tenant-1",
@@ -114,10 +115,8 @@ test("without the permission or a tenant the option is withheld", () => {
     expect(screen.queryByRole("checkbox", {name: SECRETS})).toBeNull()
 })
 
-test("choosing integration secrets forces password encryption and warns", () => {
+test("the default includes integration secrets, password encryption and the warning", () => {
     renderDrawer()
-    expect(screen.queryByText(NOTE)).toBeNull()
-    fireEvent.click(screen.getByRole("checkbox", {name: SECRETS}))
     expect(screen.getByRole("checkbox", {name: SECRETS})).toBeChecked()
     expect(screen.getByRole("checkbox", {name: ENCRYPT})).toBeChecked()
     expect(screen.getByText(NOTE)).toBeInTheDocument()
@@ -125,7 +124,6 @@ test("choosing integration secrets forces password encryption and warns", () => 
 
 test("dropping encryption drops the integration secrets with it", () => {
     renderDrawer()
-    fireEvent.click(screen.getByRole("checkbox", {name: SECRETS}))
     fireEvent.click(screen.getByRole("checkbox", {name: ENCRYPT}))
     expect(screen.getByRole("checkbox", {name: ENCRYPT})).not.toBeChecked()
     expect(screen.getByRole("checkbox", {name: SECRETS})).not.toBeChecked()
@@ -137,9 +135,8 @@ test("dropping encryption drops the integration secrets with it", () => {
     expect(screen.getByRole("checkbox", {name: ENCRYPT})).toBeChecked()
 })
 
-test("an export with integration secrets requests them encrypted", async () => {
+test("exporting without changing options requests real integration secrets encrypted", async () => {
     renderDrawer()
-    fireEvent.click(screen.getByRole("checkbox", {name: SECRETS}))
     fireEvent.click(screen.getByRole("button", {name: "export"}))
     await waitFor(() => expect(mockExport).toHaveBeenCalledTimes(1))
     expect(sentOptions()).toMatchObject({
@@ -152,8 +149,7 @@ test("an export with integration secrets requests them encrypted", async () => {
 
 test("an ordinary export never asks for integration secrets", async () => {
     renderDrawer()
-    // Chosen, then unchosen: the request is the ordinary one.
-    fireEvent.click(screen.getByRole("checkbox", {name: SECRETS}))
+    // Explicitly omit secrets and password encryption.
     fireEvent.click(screen.getByRole("checkbox", {name: SECRETS}))
     fireEvent.click(screen.getByRole("checkbox", {name: ENCRYPT}))
     fireEvent.click(screen.getByRole("button", {name: "export"}))
@@ -163,4 +159,62 @@ test("an ordinary export never asks for integration secrets", async () => {
         encrypt_with_password: false,
         include_integration_secrets: false,
     })
+})
+
+test("an operator without permission sends no integration secret request", async () => {
+    mockAuthorized.mockReturnValue(false)
+    renderDrawer()
+    fireEvent.click(screen.getByRole("button", {name: "export"}))
+    await waitFor(() => expect(mockExport).toHaveBeenCalledTimes(1))
+    expect(sentOptions()).toMatchObject({
+        is_encrypted: false,
+        encrypt_with_password: false,
+        include_integration_secrets: false,
+    })
+})
+
+test("reopening the drawer restores the complete export defaults after opting out", () => {
+    const props = {
+        electionEventId: "event-1",
+        openExport: true,
+        setOpenExport: jest.fn(),
+        setLoadingExport: jest.fn(),
+    }
+    const {rerender} = render(<ExportElectionEventDrawer {...props} />)
+    fireEvent.click(screen.getByRole("checkbox", {name: ENCRYPT}))
+    rerender(<ExportElectionEventDrawer {...props} openExport={false} />)
+    rerender(<ExportElectionEventDrawer {...props} />)
+    expect(screen.getByRole("checkbox", {name: SECRETS})).toBeChecked()
+    expect(screen.getByRole("checkbox", {name: ENCRYPT})).toBeChecked()
+})
+
+test("permission arriving after mount initializes the authorized export defaults", () => {
+    mockAuthorized.mockReturnValue(false)
+    const props = {
+        electionEventId: "event-1",
+        openExport: true,
+        setOpenExport: jest.fn(),
+        setLoadingExport: jest.fn(),
+    }
+    const {rerender} = render(<ExportElectionEventDrawer {...props} />)
+    mockAuthorized.mockReturnValue(true)
+    rerender(<ExportElectionEventDrawer {...props} />)
+    expect(screen.getByRole("checkbox", {name: SECRETS})).toBeChecked()
+    expect(screen.getByRole("checkbox", {name: ENCRYPT})).toBeChecked()
+})
+
+test("losing secret-read permission clears the request before export", async () => {
+    const props = {
+        electionEventId: "event-1",
+        openExport: true,
+        setOpenExport: jest.fn(),
+        setLoadingExport: jest.fn(),
+    }
+    const {rerender} = render(<ExportElectionEventDrawer {...props} />)
+    mockAuthorized.mockReturnValue(false)
+    rerender(<ExportElectionEventDrawer {...props} />)
+    expect(screen.queryByRole("checkbox", {name: SECRETS})).toBeNull()
+    fireEvent.click(screen.getByRole("button", {name: "export"}))
+    await waitFor(() => expect(mockExport).toHaveBeenCalledTimes(1))
+    expect(sentOptions().include_integration_secrets).toBe(false)
 })

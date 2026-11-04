@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {Typography} from "@mui/material"
 import {ExportElectionEventMutation} from "@/gql/graphql"
 import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
@@ -58,6 +58,15 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     // The server checks it again; the option is only offered to those who hold it.
     const canExportIntegrationSecrets =
         !!tenantId && auth.isAuthorized(true, tenantId, IPermissions.INTEGRATION_SECRET_READ)
+
+    useEffect(() => {
+        if (openExport) {
+            // An authorized default export must be importable: Keycloak's
+            // masked credential cannot be installed in the destination realm.
+            setIntegrationSecrets(canExportIntegrationSecrets)
+            setEncryptWithPassword(canExportIntegrationSecrets)
+        }
+    }, [openExport, electionEventId, canExportIntegrationSecrets])
 
     const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
         context: {

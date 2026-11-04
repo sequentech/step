@@ -25,7 +25,7 @@ An election-event archive includes decrypted secret voter fields only when all o
 2. **Encrypt with Password** is checked, so the resulting archive is password protected.
 3. The user starting the export has the `voter-secret-attribute-read` permission.
 
-The **Encrypt with Password** checkbox must be selected explicitly. Choosing another export option that requires archive encryption (such as reports, applications, or bulletin-board data) does not opt in to exporting voter secrets.
+The **Encrypt with Password** checkbox must be selected (it is selected by default for users who can export integration secrets). Choosing another export option that requires archive encryption (such as reports, applications, or bulletin-board data) does not opt in to exporting voter secrets.
 
 If the user does not have that permission, the election-event export still includes the ordinary voter fields but omits all secret fields. Archives that contain decrypted voter secrets are marked as sensitive, so downloading them also requires the secret-read permission.
 
@@ -42,10 +42,15 @@ Keycloak masks the secret settings of authenticators, so an ordinary
 election-event archive carries a placeholder (`**********`) instead of the
 Scanovate authenticator's `liveness-secret`.
 
-To carry the real secret, select **Integration secrets (service credentials)**
-in the export dialog. The option is shown only to users with the
-`integration-secret-read` permission and always encrypts the archive with a
-password. The server checks the permission again, reads the secret from
+For users with `integration-secret-read`, the export dialog selects
+**Integration secrets (service credentials)** and **Encrypt with Password** by
+default, so exporting and importing the event preserves its real credential.
+These defaults are restored each time the dialog opens. The integration-secret
+option is shown only to users with that permission. Operators can explicitly
+uncheck it; unchecking password encryption also unchecks integration secrets.
+An archive containing the Scanovate placeholder cannot be imported: export it
+again with integration secrets included. The server checks the permission again,
+reads the secret from
 Keycloak's own storage together with the configuration's `liveness-url`, and
 refuses the export if a Scanovate configuration has no usable secret or changed
 while it was exported. Only the Scanovate `liveness-secret` travels; other
