@@ -34,3 +34,6 @@ keys.
 | Create a role | `role-create` |
 | Generate the ballot-images or vote-receipts report | `report-generate` |
 | Export activity logs | `logs-export` |
+
+The portal sends role creation and the votes-by-IP lists with its default role, so using them there
+also needs `admin-user`.
