@@ -924,6 +924,7 @@ pub fn compile_plan_js(
             return to_js(&Output::refused(report)).map(IBuildOutput::from)
         }
     };
+    let record = historical_record_from(&options)?;
     let options = build_options(options)?;
 
     let templates = match TemplateSet::builtin() {
@@ -963,6 +964,11 @@ pub fn compile_plan_js(
             return to_js(&Output::refused(Report::from_problem(problem)))
                 .map(IBuildOutput::from);
         }
+    }
+    if let Some(record) = &record {
+        delivered.auxiliary.push(
+            crate::election_config::tenant_package::historical_record(record),
+        );
     }
 
     to_js(&Output {
@@ -1015,6 +1021,28 @@ fn tenant_package_from(
         .as_ref()
         .map(crate::election_config::tenant_package::read)
         .transpose())
+}
+
+/// `options.historicalRecord`: the summary `openFromHistorical` returned for
+/// the event this plan was opened from, recorded in the delivery as the
+/// review's download records it.
+#[cfg(feature = "election_config_archive")]
+fn historical_record_from(
+    options: &JsValue,
+) -> Result<Option<serde_json::Value>, JsError> {
+    #[derive(serde::Deserialize, Default)]
+    #[serde(default, rename_all = "camelCase")]
+    struct Carrying {
+        historical_record: Option<serde_json::Value>,
+    }
+    if !options.is_object() {
+        return Ok(None);
+    }
+    let carrying: Carrying = serde_wasm_bindgen::from_value(options.clone())
+        .map_err(|error| JsError::new(&format!("bad options: {error}")))?;
+    Ok(carrying
+        .historical_record
+        .filter(|record| !record.is_null()))
 }
 
 /// The ballots this plan's voters would be given.
@@ -1491,6 +1519,8 @@ pub struct OpenedConfiguration {
     report: Report,
     source: Option<crate::election_config::open::Source>,
     sources: Option<sources::Sources>,
+    /// A historical conversion's summary, the delivery's record of it.
+    record: Option<serde_json::Value>,
 }
 
 #[cfg(all(
@@ -1515,6 +1545,15 @@ impl OpenedConfiguration {
     #[wasm_bindgen(js_name = source)]
     pub fn source(&self) -> Result<JsValue, JsError> {
         to_js(&self.source)
+    }
+
+    /// A historical conversion's summary (source digests, counts and
+    /// decisions), or `undefined`. `compilePlan` takes it back as
+    /// `historicalRecord`, so the wizard's delivery keeps the record the
+    /// review's download carries.
+    #[wasm_bindgen(js_name = record)]
+    pub fn record(&self) -> Result<JsValue, JsError> {
+        to_js(&self.record)
     }
 
     /// The census that travelled with it, if one did.
@@ -1580,12 +1619,14 @@ pub fn open_file(
                 report: opened.report,
                 source: Some(opened.source),
                 sources: Some(opened.sources),
+                record: None,
             },
             Err(report) => OpenedConfiguration {
                 plan: None,
                 report,
                 source: None,
                 sources: None,
+                record: None,
             },
         },
     )
@@ -1617,6 +1658,7 @@ pub fn open_from_historical(
         report,
         source: None,
         sources: None,
+        record: None,
     };
     let adapted = match adapt(sql, workbook, &decisions) {
         Ok(adapted) => adapted,
@@ -1633,6 +1675,9 @@ pub fn open_from_historical(
         report: read.report,
         source: Some(crate::election_config::open::Source::Workbook),
         sources: Some(read.sources),
+        record: Some(serde_json::to_value(&adapted.summary).map_err(|_| {
+            JsError::new("cannot record the conversion summary")
+        })?),
     })
 }
 
