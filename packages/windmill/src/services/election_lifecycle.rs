@@ -574,7 +574,11 @@ pub async fn after_status_change(
                 "An unrecoverable election cannot resume"
             );
             tx.execute("UPDATE sequent_backend.election_lifecycle SET phase='execution',safety='operational',reason=NULL WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid", &[&tenant,&event]).await?;
-            if current.safety != SafetyState::Operational {
+            // A new election event starts in the recovery state with no failure
+            // behind it, so its first opening leaves no maintenance mode.
+            let first_opening =
+                current.phase == ElectoralPhase::Preparation && current.generation == 0;
+            if current.safety != SafetyState::Operational && !first_opening {
                 notice(
                     tx,
                     tenant,
