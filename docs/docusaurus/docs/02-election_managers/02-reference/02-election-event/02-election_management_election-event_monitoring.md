@@ -267,10 +267,9 @@ show **Counting this selection** until the next pass has counted it.
 
 Users who may configure monitoring see **Edit dashboard** in the header and
 **Configure widget** and **Duplicate** in each widget's menu. Configuring
-needs all of:
+needs both of:
 
 - the `monitoring-configure` permission;
-- the `election-event-write` permission;
 - an election event that is not locked down. Once the event's **Lockdown
   Status** is enabled, its monitoring configuration can no longer change.
 
@@ -378,7 +377,7 @@ changed this way, because they decide who is counted.
 |---|---|
 | `admin-dashboard-view` | The event's Dashboard tab, standard or monitoring. |
 | `monitoring-view` | See the monitoring dashboards, view a widget's data and export it. |
-| `monitoring-configure` | Edit widgets, dashboards and themes, and reset the event to a preset. Also needs `election-event-write`. |
+| `monitoring-configure` | Edit widgets, dashboards and themes, and reset the event to a preset. |
 
 See [Permissions](../user-manual/users-and-roles/users-and-roles_permissions.md#monitoring-dashboard-permissions)
 for which roles receive them.

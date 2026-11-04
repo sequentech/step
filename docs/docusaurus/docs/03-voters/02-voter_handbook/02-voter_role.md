@@ -57,11 +57,10 @@ at the time shown.
 ## Settings and choices under your control
 
 You set no security parameter of the voting system: the voting portal offers
-you none. The administrator sets them for the whole election, under the rules
-of the election organizer. Those that affect you are:
+you none. They are fixed for the whole election, under the rules of the election
+organizer. Those that affect you are:
 
 - your session ends after 15 minutes without activity;
-- after a number of failed logins in a row, your account is locked for a while;
 - you can vote once, unless your election allows more votes; then the vote you
   cast last counts;
 - you can check your cast ballot while voting is open, at the latest until the

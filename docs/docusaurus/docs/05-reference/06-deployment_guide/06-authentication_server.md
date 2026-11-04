@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 This chapter prepares the identity-provider registration and protected input
-files. The [configuration-driven installer](01-about.md#install-from-one-configuration-file)
+files. The installer ([Install from one configuration file](01-about.md#install-from-one-configuration-file))
 checks them, then configures the connection automatically. The provider's operator
 performs the external registration; the installer cannot authorize it for them.
 
@@ -31,7 +31,7 @@ with these properties:
 | PKCE | required, method S256 |
 | Redirect URI of the super-admin tenant | `https://HOST/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5/broker/ALIAS/endpoint`, replacing `HOST` with `hosts.voting` and `ALIAS` with `idp_alias` from your working `site.json` |
 | Redirect URI of the customer's tenant | The exact URI printed by `./deploy commission site.json` after customer creation; copy that complete URI into the provider registration |
-| Redirect URI of each election event | Its exact event-realm URI, registered when the event is created; follow [Self-Test and Handover](11-selftest_handover.md) |
+| Redirect URI of each election event | Its exact event-realm URI, registered when the election event is imported; follow [For each new election event](11-selftest_handover.md#for-each-new-election-event) |
 | Claims | the user name and e-mail address of each person, as their account in the TOE will carry them; the actual authentication time in the signed ID token (`auth_time`) |
 | Authentication | two factors for administrators and election board members |
 | Fresh authentication | honour `prompt=login` with a fresh login, including both factors for a board member, even when an upstream session exists; honour `max_age` and return the actual authentication time, not the token issue time |
@@ -119,8 +119,8 @@ directory**, after the full working configuration and server installations are r
 ./deploy check site.json
 ```
 
-This is the same [site preflight](01-about.md#check-the-site), not an additional
-installation command. It checks the definition's issuer, HTTPS URLs, client ID,
+This is the same check as in [Check the site](01-about.md#check-the-site), not an
+additional installation command. It checks the definition's issuer, HTTPS URLs, client ID,
 signature-validation settings and first-login flow, as well as the CA fingerprint.
 
 **Expected result:** `PASS: configuration, accepted media and certificate inputs`,
@@ -138,10 +138,10 @@ registration, correct the private file in the editor and rerun the check. Never
 paste unredacted contents into a report or put the client secret in `site.json`.
 
 
-Check the public registration values against those you received. `validateSignature` and
-`useJwksUrl` make the TOE accept only ID tokens signed with the server's
-published keys, and `issuer` makes it accept only tokens of that issuer. The
-first-login flow `certificate-first-login-flow` links a sign-in to an existing
+Check the public registration values against those you received. The settings
+`validateSignature` and `useJwksUrl` make the TOE accept only ID tokens signed with
+the server's published keys, and the setting `issuer` makes it accept only tokens
+of that issuer. The first-login flow `certificate-first-login-flow` links a sign-in to an existing
 account and never creates one.
 
 ## Install the trust anchor
@@ -154,14 +154,14 @@ preflight above compares the actual fingerprint before installation.
 
 **Automatic part of `./deploy install site.json`:** the installer installs the
 checked trust anchor and configures Keycloak to use it with the required TLS
-profile. No manual ConfigMap command is needed. The [installation instructions
-and actual terminal capture](01-about.md#install-the-platform) show the command
-and the final `INSTALL 4/4` completion message.
+profile. No manual ConfigMap command is needed.
+[Install the platform](01-about.md#install-the-platform) shows the command and the
+final `INSTALL 4/4` completion message.
 
 **If a fingerprint or trust-anchor installation check fails:** stop. Do not copy
 an observed fingerprint into the expected field, replace an existing ConfigMap
 blindly or disable certificate verification. Reconcile the CA and partial
-installation state with the operator before proceeding.
+installation state before proceeding.
 
 ## Check the authentication server's TLS
 
@@ -198,6 +198,6 @@ incomplete check, not proof that a prohibited protocol was refused. Do not chang
 the host to an unrelated reachable service or disable name/chain verification.
 
 [Configuring the Deployment](07-hardening.md) explains the settings already
-applied by installation. Continue with [customer and trustee commissioning](08-installing_toe.md#create-the-customers-tenant)
-if it is still pending. Successful transport checks still require the browser
+applied by installation. Continue with [Create the customer's tenant](08-installing_toe.md#create-the-customers-tenant)
+if commissioning is still pending. Successful transport checks still require the browser
 login, MFA and fresh-authentication checks before handover.

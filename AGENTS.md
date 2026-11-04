@@ -31,3 +31,5 @@ with the [contributing guide](docs/docusaurus/docs/07-developers/00-contributing
 - [github-workflow](.agents/skills/github-workflow/SKILL.md): branches, stacks, PRs, reviews, issues.
 - [bsi-certification](.agents/skills/bsi-certification/SKILL.md): changes that affect the BSI Common
   Criteria certification (TOE build definitions, vulnerability disclosure policy, consumer guidance).
+- [bsi-documentation](.agents/skills/bsi-documentation/SKILL.md): modes and rules for every BSI document;
+  use it whenever a guide (AGD-01 to AGD-04) or other evaluation document is written or changed.

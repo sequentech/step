@@ -15,9 +15,8 @@ stop: do not deploy, and report it to
 [security@sequentech.io](mailto:security@sequentech.io). The delivery is then
 repeated.
 
-This page is the first procedure of the
-[Deployment Guide (AGD-04)](06-deployment_guide/01-about.md). Nothing is
-installed or deployed before section 2.7 below is complete.
+This page is the first procedure of the Deployment Guide. Nothing is installed
+or deployed before [Confirm receipt](#7-confirm-receipt) is complete.
 
 The commands run in bash on Linux and need curl, GnuPG, cryptsetup, skopeo and
 the GNU coreutils, diffutils and findutils. Save the signed delivery note as
@@ -58,8 +57,9 @@ The delivery consists of the signed delivery note, the encrypted delivery
 medium and its passphrase, which comes separately from the medium. The medium
 holds the seven TOE parts as OCI images (harvest, windmill, keycloak,
 ballot-verifier, election-verifier, braid and b4), the guidance documents, and
-the files `checksums.txt` and `image-digests.txt`. Sections 2.4 and 2.6 check
-its contents.
+the files `checksums.txt` and `image-digests.txt`.
+[Verify the files and the images](#4-verify-the-files-and-the-images) and
+[Check the guidance version](#6-check-the-guidance-version) check its contents.
 
 ## Decrypt the medium {#3-decrypt-the-medium}
 
@@ -124,6 +124,16 @@ grep -E '(TOE reference|Release tag):' delivery-note.txt
 # both: Sequent Voting Platform - uniWAHL Version, v10.0.0 and the same release tag
 ```
 
+Keep the SHA-256 of `image-digests.txt` with the delivery note: it goes to
+`toe.manifest_sha256` in `site.json`, and the administrators compare it with the
+value "SHA-256 of the accepted digest list" that the admin portal shows
+([Verify the TOE software](../02-election_managers/04-administrator_handbook/07-self_tests.md#verify-the-toe-software)).
+Read it with this command:
+
+```bash
+sha256sum "$M/image-digests.txt"
+```
+
 ## Check the guidance version {#6-check-the-guidance-version}
 
 The guidance under `guidance/` on the medium must carry the release tag of the
@@ -134,16 +144,17 @@ manifest records it.
 grep '"tag"' "$M/guidance/manifest.json"    # must be the release tag in the note
 ```
 
-The guidance consists of the four handbooks and their index, and the manifest
-names the TOE reference:
+The guidance consists of the four handbooks, their index and the directory
+`deployment` of the installer, and the manifest names the TOE reference:
 
 ```bash
-ls "$M/guidance"    # AGD-01.pdf AGD-02.pdf AGD-03.pdf AGD-04.pdf index.pdf manifest.json
+ls "$M/guidance"    # AGD-01.pdf AGD-02.pdf AGD-03.pdf AGD-04.pdf deployment index.pdf manifest.json
 grep '"toe_reference"' "$M/guidance/manifest.json"    # the TOE reference in the note
 ```
 
 Then close the medium, and keep it with the delivery note in a locked place.
-The later procedures mount it again, read-only, with the commands of section 2.3.
+The later procedures mount it again, read-only, with the commands of
+[Decrypt the medium](#3-decrypt-the-medium).
 
 ```bash
 umount "$M"

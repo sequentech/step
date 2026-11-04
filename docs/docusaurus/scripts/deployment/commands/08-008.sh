@@ -10,7 +10,6 @@ jq -n --arg u "$U" --arg m '<e-mail-address>' --arg t "${CR#tenant-}" \
   '{username: $u, email: $m, emailVerified: true, enabled: true,
     groups: ["/admin"], attributes: {"tenant-id": [$t]}}' \
   | kc create users -r "$CR" -f -
-kc add-roles -r "$CR" --uusername "$U" --rolename permission-label-write
 for N in 1 2; do
   jq -n --arg n trustee$N --arg v TRUSTEE${N}_PASSWORD --arg t "${CR#tenant-}" \
     '{username: $n, enabled: true, groups: ["/trustee"],

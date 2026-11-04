@@ -10,13 +10,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ## Open the security status
 
-Open the election event and select **Security and self-tests**. The page shows
-its electoral phase, security state, recent test runs and security email delivery.
-Administrators and election-board members can read these results with
-"Self-tests: read results" (`self-test-read`). Running a test requires
-"Self-tests: run checks" (`self-test-run`).
+Select the election event in the side menu and open its tab **Security and
+self-tests**. The tab shows the electoral phase, the security state, the recent
+test runs, the integrity of the TOE software and, once a notification exists,
+the security email delivery.
+Administrators and board members can read these results with the permission
+"Self-tests: read results" (`self-test-read`). Running a test requires the
+permission "Self-tests: run checks" (`self-test-run`).
 
-Tests run in the background. You can leave this page while the worker continues.
+Tests run in the background. You can leave this page while they run.
 The page refreshes every five seconds. A queued, unfinished, missing or timed-out
 test is never a passed test.
 
@@ -28,7 +30,7 @@ To run the checks:
    - **On request** for an additional diagnostic run.
    - **Before starting voting** before the board starts the election execution.
    - **Before resuming voting** after a pause or a recoverable failure.
-   - **Before counting** when the administrator has enabled that additional condition.
+   - **Before counting** before the board authorizes counting.
 2. Select **Run self-tests**. The button changes to **Tests queued or running**.
    Wait for this run rather than starting another one.
 3. Expand the newest run under **Recent self-test runs**. Check all six rows,
@@ -48,37 +50,82 @@ If the status cannot be refreshed, do not rely on a previously displayed result.
 
 | Check | What the system verifies | If it fails |
 | --- | --- | --- |
-| Ballot-box integrity | Authenticated ballot admission, contents and order, cast-vote records, voting counters, seals and completed cryptographic tally transcripts. | A detected integrity error is unrecoverable. Do not edit ballots, replace records or attempt to resume voting. |
-| Approved election data | Live election data against the baseline captured when the board approved and published the configuration. The baseline itself carries an event-key signature. | Check the approved publication and investigate any difference before another test. |
-| Audit recording and integrity | Writing a signed test record, reading back the exact stored record, and verifying the electoral log and its checkpoint evidence. | Restore the audit service or investigate the integrity failure. A failed audit is not a clean result. |
-| Trusted HTTPS channels | Public endpoints, trusted certificates and the required TLS profile. A timeout is inconclusive and fails the test. | Correct the endpoint, certificate or network configuration. Never disable certificate verification. |
-| Approved access-control configuration | Hasura metadata, realm access-control configuration and signing rules against the signed baseline. | Investigate changed permissions or rules. Do not create a new baseline merely to hide a difference. |
-| Clock synchronization | A fresh read-only observation from host chrony, including its authenticated NTS source and synchronization status. | Ask the server operator to restore authenticated time synchronization. |
+| Ballot-box integrity | Authenticated ballot admission, contents and order, cast-vote records, voting counters, seals and completed cryptographic tally transcripts. | A detected integrity error gives **Unrecoverable failure**: do not edit ballots, replace records or attempt to resume voting. Evidence that could not be read gives **Recovery required**. |
+| Approved election data | Live election data against the approved baseline, which the TOE captured and signed when the board approved and published the configuration. | **Recovery required**. Check the approved publication and investigate any difference with the election board. Only the exact approved values pass. |
+| Audit recording and integrity | Writing a signed test record, reading back the exact stored record, and verifying the electoral log and its checkpoint evidence. | A verified integrity finding in the electoral log gives **Unrecoverable failure**. Any other failure, such as a write or read-back problem, gives **Recovery required**: have the operator restore the audit service. |
+| Trusted HTTPS channels | Public endpoints, trusted certificates and the required TLS profile. A timeout is inconclusive and fails the test. | **Recovery required**. Have the operator correct the endpoint, certificate or network configuration. Never disable certificate verification. |
+| Approved access-control configuration | The TOE's authorization rules, the access-control configuration of its realms, its accounts and roles, and the signing rules against the approved baseline. A staff account that was disabled or lost roles passes; a new account or a new role assignment does not. | **Recovery required**. Investigate the changed permissions or rules with the election board, and restore the approved values. Do not create a new baseline merely to hide a difference. |
+| Clock synchronization | A fresh observation of the servers' time service, including its authenticated source (Network Time Security) and its synchronization status. | **Recovery required**. Have the operator restore the time service ([Authenticated time](../../05-reference/06-deployment_guide/04-hosts_network_time.md#authenticated-time)). |
 
-Before the first approved publication, **The board-approved configuration
-baseline is not yet available** is expected. Complete the board review and
-publication before expecting all six checks to pass. The software does not
-silently learn a new baseline after a failed test.
+Before the first approved publication, the tab shows the notice "The
+board-approved configuration baseline is not yet available." This is expected:
+nothing has been approved yet to compare with. Complete the board review and
+publication before expecting all six checks to pass. Until then, a run at
+start-up shows **Approved election data** and **Approved access-control
+configuration** as passed with the detail "No board-approved baseline yet;
+nothing to compare". The TOE does not silently learn a new baseline after a
+failed test.
+
+## Verify the TOE software
+
+The section **TOE software integrity** of the tab compares the software running
+on the servers with the accepted TOE delivery. It is separate from the six
+checks, and its result does not authorize starting or resuming voting.
+Administrators and board members can run it in every phase, with the permission
+"Self-tests: run checks" (`self-test-run`).
+
+Run it before the election board approves a configuration version, after every
+restart of a server component, and whenever the integrity of the software is in
+doubt. To verify the TOE software:
+
+1. Select **Verify the TOE software**. The button changes to **Verification
+   queued or running**. You can leave this page while it runs.
+2. Read the result. The table lists the six TOE parts on the servers, each with
+   its accepted digest, its running containers and its result.
+3. Select the copy icon next to **SHA-256 of the accepted digest list**, and
+   compare the value with the one the operator gave you
+   ([Confirm the server settings to the administrator](../../05-reference/06-deployment_guide/11-selftest_handover.md#confirm-the-server-settings-to-the-administrator)).
+   If you are the operator too, compare it with `toe.manifest_sha256` of your
+   `site.json`. If they differ, the servers do not hold the accepted digest list, whatever
+   the result says: act as for **Differs from the accepted delivery**.
+
+![The section TOE software integrity with the six parts matching](assets/toe-software-integrity.png)
+
+*Illustration: a synthetic election event whose TOE software matches the
+accepted delivery.*
+
+| Result | What it means | What you do |
+| --- | --- | --- |
+| **Matches the accepted delivery** | Each of the six parts runs its accepted image, the stored content matches the digest, and the required number of its containers is ready. The security state does not change. | Compare the SHA-256 (step 3). |
+| **Differs from the accepted delivery** | The stored content, the image or the configuration of a part is not the accepted one. The election event enters **Recovery required** with the reason "TOE software differs from the accepted delivery". | Do not start or continue the election event. Tell the election board and the election organizer, [report it](12-environment_and_security_problems.md#reporting-a-security-problem) and follow [Maintenance mode](10-modes_of_operation.md#maintenance-mode). |
+| **Could not verify** | The section gives the reason, for example a part with too few ready containers. The security state does not change. This is not a match. | Have the operator correct the cause ([TOE image observation](../../05-reference/06-deployment_guide/11-selftest_handover.md#toe-image-observation)), then verify again. |
+
+The electoral log of the election event records each result. The election
+verifier does not run on the servers, so this section does not cover it: the
+operator's
+[complete TSF software integrity check](../../05-reference/06-deployment_guide/10-verification.md#repeat-the-complete-tsf-software-integrity-check)
+does.
 
 ## Configure the background interval
 
-An administrator with "Self-tests: edit settings" (`self-test-settings-write`)
-may change **Automatic self-tests** during **Preparation**. The controls are read-only in later phases.
-To change the self-test settings:
+An administrator holds the permission "Self-tests: edit settings"
+(`self-test-settings-write`), which allows changing the section **Automatic
+self-tests** during the preparation phase. The controls are read-only in later
+phases. The electoral log records each change and who made it. To change the
+self-test settings:
 
 1. Set **Interval in minutes (1–60)**. The default is **15 minutes**.
 2. Set **Suite timeout in seconds (10–600)**. The default is **60 seconds**.
    Leave at least 30 seconds between the timeout and the interval. For example,
    a one-minute interval permits a timeout of at most 30 seconds.
-3. Select additional conditions if needed: **After pausing voting** or
-   **Before counting**. **After a configuration import** has no effect: an
-   import creates a new election event, which starts with the default
-   settings.
+3. Select both additional conditions, **After pausing voting** and **Before
+   counting**: the evaluated configuration requires them.
 4. Select **Save self-test settings** and check the confirmation.
 
-Mandatory startup, election-start, start/resume, recovery and periodic checks
-remain enabled. Optional conditions cannot switch them off. Only one run may
-execute for an event at a time.
+The runs at start-up, at the start of the election period, before starting and
+before resuming voting, after recovery and at each interval always happen. The
+additional conditions cannot switch them off. Only one run executes for an
+election event at a time.
 
 Choose the interval with the organizer. Measure the suite on representative
 election data before voting opens.
@@ -87,7 +134,6 @@ election data before voting opens.
 | --- | --- | --- |
 | One-day election event or high activity | 5–15 minutes | Every run finishes within its timeout, leaving time for the next run. |
 | Multi-day election event | 15–30 minutes | Results are checked throughout the election event, including quieter periods. |
-| Additional sensitive operation | Enable its additional condition | Its purpose-specific check passes before the board authorizes the operation. |
 
 Never exceed 60 minutes. If a suite cannot finish in time, provide adequate
 resources or reduce competing work. Do not treat an unfinished scan or a longer
@@ -102,8 +148,9 @@ prevents voter access.
   **Before resuming voting**, and have the board authorize **Start Voting → Start Online Voting** in
   **Publish**. Repairs alone do not reopen voting.
 - **Unrecoverable failure:** election execution cannot resume. Preserve the
-  evidence and follow the organizer's failure procedure. A later passed test
-  cannot erase an earlier unrecoverable result.
+  evidence and tell the election board
+  ([An unrecoverable failure](10-modes_of_operation.md#an-unrecoverable-failure)).
+  A later passed test cannot erase an earlier unrecoverable result.
 
 A required service stopping, restarting or losing its heartbeat also prevents
 voter operations. During an execution failure, ballot-box reads and writes are
@@ -112,33 +159,43 @@ refused. Staff can still inspect the status and perform authorized investigation
 First opening requires the approved start time, current checks, empty ballot
 boxes and the initialization procedure. An initialization report is not an
 election result. Before opening, use **Before starting voting**, rather than
-**Before resuming voting**.
+**Before resuming voting**. A ballot box that is not empty at the start stops
+the opening, with the state **Recovery required**.
 
 ## Check security notifications
 
-Security-state changes and audit-storage problems create distinct notifications
-for administrators and the election board. Check **Security email delivery**:
+Security-state changes and audit-storage problems send email to the
+administrators and the election board
+([Email notifications](09-audit_and_monitoring.md#email-notifications)). The
+area **Security email delivery** of the tab, which appears once a notification
+exists, shows what happened to each one:
+
+![The area Security email delivery with one notification](assets/security-email-delivery.png)
+
+*Illustration: a synthetic notification in the area "Security email delivery".*
 
 | Delivery state | Meaning and action |
 | --- | --- |
 | Queued for delivery / Sending | Wait for the result. Definite temporary failures are retried with a delay, up to six attempts. |
 | Accepted by mail transport | The mail server accepted the message. This does not prove that a recipient read it. |
-| Delivery failed | Ask the mail administrator to inspect the relay configuration and failure details. Preserve the notification identifier. |
-| Delivery outcome unknown | A response was lost or interrupted. Check the mail server before arranging another copy; the original may already have arrived. |
+| Delivery failed | Ask the operator to inspect the relay configuration and the failure details. Give the operator the notification's identifier. |
+| Delivery outcome unknown | A response was lost or interrupted. Ask the operator to check the mail server before you send anyone a copy: the original may already have arrived. |
 
-The installation must supply an authenticated SMTP relay and correct staff
-email addresses. A console log is not an email transport. Notification failures
-do not reopen voting or suppress the security event.
+The operator provides the authenticated mail relay, and you keep the staff
+email addresses correct. A failed notification neither reopens voting nor
+suppresses the security event.
 
 Above **80% used audit-storage capacity**, the voter channel is refused.
-Missing, stale or future-dated measurements also refuse access. The server
-operator must restore usable capacity and a fresh observation. Retain the
-associated audit record and notification when investigating the incident.
+Missing, stale or future-dated measurements also refuse access. The
+operator must restore usable capacity and a fresh observation
+([Storage](../../05-reference/06-deployment_guide/11-selftest_handover.md#storage)).
 
 ## Run a separate electoral-log audit
 
-The board may also select **Logs → Audit → Audit electoral log**, with
-`electoral-log-audit`. This background task checks log records, the Merkle tree,
-checkpoint signatures and configured write-once copies; its result appears in
-**Tasks**. It supplements the six-check suite and does not authorize starting or
-resuming voting.
+The election board may also audit the electoral log: in the election event's
+tab "Logs" it selects the button "Audit" and confirms in the dialog "Audit
+electoral log". This needs the permission "Audit Electoral Log"
+(`electoral-log-audit`). The background task checks the log records, the Merkle
+tree, the checkpoint signatures and the configured write-once copies. The result
+appears in the election event's tab "Tasks". It supplements the six checks and
+does not authorize starting or resuming voting.

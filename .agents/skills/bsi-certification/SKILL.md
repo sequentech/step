@@ -1,6 +1,6 @@
 ---
 name: bsi-certification
-description: Work in step that affects the BSI Common Criteria certification of the uniWAHL TOE (BSI-DSZ-CC-1291), such as TOE source and production definitions, the vulnerability disclosure policy, security.txt or consumer guidance exports.
+description: Work in step that affects the BSI Common Criteria certification of the uniWAHL TOE (BSI-DSZ-CC-1291), such as TOE source and production definitions, the vulnerability disclosure policy, security.txt or consumer guidance exports. For the text of a guide (AGD-01 to AGD-04), also use bsi-documentation.
 ---
 <!--
 SPDX-FileCopyrightText: 2026 Sequent Tech <legal@sequentech.io>
@@ -19,6 +19,7 @@ The evidence, plans and procedures live in beyond, in `docs/docusaurus/docs/bsi-
 
 ## Rules
 
+- Any text of a guide follows `bsi-documentation`.
 - Branch from `feat/meta-10548/main` as `feat/meta-10548-<desc>/main` and open draft PRs into it with the `Related:` line.
 - Every lint expectation needs an item-specific justification (SDLC §3.2); add it to the table in PR #2335.
 - Run `reuse lint` before pushing; CI enforces REUSE.

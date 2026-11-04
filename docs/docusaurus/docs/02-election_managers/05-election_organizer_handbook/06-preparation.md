@@ -32,17 +32,21 @@ signs it (see [Provide the credentials](02-organizer-duties.md#provide-the-crede
 The board checks and signs the package before import. The importing board member
 also obtains the TOE's required authorisations for the exact uploaded file through
 the mandatory **Import election data** rule. Package approvals and this operation's
-fresh authorisations are both required. The importing member needs
-<code>election-event-create</code>; approving members need
-<code>sign-import-election-data</code> and their registered signing certificates.
+fresh authorisations are both required. The importing member needs the
+permissions "Create Election Event" (`election-event-create`) and "Upload
+Documents" (`document-upload`); the members who authorise the import need the
+permission "Sign: import election data" (`sign-import-election-data`) and their
+registered signing certificates.
 
-Before asking the board to approve the package, include the required event and
-election Data-tab settings from [the administrator's tables](../04-administrator_handbook/05-tenant_and_event_settings.md#settings-of-the-election-event).
+Before asking the board to approve the package, the election organizer includes
+the required settings of the tab "Data" of the election event and of each election
+([Settings of the election event](../04-administrator_handbook/05-tenant_and_event_settings.md#settings-of-the-election-event),
+[Settings of each election](../04-administrator_handbook/05-tenant_and_event_settings.md#settings-of-each-election)).
 They can affect the approved ballot design, even where administrators can edit
 them. Produce the package's ballot-design digests and report settings with the
 package tool from that complete configuration. The package tool must include
 ballot designs for every area and election. Administrators check these values after import. A difference requires
-a corrected signed package and a new event, rather than an edit before publication.
+a corrected signed package and a new election event, rather than an edit before publication.
 
 The required authorisations of an import are the number of package approvals
 that the administrators set for the tenant before the first import, as the
@@ -84,76 +88,84 @@ revision you approved (see [Checking the import](#checking-the-import)).
 The first import needs a place to hold its signing rule and registered board
 certificates. Prepare this once before importing the first package:
 
-1. A board member selects **Create an Election Event** and creates an empty
-   event named, for example, **Board import approvals**. It is a Preparation
-   event used for authorisations; do not add election data, publish it or open voting.
-2. An administrator opens this event's **Signatures** tab. Under **Certificates**,
-   register each board member's certificate to their personal account. Configure
-   the trusted issuer and certificate checks as described in
-   [the administrator handbook](../04-administrator_handbook/06-signing_rules.md).
-3. Under **Protected actions**, configure **Import election data** with the
-   number of independent board signatures required by the regulation, at least two,
-   and the supplied **election-board** role under **Who can sign**. Save the rule. The action cannot
-   proceed with a missing or disabled rule.
+1. In the side menu, a board member selects the plus icon next to "Election
+   Events", then the entry **Create an Election Event**, and creates an empty
+   election event named, for example, **Board import approvals**. It stays in the
+   preparation phase and is used only for authorisations; do not add election
+   data, publish it or open voting.
+2. An administrator opens this election event's tab "Signatures". Under
+   **Certificates**, the administrator registers each board member's certificate
+   to their personal account, and configures the trusted issuers and the
+   certificate checks
+   ([Trusted issuers and certificate checks](../04-administrator_handbook/06-signing_rules.md#trusted-issuers-and-certificate-checks)).
+3. Under **Protected actions**, the administrator configures **Import election
+   data** with the number of independent board signatures required by the
+   regulation, at least two, and the role `election-board` under **Who can sign**,
+   and saves the rule. The action cannot proceed with a missing or disabled rule.
 4. Board members sign in with their personal board accounts and confirm that
-   they can see this event's signing requests. Retain this event's identifier
-   with the board's minutes; it must remain in Preparation for further imports.
+   they can see this election event's signing requests. Write this election
+   event's identifier in the board's minutes; it must remain in the preparation
+   phase for further imports.
 
 The approval event contains authorisation records. Importing creates a separate
-new event containing the election data; configure that new event's own signing
-rules and certificate registrations before its protected operations.
+new election event containing the election data; the administrators configure that
+election event's own signing rules and certificate registrations before its
+protected actions.
 
 ### Importing the package
 
-Who: one board member. Phase: Preparation in the approval event; the import
-creates a separate event in Preparation. To import the package:
+Who: one board member. Phase: the preparation phase of the approval event; the
+import creates a separate election event in the preparation phase. To import the
+package:
 
-1. Select **Import Election Event**. In **Board approval for import**, choose the
-   Preparation event configured above. If it is missing, finish its setup first.
+1. In the side menu, select the plus icon next to "Election Events", then the entry
+   **Import Election Event**. In **Board approval for import**, choose the
+   approval event configured above. If it is missing, finish its setup first.
 2. Choose the signed package. Enter the SHA-256 value supplied by the organizer
    through a separate channel in **Integrity Check (SHA-256)**, then select
    **Import**. For an encrypted package, enter the separately supplied
    **Decryption Password** and select **Ok**.
 3. The signing dialog opens a request for **Import election data**. Review its
-   file identity, SHA-256 digest and target event with the other board members.
+   file identity, SHA-256 digest and target election event with the other board members.
    Each member authenticates again and signs using their registered certificate.
    Keep the original import dialog open. After the required approvals, the original
    requester selects **Continue operation**.
-4. The worker checks that the stored file is still exactly the approved file.
+4. The TOE checks that the stored file is still exactly the approved file.
    It also checks the package signature, every listed file and the package's own
    approvals. A changed upload, invalid or untrusted signature, missing or added
    file, insufficient package approvals or an already-imported revision is refused.
-5. Wait for the task to finish and **Election event imported Successfully**.
-   Open the newly imported event and perform the checks below. A completed signing
+5. Wait for the task to finish and for the message "Election event imported
+   Successfully". Open the newly imported election event and perform the checks below. A completed signing
    request alone is not confirmation that the import task succeeded.
 
 If the signing request expires, is cancelled, or the file changes, obtain a new
-request and new approvals. If a package check fails, retain the error and ask the
-organizer for a corrected signed revision; do not bypass the check.
+request and new approvals. If a package check fails, write the error in the
+board's minutes and ask the organizer for a corrected signed revision; do not bypass the check.
 
 ### Checking the import
 
-Who: the election board. Phase: preparation, right after each import.
-Permission: "Read Logs" (`logs-read`) and "Read Area" (`area-read`).
+Who: the election board. Phase: the preparation phase, right after each import.
+Permissions: "Read Logs" (`logs-read`) and "Read Area" (`area-read`).
 To check the import:
 
-1. Check that the new election event shows "Electoral phase" Preparation.
-2. On its Logs tab, find the import record `ConfigurationPackageImported`
-   ("Configuration … revision … imported from a signed package (manifest
-   …)"). The configuration and the revision must be the ones the board
+1. Check that the tab "Security and self-tests" of the new election event shows
+   the phase "Preparation".
+2. On its tab "Logs", find the record `ConfigurationPackageImported`, whose
+   description reads "Configuration … revision … imported from a signed package
+   (manifest …).". The configuration and the revision must be the ones the board
    approved.
 3. Check the imported data as
    [Checking the imported data and the settings](#checking-the-imported-data-and-the-settings)
    describes.
-4. Tell the administrators in writing that a board member imported the
-   election event with "Import Election Event" and the digest from the
+4. Tell the administrators that a board member imported the
+   election event with the entry "Import Election Event" and the digest from the
    election organizer, so that they check and make its settings.
 5. Record each import that the TOE refused, with its error message, in the
    board's minutes.
 
 :::warning
-- The importing board member always fills "Integrity Check (SHA-256)". If it
-  is left empty, the admin portal asks "Import Without Integrity Check?":
+- The importing board member always fills the field "Integrity Check (SHA-256)". If it
+  is left empty, the admin portal asks in the dialog "Import Without Integrity Check?":
   select "Go Back" and enter the digest, never "Yes, Import without Integrity
   Check". For a signed package the TOE's own check of the signature, of every file and
   of the approvals decides whether the package is accepted, so the board's
@@ -163,11 +175,12 @@ To check the import:
   approvals are not valid, stop. Do not approve another file in its place
   without the election organizer. Treat it as a security-relevant event and
   ask the election organizer for a new package.
-- The voting system accepts election data only as a signed configuration
-  package, through "Import Election Event". Use **Create an Election Event** only for the empty approval context above.
-  Do not populate an event by hand or use the separate voter, area, candidate
-  or schedule imports in this evaluated workflow. Those controls are not
-  substitutes for the organizer's signed package and its approvals. If election
+- The TOE accepts election data only as a signed configuration
+  package, through the entry "Import Election Event". Use the entry **Create an Election Event** only for the empty approval event above.
+  Do not populate an election event by hand or use the separate voter, area or
+  candidate imports in this evaluated workflow: they are not substitutes for the
+  organizer's signed package and its approvals. The TOE refuses a schedule import
+  and does not offer it. If election
   data ever appears that did not come from a signed package, or an imported
   value of the voters' register, the candidate list, the set of election rules
   or the election dates has changed, stop, approve nothing, and treat it as a
@@ -183,22 +196,22 @@ election event is never deleted:
    imports it as a new election event.
 3. In the preparation phase, a board member archives the wrong election
    event (permission "Archive Election Event", `election-event-archive`):
-   open the menu of the election event in the side menu, select "Archive this
-   Election Event" and confirm "Are you sure to archive this item?". The TOE
-   shows "The item
-   has been archived", and the election event is listed under "Archived". An
-   archived election event never opens voting; its data and audit records
-   stay in the TOE, and the TOE refuses "Unarchive this Election Event".
-4. The board checks that the corrected election event is the only one under
-   "Active" for this election and records both events in its minutes.
+   open the menu of the election event in the side menu, select the entry
+   "Archive this Election Event" and confirm the question "Are you sure to
+   archive this item?". The TOE shows the message "The item has been archived",
+   and the election event is listed under the side menu's tab "Archived". An archived election event
+   never opens voting and nothing sets it back; its data and audit records stay
+   in the TOE.
+4. The board checks that, of the two election events, only the corrected one is
+   listed under the side menu's tab "Active", and writes both in the board's minutes.
 
 ## Checking the imported data and the settings
 
 Before the configuration is approved, the election board checks the election
 data against the electoral regulation:
 
-- the voters' register: the number of voters ("Eligible Voters" on the
-  election event's Dashboard) against the organizer's own register; the board
+- the voters' register: the number of voters (the figure "Eligible Voters" on
+  the election event's tab "Dashboard") against the organizer's own register; the board
   checks samples in the package before approving it;
 - the elections, contests and candidates, their order and their texts in
   every language;
@@ -206,77 +219,84 @@ data against the electoral regulation:
   election, in the election's time zone.
 
 The administrators configure the election event as the Handbook for Election
-Administrators describes. Its Data-tab values must already match the signed
+Administrators describes. The values on its tab "Data" must already match the signed
 package; the administrators verify them and configure the separate protected
 actions and certificates. The election board checks these settings with them:
 
 | Where | Setting | Required value |
 |---|---|---|
-| Election event, Data tab | "Ballot Box Seal Policy" | "Seal at close" |
-| Election event, Data tab | "Keys/Tally Ceremonies Policy" (section "Advanced Configurations") | "Manual Ceremonies" |
-| Election event, Data tab | "Receipts signed by the ballot box" | "Signed by the ballot box" |
-| Election event, Data tab | "Period for checking cast ballots" | "Until a date", with "Checks available until" at the end of election time |
-| Election event, Data tab | "Show User Profile" (section "Ballot Design") | Off |
-| Election event, Data tab | "Show Cast Vote Logs Tab" (section "Ballot Design") | "Hide Cast Vote Logs Tab" |
-| Each election, Data tab | "Audit Button Display Options" (section "Ballot Design") | "Show" |
-| Each election, Data tab | "Allow Tally" | "Requires Voting Period End" |
-| Each election, Data tab | "Initialize Report Policy" | "Required" |
-| Each election, Data tab | "Grace Period Policy" | "No grace period" |
-| Each election, Data tab | "Number of allowed votes" | As the electoral regulation fixes it (1 means no re-voting) |
-| Election event and each election, Data tab | "Voting Channels Allowed" | "Online" only |
+| Election event, tab "Data" | "Ballot Box Seal Policy" | "Seal at close" |
+| Election event, tab "Data" | "Keys/Tally Ceremonies Policy" (section "Advanced Configurations") | "Manual Ceremonies" |
+| Election event, tab "Data" | "Receipts signed by the ballot box" | "Signed by the ballot box" |
+| Election event, tab "Data" | "Period for checking cast ballots" | "Until a date", with "Checks available until" at the end of election time |
+| Election event, tab "Data" | "Show User Profile" (section "Ballot Design") | Off |
+| Election event, tab "Data" | "Show Cast Vote Logs Tab" (section "Ballot Design") | "Hide Cast Vote Logs Tab" |
+| Each election, tab "Data" | "Audit Button Display Options" (section "Ballot Design") | "Show" |
+| Each election, tab "Data" | "Allow Tally" | "Requires Voting Period End" |
+| Each election, tab "Data" | "Initialize Report Policy" | "Required" |
+| Each election, tab "Data" | "Grace Period Policy" | "No grace period" |
+| Each election, tab "Data" | "Number of allowed votes" | As the electoral regulation fixes it (1 means no re-voting) |
+| Election event and each election, tab "Data" | "Voting Channels Allowed" | "Online" only |
 | Tenant (set by the administrators, who show it to the board) | Required number of package approvals for imports | As the electoral regulation fixes it, at least 2 |
-| Election event, Signatures tab | "Signatures needed" of every non-trustee protected action | As the electoral regulation fixes it, at least 2 recommended (see [Security-critical actions](05-electoral-phases.md#security-critical-actions)) |
-| Election event, Signatures tab | "Trustees sign this step" for both trustee custody actions | On; each trustee signs their own step, with no configurable signature count |
-| Election event, Signatures tab, "Certificates" | "Registering a certificate to a person" | "Only when someone who can register certificates registers it" (the default "When its holder first signs with it" is not allowed) |
-| Election event, Signatures tab, "Certificates" | "Check revocation lists" and "When a list can't be downloaded" | If the election organizer's certification authority publishes revocation lists that the server can download: on, with "Don't accept signatures". Otherwise certificates are withdrawn with "Revoke" |
+| Election event, tab "Signatures" | "Signatures needed" of every non-trustee protected action | As the electoral regulation fixes it, at least 2 recommended (see [Security-critical actions](05-electoral-phases.md#security-critical-actions)) |
+| Election event, tab "Signatures" | "Trustees sign this step" for both trustee custody actions | On; each trustee signs their own step, with no configurable signature count |
+| Election event, tab "Signatures", "Certificates" | "Registering a certificate to a person" | "Only when someone who can register certificates registers it" (the default "When its holder first signs with it" is not allowed) |
+| Election event, tab "Signatures", "Certificates" | "Check revocation lists" and "When a list can't be downloaded" | If the election organizer's certification authority publishes revocation lists that the server can download: on, with "Don't accept signatures". Otherwise certificates are withdrawn with the button "Revoke" |
 | Users and Roles | "Signatures: register certificates" (`signing-certificates-register`) | Held by administrators only |
-| **Security and self-tests** | Automatic self-test interval, time limit and six results | The interval as the electoral regulation fixes it, and all three additional conditions selected (see [Self-test intervals](11-security-relevant-events.md#self-test-intervals)) |
+| Election event, tab "Security and self-tests" | Automatic self-test interval, timeout and six results | The interval as the electoral regulation fixes it, and both additional conditions, "After pausing voting" and "Before counting", selected (see [Self-test intervals](11-security-relevant-events.md#self-test-intervals)) |
 | Header of the admin portal | "Version:" | `10.0.0` |
 
 :::warning
 If any setting differs from this table, the TOE is not in its evaluated
 configuration and some of its protections do not apply. Do not approve the
-configuration. If an imported Data-tab value differs, obtain a corrected signed
-package and import a new event as described above. For the separate signing,
-certificate settings and background audit policy, wait for the administrators to complete their
+configuration. If an imported value of a tab "Data" differs, obtain a corrected signed
+package and import a new election event as described above. For the separate signing
+and certificate settings and the self-test settings, wait for the administrators to complete their
 procedures.
 :::
 
 ## Preparing the security dashboard
 
-Before approving the configuration, a board member with **Admin Dashboard
-View** (`admin-dashboard-view`), **View Monitoring Dashboards**
-(`monitoring-view`) and **Configure Monitoring Dashboards**
+Before approving the configuration, a board member with the permissions "Admin
+Dashboard View" (`admin-dashboard-view`), "View Monitoring Dashboards"
+(`monitoring-view`) and "Configure Monitoring Dashboards"
 (`monitoring-configure`) prepares the dashboard. The first permission opens
-the election-event Dashboard; its name does not assign the administrator role.
+the election event's tab "Dashboard"; its name does not assign the administrator role.
 To prepare the dashboard:
 
-1. Open the election event's **Dashboard** and select **Set up monitoring**.
+1. Open the election event's tab "Dashboard" and select the button "Set up
+   monitoring".
 2. Choose **COMELEC overseas voting · v6**, the supplied monitoring preset
    containing **Attack detections**. This selects a dashboard layout; it does not
-   change the imported election data or voting rules. Review the confirmation: it replaces this event's monitoring layout and retains the
+   change the imported election data or voting rules. Review the confirmation: it replaces this election event's monitoring layout and retains the
    earlier configuration in its history. Select **Reset** once.
-3. After the Dashboard reloads, open its **Dashboard** selector and choose
+3. After the tab reloads, open its **Dashboard** selector and choose
    **Attack detections**, under **Access and security**.
 4. Check that the figures have a current update time. Inspect any detections
-   and correlate them with the signed **PotentialAttackDetected** records in
-   **Logs** before approving the election event's configuration.
+   and correlate them with the signed records `PotentialAttackDetected` on the
+   election event's tab "Logs" before approving the election event's configuration.
 
 ![Board confirmation before creating the monitoring layout](./assets/monitoring-preset-confirmation.png)
 
-The example above shows the confirmation before the single **Reset**
-operation. After setup, **Not counted yet** means that the first
+*Illustration: the confirmation with the button "Reset", in a synthetic election
+event.*
+
+After setup, the text "Not counted yet" means that the first
 background count has not completed; wait for the displayed update before
 interpreting the figures.
 
 ![Chart showing detections in a synthetic election event](./assets/monitoring-attack-detections-rendered.png)
 
-This example shows 26 detections from a completed snapshot. The
-chart is a record of that snapshot; check its update time before treating it
-as current. An older snapshot remains useful when reviewing an ended event.
+*Illustration: 26 detections from a completed snapshot, in a synthetic election
+event.*
 
-If the **Dashboard** tab is absent, check **Admin Dashboard View**. If
-**Set up monitoring** is absent, check **Configure Monitoring Dashboards**. If saving
+The chart is a record of that snapshot; check its update time before treating it
+as current. An older snapshot remains useful when reviewing an ended election
+event.
+
+If the tab "Dashboard" is absent, check the permission "Admin Dashboard View". If
+the button "Set up monitoring" is absent, check the permission "Configure Monitoring
+Dashboards". If saving
 is refused, retain the current configuration and resolve the reported cause;
 repeated clicks do not establish that a change succeeded. A failed request,
 unavailable data source or unfinished first count must never be read as zero
@@ -285,9 +305,12 @@ figures using the widget's data view.
 
 ## Approving the configuration
 
-Who: the election board. Phase: preparation, after the administrators have
-made the settings and told the board that they are complete, and after the
-key ceremony has completed with every trustee's custody confirmed. Permission:
+Who: the election board. Phase: the preparation phase, after the administrators
+have made the settings, told the board that they are complete and handed it their
+completed
+[Checklist before the election board approves the configuration version](../04-administrator_handbook/11-security_relevant_events.md#checklist-before-the-election-board-approves-the-configuration-version),
+which the board keeps with the board's minutes, and after the key ceremony has
+completed with every trustee's custody confirmed. Permissions:
 "Read Publish" (`publish-read`), "Edit Publish" (`publish-write`), "Create
 Publish" (`publish-create`), "Regenerate Publish" (`publish-regenerate`),
 "Publish Changes" (`publish-changes`) and "Sign: approve a configuration
@@ -301,8 +324,9 @@ board's approval before starting lockdown or generating the initialization
 report.
 
 A board member publishes the configuration of the election event on its
-Publish tab: select "Generate Publication" ("Regenerate" once a publication
-exists), check "Changes to Publish", and select "Publish Changes". Publishing
+tab "Publish": select the button "Generate Publication" (the button "Regenerate"
+once a publication exists), check the area "Changes to Publish", and select the
+button "Publish Changes". Publishing
 is possible only in the preparation phase; the TOE refuses it in every later
 phase and while the election event is locked down. Each publication is a new
 configuration version, and it becomes valid only when the election board
@@ -313,12 +337,12 @@ approves it:
    this version". Compare every change with the package the board approved
    and with the electoral regulation.
 3. If everything matches, sign. If anything differs, abort the request
-   ("Cancel request") and tell the administrators (for a setting) or the
+   with the button "Cancel request" and tell the administrators (for a setting) or the
    election organizer (for election data).
 4. When the version is approved, tell the administrators: from then on they
    change no setting without telling the board.
 
-![Publish tab comparing Current with Changes to Publish and the Publish Changes button](assets/publication-review.png)
+![The tab Publish comparing Current with Changes to Publish, and the button Publish Changes](assets/publication-review.png)
 
 *Illustration: a generated v10.0.0 publication awaiting review in a synthetic
 election event. The green comparison is proposed content, not evidence of approval.
@@ -333,32 +357,33 @@ publishes and approves in the same way.
 Lockdown protects the approved configuration while the election event takes place.
 While the election event is locked down, the TOE refuses a new publication,
 changes of the signing rules, changes of voters and the deletion of the
-election event (the Handbook for Election Administrators lists what it
-refuses). It does not stop voting.
+election event. It does not stop voting.
 
-Who: one board member. Phase: preparation, after the configuration version is
-approved and before the election period starts. Permission: "View Election
-Event Scheduled" (`election-event-scheduled-tab`) and "Create Scheduled Event"
-(`scheduled-event-create`). To set the lockdown period:
+Who: one board member. Phase: the preparation phase, after the configuration version is
+approved and before the election period starts. Permissions: "View Election
+Event Scheduled" (`election-event-scheduled-tab`), "Create Scheduled Event"
+(`scheduled-event-create`) and "Edit Scheduled Events" (`scheduled-event-write`).
+To set the lockdown period:
 
 1. Ask the election organizer for the start and the end of the lockdown
    period. The start lies after the approval of the configuration version and
    before the election period starts. The end must come before the election
    event is deleted in the post-processing phase, since lockdown refuses the
    deletion.
-2. Open the election event's "Scheduled Events" tab and select "Add"
-   ("Create Scheduled Event" if the list is empty).
-3. In "Type", select "Start Lockdown Period". In "Scheduled at", enter the
-   start the election organizer decided. Select "Save". The TOE shows
-   "Scheduled Event created successfully".
-4. Repeat with "Type" "End Lockdown Period" and the end the election
+2. Open the election event's tab "Scheduled Events" and select the button "Add"
+   (the button "Create Scheduled Event" if the list is empty).
+3. In the field "Type", select "Start Lockdown Period". In the field "Scheduled
+   at", enter the start the election organizer decided. Select "Save". The TOE
+   shows the message "Scheduled Event created successfully".
+4. Repeat with the type "End Lockdown Period" and the end the election
    organizer decided.
-5. After the start, check that "Lockdown Status" (section "Advanced
-   Configurations" of the election event's Data tab) shows "Locked Down", and
+5. After the start, check that the field "Lockdown Status" (section "Advanced
+   Configurations" of the election event's tab "Data") shows "Locked Down", and
    record both times in the board's minutes.
 
-Create no other scheduled event: the election dates come only with the
-imported election data.
+The field "Type" offers only these two types, and the TOE refuses any other change
+of the dates with the message "Election dates change only by the signed import":
+the election dates come only with the imported election data.
 
 ## The key ceremony
 
@@ -370,30 +395,31 @@ counting. The trustees' own steps are in
 
 Before the ceremony, check that:
 
-- the election event's "Keys/Tally Ceremonies Policy" is "Manual Ceremonies";
+- the election event's field "Keys/Tally Ceremonies Policy" is "Manual Ceremonies";
 - every trustee has generated their keys, and the administrators have
   registered each trustee's two public keys in Settings > "TRUSTEES";
-- each trustee's account has the role `trustee` and the trustee's name in "Act
-  as Trustee";
+- each trustee's account has the role `trustee` and the trustee's name in the
+  user field "Act as Trustee";
 - each trustee's instance of the trustee server (`braid`) is running (the
   operators confirm it).
 
-Steps for the board member who runs the ceremony (permission "Admin
-Ceremony"):
+To run the ceremony, a board member with the permission "Admin Ceremony"
+(`admin-ceremony`) does the following:
 
-1. Open the election event's Keys tab and select "Create Key Ceremony".
+1. Open the election event's tab "Keys" and select "Create Key Ceremony".
 2. Select the intended election, or "All Elections" if the ceremony covers
    the whole election event. The ceremony name is derived from that selection.
-   Under "Trustees", select both trustees. Set the "Threshold" to 2.
-3. Leave "Automatic Ceremony" switched off.
-4. Select "Create Key Ceremony" and confirm "Are you sure you want to Create
-   Key Ceremony?" with "Yes, Create Key Ceremony".
+   In the list "Trustees", select both trustees. Set the field "Threshold" to 2.
+3. Check that the form does not offer the switch "Automatic Ceremony". It appears
+   only if the field "Keys/Tally Ceremonies Policy" allows automatic ceremonies.
+4. Select "Create Key Ceremony" and confirm the question "Are you sure you want to
+   Create Key Ceremony?" with the button "Yes, Create Key Ceremony".
 5. Each trustee then takes part from their own account. Follow the progress
-   under "Key Ceremony Progress": for every trustee the columns "Key Fragment
+   under the heading "Key Ceremony Progress": for every trustee the columns "Key Fragment
    Generated", "Custody Request Downloaded" and "Custody Confirmed" must be
    ticked.
-6. The ceremony is complete only when every selected trustee shows "Custody
-   Confirmed".
+6. The ceremony is complete only when every selected trustee has the tick in the
+   column "Custody Confirmed".
 
 ![Key Ceremony Progress with status IN_PROGRESS and custody progress columns](assets/key-ceremony-progress.png)
 
@@ -401,65 +427,65 @@ Ceremony"):
 “Key Ceremony created” does not mean that custody is confirmed; wait for the
 required confirmations from every selected trustee.*
 
-The key ceremony and the tally ceremony run only as manual ceremonies:
-"Manual Ceremonies" for every election event, and "Automatic Ceremony" never
-switched on. At the key ceremony the election board checks that every trustee
+The key ceremony and the tally ceremony run only as manual ceremonies: the field
+"Keys/Tally Ceremonies Policy" at "Manual Ceremonies" for every election event, and
+the switch "Automatic Ceremony" never on. At the key ceremony the election board checks that every trustee
 confirmed custody of their keys, and the tally starts only with the trustees'
 authorisations.
 
 :::warning
-The "Automatic Ceremony" switch of each ceremony decides whether the trustees
+The switch "Automatic Ceremony" of each ceremony decides whether the trustees
 confirm custody: a ceremony created with it switched on runs without their
-confirmations, whatever "Keys/Tally Ceremonies Policy" says. Leave it off at
-every ceremony, and check at every key ceremony that every selected trustee
-shows "Custody Confirmed".
+confirmations, whatever the field "Keys/Tally Ceremonies Policy" says. Check at
+every key ceremony that every selected trustee has the tick in the column "Custody
+Confirmed".
 
-If a ceremony shows "Automatic Ceremony", if the dialog asks "Are you sure you
-want to Create Automatic Key Ceremony?", or if a trustee is shown without
-"Custody Confirmed" when the ceremony is reported complete, stop. Select
-"Cancel Key Ceremony" if the ceremony is still running, do not continue with
+If the form offers the switch "Automatic Ceremony", if the dialog asks the
+question "Are you sure you want to Create Automatic Key Ceremony?", or if a trustee
+has no tick in the column "Custody Confirmed" when the ceremony is reported
+complete, stop. Select "Cancel Key Ceremony" if the ceremony is still running, do not continue with
 the election event, and treat it as a security-relevant event. An automatic
 ceremony skips the trustees' confirmations, so the board can no longer be sure
 that each share is held by its trustee alone.
 :::
 
-If the ceremony fails, the Keys tab shows its failure. Have the administrators
+If the ceremony fails, the election event's tab "Keys" shows its failure. Have the administrators
 and trustees resolve the cause, then create a new ceremony. A trustee who
 cannot take part is replaced only as the electoral regulation provides.
 
 ## The initialization report
 
 The initialization report shows, before voting opens, that the ballot box of
-each election is empty. With "Initialize Report Policy" set to "Required" an
+each election is empty. With the field "Initialize Report Policy" set to "Required" an
 election does not open until its initialization report exists, neither at the
-scheduled start nor with "Start Voting".
+scheduled start nor with the button "Start Voting".
 
 Hold the generation in front of the witnesses that the electoral regulation
 names:
 
 1. Check that the configuration is approved and the key ceremony is complete.
-2. On an election's Publish tab, select "Generate Initialization
-   Report" and confirm "You are about to generate initialization report. Are
-   you sure you want to continue?".
+2. On the tab "Publish" of an election, select the button "Generate Initialization
+   Report" and confirm the question "You are about to generate initialization
+   report. Are you sure you want to continue?".
 3. The TOE creates a signing request for "Initialize voting". Read its
    "Signing code" to the witnesses; the required board members sign.
-4. On the Tally tab, open the initialization ceremony created by that
-   approval. Ask the selected trustees to confirm custody for this tally,
-   following [the trustee procedure](09-trustee-procedures.md#authorising-the-counting).
+4. On the election event's tab "Tally", open the initialization ceremony created
+   by that approval. Ask the selected trustees to confirm custody for this tally,
+   following [Authorising the counting](09-trustee-procedures.md#authorising-the-counting).
    Each trustee creates a fresh proof with this tally's identifier and signs
    their own confirmation. A proof from the key ceremony or another tally
    cannot be reused.
 5. Check that the required trustees have confirmed custody and that their
    trustee servers are running. Select "Start Tally" and confirm with "Start
    Tally". Wait for the initialization tally to complete.
-6. Release the initialization report: if "Generate other election reports"
-   needs signatures, the required board members sign it.
+6. Release the initialization report: if the protected action "Generate other
+   election reports" needs signatures, the required board members sign it.
 7. Show or print the report. The witnesses check:
    - the name of the election and the time it was generated;
    - the number of registered voters;
    - that zero ballots were counted and every candidate has zero votes;
-   - that the "Report hash" equals the hash in the `ElectionInitialized`
-     records of the election on the Logs tab.
+   - that the field "Report hash" equals the hash in the records
+     `ElectionInitialized` of the election on the election event's tab "Logs".
 8. Repeat for every election of the election event.
 
 :::warning
@@ -473,17 +499,18 @@ the start means that votes may have been added outside the execution phase.
 
 To run the self-test before voting starts:
 
-1. Open **Security and self-tests**. Confirm that the approved configuration
-   baseline is present; otherwise complete publication first.
-2. Select **Before starting voting**, then **Run self-tests** once.
+1. Open the election event's tab "Security and self-tests". Check that it no
+   longer shows the notice "The board-approved configuration baseline is not yet
+   available."; otherwise complete the publication first.
+2. Select **Before starting voting** under **Purpose of the test**, then **Run
+   self-tests** once.
 3. Wait for the background run to finish. Expand it and verify that all six
    checks show **Passed**, for the current election event state.
-4. Keep the run identifier and result with the board's record. Start within the
-   five-minute validity of the opening check and the approved election period.
+4. Start within the five-minute validity of the opening check and the approved election period.
    If either state or validity has changed, run the required check again.
 
 A failed, missing or expired result blocks opening. Investigate it using
-[Operating Modes, Failures and Recovery](12-modes-and-failures.md). A scheduled
+[Operating Modes, Failures and Recovery for the Election Board](12-modes-and-failures.md). A scheduled
 opening requests its own **Scheduled election start** check; an earlier
 **On request** result is not its authorization.
 
@@ -495,8 +522,9 @@ opening requests its own **Scheduled election start** check; an earlier
 | Election data imported by a board member from signed packages, each package approved by the board before its import and each import checked; each wrong import archived | [Importing the election data](#importing-the-election-data) |
 | Settings as in the table above | [Checking the imported data and the settings](#checking-the-imported-data-and-the-settings) |
 | Configuration version published and approved by the board | [Approving the configuration](#approving-the-configuration) |
-| "Start Lockdown Period" and "End Lockdown Period" created at the times the election organizer decided | [Setting the lockdown period](#setting-the-lockdown-period) |
-| Key ceremony complete, every trustee with "Custody Confirmed" | [The key ceremony](#the-key-ceremony) |
-| Initialization report of every election witnessed, zero ballots, hash matches the log | [The initialization report](#the-initialization-report) |
+| The scheduled events "Start Lockdown Period" and "End Lockdown Period" created at the times the election organizer decided | [Setting the lockdown period](#setting-the-lockdown-period) |
+| Key ceremony complete, every trustee ticked in the column "Custody Confirmed" | [The key ceremony](#the-key-ceremony) |
+| Initialization report of every election witnessed, zero ballots, hash matches the electoral log | [The initialization report](#the-initialization-report) |
 | All six current opening self-tests passed; no unresolved failure | [The self-test before the start](#the-self-test-before-the-start) |
+| The check of the TOE software shows the result "Matches the accepted delivery" | [Verifying the TOE software](07-execution.md#verifying-the-toe-software) |
 | Voters have their credentials and the information the election organizer gives them | [Instruct the voters](02-organizer-duties.md#instruct-the-voters) |

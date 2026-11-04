@@ -61,7 +61,7 @@ fetching the data. Please try again later or contact support for assistance."
 
 | What happens | What it means | What to do |
 |---|---|---|
-| Your login is refused several times in a row | After a number of failed logins in a row, the voting system locks your account for a while. The administrator sets this number. | Wait, then try again with the correct login details. If you still cannot log in, contact the election organizer. |
+| Your login is refused several times in a row | After a number of failed logins in a row, the authentication service may lock your account for a while. | Wait, then try again with the correct login details. If you still cannot log in, contact the election organizer. |
 | Your login is refused although your details are correct | You may not be in the voters' register of this election. | Try again later. If it still fails, contact the election organizer. |
 | "You are not listed as a voter in this election. Please contact support." | The voting system does not find you as a voter of this election. | Contact the election organizer. |
 | "The voting portal could not start. Please try again." | The voting portal could not load, for example because the voting system is refusing voter logins for a while to protect its records (see [Logins refused to protect the records](10-states_and_problems.md#logins-refused-to-protect-the-records)). | Select "Try again". If it keeps happening, contact the election organizer. |

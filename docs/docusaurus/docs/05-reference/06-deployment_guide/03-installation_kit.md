@@ -58,7 +58,8 @@ Do not remove checksum entries or regenerate a checksum list.
 <!-- deployment-step: 03-003 -->
 
 After the kit passes, open its `nixos/site.json` **read-only** in your editor and
-compare it with the approved site plan. Do not edit the delivered file in place.
+compare it with the approved site plan: the values that your site gave Sequent for
+this kit. Do not edit the delivered file in place.
 The workstation's working `site.json` and the kit's `nixos/site.json` have
 different purposes: the first supplies installation inputs; the second is built
 into the server image.
@@ -77,9 +78,9 @@ signature or schema check does not prove that the delivered values describe your
 site. Anyone holding a listed administration key has root access to both servers.
 
 **If any value is wrong:** do not boot the installer. Ask Sequent for a kit built
-from the corrected site definition. The [server disk-confirmation screenshot
-below](#install-c1-and-c2) shows the next check after the site values are accepted;
-its laboratory disk and network values are not defaults for your site.
+from the corrected site definition. The next check after the site values are
+accepted is the disk confirmation in [Install C1 and C2](#install-c1-and-c2); the
+laboratory disk and network values of its screenshot are not defaults for your site.
 
 ## Install C1 and C2
 
@@ -108,7 +109,7 @@ identify the laboratory disk. Confirm your own physical disk before pressing Ent
    restart into the installed system.
 5. Repeat on C2 with the same USB, selecting **2**. Install C1 first because C2
    joins it at first boot. Once both installations finish, lock away or destroy
-   the installation USB according to the site's media procedure.
+   the installation USB.
 
 ![Actual C2 virtual-machine installer reporting installation complete](./assets/installation/server-installation-complete.png)
 
@@ -122,12 +123,11 @@ application installation and customer/trustee commissioning still follow.*
 tail -n 80 /run/sequent-install.log
 ```
 
-This shows the last 80 installation log lines. Find the failed operation and
-retain those lines with the installation record. The successful-installation
-screen above is the completion reference; an error or a missing completion
-message is not success. Do not repeat an erasing installation on the assumption
-that the first attempt did nothing. Confirm the disk state and approved recovery
-with the operator.
+This shows the last 80 installation log lines. Find the failed operation. The
+successful-installation screen above is the completion reference; an error or a
+missing completion message is not success. Do not repeat an erasing installation
+on the assumption that the first attempt did nothing: check the state of the disk
+first.
 
 ## Verify SSH host keys before first use
 
@@ -138,8 +138,8 @@ host keys:
 
 1. At C1's trusted physical or hypervisor console, press **Alt+F9**. In a remote
    console viewer, use its send-key menu if it intercepts that combination.
-   Check that **Server** identifies C1 and record the complete `SHA256:…`
-   fingerprint. No login is needed. **Alt+F1** returns to the boot console.
+   Check that **Server** identifies C1 and note the complete `SHA256:…`
+   fingerprint for step 3. No login is needed. **Alt+F1** returns to the boot console.
 
 ![Actual VM console showing the public host fingerprint without a login](./assets/installation/server-host-key.png)
 
@@ -198,8 +198,8 @@ matches but authentication fails, check that the approved key matches
 
 <!-- deployment-step: 03-004 -->
 
-After verifying both SSH host keys above, run the single
-[site preflight](01-about.md#check-the-site) from the administration workstation's
+After verifying both SSH host keys above, run the single check of
+[Check the site](01-about.md#check-the-site) from the administration workstation's
 `deployment` directory:
 
 ```bash

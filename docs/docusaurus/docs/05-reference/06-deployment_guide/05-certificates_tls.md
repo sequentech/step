@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 This chapter prepares the certificate inputs for
-[the three-command installation](01-about.md#install-from-one-configuration-file).
+[Install from one configuration file](01-about.md#install-from-one-configuration-file).
 The installer checks the inputs and installs the certificate automatically. You
 supply the approved files; you do not create cluster Secrets by hand.
 
@@ -26,8 +26,8 @@ Every connection to the TOE's web hosts must use this profile:
 | Names | The voting, administration and ballot-verifier host names in `site.json` |
 | Plain HTTP | None; port 80 closed |
 
-The same protocol, cipher and group requirements apply to the
-[external authentication server](06-authentication_server.md).
+The same protocol, cipher and group requirements apply to the external
+authentication server ([Connecting the Authentication Server](06-authentication_server.md)).
 
 ## Create the key and the certificate request
 
@@ -116,12 +116,12 @@ is already complete, do not rerun it for this chapter.
 
 **Expected result:** installation proceeds through its numbered stages and ends
 with `INSTALL 4/4: platform installed; customer and trustee commissioning still required`.
-The [actual installation screenshot](01-about.md#install-the-platform) shows the
+The screenshot in [Install the platform](01-about.md#install-the-platform) shows the
 complete command and its successful end state.
 
 **If it fails:** keep the error and stage name. An existing Secret or occupied
-installation may indicate a partial earlier attempt. Inspect that state with
-the operator; do not delete Secrets or retry installation blindly.
+installation may indicate a partial earlier attempt. Inspect that state; do not
+delete Secrets or retry installation blindly.
 
 ## Set up the TLS endpoint
 
@@ -140,8 +140,8 @@ ingress or another application listener to work around a failed TLS endpoint.
 
 Certificate renewal is a separate controlled maintenance change. These fresh
 installation commands are not a renewal procedure: do not delete both TLS
-Secrets and rerun installation against an occupied cluster. Use an approved
-renewal procedure, then repeat the live TLS check below before returning service.
+Secrets and rerun installation against an occupied cluster. Obtain the renewal
+steps from Sequent, then repeat the live TLS check below before returning service.
 
 ## Check the TLS profile
 
@@ -168,8 +168,8 @@ server` identify the upstream checks. Laboratory host names and certificates are
 examples, not deployment inputs.*
 
 **Expected final result:** `TLS PROFILE CHECK PASSED — allowed connections verified and prohibited variants refused`.
-All individual lines must pass as summarized below. Save the output in the
-installation record; [Verifying the Installation](10-verification.md#tls-endpoint-and-ingress-ports)
+All individual lines must pass as summarized below.
+[TLS endpoint and ingress ports](10-verification.md#tls-endpoint-and-ingress-ports)
 uses this same inspection, so a completed check with unchanged configuration
 need not be repeated merely to read another chapter.
 
@@ -181,6 +181,6 @@ need not be repeated merely to read another chapter.
 | C1 port 80 | Closed |
 
 **If any prohibited connection succeeds or the allowed connection fails:** stop.
-Check the configured names, certificate chain and controlled endpoint settings
-with the operator. Do not disable certificate verification, accept a browser
+Check the configured names, certificate chain and controlled endpoint settings.
+Do not disable certificate verification, accept a browser
 warning or route clients around nginx.

@@ -26,8 +26,8 @@ another copy. C1 and C2 are the two servers; the installer connects to them usin
 **What you will see.** The terminal reaches
 `INSTALL 2/4: harden configuration and create private service credentials`,
 then `INSTALL 3/4: verify running platform configuration`. The individual
-server-side command output is captured by the installer, so you do not need to
-look for the old per-operation output or type additional server commands.
+server-side command output is captured by the installer, so you do not type
+additional server commands.
 
 ![Actual VM installation terminal showing the automated installation stages and completed platform verification](./assets/installation/installer-complete.png)
 
@@ -39,8 +39,8 @@ and every required check must still match your installation.*
 **If it stops.** Keep the reported stage and error. Do not rerun an individual
 transformation, delete `/root/deploy`, regenerate passwords or relax a policy.
 The fresh-install command refuses an occupied or partially installed cluster.
-Resolve its actual state with the operator before retrying. After a successful
-run, continue with [customer and trustee commissioning](08-installing_toe.md#create-the-customers-tenant)
+Resolve its actual state before retrying. After a successful run, continue with
+[Create the customer's tenant](08-installing_toe.md#create-the-customers-tenant)
 and [Verifying the Installation](10-verification.md).
 
 ## Set the host names
@@ -54,9 +54,9 @@ three names covered by the site certificate. Each portal uses the voting host
 for the identity service, so sign-in and token issuers agree.
 
 Confirm the public names in `site.json` before running the command. If a name is
-wrong after installation has started, stop and correct the deployment through
-the controlled recovery procedure; do not redirect a portal to another identity
-service or edit a running container.
+wrong after installation has started, stop and ask Sequent how to correct the
+deployment; do not redirect a portal to another identity service or edit a running
+container.
 
 ## Set the browser storage endpoint
 
@@ -77,10 +77,10 @@ or query parameters from its URL. Use the storage and cross-origin checks in
 
 <!-- deployment-step: 07-004 -->
 
-**Automatic installation stage.** The installer writes `APP_VERSION` and
-`APP_HASH` from `release.version` and `release.step_commit` in `site.json`, checked
+**Automatic installation stage.** The installer writes the settings `APP_VERSION`
+and `APP_HASH` from `release.version` and `release.step_commit` in `site.json`, checked
 against the accepted delivery. For this TOE the version is `10.0.0`; the hash is
-the exact 40-character Step revision that produced the accepted images. The
+the exact 40-character source revision that produced the accepted images. The
 header shows the version and the first eight characters of the hash.
 
 Check the visible header using [Version](10-verification.md#version). Do not
@@ -122,7 +122,7 @@ not authorize deleting or replacing a Secret.
 <!-- deployment-step: 07-009 -->
 
 **Automatic installation stage.** The installer applies the reviewed identity
-service transformation. Keycloak starts with `start --import-realm`, its fixed
+service transformation. Keycloak starts with the arguments `start --import-realm`, its fixed
 public hostname, the authentication server's CA and the required outbound TLS
 profile. The realm is loaded from a Secret. It does not use development mode or
 accept an arbitrary hostname.
@@ -187,24 +187,30 @@ Changing a template later does not prove that an existing realm changed.
 The required sign-in policy is:
 
 - Require TLS for external requests; use a 900-second idle timeout, brute-force
-  protection with initial failure factor 5, and authentication-event recording
-  through `custom-event-listener`.
-- Disable self-registration, password reset and "remember me". Redirect personal
+  protection with the realm setting `failureFactor` at 5, and authentication-event
+  recording through the event listener `custom-event-listener`. `failureFactor` is
+  the identity service's own lockout of accounts with a local password; in these
+  realms only the machine accounts `trustee1` and `trustee2` have one. It is not the
+  [Authentication failure threshold](../../02-election_managers/04-administrator_handbook/08-authentication_and_sessions.md#authentication-failure-threshold),
+  which the administrator sets in the admin portal.
+- Disable self-registration, password reset and the "remember me" option. Redirect personal
   sign-in to the sole external identity provider. Disable local password and
   one-time-code forms, and link a first sign-in only to an existing account.
-- Disable the local `mfa-method-selector` and its default required action.
+- Disable the local required action `mfa-method-selector`, also as a default action.
   The external provider still enforces the user's required factors.
 - Use authorization code flow with PKCE `S256` and exact portal redirect
-  addresses. Disable password grants for portal clients and `admin-cli`, and
-  disable `cli-account-admin`.
+  addresses. Disable password grants for portal clients and the client `admin-cli`,
+  and disable the client `cli-account-admin`.
 - Preserve the external authentication time needed for fresh board authorization:
-  `passMaxAge` is `true`; the broker carries `auth_time` and `acr` to the tenant
-  session. A new access token is not a substitute for a fresh external login.
+  the identity-provider setting `passMaxAge` is `true`, and the client `admin-portal`
+  carries the session's authentication time in the claim `auth_time`. A new access
+  token is not a substitute for a fresh external login.
 - Use random client secrets and native trustee passwords. Personal accounts have
   no local password, and demonstration credentials are removed.
 - Remove the board-only and prohibited named permissions from seeded
-  administrator groups. Give no group `publish-results-write`, `datafix-account`
-  or `voter-manually-verify`.
+  administrator groups. Give no group the permissions "Edit Results Publication"
+  (`publish-results-write`), "Datafix account" (`datafix-account`) or "Manually
+  Verify Voter" (`voter-manually-verify`).
 - Disable the account console (client `account-console`) in every realm. In
   event realms, also disable voter sign-in codes, messaging channels, offline
   access and the unused channel/results clients.
@@ -219,8 +225,8 @@ do not accept only the transformed template as proof of live realm settings.
 
 <!-- deployment-step: 07-020 -->
 
-**Automatic installation stage.** The installer creates the personal bootstrap
-operator described by `operator.username` and `operator.email`. It has no local
+**Automatic installation stage.** The installer creates the installation account:
+the personal account described by `operator.username` and `operator.email`. It has no local
 password and signs in through the external provider. It is used only to create
 the customer's tenant. Commissioning then creates the customer's first personal
 administrator and disables installation personal accounts.

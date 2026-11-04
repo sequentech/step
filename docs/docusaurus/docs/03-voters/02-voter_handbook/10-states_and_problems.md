@@ -130,7 +130,7 @@ Messages about logging in are in [Logging In to Vote](04-logging_in.md).
 
 Do not cast your vote while something looks wrong. Note what you saw, the
 message and the time, and tell the election organizer. If you think you have
-found a security flaw in the voting system, also report it as described below.
+found a security flaw in the voting system, also report it as described in [Reporting a security problem](#reporting-a-security-problem).
 
 :::
 

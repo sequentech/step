@@ -15,7 +15,7 @@ tenant holds no election event:
 
 | Account | Realm | State | Used by |
 | --- | --- | --- | --- |
-| The service administrator (the name in `KC_ADMIN_USER`) | master | random password, only in `secrets.env` and two Secrets; the master realm is not reachable from outside | the TOE's services only |
+| The service administrator (the name in `operator.service_administrator` of `site.json`) | master | random password, only in `secrets.env` and two Secrets; the master realm is not reachable from outside | the TOE's services only |
 | The first personal administrator | customer's tenant | no password; signs in only through the external authentication server | the administrator |
 | `admin` (seeded when the tenant was created) | customer's tenant | no password | nobody; deleted by the administrator |
 | `trustee1` and `trustee2` | customer's tenant | random passwords, only in `secrets.env` and the trustees' Secrets | the trustee instances only |
@@ -47,9 +47,9 @@ platform inspection, including the [Version](10-verification.md#version) check:
    that exact hostname. Open `https://ADMIN_HOST/tenant` in the browser of the administration
    workstation and check that the browser shows a valid HTTPS connection to
    ADMIN_HOST.
-2. Under "Select Tenant", enter the customer's short name (the "Slug" given
-   when [the customer's tenant was created](08-installing_toe.md#create-the-customers-tenant))
-   in "Tenant Name" and select "Continue".
+2. Under the heading "Select Tenant", enter the customer's short name (the field
+   "Slug" of [Create the customer's tenant](08-installing_toe.md#create-the-customers-tenant))
+   in the field "Tenant Name" and select the button "Continue".
 3. The browser is sent to the external authentication server. Sign in there
    with both factors.
 4. The browser returns to the administration portal, signed in to the account
@@ -71,13 +71,12 @@ one added, stop and report it to
 [security@sequentech.io](mailto:security@sequentech.io).
 
 Give the administrators the customer's short name: everyone enters it under
-"Select Tenant" to sign in.
+the heading "Select Tenant" to sign in.
 
 ## Accounts after the first sign-in
 
-The administrator then follows the illustrated
-[Users, Roles and Role Separation](../../02-election_managers/04-administrator_handbook/04-users_and_roles.md)
-procedure in AGD-02:
+The administrator then follows
+[Users, Roles and Role Separation](../../02-election_managers/04-administrator_handbook/04-users_and_roles.md):
 checking the roles and their separation, creating the personal accounts of
 the election board and the trustees, and deleting the seeded account `admin`.
 The realm settings of this guide have already removed the election board's
@@ -86,7 +85,8 @@ Event" (`election-event-create`), with which the election board imports
 election data, "Delete Election Event" (`election-event-delete`), "Archive
 Election Event" (`election-event-archive`), the "Sign:" permissions, the
 scheduled events and the areas. At sign-in the TOE gives an administrator
-account only the permissions of the administrator role in AGD-02. No group
+account only the permissions of
+[The administrator role](../../02-election_managers/04-administrator_handbook/04-users_and_roles.md#the-administrator-role). No group
 holds "Edit Results Publication" (`publish-results-write`), "Datafix
 account" (`datafix-account`) or "Manually Verify Voter"
 (`voter-manually-verify`).

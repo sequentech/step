@@ -88,8 +88,7 @@ election. With the tab but without `monitoring-view`, a user sees the standard d
 labels still apply: a user whose roles carry labels sees only the elections those labels allow, and
 cannot choose any other.
 
-Configuring changes the event, so it also needs `election-event-write`, and it is not possible once
-the event is locked down.
+Configuring changes the event, so it is not possible once the event is locked down.
 
 New tenant realms come with both permissions: the default tenant realm template and the COMELEC
 template grant both to the `admin` group and only `monitoring-view` to `admin-light`. A deployment
@@ -133,7 +132,7 @@ several people. Each part of it has its own permission, and signing each action 
 | `signing-requests-read` | See the Requests sub-tab. Users limited by permission labels see their Posts' requests. |
 | `signing-requests-cancel` | Cancel someone else's waiting request. The person who started a request can always cancel it. |
 | `signing-requests-export` | Export the requests as CSV. |
-| `sign-<action>` | Sign that action: `sign-initialize-voting`, `sign-open-voting`, `sign-close-voting`, `sign-generate-election-returns`, `sign-generate-reports`, `sign-transmit-results`, `sign-approve-voter`, `sign-approve-configuration`, `sign-key-ceremony` and `sign-tally-key`. |
+| `sign-<action>` | Sign that action: `sign-initialize-voting`, `sign-open-voting`, `sign-close-voting`, `sign-generate-election-returns`, `sign-generate-reports`, `sign-transmit-results`, `sign-approve-voter`, `sign-approve-configuration`, `sign-import-election-data`, `sign-start-tally`, `sign-export-execution-data`, `sign-delete-execution-data`, `sign-read-voters-register`, `sign-key-ceremony` and `sign-tally-key`. |
 
 Changing who can sign an action takes `role-write`, from the rule drawer or here. With `role-write`
 but without `user-permission-write`, a user can turn only the `sign-<action>` permissions on or off; the

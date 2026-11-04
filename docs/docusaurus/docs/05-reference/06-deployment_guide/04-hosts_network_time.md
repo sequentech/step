@@ -60,9 +60,10 @@ The inspection prints these lines automatically:
 
 <!-- deployment-step: 04-002 -->
 
-The [site firewall](02-operational_environment.md#network) must expose only the
-approved connections. Test its client side from a **separate computer connected
-to a client network**, after the TLS endpoint has been installed:
+The site firewall must expose only the connections of
+[Network](02-operational_environment.md#network). Test its client side from a
+**separate computer connected to a client network**, after the TLS endpoint has
+been installed:
 
 1. Copy the verified `deployment` tools and the newly generated
    `client-network.json` to that computer. **Do not copy `site.json`, private keys,
@@ -93,9 +94,8 @@ An unreachable computer that reports every port closed has not passed the test.
 
 **If any forbidden port is open:** stop and correct the controlled site firewall.
 Do not broaden SSH access to make administration work. Repeat this client-side
-check afterwards. Record the test machine, network position and result; TCP
-reachability alone does not validate a certificate, so also perform
-[Check the TLS profile](05-certificates_tls.md#check-the-tls-profile).
+check afterwards. TCP reachability alone does not validate a certificate, so also
+perform [Check the TLS profile](05-certificates_tls.md#check-the-tls-profile).
 
 ## SSH access
 
@@ -110,8 +110,9 @@ The `network` inspection above checks **both servers** and prints their policy:
 | Root login | `permitrootlogin prohibit-password` or `permitrootlogin without-password` |
 
 Each server must then report `PASS: C1 key-only SSH and synchronized NTS time`
-or the corresponding C2 line. The [inspection screenshot](#inspect-from-the-administration-workstation)
-shows these actual policy results; no additional hidden server command is needed.
+or the corresponding C2 line. The screenshot in
+[Inspect from the administration workstation](#inspect-from-the-administration-workstation)
+shows these actual policy results; no additional server command is needed.
 
 **If it differs:** stop. Root login `yes` permits an unacceptable password path;
 root login `no` prevents the required administration-key access. Check the
@@ -150,8 +151,8 @@ line **`Encryption Status: Enabled`**. Other key-rotation details do not replace
 this requirement.
 
 **If disabled or unavailable:** stop before creating application Secrets.
-Confirm that C1 came from the approved kit and have the operator resolve the
-installation. Do not create Secrets as a test or enable encryption ad hoc on an
+Confirm that C1 came from the approved kit; if it did, obtain a corrected kit from
+Sequent. Do not create Secrets as a test or enable encryption ad hoc on an
 unknown cluster state.
 
 ## Cluster nodes

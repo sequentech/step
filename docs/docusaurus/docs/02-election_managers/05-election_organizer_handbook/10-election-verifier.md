@@ -8,7 +8,7 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-The election-verifier is the part of the TOE that checks the counting of an
+The election verifier is the part of the TOE that checks the counting of an
 election event independently of the running system. It needs no key, no account and
 no network connection. It checks the public record of the election event:
 
@@ -19,7 +19,7 @@ no network connection. It checks the public record of the election event:
 - the decryption by exactly the threshold of trustees, with their proofs;
 - that the decrypted votes published by the TOE equal its own decryption.
 
-The election-verifier runs on demand: each run checks the file it is given and
+The election verifier runs on demand: each run checks the file it is given and
 ends when the check is done. It is not a service that keeps running.
 
 The election board runs it in the post-processing phase, after downloading
@@ -32,35 +32,38 @@ can run it on the data that the election organizer publishes.
   the election board downloads as described below, or the copies the election
   organizer publishes. One file contains one tally board's batch and its key
   ceremony evidence; a tally can have several batches.
-- The full "Configuration hash" and "Tally ID" for each file, obtained
+- The full values "Configuration hash" and "Tally ID" of each file, obtained
   independently of that file: from the election organizer's publication,
   read from the board's minutes, or confirmed by the election board. Keep each
   file paired with its own anchors.
-- The election-verifier image from the accepted TOE delivery (the Deployment
-  Guide describes how the delivery is checked), and a computer with a container
-  runtime.
+- The image of the election verifier from the accepted TOE delivery
+  ([Verifying the Delivery](../../05-reference/08-delivery_verification.md)).
+- A computer with a container runtime, the verification workstation. A board member
+  uses one that the election organizer controls; observers and voters use their own.
+  To check a ballot
+  ([Checking that a ballot was counted](#checking-that-a-ballot-was-counted)), it
+  also needs the JSON reader `jq`.
 
 ## Downloading the verification data
 
 In the post-processing phase, after voting has closed for every election in
 the tally, an election board member opens the completed results tally from the
-election event's **Tally** tab. This export requires closed voting and a
+election event's tab "Tally". This export requires closed voting and a
 successfully completed results tally; it does not export initialization
-reports or key-ceremony-only data. In **Election verification**, for every
+reports or key-ceremony-only data. In the section "Election verification", for every
 listed tally board:
 
-1. Record its board name, full **Configuration hash** and **Tally ID** in the
-   board's minutes. These values come from the election platform's stored
-   public configuration and board record, separately from the transcript.
-2. Choose **Download verification data** in that same board's section. Keep the
+1. Record its board name and the full values "Configuration hash" and "Tally ID" in
+   the board's minutes. The TOE shows these values separately from the file.
+2. Select the button "Download verification data" in that same board's section. Keep the
    downloaded `verification-<protocol-board UUID>.json` paired with the values
    recorded in step 1. Downloading the file does not verify it.
 3. Repeat for every listed batch. Do not substitute another batch's identifier,
    even when the batches use the same configuration hash.
 
-The displayed **Tally ID** is the protocol board's identifier written as an
+The displayed value "Tally ID" is the protocol board's identifier written as an
 unsigned decimal number with up to 39 digits. It is **not** the tally-session
-ID in the event's tally list or URL. Copy the complete displayed value as text;
+ID in the election event's tally list or URL. Copy the complete displayed value as text;
 do not round it in a spreadsheet or convert it through a floating-point
 number. A recount has its own board identifiers and must be recorded and
 verified separately.
@@ -69,7 +72,7 @@ If a completed results tally has no listed verification boards, or its anchors
 or download cannot be loaded, stop and report the problem. Do not substitute a
 file or identifier from an earlier tally.
 
-## Running the election-verifier
+## Running the election verifier
 
 Put a verification data file in a directory of its own and run the image on
 it with that file's independently recorded anchors, without network access
@@ -89,12 +92,12 @@ trustee tool (`trustee verify`) with the options you append:
 |---|---|
 | `--transcript` | The verification data file. |
 | `--configuration-hash` | The full configuration hash recorded for this batch: 128 lowercase hexadecimal digits. Required. |
-| `--tally-id` | The protocol-board Tally ID for this file, copied from **Tally ID** as an unsigned decimal number. The tool also accepts the corresponding protocol-board UUID; the tally-session UUID is not this identifier. Required for every file downloaded by this results-tally procedure: without it the status is `invalid` ("tally evidence requires an independently supplied tally identifier"), and a different identifier makes the check fail. |
+| `--tally-id` | The protocol-board Tally ID for this file, copied from the value "Tally ID" as an unsigned decimal number. The tool also accepts the corresponding protocol-board UUID; the tally-session UUID is not this identifier. Required for every file downloaded by this results-tally procedure: without it the status is `invalid` and `detail` reads "tally evidence requires an independently supplied tally identifier", and a different identifier makes the check fail. |
 | `--ballots-hash` | Optional: the hash of the batch of encrypted ballots that entered the counting, if the election organizer publishes it. A different batch makes the check fail. |
 | `--ballot-ciphertext` | Optional, may be repeated: an encrypted ballot to look for among the counted ballots (see [Checking that a ballot was counted](#checking-that-a-ballot-was-counted)). |
 
 Run this command separately for every batch, using each file's own anchors.
-Keep the reports and exit codes with the board's record. The complete tally is
+A board member keeps the reports and exit codes with the board's minutes. The complete tally is
 not verified until every expected batch has status `verified`; a successful
 check of one file does not cover the others.
 
@@ -115,11 +118,11 @@ The tool prints a report in JSON and ends with exit code 0 only if the status is
 
 | Status | Exit code | What it means | What to do |
 |---|---|---|---|
-| `verified` | 0 | Every check passed. With the counting, `detail` reads "DKG, ballot proofs, ordered shuffles, endorsements, threshold decryption and plaintexts verified". | Compare `ballot_count` with the recorded number of encrypted ballots counted in this batch. |
-| `incomplete` | not 0 | The record ends before the counting is complete ("public verification incomplete: …"). | Check that you have the file of the completed tally. If it persists, report it to the election board. |
-| `invalid` | not 0 | A check failed, for example "invalid shuffle proof", "published plaintexts differ from independently verified decryption", "ballots do not match the trusted batch hash" ("public verification failed: …"). | Report it at once to the election board, with the report. The election board treats it as a security-relevant event. |
+| `verified` | 0 | Every check passed. With the counting, `detail` reads "DKG, ballot proofs, ordered shuffles, endorsements, threshold decryption and plaintexts verified". | Compare `ballot_count` with the number of votes that the result states as counted for the contest and area of this batch. |
+| `incomplete` | not 0 | The record ends before the counting is complete. The tool ends with the error "public verification incomplete: …". | Check that you have the file of the completed tally. If it persists, report it to the election board. |
+| `invalid` | not 0 | A check failed. `detail` says which, for example "invalid shuffle proof", "published plaintexts differ from independently verified decryption" or "ballots do not match the trusted batch hash", and the tool ends with the error "public verification failed: …". | Report it at once to the election board, with the report. The election board treats it as a security-relevant event. |
 
-The election-verifier does not apply the counting rules: it shows that the
+The election verifier does not apply the counting rules: it shows that the
 decrypted votes are exactly the votes that were cast and mixed, not that the
 result adds them up correctly. Compare the result with the electoral
 regulation's counting rules as a separate check. It also does not check the
@@ -134,10 +137,10 @@ place prove nothing if that place has been manipulated.
 
 ## Checking that a ballot was counted
 
-A voter who copied their encrypted ballot in the voting portal ("Locate your
-ballot") during the execution phase can check that it was counted. The voter
-saves the encrypted ballot, exactly as "Locate your ballot" shows it, to a text
-file. This is the complete JSON ballot, including its signatures and the
+A voter who copied their encrypted ballot from the ballot locator of the voting
+portal (the entry "Locate your ballot" of the screen "Ballot list") during the execution
+phase can check that it was counted. The voter saves the encrypted ballot, exactly
+as the ballot locator shows it, to a text file. This is the complete JSON ballot, including its signatures and the
 encrypted value in `contests`. The native `--ballot-ciphertext` option takes
 that encrypted value, not the surrounding JSON. If the
 voter voted again, use only the copy for the last vote cast: earlier votes are
@@ -185,8 +188,8 @@ not mean the ballot is absent from the complete tally.
 The status is `verified` only if the ballot is among the counted ballots and
 every shuffle and decryption proof holds; `ballot_inclusions` then shows it
 with at least one occurrence. If the ballot is not among them, the status is
-`invalid` with "requested ballot ciphertext is absent from the verified tally
-input". If it is absent from every relevant, otherwise verified batch, report
+`invalid` and `detail` reads "requested ballot ciphertext is absent from the verified
+tally input". If it is absent from every relevant, otherwise verified batch, report
 the problem to the election board. A voter who cannot run the tool can ask an
 observer they trust to run it for them.
 
@@ -204,7 +207,7 @@ In the post-processing phase the election organizer, for each election event:
    another channel, for example the board's published minutes or an official
    notice, so that voters and observers can take them independently of the
    files;
-4. makes the election-verifier available to voters and observers;
+4. makes the election verifier available to voters and observers;
 5. tells the voters, in its own words, where the data is and how to check
    their ballot with the command in
    [Checking that a ballot was counted](#checking-that-a-ballot-was-counted)

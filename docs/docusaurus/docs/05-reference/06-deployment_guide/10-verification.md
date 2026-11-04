@@ -42,9 +42,8 @@ caption and terminal outcome describe the captured run, not an authorization to
 hand over a different installation.*
 
 **If the result differs.** A failed group, timeout, missing final line or unexpected
-response is a failed inspection. Record the group and error, keep the installation
-out of handover, and have the operator correct its controlled configuration.
-Do not delete data, regenerate credentials or hide a failed check. Read-only
+response is a failed inspection. Keep the installation out of handover and correct
+its configuration. Do not delete data, regenerate credentials or hide a failed check. Read-only
 inspection can be repeated after correction. If storage-check cleanup failed,
 establish whether its pod remains before rerunning that group.
 
@@ -63,13 +62,14 @@ index is resolved to its image configuration before comparison.
 
 An absent blob, ambiguous index, missing container or different digest fails.
 A matching pod specification alone is insufficient. The `PASS` line confirms the
-image group; it does not establish that the source implements every ST requirement.
+image group.
 
 ## Repeat the complete TSF software integrity check
 
 **Where:** the administration workstation, in the verified `deployment` folder.
 Keep the original accepted seven-image OCI delivery mounted at `toe.directory`
-in `site.json`. Use its independently accepted digest manifest.
+in `site.json`. The command checks its `image-digests.txt` against
+`toe.manifest_sha256` of `site.json`.
 
 ```bash
 ./deploy inspect site.json integrity
@@ -90,15 +90,23 @@ supporting services have separate delivery records.*
 
 This command reads image content and does not replace software. It also works
 when a trustee is idle; it checks the accepted trustee image on both servers.
-Run it after recovery or software replacement, before authorizing election work,
-and whenever the integrity of the software is in doubt.
 
-**If the result differs:** keep voting unavailable and preserve the failed
-result. Restore the complete accepted software through the controlled recovery
-procedure, then repeat this command. Never copy an observed digest into the
-expected delivery manifest to make a mismatch pass. The background election-event
-self-tests and their data checks do not replace this seven-component software
-verification.
+The section "TOE software integrity" of the tab "Security and self-tests" of the
+election event ([Verify the TOE software](../../02-election_managers/04-administrator_handbook/07-self_tests.md#verify-the-toe-software))
+compares the six server TOE parts, using the image observer on C1
+([TOE image observation](11-selftest_handover.md#toe-image-observation)). This
+complete check covers all seven images, including the election verifier, and the
+content stores of both servers. Run it for
+[Confirm the server settings to the administrator](11-selftest_handover.md#confirm-the-server-settings-to-the-administrator),
+after recovery or software replacement, when the admin portal shows the result "Differs
+from the accepted delivery", and whenever the integrity of the software is in doubt.
+
+**If the result differs:** keep voting unavailable, tell the administrators and the
+election board, and preserve the failed result. Obtain the steps to restore the
+complete accepted software from Sequent, then repeat this command. Never copy an
+observed digest into the file `image-digests.txt` to make a mismatch pass. The
+background election-event self-tests and their data checks do not replace this
+seven-component software verification.
 
 ## Version
 
@@ -110,7 +118,8 @@ hash in the portal's header:
    `10.0.0`, matching `release.version` in the accepted installation configuration.
    This is the displayed release number for the TOE identified in this guide.
 3. Compare the **HASH** beside it with the first eight characters of
-   `release.step_commit` and of the independently accepted delivery record. The
+   `release.step_commit` and of the `commit:` line of the delivered
+   `image-digests.txt`. The
    header shows them in the form `1A2B-3C4D`, and only in a wide window. Letter
    case does not change the value.
 
@@ -147,8 +156,8 @@ the customer realm must publish the expected issuer. The checks require:
 
 - external identity-provider redirect for the administration portal;
 - rejection without a PKCE challenge or with an unregistered redirect address;
-- disabled password grants for the portal and `admin-cli`;
-- disabled `cli-account-admin`;
+- disabled password grants for the portal and the client `admin-cli`;
+- disabled client `cli-account-admin`;
 - master-realm HTTP `403` on all three portal hosts.
 
 **Browser action:** the personal administrator must complete the actual external
@@ -184,9 +193,7 @@ both disabled. Requests to the metadata path must receive a verified denial or
 the portal's HTML fallback, never a GraphQL metadata API response. Requests from
 `https://other.invalid` receive no allow-origin header.
 
-Do not expose the console or metadata API for diagnosis. The check does not
-establish complete ST access-control coverage: ADV records remaining table-role
-limitations separately.
+Do not expose the console or metadata API for diagnosis.
 
 ## Encrypted secrets and the internal bulletin board
 
@@ -196,7 +203,7 @@ limitations separately.
 **Included in the platform inspection.** Cluster-secret encryption is enabled.
 The bulletin board has a `ClusterIP` Service and no ingress. No external Service
 is permitted by this accepted private-ingress layout. Harvest and Windmill use
-`EnvVarMasterSecret` with a master key of the expected length; the check prints
+the secret backend `EnvVarMasterSecret` with a master key of the expected length; the check prints
 no secret value.
 
 If the secret-store check fails, preserve the existing master key. Replacing it
@@ -209,15 +216,17 @@ enable shell tracing or generate a replacement as a diagnostic step.
 <!-- deployment-step: 10-012 -->
 <!-- deployment-step: 10-013 -->
 
-**When:** after every election-event import, while the event is in Preparation
-and before the board approves its configuration. Register that event's exact
+**When:** after every election-event import, while the election event is in the
+preparation phase and before the election board approves its configuration version.
+Register that election event's exact
 external-provider redirect address as described in
 [Connecting the Authentication Server](06-authentication_server.md). To check
 the election event realms:
 
 1. Run `./deploy inspect site.json platform` again from the same administration
    terminal. It prints `EVENT REALM:` followed by each actual imported realm.
-   Compare the list with the board's import record. An absent or unexpected
+   Compare the list with the election events that the election board has told the
+   administrators it imported. An absent or unexpected
    realm is a failure, not a reason to skip the check.
 2. Copy one complete realm name from that output. Run the following command,
    replacing `REALM_FROM_THE_OUTPUT` with that exact name:
@@ -226,22 +235,27 @@ the election event realms:
    ./deploy inspect site.json election REALM_FROM_THE_OUTPUT
    ```
 
-3. Repeat for every imported event. Expect a `PASS` line naming that realm and
+3. Repeat for every imported election event. Expect a `PASS` line naming that realm and
    its TLS/session/audit policy, issuer, absent code channels and disabled
-   password grant. The check requires a positive failure threshold: 5 from the
-   realm settings, or the value that the election organizer decided in the
-   signed configuration package.
+   password grant. The check requires brute-force protection with a positive
+   value of the realm setting `failureFactor`: 5 from the realm template, or the
+   value in the signed configuration package. That setting is the identity
+   service's own lockout of accounts with a local password; it is not the
+   [Authentication failure threshold](../../02-election_managers/04-administrator_handbook/08-authentication_and_sessions.md#authentication-failure-threshold),
+   which the administrator sets in the admin portal.
 
 The realm policy must require external TLS, a 900-second idle timeout,
-brute-force protection, event recording and `custom-event-listener`. Voters must
-have no sign-in code channel, and the realm's `admin-cli` password grant must be
-refused. The command cannot prove that the external provider will admit an
-eligible voter; the board must complete the guided browser rehearsal as well.
+brute-force protection, event recording and the event listener
+`custom-event-listener`. Voters must have no sign-in code channel, and the password
+grant of the realm's client `admin-cli` must be refused. The command cannot prove
+that the external provider will admit an eligible voter. The administrator makes
+the browser checks of
+[What you check](../../02-election_managers/04-administrator_handbook/08-authentication_and_sessions.md#what-you-check).
 
-**If the command fails:** keep that event out of voting and configuration
-approval. Reconcile its exact realm, imported template and provider registration
-with the operator and administrator. Do not substitute a different realm or
-enable a password grant.
+**If the command fails:** tell the administrators that the election board must not
+approve the configuration version of that election event. Reconcile its exact realm,
+imported template and provider registration with the administrator. Do not
+substitute a different realm or enable a password grant.
 
 ## Data correction, telephone channel, plugins and tenants
 
@@ -254,7 +268,8 @@ enable a password grant.
 - exactly the initial installation tenant and configured customer tenant;
 - no election event in the installation tenant and no enabled personal installation
   account;
-- no assigned `datafix-account` or `voter-manually-verify` permission;
+- no assigned permission "Datafix account" (`datafix-account`) or "Manually Verify
+  Voter" (`voter-manually-verify`);
 - disabled telephone-channel clients and no telephone provider credentials;
 - administration-event recording, including details, in both tenant realms;
 - no plugin objects; private document storage denies anonymous access and has no
@@ -264,11 +279,12 @@ enable a password grant.
 - a nonempty published signing-key set whose identifiers **and public key
   material** match keys of this installation's known realms.
 
-Do not upload files to object storage or edit `certs.json` by hand. An unknown key,
-unexpected tenant or storage-policy mismatch blocks handover. Give the
-administrator the written result using
-[Confirm the server settings to the administrator](11-selftest_handover.md#confirm-the-server-settings-to-the-administrator).
+Do not upload files to object storage or edit the published signing-key file
+`certs.json` by hand. An unknown key, unexpected tenant or storage-policy mismatch
+blocks handover. Tell the administrators the result, as
+[Confirm the server settings to the administrator](11-selftest_handover.md#confirm-the-server-settings-to-the-administrator)
+describes.
 
 The platform inspection, browser checks and network checks are prerequisites for
-handover. They do not replace the six current election-event self-tests, the protected board
-procedures or the evaluation of the accepted release.
+handover. They do not replace the six current election-event self-tests or the
+protected board procedures.

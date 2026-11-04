@@ -22,7 +22,7 @@ supporting images do not replace the delivered TOE images.
 
 **Where:** a root terminal on the administration workstation, in the extracted
 `deployment` directory. Keep the accepted delivery medium mounted read-only and
-use the checked `site.json` from [the start of this guide](01-about.md#install-from-one-configuration-file).
+use the checked `site.json` of [Install from one configuration file](01-about.md#install-from-one-configuration-file).
 After `./deploy check site.json` passes, run:
 
 ```bash
@@ -105,7 +105,7 @@ before the trustee keys are installed. `ADMIN_HOST` below means the value of
    [Add the installation account](07-hardening.md#add-the-installation-account).
 2. In the menu, next to the tenant's name, select the plus button "Create new
    tenant". Enter the customer's short name in the field "Slug" and select
-   "Save". The TOE creates the tenant and its realm from the tenant template
+   the button "Save". The TOE creates the tenant and its realm from the tenant template
    that [Configure the realms](07-hardening.md#configure-the-realms) has
    hardened, with the service accounts and a seeded `admin` account without a
    password.
@@ -155,34 +155,32 @@ before the trustee keys are installed. `ADMIN_HOST` below means the value of
    The installer checks the account creation and disables the installation
    personal accounts. Native service accounts stay enabled. You do not receive
    or type a service password, and no later step uses the installation personal
-   account. The exact prompts and success messages are shown in the
-   [commissioning terminal screenshot](#transfer-the-matching-keys-and-start-the-instances).
+   account. The exact prompts and success messages are shown in the screenshot of
+   [Transfer the matching keys and start the instances](#transfer-the-matching-keys-and-start-the-instances).
 6. Continue with [Install the trustee keys](#install-the-trustee-keys) below in
-   the same commissioning terminal. Run the
-   [platform inspection](10-verification.md#run-the-platform-inspection) only
+   the same commissioning terminal. Carry out
+   [Run the platform inspection](10-verification.md#run-the-platform-inspection) only
    after both trustees are ready and commissioning completes.
 
 ## Install the trustee keys
 
 Each trustee generates their keys on a trustee workstation (see
-[Preparing a trustee workstation](#preparing-a-trustee-workstation) and the
-trustee procedures of the
-[Trustee Procedures (AGD-03)](../../02-election_managers/05-election_organizer_handbook/09-trustee-procedures.md)),
-and the administrators register the public keys as the section "Registering
-the trustees' public keys" of the
-[Registering the trustees' public keys (AGD-02)](../../02-election_managers/04-administrator_handbook/04-users_and_roles.md#registering-the-trustees-public-keys)
+[Preparing a trustee workstation](#preparing-a-trustee-workstation) and
+[Trustee Procedures](../../02-election_managers/05-election_organizer_handbook/09-trustee-procedures.md)),
+and the administrators register the public keys as
+[Registering the trustees' public keys](../../02-election_managers/04-administrator_handbook/04-users_and_roles.md#registering-the-trustees-public-keys)
 describes. The trustee then hands over the keys file for their instance of
 the trustee server: `trustee1` for the first trustee, `trustee2` for the
 second.
 
 ### Bind each native account to its registered trustee
 
-Before starting either instance, agree with the election administrator which
+Before starting either instance, agree with the administrator which
 registered trustee and public keys belong to each instance. The machine login
 names remain `trustee1` and `trustee2`; they can differ from the names registered
 in Settings > "TRUSTEES". Each machine account's `trustee` attribute must name
-exactly its registered trustee. The person's separate account uses "Act as
-Trustee" for the same registered name.
+exactly its registered trustee. The trustee's personal account names the same
+registered trustee in its field "Act as Trustee".
 
 The commissioning configuration associates the first trustee entry with native
 instance `trustee1` and the second with `trustee2`. At its checkpoint, the
@@ -205,12 +203,10 @@ continuing. The customer and trustee names shown here are examples.*
 **If the result differs.** If there is no success line, check the exact registered name, customer tenant and instance number with the administrator and trustee. Do not start either server with an uncertain key-to-account mapping.
 
 
-Record the native
-account, registered trustee name and checked public-key pair in the protected
-installation record. The binding is persistent customer-realm state; verify it
-again after restoring a customer backup. The process's `TRUSTEE_NAME` also
-selects its native login, so keep it as `trustee1` or `trustee2`. That display
-alias does not replace verification of the trustee's signing public key.
+The binding is persistent customer-realm state. The environment variable
+`TRUSTEE_NAME` of each instance selects its native login, so it stays `trustee1` or
+`trustee2`; that name does not replace verification of the trustee's signing public
+key.
 
 ### Transfer the matching keys and start the instances
 
@@ -226,7 +222,7 @@ connect to C1 and C2 over SSH. This is not the admin portal, a user named `admin
 or a separate trustee server. To transfer the matching keys and start the
 instances:
 
-1. Complete [customer creation and account setup](#create-the-customers-tenant)
+1. Complete [Create the customer's tenant](#create-the-customers-tenant)
    and register both trustees as described above. In `site.json`, each
    `commissioning.trustees` entry must contain the exact registered `name` and
    the absolute `keys_file` path on that trustee's mounted medium.
@@ -242,7 +238,9 @@ instances:
    directory. From another directory, use its full path and the full path to
    `site.json`.
 3. At the trustee-registration prompt, verify the names and both public keys
-   in the [portal screenshot above](#bind-each-native-account-to-its-registered-trustee).
+   in the portal, as
+   [Bind each native account to its registered trustee](#bind-each-native-account-to-its-registered-trustee)
+   shows.
    Type `CONTINUE` and press Enter only after completing that check.
 4. At each `Trustee 1: be present...` / `Trustee 2: be present...` prompt,
    have that trustee confirm their own mounted medium and private-key file.
@@ -279,7 +277,7 @@ installer's temporary transfer copies; do not make additional copies yourself.
   error and the actual cluster state. Do not overwrite an existing Secret,
   generate replacement keys or assume that temporary-file cleanup succeeded.
 - **A previous attempt stopped during writes:** the installer refuses automatic
-  replay. Resolve the partial state with the operator before retrying; do not
+  replay. Resolve the partial state before retrying; do not
   remove its state markers to bypass this refusal.
 
 <!-- deployment-step: 08-011 -->
@@ -293,15 +291,16 @@ personal trustee accounts remain separate from these native machine accounts.
 **Final expected result.** The terminal prints
 `PASS: customer login restrictions and both native trustees Ready`, followed by
 `COMMISSIONING COMMANDS COMPLETE — perform the browser, client-network and board handover checks in AGD-04.`
-This is not authorization to start an election.
+This is not authorization to start an election event.
 
-Before each key or tally ceremony, the operator must confirm that both instances
-are ready. From the same `deployment` directory, run `./deploy commission site.json`
+Before each key or tally ceremony, check that both instances are ready, and tell
+the election board the result. From the same `deployment` directory, run `./deploy commission site.json`
 with the unchanged completed configuration. On a completed installation it checks
 readiness and login restrictions without importing the keys again. Expect the
 `PASS: customer login restrictions and both native trustees Ready` line; the
-first-run completion banner is not repeated. If the check fails, do not authorize
-the ceremony until the operator resolves the fault and the check passes.
+first-run completion banner is not repeated. If the check fails, tell the election
+board not to start the ceremony until you have resolved the fault and the check
+passes.
 
 ## Back up the trustee state
 
@@ -323,15 +322,17 @@ privately. Enter the passphrase again when requested. It creates a new dated
 backup; it does not overwrite an earlier one. Keep the encrypted backup and its
 passphrase in separate locked places.
 
-**Expected result:**
+**Expected result**, in this order:
 
 1. `TRUSTEES STOPPED: state backup may begin`.
 2. `BACKUP CONTENTS VERIFIED: trustee`.
 3. `TRUSTEE REPLICA COUNTS RESTORED`.
 4. `TRUSTEE BACKUP COMPLETE:` followed by the encrypted file's path and SHA-256.
 
-Record the final path and digest in the backup record. The encrypted archive is
-accepted only after decryption and complete content validation succeed.
+Tell the election board the path and the digest: it records them in the board's
+minutes, and they name the backup to destroy at
+[Remove the trustee keys at the end of the election event](#remove-the-trustee-keys-at-the-end-of-the-election-event).
+The encrypted archive is accepted only after decryption and complete content validation succeed.
 
 ![Actual rehearsal terminal completing an encrypted trustee-state backup](./assets/installation/trustee-backup.png)
 
@@ -355,9 +356,10 @@ it. This does not restore damaged state or undo key removal. Run:
 Read the warning, then type `RESUME UNCHANGED TRUSTEES`. Expect
 `TRUSTEE REPLICA COUNTS RESTORED`. The command checks and uses the saved original
 replica counts. If their record is missing or invalid, it stops: do not guess the
-counts, remove markers manually or authorize another ceremony.
+counts or remove markers manually, and tell the election board not to start another
+ceremony.
 
-## Remove the trustee keys at the end of the election
+## Remove the trustee keys at the end of the election event
 
 :::warning
 This destroys server-side trustee keys and protocol state. Use it only after the
@@ -389,12 +391,13 @@ No trustee instance is restarted.
 verified copied state and synthetic Secrets. The live election installation was
 not used for this destructive demonstration.*
 
-**If the result differs:** preserve the remaining state and backups and record
-what was removed. Do not authorize another ceremony or destroy backups while the
-outcome is uncertain. After confirmed server removal, the board directs each
-custodian to destroy retained trustee-state backups and records their destruction.
-Deleting files does not establish physical erasure of storage remnants; follow
-the organizer's approved media-retirement procedure as well.
+**If the result differs:** preserve the remaining state and backups, and tell the
+election board what was removed. Tell the board not to start another ceremony, and
+do not destroy backups, while the outcome is uncertain. After confirmed server
+removal, the board directs each custodian to destroy retained trustee-state backups
+and records their destruction in the board's minutes. Deleting files does not
+establish physical erasure of storage remnants; the election organizer decides what
+happens to the media.
 
 ## Preparing a trustee workstation
 
@@ -423,7 +426,7 @@ In the accepted `deployment` folder, copy `trustee.example.json` to
 | Setting | What to enter |
 | --- | --- |
 | `delivery_directory` | The read-only accepted delivery mount, normally `/mnt/temenos-delivery`. |
-| `manifest_sha256` | The independently accepted SHA-256 of `image-digests.txt`, already used for `toe.manifest_sha256` in the installation configuration. |
+| `manifest_sha256` | The SHA-256 of `image-digests.txt` kept at [Compare with the signed delivery note](../08-delivery_verification.md#5-compare-with-the-signed-delivery-note), the value of `toe.manifest_sha256` in the installation configuration. |
 | `working_directory` | The private `session` directory on this trustee's own unlocked LUKS-encrypted medium, for example `/media/trustee-one/session`. It must be owned by root with permissions **700**. |
 | `keys_file` | Keep `trustee.toml`. This file is created on the private medium. |
 | `request_file` | Keep `custody-request.json`; copy and rename the downloaded public request to this name when needed. |
@@ -491,5 +494,5 @@ the accepted delivery medium.
 Only this trustee's working directory is mounted into the offline container.
 The command supplies the private-key file path explicitly, so private keys are
 never intentionally printed. Make the two required protected backups and follow
-[Trustee Procedures (AGD-03)](../../02-election_managers/05-election_organizer_handbook/09-trustee-procedures.md)
+[Trustee Procedures](../../02-election_managers/05-election_organizer_handbook/09-trustee-procedures.md)
 for the portal's public-key registration and custody-proof upload.

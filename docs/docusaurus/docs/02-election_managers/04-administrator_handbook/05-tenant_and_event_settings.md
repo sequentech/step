@@ -85,11 +85,10 @@ that no other member has checked.
 
 ### Configure certificates in the admin portal
 
-You need **Edit Tenant** (`tenant-write`) and **View settings** (`settings-menu`)
-to use this screen. The tenant mutation is restricted on the server to the
-`admin-user` role and the tenant named by the authenticated session. These
-portal permissions determine whether the screen is available; they are not an
-additional server permission check. To configure the certificates:
+To use this screen you need the permissions **Edit Tenant** (`tenant-write`)
+and **View settings** (`settings-menu`). The TOE accepts the change only from an
+account with the permission **Admin User** (`admin-user`), and only for the
+account's own tenant. To configure the certificates:
 
 1. Open **Settings → Configuration packages** before importing the first
    election event. The screen is titled **Signed configuration packages**.
@@ -98,7 +97,7 @@ additional server permission check. To configure the certificates:
    certificates, including an approved successor. Do not select a private key
    or a board member's personal certificate.
 3. Check the name, expiry date and full **SHA-256** fingerprint of **every**
-   displayed certificate against the organizer's independently supplied record.
+   displayed certificate against the values the organizer stated in writing.
    Select the confirmation checkbox only when they all match.
 4. Repeat these checks under **Election board approval CAs**, using the CA file
    for board members' approval certificates.
@@ -173,10 +172,9 @@ Your part:
    ([Security-Relevant Events for Administrators](11-security_relevant_events.md)).
 
 Use the complete signed-package procedure for the evaluated configuration.
-The server also gates individual voter, area, candidate and schedule imports
-with board authorization and phase checks. An unapproved raw table mutation
-cannot replace these procedures. Read-only candidate and contest forms point
-back to approved imports.
+The TOE also requires the board's authorisation and the right phase for separate
+imports of voters, areas, candidates and schedules, and refuses direct changes
+of this data.
 
 Some settings available to administrators also affect the ballot design that
 is approved in the signed package. The election organizer includes the required
@@ -284,7 +282,7 @@ Notes:
   refuses with "The Ballot Box Seal Policy can't be changed after voting has
   opened." "Ballot Box Seal Record" is locked at the same time.
 - "Receipts signed by the ballot box" cannot be changed once voting has
-  started ("This cannot be changed once voting has started."). The required
+  started. The required
   value must already be in the signed package; a different imported value
   requires a corrected package and a new election event.
 - Check "Checks available until" in the time zone that the field shows.
@@ -309,7 +307,7 @@ tally: the votes could then be decrypted without the trustees' consent. The
 evaluated configuration forbids automatic ceremonies. The switch "Automatic
 Ceremony" of each key ceremony decides whether the trustees confirm custody,
 whatever this policy says. The election board, which creates
-the key ceremony ("Create Key Ceremony" in the Keys tab), never switches on
+the key ceremony ("Create Key Ceremony" in the election event's tab "Keys"), never switches on
 "Automatic Ceremony" and checks that every trustee confirmed custody. Check
 this policy after every import, and again before the key ceremony.
 :::
@@ -337,8 +335,8 @@ never available.
 
 Ask the board to open each election's **Data** tab and confirm the following
 values. The administrator's limited settings projection does not expose every
-field. Record the board's confirmation; if a value is wrong, request a corrected
-approved import rather than acquiring election-data permissions.
+field. If a value is wrong, request a corrected approved import rather than
+acquiring election-data permissions.
 
 | Setting (section) | Default | Required value | Why |
 |---|---|---|---|
@@ -373,16 +371,19 @@ refuses changes to them. Whether an area allows early voting therefore comes
 with the imported election data. An area with "Allow Early Voting" ticked
 would accept ballots before online voting opens, that is, outside the
 execution phase, so the import refuses a package in which an area has it
-ticked. Tell the election organizer in writing that no area of a package may
-have it ticked.
+ticked. Tell the election organizer that no area of a package may have it ticked.
 
 ## Tenants, plugins and the telephone channel
 
+Where the table says that the operator tells you, and you are also the operator,
+you checked it yourself in
+[Verifying the Installation](../../05-reference/06-deployment_guide/10-verification.md).
+
 | Item | Required state | Your check |
 |---|---|---|
-| Tenants | The customer's tenant holds every election event and every account and role for election work. The super-admin tenant serves only the installation steps of the Deployment Guide, holds no election event and has no enabled personal account. | Work only in the customer's tenant. The person who runs the servers confirms in writing that election work uses only the customer's tenant. |
-| Telephone voting channel | Not configured: no telephone provider and no credentials for its endpoints, which refuse every request. Voters vote only through the voting portal. | "Voting Channels Allowed" is "Online" only in the election event and in each election. The person who runs the servers confirms in writing that the installation configured no telephone provider. |
-| Plugins | None installed: the TOE answers every plugin request that the plugin does not exist. | The person who runs the servers confirms in writing that no plugin is installed. |
+| Tenants | The customer's tenant holds every election event and every account and role for election work. The super-admin tenant serves only the installation steps of the Deployment Guide, holds no election event and has no enabled personal account. | Work only in the customer's tenant. The operator tells you that election work uses only the customer's tenant. |
+| Telephone voting channel | Not configured: no telephone provider and no credentials for its endpoints, which refuse every request. Voters vote only through the voting portal. | "Voting Channels Allowed" is "Online" only in the election event and in each election. The operator tells you that the installation configured no telephone provider. |
+| Plugins | None installed: the TOE answers every plugin request that the plugin does not exist. | The operator tells you that no plugin is installed. |
 | Data correction | No account holds "Datafix account" (`datafix-account`); its data-correction routes are not used. | No role contains it and no account has it ([The roles of the evaluated configuration](04-users_and_roles.md#the-roles-of-the-evaluated-configuration)). |
 | Manual verification of voters | No account holds "Manually Verify Voter" (`voter-manually-verify`); voters sign in only through the external authentication server. | No role contains it and no account has it ([The roles of the evaluated configuration](04-users_and_roles.md#the-roles-of-the-evaluated-configuration)). |
 
@@ -400,10 +401,10 @@ To publish and approve the configuration version:
 1. Check the settings of this page once more, and the protected actions and the
    self-test interval, timeout and additional conditions
    ([Security and Self-Tests](07-self_tests.md)).
-2. Tell the election board in writing that the settings of the election event
-   are complete, once you hold the written confirmation of the person who runs
-   the servers for this election event (plugins, telephone provider and
-   tenants, as in the table above).
+2. Tell the election board that the settings of the election event are complete,
+   once the operator has told you that the table above holds for this election
+   event (plugins, telephone provider and tenants), and hand it your copy of the
+   [checklist](11-security_relevant_events.md#checklist-before-the-election-board-approves-the-configuration-version).
 3. A board member selects "Generate Publication" and "Publish Changes". The
    required board members sign the signing request "Approve a configuration
    version" after comparing its "Changes in this version" with the package they

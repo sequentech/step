@@ -37,6 +37,11 @@ for these permissions, and how existing tenants get them, are in
 | `sign-transmit-results` | Sign: transmit results | Sign a results package. |
 | `sign-approve-voter` | Sign: approve a voter manually | Sign a manual voter approval. |
 | `sign-approve-configuration` | Sign: approve a configuration version | Sign a configuration version. |
+| `sign-import-election-data` | Sign: import election data | Sign the import of a configuration package. |
+| `sign-start-tally` | Sign: start counting votes | Sign the start of counting. |
+| `sign-export-execution-data` | Sign: export election execution data | Sign the export of election execution data. |
+| `sign-delete-execution-data` | Sign: delete election execution data | Sign the deletion of election execution data. |
+| `sign-read-voters-register` | Sign: read the voters' register in post-processing | Sign a read of the voters' register in post-processing. |
 | `sign-key-ceremony` | Sign: confirm a key share | Approve one's own public custody proof in the key ceremony. |
 | `sign-tally-key` | Sign: contribute a key share | Approve one's own public custody proof bound to the tally session. |
 

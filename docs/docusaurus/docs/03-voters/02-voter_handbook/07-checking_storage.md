@@ -36,8 +36,8 @@ ballot in the "Ballot list" and with "Locate your ballot".
 *Test capture with a synthetic voter. Use the Ballot ID from your own
 confirmed vote.*
 
-The Ballot ID lets you find your encrypted ballot in the ballot box. It does
-not reveal your selections. It has two forms:
+The Ballot ID lets you find your encrypted ballot in the intermediate ballot
+box. It does not reveal your selections. It has two forms:
 
 - **The short code**, in two groups of four characters, such as `G5AT-12SZ`.
   The review and confirmation screens show it, and the link and the QR code of
@@ -92,15 +92,15 @@ find it:
 | "Your ballot ID" followed by the code and "was not found" | No cast ballot of yours has this Ballot ID. | Check that you entered the full Ballot ID of your cast ballot. If it is correct, tell the election organizer. |
 | "More than one of your ballots matches" followed by "Use the full ballot ID." | The code you entered matches more than one of your cast ballots. | Enter the full Ballot ID. |
 | "Something went wrong." | The lookup could not be done, for example because the election is in maintenance mode or voting has ended (see [Election States and Problems for Voters](10-states_and_problems.md)). | Try again later. If it keeps happening, tell the election organizer. |
-| "Checks ended on" followed by a date | The period for checking cast ballots is over. The ballot locator no longer looks up ballots. | Nothing. A copy of your encrypted ballot still lets you check after the election that your vote was counted (see below). |
+| "Checks ended on" followed by a date | The period for checking cast ballots is over. The ballot locator no longer looks up ballots. | Nothing. A copy of your encrypted ballot still lets you check after the election that your vote was counted ([After the election: was your vote counted?](#after-the-election-was-your-vote-counted)). |
 
 ![Ballot locator showing a found ballot, its cast time and complete encrypted ballot content](./assets/voter-locator-current.png)
 
 *Test capture with a synthetic voter. Use the Ballot ID of your own latest
 vote.*
 
-The ballot content is the encrypted ballot that the ballot box stored under
-your Ballot ID. It is shown so that you can see that ballot: your full Ballot
+The ballot content is the encrypted ballot that the intermediate ballot box
+stored under your Ballot ID. It is shown so that you can see that ballot: your full Ballot
 ID is calculated from it, so it stands for this ballot and no other. The ballot
 content is encrypted. It does not show your selections.
 
@@ -126,7 +126,8 @@ ballots, so checking one of them does not verify your final vote. You can copy
 the final ballot only while the ballot locator shows it: while voting is open,
 at the latest until the end of the election period. To copy it:
 
-1. Find your ballot with the ballot locator, as described above.
+1. Find your ballot, as described in
+   [Find your ballot with the ballot locator](#find-your-ballot-with-the-ballot-locator).
 2. Select all the text shown under "This is your Ballot content:" and copy it,
    including the opening `{` and closing `}`. This is the complete JSON ballot;
    keep every field, not just the long encrypted value inside `contests`.

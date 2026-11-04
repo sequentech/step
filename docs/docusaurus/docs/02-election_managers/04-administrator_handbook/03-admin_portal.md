@@ -14,7 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 |---|---|
 | Admin portal, in your browser over HTTPS | every configuration and monitoring task of this handbook |
 | Login page of the TOE, which sends you on to the external authentication server | signing in and confirming sensitive actions |
-| The server procedures of the Deployment Guide, used by the person who runs the servers | deployment, hardening, operation, backups and the image check |
+| The server procedures of the Deployment Guide, used by the operator | deployment, hardening, operation and backups |
 
 There is no other interface for administrators in the evaluated configuration.
 Over HTTPS, the identity and access management component offers only its
@@ -41,7 +41,9 @@ portal, and this handbook gives no secure way to use them.
 - Check that the browser shows a valid HTTPS connection for the admin portal
   and for the external authentication server before you sign in. If the
   browser reports a certificate problem, do not continue: report it to the
-  person who runs the servers.
+  operator.
+- You need no command-line tool on this workstation: all your checks are in the
+  admin portal.
 
 ## Signing in
 
@@ -68,6 +70,18 @@ If the TOE ever shows you a password or one-time-code form of its own, or
 offers to register a new account, stop and report it: the evaluated
 configuration has none ([Authentication and Session Settings](08-authentication_and_sessions.md)).
 :::
+
+## What the admin portal shows
+
+![The admin portal with the administrator's view of an election event](assets/admin-portal-overview.png)
+
+*Illustration: the administrator's view of a synthetic v10.0.0 election event.*
+
+| Part of the screen | What it holds |
+|---|---|
+| Header | "Version:" and "Hash:" ([Checking the version of the TOE](#checking-the-version-of-the-toe)), the language, and the account icon with "Logout" ([Sessions and logout](#sessions-and-logout)) |
+| Side menu | The tenant's name, "Election Events" with the tenant's election events, "Users and Roles", "Settings" and "Templates" |
+| Main area, when you select an election event | The tabs "Data", "Signatures" and "Security and self-tests" |
 
 ## Confirming sensitive actions
 
@@ -112,14 +126,12 @@ characters of the source revision of the TOE, in the form `1A2B-3C4D`.
 Check after the deployment, after every update and at the start of each
 election event's preparation phase that the version is exactly `10.0.0`.
 
-The header alone does not prove which images are running. The person who runs the
-servers checks the running images against the verified TOE delivery, as the
-Deployment Guide describes, and confirms the result to you in writing after
-the installation and for each new election event.
+The header alone does not prove which software is running. Verify that with
+[Verify the TOE software](07-self_tests.md#verify-the-toe-software).
 
 :::warning
-If the version differs, or the person who runs the servers reports that the
-image check failed, the system is not the evaluated TOE. Do not start or
+If the version differs, or the TOE software differs from the accepted delivery,
+the system is not the evaluated TOE. Do not start or
 continue an election event on it. Inform the election board and the election
 organizer, and report it as a security problem
 ([Environment Measures and Security Problems](12-environment_and_security_problems.md#reporting-a-security-problem)).

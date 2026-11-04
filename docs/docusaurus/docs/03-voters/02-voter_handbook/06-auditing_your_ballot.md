@@ -101,7 +101,7 @@ To check your ballot:
    supported format is txt. If the ballot verifier shows "Could not import this
    file. Please try again.", or "Error" with "There was a problem importing the
    auditable ballot. Did you choose the right file?", choose the file you
-   downloaded in section 6.3.
+   downloaded in [Save the audit details](#save-the-audit-details).
 2. Under "Step 2: Insert your ballot ID", paste the full Ballot ID you copied
    on the review screen into the field "Ballot ID".
 3. Select "Next".

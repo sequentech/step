@@ -16,7 +16,7 @@ what keeps the votes secret.
 A trustee works with two things:
 
 - their **personal account** in the admin portal, with the role `trustee` and
-  their trustee name in "Act as Trustee";
+  their trustee name in its field "Act as Trustee";
 - the accepted **trustee tool** (`./trustee`) on their **trustee workstation**, which
   creates and holds their keys file (`trustee.toml`).
 
@@ -80,6 +80,9 @@ The command refuses to overwrite existing keys.
 
 ![Generating keys on the offline VM's encrypted working medium](../../05-reference/06-deployment_guide/assets/installation/trustee-generate.png)
 
+*Illustration: keys generated on the encrypted working medium of a laboratory offline
+VM, with synthetic data.*
+
 To display your public keys again:
 
 ```sh
@@ -88,6 +91,9 @@ To display your public keys again:
 
 ![Displaying the two public keys without revealing the private keys](../../05-reference/06-deployment_guide/assets/installation/trustee-public-keys.png)
 
+*Illustration: the two public keys of a synthetic trustee; the private keys are not
+shown.*
+
 If the command stops, follow its message: disable networking and swap, check that
 your own encrypted medium is unlocked and the private directory has permissions
 700. If keys already exist, use `public-keys`; never remove them merely to make
@@ -95,9 +101,10 @@ your own encrypted medium is unlocked and the private directory has permissions
 delivery again.
 
 Give both public keys to the administrators, in person or on a medium you hand
-over yourself. They register them under your trustee name in Settings >
-"TRUSTEES" ("Create Trustee"). Check the registered keys with them, character
-by character, before the key ceremony.
+over yourself. They register them under your trustee name
+([Registering the trustees' public keys](../04-administrator_handbook/04-users_and_roles.md#registering-the-trustees-public-keys)).
+Check the registered keys with them, character by character, before the key
+ceremony.
 
 ## Protecting your keys file
 
@@ -138,26 +145,26 @@ the secrecy of the votes is lost.
 
 ## Taking part in the key ceremony
 
-Who: each trustee the ceremony names. Phase: preparation. Permission: the role
-`trustee` with "Trustee Ceremony" (`trustee-ceremony`), and "Sign: confirm
-custody" (`sign-key-ceremony`) where that protected action needs signatures.
+Who: each trustee the ceremony names. Phase: the preparation phase. Permissions: the
+permission "Trustee Ceremony" (`trustee-ceremony`) of the role `trustee`, and "Sign:
+confirm custody" (`sign-key-ceremony`) where that protected action needs signatures.
 
-When the election board has created the key ceremony, the admin portal shows
-you: "You have been invited to participate in a Key Ceremony." To take part:
+When the election board has created the key ceremony, the admin portal invites
+you to take part in it. To take part:
 
-1. Sign in with your personal account and open the election event's Keys tab.
+1. Sign in with your personal account and open the election event's tab "Keys".
    Select the ceremony's key action.
 2. The page "Trustee Key Ceremony" says that you participate as a trustee and
    shows your trustee name. Check that it is yours.
-3. Select "Download Custody Request". The admin portal confirms "Public
-   custody request downloaded successfully." The file
+3. Select the button "Download Custody Request". The admin portal shows the message
+   "Public custody request downloaded successfully." The file
    `<trustee name>-custody-request.json` (your trustee name, with spaces and
    special characters replaced by "-") is public: it holds identifiers and
    your registered public keys.
-4. Select "Next". The dialog "Back Up Your Local Trustee Keys" asks you to back up
-   `trustee.toml` in at least two secure locations. Tick "First backup secured"
-   and "Second backup secured" only when both backups exist, then select
-   "Confirm Backups and Continue".
+4. Select the button "Next". The dialog "Back Up Your Local Trustee Keys" asks you to
+   back up `trustee.toml` in at least two secure locations. Tick "First backup
+   secured" and "Second backup secured" only when both backups exist, then select the
+   button "Confirm Backups and Continue".
 5. Move the downloaded public request into your own encrypted working directory.
    The portal shows three short public configuration fields. Copy their values
    into your `trustee.json`: `request_file`, `proof_file` and `tally_session_id`.
@@ -175,42 +182,42 @@ you: "You have been invited to participate in a Key Ceremony." To take part:
 
    ![The offline trustee VM creates the public custody proof with the short attest command](assets/trustee-attest-key.png)
 
-   This capture shows the actual offline VM creating a proof for a laboratory
-   key ceremony. Your ceremony identifier and configured filename will differ.
+   *Illustration: the offline VM creating a proof for a laboratory key ceremony, with
+   synthetic data. Your ceremony identifier and configured filename will differ.*
 
 6. Move the new public proof back. On the step "Confirm Trustee Custody",
    upload it. The admin portal checks the proof when you select the file.
    If the protected action
    "Confirm custody (key ceremony)" needs signatures, sign it with your signing
    certificate.
-7. The admin portal shows "Trustee custody confirmed successfully." On the Keys
-   tab your row shows "Custody Confirmed".
+7. The admin portal shows the message "Trustee custody confirmed successfully." On
+   the tab "Keys", your row shows a tick in the column "Custody Confirmed".
 
-Keep `<trustee name>-custody-request.json`: you need it again for the counting.
+Keep `<trustee name>-custody-request.json` on your encrypted working medium: you need
+it again for the counting.
 
-If the admin portal shows "Invalid custody proof, please try again", check that
+If the admin portal shows the message "Invalid custody proof, please try again", check that
 you used the request of this ceremony and your own keys file, and create the
 proof again. A proof is valid only for its election event, ceremony and
 trustee.
 
 ## Authorising the counting
 
-Who: each trustee the tally needs. Phase: preparation for an initialization
-report, or evaluation for counting the votes. Permission: the role
-`trustee` with "Trustee Ceremony" (`trustee-ceremony`), and "Sign: authorize
-tally custody" (`sign-tally-key`) where that protected action needs
-signatures.
+Who: each trustee the tally needs. Phase: the preparation phase for an initialization
+report, or the evaluation phase for counting the votes. Permissions: the permission
+"Trustee Ceremony" (`trustee-ceremony`) of the role `trustee`, and "Sign: authorize
+tally custody" (`sign-tally-key`) where that protected action needs signatures.
 
-When the election board has created the tally ceremony, the admin portal shows
-you: "You have been invited to participate in a Tally ceremony." Check its
+When the election board has created the tally ceremony, the admin portal invites
+you to take part in it. Check its
 purpose with the board: an initialization report checks that the ballot box
 is empty before voting; an electoral-results tally counts votes after voting
 has closed. Both require a new custody proof bound to their own tally.
 To authorise the tally:
 
-1. Sign in with your personal account, open the election event's Tally tab and
+1. Sign in with your personal account, open the election event's tab "Tally" and
    select the tally's action.
-2. Under "Trustees process", compare the displayed tally identifier with the
+2. In the section "Trustees process", compare the displayed tally identifier with the
    tally the board announced. The portal shows the public fields to use in
    `trustee.json`: your saved `request_file`, a new `proof_file` for this tally,
    and the exact `tally_session_id` in quotes. Copy those three values into your
@@ -229,8 +236,7 @@ To authorise the tally:
 4. Upload the new public proof named by the command. If the protected action "Authorize
    tally custody (tally)" needs signatures, sign it with your signing
    certificate.
-5. Check that the section "Trustees" ("Custody confirmation status") of the
-   tally counts your confirmation.
+5. Check that the section "Trustees" of the tally counts your confirmation.
 
 A tally proof is bound to its tally: a proof from the key ceremony or from
 another tally is not accepted.
@@ -246,7 +252,7 @@ command and tell the election board.
 
 ## What trustees never do
 
-- Do not use the page "Trustee Dashboard" of the admin portal. In the evaluated
+- Do not use the entry "Trustee Dashboard" of the side menu. In the evaluated
   configuration custody authorization uses the offline trustee tool; the
   server-side instance runs in the cluster. That page would handle your keys in
   the browser.
@@ -261,7 +267,8 @@ command and tell the election board.
 To handle the loss or exposure:
 
 1. Tell the election board at once, with the time and what happened.
-2. The election board treats it as a security-relevant event and records it.
+2. The election board treats it as a security-relevant event and records it in the
+   board's minutes.
 3. If a keys file is lost, restore it from a backup, only on the trustee
    workstation: both trustees are needed to count the votes.
 4. If a keys file may have been exposed, the board decides under the
@@ -274,5 +281,6 @@ To handle the loss or exposure:
 When the electoral regulation's retention period has ended and the election
 execution data has been deleted, each trustee destroys their keys file and all
 its backups, in the presence of another board member, and the board records it
-in its minutes. The operators remove the copy held for your trustee server
-instance as the Deployment Guide describes.
+in the board's minutes. The operators remove the copy held for your trustee server
+instance
+([Remove the trustee keys at the end of the election event](../../05-reference/06-deployment_guide/08-installing_toe.md#remove-the-trustee-keys-at-the-end-of-the-election-event)).

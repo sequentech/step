@@ -10,41 +10,54 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ## The electoral log
 
-The TOE records the security-relevant events of the tenant and of each
-election event in the electoral log. Each record has its time, its type and
-the account that caused it, and the records are chained, so that a removed or
-changed record is detected. Among others the TOE records:
+Each election event has its own electoral log ([Terms](01-about.md#terms)). Each
+record has its time, its type and the account that caused it, if a person caused
+it. The records are chained, so that a removed or changed record is detected. The
+TOE records:
 
-- the import of election data, each publication and approval of a
-  configuration version, and each signing request with its signatures;
-- the start, interruption, resumption and termination of the election
-  execution, the counting, the export and the deletion;
-- creating, changing and deleting users, roles, role permissions and role assignments, signing
-  rules and realm policies;
-- self-test results, maintenance and unrecoverable-failure transitions, and
-  audit-storage failures ([Security and Self-Tests](07-self_tests.md));
-- the voters' actions in the voting portal.
+| Caused by | What the electoral log records |
+|---|---|
+| The election board | The import of election data, each publication and approval of a configuration version, each signing request with its signatures, the start, interruption, resumption and termination of the election execution, the counting, the export, the archiving and the deletion |
+| The administrators | Changes of signing rules, trusted issuers, certificate checks and "Sign:" permissions, certificate registrations and revocations, changes of the self-test settings, and changes of the attack-detection settings, which are recorded in every election event of the tenant |
+| The TOE | Self-test results, maintenance and unrecoverable-failure transitions, audit-storage failures, and attack detections, among them an account reaching the authentication failure threshold. A detection that concerns the tenant's accounts is recorded in every election event of the tenant |
+| The voters | Their actions in the voting portal |
+
+The electoral log does not record changes of staff accounts, role assignments,
+other role permissions, the realm's password policy or other tenant settings. Once
+a configuration version is approved, the self-test check "Approved access-control
+configuration" detects such a change
+([Security and Self-Tests](07-self_tests.md)).
 
 Nobody can change or delete records. Only the election board reads, audits and
 exports the electoral log: as administrator you do not read it. You learn of
 security-relevant events from the TOE's notifications
-([Email notifications](#email-notifications)) and from the election board. For
-operating the servers you read the platform's own operating logs, only as the
-Deployment Guide describes; they are not the electoral log.
+([Email notifications](#email-notifications)) and from the election board. The
+operator reads the operating logs, only as the Deployment Guide describes; they
+are not the electoral log.
 
 ## The election board's tools for the audit review
 
-The election board reads the electoral log in the election event's tab "Logs"
-and in the Electoral Log console, checks it with "Audit" ("Audit electoral
-log"), whose result appears as the task "Audit Electoral Log" in the tab
-"Tasks", and exports it with "Export in CSV" or "Export in PDF". The
-permissions for these tools belong only to the role `election-board`
-([The election board role](04-users_and_roles.md#the-election-board-role)).
+The election board uses these tools. Their permissions belong only to the role
+`election-board`
+([The election board role](04-users_and_roles.md#the-election-board-role)):
 
-Your part: check that `election-board` holds them, as that section lists, and
-that "Role Data" of `admin` shows none of them. Give "Read Electoral Log
-Personal Data" (`electoral-log-personal-data-read`) only where the election
-organizer decides so.
+| To | The board uses |
+|---|---|
+| Read the electoral log of an election event | The tab "Logs" of the election event, or the screen "Electoral Log" in the side menu, where it selects the election event |
+| Check the electoral log | The button "Audit" in the tab "Logs". The result appears as the task "Audit Electoral Log" in the tab "Tasks" of the election event |
+| Export the electoral log | The button "Export" in the tab "Logs". It asks for the period, the time zone and the format, CSV or PDF |
+
+![The Electoral Log screen in the side menu](assets/electoral-log-screen.png)
+
+*Illustration: the screen "Electoral Log" with the synthetic records of a
+v10.0.0 election event. This screen is the election board's: an administrator
+does not see it.*
+
+Your part: check that the role `election-board` holds these permissions, as that
+section lists, and that "Role Data" of the role `admin` shows none of them. Give
+the permission "Read Electoral Log Personal Data"
+(`electoral-log-personal-data-read`) only where the election organizer decides
+so.
 
 ## Attack detections
 
@@ -53,47 +66,51 @@ patterns:
 
 | Pattern | When it matches |
 |---|---|
-| Brute force | the failed logins of one account reach the authentication failure threshold, or the failed logins across accounts exceed "Failed logins per minute, all accounts" |
+| Brute force | the failed logins of one account reach "Failed sign-ins per account before an alert", or the failed logins across accounts exceed "Failed logins per minute, all accounts" |
 | Denial of service | the requests on the external interfaces exceed "Requests per minute, external interfaces" |
 
-Both rates are tenant settings in the section "Attack detection" of the
-tenant's "Settings", and only the administrator role changes them
-(`tenant-write`). Set them with the election organizer in the
-preparation phase, from the number of voters and the expected peak load: high enough that the normal peak
-does not match, low enough that an attack does. On a match the TOE writes a
-record to the electoral log and shows it in the Dashboard's "Attack
-detections", which only the election board sees (`monitoring-view`) and
-watches during the execution phase.
+These three thresholds are tenant settings on the tab "Attack detection" of the
+side menu "Settings". Only the administrator role changes them, with the
+permissions "Admin User" (`admin-user`) and "Edit Tenant" (`tenant-write`). Set
+them with the election organizer in the preparation phase, from the number of
+voters and the expected peak load: high enough that the normal peak does not
+match, low enough that an attack does. On a match the TOE writes a record to the
+electoral log and shows it on the election event's tab "Dashboard", under "Attack
+detections". The election board watches it during the execution phase. Seeing it
+needs the permission "View Monitoring Dashboards" (`monitoring-view`), which only
+the board holds.
 
-### Set and verify the two rates
+### Set and verify the thresholds
 
-To set and verify the two rates:
+To set and verify the thresholds:
 
 1. Open **Settings → Attack detection**.
-2. Enter whole numbers in **Failed logins per minute, all accounts**
-   (1–100,000) and **Requests per minute, external interfaces**
-   (1–10,000,000), using the values agreed with the election organizer.
+2. Enter whole numbers in **Failed logins per minute, all accounts** (1–100,000),
+   **Failed sign-ins per account before an alert** (1–100,000, default 5,
+   [Authentication failure threshold](08-authentication_and_sessions.md#authentication-failure-threshold))
+   and **Requests per minute, external interfaces** (1–10,000,000), using the values
+   agreed with the election organizer.
 3. Select **Save attack detection settings** once.
-4. Expect **Attack detection settings saved and verified**. Check that both
+4. Expect **Attack detection settings saved and verified**. Check that the three
    fields still show the agreed values. The board must approve the updated
    configuration before execution.
 
 ![Administrator settings after saving and verifying the agreed rates](assets/attack-detection-settings.png)
 
-*Illustration: the administrator saved and read back the rates. The numbers
+*Illustration: the administrator saved and read back the thresholds. The numbers
 shown are examples, not a recommendation for a live election event.*
 
 If a value is outside the accepted range, correct it and save again. If saving
 or verification fails, do not assume the new values took effect: reopen this
-section, inspect the stored values and resolve the displayed cause. Rates
-cannot be changed while an election event is executing. These thresholds detect
-patterns; they do not rate-limit requests or disable per-account lockout.
+section, inspect the stored values and resolve the displayed cause. The thresholds
+cannot be changed while an election event is in the execution phase. They detect
+patterns: they do not limit requests or lock accounts.
 
 When the election board tells you of an attack detection, treat it as a
 security-relevant event
 ([Security-Relevant Events for Administrators](11-security_relevant_events.md)):
-tell the person who runs the servers and the network, and agree the measures
-with the board.
+tell the operator, and whoever runs the network if that is someone else, and
+agree the measures with the board.
 
 ## The audit storage threshold
 
@@ -115,17 +132,28 @@ phase, period and self-test checks continue to apply.
 
 ## Email notifications
 
-The TOE emails the election board and the administrators when:
+The TOE emails every enabled account, except service accounts, that has an email
+address and holds the permission "Edit Tenant" (`tenant-write`) or "Edit Election
+State" (`election-state-write`): that is, the administrators and the board
+members. It sends an email when:
 
-- an election event enters maintenance mode, with the reason;
-- an unrecoverable failure stops the election execution;
-- the audit storage threshold is exceeded.
+- an election event enters maintenance mode or has an unrecoverable failure, with
+  the reason;
+- an election event leaves maintenance mode;
+- the electoral phase of an election event changes;
+- election execution data is exported;
+- an election event is archived;
+- the audit storage threshold is exceeded, or the TOE has no current measurement
+  of the audit storage.
 
-The TOE sends these emails to the enabled administrators and board members
-with a configured email address. It uses the protected relay configuration
-supplied during installation. **Security and self-tests → Security email
-delivery** shows queued, sent, failed and uncertain outcomes. A transport
-acceptance does not prove that the recipient read the message.
+The TOE sends no email for an attack detection or for an account reaching the
+authentication failure threshold. The election board sees these on the tab
+"Dashboard" of the election event and in the electoral log.
+
+The TOE uses the protected relay configuration supplied during installation. The
+area "Security email delivery" of the tab "Security and self-tests" of the
+election event shows queued, sent, failed and uncertain outcomes. That the mail
+relay accepted a message does not prove that the recipient read it.
 
 Use the "Email" of each account. Before the execution
 phase, check that every administrator's and board member's account has the
@@ -138,12 +166,10 @@ At the beginning of the evaluation phase the election board checks the audit
 records. Support the board:
 
 - make sure that every board member who checks the records holds the
-  permissions of the Logs tab and the Electoral Log console;
+  permissions that the tab "Logs" and the screen "Electoral Log" need
+  ([The election board's tools for the audit review](#the-election-boards-tools-for-the-audit-review));
 - when the board shows you a record that an administrator caused, for example a
-  change of a setting, a role or a signing rule, explain it from your written
-  record, with the reason and the instruction of the election organizer;
+  change of a signing rule, explain why the change was made. The record gives
+  the account and the time;
 - if the board finds a record it cannot explain, help it to find the cause and
   treat it as a security-relevant event.
-
-Keep your own written record of every change you make, with its date, time and
-reason, so that you can explain each record later.

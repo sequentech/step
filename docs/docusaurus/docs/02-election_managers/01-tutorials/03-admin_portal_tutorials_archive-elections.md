@@ -33,16 +33,7 @@ Once an election has ended, you can move it to the Archived list to declutter yo
 2.  Click the **three-dot icon** next to the election name.
 3.  Select `Archive this Election Event`.
 
-## Unarchiving and Restoring Elections
-
-If you need to reactivate an archived election or simply view its data in the active list, you can unarchive it at any time.
-
-![Unarchive Election Event](./assets/unarchive_button.png)
-
-1.  Switch to the **Archived** tab in the sidebar.
-2.  Locate the desired electoral event.
-3.  Click the **three-dot icon** and select `Unarchive this Election Event`.
-4.  Confirm the action in the warning prompt. The event will now reappear in the **Active** tab.
+An archived election event stays in the **Archived** tab: it can't be moved back to the **Active** tab.
 
 :::warning
 **Permanent Removal:** Both the Active and Archived menus contain an option to `Remove this Election Event`. Selecting this will permanently delete the event and all associated data from the system.

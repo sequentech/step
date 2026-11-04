@@ -162,6 +162,16 @@ class InstallerTests(unittest.TestCase):
             with patch('install.ssh',return_value=json.dumps({'status':{'id':'sha256:'+'c'*64}}).encode()):
                 with self.assertRaisesRegex(ValueError,'differs from the accepted kit'):install.verify_setup_image(d,node)
 
+    def test_check_refuses_a_workstation_without_a_required_tool(self):
+        with patch('install.shutil.which',side_effect=lambda tool:None if tool=='openssl' else '/usr/bin/'+tool):
+            with self.assertRaisesRegex(ValueError,'lacks these tools: openssl'):install.check_workstation()
+
+    def test_check_refuses_an_old_openssl(self):
+        with patch('install.shutil.which',return_value='/usr/bin/tool'),patch('install.run',return_value=b'OpenSSL 1.1.1w  11 Sep 2023'):
+            with self.assertRaisesRegex(ValueError,'needs OpenSSL 3'):install.check_workstation()
+        with patch('install.shutil.which',return_value='/usr/bin/tool'),patch('install.run',return_value=b'OpenSSL 3.0.13 30 Jan 2024'):
+            install.check_workstation()
+
     def test_oci_profile_needs_no_user_created_archive_hashes(self):
         d=self.config();d['toe'].pop('archive_sha256');d['toe']['format']='oci'
         install.validate(d)

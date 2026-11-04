@@ -18,11 +18,8 @@ portal calls a security-critical action a **protected action**, and its rule a
 request expires.
 
 You set the signing rules, the trusted issuers and the certificate checks of
-each election event on its tab "Signatures". The tab explains: "Protected
-actions run only after enough authorized people sign them with their digital
-certificates. Each signature is checked against the trusted issuers and
-recorded in the log." It has three areas: "Protected actions",
-"Certificates" and "Requests". "Requests" belongs to the election board: a
+each election event on its tab "Signatures". It has three areas: "Protected
+actions", "Certificates" and "Requests". "Requests" belongs to the election board: a
 request shows what it authorises, for a configuration version its "Changes in
 this version", which are election data. The administrator role holds no
 permission for it.
@@ -41,7 +38,7 @@ one that replaces a wrong import.
 | Change the certificate checks | "Signatures: edit certificate checks" (`signing-checks-write`) | administrator role only |
 | Register certificates to people | "Signatures: register certificates" (`signing-certificates-register`) | administrator role only |
 | Revoke certificates | "Signatures: revoke certificates" (`signing-certificates-revoke`) | administrator role only |
-| Read, cancel and export signing requests | <ul><li>"Signatures: read requests" (<code>signing-requests-read</code>)</li><li>"Signatures: cancel requests" (<code>signing-requests-cancel</code>)</li><li>"Signatures: export requests" (<code>signing-requests-export</code>)</li></ul> | "Election board" only; give `signing-requests-cancel` to every board member |
+| Read, cancel and export signing requests | <ul><li>"Signatures: read requests" (<code>signing-requests-read</code>)</li><li>"Signatures: cancel requests" (<code>signing-requests-cancel</code>)</li><li>"Signatures: export requests" (<code>signing-requests-export</code>)</li></ul> | "Election board" only; every board member needs "Signatures: cancel requests" |
 
 Without "Signatures: edit protected actions", the rule shows "Read only.
 Changing signing rules needs the permission “Signatures: edit protected
@@ -59,15 +56,14 @@ signing controls:
 | import of the voters' register | preparation |
 | import of the set of election rules | preparation |
 | import of the election dates | preparation |
-| termination of the election execution ("Close voting") | execution |
-| resumption of the election execution ("Open voting") | execution |
+| termination of the election execution, the protected action "Close voting" | execution |
+| resumption of the election execution, the protected action "Open voting" | execution |
 | start of the counting of the votes with determination of the election result | evaluation |
 | export of election execution data | post-processing |
 | deletion of election execution data | post-processing |
 | the election board's read of the voters' register | post-processing |
 
-On the tab, termination is the protected action "Close voting", and
-resumption is "Open voting", which also covers the first opening of voting.
+"Open voting" also covers the first opening of voting.
 The evaluated procedure imports the four data categories together as a signed
 configuration package. The board approves each import in the approval event:
 configure **Import election data** and register the board certificates there.
@@ -205,50 +201,40 @@ Open the tab "Signatures", area "Certificates".
 
 ![Certificates tab with Trusted issuers, abbreviated SHA-256 and certificate-check settings](assets/certificates-current.png)
 
-*Illustration: a synthetic v10.0.0 issuer and certificate policy. The displayed
-SHA-256 is abbreviated: compare the complete fingerprint independently as
-described below. Use your election event’s actual issuers and revocation policy.*
+*Illustration: a synthetic v10.0.0 issuer and certificate policy. The table shows
+the SHA-256 shortened; the copy icon next to it copies the complete value. Use your
+election event’s actual issuers and revocation policy.*
 
 ### Trusted issuers
 
-"Staff certificates must chain to one of these. They are separate from the
-certificates voters sign in with." While the list is empty the tab shows "No
-trusted issuers yet. Staff can't sign until one is imported."
+The board members' signing certificates must chain to one of the trusted issuers.
+These are separate from the certificates voters sign in with. While the list is
+empty, no board member can sign.
 To import the trusted issuers:
 
 1. Receive the CA certificates that issue the board members' signing
    certificates from the election organizer, with their SHA-256 fingerprints
    in writing, through a channel that protects their integrity.
-2. Before importing, calculate the fingerprint of each received certificate
-   on your workstation. Replace `<issuer certificate>` with its file name:
+2. Select "Import issuer certificates", then "Choose a certificate file", choose
+   the file you received, and select "Import".
+3. Check the issuer name and validity in the table.
+4. Select the copy icon next to the issuer's "SHA-256" value to copy its complete
+   fingerprint, paste it next to the election organizer's value and compare all
+   of it. Colons and letter case only affect its display. If any digit differs,
+   remove the issuer at once and obtain the correct certificate.
 
-   ```sh
-   openssl x509 -in "<issuer certificate>" -noout -fingerprint -sha256
-   ```
-
-   Compare the entire SHA-256 fingerprint with the independently received
-   value. Colons and letter case only affect its display. If any digit
-   differs, stop and obtain the correct certificate; do not import it.
-3. Select "Import issuer certificates", then "Choose a certificate file",
-   choose the exact file you checked, and select "Import".
-4. Check the issuer name and validity, and compare the displayed beginning
-   and end of the "SHA-256" value with the verified fingerprint. The table
-   abbreviates its middle with an ellipsis; this display check does not
-   replace the full comparison in step 2. If a displayed value differs,
-   remove the issuer at once.
-
-To remove an issuer, confirm "Remove … from the trusted issuers? Certificates
-it issued can no longer sign." Remove an issuer only when the election
-organizer tells you to.
+To remove an issuer, select the delete icon in its row and confirm. Certificates it issued
+can then no longer sign. Apart from a difference in step 4, remove an issuer only
+when the election organizer tells you to.
 
 ### Checks
 
-The checks are saved when you change them ("The certificate checks were
-saved."):
+Each check is saved when you change it: the admin portal then shows the message
+"The certificate checks were saved." The required values are:
 
 | Check | Default | Required value |
 |---|---|---|
-| "Check revocation lists" ("Downloaded from each issuer every hour.") | on | on, where the election organizer's CA publishes revocation lists that the server can download |
+| "Check revocation lists": the TOE downloads the list of each issuer every hour | on | on, where the election organizer's CA publishes revocation lists that the server can download |
 | "When a list can't be downloaded": "Don't accept signatures" / "Accept and mark the signature as unchecked" | "Don't accept signatures" | "Don't accept signatures" |
 | "Registering a certificate to a person": "When its holder first signs with it" / "Only when someone who can register certificates registers it" | "When its holder first signs with it" | "Only when someone who can register certificates registers it" |
 | "A certificate signs for one election only" | on | on |
@@ -269,14 +255,13 @@ has revoked can still sign while its list cannot be downloaded.
 
 With "Only when someone who can register certificates registers it", a board
 member can sign only after an administrator has registered their certificate.
-Only the administrator role holds "Signatures: register certificates".
+Only the administrator role holds the permission "Signatures: register certificates".
 To register a board member's certificate:
 
 1. Meet the board member in person. Check their identity and receive their
    public certificate (PEM) from them, for example on a medium they hand over.
-2. Select "Register a certificate". In "Person", type part of the username
-   ("Type part of a username to find the person.") and select the board
-   member's account.
+2. Select "Register a certificate". In "Person", type part of the username and
+   select the board member's account.
 3. Paste the certificate into "Certificate (PEM)" and select "Register". The
    TOE confirms "The certificate was registered." It refuses with "This
    certificate can't be registered: check that a trusted issuer issued it,
@@ -296,8 +281,8 @@ validity cover the whole required period. Arrange and register a renewal
 before expiry when further signing will be needed. Never use "Expired" or
 "Revoked" registrations.
 
-To revoke a registration, select "Revoke" and enter the "Reason". "A revoked
-certificate can't sign anymore. Signatures it already made still count."
+To revoke a registration, select "Revoke" and enter the "Reason". A revoked
+certificate cannot sign any more; signatures it already made still count.
 Revoke a registration on the same day when a board member leaves, loses their
 security token, or the election organizer revokes their certificate
 ([Users, Roles and Role Separation](04-users_and_roles.md)).
@@ -312,7 +297,7 @@ their status: "Waiting", "Signed", "Done", "Cancelled", "Expired" or "Failed".
   selecting "Publish Changes"
   ([Tenant and Election Event Settings](05-tenant_and_event_settings.md#publishing-the-configuration-version)).
   You never start, sign or cancel a request.
-- Every board member holds "Signatures: cancel requests"
+- Every board member holds the permission "Signatures: cancel requests"
   (`signing-requests-cancel`), so that any board member can abort a
   security-critical action they object to.
 - A "Failed" request means that all signatures were given but the action

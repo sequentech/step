@@ -24,17 +24,19 @@ Only the election board has access to election execution data and audit records.
 
 The first opening requires the approved time window, an empty ballot box,
 initialization and a current **Before starting voting** result. A scheduled
-opening uses its own election-start check. A diagnostic **On request** result
-does not substitute for either. See [Security and Self-Tests](07-self_tests.md).
+opening uses its own election-start check, and the TOE refuses it during
+maintenance mode or a board pause. A diagnostic **On request** result does not
+substitute for either. See
+[Security and Self-Tests](07-self_tests.md).
 
 ## Lockdown
 
 Lockdown protects configuration settings during the agreed period. While it
-lasts, **Data** shows **Lockdown Status** as **Locked Down**. It is separate
-from the security state.
+lasts, the election event's tab **Data** shows **Lockdown Status** as **Locked
+Down**. It is separate from the security state.
 Lockdown alone does not stop voting.
 
-The board configures the lockdown schedule before approval. The server also
+The board sets the lockdown period after approving the configuration version. The server also
 enforces electoral phases: ending a lockdown does not permit rewriting approved
 election data or returning from evaluation to execution. Administrators cannot
 change the board's schedule. Follow the
@@ -51,8 +53,9 @@ To resume voting:
 1. Resolve the reason for the pause and preserve the relevant records.
 2. Select **Security and self-tests → Before resuming voting → Run self-tests**.
 3. Wait for all six checks in the latest run to pass for the current state.
-4. The board authorizes **Start Voting → Start Online Voting** in **Publish**. The approved voting
-   period and the required services must still be available.
+4. The board authorizes **Start Voting → Start Online Voting** in the election
+   event's tab **Publish**. The approved voting period and the required services
+   must still be available.
 
 A failed, pending, stale or differently purposed run cannot authorize resumption.
 If the board tries too soon, the operation remains refused; wait for its required
@@ -60,18 +63,38 @@ check and then submit a new authorized operation.
 
 ## Maintenance mode
 
-**Recovery required** means that a recoverable failure has stopped normal
-voting. A failed required check, a stopped required service or an expired
-service heartbeat causes refusal. A repair or restart does not reopen voting.
-The system records the transition and queues a separate security notification.
+**Recovery required** on the tab **Security and self-tests** means that a
+recoverable failure has stopped normal voting. The tab gives the reason. The
+causes are:
+
+- a failed self-test, except for the two integrity findings of
+  [An unrecoverable failure](#an-unrecoverable-failure), or a passed self-test
+  whose validity has expired;
+- a ballot box that is not empty at the start of the election;
+- TOE software that differs from the accepted delivery;
+- a stopped required service or an expired service heartbeat;
+- external request monitoring that is unavailable or out of date.
+
+A repair or restart does not reopen voting. Only the election board does, after
+the checks below. The TOE records the transition in the electoral log and
+notifies the responsible people by email.
+
+![The tab Security and self-tests in the state Recovery required](assets/recovery-required.png)
+
+*Illustration: a synthetic election event in maintenance mode, after the check
+"Clock synchronization" failed.*
+
 To recover and resume voting:
 
 1. Read the reason and the latest check results in **Security and self-tests**.
-2. Tell the board and server operator. Record the event identifier, run
-   identifier, time and reason; preserve the operating logs.
-3. Correct the cause using AGD-04, for example the service, trusted certificate,
-   authenticated time source or storage availability. Never replace evidence
-   merely to make a test pass.
+2. Tell the election board and the operator the election event, the time and
+   the reason. The board records them in the board's minutes; the operator keeps
+   the operating logs.
+3. Have the operator correct the cause as the
+   [Deployment Guide](../../05-reference/06-deployment_guide/01-about.md)
+   describes, for example the service, trusted certificate, authenticated time
+   source or storage availability. Never replace evidence merely to make a test
+   pass.
 4. Run **Before resuming voting** and wait for the current six-check result.
 5. The board reviews the investigation and authorizes **Start Voting → Start Online Voting**. The
    server checks its preconditions again and runs an additional check after
@@ -81,7 +104,8 @@ To recover and resume voting:
 
 ## An unrecoverable failure
 
-A detected ballot-box integrity error produces **Unrecoverable failure**.
+A detected ballot-box integrity error, or a verified integrity finding in the
+electoral log, produces **Unrecoverable failure**.
 Election execution cannot resume, even if a later diagnostic check passes.
 Do not edit ballots, remove records, replace the approved baseline or delete
 execution data to clear the state.
@@ -93,9 +117,11 @@ into a successfully counted election event.
 
 ## A crash or shutdown of a server component
 
-During execution, obtain the board's decision before an operator restarts a
-component. The operator follows AGD-04 and verifies the accepted image digests
-and service state.
+During execution, obtain the board's decision before the operator restarts a
+component, as
+[Restart an authorized failed component](../../05-reference/06-deployment_guide/11-selftest_handover.md#restart-an-authorized-failed-component)
+describes. After the restart,
+[verify the TOE software](07-self_tests.md#verify-the-toe-software).
 An absent or expired required-service lease prevents voter operations.
 
 Startup records the recovery requirement for an executing event. Follow the
@@ -108,14 +134,17 @@ Above 80% used audit-storage capacity, the system refuses voter token issuance,
 refresh and voter operations. Missing, stale, future-dated or unreadable storage
 observations also refuse access. Staff access remains available for recovery.
 
-Extend storage as AGD-04 describes; never delete audit records or election
-execution data to make space. A fresh healthy observation removes the storage
+Have the operator extend storage
+([Storage](../../05-reference/06-deployment_guide/11-selftest_handover.md#storage));
+never delete audit records or election execution data to make space. A fresh
+healthy observation removes the storage
 refusal, but every other lifecycle and self-test gate still applies. See
 [Audit, Monitoring and Notifications](09-audit_and_monitoring.md#the-audit-storage-threshold).
 
 ## Backups
 
-The operational environment provides protected, tested backups. Follow AGD-04.
-A restoration replaces current data with an older state and is not a normal way
-to recover an executing election event. Obtain the board's decision, preserve the
-incident evidence and investigate the audit sequence before any resumption.
+The operator provides protected, tested backups
+([Backups and restore](../../05-reference/06-deployment_guide/11-selftest_handover.md#backups-and-restore)).
+A restoration replaces current data with an older state. It needs the board's
+decision, and the deployment helper refuses it while an election event is in the
+execution phase.

@@ -235,7 +235,7 @@ pins the Post.
 | `/monitoring/export` | `monitoringExport` | `monitoring-view` |
 | `/monitoring/validate-config` | `monitoringValidateConfig` | `monitoring-configure` |
 | `/monitoring/list-presets`, `/monitoring/list-config`, `/monitoring/get-config` | `monitoringListPresets`, `monitoringListConfig`, `monitoringGetConfig` | `monitoring-configure` |
-| `/monitoring/save-config`, `/monitoring/reset-to-preset`, `/monitoring/set-mode` | `monitoringSaveConfig`, `monitoringResetToPreset`, `monitoringSetMode` | `monitoring-configure` and `election-event-write`; refused while the event is locked down |
+| `/monitoring/save-config`, `/monitoring/reset-to-preset`, `/monitoring/set-mode` | `monitoringSaveConfig`, `monitoringResetToPreset`, `monitoringSetMode` | `monitoring-configure`; refused while the event is locked down |
 
 Every refusal, from a route or from what fails before it runs, is JSON
 Hasura passes on: `{message, extensions: {code, ...}}`. A body that is not

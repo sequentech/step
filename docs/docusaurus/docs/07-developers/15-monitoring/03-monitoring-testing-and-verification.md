@@ -110,7 +110,7 @@ Expect `metadata is consistent`, and `create_monitoring_tables` and
 | Permission | Allows | Default tenant realm (`.devcontainer/keycloak/import/tenant-90505c8a-…json`) |
 |---|---|---|
 | `monitoring-view` | See the dashboards, View data, export. | `admin`, `admin-light` |
-| `monitoring-configure` | Configure widget, Edit dashboard, theme, Duplicate, Reset to preset, set mode. Also needs `election-event-write`. | `admin` |
+| `monitoring-configure` | Configure widget, Edit dashboard, theme, Duplicate, Reset to preset, set mode. | `admin` |
 
 The event's Dashboard tab also needs `admin-dashboard-view`, and an
 election's needs `election-dashboard-tab` (`admin` has both; `admin-light`

@@ -13,7 +13,14 @@ const headings = require("@docusaurus/mdx-loader/lib/remark/headings").default;
 const toc = require("@docusaurus/mdx-loader/lib/remark/toc").default;
 
 const site = path.resolve(__dirname, "..");
-const manual = { documents: { "AGD-X": ["docs/a.md", "docs/b.md", "docs/c.md"] } };
+const otherPages = {
+  "docs/b.md": "---\ntitle: Other Chapter\n---\n\n## Deep section\n\n## Second {#custom-id}\n",
+  "docs/sub/y.md": '---\ntitle: "Other Manual"\n---\n\n## Far section\n',
+};
+const manual = {
+  documents: { "AGD-X": ["docs/a.md", "docs/b.md", "docs/c.md"], "AGD-Y": ["docs/sub/y.md"] },
+  read: (file) => otherPages[path.relative(site, file)],
+};
 const title = "Secure Use of the Admin Portal";
 
 /** Run the remark steps of a Docusaurus docs page, with or without numbering. */
@@ -144,6 +151,56 @@ test("refuses a chapter without a title, a second h1, and anchors it cannot keep
   await assert.rejects(compile("# Own title\n\n## Section\n"), /h1/);
   for (const markdown of ["## A {#same}\n\n## B {#same}\n", "## A {#Mixed.Case}\n"])
     await assert.rejects(compile(markdown), /anchor/);
+});
+
+test("names the target of a link between numbered pages by its number", async () => {
+  const markdown = [
+    "## Signing in",
+    [
+      "- [Signing in](#signing-in)",
+      "- [`Signing` in](#signing-in)",
+      `- [${title}](#signing-in)`,
+      "- [how to sign in](#signing-in)",
+      "- [Other Chapter](b.md)",
+      "- [Other Chapter](b.md#deep-section)",
+      "- [Second](./b.md#custom-id)",
+      "- [the second part](b.md#custom-id)",
+      "- [Far section](sub/y.md#far-section)",
+      "- [Other\n  Chapter](b.md#deep-section)",
+      "- [Other Manual](sub/y.md)",
+      "- [the far part](sub/y.md#far-section)",
+      "- [not numbered](other.md#x)",
+      "- [outside](https://example.org/a.md#x)",
+    ].join("\n"),
+  ].join("\n\n");
+  const { tree } = await compile(markdown);
+  const { toString } = await import("mdast-util-to-string");
+  const links = [];
+  (function walk(node) {
+    if (node.type === "link") links.push([toString(node), node.url]);
+    for (const child of node.children || []) walk(child);
+  })(tree);
+  assert.deepEqual(links, [
+    ["3.1 Signing in", "#signing-in"],
+    ["3.1 Signing in", "#signing-in"],
+    ["3.1 Signing in", "#signing-in"],
+    ["how to sign in (section 3.1)", "#signing-in"],
+    ["2 Other Chapter", "b.md"],
+    ["2.1 Deep section", "b.md#deep-section"],
+    ["2.2 Second", "./b.md#custom-id"],
+    ["the second part (section 2.2)", "b.md#custom-id"],
+    ["AGD-Y 1.1 Far section", "sub/y.md#far-section"],
+    ["2.1 Deep section", "b.md#deep-section"],
+    ["Other Manual", "sub/y.md"],
+    ["the far part (AGD-Y section 1.1)", "sub/y.md#far-section"],
+    ["not numbered", "other.md#x"],
+    ["outside", "https://example.org/a.md#x"],
+  ]);
+});
+
+test("refuses a link to a section the target does not have", async () => {
+  await assert.rejects(compile("[Other Chapter](b.md#missing)\n"), /names no section/);
+  await assert.rejects(compile("## A\n\n[A](#missing)\n"), /names no section/);
 });
 
 test("refuses a page listed twice", () => {

@@ -16,6 +16,30 @@ SPDX-License-Identifier: AGPL-3.0-only
 | Document version | 1.1 |
 | Software release | v10.0.0 |
 
+## Who this guide is for
+
+This guide is for the operator: the administrator in their duties on the servers
+([Roles and people](../../02-election_managers/04-administrator_handbook/01-about.md#roles-and-people)).
+The operator installs the servers and the cluster, the certificates, the
+connection to the external authentication server, the TOE images and the initial
+accounts, needs root access to the two servers and works from the administration
+workstation. The election organizer may give these duties to the person who works
+in the admin portal or to someone else. Either way the operator counts as an
+administrator and is never a board member or a trustee.
+
+The administrator's duties inside the platform (users and roles, tenant and
+election event settings, self-tests) are in the
+[Handbook for Election Administrators](../../02-election_managers/04-administrator_handbook/01-about.md).
+The administrator never imports, reads or changes election data and never
+reads the TOE's audit records (the electoral log): the election board imports
+the election data and reviews the electoral log. The duties of the election
+board and the trustees are in the
+[Handbook for Election Organizers](../../02-election_managers/05-election_organizer_handbook/01-about.md),
+and the voters' guidance is the
+[Handbook for Voters](../../03-voters/02-voter_handbook/01-about.md).
+
+## This document
+
 This guide holds the preparative procedures of the Sequent Voting Platform -
 uniWAHL Version, v10.0.0 (the TOE). It describes how to accept the delivered
 TOE, how to prepare its operational environment and how to install and
@@ -27,26 +51,19 @@ every setting this guide makes. A deployment that leaves out a step, changes a
 setting or adds a component the guide does not name is not the evaluated
 configuration.
 
-## Who this guide is for
+## Terms
 
-This guide is for the person who runs the servers, as the Handbook for Election
-Administrators calls this person; this guide calls them the operator. In the TOE's
-role model this is
-the administrator in their platform duties: installing the servers and the
-cluster, the certificates, the connection to the external authentication server,
-the TOE images and the initial accounts. The operator needs root access to the
-two servers and works from the administration workstation.
-
-The administrator's duties inside the platform (users and roles, tenant and
-election event settings, self-tests) are in the
-[Handbook for Election Administrators (AGD-02)](../../02-election_managers/04-administrator_handbook/01-about.md).
-The administrator never imports, reads or changes election data and never
-reads the TOE's audit records (the electoral log): the election board imports
-the election data and reviews the electoral log. The duties of the election
-board and the trustees are in the
-[Handbook for Election Organizers (AGD-03)](../../02-election_managers/05-election_organizer_handbook/01-about.md),
-and the voters' guidance is the
-[Handbook for Voters (AGD-01)](../../03-voters/02-voter_handbook/01-about.md).
+| Term | What it means |
+| --- | --- |
+| operator | The administrator in their duties on the servers, as described above. In this guide the word alone always means this person. |
+| administrator | A person the election organizer appoints to set up and look after the TOE. In the admin portal: the role `admin`. |
+| election board | The group of people the election organizer appoints to run the election event. Its members are never administrators. |
+| tenant | The organisation's space in the TOE. It holds the administrators', board members' and trustees' accounts and the election events. |
+| election event | What the Security Target calls an election: the whole vote that the election organizer holds. |
+| electoral log | The audit records of one election event. Each election event has its own electoral log, which the election board reads and the administrators and operators do not. |
+| operating logs | The logs of the servers and containers, which the operator reads to run the system. They are not audit records. |
+| the board's minutes | The election board's own record of the election event, kept outside the TOE in the form the electoral regulation sets ([Write the electoral regulation](../../02-election_managers/05-election_organizer_handbook/02-organizer-duties.md#write-the-electoral-regulation)). |
+| administration workstation | The protected Linux computer from which the operator runs `./deploy` and the commands of this guide ([Administration workstation](02-operational_environment.md#administration-workstation)). |
 
 ## The TOE
 
@@ -94,19 +111,21 @@ Complete these preparations once:
    service and responsible people.
 3. Obtain the site TLS certificate and private key from your certificate process,
    and the external identity provider's registration and CA certificate. The
-   [certificate requirements](05-certificates_tls.md) and
-   [identity-provider requirements](06-authentication_server.md) remain mandatory.
+   requirements of [Certificates and TLS](05-certificates_tls.md) and
+   [Connecting the Authentication Server](06-authentication_server.md) remain mandatory.
    The installer cannot issue a trusted certificate or register an application at
    another organization's identity provider for you.
 4. Extract the verified guidance package. Open its `deployment/site.example.json`
    in a text editor, save a private working copy as `site.json`, and fill in the
    site's public values and file paths. Keep passwords, tokens and private keys
    out of this JSON file: it refers to protected files where those are needed.
-5. [Verify the kit and install C1 and C2](03-installation_kit.md). The operator
-   confirms the disk at each server console before it is erased. Then
-   [verify both SSH host keys](03-installation_kit.md#verify-ssh-host-keys-before-first-use)
-   against their server-console fingerprints. These instructions show the commands,
-   actual console and first-connection prompt, and when to refuse the connection.
+5. Verify the kit and install C1 and C2, as
+   [Installing the Servers](03-installation_kit.md) describes. The operator
+   confirms the disk at each server console before it is erased. Then verify both
+   SSH host keys against their server-console fingerprints, as
+   [Verify SSH host keys before first use](03-installation_kit.md#verify-ssh-host-keys-before-first-use)
+   describes. These instructions show the commands, actual console and
+   first-connection prompt, and when to refuse the connection.
 
 ### Where to run each instruction
 
@@ -125,13 +144,7 @@ Your working `deployment/site.json` points to the accepted kit, certificates and
 other site inputs used by `./deploy`. The following field table describes this
 working file.
 
-The configuration is JSON, matching the installation kit's existing site-file
-format. JSON makes the site values explicit without adding a YAML interpreter to
-an offline workstation. The file is data; the installer does not execute it as
-shell code.
-
-
-Fill the configuration from the approved site plan and verified delivery records:
+Fill the configuration with the values of your site and of the verified delivery:
 
 | Field | What to supply |
 | --- | --- |
@@ -140,17 +153,17 @@ Fill the configuration from the approved site plan and verified delivery records
 | `hosts` | Voting, administration, ballot-verifier and external-authentication host names |
 | `idp_alias` | The external provider's alias in the TOE |
 | `kit` | Verified kit directory and the signing fingerprint received independently |
-| `toe` | Accepted delivery root containing `images/` and `image-digests.txt`, `format: "oci"`, and the digest-list file's SHA-256 from the accepted delivery record |
+| `toe` | Accepted delivery root containing `images/` and `image-digests.txt`, `format: "oci"`, and the SHA-256 of `image-digests.txt` that you kept at [Compare with the signed delivery note](../08-delivery_verification.md#5-compare-with-the-signed-delivery-note) |
 | `tls` | Paths to the issued site certificate, protected private key and CA, plus the independently checked CA fingerprint |
 | `identity_provider` | Paths to the protected provider definition and CA, plus the independently checked CA fingerprint |
-| `operator` | The installation operator's existing identity-provider user name and e-mail; the separate service-administrator name |
+| `operator` | The operator's existing identity-provider user name and e-mail; the separate service-administrator name |
 | `notifications` | Security-notification sender address and path to the private SMTP configuration supplied by the mail administrator |
-| `release` | Software version and exact Step source revision from the accepted image provenance |
+| `release` | Software version and exact source revision, as the `tag:` and `commit:` lines of the delivered `image-digests.txt` give them |
 | `commissioning` | Customer slug, first administrator identity, and two trustee names with paths to their independently held key files; used by the commissioning command |
 
 Use absolute paths. The example's addresses, hash placeholders and names are
 examples only. The installer refuses unknown fields and invalid values. A
-successful schema check does not prove that the values describe your approved site.
+successful schema check does not prove that the values describe your site.
 
 Point `toe.directory` directly at the accepted delivery medium. For example, this
 section of `site.json` selects the OCI images already supplied by Sequent:
@@ -208,9 +221,11 @@ Kubernetes manifest.
 
 **Expected result:** `./deploy check site.json` accepts the private configuration
 and `./deploy install site.json` supplies it before workers start. During
-handover, generate a controlled security notification and confirm both its
-delivery status and its arrival in the intended test mailboxes. Configuration
-validation alone does not establish delivery.
+handover, test the relay with the mail administrator, and check with the
+administrator the delivery state in
+[Check security notifications](../../02-election_managers/04-administrator_handbook/07-self_tests.md#check-security-notifications)
+and the arrival at the intended staff addresses. Configuration validation alone
+does not establish delivery.
 
 **If it fails:** check the reported path, file permissions, relay URL and timeout.
 The evaluated installer accepts authenticated `smtps://` URLs and a timeout of
@@ -248,7 +263,10 @@ check; it does not show acceptance of a newly delivered ISO or a completed platf
 installation.*
 
 **If the result differs.** Correct the configuration or the named prerequisite and
-run this read-only check again. Do not change a certificate fingerprint to match
+run this read-only check again. If it refuses the administration workstation,
+install what its message names
+([Administration workstation](02-operational_environment.md#administration-workstation))
+and run it again. Do not change a certificate fingerprint to match
 an unexpected certificate, suppress an error, or proceed after a failed check.
 A missing `deploy` means the terminal is not in the extracted directory; it does
 not mean a package must be downloaded from the Internet. If existing platform
@@ -289,7 +307,7 @@ within the allowed time, the installer stops and reports the failure.
 **Expected result.** The installer reports its stages and ends with
 `INSTALL 4/4: platform installed; customer and trustee commissioning still required`. This means the platform
 installation finished; it does not mean the customer accounts, trustee custody or
-election handover have been approved.
+the handover to the election board have been approved.
 
 ![Actual clean VM installation completing all four stages with exit status zero](./assets/installation/installer-complete.png)
 
@@ -303,8 +321,8 @@ new ISO acceptance test. Customer and trustee commissioning still follow.*
 **If the result differs.** Keep the reported stage and error. A stopped installation
 may already have written files or started services: do not erase its state, repeat
 secret generation or rerun a write blindly. Diagnose the named stage using the
-corresponding reference chapter and Sequent's support procedure. Never put a
-partially configured installation into operation.
+corresponding reference chapter and, if that does not resolve it, ask Sequent for
+support. Never put a partially configured installation into operation.
 
 ### Commission the customer and trustees
 
@@ -334,7 +352,7 @@ them done merely to make the command continue.
 **Expected result.** The configured customer administrator and both native trustee
 instances pass their checks. The command ends with
 `COMMISSIONING COMMANDS COMPLETE — perform the browser, client-network and board handover checks in AGD-04.` Complete the
-remaining browser, MFA, client-network and board integrity-audit checks; a server check
+remaining browser, MFA, client-network and election-board handover checks; a server check
 alone cannot establish those conditions.
 
 ![Actual clean VM commissioning completing the customer and both native trustee checks](./assets/installation/installer-commission-complete.png)
@@ -352,10 +370,9 @@ tenant, substitute another trustee's keys, repeat account creation blindly or gi
 a personal account a local password.
 
 Then complete the personal-account and role checks in [Initial Accounts](09-accounts.md)
-and the browser, integrity-audit and handover checks in
+and the browser and handover checks in
 [Verifying the Installation](10-verification.md) and
-[Self-Test and Handover](11-selftest_handover.md). Keep the operator's confirmation
-and the election board's decisions as actual records. Each person authenticates
+[Self-Test and Handover](11-selftest_handover.md). Each person authenticates
 at the external identity provider; the installer does not impersonate them.
 
 ### Repeat a check later
@@ -367,10 +384,10 @@ To repeat the read-only installation checks later, use:
 ```
 
 A verification result describes the checks that ran. It is not an authorization
-to hold an election or a record of evaluator acceptance.
+to hold an election event.
 
-After customer and trustee commissioning, use the broader
-[platform inspection](10-verification.md#run-the-platform-inspection):
+After customer and trustee commissioning, use the broader inspection of
+[Run the platform inspection](10-verification.md#run-the-platform-inspection):
 
 ```bash
 ./deploy inspect site.json platform
@@ -380,8 +397,9 @@ That section shows its actual output and remaining browser, client-network and
 election-event checks. The storage probe creates and removes a temporary check pod.
 
 Backup, restore and trustee-key removal are later lifecycle operations. They are
-not performed by the installation command. Their explicit commands remain in the
-relevant reference sections for use at the authorized lifecycle stage.
+not performed by the installation command. Their commands are in
+[Backups and restore](11-selftest_handover.md#backups-and-restore) and
+[Remove the trustee keys at the end of the election event](08-installing_toe.md#remove-the-trustee-keys-at-the-end-of-the-election-event).
 
 ## Detailed operations and acceptance criteria
 
@@ -403,7 +421,7 @@ operator, an independent client network or another responsible person.
 | [Installing the TOE](08-installing_toe.md) | Delivered image identities, customer tenant and trustee commissioning |
 | [Initial Accounts](09-accounts.md) | Personal accounts, role separation and first sign-in |
 | [Verifying the Installation](10-verification.md) | Runtime and browser acceptance checks |
-| [Self-Test and Handover](11-selftest_handover.md) | Operator confirmation, actual audit scope, backups and recovery |
+| [Self-Test and Handover](11-selftest_handover.md) | Checks for each election event, telling the administrators that the server checks passed, operating the servers, backups and recovery |
 
 Never copy, print or send a password, private key, token or client secret. Do not
 record an installation with shell tracing or an indiscriminate terminal transcript.
@@ -415,4 +433,4 @@ their example addresses and identifiers are not values to enter at your site.
 | Version | Date | Changes |
 | --- | --- | --- |
 | 1.0 | 2026-10-27 | First edition for the evaluated configuration of v10.0.0. |
-| 1.1 | 2026-11-02 | Numbered sections; introductions to numbered steps; most chapters revised; new screenshots. |
+| 1.1 | 2026-11-02 | Numbered sections; introductions to numbered steps; most chapters revised; TOE image observation added; new screenshots. |

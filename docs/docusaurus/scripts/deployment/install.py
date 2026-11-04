@@ -10,8 +10,10 @@ import os
 from pathlib import Path
 import re
 import shlex
+import shutil
 import stat
 import subprocess
+import sys
 import tarfile
 import tempfile
 import time
@@ -22,6 +24,8 @@ ROOT = Path(__file__).resolve().parent
 PARTS = ('b4', 'ballot-verifier', 'braid', 'harvest', 'keycloak', 'windmill')
 TOE_PARTS = PARTS + ('election-verifier',)
 R = 'tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5'
+# The Deployment Guide's chapter on the operational environment lists these.
+WORKSTATION_TOOLS = ('bash','ssh','scp','ssh-keygen','curl','openssl','jq','gpg','cryptsetup','skopeo','sha256sum','diff','find')
 
 def require(ok, message):
     if not ok: raise ValueError(message)
@@ -278,8 +282,15 @@ if systemctl is-active --quiet k3s; then
 '''
     return base+'fi\n'
 
+def check_workstation():
+    require(sys.version_info>=(3,10),'The administration workstation needs Python 3.10 or later')
+    missing=[tool for tool in WORKSTATION_TOOLS if shutil.which(tool) is None]
+    require(not missing,'The administration workstation lacks these tools: '+' '.join(missing))
+    require(re.match(rb'OpenSSL [3-9]\.',run(['openssl','version'],'OpenSSL version check')) is not None,'The administration workstation needs OpenSSL 3')
+
 def check(d,fresh=True):
     print('CHECK: verifying accepted media, image integrity and certificate inputs',flush=True)
+    check_workstation()
     verify_inputs(d)
     provenance=json.loads((Path(d['kit']['directory'])/'release/provenance.json').read_text())
     d['_kit_identity']={'version':provenance['release'],'step_commit':provenance['images']['manifest']['stepRevision']}

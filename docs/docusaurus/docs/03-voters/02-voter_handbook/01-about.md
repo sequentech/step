@@ -8,8 +8,6 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-## This handbook
-
 | Item | Value |
 |---|---|
 | Document ID | AGD-01 |
@@ -19,9 +17,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 | Software release | v10.0.0 |
 | Role | Voter |
 
-This handbook is for voters. It tells you how to vote safely with the
-Sequent Voting Platform - uniWAHL Version, v10.0.0, in its evaluated
-configuration. It covers:
+## Who this guide is for
+
+This handbook is for voters: the people in the voters' register of an election.
+It tells you how to vote safely with the Sequent Voting Platform - uniWAHL
+Version, v10.0.0, in its evaluated configuration. It covers:
 
 - what you need and what you must do before you vote;
 - how to log in, cast your vote and log out;

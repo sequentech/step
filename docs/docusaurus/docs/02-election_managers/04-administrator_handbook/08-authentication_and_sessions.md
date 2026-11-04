@@ -32,7 +32,7 @@ which the TOE creates the realm of each election event: the external
 authentication server as the only identity provider, the first-login flow that
 only links to existing accounts, the admin portal and voting portal clients
 with exact redirect addresses and without direct password grants, the session
-limits, the brute-force detection and the recording of authentication events.
+limits, the brute-force protection and the recording of authentication events.
 These settings have no form in the admin portal: never change them.
 
 ## What you check
@@ -55,28 +55,27 @@ election board approves its configuration version:
 
 If any check fails, the election event is not in the evaluated configuration.
 Do not let the board approve the configuration version: report the finding to
-the person who runs the servers, and follow the Deployment Guide to restore the
+the operator, and follow the Deployment Guide to restore the
 settings.
 
 ## Authentication failure threshold
 
-The TOE counts the failed sign-ins of each account: the external
-authentication server reports a failed authentication for the account, or an
-assertion fails the TOE's checks.
+The TOE counts the failed sign-ins that reach it: failures that the external
+authentication server reports back, and assertions that fail the TOE's checks. A
+wrong password that stays at the external authentication server does not reach
+the TOE: that server keeps its own limits and locks its own accounts.
 
 | Item | Value |
 |---|---|
-| Threshold | 5 failed sign-ins of one account |
-| Who sets it | The person who runs the servers, at installation, with the realm settings of the Deployment Guide: for the tenant and for the template of the election event realms ([Configure the realms](../../05-reference/06-deployment_guide/07-hardening.md#configure-the-realms)). The admin portal has no setting for it. A signed configuration package can carry another threshold for the realm of its election event; the election organizer decides it. |
-| Accounts it applies to | administrators, board members and trustees in the tenant; voters in each election event |
-| When an account reaches it | The TOE locks the account temporarily, for at most 15 minutes and never permanently. The TOE writes the record `PotentialAttackDetected`, category `brute-force-account`, to the electoral log: of every election event of the tenant for administrators, board members and trustees, of the election event for voters. |
-| Who sees it | The election board, in the Dashboard's "Attack detections" and on the Logs tab ([Audit, Monitoring and Notifications](09-audit_and_monitoring.md#attack-detections)). |
+| The setting | "Failed sign-ins per account before an alert" in Settings, tab "Attack detection": a whole number from 1 to 100,000. The default is 5. |
+| Who sets it, and when | You, with the election organizer, in the preparation phase, with the permissions "Admin User" (`admin-user`) and "Edit Tenant" (`tenant-write`) ([Set and verify the thresholds](09-audit_and_monitoring.md#set-and-verify-the-thresholds)). The TOE refuses a change while an election event of the tenant is in the execution phase. |
+| What it counts | The failed sign-ins of each account of the tenant and of each voter's account. A failure that names no account counts with the others of that realm, the tenant or the election event, over at most 15 minutes. |
+| When the number is reached | The TOE records a potential attack: the record `PotentialAttackDetected`, category `brute-force-account`, in the electoral log of every election event of the tenant for the tenant's accounts, and of the election event for voters. It repeats the record at most once per account in the counting period. It does not lock the person's account. |
+| Who sees it | The election board, on the election event's tab "Dashboard", "Attack detections", and on its tab "Logs" ([Attack detections](09-audit_and_monitoring.md#attack-detections)). |
 
-A lower threshold locks accounts after fewer mistakes and helps an attacker to
-lock out legitimate voters; a higher one gives a password-guessing attacker
-more attempts. The external authentication server keeps its own limits as
-well. A locked account and the record of the threshold being reached are
-security-relevant events
+A low number produces records for ordinary mistakes, and a high one lets more
+attempts pass without a record. The record of the number being reached is a
+security-relevant event
 ([Security-Relevant Events for Administrators](11-security_relevant_events.md)).
 
 ## Sessions
@@ -105,11 +104,11 @@ election event's tab "Data"; if any differ, follow the corrected-package
 procedure instead of changing them in the TOE
 ([Tenant and Election Event Settings](05-tenant_and_event_settings.md)):
 
-| Setting | Required value |
+| Setting (section) | Required value |
 |---|---|
 | "Enrollment" ("Voter Authentication") | "Disabled" |
 | "OTP" ("Voter Authentication") | "Disabled" |
-| "Voter Digital Certificate Policy" | "Disabled" |
+| "Voter Digital Certificate Policy" ("Advanced Configurations") | "Disabled" |
 | "Show User Profile" | off |
 
 No scheduled event "Start Enrollment Period" is created: voters do not
@@ -117,12 +116,12 @@ register themselves in the evaluated configuration.
 
 :::warning
 An imported package can also carry settings of the election event's realm,
-such as its brute-force detection and the recording of authentication events.
-After each import, check with the person who runs the servers, as the
-Deployment Guide describes, that the realm of the new election event still has
-brute-force detection on, with the threshold that the election organizer
-decided, and records its authentication events. If not, do not let the board approve the configuration version until
-the setting has been restored.
+such as its brute-force protection and the recording of authentication events.
+After each import, the operator checks, as the
+[Deployment Guide](../../05-reference/06-deployment_guide/10-verification.md)
+describes, that the realm of the new election event still has brute-force
+protection on and records its authentication events. If not, do not let the board
+approve the configuration version until the setting has been restored.
 :::
 
 ## Prerequisites from the Deployment Guide

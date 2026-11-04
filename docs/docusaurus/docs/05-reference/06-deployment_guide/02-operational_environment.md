@@ -35,7 +35,9 @@ physical access to a server or its disks can read or change the election data.
 The operator works from one administration workstation. It runs Linux with
 Python 3.10 or later, bash, the OpenSSH client, curl, OpenSSL 3, jq, GnuPG,
 cryptsetup, skopeo and the
-GNU coreutils, diffutils and findutils.
+GNU coreutils, diffutils and findutils. The installation commands
+`./deploy check site.json` and `./deploy install site.json` refuse a workstation
+that lacks any of these.
 
 - Its SSH public key is the only key in the site file's `admin.authorizedKeys`
   (see [Installing the Servers](03-installation_kit.md)).
@@ -59,7 +61,7 @@ login or separate accounts on a persistent shared installation is insufficient.
 The device has podman and skopeo prepared before it is taken offline. Load the
 accepted tool as described in
 [Preparing a trustee workstation](08-installing_toe.md#preparing-a-trustee-workstation).
-The [trustee procedure](../../02-election_managers/05-election_organizer_handbook/09-trustee-procedures.md#reuse-one-existing-workstation)
+[Reuse one existing workstation](../../02-election_managers/05-election_organizer_handbook/09-trustee-procedures.md#reuse-one-existing-workstation)
 defines the session and custody checks. A dedicated encrypted workstation is an
 alternative, not a per-trustee hardware requirement. Browser trustee execution
 is not a replacement for the server-side `braid` in the evaluated configuration.
@@ -141,8 +143,8 @@ and the required TLS profile.
 
 - Operators are trustworthy and trained in this guide. The separation of the
   administrator's and the election board's roles is set up as the
-  [Handbook for Election Administrators (AGD-02)](../../02-election_managers/04-administrator_handbook/01-about.md)
+  [Handbook for Election Administrators](../../02-election_managers/04-administrator_handbook/01-about.md)
   describes.
 - Trustees keep their keys under their own control, as the
-  [Handbook for Election Organizers (AGD-03)](../../02-election_managers/05-election_organizer_handbook/01-about.md)
+  [Handbook for Election Organizers](../../02-election_managers/05-election_organizer_handbook/01-about.md)
   describes.

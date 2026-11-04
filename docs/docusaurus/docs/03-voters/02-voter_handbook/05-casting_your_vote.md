@@ -85,8 +85,8 @@ ballot, or audit it to check that it contains your selections.
 :::info
 
 **Your vote has not been cast yet.** When this screen opens, the voting portal
-sends your encrypted ballot to the intermediate ballot box. The ballot box
-stores it as received, not as cast, and confirms this with its signature, which
+sends your encrypted ballot to the intermediate ballot box. It stores it
+as received, not as cast, and confirms this with its signature, which
 your browser checks. The short code is calculated from your encrypted ballot
 and this confirmation. A received ballot is never counted; only casting it makes it
 count. Until you cast it, the ballot locator does not find this Ballot ID.
@@ -102,7 +102,7 @@ To finish the review:
 |---|---|
 | **Edit ballot** | Return to your selections and change them. |
 | **Audit ballot** | Check this ballot’s encryption. The voting portal then discards this ballot and does not let you cast it; to vote, you start again with a new encrypted ballot and a new Ballot ID. See [Auditing Your Ballot](06-auditing_your_ballot.md). |
-| **Cast ballot** | Submit the ballot. Continue with section 5.5 and wait for the confirmation. |
+| **Cast ballot** | Submit the ballot. Continue with [Cast your vote](#cast-your-vote) and wait for the confirmation. |
 
 If you left a contest unfilled, the voting portal shows "Some selections are
 unfilled". Select "Review selections" to go back, or "Continue with these
@@ -171,7 +171,7 @@ icon and paste it into a text file that you keep. How to check it:
 You can stop at any time before you cast: close the browser, log out, or leave
 the voting portal. A technical problem can also interrupt you. In all these
 cases, nothing is cast, and you keep your right to vote. While voting is open,
-log in again and start again from section 5.1.
+log in again and start again from [Open the ballot](#open-the-ballot).
 
 ## If casting fails
 
@@ -180,7 +180,7 @@ vote may or may not have been cast. Do not assume either. To find out:
 
 1. Log in again, if needed, and open the "Ballot list".
 2. If the ballot shows "Not voted" and voting is still open, vote again from
-   section 5.1.
+   [Open the ballot](#open-the-ballot).
 3. If the ballot shows "Voted", use "Locate your ballot" to find your ballot
    (see [Checking That Your Vote Was Stored and Counted](07-checking_storage.md)).
 4. If you are unsure, or the error keeps coming back, contact the election
