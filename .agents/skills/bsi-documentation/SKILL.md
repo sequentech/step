@@ -20,9 +20,11 @@ Choose the mode, then apply the rules. An ITSEF observation report also needs `b
 | Delivered state | None yet | Frozen. Never edit its package page or `assets/<class>-<version>`. Work in a new package page and assets |
 | Version | Start at 1.0 | One new version per package, not per commit. Do not bump documents the package does not change |
 | History row | "First edition…" | One or two lines, about 100 characters, naming sections and not their content |
-| Finish with | Coverage of each work unit against the document | A list of what changed for the package page, and a search for every other place that says the same thing |
+| Finish with | Coverage of each work unit against the document, and a fresh-eyes read | A list of what changed for the package page, a search for every other place that says the same thing, and a fresh-eyes read when many passages changed |
 
 Until a package is sent, keep improving that package's version: new requests do not make a new version.
+
+A fresh-eyes read gives each guide to a reader who has seen no earlier draft, playing only that guide's role: they follow each procedure in order, check each claim in the code, and report every point where they would be stuck. Triage the report before applying it: readers can be wrong, and the code has the last word.
 
 ## Rules for every text
 
@@ -30,6 +32,7 @@ Until a package is sent, keep improving that package's version: new requests do 
 
 - Check each claim about a state, message, permission, default or actor in the code before writing it. Copy screen texts from the translations, and confirm in the component that the screen uses them: a translation key can be unused. An old document, a plan, ADV or a requirements page is not evidence for what the code does, and newer sources win over older ones.
 - If the ST or PP requires what the code does not do, change the TOE. If no requirement needs the claim, remove the claim. Never weaken a required claim to match the code.
+- When a procedure needs a warning or a detour to get around how the TOE behaves, look first for a small TOE change that removes the trap, and report it as a change. A guide should not document a trap that one line of code can remove.
 - State only what happened: a script or template is not a release, a test or an approval. Say what was not compiled or not rehearsed.
 
 **Minimal and complete**
@@ -67,7 +70,7 @@ Until a package is sent, keep improving that package's version: new requests do 
 - Numbered sections come from the plugin: no numbers in headings.
 - Use tables, not long paragraphs. Give each role or concern its own subsection, with a short lead-in.
 - A numbered list follows a sentence that ends in a colon, such as "To start voting:".
-- Add a screenshot where the reader must find a screen. Use the real interface with synthetic data, no pixel editing, a `.license` file and the caption "*Illustration: … synthetic …*".
+- Add a screenshot where the reader must find a screen. Use the real interface with made-up data, no pixel editing, a `.license` file and a caption that says what it shows and that it is test data, such as "*Illustration: … with test data.*"; say how a terminal capture differs from the reader's, not how it was made.
 
 **Commands on staff computers**
 

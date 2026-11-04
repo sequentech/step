@@ -111,7 +111,7 @@ def run(argv, label, data=None, timeout=120):
         checks={b'TIME_AUTHENTICATION': 'NTS-authenticated time is required; correct the accepted site time configuration', b'SSH_POLICY': 'SSH must allow administrator keys only', b'FRESH_CLUSTER': 'A fresh cluster and empty installation workspace are required', b'SOURCE_IDENTITY': 'Installed operating-system source differs from the accepted kit', b'TOOLS': 'An offline-kit prerequisite is unavailable', b'TLS_ENDPOINT': 'The accepted server kit must provide the nginx TLS endpoint before application installation', b'PRIVATE_INGRESS': 'Traefik must use loopback-only entrypoints with ClusterIP service; public plaintext HTTP is not allowed'}
         code=re.findall(rb'^AGD_CHECK_FAILED ([A-Z_]+)$',r.stderr,re.M)
         if code and code[-1] in checks: suffix=': '+checks[code[-1]]
-        raise ValueError(label + ' failed'+suffix+'; stop and inspect this stage privately before any retry')
+        raise ValueError(label + ' failed'+suffix+'; stop and inspect this stage privately; see If something fails in the Deployment Guide')
     return r.stdout
 
 def verify_checksums(root, text):

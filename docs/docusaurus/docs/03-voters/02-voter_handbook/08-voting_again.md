@@ -13,23 +13,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 Your election organizer decides, under the electoral regulation, whether you
 may cast more than one vote in a ballot, and how many. Unless your election
 organizer tells you otherwise, you can vote only once: after you have cast your
-vote, the ballot shows "Voted" and you cannot select "Click to Vote" for it
-again.
+vote, the ballot shows the status "Voted" and you cannot select the button
+"Click to Vote" for it again.
 
 ## How to vote again
 
 If your election allows it, to vote again:
 
-1. While voting is open, log in and open the "Ballot list". The ballot shows
-   "Voted".
-2. Select "Click to Vote" for the ballot.
+1. While voting is open, log in and open the screen "Ballot list". The ballot
+   shows the status "Voted".
+2. Select the button "Click to Vote" for the ballot.
 3. Fill in, review and cast your ballot as described in
    [Casting Your Vote](05-casting_your_vote.md).
 4. Keep the new full Ballot ID. You can find each of your cast ballots with
    the ballot locator. If you want to verify the count later, copy the encrypted
    ballot for this new Ballot ID before voting ends, as described in
    [Checking That Your Vote Was Stored and Counted](07-checking_storage.md).
-   Use this copy for the election-verifier; an earlier vote is not counted.
+   Use this copy for the election verifier; an earlier vote is not counted.
 
 Only the vote you cast last is counted. It replaces your earlier vote in the
 count.
@@ -44,7 +44,7 @@ count.
 
 :::warning
 
-**If the voting portal shows "Voted" although you have not cast a vote, someone
-else may have used your login details.** Tell the election organizer at once.
+**If the voting portal shows the status "Voted" although you have not cast a
+vote, someone else may have used your login details.** Tell the election organizer at once.
 
 :::

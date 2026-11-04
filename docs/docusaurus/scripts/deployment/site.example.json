@@ -21,7 +21,7 @@
     "signing_fingerprint": "SHA256:REPLACE_WITH_INDEPENDENT_VALUE"
   },
   "toe": {
-    "directory": "/media/toe",
+    "directory": "/mnt/temenos-delivery",
     "format": "oci",
     "manifest_sha256": "REPLACE_WITH_ACCEPTED_IMAGE_MANIFEST_SHA256"
   },
@@ -54,11 +54,11 @@
     "trustees": [
       {
         "name": "Trustee One",
-        "keys_file": "/media/trustee-one/trustee.toml"
+        "keys_file": "/media/trustee-one/session/trustee.toml"
       },
       {
         "name": "Trustee Two",
-        "keys_file": "/media/trustee-two/trustee.toml"
+        "keys_file": "/media/trustee-two/session/trustee.toml"
       }
     ]
   }

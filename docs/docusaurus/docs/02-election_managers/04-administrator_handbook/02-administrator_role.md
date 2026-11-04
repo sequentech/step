@@ -16,7 +16,7 @@ of the election board. Trustees are members of the election board who hold a
 share of the election key.
 
 An administrator is a person with a personal account in the tenant that holds
-the administrator role and no permission of the election board role
+the administrator role and no board permission
 ([Users, Roles and Role Separation](04-users_and_roles.md)). The administrator
 signs in at the external authentication server of the organisation, with two
 factors.
@@ -54,13 +54,13 @@ whatever the admin portal shows.
 
 ## What the administrator does
 
-| Task | When | Page |
+| Task | When | Chapter |
 |---|---|---|
-| Set up the tenant's signed configuration packages | once, before the first election event is imported; afterwards only a staff CA is replaced, between election events | [Tenant and Election Event Settings](05-tenant_and_event_settings.md) |
+| Set up the tenant's signed configuration packages | once, before a board member creates the first election event; afterwards only an election board approval CA is replaced, while every election event of the tenant is archived or deleted | [Tenant and Election Event Settings](05-tenant_and_event_settings.md) |
 | Check the administrator, election board and trustee roles; create the personal accounts; delete the seeded account `admin` | after deployment; whenever a person joins or leaves | [Users, Roles and Role Separation](04-users_and_roles.md) |
-| Verify the imported event's administration settings against the required values and obtain the board's check of each election's settings; complete the separate administrator settings and tell the board when it can publish the configuration version | preparation phase, after each import | [Tenant and Election Event Settings](05-tenant_and_event_settings.md) |
+| Check the imported election event's administrator settings and obtain the board's check of the other settings against the required values; complete the separate administrator settings and tell the board when it can publish the configuration version | preparation phase, after each import | [Tenant and Election Event Settings](05-tenant_and_event_settings.md) |
 | Set the protected actions and their required authorisations | preparation phase | [Configuring Protected Actions](06-signing_rules.md) |
-| Configure the background self-test interval with the organizer and verify all six checks | preparation phase | [Security and Self-Tests](07-self_tests.md) |
+| Configure the background self-test interval with the organizer; after the board's approval of the configuration version, verify all six checks | preparation phase | [Security and Self-Tests](07-self_tests.md) |
 | Verify that the running TOE software matches the accepted delivery | after deployment, after each update, after a server component crashed and before the election board approves a configuration version | [Verify the TOE software](07-self_tests.md#verify-the-toe-software) |
 | Set the attack detection rates and the authentication failure threshold | preparation phase | [Audit, Monitoring and Notifications](09-audit_and_monitoring.md#attack-detections) |
 | Give the election organizer the required number of allowed votes (re-voting); the board checks the imported value of each election | before package approval and after import | [Tenant and Election Event Settings](05-tenant_and_event_settings.md) |
@@ -78,7 +78,7 @@ phase stated, and only as the election organizer has decided.
 
 | Function | Permissions | Why it must be controlled |
 |---|---|---|
-| Accounts and roles | <ul><li>"Create User" (<code>user-create</code>)</li><li>"Edit User" (<code>user-write</code>)</li><li>"Create Role" (<code>role-create</code>)</li><li>"Edit Role" (<code>role-write</code>)</li><li>"Edit User Permission" (<code>user-permission-write</code>)</li></ul> | Use these permissions only for authorized account administration. The TOE refuses changes to your own role memberships and to roles that affect your own account, and an account with an administrator permission receives only administrator permissions in its tokens. The TOE cannot tell whether a change is authorized or whose a certificate is: have a second person check every change of roles, permissions and certificate registrations. |
+| Accounts and roles | <ul><li>"Create User" (<code>user-create</code>)</li><li>"Edit User" (<code>user-write</code>)</li><li>"Create Role" (<code>role-create</code>)</li><li>"Edit Role" (<code>role-write</code>)</li><li>"Edit User Permission" (<code>user-permission-write</code>)</li></ul> | Use these permissions only for authorized account administration. The TOE refuses changes to your own role memberships and to roles that affect your own account, and an account with an administrator permission receives only administrator permissions in its tokens. The TOE cannot tell whether a change is authorized or whose a certificate is: have a second administrator check every change of roles, permissions and certificate registrations, and note the check on your copy of the [Checklist before the election board approves the configuration version](11-security_relevant_events.md#checklist-before-the-election-board-approves-the-configuration-version), which goes to the board's minutes. |
 | Protected actions | "Signatures: edit protected actions" (`signing-rules-write`) | Sets which actions need the election board's authorisations and how many. |
 | Trusted issuers and certificate checks | <ul><li>"Signatures: import and remove trusted issuers" (<code>signing-issuers-write</code>)</li><li>"Signatures: edit certificate checks" (<code>signing-checks-write</code>)</li><li>"Signatures: register certificates" (<code>signing-certificates-register</code>)</li><li>"Signatures: revoke certificates" (<code>signing-certificates-revoke</code>)</li></ul> | Decide whose signatures the TOE accepts for protected actions. |
 | Trustees' public keys | "Edit Trustee" (`trustee-write`) | Decides which public keys the key ceremony uses for each trustee: register only keys checked with the trustee ([Registering the trustees' public keys](04-users_and_roles.md#registering-the-trustees-public-keys)). |
@@ -87,11 +87,11 @@ phase stated, and only as the election organizer has decided.
 | Permissions on election data and audit records | For example: <ul><li>"Create Election Event" (<code>election-event-create</code>)</li><li>"Read Voter" (<code>voter-read</code>)</li><li>"Read Logs" (<code>logs-read</code>)</li><li>"Read Publish" (<code>publish-read</code>)</li><li>"Edit Scheduled Events" (<code>scheduled-event-write</code>)</li><li>"Read Area" (<code>area-read</code>)</li><li>"Delete Election Event" (<code>election-event-delete</code>)</li></ul> | The TOE never gives them to an administrator account ([The administrator role](04-users_and_roles.md#the-administrator-role)). Whoever holds them imports, reads, publishes or deletes election data, or reads the audit records. Never give an administrator a role that holds them, and give "Edit Results Publication" (`publish-results-write`) to no role. |
 | Configure background self-tests | <ul><li>"Self-tests: read results" (<code>self-test-read</code>)</li><li>"Self-tests: run checks" (<code>self-test-run</code>)</li><li>"Self-tests: edit settings" (<code>self-test-settings-write</code>), to change the interval and the optional conditions in preparation</li></ul> | [Security and Self-Tests](07-self_tests.md) |
 | Attack detection rates and the authentication failure threshold | "Edit Tenant" (`tenant-write`) and "Admin User" (`admin-user`) | Settings, tab "Attack detection". "Failed logins per minute, all accounts", "Requests per minute, external interfaces" and "Failed sign-ins per account before an alert" decide when the TOE records a potential attack for the election board ([Attack detections](09-audit_and_monitoring.md#attack-detections)). |
+| Tenant backup and restore | "Edit Tenant" (`tenant-write`) | Settings, tab "Backup / Restore", can import a tenant configuration, a Keycloak configuration and roles and permissions from a file, which can change what this handbook sets up. This handbook gives no procedure for it: do not import anything there. |
 
 :::warning
-Never give yourself or another administrator a permission of the election
-board role, and never sign, start, interrupt, resume or end the election
-execution yourself. An administrator token cannot gain board capabilities by combining roles.
+Never give yourself or another administrator a board permission, and never
+sign, start, interrupt, resume or end the election execution yourself. An administrator token cannot gain board capabilities by combining roles.
 Still correct conflicting assignments and preserve distinct board identities;
 a role assignment does not replace a registered certificate or board quorum. The election board sees changes of "Sign:" permissions in the electoral log. The electoral log does not record other changes of accounts and roles
 ([The electoral log](09-audit_and_monitoring.md#the-electoral-log)).

@@ -8,9 +8,9 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-The election organizer is the group of people hosting the election event. The TOE
+The election organizer is the organisation that holds the election event. The TOE
 protects the election event only if the election organizer, the election board and
-the administrators carry out the measures on this page. They are the security
+the administrators carry out the measures in this chapter. They are the security
 measures that the operational environment of the TOE must provide.
 
 ## Before anything is configured
@@ -27,7 +27,7 @@ rest. The regulation states at least:
   election;
 - the minimum number of election board members, and for each security-critical
   action the number of board members who must authorise it (the required
-  authorisations). Two or more are recommended for every security-critical
+  authorisations). At least two are required for every security-critical
   action;
 - whether re-voting is allowed and how many votes a voter may cast;
 - the time frame within which an interrupted election execution may be
@@ -38,14 +38,37 @@ rest. The regulation states at least:
 - who may observe the election event and verify the result;
 - how long exported election execution data is kept, who keeps it, and when it
   is deleted;
+- whether the election dates or the election board open voting
+  ([Starting the election execution](07-execution.md#starting-the-election-execution)),
+  and when the board interrupts it
+  ([Interrupting the election execution](07-execution.md#interrupting-the-election-execution));
+- the start and the end of the lockdown period
+  ([Setting the lockdown period](06-preparation.md#setting-the-lockdown-period));
+- the witnesses of the initialization report
+  ([The initialization report](06-preparation.md#the-initialization-report));
+- the reports needed in addition to the results
+  ([Checking and publishing the result](08-evaluation-and-post-processing.md#checking-and-publishing-the-result)),
+  and which parts the export keeps
+  ([Exporting the election execution data](08-evaluation-and-post-processing.md#exporting-the-election-execution-data));
+- what the board may read in the post-processing phase
+  ([Reading the cast votes and the voters' register](08-evaluation-and-post-processing.md#reading-the-cast-votes-and-the-voters-register));
+- what happens to an election whose ballot box is not sealed
+  ([A ballot box is not sealed](12-modes-and-failures.md#a-ballot-box-is-not-sealed)),
+  and who decides on a restore from a backup
+  ([A restore from a backup](12-modes-and-failures.md#a-restore-from-a-backup));
+- who keeps the system backups and the trustee-state backups and, separately,
+  their passphrases;
 - who writes the board's minutes, in what form, and who keeps them. The board's
   minutes are the election board's own record of the election event, outside
   the TOE; this handbook says what goes in them.
 
 :::warning
 If the regulation does not fix the required authorisations, the administrator
-cannot set them, and the TOE refuses every security-critical action whose
-required authorisations are not set. If it does not fix the time frame for
+cannot set them. The TOE then refuses the protected actions "Import election
+data", "Approve a configuration version", "Open voting", "Close voting", "Start
+counting votes", "Export election execution data", "Delete election execution
+data" and "Read the voters' register in post-processing", and the other protected
+actions run with no authorisation at all. If it does not fix the time frame for
 continuing an interrupted election execution, the board has no basis for deciding
 whether to resume.
 :::
@@ -64,16 +87,17 @@ To appoint the administrators, the election board and the trustees:
    check "Approved access-control configuration", which stops voting; disabling
    the account of a member who leaves, or removing its roles, does not.
 3. Choose two trustees among the board members. The evaluated configuration
-   has two instances of the trustee server, `trustee1` and `trustee2`, as the
-   Deployment Guide installs them. Each trustee holds one share of the
+   has two instances of the trustee server, `trustee1` and `trustee2`, as
+   [Install the trustee keys](../../05-reference/06-deployment_guide/08-installing_toe.md#install-the-trustee-keys)
+   describes. Each trustee holds one share of the
    election key. The threshold, the number of trustees needed to count the
    votes, is 2, so that no single trustee can decrypt. Both trustees are
    therefore needed to count the votes: plan the counting with both, and fix
    in the electoral regulation what happens if one cannot take part (see
-   [If your keys file is lost or exposed](09-trustee-procedures.md#if-your-keys-file-is-lost-or-exposed)).
+   [A trustee leaves](03-board-roles-and-permissions.md#a-trustee-leaves)).
 4. Give the administrators the list of board members and trustees, so that
    they create one personal account for each person and give it the
-   election board role (see
+   role `election-board` (see
    [Election Board Roles and Permissions](03-board-roles-and-permissions.md)).
 
 :::warning
@@ -100,8 +124,8 @@ person.
   each token to its holder in person. Give the administrators the issuer
   certificate and state its SHA-256 fingerprint to them in writing, through a
   channel that protects its integrity. They import it on the election event's
-  tab "Signatures" under "Certificates" > "Trusted issuers" with the button
-  "Import issuer certificates", and compare the complete fingerprint that the
+  tab "Signatures", area "Certificates", under the heading "Trusted issuers", with
+  the button "Import issuer certificates", and compare the complete fingerprint that the
   admin portal shows with the value you stated. Have the administrators set, in
   the same place:
   - the check "Registering a certificate to a person" to "Only when someone who
@@ -120,25 +144,37 @@ person.
   the button "Revoke" and disable the account, removing all its roles, that same day (see
   [A person leaves, loses the role or loses their security token](03-board-roles-and-permissions.md#a-person-leaves-loses-the-role-or-loses-their-security-token)).
 - **Configuration packages.** All election data reaches the TOE as signed
-  configuration packages; the TOE accepts election data in no
-  other way. The election organizer prepares each package with its package
-  tool, outside the TOE, and signs it with its package-signing certificate.
-  Before the import, at least the required number of election board members
-  (as the electoral regulation fixes it, at least two) approve it in the
-  package tool, after comparing its approval code aloud, each with their own
-  approval certificate, which the election organizer's certification
-  authority issues to each board member who approves packages. Give the board
-  member who imports it the package file and, through a channel separate from
-  the file, its SHA-256 digest. Give the administrators the certification
-  authority certificates of the package-signing and approval certificates,
-  and the required number of approvals, so that they set them for the tenant
-  before the first import and the TOE trusts only these certificates; the
-  required number is never changed afterwards. Never enable the results
-  website in a package, and never tick the setting "Allow Early Voting" of an area, as
-  the administrators also tell you: such a package is refused when
-  it is imported. If imported data is wrong,
-  issue a corrected, signed package as a new revision: the board imports it
-  as a new election event and archives the wrong one (see
+  configuration packages; the TOE accepts election data in no other way. For
+  each package:
+
+  1. The election organizer prepares the package with its package tool, outside
+     the TOE, and signs it with its package-signing certificate. It never ticks
+     the setting "Allow Early Voting" of an area: while the election event's
+     setting "Voting Channels Allowed" is "Online" only, as the evaluated
+     configuration requires, the TOE refuses such a package at the import. It
+     gives no election a permission label: the evaluated roles do not give the
+     permission "Edit Permission Label" (`permission-label-write`), so no account
+     could reach that election.
+  2. Before a board member creates the first election event, it gives the
+     administrators the certification
+     authority certificates of the package-signing and approval certificates and
+     the required number of approvals. They set them for the tenant; the TOE then
+     trusts only these certificates, and the number never changes afterwards.
+  3. At least the required number of board members (as the electoral regulation
+     fixes it, at least two) compare the package's approval code aloud and approve
+     it in the package tool, each with their own approval certificate, which the
+     election organizer's certification authority issues to them.
+  4. The election organizer gives the board member who imports it the package
+     file and, through a channel separate from the file, its SHA-256 digest.
+
+  The evaluated configuration has no results website: the results portal is not
+  deployed
+  ([Keep the results and kiosk portals off](../../05-reference/06-deployment_guide/07-hardening.md#keep-the-results-and-kiosk-portals-off)),
+  and without the permission "Edit Results Publication"
+  (`publish-results-write`) nobody can configure or publish it, whatever a package
+  contains. If imported data is wrong, the election organizer issues a corrected,
+  signed package as a new revision: the board imports it as a new election event
+  and archives the wrong one (see
   [Importing the election data](06-preparation.md#importing-the-election-data)).
 
 ### Instruct the voters
@@ -156,7 +192,8 @@ organizer's own channels:
   check that their ballot was encrypted as they chose;
 - where every tally batch's verification file and matching configuration hash
   and Tally ID will be published after the election event, and how voters or
-  observers check that a ballot was counted (see
+  observers check that a ballot was counted, or that this check is not available
+  for their ballot (see
   [Publishing the verification data](10-election-verifier.md#publishing-the-verification-data));
 - how to contact the election organizer if anything looks wrong, and the
   security contact for suspected security problems (see
@@ -190,12 +227,11 @@ suspected security problem that you receive from voters.
   voters and observers, as
   [Publishing the verification data](10-election-verifier.md#publishing-the-verification-data)
   describes.
-- Keep the exported election execution data and its password as the
-  electoral regulation fixes. Take the file over only with the archive hash,
-  manifest hash and public key that the board copied from the record
-  `ExecutionDataExported` into its minutes, and compare them with the file. Have
-  the election board delete the data at the end of the retention period (see
+- Have the people whom the electoral regulation names keep the exported election
+  execution data and its password (see
   [Exporting the election execution data](08-evaluation-and-post-processing.md#exporting-the-election-execution-data)).
+  Have the election board delete the data at the end of the retention period (see
+  [Deleting the election execution data](08-evaluation-and-post-processing.md#deleting-the-election-execution-data)).
 
 ## Measures by objective
 
@@ -205,12 +241,12 @@ suspected security problem that you receive from voters.
 | Unobserved voting | Instruct voters to vote where no one can observe them; provide the Handbook for Voters | Election organizer | Procedural |
 | Voters can verify their vote | Tell voters about the button "Audit ballot" and about the check that a ballot was counted; publish every tally batch's verification data and matching configuration hash and Tally ID after the election event, with the anchors independently on a second channel | Election organizer | Procedural |
 | Trustworthy, instructed personnel | Appoint trustworthy administrators and board members; train them with this handbook and the Handbook for Election Administrators before they first act; administrators do not misuse their privileges; one personal account per person, never shared | Election organizer | Personnel |
-| Sessions closed when not in use | Log out with the entry "Logout" of the profile menu whenever you stop working; lock the screen when you step away | Board members, administrators | Procedural |
+| Sessions closed when not in use | Log out with the entry "Logout" under the account icon in the header whenever you stop working; lock the screen when you step away | Board members, administrators | Procedural |
 | Universal election | Check the voters' register in the package before approving it, and after the import, against the organizer's own register (number of voters and samples, see [Checking the imported data and the settings](06-preparation.md#checking-the-imported-data-and-the-settings)); distribute credentials to every eligible voter | Election board, election organizer | Procedural |
 | Direct election | Voters vote themselves: instruct them never to pass on their credentials; treat a report of a passed-on credential as a security-relevant event | Election organizer, election board | Procedural |
 | Equal election | Check that the setting "Number of allowed votes" is the same for every voter as the regulation fixes it and that only the last vote counts; count only when every ballot box is sealed; compare the votes counted with the ballot boxes | Election board | Procedural |
 | Free election | Instruct voters on unobserved voting; announce the election period and every interruption to the voters; resume an interrupted election execution only within the regulation's time frame; record every decision in the board's minutes | Election board, election organizer | Procedural |
-| Audit review | Check the electoral log at the beginning of the evaluation phase (see [Checking the audit records](08-evaluation-and-post-processing.md#checking-the-audit-records)) | Election board, or a person it appoints | Procedural |
+| Audit review | Check the electoral log at the beginning of the evaluation phase (see [Checking the audit records](08-evaluation-and-post-processing.md#checking-the-audit-records)) | Election board, or a board member it appoints | Procedural |
 | External authentication server | Provide it; two factors for administrators and board members; only the TOE's users can log in | Election organizer | Procedural, connectivity |
 | Protected server and network | Install and operate as the Deployment Guide describes; restrict physical access to the servers | Election organizer, operators | Physical, connectivity |
 | Trusted time | Provide a time server with Network Time Security | Election organizer, operators | Connectivity |
@@ -225,8 +261,9 @@ to Sequent's security contact,
 
 - **Encryption.** Encrypted reports are recommended. Use Sequent's
   security-contact OpenPGP key, fingerprint
-  `DB6B035E872AB5DA90C7194A60D3CBE30BAC91ED`. It is the key the Deployment
-  Guide uses to verify the delivery, and it is also published on Sequent's
+  `DB6B035E872AB5DA90C7194A60D3CBE30BAC91ED`. It is the key that
+  [Verifying the Delivery](../../05-reference/08-delivery_verification.md)
+  uses, and it is also published on Sequent's
   Vulnerability Disclosure Policy page,
   https://docs.sequentech.io/docusaurus/main/docs/technology/vulnerability-disclosure-policy.
   Unencrypted reports are accepted and handled the same way.
@@ -245,6 +282,9 @@ to Sequent's security contact,
   security@sequentech.io every report of a suspected security flaw that it
   receives from voters or staff.
 - **Advisories and corrections.** Sequent sends security advisories to the
-  organisation's registered security contact. Corrections arrive as a new TOE
-  release, which is accepted and deployed as the Deployment Guide describes. A
-  running TOE is never patched in place.
+  security contact that the election organizer registered with Sequent for the
+  delivery. Name that contact before the delivery, keep it current, and pass every
+  advisory on to the administrators. Corrections arrive as a new TOE release, which
+  is accepted and deployed as
+  [Verifying the Delivery](../../05-reference/08-delivery_verification.md)
+  describes. A running TOE is never patched in place.

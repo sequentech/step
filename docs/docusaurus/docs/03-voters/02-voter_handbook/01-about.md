@@ -32,10 +32,10 @@ Version, v10.0.0, in its evaluated configuration. It covers:
   and what to do then;
 - how to report a security problem.
 
-## The voting system and the parts you use
+## The voting system and what you use
 
 In this handbook, **the voting system** means the Sequent Voting Platform -
-uniWAHL Version, v10.0.0. You use it through these parts:
+uniWAHL Version, v10.0.0. You use it with these:
 
 - **The voting portal.** The web application you open in your browser to vote.
   It is not itself part of the voting system. It brings the voting system's
@@ -51,10 +51,10 @@ uniWAHL Version, v10.0.0. You use it through these parts:
   log in there. It is not part of the voting system. The voting system does not
   hold your password.
 
-The voting portal guides you through the workflow; a visible button alone does
-not authorise a vote. The voting system checks the submitted operation. The
-ballot verifier and election verifier provide the separate checks described in
-this handbook; the portal’s appearance is not a substitute for those checks.
+The voting portal leads you through the steps. A button on the screen does not
+by itself allow a vote: the voting system checks each vote it receives. What the
+voting portal shows does not replace the checks with the ballot verifier and the
+election verifier, which this handbook describes.
 
 ## Who does what
 
@@ -70,6 +70,8 @@ this handbook; the portal’s appearance is not a substitute for those checks.
 - **You, the voter,** are in the voters' register of the election. You can vote
   only in the ballots the voting portal shows you, and only while voting is
   open.
+- **An observer** is anyone who checks the result independently with the
+  election verifier.
 
 ## Other handbooks
 
@@ -84,22 +86,24 @@ are for the people who run the election:
 
 ## Conventions
 
-Screenshots illustrate real interfaces with synthetic test data. Sample
-accounts, election names, identifiers, hashes and dates are not values to copy
-into an election. Follow the steps and required values in the text; a pictured
-screen is not evidence that your own operation completed.
+The screenshots show test elections with made-up data. Your election's names,
+candidates, codes and dates will differ. Follow the steps in the text; do not
+copy values from a screenshot.
 
-- Text in double quotes and italics, such as "Cast ballot", is exactly what the
-  screen shows in English. If you use the voting portal in another language, the
-  same items appear in that language.
-- Numbered steps must be done in the order given.
+- Text in double quotes and italics, such as the button "Cast ballot", is
+  exactly what the screen shows in English. If you use the voting portal in
+  another language, the same items appear in that language.
+- Numbered steps are done in the order given. A step that starts with the word
+  If or To applies only in that case.
 - Boxes marked **warning** or **danger** are security warnings. Follow them.
+  Boxes marked **info** explain something.
 - These terms have a fixed meaning in this handbook:
   - **election**: the whole vote your election organizer runs. It can have one
     or more ballots.
   - **ballot**: one of the votes of an election, with its questions (contests)
-    and options (candidates or answers). The voting portal lists your ballots in
-    the "Ballot list".
+    and options (candidates or answers). The voting portal lists your ballots on
+    the screen "Ballot list". The word also means your filled-in ballot; your
+    encrypted ballot is that ballot after your browser has encrypted it.
   - **election period**: the time from the start to the end of voting that the
     election organizer announces.
   - **phase**: the stage an election is in. Preparation: before voting.
@@ -114,11 +118,22 @@ screen is not evidence that your own operation completed.
     the voting system takes the last valid vote of each voter from the
     intermediate ballot box, without the voter's name, into the ballot box,
     which is then mixed and decrypted.
-  - **Ballot ID**: the code that identifies your encrypted ballot. The screens
-    show a short code of eight characters; the full Ballot ID has 64. You check
-    your ballot with the full Ballot ID.
+  - **Ballot ID**: the code that identifies your encrypted ballot. The review
+    and confirmation screens show a short code of eight characters; the full
+    Ballot ID has 64. You check your ballot with the full Ballot ID.
   - **cast**: to send your vote so that it counts. Until you cast it, your
     vote does not count.
+  - **hash**: a fixed-length code calculated from a text. Any change in the
+    text gives a different code.
+  - **verification data**: the files the election organizer publishes after the
+    count so that anyone can check it with the election verifier.
+  - **electoral regulation**: the rules that apply to your election.
+  - **area**: a part of an election, such as a district or unit. Each voter
+    belongs to one.
+- Some screens use other words: "tracker ID" and "Ballot Tracker ID" mean the
+  Ballot ID; "ballot code" means the audit data of your ballot; "auditable ballot"
+  means the file you download for an audit; "election" can mean a ballot;
+  "election event" means the election.
 
 ## Document history
 

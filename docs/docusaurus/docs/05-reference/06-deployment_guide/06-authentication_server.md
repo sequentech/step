@@ -10,18 +10,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 This chapter prepares the identity-provider registration and protected input
 files. The installer ([Install from one configuration file](01-about.md#install-from-one-configuration-file))
-checks them, then configures the connection automatically. The provider's operator
-performs the external registration; the installer cannot authorize it for them.
+checks them, then configures the connection automatically. The authentication
+server's administrator performs the external registration; the installer cannot
+authorize it for them.
 
 Administrators, election board members and voters sign in only through the
 external authentication server. The TOE's identity service (keycloak) sends
 every sign-in there, accepts the result only from that server, and links it
-only to an account that already exists in the TOE. This page prepares that
+only to an account that already exists in the TOE. This chapter prepares that
 connection; [Configuring the Deployment](07-hardening.md) applies it.
 
 ## Register the TOE at the authentication server
 
-Ask the operator of the authentication server to register the TOE as a client
+Ask the authentication server's administrator to register the TOE as a client
 with these properties:
 
 | Property | Value |
@@ -42,22 +43,20 @@ server must refuse every other redirect URI for this client.
 :::
 
 At customer commissioning, the terminal prints the complete customer URI and
-pauses while the provider's operator registers it. Type `CONTINUE` only after
-that registration and the customer administrator account are ready.
+pauses while the authentication server's administrator registers it. Type `CONTINUE`
+only after that registration and the customer administrator account are ready.
 
 ![Actual commissioning terminal showing the exact customer redirect URI and registration checkpoint](./assets/installation/installer-commission-complete.png)
 
-*Actual VM rehearsal capture. Use the URI printed by your own commissioning run.
-The provider's registration screen depends on its product; this screenshot shows
-the TOE command's required value and its explicit checkpoint.*
+*Terminal capture from a test installation. Your addresses, names and digests differ.*
 
 **If registration cannot be completed:** leave the command paused. Resolve the
-exact URI, client settings and administrator identity with the provider's
-operator. Do not register a wildcard or continue on the assumption that the
-provider will accept the login.
+exact URI, client settings and administrator identity with the authentication
+server's administrator. Do not register a wildcard or continue on the assumption
+that the provider will accept the login.
 
-From the operator of the authentication server, obtain, through a channel
-that protects their integrity: the issuer, the authorization endpoint, the
+From the authentication server's administrator, obtain, through a channel
+that protects their integrity (in person or a signed email): the issuer, the authorization endpoint, the
 token endpoint, the URL of its signing keys (JWKS), the end-session endpoint,
 the client ID and the client secret of the TOE's registration, and the CA
 certificate its server certificate chains to, with the SHA-256 fingerprint of
@@ -75,8 +74,8 @@ Before running the installer, prepare the protected JSON file named by
 `identity_provider.definition` in `site.json`. Use a local text editor on the
 administration workstation; do not put the client secret in a command argument,
 terminal output or public configuration. Keep the file owned by root and readable
-only by root. Fill the registration values supplied by the identity-provider
-operator; the following values are placeholders:
+only by root. Fill the registration values supplied by the authentication server's
+administrator; the following values are placeholders:
 
 ```json
 {
@@ -105,15 +104,16 @@ operator; the following values are placeholders:
 }
 ```
 
-Both alias fields must match `idp_alias` in `site.json`. Use the actual endpoint
+The field `alias` must match `idp_alias` in `site.json`; give `displayName` the
+same value. Leave the field `firstBrokerLoginFlowAlias` as shown. Use the actual endpoint
 URLs from the registration; do not derive or guess them from these examples. The
 installer copies the definition through the protected administration connection.
 The client secret remains in the private definition, not in `site.json`.
 
 <!-- deployment-step: 06-001 -->
 
-**Check it from a root terminal in the administration workstation's `deployment`
-directory**, after the full working configuration and server installations are ready:
+**Check it from a root terminal in the deployment directory**, after the full
+working configuration and server installations are ready:
 
 ```bash
 ./deploy check site.json
@@ -129,9 +129,7 @@ The client secret is not printed.
 
 ![Actual preflight validating protected certificate and provider inputs before installation](./assets/installation/installer-preflight.png)
 
-*Actual rehearsal terminal. The first PASS line covers the input validation;
-a successful file check does not prove that the external provider has completed
-registration or that a user can authenticate with both factors.*
+*Terminal capture from a test installation. Your addresses, names and digests differ.*
 
 **If it differs:** compare the public values with the independently supplied
 registration, correct the private file in the editor and rerun the check. Never
@@ -149,8 +147,9 @@ account and never creates one.
 <!-- deployment-step: 06-002 -->
 
 Set `identity_provider.ca` to the independently supplied CA file and
-`identity_provider.ca_sha256` to its separately received fingerprint. The
-preflight above compares the actual fingerprint before installation.
+`identity_provider.ca_sha256` to its separately received fingerprint, as 64
+hexadecimal characters without colons. The preflight above compares the actual
+fingerprint before installation.
 
 **Automatic part of `./deploy install site.json`:** the installer installs the
 checked trust anchor and configures Keycloak to use it with the required TLS
@@ -160,16 +159,17 @@ final `INSTALL 4/4` completion message.
 
 **If a fingerprint or trust-anchor installation check fails:** stop. Do not copy
 an observed fingerprint into the expected field, replace an existing ConfigMap
-blindly or disable certificate verification. Reconcile the CA and partial
-installation state before proceeding.
+or disable certificate verification. Correct the CA file with the authentication
+server's administrator and run `./deploy check site.json`. If the installer has
+already started, follow [If something fails](01-about.md#if-something-fails).
 
 ## Check the authentication server's TLS
 
 <!-- deployment-step: 06-003 -->
 <!-- deployment-step: 06-004 -->
 
-**Where:** a root terminal in the administration workstation's `deployment`
-directory, after the platform has been installed. Run the same live TLS inspection
+**Where:** a root terminal in the deployment directory, after the platform has
+been installed. Run the same live TLS inspection
 used in [Certificates and TLS](05-certificates_tls.md#check-the-tls-profile):
 
 ```bash
@@ -193,7 +193,7 @@ after those rejection tests. The run ends with
 
 **If either server fails:** check that server's DNS, outbound TCP-443 route,
 configured host name and verified CA. If a prohibited variant is accepted,
-have the authentication-server operator correct its profile. A timeout is an
+have the authentication server's administrator correct its profile. A timeout is an
 incomplete check, not proof that a prohibited protocol was refused. Do not change
 the host to an unrelated reachable service or disable name/chain verification.
 

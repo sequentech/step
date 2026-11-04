@@ -28,7 +28,10 @@ a configuration version is approved, the self-test check "Approved access-contro
 configuration" detects such a change
 ([Security and Self-Tests](07-self_tests.md)).
 
-Nobody can change or delete records. Only the election board reads, audits and
+Nobody can change a record or delete a single record. Only the board's deletion of
+the whole election event
+([Correcting imported election data](05-tenant_and_event_settings.md#correcting-imported-election-data))
+removes its electoral log. Only the election board reads, audits and
 exports the electoral log: as administrator you do not read it. You learn of
 security-relevant events from the TOE's notifications
 ([Email notifications](#email-notifications)) and from the election board. The
@@ -53,11 +56,11 @@ The election board uses these tools. Their permissions belong only to the role
 v10.0.0 election event. This screen is the election board's: an administrator
 does not see it.*
 
-Your part: check that the role `election-board` holds these permissions, as that
-section lists, and that "Role Data" of the role `admin` shows none of them. Give
-the permission "Read Electoral Log Personal Data"
-(`electoral-log-personal-data-read`) only where the election organizer decides
-so.
+Your part: check that the role `election-board` holds these permissions, as
+[The election board role](04-users_and_roles.md#the-election-board-role) lists, and
+that "Role Data" of the role `admin` shows none of them. Add the permission "Read
+Electoral Log Personal Data" (`electoral-log-personal-data-read`) to the role
+`election-board` only if the election organizer decides so.
 
 ## Attack detections
 
@@ -92,8 +95,10 @@ To set and verify the thresholds:
    agreed with the election organizer.
 3. Select **Save attack detection settings** once.
 4. Expect **Attack detection settings saved and verified**. Check that the three
-   fields still show the agreed values. The board must approve the updated
-   configuration before execution.
+   fields still show the agreed values. These thresholds count for every election
+   event of the tenant: tell the election board, which must approve a new
+   configuration version of each election event whose version it has already
+   approved, before the execution phase.
 
 ![Administrator settings after saving and verifying the agreed rates](assets/attack-detection-settings.png)
 
@@ -101,8 +106,8 @@ To set and verify the thresholds:
 shown are examples, not a recommendation for a live election event.*
 
 If a value is outside the accepted range, correct it and save again. If saving
-or verification fails, do not assume the new values took effect: reopen this
-section, inspect the stored values and resolve the displayed cause. The thresholds
+or verification fails, do not assume the new values took effect: reopen the
+tab, inspect the stored values and resolve the displayed cause. The thresholds
 cannot be changed while an election event is in the execution phase. They detect
 patterns: they do not limit requests or lock accounts.
 
@@ -114,8 +119,7 @@ agree the measures with the board.
 
 ## The audit storage threshold
 
-The storage observer measures the audit database volume every 30 seconds.
-The application reconciles observations in the background. Above 80% used
+The TOE measures the audit database volume every 30 seconds. Above 80% used
 capacity it:
 
 - refuses new sessions and requests of voters, so that no vote is cast that
@@ -123,12 +127,13 @@ capacity it:
 - writes a record to the electoral log;
 - emails the election board and the administrators.
 
-Administrators and board members can still sign in and work. Extend the
-storage at once, as the Deployment Guide describes: never by deleting audit
-records or election execution data. Voters can sign in again once the used
-space is at or below the threshold and the observation is fresh. Missing, stale,
-future-dated or unreadable observations also refuse voter access. The other
-phase, period and self-test checks continue to apply.
+Administrators and board members can still sign in and work. Have the operator
+extend the storage at once
+([Storage](../../05-reference/06-deployment_guide/11-selftest_handover.md#storage)):
+never by deleting audit records or election execution data. Voters can sign in
+again once the used space is at or below the threshold and the measurement is
+fresh. Missing, stale, future-dated or unreadable measurements also refuse voter
+access. The other phase, period and self-test checks continue to apply.
 
 ## Email notifications
 
@@ -150,13 +155,15 @@ The TOE sends no email for an attack detection or for an account reaching the
 authentication failure threshold. The election board sees these on the tab
 "Dashboard" of the election event and in the electoral log.
 
-The TOE uses the protected relay configuration supplied during installation. The
-area "Security email delivery" of the tab "Security and self-tests" of the
+The TOE sends through the authenticated mail relay that the operator configured
+during installation
+([Configure security email](../../05-reference/06-deployment_guide/01-about.md#configure-security-email)).
+The area "Security email delivery" of the tab "Security and self-tests" of the
 election event shows queued, sent, failed and uncertain outcomes. That the mail
 relay accepted a message does not prove that the recipient read it.
 
-Use the "Email" of each account. Before the execution
-phase, check that every administrator's and board member's account has the
+The TOE sends to the address in the field "Email" of each account. Before the
+execution phase, check that every administrator's and board member's account has the
 person's working address, and agree with the election organizer who reads the
 email throughout the execution phase.
 
@@ -168,7 +175,7 @@ records. Support the board:
 - make sure that every board member who checks the records holds the
   permissions that the tab "Logs" and the screen "Electoral Log" need
   ([The election board's tools for the audit review](#the-election-boards-tools-for-the-audit-review));
-- when the board shows you a record that an administrator caused, for example a
+- when the board asks you about a record that an administrator caused, for example a
   change of a signing rule, explain why the change was made. The record gives
   the account and the time;
 - if the board finds a record it cannot explain, help it to find the cause and

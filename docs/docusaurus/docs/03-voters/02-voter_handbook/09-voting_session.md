@@ -20,8 +20,8 @@ without any interaction from you. The voting system then also ends your login.
 This protects your account if you leave your device.
 
 - After that you must log in again.
-- A ballot you had not cast is not cast. Open it again with "Click to Vote" and
-  fill it in again.
+- A ballot you had not cast is not cast. Open it again with the button
+  "Click to Vote" and fill it in again.
 - A vote you had already cast stays cast.
 
 Your election may warn you before your session ends, with the message "Your
@@ -32,17 +32,16 @@ Finish or cast your ballot before the time runs out.
 
 To log out:
 
-1. At the top of the page, select your name (it follows "Welcome,") to open the
-   menu.
-2. Select "Logout".
-3. The voting portal asks "Are you sure you want to logout?" and says "You are
-   about to close this application. This action can not be undone."
-4. Select "OK" to log out. Select "Close" to stay logged in.
+1. At the top of the page, select your name (it follows the word "Welcome,") to
+   open the menu.
+2. Select the item "Logout".
+3. The voting portal opens the dialog "Are you sure you want to logout?".
+4. Select the button "OK" to log out. Select the button "Close" to stay logged in.
 
 Your session ends at once.
 
-On the confirmation screen, "Finish" also logs you out when there is no ballot
-you can still vote in.
+On the confirmation screen, the button "Finish" also logs you out when there is
+no ballot you can still vote in.
 
 ## When you have finished
 

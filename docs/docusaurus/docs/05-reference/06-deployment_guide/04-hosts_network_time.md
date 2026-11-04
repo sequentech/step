@@ -16,8 +16,8 @@ client-network check.
 
 ## Inspect from the administration workstation
 
-**Where:** a root terminal on the administration workstation, in the extracted
-`deployment` directory containing the same approved `site.json`.
+**Where:** a root terminal on the administration workstation, in the deployment
+directory containing the same approved `site.json`.
 
 ```bash
 ./deploy inspect site.json network
@@ -30,19 +30,16 @@ and actual ingress ports; it contains no SSH key path, credential or secret.
 
 ![Actual administration-terminal inspection of ingress ports, SSH, time and cluster readiness](./assets/installation/inspect-network.png)
 
-*Actual inspection against the rehearsal VMs. Use the values printed by your own
-run. The report also includes loopback listener ports so the client-network test
-does not omit an ingress listener.*
+*Terminal capture from a test installation. Your addresses, names and digests differ.*
 
 **Expected final result:**
 `ADMINISTRATION NETWORK CHECK PASSED — client-network filtering still requires the separate client test`.
 Each individual result below must also pass.
 
-**If it stops:** use the named failure and the matching section below. Do not
-continue on partial output. If `client-network.json` already exists with different
-contents, preserve that earlier report and run the inspection from a clean
-working copy of the verified `deployment` directory; do not silently reuse old
-port or node values.
+**If it stops:** use the named failure and the matching section of this chapter.
+Do not continue on partial output. If `client-network.json` already exists with
+different contents, keep that earlier report and run the inspection from a clean
+copy of the deployment directory; do not reuse old port or node values.
 
 ## Network filtering
 
@@ -52,7 +49,8 @@ port or node values.
 The inspection prints these lines automatically:
 
 - **C1 ingress service ports and node ports:** actual values read from the
-  Traefik service. Missing ports or an unavailable service fail the inspection.
+  cluster's ingress service (Traefik). Missing ports or an unavailable service fail
+  the inspection.
 - **C1 ingress loopback listener ports:** actual configured listener ports.
   Any listener not restricted to C1's loopback address fails the inspection.
 - **C1/C2 address:22 open:** SSH is reachable from this administration workstation.
@@ -63,13 +61,14 @@ The inspection prints these lines automatically:
 The site firewall must expose only the connections of
 [Network](02-operational_environment.md#network). Test its client side from a
 **separate computer connected to a client network**, after the TLS endpoint has
-been installed:
+been installed. A run from the administration workstation does not prove the
+client-side firewall rule. To run the test:
 
-1. Copy the verified `deployment` tools and the newly generated
+1. Copy the delivered directory `guidance/deployment` and the newly generated
    `client-network.json` to that computer. **Do not copy `site.json`, private keys,
    passwords or provider definitions.**
-2. Open a terminal in that copied `deployment` directory. It needs Python 3;
-   it does not need root access or an administration SSH key.
+2. Open a terminal in that copied directory. It needs Python 3; it does not need
+   root access or an administration SSH key.
 3. Run:
 
    ```bash
@@ -78,13 +77,15 @@ been installed:
 
 ![Actual separate client-network test with a reachable HTTPS endpoint and forbidden ports closed](./assets/installation/inspect-client-network.png)
 
-*Actual laboratory client-network test. The test must run from the corresponding
-client network at your site. A run from the administration workstation does not
-prove the client-side firewall rule.*
+*Terminal capture from a test installation. Your addresses, names and digests differ.*
 
 **Expected result:** the positive control reports C1 port 443 `open`; every
-forbidden address/port reports `closed`; the final line is
-`CLIENT NETWORK CHECK PASSED — positive HTTPS reachability and all tested forbidden ports closed`.
+forbidden address/port reports `closed`; the last two lines are
+`CLIENT NETWORK CHECK PASSED — positive HTTPS reachability and all tested forbidden ports closed`
+and
+`This TCP test does not validate a certificate or prove the physical network position. Record the test machine and network.`
+Note the test machine and the network for the message of
+[Handover to the election board](11-selftest_handover.md#handover-to-the-election-board).
 The tested ports include SSH, plain HTTP, cluster API/kubelet and the actual
 service, node and loopback ingress ports. C2 port 443 must also be closed.
 
@@ -116,7 +117,8 @@ shows these actual policy results; no additional server command is needed.
 
 **If it differs:** stop. Root login `yes` permits an unacceptable password path;
 root login `no` prevents the required administration-key access. Check the
-installed kit and approved site configuration. Do not loosen policy as a workaround.
+installed kit and approved site configuration, and ask Sequent for a corrected kit.
+Do not loosen policy as a workaround.
 
 ## Authenticated time
 
@@ -137,7 +139,7 @@ system's public trust store. Do not disable certificate validation to make a
 private server connect.
 
 **If it differs:** investigate DNS and the permitted UDP-123/TCP-4460 paths with
-the time-server operator. A non-NTS source, no selected source or unsynchronized
+the time server's administrator. A non-NTS source, no selected source or unsynchronized
 clock is a failure. Do not continue or hand-edit the installed time configuration
 into a weaker mode. The combined PASS line appears only after the SSH and all
 three time conditions pass.
@@ -151,8 +153,8 @@ line **`Encryption Status: Enabled`**. Other key-rotation details do not replace
 this requirement.
 
 **If disabled or unavailable:** stop before creating application Secrets.
-Confirm that C1 came from the approved kit; if it did, obtain a corrected kit from
-Sequent. Do not create Secrets as a test or enable encryption ad hoc on an
+Run `./deploy inspect site.json kit` to check that you have the accepted kit, and
+ask Sequent for a corrected kit. Do not create Secrets as a test or enable encryption ad hoc on an
 unknown cluster state.
 
 ## Cluster nodes
@@ -163,8 +165,11 @@ The inspection prints the actual node table and checks it again as structured
 data. There must be exactly two nodes, both `Ready`, with internal addresses
 matching `nodes.c1` and `nodes.c2` in `site.json`.
 
-**If a node is missing, unready or at the wrong address:** stop and reconcile
-its boot state, network and approved site definition. The initial preflight
-also requires a fresh cluster with no existing `step-apps` or `step-infra`
-installation; a later read-only inspection may legitimately see the running
-platform. Do not mistake a healthy existing deployment for a fresh installation.
+**If a node is missing, unready or at the wrong address:** read its boot log as
+[Check the installed servers](03-installation_kit.md#check-the-installed-servers)
+shows, compare its address with `nodes` in `site.json` and check the firewall rules
+of [Network](02-operational_environment.md#network). If you cannot find the cause,
+ask Sequent. The initial preflight also requires a fresh cluster with no existing
+installation in the cluster namespaces `step-apps` and `step-infra`; a later
+read-only inspection may legitimately see the running platform. Do not mistake a
+healthy existing deployment for a fresh installation.

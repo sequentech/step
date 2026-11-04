@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 The voting system protects your vote on its servers and while it is sent. It
 cannot protect what happens on your device or around you. That part is up to
-you. This page says what you need and what you must do.
+you. This chapter says what you need and what you must do.
 
 ## What you need
 
@@ -22,9 +22,10 @@ you. This page says what you need and what you must do.
 - **The election organizer's instructions.** Before the election period, the
   election organizer tells you what the login page looks like, how many times
   you may vote (the vote you cast last counts), that you can check your ballot
-  with "Audit ballot", where the verification data will be published and how
-  to check with it that your vote was counted, and whom to contact about a
-  security problem. Follow these instructions.
+  with the button "Audit ballot" on the review screen, where the verification
+  data will be published and how to check with it that your vote was counted,
+  how to contact the election organizer if anything looks wrong, and the
+  security contact for suspected security problems. Follow these instructions.
 - **A device with a current web browser.** The browser must run the voting
   portal's scripts, because your vote is encrypted in the browser. Do not block
   scripts for the voting portal.

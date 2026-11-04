@@ -23,15 +23,17 @@ appoints to set up and look after the TOE ([Roles and people](#roles-and-people)
 An administrator:
 
 - configures the tenant;
-- sets up the tenant's policy for signed configuration packages and verifies
-  the imported event and election Data-tab settings against the required values:
-  as administrator you see an election event's settings, not its election data
-  or its audit records;
+- sets up the tenant's policy for signed configuration packages, checks the
+  administrator settings on the election event's tab "Data" and obtains the
+  board's check of the other imported settings against the required values: as
+  administrator you see an election event's security settings, not its election
+  data or its audit records;
 - manages the user accounts and roles of the tenant, and keeps the
   administrator role and the election board role apart;
 - sets the protected actions and their required authorisations, the automatic
-  self-tests and the attack-detection thresholds, and checks the imported
-  re-voting setting;
+  self-tests and the attack-detection thresholds, and gives the election
+  organizer the required number of allowed votes (re-voting), which the board
+  checks;
 - acts on the TOE's notifications and supports the election board when a
   failure occurs;
 - as the operator, installs and runs the servers of the TOE as the Deployment
@@ -61,8 +63,8 @@ Deployment Guide describes.
 
 The admin portal is a supporting component outside the TOE. Its screens guide
 the workflow; displaying or hiding a control is not a security boundary or
-evidence of a server-side refusal. Follow the operation-specific checks and
-completion evidence in this handbook, including required authorisations.
+evidence of a server-side refusal. Follow the checks that this handbook gives for
+each operation, including required authorisations.
 
 ## Roles and people
 
@@ -80,9 +82,9 @@ use these names for people:
 | voter | A person in the voters' register. | voter |
 | observer | Anyone who checks the result independently with the election verifier. | none |
 
-## Pages of this handbook
+## Chapters of this handbook
 
-| Page | Content |
+| Chapter | Content |
 |---|---|
 | [The Administrator Role](02-administrator_role.md) | What the administrator may and may not do; the TOE and its supporting components; the privileges to control |
 | [Secure Use of the Admin Portal](03-admin_portal.md) | Signing in, confirming sensitive actions, sessions and logout, and the version check |
@@ -98,15 +100,16 @@ use these names for people:
 
 ## Other handbooks you need
 
-- [Deployment Guide](../../05-reference/06-deployment_guide/01-about.md):
+- [Deployment Guide (AGD-04)](../../05-reference/06-deployment_guide/01-about.md):
   acceptance of the TOE delivery, installation of the operational environment
   and of the TOE, hardening, the initial accounts and the commands the
-  administrator uses on the servers. Complete it before you use this handbook.
-- [Handbook for Election Organizers](../05-election_organizer_handbook/01-about.md):
+  operator uses on the servers. The operator completes it before you use this
+  handbook.
+- [Handbook for Election Organizers (AGD-03)](../05-election_organizer_handbook/01-about.md):
   the duties of the election organizer and the procedures of the election
   board and the trustees. Read it to know what the election board expects from
   your configuration.
-- [Handbook for Voters](../../03-voters/02-voter_handbook/01-about.md): the
+- [Handbook for Voters (AGD-01)](../../03-voters/02-voter_handbook/01-about.md): the
   voters' guidance. Read it to know what voters see, so that you can support
   the election organizer.
 
@@ -121,8 +124,9 @@ people.
 | Term in this handbook | What it means, and its name in the admin portal |
 |---|---|
 | tenant | the organisation's space in the TOE; it holds the administrators', board members' and trustees' accounts and the election events |
+| realm | the TOE's set of accounts, roles and login settings. The tenant has one, and each election event has its own |
 | election event | what the Security Target calls an election: the whole vote that the election organizer holds. An election event contains elections, an election contains contests, and a contest contains candidates |
-| election data | the voters' register (the voters of the election event, with its areas), the candidate list and the display data of the ballot, the set of election rules (the counting and voting rules of the contests) and the election dates (the scheduled opening and closing of voting, with the end of the election period). The signed package also contains event and election Data-tab settings, including presentation and re-voting settings, which administrators verify after import. Some of these settings affect the approved ballot design and must not be changed to repair an imported package. Administrators separately configure the rules and required authorisations of the Signatures tab, certificate registrations, the automatic self-tests and the attack-detection thresholds |
+| election data | the voters' register (the voters of the election event, with its areas), the candidate list and the display data of the ballot, the set of election rules (the counting and voting rules of the contests) and the election dates (the scheduled opening and closing of voting, with the end of the election period). The signed package also contains event and election Data-tab settings, including presentation and re-voting settings, which administrators and the election board verify after import, each in their own view of the tab "Data". Some of these settings affect the approved ballot design and must not be changed to repair an imported package. Administrators separately configure the rules and required authorisations of the Signatures tab, certificate registrations, the automatic self-tests and the attack-detection thresholds |
 | election execution data | the cast votes, the electoral log, the tally and results data, and the voting records |
 | electoral log | the audit records of one election event. Each election event has its own electoral log; there is none for the tenant as a whole. What concerns the whole tenant, such as a change of the attack-detection settings or one of the tenant's accounts reaching the authentication failure threshold, is recorded in the electoral log of every election event of the tenant. The election board reads an election event's electoral log in the tab "Logs" of the election event and in the side menu "Electoral Log"; administrators do not read it |
 | audit records | the records of the electoral log |
@@ -138,9 +142,10 @@ people.
 | approval event | an existing election event in the preparation phase in which the election board approves an import ([The approval event](05-tenant_and_event_settings.md#the-approval-event)) |
 | approved baseline | the TOE's signed record of the election data and the access-control settings at the election board's approval of a configuration version. The self-tests compare against it. On screen: "board-approved configuration baseline" |
 | lockdown period | the period the election board sets during which the configuration of the election event cannot change |
-| maintenance mode | the state after a recoverable failure, on screen "Recovery required": voting is stopped until the election board resumes it after a passing self-test |
+| maintenance mode | the state after a recoverable failure, on screen "Recovery required" (a new election event shows the same words until voting first opens, [Maintenance mode](10-modes_of_operation.md#maintenance-mode)): voting is stopped until the election board resumes it after a passing self-test |
 | unrecoverable failure | the state after a failure that cannot be recovered from: the election execution ends and voting never resumes |
 | role | a role in Users and Roles: a named set of permissions given to accounts |
+| board permission | a permission that only the election board role holds |
 | re-voting | voting again, where only the last vote counts; the field "Number of allowed votes" of an election sets how often a voter may vote |
 
 ## Conventions
@@ -153,8 +158,8 @@ screen is not evidence that your own operation completed.
 - Names in quotation marks or in bold, such as "Users and Roles" or
   **Run self-tests**, are the exact texts of the admin portal in English: menu
   entries, tabs, buttons, fields, options, dialogs and messages.
-- A path such as Settings > "Backup / Restore" means: open Settings in the side
-  menu, then the tab named "Backup / Restore".
+- A path such as Settings > "Attack detection" means: open Settings in the side
+  menu, then the tab named "Attack detection".
 - Permissions are given with their label in Users and Roles and their
   technical name, for example "Edit Election State" (`election-state-write`).
 - File names and values to type are shown in code format. Inside a code block,
@@ -171,4 +176,4 @@ screen is not evidence that your own operation completed.
 | Version | Date | Changes |
 |---|---|---|
 | 1.0 | 2026-10-27 | First edition for the evaluated configuration of v10.0.0. |
-| 1.1 | 2026-11-02 | Numbered sections; consistent use of election event; most chapters revised; new screenshots. |
+| 1.1 | 2026-11-02 | Numbered sections; consistent use of election event; all chapters revised; new screenshots. |

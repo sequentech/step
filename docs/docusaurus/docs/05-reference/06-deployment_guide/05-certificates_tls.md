@@ -29,7 +29,7 @@ Every connection to the TOE's web hosts must use this profile:
 The same protocol, cipher and group requirements apply to the external
 authentication server ([Connecting the Authentication Server](06-authentication_server.md)).
 
-## Create the key and the certificate request
+## Obtain the certificate and its key
 
 <!-- deployment-step: 05-001 -->
 
@@ -52,25 +52,24 @@ In your private working configuration, set these file paths:
 | `tls.certificate` | PEM server certificate and its intermediate chain |
 | `tls.private_key` | Matching private key, owned by root and accessible only to root |
 | `tls.ca` | Trusted CA certificate used to validate the chain |
-| `tls.ca_sha256` | SHA-256 CA fingerprint received independently |
+| `tls.ca_sha256` | SHA-256 CA fingerprint received independently, as 64 hexadecimal characters without colons (`openssl x509 -in CA_FILE -noout -fingerprint -sha256` prints it with colons) |
 
 Use absolute paths. Your certificate must be trusted by voters' ordinary,
-current browsers. A laboratory CA shown in a rehearsal is not suitable for
-consumer deployment; adding such a CA locally does not establish public trust.
+current browsers. A private CA is not suitable for consumer deployment; adding
+such a CA locally does not establish public trust.
 
 **If the certificate is wrong:** obtain the correct certificate for the approved
-key and names. Do not regenerate a key after submitting its CSR and then attempt
-to use the old response. Resolve any untrusted chain, expired certificate or
-missing name before installation.
+key and names. A certificate issued for an earlier key does not match a key you
+generated later. Resolve any untrusted chain, expired certificate or missing name
+before installation.
 
 ## Check the certificate
 
 <!-- deployment-step: 05-002 -->
 <!-- deployment-step: 05-003 -->
 
-**Where:** a root terminal on the administration workstation, in the extracted
-package's `deployment` directory. After preparing the complete `site.json` and
-installing C1 and C2, run:
+**Where:** a root terminal on the administration workstation, in the deployment
+directory. After preparing the complete `site.json` and installing C1 and C2, run:
 
 ```bash
 ./deploy check site.json
@@ -87,9 +86,7 @@ The private key and client secrets are not printed.
 
 ![Actual VM preflight checking certificate inputs and the two installed servers](./assets/installation/installer-preflight.png)
 
-*Actual rehearsal capture. The certificate-input PASS line is followed by the
-server checks. The shown laboratory identities illustrate the command's output;
-your approved inputs and browser trust must be checked for your own site.*
+*Terminal capture from a test installation. Your addresses, names and digests differ.*
 
 **If it stops:** read the named failure. For a fingerprint mismatch, compare the
 independently received record with the supplied file; do not copy an observed
@@ -103,14 +100,14 @@ replace the live TLS-profile check below.
 
 **Automatic part of installation.** After the full preflight passes, the command
 below securely transfers the configured certificate and key, creates the TLS
-Secret in both `step-apps` and `step-infra`, and prepares the operating-system
-TLS endpoint:
+Secret in both cluster namespaces `step-apps` and `step-infra`, and prepares the
+operating-system TLS endpoint:
 
 ```bash
 ./deploy install site.json
 ```
 
-Run it once from the same administration-workstation directory, as described in
+Run it once from the deployment directory, as described in
 [Install the platform](01-about.md#install-the-platform). If that installation
 is already complete, do not rerun it for this chapter.
 
@@ -119,16 +116,16 @@ with `INSTALL 4/4: platform installed; customer and trustee commissioning still 
 The screenshot in [Install the platform](01-about.md#install-the-platform) shows the
 complete command and its successful end state.
 
-**If it fails:** keep the error and stage name. An existing Secret or occupied
-installation may indicate a partial earlier attempt. Inspect that state; do not
-delete Secrets or retry installation blindly.
+**If it fails:** keep the error and stage name, and follow
+[If something fails](01-about.md#if-something-fails). An existing Secret or occupied
+installation may indicate a partial earlier attempt. Do not delete Secrets.
 
 ## Set up the TLS endpoint
 
 <!-- deployment-step: 05-005 -->
 
 **Also automatic within `./deploy install site.json`.** C1's operating-system
-`nginx` service reads the protected certificate and key from
+`nginx` service reads the protected certificate and key from the directory
 `/var/lib/sequent-site/tls/`. It is the only externally reachable listener on
 TCP 443. It accepts the configured SNI names and permitted TLS profile, then
 forwards encrypted traffic through C1's loopback interface to cluster ingress.
@@ -147,8 +144,8 @@ steps from Sequent, then repeat the live TLS check below before returning servic
 
 <!-- deployment-step: 05-006 -->
 
-**Where:** the administration workstation, in the same `deployment` directory.
-After installation, run:
+**Where:** the administration workstation, in the deployment directory. After
+installation, run:
 
 ```bash
 ./deploy inspect site.json tls
@@ -162,10 +159,11 @@ service that refuses everything cannot pass.
 
 ![Actual TLS inspection showing verified allowed connections and refused prohibited variants](./assets/installation/inspect-tls.png)
 
-*Actual TLS probe results from the rehearsal. `TOE` lines are checks from the
-administration workstation; `C1 to authentication server` and `C2 to authentication
-server` identify the upstream checks. Laboratory host names and certificates are
-examples, not deployment inputs.*
+*Terminal capture from a test installation. Your addresses, names and digests differ.*
+
+Lines starting with `TOE` are checks from the administration workstation;
+`C1 to authentication server` and `C2 to authentication server` are the checks from
+the servers.
 
 **Expected final result:** `TLS PROFILE CHECK PASSED — allowed connections verified and prohibited variants refused`.
 All individual lines must pass as summarized below.

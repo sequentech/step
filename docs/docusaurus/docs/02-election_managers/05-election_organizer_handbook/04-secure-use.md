@@ -56,7 +56,7 @@ file in your browser and is never sent (see [Signing](#signing)).
 
 Before some actions, for example the buttons "Start Voting", "Pause Voting" and
 "Stop Voting", the admin portal shows the dialog "Confirm Action" with what the
-action does. Read it, then select "Confirm" or "Cancel". If your last login is
+action does. Read it, then select the button "Confirm" or "Cancel". If your last login is
 not recent, the admin portal then sends you to the external authentication
 server to log in again before it continues.
 
@@ -81,12 +81,14 @@ A security-critical action runs only when the required number of board
 members has authorised it. Each authorisation is a signature made with the
 signing certificate on the board member's security token. The administrators
 set the number for each action in the field "Signatures needed" on the election
-event's tab "Signatures" under "Protected actions"; the electoral regulation
+event's tab "Signatures", area "Protected actions"; the electoral regulation
 fixes it.
-The imports of election data are the exception: board members authorise them
-by approving the configuration package with the election organizer's package
-tool, outside the TOE, before a board member imports it (see
-[Approving a configuration package](06-preparation.md#approving-a-configuration-package)).
+An import of election data needs two things: the package approvals, which board
+members give with the election organizer's package tool, outside the TOE, before
+the import
+([Approving a configuration package](06-preparation.md#approving-a-configuration-package)),
+and the signatures of the protected action "Import election data" in the approval
+event ([Importing the package](06-preparation.md#importing-the-package)).
 
 ### How a signing request works
 
@@ -98,10 +100,14 @@ To authorise a security-critical action:
    panel shows the fields "Signing code" and "Signers", how many have signed
    (for example "2 of 3") and when it expires, in the line "Expires at …".
 2. Each authorising board member opens the request: in the panel, or on the
-   election event's tab "Signatures" under "Requests". Each one authenticates
+   election event's tab "Signatures", area "Requests". Each one authenticates
    again at the external authentication server before signing (see
    [Confirming an action by authenticating again](#confirming-an-action-by-authenticating-again)).
-3. When the last required signature arrives, the TOE performs the action.
+3. When the last required signature arrives, the TOE performs the action. For the
+   protected actions "Import election data", "Start counting votes", "Export election
+   execution data", "Delete election execution data" and "Read the voters' register
+   in post-processing" it waits: the member who started the action then selects the
+   button "Continue operation".
 
 ### Signing
 
@@ -109,24 +115,24 @@ To sign a request:
 
 1. Check what you sign. For a configuration version, read the table under the
    heading "Changes in this version"; for a document, select the button "Open the
-   document". Compare the "Signing code"
+   document". Compare the field "Signing code"
    with the other signers: everyone who signs sees the same code.
-2. Select "Sign". The dialog "Sign the …" has three steps: "Check",
+2. Select the button "Sign". The dialog "Sign the …" has three steps: "Check",
    "Certificate" and "Signed".
-3. Under "Check", the dialog shows the line "You are signing as" with your name.
+3. At the step "Check", the dialog shows the line "You are signing as" with your name.
    Tick the box "I have checked the …" only after you have checked it.
-4. Under "Certificate", insert your security token and choose your certificate
-   file. Enter the field "Certificate password" and select the button "Open
+4. At the step "Certificate", insert your security token and choose your certificate
+   file. Enter your certificate's password in the field "Certificate password" and select the button "Open
    certificate". The dialog lists the certificate checks. Every check must
    pass, among them "Issued by a trusted issuer", "Valid today", "Made for
    signing", "Not revoked" and "Registered to you".
-5. Select "Sign". The step "Signed" shows how many signatures are in and who
+5. Select the button "Sign". The step "Signed" shows how many signatures are in and who
    signs next.
 
 ![The dialog of a signing request at its step Check, with the details and the signing code](assets/signing-dialog-check.png)
 
 *Illustration: the step "Check" of a synthetic request to close voting, with the
-"Signing code" to compare.*
+field "Signing code" to compare.*
 
 Signing happens in your browser. Your certificate file, its private key and its
 password are never sent; only your signature and your public certificate go to
@@ -141,7 +147,7 @@ account and returns to this request to sign.
 | Status | Meaning | What to do |
 |---|---|---|
 | "Waiting" | Signatures are missing | The remaining signers sign before it expires. |
-| "Signed" | All signatures are in | Wait for the action to run. |
+| "Signed" | All signatures are in | Wait for the action to run; for an action that waits ([How a signing request works](#how-a-signing-request-works)), the member who started it selects the button "Continue operation". |
 | "Done" | The action was performed | Check its result, for example on the election event's tab "Publish" or "Logs". |
 | "Cancelled" | A board member cancelled it, or what it signs or its rule changed | Signatures given for it no longer count. Start the action again if the board still wants it. |
 | "Expired" | It was not complete in time | Start the action again. |
@@ -170,12 +176,12 @@ what is to be signed differs from what the election board decided.
 - After 15 minutes without interaction the TOE ends your session in the admin
   portal. Sign in again to continue.
 - To end your session at once, open the account icon in the header, select
-  "Logout" and confirm the question "Are you sure you want to logout?" with the
+  the entry "Logout" and confirm the question "Are you sure you want to logout?" with the
   button "OK".
 - Log out whenever you stop working with the TOE, even for a short break, and
   lock the screen when you leave the workstation.
 - If the admin portal shows the question "Do you want to stay connected to this
-  tenant or logout?", select "Logout" unless you are continuing your own work.
+  tenant or logout?", select the button "Logout" unless you are continuing your own work.
 
 :::warning
 An open session in an unattended browser lets anyone at the workstation act
@@ -185,8 +191,8 @@ signing with a token left in the device.
 
 ## What never to do
 
-- Do not use any interface of the TOE other than the admin portal and, for
-  trustees, the `trustee` program on the trustee workstation.
+- Use the TOE only through the admin portal and, for trustees, the `trustee`
+  program on the trustee workstation.
 - Do not share accounts, security tokens, certificate passwords, keys files or
   exported files with anyone who is not entitled to them.
 - Do not change the settings of the TOE: that is the administrators'

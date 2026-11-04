@@ -10,8 +10,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 After [Configuring the Deployment](07-hardening.md) and
 [Installing the TOE](08-installing_toe.md), the TOE holds these accounts. The
-customer tenant is the one created with the agreed slug; the initial installation
-tenant holds no election event:
+customer tenant is the one created with the agreed slug; the super-admin tenant
+holds no election event:
 
 | Account | Realm | State | Used by |
 | --- | --- | --- | --- |
@@ -22,7 +22,7 @@ tenant holds no election event:
 | Accounts whose names start with `service-account-` | both tenants | client secrets random | the TOE's services only |
 | The installation account, `admin`, `api-user`, `trustee1`, `trustee2` and the kit's further trustee accounts | super-admin tenant | disabled; only `trustee1` and `trustee2` have a password | nobody |
 
-In the initial installation realm, the client `service-account` stays
+In the realm of the super-admin tenant, the client `service-account` stays
 enabled: harvest and windmill obtain their service tokens from it. Disabling
 the accounts of that realm listed above does not affect it.
 
@@ -43,10 +43,11 @@ The first personal administrator signs in at the trustee-registration
 checkpoint of commissioning. Repeat this browser check after the completed
 platform inspection, including the [Version](10-verification.md#version) check:
 
-1. Read `hosts.administration` in `site.json`. Replace `ADMIN_HOST` below with
-   that exact hostname. Open `https://ADMIN_HOST/tenant` in the browser of the administration
-   workstation and check that the browser shows a valid HTTPS connection to
-   ADMIN_HOST.
+1. `ADMIN_HOST` below is the value of `hosts.administration` in `site.json`, which
+   the operator tells the administrator. Open `https://ADMIN_HOST/tenant` in the
+   browser of the device you use for the admin portal
+   ([Secure Use of the Admin Portal](../../02-election_managers/04-administrator_handbook/03-admin_portal.md))
+   and check that the browser shows a valid HTTPS connection to ADMIN_HOST.
 2. Under the heading "Select Tenant", enter the customer's short name (the field
    "Slug" of [Create the customer's tenant](08-installing_toe.md#create-the-customers-tenant))
    in the field "Tenant Name" and select the button "Continue".
@@ -57,8 +58,7 @@ platform inspection, including the [Version](10-verification.md#version) check:
 
 ![Customer administration portal after external sign-in](./assets/installation/trustees-registered.png)
 
-*Admin portal capture from a local build with test data. This example is on Settings →
-Trustees; the customer name and logged-in identity must be your own. The screenshot
+*Admin portal capture from a local build with test data. This example is on the tab "TRUSTEES" of Settings; the customer name and logged-in identity must be your own. The screenshot
 shows the return to the customer portal, not proof that your provider enforced MFA.*
 
 **Expected result.** The browser returns to the configured administration hostname,
@@ -70,8 +70,8 @@ returns to any other host, or if the portal shows an account other than the
 one added, stop and report it to
 [security@sequentech.io](mailto:security@sequentech.io).
 
-Give the administrators the customer's short name: everyone enters it under
-the heading "Select Tenant" to sign in.
+Give the administrators the customer's short name: everyone who signs in to the
+admin portal enters it under the heading "Select Tenant".
 
 ## Accounts after the first sign-in
 
@@ -79,8 +79,8 @@ The administrator then follows
 [Users, Roles and Role Separation](../../02-election_managers/04-administrator_handbook/04-users_and_roles.md):
 checking the roles and their separation, creating the personal accounts of
 the election board and the trustees, and deleting the seeded account `admin`.
-The realm settings of this guide have already removed the election board's
-permissions from the seeded administrator groups, among them "Create Election
+The realm settings of this guide have already removed the permissions reserved to
+the election board from the seeded administrator groups, among them "Create Election
 Event" (`election-event-create`), with which the election board imports
 election data, "Delete Election Event" (`election-event-delete`), "Archive
 Election Event" (`election-event-archive`), the "Sign:" permissions, the

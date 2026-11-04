@@ -18,10 +18,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ## Who this guide is for
 
-| Reader | What they do with the TOE | Pages |
+| Reader | What they do with the TOE | Chapters |
 |---|---|---|
 | Election organizer | Hosts the election event. Appoints the election board and the administrators, issues and distributes credentials, instructs voters, sets the electoral regulation. Acts in the TOE only through the administrators and the election board it appoints. | [Duties of the Election Organizer](02-organizer-duties.md) |
-| Election board member | Approves the configuration packages of the election data and imports them; publishes and approves the configuration version and sets the lockdown period; starts, interrupts, resumes and ends the election execution; checks the audit records, counts the votes, exports the election execution data, archives a wrong import and deletes an election event after its export; each security-critical action needs the required authorisations. | All pages |
+| Election board member | Approves the configuration packages of the election data and imports them; publishes and approves the configuration version and sets the lockdown period; starts, interrupts, resumes and ends the election execution; checks the audit records, counts the votes, exports the election execution data, archives a wrong import and deletes an election event after its export; each security-critical action needs the required authorisations. | All chapters |
 | Trustee | A board member who holds a share of the election key and takes part in the key ceremony and the counting. | [Trustee Procedures](09-trustee-procedures.md) |
 | Observer | Checks the result independently with the election verifier. | [Verifying the Result with the Election Verifier](10-election-verifier.md) |
 
@@ -54,6 +54,9 @@ use these names for people:
 | voter | A person in the voters' register. | voter |
 | observer | Anyone who checks the result independently with the election verifier. | none |
 
+These guides also say "the board" for the election board and "the organizer" for
+the election organizer.
+
 ## Other handbooks you need
 
 - The Handbook for Election Administrators (AGD-02): the administrators'
@@ -76,18 +79,23 @@ people.
 
 | Term in this handbook | What it means, and its name in the admin portal |
 |---|---|
+| TOE | the target of evaluation: the evaluated parts of Sequent Voting Platform - uniWAHL Version, v10.0.0 |
+| Security Target | the document that states what was evaluated |
 | tenant | the organisation's space in the TOE; it holds the administrators', board members' and trustees' accounts and the election events |
 | election event | what the Security Target calls an election: the whole vote that the election organizer holds. An election event contains elections, an election contains contests, and a contest contains candidates |
-| election data | the voters' register (the voters of the election event, with its areas), the candidate list and the display data of the ballot, the set of election rules (the counting and voting rules of the contests) and the election dates (the scheduled opening and closing of voting, with the end of the election period). The signed package also contains event and election Data-tab settings, including presentation and re-voting settings, which administrators verify after import. Some of these settings affect the approved ballot design and must not be changed to repair an imported package. Administrators separately configure the rules and required authorisations on the election event's tab "Signatures", certificate registrations, the self-test settings and the attack-detection thresholds |
+| election data | the voters' register (the voters of the election event, with its areas), the candidate list and the display data of the ballot, the set of election rules (the counting and voting rules of the contests) and the election dates (the scheduled opening and closing of voting, with the end of the election period) |
+| other settings of the election event | the event and election settings of the tab "Data", among them presentation and re-voting settings, which the signed package contains and administrators and the board verify after import, each in their own view of the tab "Data" (some affect the approved ballot design and must not be changed to repair an imported package); and the settings that administrators configure separately: the rules and required authorisations on the election event's tab "Signatures", certificate registrations, the self-test settings and the attack-detection thresholds |
 | election execution data | the cast votes, the electoral log, the tally and results data, and the voting records |
-| electoral log | the audit records of one election event. Each election event has its own electoral log; there is none for the tenant as a whole. What concerns the whole tenant, such as a change of the attack-detection settings or one of the tenant's accounts reaching the authentication failure threshold, is recorded in the electoral log of every election event of the tenant. The election board reads an election event's electoral log in the tab "Logs" of the election event and in the side menu "Electoral Log"; administrators do not read it |
+| electoral log | the audit records of one election event. Each election event has its own electoral log; there is none for the tenant as a whole. What concerns the whole tenant, such as a change of the attack-detection settings or one of the tenant's accounts reaching the authentication failure threshold, is recorded in the electoral log of every election event of the tenant. The election board reads an election event's electoral log on the tab "Logs" of the election event and on the screen "Electoral Log" in the side menu; administrators do not read it |
 | audit records | the records of the electoral log |
 | operating logs | the logs of the servers and containers, which the operator reads to run the system. They are not audit records |
 | the board's minutes | the election board's own record of the election event, kept outside the TOE in the form the electoral regulation sets ([Write the electoral regulation](02-organizer-duties.md#write-the-electoral-regulation)) |
-| intermediate ballot box | the ballot boxes that receive the cast votes during the execution phase |
-| ballot box | the anonymised boards of the bulletin board that the trustees mix and decrypt when the votes are counted |
+| ballot box | where the TOE holds the cast votes of an election. During the execution phase this is what the Security Target calls the intermediate ballot box, which the TOE seals at the termination. At the counting it is the anonymised boards of the bulletin board that the trustees mix and decrypt |
 | security-critical action | protected action (the election event's tab "Signatures", area "Protected actions") |
-| required authorisations | the number in the field "Signatures needed" of the protected action's signing rule; for an import of election data, the number of package approvals that the tenant requires |
+| required authorisations | the number in the field "Signatures needed" of the protected action's signing rule; an import of election data also needs the number of package approvals that the tenant requires |
+| security token | the personal medium that holds a board member's signing certificate file |
+| signing certificate | a board member's certificate that signs the TOE's signing requests |
+| approval certificate | a board member's certificate that signs package approvals in the package tool |
 | package approval | a board member's signature inside a signed configuration package, made with their approval certificate in the election organizer's package tool, outside the TOE, before the import |
 | electoral phase | the preparation, execution, evaluation or post-processing phase ([The four phases](05-electoral-phases.md#the-four-phases)); the election event's tab "Security and self-tests" shows the current one |
 | configuration package | the signed file of election data that the election board imports |
@@ -95,10 +103,13 @@ people.
 | approval event | an existing election event in the preparation phase in which the election board approves an import. Before the first import there is none, so the board creates an empty one, which holds no election data and never opens voting |
 | approved baseline | the TOE's signed record of the election data and the access-control settings at the election board's approval of a configuration version. The self-tests compare against it. On screen: "board-approved configuration baseline" |
 | lockdown period | the period the election board sets during which the configuration of the election event cannot change |
-| maintenance mode | the state after a recoverable failure, on screen "Recovery required": voting is stopped until the election board resumes it after a passing self-test |
-| unrecoverable failure | the state after a failure that cannot be recovered from: the election execution ends and voting never resumes |
+| maintenance mode | the state after a recoverable failure, on screen the state "Recovery required": voting is stopped until the election board resumes it after a passing self-test. A new election event also shows the state "Recovery required", with the reason "Startup self-tests are required", until voting opens for the first time; that is not a failure ([Maintenance mode at the start](12-modes-and-failures.md#maintenance-mode-at-the-start)) |
+| unrecoverable failure | the state after a failure that cannot be recovered from: voting stays stopped and never resumes, and the election board terminates the election execution ([An unrecoverable failure](12-modes-and-failures.md#an-unrecoverable-failure)) |
 | re-voting | voting again, where only the last vote counts; the field "Number of allowed votes" of an election sets how often a voter may vote |
-| configuration hash and Tally ID of a tally batch | the full value "Configuration hash" and the decimal value "Tally ID" beside that protocol board's button "Download verification data", in the section "Election verification" of the completed results tally on the election event's tab "Tally". This is the protocol-board identifier, not the tally-session ID. |
+| batch | one protocol board's part of a tally; a tally can have several |
+| protocol board | the record of one batch, listed in the section "Election verification" of the results tally |
+| bulletin board | the TOE's signed record of the electoral log, the ballot box seals and the trustees' protocol messages |
+| configuration hash and Tally ID of a tally batch (the anchors) | the full value "Configuration hash" and the decimal value "Tally ID" beside that protocol board's button "Download verification data", in the section "Election verification" of the completed results tally on the election event's tab "Tally". This is the protocol-board identifier, not the tally-session ID. |
 | trustee server | the part of the TOE (`braid`) that takes part in the ceremonies for one trustee on the protected server, with that trustee's keys file; one instance per trustee |
 
 ## Conventions
@@ -108,9 +119,9 @@ accounts, election names, identifiers, hashes and dates are not values to copy
 into an election event. Follow the steps and required values in the text; a pictured
 screen is not evidence that your own operation completed.
 
-- Names in quotation marks or in bold, such as "Stop Voting" or
-  **Run self-tests**, are the exact texts of the admin portal in English: menu
-  entries, tabs, buttons, fields, options, dialogs and messages.
+- Names in quotation marks, such as "Stop Voting" or "Run self-tests", are the
+  exact texts of the admin portal in English: menu entries, tabs, buttons, fields,
+  options, dialogs and messages.
 - A path such as Settings > "TRUSTEES" means: open Settings in the side menu,
   then the tab named "TRUSTEES".
 - Permissions are given with their label in Users and Roles and their

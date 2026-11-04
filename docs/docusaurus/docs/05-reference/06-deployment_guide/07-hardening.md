@@ -10,8 +10,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 This chapter explains the configuration that the installer applies. **You do
 not run a command for each heading below.** Supply the values in `site.json`,
-then run the single installation command from a root terminal in the extracted
-`deployment` directory on the administration workstation:
+then run the single installation command from a root terminal in the deployment
+directory on the administration workstation:
 
 ```bash
 ./deploy install site.json
@@ -31,15 +31,12 @@ additional server commands.
 
 ![Actual VM installation terminal showing the automated installation stages and completed platform verification](./assets/installation/installer-complete.png)
 
-*Actual VM rehearsal capture. The installation command applies the configuration
-below and then verifies the platform. Site names and image identities are
-laboratory examples. This screenshot shows the workflow; your delivery identity
-and every required check must still match your installation.*
+*Terminal capture from a test installation. Your addresses, names and digests differ.*
 
-**If it stops.** Keep the reported stage and error. Do not rerun an individual
-transformation, delete `/root/deploy`, regenerate passwords or relax a policy.
-The fresh-install command refuses an occupied or partially installed cluster.
-Resolve its actual state before retrying. After a successful run, continue with
+**If it stops.** Keep the reported stage and error, and follow
+[If something fails](01-about.md#if-something-fails). Do not rerun an individual
+transformation, delete the directory `/root/deploy`, regenerate passwords or relax
+a policy. After a successful run, continue with
 [Create the customer's tenant](08-installing_toe.md#create-the-customers-tenant)
 and [Verifying the Installation](10-verification.md).
 
@@ -99,8 +96,9 @@ name; it is not a personal login account.
 
 Never print or copy this file into a terminal transcript. Never regenerate it
 after first startup: the databases and encrypted application data depend on the
-original values. An existing file during fresh installation requires investigation,
-not replacement.
+original values. An existing file during fresh installation means a partial earlier
+attempt: follow [If something fails](01-about.md#if-something-fails), and do not
+replace it.
 
 ## Create the service credentials
 
@@ -229,7 +227,7 @@ do not accept only the transformed template as proof of live realm settings.
 the personal account described by `operator.username` and `operator.email`. It has no local
 password and signs in through the external provider. It is used only to create
 the customer's tenant. Commissioning then creates the customer's first personal
-administrator and disables installation personal accounts.
+administrator and disables the personal accounts of the super-admin tenant.
 
 ## Write the documents back
 
@@ -241,6 +239,6 @@ Secret references. After the first realm import, the installer removes import
 credentials from the stored realm manifest; the live realm retains the values
 it imported.
 
-Do not distribute the working deployment directory. Verify platform security
+Do not distribute the directory `/root/deploy`. Verify platform security
 with [Verifying the Installation](10-verification.md), then finish the explicit
 browser, trustee-custody and handover checks.

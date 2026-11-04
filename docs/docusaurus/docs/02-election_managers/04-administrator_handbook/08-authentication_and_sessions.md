@@ -55,8 +55,7 @@ election board approves its configuration version:
 
 If any check fails, the election event is not in the evaluated configuration.
 Do not let the board approve the configuration version: report the finding to
-the operator, and follow the Deployment Guide to restore the
-settings.
+the operator, who restores the settings as the Deployment Guide describes.
 
 ## Authentication failure threshold
 
@@ -99,10 +98,12 @@ security-relevant event
 
 Some settings that affect authentication are part of each election event and
 come with the imported package. Give the required values to the election
-organizer before package approval. Check them after every import, in the
-election event's tab "Data"; if any differ, follow the corrected-package
-procedure instead of changing them in the TOE
-([Tenant and Election Event Settings](05-tenant_and_event_settings.md)):
+organizer before package approval. After every import, ask the election board to
+check them in its read-only Data view
+([Configuration the board must verify](05-tenant_and_event_settings.md#configuration-the-board-must-verify));
+your form does not show them. If any differ, follow
+[Correcting imported election data](05-tenant_and_event_settings.md#correcting-imported-election-data)
+instead of changing them in the TOE:
 
 | Setting (section) | Required value |
 |---|---|
@@ -127,7 +128,7 @@ approve the configuration version until the setting has been restored.
 ## Prerequisites from the Deployment Guide
 
 These settings are made at deployment and are not visible in the admin portal;
-the protection of this page depends on them:
+the protection that this chapter describes depends on them:
 
 - the secrets of the container platform are stored encrypted;
 - the bulletin board of the trustees is reachable only inside the server

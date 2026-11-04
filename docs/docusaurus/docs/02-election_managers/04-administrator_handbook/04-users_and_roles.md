@@ -217,18 +217,19 @@ To register a trustee:
    *Illustration: two registered synthetic trustees, each with its edit icon.*
 
 4. In "Users and Roles", tab "Users", open the trustee's personal account with
-   "Actions" > "Edit". Select this trustee's name in "Act as Trustee" and
-   select "Save".
+   "Actions" > "Edit". Select this trustee's name in the field "Act as Trustee" and
+   select the button "Save". Check the row under the heading "Review changes" and
+   select the button "Confirm changes".
 
    ![A trustee's account with Act as Trustee](assets/user-act-as-trustee.png)
 
    *Illustration: a synthetic trustee account bound to its registered trustee.*
 
-5. Give the operator the registered name and the checked
-   key pair for the trustee's native instance, `trustee1` or `trustee2`. The
+5. Give the operator the registered name and the two checked public keys for
+   the trustee's server instance, `trustee1` or `trustee2`. The
    operator binds the instance's machine account to this name before starting it
    ([Bind each native account to its registered trustee](../../05-reference/06-deployment_guide/08-installing_toe.md#bind-each-native-account-to-its-registered-trustee)).
-   The personal account's binding alone does not configure the native instance.
+   The personal account's binding alone does not configure the server instance.
 
 :::warning
 A wrong public key lets someone other than the trustee act for the trustee's
@@ -285,7 +286,7 @@ Besides the first personal administrator account, the customer's tenant
 contains accounts that are not personal accounts:
 
 - **The seeded account `admin`.** It is created with the tenant, has no
-  password and holds the permissions of the seeded administrator group. As
+  password and is a member of the role `admin`. As
   soon as your own personal administrator account works, delete it: in
   "Users", open the "Actions" menu in the exact `admin` row, select "Delete",
   and confirm "Are you sure you want to delete this user?" with "Delete". Check that it no longer appears in the "Users" list.
@@ -293,7 +294,9 @@ contains accounts that are not personal accounts:
   machine identities of the two instances of the trustee server. The
   Deployment Guide gives them random passwords. They are not personal
   accounts: never sign in with them or use them for a board member. The
-  operator sets their trustee binding as described above. They hold only the
+  operator sets their trustee binding as
+  [Registering the trustees' public keys](#registering-the-trustees-public-keys)
+  describes. They hold only the
   role `trustee`; preserve their login names, passwords and roles, and do not
   delete them.
 - **Technical service accounts of the TOE** (their names start with
@@ -309,23 +312,26 @@ permissions, with which an account can be given any permission. Delete it before
 When the election organizer tells you that a person no longer holds their
 function, act on the same day:
 
-1. In "Users", open the person's account, untick "Enabled" and confirm. A
-   disabled account cannot sign in again.
-2. Remove the account from all its roles.
-3. Ask the organisation that runs the external authentication server to
+1. In "Users and Roles", tab "Users", open the person's account with "Actions" >
+   "Edit", untick the option "Enabled" and remove the account from all its roles. Select the button
+   "Save", check the changes under the heading "Review changes" and select the
+   button "Confirm changes". A disabled account cannot sign in again.
+2. Ask the organisation that runs the external authentication server to
    withdraw the person's credentials there.
-4. If the person was a board member or trustee, revoke the registration of
-   their signing certificate on the same day: on the tab "Signatures" of every
+3. If the person was a board member or trustee, revoke the registration of
+   their signing certificate on the same day: on the tab "Signatures" of one
    election event of the tenant, area "Certificates", section "Registered
-   certificates", select "Revoke" for each certificate registered to the person
-   and enter the "Reason". This needs the permission "Signatures: revoke
+   certificates", select the button "Revoke" for each certificate registered to the
+   person and fill in the field "Reason". Then check on that tab of every other election event
+   that each certificate of the person shows the status "Revoked", and revoke any
+   that does not. This needs the permission "Signatures: revoke
    certificates" (`signing-certificates-revoke`). A registration cannot be
-   deleted. A revoked certificate cannot sign any more; signatures it already
-   made still count, and incomplete signing requests it signed are cancelled.
+   deleted. A revoked certificate cannot sign any more
+   ([Registered certificates](06-signing_rules.md#registered-certificates)).
    Inform the election board. A signing request the person had started stays waiting until it is completed,
    cancelled or expires: the board cancels it if needed
    ([Configuring Protected Actions](06-signing_rules.md)).
-5. Check that the number of remaining board members who can sign each
+4. Check that the number of remaining board members who can sign each
    protected action is still at least its "Signatures needed". If not, tell the
    election organizer and the election board at once. In the preparation phase
    the organizer appoints a new member, you create the account, and the board
@@ -334,12 +340,14 @@ function, act on the same day:
    access-control configuration", which stops voting. So the organizer appoints
    more board members than any protected action needs before the board approves
    the configuration version.
-6. After the election event's retention period, delete the account as the
+5. After the election event's retention period, delete the account as the
    election organizer's regulation requires.
 
 If a person changes from the election board to the administrators, or the other
-way round, create a new account for the new function and disable the old one,
-so that the electoral log shows clearly which function performed each action.
+way round, ask the organisation that runs the external authentication server for
+a new identity for the new function, create a new account with that identity
+([Personal accounts](#personal-accounts)) and disable the old one, so that the
+electoral log shows clearly which function performed each action.
 Do this outside the execution phase.
 
 :::note
@@ -356,8 +364,9 @@ Permission labels limit which elections an account can reach. The TOE never
 gives an administrator account the permission **Edit Permission Label**
 (`permission-label-write`): it also permits access to election data.
 
-Have the election organizer define the required election access in the signed
-configuration package. After import, the board checks that each member can reach
-every election whose protected actions they must sign. A missing election is a
-configuration problem to correct before execution; broadening an administrator's
-permissions is not a remedy.
+The evaluated roles do not give this permission, so no account can be given a
+label, and an election that carries a label in its package can be reached by no
+account. Tell the election organizer that no election of a package may carry one.
+If a board member reports a missing election, tell the election organizer: the
+correction is a new signed package
+([Correcting imported election data](05-tenant_and_event_settings.md#correcting-imported-election-data)).

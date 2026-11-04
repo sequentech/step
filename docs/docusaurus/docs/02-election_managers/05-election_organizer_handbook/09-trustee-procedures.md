@@ -28,7 +28,9 @@ separate servers or a permanently assigned physical computer.
 
 The offline **trustee tool** creates keys and signs custody authorizations. It
 runs the accepted `braid` image's `trustee` program, not the image's default
-server command. The Deployment Guide shows how to load and verify it.
+server command.
+[Preparing a trustee workstation](../../05-reference/06-deployment_guide/08-installing_toe.md#preparing-a-trustee-workstation)
+shows how to load and verify it.
 
 ### Reuse one existing workstation
 
@@ -50,13 +52,13 @@ For each turn:
    a fresh session. Keep the device physically controlled between sessions.
 
 A dedicated encrypted workstation per trustee is also suitable, but is not
-required. If a shared device cannot provide the clean offline session above,
+required. If a shared device cannot provide this clean offline session,
 use a separately controlled offline device. Ordinary OS user accounts alone do
 not provide this separation.
 
 ### Browser trustees and the evaluated configuration
 
-The product includes a browser **Trustee Dashboard**. This evaluated configuration
+The product includes a browser page, the entry "Trustee Dashboard" of the side menu. This evaluated configuration
 uses the server-side `braid` component identified by the Security Target, so
 browser trustees do not replace those cluster instances. The portal handles
 public custody requests and signed proofs; private trustee keys stay out of it.
@@ -96,8 +98,8 @@ shown.*
 
 If the command stops, follow its message: disable networking and swap, check that
 your own encrypted medium is unlocked and the private directory has permissions
-700. If keys already exist, use `public-keys`; never remove them merely to make
-`generate` succeed. A changed image or digest requires checking the accepted
+700. If keys already exist, use the command `./trustee public-keys`; never remove them merely to make
+the command `./trustee generate` succeed. A changed image or digest requires checking the accepted
 delivery again.
 
 Give both public keys to the administrators, in person or on a medium you hand
@@ -116,9 +118,8 @@ votes.
 - Keep it on your own protected medium: your own encrypted working medium; keep it separate from
   another trustee’s media.
 - Never send it by email or chat.
-- Never paste it into any web page other than the ceremony step that needs
-  it. In the evaluated configuration no ceremony step needs it: the steps of
-  the admin portal take only the public custody request and the custody proof.
+- Never paste it into any web page: the steps of the admin portal take only the
+  public custody request and the custody proof.
 - Make two backups, in separate locked places, and keep them as securely as the
   original.
 - Report the loss or exposure of the keys file or of a backup to the election
@@ -128,13 +129,17 @@ votes.
 ### Handing over the keys file for your trustee server instance
 
 Your instance of the trustee server (`braid`), the part of the TOE that takes part in the
-ceremonies for you on the protected server, needs your keys file. Hand
-it over only in person, to the operator who installs it for your instance, and
-watch the installation. The operators keep it only in the cluster's encrypted
-secrets, as the Deployment Guide describes. No copy may stay on the operator's
+ceremonies for you on the protected server, needs your keys file. At the
+commissioning of the TOE, after you have generated your keys
+([Generating your keys](#generating-your-keys)) and before the first key ceremony,
+bring your encrypted medium to the operator: the installer reads the media of both
+trustees in one run
+([Transfer the matching keys and start the instances](../../05-reference/06-deployment_guide/08-installing_toe.md#transfer-the-matching-keys-and-start-the-instances)).
+Hand the keys file over only in person and watch every step. The operators keep it
+only in the cluster's encrypted secrets. No copy may stay on the operator's
 devices. Your instance also keeps its protocol state on the protected
-server; the operators protect and back it up as the Deployment Guide
-describes.
+server; the operators protect and back it up
+([Back up the trustee state](../../05-reference/06-deployment_guide/08-installing_toe.md#back-up-the-trustee-state)).
 
 :::warning
 A copy of your keys file anywhere else (a mailbox, a chat, a shared folder, a
@@ -145,9 +150,9 @@ the secrecy of the votes is lost.
 
 ## Taking part in the key ceremony
 
-Who: each trustee the ceremony names. Phase: the preparation phase. Permissions: the
-permission "Trustee Ceremony" (`trustee-ceremony`) of the role `trustee`, and "Sign:
-confirm custody" (`sign-key-ceremony`) where that protected action needs signatures.
+Who: each trustee the ceremony names. Phase: the preparation phase. Permissions:
+"Trustee Ceremony" (`trustee-ceremony`) and "Sign: confirm custody" (`sign-key-ceremony`),
+both of the role `trustee`.
 
 When the election board has created the key ceremony, the admin portal invites
 you to take part in it. To take part:
@@ -162,12 +167,12 @@ you to take part in it. To take part:
    special characters replaced by "-") is public: it holds identifiers and
    your registered public keys.
 4. Select the button "Next". The dialog "Back Up Your Local Trustee Keys" asks you to
-   back up `trustee.toml` in at least two secure locations. Tick "First backup
+   back up the file `trustee.toml` in at least two secure locations. Tick the boxes "First backup
    secured" and "Second backup secured" only when both backups exist, then select the
    button "Confirm Backups and Continue".
 5. Move the downloaded public request into your own encrypted working directory.
    The portal shows three short public configuration fields. Copy their values
-   into your `trustee.json`: `request_file`, `proof_file` and `tally_session_id`.
+   into your file `trustee.json`: `request_file`, `proof_file` and `tally_session_id`.
    For the key ceremony, `tally_session_id` must be `null`. Keep your existing
    working directory and private-key filename. From the accepted tool folder, run:
 
@@ -187,13 +192,12 @@ you to take part in it. To take part:
 
 6. Move the new public proof back. On the step "Confirm Trustee Custody",
    upload it. The admin portal checks the proof when you select the file.
-   If the protected action
-   "Confirm custody (key ceremony)" needs signatures, sign it with your signing
-   certificate.
+   Sign it with your signing certificate (protected action "Confirm custody (key
+   ceremony)").
 7. The admin portal shows the message "Trustee custody confirmed successfully." On
    the tab "Keys", your row shows a tick in the column "Custody Confirmed".
 
-Keep `<trustee name>-custody-request.json` on your encrypted working medium: you need
+Keep the file `<trustee name>-custody-request.json` on your encrypted working medium: you need
 it again for the counting.
 
 If the admin portal shows the message "Invalid custody proof, please try again", check that
@@ -204,9 +208,9 @@ trustee.
 ## Authorising the counting
 
 Who: each trustee the tally needs. Phase: the preparation phase for an initialization
-report, or the evaluation phase for counting the votes. Permissions: the permission
-"Trustee Ceremony" (`trustee-ceremony`) of the role `trustee`, and "Sign: authorize
-tally custody" (`sign-tally-key`) where that protected action needs signatures.
+report, or the evaluation phase for counting the votes. Permissions:
+"Trustee Ceremony" (`trustee-ceremony`) and "Sign: authorize tally custody" (`sign-tally-key`),
+both of the role `trustee`.
 
 When the election board has created the tally ceremony, the admin portal invites
 you to take part in it. Check its
@@ -219,7 +223,7 @@ To authorise the tally:
    select the tally's action.
 2. In the section "Trustees process", compare the displayed tally identifier with the
    tally the board announced. The portal shows the public fields to use in
-   `trustee.json`: your saved `request_file`, a new `proof_file` for this tally,
+   the file `trustee.json`: your saved `request_file`, a new `proof_file` for this tally,
    and the exact `tally_session_id` in quotes. Copy those three values into your
    own offline configuration. Keep your working directory and keys unchanged.
 3. On the offline workstation, open a root terminal in the accepted tool folder
@@ -233,9 +237,8 @@ To authorise the tally:
    never replaces an existing proof. If it stops, check the request, your own
    keys and the new output filename. Do not substitute another tally identifier.
 
-4. Upload the new public proof named by the command. If the protected action "Authorize
-   tally custody (tally)" needs signatures, sign it with your signing
-   certificate.
+4. Upload the new public proof named by the command. Sign it with your signing
+   certificate (protected action "Authorize tally custody (tally)").
 5. Check that the section "Trustees" of the tally counts your confirmation.
 
 A tally proof is bound to its tally: a proof from the key ceremony or from
@@ -256,7 +259,9 @@ command and tell the election board.
   configuration custody authorization uses the offline trustee tool; the
   server-side instance runs in the cluster. That page would handle your keys in
   the browser.
-- Use only an organizer-controlled device prepared as described above.
+- Do not use any device other than an organizer-controlled one prepared as
+  [Reuse one existing workstation](#reuse-one-existing-workstation) and
+  [Preparing a trustee workstation](../../05-reference/06-deployment_guide/08-installing_toe.md#preparing-a-trustee-workstation) describe.
 - Do not tick the backup confirmations without real backups.
 - Do not give your keys file, its backups or your signing token to another
   trustee or board member, except as described in
@@ -284,3 +289,6 @@ its backups, in the presence of another board member, and the board records it
 in the board's minutes. The operators remove the copy held for your trustee server
 instance
 ([Remove the trustee keys at the end of the election event](../../05-reference/06-deployment_guide/08-installing_toe.md#remove-the-trustee-keys-at-the-end-of-the-election-event)).
+The board then directs the keepers of the backups to destroy the retained
+trustee-state backups and every system backup of the election event, and records
+the destruction in the board's minutes.

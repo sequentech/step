@@ -10,12 +10,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 Carry out these checks before deploying anything. They are the verification
 steps of the signed delivery note, in the same order, with the commands for
-each; where this page and the note differ, the note applies. If a check fails,
+each; where this chapter and the note differ, the note applies. If a check fails,
 stop: do not deploy, and report it to
 [security@sequentech.io](mailto:security@sequentech.io). The delivery is then
 repeated.
 
-This page is the first procedure of the Deployment Guide. Nothing is installed
+This chapter is the first procedure of the Deployment Guide. Nothing is installed
 or deployed before [Confirm receipt](#7-confirm-receipt) is complete.
 
 The commands run in bash on Linux and need curl, GnuPG, cryptsetup, skopeo and
@@ -64,7 +64,12 @@ the files `checksums.txt` and `image-digests.txt`.
 ## Decrypt the medium {#3-decrypt-the-medium}
 
 Use the passphrase received separately, never one that came with the package.
-A medium that does not decrypt with it is a failed delivery.
+A medium that does not decrypt with it is a failed delivery. Sequent gives the
+delivery note and, by another channel, the passphrase to your organization's
+registered contact, who gives both to the operator. Keep the passphrase in a locked
+place separate from the medium: it is needed each time the medium is mounted,
+including when a trustee workstation is prepared
+([Set up the public configuration](06-deployment_guide/08-installing_toe.md#set-up-the-public-configuration)).
 
 ```bash
 sudo -s                                                 # sections 2.3 to 2.6 run as root
@@ -163,9 +168,9 @@ cryptsetup close temenos-delivery
 
 ## Confirm receipt {#7-confirm-receipt}
 
-Confirm receipt to the Sequent release manager, stating the TOE reference
-received and that verification succeeded. This confirmation completes the
-delivery.
+Confirm receipt to the Sequent release manager through the contact channel of
+your delivery, stating the TOE reference received and that verification succeeded.
+This confirmation completes the delivery.
 
 Send the confirmation within the period that the delivery note states. Then
 continue with

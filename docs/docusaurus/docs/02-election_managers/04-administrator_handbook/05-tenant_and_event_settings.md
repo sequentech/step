@@ -12,27 +12,33 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 To complete the tenant and election event settings:
 
-1. Once per tenant, before the first election event is imported: set up
-   signed configuration packages
+1. Once per tenant, before a board member creates the first election event: set
+   up signed configuration packages
    ([Signed configuration packages](#signed-configuration-packages)).
-2. In the preparation phase, a member of the election board imports the
+2. Once a member of the election board has created the empty approval event,
+   configure **Import election data**, the trusted issuers and the board members'
+   certificate registrations on its tab "Signatures"
+   ([The approval event](#the-approval-event)).
+3. In the preparation phase, a member of the election board imports the
    election data of each election event as a signed configuration package
    ([Import of election data](#import-of-election-data)).
-3. After import, check the administrator settings you can see. Ask the board
-   to confirm the remaining event and election values against the reference
-   tables below. The signed package must already carry the required values.
+4. After import, check the administrator settings you can see. Ask the board
+   to confirm the remaining event and election values against the tables of
+   [Configuration the board must verify](#configuration-the-board-must-verify) and
+   [Settings of each election](#settings-of-each-election). The signed package must
+   already carry the required values.
    If one differs, use [Correcting imported election
    data](#correcting-imported-election-data) before continuing.
-4. Set the protected actions
-   ([Configuring Protected Actions](06-signing_rules.md)), the background self-test policy ([Security and Self-Tests](07-self_tests.md)) and check the
+5. Set the protected actions
+   ([Configuring Protected Actions](06-signing_rules.md)), the automatic self-tests ([Security and Self-Tests](07-self_tests.md)) and check the
    authentication settings
    ([Authentication and Session Settings](08-authentication_and_sessions.md))
    of the election event.
-5. Tell the election board that the settings are complete. After completing
+6. Tell the election board that the settings are complete. After completing
    the key ceremony, the board publishes the configuration version and approves it
    ([Publishing the configuration version](#publishing-the-configuration-version)).
 
-All of these steps belong to the preparation phase.
+All of these steps except the first belong to the preparation phase.
 
 ## Signed configuration packages
 
@@ -64,6 +70,12 @@ election event.
 
 ### Required values
 
+These are the fields of the tenant setting `configuration_signing`. On the screen
+of [Configure certificates in the admin portal](#configure-certificates-in-the-admin-portal),
+`package_roots` is **Package-signing CAs**, `staff_roots` is **Election board
+approval CAs** and `required_approvals` is **Required distinct approvals**; the
+screen sets `policy` to `required` itself:
+
 | Field | Meaning | Default | Required value |
 |---|---|---|---|
 | `policy` | `required`: only signed packages with enough approvals are imported; with any other value the TOE refuses every import | not set: every import is refused | `required` |
@@ -78,9 +90,10 @@ fingerprints with the ones the organizer states in writing.
 :::warning
 Until `configuration_signing` is set with `policy` `required`, the CA
 certificates and `required_approvals`, the election board cannot import any
-election event. Set it before the first import. Never set `required_approvals`
-below 2: with fewer approvals, one board member could bring in election data
-that no other member has checked.
+election event. Set it before a board member creates the first election event:
+while an election event that is not archived exists in the tenant, the TOE refuses
+the save. The TOE refuses a `required_approvals` below 2: with fewer approvals, one
+board member could bring in election data that no other member has checked.
 :::
 
 ### Configure certificates in the admin portal
@@ -90,8 +103,8 @@ and **View settings** (`settings-menu`). The TOE accepts the change only from an
 account with the permission **Admin User** (`admin-user`), and only for the
 account's own tenant. To configure the certificates:
 
-1. Open **Settings → Configuration packages** before importing the first
-   election event. The screen is titled **Signed configuration packages**.
+1. Open **Settings → Configuration packages** before a board member creates the
+   first election event. The screen is titled **Signed configuration packages**.
 2. Under **Package-signing CAs**, select **Choose CA certificate file** and open
    the organizer's public PEM CA file. A file can contain several CA
    certificates, including an approved successor. Do not select a private key
@@ -111,15 +124,14 @@ account's own tenant. To configure the certificates:
 
 ![Configuration packages form showing public CA details and fingerprint confirmations](assets/configuration-packages.png)
 
-*Actual browser capture of the implemented form using synthetic CA certificates
-and a simulated tenant API. The certificates shown are examples, not trust
-anchors for an evaluated installation.*
+*Illustration: the form with synthetic CA certificates. The certificates shown
+are examples, not trust anchors for an evaluated installation.*
 
 The screen accepts public PEM CA files up to **256 KiB**. It rejects malformed,
 expired, not-yet-valid, duplicate and personal certificates. Certificate names
 and fingerprints are calculated in the browser from their DER bytes; no private
 key is needed or sent. Saving changes only `configuration_signing`, preserves
-other tenant settings and reads the result back from the server. An intervening
+other tenant settings and reads the result back from the TOE. An intervening
 administrator's change causes the save to fail rather than overwrite their
 configuration.
 
@@ -128,10 +140,10 @@ configuration.
 | What you see | What to do |
 |---|---|
 | **Save certificate settings** is unavailable | Supply both CA files, compare every fingerprint and confirm both sets; choose a whole approval count of at least 2. |
-| A certificate-file error | Obtain the correct public PEM CA file. Do not bypass a fingerprint mismatch or use a private key. An expired saved package-signing CA remains fixed: escalate to the organizer and provision a new approved tenant configuration; this screen cannot replace it. |
-| **Settings were not confirmed** | Reload before retrying. Check your role and tenant, and whether another administrator changed the settings. Do not tell the board that configuration succeeded. |
-| Package-signing CAs or the approval count are disabled | They were already configured. Do not try to change them through a backup or a direct API call. |
-| Staff CA replacement is refused | Every tenant election event must be archived before staff CA trust can change. Confirm this with the election board; never archive an ongoing election event just to enable a certificate change. |
+| A certificate-file error | Obtain the correct public PEM CA file. Do not bypass a fingerprint mismatch or use a private key. An expired saved package-signing CA remains fixed: tell the election organizer and the operator. This screen cannot replace it, and a new tenant ([Create the customer's tenant](../../05-reference/06-deployment_guide/08-installing_toe.md#create-the-customers-tenant)) is the only way to a new one. |
+| **Settings were not confirmed** | Reload before retrying. Check your role and tenant, whether another administrator changed the settings, and whether the tenant holds an election event that is not archived. Do not tell the board that configuration succeeded. |
+| Package-signing CAs or the approval count are disabled | They were already configured. Do not try to change them through the tab "Backup / Restore" or a direct API call. |
+| Replacing the **Election board approval CAs** is refused | **Election board approval CAs** (the notice on the screen calls them "Staff CAs") can change only while every election event of the tenant is archived or deleted. An election event can be archived only in the preparation phase ([Correcting imported election data](#correcting-imported-election-data)); one that has left that phase stays until the board deletes it after the export. Confirm this with the election board; never archive or delete an election event just to enable a certificate change. |
 
 The TOE enforces the required policy, the approval-count bounds, the public PEM
 format and the change restrictions also for changes made without this screen
@@ -140,35 +152,39 @@ The TOE performs the authoritative X.509 trust-chain and signature checks when
 it imports a package. The browser's successful certificate preview alone does
 not authorize an election-data import.
 
-Set this configuration once before the first election event. Include the approved
-current and successor staff CAs from the start. Replace staff CAs only between
-election events, after all of this tenant's election events have been archived.
+Set this configuration once, before a board member creates the first election
+event. Include the approved current and successor CAs from the start.
 
 ## Import of election data
 
 A member of the election board imports the election data; you do not. The
-voting system accepts election data only as a signed configuration package,
-through "Import Election Event". Each import creates a new election event in
-the preparation phase. The import needs "Create Election Event"
-(`election-event-create`), which only the "Election board" role holds, and the
+TOE accepts election data only as a signed configuration package,
+through the entry "Import Election Event". Each import creates a new election
+event in the preparation phase. The import needs the permission "Create Election Event"
+(`election-event-create`), which only the role `election-board` holds, and the
 package must carry the approvals of at least `required_approvals` different
 board members, made with certificates that chain to `staff_roots`. The board
 members make their approvals outside the TOE, and the TOE verifies them when
-the package is imported. The board's procedure, with the digest in "Integrity
-Check (SHA-256)", is in the
-[Handbook for Election Organizers](../05-election_organizer_handbook/01-about.md).
+the package is imported. The board's procedure, with the digest in the field
+"Integrity Check (SHA-256)", is in
+[Importing the election data](../05-election_organizer_handbook/06-preparation.md#importing-the-election-data).
 
 Your part:
 
-1. Before the first import, set `configuration_signing`
+1. Before a board member creates the first election event, set
+   `configuration_signing`
    ([Signed configuration packages](#signed-configuration-packages)).
 2. Before the package is approved, give the election organizer the required
-   Data-tab values in the tables of this page. After each import, when the
-   election board names the new election event, check that those values are
-   present and retain them. You see the settings, not the election data.
+   Data-tab values in the tables of
+   [Settings of the election event](#settings-of-the-election-event) and
+   [Settings of each election](#settings-of-each-election). After each import, when
+   the election board names the new election event, check the controls of your form
+   in **Data → Security settings**, ask the board to check the rest, and leave them
+   unchanged. You see the settings, not the election data. Tell the operator that
+   an election event was imported.
 3. If the election board reports that an import was refused although the
    package is the one the election organizer released, open **Settings → Configuration packages** and check that the saved CA
-   fingerprints and approval count still match your approved values. Do not change it. Treat the refusal as a security-relevant event
+   fingerprints and approval count still match your approved values. Do not change them. Treat the refusal as a security-relevant event
    ([Security-Relevant Events for Administrators](11-security_relevant_events.md)).
 
 Use the complete signed-package procedure for the evaluated configuration.
@@ -179,9 +195,10 @@ of this data.
 Some settings available to administrators also affect the ballot design that
 is approved in the signed package. The election organizer includes the required
 event and election Data-tab values before the package approvals. Administrators
-verify those imported values; they do not change them to repair a package.
+check the values their form shows and the board the others; they do not change
+them to repair a package.
 Otherwise publication can refuse the changed ballot design. The tenant settings,
-protected-action rules, certificate registrations and the background audit policy are
+protected-action rules, certificate registrations and the automatic self-tests are
 configured separately as their procedures describe. Areas remain election data.
 
 ### The approval event
@@ -208,7 +225,7 @@ If the imported election data is wrong, nobody corrects it in the TOE:
 1. The election organizer issues a corrected signed configuration package.
 2. A member of the election board imports it. It becomes a new election event.
 3. The election board archives the wrong election event in the preparation
-   phase with "Archive this Election Event". An archived election event never
+   phase with the entry "Archive this Election Event" of its menu. An archived election event never
    opens voting; its data and its audit records stay. It is never unarchived.
 4. Check the settings of the new election event as after every import.
 
@@ -230,23 +247,30 @@ identifiers.*
 
 Open the election event and select **Data → Security settings**. This
 administrator form is writable only during preparation. It exposes these
-controls without exposing the ballot design, voter register or election dates:
+controls without exposing the rest of the ballot design, the voters' register or
+the election dates:
 
 | Control | What to check |
 | --- | --- |
-| **Key ceremony scope** | Retain the event/election scope specified in the approved package. |
+| **Key ceremony scope** | The value of the signed package, as the election organizer states it in writing. |
 | **Trustee participation** | **Trustees participate**; the evaluated configuration uses manual custody. |
-| **Ballot encryption** | Retain the contest encryption policy specified in the approved package. |
+| **Ballot encryption** | The value of the signed package, as the election organizer states it in writing. |
 | **Decoded ballots in results** | **Do not include**. |
-| **Voter ballot signatures** | Retain the approved package's policy. This differs from ballot-box-signed receipts and from voter digital certificates. |
+| **Voter ballot signatures** | The value of the signed package, as the election organizer states it in writing. This differs from ballot-box-signed receipts and from voter digital certificates. |
 | **Ballot box sealing** | **Seal when voting closes**. |
 | **Seal record access** | **Election board only**. |
-| **Time zone settings** | Use the organizer's agreed display zones; these do not change the signed election dates. |
+| **Date and time** | The zones of the signed package, as the election organizer states them in writing. They do not change the signed election dates, but they belong to the approved ballot design. |
 
-Select **Save security settings**, wait for confirmation and reopen the form to
-check the saved values. A refusal leaves the operation incomplete: check the
-phase and displayed error, and resolve a conflicting edit before retrying.
-Do not add board data permissions to make another form available.
+These controls belong to the ballot design that the signed package approved, so a
+saved change makes publication refuse that design. Do not use **Save security
+settings** on an imported election event to repair a value: if a control differs
+from this table or from the election organizer's written value, follow
+[Correcting imported election data](#correcting-imported-election-data). Do not add
+a board permission to make another form available.
+
+Your controls **Trustee participation**, **Ballot box sealing** and **Seal record
+access** are the settings "Keys/Tally Ceremonies Policy", "Ballot Box Seal Policy"
+and "Ballot Box Seal Record" of the board's view.
 
 ### Configuration the board must verify
 
@@ -285,23 +309,25 @@ Notes:
   started. The required
   value must already be in the signed package; a different imported value
   requires a corrected package and a new election event.
-- Check "Checks available until" in the time zone that the field shows.
+- Ask the board to check the field "Checks available until" in the time zone that
+  the field shows.
   It must match the end of the election period as the election organizer
   states it to you in writing, with its time zone.
 - "Show User Profile", "Enrollment" and "OTP" count as on or "Enabled" when
   their values are not set. The signed package must contain explicit off or
-  "Disabled" values. Reopen the imported event to check them; do not toggle
-  these controls to repair an incomplete package.
-- "Results Website" is not one of your settings: the admin portal shows it
-  only to accounts with "Edit Results Publication" (`publish-results-write`),
-  which no role holds, and the TOE refuses the import of a package that enables
-  the results website. "Publish to results website" is never available.
-- An imported package can carry any value of these settings. Check all of them
-  after every import, even when the previous election event was correct.
+  "Disabled" values. Ask the board to reopen the imported event to check them; do
+  not toggle these controls to repair an incomplete package.
+- The setting "Results Website" is not one of your settings: the admin portal
+  shows it only to accounts with the permission "Edit Results Publication"
+  (`publish-results-write`), which no role holds. The section "Publish to results
+  website" is therefore never available.
+- An imported package can carry any value of these settings. Ask the board to check
+  all of them after every import, even when the previous election event was correct.
 
 :::warning
-Never select "Allow Automatic Ceremonies". It makes the switch "Automatic
-Ceremony" available when a key ceremony is created, and an automatic ceremony
+Never select the option "Allow Automatic Ceremonies" (on your form: the option
+"Automated ceremonies" of the control "Trustee participation"). It makes the switch
+"Automatic Ceremony" available when a key ceremony is created, and an automatic ceremony
 removes the trustees' custody confirmation and their authorisation of the
 tally: the votes could then be decrypted without the trustees' consent. The
 evaluated configuration forbids automatic ceremonies. The switch "Automatic
@@ -325,18 +351,21 @@ records of the electoral log.
 :::
 
 :::warning
-No results website is part of the evaluated configuration, and the TOE refuses
-the import of a package that enables one. Never give any role "Edit Results
-Publication" (`publish-results-write`), so that "Publish to results website" is
-never available.
+No results website is part of the evaluated configuration: the results portal is
+not deployed
+([Keep the results and kiosk portals off](../../05-reference/06-deployment_guide/07-hardening.md#keep-the-results-and-kiosk-portals-off)).
+Never give any role the permission "Edit Results Publication"
+(`publish-results-write`): without it nobody can configure or publish the results
+website, whatever a package contains.
 :::
 
 ## Settings of each election
 
 Ask the board to open each election's **Data** tab and confirm the following
-values. The administrator's limited settings projection does not expose every
-field. If a value is wrong, request a corrected approved import rather than
-acquiring election-data permissions.
+values. Your form on the tab "Data" shows none of these fields. If a value is
+wrong, ask the election organizer for a corrected signed configuration package
+([Correcting imported election data](#correcting-imported-election-data)); do not
+ask for election-data permissions.
 
 | Setting (section) | Default | Required value | Why |
 |---|---|---|---|
@@ -352,7 +381,7 @@ acquiring election-data permissions.
 In "Number of allowed votes", the value 0 means **unlimited** votes, not "no
 re-voting". The signed package must use 1 if the electoral regulation does
 not allow re-voting. If re-voting is allowed, only the last vote of each voter
-is counted; check that the imported value is the number the regulation allows. The value cannot be changed once voting
+is counted; ask the board to check that the imported value is the number the regulation allows. The value cannot be changed once voting
 has started on any voting channel.
 :::
 
@@ -368,10 +397,13 @@ search for it.
 
 Areas are election data: only the election board reads them, and the TOE
 refuses changes to them. Whether an area allows early voting therefore comes
-with the imported election data. An area with "Allow Early Voting" ticked
-would accept ballots before online voting opens, that is, outside the
-execution phase, so the import refuses a package in which an area has it
-ticked. Tell the election organizer that no area of a package may have it ticked.
+with the imported election data. An area with the setting "Allow Early Voting"
+ticked would accept ballots before online voting opens, that is, outside the
+execution phase. The import refuses a package in which an area has it ticked while
+the election event's channel "Early voting" is off, which the required value of the
+setting "Voting Channels Allowed" ensures
+([Configuration the board must verify](#configuration-the-board-must-verify)). Tell
+the election organizer that no area of a package may have it ticked.
 
 ## Tenants, plugins and the telephone channel
 
@@ -382,14 +414,14 @@ you checked it yourself in
 | Item | Required state | Your check |
 |---|---|---|
 | Tenants | The customer's tenant holds every election event and every account and role for election work. The super-admin tenant serves only the installation steps of the Deployment Guide, holds no election event and has no enabled personal account. | Work only in the customer's tenant. The operator tells you that election work uses only the customer's tenant. |
-| Telephone voting channel | Not configured: no telephone provider and no credentials for its endpoints, which refuse every request. Voters vote only through the voting portal. | "Voting Channels Allowed" is "Online" only in the election event and in each election. The operator tells you that the installation configured no telephone provider. |
+| Telephone voting channel | Not configured: no telephone provider and no credentials for its endpoints, which refuse every request. Voters vote only through the voting portal. | The setting "Voting Channels Allowed" is "Online" only in the election event and in each election: the board confirms this ([Configuration the board must verify](#configuration-the-board-must-verify), [Settings of each election](#settings-of-each-election)). The operator tells you that the installation configured no telephone provider. |
 | Plugins | None installed: the TOE answers every plugin request that the plugin does not exist. | The operator tells you that no plugin is installed. |
 | Data correction | No account holds "Datafix account" (`datafix-account`); its data-correction routes are not used. | No role contains it and no account has it ([The roles of the evaluated configuration](04-users_and_roles.md#the-roles-of-the-evaluated-configuration)). |
 | Manual verification of voters | No account holds "Manually Verify Voter" (`voter-manually-verify`); voters sign in only through the external authentication server. | No role contains it and no account has it ([The roles of the evaluated configuration](04-users_and_roles.md#the-roles-of-the-evaluated-configuration)). |
 
 ## Publishing the configuration version
 
-The settings of this page, the election data and the signing rules of the
+The settings of this chapter, the election data and the signing rules of the
 protected actions become valid for voting only as a published configuration
 version that the election board has approved. The election board publishes it:
 the tab "Publish" and the changes of a version show election data, so the
@@ -398,20 +430,33 @@ Publish" (`publish-write`). The TOE accepts a publication only in the
 preparation phase and refuses it in every other phase.
 To publish and approve the configuration version:
 
-1. Check the settings of this page once more, and the protected actions and the
+1. Check once more the settings of this chapter that you can see, and the protected actions and the
    self-test interval, timeout and additional conditions
    ([Security and Self-Tests](07-self_tests.md)).
 2. Tell the election board that the settings of the election event are complete,
-   once the operator has told you that the table above holds for this election
-   event (plugins, telephone provider and tenants), and hand it your copy of the
+   once the operator has told you that the table of
+   [Tenants, plugins and the telephone channel](#tenants-plugins-and-the-telephone-channel)
+   holds for this election event (plugins, telephone provider and tenants), and hand
+   it your copy of the
    [checklist](11-security_relevant_events.md#checklist-before-the-election-board-approves-the-configuration-version).
 3. A board member selects "Generate Publication" and "Publish Changes". The
    required board members sign the signing request "Approve a configuration
    version" after comparing its "Changes in this version" with the package they
    approved.
-4. The election board tells you when the version is approved. You know that it
-   worked when the board confirms the approval; from then on change no setting
-   without telling the board.
+4. The election board tells you when the version is approved. Then run the checks
+   with the purpose **On request**
+   ([Run the checks](07-self_tests.md#run-the-checks)) and confirm that all six
+   finish within the timeout.
+
+From the approval on, the self-tests compare the settings with it, so change nothing
+on your form on the tab "Data", in the protected actions, in the self-test settings,
+or in the tabs of Settings that hold tenant settings ("Attack detection", "Look &
+Feel", "LANGUAGES", "LOCALIZATION", "Countries", "Integrations"). The tenant settings
+and the attack-detection thresholds count for every election event of the tenant. A
+change makes the check "Approved election data" or "Approved access-control
+configuration" fail, which puts the election event in **Recovery required** and, in
+the execution phase, stops voting. Before the execution phase such a change needs a
+new configuration version that the board approves.
 
 If an imported Data-tab setting differs from the tables, stop before the board
 approves the configuration version and ask the election organizer for a corrected

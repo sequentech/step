@@ -11,13 +11,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 After the termination of the election execution the election event is in the
 evaluation phase. The election board checks the audit records, counts the votes
 and determines the result. It then moves the election event to the
-post-processing phase, where it exports, publishes and finally deletes the
-election execution data.
+post-processing phase, where it exports, hands over the verification data and
+finally deletes the election execution data.
 
 ## Checking the audit records
 
 At the beginning of the evaluation phase, before the votes are counted, the
-election board (or a person it appoints) checks the audit records of the whole
+election board (or a board member it appoints) checks the audit records of the whole
 election event. To check the audit records:
 
 1. On the election event's tab "Logs", select the button "Audit". The dialog "Audit
@@ -32,7 +32,9 @@ election event. To check the audit records:
      (`ElectionVotingPeriodOpen`, `ElectionVotingPeriodPause`,
      `ElectionVotingPeriodClose` and their `ElectionEvent…` forms) matches a
      decision of the board or the election dates;
-   - each interruption the operators reported has its cause and the board's
+   - each interruption the operators reported to the board
+     ([Operating the servers](../../05-reference/06-deployment_guide/11-selftest_handover.md#operating-the-servers))
+     has its cause and the board's
      decision in the board's minutes; compare the records `MaintenanceModeEntered`,
      `MaintenanceModeLeft` and `ElectoralPhaseChanged` (of the kind
      `LifecycleSecurityEvent`, with the name at the start of their description)
@@ -52,8 +54,10 @@ election event. To check the audit records:
      `SigningRequestCancelled`, `SigningCertificateOpenFailed`) is explained;
    - no change of signing rules, permissions, issuers or certificate checks
      (`SigningRuleChanged`, `SigningPermissionChanged`, `SigningIssuerChanged`,
-     `SigningChecksChanged`), and no import of election data
-     (`ConfigurationPackageImported`), happened after the preparation phase;
+     `SigningChecksChanged`) happened after the preparation phase;
+   - there is no election event under the side menu's tab "Active" that the board
+     did not import; the `Signing…` records of an import are on the tab "Logs" of the
+     approval event;
    - the failed logins in the `KeycloakUserEvent` records show no pattern of
      attack.
 4. To keep the records with the board's minutes, export them with the button
@@ -98,15 +102,23 @@ To count the votes:
 3. Select the button "Start Tally Ceremony". Confirm the dialog with its button "Ok":
    it says that the ceremony asks the trustees to submit public custody proofs, and
    that their instances of the trustee server must stay active.
-4. If the TOE answers "The configured before-counting self-test has been
+4. If the TOE answers with the message "The configured before-counting self-test has been
    requested. Wait for all six checks to pass, then authorize counting again.",
    wait for all six results and select the button "Start Tally Ceremony" again.
 5. Complete the displayed signing request with the required distinct board
    members, before the request expires. The original requester selects
-   **Continue operation** when the request is complete. If another self-test
+   the button "Continue operation" when the request is complete. If another self-test
    finished in the meantime, the TOE gives the answer of step 4 and keeps the
-   signatures: act as in step 4. If a test failed, the TOE cancelled the request:
-   after the recovery, start again from step 3.
+   signatures: act as in step 4. If a test failed, these signatures no longer count:
+   the TOE cancels the request at the next attempt, and the tab "Security and
+   self-tests" shows the state "Recovery required". In the evaluation phase the state
+   stays so, because only opening voting returns it to "Operational"; it does not stop
+   the counting. Have the cause found and removed
+   ([Returning to a secure state](12-modes-and-failures.md#returning-to-a-secure-state),
+   steps 1 and 2), write the board's decision in the board's minutes, and start again
+   from step 3, which requests a new run with the purpose "Before counting". After the
+   state "Unrecoverable failure" the TOE refuses the counting
+   ([An unrecoverable failure](12-modes-and-failures.md#an-unrecoverable-failure)).
 6. Each trustee authorises the counting with their keys, as
    [Authorising the counting](09-trustee-procedures.md#authorising-the-counting)
    describes. The section "Trustees" shows how many trustees have confirmed custody
@@ -142,30 +154,32 @@ To check and publish the result:
    and invalid, and the votes of each candidate. The number of votes counted
    must agree with the column "Counted" of the table of ballot boxes (the switch
    "Show ballot boxes" on the tab "Dashboard").
-2. Open **Actions** for the election result. A report marked **awaiting
-   signatures** is held until its own approval is complete. Select **Open the
-   signing request**, review the document and configuration revision, and have
+2. Open the menu "Actions" for the election result. A report marked "awaiting
+   signatures" is held until its own approval is complete. Select the entry "Open the
+   signing request", review the document and configuration revision, and have
    the required distinct board members sign with their personal certificates.
    Repeat for each required area report; approving the election report does
    not approve its area reports.
-3. Reopen **Actions** and select the entry "Export in PDF format - '…' results" for
+3. Reopen the menu "Actions" and select the entry "Export in PDF format - '…' results" for
    the report you approved. Check the downloaded PDF's signatures, signer identities,
-   configuration revision and totals. If it still says **awaiting signatures**,
+   configuration revision and totals. If it still says "awaiting signatures",
    check the request's approvals and any refused certificate check. If the
    request has completed but the PDF is unavailable, ask the operators to
    investigate before publishing it.
-4. Generate any additional reports the electoral regulation requires. Where
-   the protected action "Generate other election reports" needs signatures, the
-   required board members sign each report. The evaluated configuration keeps each
+4. Generate any additional reports the electoral regulation requires. The
+   required board members sign each report (protected action "Generate other
+   election reports"). The evaluated configuration keeps each
    report's setting "Encryption Policy" at "Unencrypted": no requirement needs
-   encrypted reports, and reading one needs a command on a staff computer.
+   encrypted reports, and reading one needs a command outside the admin portal.
 5. The election board determines the result and records it, with the signed
    reports, in the board's minutes. The election organizer announces it through its
-   own channels. The evaluated configuration has no results website: the TOE
-   refuses to import a package that enables it, and no role holds the permission
-   "Edit Results Publication" (`publish-results-write`), so the section "Publish to
-   results website" is never available. If it is offered, do not use it, and treat it as a
-   security-relevant event.
+   own channels, after the board has checked the verification data
+   ([Downloading the verification data](#downloading-the-verification-data)). The
+   evaluated configuration has no results website: the results portal is not deployed,
+   and no role holds the permission "Edit Results Publication"
+   (`publish-results-write`), so the section "Publish to results website" is never
+   available. If it is offered, do not use it, and treat it as a security-relevant
+   event.
 
 ![Completed result with five voters and separate downloadable election and area PDFs](./assets/results-released-reports.png)
 
@@ -180,7 +194,8 @@ result in the board's minutes.
 
 ## Starting post-processing
 
-To start the post-processing phase:
+Who: a board member. Phase: the evaluation phase. Permission: "Edit Election State"
+(`election-state-write`). To start the post-processing phase:
 
 1. On the election event's tab "Security and self-tests", confirm that the phase is
    "Evaluation" and that every election has a successfully completed results tally.
@@ -199,16 +214,25 @@ does not turn a failed election event into a valid result or allow it to resume.
 
 ## Reading the cast votes and the voters' register
 
-In the post-processing phase the board may read cast votes and the voters' register
-within its assigned permissions. Reading the register in this phase requires
-the protected request's distinct board approvals. Review the request's scope,
-complete its signatures and let the original requester select **Continue
-operation**. The approved reader has a five-minute session for register counts,
-pages and individual records in that same election event and state. A different reader,
-changed election data or expired session requires new approval. Revealing
-secret fields and exporting data remain separately protected operations.
-Read only what the electoral regulation permits, and write the reason in the
-board's minutes.
+The admin portal has no screen that shows the content of a cast vote: the table
+"Ballots" of the screen "Electoral Log" lists the accepted ballots without their
+content. The cast votes that entered the counting are among the bulletin board's
+protocol messages, in encoded form, which the export holds in its parts "Bulletin
+Board" and "Tally"
+([Exporting the election execution data](#exporting-the-election-execution-data)).
+
+To read the voters' register in the post-processing phase:
+
+1. Open the election event's tab "Voters".
+2. The TOE creates a signing request for the protected action "Read the voters' register in
+   post-processing": review its scope; the required distinct board members sign.
+3. The member who started it selects the button "Continue operation". That member
+   then has five minutes for register counts, pages and individual records in this
+   election event; a different reader, changed election data or an expired session
+   needs a new approval.
+
+Revealing secret fields and exporting remain separately protected. Read only what
+the electoral regulation permits, and write the reason in the board's minutes.
 
 ## Exporting the election execution data
 
@@ -222,9 +246,9 @@ current election data. To export the election execution data:
 
 1. On the election event's tab "Data", select the button "Export". The drawer "Export
    Election Event" opens.
-2. Tick "Encrypt with Password". Always.
+2. Tick the option "Encrypt with Password". Always.
 3. Tick the parts the electoral regulation requires to be kept, at least
-   "Activity Logs", "Bulletin Board" and "Tally". Tick "Include Voters" only if
+   "Activity Logs", "Bulletin Board" and "Tally". Tick the option "Include Voters" only if
    the regulation requires the voters' register to be kept with the data. With
    the option "Encrypt with Password", and if the member who starts the export holds the
    permission "Reveal Secret Voter Fields", the export includes the voters' secret data
@@ -232,29 +256,30 @@ current election data. To export the election execution data:
    "Include Voters", and the voters' secret documents among the stored files with
    the option "S3 Files".
 4. Select the button "Export", review the signing request and obtain the required
-   distinct board approvals. The original requester selects **Continue
-   operation** to continue the same export with the same options.
+   distinct board approvals. The original requester selects the button "Continue
+   operation" to continue the same export with the same options.
 5. The TOE generates the password of the file; nobody chooses it. The admin
    portal shows it once, under the label "Password to decrypt the file:". Write the
-   password down at once, and keep it under the control of at least two board
-   members. Never store it with the file.
+   password down at once on a separate medium, not in the board's minutes, and keep
+   it under the control of at least two board members. Never store it with the file.
 6. The export runs as the task "Export Election Event" on the election event's tab
    "Tasks". When it is complete, download the file.
-7. The archive contains `execution-integrity/manifest.json`, a signature and
-   its public key. The manifest lists SHA-256 hashes of the exported entries.
-   It also covers `execution-security-evidence.json`: the election event's security
-   settings, full self-test history with each check's result and start/completion
-   times, the approved baseline, applicable attack detections, pending security
-   notices and its
-   pseudonymous authentication activity. Keep this file with the archive;
-   an export of the electoral log alone does not include all this evidence.
-   Keep the `ExecutionDataExported` record's archive hash, manifest hash and
-   public key separately with the board's minutes. The recipient checks the
-   archive and signed manifest against those independently retained values;
-   a public key taken only from the same untrusted archive is insufficient.
-8. Keep at least two copies of the file on separate protected media, each
+7. The archive holds, in the folder `execution-integrity`, the file `manifest.json`,
+   its signature `manifest.sig` and the public key `public-key.pem`. The manifest
+   lists the SHA-256 hashes of the exported entries, among them the file
+   `execution-security-evidence.json`: the election event's security settings, full
+   self-test history with each check's result and start and completion times, the
+   approved baseline, applicable attack detections, pending security notices and
+   pseudonymous authentication activity. An export of the electoral log alone does
+   not contain this evidence.
+8. On the tab "Logs", open the record `ExecutionDataExported` and write its archive
+   hash, manifest hash and public key in the board's minutes.
+9. Keep at least two copies of the file on separate protected media, each
    under the control of at least two board members, and the password apart
    from them.
+10. Whoever takes the file over, as the electoral regulation names them, compares
+    the file's SHA-256, its manifest and its public key with these values from the
+    board's minutes, not with the public key in the archive.
 
 :::warning
 The export contains everything needed to reconstruct the election event, including
@@ -266,11 +291,13 @@ says so.
 
 ## Downloading the verification data
 
+Who: a board member. Permission: "Admin Ceremony" (`admin-ceremony`).
+
 After voting has closed for every election in the tally, open the completed
 results tally from the election event's tab "Tally". Check its verification data
-before publishing the result. In the section "Election verification", each listed
-protocol board represents one batch. For every batch, write the full values
-"Configuration hash" and "Tally ID" of that board's section in the board's minutes,
+before the election organizer announces the result. In the section "Election
+verification", each listed protocol board represents one batch. For every batch, write the full values
+"Configuration hash" and "Tally ID" of that protocol board's section in the board's minutes,
 then select its button "Download verification data". The button does not export
 initialization reports or key-ceremony-only data.
 
@@ -279,12 +306,14 @@ messages for that batch's key generation, mixing and decryption. Its trusted
 anchors are the two values written in the board's minutes; do not take them from
 the downloaded file. The displayed value "Tally ID" is that protocol-board UUID written as a complete unsigned decimal
 number, not the tally-session ID. Keep every file paired with its own anchors
-in the board's minutes and hand all batches to the election organizer.
+in the board's minutes.
 
-Verify every expected batch and publish every file with its matching anchors,
-including a second, independent publication of the anchors, as
-[Verifying the Result with the Election Verifier](10-election-verifier.md)
-describes. A successful check of one batch does not verify the complete tally.
+Verify every expected batch with the election verifier
+([Running the election verifier](10-election-verifier.md#running-the-election-verifier))
+and hand all files with their anchors to the election organizer, which publishes
+them in the post-processing phase
+([Publishing the verification data](10-election-verifier.md#publishing-the-verification-data)).
+A successful check of one batch does not verify the complete tally.
 
 ## Deleting the election execution data
 
@@ -295,9 +324,9 @@ permission "Delete Election Event" (`election-event-delete`), which only the rol
 
 :::warning
 Deleting the election event removes its operational data and electoral log.
-Signed protocol evidence and restricted records of approvals, exports,
-security notices and configuration revisions remain for verification and
-replay prevention. Deletion does not erase those records.
+Signed protocol evidence and the records of authorisations, exports, security
+notices and configuration revisions stay in the TOE's databases for verification
+and replay prevention; no screen of the admin portal shows them.
 
 Delete only after the export (see
 [Exporting the election execution data](#exporting-the-election-execution-data))
@@ -307,21 +336,30 @@ and after the lockdown period has ended.
 To delete the election execution data:
 
 1. Check that the data has been exported and that the copies are readable.
-   If new security evidence has arrived since that export, obtain fresh board
-   approvals and export again before requesting deletion.
+   If new records, for example a security notice, have arrived since that export,
+   obtain fresh board approvals and export again before requesting deletion.
 2. In the election event's menu, select the entry "Remove this Election Event" and
    confirm the question "Are you sure to delete this item?".
 3. Review the protected deletion request. Obtain the required distinct board
-   approvals; the original requester selects **Continue operation**.
+   approvals; the original requester selects the button "Continue operation".
 4. The TOE verifies the completed export receipt against the current data and
    lifecycle state. A missing, failed or obsolete export blocks deletion.
    Preserve the refusal and investigate; never remove seals or alter receipts
    to make deletion pass.
 5. Check that the election event no longer appears in the list of election
    events, and record the deletion in the board's minutes.
+6. Direct the keeper of the system backups to destroy every system backup of this
+   election event, and record the destruction in the board's minutes: these backups hold election data,
+   so the deletion is not complete without this
+   ([Create and verify the encrypted backup](../../05-reference/06-deployment_guide/11-selftest_handover.md#create-and-verify-the-encrypted-backup)).
 
 The menu entry "Archive this Election Event" keeps all data and audit records of the
 election event and is not a substitute for deletion. The board uses it in the
 preparation phase for an election event imported with wrong data (see
 [Importing the election data](06-preparation.md#importing-the-election-data)).
 An archived election event never opens voting, and nothing sets it back.
+
+The approval event and an archived election event never reach the post-processing
+phase, so the TOE refuses their deletion. Their data, among it the voters' register
+of an archived election event, stays in the TOE: write this in the board's minutes
+and tell the election organizer.

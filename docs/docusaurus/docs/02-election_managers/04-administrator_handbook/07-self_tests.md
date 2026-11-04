@@ -45,26 +45,27 @@ result records that run; it does not open voting or authorize a later operation
 after its configuration or election event state changes.
 
 A result marked **Earlier election state** cannot authorize a later transition.
-Changes to the configuration or security state invalidate earlier evidence.
+After a change of the configuration or the security state, earlier results no
+longer count.
 If the status cannot be refreshed, do not rely on a previously displayed result.
 
-| Check | What the system verifies | If it fails |
+| Check | What the TOE verifies | If it fails |
 | --- | --- | --- |
-| Ballot-box integrity | Authenticated ballot admission, contents and order, cast-vote records, voting counters, seals and completed cryptographic tally transcripts. | A detected integrity error gives **Unrecoverable failure**: do not edit ballots, replace records or attempt to resume voting. Evidence that could not be read gives **Recovery required**. |
-| Approved election data | Live election data against the approved baseline, which the TOE captured and signed when the board approved and published the configuration. | **Recovery required**. Check the approved publication and investigate any difference with the election board. Only the exact approved values pass. |
-| Audit recording and integrity | Writing a signed test record, reading back the exact stored record, and verifying the electoral log and its checkpoint evidence. | A verified integrity finding in the electoral log gives **Unrecoverable failure**. Any other failure, such as a write or read-back problem, gives **Recovery required**: have the operator restore the audit service. |
+| Ballot-box integrity | Authenticated ballot admission, contents and order, cast-vote records, voting counters, seals and completed cryptographic tally transcripts. | A detected integrity error gives **Unrecoverable failure**: do not edit ballots, replace records or attempt to resume voting. Data that could not be read gives **Recovery required**. |
+| Approved election data | Live election data against the approved baseline, which the TOE captured and signed when the board approved and published the configuration. | **Recovery required**. Tell the election board: it compares the live election data with the approved publication and investigates any difference. Only the exact approved values pass. |
+| Audit recording and integrity | Writing a signed test record, reading back the exact stored record, and verifying the electoral log and its checkpoints. | A verified integrity finding in the electoral log gives **Unrecoverable failure**. Any other failure, such as a write or read-back problem, gives **Recovery required**: have the operator restore the audit service. |
 | Trusted HTTPS channels | Public endpoints, trusted certificates and the required TLS profile. A timeout is inconclusive and fails the test. | **Recovery required**. Have the operator correct the endpoint, certificate or network configuration. Never disable certificate verification. |
 | Approved access-control configuration | The TOE's authorization rules, the access-control configuration of its realms, its accounts and roles, and the signing rules against the approved baseline. A staff account that was disabled or lost roles passes; a new account or a new role assignment does not. | **Recovery required**. Investigate the changed permissions or rules with the election board, and restore the approved values. Do not create a new baseline merely to hide a difference. |
-| Clock synchronization | A fresh observation of the servers' time service, including its authenticated source (Network Time Security) and its synchronization status. | **Recovery required**. Have the operator restore the time service ([Authenticated time](../../05-reference/06-deployment_guide/04-hosts_network_time.md#authenticated-time)). |
+| Clock synchronization | A fresh reading of the servers' time service, including its authenticated source (Network Time Security) and its synchronization status. | **Recovery required**. Have the operator restore the time service ([Authenticated time](../../05-reference/06-deployment_guide/04-hosts_network_time.md#authenticated-time)). |
 
-Before the first approved publication, the tab shows the notice "The
-board-approved configuration baseline is not yet available." This is expected:
-nothing has been approved yet to compare with. Complete the board review and
-publication before expecting all six checks to pass. Until then, a run at
-start-up shows **Approved election data** and **Approved access-control
-configuration** as passed with the detail "No board-approved baseline yet;
-nothing to compare". The TOE does not silently learn a new baseline after a
-failed test.
+Until the board approves the first configuration version, the tab shows a notice
+that the approved baseline is not yet available, and **Purpose of the test** offers
+only **On request**. This is expected: nothing has been approved yet to compare
+with. A run at start-up or with the purpose **On request** then shows the checks
+**Approved election data** and **Approved access-control configuration** as passed
+with the detail "No board-approved baseline yet; nothing to compare". Such a run
+authorizes nothing. The TOE does not silently learn a new baseline after a failed
+test.
 
 ## Verify the TOE software
 
@@ -85,8 +86,8 @@ doubt. To verify the TOE software:
 3. Select the copy icon next to **SHA-256 of the accepted digest list**, and
    compare the value with the one the operator gave you
    ([Confirm the server settings to the administrator](../../05-reference/06-deployment_guide/11-selftest_handover.md#confirm-the-server-settings-to-the-administrator)).
-   If you are the operator too, compare it with `toe.manifest_sha256` of your
-   `site.json`. If they differ, the servers do not hold the accepted digest list, whatever
+   If you are the operator too, compare it with the field `toe.manifest_sha256` of
+   your file `site.json`. If they differ, the servers do not hold the accepted digest list, whatever
    the result says: act as for **Differs from the accepted delivery**.
 
 ![The section TOE software integrity with the six parts matching](assets/toe-software-integrity.png)
@@ -127,33 +128,38 @@ before resuming voting, after recovery and at each interval always happen. The
 additional conditions cannot switch them off. Only one run executes for an
 election event at a time.
 
-Choose the interval with the organizer. Measure the suite on representative
-election data before voting opens.
+Choose the interval with the organizer. Measure how long the six checks take in
+the run of
+[Publishing the configuration version](05-tenant_and_event_settings.md#publishing-the-configuration-version),
+step 4.
 
 | Election event conditions | Starting interval | Check before opening |
 | --- | --- | --- |
 | One-day election event or high activity | 5–15 minutes | Every run finishes within its timeout, leaving time for the next run. |
 | Multi-day election event | 15–30 minutes | Results are checked throughout the election event, including quieter periods. |
 
-Never exceed 60 minutes. If a suite cannot finish in time, provide adequate
-resources or reduce competing work. Do not treat an unfinished scan or a longer
-interval as equivalent protection. A missing or expired successful result
+Never exceed 60 minutes. If the six checks cannot finish in time, have the operator
+provide adequate resources or reduce competing work. Do not treat an unfinished run
+or a longer interval as equivalent protection. A missing or expired successful result
 prevents voter access.
 
 ## Respond to the security state
 
-- **Operational:** the recorded lifecycle state is operational. Phase, period,
-  permission, storage and current self-test checks still apply to each operation.
-- **Recovery required:** voting remains unavailable. Resolve the cause, run
-  **Before resuming voting**, and have the board authorize **Start Voting → Start Online Voting** in
-  **Publish**. Repairs alone do not reopen voting.
-- **Unrecoverable failure:** election execution cannot resume. Preserve the
-  evidence and tell the election board
-  ([An unrecoverable failure](10-modes_of_operation.md#an-unrecoverable-failure)).
+- **Operational:** voting has opened and no failure has occurred since it last
+  opened or resumed. Phase, period, permission, storage and current self-test checks still apply to each operation.
+- **Recovery required:** with the reason "Startup self-tests are required" this is
+  the normal state of a new election event: do nothing. Otherwise voting remains
+  unavailable. Have the cause resolved. The board runs the checks with the purpose
+  **Before resuming voting**, or you do when the board asks you to, and the board
+  authorizes **Start Voting → Start Online Voting** in **Publish**. Repairs alone do
+  not reopen voting.
+- **Unrecoverable failure:** election execution cannot resume. Change nothing on
+  the election event and follow
+  [An unrecoverable failure](10-modes_of_operation.md#an-unrecoverable-failure).
   A later passed test cannot erase an earlier unrecoverable result.
 
-A required service stopping, restarting or losing its heartbeat also prevents
-voter operations. During an execution failure, ballot-box reads and writes are
+A required service that stops, restarts or no longer reports that it is running
+also prevents voter operations. During an execution failure, ballot-box reads and writes are
 refused. Staff can still inspect the status and perform authorized investigation.
 
 First opening requires the approved start time, current checks, empty ballot
@@ -178,8 +184,8 @@ exists, shows what happened to each one:
 | --- | --- |
 | Queued for delivery / Sending | Wait for the result. Definite temporary failures are retried with a delay, up to six attempts. |
 | Accepted by mail transport | The mail server accepted the message. This does not prove that a recipient read it. |
-| Delivery failed | Ask the operator to inspect the relay configuration and the failure details. Give the operator the notification's identifier. |
-| Delivery outcome unknown | A response was lost or interrupted. Ask the operator to check the mail server before you send anyone a copy: the original may already have arrived. |
+| Delivery failed | Ask the operator to follow it up ([A security notification is not delivered](../../05-reference/06-deployment_guide/11-selftest_handover.md#a-security-notification-is-not-delivered)). Give the operator the notification's identifier and the failure text shown under it. |
+| Delivery outcome unknown | A response was lost or interrupted. Ask the operator to follow it up in the same way before you send anyone a copy: the original may already have arrived. |
 
 The operator provides the authenticated mail relay, and you keep the staff
 email addresses correct. A failed notification neither reopens voting nor
@@ -187,10 +193,10 @@ suppresses the security event.
 
 Above **80% used audit-storage capacity**, the voter channel is refused.
 Missing, stale or future-dated measurements also refuse access. The
-operator must restore usable capacity and a fresh observation
+operator must restore usable capacity and a fresh measurement
 ([Storage](../../05-reference/06-deployment_guide/11-selftest_handover.md#storage)).
 
-## Run a separate electoral-log audit
+## The election board's electoral-log audit
 
 The election board may also audit the electoral log: in the election event's
 tab "Logs" it selects the button "Audit" and confirms in the dialog "Audit

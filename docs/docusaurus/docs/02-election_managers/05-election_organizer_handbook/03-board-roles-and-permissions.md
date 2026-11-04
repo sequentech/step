@@ -10,10 +10,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 The TOE grants functions through roles. A role is a set of permissions; the
 admin portal lists the roles under Users and Roles > "Roles" and the accounts
-under Users and Roles > "Users". A fresh installation provides the <code>election-board</code> role.
+under Users and Roles > "Users". A fresh installation provides the role `election-board`.
 The administrators assign it to personal board accounts
 ([Personal accounts](../04-administrator_handbook/04-users_and_roles.md#personal-accounts)).
-The election board checks them before the preparation phase ends and after every change.
+The administrators tell the board of every such change, and the election board checks the accounts before the preparation phase ends and after each change.
 
 ## Administrator and election board are separate
 
@@ -22,8 +22,8 @@ The election board checks them before the preparation phase ends and after every
   and operates the TOE. It does not authorise board actions or grant access to election execution data. The administrators see an election event's settings, never
   its election data or its audit records; only the election board reads,
   audits and exports the audit records.
-- The **election board** role is the supplied <code>election-board</code> role.
-  It holds the permissions in the next section; use this role for a fresh installation.
+- The **election board** role is the supplied role `election-board`.
+  It holds the permissions of [Permissions of the election board](#permissions-of-the-election-board); use this role for a fresh installation.
   Each board member has one personal account with this role, linked to the
   external authentication server.
 - **Trustees** are board members whose account also has the role `trustee`.
@@ -36,7 +36,7 @@ accounts for the two responsibilities; an administrator cannot change their
 own role membership or edit or delete a group that supplies their own permissions.
 Another administrator must make those changes.
 
-Before a board account is issued, check that none of its roles, including
+Before a board account is issued, the administrators check that none of its roles, including
 inherited roles, grants these administrator permissions:
 
 - "Admin User" (`admin-user`), "Edit Tenant" (`tenant-write`) or "Self-tests:
@@ -69,17 +69,17 @@ Roles, then the technical name) and what to watch:
 | Create, check and publish configuration versions | <ul><li>"View Election Event Publish" (<code>election-event-publish-tab</code>)</li><li>"View Election Publish" (<code>election-publish-tab</code>)</li><li>"Read Publish" (<code>publish-read</code>)</li><li>"Edit Publish" (<code>publish-write</code>)</li><li>"Create Publish" (<code>publish-create</code>)</li><li>"Regenerate Publish" (<code>publish-regenerate</code>)</li><li>"Publish Changes" (<code>publish-changes</code>)</li></ul> | Preparation phase only; each configuration version needs the board's approval (see [Approving the configuration](06-preparation.md#approving-the-configuration)). |
 | Set the lockdown period | <ul><li>"View Election Event Scheduled" (<code>election-event-scheduled-tab</code>)</li><li>"Edit Scheduled Events" (<code>scheduled-event-write</code>)</li><li>"Create Scheduled Event" (<code>scheduled-event-create</code>)</li></ul> | Only "Start Lockdown Period" and "End Lockdown Period"; no other scheduled event. See [Setting the lockdown period](06-preparation.md#setting-the-lockdown-period). |
 | Start, interrupt, resume and terminate the election execution | <ul><li>"Edit Election State" (<code>election-state-write</code>)</li><li>"Start Voting" (<code>publish-start-voting</code>)</li><li>"Pause Voting" (<code>publish-pause-voting</code>)</li><li>"Stop Voting" (<code>publish-stop-voting</code>)</li></ul> | Where the action is security-critical it also needs the required authorisations, each given after a fresh login at the external authentication server (see [Confirming an action by authenticating again](04-secure-use.md#confirming-an-action-by-authenticating-again)). |
-| Authorise the security-critical actions | <ul><li>"Sign: import election data" (<code>sign-import-election-data</code>)</li><li>"Sign: approve a configuration version" (<code>sign-approve-configuration</code>)</li><li>"Sign: initialize voting" (<code>sign-initialize-voting</code>)</li><li>"Sign: open voting" (<code>sign-open-voting</code>)</li><li>"Sign: close voting" (<code>sign-close-voting</code>)</li><li>"Sign: start counting votes" (<code>sign-start-tally</code>)</li><li>"Sign: generate election returns" (<code>sign-generate-election-returns</code>)</li><li>"Sign: generate other election reports" (<code>sign-generate-reports</code>)</li><li>"Sign: export election execution data" (<code>sign-export-execution-data</code>)</li><li>"Sign: delete election execution data" (<code>sign-delete-execution-data</code>)</li><li>"Sign: read the voters' register in post-processing" (<code>sign-read-voters-register</code>)</li></ul> | Whoever holds a "Sign: …" permission counts as an authorising board member. Give it only to board members. |
+| Authorise the security-critical actions | <ul><li>"Sign: import election data" (<code>sign-import-election-data</code>)</li><li>"Sign: approve a configuration version" (<code>sign-approve-configuration</code>)</li><li>"Sign: initialize voting" (<code>sign-initialize-voting</code>)</li><li>"Sign: open voting" (<code>sign-open-voting</code>)</li><li>"Sign: close voting" (<code>sign-close-voting</code>)</li><li>"Sign: start counting votes" (<code>sign-start-tally</code>)</li><li>"Sign: generate election returns" (<code>sign-generate-election-returns</code>)</li><li>"Sign: generate other election reports" (<code>sign-generate-reports</code>)</li><li>"Sign: export election execution data" (<code>sign-export-execution-data</code>)</li><li>"Sign: delete election execution data" (<code>sign-delete-execution-data</code>)</li><li>"Sign: read the voters' register in post-processing" (<code>sign-read-voters-register</code>)</li></ul> | Whoever holds a "Sign: …" permission counts as an authorising board member. The administrators give it only to board members. |
 | Follow, cancel and export signing requests; read the protected actions and the certificate registrations | <ul><li>"Election Event Signatures Tab" (<code>election-event-signatures-tab</code>)</li><li>"Signatures: read protected actions" (<code>signing-rules-read</code>)</li><li>"Signatures: read certificates" (<code>signing-certificates-read</code>)</li><li>"Signatures: read requests" (<code>signing-requests-read</code>)</li><li>"Signatures: cancel requests" (<code>signing-requests-cancel</code>)</li><li>"Signatures: export requests" (<code>signing-requests-export</code>)</li></ul> | Every board member holds them, so that any board member can cancel a security-critical action. The protected actions and the certificate registrations are read only. |
 | Run the key ceremony and the counting | <ul><li>"View Election Event Keys" (<code>election-event-keys-tab</code>)</li><li>"Admin Ceremony" (<code>admin-ceremony</code>)</li><li>"Create Ceremony" (<code>create-ceremony</code>)</li><li>"Export Ceremony" (<code>export-ceremony</code>)</li><li>"Read Trustee" (<code>trustee-read</code>)</li><li>"View Election Event Tally" (<code>election-event-tally-tab</code>)</li><li>"Read Tally" (<code>tally-read</code>)</li><li>"Read Tally Results" (<code>tally-results-read</code>)</li></ul> | Ceremonies only as manual ceremonies (see [The key ceremony](06-preparation.md#the-key-ceremony)). |
 | Generate and download reports, among them the initialization report | <ul><li>"View Election Event Reports" (<code>election-event-reports-tab</code>)</li><li>"Read Reports" (<code>report-read</code>)</li><li>"Generate Report" (<code>report-generate</code>)</li><li>"Read Documents" (<code>document-read</code>)</li><li>"Download Documents" (<code>document-download</code>)</li></ul> | The initialization report, the election returns and the other election reports need the board's authorisations of their protected actions (see [Security-critical actions](05-electoral-phases.md#security-critical-actions)). |
 | Check, audit and export the audit records | <ul><li>"View Election Event Logs" (<code>election-event-logs-tab</code>)</li><li>"Read Logs" (<code>logs-read</code>)</li><li>"Export Logs" (<code>logs-export</code>)</li><li>"Audit Electoral Log" (<code>electoral-log-audit</code>)</li><li>"Browse Electoral Log" (<code>electoral-log-console-read</code>)</li></ul> | Only the election board reads and audits the audit records; the audit is needed at the beginning of the evaluation phase. The export holds personal data of voters: keep it confidential. |
-| Follow the dashboards, the self-tests and the tasks | <ul><li>"Admin Dashboard View" (<code>admin-dashboard-view</code>)</li><li>"View Election Dashboard" (<code>election-dashboard-tab</code>)</li><li>"View Monitoring Dashboards" (<code>monitoring-view</code>)</li><li>"Configure Monitoring Dashboards" (<code>monitoring-configure</code>)</li><li>"Self-tests: read results" (<code>self-test-read</code>)</li><li>"Self-tests: run checks" (<code>self-test-run</code>)</li><li>"View Election Event Tasks" (<code>election-event-tasks-tab</code>)</li><li>"Read Tasks Execution" (<code>tasks-read</code>)</li></ul> | The Dashboard shows the board the election execution data (turnout, cast votes, ballot boxes); "Attack detections" on the Dashboard shows the attacks the TOE detected. See [Preparing the security dashboard](06-preparation.md#preparing-the-security-dashboard) for setting up the security dashboard. **Security and self-tests** shows six results and the current phase; the self-test settings belong to the administrator during preparation. |
+| Follow the dashboards, the self-tests and the tasks | <ul><li>"Admin Dashboard View" (<code>admin-dashboard-view</code>)</li><li>"View Election Dashboard" (<code>election-dashboard-tab</code>)</li><li>"View Monitoring Dashboards" (<code>monitoring-view</code>)</li><li>"Configure Monitoring Dashboards" (<code>monitoring-configure</code>)</li><li>"Self-tests: read results" (<code>self-test-read</code>)</li><li>"Self-tests: run checks" (<code>self-test-run</code>)</li><li>"View Election Event Tasks" (<code>election-event-tasks-tab</code>)</li><li>"Read Tasks Execution" (<code>tasks-read</code>)</li></ul> | The tab "Dashboard" shows the board the election execution data (turnout, cast votes, ballot boxes); its dashboard "Attack detections" shows the attacks the TOE detected. See [Preparing the security dashboard](06-preparation.md#preparing-the-security-dashboard) for setting up the security dashboard. The tab "Security and self-tests" shows six results and the current phase; the self-test settings belong to the administrator during preparation. |
 | Read the voters' register | <ul><li>"View Election Event Voters" (<code>election-event-voters-tab</code>)</li><li>"Read Voter" (<code>voter-read</code>)</li></ul> | Read only. In the post-processing phase the read is a security-critical action and needs the required authorisations (see [Security-critical actions](05-electoral-phases.md#security-critical-actions)). |
 | Export election execution data | <ul><li>"Export election execution data" (<code>election-execution-export</code>)</li></ul> | Post-processing phase only, with the required authorisations. |
-| Delete an election event and its election execution data | <ul><li>"Delete Election Event" (<code>election-event-delete</code>)</li></ul> | Only the election board holds it. The TOE refuses every deletion unless the election execution data has been exported and the required authorisations are reached. The deletion also deletes the election event's audit records in the TOE. |
+| Delete an election event and its election execution data | <ul><li>"Delete Election Event" (<code>election-event-delete</code>)</li></ul> | Only the election board holds it. The TOE refuses every deletion unless the election execution data has been exported and the required authorisations are reached. The deletion also deletes the election event's audit records in the TOE. What stays is in [Deleting the election execution data](08-evaluation-and-post-processing.md#deleting-the-election-execution-data). |
 | Archive an election event | <ul><li>"Archive Election Event" (<code>election-event-archive</code>)</li></ul> | Only the election board holds it. Used in the preparation phase for an election event imported with wrong data. Archiving deletes nothing: the data and audit records stay, and the electoral log records the archiving. An archived election event never opens voting and is never unarchived. |
-| Check the accounts and their roles | <ul><li>"View users and roles" (<code>users-menu</code>)</li><li>"Read User" (<code>user-read</code>)</li><li>"Read Role" (<code>role-read</code>)</li><li>"Read User Permission" (<code>user-permission-read</code>)</li></ul> | Read access only; needed for the checks of the role assignments in this page. |
+| Check the accounts and their roles | <ul><li>"View users and roles" (<code>users-menu</code>)</li><li>"Read User" (<code>user-read</code>)</li><li>"Read Role" (<code>role-read</code>)</li><li>"Read User Permission" (<code>user-permission-read</code>)</li></ul> | Read access only; needed for the checks of the role assignments in this chapter. |
 | Trustees only: take part in the key ceremony and the counting | Role <code>trustee</code>, with exactly these permissions: <ul><li>"Trustee Ceremony" (<code>trustee-ceremony</code>)</li><li>"Sign: confirm custody" (<code>sign-key-ceremony</code>)</li><li>"Sign: authorize tally custody" (<code>sign-tally-key</code>)</li></ul> | See [Trustee Procedures](09-trustee-procedures.md). |
 
 The election organizer decides whether the board also needs the following
@@ -88,7 +88,7 @@ only to the role `election-board`:
 
 | Permission | What it allows |
 |---|---|
-| "Read Electoral Log Personal Data" (`electoral-log-personal-data-read`) | see the usernames, IP addresses and countries in the electoral log |
+| "Read Electoral Log Personal Data" (`electoral-log-personal-data-read`) | see the usernames, IP addresses and countries on the screen "Electoral Log", which otherwise shows them as hidden; the tab "Logs" shows usernames with the permission "Read Logs" alone |
 | "Read Document Passwords" (`document-password-read`) | read the password of an encrypted file that the TOE generated, such as an export or a report |
 | "Reveal Secret Voter Fields" (`voter-secret-attribute-read`) | reveal the voters' secret fields, also in an export or a report |
 | "Edit Secret Voter Fields" (`voter-secret-attribute-write`) | import the voters' secret fields of a configuration package |
@@ -97,14 +97,18 @@ only to the role `election-board`:
 The role `election-board` holds no permission to create or change users,
 roles, elections, contests, candidates, areas, voters, signing rules, trusted
 issuers, certificate checks or the self-test settings: it holds none of the
-administrator capabilities listed above, and not "Edit User Permission"
+administrator capabilities that
+[Administrator and election board are separate](#administrator-and-election-board-are-separate)
+lists, and not "Edit User Permission"
 (`user-permission-write`). The administrator role holds none of the board's
 permissions on election data and audit records
 ([The administrator role](../04-administrator_handbook/04-users_and_roles.md#the-administrator-role)).
 
-No role holds "Edit Results Publication" (`publish-results-write`), neither
-the administrator role nor the election board role. The results website is
-never enabled: the import refuses a package that enables it.
+No role holds the permission "Edit Results Publication" (`publish-results-write`), neither
+the administrator role nor the election board role. Without it nobody can
+configure or publish the results website, whatever a package contains, and the
+results portal is not deployed
+([Keep the results and kiosk portals off](../../05-reference/06-deployment_guide/07-hardening.md#keep-the-results-and-kiosk-portals-off)).
 
 :::warning
 Whoever can edit roles or role assignments can give any account the election
@@ -128,7 +132,8 @@ requests and treats the finding as a security-relevant event (see
   `trustee1` and `trustee2`). These machine accounts belong to the
   trustee server instances: no person signs in with them, and they are not
   personal accounts of board members. Their credentials are set when the TOE
-  is deployed, as the Deployment Guide describes.
+  is deployed
+  ([Bind each native account to its registered trustee](../../05-reference/06-deployment_guide/08-installing_toe.md#bind-each-native-account-to-its-registered-trustee)).
 
 :::warning
 Never sign in with a machine account of a trustee server instance, and never
@@ -146,12 +151,12 @@ the board approves the configuration version:
 1. The election organizer appoints the person and gives the administrators
    their identity at the external authentication server.
 2. The administrators create the personal account, link it to the external
-   authentication server and assign the election board role (for a trustee also
+   authentication server and assign the role `election-board` (for a trustee also
    the role `trustee` and the user field "Act as Trustee").
 3. The election organizer issues the person's signing certificate on a security
    token and hands it over in person.
 4. The administrators register the certificate to the person on the
-   election event's tab "Signatures" under "Certificates", with the button
+   election event's tab "Signatures", area "Certificates", with the button
    "Register a certificate". In the evaluated configuration a certificate signs
    only after this registration (the check "Registering a certificate to a
    person" is "Only when someone who can register certificates registers it").
@@ -170,23 +175,27 @@ the execution phase has started, it stops voting
 Do this at once, and steps 2 and 3 on the same day at the latest, also during
 the execution phase. It applies also when a board member changes function:
 
-1. Tell the administrators.
+1. The election organizer, or the board member concerned, tells the administrators.
 2. The administrators disable the account (clear the field "Enabled") and remove
    all its roles. Disabling the account stops new sign-ins with it. Neither
    change fails the self-test check "Approved access-control configuration". Ask the person to
    log out; a session also ends after 15 minutes without interaction. The
    account itself is deleted only after the retention period of the election
    event's records, so that the records still name the person.
-3. On the election event's tab "Signatures" under "Certificates", the
+3. On the election event's tab "Signatures", area "Certificates", the
    administrators revoke the registration of the person's signing certificate
-   with the button "Revoke" and fill in the field "Reason". A registration is never deleted. A revoked certificate cannot sign any more;
-   signatures it already made still count. Signing requests it signed that
-   are not complete are cancelled with the reason "A certificate that signed it
-   was revoked"; start them again. The election organizer also revokes the
+   with the button "Revoke" and fill in the field "Reason". A registration is never deleted. A revoked certificate cannot sign any more.
+   Signatures on completed requests still count, except for an action that waits
+   ([How a signing request works](04-secure-use.md#how-a-signing-request-works)): it
+   runs only while enough of its signers' certificates are valid; otherwise the TOE
+   refuses it, and another board member starts it again for new signatures. Every
+   waiting request the certificate signed is cancelled with the reason "A certificate that signed it was revoked", and
+   the board starts it again if it still needs it. Revoking one registration
+   revokes every registration of that certificate's key in the tenant. The election organizer also revokes the
    person's approval certificate at its certification authority and adds the
    revocation list to its next configuration package; from then on the TOE
    counts no approval made with that certificate.
-4. Check on the same tab under "Protected actions" that the remaining board
+4. Check on the same tab, in the area "Protected actions", that the remaining board
    members can still reach the number in the column "Signatures needed" of every protected action. If
    they cannot, tell the election organizer and the election board at once. In
    the preparation phase the organizer appoints a replacement
@@ -203,7 +212,9 @@ the execution phase. It applies also when a board member changes function:
 The trustee's share stays valid after the person leaves. Before the end of the
 post-processing phase:
 
-1. Follow the steps above for the account.
+1. Follow the steps of
+   [A person leaves, loses the role or loses their security token](#a-person-leaves-loses-the-role-or-loses-their-security-token)
+   for the account.
 2. The trustee hands over the trustee workstation's keys file, all its
    backups and the saved custody request to the election board, which keeps
    them locked away under the control of at least two board members until the
@@ -213,17 +224,19 @@ post-processing phase:
    administrators give that person's account the role `trustee` and, in the user
    field "Act as Trustee", the name of the trustee who left. Once the board has
    approved a configuration version, this change fails the self-test check
-   "Approved access-control configuration": it stops voting in the execution
-   phase, and it blocks the counting while the additional condition "Before
-   counting" is selected. The election board decides what to do under the
-   electoral regulation
-   ([Appoint the people](02-organizer-duties.md#appoint-the-people)). For the counting, two board
-   members hand the keys file and the saved custody request to the
-   replacement, who authorises the counting with them on a trustee
-   workstation as
-   [Authorising the counting](09-trustee-procedures.md#authorising-the-counting)
-   describes, and then returns them to the board. Nobody ever holds the keys
-   files of two trustees.
+   "Approved access-control configuration". In the preparation phase the board then
+   approves a new configuration version
+   ([Approving the configuration](06-preparation.md#approving-the-configuration));
+   for the counting, two board members hand the keys file and the saved custody
+   request to the replacement, who authorises the counting with them on a trustee
+   workstation
+   ([Authorising the counting](09-trustee-procedures.md#authorising-the-counting))
+   and then returns them to the board. Once the execution phase has started, the
+   change stops voting and a run with the purpose "Before counting" cannot pass, so
+   the TOE refuses the counting: the electoral regulation says what then happens to
+   the election event, for example that it is held again
+   ([Appoint the people](02-organizer-duties.md#appoint-the-people)). No board member
+   ever holds the keys files of two trustees.
 
 :::warning
 A trustee who keeps their keys file after leaving can still help to decrypt

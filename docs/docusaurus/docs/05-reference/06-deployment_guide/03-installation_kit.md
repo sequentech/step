@@ -19,13 +19,23 @@ token, supporting images, cluster manifests, the `sequent` utility and signed
 checksums. The kit is operational environment; TOE images come separately from
 the accepted delivery medium.
 
+## Agree the site plan
+
+Before Sequent builds the kit, write down the values of the table in
+[Check the site file](#check-the-site-file): this is the site plan. The election
+organizer approves it. Send it to Sequent through the contact channel of your
+delivery, with the time server's public CA certificate if that CA is private.
+Sequent delivers the kit on a USB drive and sends its signing fingerprint
+separately from the drive. Keep the site plan and the fingerprint with the delivery
+note.
+
 ## Verify the kit
 
 <!-- deployment-step: 03-001 -->
 <!-- deployment-step: 03-002 -->
 
-**Where:** a root terminal on the administration workstation, in the extracted
-and verified guidance package's `deployment` directory. Mount the kit read-only.
+**Where:** a root terminal on the administration workstation, in the deployment
+directory. Mount the kit read-only.
 Set `kit.directory` in your working `site.json` to that mounted directory and
 `kit.signing_fingerprint` to the fingerprint received separately from the kit.
 
@@ -45,8 +55,7 @@ connect to either server. It can therefore run before either server is installed
 
 ![Actual terminal checking the signed installation kit before boot](./assets/installation/inspect-kit.png)
 
-*Actual rehearsal inspection. The command and final result illustrate the
-pre-boot check; use the kit and independently supplied fingerprint for your site.*
+*Terminal capture from a test installation. Your addresses, names and digests differ.*
 
 **If it fails:** leave the kit unused. For a fingerprint mismatch, do not copy
 the drive's fingerprint into your expected value. For a signature, checksum,
@@ -70,7 +79,7 @@ into the server image.
 | Cluster network | Pod and service network ranges |
 | Nodes | C1 has role `server`; C2 has role `agent`; names and addresses match the plan |
 | Disks | Any pinned disk identifies the disk approved for erasure |
-| `admin.authorizedKeys` | Only approved administration-workstation SSH public keys |
+| `admin.authorizedKeys` | The administration workstation's SSH public key, and no other key |
 | `admin.allowedSourceCidr` | Only the administration workstation's approved source network |
 
 **Expected result:** every row agrees with the approved plan. A successful file
@@ -80,13 +89,14 @@ site. Anyone holding a listed administration key has root access to both servers
 **If any value is wrong:** do not boot the installer. Ask Sequent for a kit built
 from the corrected site definition. The next check after the site values are
 accepted is the disk confirmation in [Install C1 and C2](#install-c1-and-c2); the
-laboratory disk and network values of its screenshot are not defaults for your site.
+disk and network values of its screenshot are not defaults for your site.
 
 ## Install C1 and C2
 
 :::warning
-The installer erases the disk it shows. The USB drive also carries the cluster's
-join token. Keep it under the same physical protection as the servers.
+The installer erases the disk it shows. The installation USB is a second drive: do
+not write the image to the drive that holds the kit. Both drives carry the cluster's
+join token, so keep both under the same physical protection as the servers.
 :::
 
 To install the operating system on C1 and C2:
@@ -102,8 +112,7 @@ To install the operating system on C1 and C2:
 
 ![Actual C1 virtual-machine installer asking the operator to confirm the disk to erase](./assets/installation/server-disk-confirmation.png)
 
-*Actual C1 VM console from the installation rehearsal. `/dev/vda` and its capacity
-identify the laboratory disk. Confirm your own physical disk before pressing Enter.*
+*Terminal capture from a test installation. Your addresses, names and digests differ.*
 
 4. Wait for **Installation complete**. Remove the USB and press any key to
    restart into the installed system.
@@ -113,8 +122,7 @@ identify the laboratory disk. Confirm your own physical disk before pressing Ent
 
 ![Actual C2 virtual-machine installer reporting installation complete](./assets/installation/server-installation-complete.png)
 
-*Actual C2 VM console. This is operating-system installation completion;
-application installation and customer/trustee commissioning still follow.*
+*Terminal capture from a test installation. Your addresses, names and digests differ.*
 
 **If it stops:** read the displayed error and whether writing began. Press
 **Alt+F2** for the installer console and run:
@@ -143,13 +151,11 @@ host keys:
 
 ![Actual VM console showing the public host fingerprint without a login](./assets/installation/server-host-key.png)
 
-*Actual read-only display service running on the isolated rehearsal C1 VM.
-The existing fixture was updated for this capture; this is not a new installer
-image acceptance test. Your server generates its own fingerprint.*
+*Terminal capture from a test installation. Your addresses, names and digests differ.*
 
 2. Return to the root terminal on the administration workstation, in the
-   guidance package's `deployment` directory. Read the C1 address and approved
-   key path from your working configuration, then connect:
+   deployment directory. Read the C1 address and approved key path from your
+   working configuration, then connect:
 
 ```bash
 SERVER=$(jq -er '.nodes.c1' site.json)
@@ -170,10 +176,7 @@ there is no first-use question.
 
 ![Actual SSH first-use prompt accepting the independently checked fingerprint](./assets/installation/server-host-key-prompt.png)
 
-*Actual SSH connection to the rehearsal C1 VM: the fingerprint matches the
-console above, and `hostname; id -un` returns `c1` and `root`. The capture uses
-a temporary known-hosts file to replay first use; use the normal command above
-so your verified keys remain available to the installer.*
+*Terminal capture from a test installation. Your addresses, names and digests differ.*
 
 4. Repeat the console comparison on **C2**; it has its own host key. At the
    workstation run the following, then enter C2's matching fingerprint:
@@ -199,8 +202,8 @@ matches but authentication fails, check that the approved key matches
 <!-- deployment-step: 03-004 -->
 
 After verifying both SSH host keys above, run the single check of
-[Check the site](01-about.md#check-the-site) from the administration workstation's
-`deployment` directory:
+[Check the site](01-about.md#check-the-site) from the deployment directory on the
+administration workstation:
 
 ```bash
 ./deploy check site.json
@@ -214,10 +217,18 @@ After verifying both SSH host keys above, run the single check of
 **If it fails:** for SSH refusal, check the workstation's source network, node
 addresses and authorized key. For an unknown or changed host key, verify it at
 the server console; never disable host-key checking. For a missing or unready
-node, inspect the boot logs and inter-node network. Do not install applications
-until both configured nodes are ready.
+node, read its boot log and check the network between the nodes:
 
-## Prepare the deployment directory
+```bash
+SERVER=$(jq -er '.nodes.c2' site.json)   # or .nodes.c1
+ADMIN_KEY=$(jq -er '.ssh_identity' site.json)
+ssh -i "$ADMIN_KEY" "root@$SERVER" 'journalctl -b --no-pager -n 80'
+```
+
+If you cannot reach the server or find the cause, ask Sequent. Do not install
+applications until both configured nodes are ready.
+
+## Prepare the directory /root/deploy
 
 <!-- deployment-step: 03-005 -->
 <!-- deployment-step: 03-006 -->
@@ -229,12 +240,18 @@ verified cluster manifests. You do not type values into separate server shell
 sessions or copy these manifests yourself.
 
 `hosts.env` contains the web host names, authentication host and alias, node
-addresses and the installation realm. Commissioning adds the customer realm;
-preserve that value during authorized maintenance. Protected passwords and keys
-are separate inputs and must not be printed.
+addresses and the realm of the super-admin tenant. Commissioning adds the
+customer's realm; do not change that value during maintenance. Protected passwords
+and keys are separate inputs and must not be printed.
 
 Continue at [Install the platform](01-about.md#install-the-platform). Its actual
 terminal capture and expected final message cover this automatic directory and
 manifest preparation. If installation reports a permission, existing-directory
-or missing-manifest error, stop and inspect the partial state; do not recursively
-copy into an existing directory or replace the customer realm blindly.
+or missing-manifest error, stop and follow
+[If something fails](01-about.md#if-something-fails); do not recursively copy into
+an existing directory or replace the customer realm.
+
+Keep the kit drive and the delivery medium ready to mount, and keep the input files
+that `site.json` names in place on the administration workstation, for as long as
+the installation is in use: `./deploy backup site.json`, `./deploy restore site.json`
+and `./deploy inspect site.json integrity` check them all before they start.

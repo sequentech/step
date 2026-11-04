@@ -32,13 +32,13 @@ one that replaces a wrong import.
 
 | Function | Permissions | Held by |
 |---|---|---|
-| Open the tab and read the rules and certificates | <ul><li>"Election Event Signatures Tab" (<code>election-event-signatures-tab</code>)</li><li>"Signatures: read protected actions" (<code>signing-rules-read</code>)</li><li>"Signatures: read certificates" (<code>signing-certificates-read</code>)</li></ul> | administrator role and "Election board" |
+| Open the tab and read the rules and certificates | <ul><li>"Election Event Signatures Tab" (<code>election-event-signatures-tab</code>)</li><li>"Signatures: read protected actions" (<code>signing-rules-read</code>)</li><li>"Signatures: read certificates" (<code>signing-certificates-read</code>)</li></ul> | administrator role and the role `election-board` |
 | Change signing rules | <ul><li>"Signatures: edit protected actions" (<code>signing-rules-write</code>)</li><li>To change "Who can sign", also "Read Role" (<code>role-read</code>)</li><li>To change "Who can sign", also "Edit Role" (<code>role-write</code>)</li></ul> | administrator role only |
 | Import and remove trusted issuers | "Signatures: import and remove trusted issuers" (`signing-issuers-write`) | administrator role only |
 | Change the certificate checks | "Signatures: edit certificate checks" (`signing-checks-write`) | administrator role only |
 | Register certificates to people | "Signatures: register certificates" (`signing-certificates-register`) | administrator role only |
 | Revoke certificates | "Signatures: revoke certificates" (`signing-certificates-revoke`) | administrator role only |
-| Read, cancel and export signing requests | <ul><li>"Signatures: read requests" (<code>signing-requests-read</code>)</li><li>"Signatures: cancel requests" (<code>signing-requests-cancel</code>)</li><li>"Signatures: export requests" (<code>signing-requests-export</code>)</li></ul> | "Election board" only; every board member needs "Signatures: cancel requests" |
+| Read, cancel and export signing requests | <ul><li>"Signatures: read requests" (<code>signing-requests-read</code>)</li><li>"Signatures: cancel requests" (<code>signing-requests-cancel</code>)</li><li>"Signatures: export requests" (<code>signing-requests-export</code>)</li></ul> | the role `election-board` only; every board member needs the permission "Signatures: cancel requests" |
 
 Without "Signatures: edit protected actions", the rule shows "Read only.
 Changing signing rules needs the permission “Signatures: edit protected
@@ -47,8 +47,8 @@ actions”."
 ## Security-critical authorisations required by the Security Target
 
 The Security Target requires the election board’s authorisations for the
-following actions. This is a requirements list, not a list of implemented
-signing controls:
+following actions, which the protected actions of the second table of this section
+and of [Protected actions to switch on](#protected-actions-to-switch-on) implement:
 
 | Security-critical action | Electoral phase |
 |---|---|
@@ -72,7 +72,7 @@ request binds the exact uploaded file. Package signatures and these online
 board approvals are both required. See
 [The approval event](05-tenant_and_event_settings.md#the-approval-event).
 
-The server always requires configured board approval for these actions:
+The TOE always requires configured board approval for these actions:
 
 | Protected action | Additional condition |
 | --- | --- |
@@ -120,11 +120,10 @@ automatic ceremonies the TOE refuses the rule with "This event uses automatic
 key ceremonies. Trustees do not perform these steps, so their signatures cannot
 be required. To require trustee signatures, use manual key ceremonies."
 
-The remaining actions of the catalogue, "Generate election returns", "Transmit
-results" and "Approve a voter manually", are not used in the evaluated
-configuration: voters do not enrol, and results are not transmitted. Switch on
-"Generate election returns" if the election organizer wants signed election
-returns.
+The protected actions "Transmit results" and "Approve a voter manually" are not
+used in the evaluated configuration: voters do not enrol, and results are not
+transmitted. Leave the protected action "Generate election returns" off unless the
+election organizer wants signed election returns.
 
 ![Protected actions table showing configured signature counts and a read-only lockdown notice](assets/protected-actions-current.png)
 
@@ -135,8 +134,10 @@ authorisation requirement in the Security Target.*
 
 ## Setting a signing rule
 
-You can change signing rules only in the preparation phase, before the
-election board approves the configuration version. To set a signing rule:
+You can change signing rules only in the preparation phase and outside a lockdown
+period. Set them before the election board approves the configuration version: a
+later change needs a new configuration version, which the board approves again. To
+set a signing rule:
 
 1. Open the election event, tab "Signatures", area "Protected actions". The
    table shows "Action", "Applies to", "Who can sign", "Signatures needed",
@@ -154,7 +155,7 @@ election board approves the configuration version. To set a signing rule:
 | Field | Required value |
 |---|---|
 | "Needs signatures" | on |
-| "Who can sign" | only "Election board". Never the administrator role. Its help text says: "These roles get the permission “Sign: …” in Users and Roles, for every election event. Signers must also have access to the election." |
+| "Who can sign" | only the role `election-board`. Never the administrator role. The TOE gives the listed roles the permission "Sign: …" for every election event; a signer must also be able to reach the election. |
 | "Signatures needed" | the number the electoral regulation fixes, at least 2 |
 | "The person who starts it can also sign" | off, unless the electoral regulation counts the person who starts the action as one of the authorising members |
 | "A request expires after" | "30 minutes", "1 hour", "2 hours" or "24 hours", long enough for the board members to sign; never "No limit" |
@@ -169,7 +170,7 @@ Messages of the drawer:
 | "No election has … people who can sign. The most is …" | Fewer people can sign than the number you entered. Give the role to more board members, or ask the election organizer. |
 | "N requests are waiting for signatures under the current rule. Saving cancels them; the people who started them start again." | Saving a changed rule cancels its waiting requests. |
 | "The election event is locked down: signing rules change only through a new configuration version." | The election event is in a lockdown period; the TOE refuses the change. |
-| "You don't have the permission for this change." | Your account lacks a permission of the table above. |
+| "You don't have the permission for this change." | Your account lacks a permission of the table of [Permissions](#permissions). |
 | "Someone else changed this meanwhile. Reload the page and try again." | Reload and check the rule again before you change it. |
 | "The server refused these values. Check them and try again." | A value is outside what the TOE accepts. |
 
@@ -186,12 +187,7 @@ What the TOE does with a rule:
 - Each change is recorded in the election event's electoral log; a change of
   "Who can sign" also changes the "Sign:" permissions of the roles and is
   recorded as well.
-- The footer of the drawer says: "Changes are recorded in the election event's
-  log and become part of the next configuration version." Before the first
-  publication it says "Signing rules become part of this event's first
-  configuration version when it is published."
-- After the approval of a configuration version, a rule changes only through a
-  new configuration version, which the board approves again.
+- A saved rule becomes part of the next configuration version.
 - The TOE requires mutually distinct board members, certificates and keys for
   the signatures of one request.
 
@@ -208,8 +204,10 @@ election event’s actual issuers and revocation policy.*
 ### Trusted issuers
 
 The board members' signing certificates must chain to one of the trusted issuers.
-These are separate from the certificates voters sign in with. While the list is
-empty, no board member can sign.
+These are separate from voters' certificates, which the evaluated configuration
+does not use (the setting "Voter Digital Certificate Policy" is "Disabled",
+[Configuration the board must verify](05-tenant_and_event_settings.md#configuration-the-board-must-verify)).
+While the list is empty, no board member can sign.
 To import the trusted issuers:
 
 1. Receive the CA certificates that issue the board members' signing
@@ -234,14 +232,14 @@ Each check is saved when you change it: the admin portal then shows the message
 
 | Check | Default | Required value |
 |---|---|---|
-| "Check revocation lists": the TOE downloads the list of each issuer every hour | on | on, where the election organizer's CA publishes revocation lists that the server can download |
+| "Check revocation lists": the TOE downloads the list of each issuer every hour | on | on, where the election organizer's CA publishes revocation lists that the TOE can download |
 | "When a list can't be downloaded": "Don't accept signatures" / "Accept and mark the signature as unchecked" | "Don't accept signatures" | "Don't accept signatures" |
 | "Registering a certificate to a person": "When its holder first signs with it" / "Only when someone who can register certificates registers it" | "When its holder first signs with it" | "Only when someone who can register certificates registers it" |
 | "A certificate signs for one election only" | on | on |
 
-If the election organizer's CA publishes no revocation lists that the server
+If the election organizer's CA publishes no revocation lists that the TOE
 can download, revocation is done only by revoking the registration in the TOE
-(see below). Agree with the election organizer that it tells you at once of
+([Registered certificates](#registered-certificates)). Agree with the election organizer that it tells you at once of
 every certificate it revokes.
 
 :::warning
@@ -266,11 +264,12 @@ To register a board member's certificate:
    TOE confirms "The certificate was registered." It refuses with "This
    certificate can't be registered: check that a trusted issuer issued it,
    that it's valid today and that it's made for signing."
-4. Check the registered certificate together with the board member.
+4. Check the columns "Person" and "Valid until" of the new row together with the
+   board member.
 
 The list shows each registration with its status: "Active", "Expires soon",
-"Expired" or "Revoked". Before each security-critical action, make sure that
-enough signers have unrevoked registrations and that their certificates and
+"Expired" or "Revoked". Before the board approves the configuration version, check
+that enough signers have unrevoked registrations and that their certificates and
 issuing certificates remain valid throughout the election event and its required
 signing actions. Check "Valid until" against the planned completion date.
 
@@ -278,11 +277,17 @@ signing actions. Check "Valid until" against the planned completion date.
 certificate has fewer than 30 days remaining; this warning alone does not
 prevent it from signing. It may be used if its validity and its issuer's
 validity cover the whole required period. Arrange and register a renewal
-before expiry when further signing will be needed. Never use "Expired" or
-"Revoked" registrations.
+before expiry when further signing will be needed. Do not count "Expired" or
+"Revoked" registrations as signers.
 
-To revoke a registration, select "Revoke" and enter the "Reason". A revoked
-certificate cannot sign any more; signatures it already made still count.
+To revoke a registration, select the button "Revoke" and fill in the field "Reason". A revoked
+certificate cannot sign any more. Signatures on completed requests still count,
+except for an action that waits for the button "Continue operation": it runs only
+while enough of its signers' certificates are valid; otherwise the TOE refuses it,
+and another board member starts it again for new signatures. Every waiting request
+the certificate signed is cancelled, and the board starts it again if it still
+needs it. Revoking one registration revokes every registration of that
+certificate's key in the tenant.
 Revoke a registration on the same day when a board member leaves, loses their
 security token, or the election organizer revokes their certificate
 ([Users, Roles and Role Separation](04-users_and_roles.md)).
@@ -306,7 +311,7 @@ their status: "Waiting", "Signed", "Done", "Cancelled", "Expired" or "Failed".
   ([Security-Relevant Events for Administrators](11-security_relevant_events.md)).
 
 :::warning
-Without "Signatures: cancel requests" in the "Election board" role, only the
-member who started a request can abort it. The other members could then not
+Without the permission "Signatures: cancel requests" in the role `election-board`,
+only the member who started a request can abort it. The other members could then not
 stop an action they object to.
 :::

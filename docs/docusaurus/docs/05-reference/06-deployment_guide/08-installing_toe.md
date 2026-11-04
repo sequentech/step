@@ -8,7 +8,7 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-This page covers the one-command platform installation, the browser checkpoint
+This chapter covers the one-command platform installation, the browser checkpoint
 for creating the customer, and the guided trustee-key import. Later backup and
 retirement procedures are separate maintenance actions, not installation steps.
 
@@ -20,8 +20,8 @@ supporting images do not replace the delivered TOE images.
 
 ## Deploy
 
-**Where:** a root terminal on the administration workstation, in the extracted
-`deployment` directory. Keep the accepted delivery medium mounted read-only and
+**Where:** a root terminal on the administration workstation, in the deployment
+directory. Keep the accepted delivery medium mounted read-only and
 use the checked `site.json` of [Install from one configuration file](01-about.md#install-from-one-configuration-file).
 After `./deploy check site.json` passes, run:
 
@@ -38,15 +38,11 @@ you do not type a separate deployment command or source `secrets.env` yourself.
 
 ![Actual VM terminal showing the configuration-driven installation completing](./assets/installation/installer-complete.png)
 
-*Actual VM installation capture. Read the final stage and verification lines.
-The screenshot's site values are examples; match the running identity to your
-accepted delivery. Trustee commissioning is still outstanding at this point.*
+*Terminal capture from a test installation. Your addresses, names and digests differ.*
 
-**If it stops:** preserve the reported stage and original credentials. Resolve
-connectivity, capacity or the stated configuration fault before continuing.
-The command refuses an occupied cluster and does not replay failed writes.
-Do not regenerate secrets, replace a digest with `latest`, or rerun the fresh
-installation as a recovery operation.
+**If it stops:** keep the reported stage and the original credentials, and follow
+[If something fails](01-about.md#if-something-fails). Do not regenerate secrets, replace a digest with the tag `latest`, or
+rerun the fresh installation as a recovery operation.
 
 ## Load the TOE images
 
@@ -84,16 +80,16 @@ checks the resulting cluster Secret. The running realm retains the values it
 imported. Expect
 `PASS: imported realm credentials removed from its stored manifest and verified in the cluster`.
 
-If the realm is unavailable or cleanup fails, stop and establish its actual
-import state. Do not print secret-bearing documents, recreate the realm or
-repeat secret generation.
+If the realm is unavailable or cleanup fails, stop and follow
+[If something fails](01-about.md#if-something-fails). Do not print secret-bearing documents, recreate the realm or repeat
+secret generation.
 
 ## Create the customer's tenant
 
 :::warning
-All election work happens in the customer's tenant. The initial installation
-tenant is the super-admin tenant: it serves only the steps of this guide, holds no
-election event, and none of its personal accounts stays enabled.
+All election work happens in the customer's tenant. The super-admin tenant serves
+only the steps of this guide, holds no election event, and none of its personal
+accounts stays enabled.
 :::
 
 The operator creates the customer's tenant once, after [Deploy](#deploy) and
@@ -110,52 +106,54 @@ before the trustee keys are installed. `ADMIN_HOST` below means the value of
    hardened, with the service accounts and a seeded `admin` account without a
    password.
 
+   The task **Create Tenant** can remain **IN_PROGRESS** while the customer is
+   provisioned. Wait for it to finish and confirm that the agreed customer slug
+   exists before commissioning; do not submit another creation request while this
+   task is running.
+
    ![Portal showing the customer-creation task in progress](./assets/installation/customer-creation-in-progress.png)
 
-   *Admin portal capture from a local build with test data. The **Create Tenant** task
-   can remain **IN_PROGRESS** while the customer is provisioned. Wait for it to
-   finish and confirm the agreed customer slug exists before commissioning; do
-   not submit another creation request while this task is running. The displayed
+   *Admin portal capture from a local build with test data. The displayed
    installation account and site values are examples.*
 
 3. Put the customer slug and administrator identity in `commissioning` in
    `site.json`, then run `./deploy commission site.json` from the administration
-   workstation. The command resolves the customer tenant on C1:
+   workstation. The command resolves the customer tenant on C1.
 
    <!-- deployment-step: 08-007 -->
 
-   **Required result.** The lookup identifies exactly the installation tenant and the customer tenant matching the configured slug. The customer realm is `tenant-` followed by that customer UUID.
+   **Required result.** The lookup identifies exactly the super-admin tenant and the customer's tenant matching the configured slug. The customer realm is `tenant-` followed by that customer UUID.
 
-   **If the result differs.** If the customer row is absent, finish its creation in the portal first. If more than two tenants appear, stop and reconcile the installation state; never choose an arbitrary tenant or repeat creation.
+   **If the result differs.** If the message is `Create exactly one customer tenant in the portal before commissioning` or `Configured customer slug is absent or ambiguous; create/select it in the portal`, check in the portal that the customer's tenant exists with the slug of `site.json`, finish step 2 if it does not, and run the command again. If more than one customer tenant exists, stop and ask Sequent; never choose an arbitrary tenant or repeat creation.
 
 
-   The installation tenant is `90505c8a-23a9-4cdf-a26b-4e19f6a097d5`; the
+   The super-admin tenant is `90505c8a-23a9-4cdf-a26b-4e19f6a097d5`; the
    other tenant must have the customer slug you supplied. The commissioning
    command records the resolved customer realm. Do not type or guess a UUID or
    edit a shell environment file to select a different tenant.
 4. At the commissioning checkpoint, copy the complete URI printed after
-   `Register this exact customer redirect URI`. Have the external provider
-   operator register that exact address, following
+   `Register this exact customer redirect URI`. Have the authentication server's
+   administrator register that exact address, following
    [Connecting the Authentication Server](06-authentication_server.md). Type
    `CONTINUE` only after registration and the external administrator account
    are ready; do not construct a URI by guessing the customer identifier.
 5. The commissioning command adds the customer's first administrator and the
    two native trustee accounts, configures the trustee client secret, and disables
-   the personal accounts of the installation realm. The administrator's user name
+   the personal accounts of the super-admin tenant. The administrator's user name
    and e-mail must match the identity supplied by the external authentication
-   server; they come from the same configuration file:
+   server; they come from the same configuration file.
 
    <!-- deployment-step: 08-008 -->
 
    **Expected result.** The terminal prints `PASS: customer administrator and native accounts configured; installation personal accounts disabled`. The next prompt asks you to register the two trustees in the customer portal.
 
-   **If the result differs.** If account creation reports a conflict or a user remains enabled in the installation realm, stop and inspect the account state with the administrator. Do not rerun the entire creation block or give these accounts local passwords.
+   **If the result differs.** If account creation reports a conflict or a user remains enabled in the super-admin tenant, stop and ask Sequent. Never give these accounts local passwords.
 
 
-   The installer checks the account creation and disables the installation
-   personal accounts. Native service accounts stay enabled. You do not receive
-   or type a service password, and no later step uses the installation personal
-   account. The exact prompts and success messages are shown in the screenshot of
+   The installer checks the account creation and disables the personal accounts of
+   the super-admin tenant. Native service accounts stay enabled. You do not receive
+   or type a service password, and no later step uses the installation account.
+   The exact prompts and success messages are shown in the screenshot of
    [Transfer the matching keys and start the instances](#transfer-the-matching-keys-and-start-the-instances).
 6. Continue with [Install the trustee keys](#install-the-trustee-keys) below in
    the same commissioning terminal. Carry out
@@ -178,7 +176,7 @@ second.
 Before starting either instance, agree with the administrator which
 registered trustee and public keys belong to each instance. The machine login
 names remain `trustee1` and `trustee2`; they can differ from the names registered
-in Settings > "TRUSTEES". Each machine account's `trustee` attribute must name
+in the tab "TRUSTEES" of Settings. Each machine account's `trustee` attribute must name
 exactly its registered trustee. The trustee's personal account names the same
 registered trustee in its field "Act as Trustee".
 
@@ -190,17 +188,19 @@ either file, the command compares its public-key pair with the registered truste
 record. It changes only the native account's trustee binding; personal trustee
 accounts remain separate and receive no local password.
 
+The administrator opens each registered trustee record and checks both public keys
+against that trustee's own keys before you continue.
+
 ![Customer portal listing two registered example trustees](./assets/installation/trustees-registered.png)
 
-*Admin portal capture from a local build with test data. Open each registered trustee
-record and check both public keys against that trustee's own keys before
-continuing. The customer and trustee names shown here are examples.*
+*Admin portal capture from a local build with test data. The customer and trustee
+names shown here are examples.*
 
 <!-- deployment-step: 08-009 -->
 
 **Required result.** Each native account is bound to its configured registered trustee name, and the installed key file matches that record’s public keys. Both instances must pass.
 
-**If the result differs.** If there is no success line, check the exact registered name, customer tenant and instance number with the administrator and trustee. Do not start either server with an uncertain key-to-account mapping.
+**If the result differs.** If this step stops, check the registered name, the customer tenant and the instance number with the administrator and the trustee. Do not continue with an uncertain key-to-account mapping.
 
 
 The binding is persistent customer-realm state. The environment variable
@@ -213,8 +213,9 @@ key.
 :::warning
 The keys file holds the trustee's private keys. Take it over only in person,
 with the trustee watching every step, directly from the trustee's own medium.
-No copy may remain on the administration workstation or on C1: it is kept
-only in the cluster's encrypted Secret.
+No copy may remain on the administration workstation or on the disk of C1: on
+the servers it is kept only in the cluster's encrypted Secret. The trustee keeps
+the original on their own medium.
 :::
 
 **Where to work:** the administration workstation—the computer from which you
@@ -225,8 +226,10 @@ instances:
 1. Complete [Create the customer's tenant](#create-the-customers-tenant)
    and register both trustees as described above. In `site.json`, each
    `commissioning.trustees` entry must contain the exact registered `name` and
-   the absolute `keys_file` path on that trustee's mounted medium.
-2. Open a root terminal in the extracted package's `deployment` directory. If
+   the absolute `keys_file` path on that trustee's mounted medium. Each instance's
+   `keys_file` is the trustee's `working_directory` followed by `/trustee.toml`, as
+   `/media/trustee-one/session/trustee.toml`.
+2. Open a root terminal in the deployment directory. If
    commissioning is not already running, start it with the same configuration:
 
    ```bash
@@ -237,8 +240,8 @@ instances:
    do not start a second copy. `./deploy` is the executable in the current
    directory. From another directory, use its full path and the full path to
    `site.json`.
-3. At the trustee-registration prompt, verify the names and both public keys
-   in the portal, as
+3. At the trustee-registration prompt, have the administrator verify the names and
+   both public keys in the portal, as
    [Bind each native account to its registered trustee](#bind-each-native-account-to-its-registered-trustee)
    shows.
    Type `CONTINUE` and press Enter only after completing that check.
@@ -263,38 +266,37 @@ installer's temporary transfer copies; do not make additional copies yourself.
 
 ![Actual VM commissioning terminal showing the trustee prompts, both key checks and successful startup](./assets/installation/installer-commission-complete.png)
 
-*Actual terminal capture from the VM rehearsal on 2026-10-26. The command at
- the top is the one to run. The `CONTINUE` prompts and `PASS` lines show the
- expected sequence. Hostnames and account identifiers are laboratory examples;
- use your approved `site.json` values.*
+*Terminal capture from a test installation. Your addresses, names and digests differ.*
 
 **If the result differs:**
 
 - **Keys do not match:** stop. With the trustee, check the configured file,
   registered name, tenant and both registered public keys. Do not replace keys
   or alter the registration simply to silence a mismatch.
-- **Transfer, Secret creation or startup fails:** stop and inspect the stated
-  error and the actual cluster state. Do not overwrite an existing Secret,
-  generate replacement keys or assume that temporary-file cleanup succeeded.
+- **Transfer, Secret creation or startup fails:** stop and follow
+  [If something fails](01-about.md#if-something-fails). Do not overwrite an existing Secret, generate replacement keys or assume
+  that temporary-file cleanup succeeded.
 - **A previous attempt stopped during writes:** the installer refuses automatic
-  replay. Resolve the partial state before retrying; do not
-  remove its state markers to bypass this refusal.
+  replay. Follow [If something fails](01-about.md#if-something-fails); do not remove its state markers to bypass this refusal.
 
 <!-- deployment-step: 08-011 -->
 
 The same commissioning command configures each native instance's sign-in and
-waits for its deployment to become ready. Keep the configured names and keys;
-personal trustee accounts remain separate from these native machine accounts.
+waits for its deployment to become ready. Do not change the names or the key-file
+paths under `commissioning` in `site.json`: a later `./deploy commission site.json`
+refuses a changed configuration. Personal trustee accounts remain separate from
+these native machine accounts.
 
 <!-- deployment-step: 08-012 -->
 
 **Final expected result.** The terminal prints
 `PASS: customer login restrictions and both native trustees Ready`, followed by
 `COMMISSIONING COMMANDS COMPLETE — perform the browser, client-network and board handover checks in AGD-04.`
-This is not authorization to start an election event.
+This is not authorization to start an election event: the checks of
+[Handover to the election board](11-selftest_handover.md#handover-to-the-election-board) still follow.
 
 Before each key or tally ceremony, check that both instances are ready, and tell
-the election board the result. From the same `deployment` directory, run `./deploy commission site.json`
+the election board the result. From the deployment directory, run `./deploy commission site.json`
 with the unchanged completed configuration. On a completed installation it checks
 readiness and login restrictions without importing the keys again. Expect the
 `PASS: customer login restrictions and both native trustees Ready` line; the
@@ -308,7 +310,7 @@ passes.
 trustees informed. The command briefly stops the two native trustee instances,
 encrypts and verifies their state, then restores their original replica counts.
 
-**Where:** the administration workstation, in the accepted `deployment` folder.
+**Where:** the administration workstation, in the deployment directory.
 Use the existing `site.json` and mount the encrypted backup medium. Run:
 
 <!-- deployment-step: 08-013 -->
@@ -333,11 +335,12 @@ Tell the election board the path and the digest: it records them in the board's
 minutes, and they name the backup to destroy at
 [Remove the trustee keys at the end of the election event](#remove-the-trustee-keys-at-the-end-of-the-election-event).
 The encrypted archive is accepted only after decryption and complete content validation succeed.
+There is no command to restore this archive. If an instance's state is lost, keep
+the archive and ask Sequent.
 
-![Actual rehearsal terminal completing an encrypted trustee-state backup](./assets/installation/trustee-backup.png)
+![Actual terminal completing an encrypted trustee-state backup](./assets/installation/trustee-backup.png)
 
-*Actual encrypted trustee-state backup and replica restoration in the isolated
-rehearsal. No passphrase is shown.*
+*Terminal capture from a test installation. Your addresses, names and digests differ.*
 
 **If the result differs:** keep the original state and the last known-good
 backup. Do not accept a partial archive. Failure to stop all trustee pods prevents
@@ -368,8 +371,9 @@ and the election board has authorized retirement and is present. It is not an
 installation or troubleshooting command.
 :::
 
-**Where:** the administration workstation, in the accepted `deployment` folder.
-Verify the target addresses in `site.json` with the board, then run:
+**Where:** the administration workstation, in the deployment directory. Show the
+board the two addresses under `nodes` in `site.json`, and have it confirm that these
+are the servers of this installation. Then run:
 
 <!-- deployment-step: 08-014 -->
 
@@ -385,23 +389,25 @@ Secrets and empties the two fixed protocol-state directories.
 `TRUSTEE REMOVAL COMPLETE: four Secrets absent; state directories empty`.
 No trustee instance is restarted.
 
-![Actual isolated rehearsal terminal confirming trustee retirement](./assets/installation/trustee-removal.png)
+![Actual terminal confirming trustee retirement](./assets/installation/trustee-removal.png)
 
-*Actual short command on an isolated retirement fixture, with stopped trustees,
-verified copied state and synthetic Secrets. The live election installation was
-not used for this destructive demonstration.*
+*Terminal capture from a test installation. Your addresses, names and digests differ.*
 
-**If the result differs:** preserve the remaining state and backups, and tell the
+**If the result differs:** keep the remaining state and backups, and tell the
 election board what was removed. Tell the board not to start another ceremony, and
 do not destroy backups, while the outcome is uncertain. After confirmed server
-removal, the board directs each custodian to destroy retained trustee-state backups
-and records their destruction in the board's minutes. Deleting files does not
+removal, the board directs the people who keep them to destroy retained
+trustee-state backups and system backups
+([Backups and restore](11-selftest_handover.md#backups-and-restore)), which also hold
+the protocol state, and records their destruction in the board's minutes. Deleting files does not
 establish physical erasure of storage remnants; the election organizer decides what
 happens to the media.
 
 ## Preparing a trustee workstation
 
-Use the accepted tool folder's **`./trustee`** command. It selects the native
+**Who:** the trustee, with an operator preparing the computer.
+
+Use the **`./trustee`** command of the deployment directory. It selects the native
 trustee program from the accepted `braid` image and supplies the offline container
 options automatically. No shell function, container command or script needs to
 be typed.
@@ -413,15 +419,17 @@ network interfaces, swap, hibernation and session recording before handling keys
 The wrapper checks the network interfaces, swap, encrypted working medium and
 file permissions; it cannot verify physical custody or a clean boot for you.
 
-### Set up the public configuration once
+### Set up the public configuration
 
 **Where:** a root terminal on the offline workstation. Python 3, Podman, Skopeo,
 `findmnt` and `cryptsetup` must come from its approved operating environment.
 Open the accepted delivery medium read-only as described in
 [Decrypt the medium](../08-delivery_verification.md#3-decrypt-the-medium).
 
-In the accepted `deployment` folder, copy `trustee.example.json` to
-`trustee.json` using the file manager, then fill these public values:
+Copy the directory `guidance/deployment` from the medium to a writable root-only
+directory: on this workstation, that copy is the deployment directory. In it, copy
+`trustee.example.json` to `trustee.json` using the file manager, then fill these
+public values:
 
 | Setting | What to enter |
 | --- | --- |
@@ -434,8 +442,8 @@ In the accepted `deployment` folder, copy `trustee.example.json` to
 | `tally_session_id` | Keep `null` for the key ceremony. For a tally, enter the exact tally identifier shown by the portal, in quotes. |
 
 Do not put passwords, private keys or the contents of `trustee.toml` into this
-configuration. A separate `trustee.json` for each trustee avoids selecting another
-person's medium accidentally.
+configuration. Set it up once for each trustee: a separate `trustee.json` for each
+trustee avoids selecting another person's medium accidentally.
 
 ### Prepare the accepted tool
 
@@ -493,6 +501,6 @@ the accepted delivery medium.
 
 Only this trustee's working directory is mounted into the offline container.
 The command supplies the private-key file path explicitly, so private keys are
-never intentionally printed. Make the two required protected backups and follow
+never intentionally printed. Make the two backups that
 [Trustee Procedures](../../02-election_managers/05-election_organizer_handbook/09-trustee-procedures.md)
-for the portal's public-key registration and custody-proof upload.
+requires, and follow it for the portal's public-key registration and custody-proof upload.
