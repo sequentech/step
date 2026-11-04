@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Approvals | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3967/docs/election_managers/reference/election-event/election_management_election_event_approvals"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Approvals | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3967/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3967/docs/election_managers/reference/election-event/election_management_election_event_approvals"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3967/docs/election_managers/reference/election-event/election_management_election_event_approvals" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3967/docs/election_managers/reference/election-event/election_management_election_event_approvals" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Approvals","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3967/docs/election_managers/reference/election-event/election_management_election_event_approvals"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3967/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3967/assets/js/runtime~main.a27fe810.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3967/assets/js/runtime~main.e6f19583.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3967/assets/js/main.8cb37775.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -54,8 +54,8 @@ the voter will get. Neither can be undone.</li>
 <p>An approved enrollment opens with how it was decided and its details. A rejected enrollment can
 still be approved with the same steps.</p>
 <p>The registry comparison on this page ignores capital letters, accents and hyphens in the same way
-the rules do, and compares first and middle name together for a driver&#x27;s license and a seafarer&#x27;s
-book.</p>
+the rules do, and compares first and middle name together for a driver&#x27;s license, a seafarer&#x27;s
+book and a passport read by the scanner.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="approval-matrix">Approval matrix<a href="#approval-matrix" class="hash-link" aria-label="Direct link to Approval matrix" title="Direct link to Approval matrix" translate="no">​</a></h2>
 <p>Select <strong>Approval matrix</strong> in the toolbar of the Approvals tab to see the matrix in force. The page
 shows its version and who saved it, and has three parts.</p>
@@ -63,7 +63,10 @@ shows its version and who saved it, and has three parts.</p>
 <p>The voter details that are compared with the registry voter, for example first name, middle name,
 last name, date of birth and embassy. Names ignore capital letters, accents and hyphens. For a
 driver&#x27;s license and a seafarer&#x27;s book, first and middle name are compared together: the first name
-carries the result and the middle name has none of its own.</p>
+carries the result and the middle name has none of its own. So are those of a passport read by the
+scanner: its machine-readable zone has a single field for the given names, the middle name included,
+and they are compared with the registry voter&#x27;s first and middle name joined. A passport enrollment
+with a middle name of its own, typed apart, compares the two apart.</p>
 <p>Select a detail to stop or start comparing it, and <strong>Compare another detail</strong> to add any other
 voter attribute. Conditions on a detail that is no longer compared are removed from the rules.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="rules">Rules<a href="#rules" class="hash-link" aria-label="Direct link to Rules" title="Direct link to Rules" translate="no">​</a></h3>
