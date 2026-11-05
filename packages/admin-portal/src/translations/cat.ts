@@ -1120,6 +1120,7 @@ const catalanTranslation: TranslationType = {
             },
             new: {
                 subtitle: "Crear nou llogater",
+                numTrustees: "Nombre d'autoritats",
             },
             createSuccess: "Llogater creat",
             createError: "Error en crear el llogater",

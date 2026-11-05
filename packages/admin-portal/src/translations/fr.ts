@@ -1121,6 +1121,7 @@ const frenchTranslation: TranslationType = {
             },
             new: {
                 subtitle: "Créer un nouveau locataire",
+                numTrustees: "Nombre d'autorités",
             },
             createSuccess: "Locataire créé",
             createError: "Erreur lors de la création du locataire",

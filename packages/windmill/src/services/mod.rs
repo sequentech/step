@@ -58,6 +58,7 @@ pub mod support_materials;
 pub mod tally_sheet_import;
 pub mod tally_sheets;
 pub mod tasks_execution;
+pub mod tenant_credentials;
 pub mod tasks_semaphore;
 pub mod temp_path;
 pub mod to_result;
