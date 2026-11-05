@@ -38,6 +38,7 @@ import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.representations.userprofile.config.UPConfig;
@@ -241,9 +242,15 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
       return false;
     }
     // A declared attribute is one the account console could offer; these two must not be.
-    return profile.getAttribute(config.tokenHashAttribute()) == null
-        && profile.getAttribute(config.attemptsAttribute()) == null
-        && profile.getUnmanagedAttributePolicy() != UPConfig.UnmanagedAttributePolicy.ENABLED;
+    if (profile.getAttribute(config.tokenHashAttribute()) != null
+        || profile.getAttribute(config.attemptsAttribute()) != null
+        || profile.getUnmanagedAttributePolicy() == UPConfig.UnmanagedAttributePolicy.ENABLED) {
+      log.warnf(
+          "pin-link: attributes %s and %s must stay undeclared and unmanaged",
+          config.tokenHashAttribute(), config.attemptsAttribute());
+      return false;
+    }
+    return true;
   }
 
   private Optional<UserModel> findVoter(RealmModel realm, PinLinkConfig config, String token) {
@@ -306,6 +313,7 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
 
   private void applyBruteForce(RealmModel realm, UserModel user) {
     if (realm.isBruteForceProtected()) {
+      // The protector silently drops a failure of any other category, and this PIN is the password.
       session
           .getProvider(BruteForceProtector.class)
           .failedLogin(
@@ -313,7 +321,7 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
               user,
               session.getContext().getConnection(),
               session.getContext().getUri(),
-              CUSTOM_ACTION);
+              PasswordCredentialModel.TYPE);
     }
   }
 
