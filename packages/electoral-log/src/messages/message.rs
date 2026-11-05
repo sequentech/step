@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ElectoralLogMessage;
-use anyhow::Result;
+use anyhow::{ensure, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
 use strand::hash::STRAND_HASH_LENGTH_BYTES;
-use strand::serialization::StrandSerialize;
+use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::StrandSignature;
 use strand::signature::StrandSignaturePk;
 use strand::signature::StrandSignatureSk;
@@ -702,6 +702,27 @@ impl TryFrom<&Message> for ElectoralLogMessage {
     }
 }
 
+impl ElectoralLogMessage {
+    /// Returns the row of the signed message this row carries, once both of
+    /// its signatures verify with `system_pk` and its statement belongs to
+    /// `election_event_id`. Every column is derived from that message.
+    pub fn rebuild_verified(
+        &self,
+        system_pk: &StrandSignaturePk,
+        election_event_id: &str,
+    ) -> Result<ElectoralLogMessage> {
+        let message = Message::strand_deserialize(&self.message)?;
+        message.verify(system_pk)?;
+        ensure!(
+            message.statement.head.event.0 == election_event_id,
+            "Message for election event '{}' is not for election event '{}'",
+            message.statement.head.event.0,
+            election_event_id
+        );
+        ElectoralLogMessage::try_from(&message)
+    }
+}
+
 #[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, std::fmt::Debug)]
 pub struct Sender {
     pub name: String,
@@ -735,6 +756,7 @@ impl SigningData {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::messages::statement::StatementType;
 
     #[test]
     fn publication_failures_are_signed_errors_with_task_and_publication_context() -> Result<()> {
@@ -937,6 +959,107 @@ mod tests {
             with_channel.statement.head.description,
             "Inserted cast vote. Voting channel: TELEPHONE."
         );
+        Ok(())
+    }
+
+    const EVENT_ID: &str = "event-id";
+
+    fn signed_cast_vote_row(
+        event_id: &str,
+        system_sk: &StrandSignatureSk,
+    ) -> Result<ElectoralLogMessage> {
+        let signing_data = SigningData::new(system_sk.clone(), "voter-id", system_sk.clone());
+        let message = Message::cast_vote_with_channel_message(
+            EventIdString(event_id.to_string()),
+            ElectionIdString(Some("election-id".to_string())),
+            PseudonymHash::new([1; 64]),
+            CastVoteHash::new([2; 64]),
+            &signing_data,
+            VoterIpString("ip".to_string()),
+            VoterCountryString("country".to_string()),
+            VotingChannelString("ONLINE".to_string()),
+            Some("voter-id".to_string()),
+            Some("voter".to_string()),
+            "area-id".to_string(),
+        )?;
+        (&message).try_into()
+    }
+
+    fn same_columns_except_created(left: &ElectoralLogMessage, right: &ElectoralLogMessage) {
+        assert_eq!(
+            &ElectoralLogMessage {
+                created: right.created,
+                ..left.clone()
+            },
+            right
+        );
+    }
+
+    #[test]
+    fn rebuild_verified_keeps_a_row_signed_with_the_event_key() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let row = signed_cast_vote_row(EVENT_ID, &system_sk)?;
+
+        let rebuilt = row.rebuild_verified(&system_pk, EVENT_ID)?;
+
+        same_columns_except_created(&rebuilt, &row);
+        Ok(())
+    }
+
+    #[test]
+    fn rebuild_verified_rejects_a_row_signed_with_another_system_key() -> Result<()> {
+        let row = signed_cast_vote_row(EVENT_ID, &StrandSignatureSk::r#gen()?)?;
+        let event_pk = StrandSignaturePk::from_sk(&StrandSignatureSk::r#gen()?)?;
+
+        assert!(row.rebuild_verified(&event_pk, EVENT_ID).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn rebuild_verified_rejects_a_row_for_another_election_event() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let row = signed_cast_vote_row("other-event-id", &system_sk)?;
+
+        assert!(row.rebuild_verified(&system_pk, EVENT_ID).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn rebuild_verified_rejects_a_row_without_a_signed_message() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let row = ElectoralLogMessage {
+            message: b"xx".to_vec(),
+            ..signed_cast_vote_row(EVENT_ID, &system_sk)?
+        };
+
+        assert!(row.rebuild_verified(&system_pk, EVENT_ID).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn rebuild_verified_takes_every_column_from_the_signed_message() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let row = signed_cast_vote_row(EVENT_ID, &system_sk)?;
+        let edited = ElectoralLogMessage {
+            sender_pk: "sender-pk".to_string(),
+            statement_timestamp: 0,
+            statement_kind: StatementType::ElectionVotingPeriodClose.to_string(),
+            version: crate::get_schema_version(),
+            user_id: Some("other-voter-id".to_string()),
+            username: Some("other-voter".to_string()),
+            election_id: Some("other-election-id".to_string()),
+            area_id: Some("other-area-id".to_string()),
+            ballot_id: Some("ff".repeat(STRAND_HASH_LENGTH_BYTES / 2)),
+            ..row.clone()
+        };
+
+        let rebuilt = edited.rebuild_verified(&system_pk, EVENT_ID)?;
+
+        same_columns_except_created(&rebuilt, &row);
         Ok(())
     }
 }
