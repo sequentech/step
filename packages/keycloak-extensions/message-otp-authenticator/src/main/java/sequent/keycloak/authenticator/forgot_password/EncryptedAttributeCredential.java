@@ -197,6 +197,25 @@ final class EncryptedAttributeCredential {
     }
   }
 
+  static byte[] decryptScoped(
+      String masterHex, String tenant, String event, String user, String attribute, String envelope)
+      throws GeneralSecurityException {
+    if (masterHex == null || !masterHex.matches("[0-9a-fA-F]{64}")) {
+      throw new GeneralSecurityException("Invalid master secret");
+    }
+    byte[] master = HexFormat.of().parseHex(masterHex);
+    byte[] key = null;
+    try {
+      key = deriveKey(master, tenant, event, user, attribute);
+      return decrypt(key, envelope);
+    } catch (IllegalArgumentException error) {
+      throw new GeneralSecurityException("Invalid credential envelope");
+    } finally {
+      wipe(master);
+      wipe(key);
+    }
+  }
+
   private static byte[] deriveKey(
       byte[] master, String tenant, String event, String user, String attribute)
       throws GeneralSecurityException {

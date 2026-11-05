@@ -97,4 +97,44 @@ class RabbitMqEventPublisherTest {
     verify(channel).close();
     verify(connection).close();
   }
+
+  @Test
+  void waitsForTheBrokerToConfirmAnElectoralLogEntry() throws Exception {
+    publisher.publishElectoralLogConfirmed("event", "TYPE", "{}", "user", "tenant", "name", 5_000);
+
+    org.mockito.InOrder order = org.mockito.Mockito.inOrder(channel);
+    order.verify(channel).confirmSelect();
+    order
+        .verify(channel)
+        .basicPublish(
+            org.mockito.ArgumentMatchers.eq(""),
+            org.mockito.ArgumentMatchers.eq(QUEUE_NAME),
+            org.mockito.ArgumentMatchers.any(AMQP.BasicProperties.class),
+            org.mockito.ArgumentMatchers.any(byte[].class));
+    order.verify(channel).waitForConfirmsOrDie(5_000);
+  }
+
+  @Test
+  void anUnconfirmedElectoralLogEntryFailsAndDropsTheChannel() throws Exception {
+    org.mockito.Mockito.doThrow(new java.io.IOException("nack"))
+        .when(channel)
+        .waitForConfirmsOrDie(5_000);
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+        java.io.IOException.class,
+        () ->
+            publisher.publishElectoralLogConfirmed(
+                "event", "TYPE", "{}", "user", "tenant", "name", 5_000));
+
+    verify(connection).close();
+  }
+
+  @Test
+  void anElectoralLogEntryIsPersistentAndNamesItsTask() {
+    AMQP.BasicProperties properties = RabbitMqEventPublisher.electoralLogProperties("id");
+    org.junit.jupiter.api.Assertions.assertEquals(2, properties.getDeliveryMode());
+    org.junit.jupiter.api.Assertions.assertEquals("id", properties.getCorrelationId());
+    org.junit.jupiter.api.Assertions.assertEquals(
+        "enqueue_electoral_log_event", String.valueOf(properties.getHeaders().get("task")));
+  }
 }

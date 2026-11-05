@@ -9,12 +9,7 @@ import static sequent.keycloak.authenticator.Utils.CA_CERT_ISSUER_CN;
 import static sequent.keycloak.authenticator.Utils.VOTER_CERT_SUBJECT_DN;
 import static sequent.keycloak.authenticator.Utils.sendErrorNotificationToUser;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rabbitmq.client.AMQP;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,14 +25,6 @@ public class CustomEventListenerProvider implements EventListenerProvider {
 
   private final KeycloakSession session;
   private final RabbitMqEventPublisher rabbitMqEventPublisher;
-
-  // Environment variables (read once for performance)
-  private static final String TASK_NAME =
-      Optional.ofNullable(System.getenv("ELECTORAL_LOG_TASK"))
-          .orElse("enqueue_electoral_log_event")
-          .trim();
-
-  private final ObjectMapper om = new ObjectMapper();
 
   CustomEventListenerProvider(
       KeycloakSession session, RabbitMqEventPublisher rabbitMqEventPublisher) {
@@ -165,63 +152,14 @@ public class CustomEventListenerProvider implements EventListenerProvider {
         "logEvent: details electionEventId: {0} messageType: {1} body: {2} userId: {3} tenantId: {4} username: {5}",
         electionEventId, messageType, body, userId, tenantId, username);
 
-    // We make sure variables are not null otherwise log reporting will give an
-    // error when
-    // deserializing
-    electionEventId = Optional.ofNullable(electionEventId).orElse("null");
-    messageType = Optional.ofNullable(messageType).orElse("null");
-    body = Optional.ofNullable(body).orElse("null");
-    userId = Optional.ofNullable(userId).orElse("null");
-    tenantId = Optional.ofNullable(tenantId).orElse("null");
-    username = Optional.ofNullable(username).orElse("null");
-
-    // Build message object
-    List<Object> message = new ArrayList<>();
-
-    Map<String, Object> inputObject = new HashMap<>();
-
-    Map<String, String> input = new HashMap<>();
-    input.put("election_event_id", electionEventId);
-    input.put("message_type", messageType);
-    input.put("body", body);
-    input.put("user_id", userId);
-    input.put("tenant_id", tenantId);
-    input.put("username", username);
-
-    inputObject.put("input", input);
-
-    Map<String, String> annotations = new HashMap<>();
-    annotations.put("callbacks", null);
-    annotations.put("errbacks", null);
-    annotations.put("chain", null);
-    annotations.put("chord", null);
-
-    message.add(Collections.emptyList());
-    message.add(inputObject);
-    message.add(annotations);
-
     // Generate a correlation ID.
     String correlationId = UUID.randomUUID().toString();
 
     try {
-      // Build headers map.
-      Map<String, Object> headers = new HashMap<>();
-      headers.put("id", correlationId);
-      headers.put("task", TASK_NAME);
-      headers.put("timelimit", "undefined");
-
-      // Build properties.
-      AMQP.BasicProperties props =
-          new AMQP.BasicProperties.Builder()
-              .correlationId(correlationId)
-              .priority(0)
-              .deliveryMode(2)
-              .contentEncoding("utf-8")
-              .contentType("application/json")
-              .headers(headers)
-              .build();
-
-      rabbitMqEventPublisher.publish(props, om.writeValueAsBytes(message));
+      rabbitMqEventPublisher.publish(
+          RabbitMqEventPublisher.electoralLogProperties(correlationId),
+          RabbitMqEventPublisher.electoralLogBody(
+              electionEventId, messageType, body, userId, tenantId, username));
       log.infov("Audit event published to RabbitMQ: correlationId={0}", correlationId);
     } catch (Exception e) {
       log.errorv(
