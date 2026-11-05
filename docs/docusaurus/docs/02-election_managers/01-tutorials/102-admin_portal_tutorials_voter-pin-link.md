@@ -250,10 +250,10 @@ username could use the link, so limit who can read them.
   way as a new PIN.
 - **An edit that is refused** leaves the link alone, whether Keycloak refuses it or, in an election
   event linked to an external voter system, the task that applies the edit.
-- **A task that fails after Keycloak accepted the edit** leaves the edit in place. It says so in its
-  error: when the error says the link was not updated, repeat the edit. A failed entry in the
-  electoral log does not stop the link from changing or a disabled voter's ballots from being
-  discarded.
+- **An edit that fails after Keycloak accepted it** stays in place, and the error, from the request
+  or from the task that applies the edit, names every step that failed. When it says the link was
+  not updated, repeat the edit. A failed entry in the electoral log does not stop the link from
+  changing or a disabled voter's ballots from being discarded.
 
 ### Voters imported before the link was on
 

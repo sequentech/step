@@ -556,10 +556,10 @@ async fn release_voter(
 }
 
 /// Joins the failures of the steps that follow an accepted edit. That edit
-/// stands, so every step runs whatever the others did, and the task's error
-/// names all that failed.
+/// stands, so every step runs whatever the others did, and the error names all
+/// that failed.
 #[instrument(skip_all)]
-fn every_failure(
+pub fn every_failure(
     outcomes: impl IntoIterator<Item = std::result::Result<(), String>>,
 ) -> std::result::Result<(), String> {
     let failures: Vec<String> = outcomes
