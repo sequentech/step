@@ -246,6 +246,7 @@ const catalanTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exportar plantilles",
                 IMPORT_TEMPLATES: "Importar plantilles",
                 DELETE_ELECTION_EVENT: "Esborrar esdeveniment electoral",
+                RESTORE_ELECTION_EVENT: "Restaurar esdeveniment electoral",
                 DELETE_VOTERS: "Esborrar votants",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista prèvia de la publicació",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporta els resultats del recompte en format XLSX",
@@ -1828,6 +1829,43 @@ const catalanTranslation: TranslationType = {
             templates: "Plantilles",
             active: "Actius",
             archived: "Arxivats",
+            trash: {
+                tab: "Paperera",
+                loading: "S'està carregant la paperera",
+                error: "No s'ha pogut carregar la paperera.",
+                retry: "Torna-ho a provar",
+                empty: "La paperera és buida",
+                emptyHint_one:
+                    "Els esdeveniments electorals esborrats es conserven aquí {{count}} dia i es poden restaurar.",
+                emptyHint_other:
+                    "Els esdeveniments electorals esborrats es conserven aquí {{count}} dies i es poden restaurar.",
+                emptyHintNoDays:
+                    "Els esdeveniments electorals esborrats es conserven aquí un temps i es poden restaurar.",
+                deletedOn: "Esborrat el {{date}}",
+                purgeOn: "S'esborrarà definitivament el {{date}}",
+                purging: "Esborrat definitiu en curs",
+                wasArchived: "Estava arxivat",
+                showing: "Es mostren {{count}} de {{total}}",
+                loadMore: "Carrega'n més",
+                refresh: "Actualitza",
+                refreshError: "No s'ha pogut actualitzar la paperera; pot no estar al dia.",
+                restore: "Restaura",
+                restoreNamed: "Restaura {{name}}",
+                restoreTitle: "Restaura l'esdeveniment electoral",
+                restoreConfirm: 'Vols restaurar "{{name}}"?',
+                restoreToActive: "Torna a Actius.",
+                restoreToArchived: "Torna a Arxivats, com estava abans d'esborrar-lo.",
+                restoreVoting: "El seu estat de votació no canvia.",
+                restored: '"{{name}}" restaurat',
+                restoreError: "No s'ha pogut restaurar l'esdeveniment electoral: {{message}}",
+                moveToTrash: "Mou a la paperera",
+                deleteExplanation_one:
+                    "Es conserva a la paperera {{count}} dia, durant el qual es pot restaurar. Després s'esborra definitivament.",
+                deleteExplanation_other:
+                    "Es conserva a la paperera {{count}} dies, durant els quals es pot restaurar. Després s'esborra definitivament.",
+                deleteExplanationNoDays:
+                    "Es conserva a la paperera, on es pot restaurar fins que s'esborri definitivament.",
+            },
             addResource: {
                 electionEvent: "Crear un Esdeveniment Electoral",
                 election: "Crear una Elecció",
@@ -1851,6 +1889,9 @@ const catalanTranslation: TranslationType = {
                     candidate: "Eliminar aquest Candidat",
                     slate: "Elimina aquesta Candidatura",
                 },
+                trash: {
+                    electionEvent: "Mou aquest esdeveniment electoral a la paperera",
+                },
                 messages: {
                     confirm: {
                         archive: "Estàs segur de que vols arxivar aquest element?",
@@ -1859,6 +1900,8 @@ const catalanTranslation: TranslationType = {
                         archiveNamed: 'Estàs segur de que vols arxivar "{{name}}"?',
                         unarchiveNamed: 'Estàs segur de que vols desarxivar "{{name}}"?',
                         deleteNamed: 'Estàs segur de que vols eliminar "{{name}}"?',
+                        trash: "Segur que vols moure aquest element a la paperera?",
+                        trashNamed: 'Segur que vols moure "{{name}}" a la paperera?',
                     },
                     notification: {
                         success: {

@@ -11,10 +11,12 @@ use crate::postgres::contest::export_contests;
 use crate::postgres::document::{get_document, get_exportable_document_ids};
 use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::election_event_trash::{get_trash_state, TrashState};
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::database::get_hasura_pool;
+use crate::services::election_event_trash::TrashError;
 use crate::services::export::export_ballot_publication::export_election_event_config_file;
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use crate::services::reports::activity_log::{ActivityLogsTemplate, ReportFormat};
@@ -66,6 +68,12 @@ pub async fn read_export_data(
     election_event_id: &str,
     export_config: &ExportOptions,
 ) -> Result<(ImportElectionEventSchema, Vec<TempPath>)> {
+    if matches!(
+        get_trash_state(transaction, tenant_id, election_event_id).await?,
+        TrashState::InTrash | TrashState::Purging
+    ) {
+        return Err(TrashError::InTrash.into());
+    }
     let client = KeycloakAdminClient::new().await?;
     let other_client = KeycloakAdminClient::pub_new().await?;
     let board_name = get_event_realm(tenant_id, election_event_id);
