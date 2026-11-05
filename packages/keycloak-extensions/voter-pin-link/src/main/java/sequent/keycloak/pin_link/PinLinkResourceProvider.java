@@ -27,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -251,9 +252,9 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
   }
 
   /**
-   * Whether the user profile keeps the PIN private: a declared secret that voters cannot view,
-   * while the token hash and attempts attributes stay undeclared and unmanaged attributes are not
-   * enabled. Logs the condition that fails.
+   * Whether the user profile keeps the PIN private: a declared secret that voters cannot view or
+   * edit, while the token hash and attempts attributes stay undeclared and unmanaged attributes are
+   * not enabled. Logs the condition that fails.
    */
   private boolean pinIsSecretAndAdminOnly(PinLinkConfig config) {
     UPConfig profile = session.getProvider(UserProfileProvider.class).getConfiguration();
@@ -265,9 +266,9 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
       return false;
     }
     if (pin.getPermissions() != null
-        && pin.getPermissions().getView() != null
-        && pin.getPermissions().getView().contains("user")) {
-      log.warnf("pin-link: voters can view attribute %s", config.pinAttribute());
+        && (includesVoters(pin.getPermissions().getView())
+            || includesVoters(pin.getPermissions().getEdit()))) {
+      log.warnf("pin-link: voters can view or edit attribute %s", config.pinAttribute());
       return false;
     }
     // A declared attribute is one the account console could offer; these two must not be.
@@ -280,6 +281,10 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
       return false;
     }
     return true;
+  }
+
+  private static boolean includesVoters(Set<String> roles) {
+    return roles != null && roles.contains("user");
   }
 
   /**

@@ -209,6 +209,23 @@ impl SecretAttributeConfig {
     }
 }
 
+impl SecretAttributeConfig {
+    /// The names a voter report keeps out of its variables unless declared.
+    /// A report can only declare encrypted attributes: the PIN link's generated
+    /// ones aren't envelopes, so decrypting them would fail for every voter
+    /// with a link.
+    pub fn report_names(&self, declared_names: &HashSet<String>) -> Result<HashSet<String>> {
+        let mut names = self.validated_names()?;
+        if let Some(name) = declared_names.iter().find(|name| !names.contains(*name)) {
+            return Err(anyhow!(
+                "Report declares `{name}`, which is not configured as an encrypted voter attribute"
+            ));
+        }
+        names.extend(self.generated.iter().cloned());
+        Ok(names)
+    }
+}
+
 pub fn secret_attribute_names(attributes: &[UserProfileAttribute]) -> Result<HashSet<String>> {
     SecretAttributeConfig::from_profile(attributes).validated_names()
 }
@@ -571,6 +588,30 @@ mod tests {
                 "2099-01-01T00:00:00Z".to_string(),
             ),
         ])
+    }
+
+    /// A report can declare the PIN but not the generated attributes, whose
+    /// names stay out of its variables either way.
+    #[test]
+    fn a_report_cannot_declare_the_generated_attributes() {
+        let config = SecretAttributeConfig::from_profile(&[secret_attribute("pin")])
+            .with_realm_attributes(&pin_link_realm_attributes());
+        let generated = config.generated_names().clone();
+        assert!(!generated.is_empty());
+        for declared in [HashSet::new(), HashSet::from(["pin".to_string()])] {
+            let names = config.report_names(&declared).unwrap();
+            assert!(names.contains("pin"));
+            assert!(generated.is_subset(&names));
+        }
+        for name in &generated {
+            let error = config
+                .report_names(&HashSet::from([name.clone()]))
+                .unwrap_err();
+            assert!(error.to_string().contains(name.as_str()));
+        }
+        assert!(config
+            .report_names(&HashSet::from(["unknown".to_string()]))
+            .is_err());
     }
 
     /// The link's generated attributes are redacted on read paths like secrets,

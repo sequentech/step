@@ -13,6 +13,7 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.ReturnListener;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
@@ -109,9 +110,39 @@ class RabbitMqEventPublisherTest {
         .basicPublish(
             org.mockito.ArgumentMatchers.eq(""),
             org.mockito.ArgumentMatchers.eq(QUEUE_NAME),
+            org.mockito.ArgumentMatchers.eq(true),
             org.mockito.ArgumentMatchers.any(AMQP.BasicProperties.class),
             org.mockito.ArgumentMatchers.any(byte[].class));
     order.verify(channel).waitForConfirmsOrDie(5_000);
+  }
+
+  /** With no queue to take a message, the broker returns it and still confirms it. */
+  @Test
+  void anElectoralLogEntryTheBrokerReturnsFailsAndDropsTheChannel() throws Exception {
+    org.mockito.ArgumentCaptor<ReturnListener> listener =
+        org.mockito.ArgumentCaptor.forClass(ReturnListener.class);
+    org.mockito.Mockito.doAnswer(
+            invocation -> {
+              verify(channel).addReturnListener(listener.capture());
+              listener.getValue().handleReturn(312, "NO_ROUTE", "", QUEUE_NAME, null, new byte[0]);
+              return null;
+            })
+        .when(channel)
+        .basicPublish(
+            org.mockito.ArgumentMatchers.eq(""),
+            org.mockito.ArgumentMatchers.eq(QUEUE_NAME),
+            org.mockito.ArgumentMatchers.eq(true),
+            org.mockito.ArgumentMatchers.any(AMQP.BasicProperties.class),
+            org.mockito.ArgumentMatchers.any(byte[].class));
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+        java.io.IOException.class,
+        () ->
+            publisher.publishElectoralLogConfirmed(
+                "event", "TYPE", "{}", "user", "tenant", "name", 5_000));
+
+    verify(channel).removeReturnListener(listener.getValue());
+    verify(connection).close();
   }
 
   @Test
