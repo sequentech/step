@@ -20,7 +20,12 @@ import {
     TENANT_ID,
     graphqlBoundary,
 } from "@/__stories__/AdminStoryProvider"
-import {eventPresentation, eventRecord} from "@/__stories__/fixtures"
+import {areaRecords, eventPresentation, eventRecord} from "@/__stories__/fixtures"
+import {APPROVAL_ATTRIBUTES, applications} from "@/resources/Approvals/__stories__/ApprovalsFixture"
+import {
+    ADMIN_ID,
+    withServiceFilters,
+} from "@/resources/Approvals/__stories__/ApprovalsScreenFixture"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {ElectionEventTabs} from "./ElectionEventTabs"
 import {
@@ -79,6 +84,8 @@ interface Scenario {
     roles?: string[]
     lockdownTiming?: "scheduled" | "unscheduled"
     readinessResult?: "pass" | "fail"
+    /** Whether the event has enrollments to approve. */
+    approvals?: boolean
 }
 
 let graphql: ReturnType<typeof graphqlBoundary>
@@ -102,15 +109,16 @@ const tabsEvent = (lockedDown: boolean, networkPolicy?: ENetworkDataPolicy) => {
     })
 }
 
-function Fixture({uncached, roles}: Pick<Scenario, "uncached" | "roles">) {
+function Fixture({uncached, roles, approvals}: Pick<Scenario, "uncached" | "roles" | "approvals">) {
     const {permissions, tenant} = useStoryGlobals()
     return (
         <AdminStoryProvider
             boundary={graphql}
-            dataProvider={data.provider}
+            dataProvider={approvals ? withServiceFilters(data.provider) : data.provider}
             role={permissions}
             roles={roles}
             tenant={tenant}
+            auth={approvals ? {userId: ADMIN_ID} : undefined}
         >
             {/* The portal mounts the signing widget around every screen. */}
             <SigningProvider api={signingApi}>
@@ -153,6 +161,12 @@ const meta = {
                           tabsEvent(args.lockedDown, args.networkPolicy),
                       ],
                       ip_address: [],
+                      ...(args.approvals
+                          ? {
+                                sequent_backend_applications: applications(),
+                                sequent_backend_area: areaRecords(),
+                            }
+                          : {}),
                       ...(args.dashboard ? {sequent_backend_tally_session: []} : {}),
                       ...(args.lockdownTiming
                           ? {
@@ -234,6 +248,13 @@ const meta = {
         graphql = graphqlBoundary(
             answerOrPending({
                 ...monitoringHandlers({list: args.monitoring ?? EMonitoringListScenario.LEGACY}),
+                ...(args.approvals
+                    ? {
+                          getUserProfileAttributes: () => ({
+                              data: {get_user_profile_attributes: APPROVAL_ATTRIBUTES},
+                          }),
+                      }
+                    : {}),
                 ...(args.dashboard
                     ? {
                           GetElectionEventStats: () => ({
@@ -320,7 +341,12 @@ const meta = {
         await Promise.all([graphql.ready, initCore()])
     },
     render: (args, {globals}) => (
-        <Fixture key={JSON.stringify(globals)} uncached={args.uncached} roles={args.roles} />
+        <Fixture
+            key={JSON.stringify(globals)}
+            uncached={args.uncached}
+            roles={args.roles}
+            approvals={args.approvals}
+        />
     ),
 } satisfies WidgetMeta<Scenario>
 export default meta
@@ -810,6 +836,37 @@ export const Approvals: Story = {
     play: tabPlay("Approvals", {
         operations: ["getUserProfileAttributes"],
     }),
+}
+
+export const ApprovalsKeepTheirFilters: Story = {
+    args: {approvals: true},
+    parameters: {widgets: ["ApprovalsTab"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const lastApplicationsRead = () =>
+            data.calls
+                .filter(
+                    ({method, args}) =>
+                        method === "getList" && args[0] === "sequent_backend_applications"
+                )
+                .at(-1)?.args[1] as {filter: unknown} | undefined
+        await openTab(canvasElement, "Approvals")
+        await canvas.findByRole("row", {name: /Alice Example/}, {timeout: LAZY_LOAD_MS})
+        await userEvent.click(canvas.getByRole("combobox", {name: "Status"}))
+        await userEvent.click(await within(document.body).findByRole("option", {name: "Approved"}))
+        await canvas.findByRole("row", {name: /Bob Example/})
+
+        await openTab(canvasElement, "Data")
+        await openTab(canvasElement, "Approvals")
+        // Coming back to the tab keeps the status chosen, not Needs review.
+        await expect(await canvas.findByRole("row", {name: /Bob Example/})).toBeVisible()
+        expect(canvas.getByRole("combobox", {name: "Status"})).toHaveTextContent("Approved")
+        expect(lastApplicationsRead()?.filter).toMatchObject({
+            "election_event_id": EVENT_ID,
+            "status@_ilike": "accepted",
+        })
+        expect(canvas.queryByRole("row", {name: /Alice Example/})).toBeNull()
+    },
 }
 
 export const ReadinessRequiresDataTab: Story = {

@@ -19,7 +19,25 @@ Which of the three happens is decided by the election event's **approval matrix*
 
 ## The queue
 
-The tab opens on the enrollments that need review. Each row shows:
+The first time you open the tab in a browser, it shows the enrollments that need review. After
+that, it opens with the filters you last used for this election event (or election) in this
+browser: status, search, any added filters, sorting, page size and page. A filter you removed stays
+removed: after removing **Status**, the tab keeps showing every enrollment.
+
+- Each administrator who signs in on the same browser keeps their own filters. Another browser
+  starts again from the enrollments that need review.
+- Nothing is stored on the server. The filters, including any search text or voter details typed
+  into them, stay in this browser's storage until its site data is cleared, also after signing out.
+- Saved filters that no longer apply, for example one on a voter attribute that was removed, are
+  discarded and the tab opens as on a first visit. An administrator without permission to read
+  voter attributes always starts from the enrollments that need review, because their saved filters
+  can't be checked.
+- The tab always shows the enrollments of the election event (or election) you are on, whatever was
+  saved.
+- A saved search for a support reference is looked up again when the tab opens; the enrollments it
+  matched before are not reused.
+
+Each row shows:
 
 | Column | What it shows |
 |---|---|
