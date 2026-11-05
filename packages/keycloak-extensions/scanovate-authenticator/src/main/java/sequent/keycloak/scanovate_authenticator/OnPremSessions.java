@@ -47,6 +47,7 @@ public class OnPremSessions {
   private static final String PASSED = "passed";
   private static final String FACE = "face";
   private static final String READING = "reading";
+  private static final String DOCUMENT = "document";
   private static final String SIDE_PREFIX = "side.";
   private static final String STATUS_PENDING = "pending";
   private static final Set<String> RUNNING = Set.of(STATUS_PENDING, "session_started");
@@ -70,6 +71,8 @@ public class OnPremSessions {
    *     document read by OCR; only when passed
    * @param reading what OCR read from the document, see {@link OcrResults#combine}; only when
    *     passed
+   * @param document the photo of the document OCR read, as the camera took it, for Document
+   *     Liveness; only when passed, and only for OCR
    * @param sides the status of each side of the document OCR processed, for diagnostics
    */
   public record SessionResult(
@@ -77,11 +80,16 @@ public class OnPremSessions {
       boolean passed,
       Optional<byte[]> face,
       Optional<JsonNode> reading,
+      Optional<byte[]> document,
       Map<String, String> sides) {}
 
   /** What a result callback says. */
   private record Reading(
-      boolean passed, Optional<String> face, Optional<String> reading, Map<String, String> sides) {}
+      boolean passed,
+      Optional<String> face,
+      Optional<String> reading,
+      Optional<String> document,
+      Map<String, String> sides) {}
 
   private final OnPremService service;
   private final SessionStore store;
@@ -157,6 +165,7 @@ public class OnPremSessions {
                 key.equals(PASSED)
                     || key.equals(FACE)
                     || key.equals(READING)
+                    || key.equals(DOCUMENT)
                     || key.startsWith(SIDE_PREFIX));
     updated.put(STATUS, MESSAGE_START.equals(messageType) ? "session_started" : status.asText());
     if (MESSAGE_RESULT.equals(messageType)) {
@@ -171,6 +180,7 @@ public class OnPremSessions {
       updated.put(PASSED, String.valueOf(reading.get().passed()));
       reading.get().face().ifPresent(face -> updated.put(FACE, face));
       reading.get().reading().ifPresent(text -> updated.put(READING, text));
+      reading.get().document().ifPresent(document -> updated.put(DOCUMENT, document));
       reading.get().sides().forEach((side, result) -> updated.put(SIDE_PREFIX + side, result));
       log.infov(
           "record: {0} session of case {1} ended with {2}, passed={3}",
@@ -202,18 +212,24 @@ public class OnPremSessions {
             && isTrue(processing, "injection_attack_check_passed")
             && image.isPresent();
     return Optional.of(
-        new Reading(passed, passed ? image : Optional.empty(), Optional.empty(), Map.of()));
+        new Reading(
+            passed,
+            passed ? image : Optional.empty(),
+            Optional.empty(),
+            Optional.empty(),
+            Map.of()));
   }
 
   /**
    * Reads the result of an OCR session. It passes if the session completed, every side was read,
-   * and the portrait of the document is there.
+   * and the portrait of the document and the photo it was read from are there.
    *
-   * @return empty if the portrait is not valid base64
+   * @return empty if the portrait or the photo is not valid base64
    */
   private static Optional<Reading> readOcr(String status, JsonNode body) {
     Map<String, String> sides = new HashMap<>();
     Optional<String> face = Optional.empty();
+    Optional<String> document = Optional.empty();
     for (String side : OcrResults.SIDES) {
       JsonNode result = body.path(side).path("processing_result");
       if (!result.isObject()) {
@@ -222,9 +238,11 @@ public class OnPremSessions {
       sides.put(side, result.path(STATUS).asText(""));
       if (face.isEmpty()) {
         face = text(result.path("images"), "face_image");
+        document = text(result.path("images"), "input_image");
       }
     }
-    if (face.isPresent() && decode(face.get()).isEmpty()) {
+    if ((face.isPresent() && decode(face.get()).isEmpty())
+        || (document.isPresent() && decode(document.get()).isEmpty())) {
       return Optional.empty();
     }
     Optional<JsonNode> reading = Optional.empty();
@@ -235,12 +253,13 @@ public class OnPremSessions {
         reading = Optional.empty();
       }
     }
-    boolean passed = reading.isPresent() && face.isPresent();
+    boolean passed = reading.isPresent() && face.isPresent() && document.isPresent();
     return Optional.of(
         new Reading(
             passed,
             passed ? face : Optional.empty(),
             passed ? reading.map(JsonNode::toString) : Optional.empty(),
+            passed ? document : Optional.empty(),
             sides));
   }
 
@@ -279,10 +298,12 @@ public class OnPremSessions {
     Optional<byte[]> face = Optional.ofNullable(entry.get(FACE)).flatMap(OnPremSessions::decode);
     Optional<JsonNode> reading =
         Optional.ofNullable(entry.get(READING)).flatMap(OnPremSessions::parse);
+    Optional<byte[]> document =
+        Optional.ofNullable(entry.get(DOCUMENT)).flatMap(OnPremSessions::decode);
     boolean passed =
         Boolean.parseBoolean(entry.get(PASSED))
             && face.isPresent()
-            && (service != OnPremService.OCR || reading.isPresent());
+            && (service != OnPremService.OCR || (reading.isPresent() && document.isPresent()));
     Map<String, String> sides = new HashMap<>();
     entry.forEach(
         (key, value) -> {
@@ -296,6 +317,7 @@ public class OnPremSessions {
             passed,
             passed ? face : Optional.empty(),
             passed ? reading : Optional.empty(),
+            passed ? document : Optional.empty(),
             Map.copyOf(sides)));
   }
 

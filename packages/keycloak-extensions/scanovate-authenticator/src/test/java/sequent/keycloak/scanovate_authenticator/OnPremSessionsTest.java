@@ -341,10 +341,25 @@ class OnPremSessionsTest {
     SessionResult result = ocr.awaitResult(token, 5).orElseThrow();
     assertTrue(result.passed());
     assertArrayEquals(JPEG, result.face().orElseThrow());
+    assertArrayEquals(
+        "frame".getBytes(java.nio.charset.StandardCharsets.US_ASCII),
+        result.document().orElseThrow());
     JsonNode reading = result.reading().orElseThrow();
     assertEquals("P1234567A", reading.at("/ocr/document_number").asText());
     assertTrue(reading.at("/authentications/expiry_date_valid").asBoolean());
     assertEquals(Map.of("front", "success"), result.sides());
+  }
+
+  @Test
+  void ocrSessionsWithoutTheDocumentPhotoDoNotPass() {
+    String token = ocr.create(CASE_ID, SECRET);
+    JsonNode body = TestJson.json(ocrResult("completed", "success", JPEG));
+    body.withObject("/front/processing_result/images").remove("input_image");
+    ocr.record(token, SECRET, body);
+
+    SessionResult result = ocr.awaitResult(token, 5).orElseThrow();
+    assertFalse(result.passed());
+    assertTrue(result.document().isEmpty());
   }
 
   @Test

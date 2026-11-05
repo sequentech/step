@@ -12,10 +12,14 @@
 #   configure-realm.sh configure <realm>
 #
 # Environment:
-#   SCANOVATE_LIVENESS_URL, SCANOVATE_LIVENESS_SECRET, SCANOVATE_FACE_MATCH_URL:
+#   SCANOVATE_LIVENESS_URL, SCANOVATE_LIVENESS_SECRET, SCANOVATE_FACE_MATCH_URL,
+#   SCANOVATE_DOCUMENT_LIVENESS_URL:
 #     base URL of the OCR and Liveness Plus pages as the browser reaches them
 #     (https://<keycloak host>/biometric), their callback secret, and the Face
-#     Match URL as Keycloak reaches it. Required.
+#     Match and Document Liveness URLs as Keycloak reaches them. Required.
+#   SCANOVATE_DOCUMENT_LIVENESS_PIPELINES: document-liveness-pipelines, default
+#     default-sr,default-pc,default-ps,default-dm (each enabled in the
+#     service's IDLIVEDOC_SERVER_AVAILABLE_PIPELINES).
 #   SCANOVATE_OCR_TYPES: ocr-types, default {"default": "passport"}.
 #   SCANOVATE_FACE_MATCH_MIN_SIMILARITY: face-match-min-similarity, default
 #     {"default": 0.67}.
@@ -82,7 +86,8 @@ scanovate_config_ids() {
 
 configure() {
   local realm="$1"
-  require SCANOVATE_LIVENESS_URL SCANOVATE_LIVENESS_SECRET SCANOVATE_FACE_MATCH_URL
+  require SCANOVATE_LIVENESS_URL SCANOVATE_LIVENESS_SECRET SCANOVATE_FACE_MATCH_URL \
+    SCANOVATE_DOCUMENT_LIVENESS_URL
   local token admin config_ids config_id config updated
   token="$(keycloak_admin_token)"
   admin="$KEYCLOAK_URL/admin/realms/$realm/authentication"
@@ -96,6 +101,8 @@ configure() {
         --arg liveness_url "$SCANOVATE_LIVENESS_URL" \
         --arg liveness_secret "$SCANOVATE_LIVENESS_SECRET" \
         --arg face_match_url "$SCANOVATE_FACE_MATCH_URL" \
+        --arg document_liveness_url "$SCANOVATE_DOCUMENT_LIVENESS_URL" \
+        --arg document_liveness_pipelines "${SCANOVATE_DOCUMENT_LIVENESS_PIPELINES:-default-sr,default-pc,default-ps,default-dm}" \
         --arg min_similarity "${SCANOVATE_FACE_MATCH_MIN_SIMILARITY:-{\"default\": 0.67\}}" \
         --arg holding_photo "${SCANOVATE_HOLDING_PHOTO:-REQUIRED}" \
         --arg holding_seconds "${SCANOVATE_HOLDING_SECONDS:-}" \
@@ -109,13 +116,15 @@ configure() {
             "liveness-secret": $liveness_secret,
             "face-match-url": $face_match_url,
             "face-match-min-similarity": $min_similarity,
+            "document-liveness-url": $document_liveness_url,
+            "document-liveness-pipelines": $document_liveness_pipelines,
             "holding-photo": $holding_photo
           }
           + (if $holding_seconds == "" then {} else {"video-seconds": $holding_seconds} end))' <<<"$config"
     )"
     curl -sSf -X PUT -H "Authorization: Bearer $token" -H "Content-Type: application/json" \
       --data "$updated" "$admin/config/$config_id"
-    echo "Updated $(jq -r .alias <<<"$config") in $realm: $SCANOVATE_LIVENESS_URL, $SCANOVATE_FACE_MATCH_URL"
+    echo "Updated $(jq -r .alias <<<"$config") in $realm: $SCANOVATE_LIVENESS_URL, $SCANOVATE_FACE_MATCH_URL, $SCANOVATE_DOCUMENT_LIVENESS_URL"
     # Rules written for B-Trust read processes that no longer exist and fail every voter
     if jq -e '[.config["attributes-to-validate"], .config["attributes-to-store"]]
         | map(select(. != null and . != "") | fromjson | .[][] | .process // empty)
