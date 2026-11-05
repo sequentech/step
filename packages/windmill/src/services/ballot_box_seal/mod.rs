@@ -537,7 +537,7 @@ pub fn census_from_csv(
 }
 
 /// The event's published ballot styles of the given elections: the styles
-/// of a generated or published ballot publication (what the tally reads).
+/// of a generated and published ballot publication (what the tally reads).
 pub async fn published_ballot_styles(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -575,31 +575,13 @@ async fn published_style_rows(
     election_event_id: &str,
     election_ids: &[String],
 ) -> Result<Vec<sequent_core::types::hasura::core::BallotStyle>> {
-    let styles = get_ballot_styles_by_elections(
+    get_ballot_styles_by_elections(
         hasura_transaction,
         tenant_id,
         election_event_id,
         &election_ids.to_vec(),
     )
-    .await?;
-    let published: std::collections::HashSet<String> = hasura_transaction
-        .query(
-            "SELECT id::text FROM sequent_backend.ballot_publication
-             WHERE tenant_id = $1 AND election_event_id = $2
-             AND (COALESCE(is_generated, false) OR published_at IS NOT NULL)",
-            &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-            ],
-        )
-        .await?
-        .into_iter()
-        .map(|row| row.get(0))
-        .collect();
-    Ok(styles
-        .into_iter()
-        .filter(|style| published.contains(&style.ballot_publication_id))
-        .collect())
+    .await
 }
 
 /// The ballot boxes the published ballot styles define: one (election id,
