@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{authorize, permitted_event_election_ids};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -11,6 +11,7 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use windmill::services::database::get_hasura_pool;
 use windmill::services::electoral_log::{
     list_electoral_log as get_logs, ElectoralLogRow, GetElectoralLogBody,
 };
@@ -22,13 +23,31 @@ pub async fn list_electoral_log(
     body: Json<GetElectoralLogBody>,
     claims: JwtClaims,
 ) -> Result<Json<DataList<ElectoralLogRow>>, (Status, String)> {
-    let input = body.into_inner();
+    let mut input = body.into_inner();
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
         vec![Permissions::LOGS_READ],
     )?;
+    input.permitted_election_ids = {
+        let mut hasura_db_client: DbClient = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+        let hasura_transaction = hasura_db_client
+            .transaction()
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+        permitted_event_election_ids(
+            &hasura_transaction,
+            &claims,
+            &input.tenant_id,
+            &input.election_event_id,
+        )
+        .await?
+    };
     let ret_val = get_logs(input)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
