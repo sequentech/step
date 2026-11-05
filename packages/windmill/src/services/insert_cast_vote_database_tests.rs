@@ -47,7 +47,12 @@ impl ElectionFixture {
         .unwrap()
     }
 
-    async fn insert(&self, transaction: &Transaction<'_>, content: &str) -> Result<CastVote> {
+    async fn insert(
+        &self,
+        transaction: &Transaction<'_>,
+        content: &str,
+        ciphertext_fingerprints: &[String],
+    ) -> Result<CastVote> {
         postgres::cast_vote::insert_cast_vote(
             transaction,
             &self.tenant,
@@ -62,8 +67,65 @@ impl ElectionFixture {
             &None,
             VotingStatusChannel::ONLINE,
             CastVoteStatus::Valid,
+            ciphertext_fingerprints,
         )
         .await
+    }
+
+    async fn cast(
+        &self,
+        client: &mut DbClient,
+        input: &InsertCastVoteInput,
+        voter_id: &str,
+    ) -> Result<CastVote, CastVoteError> {
+        let (_, _, voter_signature_data, ciphertext_fingerprints) =
+            deserialize_and_check_ballot(input, voter_id, &super::styles_of(input))?;
+        let tenant_id = self.tenant.to_string();
+        let election_event_id = self.event.to_string();
+        let election_id = self.election.to_string();
+        let area_id = self.area.to_string();
+        let signing_key = StrandSignatureSk::gen().unwrap();
+        let electoral_log =
+            ElectoralLog::for_voter_with_signing_key("synthetic", voter_id, &signing_key);
+        let pseudonym_h = PseudonymHash(HashWrapper::new(hash_voter_id(voter_id).unwrap()));
+        let vote_h = CastVoteHash(HashWrapper::new([7u8; 64]));
+        let audit = CastVoteAudit {
+            electoral_log: &electoral_log,
+            tenant_id: &tenant_id,
+            election_event_id: &election_event_id,
+            election_id: &election_id,
+            pseudonym_h: &pseudonym_h,
+            vote_h: &vote_h,
+            ip: "ip: ",
+            country: "country: ",
+            voter_id,
+            username: &None,
+            area_id: &area_id,
+        };
+        let transaction = client.transaction().await.unwrap();
+        insert_cast_vote_and_commit(
+            input.clone(),
+            transaction,
+            super::election_event(None),
+            VotingStatusChannel::ONLINE,
+            CastVoteIds {
+                election_event_id: &election_event_id,
+                tenant_id: &tenant_id,
+                voter_id,
+                area_id: &area_id,
+            },
+            signing_key.clone(),
+            &Some(ISO8601::now().timestamp()),
+            &None,
+            &None,
+            &voter_signature_data,
+            &ciphertext_fingerprints,
+            false,
+            CastVoteStatus::Valid,
+            &audit,
+        )
+        .await
+        .map(|(cast_vote, _, _)| cast_vote)
     }
 }
 
@@ -172,13 +234,16 @@ async fn insert_preserves_response_and_maps_trigger_error_without_retrying() {
     let fixture = ElectionFixture::create(&transaction).await;
     let content = "encrypted-ballot".repeat(1000);
 
-    let inserted = fixture.insert(&transaction, &content).await.unwrap();
+    let inserted = fixture.insert(&transaction, &content, &[]).await.unwrap();
     assert_eq!(inserted.content.as_deref(), Some(content.as_str()));
     assert_eq!(inserted.status, CastVoteStatus::Valid);
     assert_eq!(inserted.area_id, Some(fixture.area.to_string()));
     assert_eq!(inserted.ballot_id.as_deref(), Some("ballot"));
 
-    let error = fixture.insert(&transaction, &content).await.unwrap_err();
+    let error = fixture
+        .insert(&transaction, &content, &[])
+        .await
+        .unwrap_err();
     let mapped = map_insert_error(error);
     assert_eq!(
         serde_json::to_value(&mapped).unwrap(),
@@ -247,6 +312,58 @@ async fn channel_enablement_and_pause_are_rechecked_from_the_writer() {
             }
         }
     }
+    transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "requires the disposable devenv database fixture"]
+async fn ciphertext_cast_by_another_voter_is_rejected() {
+    let mut client = test_client().await;
+    let transaction = client.transaction().await.unwrap();
+    let fixture = ElectionFixture::create(&transaction).await;
+    transaction.commit().await.unwrap();
+
+    let original = super::encrypted_contest("contest");
+    let first = super::cast_input(fixture.election, "2026-01-01", vec![original.clone()]);
+    let copy = super::cast_input(
+        fixture.election,
+        "2026-01-02",
+        vec![HashableBallotContest {
+            contest_id: "other-contest".to_string(),
+            ..original
+        }],
+    );
+
+    fixture.cast(&mut client, &first, "first").await.unwrap();
+    assert!(matches!(
+        fixture.cast(&mut client, &copy, "second").await,
+        Err(CastVoteError::CiphertextAlreadyCast)
+    ));
+    // The same voter is not refused for its own ciphertext; the revote
+    // limit still applies.
+    assert!(matches!(
+        fixture.cast(&mut client, &copy, "first").await,
+        Err(CastVoteError::InsertFailedExceedsAllowedRevotes)
+    ));
+    let fresh = super::cast_input(
+        fixture.election,
+        "2026-01-03",
+        vec![super::encrypted_contest("contest")],
+    );
+    fixture.cast(&mut client, &fresh, "second").await.unwrap();
+
+    let (_, _, _, fingerprints) =
+        deserialize_and_check_ballot(&first, "first", &super::styles_of(&first)).unwrap();
+    let transaction = client.transaction().await.unwrap();
+    assert!(!postgres::cast_vote::ciphertext_cast_by_other_voter(
+        &transaction,
+        &fixture.tenant,
+        &Uuid::new_v4(),
+        "second",
+        &fingerprints,
+    )
+    .await
+    .unwrap());
     transaction.rollback().await.unwrap();
 }
 
@@ -373,6 +490,7 @@ pub(in crate::services::insert_cast_vote) mod electoral_log_outbox {
             &None,
             &None,
             &None,
+            &[],
             false,
             CastVoteStatus::Valid,
             &audit,

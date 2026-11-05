@@ -6,7 +6,7 @@ use crate::postgres::area::get_area_by_id;
 use crate::postgres::ballot_style::get_ballot_styles_by_elections;
 use crate::postgres::election::{get_cast_vote_configuration, CastVoteConfiguration};
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::services::cast_votes::{CastVote, CastVoteStatus};
+use crate::services::cast_votes::{ciphertext_fingerprint, CastVote, CastVoteStatus};
 use crate::services::database::get_hasura_pool;
 use crate::services::datafix::utils::{
     datafix_annotations, datafix_voter_lock_key, is_datafix_election_event, DATAFIX_VOTER_LOCK_SECS,
@@ -54,6 +54,7 @@ use serde_json::Serializer;
 use std::collections::HashSet;
 use std::time::Instant;
 use strand::backend::ristretto::RistrettoCtx;
+use strand::elgamal::Ciphertext;
 use strand::hash::{hash_to_array, Hash, HashWrapper};
 use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignature;
@@ -213,6 +214,7 @@ async fn insert_datafix_cast_vote_locked<'a>(
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
     voter_signature_data: &Option<(StrandSignaturePk, StrandSignature)>,
+    ciphertext_fingerprints: &[String],
     is_early_voting_area: bool,
     initial_status: CastVoteStatus,
     audit: &CastVoteAudit<'_>,
@@ -253,6 +255,7 @@ async fn insert_datafix_cast_vote_locked<'a>(
         voter_ip,
         voter_country,
         voter_signature_data,
+        ciphertext_fingerprints,
         is_early_voting_area,
         initial_status,
         audit,
@@ -271,7 +274,8 @@ async fn insert_datafix_cast_vote_locked<'a>(
 fn skip_or_propagate(cast_vote_err: CastVoteError) -> Result<InsertCastVoteResult, CastVoteError> {
     match cast_vote_err {
         CastVoteError::InsertFailedExceedsAllowedRevotes
-        | CastVoteError::CheckVotesInOtherAreasFailed(_) => {
+        | CastVoteError::CheckVotesInOtherAreasFailed(_)
+        | CastVoteError::CiphertextAlreadyCast => {
             Ok(InsertCastVoteResult::SkipRetryFailure(cast_vote_err))
         }
         _ => Err(cast_vote_err),
@@ -346,6 +350,9 @@ pub enum CastVoteError {
     #[serde(rename = "ballot_id_mismatch")]
     #[strum(to_string = "ballot_id_mismatch")]
     BallotIdMismatch(String),
+    #[serde(rename = "ciphertext_already_cast")]
+    #[strum(to_string = "ciphertext_already_cast")]
+    CiphertextAlreadyCast,
     /// The contests of the ballot are not those of any published ballot style.
     #[serde(rename = "ballot_style_mismatch")]
     BallotStyleMismatch(String),
@@ -435,7 +442,7 @@ pub async fn try_insert_cast_vote(
         deserialize_and_check_ballot(&input, voter_id, &published_styles)
     };
 
-    let (pseudonym_h, vote_h, voter_signature_data) = match hash_result {
+    let (pseudonym_h, vote_h, voter_signature_data, ciphertext_fingerprints) = match hash_result {
         Ok(hash) => hash,
         Err(cv_err) => {
             return Ok(InsertCastVoteResult::SkipRetryFailure(cv_err));
@@ -522,6 +529,7 @@ pub async fn try_insert_cast_vote(
                 voter_ip,
                 voter_country,
                 &voter_signature_data,
+                &ciphertext_fingerprints,
                 is_early_voting_area,
                 initial_status,
                 &audit,
@@ -540,6 +548,7 @@ pub async fn try_insert_cast_vote(
                 voter_ip,
                 voter_country,
                 &voter_signature_data,
+                &ciphertext_fingerprints,
                 is_early_voting_area,
                 initial_status,
                 &audit,
@@ -597,6 +606,7 @@ pub fn deserialize_and_check_ballot(
         PseudonymHash,
         CastVoteHash,
         Option<(StrandSignaturePk, StrandSignature)>,
+        Vec<String>,
     ),
     CastVoteError,
 > {
@@ -648,6 +658,11 @@ pub fn deserialize_and_check_ballot(
         .collect::<Result<Vec<()>>>()
         .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
 
+    let ciphertext_fingerprints = hashable_ballot_contests
+        .iter()
+        .map(|contest| encoded_ciphertext_fingerprint(&contest.ciphertext))
+        .collect::<Result<Vec<String>, CastVoteError>>()?;
+
     // Check ballot signature
     let election_id = input.election_id.to_string();
     let signature_opt = verify_ballot_signature(
@@ -660,7 +675,7 @@ pub fn deserialize_and_check_ballot(
     })?;
     info!("is_signature_verified =  {}", signature_opt.is_some());
 
-    Ok((pseudonym_h, vote_h, signature_opt))
+    Ok((pseudonym_h, vote_h, signature_opt, ciphertext_fingerprints))
 }
 
 /// Checks a ballot that encrypts all its contests together, as
@@ -676,6 +691,7 @@ pub fn deserialize_and_check_multi_ballot(
         PseudonymHash,
         CastVoteHash,
         Option<(StrandSignaturePk, StrandSignature)>,
+        Vec<String>,
     ),
     CastVoteError,
 > {
@@ -723,6 +739,10 @@ pub fn deserialize_and_check_multi_ballot(
     check_popk_multi(&hashable_multi_ballot_contests)
         .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
 
+    let ciphertext_fingerprints = vec![encoded_ciphertext_fingerprint(
+        &hashable_multi_ballot_contests.ciphertext,
+    )?];
+
     // Check ballot signature
     let election_id = input.election_id.to_string();
     let voter_signature_opt = verify_multi_ballot_signature(
@@ -735,7 +755,12 @@ pub fn deserialize_and_check_multi_ballot(
     })?;
     info!("is_signature_verified =  {}", voter_signature_opt.is_some());
 
-    Ok((pseudonym_h, vote_h, voter_signature_opt))
+    Ok((
+        pseudonym_h,
+        vote_h,
+        voter_signature_opt,
+        ciphertext_fingerprints,
+    ))
 }
 
 #[instrument(
@@ -760,6 +785,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
     voter_signature_data: &Option<(StrandSignaturePk, StrandSignature)>,
+    ciphertext_fingerprints: &[String],
     is_early_voting_area: bool,
     initial_status: CastVoteStatus,
     audit: &CastVoteAudit<'_>,
@@ -788,6 +814,19 @@ pub async fn insert_cast_vote_and_commit<'a>(
         is_early_voting_area,
     )
     .await?;
+
+    let ciphertext_already_cast = postgres::cast_vote::ciphertext_cast_by_other_voter(
+        &hasura_transaction,
+        &tenant_uuid,
+        &election_event_uuid,
+        ids.voter_id,
+        ciphertext_fingerprints,
+    )
+    .await
+    .map_err(|e| CastVoteError::CheckPreviousVotesFailed(e.to_string()))?;
+    if ciphertext_already_cast {
+        return Err(CastVoteError::CiphertextAlreadyCast);
+    }
 
     let voter_signature = voter_signature_data.clone().map(|val| val.1);
 
@@ -824,6 +863,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         voter_country,
         effective_voting_channel,
         initial_status,
+        ciphertext_fingerprints,
     );
 
     let cast_vote = insert.await.map_err(map_insert_error)?;
@@ -872,6 +912,14 @@ impl CastVoteAudit<'_> {
             voting_channel.to_string(),
         )
     }
+}
+
+fn encoded_ciphertext_fingerprint(
+    ciphertext: &Ciphertext<RistrettoCtx>,
+) -> Result<String, CastVoteError> {
+    ciphertext_fingerprint(ciphertext)
+        .map(|fingerprint| general_purpose::STANDARD_NO_PAD.encode(fingerprint))
+        .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))
 }
 
 pub(crate) fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
