@@ -55,7 +55,9 @@ use windmill::services::users::{
     count_keycloak_users, list_users, list_users_with_vote_info,
 };
 use windmill::services::users::{FilterOption, ListUsersFilter};
-use windmill::services::voter_pin_link::{self, PinWrite};
+use windmill::services::voter_pin_link::{
+    self, PinLinkChange, PinLinkConfig, PinWrite,
+};
 use windmill::services::voter_secret_attributes::{
     decrypt_attribute_values, encrypt_secret_attribute_map,
     get_secret_attribute_config, redact_user, user_attribute_values,
@@ -175,11 +177,32 @@ fn password_from_pin_write(
     }
 }
 
-/// Makes the voter's link follow a write: an old link must not outlive its PIN,
-/// a new PIN needs a link of its own, and a new password alone leaves a PIN the
-/// link would show though it no longer logs in. Runs before the write itself is
-/// stored, since a link whose token doesn't match the PIN only refuses, while
-/// the opposite order could leave a live old link.
+/// What a write does to the voter's PIN, when the realm has the link on.
+fn voter_pin_write<'a>(
+    config: &'a SecretAttributeConfig,
+    secret_attributes: Option<&'a HashMap<String, Option<Vec<String>>>>,
+) -> Result<Option<(&'a PinLinkConfig, PinWrite<'a>)>, (Status, String)> {
+    let Some(pin_link) = config.pin_link() else {
+        return Ok(None);
+    };
+    let write = secret_attributes
+        .map(|attributes| pin_link.pin_write(attributes))
+        .transpose()
+        .map_err(|error| (Status::BadRequest, error.to_string()))?
+        .unwrap_or(PinWrite::Absent);
+    Ok(Some((pin_link, write)))
+}
+
+fn voter_pin_link_change(
+    config: &SecretAttributeConfig,
+    secret_attributes: Option<&HashMap<String, Option<Vec<String>>>>,
+    password_changes: bool,
+) -> Result<Option<PinLinkChange>, (Status, String)> {
+    Ok(voter_pin_write(config, secret_attributes)?
+        .and_then(|(_, write)| PinLinkChange::of_edit(write, password_changes)))
+}
+
+#[instrument(skip_all, err(Debug))]
 async fn sync_voter_pin_link(
     config: &SecretAttributeConfig,
     tenant_id: &str,
@@ -188,19 +211,16 @@ async fn sync_voter_pin_link(
     secret_attributes: Option<&HashMap<String, Option<Vec<String>>>>,
     password_changes: bool,
 ) -> Result<(), (Status, String)> {
-    let Some(pin_link) = config.pin_link() else {
+    let Some((pin_link, write)) = voter_pin_write(config, secret_attributes)?
+    else {
         return Ok(());
     };
-    let write = secret_attributes
-        .map(|attributes| pin_link.pin_write(attributes))
-        .transpose()
-        .map_err(|error| (Status::BadRequest, error.to_string()))?
-        .unwrap_or(PinWrite::Absent);
+    if PinLinkChange::of_edit(write, password_changes).is_none() {
+        return Ok(());
+    }
     let pin = match write {
         PinWrite::Set(pin) => Some(pin),
-        PinWrite::Cleared => None,
-        PinWrite::Absent if password_changes => None,
-        PinWrite::Absent => return Ok(()),
+        PinWrite::Cleared | PinWrite::Absent => None,
     };
     voter_pin_link::rearm_voter(
         pin_link,
@@ -1747,6 +1767,11 @@ pub async fn edit_user(
                 .name
                 .clone()
                 .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+            let pin_link_change = voter_pin_link_change(
+                &secret_config,
+                input.secret_attributes.as_ref(),
+                input.password.is_some(),
+            )?;
 
             let task_execution = post(
                 &input.tenant_id,
@@ -1787,6 +1812,7 @@ pub async fn edit_user(
                         area_id: claims.hasura_claims.area_id.clone(),
                     }
                 }),
+                pin_link_change,
             };
 
             let celery_app = get_celery_app().await;
@@ -1811,16 +1837,6 @@ pub async fn edit_user(
             }
 
             info!("Sent EDIT_USER task {}", task_execution.id);
-
-            sync_voter_pin_link(
-                &secret_config,
-                &input.tenant_id,
-                election_event_id,
-                &input.user_id,
-                input.secret_attributes.as_ref(),
-                input.password.is_some(),
-            )
-            .await?;
 
             return Ok(Json(EditUserOutput {
                 user: None,
@@ -1858,7 +1874,7 @@ pub async fn edit_user(
             }
         })?;
 
-    if let (Some(election_event_id), Some(_)) =
+    let password_audit = if let (Some(election_event_id), Some(_)) =
         (input.election_event_id.as_deref(), input.password.as_ref())
     {
         let admin = ElectoralLogAdminContext {
@@ -1885,23 +1901,31 @@ pub async fn edit_user(
                 format!("Voter password changed, but its electoral-log entry failed: {error:#}"),
             )
                 .into()
-        })?;
-    }
+        })
+    } else {
+        Ok(())
+    };
 
-    // Only now, so that a refused edit leaves the link alone. Until this runs
-    // an old link can't show a new PIN, because a reveal checks the link
-    // against the PIN stored.
-    if let Some(election_event_id) = input.election_event_id.as_deref() {
-        sync_voter_pin_link(
-            &secret_config,
-            &input.tenant_id,
-            election_event_id,
-            &input.user_id,
-            input.secret_attributes.as_ref(),
-            input.password.is_some(),
-        )
-        .await?;
-    }
+    // Only now, so that a refused edit leaves the link alone, and whatever the
+    // audit did, because the edit stands either way. Until this runs an old
+    // link can't show a new PIN, because a reveal checks the link against the
+    // PIN stored.
+    let link_sync =
+        if let Some(election_event_id) = input.election_event_id.as_deref() {
+            sync_voter_pin_link(
+                &secret_config,
+                &input.tenant_id,
+                election_event_id,
+                &input.user_id,
+                input.secret_attributes.as_ref(),
+                input.password.is_some(),
+            )
+            .await
+        } else {
+            Ok(())
+        };
+    password_audit?;
+    link_sync?;
 
     redact_user(&mut user, &secret_names);
     Ok(Json(EditUserOutput {
@@ -2459,6 +2483,37 @@ mod tests {
                 values.iter().map(|value| value.to_string()).collect()
             }),
         )])
+    }
+
+    #[test]
+    fn a_datafix_edit_tells_its_task_what_to_do_with_the_link() {
+        let config = pin_link_config();
+        let pin = HashMap::from([(
+            "pin".to_string(),
+            Some(vec!["123456789012".to_string()]),
+        )]);
+        let cleared = HashMap::from([("pin".to_string(), None)]);
+        let change = |attributes, password| {
+            voter_pin_link_change(&config, attributes, password).unwrap()
+        };
+        assert_eq!(change(Some(&pin), true), Some(PinLinkChange::Rearm));
+        assert_eq!(change(Some(&cleared), false), Some(PinLinkChange::Remove));
+        assert_eq!(change(None, true), Some(PinLinkChange::Remove));
+        assert_eq!(change(None, false), None);
+        assert_eq!(
+            voter_pin_link_change(
+                &SecretAttributeConfig::default(),
+                Some(&pin),
+                true
+            )
+            .unwrap(),
+            None
+        );
+        let several = HashMap::from([(
+            "pin".to_string(),
+            Some(vec!["1".to_string(), "2".to_string()]),
+        )]);
+        assert!(voter_pin_link_change(&config, Some(&several), true).is_err());
     }
 
     #[test]

@@ -19,6 +19,8 @@ use crate::services::electoral_log::{
 };
 use crate::services::pg_lock::PgLock;
 use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::services::voter_pin_link::{rearm_voter, PinLinkChange};
+use crate::services::voter_secret_attributes::get_secret_attribute_config;
 use crate::types::error::{Error, Result};
 use anyhow::Context;
 use celery::error::TaskError;
@@ -55,6 +57,10 @@ pub struct EditUserTaskBody {
     pub temporary: Option<bool>,
     #[serde(default)]
     pub password_change_initiator: Option<ElectoralLogAdminContext>,
+    /// Decided by the route, the only one that sees the edit's secret
+    /// attributes in plain text.
+    #[serde(default)]
+    pub pin_link_change: Option<PinLinkChange>,
 }
 
 /// Response of the `/edit-user` route. For Datafix election events the edit is
@@ -192,6 +198,28 @@ fn validate_datafix_immutable_fields(
         }
     }
     Ok(())
+}
+
+/// Makes the voter's PIN link follow an edit that Keycloak accepted, so that a
+/// refused edit leaves the link alone. Until this runs an old link can't show a
+/// new PIN, because a reveal checks the link against the PIN stored.
+#[instrument(skip_all, err)]
+async fn sync_pin_link(body: &EditUserTaskBody) -> anyhow::Result<()> {
+    let Some(change) = body.pin_link_change else {
+        return Ok(());
+    };
+    let config = get_secret_attribute_config(&body.tenant_id, &body.election_event_id).await?;
+    let Some(pin_link) = config.pin_link() else {
+        return Ok(());
+    };
+    rearm_voter(
+        pin_link,
+        &body.tenant_id,
+        &body.election_event_id,
+        &body.user_id,
+        change.pin(body.password.as_deref())?,
+    )
+    .await
 }
 
 /// Loads the election event the edit targets, needed for its Datafix
@@ -459,8 +487,8 @@ async fn run_datafix_voter_edit(
 
     edit_keycloak_voter(ctx, client).await?;
 
-    if let Some(admin) = password_change_initiator {
-        post_voter_password_change(
+    let password_audit = match password_change_initiator {
+        Some(admin) => post_voter_password_change(
             &body.tenant_id,
             &body.election_event_id,
             &body.user_id,
@@ -471,8 +499,15 @@ async fn run_datafix_voter_edit(
         .await
         .map_err(|err| {
             format!("Voter password changed, but its electoral-log entry failed: {err:#}")
-        })?;
-    }
+        }),
+        None => Ok(()),
+    };
+    // Whatever the audit did, because the edit stands either way.
+    let link_sync = sync_pin_link(body)
+        .await
+        .map_err(|err| format!("Voter edited, but its PIN link was not updated: {err:#}"));
+    password_audit?;
+    link_sync?;
 
     if !plan.release_attempt {
         return Ok(());
@@ -705,7 +740,18 @@ mod tests {
             password: None,
             temporary: None,
             password_change_initiator: None,
+            pin_link_change: None,
         }
+    }
+
+    #[test]
+    fn a_message_from_before_the_pin_link_changes_no_link() {
+        let body = serde_json::to_value(edit_body(None, HashMap::new())).unwrap();
+        let mut body = body.as_object().unwrap().clone();
+        assert!(body.remove("pin_link_change").is_some());
+        let decoded: EditUserTaskBody =
+            serde_json::from_value(serde_json::Value::Object(body)).unwrap();
+        assert_eq!(decoded.pin_link_change, None);
     }
 
     #[test]
