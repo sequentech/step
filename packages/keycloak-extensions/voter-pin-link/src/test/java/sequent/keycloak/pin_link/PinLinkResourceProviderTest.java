@@ -516,6 +516,24 @@ class PinLinkResourceProviderTest {
     verify(session, never()).setAttribute(eq(LocaleSelectorProvider.USER_REQUEST_LOCALE), any());
   }
 
+  /** The login pages force this language with a script, which this page's policy blocks. */
+  @Test
+  void aRealmThatForcesItsDefaultLanguageGetsItWithoutAPick() {
+    when(realm.getAttribute("language_detection_policy")).thenReturn("force-default");
+    when(realm.getDefaultLocale()).thenReturn("fr");
+    provider.view(token);
+    verify(session).setAttribute(LocaleSelectorProvider.USER_REQUEST_LOCALE, "fr");
+  }
+
+  @Test
+  void aPickWinsOverAForcedDefaultLanguage() {
+    when(realm.getAttribute("language_detection_policy")).thenReturn("force-default");
+    when(realm.getDefaultLocale()).thenReturn("fr");
+    queryParameters.putSingle(LocaleSelectorProvider.KC_LOCALE_PARAM, "es");
+    provider.view(token);
+    verify(session).setAttribute(LocaleSelectorProvider.USER_REQUEST_LOCALE, "es");
+  }
+
   @Test
   void pickingALanguageDoesNotSpendTheLink() throws Exception {
     queryParameters.putSingle(LocaleSelectorProvider.KC_LOCALE_PARAM, "es");
