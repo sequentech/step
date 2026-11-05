@@ -384,7 +384,7 @@ impl<C: Ctx> Trustee<C> {
             ))
         })?;
 
-        assert!(verified.signer_position == PROTOCOL_MANAGER_INDEX);
+        check_configuration_signer(verified.signer_position)?;
         trace!("Verified signature, Configuration signed by Protocol Manager");
 
         let added_ = self.local_board.add(verified, last_id);
@@ -756,6 +756,34 @@ impl<C: Ctx> b3::messages::message::Signer for Trustee<C> {
 impl<C: Ctx> std::fmt::Debug for Trustee<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Trustee({})", self.name)
+    }
+}
+
+fn check_configuration_signer(signer_position: TrusteePosition) -> Result<(), ProtocolError> {
+    if signer_position != PROTOCOL_MANAGER_INDEX {
+        return Err(ProtocolError::VerificationError(format!(
+            "Configuration must be signed by the protocol manager, but was signed by trustee {}",
+            signer_position
+        )));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod configuration_signer_tests {
+    use super::*;
+
+    #[test]
+    fn check_configuration_signer_accepts_protocol_manager() {
+        assert!(check_configuration_signer(PROTOCOL_MANAGER_INDEX).is_ok());
+    }
+
+    #[test]
+    fn check_configuration_signer_rejects_trustee() {
+        assert!(matches!(
+            check_configuration_signer(0),
+            Err(ProtocolError::VerificationError(_))
+        ));
     }
 }
 

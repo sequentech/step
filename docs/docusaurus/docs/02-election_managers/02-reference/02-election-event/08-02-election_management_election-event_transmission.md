@@ -16,6 +16,30 @@ The Transmission module under the Tally tab enables sending election results to 
 - Preconfigured destination servers: External servers (with URLs, credentials, or endpoints) must be set up in the system environment beforehand.
 - Trustee PnPKI files: Each trustee must possess their PnPKI signing files to sign the transmission package.
 
+## Destination Server TLS Verification
+
+Destination servers are configured per area in the `miru:area-ccs-servers` area annotation, a JSON list of servers. Each server can set a `tls_verification_policy` that controls how the TLS certificate of its `address` is checked when the transmission package or the logs are sent:
+
+| Value | Behavior |
+| --- | --- |
+| `verify` (default) | The server certificate must be valid and trusted. The transmission fails otherwise. |
+| `accept_invalid_certificates` | Invalid, expired or self-signed certificates are accepted. Use only in test environments. |
+
+When `tls_verification_policy` is omitted the certificate is verified, so areas configured before this option existed use `verify`. Any other value is rejected when the area configuration is read.
+
+```json
+[
+  {
+    "name": "Central Server",
+    "tag": "central",
+    "address": "https://ccs.example.com",
+    "public_key_pem": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
+    "send_logs": true,
+    "tls_verification_policy": "verify"
+  }
+]
+```
+
 ## Usage Steps
 
 1. **Open the Transmission Module**

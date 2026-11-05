@@ -71,7 +71,11 @@ async fn send_package_to_ccs_server(
     let uri = format!("{}{}", ccs_server.address, base_url);
     info!("Sending package to url {}", uri);
     let client = reqwest::Client::builder()
-        .danger_accept_invalid_certs(true)
+        .danger_accept_invalid_certs(
+            ccs_server
+                .tls_verification_policy()
+                .accepts_invalid_certificates(),
+        )
         .build()?;
 
     // Create a multipart form

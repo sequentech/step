@@ -179,7 +179,12 @@ export default function Header({
                     sx={{height: {xs: "37px", md: "47px"}}}
                 >
                     <PageBanner className="header-content" direction="row" sx={{height: "100%"}}>
-                        <StyledLink className="header-logo-link" href={logoLink} target="_blank">
+                        <StyledLink
+                            className="header-logo-link"
+                            href={logoLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
                             <StyledImage
                                 className="header-logo"
                                 src={logoUrl || ""}
