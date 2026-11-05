@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Approvals | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4185/docs/election_managers/reference/election-event/election_management_election_event_approvals"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Approvals | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4185/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4185/docs/election_managers/reference/election-event/election_management_election_event_approvals"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4185/docs/election_managers/reference/election-event/election_management_election_event_approvals" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4185/docs/election_managers/reference/election-event/election_management_election_event_approvals" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Approvals","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4185/docs/election_managers/reference/election-event/election_management_election_event_approvals"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4185/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4185/assets/js/runtime~main.c57c8556.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4185/assets/js/runtime~main.60ec30e7.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4185/assets/js/main.7ac7d030.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -20,7 +20,25 @@ compared with the voter registry when the voter enrolls, and is then:</p>
 </ul>
 <p>Which of the three happens is decided by the election event&#x27;s <strong>approval matrix</strong>.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="the-queue">The queue<a href="#the-queue" class="hash-link" aria-label="Direct link to The queue" title="Direct link to The queue" translate="no">​</a></h2>
-<p>The tab opens on the enrollments that need review. Each row shows:</p>
+<p>The first time you open the tab in a browser, it shows the enrollments that need review. After
+that, it opens with the filters you last used for this election event (or election) in this
+browser: status, search, any added filters, sorting, page size and page. A filter you removed stays
+removed: after removing <strong>Status</strong>, the tab keeps showing every enrollment.</p>
+<ul>
+<li class="">Each administrator who signs in on the same browser keeps their own filters. Another browser
+starts again from the enrollments that need review.</li>
+<li class="">Nothing is stored on the server. The filters, including any search text or voter details typed
+into them, stay in this browser&#x27;s storage until its site data is cleared, also after signing out.</li>
+<li class="">Saved filters that no longer apply, for example one on a voter attribute that was removed, are
+discarded and the tab opens as on a first visit. An administrator without permission to read
+voter attributes always starts from the enrollments that need review, because their saved filters
+can&#x27;t be checked.</li>
+<li class="">The tab always shows the enrollments of the election event (or election) you are on, whatever was
+saved.</li>
+<li class="">A saved search for a support reference is looked up again when the tab opens; the enrollments it
+matched before are not reused.</li>
+</ul>
+<p>Each row shows:</p>
 <table><thead><tr><th>Column</th><th>What it shows</th></tr></thead><tbody><tr><td>Voter</td><td>The name and email on the enrollment</td></tr><tr><td>What happened</td><td>Which details differ from the registry, or that the voter typed their details by hand; for a decided enrollment, who decided it</td></tr><tr><td>Post</td><td>The area of the enrollment, or the Post the voter named</td></tr><tr><td>When</td><td>How long the enrollment has been waiting, and the day it was sent</td></tr><tr><td>Status</td><td>Needs review, Approved or Rejected</td></tr></tbody></table>
 <ul>
 <li class=""><strong>Search</strong> finds enrollments by any text the voter gave: name, email or ID number.</li>
