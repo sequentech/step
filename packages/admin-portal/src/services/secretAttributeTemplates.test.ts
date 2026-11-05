@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {getReferencedSecretAttributeNames} from "./secretAttributeTemplates"
+import {
+    getReferencedSecretAttributeNames,
+    PIN_LINK_TEMPLATE_VARIABLES,
+} from "./secretAttributeTemplates"
 
 describe("getReferencedSecretAttributeNames", () => {
     const names = ["customerReference", "pin"]
@@ -33,5 +36,22 @@ describe("getReferencedSecretAttributeNames", () => {
         const contents = "{{user.pincode}} {{user.customerReferenceOld}}"
 
         expect(getReferencedSecretAttributeNames(contents, names)).toEqual([])
+    })
+
+    it("declares the PIN link only when the template uses it", () => {
+        const known = [...names, ...PIN_LINK_TEMPLATE_VARIABLES]
+
+        expect(
+            getReferencedSecretAttributeNames(
+                "<a href='{{user.pin_link_url}}'>{{user.pin_link_token}}</a>",
+                known
+            )
+        ).toEqual(["pin_link_token", "pin_link_url"])
+        expect(
+            getReferencedSecretAttributeNames(
+                "Your PIN link is in this letter, pin_link_url",
+                known
+            )
+        ).toEqual([])
     })
 })

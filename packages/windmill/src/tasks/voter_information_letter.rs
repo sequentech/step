@@ -20,6 +20,8 @@ use crate::services::tasks_execution::{
     update_complete_with_annotations, update_fail_preserving_annotations,
 };
 use crate::services::tasks_semaphore::acquire_semaphore;
+use crate::services::voter_pin_link::rearm_voter;
+use crate::services::voter_secret_attributes::get_secret_attribute_config;
 use anyhow::{anyhow, Context, Result};
 use celery::error::TaskError;
 use chrono::Duration;
@@ -166,6 +168,11 @@ async fn deliver_audit_and_complete(
     Ok(())
 }
 
+/// Writes a freshly generated password into the voter's information letter, an
+/// encrypted PDF, and sets it as their password. The new password replaces the
+/// PIN, so the voter's PIN link is removed. If the document already exists an
+/// earlier run got that far, so only its pending electoral-log entry is
+/// delivered and a retry doesn't change the password twice.
 #[instrument(skip_all, err)]
 async fn generate(
     tenant_id: &str,
@@ -274,6 +281,18 @@ async fn generate(
     )
     .await
     .context("Failed to store encrypted Voter Information Letter")?;
+
+    // This password replaces the PIN, which a link would show though it no
+    // longer logs in.
+    if let Some(pin_link) = get_secret_attribute_config(tenant_id, election_event_id)
+        .await
+        .context("Failed to read the voter secret attribute config")?
+        .pin_link()
+    {
+        rearm_voter(pin_link, tenant_id, election_event_id, voter_id, None)
+            .await
+            .context("Failed to remove the voter's PIN link")?;
+    }
 
     let voter = KeycloakAdminClient::new()
         .await

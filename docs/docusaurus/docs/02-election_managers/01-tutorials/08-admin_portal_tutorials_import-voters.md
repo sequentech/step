@@ -44,6 +44,9 @@ After import:
 - users with secret-read permission can reveal it from the voter editor;
 - a decrypted export can include it only when explicitly requested by an authorized user.
 
+When the event has the [one-time PIN link](./102-admin_portal_tutorials_voter-pin-link.md#3-import-the-voters)
+on, the PIN column also sets the password and arms the voter's link.
+
 See [Protecting a Voter Attribute as Secret](./99-admin_portal_tutorials_add-user-attributes-to-keycloak.md#protecting-a-voter-attribute-as-secret)
 for configuration restrictions, and
 [Permissions](../02-reference/user-manual/users-and-roles/users-and-roles_permissions.md#secret-voter-field-permissions)

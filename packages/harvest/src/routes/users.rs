@@ -55,6 +55,7 @@ use windmill::services::users::{
     count_keycloak_users, list_users, list_users_with_vote_info,
 };
 use windmill::services::users::{FilterOption, ListUsersFilter};
+use windmill::services::voter_pin_link::{self, PinWrite};
 use windmill::services::voter_secret_attributes::{
     decrypt_attribute_values, encrypt_secret_attribute_map,
     get_secret_attribute_config, redact_user, user_attribute_values,
@@ -124,6 +125,92 @@ async fn get_event_redacted_secret_names(
             .redacted_names()
             .clone(),
     )
+}
+
+/// Refuses writes to what only the voter PIN link may set.
+fn ensure_no_generated_attributes<'a>(
+    config: &SecretAttributeConfig,
+    mut names: impl Iterator<Item = &'a String>,
+) -> Result<(), (Status, String)> {
+    match names.find(|name| config.generated_names().contains(*name)) {
+        Some(name) => Err((
+            Status::BadRequest,
+            format!(
+                "Attribute `{name}` is generated for the voter PIN link and cannot be set"
+            ),
+        )),
+        None => Ok(()),
+    }
+}
+
+/// The voter logs in with the PIN the link shows, so a write that sets the PIN
+/// sets the password too. Returns the password to store when the request brings
+/// none; refuses one that differs, as the voter import does.
+fn password_from_pin_write(
+    config: &SecretAttributeConfig,
+    secret_attributes: Option<&HashMap<String, Option<Vec<String>>>>,
+    password: Option<&str>,
+) -> Result<Option<String>, (Status, String)> {
+    let (Some(pin_link), Some(secret_attributes)) =
+        (config.pin_link(), secret_attributes)
+    else {
+        return Ok(None);
+    };
+    let write = pin_link
+        .pin_write(secret_attributes)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
+    let PinWrite::Set(pin) = write else {
+        return Ok(None);
+    };
+    match password {
+        None => Ok(Some(pin.to_string())),
+        Some(password) if password == pin => Ok(None),
+        Some(_) => Err((
+            Status::BadRequest,
+            format!(
+                "`{}` must equal the password, because the voter logs in with the PIN the link shows",
+                pin_link.pin_attribute
+            ),
+        )),
+    }
+}
+
+/// Makes the voter's link follow a write: an old link must not outlive its PIN,
+/// a new PIN needs a link of its own, and a new password alone leaves a PIN the
+/// link would show though it no longer logs in. Runs before the write itself is
+/// stored, since a link whose token doesn't match the PIN only refuses, while
+/// the opposite order could leave a live old link.
+async fn sync_voter_pin_link(
+    config: &SecretAttributeConfig,
+    tenant_id: &str,
+    election_event_id: &str,
+    user_id: &str,
+    secret_attributes: Option<&HashMap<String, Option<Vec<String>>>>,
+    password_changes: bool,
+) -> Result<(), (Status, String)> {
+    let Some(pin_link) = config.pin_link() else {
+        return Ok(());
+    };
+    let write = secret_attributes
+        .map(|attributes| pin_link.pin_write(attributes))
+        .transpose()
+        .map_err(|error| (Status::BadRequest, error.to_string()))?
+        .unwrap_or(PinWrite::Absent);
+    let pin = match write {
+        PinWrite::Set(pin) => Some(pin),
+        PinWrite::Cleared => None,
+        PinWrite::Absent if password_changes => None,
+        PinWrite::Absent => return Ok(()),
+    };
+    voter_pin_link::rearm_voter(
+        pin_link,
+        tenant_id,
+        election_event_id,
+        user_id,
+        pin,
+    )
+    .await
+    .map_err(|error| (Status::InternalServerError, format!("{error:#}")))
 }
 
 /// Records a secret-attribute action before it takes effect, so an action
@@ -817,6 +904,11 @@ pub struct CreateUserBody {
     secret_attributes: Option<HashMap<String, Option<Vec<String>>>>,
 }
 
+/// Creates a user in the tenant realm, or a voter when the body names an
+/// election event. A voter with secret attributes is created disabled and only
+/// enabled once its attributes are encrypted for the id Keycloak assigned. With
+/// the PIN link on, its link is set up before it is enabled and its PIN also
+/// becomes its password.
 #[instrument(skip(claims, body))]
 #[post("/create-user", format = "json", data = "<body>")]
 pub async fn create_user(
@@ -873,6 +965,8 @@ pub async fn create_user(
             ErrorCode::InternalServerError,
         )
     })?;
+    let mut secret_config = SecretAttributeConfig::default();
+    let mut pin_password = None;
     let secret_names = if let Some(election_event_id) =
         input.election_event_id.as_deref()
     {
@@ -884,6 +978,63 @@ pub async fn create_user(
         .map_err(|(status, message)| {
             ErrorResponse::new(status, &message, ErrorCode::InternalServerError)
         })?;
+        ensure_no_generated_attributes(
+            &config,
+            input
+                .user
+                .attributes
+                .iter()
+                .flat_map(|attributes| attributes.keys())
+                .chain(
+                    input
+                        .secret_attributes
+                        .iter()
+                        .flat_map(|attributes| attributes.keys()),
+                ),
+        )
+        .map_err(|(status, message)| {
+            ErrorResponse::new(status, &message, ErrorCode::UnknownError)
+        })?;
+        pin_password = password_from_pin_write(
+            &config,
+            input.secret_attributes.as_ref(),
+            None,
+        )
+        .map_err(|(status, message)| {
+            ErrorResponse::new(status, &message, ErrorCode::UnknownError)
+        })?;
+        if let Some(password) = pin_password.as_deref() {
+            authorize(
+                &claims,
+                true,
+                Some(input.tenant_id.clone()),
+                vec![Permissions::VOTER_CHANGE_PASSWORD],
+            )
+            .map_err(|(status, message)| {
+                ErrorResponse::new(status, &message, ErrorCode::Unauthorized)
+            })?;
+            get_realm_password_policy(&input.tenant_id, election_event_id)
+                .await
+                .map_err(|error| {
+                    ErrorResponse::new(
+                        Status::InternalServerError,
+                        &format!(
+                            "Failed to read election event Password Policy: {error:#}"
+                        ),
+                        ErrorCode::InternalServerError,
+                    )
+                })?
+                .validate_password(password)
+                .map_err(|violation| {
+                    ErrorResponse::password_policy_violation(
+                        Status::BadRequest,
+                        &violation.to_string(),
+                        violation.rule.as_str(),
+                        violation.required_count,
+                    )
+                })?;
+        }
+        secret_config = config.clone();
         if has_secret_attributes {
             config.validated_names().map_err(|error| {
                 ErrorResponse::new(
@@ -1075,6 +1226,24 @@ pub async fn create_user(
                     ErrorCode::InternalServerError,
                 )
             })?;
+            // Before the edit that enables the voter, so an enabled voter never
+            // lacks the link.
+            sync_voter_pin_link(
+                &secret_config,
+                &input.tenant_id,
+                election_event_id,
+                &user_id,
+                Some(&secret_attributes),
+                false,
+            )
+            .await
+            .map_err(|(status, message)| {
+                ErrorResponse::new(
+                    status,
+                    &message,
+                    ErrorCode::InternalServerError,
+                )
+            })?;
             user = KeycloakAdminClient::new()
                 .await
                 .map_err(|error| {
@@ -1093,8 +1262,8 @@ pub async fn create_user(
                     None,
                     None,
                     None,
-                    None,
-                    None,
+                    pin_password.clone(),
+                    pin_password.as_ref().map(|_| false),
                 )
                 .await
                 .map_err(|error| {
@@ -1103,6 +1272,24 @@ pub async fn create_user(
                         "Voter was created, but its encrypted attributes could not be stored",
                     )
                 })?;
+            if pin_password.is_some() {
+                post_voter_password_change(
+                    &input.tenant_id,
+                    election_event_id,
+                    &user_id,
+                    user.username.clone(),
+                    &ElectoralLogAdminContext::from_claims(&claims),
+                    VoterPasswordChangeSource::AdminPortal,
+                )
+                .await
+                .map_err(|error| {
+                    ErrorResponse::new(
+                        Status::InternalServerError,
+                        &format!("Voter created, but its password's electoral-log entry failed: {error:#}"),
+                        ErrorCode::InternalServerError,
+                    )
+                })?;
+            }
         }
     }
 
@@ -1234,13 +1421,18 @@ pub async fn check_edit_email_tlf(
     Ok(())
 }
 
+/// Edits a user, or a voter when the body names an election event. For a voter
+/// it checks the permissions the change needs and, with the PIN link on, makes
+/// a written PIN its password and keeps its link in step before anything is
+/// stored. On Datafix events the edit is handed to the `edit_user` task, unless
+/// it only changes the password.
 #[instrument(skip(claims, body), ret)]
 #[post("/edit-user", format = "json", data = "<body>")]
 pub async fn edit_user(
     claims: jwt::JwtClaims,
     body: Json<EditUserBody>,
 ) -> Result<Json<EditUserOutput>, EditUserError> {
-    let input = body.into_inner();
+    let mut input = body.into_inner();
     let password_only = input.election_event_id.is_some()
         && input.password.is_some()
         && input.enabled.is_none()
@@ -1331,6 +1523,41 @@ pub async fn edit_user(
     } else {
         HashSet::new()
     };
+    let mut secret_config = SecretAttributeConfig::default();
+    if let Some(election_event_id) = input.election_event_id.as_deref() {
+        secret_config = get_event_secret_attribute_config(
+            &input.tenant_id,
+            election_event_id,
+        )
+        .await?;
+        ensure_no_generated_attributes(
+            &secret_config,
+            input
+                .attributes
+                .iter()
+                .flat_map(|attributes| attributes.keys())
+                .chain(
+                    input
+                        .secret_attributes
+                        .iter()
+                        .flat_map(|attributes| attributes.keys()),
+                ),
+        )?;
+        if let Some(password) = password_from_pin_write(
+            &secret_config,
+            input.secret_attributes.as_ref(),
+            input.password.as_deref(),
+        )? {
+            authorize(
+                &claims,
+                true,
+                Some(input.tenant_id.clone()),
+                vec![Permissions::VOTER_CHANGE_PASSWORD],
+            )?;
+            input.password = Some(password);
+            input.temporary = Some(false);
+        }
+    }
     if let Some(name) = input.attributes.as_ref().and_then(|attributes| {
         attributes.keys().find(|name| secret_names.contains(*name))
     }) {
@@ -1492,17 +1719,25 @@ pub async fn edit_user(
     })?;
     drop(hasura_db_client);
 
-    if let (Some(election_event_id), Some(secret_attributes)) = (
-        input.election_event_id.as_deref(),
-        input.secret_attributes.as_ref(),
-    ) {
-        audit_secret_changes(
-            &claims,
+    if let Some(election_event_id) = input.election_event_id.as_deref() {
+        if let Some(secret_attributes) = input.secret_attributes.as_ref() {
+            audit_secret_changes(
+                &claims,
+                &input.tenant_id,
+                election_event_id,
+                Some(&input.user_id),
+                input.username.as_deref(),
+                secret_attributes,
+            )
+            .await?;
+        }
+        sync_voter_pin_link(
+            &secret_config,
             &input.tenant_id,
             election_event_id,
-            Some(&input.user_id),
-            input.username.as_deref(),
-            secret_attributes,
+            &input.user_id,
+            input.secret_attributes.as_ref(),
+            input.password.is_some(),
         )
         .await?;
     }
@@ -2173,6 +2408,119 @@ pub async fn get_user_profile_configuration(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use sequent_core::types::keycloak::{
+        REALM_ATTR_PIN_LINK_EXPIRES_AT, REALM_ATTR_PIN_LINK_POLICY,
+    };
+
+    fn pin_link_config() -> SecretAttributeConfig {
+        let pin: UserProfileAttribute =
+            serde_json::from_value(serde_json::json!({
+                "name": "pin",
+                "annotations": {"sequent.secret": true},
+            }))
+            .unwrap();
+        SecretAttributeConfig::from_profile(&[pin]).with_realm_attributes(
+            &HashMap::from([
+                (
+                    REALM_ATTR_PIN_LINK_POLICY.to_string(),
+                    "ONE_TIME_LINK".to_string(),
+                ),
+                (
+                    REALM_ATTR_PIN_LINK_EXPIRES_AT.to_string(),
+                    "2030-01-01T00:00:00Z".to_string(),
+                ),
+            ]),
+        )
+    }
+
+    fn pin_attributes(
+        values: Option<Vec<&str>>,
+    ) -> HashMap<String, Option<Vec<String>>> {
+        HashMap::from([(
+            "pin".to_string(),
+            values.map(|values| {
+                values.iter().map(|value| value.to_string()).collect()
+            }),
+        )])
+    }
+
+    #[test]
+    fn a_pin_write_sets_the_password() {
+        let config = pin_link_config();
+        let pin = pin_attributes(Some(vec!["123456789012"]));
+        assert_eq!(
+            password_from_pin_write(&config, Some(&pin), None).unwrap(),
+            Some("123456789012".to_string())
+        );
+        assert_eq!(
+            password_from_pin_write(&config, Some(&pin), Some("123456789012"))
+                .unwrap(),
+            None
+        );
+    }
+
+    #[test]
+    fn a_pin_write_refuses_a_different_password_and_several_values() {
+        let config = pin_link_config();
+        let pin = pin_attributes(Some(vec!["123456789012"]));
+        let (status, _) =
+            password_from_pin_write(&config, Some(&pin), Some("other"))
+                .unwrap_err();
+        assert_eq!(status, Status::BadRequest);
+        let several = pin_attributes(Some(vec!["1", "2"]));
+        let (status, _) =
+            password_from_pin_write(&config, Some(&several), None).unwrap_err();
+        assert_eq!(status, Status::BadRequest);
+    }
+
+    /// The password is left alone when the PIN is cleared, when no secret
+    /// attributes are written and when the realm has no link.
+    #[test]
+    fn only_setting_the_pin_with_the_link_on_touches_the_password() {
+        let config = pin_link_config();
+        let pin = pin_attributes(Some(vec!["123456789012"]));
+        for cleared in [pin_attributes(None), pin_attributes(Some(vec![""]))] {
+            assert_eq!(
+                password_from_pin_write(&config, Some(&cleared), None).unwrap(),
+                None
+            );
+        }
+        assert_eq!(password_from_pin_write(&config, None, None).unwrap(), None);
+        assert_eq!(
+            password_from_pin_write(
+                &SecretAttributeConfig::default(),
+                Some(&pin),
+                Some("other")
+            )
+            .unwrap(),
+            None
+        );
+    }
+
+    #[test]
+    fn generated_attributes_cannot_be_written() {
+        let config = pin_link_config();
+        let hash = "pin-link-token-hash".to_string();
+        let attempts = "pin-link-attempts".to_string();
+        let pin = "pin".to_string();
+        assert!(
+            ensure_no_generated_attributes(&config, [&pin].into_iter()).is_ok()
+        );
+        assert_eq!(
+            ensure_no_generated_attributes(&config, [&pin, &hash].into_iter())
+                .unwrap_err()
+                .0,
+            Status::BadRequest
+        );
+        assert_eq!(
+            ensure_no_generated_attributes(&config, [&attempts].into_iter())
+                .unwrap_err()
+                .0,
+            Status::BadRequest
+        );
+    }
+
     #[test]
     fn blank_secret_values_are_audited_as_clears() {
         let attributes = std::collections::HashMap::from([

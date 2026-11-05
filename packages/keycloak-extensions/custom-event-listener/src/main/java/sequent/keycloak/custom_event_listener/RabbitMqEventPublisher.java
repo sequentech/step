@@ -4,6 +4,8 @@
 
 package sequent.keycloak.custom_event_listener;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -11,14 +13,27 @@ import com.rabbitmq.client.ConnectionFactory;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Supplier;
 import lombok.extern.jbosslog.JBossLog;
 
 @JBossLog
-class RabbitMqEventPublisher implements AutoCloseable {
+public class RabbitMqEventPublisher implements AutoCloseable {
 
   private static final String DEFAULT_QUEUE_NAME = "electoral_log_event_queue";
+  private static final ObjectMapper JSON = new ObjectMapper();
+
+  // Read once for performance
+  private static final String TASK_NAME =
+      Optional.ofNullable(System.getenv("ELECTORAL_LOG_TASK"))
+          .orElse("enqueue_electoral_log_event")
+          .trim();
 
   private final String amqpUri;
   private final String queueName;
@@ -27,7 +42,11 @@ class RabbitMqEventPublisher implements AutoCloseable {
   private Connection rabbitConnection;
   private Channel rabbitChannel;
 
-  static RabbitMqEventPublisher fromEnvironment() {
+  /**
+   * A publisher for the broker at {@code AMQP_ADDR}. The queue is {@code ELECTORAL_LOG_QUEUE} or
+   * its default, prefixed with {@code ENV_SLUG} when that is set.
+   */
+  public static RabbitMqEventPublisher fromEnvironment() {
     String envSlug = System.getenv("ENV_SLUG");
     String baseQueueName =
         Optional.ofNullable(System.getenv("ELECTORAL_LOG_QUEUE")).orElse(DEFAULT_QUEUE_NAME).trim();
@@ -46,9 +65,103 @@ class RabbitMqEventPublisher implements AutoCloseable {
     this.connectionFactorySupplier = connectionFactorySupplier;
   }
 
+  /** The properties of a Celery message for the electoral-log task. */
+  static AMQP.BasicProperties electoralLogProperties(String correlationId) {
+    Map<String, Object> headers = new HashMap<>();
+    headers.put("id", correlationId);
+    headers.put("task", TASK_NAME);
+    headers.put("timelimit", "undefined");
+    return new AMQP.BasicProperties.Builder()
+        .correlationId(correlationId)
+        .priority(0)
+        .deliveryMode(2)
+        .contentEncoding("utf-8")
+        .contentType("application/json")
+        .headers(headers)
+        .build();
+  }
+
+  /**
+   * The body of a Celery message for the electoral-log task. Nulls become the string "null", since
+   * log reporting would otherwise fail to deserialize them.
+   */
+  static byte[] electoralLogBody(
+      String electionEventId,
+      String messageType,
+      String body,
+      String userId,
+      String tenantId,
+      String username)
+      throws JsonProcessingException {
+    Map<String, String> input = new HashMap<>();
+    input.put("election_event_id", Optional.ofNullable(electionEventId).orElse("null"));
+    input.put("message_type", Optional.ofNullable(messageType).orElse("null"));
+    input.put("body", Optional.ofNullable(body).orElse("null"));
+    input.put("user_id", Optional.ofNullable(userId).orElse("null"));
+    input.put("tenant_id", Optional.ofNullable(tenantId).orElse("null"));
+    input.put("username", Optional.ofNullable(username).orElse("null"));
+
+    Map<String, Object> inputObject = new HashMap<>();
+    inputObject.put("input", input);
+
+    Map<String, String> annotations = new HashMap<>();
+    annotations.put("callbacks", null);
+    annotations.put("errbacks", null);
+    annotations.put("chain", null);
+    annotations.put("chord", null);
+
+    List<Object> message = new ArrayList<>();
+    message.add(Collections.emptyList());
+    message.add(inputObject);
+    message.add(annotations);
+    return JSON.writeValueAsBytes(message);
+  }
+
+  /**
+   * Publishes a message without waiting for the broker to confirm it. A failure drops the
+   * connection, so the next call connects again.
+   */
   synchronized void publish(AMQP.BasicProperties properties, byte[] body) throws Exception {
     try {
       getRabbitChannel().basicPublish("", queueName, properties, body);
+    } catch (Exception exception) {
+      closeRabbitMqResources();
+      throw exception;
+    }
+  }
+
+  /**
+   * Publishes an electoral-log entry and waits until the broker has taken responsibility for it.
+   * The queue is durable and the message persistent, so a confirmed entry survives a broker
+   * restart. An action that must not happen unaudited runs only after this returns. No AMQP type
+   * appears here because this jar's RabbitMQ classes are not for other extensions to depend on.
+   */
+  public synchronized void publishElectoralLogConfirmed(
+      String electionEventId,
+      String messageType,
+      String body,
+      String userId,
+      String tenantId,
+      String username,
+      long timeoutMillis)
+      throws Exception {
+    publishConfirmed(
+        electoralLogProperties(UUID.randomUUID().toString()),
+        electoralLogBody(electionEventId, messageType, body, userId, tenantId, username),
+        timeoutMillis);
+  }
+
+  /**
+   * Publishes a message and waits up to {@code timeoutMillis} for the broker to confirm it. Like
+   * {@link #publish}, a failure drops the connection.
+   */
+  synchronized void publishConfirmed(
+      AMQP.BasicProperties properties, byte[] body, long timeoutMillis) throws Exception {
+    try {
+      Channel channel = getRabbitChannel();
+      channel.confirmSelect();
+      channel.basicPublish("", queueName, properties, body);
+      channel.waitForConfirmsOrDie(timeoutMillis);
     } catch (Exception exception) {
       closeRabbitMqResources();
       throw exception;
