@@ -4,7 +4,7 @@
 import React, {useState} from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
-import {RecordContextProvider} from "react-admin"
+import {RecordContextProvider, memoryStore, type Store} from "react-admin"
 import {AdminStoryProvider, EVENT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {STORY_IDS, areaRecords, electionRecord, eventRecord, storyId} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
@@ -17,23 +17,28 @@ import {
     applications,
 } from "@/resources/Approvals/__stories__/ApprovalsFixture"
 import {matrixHandlers} from "@/resources/Approvals/__stories__/ApprovalMatrixFixture"
-import {withServiceFilters} from "@/resources/Approvals/__stories__/ApprovalsScreenFixture"
+import {
+    ADMIN_ID,
+    EVENT_PATH,
+    queueStoreKey,
+    withServiceFilters,
+} from "@/resources/Approvals/__stories__/ApprovalsScreenFixture"
 import {EditElectionEventApprovals} from "./EditElectionEventApprovals"
 import {answerOrPending, paramsOf, recordsOrPending} from "./__stories__/ElectionEventFixture"
 import {EStoryPermissions, useStoryGlobals} from "../../../../ui-essentials/.storybook/globals"
 
 const APPLICATIONS = "sequent_backend_applications"
-const STATUS_FILTER_KEY = "approvals_status_filter"
 
 interface Scenario {
     /** The election whose approvals are shown, or the whole event's. */
     electionId?: string
-    /** The status filter the Approvals tab stores when it is chosen. */
+    /** The status filter the administrator last chose on this browser. */
     storedStatus?: string
 }
 
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof recordsOrPending>
+let preferences: Store
 
 /** The event tabs pass a new `showList` each time the Approvals tab is chosen again. */
 function Fixture({electionId}: Scenario) {
@@ -45,6 +50,8 @@ function Fixture({electionId}: Scenario) {
             dataProvider={withServiceFilters(data.provider)}
             role={permissions}
             tenant={tenant}
+            store={preferences}
+            auth={{userId: ADMIN_ID}}
         >
             <ElectionEventTallyContextProvider>
                 <button type="button" onClick={() => setShowList(String(Date.now()))}>
@@ -67,9 +74,14 @@ const meta = {
     component: EditElectionEventApprovals,
     args: {},
     globals: {permissions: EStoryPermissions.ADMIN},
+    // The Approvals tab of the election event's page.
+    parameters: {router: {initialEntries: [EVENT_PATH]}},
     beforeEach: async ({args}) => {
-        if (args.storedStatus) localStorage.setItem(STATUS_FILTER_KEY, args.storedStatus)
-        else localStorage.removeItem(STATUS_FILTER_KEY)
+        preferences = memoryStore(
+            args.storedStatus
+                ? {[queueStoreKey(EVENT_PATH)]: {filter: {status: args.storedStatus}}}
+                : {}
+        )
         data = recordsOrPending({
             [APPLICATIONS]: [
                 ...applications(),
@@ -102,7 +114,6 @@ const meta = {
             {schema: true}
         )
         await graphql.ready
-        return () => localStorage.removeItem(STATUS_FILTER_KEY)
     },
     render: (args, {globals}) => <Fixture key={JSON.stringify(globals)} {...args} />,
 } satisfies WidgetMeta<Scenario>
@@ -156,7 +167,7 @@ export const Populated: Story = {
     },
 }
 
-export const StatusFilterFromTheTab: Story = {
+export const StatusChosenLast: Story = {
     args: {storedStatus: "accepted"},
     play: async ({canvasElement}) => {
         await expect(await row(canvasElement, "Bob Example")).toBeVisible()
@@ -184,6 +195,43 @@ export const ElectionApprovals: Story = {
         const canvas = within(canvasElement)
         await expect(await row(canvasElement, "Erin North")).toBeVisible()
         await waitFor(() => expect(canvas.queryByRole("row", {name: /Alice Example/})).toBeNull())
+    },
+}
+
+const ELECTION_PATH = `/sequent_backend_election/${STORY_IDS.election}`
+
+export const EachElectionKeepsItsOwnFilters: Story = {
+    // The event's queue was left on Approved; the election's page has filters of its own.
+    args: {electionId: STORY_IDS.election, storedStatus: "accepted"},
+    parameters: {router: {initialEntries: [ELECTION_PATH]}},
+    play: async ({canvasElement}) => {
+        await row(canvasElement, "Erin North")
+        expect(lastListFilter()).toMatchObject({
+            filter: {
+                "election_event_id": EVENT_ID,
+                "permission_label": "north",
+                "status@_ilike": "pending",
+            },
+        })
+        await userEvent.click(within(canvasElement).getByRole("combobox", {name: "Status"}))
+        await userEvent.click(await within(document.body).findByRole("option", {name: "Rejected"}))
+        await waitFor(() =>
+            expect(preferences.getItem(queueStoreKey(ELECTION_PATH))).toMatchObject({
+                filter: {status: "rejected"},
+            })
+        )
+        // The election's label stays the page's own, not a saved filter.
+        expect(preferences.getItem(queueStoreKey(ELECTION_PATH)).filter).toEqual({
+            status: "rejected",
+        })
+        await waitFor(() =>
+            expect(lastListFilter()).toMatchObject({
+                filter: {"permission_label": "north", "status@_ilike": "rejected"},
+            })
+        )
+        expect(preferences.getItem(queueStoreKey(EVENT_PATH))).toEqual({
+            filter: {status: "accepted"},
+        })
     },
 }
 
