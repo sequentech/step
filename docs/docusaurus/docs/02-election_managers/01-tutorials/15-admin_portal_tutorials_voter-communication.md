@@ -45,5 +45,8 @@ Sending or scheduling content that declares a secret field requires
 longer configured as secret, its envelope is invalid, or the operator lacks permission, the job
 fails without substituting the stored value.
 
+To send voters a one-time link where they obtain their PIN, see
+[Letting Voters Obtain Their PIN Through a One-Time Link](./102-admin_portal_tutorials_voter-pin-link.md#4-send-the-link).
+
 See [Permissions](../02-reference/user-manual/users-and-roles/users-and-roles_permissions.md#secret-voter-field-permissions)
 and [Templates](../02-reference/user-manual/templates/admin_portal_reference_user-manual_templates.md#secret-voter-variables).
