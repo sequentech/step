@@ -75,7 +75,7 @@ jobs:
     steps:
       - name: Resolve target commit from tag
         id: resolve_tag
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           result-encoding: string
           script: |
@@ -183,7 +183,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0  # Fetches all history for all tags and branches
 
@@ -208,7 +208,7 @@ jobs:
     if: ${{ always() }}
     steps:
       - name: Slack Workflow Notification
-        uses: Gamesight/slack-workflow-status@v1.2.0
+        uses: Gamesight/slack-workflow-status@v2.0.0
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -218,7 +218,7 @@ jobs:
         # Don't send release notification if cleanup job ran successfully
         # (indicating the release was rolled back)
         if: ${{ needs.cleanup.result != 'success' }}
-        uses: slackapi/slack-github-action@v1.24.0
+        uses: slackapi/slack-github-action@v4.0.0
         with:
           payload: |
             {
