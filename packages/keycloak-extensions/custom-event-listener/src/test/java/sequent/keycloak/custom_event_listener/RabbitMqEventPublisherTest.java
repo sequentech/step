@@ -61,6 +61,7 @@ class RabbitMqEventPublisherTest {
     verify(channel, times(2)).basicPublish("", QUEUE_NAME, properties, body);
     verify(connectionFactory).setAutomaticRecoveryEnabled(false);
     verify(connectionFactory).setTopologyRecoveryEnabled(false);
+    verify(connectionFactory).setConnectionTimeout(5_000);
   }
 
   @Test
