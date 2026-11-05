@@ -24,6 +24,7 @@ use sequent_core::types::keycloak::{
     REALM_ATTR_PIN_LINK_POLICY, REALM_ATTR_PIN_LINK_PUBLIC_BASE_URL,
     REALM_ATTR_PIN_LINK_TOKEN_HASH_ATTRIBUTE,
 };
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use strand::symm::SymmetricKey;
 use uuid::Uuid;
@@ -84,6 +85,37 @@ pub enum PinWrite<'a> {
     Absent,
     Cleared,
     Set(&'a str),
+}
+
+/// What an edit does to a voter's link: an old link must not outlive its PIN, a
+/// new PIN needs a link of its own, and a new password alone leaves a PIN the
+/// link would show though it no longer logs in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PinLinkChange {
+    /// The edit sets a PIN, which it also sets as the password.
+    Rearm,
+    Remove,
+}
+
+impl PinLinkChange {
+    pub fn of_edit(write: PinWrite<'_>, password_changes: bool) -> Option<Self> {
+        match write {
+            PinWrite::Set(_) => Some(Self::Rearm),
+            PinWrite::Cleared => Some(Self::Remove),
+            PinWrite::Absent if password_changes => Some(Self::Remove),
+            PinWrite::Absent => None,
+        }
+    }
+
+    /// The PIN for [`rearm_voter`], given the password the edit sets.
+    pub fn pin(self, password: Option<&str>) -> Result<Option<&str>> {
+        match self {
+            Self::Rearm => password
+                .map(Some)
+                .ok_or_else(|| anyhow!("An edit that sets a PIN must set it as the password too")),
+            Self::Remove => Ok(None),
+        }
+    }
 }
 
 impl PinLinkConfig {
@@ -389,6 +421,36 @@ mod tests {
     const FIXTURE: &str = include_str!(
         "../../../keycloak-extensions/voter-pin-link/src/test/resources/voter-pin-link-v1.json"
     );
+
+    #[test]
+    fn an_edit_changes_the_link_when_it_changes_the_pin_or_the_password() {
+        use PinLinkChange::{Rearm, Remove};
+        let set = PinWrite::Set("123456789012");
+        assert_eq!(PinLinkChange::of_edit(set, false), Some(Rearm));
+        assert_eq!(PinLinkChange::of_edit(set, true), Some(Rearm));
+        assert_eq!(
+            PinLinkChange::of_edit(PinWrite::Cleared, false),
+            Some(Remove)
+        );
+        assert_eq!(
+            PinLinkChange::of_edit(PinWrite::Cleared, true),
+            Some(Remove)
+        );
+        assert_eq!(PinLinkChange::of_edit(PinWrite::Absent, true), Some(Remove));
+        assert_eq!(PinLinkChange::of_edit(PinWrite::Absent, false), None);
+    }
+
+    #[test]
+    fn a_new_link_needs_the_pin_the_edit_set_as_the_password() {
+        use PinLinkChange::{Rearm, Remove};
+        assert_eq!(
+            Rearm.pin(Some("123456789012")).unwrap(),
+            Some("123456789012")
+        );
+        assert!(Rearm.pin(None).is_err());
+        assert_eq!(Remove.pin(Some("123456789012")).unwrap(), None);
+        assert_eq!(Remove.pin(None).unwrap(), None);
+    }
 
     fn enabled() -> HashMap<String, String> {
         HashMap::from([

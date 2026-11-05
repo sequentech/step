@@ -248,6 +248,8 @@ username could use the link, so limit who can read them.
   link yet, it still shows the original PIN, which no longer logs in.
 - **Creating a voter** with a PIN in the voter editor arms the link and sets the password the same
   way as a new PIN.
+- **An edit that is refused** leaves the link alone, whether Keycloak refuses it or, in an election
+  event linked to an external voter system, the task that applies the edit.
 
 ### Voters imported before the link was on
 
