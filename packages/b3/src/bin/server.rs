@@ -11,6 +11,7 @@ cfg_if::cfg_if! {
         use serde::Deserialize;
         use b3::client::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
         use b3::grpc::server::PgsqlB3Server;
+        use b3::postgres::{PgTlsConfig, PgTlsMode};
         use b3::grpc::B3Server;
         use b3::grpc::MAX_MESSAGE_SIZE;
 
@@ -22,6 +23,8 @@ cfg_if::cfg_if! {
             pg_user: String,
             pg_password: String,
             pg_database: String,
+            pg_ssl_mode: PgTlsMode,
+            pg_ca_path: Option<PathBuf>,
             bind: String,
             blob_root: Option<PathBuf>,
             max_message_size_bytes: usize,
@@ -35,6 +38,8 @@ cfg_if::cfg_if! {
                     pg_user: "postgres".to_string(),
                     pg_password: "postgrespw".to_string(),
                     pg_database: "protocoldb".to_string(),
+                    pg_ssl_mode: PgTlsMode::default(),
+                    pg_ca_path: None,
                     bind: "127.0.0.1:50051".to_string(),
                     blob_root: None,
                     max_message_size_bytes: MAX_MESSAGE_SIZE,
@@ -57,9 +62,10 @@ cfg_if::cfg_if! {
 
             let config = ServerConfig::from_env()?;
 
-            info!("Starting b3 with configuration: {:#?}", config);
+            info!(host = %config.pg_host, port = config.pg_port, database = %config.pg_database, tls_mode = ?config.pg_ssl_mode, "Starting b3");
 
-            let c = PgsqlConnectionParams::new(&config.pg_host, config.pg_port, &config.pg_user, &config.pg_password);
+            let c = PgsqlConnectionParams::new(&config.pg_host, config.pg_port, &config.pg_user, &config.pg_password)
+                .with_tls(PgTlsConfig { mode: config.pg_ssl_mode, ca_path: config.pg_ca_path.filter(|path| !path.as_os_str().is_empty()) });
             let c_db = c.with_database(&config.pg_database);
             let mut client = PgsqlB3Client::new(&c_db).await?;
             info!("pgsql connection ok");
@@ -111,6 +117,30 @@ cfg_if::cfg_if! {
             }
             tracing_log::LogTracer::init().unwrap();
             reload_handle
+        }
+
+        #[cfg(test)]
+        mod tests {
+            use super::*;
+
+            #[test]
+            fn server_configuration_defaults_to_verified_tls_and_rejects_unsafe_modes() {
+                let config: ServerConfig = Config::builder().build().unwrap().try_deserialize().unwrap();
+                assert_eq!(config.pg_ssl_mode, PgTlsMode::VerifyFull);
+                assert!(config.pg_ca_path.is_none());
+                for mode in ["verify-full", "require", "disable"] {
+                    let config: ServerConfig = Config::builder()
+                        .set_override("pg_ssl_mode", mode).unwrap()
+                        .set_override("pg_ca_path", "/synthetic/ca.pem").unwrap()
+                        .build().unwrap().try_deserialize().unwrap();
+                    assert_eq!(config.pg_ssl_mode, mode.parse::<PgTlsMode>().unwrap());
+                    assert_eq!(config.pg_ca_path, Some(PathBuf::from("/synthetic/ca.pem")));
+                }
+                for mode in ["prefer", "verify-ca", "allow", ""] {
+                    assert!(Config::builder().set_override("pg_ssl_mode", mode).unwrap()
+                        .build().unwrap().try_deserialize::<ServerConfig>().is_err());
+                }
+            }
         }
 
     // cfg-if
