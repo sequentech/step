@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_tasks
 title: Tasks
+description: "Monitor the execution of previous tasks and access detailed information about system actions."
 ---
 
 <!--

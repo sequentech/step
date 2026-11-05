@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_add_user_attributes_to_keycloak
 title: Adding User Attributes to Keycloak
+description: "The system supports adding additional user attributes that will appear as new fields in the user data."
 ---
 
 <!--

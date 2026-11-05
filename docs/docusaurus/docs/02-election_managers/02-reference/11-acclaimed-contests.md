@@ -2,6 +2,7 @@
 id: acclaimed_contests
 title: Acclaimed Contests
 sidebar_position: 11
+description: "An acclaimed contest is decided before voting: its configured candidates are elected without a vote."
 ---
 
 <!--
