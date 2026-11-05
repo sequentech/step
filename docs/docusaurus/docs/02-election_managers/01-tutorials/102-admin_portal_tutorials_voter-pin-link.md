@@ -41,8 +41,8 @@ as described in
 [Protecting a Voter Attribute as Secret](./99-admin_portal_tutorials_add-user-attributes-to-keycloak.md#protecting-a-voter-attribute-as-secret):
 annotation `sequent.secret=true`, view and edit permissions for administrators only.
 
-The link stays off if the attribute is not a secret, if voters can view it, if the realm declares
-the generated attributes below, or if the realm's unmanaged attributes policy is `ENABLED`. Keycloak
+The link stays off if the attribute is not a secret, if voters can view or edit it, if the realm
+declares the generated attributes below, or if the realm's unmanaged attributes policy is `ENABLED`. Keycloak
 then logs a warning and the link answers `404`. Importing into such a realm or sending the link
 fails with an error when the PIN is not a declared secret.
 
@@ -65,10 +65,11 @@ kcadm.sh update realms/<event-realm> \
 | `pin-link-public-base-url` | none | Short host for the links, see [Short links](#short-links). |
 | `pin-link-asset-origins` | none | Other hosts the page may load images and fonts from, see [Style](#style). |
 
-An invalid value turns the link off rather than falling back to a default, except in
-`pin-link-asset-origins`, where a bad entry is left out with a warning in Keycloak's log. Harvest and Windmill read
-realm attributes through a cache of up to 30 seconds, so wait that long after a change before
-importing or sending.
+An invalid value turns the link off rather than falling back to a default, with two exceptions. A
+bad entry in `pin-link-asset-origins` is left out with a warning in Keycloak's log.
+`pin-link-public-base-url` is used as written, so a wrong value mails links that do not work: send
+one to yourself first. Harvest and Windmill read realm attributes through a cache of up to 30
+seconds, so wait that long after a change before importing or sending.
 
 Turn the link on **before** importing voters: see
 [Voters imported before the link was on](#voters-imported-before-the-link-was-on).

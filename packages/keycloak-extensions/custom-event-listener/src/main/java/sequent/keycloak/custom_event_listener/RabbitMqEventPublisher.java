@@ -10,6 +10,8 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.ReturnListener;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -20,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import lombok.extern.jbosslog.JBossLog;
 
@@ -152,16 +155,29 @@ public class RabbitMqEventPublisher implements AutoCloseable {
   }
 
   /**
-   * Publishes a message and waits up to {@code timeoutMillis} for the broker to confirm it. Like
-   * {@link #publish}, a failure drops the connection.
+   * Publishes a message and waits up to {@code timeoutMillis} for the broker to confirm it. The
+   * broker also confirms a message it could not route, so one it returned counts as a failure. Like
+   * {@link #publish}, a failure drops the connection, and the next call declares the queue again.
    */
   synchronized void publishConfirmed(
       AMQP.BasicProperties properties, byte[] body, long timeoutMillis) throws Exception {
     try {
       Channel channel = getRabbitChannel();
       channel.confirmSelect();
-      channel.basicPublish("", queueName, properties, body);
-      channel.waitForConfirmsOrDie(timeoutMillis);
+      AtomicBoolean returned = new AtomicBoolean();
+      ReturnListener onReturn =
+          (replyCode, replyText, exchange, routingKey, returnedProperties, returnedBody) ->
+              returned.set(true);
+      channel.addReturnListener(onReturn);
+      try {
+        channel.basicPublish("", queueName, true, properties, body);
+        channel.waitForConfirmsOrDie(timeoutMillis);
+      } finally {
+        channel.removeReturnListener(onReturn);
+      }
+      if (returned.get()) {
+        throw new IOException("The broker returned the message: no queue took it");
+      }
     } catch (Exception exception) {
       closeRabbitMqResources();
       throw exception;

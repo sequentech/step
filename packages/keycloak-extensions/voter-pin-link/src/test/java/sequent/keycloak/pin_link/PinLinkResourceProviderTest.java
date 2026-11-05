@@ -237,6 +237,17 @@ class PinLinkResourceProviderTest {
     assertThat(provider.retrieve(token, USERNAME).getStatus()).isEqualTo(404);
   }
 
+  /** Keycloak lets a role view what it can edit, whatever the attribute's view permission says. */
+  @Test
+  void failsClosedWhenVotersCanEditThePin() {
+    UPAttribute pin = new UPAttribute("pin");
+    pin.setAnnotations(Map.of("sequent.secret", "true"));
+    pin.setPermissions(new UPAttributePermissions(Set.of("admin"), Set.of("admin", "user")));
+    profile.addOrReplaceAttribute(pin);
+    assertThat(provider.view(token).getStatus()).isEqualTo(404);
+    assertThat(provider.retrieve(token, USERNAME).getStatus()).isEqualTo(404);
+  }
+
   @Test
   void failsClosedWhenTheGeneratedAttributesAreDeclaredInTheProfile() {
     profile.addOrReplaceAttribute(new UPAttribute(HASH_NAME));
