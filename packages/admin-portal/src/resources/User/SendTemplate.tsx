@@ -32,7 +32,10 @@ import {useTranslation} from "react-i18next"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {CREATE_SCHEDULED_EVENT} from "@/queries/CreateScheduledEvent"
-import {getReferencedSecretAttributeNames} from "@/services/secretAttributeTemplates"
+import {
+    getReferencedSecretAttributeNames,
+    PIN_LINK_TEMPLATE_VARIABLES,
+} from "@/services/secretAttributeTemplates"
 import {CreateScheduledEventMutation, Sequent_Backend_Template} from "@/gql/graphql"
 import {ScheduledEventType} from "@/services/ScheduledEvent"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -154,10 +157,10 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
             schedule_date: formData.schedule.date,
             email: formData.i18n["en"].email,
             sms: formData.i18n["en"].sms,
-            secret_attribute_names: getReferencedSecretAttributeNames(
-                templateContents,
-                secretAttributeNames
-            ),
+            secret_attribute_names: getReferencedSecretAttributeNames(templateContents, [
+                ...secretAttributeNames,
+                ...PIN_LINK_TEMPLATE_VARIABLES,
+            ]),
         }
     }
 

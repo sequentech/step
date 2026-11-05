@@ -235,10 +235,11 @@ pub trait TemplateRenderer: Debug {
         let tenant_id = self.get_tenant_id();
         let election_event_id = self.get_election_event_id();
         let realm = get_event_realm(&tenant_id, &election_event_id);
-        let configured_names = get_secret_attribute_config(&tenant_id, &election_event_id)
+        let secret_config = get_secret_attribute_config(&tenant_id, &election_event_id)
             .await
-            .context("Error reading the secret-attribute configuration for voter report")?
-            .validated_names()?;
+            .context("Error reading the secret-attribute configuration for voter report")?;
+        let mut configured_names = secret_config.validated_names()?;
+        configured_names.extend(secret_config.generated_names().iter().cloned());
         let client = KeycloakAdminClient::new()
             .await
             .context("Error initializing Keycloak client for voter report")?;

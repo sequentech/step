@@ -11,8 +11,9 @@ use crate::services::electoral_log::{
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
 };
 use crate::services::sql_utils::{escape_sql_identifier, escape_sql_literal};
+use crate::services::voter_pin_link::{is_pin_link_variable, token_hash, PinLinkTokens};
 use crate::services::voter_secret_attributes::{
-    encrypt_attribute_values, get_secret_attribute_config,
+    encrypt_attribute_values, get_secret_attribute_config, SecretAttributeConfig,
 };
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
@@ -622,15 +623,43 @@ pub async fn import_users_file(
         }
     }
 
-    let secret_names = if let Some(event_id) = election_event_id.as_deref() {
+    let secret_config = if let Some(event_id) = election_event_id.as_deref() {
         get_secret_attribute_config(&tenant_id, event_id)
             .await
             .map_err(|err| Error::String(format!("{err:#}")))?
-            .validated_names()
-            .map_err(|err| Error::String(err.to_string()))?
     } else {
         Default::default()
     };
+    let secret_names = secret_config
+        .validated_names()
+        .map_err(|err| Error::String(err.to_string()))?;
+    reject_generated_headers(&headers, &secret_config)?;
+    // The file brings the PIN. The token is never imported: it is derived here,
+    // and only its hash is stored, so the columns below gain one for it.
+    let pin_link = secret_config
+        .pin_link()
+        .filter(|config| headers.iter().any(|header| header == config.pin_attribute));
+    let pin_link_tokens = match pin_link {
+        Some(_) => Some(
+            PinLinkTokens::new()
+                .await
+                .map_err(|err| Error::String(format!("{err:#}")))?,
+        ),
+        None => None,
+    };
+    let mut copy_headers = headers.clone();
+    // The PIN is the password. A file that only has PINs must still yield
+    // voters who can log in with them.
+    let password_from_pin = pin_link.is_some()
+        && !headers
+            .iter()
+            .any(|header| header == PASSWORD_COL_NAME || header == HASHED_PASSWORD_COL_NAME);
+    if let Some(config) = pin_link {
+        copy_headers.push_field(&config.token_hash_attribute);
+        if password_from_pin {
+            copy_headers.push_field(PASSWORD_COL_NAME);
+        }
+    }
     let imported_secret_names = headers
         .iter()
         .filter(|header| secret_names.contains(*header))
@@ -679,7 +708,7 @@ pub async fn import_users_file(
         voters_table_input_columns_names,
         voters_table_processed_columns_names,
         voters_table_processed_columns_types,
-    ) = match get_copy_from_query(&headers) {
+    ) = match get_copy_from_query(&copy_headers) {
         Ok(result) => result,
         Err(err) => {
             return Err(Error::String(format!(
@@ -770,6 +799,7 @@ pub async fn import_users_file(
         let mut hashed_password: Option<String> = None;
         let mut num_of_iterations = *PBKDF2_ITERATIONS;
         let mut password: Option<String> = None;
+        let mut pin: Option<String> = None;
         for (data, column_name) in record.iter().zip(voters_table_input_columns_names.iter()) {
             let mut processed_data = match column_name.as_str() {
                     column_name if column_name == AREA_ID_ATTR_NAME && !is_admin => {
@@ -813,6 +843,10 @@ pub async fn import_users_file(
                     _ => data.to_string(),
                 };
 
+            if pin_link.is_some_and(|config| column_name == &config.pin_attribute) {
+                pin = Some(data.to_string()).filter(|value| !value.is_empty());
+            }
+
             if secret_names.contains(column_name) && !processed_data.is_empty() {
                 let event_id = election_event_id.as_deref().ok_or_else(|| {
                     anyhow!("Encrypted voter attributes require an election event")
@@ -841,6 +875,26 @@ pub async fn import_users_file(
             } else {
                 owned_data.push(processed_data);
             }
+        }
+
+        if let (Some(config), Some(tokens)) = (pin_link, pin_link_tokens.as_ref()) {
+            password = password_of_pin_row(
+                &config.pin_attribute,
+                pin.as_deref(),
+                password,
+                password_from_pin,
+                row_number,
+            )?;
+            let hash = match pin.as_deref() {
+                Some(value) => {
+                    let event_id = election_event_id.as_deref().ok_or_else(|| {
+                        anyhow!("Encrypted voter attributes require an election event")
+                    })?;
+                    token_hash(&tokens.derive(&tenant_id, event_id, &user_id, value)?)
+                }
+                None => String::new(),
+            };
+            owned_data.push(hash);
         }
 
         if let Some(some_password) = password {
@@ -918,10 +972,61 @@ pub async fn import_users_file(
     Ok(())
 }
 
+/// A voter's link and generated attributes are never brought by a file.
+fn reject_generated_headers(
+    headers: &StringRecord,
+    secret_config: &SecretAttributeConfig,
+) -> Result<(), Error> {
+    match headers.iter().find(|header| {
+        is_pin_link_variable(header) || secret_config.generated_names().contains(*header)
+    }) {
+        Some(header) => Err(Error::String(format!(
+            "CSV header `{header}` is generated for the voter PIN link and cannot be imported"
+        ))),
+        None => Ok(()),
+    }
+}
+
+/// The password one row ends up with, given its PIN. The voter logs in with
+/// the PIN the link shows, so a row can't have them differ.
+fn password_of_pin_row(
+    pin_attribute: &str,
+    pin: Option<&str>,
+    password: Option<String>,
+    password_from_pin: bool,
+    row_number: usize,
+) -> Result<Option<String>, Error> {
+    if pin.is_some_and(|value| value.contains(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR)) {
+        return Err(Error::String(format!(
+            "Row {row_number} has several values for `{pin_attribute}`, and a voter's link needs \
+             exactly one PIN"
+        )));
+    }
+    if password_from_pin {
+        return match pin {
+            Some(value) => Ok(Some(value.to_string())),
+            None => Err(Error::String(format!(
+                "Row {row_number} has no `{pin_attribute}`, which is also the voter's password"
+            ))),
+        };
+    }
+    if password.is_some() && pin.is_some() && password.as_deref() != pin {
+        return Err(Error::String(format!(
+            "Row {row_number}: `{pin_attribute}` must equal the password, because the voter logs \
+             in with the PIN the link shows"
+        )));
+    }
+    Ok(password)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use csv::StringRecord;
+    use sequent_core::types::keycloak::{
+        REALM_ATTR_PIN_LINK_EXPIRES_AT, REALM_ATTR_PIN_LINK_POLICY,
+    };
+    use std::collections::HashMap;
 
     /// The import writes `user_attribute.name` straight from these lists and the
     /// ballot dump reads the attribute by name, so the column has to survive
@@ -943,6 +1048,89 @@ mod tests {
             processed_columns.contains(&VOTE_WEIGHT_ATTR_NAME.to_string()),
             "processed columns must carry the attribute name, got {processed_columns:?}"
         );
+    }
+
+    fn pin_link_secret_config() -> SecretAttributeConfig {
+        SecretAttributeConfig::default().with_realm_attributes(&HashMap::from([
+            (
+                REALM_ATTR_PIN_LINK_POLICY.to_string(),
+                "ONE_TIME_LINK".to_string(),
+            ),
+            (
+                REALM_ATTR_PIN_LINK_EXPIRES_AT.to_string(),
+                "2099-01-01T00:00:00Z".to_string(),
+            ),
+        ]))
+    }
+
+    #[test]
+    fn a_file_cannot_bring_what_the_link_generates() {
+        let config = pin_link_secret_config();
+        for header in [
+            "pin-link-token-hash",
+            "pin-link-attempts",
+            "pin_link_token",
+            "pin_link_url",
+        ] {
+            let headers = StringRecord::from(vec!["username", "pin", header]);
+            let error = reject_generated_headers(&headers, &config)
+                .expect_err(&format!("{header} must be rejected"));
+            assert!(error.to_string().contains(header), "{error}");
+        }
+        assert!(
+            reject_generated_headers(&StringRecord::from(vec!["username", "pin"]), &config).is_ok()
+        );
+    }
+
+    #[test]
+    fn the_token_columns_are_still_rejected_with_the_link_off() {
+        let headers = StringRecord::from(vec!["username", "pin_link_url"]);
+        assert!(reject_generated_headers(&headers, &SecretAttributeConfig::default()).is_err());
+    }
+
+    #[test]
+    fn a_file_with_only_pins_makes_them_the_passwords() {
+        assert_eq!(
+            password_of_pin_row("pin", Some("123456789012"), None, true, 2).unwrap(),
+            Some("123456789012".to_string())
+        );
+        let error = password_of_pin_row("pin", None, None, true, 7).unwrap_err();
+        assert!(error.to_string().contains("Row 7"), "{error}");
+    }
+
+    #[test]
+    fn a_row_with_a_password_must_agree_with_its_pin() {
+        let same = Some("123456789012".to_string());
+        assert_eq!(
+            password_of_pin_row("pin", Some("123456789012"), same.clone(), false, 2).unwrap(),
+            same
+        );
+        let error = password_of_pin_row("pin", Some("123456789012"), Some("x".into()), false, 3)
+            .unwrap_err();
+        assert!(error.to_string().contains("must equal"), "{error}");
+        assert!(!error.to_string().contains("123456789012"), "{error}");
+    }
+
+    #[test]
+    fn a_row_without_a_pin_keeps_its_password_and_gets_no_link() {
+        assert_eq!(
+            password_of_pin_row("pin", None, Some("x".into()), false, 2).unwrap(),
+            Some("x".to_string())
+        );
+        assert_eq!(
+            password_of_pin_row("pin", None, None, false, 2).unwrap(),
+            None
+        );
+    }
+
+    #[test]
+    fn a_row_cannot_have_several_pins() {
+        let pins = format!("111111111111{MULTIVALUE_USER_ATTRIBUTE_SEPARATOR}222222222222");
+        for from_pin in [true, false] {
+            let error = password_of_pin_row("pin", Some(&pins), None, from_pin, 4).unwrap_err();
+            assert!(error.to_string().contains("several values"), "{error}");
+            assert!(!error.to_string().contains("111111111111"), "{error}");
+        }
     }
 
     /// Headers that differ only by the characters `sanitize_db_key` rewrites,

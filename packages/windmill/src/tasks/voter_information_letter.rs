@@ -20,6 +20,8 @@ use crate::services::tasks_execution::{
     update_complete_with_annotations, update_fail_preserving_annotations,
 };
 use crate::services::tasks_semaphore::acquire_semaphore;
+use crate::services::voter_pin_link::rearm_voter;
+use crate::services::voter_secret_attributes::get_secret_attribute_config;
 use anyhow::{anyhow, Context, Result};
 use celery::error::TaskError;
 use chrono::Duration;
@@ -274,6 +276,18 @@ async fn generate(
     )
     .await
     .context("Failed to store encrypted Voter Information Letter")?;
+
+    // This password replaces the PIN, which a link would show though it no
+    // longer logs in.
+    if let Some(pin_link) = get_secret_attribute_config(tenant_id, election_event_id)
+        .await
+        .context("Failed to read the voter secret attribute config")?
+        .pin_link()
+    {
+        rearm_voter(pin_link, tenant_id, election_event_id, voter_id, None)
+            .await
+            .context("Failed to remove the voter's PIN link")?;
+    }
 
     let voter = KeycloakAdminClient::new()
         .await
