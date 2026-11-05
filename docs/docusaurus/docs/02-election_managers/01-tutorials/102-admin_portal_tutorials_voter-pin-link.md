@@ -26,6 +26,14 @@ The link is off by default and is configured per election-event realm.
 
 ## Turning It On
 
+Keycloak needs the same master secret as Harvest and Windmill, in its `MASTER_SECRET` environment
+variable, as described in the
+[Secret Voter Attribute Boundary](../../05-reference/03-software-architecture/backend-components.md#secret-voter-attribute-boundary).
+The supplied Compose files pass it. A deployment that configures Keycloak on its own has to add it.
+Without it no PIN can be revealed: voters get the generic error and the link is kept, and Keycloak
+logs an error naming the variable. Keycloak also needs `AMQP_ADDR` and `ENV_SLUG`, the same it uses
+for electoral log events, to record each reveal.
+
 ### 1. Declare the PIN as a secret attribute
 
 In the event realm's **User profile**, declare the attribute that holds the PIN, by default `pin`,
@@ -55,8 +63,10 @@ kcadm.sh update realms/<event-realm> \
 | `pin-link-token-hash-attribute` | `pin-link-token-hash` | Generated attribute with the link's lookup hash. Do not declare it in the User Profile. |
 | `pin-link-attempts-attribute` | `pin-link-attempts` | Generated attribute with the wrong-username count. Do not declare it in the User Profile. |
 | `pin-link-public-base-url` | none | Short host for the links, see [Short links](#short-links). |
+| `pin-link-asset-origins` | none | Other hosts the page may load images and fonts from, see [Style](#style). |
 
-An invalid value turns the link off rather than falling back to a default. Harvest and Windmill read
+An invalid value turns the link off rather than falling back to a default, except in
+`pin-link-asset-origins`, where a bad entry is left out with a warning in Keycloak's log. Harvest and Windmill read
 realm attributes through a cache of up to 30 seconds, so wait that long after a change before
 importing or sending.
 
@@ -157,9 +167,25 @@ loginCustomCss = #pin-link-value output '{' color: #0f054c; font-size: 2.5rem; '
   after it, so overriding a theme rule takes a more specific selector or `!important`.
 - A language with no `loginCustomCss` of its own uses the one in the realm's default language.
 
-The page's Content-Security-Policy allows no other hosts, so this page does not load an image, font or
-stylesheet from another host, even one that `loginCustomCss` loads on the login pages. A logo from
-another host does not show here. Serve it from the Keycloak theme or embed it as a `data:` image.
+The page's Content-Security-Policy allows no other hosts by default, so an image or font that
+`loginCustomCss` loads from another host does not show here. To show a logo, either serve it from
+the Keycloak theme, embed it as a `data:` image, or list its host in the realm attribute
+`pin-link-asset-origins`:
+
+```bash
+kcadm.sh update realms/<event-realm> \
+  -s 'attributes."pin-link-asset-origins"=https://assets.example.org'
+```
+
+- List `https://` origins, separated by spaces or commas, with no path and no wildcard. A bad entry
+  is left out with a warning in Keycloak's log, and the link keeps working.
+- If the image redirects to another host, list that host too: the policy applies to each step.
+- They apply to images and fonts only. A stylesheet or a script from another host cannot be allowed,
+  because either could read the PIN on the page. Put the realm's CSS in `loginCustomCss` instead.
+- The hosts listed see the voter's IP address when the page loads, including on the page with the
+  PIN. They do not see the link: for an image that CSS loads, Chromium sends Keycloak's origin as
+  the referrer despite the page's `no-referrer`, but never the path with the token. An image or a
+  font cannot read the page.
 
 ## Short Links
 
@@ -175,9 +201,6 @@ is for. For nginx, with `<event-realm>` and the upstream filled in:
 server {
     listen 443 ssl;
     server_name pin.example.org;
-
-    # The token is in the path. Do not log requests here, or log them without the path.
-    access_log off;
 
     location ~ "^/(?<token>[0-9A-Za-z-]{1,40})$" {
         proxy_pass http://keycloak/realms/<event-realm>/pin-link/$token$is_args$args;
@@ -198,10 +221,13 @@ server {
 }
 ```
 
+If Keycloak is served under a relative path such as `/auth`, add it to both `proxy_pass` targets.
+
 The direct Keycloak path keeps working behind this rule, and its requests also carry the token in
-the path. Exclude `/realms/*/pin-link/` from the access logs of every proxy, load balancer and web
-application firewall in front of Keycloak. A token in a log is not enough to obtain a PIN without
-the username, but it is a credential and should be treated as one.
+the path, so the access logs of the proxies, load balancers and web application firewalls in front
+of Keycloak can hold it. A token in a log is not enough to obtain a PIN without the username, and it
+stops working once the voter has used it. Until then, anyone who can read those logs and knows the
+username could use the link, so limit who can read them.
 
 ## Changing a PIN or a Password
 
@@ -247,7 +273,8 @@ those voters to arm their links.
   imported, and they are left out of exports and templates.
 - **The PIN is in the `POST` response only**, with `Cache-Control: no-store`,
   `Referrer-Policy: no-referrer` and a strict `Content-Security-Policy`. The page loads nothing from
-  other origins.
+  other origins, except the images and fonts a realm allows in `pin-link-asset-origins`. No attribute
+  allows a script or a stylesheet from another host, because either could read the PIN.
 
 ## Auditing
 

@@ -44,6 +44,45 @@ class PinLinkConfigTest {
   }
 
   @Test
+  void allowsNoOtherHostByDefault() {
+    assertThat(PinLinkConfig.assetOrigins(Map.<String, String>of()::get)).isEmpty();
+    assertThat(PinLinkConfig.assetOrigins(Map.of(PinLinkConfig.ASSET_ORIGINS, " \n")::get))
+        .isEmpty();
+  }
+
+  @Test
+  void readsAssetOriginsSeparatedBySpacesOrCommas() {
+    Map<String, String> attributes =
+        Map.of(
+            PinLinkConfig.ASSET_ORIGINS,
+            "https://a.example.org, https://b.example.org:8443/\nhttps://a.example.org");
+    assertThat(PinLinkConfig.assetOrigins(attributes::get))
+        .containsExactly("https://a.example.org", "https://b.example.org:8443");
+  }
+
+  @Test
+  void leavesOutWhatIsNotAnHttpsOrigin() {
+    Map<String, String> attributes =
+        Map.of(
+            PinLinkConfig.ASSET_ORIGINS,
+            "* http://a.example.org https://*.example.org https://a.example.org/logo.png"
+                + " https://user@a.example.org 'self' data: https://b.example.org;script-src"
+                + " https://c.example.org");
+    assertThat(PinLinkConfig.assetOrigins(attributes::get))
+        .containsExactly("https://c.example.org");
+  }
+
+  /**
+   * Windmill doesn't read this attribute, so voters may already have their links when it is wrong.
+   */
+  @Test
+  void aBadAssetOriginLeavesTheLinkOn() {
+    Map<String, String> attributes = enabled();
+    attributes.put(PinLinkConfig.ASSET_ORIGINS, "not an origin");
+    assertThat(PinLinkConfig.from(attributes)).isPresent();
+  }
+
+  @Test
   void isOffByDefault() {
     assertThat(PinLinkConfig.from(Map.of())).isEmpty();
   }
