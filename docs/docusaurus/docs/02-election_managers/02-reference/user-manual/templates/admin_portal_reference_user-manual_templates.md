@@ -45,6 +45,10 @@ Use the normal voter variable paths. For a secret attribute named `customerRefer
 The first expression returns the first value. The second addresses the complete array stored for
 the attribute.
 
+With the [one-time PIN link](../../../01-tutorials/102-admin_portal_tutorials_voter-pin-link.md#4-send-the-link)
+on, communications can also use `{{user.pin_link_url}}` and `{{user.pin_link_token}}`. They are
+declared like a secret attribute, and reports other than communications do not get them.
+
 Every secret field used by an output must also be explicitly declared. For stored report template
 configuration, add `secret_attribute_names` beside the existing document/email/SMS configuration:
 
