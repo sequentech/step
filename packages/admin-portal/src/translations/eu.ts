@@ -330,9 +330,13 @@ const basqueTranslation: TranslationType = {
             common: {
                 gapiKey: "Google Calendar Zerbitzu Kontu Giltza",
                 gapiEmail: "Google Calendar Autentifikazio Helbide Elektronikoa",
+                gapiKeyHelper:
+                    "Gordetako giltza ez da erakusten. Itsatsi giltza berri bat ordezkatzeko.",
+                gapiKeySaved: "Google Calendar Zerbitzu Kontu Giltza gorde da",
             },
             errors: {
                 invalidGapiKey: "Google Calendar Zerbitzu Kontu Giltza formatu baliogabea",
+                saveGapiKey: "Ezin izan da Google Calendar Zerbitzu Kontu Giltza gorde",
             },
         },
         lookAndFeelScreen: {

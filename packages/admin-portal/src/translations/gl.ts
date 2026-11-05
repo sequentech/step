@@ -329,9 +329,13 @@ const galegoTranslation: TranslationType = {
             common: {
                 gapiKey: "Clave de Conta de Servizo de Google Calendar",
                 gapiEmail: "Correo de Autenticación de Google Calendar",
+                gapiKeyHelper:
+                    "A clave gardada non se amosa. Pegue unha clave nova para substituíla.",
+                gapiKeySaved: "Clave de Conta de Servizo de Google Calendar gardada",
             },
             errors: {
                 invalidGapiKey: "Formato de Clave de Conta de Servizo de Google Calendar inválido",
+                saveGapiKey: "Non se puido gardar a Clave de Conta de Servizo de Google Calendar",
             },
         },
         lookAndFeelScreen: {
