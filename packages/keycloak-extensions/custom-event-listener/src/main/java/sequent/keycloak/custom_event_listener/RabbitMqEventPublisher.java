@@ -134,10 +134,11 @@ public class RabbitMqEventPublisher implements AutoCloseable {
   }
 
   /**
-   * Publishes an electoral-log entry and waits until the broker has taken responsibility for it.
-   * The queue is durable and the message persistent, so a confirmed entry survives a broker
-   * restart. An action that must not happen unaudited runs only after this returns. No AMQP type
-   * appears here because this jar's RabbitMQ classes are not for other extensions to depend on.
+   * Publishes an electoral-log entry and waits until the broker has accepted it. The queue is
+   * durable and the message persistent, but a classic queue confirms before it syncs to disk, so a
+   * crash right after the confirm can still lose the entry. An action that must not happen
+   * unaudited runs only after this returns. No AMQP type appears here because this jar's RabbitMQ
+   * classes are not for other extensions to depend on.
    */
   public synchronized void publishElectoralLogConfirmed(
       String electionEventId,
