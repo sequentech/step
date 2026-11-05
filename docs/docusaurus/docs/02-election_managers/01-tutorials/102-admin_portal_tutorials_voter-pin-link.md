@@ -91,7 +91,8 @@ username,email,first_name,last_name,pin
 - The PIN is also the password, because a voter logs in with the PIN the link shows. A file without
   a `password` or `hashed_password` column uses the PIN as the password, and then every row needs one.
 - A row whose `password` differs from its PIN is refused, and so is a row with several PIN values.
-  A `hashed_password` cannot be compared: making it match the PIN is up to whoever made the file.
+  So is a row whose `hashed_password` is not the hash of its PIN, using the row's `password_salt`
+  and `num_of_iterations`.
 - A file with a `password` column may leave the PIN of a row blank. That voter has no link.
 - The link's token is never imported. Columns named `pin_link_token`, `pin_link_url` or after a
   generated attribute are refused.
@@ -250,10 +251,14 @@ username could use the link, so limit who can read them.
   way as a new PIN.
 - **An edit that is refused** leaves the link alone, whether Keycloak refuses it or, in an election
   event linked to an external voter system, the task that applies the edit.
-- **An edit that fails after Keycloak accepted it** stays in place, and the error, from the request
-  or from the task that applies the edit, names every step that failed. When it says the link was
-  not updated, repeat the edit. A failed entry in the electoral log does not stop the link from
-  changing or a disabled voter's ballots from being discarded.
+- **An edit that fails after Keycloak accepted it** stays in place. The error, from the request or
+  from the task that applies the edit, names each of these that failed: the password's entry in the
+  electoral log, the link update, and the discarding of a disabled voter's ballots. When it says the
+  link was not updated, repeat the edit. A failed entry in the electoral log does not stop the link
+  from changing or those ballots from being discarded.
+- **A task that succeeds** does not show that an external voter system took the release. What that
+  system answers, and the electoral-log entry of the outcome, are only logged. Reconciling them is a
+  separate manual process.
 
 ### Voters imported before the link was on
 
