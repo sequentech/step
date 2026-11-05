@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.extern.jbosslog.JBossLog;
 import org.hibernate.Session;
 import org.keycloak.connections.jpa.JpaConnectionProvider;
@@ -35,6 +37,7 @@ import org.keycloak.events.Details;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
 import org.keycloak.forms.login.LoginFormsProvider;
+import org.keycloak.locale.LocaleSelectorProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -68,6 +71,8 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
   private static final long AUDIT_CONFIRM_MILLIS = 5_000;
   private static final SecureRandom RANDOM = new SecureRandom();
   private static final ObjectMapper JSON = new ObjectMapper();
+  private static final Pattern STYLE_TAG =
+      Pattern.compile("<style(?=[\\s>])", Pattern.CASE_INSENSITIVE);
 
   private final KeycloakSession session;
   private final Supplier<RabbitMqEventPublisher> publisher;
@@ -372,13 +377,30 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
   }
 
   /**
+   * The forms provider for this page, in the language picked in the theme's menu. The menu links
+   * here with {@code kc_locale}, which Keycloak only reads in a login flow, and this page has none.
+   * The locale selector ignores a value the realm does not support.
+   */
+  private LoginFormsProvider pageForms() {
+    String picked =
+        session
+            .getContext()
+            .getUri()
+            .getQueryParameters()
+            .getFirst(LocaleSelectorProvider.KC_LOCALE_PARAM);
+    if (picked != null) {
+      session.setAttribute(LocaleSelectorProvider.USER_REQUEST_LOCALE, picked);
+    }
+    return session.getProvider(LoginFormsProvider.class);
+  }
+
+  /**
    * Renders the username form, with the generic error when {@code failed}. It has the same strict
    * headers as the reveal page.
    */
   private Response renderForm(boolean failed) {
     String nonce = randomToken();
-    LoginFormsProvider forms =
-        session.getProvider(LoginFormsProvider.class).setAttribute("pinLinkMode", "form");
+    LoginFormsProvider forms = pageForms().setAttribute("pinLinkMode", "form");
     if (failed) {
       forms.setError(GENERIC_ERROR);
     }
@@ -393,8 +415,7 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
   private String renderReveal(String placeholder, String nonce) {
     String page =
         (String)
-            session
-                .getProvider(LoginFormsProvider.class)
+            pageForms()
                 .setAttribute("pinLinkMode", "reveal")
                 .setAttribute("pinLinkValue", placeholder)
                 .setAttribute("pinLinkNonce", nonce)
@@ -464,9 +485,14 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
     return escaped;
   }
 
-  /** The theme's inline stylesheet is ours and needed for the layout; its scripts stay blocked. */
+  /**
+   * The page's inline styles are the theme's and the realm's {@code loginCustomCss}, and the layout
+   * needs them; the theme's scripts stay blocked.
+   */
   private static String withStyleNonce(String page, String nonce) {
-    return page.replace("<style ", "<style nonce=\"" + nonce + "\" ");
+    return STYLE_TAG
+        .matcher(page)
+        .replaceAll(Matcher.quoteReplacement("<style nonce=\"" + nonce + "\""));
   }
 
   private Response.ResponseBuilder secure(Response.ResponseBuilder response, String nonce) {

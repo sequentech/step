@@ -111,8 +111,14 @@ Whatever goes wrong, the voter sees the same message: an unknown, used, locked o
 disabled voter and a wrong username cannot be told apart from the page. The operators can tell them
 apart from the logs, see [Auditing](#auditing).
 
-Text comes from the message keys below, in the language the login pages would use. A realm can
-override any of them under **Realm settings** > **Localization**.
+Printing uses the browser's print dialog. The PIN is in that one response only, so reloading the page
+does not show it again.
+
+### Text and Languages
+
+Text comes from the message keys below, in the language the login pages would use: the browser's
+language among the realm's supported locales, or else the realm's default. A realm can override any
+of them, per language, under **Realm settings** > **Localization**.
 
 | Key | Where |
 |---|---|
@@ -120,8 +126,41 @@ override any of them under **Realm settings** > **Localization**.
 | `pinLinkGenericError` | The refusal |
 | `pinLinkRevealTitle`, `pinLinkRevealIntro`, `pinLinkRevealWarning`, `pinLinkPrint` | The PIN |
 
-Printing uses the browser's print dialog. The PIN is in that one response only, so reloading the page
-does not show it again.
+These keys ship in English, Spanish, Catalan, Basque, Galician and Tagalog. An override applies to the
+language it is set for: a realm that overrides `pinLinkIntro` in English and also offers Spanish still
+shows the Spanish text that ships, until it is overridden in Spanish too.
+
+When the realm offers more than one language, the form has the theme's language menu. The page that
+shows the PIN does not, because leaving it would lose the PIN. On a short host the menu continues on
+Keycloak's own address for the same link, see [Short Links](#short-links).
+
+### Style
+
+The page uses the realm's login theme, and its `loginCustomCss` message as the login pages do. These
+selectors are stable:
+
+| Selector | What |
+|---|---|
+| `#pin-link-form` | The form |
+| `#username` | The username field |
+| `#pin-link-form [type=submit]` | The button that obtains the PIN |
+| `#pin-link-value output` | The PIN |
+| `#pin-link-print` | The print button |
+
+For example, under **Realm settings** > **Localization**, in the realm's default language:
+
+```text
+loginCustomCss = #pin-link-value output '{' color: #0f054c; font-size: 2.5rem; '}'
+```
+
+- `loginCustomCss` is a message, so braces are written `'{'` and `'}'` and a single quote is doubled.
+- It wins over the page's own rules without needing `!important`, but the theme's stylesheets load
+  after it, so overriding a theme rule takes a more specific selector or `!important`.
+- A language with no `loginCustomCss` of its own uses the one in the realm's default language.
+
+The page's Content-Security-Policy allows no other hosts, so this page does not load an image, font or
+stylesheet from another host, even one that `loginCustomCss` loads on the login pages. A logo from
+another host does not show here. Serve it from the Keycloak theme or embed it as a `data:` image.
 
 ## Short Links
 

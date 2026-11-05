@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -16,6 +17,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import jakarta.persistence.EntityManager;
+import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
 import java.io.ByteArrayOutputStream;
@@ -36,6 +38,8 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.hibernate.Session;
 import org.hibernate.jdbc.ReturningWork;
 import org.junit.jupiter.api.AfterEach;
@@ -46,6 +50,7 @@ import org.keycloak.connections.jpa.JpaConnectionProvider;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.headers.SecurityHeadersOptions;
 import org.keycloak.headers.SecurityHeadersProvider;
+import org.keycloak.locale.LocaleSelectorProvider;
 import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
@@ -76,6 +81,7 @@ class PinLinkResourceProviderTest {
 
   private final Map<String, String> realmAttributes = new HashMap<>();
   private final List<String> errors = new ArrayList<>();
+  private final MultivaluedHashMap<String, String> queryParameters = new MultivaluedHashMap<>();
   private final List<String> eventErrors = new ArrayList<>();
   private final UPConfig profile = new UPConfig();
   private final List<LogRecord> logs = new ArrayList<>();
@@ -369,6 +375,63 @@ class PinLinkResourceProviderTest {
     assertStrictHeaders(provider.view(token));
   }
 
+  /** The theme's own stylesheet is inline, written with or without attributes. */
+  @Test
+  void everyInlineStyleRunsUnderTheNonce() {
+    when(forms.createForm(anyString()))
+        .thenReturn(
+            Response.ok("<style>a{}</style><style id=\"x\">b{}</style><stylesheet>c</stylesheet>")
+                .build());
+    Response response = provider.view(token);
+    Matcher nonce =
+        Pattern.compile("'nonce-([^']+)'")
+            .matcher(response.getHeaderString("Content-Security-Policy"));
+    assertThat(nonce.find()).isTrue();
+    String expected = "<style nonce=\"" + nonce.group(1) + "\"";
+    assertThat(String.valueOf(response.getEntity()))
+        .isEqualTo(
+            expected
+                + ">a{}</style>"
+                + expected
+                + " id=\"x\">b{}</style><stylesheet>c</stylesheet>");
+  }
+
+  /** The theme's language menu links to this page with kc_locale, and no login flow reads it. */
+  @Test
+  void theLanguagePickedInTheMenuReachesTheLocaleSelector() {
+    queryParameters.putSingle(LocaleSelectorProvider.KC_LOCALE_PARAM, "es");
+    provider.view(token);
+    verify(session).setAttribute(LocaleSelectorProvider.USER_REQUEST_LOCALE, "es");
+  }
+
+  @Test
+  void theRevealKeepsTheLanguagePicked() throws Exception {
+    queryParameters.putSingle(LocaleSelectorProvider.KC_LOCALE_PARAM, "es");
+    body(provider.retrieve(token, USERNAME));
+    verify(session).setAttribute(LocaleSelectorProvider.USER_REQUEST_LOCALE, "es");
+  }
+
+  @Test
+  void aRefusalKeepsTheLanguagePicked() {
+    queryParameters.putSingle(LocaleSelectorProvider.KC_LOCALE_PARAM, "es");
+    provider.retrieve(token, "someone-else");
+    verify(session, atLeastOnce()).setAttribute(LocaleSelectorProvider.USER_REQUEST_LOCALE, "es");
+  }
+
+  @Test
+  void withoutAPickTheLocaleSelectorDecides() {
+    provider.view(token);
+    verify(session, never()).setAttribute(eq(LocaleSelectorProvider.USER_REQUEST_LOCALE), any());
+  }
+
+  @Test
+  void pickingALanguageDoesNotSpendTheLink() throws Exception {
+    queryParameters.putSingle(LocaleSelectorProvider.KC_LOCALE_PARAM, "es");
+    assertThat(provider.view(token).getStatus()).isEqualTo(200);
+    assertThat(values(HASH_NAME)).hasSize(1);
+    assertThat(String.valueOf(provider.view(token).getEntity())).doesNotContain(PIN);
+  }
+
   @Test
   void wrongUsernamesFeedKeycloaksBruteForceProtection() {
     provider.retrieve(token, "someone-else");
@@ -479,6 +542,7 @@ class PinLinkResourceProviderTest {
     lenient()
         .when(context.getUri().getBaseUri())
         .thenReturn(URI.create("https://login.example.org/"));
+    lenient().when(context.getUri().getQueryParameters()).thenReturn(queryParameters);
     lenient().when(context.getConnection()).thenReturn(mock(ClientConnection.class));
     lenient().when(mocked.getProvider(LoginFormsProvider.class)).thenReturn(forms);
     lenient().when(mocked.getProvider(BruteForceProtector.class)).thenReturn(protector);
