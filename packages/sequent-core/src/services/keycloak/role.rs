@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::validate_keycloak_path_segment;
 use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::*;
 use anyhow::{anyhow, Result};
@@ -47,6 +48,7 @@ impl KeycloakAdminClient {
         limit: Option<usize>,
         offset: Option<usize>,
     ) -> Result<(Vec<Role>, usize)> {
+        validate_keycloak_path_segment(realm)?;
         let group_representations: Vec<GroupRepresentation> = self
             .client
             .realm_groups_get(
@@ -82,6 +84,8 @@ impl KeycloakAdminClient {
         realm: &str,
         user_id: &str,
     ) -> Result<Vec<Role>> {
+        validate_keycloak_path_segment(realm)?;
+        validate_keycloak_path_segment(user_id)?;
         let groups: Vec<GroupRepresentation> = self
             .client
             .realm_users_with_user_id_groups_get(
@@ -105,6 +109,9 @@ impl KeycloakAdminClient {
         user_id: &str,
         role_id: &str,
     ) -> Result<()> {
+        validate_keycloak_path_segment(realm)?;
+        validate_keycloak_path_segment(user_id)?;
+        validate_keycloak_path_segment(role_id)?;
         self.client
             .realm_users_with_user_id_groups_with_group_id_put(
                 realm, user_id, role_id,
@@ -121,6 +128,9 @@ impl KeycloakAdminClient {
         user_id: &str,
         role_id: &str,
     ) -> Result<()> {
+        validate_keycloak_path_segment(realm)?;
+        validate_keycloak_path_segment(user_id)?;
+        validate_keycloak_path_segment(role_id)?;
         self.client
             .realm_users_with_user_id_groups_with_group_id_delete(
                 realm, user_id, role_id,
@@ -132,6 +142,8 @@ impl KeycloakAdminClient {
 
     #[instrument(skip(self), err)]
     pub async fn delete_role(self, realm: &str, role_id: &str) -> Result<()> {
+        validate_keycloak_path_segment(realm)?;
+        validate_keycloak_path_segment(role_id)?;
         self.client
             .realm_groups_with_group_id_delete(realm, role_id)
             .await
@@ -141,6 +153,7 @@ impl KeycloakAdminClient {
 
     #[instrument(skip(self), err)]
     pub async fn create_role(self, realm: &str, role: &Role) -> Result<Role> {
+        validate_keycloak_path_segment(realm)?;
         self.client
             .realm_groups_post(realm, role.clone().into())
             .await
@@ -154,6 +167,7 @@ impl KeycloakAdminClient {
         realm: &str,
         role: &Role,
     ) -> Result<Role> {
+        validate_keycloak_path_segment(realm)?;
         let (roles, count) = self.list_roles(realm, None, None, None).await?;
         let role_by_named = roles.iter().find(|r| role.name == r.name);
         let new_role = match role_by_named {
