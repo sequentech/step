@@ -15,7 +15,8 @@ SPDX-License-Identifier: AGPL-3.0-only
             <#if revealing>
                 <p>${msg("pinLinkRevealIntro")}</p>
                 <style id="pin-link-style">
-                    #pin-link-value { font-size: 2rem; font-weight: 700; letter-spacing: .1em; text-align: center; user-select: all; }
+                    #pin-link-value { text-align: center; }
+                    #pin-link-value output { font-size: clamp(1.5rem, 8vw, 2rem); font-weight: 700; letter-spacing: .1em; user-select: all; }
                     @media print { #pin-link-print { display: none; } }
                 </style>
                 <p id="pin-link-value" class="${properties.kcFormGroupClass!}"><output>${pinLinkValue}</output></p>
