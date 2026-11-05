@@ -21,6 +21,10 @@ class PinLinkConfigTest {
     return attributes;
   }
 
+  /**
+   * The fixture lists the expiry values Windmill's tests also accept and refuse. If the two read
+   * one differently, voters could be mailed links that never work.
+   */
   @Test
   void readsTheExpiryLikeWindmill() throws Exception {
     JsonNode vectors;
@@ -44,6 +48,10 @@ class PinLinkConfigTest {
     assertThat(PinLinkConfig.from(Map.of())).isEmpty();
   }
 
+  /**
+   * Only the exact value {@code ONE_TIME_LINK} turns the link on; a different case or {@code true}
+   * leaves it off.
+   */
   @Test
   void isOffForAnyOtherPolicyValue() {
     for (String value : new String[] {"DISABLED", "one_time_link", "true", ""}) {
@@ -76,6 +84,10 @@ class PinLinkConfigTest {
     assertThat(config.maxAttempts()).isEqualTo(3);
   }
 
+  /**
+   * A missing expiry, or an invalid expiry, attempt limit or attribute name, turns the link off
+   * instead of falling back to a default.
+   */
   @Test
   void failsClosedOnInvalidValues() {
     String[][] invalid = {

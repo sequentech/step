@@ -99,6 +99,10 @@ class PinLinkServiceTest {
     assertThat(audits).hasValue(1);
   }
 
+  /**
+   * Sixteen simultaneous POSTs, each on its own connection like separate replicas, spend the link
+   * once and record one audit entry; the rest find it gone.
+   */
   @Test
   void concurrentPostsAcrossReplicasHaveExactlyOneWinner() throws Exception {
     int replicas = 16;
@@ -127,6 +131,10 @@ class PinLinkServiceTest {
     assertThat(audits).hasValue(1);
   }
 
+  /**
+   * Simultaneous wrong usernames all count: the row lock keeps one from overwriting another's
+   * attempt.
+   */
   @Test
   void concurrentWrongAttemptsAreAllCounted() throws Exception {
     int attempts = 3;
@@ -142,6 +150,10 @@ class PinLinkServiceTest {
     assertThat(values(config.attemptsAttribute())).containsExactly("3");
   }
 
+  /**
+   * At the attempt limit the link is locked: even the right username is refused, the link is not
+   * spent and nothing is audited.
+   */
   @Test
   void tooManyWrongUsernamesLockTheLinkEvenForTheRightOne() throws Exception {
     for (int i = 0; i < config.maxAttempts(); i++) {
@@ -324,6 +336,7 @@ class PinLinkServiceTest {
     return valuesOf(VOTER_ID, name);
   }
 
+  /** The values a voter has stored under an attribute name, read straight from the database. */
   private List<String> valuesOf(String userId, String name) throws Exception {
     try (PreparedStatement statement =
         admin.prepareStatement("SELECT value FROM user_attribute WHERE user_id = ? AND name = ?")) {

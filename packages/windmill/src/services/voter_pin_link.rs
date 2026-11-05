@@ -69,6 +69,8 @@ fn attribute_name(attributes: &HashMap<String, String>, key: &str, default: &str
         .to_string()
 }
 
+/// Whether a configured attribute name is usable: 1 to 128 ASCII letters,
+/// digits, `.`, `_` or `-`, the grammar `PinLinkConfig.java` also applies.
 fn is_valid_attribute_name(name: &str) -> bool {
     (1..=128).contains(&name.len())
         && name
@@ -85,6 +87,12 @@ pub enum PinWrite<'a> {
 }
 
 impl PinLinkConfig {
+    /// The link's configuration from a realm's attributes, or `None` when it is
+    /// off: the policy is not `ONE_TIME_LINK`, an attribute name is invalid or
+    /// repeated, the attempt limit is not a number from 1 to 100, or the expiry
+    /// is missing or invalid. These are the rules of `PinLinkConfig.java`,
+    /// expiry included though only Keycloak enforces it, so no link is made
+    /// that Keycloak would refuse.
     pub fn from_realm_attributes(attributes: &HashMap<String, String>) -> Option<Self> {
         if attributes.get(REALM_ATTR_PIN_LINK_POLICY)?.as_str() != POLICY_ONE_TIME_LINK {
             return None;
@@ -238,6 +246,10 @@ impl PinLinkTokens {
     }
 }
 
+/// Derives a voter's token from their PIN: an HMAC-SHA-256 of it under a key
+/// HKDF-derived from the master secret for this tenant, event and voter,
+/// truncated and encoded by `encode_token`. `PinLinkToken.derive` does the same
+/// in Keycloak.
 fn derive_token(
     master_secret: &[u8],
     tenant_id: &str,
@@ -258,6 +270,8 @@ fn derive_token(
     Ok(encode_token(tag.as_ref()))
 }
 
+/// The first 130 bits of the tag as 26 Crockford base32 characters, five bits
+/// at a time.
 fn encode_token(tag: &[u8]) -> String {
     let mut token = String::with_capacity(TOKEN_LENGTH);
     let mut buffer: u32 = 0;
@@ -389,6 +403,8 @@ mod tests {
         ])
     }
 
+    /// Windmill generates the link and Keycloak checks it, so both must derive
+    /// the same token and lookup hash for the vectors in the shared fixture.
     #[test]
     fn matches_the_vectors_shared_with_keycloak() {
         let fixture: Value = serde_json::from_str(FIXTURE).unwrap();
@@ -444,6 +460,8 @@ mod tests {
         );
     }
 
+    /// Anything but the exact policy and a valid expiry leaves the link off, as
+    /// do a bad attempt limit or attribute name.
     #[test]
     fn is_off_unless_the_policy_and_a_valid_expiry_are_set() {
         assert_eq!(PinLinkConfig::from_realm_attributes(&HashMap::new()), None);
@@ -469,6 +487,9 @@ mod tests {
         assert_eq!(PinLinkConfig::from_realm_attributes(&attributes), None);
     }
 
+    /// Windmill and Keycloak accept and refuse the same expiry values, which
+    /// the shared fixture lists. If they differed, voters could be mailed links
+    /// that never work.
     #[test]
     fn reads_the_expiry_like_keycloak() {
         let fixture: Value = serde_json::from_str(FIXTURE).unwrap();
@@ -488,6 +509,9 @@ mod tests {
         }
     }
 
+    /// A write that doesn't mention the PIN is `Absent`, one that removes it or
+    /// leaves it blank is `Cleared`, one with a single value is `Set`, and
+    /// several values are an error.
     #[test]
     fn tells_what_a_write_does_to_the_pin() {
         let config = PinLinkConfig::from_realm_attributes(&enabled()).unwrap();

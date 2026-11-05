@@ -121,6 +121,9 @@ pub struct SecretAttributeConfig {
 }
 
 impl SecretAttributeConfig {
+    /// The attributes a user profile annotates as encrypted. A misconfigured
+    /// one is kept as the config's first error, not returned, so read paths can
+    /// still redact the names.
     pub fn from_profile(attributes: &[UserProfileAttribute]) -> Self {
         let mut names = HashSet::new();
         let mut error = None;
@@ -273,6 +276,9 @@ fn derive_key(
     Ok(SymmetricKey::from_slice(&key_bytes).to_owned())
 }
 
+/// Encrypts a value into a `seqenc:v1:` envelope bound to the tenant, event,
+/// voter and attribute in `scope`. Refuses a value, or an envelope, too long
+/// for the column Keycloak stores attribute values in.
 pub(crate) fn encrypt_with_master_secret(
     master_secret: &SymmetricKey,
     scope: &VoterSecretAttributeScope<'_>,
@@ -567,6 +573,9 @@ mod tests {
         ])
     }
 
+    /// The link's generated attributes are redacted on read paths like secrets,
+    /// but are not among the names a write may supply, so no request can set
+    /// them.
     #[test]
     fn generated_attributes_are_redacted_but_never_offered_as_secrets() {
         let config = SecretAttributeConfig::from_profile(&[secret_attribute("pin")])

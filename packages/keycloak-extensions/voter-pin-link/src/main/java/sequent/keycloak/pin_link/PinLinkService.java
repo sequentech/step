@@ -62,6 +62,11 @@ final class PinLinkService {
     this.masterHex = masterHex;
   }
 
+  /**
+   * Locks the link's row so concurrent requests queue, then refuses at the attempt limit, counts a
+   * wrong username, and checks that the stored PIN still yields this token. The link is spent and
+   * the audit entry recorded before the PIN is returned; on any other outcome the PIN is wiped.
+   */
   Outcome retrieve(
       Connection connection,
       Voter voter,
@@ -107,6 +112,10 @@ final class PinLinkService {
     }
   }
 
+  /**
+   * The failed attempts counted so far, or 0 for none. A corrupt value counts as the limit, so the
+   * link locks instead of counting again from zero.
+   */
   private int readAttempts(Connection connection, String voterId) throws SQLException {
     List<String> values = store.values(connection, voterId, config.attemptsAttribute());
     if (values.isEmpty()) {
@@ -120,6 +129,11 @@ final class PinLinkService {
     }
   }
 
+  /**
+   * The voter's PIN, or null unless exactly one stored envelope decrypts in the voter's scope and
+   * the PIN yields this token. A moved envelope or a PIN changed since the link was made gives
+   * null. The caller wipes the PIN.
+   */
   private byte[] decrypt(Connection connection, Voter voter, String canonicalToken)
       throws SQLException {
     List<String> envelopes = store.values(connection, voter.id(), config.pinAttribute());
@@ -151,6 +165,10 @@ final class PinLinkService {
     return null;
   }
 
+  /**
+   * Compares the voter's username with the submission in constant time, ignoring case and, in the
+   * submission, surrounding whitespace. False if either is null.
+   */
   static boolean sameUsername(String expected, String submitted) {
     if (expected == null || submitted == null) {
       return false;

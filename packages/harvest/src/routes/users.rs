@@ -905,6 +905,11 @@ pub struct CreateUserBody {
     secret_attributes: Option<HashMap<String, Option<Vec<String>>>>,
 }
 
+/// Creates a user in the tenant realm, or a voter when the body names an
+/// election event. A voter with secret attributes is created disabled and only
+/// enabled once its attributes are encrypted for the id Keycloak assigned. With
+/// the PIN link on, its link is set up before it is enabled and its PIN also
+/// becomes its password.
 #[instrument(skip(claims, body))]
 #[post("/create-user", format = "json", data = "<body>")]
 pub async fn create_user(
@@ -1457,6 +1462,11 @@ impl<'r> Responder<'r, 'static> for EditUserError {
     }
 }
 
+/// Edits a user, or a voter when the body names an election event. For a voter
+/// it checks the permissions the change needs and, with the PIN link on, makes
+/// a written PIN its password and keeps its link in step before anything is
+/// stored. On Datafix events the edit is handed to the `edit_user` task, unless
+/// it only changes the password.
 #[instrument(skip(claims, body), ret)]
 #[post("/edit-user", format = "json", data = "<body>")]
 pub async fn edit_user(
@@ -2524,6 +2534,8 @@ mod tests {
         assert_eq!(status, Status::BadRequest);
     }
 
+    /// The password is left alone when the PIN is cleared, when no secret
+    /// attributes are written and when the realm has no link.
     #[test]
     fn only_setting_the_pin_with_the_link_on_touches_the_password() {
         let config = pin_link_config();

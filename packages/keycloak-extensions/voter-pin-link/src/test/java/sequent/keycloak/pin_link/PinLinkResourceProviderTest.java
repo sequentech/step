@@ -107,6 +107,10 @@ class PinLinkResourceProviderTest {
   private String revealPlaceholder;
   private boolean revealing;
 
+  /**
+   * An in-memory database holding one voter, with an encrypted PIN and the hash of its link, and
+   * Keycloak's services mocked around the provider.
+   */
   @BeforeEach
   void setUp() throws Exception {
     url =
@@ -238,6 +242,10 @@ class PinLinkResourceProviderTest {
     assertThat(provider.retrieve(token, USERNAME).getStatus()).isEqualTo(404);
   }
 
+  /**
+   * Mail scanners follow links, so any number of GETs shows no PIN, spends no attempt and records
+   * no audit entry, and the voter's POST still works afterwards.
+   */
   @Test
   void getNeverConsumesSoMailScannersCanPrefetch() throws Exception {
     for (int i = 0; i < 5; i++) {
@@ -264,6 +272,11 @@ class PinLinkResourceProviderTest {
     assertThat(String.valueOf(second.getEntity())).doesNotContain(PIN);
   }
 
+  /**
+   * Every reason to refuse gets the same page with the generic error, so a response doesn't tell
+   * the reason: an unknown or malformed link, a wrong username, a disabled voter, an expired or
+   * locked link, a brute-force lock and a link already used.
+   */
   @Test
   void everyRefusalLooksTheSame() throws Exception {
     List<Response> responses = new ArrayList<>();
@@ -369,6 +382,7 @@ class PinLinkResourceProviderTest {
     assertThat(values(HASH_NAME)).hasSize(1);
   }
 
+  /** The logs follow a link by voter id and never hold the PIN, the token or its lookup hash. */
   @Test
   void logsNameTheVoterAndNeverThePinOrToken() throws Exception {
     provider.view(token);
@@ -413,6 +427,7 @@ class PinLinkResourceProviderTest {
     return page.replaceAll("nonce=\"[^\"]*\"", "nonce");
   }
 
+  /** The body of a successful response as text, reading a streamed reveal to the end. */
   private String body(Response response) throws Exception {
     assertThat(response.getStatus()).isEqualTo(200);
     if (!(response.getEntity() instanceof StreamingOutput output)) {
@@ -430,6 +445,11 @@ class PinLinkResourceProviderTest {
     profile.addOrReplaceAttribute(pin);
   }
 
+  /**
+   * A mocked Keycloak session whose database work runs on {@code connection}. A job session, like
+   * the one Keycloak opens for a transaction of its own, stops at the database; a request session
+   * also has the forms, brute-force protector, user profile and users the provider reads.
+   */
   private KeycloakSession sessionOn(Connection connection, boolean job) throws Exception {
     KeycloakSession mocked = mock(KeycloakSession.class);
     EntityManager entityManager = mock(EntityManager.class);
@@ -523,6 +543,7 @@ class PinLinkResourceProviderTest {
     }
   }
 
+  /** The values stored under an attribute name, read straight from the database. */
   private List<String> values(String name) throws Exception {
     try (PreparedStatement statement =
         admin.prepareStatement("SELECT value FROM user_attribute WHERE name = ?")) {

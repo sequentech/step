@@ -53,6 +53,12 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     return new String[] {"", ""};
   }
 
+  /**
+   * Turns a Keycloak event into an electoral-log message for the realm's election event and
+   * publishes it. The body is the communication, the certificate login details, the stage of a PIN
+   * link or else the event's error. A failed registration of an unknown user also sends error
+   * notifications.
+   */
   @Override
   public void onEvent(Event event) {
     log.info("onEvent: start");
