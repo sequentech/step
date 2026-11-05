@@ -76,6 +76,8 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
   private static final ObjectMapper JSON = new ObjectMapper();
   private static final Pattern STYLE_TAG =
       Pattern.compile("<style(?=[\\s>])", Pattern.CASE_INSENSITIVE);
+  private static final String LANGUAGE_POLICY_ATTRIBUTE = "language_detection_policy";
+  private static final String FORCE_DEFAULT_LANGUAGE = "force-default";
   private static final Pattern LANGUAGE_LINK =
       Pattern.compile("href=\"[^\"]*\\?" + LocaleSelectorProvider.KC_LOCALE_PARAM + "=");
 
@@ -392,17 +394,24 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
   /**
    * The forms provider for this page, in the language picked in the theme's menu. The menu links
    * here with {@code kc_locale}, which Keycloak only reads in a login flow, and this page has none.
-   * The locale selector ignores a value the realm does not support.
+   * The locale selector ignores a value the realm does not support. Without a pick, a realm that
+   * forces its default language gets it here, because the login pages do that with a script and
+   * this page's policy blocks it.
    */
   private LoginFormsProvider pageForms() {
-    String picked =
+    String language =
         session
             .getContext()
             .getUri()
             .getQueryParameters()
             .getFirst(LocaleSelectorProvider.KC_LOCALE_PARAM);
-    if (picked != null) {
-      session.setAttribute(LocaleSelectorProvider.USER_REQUEST_LOCALE, picked);
+    RealmModel realm = session.getContext().getRealm();
+    if (language == null
+        && FORCE_DEFAULT_LANGUAGE.equals(realm.getAttribute(LANGUAGE_POLICY_ATTRIBUTE))) {
+      language = realm.getDefaultLocale();
+    }
+    if (language != null) {
+      session.setAttribute(LocaleSelectorProvider.USER_REQUEST_LOCALE, language);
     }
     return session.getProvider(LoginFormsProvider.class);
   }

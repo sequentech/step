@@ -128,7 +128,8 @@ does not show it again.
 ### Text and Languages
 
 Text comes from the message keys below, in the language the login pages would use: the browser's
-language among the realm's supported locales, or else the realm's default. A realm can override any
+language among the realm's supported locales, or else the realm's default. A realm that forces its
+default language shows that one unless the voter picks another in the menu. A realm can override any
 of them, per language, under **Realm settings** > **Localization**.
 
 | Key | Where |
