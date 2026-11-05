@@ -694,6 +694,15 @@ const spanishTranslation: TranslationType = {
                         disabled: "Deshabilitado",
                     },
                 },
+                kioskChannelAuthenticationPolicy: {
+                    policyLabel: "Política de Autenticación del Canal de Kiosco",
+                    helperText:
+                        "Con Atestación, solo se acepta un voto de kiosco cuando el inicio de sesión incluye la atestación del canal de kiosco configurada en Keycloak.",
+                    options: {
+                        "client-identity": "Identidad del cliente",
+                        "attested": "Atestación",
+                    },
+                },
                 languageDetectionPolicy: {
                     policyLabel: "Política de detección de idioma",
                     options: {

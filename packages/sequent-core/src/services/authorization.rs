@@ -44,6 +44,13 @@ impl VoterClient {
     }
 }
 
+/// Voting channel attested by the token's `voting_channel_attestation` claim.
+pub fn attested_voting_channel(
+    claims: &JwtClaims,
+) -> Option<VotingStatusChannel> {
+    claims.voting_channel_attestation.as_deref()?.parse().ok()
+}
+
 #[instrument(skip(claims))]
 pub fn authorize(
     claims: &JwtClaims,
@@ -185,6 +192,9 @@ pub fn authorize_voter_event(
 #[cfg(test)]
 mod voter_authorization_tests {
     use super::*;
+    use crate::ballot::{
+        ElectionEventPresentation, KioskChannelAuthenticationPolicy,
+    };
 
     fn voter() -> JwtClaims {
         serde_json::from_value(serde_json::json!({
@@ -329,6 +339,98 @@ mod voter_authorization_tests {
         // Keep the existing election error when both election and client are invalid.
         claims.azp = "admin-portal".into();
         assert_denied(&claims, "Not authorized to election");
+    }
+
+    fn kiosk_policy(
+        presentation: serde_json::Value,
+    ) -> KioskChannelAuthenticationPolicy {
+        serde_json::from_value::<ElectionEventPresentation>(presentation)
+            .unwrap()
+            .kiosk_channel_authentication_policy
+            .unwrap_or_default()
+    }
+
+    fn accepts(
+        policy: KioskChannelAuthenticationPolicy,
+        claims: &JwtClaims,
+    ) -> bool {
+        let (_, channel) = election(claims).unwrap();
+        policy.accepts(channel, attested_voting_channel(claims))
+    }
+
+    #[test]
+    fn attested_policy_requires_the_attestation_claim_for_kiosk_clients() {
+        let policy = kiosk_policy(serde_json::json!({
+            "kiosk_channel_authentication_policy": "attested"
+        }));
+        assert_eq!(policy, KioskChannelAuthenticationPolicy::ATTESTED);
+        for client in ["voting-portal-kiosk", "onsite-voting-portal"] {
+            let mut claims = voter();
+            claims.azp = client.into();
+            assert_eq!(attested_voting_channel(&claims), None);
+            assert!(!accepts(policy, &claims));
+
+            for attestation in ["ONLINE", "TELEPHONE", "kiosk", ""] {
+                claims.voting_channel_attestation = Some(attestation.into());
+                assert!(!accepts(policy, &claims));
+            }
+
+            claims.voting_channel_attestation = Some("KIOSK".into());
+            assert_eq!(
+                attested_voting_channel(&claims),
+                Some(VotingStatusChannel::KIOSK)
+            );
+            assert!(accepts(policy, &claims));
+        }
+    }
+
+    #[test]
+    fn attested_policy_does_not_change_online_or_telephone_votes() {
+        for client in ["voting-portal", "ivr-voting"] {
+            let mut claims = voter();
+            claims.azp = client.into();
+            assert!(accepts(
+                KioskChannelAuthenticationPolicy::ATTESTED,
+                &claims
+            ));
+        }
+    }
+
+    #[test]
+    fn client_identity_policy_is_the_default_and_keeps_kiosk_votes() {
+        for presentation in [
+            serde_json::json!({}),
+            serde_json::json!({"kiosk_channel_authentication_policy": null}),
+            serde_json::json!({
+                "kiosk_channel_authentication_policy": "client-identity"
+            }),
+        ] {
+            let policy = kiosk_policy(presentation);
+            assert_eq!(
+                policy,
+                KioskChannelAuthenticationPolicy::CLIENT_IDENTITY
+            );
+            for client in ["voting-portal-kiosk", "onsite-voting-portal"] {
+                let mut claims = voter();
+                claims.azp = client.into();
+                assert!(accepts(policy, &claims));
+            }
+        }
+    }
+
+    #[test]
+    fn tokens_decode_with_and_without_the_attestation_claim() {
+        let mut token = serde_json::to_value(voter()).unwrap();
+        token
+            .as_object_mut()
+            .unwrap()
+            .remove("voting_channel_attestation");
+        let claims: JwtClaims = serde_json::from_value(token.clone()).unwrap();
+        assert_eq!(claims.voting_channel_attestation, None);
+
+        token["voting_channel_attestation"] = "KIOSK".into();
+        let claims: JwtClaims = serde_json::from_value(token).unwrap();
+        assert_eq!(claims.voting_channel_attestation.as_deref(), Some("KIOSK"));
     }
 
     #[test]

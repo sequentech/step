@@ -1186,6 +1186,9 @@ pub struct ElectionEventPresentation {
     #[serde(default, deserialize_with = "deserialize_optional_json_string")]
     pub results_website: Option<String>,
     pub voting_portal_datetime_format: Option<VotingPortalDateTimeFormat>,
+    #[borsh(skip)]
+    pub kiosk_channel_authentication_policy:
+        Option<KioskChannelAuthenticationPolicy>,
 }
 
 impl ElectionEvent {
@@ -2022,6 +2025,51 @@ pub enum VoterCertificatePolicy {
     #[strum(serialize = "enabled")]
     #[serde(rename = "enabled")]
     ENABLED,
+}
+
+/// How a vote cast through the kiosk channel is authenticated.
+#[allow(non_camel_case_types)]
+#[derive(
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    JsonSchema,
+)]
+pub enum KioskChannelAuthenticationPolicy {
+    /// The Keycloak client used to log in determines the kiosk channel.
+    #[default]
+    #[strum(serialize = "client-identity")]
+    #[serde(rename = "client-identity")]
+    CLIENT_IDENTITY,
+    /// The token must also carry a kiosk channel attestation claim.
+    #[strum(serialize = "attested")]
+    #[serde(rename = "attested")]
+    ATTESTED,
+}
+
+impl KioskChannelAuthenticationPolicy {
+    /// Whether a vote cast through `channel` is accepted, given the channel
+    /// attested by the voter's authentication.
+    pub fn accepts(
+        self,
+        channel: VotingStatusChannel,
+        attested_channel: Option<VotingStatusChannel>,
+    ) -> bool {
+        match self {
+            Self::CLIENT_IDENTITY => true,
+            Self::ATTESTED => {
+                channel != VotingStatusChannel::KIOSK
+                    || attested_channel == Some(VotingStatusChannel::KIOSK)
+            }
+        }
+    }
 }
 
 #[allow(non_camel_case_types)]
@@ -3150,6 +3198,22 @@ mod presentation_borsh_compat_tests {
                 contest_bytes,
                 "is_acclaimed = {is_acclaimed:?} changed the Borsh bytes"
             );
+        }
+    }
+
+    #[test]
+    fn kiosk_channel_authentication_policy_does_not_change_borsh_bytes() {
+        let event_presentation = ElectionEventPresentation::default();
+        let event_bytes = borsh::to_vec(&event_presentation).unwrap();
+        for policy in [
+            KioskChannelAuthenticationPolicy::CLIENT_IDENTITY,
+            KioskChannelAuthenticationPolicy::ATTESTED,
+        ] {
+            let event_with_policy = ElectionEventPresentation {
+                kiosk_channel_authentication_policy: Some(policy),
+                ..event_presentation.clone()
+            };
+            assert_eq!(borsh::to_vec(&event_with_policy).unwrap(), event_bytes);
         }
     }
 
