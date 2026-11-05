@@ -43,8 +43,9 @@ annotation `sequent.secret=true`, view and edit permissions for administrators o
 
 The link stays off if the attribute is not a secret, if voters can view or edit it, if the realm
 declares the generated attributes below, or if the realm's unmanaged attributes policy is `ENABLED`. Keycloak
-then logs a warning and the link answers `404`. Importing into such a realm or sending the link
-fails with an error when the PIN is not a declared secret.
+then logs a warning and the link answers `404`. In the first three cases, importing or sending the
+link also fails with an error. Only Keycloak reads the unmanaged attributes policy, so under it a
+message would carry dead links: open one link before mailing everyone.
 
 ### 2. Set the realm attributes
 

@@ -38,6 +38,7 @@ const KEY_DERIVATION_DOMAIN: &[u8] = b"sequent-voter-secret-attribute-v1";
 /// on every call.
 const CONFIG_CACHE_TTL: Duration = Duration::from_secs(30);
 const CIPHERTEXT_COMPATIBLE_VALIDATORS: [&str; 1] = ["person-name-prohibited-characters"];
+const VOTER_ROLE: &str = "user";
 /// Identity and operational fields that other components read in plaintext.
 /// The first and last name are included: they live in Keycloak's top-level
 /// user fields, which every voter-level output copies verbatim.
@@ -118,6 +119,10 @@ pub struct SecretAttributeConfig {
     redacted: HashSet<String>,
     generated: HashSet<String>,
     pin_link: Option<PinLinkConfig>,
+    /// Every attribute the profile declares.
+    declared: HashSet<String>,
+    /// The declared attributes voters can view or edit.
+    voter_reachable: HashSet<String>,
 }
 
 impl SecretAttributeConfig {
@@ -154,10 +159,17 @@ impl SecretAttributeConfig {
             }
             names.insert(name);
         }
+        let named = |attribute: &UserProfileAttribute| attribute.name.clone();
         Self {
             redacted: names.clone(),
             names,
             error,
+            declared: attributes.iter().filter_map(named).collect(),
+            voter_reachable: attributes
+                .iter()
+                .filter(|attribute| voters_can_reach(attribute))
+                .filter_map(named)
+                .collect(),
             generated: HashSet::new(),
             pin_link: None,
         }
@@ -171,13 +183,27 @@ impl SecretAttributeConfig {
         self.redacted.extend(self.generated.iter().cloned());
         self.pin_link = PinLinkConfig::from_realm_attributes(attributes);
         if let Some(config) = &self.pin_link {
-            if !self.names.contains(&config.pin_attribute) {
-                self.error.get_or_insert_with(|| {
-                    format!(
-                        "The PIN link's attribute `{}` is not configured as encrypted",
-                        config.pin_attribute
-                    )
-                });
+            let pin = &config.pin_attribute;
+            let problem = if !self.names.contains(pin) {
+                Some(format!(
+                    "The PIN link's attribute `{pin}` is not configured as encrypted"
+                ))
+            } else if self.voter_reachable.contains(pin) {
+                Some(format!(
+                    "Voters must not be able to view or edit the PIN link's attribute `{pin}`"
+                ))
+            } else {
+                self.declared
+                    .intersection(&self.generated)
+                    .next()
+                    .map(|name| {
+                        format!(
+                            "The PIN link's generated attribute `{name}` must stay out of the user profile"
+                        )
+                    })
+            };
+            if let Some(problem) = problem {
+                self.error.get_or_insert(problem);
                 self.pin_link = None;
             }
         }
@@ -224,6 +250,18 @@ impl SecretAttributeConfig {
         names.extend(self.generated.iter().cloned());
         Ok(names)
     }
+}
+
+/// Whether a profile attribute's permissions let voters view or edit it, the
+/// way Keycloak reads them for the PIN link.
+fn voters_can_reach(attribute: &UserProfileAttribute) -> bool {
+    attribute.permissions.as_ref().is_some_and(|permissions| {
+        [&permissions.view, &permissions.edit]
+            .into_iter()
+            .flatten()
+            .flatten()
+            .any(|role| role == VOTER_ROLE)
+    })
 }
 
 pub fn secret_attribute_names(attributes: &[UserProfileAttribute]) -> Result<HashSet<String>> {
@@ -573,7 +611,7 @@ fn encrypt_secret_attribute_map_with_key(
 mod tests {
     use super::*;
     use sequent_core::types::keycloak::{
-        REALM_ATTR_PIN_LINK_EXPIRES_AT, REALM_ATTR_PIN_LINK_POLICY,
+        UPAttributePermissions, REALM_ATTR_PIN_LINK_EXPIRES_AT, REALM_ATTR_PIN_LINK_POLICY,
     };
     use strand::symm::gen_key;
 
@@ -646,6 +684,66 @@ mod tests {
         assert!(config.pin_link().is_none());
         let error = config.validated_names().unwrap_err();
         assert!(error.to_string().contains("`pin`"), "{error}");
+    }
+
+    fn pin_with_permissions(view: &[&str], edit: &[&str]) -> UserProfileAttribute {
+        let roles = |roles: &[&str]| Some(roles.iter().map(|role| role.to_string()).collect());
+        UserProfileAttribute {
+            permissions: Some(UPAttributePermissions {
+                view: roles(view),
+                edit: roles(edit),
+            }),
+            ..secret_attribute("pin")
+        }
+    }
+
+    /// Keycloak answers such a link with a 404, so mailing it would send a dead
+    /// link. It lets a role view what it can edit, so either one is enough.
+    #[test]
+    fn a_pin_voters_can_view_or_edit_turns_the_link_off_and_reports_it() {
+        for pin in [
+            pin_with_permissions(&["admin", "user"], &["admin"]),
+            pin_with_permissions(&["admin"], &["user"]),
+        ] {
+            let config = SecretAttributeConfig::from_profile(&[pin])
+                .with_realm_attributes(&pin_link_realm_attributes());
+            assert!(config.pin_link().is_none());
+            let error = config.validated_names().unwrap_err();
+            assert!(error.to_string().contains("`pin`"), "{error}");
+        }
+    }
+
+    #[test]
+    fn a_pin_only_administrators_can_reach_keeps_the_link_on() {
+        let config =
+            SecretAttributeConfig::from_profile(&[pin_with_permissions(&["admin"], &["admin"])])
+                .with_realm_attributes(&pin_link_realm_attributes());
+        assert!(config.pin_link().is_some());
+        assert!(config.validated_names().is_ok());
+    }
+
+    #[test]
+    fn a_declared_generated_attribute_turns_the_link_off_and_reports_it() {
+        let declared = UserProfileAttribute {
+            annotations: None,
+            ..secret_attribute("pin-link-attempts")
+        };
+        let config = SecretAttributeConfig::from_profile(&[secret_attribute("pin"), declared])
+            .with_realm_attributes(&pin_link_realm_attributes());
+        assert!(config.pin_link().is_none());
+        let error = config.validated_names().unwrap_err();
+        assert!(error.to_string().contains("`pin-link-attempts`"), "{error}");
+    }
+
+    #[test]
+    fn voter_permissions_on_another_attribute_leave_the_link_on() {
+        let other = UserProfileAttribute {
+            name: Some("reference".to_string()),
+            ..pin_with_permissions(&["user"], &["user"])
+        };
+        let config = SecretAttributeConfig::from_profile(&[secret_attribute("pin"), other])
+            .with_realm_attributes(&pin_link_realm_attributes());
+        assert!(config.pin_link().is_some());
     }
 
     #[test]
