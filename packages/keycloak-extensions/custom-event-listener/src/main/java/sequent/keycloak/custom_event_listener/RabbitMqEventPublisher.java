@@ -33,10 +33,12 @@ public class RabbitMqEventPublisher implements AutoCloseable {
   private static final ObjectMapper JSON = new ObjectMapper();
 
   /**
-   * A broker gone without closing its sockets would otherwise hold every event for the client's
-   * default of 60 seconds, since one connection attempt runs at a time.
+   * One call to the broker runs at a time, so a broker gone without closing its sockets, or one
+   * that stays connected and says nothing, would otherwise hold every event for the client's
+   * defaults: 60 seconds to connect, 10 for the handshake, 10 minutes per call and no limit to
+   * close.
    */
-  private static final int CONNECT_TIMEOUT_MILLIS = 5_000;
+  private static final int BROKER_TIMEOUT_MILLIS = 5_000;
 
   // Read once for performance
   private static final String TASK_NAME =
@@ -195,7 +197,6 @@ public class RabbitMqEventPublisher implements AutoCloseable {
     if (rabbitConnection == null || !rabbitConnection.isOpen()) {
       initializeRabbitMqConnection();
     } else if (rabbitChannel == null || !rabbitChannel.isOpen()) {
-      closeRabbitChannel();
       rabbitChannel = rabbitConnection.createChannel();
       declareQueue();
     }
@@ -208,7 +209,9 @@ public class RabbitMqEventPublisher implements AutoCloseable {
     ConnectionFactory rabbitFactory = connectionFactorySupplier.get();
     rabbitFactory.setAutomaticRecoveryEnabled(false);
     rabbitFactory.setTopologyRecoveryEnabled(false);
-    rabbitFactory.setConnectionTimeout(CONNECT_TIMEOUT_MILLIS);
+    rabbitFactory.setConnectionTimeout(BROKER_TIMEOUT_MILLIS);
+    rabbitFactory.setHandshakeTimeout(BROKER_TIMEOUT_MILLIS);
+    rabbitFactory.setChannelRpcTimeout(BROKER_TIMEOUT_MILLIS);
     rabbitFactory.setUri(amqpUri);
 
     try {
@@ -231,31 +234,13 @@ public class RabbitMqEventPublisher implements AutoCloseable {
     closeRabbitMqResources();
   }
 
+  /** Takes the channel along. The broker may be why this runs, so it gets a limited goodbye. */
   private void closeRabbitMqResources() {
-    closeRabbitChannel();
-
+    rabbitChannel = null;
     Connection connectionToClose = rabbitConnection;
     rabbitConnection = null;
-    if (connectionToClose == null || !connectionToClose.isOpen()) {
-      return;
-    }
-    try {
-      connectionToClose.close();
-    } catch (Exception exception) {
-      log.warn("Error closing RabbitMQ connection", exception);
-    }
-  }
-
-  private void closeRabbitChannel() {
-    Channel channelToClose = rabbitChannel;
-    rabbitChannel = null;
-    if (channelToClose == null || !channelToClose.isOpen()) {
-      return;
-    }
-    try {
-      channelToClose.close();
-    } catch (Exception exception) {
-      log.warn("Error closing RabbitMQ channel", exception);
+    if (connectionToClose != null && connectionToClose.isOpen()) {
+      connectionToClose.abort(BROKER_TIMEOUT_MILLIS);
     }
   }
 

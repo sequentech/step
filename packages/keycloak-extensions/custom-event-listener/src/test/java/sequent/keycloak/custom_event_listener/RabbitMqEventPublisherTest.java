@@ -62,6 +62,8 @@ class RabbitMqEventPublisherTest {
     verify(connectionFactory).setAutomaticRecoveryEnabled(false);
     verify(connectionFactory).setTopologyRecoveryEnabled(false);
     verify(connectionFactory).setConnectionTimeout(5_000);
+    verify(connectionFactory).setHandshakeTimeout(5_000);
+    verify(connectionFactory).setChannelRpcTimeout(5_000);
   }
 
   @Test
@@ -90,14 +92,13 @@ class RabbitMqEventPublisherTest {
   }
 
   @Test
-  void closesTheSharedChannelAndConnectionAtShutdown() throws Exception {
+  void closesTheSharedConnectionAtShutdown() throws Exception {
     publisher.publish(
         new AMQP.BasicProperties.Builder().build(), "event".getBytes(StandardCharsets.UTF_8));
 
     publisher.close();
 
-    verify(channel).close();
-    verify(connection).close();
+    verify(connection).abort(5_000);
   }
 
   @Test
@@ -143,7 +144,7 @@ class RabbitMqEventPublisherTest {
                 "event", "TYPE", "{}", "user", "tenant", "name", 5_000));
 
     verify(channel).removeReturnListener(listener.getValue());
-    verify(connection).close();
+    verify(connection).abort(5_000);
   }
 
   @Test
@@ -158,7 +159,7 @@ class RabbitMqEventPublisherTest {
             publisher.publishElectoralLogConfirmed(
                 "event", "TYPE", "{}", "user", "tenant", "name", 5_000));
 
-    verify(connection).close();
+    verify(connection).abort(5_000);
   }
 
   @Test
