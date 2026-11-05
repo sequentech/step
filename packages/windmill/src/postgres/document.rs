@@ -194,6 +194,51 @@ pub async fn delete_documents(
         .await?)
 }
 
+#[instrument(err, skip(hasura_transaction))]
+pub async fn restrict_document_to_voter_secret_readers(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    document_id: &str,
+) -> Result<()> {
+    let tenant_uuid =
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let document_uuid =
+        parse_uuid_v4(document_id).with_context(|| "Error parsing document_id as UUID")?;
+
+    let row = hasura_transaction
+        .query_opt(
+            r#"
+                SELECT annotations
+                FROM sequent_backend.document
+                WHERE tenant_id = $1
+                  AND id = $2
+                FOR UPDATE;
+            "#,
+            &[&tenant_uuid, &document_uuid],
+        )
+        .await
+        .with_context(|| "Error reading the document annotations")?
+        .ok_or_else(|| anyhow!("document not found"))?;
+
+    let annotations =
+        DocumentAnnotations::restrict_to_voter_secret_readers(row.try_get("annotations")?)?;
+
+    hasura_transaction
+        .execute(
+            r#"
+                UPDATE sequent_backend.document
+                SET annotations = $3
+                WHERE tenant_id = $1
+                  AND id = $2;
+            "#,
+            &[&tenant_uuid, &document_uuid, &annotations],
+        )
+        .await
+        .with_context(|| "Error updating the document annotations")?;
+
+    Ok(())
+}
+
 /// Returns a vector of tuples of the (SupportMaterial, Document)s
 /// associated with a given election event.
 #[instrument(err, skip(hasura_transaction))]

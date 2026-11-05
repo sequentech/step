@@ -5,7 +5,7 @@
 use crate::postgres::document::get_document;
 use crate::postgres::maintenance::vacuum_analyze_direct;
 use crate::services::database::get_hasura_pool;
-use crate::services::documents::get_document_as_temp_file;
+use crate::services::documents::{get_document_as_temp_file, restrict_import_source};
 use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::import::import_users::import_users_file;
 use crate::services::tasks_execution::*;
@@ -85,6 +85,17 @@ impl ImportUsersBody {
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 2)]
 pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution) -> Result<()> {
+    if let Err(err) = restrict_import_source(&body.tenant_id, &body.document_id).await {
+        update_fail(
+            &task_execution,
+            "Failed to restrict access to the voters file",
+        )
+        .await?;
+        return Err(Error::String(format!(
+            "Error restricting access to the voters file: {err}"
+        )));
+    }
+
     let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
         Ok(client) => client,
         Err(err) => {
