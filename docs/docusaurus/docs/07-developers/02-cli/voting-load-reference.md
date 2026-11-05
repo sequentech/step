@@ -216,6 +216,7 @@ Options:
 | `graphql_url` | `"http://graphql-engine:8080/v1/graphql"` | Full GraphQL endpoint. |
 | `storage_origins` | `["http://minio-proxy:9002"]` | Public S3/CDN origins returned by publication signing. |
 | `upload_mode` | `"local"` | Rewrite upload hosts for the devcontainer's local storage network only. |
+| `kiosk_url` | `null` | Kiosk portal base URL; when set, the synthetic realm's kiosk client redirects there. |
 
 ## workload
 
@@ -238,6 +239,16 @@ Options:
 | `journey_timeout_ms` | `180000` | Browser journey timeout, in milliseconds. |
 | `action_timeout_ms` | `15000` | Browser locator/expectation timeout, in milliseconds. |
 | `trace_http` | `false` | Retain sanitized per-fetch diagnostics in private logs. |
+| `login` | `{"match_attributes":[],"voters_per_value":1,"max_candidates":10,"match_policy":"FIRST_MATCH"}` | Keycloak voter matching installed in the synthetic realm and mirrored by the census. |
+
+## workload.login
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `match_attributes` | `[]` | Keycloak user attributes rendered on the login form, for example `[dateOfBirth]`. |
+| `voters_per_value` | `1` | Voters sharing each attribute value; this is the collision depth. |
+| `max_candidates` | `10` | Authenticator candidate cap; larger groups cannot log in. |
+| `match_policy` | `"FIRST_MATCH"` | Authenticator resolution among colliding candidates. |
 
 ## execution
 
@@ -265,6 +276,7 @@ Options:
 | `poll_interval_seconds` | `5` | Key-ceremony polling interval in seconds. |
 | `ceremony_timeout_seconds` | `600` | Maximum ceremony wait in seconds. |
 | `publication_preparer` | `null` | Optional application publication writer for deployments with separate S3 preparation. |
+| `annotations` | `{}` | Annotations added to a new synthetic event, e.g. Datafix settings; VoterView must be a mock. |
 
 ## runtime
 

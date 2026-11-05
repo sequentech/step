@@ -282,6 +282,222 @@ fn fixture_configures_exact_login_and_retains_one_eligible_contest() {
         }
     }
 }
+fn date_of_birth_login(voters_per_value: usize) -> config::Login {
+    config::Login {
+        match_attributes: vec!["dateOfBirth".into()],
+        voters_per_value,
+        ..config::Login::default()
+    }
+}
+#[test]
+fn census_groups_voters_by_date_of_birth_with_distinct_group_passwords() {
+    use base64::Engine as _;
+    let directory = tempfile::tempdir().unwrap();
+    let output = directory.path().join("census");
+    let mut input = input();
+    input.settings.workload.login = date_of_birth_login(2);
+    let key = format!("LOAD_TEST_{}", uuid::Uuid::new_v4().simple());
+    input.settings.workload.password_env = key.clone();
+    std::env::set_var(&key, "Synthetic test password");
+    census::generate(&input, &output).unwrap();
+    std::env::remove_var(&key);
+    let mut rows = Vec::new();
+    for shard in 0..input.shards() {
+        let mut reader = csv::Reader::from_path(output.join(format!("{shard:06}.csv"))).unwrap();
+        assert_eq!(reader.headers().unwrap().iter().last(), Some("dateOfBirth"));
+        for record in reader.records() {
+            rows.push(record.unwrap());
+        }
+    }
+    let dates: Vec<_> = rows.iter().map(|row| row[8].to_owned()).collect();
+    // Voters 100 and 101 form group 50; voter 102 starts group 51.
+    assert_eq!(dates, ["1900-02-20", "1900-02-20", "1900-02-21"]);
+    assert_ne!(&rows[0][5], &rows[1][5]);
+    assert_eq!(&rows[0][5], &rows[2][5]);
+    let rounds = std::num::NonZeroU32::new(rows[0][7].parse().unwrap()).unwrap();
+    let salt = base64::engine::general_purpose::STANDARD
+        .decode(&rows[1][6])
+        .unwrap();
+    let hash = base64::engine::general_purpose::STANDARD
+        .decode(&rows[1][5])
+        .unwrap();
+    assert!(ring::pbkdf2::verify(
+        ring::pbkdf2::PBKDF2_HMAC_SHA256,
+        rounds,
+        &salt,
+        b"Synthetic test password-1",
+        &hash
+    )
+    .is_ok());
+    let metadata: Value = files::read(&output.join("census.json")).unwrap();
+    assert_eq!(metadata["password_hash_computations"], 2);
+    assert_eq!(metadata["login"]["values"], 2);
+    assert_eq!(metadata["login"]["largest_group"], 2);
+}
+#[test]
+fn match_attribute_values_are_stable_and_bounded() {
+    let login = date_of_birth_login(15);
+    assert_eq!(census::group(&login, 44), 2);
+    assert_eq!(census::password_suffix(&login, 44), "-14");
+    assert_eq!(census::password_suffix(&config::Login::default(), 44), "");
+    assert_eq!(
+        census::attribute_value("dateOfBirth", 0).unwrap(),
+        "1900-01-01"
+    );
+    assert_eq!(
+        census::attribute_value("dateOfBirth", 36524).unwrap(),
+        "2000-01-01"
+    );
+    assert_eq!(census::attribute_value("nationalId", 7).unwrap(), "g7");
+    assert!(census::attribute_value("dateOfBirth", u64::MAX).is_err());
+}
+#[test]
+fn distribution_reports_group_depth_against_candidate_cap() {
+    let mut login = date_of_birth_login(15);
+    let summary = census::distribution(&login, 10, 60_000);
+    assert_eq!(summary["values"], 4001);
+    assert_eq!(summary["largest_group"], 15);
+    assert_eq!(summary["exceeds_max_candidates"], true);
+    let text = presentation::login_summary(&summary);
+    assert!(text.contains("dateOfBirth with 15 voters per value"));
+    assert!(text.contains("expected to reject"));
+    login.max_candidates = 15;
+    let summary = census::distribution(&login, 0, 3);
+    assert_eq!(summary["largest_group"], 3);
+    assert_eq!(summary["exceeds_max_candidates"], false);
+    let baseline = census::distribution(&config::Login::default(), 0, 3);
+    assert!(presentation::login_summary(&baseline).contains("exact username"));
+}
+#[test]
+fn fixture_installs_configured_multi_attribute_login() {
+    let mut input = input();
+    input.settings.workload.login = config::Login {
+        match_attributes: vec!["dateOfBirth".into(), "nationalId".into()],
+        voters_per_value: 15,
+        max_candidates: 20,
+        match_policy: config::MatchPolicy::RejectAmbiguous,
+    };
+    let fixture: Value =
+        serde_json::from_str(include_str!("../../../voting-load/fixtures/election.json")).unwrap();
+    let fixture = provision::fixture(fixture, &input.settings).unwrap();
+    let mut configured = 0;
+    for config in fixture["keycloak_event_realm"]["authenticatorConfig"]
+        .as_array()
+        .unwrap()
+    {
+        if config["config"].get("matchAttributes").is_some() {
+            configured += 1;
+            assert_eq!(
+                config["config"]["matchAttributes"],
+                "dateOfBirth##nationalId"
+            );
+            assert_eq!(config["config"]["maxCandidates"], "20");
+            assert_eq!(config["config"]["matchPolicy"], "REJECT_AMBIGUOUS");
+        }
+    }
+    assert!(configured > 0);
+    let mut without = fixture.clone();
+    without["keycloak_event_realm"]["authenticatorConfig"] = json!([]);
+    assert!(provision::fixture(without, &input.settings).is_err());
+}
+#[test]
+fn reused_events_keep_their_login_settings() {
+    let mut input = input();
+    let legacy = json!({"settings":{"workload":{}}});
+    provision::same_login(&legacy, &input.settings).unwrap();
+    input.settings.workload.login = date_of_birth_login(15);
+    assert!(provision::same_login(&legacy, &input.settings).is_err());
+    let prior = input.wire().unwrap();
+    provision::same_login(&prior, &input.settings).unwrap();
+    input.settings.workload.login.voters_per_value = 5;
+    assert!(provision::same_login(&prior, &input.settings).is_err());
+}
+#[test]
+fn fixture_election_gets_an_external_id_for_the_tally() {
+    let input = input();
+    let template: Value =
+        serde_json::from_str(include_str!("../../../voting-load/fixtures/election.json")).unwrap();
+    let fixture = provision::fixture(template.clone(), &input.settings).unwrap();
+    let external_id = fixture["elections"][0]["external_id"].as_str().unwrap();
+    assert!(external_id.starts_with("load-"));
+    let mut named = template;
+    for election in named["elections"].as_array_mut().unwrap() {
+        election["external_id"] = json!("tecumseh-2026");
+    }
+    let fixture = provision::fixture(named, &input.settings).unwrap();
+    assert_eq!(fixture["elections"][0]["external_id"], "tecumseh-2026");
+}
+#[test]
+fn fixture_user_profile_declares_the_attributes_datafix_writes() {
+    let fixture: Value =
+        serde_json::from_str(include_str!("../../../voting-load/fixtures/election.json")).unwrap();
+    let profile: Value = serde_json::from_str(
+        fixture["keycloak_event_realm"]["components"]
+            ["org.keycloak.userprofile.UserProfileProvider"][0]["config"]["kc.user.profile.config"]
+            [0]
+        .as_str()
+        .unwrap(),
+    )
+    .unwrap();
+    let names: Vec<&str> = profile["attributes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|attribute| attribute["name"].as_str())
+        .collect();
+    for attribute in ["dateOfBirth", "area-id", "voted-channel", "disable-comment"] {
+        assert!(
+            names.contains(&attribute),
+            "{attribute} missing from the user profile"
+        );
+    }
+}
+#[test]
+fn fixture_points_the_kiosk_client_at_the_configured_kiosk_url() {
+    let mut input = input();
+    let template: Value =
+        serde_json::from_str(include_str!("../../../voting-load/fixtures/election.json")).unwrap();
+    let kiosk = |event: &Value| {
+        event["keycloak_event_realm"]["clients"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|client| client["clientId"] == "voting-portal-kiosk")
+            .cloned()
+            .unwrap()
+    };
+    let untouched = kiosk(&provision::fixture(template.clone(), &input.settings).unwrap());
+    assert_eq!(untouched["rootUrl"], kiosk(&template)["rootUrl"]);
+    input.settings.target.kiosk_url = Some("https://baldwin-kiosk.sequent.vote/".into());
+    let rewritten = kiosk(&provision::fixture(template, &input.settings).unwrap());
+    assert_eq!(rewritten["rootUrl"], "https://baldwin-kiosk.sequent.vote");
+    assert_eq!(
+        rewritten["redirectUris"],
+        json!(["https://baldwin-kiosk.sequent.vote/*"])
+    );
+    assert_eq!(
+        rewritten["webOrigins"],
+        json!(["https://baldwin-kiosk.sequent.vote"])
+    );
+}
+#[test]
+fn fixture_carries_configured_annotations_and_a_datafix_area_name() {
+    let mut input = input();
+    input
+        .settings
+        .preparation
+        .annotations
+        .insert("datafix:id".into(), "95218".into());
+    let template: Value =
+        serde_json::from_str(include_str!("../../../voting-load/fixtures/election.json")).unwrap();
+    let fixture = provision::fixture(template, &input.settings).unwrap();
+    assert_eq!(
+        fixture["election_event"]["annotations"]["datafix:id"],
+        "95218"
+    );
+    // Datafix resolves areas as <ward>-<schoolboard>-000.
+    assert_eq!(fixture["areas"][0]["name"], "01-S-000");
+}
 #[test]
 fn default_choices_reject_impossible_ballots() {
     let invalid = json!({"contests":[{"id":"contest","min_votes":2,"max_votes":1,"candidates":[{"id":"candidate"}]}]});
