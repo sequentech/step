@@ -30,6 +30,11 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
   public static final String LIVENESS_RESULT_WAIT_SECONDS = "liveness-result-wait-seconds";
   public static final String FACE_MATCH_URL = "face-match-url";
   public static final String FACE_MATCH_MIN_SIMILARITY = "face-match-min-similarity";
+  public static final String DOCUMENT_LIVENESS_URL = "document-liveness-url";
+  public static final String DOCUMENT_LIVENESS_PIPELINES = "document-liveness-pipelines";
+  public static final String DOCUMENT_LIVENESS_CALIBRATION = "document-liveness-calibration";
+  public static final String DOCUMENT_LIVENESS_MIN_PROBABILITY =
+      "document-liveness-min-probability";
   public static final String HOLDING_PHOTO = "holding-photo";
 
   /** Holding time of the holding photo; the key of the earlier capture page's setting. */
@@ -202,6 +207,45 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
                 + " the document. The Face Match threshold applies if it is stricter.")
         .type(ProviderConfigProperty.TEXT_TYPE)
         .defaultValue(DEFAULT_FACE_MATCH_MIN_SIMILARITY)
+        .add()
+        .property()
+        .name(DOCUMENT_LIVENESS_URL)
+        .label("Document Liveness URL")
+        .helpText(
+            "Internal base URL of the on-premise Scanovate Document Liveness service, e.g."
+                + " http://scanovate-document-liveness:8080. Only Keycloak calls it, with the photo"
+                + " of the document OCR read.")
+        .type(ProviderConfigProperty.STRING_TYPE)
+        .add()
+        .property()
+        .name(DOCUMENT_LIVENESS_PIPELINES)
+        .label("Document Liveness checks")
+        .helpText(
+            "Comma separated pipelines of the Document Liveness service the document photo must"
+                + " pass: default-sr (screen replay), default-pc (printed copy), default-ps"
+                + " (portrait substitution), default-dm (digital manipulation). The service must"
+                + " have each enabled in IDLIVEDOC_SERVER_AVAILABLE_PIPELINES.")
+        .type(ProviderConfigProperty.STRING_TYPE)
+        .defaultValue(DocumentLivenessSettings.DEFAULT_PIPELINES)
+        .add()
+        .property()
+        .name(DOCUMENT_LIVENESS_CALIBRATION)
+        .label("Document Liveness calibration")
+        .helpText(
+            "Calibration of every Document Liveness check: REGULAR, SOFT (fewer genuine documents"
+                + " rejected) or HARD (fewer attacks missed).")
+        .type(ProviderConfigProperty.LIST_TYPE)
+        .options(DocumentLivenessSettings.CALIBRATIONS)
+        .defaultValue(DocumentLivenessSettings.DEFAULT_CALIBRATION)
+        .add()
+        .property()
+        .name(DOCUMENT_LIVENESS_MIN_PROBABILITY)
+        .label("Document Liveness minimum probability")
+        .helpText(
+            "Minimum probability, above 0 and up to 1, that each check gives the document photo"
+                + " for the document to be physical.")
+        .type(ProviderConfigProperty.STRING_TYPE)
+        .defaultValue(String.valueOf(DocumentLivenessSettings.DEFAULT_MIN_PROBABILITY))
         .add()
         .property()
         .name(HOLDING_PHOTO)

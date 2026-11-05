@@ -46,6 +46,8 @@ pub const PARAM_OTP_LENGTH: &str = "otp_length";
 pub const PARAM_OTP_TTL_SECONDS: &str = "otp_ttl_seconds";
 pub const PARAM_SCANOVATE_LIVENESS_URL: &str = "scanovate_liveness_url";
 pub const PARAM_SCANOVATE_FACE_MATCH_URL: &str = "scanovate_face_match_url";
+pub const PARAM_SCANOVATE_DOCUMENT_LIVENESS_URL: &str =
+    "scanovate_document_liveness_url";
 pub const PARAM_SCANOVATE_FACE_MATCH_MIN_SIMILARITY: &str =
     "scanovate_face_match_min_similarity";
 /// ISO 3166 alpha-3 codes separated by `|`, as the regex alternation they
@@ -91,6 +93,8 @@ pub const SCANOVATE_LIVENESS_SECRET: &str = "liveness-secret";
 pub const SCANOVATE_LIVENESS_URL: &str = "liveness-url";
 pub const SCANOVATE_FACE_MATCH_URL_DEFAULT: &str =
     "http://scanovate-face-match:3000";
+pub const SCANOVATE_DOCUMENT_LIVENESS_URL_DEFAULT: &str =
+    "http://scanovate-document-liveness:8080";
 pub const BIOMETRIC_OTP_CONFIG: &str = "biometric-registration-otp";
 pub const BIOMETRIC_USER_CREATION_CONFIG: &str = "biometric-registration-user";
 pub const BIOMETRIC_LOOKUP_CONFIG: &str = "biometric-lookup-register";
@@ -692,6 +696,10 @@ fn biometric_patch(input: &PresetInput) -> RealmPatch {
                     ),
                     "face-match-min-similarity":
                         format!("{{\"philippinePassport\": {similarity}}}"),
+                    "document-liveness-url": input.text(
+                        PARAM_SCANOVATE_DOCUMENT_LIVENESS_URL,
+                        SCANOVATE_DOCUMENT_LIVENESS_URL_DEFAULT,
+                    ),
                     "doc-id-type": "sequent.read-only.id-card-type",
                     "user-status": "sequent.read-only.id-card-number-validated",
                     "attributes-to-validate": validate.to_string(),
@@ -779,6 +787,7 @@ pub const PRESETS: &[AuthPreset] = &[
         optional_parameters: &[
             PARAM_SCANOVATE_LIVENESS_URL,
             PARAM_SCANOVATE_FACE_MATCH_URL,
+            PARAM_SCANOVATE_DOCUMENT_LIVENESS_URL,
             PARAM_ACCEPTED_PASSPORT_COUNTRIES,
             PARAM_SCANOVATE_FACE_MATCH_MIN_SIMILARITY,
             PARAM_OTP_SENDER_ID,
@@ -1379,6 +1388,10 @@ mod tests {
         assert_eq!(
             scanovate["face-match-url"],
             json!(SCANOVATE_FACE_MATCH_URL_DEFAULT)
+        );
+        assert_eq!(
+            scanovate["document-liveness-url"],
+            json!(SCANOVATE_DOCUMENT_LIVENESS_URL_DEFAULT)
         );
     }
 

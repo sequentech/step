@@ -559,7 +559,8 @@ services:
   # Scanovate on-premise services (opt-in `scanovate` profile), deployed as in
   # Scanovate's own on-premise docker-compose example: Liveness Plus with its
   # presentation attack (PAD) and injection attack (IAD) detection servers, the
-  # OCR service, which reads the identity documents, and the Face Match
+  # OCR service, which reads the identity documents, the Document Liveness
+  # service, which checks that the document is physical, and the Face Match
   # service, used for 1:1 comparisons. The voter goes through the capture
   # pages of OCR and Liveness Plus, embedded in Keycloak's page under
   # /biometric/. The images come from our private ECR mirror of
@@ -630,6 +631,23 @@ services:
     ports:
       - ${SCANOVATE_FACE_MATCH_PORT}:3000
 
+  # Keycloak sends it the photo OCR read the document from (POST
+  # /check_liveness), on the compose network: screen replay, printed copy,
+  # portrait substitution and digital manipulation, each a pipeline that must
+  # also be in the realm's document-liveness-pipelines. Its licence is in the
+  # image. The host port is only for direct checks such as /api_version.
+  scanovate-document-liveness:
+    profiles: ["scanovate"]
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-document-liveness
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/document-liveness-service:release-3.5.5
+    restart: unless-stopped
+    environment:
+      SERVER_ALLOW_CORS: "true"
+      HASP_RTE_STARTUP_TIMEOUT: "10"
+      IDLIVEDOC_SERVER_AVAILABLE_PIPELINES: default-sr,default-pc,default-ps,default-dm
+    ports:
+      - 127.0.0.1:${SCANOVATE_DOCUMENT_LIVENESS_PORT}:8080
+
   # Serves its capture page and its API under /biometric/ocr/, which
   # keycloak-nginx proxies on Keycloak's origin. The host port is only for
   # direct checks such as /alive.
@@ -649,6 +667,7 @@ services:
     volumes:
       - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/ocr/service_config.json:/app/config/service_config.json:ro,z
       - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/ocr/sequent_ui.json:/app/config/sequent_ui.json:ro,z
+      - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/ocr/video_config_no_mirror.json:/app/config/video_config_no_mirror.json:ro,z
 
   harvest-edge:
     profiles: ["full", "base"]

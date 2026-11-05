@@ -38,10 +38,10 @@ class FaceMatchClientTest {
   }
 
   @Test
-  void comparesBothImagesAllowingSeveralFaces() throws IOException {
+  void comparesBothImagesAsAsked() throws IOException {
     FakeTransport transport = new FakeTransport().reply(200, response(true, 0.9, 0, 0));
 
-    FaceComparison comparison = client(transport).compare(JPEG, OTHER_JPEG);
+    FaceComparison comparison = client(transport).compare(JPEG, OTHER_JPEG, true);
 
     Call call = transport.calls.get(0);
     assertEquals("http://face-match:3000/facematch11/compare_images", call.url());
@@ -51,6 +51,16 @@ class FaceMatchClientTest {
         Base64.getEncoder().encodeToString(OTHER_JPEG), body.get("image_2_base64").asText());
     assertEquals(true, body.get("allow_multiple_faces").asBoolean());
     assertEquals(new FaceComparison(true, 0.9, 0.67, 0, 0), comparison);
+  }
+
+  @Test
+  void severalFacesAreOnlyAllowedWhenAsked() throws IOException {
+    FakeTransport transport = new FakeTransport().reply(200, response(true, 0.9, 0, 0));
+
+    client(transport).compare(JPEG, OTHER_JPEG, false);
+
+    assertEquals(
+        false, json(transport.calls.get(0).body()).get("allow_multiple_faces").asBoolean());
   }
 
   @Test
@@ -90,7 +100,7 @@ class FaceMatchClientTest {
     FakeTransport transport =
         new FakeTransport().fail("down").reply(503, "").reply(200, response(true, 0.9, 0, 0));
 
-    assertEquals(0.9, client(transport).compare(JPEG, JPEG).similarity());
+    assertEquals(0.9, client(transport).compare(JPEG, JPEG, false).similarity());
     assertEquals(List.of(1_000L, 2_000L), sleeps);
   }
 
@@ -98,7 +108,7 @@ class FaceMatchClientTest {
   void rejectedRequestsAreNotRetried() {
     FakeTransport transport = new FakeTransport().reply(422, "{\"detail\": []}");
 
-    assertThrows(IOException.class, () -> client(transport).compare(JPEG, JPEG));
+    assertThrows(IOException.class, () -> client(transport).compare(JPEG, JPEG, false));
     assertEquals(List.of(), sleeps);
   }
 
@@ -112,7 +122,7 @@ class FaceMatchClientTest {
             "{\"success\": true, \"similarity\": \"high\", \"threshold\": 0.67,"
                 + " \"image_1_status\": {\"code\": 0}, \"image_2_status\": {\"code\": 0}}")) {
       FakeTransport transport = new FakeTransport().reply(200, body);
-      assertThrows(IOException.class, () -> client(transport).compare(JPEG, JPEG), body);
+      assertThrows(IOException.class, () -> client(transport).compare(JPEG, JPEG, false), body);
     }
   }
 
@@ -120,7 +130,7 @@ class FaceMatchClientTest {
   void unreachableServiceFailsAfterTheRetries() {
     FakeTransport transport = new FakeTransport().fail("a").fail("b").fail("c");
 
-    assertThrows(IOException.class, () -> client(transport).compare(JPEG, JPEG));
+    assertThrows(IOException.class, () -> client(transport).compare(JPEG, JPEG, false));
     assertEquals(3, transport.calls.size());
   }
 }

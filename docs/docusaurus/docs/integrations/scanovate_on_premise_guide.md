@@ -22,16 +22,22 @@ Nothing is sent to any third party:
   is in front of the camera. It runs Presentation Attack Detection (PAD,
   including deepfake detection) and Injection Attack Detection (IAD) on the
   frames of that page, and posts the verdict to Keycloak.
+- **Document Liveness** checks that the photo OCR read the document from shows
+  a physical document: not one shown on a screen (screen replay), a printed
+  copy, a document whose portrait was replaced, or a digitally edited image.
+  Keycloak sends it that photo, server to server.
 - **Face Match** compares two face images (1:1) and returns their similarity.
   Keycloak uses it to compare the portrait OCR read from the document with the
   live face.
 
-We integrate them as Scanovate's own on-premise docker-compose kit and its
-*Liveness Plus Service: On-Prem Deployment, Configuration, Logic & Integration
-Guide* show: Keycloak's capture page embeds, in iframes on Keycloak's origin,
-first OCR's capture page and then Liveness Plus's. Each service checks
-Keycloak's one-time token before it starts a session and posts its result to
-Keycloak, server to server. Keycloak then calls Face Match. Our capture page
+We integrate them as Scanovate's own on-premise docker-compose kit, its
+*On-Prem Full Onboarding Flow – Integration Guide (with Document Liveness)* and
+its *Liveness Plus Service: On-Prem Deployment, Configuration, Logic &
+Integration Guide* show: Keycloak's capture page embeds, in iframes on
+Keycloak's origin, first OCR's capture page and then Liveness Plus's. Each
+service checks Keycloak's one-time token before it starts a session and posts
+its result to Keycloak, server to server. Keycloak then calls Document Liveness
+and Face Match. Our capture page
 never carries a verdict; the only photo it takes itself is the voter holding
 their document, after the face check, taken automatically once the image has
 been still for the holding time, which it uploads to Keycloak (the
@@ -47,6 +53,7 @@ contract between them, the capture page and Keycloak.
 | `scanovate-presentation-detection` | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-presentation-detection-service:release_1.52.0` | PAD server, with the `pad-r-2` (presentation attacks) and `dfd-3` (deepfakes) pipelines. |
 | `scanovate-injection-detection` | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-injection-detection-service:release-2.6.2` | IAD server: checks that the frames come from a real camera. |
 | `scanovate-face-match` | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ngfacematch:version_3.9.0_ba58397_79` | Face Match API. We use its 1:1 API (`/facematch11`). |
+| `scanovate-document-liveness` | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/document-liveness-service:release-3.5.5` | Document Liveness API (ID R&D's IDLive Doc Server 3.5.5), with the `default-sr` (screen replay), `default-pc` (printed copy), `default-ps` (portrait substitution) and `default-dm` (digital manipulation) pipelines. |
 
 The Face Match image also has a 1:N API, which we don't use, see
 [Face Match](#face-match).
@@ -59,7 +66,8 @@ The Face Match image also has a 1:N API, which we don't use, see
 | Liveness: presentation attacks and deepfakes | Our network: Liveness Plus and PAD. |
 | Liveness: injection attacks (virtual cameras, emulators, tampered browsers) | Our network: Liveness Plus and IAD. |
 | The voter's live face against the portrait on the document (1:1) | Our network: Face Match, called by Keycloak. |
-| Document authenticity and document liveness (a photocopy, or a document shown on a screen) | Not checked: out of scope for now, see [Document types](scanovate_identity_verification_guide.md#document-types). |
+| Document liveness: a document shown on a screen, a printed copy, a replaced portrait or a digitally edited image | Our network: Document Liveness, called by Keycloak with the photo OCR read the document from. |
+| Document authenticity beyond that (security features, the chip) | Not checked: OCR's `template_matching_valid` and `document_in_frame_valid` are always `true` for passports, see [OCR result](#ocr-result). |
 
 The services only call each other and Keycloak, and the capture pages load
 their scripts, styles and fonts from the services themselves, through
@@ -73,13 +81,14 @@ sequenceDiagram
     participant K as Keycloak
     participant O as OCR
     participant L as Liveness Plus
+    participant D as Document Liveness
     participant F as Face Match
     K->>V: capture page (URLs of the OCR and Liveness Plus pages, each with a one-time token and the case id)
     V->>O: iframe /biometric/ocr/?ocr_type=passport&case_id=...&token=...
     O->>K: GET ocr/verify (X-token, case-id)
     O->>K: POST ocr/callback (start)
     O-->>V: the voter scans the document; postMessage done
-    O->>K: POST ocr/callback (result: fields, checks, portrait)
+    O->>K: POST ocr/callback (result: fields, checks, portrait, document photo)
     V->>L: iframe /biometric/liveness/?case_id=...&token=...
     L->>K: GET liveness/verify (X-token, case-id)
     L->>K: POST liveness/callback (start)
@@ -87,6 +96,7 @@ sequenceDiagram
     L->>K: POST liveness/callback (result: verdicts, live face)
     V->>K: POST login actions URL (action=capture)
     K->>K: wait for both results, reject unless they passed
+    K->>D: check_liveness (document photo)
     K->>F: compare_images (OCR portrait, live face)
     K->>K: validate the rules on what OCR read, store the attributes
 ```
@@ -96,18 +106,23 @@ sequenceDiagram
    sessions.
 2. The page embeds OCR's capture page. OCR checks the token with Keycloak,
    guides the voter through the scan of their document, and posts the result
-   to Keycloak: the fields read, its checks and the portrait cropped from the
-   document. The page only learns that OCR is done (`postMessage`).
+   to Keycloak: the fields read, its checks, the portrait cropped from the
+   document and the camera frame it read them from (`input_image`). The page
+   only learns that OCR is done (`postMessage`).
 3. The page then embeds Liveness Plus's capture page, which checks its token
    the same way, guides the voter's face, runs PAD and IAD on its frames and
    posts the verdict and the live face to Keycloak.
 4. Once both pages are done, the page posts the capture to Keycloak.
 5. Keycloak waits for both results (`liveness-result-wait-seconds`), and
-   rejects the attempt unless OCR read the document and found its portrait,
-   and the liveness checks passed.
-6. Keycloak asks Face Match whether the live face is the one on the document's
-   portrait.
-7. Only then, Keycloak validates what OCR read with the realm rules and stores
+   rejects the attempt unless OCR read the document and found its portrait and
+   frame.
+6. Keycloak sends the frame to Document Liveness, and rejects the attempt
+   unless every pipeline checked it and found a physical document.
+7. Keycloak rejects the attempt unless the liveness checks passed.
+8. Keycloak asks Face Match whether the live face is the one on the document's
+   portrait, and, with the holding photo, whether the voter holding the
+   document is the live face.
+9. Only then, Keycloak validates what OCR read with the realm rules and stores
    the voter's data, which later steps compare with the voter registry.
 
 ## Access to the images
@@ -123,6 +138,7 @@ Docker Hub:
 | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-injection-detection-service` | `release-2.6.2` |
 | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ngfacematch` | `version_3.9.0_ba58397_79` |
 | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ocr` | `version_3.9.0_aefa131_285` |
+| `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/document-liveness-service` | `release-3.5.5` (`sha256:5ed5717a1c6f60b12f01fbe3aa714ae857113639d2cf133a142ac4ed7e75c839`, `linux/amd64`) |
 
 Log in to the registry in the Docker client that pulls the images: your host,
 since the dev container talks to the host's Docker daemon, or each server that
@@ -162,7 +178,7 @@ Some rules:
 
 The services belong to the `scanovate` docker compose profile of the dev
 container (`.devcontainer/docker-compose-base.yml`). No mode starts them, since
-pulling their images needs an ECR login and they need about 18 GB of memory:
+pulling their images needs an ECR login and they need about 28 GB of memory:
 start them from the host, in the checkout, next to the `backend` or `full` mode.
 
 ```bash
@@ -191,12 +207,14 @@ your `.env` predates them.
 | `SCANOVATE_LIVENESS_PORT` | `5050` | Host port of `scanovate-liveness`, for direct checks. The voter's browser reaches it through `keycloak-nginx`. |
 | `SCANOVATE_FACE_MATCH_PORT` | `5060` | Host port of `scanovate-face-match`, for direct checks. Scanovate's examples use `3000` or `3002`, which the voting and admin portals use. |
 | `SCANOVATE_OCR_PORT` | `5070` | Host port of `scanovate-ocr`, for direct checks. The voter's browser reaches it through `keycloak-nginx`. |
+| `SCANOVATE_DOCUMENT_LIVENESS_PORT` | `5080` | Host port of `scanovate-document-liveness`, on `127.0.0.1` only, for direct checks. Only Keycloak calls it. |
 | `SCANOVATE_LIVENESS_JWT_SECRET_KEY` | `liveness-dev-secret` | Secret of the liveness session tokens. |
 | `SCANOVATE_OCR_JWT_SECRET_KEY` | `ocr-dev-secret` | Secret of the OCR session tokens. |
 
 The PAD and IAD servers aren't published on the host: only Liveness Plus talks
 to them. Inside the compose network the services are reachable by name, e.g.
-`http://scanovate-face-match:3000` from Keycloak, and Keycloak is
+`http://scanovate-face-match:3000` and `http://scanovate-document-liveness:8080`
+from Keycloak, and Keycloak is
 `http://keycloak:8090` from OCR and Liveness Plus.
 
 Scanovate's requirements, on Intel CPUs:
@@ -207,11 +225,12 @@ Scanovate's requirements, on Intel CPUs:
 | PAD | 1 CPU and 8 GB of memory to start, plus 0.5 CPU and 0.5 GB per concurrent session. |
 | IAD | 1 CPU and 4 GB of memory to start, plus 0.5 CPU and 0.5 GB per concurrent session. |
 | OCR | By default 1 CPU and 2 GB of memory per concurrent session (`CPU_PER_SESSION`, `MEMORY_PER_SESSION_GB`). |
+| Document Liveness | 4 CPU cores with AVX2 (`grep -o -m1 avx2 /proc/cpuinfo`; a virtual machine must pass the flag through) and 12 GB of memory. |
 
-Idle, PAD takes about 5.4 GB of memory, the OCR service 7.8 GB, Face Match
-1.7 GB and Liveness Plus 0.5 GB: give Docker at least 18 GB for the profile,
-plus what the IAD server takes (up to 4 GB, by Scanovate's figures; not
-measured yet), on top of the rest of the dev container. If a container exits
+Idle, PAD takes about 5.4 GB of memory, the OCR service 7.8 GB, Document
+Liveness 6.6 GB with its four pipelines (1.9 GB with screen replay only),
+Face Match 1.7 GB, Liveness Plus 0.5 GB and IAD 3.0 GB: give Docker at least
+28 GB for the profile, on top of the rest of the dev container. If a container exits
 right after starting, check `docker compose logs <service>`.
 
 ### Smoke tests
@@ -222,10 +241,22 @@ curl -i http://127.0.0.1:5070/alive
 curl -i http://127.0.0.1:5050/alive
 curl -i http://127.0.0.1:5060/alive
 
+# Document Liveness: its version, enabled pipelines and their licence expiry
+curl -s http://127.0.0.1:5080/api_version | jq
+
+# Document Liveness: a photo of a physical passport scores at least 0.5 on
+# every pipeline, with status_code OK; one of a passport on a phone does not
+jq -n --rawfile a <(base64 -w0 passport.jpg) \
+  '{image: $a, errors_to_ignore: [],
+    pipelines: [("default-sr","default-pc","default-ps","default-dm")
+                | {pipeline_name: ., calibration: "REGULAR"}]}' \
+  | curl -s -H 'content-type: application/json' --data @- \
+    http://127.0.0.1:5080/check_liveness | jq '.pipeline_results[] | {pipeline_name, result}'
+
 # Face Match 1:1: with two photos of the same person, success is true and the
 # similarity is above the threshold (0.67)
 jq -n --rawfile a <(base64 -w0 id.jpg) --rawfile b <(base64 -w0 selfie.jpg) \
-  '{image_1_base64: $a, image_2_base64: $b, allow_multiple_faces: true}' \
+  '{image_1_base64: $a, image_2_base64: $b, allow_multiple_faces: false}' \
   | curl -s -H 'content-type: application/json' --data @- \
     http://127.0.0.1:5060/facematch11/compare_images
 
@@ -255,8 +286,8 @@ checked (at most 30 minutes). No image is logged.
 ### What you need
 
 - Access to our ECR mirror of the Scanovate images (see
-  [Access to the images](#access-to-the-images)), and about 18 GB of memory for
-  Docker on top of the dev container.
+  [Access to the images](#access-to-the-images)), and about 28 GB of memory for
+  Docker on top of the dev container, on a CPU with AVX2.
 - A computer with a webcam of at least 1280×720, and Chrome or Firefox.
 - Your passport: the data page, with your photo and the machine readable zone.
 - This branch checked out, and the dev container (`base` profile) working.
@@ -373,6 +404,7 @@ SCANOVATE_OCR_TYPES='{"philippinePassport": "passport"}' \
 SCANOVATE_LIVENESS_URL=https://localhost:8443/biometric \
 SCANOVATE_LIVENESS_SECRET=liveness-dev-callback-secret \
 SCANOVATE_FACE_MATCH_URL=http://scanovate-face-match:3000 \
+SCANOVATE_DOCUMENT_LIVENESS_URL=http://scanovate-document-liveness:8080 \
 SCANOVATE_LOGIN_THEME=sequent-ui-voting \
   packages/keycloak-extensions/scanovate-authenticator/scripts/configure-realm.sh \
   configure tenant-<tenant id>-event-<election event id>
@@ -382,7 +414,8 @@ SCANOVATE_LOGIN_THEME=sequent-ui-voting \
 `.devcontainer/scanovate/ocr/service_config.json` and
 `.devcontainer/scanovate/liveness/service_config.json`. Set
 `SCANOVATE_FACE_MATCH_MIN_SIMILARITY` to change the threshold
-(`{"default": 0.67}`), `SCANOVATE_HOLDING_PHOTO` (`REQUIRED` or `NONE`) for the
+(`{"default": 0.67}`), `SCANOVATE_DOCUMENT_LIVENESS_PIPELINES` for the
+document checks (all four by default), `SCANOVATE_HOLDING_PHOTO` (`REQUIRED` or `NONE`) for the
 photo holding the document, and `SCANOVATE_HOLDING_SECONDS` for its holding
 time (`video-seconds`, 5 by default). The script also deletes the settings of
 the earlier integrations, including `ocr-url`, `capture-sides` and
@@ -421,8 +454,9 @@ https://localhost:8443/realms/<realm>/protocol/openid-connect/registrations?clie
    the frame.
 3. **Check your face**: Liveness Plus's page guides you to keep your face in
    its frame, looking at the camera, until it completes.
-4. **Checking**: Keycloak waits for both results, and compares your face with
-   the portrait of your passport.
+4. **Checking**: Keycloak waits for both results, checks the photo of your
+   passport with Document Liveness, and compares your face with the portrait
+   of your passport.
 5. **Check the details from your ID**: your names, passport number and date of
    birth. **Confirm and enroll**. Keycloak then redirects to the
    `redirect_uri`; if the voting portal isn't running there, that page fails to
@@ -433,15 +467,20 @@ Follow it in the logs, from `.devcontainer`:
 ```bash
 docker compose logs -f scanovate-ocr           # token check, start and result callbacks
 docker compose logs -f scanovate-liveness      # token check, frames, start and result callbacks
+docker compose logs -f scanovate-document-liveness
 docker compose logs -f keycloak | grep -E "ScanovateAuthenticator|OnPremSessions|capture:|readDocument"
 ```
 
 Keycloak logs each result (`record: ocr session of case <case id> ended with
-completed, passed=true`) and the similarity of the comparison, e.g. `capture:
-scanovate_face_match_document of <case id>: MATCH, similarity=0.8123,
-statuses=0/0`. The Keycloak events (**Realm settings**, **Events**, or the
-admin API) carry it as `scanovate_face_match_document`, with the case id as
-`scanovate_case_id`.
+completed, passed=true`), every pipeline of the document check with its
+probability and image quality warnings, e.g. `capture: document liveness of
+<case id>: GENUINE, [PipelineCheck[pipeline=default-sr, status=OK,
+probability=0.97, warnings=[]], ...]`, and the similarity of the comparison,
+e.g. `capture: scanovate_face_match_document of <case id>: MATCH,
+similarity=0.8123, statuses=0/0`. The Keycloak events (**Realm settings**,
+**Events**, or the admin API) carry the lowest probability of the document
+check as `scanovate_document_liveness` and the similarity as
+`scanovate_face_match_document`, with the case id as `scanovate_case_id`.
 
 ### 7. Try to break it
 
@@ -452,6 +491,8 @@ Each of these must fail, and use up an attempt out of `max-attempts` (3):
 | Show a photo of yourself, printed or on a screen, in the face step | `scanovateLivenessError` |
 | Use a virtual camera (e.g. OBS's) in the face step | `scanovateLivenessError` (injection attack) |
 | Show someone else's passport, or have someone else do the face step | `scanovateFaceMismatchError` |
+| Show a photo of your passport on a phone or a screen, or a printed copy of it, in the document step | `scanovateDocumentAuthenticationError` if OCR reads it and Document Liveness finds it isn't physical |
+| Hold the passport so that part of it is outside the frame, or a second document is in it | `scanovateDocumentUnreadableError` if Document Liveness can't check the photo (`DOCUMENT_CROPPED`, `TOO_MANY_DOCUMENTS`, ...) |
 | Cover the photo on the passport | `scanovateDocumentUnreadableError` if OCR finds no portrait, `scanovateFaceNotFoundError` if Face Match finds no face in it |
 | Cover the machine readable zone, or show another kind of document | `scanovateDocumentUnreadableError` |
 
@@ -570,9 +611,10 @@ Environment variables:
 
 The dev container replaces `service_config.json`, with
 `.devcontainer/scanovate/ocr/service_config.json`, and adds our UI theme,
-`.devcontainer/scanovate/ocr/sequent_ui.json`; the others (`scan_config.json`,
-which says which sides each OCR type scans, `video_config.json`,
-`default_ui.json` and the texts) are the image's own. Our `service_config.json`
+`.devcontainer/scanovate/ocr/sequent_ui.json`, and
+`.devcontainer/scanovate/ocr/video_config_no_mirror.json`; the others
+(`scan_config.json`, which says which sides each OCR type scans,
+`video_config.json`, `default_ui.json` and the texts) are the image's own. Our `service_config.json`
 is the image's with an `onprem` section like Liveness Plus's:
 
 | Key | Our value | Description |
@@ -583,7 +625,42 @@ is the image's with an `onprem` section like Liveness Plus's:
 | `send_debug_results_to_server` | `false` | Also post the full internal session. |
 | `send_video_in_results` | `false` | No video in the result. |
 | `send_results_to_client` | `false` | Keep it `false`: the browser is never trusted. |
-| `default_parameters` | `passport`, `scan_config`, `video_config`, `default`, `en`, `sequent_ui` | OCR type, configuration files, texts and theme used when the page URL doesn't name them. Keycloak always sets `ocr_type`, from `ocr-types`. |
+| `default_parameters` | `passport`, `scan_config`, `video_config_no_mirror`, `default`, `en`, `sequent_ui` | OCR type, configuration files, texts and theme used when the page URL doesn't name them. Keycloak always sets `ocr_type`, from `ocr-types`. |
+
+`video_config` names the file of `/app/config` that rotates or mirrors the
+preview (`rotate_view`, `mirror_view`) and the frames sent to the service
+(`rotate_buffer`, `mirror_buffer`), as Scanovate advised; a page URL can also
+name one with its `video_config` parameter. `video_config_no_mirror.json` is
+the image's `video_config.json`, whose `mirror_view` is already `false`. In
+this image the page still mirrors the preview whenever the browser isn't a
+phone or a tablet (`mirror_view || !isMobile()` in its client), so on a laptop
+the preview stays mirrored whatever the file says; phones and tablets use the
+rear camera, unmirrored. We have reported it to Scanovate.
+### Document Liveness
+
+Environment variables, as in Scanovate's onboarding guide:
+
+| Variable | Description |
+| --- | --- |
+| `IDLIVEDOC_SERVER_AVAILABLE_PIPELINES` | `default-sr,default-pc,default-ps,default-dm`. The pipelines it loads: each pipeline in the authenticator's `document-liveness-pipelines` must be one of them, or the service answers `500` (*unsupported pipeline*). Each one loaded takes memory: 1.9 GB idle with `default-sr` alone, 6.6 GB with all four. |
+| `HASP_RTE_STARTUP_TIMEOUT` | `10`: seconds to wait for the licence manager the image starts. |
+| `SERVER_ALLOW_CORS` | `true`. |
+
+The licence is in the image, for the four pipelines, until 2027-10-25
+(`GET /api_version` and `GET /license_info` show it); the service needs no
+licence server and nothing outside our network. It answers on port 8080, with
+no configuration file, and writes usage counters (`GET /bi_report`) to `/logs`.
+It is stateless and keeps no image. Only Keycloak calls it: keep it, its
+`/metrics` and `/v3/api-docs` off public networks.
+
+The authenticator's settings:
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| `document-liveness-url` | none (required); the presets write `http://scanovate-document-liveness:8080` | Internal base URL of the service. |
+| `document-liveness-pipelines` | `default-sr,default-pc,default-ps,default-dm` | The checks the document photo must pass. |
+| `document-liveness-calibration` | `REGULAR` | `SOFT` rejects fewer genuine documents, `HARD` misses fewer attacks. |
+| `document-liveness-min-probability` | `0.5` | Minimum `liveness_probability` of every pipeline. |
 
 Image sessions expire after 120 seconds (`image_ocr_expiry_timeout_in_seconds`),
 video sessions after 90 (`video_ocr_expiry_timeout_in_seconds`), and both are
@@ -659,7 +736,7 @@ once it reads the result, or on a new capture) and expire after 30 minutes.
               "last_name_english": "DELA CRUZ", "date_of_birth": "900115",
               "date_of_expiry": "310101", "issuing_country_code": "PHL",
               "nationality_code": "PHL", "gender": "M", "mrz_type": "TD3", ...},
-   "images": {"face_image": "...", "cropped_image": "...", ...}}},
+   "images": {"face_image": "...", "input_image": "...", "cropped_image": "...", ...}}},
  "auth": {"template_matching_valid": true, "document_in_frame_valid": true,
           "expiry_date_valid": true, "face_size_valid": true, ...},
  "screenshots": [...], ...}
@@ -668,7 +745,8 @@ once it reads the result, or on a new capture) and expire after 30 minutes.
 The sides the service scanned are under `front`, `back` or `scan`. Keycloak
 accepts the result only if `status` is `completed`, the `processing_result` of
 every side (a passport has one) has status `success`, and a side has the
-portrait (`images.face_image`).
+portrait (`images.face_image`) and the camera frame it was read from
+(`images.input_image`), which Document Liveness checks.
 Otherwise the attempt fails with `scanovateDocumentUnreadableError`. The other
 statuses of `processing_result` say why the document couldn't be read:
 `card_not_detected`, `card_out_of_bounds`, `card_too_small`,
@@ -677,7 +755,7 @@ statuses of `processing_result` say why the document couldn't be read:
 `expired`, `aborted` and `client_error`.
 
 Keycloak keeps the `fields` and the `auth` checks, converts the MRZ dates, keeps
-the portrait until the face comparison, and discards the other images, the
+the portrait and the frame until the checks, and discards the other images, the
 screenshots and the frames. See
 [Rules](scanovate_identity_verification_guide.md#rules) for the results the
 rules read: the same fields as before, such as `/document_number`,
@@ -695,7 +773,41 @@ name differs isn't.
 
 The service reads the MRZ in the OCR-B typeface. With the `passport` type,
 `template_matching_valid` and `document_in_frame_valid` are always `true`: they
-don't check the document's authenticity.
+don't check the document's authenticity: Document Liveness checks that it is
+physical.
+
+### Document Liveness
+
+Keycloak calls `POST /check_liveness` with OCR's `input_image` (the whole
+frame, so that the borders of the document are visible), every configured
+pipeline at the configured calibration, and no validation error ignored:
+
+```json
+{"image": "...", "errors_to_ignore": [],
+ "pipelines": [{"pipeline_name": "default-sr", "calibration": "REGULAR"},
+               {"pipeline_name": "default-pc", "calibration": "REGULAR"}, ...]}
+```
+
+```json
+{"pipeline_results": [
+   {"pipeline_name": "default-sr", "calibration": "REGULAR",
+    "result": {"status_code": "OK", "liveness_probability": 0.97,
+               "liveness_score": 3.42, "image_quality_warnings": []}}, ...],
+ "aggregate_liveness_probability": 0.93, "aggregate_image_quality_warnings": []}
+```
+
+As Scanovate's guide recommends, the document is physical only if every
+pipeline answers `status_code` `OK` and a `liveness_probability` of at least
+`document-liveness-min-probability`; otherwise the attempt fails with
+`scanovateDocumentAuthenticationError`. Any other `status_code` means the photo
+couldn't be checked (`DOCUMENT_NOT_FOUND`, `DOCUMENT_PHOTO_NOT_FOUND`,
+`DOCUMENT_CROPPED`, `DOCUMENT_TOO_SMALL`, `DOCUMENT_TOO_CLOSE_TO_CAMERA`,
+`DOCUMENT_TOO_CLOSE_TO_BORDER`, `TOO_MANY_DOCUMENTS`, `DOCUMENT_IS_COLORLESS`),
+never that it's genuine: the attempt fails with
+`scanovateDocumentUnreadableError`, so the voter scans it again. The image
+quality warnings (`IMAGE_TOO_BLURRY`, `GLARE_ON_IMAGE`, ...) are logged with each
+probability. A service that doesn't answer is a retryable
+`scanovateInternalError`.
 
 ### Liveness result
 
@@ -720,7 +832,7 @@ the capture, the voter gets a retryable `scanovateInternalError`.
 Keycloak calls `POST /facematch11/compare_images`:
 
 ```json
-{"image_1_base64": "...", "image_2_base64": "...", "allow_multiple_faces": true}
+{"image_1_base64": "...", "image_2_base64": "...", "allow_multiple_faces": false}
 ```
 
 ```json
@@ -729,16 +841,20 @@ Keycloak calls `POST /facematch11/compare_images`:
  "image_2_status": {"code": 0, "message": "ok"}}
 ```
 
-`allow_multiple_faces` makes it use the best matching face of each image:
-many IDs print a second, smaller copy of the portrait. The image status codes are `0` (ok),
+As Scanovate's guide recommends, `allow_multiple_faces` is `false` when
+Keycloak compares the document's portrait with the live face: a second face
+where one is expected is a risk, and fails with status `1102`. It is `true`
+only for the holding photo, where the document's portrait is a second, smaller
+face, and the largest face is compared. The image status codes are `0` (ok),
 `1000` (cannot read the file), `1001` (invalid image), `1100` (image too
 small), `1101` (face not found), `1102` (several faces, without
 `allow_multiple_faces`) and `1103` (cannot align the face).
 
 A comparison passes only if `success` is `true`, both statuses are `0` and the
 similarity reaches both the service's threshold and the configured minimum.
-Keycloak makes one comparison: the portrait OCR cropped from the document
-(`image_1`) with the liveness frame (`image_2`). A status other than `0` fails the attempt with
+Keycloak compares the portrait OCR cropped from the document (`image_1`) with
+the liveness frame (`image_2`), then the holding photo with the liveness
+frame. A status other than `0` fails the attempt with
 `scanovateFaceNotFoundError`, a low similarity with
 `scanovateFaceMismatchError`.
 
@@ -766,10 +882,9 @@ On top of IAD:
 - Attempts are limited by `max-attempts`, and every verification is logged
   with its case id and similarity.
 
-What is still not covered on premise is the document itself: OCR doesn't
-check that the document is genuine, or that it is a physical document and not
-a photo of one shown on a screen. See
-[Document types](scanovate_identity_verification_guide.md#document-types).
+The document itself is checked by Document Liveness: a document shown on a
+screen, a printed copy, a replaced portrait or an edited image fails, see
+[Document Liveness](#document-liveness-1).
 
 ### Theming
 
@@ -818,6 +933,7 @@ We serve the OCR and Liveness Plus pages on the same origin as Keycloak, under
 | Authenticator `liveness-url` | `https://<keycloak host>/biometric` |
 | Keycloak endpoints for OCR and Liveness Plus | `http://<keycloak internal host>/realms/master/identity-verification/{ocr,liveness}/{verify,callback}`, internal only |
 | Authenticator `face-match-url` | `http://<face match internal host>:3000`, internal only |
+| Authenticator `document-liveness-url` | `http://<document liveness internal host>:8080`, internal only |
 
 `/biometric/` is vendor neutral, and none of Keycloak's own top-level paths
 (`/realms`, `/admin`, `/resources`, `/js`, `/health`, `/metrics`) use it. Being
@@ -891,8 +1007,8 @@ location / {
 - Serve the OCR and Liveness Plus pages over HTTPS on Keycloak's origin (see
   [Deployment on Keycloak's origin](#deployment-on-keycloaks-origin)):
   browsers only give camera access to secure origins.
-- Keep PAD, IAD and Face Match on the internal network, and don't route the
-  services' docs, metrics and session listings publicly.
+- Keep PAD, IAD, Face Match and Document Liveness on the internal network, and
+  don't route the services' docs, metrics and session listings publicly.
 - Run OCR and Liveness Plus with `MODE=onprem`, Liveness Plus with
   `LIVENESS_MODE=full`, and each with its own secure random `JWT_SECRET_KEY`
   from the secrets store.
@@ -914,5 +1030,10 @@ location / {
 - Size the servers for the expected concurrent sessions (see the requirements
   in [Running them in the development environment](#running-them-in-the-development-environment)),
   and set `max_active_sessions` of Liveness Plus to match.
-- The PAD image carries a license that expires on 2027-10-04: renew it with
-  Scanovate before then.
+- Run Document Liveness on CPUs with AVX2, with 12 GB of memory, the same
+  pipelines in `IDLIVEDOC_SERVER_AVAILABLE_PIPELINES` and in
+  `document-liveness-pipelines`, and tune `document-liveness-min-probability`
+  and `document-liveness-calibration` with real passports, screens and prints.
+- The PAD image carries a license that expires on 2027-10-04, and the Document
+  Liveness image one that expires on 2027-10-25: renew them with Scanovate
+  before then.

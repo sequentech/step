@@ -12,6 +12,7 @@
       "optional_parameters": [
         "scanovate_liveness_url",
         "scanovate_face_match_url",
+        "scanovate_document_liveness_url",
         "accepted_passport_countries",
         "scanovate_face_match_min_similarity",
         "otp_sender_id",
@@ -24,7 +25,8 @@
         "otp_sender_id": "Sequent",
         "otp_ttl_seconds": "300",
         "scanovate_face_match_min_similarity": "0.67",
-        "scanovate_face_match_url": "http://scanovate-face-match:3000"
+        "scanovate_face_match_url": "http://scanovate-face-match:3000",
+        "scanovate_document_liveness_url": "http://scanovate-document-liveness:8080"
       },
       "patch": {
         "patch": {
@@ -159,6 +161,7 @@
                 "doc-id-type": "sequent.read-only.id-card-type",
                 "face-match-min-similarity": "{\"philippinePassport\": {{scanovate_face_match_min_similarity}}}",
                 "face-match-url": "{{scanovate_face_match_url}}",
+                "document-liveness-url": "{{scanovate_document_liveness_url}}",
                 "liveness-url": "{{scanovate_liveness_url}}",
                 "max-attempts": "3",
                 "ocr-types": "{\"philippinePassport\": \"passport\"}",
