@@ -133,6 +133,12 @@ log shows a reveal the voter did not see. The queue is a durable classic queue, 
 it syncs to disk, so a broker crash right after the confirm can lose the entry of a reveal that
 happened.
 
+Keycloak's other events, such as the logins and the opening or refusal of a link, get no such
+confirm. They leave on a thread of their own, in order, so a broker that stops reading holds no
+request. Up to 10,000 wait in memory until it reads again, and a crash of Keycloak loses those. One
+that does not fit, or that can't be sent, is logged by Keycloak with its details as
+`Audit event was not delivered to RabbitMQ`, and does not reach the electoral log.
+
 Secret-bearing reports use private storage and require secret-read permission at download, including
 password retrieval. Ordinary document writers cannot update or delete their access metadata.
 Delivery audit entries do not contain rendered subjects or bodies. Explicitly selecting

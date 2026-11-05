@@ -22,7 +22,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import lombok.extern.jbosslog.JBossLog;
 
@@ -34,11 +39,15 @@ public class RabbitMqEventPublisher implements AutoCloseable {
 
   /**
    * One call to the broker runs at a time, so a broker gone without closing its sockets, or one
-   * that stays connected and says nothing, would otherwise hold every event for the client's
+   * that stays connected and says nothing, would otherwise hold every other call for the client's
    * defaults: 60 seconds to connect, 10 for the handshake, 10 minutes per call and no limit to
-   * close.
+   * close. Nothing limits a write to a broker that stopped reading, hence {@link
+   * #publishInBackground}.
    */
   private static final int BROKER_TIMEOUT_MILLIS = 5_000;
+
+  /** About 15 MB of events, once the broker has stopped reading and until it reads again. */
+  static final int BACKGROUND_QUEUE_CAPACITY = 10_000;
 
   // Read once for performance
   private static final String TASK_NAME =
@@ -49,6 +58,19 @@ public class RabbitMqEventPublisher implements AutoCloseable {
   private final String amqpUri;
   private final String queueName;
   private final Supplier<ConnectionFactory> connectionFactorySupplier;
+
+  private final ThreadPoolExecutor backgroundSender =
+      new ThreadPoolExecutor(
+          1,
+          1,
+          0,
+          TimeUnit.MILLISECONDS,
+          new LinkedBlockingQueue<>(BACKGROUND_QUEUE_CAPACITY),
+          task -> {
+            Thread thread = new Thread(task, "rabbitmq-event-sender");
+            thread.setDaemon(true);
+            return thread;
+          });
 
   private Connection rabbitConnection;
   private Channel rabbitChannel;
@@ -142,6 +164,32 @@ public class RabbitMqEventPublisher implements AutoCloseable {
   }
 
   /**
+   * Publishes a message like {@link #publish}, on a thread of its own and in the order of the
+   * calls. A broker that stops reading fills the socket after a few hundred messages, and from then
+   * on a write waits for as long as the broker does, so a caller that can't wait comes here. The
+   * caller hears of a failure through {@code onFailure}, on that thread, or on its own when the
+   * queue is full.
+   */
+  void publishInBackground(
+      AMQP.BasicProperties properties, byte[] body, Consumer<Exception> onFailure) {
+    try {
+      backgroundSender.execute(
+          () -> {
+            try {
+              publish(properties, body);
+              log.infov(
+                  "Audit event published to RabbitMQ: correlationId={0}",
+                  properties.getCorrelationId());
+            } catch (Exception exception) {
+              onFailure.accept(exception);
+            }
+          });
+    } catch (RejectedExecutionException exception) {
+      onFailure.accept(exception);
+    }
+  }
+
+  /**
    * Publishes an electoral-log entry and waits until the broker has accepted it. The queue is
    * durable and the message persistent, but a classic queue confirms before it syncs to disk, so a
    * crash right after the confirm can still lose the entry. An action that must not happen
@@ -229,9 +277,28 @@ public class RabbitMqEventPublisher implements AutoCloseable {
     rabbitChannel.queueDeclare(queueName, true, false, false, null);
   }
 
+  /**
+   * Gives the queued messages a moment to leave. A sender still writing then holds this publisher's
+   * lock, for as long as the broker doesn't read, and its thread ends with the JVM.
+   */
   @Override
-  public synchronized void close() {
-    closeRabbitMqResources();
+  public void close() {
+    backgroundSender.shutdown();
+    boolean senderEnded = false;
+    try {
+      senderEnded = backgroundSender.awaitTermination(BROKER_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException exception) {
+      Thread.currentThread().interrupt();
+    }
+    if (!senderEnded) {
+      log.warnv(
+          "Closing with the broker not reading: {0} queued audit events were not delivered",
+          backgroundSender.getQueue().size());
+      return;
+    }
+    synchronized (this) {
+      closeRabbitMqResources();
+    }
   }
 
   /** Takes the channel along. The broker may be why this runs, so it gets a limited goodbye. */

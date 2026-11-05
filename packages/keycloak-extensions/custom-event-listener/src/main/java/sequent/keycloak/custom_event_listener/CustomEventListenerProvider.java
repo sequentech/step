@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.events.Details;
 import org.keycloak.events.Event;
@@ -172,24 +173,27 @@ public class CustomEventListenerProvider implements EventListenerProvider {
 
     // Generate a correlation ID.
     String correlationId = UUID.randomUUID().toString();
+    Consumer<Exception> onFailure =
+        e ->
+            log.errorv(
+                e,
+                "Audit event was not delivered to RabbitMQ: correlationId={0}, tenantId={1}, electionEventId={2}, messageType={3}, userId={4}, username={5}, body={6}",
+                correlationId,
+                tenantId,
+                electionEventId,
+                messageType,
+                userId,
+                username,
+                body);
 
     try {
-      rabbitMqEventPublisher.publish(
+      rabbitMqEventPublisher.publishInBackground(
           RabbitMqEventPublisher.electoralLogProperties(correlationId),
           RabbitMqEventPublisher.electoralLogBody(
-              electionEventId, messageType, body, userId, tenantId, username));
-      log.infov("Audit event published to RabbitMQ: correlationId={0}", correlationId);
+              electionEventId, messageType, body, userId, tenantId, username),
+          onFailure);
     } catch (Exception e) {
-      log.errorv(
-          e,
-          "Audit event was not delivered to RabbitMQ: correlationId={0}, tenantId={1}, electionEventId={2}, messageType={3}, userId={4}, username={5}, body={6}",
-          correlationId,
-          tenantId,
-          electionEventId,
-          messageType,
-          userId,
-          username,
-          body);
+      onFailure.accept(e);
     }
   }
 

@@ -14,7 +14,13 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.ReturnListener;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -89,6 +95,115 @@ class RabbitMqEventPublisherTest {
     verify(channel, times(1)).basicPublish("", QUEUE_NAME, properties, body);
     verify(replacementChannel, times(1)).basicPublish("", QUEUE_NAME, properties, body);
     verify(replacementFactory).setAutomaticRecoveryEnabled(false);
+  }
+
+  /**
+   * Makes the first write wait, as one does once a broker that stopped reading fills the socket.
+   */
+  private CountDownLatch aWriteTheBrokerDoesNotRead(byte[] body) throws Exception {
+    CountDownLatch brokerReads = new CountDownLatch(1);
+    org.mockito.Mockito.doAnswer(
+            invocation -> {
+              brokerReads.await();
+              return null;
+            })
+        .when(channel)
+        .basicPublish(
+            org.mockito.ArgumentMatchers.eq(""),
+            org.mockito.ArgumentMatchers.eq(QUEUE_NAME),
+            org.mockito.ArgumentMatchers.any(AMQP.BasicProperties.class),
+            org.mockito.ArgumentMatchers.eq(body));
+    return brokerReads;
+  }
+
+  @Test
+  void aWriteTheBrokerDoesNotReadHoldsNoCallerAndTheOrderIsKept() throws Exception {
+    AMQP.BasicProperties properties = new AMQP.BasicProperties.Builder().build();
+    byte[] first = "first".getBytes(StandardCharsets.UTF_8);
+    byte[] second = "second".getBytes(StandardCharsets.UTF_8);
+    CountDownLatch brokerReads = aWriteTheBrokerDoesNotRead(first);
+
+    org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(
+        Duration.ofSeconds(2),
+        () -> {
+          publisher.publishInBackground(properties, first, failure -> {});
+          publisher.publishInBackground(properties, second, failure -> {});
+        });
+    brokerReads.countDown();
+
+    org.mockito.InOrder order = org.mockito.Mockito.inOrder(channel);
+    order
+        .verify(channel, org.mockito.Mockito.timeout(5_000))
+        .basicPublish("", QUEUE_NAME, properties, first);
+    order
+        .verify(channel, org.mockito.Mockito.timeout(5_000))
+        .basicPublish("", QUEUE_NAME, properties, second);
+  }
+
+  @Test
+  void aFullQueueFailsTheMessageAtOnce() throws Exception {
+    AMQP.BasicProperties properties = new AMQP.BasicProperties.Builder().build();
+    byte[] body = "event".getBytes(StandardCharsets.UTF_8);
+    CountDownLatch brokerReads = aWriteTheBrokerDoesNotRead(body);
+    CompletableFuture<Exception> failure = new CompletableFuture<>();
+    try {
+      // the one being written and the ones behind it
+      for (int i = 0; i < RabbitMqEventPublisher.BACKGROUND_QUEUE_CAPACITY + 1; i++) {
+        publisher.publishInBackground(properties, body, failure::complete);
+      }
+      org.junit.jupiter.api.Assertions.assertFalse(failure.isDone());
+
+      publisher.publishInBackground(properties, body, failure::complete);
+
+      org.junit.jupiter.api.Assertions.assertInstanceOf(
+          RejectedExecutionException.class, failure.getNow(null));
+    } finally {
+      brokerReads.countDown();
+    }
+  }
+
+  @Test
+  void aFailedWriteReachesTheCallerAndDropsTheConnection() throws Exception {
+    AMQP.BasicProperties properties = new AMQP.BasicProperties.Builder().build();
+    byte[] body = "event".getBytes(StandardCharsets.UTF_8);
+    IOException broken = new IOException("broken pipe");
+    org.mockito.Mockito.doThrow(broken)
+        .when(channel)
+        .basicPublish("", QUEUE_NAME, properties, body);
+    CompletableFuture<Exception> failure = new CompletableFuture<>();
+
+    publisher.publishInBackground(properties, body, failure::complete);
+
+    org.junit.jupiter.api.Assertions.assertSame(broken, failure.get(5, TimeUnit.SECONDS));
+    verify(connection, org.mockito.Mockito.timeout(5_000)).abort(5_000);
+  }
+
+  @Test
+  void closingWaitsForTheQueueThenClosesTheConnection() throws Exception {
+    AMQP.BasicProperties properties = new AMQP.BasicProperties.Builder().build();
+    byte[] body = "event".getBytes(StandardCharsets.UTF_8);
+
+    publisher.publishInBackground(properties, body, failure -> {});
+    publisher.close();
+
+    verify(channel).basicPublish("", QUEUE_NAME, properties, body);
+    verify(connection).abort(5_000);
+  }
+
+  /** That write holds the publisher's lock, so closing can't take it and waits no longer. */
+  @Test
+  void closingDoesNotWaitForAWriteTheBrokerDoesNotRead() throws Exception {
+    byte[] body = "event".getBytes(StandardCharsets.UTF_8);
+    CountDownLatch brokerReads = aWriteTheBrokerDoesNotRead(body);
+    try {
+      publisher.publishInBackground(
+          new AMQP.BasicProperties.Builder().build(), body, failure -> {});
+
+      org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(
+          Duration.ofSeconds(8), () -> publisher.close());
+    } finally {
+      brokerReads.countDown();
+    }
   }
 
   @Test
