@@ -6,7 +6,7 @@ use crate::services::vault::vault::get_master_secret;
 use crate::services::voter_pin_link::{self, PinLinkConfig};
 use anyhow::{anyhow, Context, Result};
 use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
-use keycloak::types::{UPConfig, UnmanagedAttributePolicy};
+use keycloak::types::UPConfig;
 use once_cell::sync::Lazy;
 use ring::hkdf;
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
@@ -249,7 +249,8 @@ impl SecretAttributeConfig {
 
 /// What makes Keycloak keep the PIN link off, other than the PIN not being a
 /// secret. The same conditions as `pinIsSecretAndAdminOnly` in the Keycloak
-/// extension.
+/// extension, but for the unmanaged attributes policy: a realm that sets it
+/// can't be read here at all, so the job has already failed.
 fn pin_link_gate_problem(
     profile: &UPConfig,
     pin: &str,
@@ -280,12 +281,6 @@ fn pin_link_gate_problem(
         return Some(format!(
             "The PIN link's generated attribute `{name}` must stay out of the user profile"
         ));
-    }
-    if profile.unmanaged_attribute_policy == Some(UnmanagedAttributePolicy::Enabled) {
-        return Some(
-            "The PIN link cannot work while the realm's unmanaged attributes policy is ENABLED"
-                .to_string(),
-        );
     }
     None
 }
@@ -780,33 +775,16 @@ mod tests {
         assert!(config.pin_link().is_some());
     }
 
+    /// This failure is what stops a job in such a realm, where under `ENABLED`
+    /// Keycloak keeps the link off. If an update of the crate lets these
+    /// through, `pin_link_gate_problem` has to check the policy.
     #[test]
-    fn an_enabled_unmanaged_attribute_policy_turns_the_link_off_and_reports_it() {
-        let config = SecretAttributeConfig::from_profile(&[secret_attribute("pin")])
-            .with_realm_attributes(&pin_link_realm_attributes())
-            .with_pin_link_gate(&UPConfig {
-                unmanaged_attribute_policy: Some(UnmanagedAttributePolicy::Enabled),
-                ..Default::default()
-            });
-        assert!(config.pin_link().is_none());
-        let error = config.validated_names().unwrap_err();
-        assert!(error.to_string().contains("ENABLED"), "{error}");
-    }
-
-    #[test]
-    fn an_unmanaged_attribute_policy_for_administrators_keeps_the_link_on() {
-        for policy in [
-            UnmanagedAttributePolicy::AdminView,
-            UnmanagedAttributePolicy::AdminEdit,
-        ] {
-            let config = SecretAttributeConfig::from_profile(&[secret_attribute("pin")])
-                .with_realm_attributes(&pin_link_realm_attributes())
-                .with_pin_link_gate(&UPConfig {
-                    unmanaged_attribute_policy: Some(policy),
-                    ..Default::default()
-                });
-            assert!(config.pin_link().is_some());
+    fn a_profile_that_sets_the_unmanaged_attribute_policy_cannot_be_read() {
+        for policy in ["ENABLED", "ADMIN_VIEW", "ADMIN_EDIT"] {
+            let profile = format!(r#"{{"unmanagedAttributePolicy":"{policy}"}}"#);
+            assert!(serde_json::from_str::<UPConfig>(&profile).is_err());
         }
+        assert!(serde_json::from_str::<UPConfig>("{}").is_ok());
     }
 
     #[test]
@@ -814,7 +792,7 @@ mod tests {
         let config = SecretAttributeConfig::from_profile(&[secret_attribute("pin")])
             .with_realm_attributes(&HashMap::new())
             .with_pin_link_gate(&UPConfig {
-                unmanaged_attribute_policy: Some(UnmanagedAttributePolicy::Enabled),
+                attributes: Some(vec![profile_attribute("pin", &["user"], &["user"])]),
                 ..Default::default()
             });
         assert!(config.validated_names().is_ok());

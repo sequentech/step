@@ -46,6 +46,10 @@ declares the generated attributes below, or if the realm's unmanaged attributes 
 then logs a warning and the link answers `404`. Importing into such a realm or sending the link
 fails with an error, so no message carries a dead link.
 
+Leave the unmanaged attributes policy unset. Windmill cannot read a realm that sets it to any value,
+so with `ADMIN_VIEW` or `ADMIN_EDIT` too the link answers, but every import and send fails with an
+`unknown variant` error.
+
 ### 2. Set the realm attributes
 
 ```bash
