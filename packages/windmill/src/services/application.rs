@@ -224,6 +224,62 @@ pub async fn verify_application(
         permission_label = None;
     }
 
+    let application_id = store_verified_application(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &area_id,
+        applicant_id,
+        applicant_data,
+        labels,
+        &annotations,
+        &result,
+        &permission_label,
+    )
+    .await?;
+
+    Ok(ApplicationVerificationResult {
+        application_id: Some(application_id.to_string()),
+        ..result
+    })
+}
+
+/// The voter an automatic decision decided, which its application is stored
+/// under: the voter accepted, or the one whose acceptance an email in use
+/// undid. None for a decision about no voter, a pending one (a reviewer
+/// picks the voter) and a rejection naming the voter already enrolled,
+/// whose latest application must stay their own.
+fn decided_voter(result: &ApplicationVerificationResult) -> Option<&str> {
+    let decided = match result.application_status {
+        ApplicationStatus::ACCEPTED => true,
+        ApplicationStatus::REJECTED => {
+            result.rejection_reason == Some(ApplicationRejectReason::EMAIL_IN_USE)
+        }
+        ApplicationStatus::PENDING => false,
+    };
+    result
+        .user_id
+        .as_deref()
+        .filter(|user_id| decided && !user_id.trim().is_empty())
+}
+
+/// Stores the application `result` decided, with the matched voter's
+/// username, under the voter it decided or else `applicant_id`; the stored
+/// application's id.
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all, err)]
+pub async fn store_verified_application(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &Option<Uuid>,
+    applicant_id: &str,
+    applicant_data: &HashMap<String, String>,
+    labels: &Option<Value>,
+    annotations: &ApplicationAnnotations,
+    result: &ApplicationVerificationResult,
+    permission_label: &Option<String>,
+) -> Result<Uuid> {
     let mut final_applicant_data = applicant_data.clone();
     final_applicant_data.insert("username".to_string(), result.username.clone());
 
@@ -231,39 +287,16 @@ pub async fn verify_application(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        &area_id,
-        applicant_id,
+        area_id,
+        decided_voter(result).unwrap_or(applicant_id),
         &final_applicant_data,
         labels,
-        &annotations,
+        annotations,
         &result.application_type,
         &result.application_status,
-        &permission_label,
+        permission_label,
     )
-    .await?;
-    // The application just stored in this transaction.
-    let application_id: Uuid = hasura_transaction
-        .query_one(
-            r#"
-            SELECT id FROM sequent_backend.applications
-            WHERE tenant_id = $1 AND election_event_id = $2 AND applicant_id = $3
-            ORDER BY created_at DESC, id
-            LIMIT 1
-            "#,
-            &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &applicant_id,
-            ],
-        )
-        .await
-        .with_context(|| "Error reading the stored application")?
-        .try_get("id")?;
-
-    Ok(ApplicationVerificationResult {
-        application_id: Some(application_id.to_string()),
-        ..result
-    })
+    .await
 }
 
 #[instrument(err, skip_all)]
@@ -1923,6 +1956,68 @@ mod tests {
         );
 
         assert_eq!(result.application_status, ApplicationStatus::ACCEPTED);
+    }
+
+    /// An automatic decision is stored under the voter it decided, so the
+    /// monitoring finds it under the voter's Keycloak id; Keycloak sends no
+    /// applicant id of its own.
+    #[test]
+    fn an_automatic_acceptance_is_stored_under_the_accepted_voter() {
+        assert_eq!(decided_voter(&accepted_census_result()), Some("voter-id"));
+    }
+
+    #[test]
+    fn an_acceptance_undone_by_an_email_in_use_is_stored_under_its_voter() {
+        let result = reject_duplicate_email(
+            accepted_census_result(),
+            EmailUniqueness::UNIQUE,
+            &["other-voter".to_string()],
+        );
+
+        assert_eq!(decided_voter(&result), Some("voter-id"));
+    }
+
+    /// The voter an already-approved rejection names is the one enrolled
+    /// before: the new attempt must not become that voter's latest
+    /// application.
+    #[test]
+    fn a_rejection_naming_an_already_enrolled_voter_is_not_stored_under_them() {
+        let result = ApplicationVerificationResult {
+            application_status: ApplicationStatus::REJECTED,
+            rejection_reason: Some(ApplicationRejectReason::ALREADY_APPROVED),
+            ..accepted_census_result()
+        };
+
+        assert_eq!(result.user_id.as_deref(), Some("voter-id"));
+        assert_eq!(decided_voter(&result), None);
+    }
+
+    #[test]
+    fn a_decision_about_no_voter_or_still_pending_names_none() {
+        let no_voter = ApplicationVerificationResult {
+            application_status: ApplicationStatus::REJECTED,
+            rejection_reason: Some(ApplicationRejectReason::NO_VOTER),
+            user_id: None,
+            ..accepted_census_result()
+        };
+        let pending = ApplicationVerificationResult {
+            application_status: ApplicationStatus::PENDING,
+            rejection_reason: None,
+            ..accepted_census_result()
+        };
+        let accepted_without_voter = ApplicationVerificationResult {
+            user_id: None,
+            ..accepted_census_result()
+        };
+        let blank_voter = ApplicationVerificationResult {
+            user_id: Some("  ".to_string()),
+            ..accepted_census_result()
+        };
+
+        assert_eq!(decided_voter(&no_voter), None);
+        assert_eq!(decided_voter(&pending), None, "a reviewer picks the voter");
+        assert_eq!(decided_voter(&accepted_without_voter), None);
+        assert_eq!(decided_voter(&blank_voter), None);
     }
 
     #[test]
