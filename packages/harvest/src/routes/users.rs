@@ -146,8 +146,8 @@ fn ensure_no_generated_attributes<'a>(
 }
 
 /// The voter logs in with the PIN the link shows, so a write that sets the PIN
-/// sets the password too. Returns the password to store when the request brings
-/// none; refuses one that differs, as the voter import does.
+/// sets the password too, and never a temporary one. Returns the password to
+/// store; refuses one that differs, as the voter import does.
 fn password_from_pin_write(
     config: &SecretAttributeConfig,
     secret_attributes: Option<&HashMap<String, Option<Vec<String>>>>,
@@ -165,15 +165,14 @@ fn password_from_pin_write(
         return Ok(None);
     };
     match password {
-        None => Ok(Some(pin.to_string())),
-        Some(password) if password == pin => Ok(None),
-        Some(_) => Err((
+        Some(password) if password != pin => Err((
             Status::BadRequest,
             format!(
                 "`{}` must equal the password, because the voter logs in with the PIN the link shows",
                 pin_link.pin_attribute
             ),
         )),
+        _ => Ok(Some(pin.to_string())),
     }
 }
 
@@ -2527,7 +2526,7 @@ mod tests {
         assert_eq!(
             password_from_pin_write(&config, Some(&pin), Some("123456789012"))
                 .unwrap(),
-            None
+            Some("123456789012".to_string())
         );
     }
 
