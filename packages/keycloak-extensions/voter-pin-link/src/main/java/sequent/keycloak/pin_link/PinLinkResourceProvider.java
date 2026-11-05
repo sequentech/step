@@ -4,6 +4,8 @@
 
 package sequent.keycloak.pin_link;
 
+import static java.util.stream.Collectors.joining;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.ws.rs.Consumes;
@@ -170,8 +172,12 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
       return refuse(realm, user, "wrong_username");
     }
     String master = masterSecret.get();
+    if (master == null || !master.matches("[0-9a-fA-F]{64}")) {
+      log.error("pin-link: MASTER_SECRET is missing or is not 64 hexadecimal characters");
+      return refuse(realm, user, "not_configured");
+    }
     var scope = RealmNames.parseEventRealmName(realm.getName());
-    if (scope.isEmpty() || master == null || !master.matches("[0-9a-fA-F]{64}")) {
+    if (scope.isEmpty()) {
       return refuse(realm, user, "not_configured");
     }
 
@@ -519,7 +525,12 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
         .header("X-Frame-Options", "DENY")
         .header("X-Robots-Tag", "none")
         .header("Strict-Transport-Security", strictTransportSecurity())
-        .header("Content-Security-Policy", contentSecurityPolicy(keycloakOrigin(), nonce));
+        .header(
+            "Content-Security-Policy",
+            contentSecurityPolicy(
+                keycloakOrigin(),
+                nonce,
+                PinLinkConfig.assetOrigins(session.getContext().getRealm()::getAttribute)));
   }
 
   /** Skipping Keycloak's header set must not lose the realm's HSTS; a null header isn't sent. */
@@ -538,9 +549,14 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
 
   /**
    * Keycloak's own origin is named because a short link's host, in front of a rewrite, may differ
-   * from it. Nothing else is allowed to load: no third party ever sees this page.
+   * from it. Nothing else is allowed to load, except images and fonts from the origins the realm
+   * lists for its CSS. Those can't read the page, and a browser tells them at most this origin as
+   * the referrer, never the path with the token. A script or stylesheet from another host could
+   * read the PIN, so no attribute allows one.
    */
-  static String contentSecurityPolicy(String keycloakOrigin, String nonce) {
+  static String contentSecurityPolicy(
+      String keycloakOrigin, String nonce, List<String> assetOrigins) {
+    String assets = assetOrigins.stream().map(origin -> " " + origin).collect(joining());
     return "default-src 'none'; script-src 'nonce-"
         + nonce
         + "'; style-src 'self' "
@@ -549,8 +565,11 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
         + nonce
         + "'; img-src 'self' "
         + keycloakOrigin
-        + " data:; font-src 'self' "
+        + " data:"
+        + assets
+        + "; font-src 'self' "
         + keycloakOrigin
+        + assets
         + "; form-action 'self'; base-uri 'none'; frame-ancestors 'none'";
   }
 
