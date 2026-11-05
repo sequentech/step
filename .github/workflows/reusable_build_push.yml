@@ -171,14 +171,19 @@ jobs:
         username: oauth2accesstoken
         password: ${{ steps.gcp-auth.outputs.access_token }}
 
+    # The prod registry has immutable tags, and rebuilding a commit changes its
+    # digest. A short SHA tag there would stop a built commit getting a new tag.
     - name: Push to ECR and Artifact Registry
       if: inputs.push
       env:
         SERVICE: ${{ matrix.service }}
-        TAGS: ${{ env.SHORT_SHA }} ${{ inputs.tag || github.run_number }}
+        TAG: ${{ inputs.tag || github.run_number }}
         ECR_REGISTRY: ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}
       run: |
-        .github/scripts/push_image.sh "$RUNNER_TEMP/image" "$TAGS" \
-          "docker://$ECR_REGISTRY/$SERVICE" \
-          "docker://europe-west4-docker.pkg.dev/sequentech-dev/sequent/$SERVICE" \
-          "docker://us-east1-docker.pkg.dev/sequent-production/sequent/$SERVICE"
+        ecr="docker://$ECR_REGISTRY/$SERVICE"
+        dev="docker://europe-west4-docker.pkg.dev/sequentech-dev/sequent/$SERVICE"
+        prod="docker://us-east1-docker.pkg.dev/sequent-production/sequent/$SERVICE"
+        .github/scripts/push_image.sh "$RUNNER_TEMP/image" \
+          "$ecr:$SHORT_SHA" "$ecr:$TAG" \
+          "$dev:$SHORT_SHA" "$dev:$TAG" \
+          --immutable "$prod:$TAG"
