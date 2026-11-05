@@ -87,9 +87,9 @@ const meta = {
 export default meta
 type Story = StoryObj<Scenario>
 
-const successChipDefect = {
-    reason: "The task widget's success chip has white text below 4.5 contrast.",
-    a11y: ["color-contrast"],
+const passwordDialogDefect = {
+    reason: "The generated password's read-only fields have no label.",
+    a11y: ["label"],
 }
 
 const NO_OPTIONS = {
@@ -122,7 +122,6 @@ export const Populated: Story = {
     play: async ({args}) => {
         const dialog = await exportDialog()
         for (const name of [
-            "Encrypt with Password",
             "Include Voters",
             "Activity Logs",
             "Bulletin Board",
@@ -136,6 +135,10 @@ export const Populated: Story = {
         ]) {
             await expect(dialog.getByRole("checkbox", {name})).not.toBeChecked()
         }
+        await expect(dialog.getByRole("checkbox", {name: "Encrypt with Password"})).toBeChecked()
+        await expect(
+            dialog.getByRole("checkbox", {name: "Integration secrets (service credentials)"})
+        ).toBeChecked()
         expect(dialog.queryByText(/password protected anyway/)).toBeNull()
         expect(graphql.calls).toEqual([])
         expect(args.setOpenExport).not.toHaveBeenCalled()
@@ -162,7 +165,7 @@ export const Cancel: Story = {
 }
 
 export const ExportStartsATask: Story = {
-    parameters: {expectedFailure: successChipDefect},
+    parameters: {expectedFailure: passwordDialogDefect},
     play: async ({args}) => {
         const dialog = await exportDialog()
         await userEvent.click(dialog.getByRole("checkbox", {name: "Include Voters"}))
@@ -174,7 +177,13 @@ export const ExportStartsATask: Story = {
             name: "ExportElectionEvent",
             variables: {
                 electionEventId: EVENT_ID,
-                exportConfigurations: {...NO_OPTIONS, include_voters: true},
+                exportConfigurations: {
+                    ...NO_OPTIONS,
+                    include_voters: true,
+                    is_encrypted: true,
+                    encrypt_with_password: true,
+                    include_integration_secrets: true,
+                },
             },
             headers: {"x-hasura-role": IPermissions.ELECTION_EVENT_READ},
         })
@@ -189,7 +198,8 @@ export const ExportStartsATask: Story = {
                 {task_id: TASK_ID}
             )
         )
-        expect(within(document.body).queryByRole("dialog", {name: "Password"})).toBeNull()
+        const passwordDialog = await within(document.body).findByRole("dialog", {name: "Password"})
+        await expect(within(passwordDialog).getByDisplayValue(PASSWORD)).toBeVisible()
     },
 }
 
@@ -203,6 +213,8 @@ export const BulletinBoardForcesEncryption: Story = {
     },
     play: async () => {
         const dialog = await exportDialog()
+        // Exercise forced archive encryption after explicitly opting out of secrets.
+        await userEvent.click(dialog.getByRole("checkbox", {name: "Encrypt with Password"}))
         // Tally data is only exported with its bulletin board.
         await userEvent.click(dialog.getByRole("checkbox", {name: "Tally"}))
         await expect(dialog.getByRole("checkbox", {name: "Bulletin Board"})).toBeChecked()

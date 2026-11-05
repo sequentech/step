@@ -48,7 +48,8 @@ fn migrated_labels_in_the_portal() -> BTreeMap<String, String> {
                     || key.starts_with("messaging-")
                     || key == "readiness-check"
                     || key == "forensic-read"
-                    || key == "voter-pseudonym-resolve");
+                    || key == "voter-pseudonym-resolve"
+                    || key == "integration-secret-read");
             let value = value.trim_end_matches(',');
             (migrated && value.starts_with('"'))
                 .then(|| (key.to_string(), value.trim_matches('"').to_string()))
@@ -58,8 +59,13 @@ fn migrated_labels_in_the_portal() -> BTreeMap<String, String> {
 
 #[test]
 fn the_migration_adds_release_permissions_with_their_labels() {
-    let expected = migrated_labels_in_the_portal();
-    assert_eq!(expected.len(), 28, "{expected:?}");
+    let mut expected = migrated_labels_in_the_portal();
+    // Preserve the established template description; the portal uses a shorter label.
+    expected.insert(
+        Permissions::INTEGRATION_SECRET_READ.to_string(),
+        "Export authenticator integration secrets and download archives carrying them".to_string(),
+    );
+    assert_eq!(expected.len(), 29, "{expected:?}");
     let roles: BTreeMap<String, String> = migrated_roles()
         .into_iter()
         .map(|role| (role.name.unwrap(), role.description.unwrap()))
@@ -91,6 +97,7 @@ fn groups_already_granted(realm: &str) -> Vec<Exchange> {
         "messaging-config-write",
         "messaging-config-read",
         "readiness-check",
+        "integration-secret-read",
     ];
     vec![
         Exchange::json(
@@ -147,8 +154,8 @@ fn groups_already_granted(realm: &str) -> Vec<Exchange> {
 async fn every_tenant_realm_gets_the_roles_it_lacks() {
     let tenants = ["tenant-one".to_string(), "tenant-two".to_string()];
     let mut exchanges = vec![
-        import("tenant-tenant-one", 200, json!({"added": 28, "skipped": 0})),
-        import("tenant-tenant-two", 200, json!({"added": 0, "skipped": 28})),
+        import("tenant-tenant-one", 200, json!({"added": 29, "skipped": 0})),
+        import("tenant-tenant-two", 200, json!({"added": 0, "skipped": 29})),
     ];
     exchanges.extend(groups_already_granted("tenant-tenant-one"));
     exchanges.extend(groups_already_granted("tenant-tenant-two"));
@@ -162,7 +169,7 @@ async fn every_tenant_realm_gets_the_roles_it_lacks() {
             RealmMigration {
                 realm: "tenant-tenant-one".to_string(),
                 roles: PartialImportSummary {
-                    added: 28,
+                    added: 29,
                     ..Default::default()
                 },
                 granted: vec![],
@@ -170,7 +177,7 @@ async fn every_tenant_realm_gets_the_roles_it_lacks() {
             RealmMigration {
                 realm: "tenant-tenant-two".to_string(),
                 roles: PartialImportSummary {
-                    skipped: 28,
+                    skipped: 29,
                     ..Default::default()
                 },
                 granted: vec![],
@@ -257,6 +264,7 @@ async fn existing_groups_get_the_release_roles_the_template_gives_them() {
         role("messaging-config-write"),
         role("messaging-config-read"),
         role("readiness-check"),
+        role("integration-secret-read"),
         Exchange::json(
             "POST",
             &format!("/admin/realms/{realm}/groups/admin-id/role-mappings/realm"),
@@ -291,6 +299,7 @@ async fn existing_groups_get_the_release_roles_the_template_gives_them() {
                     "messaging-config-write".to_string(),
                     "messaging-config-read".to_string(),
                     "readiness-check".to_string(),
+                    "integration-secret-read".to_string(),
                 ],
             },
             GroupGrant {
@@ -322,7 +331,8 @@ async fn existing_groups_get_the_release_roles_the_template_gives_them() {
                     "messaging-account-write",
                     "messaging-config-write",
                     "messaging-config-read",
-                    "readiness-check"
+                    "readiness-check",
+                    "integration-secret-read"
                 ]),
             ),
             (
@@ -378,7 +388,11 @@ fn the_granted_roles_are_the_realm_templates() {
                 .unwrap()
                 .iter()
                 .filter_map(|role| role.as_str())
-                .filter(|role| role.starts_with("messaging-") || *role == "readiness-check")
+                .filter(|role| {
+                    role.starts_with("messaging-")
+                        || *role == "readiness-check"
+                        || *role == "integration-secret-read"
+                })
                 .map(str::to_string)
                 .collect();
             let mut granted: Vec<String> = roles.iter().map(|r| r.to_string()).collect();
@@ -395,7 +409,7 @@ async fn a_realm_that_fails_does_not_stop_the_others_and_fails_the_run() {
     let tenants = ["missing".to_string(), "present".to_string()];
     let mut exchanges = vec![
         import("tenant-missing", 404, json!({"error": "Realm not found."})),
-        import("tenant-present", 200, json!({"added": 28})),
+        import("tenant-present", 200, json!({"added": 29})),
     ];
     exchanges.extend(groups_already_granted("tenant-present"));
     let peer = HttpServer::start(exchanges);
@@ -452,7 +466,7 @@ async fn the_realm_of_every_tenant_in_the_database_is_migrated() {
             .iter()
             .flat_map(|tenant| {
                 let realm = format!("tenant-{tenant}");
-                let mut exchanges = vec![import(&realm, 200, json!({"added": 28}))];
+                let mut exchanges = vec![import(&realm, 200, json!({"added": 29}))];
                 exchanges.extend(groups_already_granted(&realm));
                 exchanges
             })
@@ -513,4 +527,17 @@ fn a_failed_migration_is_retried_with_a_growing_wait() {
     assert_eq!(waits, [30, 60, 120, 240, 480]);
     // Far past the retries the wait saturates instead of overflowing.
     assert_eq!(retry_countdown(40), u32::MAX);
+}
+
+#[test]
+fn integration_secret_read_is_migrated_only_to_the_full_admin_group() {
+    assert!(migrated_roles()
+        .iter()
+        .any(|role| { role.name.as_deref() == Some("integration-secret-read") }));
+    let groups: Vec<_> = TEMPLATE_GROUP_GRANTS
+        .iter()
+        .filter(|(_, roles)| roles.contains(&Permissions::INTEGRATION_SECRET_READ))
+        .map(|(name, _)| *name)
+        .collect();
+    assert_eq!(groups, ["admin"]);
 }
