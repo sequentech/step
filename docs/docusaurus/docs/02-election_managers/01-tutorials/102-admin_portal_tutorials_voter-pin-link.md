@@ -250,6 +250,10 @@ username could use the link, so limit who can read them.
   way as a new PIN.
 - **An edit that is refused** leaves the link alone, whether Keycloak refuses it or, in an election
   event linked to an external voter system, the task that applies the edit.
+- **A task that fails after Keycloak accepted the edit** leaves the edit in place. It says so in its
+  error: when the error says the link was not updated, repeat the edit. A failed entry in the
+  electoral log does not stop the link from changing or a disabled voter's ballots from being
+  discarded.
 
 ### Voters imported before the link was on
 
@@ -296,6 +300,7 @@ records nothing. Neither carries the PIN or the token.
 Each reveal is also recorded in the election event's electoral log as
 `VOTER_SECRET_ATTRIBUTE: PIN_LINK_REVEAL`, naming the voter and the attribute. The broker must
 confirm this entry before the link is spent: when it cannot be recorded, the voter is refused and
-the link stays alive.
+the link stays alive. With a broker that has gone away or stopped answering, that refusal can take
+up to about 15 seconds, and reveals on the same Keycloak replica wait their turn.
 
 See also the [Secret Voter Attribute Boundary](../../05-reference/03-software-architecture/backend-components.md#secret-voter-attribute-boundary).
