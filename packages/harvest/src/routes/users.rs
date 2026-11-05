@@ -55,7 +55,9 @@ use windmill::services::users::{
     count_keycloak_users, list_users, list_users_with_vote_info,
 };
 use windmill::services::users::{FilterOption, ListUsersFilter};
-use windmill::services::voter_pin_link::{self, PinWrite};
+use windmill::services::voter_pin_link::{
+    self, PinLinkChange, PinLinkConfig, PinWrite,
+};
 use windmill::services::voter_secret_attributes::{
     decrypt_attribute_values, encrypt_secret_attribute_map,
     get_secret_attribute_config, redact_user, user_attribute_values,
@@ -64,7 +66,9 @@ use windmill::services::voter_secret_attributes::{
 use windmill::tasks::delete_users::{
     self as delete_users_task, DeleteUsersOutput,
 };
-use windmill::tasks::edit_user::{EditUserOutput, EditUserTaskBody};
+use windmill::tasks::edit_user::{
+    every_failure, EditUserOutput, EditUserTaskBody,
+};
 use windmill::tasks::export_users::{self, ExportUsersOutput};
 use windmill::tasks::import_users::{self, ImportUsersOutput};
 use windmill::types::tasks::ETasksExecution;
@@ -144,8 +148,8 @@ fn ensure_no_generated_attributes<'a>(
 }
 
 /// The voter logs in with the PIN the link shows, so a write that sets the PIN
-/// sets the password too. Returns the password to store when the request brings
-/// none; refuses one that differs, as the voter import does.
+/// sets the password too, and never a temporary one. Returns the password to
+/// store; refuses one that differs, as the voter import does.
 fn password_from_pin_write(
     config: &SecretAttributeConfig,
     secret_attributes: Option<&HashMap<String, Option<Vec<String>>>>,
@@ -163,23 +167,57 @@ fn password_from_pin_write(
         return Ok(None);
     };
     match password {
-        None => Ok(Some(pin.to_string())),
-        Some(password) if password == pin => Ok(None),
-        Some(_) => Err((
+        Some(password) if password != pin => Err((
             Status::BadRequest,
             format!(
                 "`{}` must equal the password, because the voter logs in with the PIN the link shows",
                 pin_link.pin_attribute
             ),
         )),
+        _ => Ok(Some(pin.to_string())),
     }
 }
 
-/// Makes the voter's link follow a write: an old link must not outlive its PIN,
-/// a new PIN needs a link of its own, and a new password alone leaves a PIN the
-/// link would show though it no longer logs in. Runs before the write itself is
-/// stored, since a link whose token doesn't match the PIN only refuses, while
-/// the opposite order could leave a live old link.
+/// What a write does to the voter's PIN, when the realm has the link on.
+fn voter_pin_write<'a>(
+    config: &'a SecretAttributeConfig,
+    secret_attributes: Option<&'a HashMap<String, Option<Vec<String>>>>,
+) -> Result<Option<(&'a PinLinkConfig, PinWrite<'a>)>, (Status, String)> {
+    let Some(pin_link) = config.pin_link() else {
+        return Ok(None);
+    };
+    let write = secret_attributes
+        .map(|attributes| pin_link.pin_write(attributes))
+        .transpose()
+        .map_err(|error| (Status::BadRequest, error.to_string()))?
+        .unwrap_or(PinWrite::Absent);
+    Ok(Some((pin_link, write)))
+}
+
+fn voter_pin_link_change(
+    config: &SecretAttributeConfig,
+    secret_attributes: Option<&HashMap<String, Option<Vec<String>>>>,
+    password_changes: bool,
+) -> Result<Option<PinLinkChange>, (Status, String)> {
+    Ok(voter_pin_write(config, secret_attributes)?
+        .and_then(|(_, write)| PinLinkChange::of_edit(write, password_changes)))
+}
+
+/// What the request answers once Keycloak accepted the edit: that edit stands,
+/// so the answer names every step that then failed, as the `edit_user` task's
+/// error does.
+fn accepted_edit_outcome(
+    password_audit: Result<(), String>,
+    link_sync: Result<(), (Status, String)>,
+) -> Result<(), (Status, String)> {
+    let link_sync = link_sync.map_err(|(_, error)| {
+        format!("Voter edited, but its PIN link was not updated: {error}")
+    });
+    every_failure([password_audit, link_sync])
+        .map_err(|failures| (Status::InternalServerError, failures))
+}
+
+#[instrument(skip_all, err(Debug))]
 async fn sync_voter_pin_link(
     config: &SecretAttributeConfig,
     tenant_id: &str,
@@ -188,19 +226,16 @@ async fn sync_voter_pin_link(
     secret_attributes: Option<&HashMap<String, Option<Vec<String>>>>,
     password_changes: bool,
 ) -> Result<(), (Status, String)> {
-    let Some(pin_link) = config.pin_link() else {
+    let Some((pin_link, write)) = voter_pin_write(config, secret_attributes)?
+    else {
         return Ok(());
     };
-    let write = secret_attributes
-        .map(|attributes| pin_link.pin_write(attributes))
-        .transpose()
-        .map_err(|error| (Status::BadRequest, error.to_string()))?
-        .unwrap_or(PinWrite::Absent);
+    if PinLinkChange::of_edit(write, password_changes).is_none() {
+        return Ok(());
+    }
     let pin = match write {
         PinWrite::Set(pin) => Some(pin),
-        PinWrite::Cleared => None,
-        PinWrite::Absent if password_changes => None,
-        PinWrite::Absent => return Ok(()),
+        PinWrite::Cleared | PinWrite::Absent => None,
     };
     voter_pin_link::rearm_voter(
         pin_link,
@@ -1731,15 +1766,6 @@ pub async fn edit_user(
             )
             .await?;
         }
-        sync_voter_pin_link(
-            &secret_config,
-            &input.tenant_id,
-            election_event_id,
-            &input.user_id,
-            input.secret_attributes.as_ref(),
-            input.password.is_some(),
-        )
-        .await?;
     }
 
     // For Datafix election events the edit is offloaded to the `edit_user`
@@ -1756,6 +1782,11 @@ pub async fn edit_user(
                 .name
                 .clone()
                 .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+            let pin_link_change = voter_pin_link_change(
+                &secret_config,
+                input.secret_attributes.as_ref(),
+                input.password.is_some(),
+            )?;
 
             let task_execution = post(
                 &input.tenant_id,
@@ -1796,6 +1827,7 @@ pub async fn edit_user(
                         area_id: claims.hasura_claims.area_id.clone(),
                     }
                 }),
+                pin_link_change,
             };
 
             let celery_app = get_celery_app().await;
@@ -1857,7 +1889,7 @@ pub async fn edit_user(
             }
         })?;
 
-    if let (Some(election_event_id), Some(_)) =
+    let password_audit = if let (Some(election_event_id), Some(_)) =
         (input.election_event_id.as_deref(), input.password.as_ref())
     {
         let admin = ElectoralLogAdminContext {
@@ -1878,14 +1910,32 @@ pub async fn edit_user(
             VoterPasswordChangeSource::AdminPortal,
         )
         .await
-        .map_err(|error| -> EditUserError {
-            (
-                Status::InternalServerError,
-                format!("Voter password changed, but its electoral-log entry failed: {error:#}"),
+        .map_err(|error| {
+            format!("Voter password changed, but its electoral-log entry failed: {error:#}")
+        })
+    } else {
+        Ok(())
+    };
+
+    // Only now, so that a refused edit leaves the link alone, and whatever the
+    // audit did, because the edit stands either way. Until this runs an old
+    // link can't show a new PIN, because a reveal checks the link against the
+    // PIN stored.
+    let link_sync =
+        if let Some(election_event_id) = input.election_event_id.as_deref() {
+            sync_voter_pin_link(
+                &secret_config,
+                &input.tenant_id,
+                election_event_id,
+                &input.user_id,
+                input.secret_attributes.as_ref(),
+                input.password.is_some(),
             )
-                .into()
-        })?;
-    }
+            .await
+        } else {
+            Ok(())
+        };
+    accepted_edit_outcome(password_audit, link_sync)?;
 
     redact_user(&mut user, &secret_names);
     Ok(Json(EditUserOutput {
@@ -2446,6 +2496,64 @@ mod tests {
     }
 
     #[test]
+    fn a_datafix_edit_tells_its_task_what_to_do_with_the_link() {
+        let config = pin_link_config();
+        let pin = HashMap::from([(
+            "pin".to_string(),
+            Some(vec!["123456789012".to_string()]),
+        )]);
+        let cleared = HashMap::from([("pin".to_string(), None)]);
+        let change = |attributes, password| {
+            voter_pin_link_change(&config, attributes, password).unwrap()
+        };
+        assert_eq!(change(Some(&pin), true), Some(PinLinkChange::Rearm));
+        assert_eq!(change(Some(&cleared), false), Some(PinLinkChange::Remove));
+        assert_eq!(change(None, true), Some(PinLinkChange::Remove));
+        assert_eq!(change(None, false), None);
+        assert_eq!(
+            voter_pin_link_change(
+                &SecretAttributeConfig::default(),
+                Some(&pin),
+                true
+            )
+            .unwrap(),
+            None
+        );
+        let several = HashMap::from([(
+            "pin".to_string(),
+            Some(vec!["1".to_string(), "2".to_string()]),
+        )]);
+        assert!(voter_pin_link_change(&config, Some(&several), true).is_err());
+    }
+
+    /// The edit stands by then, so one failure can't hide a link left as it was.
+    #[test]
+    fn an_accepted_edit_names_every_step_that_then_failed() {
+        let audit: fn() -> Result<(), String> =
+            || Err("audit failed".to_string());
+        let link: fn() -> Result<(), (Status, String)> =
+            || Err((Status::BadGateway, "no database".to_string()));
+        let link_message =
+            "Voter edited, but its PIN link was not updated: no database";
+        assert_eq!(accepted_edit_outcome(Ok(()), Ok(())), Ok(()));
+        assert_eq!(
+            accepted_edit_outcome(audit(), Ok(())),
+            Err((Status::InternalServerError, "audit failed".to_string()))
+        );
+        assert_eq!(
+            accepted_edit_outcome(Ok(()), link()),
+            Err((Status::InternalServerError, link_message.to_string()))
+        );
+        assert_eq!(
+            accepted_edit_outcome(audit(), link()),
+            Err((
+                Status::InternalServerError,
+                format!("audit failed; {link_message}")
+            ))
+        );
+    }
+
+    #[test]
     fn a_pin_write_sets_the_password() {
         let config = pin_link_config();
         let pin = pin_attributes(Some(vec!["123456789012"]));
@@ -2456,7 +2564,7 @@ mod tests {
         assert_eq!(
             password_from_pin_write(&config, Some(&pin), Some("123456789012"))
                 .unwrap(),
-            None
+            Some("123456789012".to_string())
         );
     }
 

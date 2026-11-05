@@ -44,6 +44,9 @@ RUN keytool \
 COPY --chown=keycloak:keycloak \
    --from=keycloak-dependencies \
    /build/keycloak-extensions/message-otp-authenticator/target/sequent.message-otp-authenticator.jar \
+   /build/keycloak-extensions/voter-pin-link/target/sequent.voter-pin-link.jar \
+   /build/keycloak-extensions/action-token-login-bridge/target/sequent.action-token-login-bridge.jar \
+   /build/keycloak-extensions/custom-event-listener/target/sequent.custom-event-listener.jar \
    /build/keycloak-extensions/security-question-authenticator/target/sequent.security-question-authenticator.jar \
    /build/keycloak-extensions/conditional-authenticators/target/sequent.conditional-authenticators.jar \
    /build/keycloak-extensions/ivr-config-provider/target/sequent.ivr-config-provider.jar \

@@ -4,6 +4,8 @@
 
 package sequent.keycloak.pin_link;
 
+import static java.util.stream.Collectors.joining;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.ws.rs.Consumes;
@@ -25,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -73,6 +76,8 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
   private static final ObjectMapper JSON = new ObjectMapper();
   private static final Pattern STYLE_TAG =
       Pattern.compile("<style(?=[\\s>])", Pattern.CASE_INSENSITIVE);
+  private static final String LANGUAGE_POLICY_ATTRIBUTE = "language_detection_policy";
+  private static final String FORCE_DEFAULT_LANGUAGE = "force-default";
   private static final Pattern LANGUAGE_LINK =
       Pattern.compile("href=\"[^\"]*\\?" + LocaleSelectorProvider.KC_LOCALE_PARAM + "=");
 
@@ -170,8 +175,12 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
       return refuse(realm, user, "wrong_username");
     }
     String master = masterSecret.get();
+    if (master == null || !master.matches("[0-9a-fA-F]{64}")) {
+      log.error("pin-link: MASTER_SECRET is missing or is not 64 hexadecimal characters");
+      return refuse(realm, user, "not_configured");
+    }
     var scope = RealmNames.parseEventRealmName(realm.getName());
-    if (scope.isEmpty() || master == null || !master.matches("[0-9a-fA-F]{64}")) {
+    if (scope.isEmpty()) {
       return refuse(realm, user, "not_configured");
     }
 
@@ -245,9 +254,9 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
   }
 
   /**
-   * Whether the user profile keeps the PIN private: a declared secret that voters cannot view,
-   * while the token hash and attempts attributes stay undeclared and unmanaged attributes are not
-   * enabled. Logs the condition that fails.
+   * Whether the user profile keeps the PIN private: a declared secret that voters cannot view or
+   * edit, while the token hash and attempts attributes stay undeclared and unmanaged attributes are
+   * not enabled. Logs the condition that fails.
    */
   private boolean pinIsSecretAndAdminOnly(PinLinkConfig config) {
     UPConfig profile = session.getProvider(UserProfileProvider.class).getConfiguration();
@@ -259,9 +268,9 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
       return false;
     }
     if (pin.getPermissions() != null
-        && pin.getPermissions().getView() != null
-        && pin.getPermissions().getView().contains("user")) {
-      log.warnf("pin-link: voters can view attribute %s", config.pinAttribute());
+        && (includesVoters(pin.getPermissions().getView())
+            || includesVoters(pin.getPermissions().getEdit()))) {
+      log.warnf("pin-link: voters can view or edit attribute %s", config.pinAttribute());
       return false;
     }
     // A declared attribute is one the account console could offer; these two must not be.
@@ -274,6 +283,10 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
       return false;
     }
     return true;
+  }
+
+  private static boolean includesVoters(Set<String> roles) {
+    return roles != null && roles.contains("user");
   }
 
   /**
@@ -381,17 +394,24 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
   /**
    * The forms provider for this page, in the language picked in the theme's menu. The menu links
    * here with {@code kc_locale}, which Keycloak only reads in a login flow, and this page has none.
-   * The locale selector ignores a value the realm does not support.
+   * The locale selector ignores a value the realm does not support. Without a pick, a realm that
+   * forces its default language gets it here, because the login pages do that with a script and
+   * this page's policy blocks it.
    */
   private LoginFormsProvider pageForms() {
-    String picked =
+    String language =
         session
             .getContext()
             .getUri()
             .getQueryParameters()
             .getFirst(LocaleSelectorProvider.KC_LOCALE_PARAM);
-    if (picked != null) {
-      session.setAttribute(LocaleSelectorProvider.USER_REQUEST_LOCALE, picked);
+    RealmModel realm = session.getContext().getRealm();
+    if (language == null
+        && FORCE_DEFAULT_LANGUAGE.equals(realm.getAttribute(LANGUAGE_POLICY_ATTRIBUTE))) {
+      language = realm.getDefaultLocale();
+    }
+    if (language != null) {
+      session.setAttribute(LocaleSelectorProvider.USER_REQUEST_LOCALE, language);
     }
     return session.getProvider(LoginFormsProvider.class);
   }
@@ -519,7 +539,12 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
         .header("X-Frame-Options", "DENY")
         .header("X-Robots-Tag", "none")
         .header("Strict-Transport-Security", strictTransportSecurity())
-        .header("Content-Security-Policy", contentSecurityPolicy(keycloakOrigin(), nonce));
+        .header(
+            "Content-Security-Policy",
+            contentSecurityPolicy(
+                keycloakOrigin(),
+                nonce,
+                PinLinkConfig.assetOrigins(session.getContext().getRealm()::getAttribute)));
   }
 
   /** Skipping Keycloak's header set must not lose the realm's HSTS; a null header isn't sent. */
@@ -538,9 +563,14 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
 
   /**
    * Keycloak's own origin is named because a short link's host, in front of a rewrite, may differ
-   * from it. Nothing else is allowed to load: no third party ever sees this page.
+   * from it. Nothing else is allowed to load, except images and fonts from the origins the realm
+   * lists for its CSS. Those can't read the page, and a browser tells them at most this origin as
+   * the referrer, never the path with the token. A script or stylesheet from another host could
+   * read the PIN, so no attribute allows one.
    */
-  static String contentSecurityPolicy(String keycloakOrigin, String nonce) {
+  static String contentSecurityPolicy(
+      String keycloakOrigin, String nonce, List<String> assetOrigins) {
+    String assets = assetOrigins.stream().map(origin -> " " + origin).collect(joining());
     return "default-src 'none'; script-src 'nonce-"
         + nonce
         + "'; style-src 'self' "
@@ -549,8 +579,11 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
         + nonce
         + "'; img-src 'self' "
         + keycloakOrigin
-        + " data:; font-src 'self' "
+        + " data:"
+        + assets
+        + "; font-src 'self' "
         + keycloakOrigin
+        + assets
         + "; form-action 'self'; base-uri 'none'; frame-ancestors 'none'";
   }
 

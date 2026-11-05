@@ -26,6 +26,14 @@ The link is off by default and is configured per election-event realm.
 
 ## Turning It On
 
+Keycloak needs the same master secret as Harvest and Windmill, in its `MASTER_SECRET` environment
+variable, as described in the
+[Secret Voter Attribute Boundary](../../05-reference/03-software-architecture/backend-components.md#secret-voter-attribute-boundary).
+The supplied Compose files pass it. A deployment that configures Keycloak on its own has to add it.
+Without it no PIN can be revealed: voters get the generic error and the link is kept, and Keycloak
+logs an error naming the variable. Keycloak also needs `AMQP_ADDR` and `ENV_SLUG`, the same it uses
+for electoral log events, to record each reveal.
+
 ### 1. Declare the PIN as a secret attribute
 
 In the event realm's **User profile**, declare the attribute that holds the PIN, by default `pin`,
@@ -33,10 +41,14 @@ as described in
 [Protecting a Voter Attribute as Secret](./99-admin_portal_tutorials_add-user-attributes-to-keycloak.md#protecting-a-voter-attribute-as-secret):
 annotation `sequent.secret=true`, view and edit permissions for administrators only.
 
-The link stays off if the attribute is not a secret, if voters can view it, if the realm declares
-the generated attributes below, or if the realm's unmanaged attributes policy is `ENABLED`. Keycloak
+The link stays off if the attribute is not a secret, if voters can view or edit it, if the realm
+declares the generated attributes below, or if the realm's unmanaged attributes policy is `ENABLED`. Keycloak
 then logs a warning and the link answers `404`. Importing into such a realm or sending the link
-fails with an error when the PIN is not a declared secret.
+fails with an error, so no message carries a dead link.
+
+Leave the unmanaged attributes policy unset. Windmill cannot read a realm that sets it to any value,
+so with `ADMIN_VIEW` or `ADMIN_EDIT` too the link answers, but every import and send fails with an
+`unknown variant` error.
 
 ### 2. Set the realm attributes
 
@@ -55,10 +67,13 @@ kcadm.sh update realms/<event-realm> \
 | `pin-link-token-hash-attribute` | `pin-link-token-hash` | Generated attribute with the link's lookup hash. Do not declare it in the User Profile. |
 | `pin-link-attempts-attribute` | `pin-link-attempts` | Generated attribute with the wrong-username count. Do not declare it in the User Profile. |
 | `pin-link-public-base-url` | none | Short host for the links, see [Short links](#short-links). |
+| `pin-link-asset-origins` | none | Other hosts the page may load images and fonts from, see [Style](#style). |
 
-An invalid value turns the link off rather than falling back to a default. Harvest and Windmill read
-realm attributes through a cache of up to 30 seconds, so wait that long after a change before
-importing or sending.
+An invalid value turns the link off rather than falling back to a default, with two exceptions. A
+bad entry in `pin-link-asset-origins` is left out with a warning in Keycloak's log.
+`pin-link-public-base-url` is used as written, so a wrong value mails links that do not work: send
+one to yourself first. Harvest and Windmill read realm attributes through a cache of up to 30
+seconds, so wait that long after a change before importing or sending.
 
 Turn the link on **before** importing voters: see
 [Voters imported before the link was on](#voters-imported-before-the-link-was-on).
@@ -76,7 +91,8 @@ username,email,first_name,last_name,pin
 - The PIN is also the password, because a voter logs in with the PIN the link shows. A file without
   a `password` or `hashed_password` column uses the PIN as the password, and then every row needs one.
 - A row whose `password` differs from its PIN is refused, and so is a row with several PIN values.
-  A `hashed_password` cannot be compared: making it match the PIN is up to whoever made the file.
+  So is a row whose `hashed_password` is not the hash of its PIN, using the row's `password_salt`
+  and `num_of_iterations`.
 - A file with a `password` column may leave the PIN of a row blank. That voter has no link.
 - The link's token is never imported. Columns named `pin_link_token`, `pin_link_url` or after a
   generated attribute are refused.
@@ -117,7 +133,8 @@ does not show it again.
 ### Text and Languages
 
 Text comes from the message keys below, in the language the login pages would use: the browser's
-language among the realm's supported locales, or else the realm's default. A realm can override any
+language among the realm's supported locales, or else the realm's default. A realm that forces its
+default language shows that one unless the voter picks another in the menu. A realm can override any
 of them, per language, under **Realm settings** > **Localization**.
 
 | Key | Where |
@@ -157,9 +174,25 @@ loginCustomCss = #pin-link-value output '{' color: #0f054c; font-size: 2.5rem; '
   after it, so overriding a theme rule takes a more specific selector or `!important`.
 - A language with no `loginCustomCss` of its own uses the one in the realm's default language.
 
-The page's Content-Security-Policy allows no other hosts, so this page does not load an image, font or
-stylesheet from another host, even one that `loginCustomCss` loads on the login pages. A logo from
-another host does not show here. Serve it from the Keycloak theme or embed it as a `data:` image.
+The page's Content-Security-Policy allows no other hosts by default, so an image or font that
+`loginCustomCss` loads from another host does not show here. To show a logo, either serve it from
+the Keycloak theme, embed it as a `data:` image, or list its host in the realm attribute
+`pin-link-asset-origins`:
+
+```bash
+kcadm.sh update realms/<event-realm> \
+  -s 'attributes."pin-link-asset-origins"=https://assets.example.org'
+```
+
+- List `https://` origins, separated by spaces or commas, with no path and no wildcard. A bad entry
+  is left out with a warning in Keycloak's log, and the link keeps working.
+- If the image redirects to another host, list that host too: the policy applies to each step.
+- They apply to images and fonts only. A stylesheet or a script from another host cannot be allowed,
+  because either could read the PIN on the page. Put the realm's CSS in `loginCustomCss` instead.
+- The hosts listed see the voter's IP address when the page loads, including on the page with the
+  PIN. They do not see the link: for an image that CSS loads, Chromium sends Keycloak's origin as
+  the referrer despite the page's `no-referrer`, but never the path with the token. An image or a
+  font cannot read the page.
 
 ## Short Links
 
@@ -175,9 +208,6 @@ is for. For nginx, with `<event-realm>` and the upstream filled in:
 server {
     listen 443 ssl;
     server_name pin.example.org;
-
-    # The token is in the path. Do not log requests here, or log them without the path.
-    access_log off;
 
     location ~ "^/(?<token>[0-9A-Za-z-]{1,40})$" {
         proxy_pass http://keycloak/realms/<event-realm>/pin-link/$token$is_args$args;
@@ -198,10 +228,13 @@ server {
 }
 ```
 
+If Keycloak is served under a relative path such as `/auth`, add it to both `proxy_pass` targets.
+
 The direct Keycloak path keeps working behind this rule, and its requests also carry the token in
-the path. Exclude `/realms/*/pin-link/` from the access logs of every proxy, load balancer and web
-application firewall in front of Keycloak. A token in a log is not enough to obtain a PIN without
-the username, but it is a credential and should be treated as one.
+the path, so the access logs of the proxies, load balancers and web application firewalls in front
+of Keycloak can hold it. A token in a log is not enough to obtain a PIN without the username, and it
+stops working once the voter has used it. Until then, anyone who can read those logs and knows the
+username could use the link, so limit who can read them.
 
 ## Changing a PIN or a Password
 
@@ -216,6 +249,16 @@ the username, but it is a credential and should be treated as one.
   link yet, it still shows the original PIN, which no longer logs in.
 - **Creating a voter** with a PIN in the voter editor arms the link and sets the password the same
   way as a new PIN.
+- **An edit that is refused** leaves the link alone, whether Keycloak refuses it or, in an election
+  event linked to an external voter system, the task that applies the edit.
+- **An edit that fails after Keycloak accepted it** stays in place. The error, from the request or
+  from the task that applies the edit, names each of these that failed: the password's entry in the
+  electoral log, the link update, and the discarding of a disabled voter's ballots. When it says the
+  link was not updated, repeat the edit. A failed entry in the electoral log does not stop the link
+  from changing or those ballots from being discarded.
+- **A task that succeeds** does not show that an external voter system took the release. What that
+  system answers, and the electoral-log entry of the outcome, are only logged. Reconciling them is a
+  separate manual process.
 
 ### Voters imported before the link was on
 
@@ -247,7 +290,8 @@ those voters to arm their links.
   imported, and they are left out of exports and templates.
 - **The PIN is in the `POST` response only**, with `Cache-Control: no-store`,
   `Referrer-Policy: no-referrer` and a strict `Content-Security-Policy`. The page loads nothing from
-  other origins.
+  other origins, except the images and fonts a realm allows in `pin-link-asset-origins`. No attribute
+  allows a script or a stylesheet from another host, because either could read the PIN.
 
 ## Auditing
 
@@ -261,6 +305,7 @@ records nothing. Neither carries the PIN or the token.
 Each reveal is also recorded in the election event's electoral log as
 `VOTER_SECRET_ATTRIBUTE: PIN_LINK_REVEAL`, naming the voter and the attribute. The broker must
 confirm this entry before the link is spent: when it cannot be recorded, the voter is refused and
-the link stays alive.
+the link stays alive. With a broker that has gone away or stopped answering, that refusal can take
+up to about 15 seconds, and reveals on the same Keycloak replica wait their turn.
 
 See also the [Secret Voter Attribute Boundary](../../05-reference/03-software-architecture/backend-components.md#secret-voter-attribute-boundary).

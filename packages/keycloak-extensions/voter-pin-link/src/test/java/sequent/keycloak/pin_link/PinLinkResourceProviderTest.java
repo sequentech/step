@@ -29,6 +29,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -236,6 +237,17 @@ class PinLinkResourceProviderTest {
     assertThat(provider.retrieve(token, USERNAME).getStatus()).isEqualTo(404);
   }
 
+  /** Keycloak lets a role view what it can edit, whatever the attribute's view permission says. */
+  @Test
+  void failsClosedWhenVotersCanEditThePin() {
+    UPAttribute pin = new UPAttribute("pin");
+    pin.setAnnotations(Map.of("sequent.secret", "true"));
+    pin.setPermissions(new UPAttributePermissions(Set.of("admin"), Set.of("admin", "user")));
+    profile.addOrReplaceAttribute(pin);
+    assertThat(provider.view(token).getStatus()).isEqualTo(404);
+    assertThat(provider.retrieve(token, USERNAME).getStatus()).isEqualTo(404);
+  }
+
   @Test
   void failsClosedWhenTheGeneratedAttributesAreDeclaredInTheProfile() {
     profile.addOrReplaceAttribute(new UPAttribute(HASH_NAME));
@@ -375,6 +387,70 @@ class PinLinkResourceProviderTest {
     assertStrictHeaders(provider.view(token));
   }
 
+  /** A realm's CSS may load a logo from its web site; nothing else in the policy moves for it. */
+  @Test
+  void aRealmCanAllowImagesAndFontsFromOtherHosts() throws Exception {
+    realmAttributes.put(
+        "pin-link-asset-origins", "https://assets.example.org, https://cdn.example.org:8443/");
+    Response form = provider.view(token);
+    Response reveal = provider.retrieve(token, USERNAME);
+    for (Response response : List.of(form, reveal)) {
+      Map<String, String> policy = directives(response);
+      assertThat(policy.get("img-src"))
+          .endsWith(" data: https://assets.example.org https://cdn.example.org:8443");
+      assertThat(policy.get("font-src"))
+          .endsWith(" https://assets.example.org https://cdn.example.org:8443");
+      for (String directive :
+          List.of(
+              "default-src",
+              "script-src",
+              "style-src",
+              "form-action",
+              "base-uri",
+              "frame-ancestors")) {
+        assertThat(policy.get(directive))
+            .as(directive)
+            .doesNotContain("assets.example.org", "cdn.example.org");
+      }
+    }
+    assertThat(body(reveal)).contains(PIN);
+  }
+
+  @Test
+  void onlyHttpsOriginsCanBeAllowed() {
+    String strict = withoutNonce(provider.view(token));
+    for (String value :
+        List.of(
+            "*",
+            "https:",
+            "'self'",
+            "'unsafe-inline'",
+            "data:",
+            "http://assets.example.org",
+            "https://*.example.org",
+            "https://assets.example.org/logo.png",
+            "https://user@assets.example.org",
+            "https://assets.example.org; script-src *",
+            "https://assets.example.org;script-src",
+            "javascript:alert(1)")) {
+      realmAttributes.put("pin-link-asset-origins", value);
+      Response response = provider.view(token);
+      assertThat(response.getStatus()).as(value).isEqualTo(200);
+      assertThat(withoutNonce(response)).as(value).isEqualTo(strict);
+    }
+  }
+
+  /** A typo blocks a logo: it does not take the link away from the voters who were mailed it. */
+  @Test
+  void aBadEntryLeavesTheRestAndTheLink() throws Exception {
+    realmAttributes.put(
+        "pin-link-asset-origins", "* https://assets.example.org\r\nX-Injected: yes");
+    Response response = provider.view(token);
+    assertThat(directives(response).get("img-src")).endsWith(" data: https://assets.example.org");
+    assertThat(withoutNonce(response)).doesNotContain("X-Injected", "yes", "*", "\r", "\n");
+    assertThat(body(provider.retrieve(token, USERNAME))).contains(PIN);
+  }
+
   /** The theme's own stylesheet is inline, written with or without attributes. */
   @Test
   void everyInlineStyleRunsUnderTheNonce() {
@@ -440,6 +516,24 @@ class PinLinkResourceProviderTest {
     verify(session, never()).setAttribute(eq(LocaleSelectorProvider.USER_REQUEST_LOCALE), any());
   }
 
+  /** The login pages force this language with a script, which this page's policy blocks. */
+  @Test
+  void aRealmThatForcesItsDefaultLanguageGetsItWithoutAPick() {
+    when(realm.getAttribute("language_detection_policy")).thenReturn("force-default");
+    when(realm.getDefaultLocale()).thenReturn("fr");
+    provider.view(token);
+    verify(session).setAttribute(LocaleSelectorProvider.USER_REQUEST_LOCALE, "fr");
+  }
+
+  @Test
+  void aPickWinsOverAForcedDefaultLanguage() {
+    when(realm.getAttribute("language_detection_policy")).thenReturn("force-default");
+    when(realm.getDefaultLocale()).thenReturn("fr");
+    queryParameters.putSingle(LocaleSelectorProvider.KC_LOCALE_PARAM, "es");
+    provider.view(token);
+    verify(session).setAttribute(LocaleSelectorProvider.USER_REQUEST_LOCALE, "es");
+  }
+
   @Test
   void pickingALanguageDoesNotSpendTheLink() throws Exception {
     queryParameters.putSingle(LocaleSelectorProvider.KC_LOCALE_PARAM, "es");
@@ -459,6 +553,32 @@ class PinLinkResourceProviderTest {
     when(protector.isTemporarilyDisabled(any(), any(), any())).thenReturn(true);
     assertThat(String.valueOf(provider.retrieve(token, USERNAME).getEntity())).doesNotContain(PIN);
     assertThat(values(HASH_NAME)).hasSize(1);
+  }
+
+  /**
+   * A deployment mistake and not the voter's: it has to stand out in the log, without the value,
+   * and it can't cost the voter the link.
+   */
+  @Test
+  void aMissingMasterSecretIsAnErrorInTheLogAndKeepsTheLink() throws Exception {
+    for (String secret : Arrays.asList(null, "", "not-the-right-format")) {
+      logs.clear();
+      PinLinkResourceProvider unconfigured =
+          new PinLinkResourceProvider(
+              session,
+              () -> publisher,
+              () -> secret,
+              entityManager -> new PinLinkStore("user_attribute", "user_entity"));
+      assertThat(body(unconfigured.retrieve(token, USERNAME))).doesNotContain(PIN);
+      assertThat(values(HASH_NAME)).hasSize(1);
+      List<String> errors =
+          logs.stream()
+              .filter(record -> record.getLevel().intValue() >= Level.SEVERE.intValue())
+              .map(LogRecord::getMessage)
+              .toList();
+      assertThat(errors).as(secret).hasSize(1);
+      assertThat(errors.get(0)).contains("MASTER_SECRET").doesNotContain("not-the-right-format");
+    }
   }
 
   /** The logs follow a link by voter id and never hold the PIN, the token or its lookup hash. */
@@ -486,6 +606,19 @@ class PinLinkResourceProviderTest {
             "before[X]after", "[X]", "a<b>&\"'".getBytes(StandardCharsets.UTF_8));
     assertThat(new String(page, StandardCharsets.UTF_8))
         .isEqualTo("beforea&lt;b&gt;&amp;&#34;&#39;after");
+  }
+
+  private static Map<String, String> directives(Response response) {
+    Map<String, String> policy = new HashMap<>();
+    for (String directive : response.getHeaderString("Content-Security-Policy").split("; ")) {
+      String[] parts = directive.split(" ", 2);
+      policy.put(parts[0], parts[1]);
+    }
+    return policy;
+  }
+
+  private static String withoutNonce(Response response) {
+    return response.getHeaderString("Content-Security-Policy").replaceAll("nonce-[^']+", "nonce");
   }
 
   private void assertStrictHeaders(Response response) {

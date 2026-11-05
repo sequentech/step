@@ -19,6 +19,8 @@ use crate::services::electoral_log::{
 };
 use crate::services::pg_lock::PgLock;
 use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::services::voter_pin_link::{rearm_voter, PinLinkChange};
+use crate::services::voter_secret_attributes::get_secret_attribute_config;
 use crate::types::error::{Error, Result};
 use anyhow::Context;
 use celery::error::TaskError;
@@ -55,6 +57,10 @@ pub struct EditUserTaskBody {
     pub temporary: Option<bool>,
     #[serde(default)]
     pub password_change_initiator: Option<ElectoralLogAdminContext>,
+    /// Decided by the route, the only one that sees the edit's secret
+    /// attributes in plain text.
+    #[serde(default)]
+    pub pin_link_change: Option<PinLinkChange>,
 }
 
 /// Response of the `/edit-user` route. For Datafix election events the edit is
@@ -192,6 +198,28 @@ fn validate_datafix_immutable_fields(
         }
     }
     Ok(())
+}
+
+/// Makes the voter's PIN link follow an edit that Keycloak accepted, so that a
+/// refused edit leaves the link alone. Until this runs an old link can't show a
+/// new PIN, because a reveal checks the link against the PIN stored.
+#[instrument(skip_all, err)]
+async fn sync_pin_link(body: &EditUserTaskBody) -> anyhow::Result<()> {
+    let Some(change) = body.pin_link_change else {
+        return Ok(());
+    };
+    let config = get_secret_attribute_config(&body.tenant_id, &body.election_event_id).await?;
+    let Some(pin_link) = config.pin_link() else {
+        return Ok(());
+    };
+    rearm_voter(
+        pin_link,
+        &body.tenant_id,
+        &body.election_event_id,
+        &body.user_id,
+        change.pin(body.password.as_deref())?,
+    )
+    .await
 }
 
 /// Loads the election event the edit targets, needed for its Datafix
@@ -410,7 +438,8 @@ async fn send_set_not_voted(
 
 /// Runs the voter edit while the per-voter lock is held: validates the edit,
 /// plans the release and, on a disable, edits Keycloak before discarding the
-/// voter's ballots and sending `SetNotVoted` when required.
+/// voter's ballots and sending `SetNotVoted` when required. A failed audit or
+/// link update fails the task but does not stop that release.
 #[instrument(skip(ctx, election_event), err)]
 async fn run_datafix_voter_edit(
     ctx: &DatafixEditCtx<'_>,
@@ -459,8 +488,8 @@ async fn run_datafix_voter_edit(
 
     edit_keycloak_voter(ctx, client).await?;
 
-    if let Some(admin) = password_change_initiator {
-        post_voter_password_change(
+    let password_audit = match password_change_initiator {
+        Some(admin) => post_voter_password_change(
             &body.tenant_id,
             &body.election_event_id,
             &body.user_id,
@@ -471,13 +500,30 @@ async fn run_datafix_voter_edit(
         .await
         .map_err(|err| {
             format!("Voter password changed, but its electoral-log entry failed: {err:#}")
-        })?;
-    }
+        }),
+        None => Ok(()),
+    };
+    let link_sync = sync_pin_link(body)
+        .await
+        .map_err(|err| format!("Voter edited, but its PIN link was not updated: {err:#}"));
+    let release = release_voter(ctx, election_event, &plan, &current_user).await;
+    every_failure([password_audit, link_sync, release])
+}
 
+/// What a voter's edit owes once Keycloak accepted it: discards the ballots of
+/// a voter it disabled and sends `SetNotVoted` when required.
+#[instrument(skip_all, err)]
+async fn release_voter(
+    ctx: &DatafixEditCtx<'_>,
+    election_event: ElectionEvent,
+    plan: &VoterReleasePlan,
+    current_user: &User,
+) -> std::result::Result<(), String> {
     if !plan.release_attempt {
         return Ok(());
     }
 
+    let body = ctx.body;
     ctx.lock
         .update_expiry_for(DATAFIX_VOTER_LOCK_SECS)
         .await
@@ -507,6 +553,24 @@ async fn run_datafix_voter_edit(
         .or_else(|| current_user.get_area_id());
     send_set_not_voted(ctx, election_event, &username, area_id.as_deref()).await;
     Ok(())
+}
+
+/// Joins the failures of the steps that follow an accepted edit. That edit
+/// stands, so every step runs whatever the others did, and the error names each
+/// one that returned a failure.
+#[instrument(skip_all)]
+pub fn every_failure(
+    outcomes: impl IntoIterator<Item = std::result::Result<(), String>>,
+) -> std::result::Result<(), String> {
+    let failures: Vec<String> = outcomes
+        .into_iter()
+        .filter_map(std::result::Result::err)
+        .collect();
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(failures.join("; "))
+    }
 }
 
 /// Applies an admin edit to a Datafix voter under the per-voter lock. On a
@@ -552,6 +616,18 @@ async fn apply_datafix_voter_edit(body: &EditUserTaskBody) -> std::result::Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The task's error is all the operator gets, so one failure can't hide
+    /// another.
+    #[test]
+    fn every_failure_after_an_accepted_edit_is_reported() {
+        assert_eq!(every_failure([Ok(()), Ok(())]), Ok(()));
+        assert_eq!(every_failure([]), Ok(()));
+        assert_eq!(
+            every_failure([Err("audit".to_string()), Ok(()), Err("release".to_string())]),
+            Err("audit; release".to_string())
+        );
+    }
 
     #[test]
     fn disable_requires_an_enabled_to_disabled_transition() {
@@ -705,7 +781,18 @@ mod tests {
             password: None,
             temporary: None,
             password_change_initiator: None,
+            pin_link_change: None,
         }
+    }
+
+    #[test]
+    fn a_message_from_before_the_pin_link_changes_no_link() {
+        let body = serde_json::to_value(edit_body(None, HashMap::new())).unwrap();
+        let mut body = body.as_object().unwrap().clone();
+        assert!(body.remove("pin_link_change").is_some());
+        let decoded: EditUserTaskBody =
+            serde_json::from_value(serde_json::Value::Object(body)).unwrap();
+        assert_eq!(decoded.pin_link_change, None);
     }
 
     #[test]
