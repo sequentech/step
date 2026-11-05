@@ -98,6 +98,29 @@ pub(crate) fn hashes_count(input: &THashes) -> usize {
     input.iter().filter(|t| *t != &NULL_HASH).count()
 }
 
+/// Verifies that a SharesHashes array lists the shares of exactly
+/// the first num_t trustees.
+///
+/// The first num_t hashes must be set and the rest must be NULL_HASH.
+pub(crate) fn verify_shares_hashes(
+    shares_hs: &SharesHashes,
+    num_t: &TrusteeCount,
+) -> Result<(), ProtocolError> {
+    let complete = shares_hs
+        .0
+        .iter()
+        .enumerate()
+        .all(|(i, h)| (*h != NULL_HASH) == (i < *num_t));
+
+    if complete {
+        Ok(())
+    } else {
+        Err(ProtocolError::VerificationError(format!(
+            "Shares hashes do not list the shares of exactly {num_t} trustees"
+        )))
+    }
+}
+
 /// Returns the Phases that make up the protocol's main steps.
 // A Vec<Phase> loosely corresponds to a state machine.
 ///
