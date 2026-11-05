@@ -21,6 +21,7 @@ All publications and their respective changes can be viewed in the table using t
 ### Actions
 
 - **Start Election**: Begin the Election.
+  Each election needs a keys ceremony with a public key and a publication generated after that ceremony; otherwise it can only start in [demo mode](../../../07-developers/05-voting-portal/demo_mode.md).
 - **Pause**: Temporarily halt the Election.
 - **Stop Election**: End the Election.
 - **Publish Changes**: Apply any changes to this Election.  

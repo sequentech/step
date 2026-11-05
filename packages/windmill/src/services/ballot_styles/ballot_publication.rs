@@ -11,7 +11,9 @@ use crate::postgres::election::{get_election_by_id, get_elections_ids, update_el
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::election_event_status::{get_election_event_status, get_election_status};
+use crate::services::election_event_status::{
+    get_election_event_status, get_election_status, unkeyed_voting_policy,
+};
 use crate::services::electoral_log::*;
 use crate::services::tasks_execution::{
     post as post_task_execution, update_fail as update_task_execution_fail,
@@ -21,14 +23,14 @@ use crate::types::tasks::ETasksExecution;
 use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionEventStatus, ElectionStatus};
+use sequent_core::ballot::{ElectionEventStatus, ElectionStatus, UnkeyedVotingPolicy};
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::hasura::core::{BallotPublication, TasksExecution};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use thiserror::Error;
 use tracing::{event, instrument, Level};
 
@@ -165,23 +167,101 @@ fn election_has_started(status: &ElectionStatus) -> bool {
     .any(|started_at| started_at.is_some())
 }
 
+/// Ids of the elections whose ballot styles in a publication use the demo
+/// public key.
+pub fn demo_key_election_ids(publication: &Value) -> Result<BTreeSet<String>> {
+    let ballot_styles = publication
+        .as_array()
+        .context("Ballot publication must be an array of ballot styles")?;
+    let mut election_ids = BTreeSet::new();
+
+    for ballot_style in ballot_styles {
+        let is_demo = ballot_style
+            .pointer("/public_key/is_demo")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        if is_demo {
+            let election_id = ballot_style
+                .get("election_id")
+                .and_then(Value::as_str)
+                .context("Ballot style must contain a string election_id")?;
+            election_ids.insert(election_id.to_owned());
+        }
+    }
+
+    Ok(election_ids)
+}
+
+/// Refuses switching an election whose voting already started to the demo
+/// public key. `election_statuses` holds at least the elections that use it.
+fn validate_demo_key_elections(
+    publication: &Value,
+    election_statuses: &HashMap<String, ElectionStatus>,
+) -> Result<()> {
+    let reasons = demo_key_election_ids(publication)?
+        .into_iter()
+        .filter(|election_id| {
+            election_statuses
+                .get(election_id)
+                .is_some_and(election_has_started)
+        })
+        .map(|election_id| {
+            format!(
+                "Election {election_id} has started voting and this publication uses the demo public key for it. Generate a new publication once its keys ceremony has a public key."
+            )
+        })
+        .collect::<Vec<_>>();
+
+    if reasons.is_empty() {
+        Ok(())
+    } else {
+        Err(BallotPublicationValidationError::new(reasons).into())
+    }
+}
+
+async fn validate_published_election_keys(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    current_publication: &Value,
+) -> Result<()> {
+    let demo_key_elections = demo_key_election_ids(current_publication)?;
+    if demo_key_elections.is_empty() {
+        return Ok(());
+    }
+    let election_event =
+        get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+    if unkeyed_voting_policy(&election_event)? == UnkeyedVotingPolicy::ALLOW_DEMO {
+        return Ok(());
+    }
+
+    let mut election_statuses = HashMap::new();
+    for election_id in demo_key_elections {
+        let election = get_election_by_id(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &election_id,
+        )
+        .await?
+        .with_context(|| format!("Can't find election {election_id}"))?;
+        election_statuses.insert(
+            election_id,
+            get_election_status(election.status).unwrap_or_default(),
+        );
+    }
+
+    validate_demo_key_elections(current_publication, &election_statuses)
+}
+
 async fn validate_published_acclamation_status(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     ballot_publication: &BallotPublication,
+    current_publication: &Value,
 ) -> Result<()> {
-    let current = collect_acclamation_states(
-        &get_publication_json(
-            hasura_transaction,
-            tenant_id.to_owned(),
-            election_event_id.to_owned(),
-            ballot_publication.id.clone(),
-            None,
-            None,
-        )
-        .await?,
-    )?;
+    let current = collect_acclamation_states(current_publication)?;
     let mut previous = BTreeMap::new();
     let election_ids = ballot_publication
         .election_ids
@@ -352,11 +432,28 @@ pub async fn update_publish_ballot(
         return Ok(());
     }
 
+    let current_publication = get_publication_json(
+        hasura_transaction,
+        tenant_id.clone(),
+        election_event_id.clone(),
+        ballot_publication_id.clone(),
+        None,
+        None,
+    )
+    .await?;
+    validate_published_election_keys(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &current_publication,
+    )
+    .await?;
     validate_published_acclamation_status(
         hasura_transaction,
         &tenant_id,
         &election_event_id,
         &ballot_publication,
+        &current_publication,
     )
     .await?;
 
@@ -646,6 +743,67 @@ mod tests {
         assert!(validation_error.reasons[0].contains("false to true"));
         assert!(validation_error.reasons[1].contains("Council"));
         assert!(validation_error.reasons[1].contains("true to false"));
+    }
+
+    fn ballot_style(election_id: &str, is_demo: bool) -> Value {
+        json!({
+            "election_id": election_id,
+            "public_key": {"public_key": "key", "is_demo": is_demo},
+            "contests": []
+        })
+    }
+
+    fn started() -> ElectionStatus {
+        let mut status = ElectionStatus::default();
+        status.voting_period_dates.first_started_at = Some("2026-08-28T11:00:00Z".parse().unwrap());
+        status
+    }
+
+    #[test]
+    fn lists_the_elections_whose_ballot_styles_use_the_demo_key() {
+        let publication = json!([
+            ballot_style("election-b", true),
+            ballot_style("election-a", false),
+            ballot_style("election-b", true),
+            ballot_style("election-c", true)
+        ]);
+
+        let ids = demo_key_election_ids(&publication).unwrap();
+
+        assert_eq!(
+            ids.into_iter().collect::<Vec<_>>(),
+            vec!["election-b".to_string(), "election-c".to_string()]
+        );
+    }
+
+    #[test]
+    fn republishing_a_started_election_with_the_demo_key_is_refused() {
+        let publication = json!([ballot_style("election-1", true)]);
+        let statuses = HashMap::from([("election-1".to_string(), started())]);
+
+        let error = validate_demo_key_elections(&publication, &statuses).unwrap_err();
+        let validation_error = error
+            .downcast_ref::<BallotPublicationValidationError>()
+            .unwrap();
+
+        assert_eq!(validation_error.reasons.len(), 1);
+        assert!(validation_error.reasons[0].contains("election-1"));
+    }
+
+    #[test]
+    fn publishing_the_demo_key_before_voting_starts_is_allowed() {
+        let publication = json!([ballot_style("election-1", true)]);
+        let statuses = HashMap::from([("election-1".to_string(), ElectionStatus::default())]);
+
+        assert!(validate_demo_key_elections(&publication, &statuses).is_ok());
+    }
+
+    #[test]
+    fn republishing_a_started_election_with_its_election_key_is_allowed() {
+        let publication = json!([ballot_style("election-1", false)]);
+        let statuses = HashMap::from([("election-1".to_string(), started())]);
+
+        assert!(validate_demo_key_elections(&publication, &statuses).is_ok());
     }
 
     #[test]
