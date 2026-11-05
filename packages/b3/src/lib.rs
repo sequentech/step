@@ -7,6 +7,8 @@ pub mod messages;
 #[cfg(feature = "client")]
 pub mod client;
 pub mod grpc;
+#[cfg(feature = "client")]
+pub mod postgres;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 

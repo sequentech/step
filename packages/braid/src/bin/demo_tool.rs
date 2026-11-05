@@ -215,9 +215,7 @@ async fn main() -> Result<()> {
             let configuration = Configuration::<RistrettoCtx>::strand_deserialize(&cfg_bytes)
                 .map_err(|e| anyhow!("Could not deserialize configuration {}", e))?;
 
-            let c =
-                PgsqlConnectionParams::new(&args.host, args.port, &args.username, &args.password);
-            info!("Using connection string '{}'", c.connection_string());
+            let c = get_connection(&args.host, args.port, &args.username, &args.password)?;
             // pgsql::drop_database(&c, PG_DATABASE).await?;
 
             // swallow database already exists errors
@@ -514,16 +512,22 @@ fn get_pm<C: Ctx>(ctxp: PhantomData<C>) -> Result<ProtocolManager<C>> {
 }
 
 /// Drops the entire database.
-#[instrument()]
+#[instrument(skip(password))]
 async fn delete_boards(host: &str, port: u32, username: &str, password: &str) -> Result<()> {
-    let c = get_connection(host, port, username, password);
+    let c = get_connection(host, port, username, password)?;
     pgsql::drop_database(&c, PG_DATABASE).await?;
 
     Ok(())
 }
 
-fn get_connection(host: &str, port: u32, username: &str, password: &str) -> PgsqlConnectionParams {
-    PgsqlConnectionParams::new(host, port, username, password)
+fn get_connection(
+    host: &str,
+    port: u32,
+    username: &str,
+    password: &str,
+) -> Result<PgsqlConnectionParams> {
+    Ok(PgsqlConnectionParams::new(host, port, username, password)
+        .with_tls(b3::postgres::PgTlsConfig::from_env()?))
 }
 async fn get_client(
     host: &str,
@@ -531,8 +535,7 @@ async fn get_client(
     username: &str,
     password: &str,
 ) -> Result<PgsqlB3Client> {
-    let c = get_connection(host, port, username, password);
+    let c = get_connection(host, port, username, password)?;
     let c = c.with_database(PG_DATABASE);
-    info!("Using connection string '{}'", c.connection_string());
     PgsqlB3Client::new(&c).await
 }
