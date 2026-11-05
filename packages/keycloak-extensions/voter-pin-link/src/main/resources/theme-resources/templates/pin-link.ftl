@@ -7,18 +7,27 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "template.ftl" as layout>
 <#assign revealing = (pinLinkMode!'form') == 'reveal'>
 <@layout.registrationLayout displayMessage=!revealing; section>
-    <#if section = "header">
+    <#if section = "head">
+        <#-- The theme puts this before the realm's loginCustomCss, which so wins over these rules. -->
+        <style id="pin-link-style">
+            <#if revealing>
+                <#-- Leaving this page would lose the only copy of the PIN. -->
+                #kc-locale { display: none; }
+                #pin-link-value { text-align: center; }
+                #pin-link-value output { font-size: clamp(1.5rem, 8vw, 2rem); font-weight: 700; letter-spacing: .1em; user-select: all; }
+                @media print { #pin-link-print { display: none; } }
+            <#else>
+                <#-- The CSP blocks the theme's menu script: keyboards and touch screens open it with this. -->
+                #kc-locale-dropdown:focus-within ul { display: block; }
+            </#if>
+        </style>
+    <#elseif section = "header">
         ${msg(revealing?then("pinLinkRevealTitle", "pinLinkTitle"))}
     <#elseif section = "form">
         <div id="kc-form">
           <div id="kc-form-wrapper">
             <#if revealing>
                 <p>${msg("pinLinkRevealIntro")}</p>
-                <style id="pin-link-style">
-                    #pin-link-value { text-align: center; }
-                    #pin-link-value output { font-size: clamp(1.5rem, 8vw, 2rem); font-weight: 700; letter-spacing: .1em; user-select: all; }
-                    @media print { #pin-link-print { display: none; } }
-                </style>
                 <p id="pin-link-value" class="${properties.kcFormGroupClass!}"><output>${pinLinkValue}</output></p>
                 <p><strong>${msg("pinLinkRevealWarning")}</strong></p>
                 <div class="${properties.kcFormGroupClass!}">
