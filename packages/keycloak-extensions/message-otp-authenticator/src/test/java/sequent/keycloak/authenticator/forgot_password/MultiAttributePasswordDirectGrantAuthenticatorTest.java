@@ -508,7 +508,8 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
                 Utils.MAX_CANDIDATES,
                 Utils.TUPLE_MAX_FAILURES,
                 Utils.TUPLE_FAILURE_WINDOW_SECONDS,
-                Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS)));
+                Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS,
+                Utils.SHARED_CANDIDATE_FAILURE_POLICY)));
   }
 
   @Test
