@@ -16,6 +16,7 @@ use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+use crate::postgres::skip_unparseable_rows;
 use crate::services::reports::template_renderer::EReportEncryption;
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
@@ -94,7 +95,9 @@ impl TryFrom<Row> for ReportWrapper {
             report_type: item.get("report_type"),
             template_alias: item.get("template_alias"),
             cron_config: cron_config,
-            created_at: item.get("created_at"),
+            created_at: item
+                .try_get("created_at")
+                .map_err(|err| anyhow!("Error deserializing created_at: {err}"))?,
             encryption_policy: EReportEncryption::from_str(
                 item.get::<_, String>("encryption_policy").as_str(),
             )
@@ -119,7 +122,7 @@ pub async fn get_all_active_reports(hasura_transaction: &Transaction<'_>) -> Res
             FROM
                 "sequent_backend".report
             WHERE
-                (cron_config->>'is_active')::boolean = true
+                cron_config @> '{"is_active": true}'::jsonb
             "#,
         )
         .await
@@ -130,13 +133,15 @@ pub async fn get_all_active_reports(hasura_transaction: &Transaction<'_>) -> Res
         .await
         .map_err(|err| anyhow!("Error running get_all_active_reports query: {err}"))?;
 
-    let reports = rows
-        .into_iter()
-        .map(|row| -> Result<Report> {
-            row.try_into().map(|res: ReportWrapper| -> Report { res.0 })
-        })
-        .collect::<Result<Vec<Report>>>()
-        .with_context(|| "Error converting rows into Report")?;
+    let reports = skip_unparseable_rows(rows.into_iter().map(|row| {
+        let id = row
+            .try_get::<_, Uuid>("id")
+            .map(|id| id.to_string())
+            .unwrap_or_default();
+        ReportWrapper::try_from(row)
+            .map(|res| res.0)
+            .with_context(|| format!("Skipping report id={id}"))
+    }));
     Ok(reports)
 }
 
