@@ -4,12 +4,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use colored::*;
 use serde::Serialize;
 use strum::Display;
-use tracing::info;
+use tracing::{info, warn};
 
+use b3::grpc::GrpcB3Message;
 use b3::messages::artifact::Configuration;
 use b3::messages::message::Message;
 use b3::messages::message::VerifiedMessage;
@@ -17,6 +18,7 @@ use b3::messages::newtypes::*;
 use b3::messages::statement::StatementType;
 
 use crate::protocol::board::grpc_m::GrpcB3;
+use crate::protocol::board::local2::LocalBoard;
 use crate::protocol::board::Board;
 use crate::protocol::predicate::Predicate;
 use crate::protocol::trustee2::Trustee;
@@ -150,26 +152,66 @@ impl<C: Ctx> Verifier<C> {
         );
 
         let messages = self.board.get_messages(&self.board_name, -1).await?;
-        let messages: Vec<(Message, i64)> = messages
-            .iter()
-            .map(|m| (Message::strand_deserialize(&m.message).unwrap(), m.id))
-            .collect();
-
-        verify_messages(
+        let (messages, undecodable) = deserialize_messages(&messages);
+        let vr = verification_result(
             &mut self.trustee,
             &self.board_name,
             messages,
+            undecodable,
             self.expected_batches.as_deref(),
-        )
+        )?;
+
+        // Summary
+
+        info!("{}", vr);
+
+        vr.ensure_complete()
     }
 }
 
+/// Deserializes board messages, skipping (and counting) those that cannot be
+/// read so that one bad message does not stop the verification.
+fn deserialize_messages(messages: &[GrpcB3Message]) -> (Vec<(Message, i64)>, usize) {
+    let mut undecodable = 0;
+    let messages = messages
+        .iter()
+        .filter_map(|m| match Message::strand_deserialize(&m.message) {
+            Ok(message) => Some((message, m.id)),
+            Err(e) => {
+                warn!("Message {} could not be deserialized: {}", m.id, e);
+                undecodable += 1;
+                None
+            }
+        })
+        .collect();
+    (messages, undecodable)
+}
+
+#[cfg(test)]
 fn verify_messages<C: Ctx>(
     trustee: &mut Trustee<C>,
     board_name: &str,
     messages: Vec<(Message, i64)>,
     expected_batches: Option<&[BatchNumber]>,
 ) -> Result<()> {
+    let vr = verification_result(trustee, board_name, messages, 0, expected_batches)?;
+
+    info!("{}", vr);
+
+    vr.ensure_complete()
+}
+
+/// Runs every check over the deserialized board messages. `undecodable` is
+/// the number of board messages that could not be deserialized; like
+/// messages whose signature does not verify, they are reported as a failed
+/// signature check instead of aborting the verification.
+fn verification_result<C: Ctx>(
+    trustee: &mut Trustee<C>,
+    board_name: &str,
+    messages: Vec<(Message, i64)>,
+    undecodable: usize,
+    expected_batches: Option<&[BatchNumber]>,
+) -> Result<VerificationResult> {
     let mut vr = VerificationResult::new(board_name);
     vr.add_target(Check::CONFIGURATION_VALID);
     vr.add_target(Check::MESSAGE_SIGNATURES_VALID);
@@ -177,23 +219,12 @@ fn verify_messages<C: Ctx>(
     vr.add_target(Check::PK_VALID);
     vr.add_target(Check::BATCHES_COMPLETE);
 
-    let cfg_message: Vec<&Message> = messages
+    // The first configuration message that verifies is the board's.
+    let (cfg, cfg_message) = messages
         .iter()
-        .filter(|m| m.0.statement.get_kind() == StatementType::Configuration)
-        .map(|m| &m.0)
-        .collect();
-
-    assert_eq!(cfg_message.len(), 1);
-
-    let cfg_bytes = cfg_message
-        .first()
-        .as_ref()
-        .unwrap()
-        .artifact
-        .as_ref()
-        .unwrap();
-    let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
-    let cfg = Configuration::<C>::strand_deserialize(&cfg_bytes)?;
+        .find_map(|m| LocalBoard::<C>::verify_bootstrap(&m.0).ok())
+        .ok_or(anyhow!("No valid configuration message found"))?;
+    let cfg_h = cfg_message.statement.get_cfg_h();
     info!("Verifying configuration [{}]", dbg_hash(&cfg_h));
 
     vr.add_result(
@@ -218,17 +249,32 @@ fn verify_messages<C: Ctx>(
 
     info!("Verifying signatures for {} messages..", messages.len());
 
-    let vmessages: Result<Vec<VerifiedMessage>> =
-        messages.iter().map(|m| m.0.verify(&cfg)).collect();
-    let vmessages = vmessages?;
-    vr.add_result(Check::MESSAGE_SIGNATURES_VALID, true, &vmessages.len());
+    let mut unverified = undecodable;
+    let mut vmessages: Vec<VerifiedMessage> = vec![];
+    for (message, id) in &messages {
+        match message.verify(&cfg) {
+            Ok(verified) => vmessages.push(verified),
+            Err(e) => {
+                warn!("Message {} failed verification: {}", id, e);
+                unverified += 1;
+            }
+        }
+    }
+    vr.add_result(
+        Check::MESSAGE_SIGNATURES_VALID,
+        unverified == 0,
+        &vmessages.len(),
+    );
 
     // Derive per-batch verification targets
 
     let mut predicates = vec![];
     let mut ballot_batches = BTreeSet::new();
     // Skip the configuration message
-    for message in &vmessages[1..] {
+    for message in vmessages
+        .iter()
+        .filter(|m| m.statement.get_kind() != StatementType::Configuration)
+    {
         let predicate =
             Predicate::from_statement::<C>(&message.statement, message.signer_position, &cfg)?;
         if let Predicate::Ballots(_, batch, _, _, _) = predicate {
@@ -281,11 +327,7 @@ fn verify_messages<C: Ctx>(
         )?;
     }
 
-    // Summary
-
-    info!("{}", vr);
-
-    vr.ensure_complete()
+    Ok(vr)
 }
 
 /// Requires a verification target for every batch with ballots and, if given,
@@ -869,5 +911,46 @@ mod tests {
         let (_, _, verified) = crate::verify::datalog::S.run(&partial);
         let batches: BTreeSet<BatchNumber> = verified.iter().map(|v| v.1).collect();
         assert_eq!(batches, BTreeSet::from([1]));
+    }
+}
+
+#[cfg(test)]
+mod board_message_tests {
+    use super::*;
+    use crate::protocol::board::local2::tests::{remote, TestBoard};
+    use strand::backend::ristretto::RistrettoCtx;
+    use strand::signature::StrandSignatureSk;
+
+    #[test]
+    fn verify_messages_reports_messages_that_fail_verification() {
+        let board = TestBoard::new(2);
+        let other = TestBoard::new(2);
+        let mut messages = remote(
+            0,
+            vec![
+                board.bootstrap(),
+                board.unverifiable_as(0),
+                other.bootstrap(),
+            ],
+        );
+        messages.push(GrpcB3Message {
+            id: 3,
+            message: b"not a message".to_vec(),
+            version: b3::get_schema_version(),
+        });
+
+        let mut trustee = Trustee::<RistrettoCtx>::new(
+            "Verifier".to_string(),
+            "board".to_string(),
+            StrandSignatureSk::gen().unwrap(),
+            strand::symm::gen_key(),
+            None,
+            None,
+        );
+        let (decoded, undecodable) = deserialize_messages(&messages);
+        let vr = verification_result(&mut trustee, "board", decoded, undecodable, None).unwrap();
+
+        assert!(vr.targets[&Check::CONFIGURATION_VALID].result);
+        assert!(!vr.targets[&Check::MESSAGE_SIGNATURES_VALID].result);
     }
 }
