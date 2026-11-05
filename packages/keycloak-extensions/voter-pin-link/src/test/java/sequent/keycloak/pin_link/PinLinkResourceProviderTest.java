@@ -359,7 +359,7 @@ class PinLinkResourceProviderTest {
   @Test
   void wrongUsernamesFeedKeycloaksBruteForceProtection() {
     provider.retrieve(token, "someone-else");
-    verify(protector).failedLogin(eq(realm), eq(user), any(), any(), eq("pin-link"));
+    verify(protector).failedLogin(eq(realm), eq(user), any(), any(), eq("password"));
   }
 
   @Test

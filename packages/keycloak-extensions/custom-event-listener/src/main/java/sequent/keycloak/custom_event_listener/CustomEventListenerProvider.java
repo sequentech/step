@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.extern.jbosslog.JBossLog;
+import org.keycloak.events.Details;
 import org.keycloak.events.Event;
 import org.keycloak.events.EventListenerProvider;
 import org.keycloak.events.EventType;
@@ -25,6 +26,8 @@ public class CustomEventListenerProvider implements EventListenerProvider {
 
   private final KeycloakSession session;
   private final RabbitMqEventPublisher rabbitMqEventPublisher;
+
+  private static final String PIN_LINK_STAGE_DETAIL = "pin_link_stage";
 
   CustomEventListenerProvider(
       KeycloakSession session, RabbitMqEventPublisher rabbitMqEventPublisher) {
@@ -120,6 +123,8 @@ public class CustomEventListenerProvider implements EventListenerProvider {
               + "="
               + details.getOrDefault(CA_CERT_ISSUER_CN, "unknown");
       body = event.getError() + " " + certInfo;
+    } else if (details.containsKey(PIN_LINK_STAGE_DETAIL)) {
+      body = pinLinkBody(details);
     } else {
       // Use the event error (or another appropriate field) as body for
       // non-communications events.
@@ -134,6 +139,13 @@ public class CustomEventListenerProvider implements EventListenerProvider {
   @Override
   public void onEvent(AdminEvent event, boolean includeRepresentation) {
     log.info("An admin event was fired, realmId: " + event.getAuthDetails().getRealmId());
+  }
+
+  /** What happened on a voter's PIN link and why; its details never hold the token or the PIN. */
+  static String pinLinkBody(Map<String, String> details) {
+    String reason = details.get(Details.REASON);
+    String stage = "pin_link " + details.get(PIN_LINK_STAGE_DETAIL);
+    return reason == null ? stage : stage + " " + reason;
   }
 
   /**

@@ -6,6 +6,8 @@ package sequent.keycloak.pin_link;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,6 +19,24 @@ class PinLinkConfigTest {
     attributes.put(PinLinkConfig.POLICY, "ONE_TIME_LINK");
     attributes.put(PinLinkConfig.EXPIRES_AT, "2030-01-01T00:00:00Z");
     return attributes;
+  }
+
+  @Test
+  void readsTheExpiryLikeWindmill() throws Exception {
+    JsonNode vectors;
+    try (var stream = PinLinkConfigTest.class.getResourceAsStream("/voter-pin-link-v1.json")) {
+      vectors = new ObjectMapper().readTree(stream).get("expires_at");
+    }
+    for (JsonNode value : vectors.get("valid")) {
+      Map<String, String> attributes = enabled();
+      attributes.put(PinLinkConfig.EXPIRES_AT, value.asText());
+      assertThat(PinLinkConfig.from(attributes)).as(value.asText()).isPresent();
+    }
+    for (JsonNode value : vectors.get("invalid")) {
+      Map<String, String> attributes = enabled();
+      attributes.put(PinLinkConfig.EXPIRES_AT, value.asText());
+      assertThat(PinLinkConfig.from(attributes)).as(value.asText()).isEmpty();
+    }
   }
 
   @Test
