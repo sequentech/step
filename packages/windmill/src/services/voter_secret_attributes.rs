@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::vault::vault::get_master_secret;
+use crate::services::voter_pin_link::{self, PinLinkConfig};
 use anyhow::{anyhow, Context, Result};
 use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
 use once_cell::sync::Lazy;
@@ -113,6 +114,10 @@ pub fn storage_policy(attribute: &UserProfileAttribute) -> VoterAttributeStorage
 pub struct SecretAttributeConfig {
     names: HashSet<String>,
     error: Option<String>,
+    /// `names` plus the PIN link's generated attributes.
+    redacted: HashSet<String>,
+    generated: HashSet<String>,
+    pin_link: Option<PinLinkConfig>,
 }
 
 impl SecretAttributeConfig {
@@ -146,12 +151,50 @@ impl SecretAttributeConfig {
             }
             names.insert(name);
         }
-        Self { names, error }
+        Self {
+            redacted: names.clone(),
+            names,
+            error,
+            generated: HashSet::new(),
+            pin_link: None,
+        }
+    }
+
+    /// Adds what the realm attributes say about the voter PIN link. A PIN that
+    /// isn't a declared secret is a configuration problem, reported like any
+    /// other one to the paths that store or decrypt values.
+    pub fn with_realm_attributes(mut self, attributes: &HashMap<String, String>) -> Self {
+        self.generated = voter_pin_link::generated_names(attributes);
+        self.redacted.extend(self.generated.iter().cloned());
+        self.pin_link = PinLinkConfig::from_realm_attributes(attributes);
+        if let Some(config) = &self.pin_link {
+            if !self.names.contains(&config.pin_attribute) {
+                self.error.get_or_insert_with(|| {
+                    format!(
+                        "The PIN link's attribute `{}` is not configured as encrypted",
+                        config.pin_attribute
+                    )
+                });
+                self.pin_link = None;
+            }
+        }
+        self
+    }
+
+    /// The PIN link's configuration, when the realm has it on.
+    pub fn pin_link(&self) -> Option<&PinLinkConfig> {
+        self.pin_link.as_ref()
+    }
+
+    /// Attributes only the PIN link may read or write; no template, file or
+    /// administrator supplies them.
+    pub fn generated_names(&self) -> &HashSet<String> {
+        &self.generated
     }
 
     /// Every attribute annotated as secret, for redaction and column filtering.
     pub fn redacted_names(&self) -> &HashSet<String> {
-        &self.names
+        &self.redacted
     }
 
     /// The secret attributes, or the first configuration problem found.
@@ -180,13 +223,19 @@ pub async fn get_secret_attribute_config(
             return Ok(config.clone());
         }
     }
-    let attributes = KeycloakAdminClient::new()
+    let client = KeycloakAdminClient::new()
         .await
-        .context("Error connecting to Keycloak")?
+        .context("Error connecting to Keycloak")?;
+    let attributes = client
         .get_user_profile_attributes(&realm)
         .await
         .context("Error reading the Keycloak user profile")?;
-    let config = SecretAttributeConfig::from_profile(&attributes);
+    let realm_attributes = client
+        .get_realm_attributes(&realm)
+        .await
+        .context("Error reading the Keycloak realm attributes")?;
+    let config =
+        SecretAttributeConfig::from_profile(&attributes).with_realm_attributes(&realm_attributes);
     CONFIG_CACHE
         .write()
         .await
@@ -224,7 +273,7 @@ fn derive_key(
     Ok(SymmetricKey::from_slice(&key_bytes).to_owned())
 }
 
-fn encrypt_with_master_secret(
+pub(crate) fn encrypt_with_master_secret(
     master_secret: &SymmetricKey,
     scope: &VoterSecretAttributeScope<'_>,
     value: &str,
@@ -328,6 +377,11 @@ impl VoterSecretAttributeDecryptor {
         Ok(Self {
             master_secret: get_master_secret().await?,
         })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_master_secret(master_secret: SymmetricKey) -> Self {
+        Self { master_secret }
     }
 
     pub fn decrypt_attribute_values(
@@ -495,7 +549,54 @@ fn encrypt_secret_attribute_map_with_key(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sequent_core::types::keycloak::{
+        REALM_ATTR_PIN_LINK_EXPIRES_AT, REALM_ATTR_PIN_LINK_POLICY,
+    };
     use strand::symm::gen_key;
+
+    fn pin_link_realm_attributes() -> HashMap<String, String> {
+        HashMap::from([
+            (
+                REALM_ATTR_PIN_LINK_POLICY.to_string(),
+                "ONE_TIME_LINK".to_string(),
+            ),
+            (
+                REALM_ATTR_PIN_LINK_EXPIRES_AT.to_string(),
+                "2099-01-01T00:00:00Z".to_string(),
+            ),
+        ])
+    }
+
+    #[test]
+    fn generated_attributes_are_redacted_but_never_offered_as_secrets() {
+        let config = SecretAttributeConfig::from_profile(&[secret_attribute("pin")])
+            .with_realm_attributes(&pin_link_realm_attributes());
+        assert!(config.pin_link().is_some());
+        let names = config.validated_names().unwrap();
+        for generated in ["pin-link-token-hash", "pin-link-attempts"] {
+            assert!(config.generated_names().contains(generated));
+            assert!(config.redacted_names().contains(generated));
+            assert!(!names.contains(generated));
+        }
+    }
+
+    #[test]
+    fn generated_attributes_stay_redacted_with_the_link_off() {
+        let config = SecretAttributeConfig::from_profile(&[secret_attribute("pin")])
+            .with_realm_attributes(&HashMap::new());
+        assert!(config.pin_link().is_none());
+        assert!(config.validated_names().is_ok());
+        assert!(config.redacted_names().contains("pin-link-token-hash"));
+    }
+
+    #[test]
+    fn a_pin_that_is_not_a_declared_secret_turns_the_link_off_and_reports_it() {
+        let config = SecretAttributeConfig::from_profile(&[secret_attribute("reference")])
+            .with_realm_attributes(&pin_link_realm_attributes());
+        assert!(config.pin_link().is_none());
+        let error = config.validated_names().unwrap_err();
+        assert!(error.to_string().contains("`pin`"), "{error}");
+    }
 
     #[test]
     fn creation_ciphertext_preserves_missing_values_and_is_bound_to_user_id() {

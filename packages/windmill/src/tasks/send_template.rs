@@ -10,8 +10,13 @@ use crate::services::election_statistics::update_election_statistics;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
 use crate::services::users::{list_users, list_users_with_vote_info, ListUsersFilter};
+use crate::services::voter_pin_link::{
+    display_token, is_pin_link_variable, PinLinkConfig, PinLinkTokens, PIN_LINK_TOKEN_VARIABLE,
+    PIN_LINK_URL_VARIABLE,
+};
 use crate::services::voter_secret_attributes::{
-    decrypt_user_attributes, get_secret_attribute_config, strip_undeclared_secret_attributes,
+    get_secret_attribute_config, strip_undeclared_secret_attributes, user_attribute_values,
+    VoterSecretAttributeDecryptor,
 };
 use crate::services::voter_template_variables::user_template_variables;
 use crate::types::error::Result;
@@ -44,7 +49,7 @@ use serde_json::{Map, Value};
 use std::collections::{HashMap, HashSet};
 use std::default::Default;
 use strand::info;
-use tracing::{event, info, instrument, Level};
+use tracing::{event, info, instrument, warn, Level};
 
 #[instrument(skip_all, err)]
 fn get_variables(
@@ -343,11 +348,14 @@ pub async fn send_template(
                 .await?
         }
     };
-    let requested_secret_names = body
+    // What the template wants of the PIN link is derived per voter below, so it
+    // takes part in the permission and audit of secret fields but is not stored.
+    let (requested_pin_link_variables, requested_secret_names): (HashSet<_>, HashSet<_>) = body
         .secret_attribute_names
         .iter()
         .cloned()
-        .collect::<HashSet<_>>();
+        .partition(|name| is_pin_link_variable(name));
+    let mut pin_link: Option<PinLinkConfig> = None;
     // Undeclared secrets are stripped whatever the profile's state; decrypting
     // declared ones additionally requires a valid configuration.
     let configured_secret_names = if let Some(event_id) = election_event_id.as_deref() {
@@ -356,11 +364,19 @@ pub async fn send_template(
             .map_err(|error| {
                 anyhow!("Error reading the secret-attribute configuration: {error:#}")
             })?;
-        if requested_secret_names.is_empty() {
+        if !requested_pin_link_variables.is_empty() {
+            config.validated_names()?;
+            pin_link = Some(config.pin_link().cloned().ok_or_else(|| {
+                anyhow!("Template requested a voter PIN link, but this realm has it off")
+            })?);
+        }
+        let mut names = if requested_secret_names.is_empty() {
             config.redacted_names().clone()
         } else {
             config.validated_names()?
-        }
+        };
+        names.extend(config.generated_names().iter().cloned());
+        names
     } else {
         HashSet::new()
     };
@@ -372,11 +388,30 @@ pub async fn send_template(
             "Template requested `{name}`, which is not configured as an encrypted voter attribute"
         )));
     }
-    if !requested_secret_names.is_empty() && election_event_id.is_none() {
+    if (!requested_secret_names.is_empty() || !requested_pin_link_variables.is_empty())
+        && election_event_id.is_none()
+    {
         return Err(Error::String(
             "Encrypted voter attributes require an election event".to_string(),
         ));
     }
+    // One copy of the keys for the whole run: this loop goes over every voter.
+    let secret_decryptor = if requested_secret_names.is_empty() && pin_link.is_none() {
+        None
+    } else {
+        Some(VoterSecretAttributeDecryptor::new().await?)
+    };
+    let pin_link_tokens = match pin_link {
+        Some(_) => Some(PinLinkTokens::new().await?),
+        None => None,
+    };
+    let keycloak_public_url = match pin_link {
+        Some(ref config) if config.public_base_url.is_none() => {
+            std::env::var("KEYCLOAK_PUBLIC_URL")
+                .with_context(|| "Error fetching KEYCLOAK_PUBLIC_URL env var")?
+        }
+        _ => String::new(),
+    };
 
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
@@ -496,26 +531,81 @@ pub async fn send_template(
 
         for user in filtered_users.iter() {
             let mut render_user = user.clone();
-            if let Some(event_id) = election_event_id.as_deref() {
-                decrypt_user_attributes(
-                    &mut render_user,
-                    &tenant_id,
-                    event_id,
-                    &requested_secret_names,
-                )
-                .await
-                .with_context(|| {
-                    format!(
-                        "Failed to decrypt declared secret attributes for voter {}",
-                        user.id.as_deref().unwrap_or("unknown")
+            if let (Some(event_id), Some(decryptor)) =
+                (election_event_id.as_deref(), secret_decryptor.as_ref())
+            {
+                decryptor
+                    .decrypt_user_attributes(
+                        &mut render_user,
+                        &tenant_id,
+                        event_id,
+                        &requested_secret_names,
                     )
-                })?;
+                    .with_context(|| {
+                        format!(
+                            "Failed to decrypt declared secret attributes for voter {}",
+                            user.id.as_deref().unwrap_or("unknown")
+                        )
+                    })?;
             }
+            let voter_pin_link = match (
+                pin_link.as_ref(),
+                pin_link_tokens.as_ref(),
+                secret_decryptor.as_ref(),
+                election_event_id.as_deref(),
+            ) {
+                (Some(config), Some(tokens), Some(decryptor), Some(event_id)) => {
+                    match voter_pin_link_token(
+                        user, config, tokens, decryptor, &tenant_id, event_id,
+                    ) {
+                        Ok(token) => Some((config, token)),
+                        // A letter without its link is useless, and one voter's
+                        // bad data must not stop the mail to everybody else.
+                        Err(error) => {
+                            warn!(
+                                "Not sending to voter {}: no PIN link: {error:#}",
+                                user.id.as_deref().unwrap_or("unknown")
+                            );
+                            update_metrics(
+                                &mut metrics,
+                                &elections_by_area,
+                                &user,
+                                &communication_method,
+                                /* success */ false,
+                            );
+                            continue;
+                        }
+                    }
+                }
+                _ => None,
+            };
             strip_undeclared_secret_attributes(
                 &mut render_user,
                 &configured_secret_names,
                 &requested_secret_names,
             );
+            if let Some((config, token)) = voter_pin_link {
+                let attributes = render_user.attributes.get_or_insert_with(HashMap::new);
+                if requested_pin_link_variables.contains(PIN_LINK_TOKEN_VARIABLE) {
+                    attributes.insert(
+                        PIN_LINK_TOKEN_VARIABLE.to_string(),
+                        vec![display_token(&token)],
+                    );
+                }
+                if requested_pin_link_variables.contains(PIN_LINK_URL_VARIABLE) {
+                    attributes.insert(
+                        PIN_LINK_URL_VARIABLE.to_string(),
+                        vec![config.link_url(
+                            &keycloak_public_url,
+                            &get_event_realm(
+                                &tenant_id,
+                                election_event_id.as_deref().unwrap_or_default(),
+                            ),
+                            &token,
+                        )],
+                    );
+                }
+            }
             let success = send_template_email_or_sms(
                 &hasura_transaction,
                 &render_user,
@@ -692,13 +782,155 @@ pub async fn send_template_email_or_sms(
     }
 }
 
+/// A voter's token, from their PIN. The PIN is decrypted just for this and
+/// dropped here; a template that also shows it declares it on its own.
+fn voter_pin_link_token(
+    user: &User,
+    config: &PinLinkConfig,
+    tokens: &PinLinkTokens,
+    decryptor: &VoterSecretAttributeDecryptor,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> anyhow::Result<String> {
+    let user_id = user
+        .id
+        .as_deref()
+        .ok_or_else(|| anyhow!("The voter has no id"))?;
+    let envelopes = user_attribute_values(user, &config.pin_attribute);
+    if envelopes.len() != 1 {
+        return Err(anyhow!(
+            "Expected one `{}` value, found {}",
+            config.pin_attribute,
+            envelopes.len()
+        ));
+    }
+    let pins = decryptor.decrypt_attribute_values(
+        tenant_id,
+        election_event_id,
+        user_id,
+        &config.pin_attribute,
+        &envelopes,
+    )?;
+    tokens.derive(tenant_id, election_event_id, user_id, &pins[0])
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{delivery_audit_message, get_variables};
+    use super::{delivery_audit_message, get_variables, voter_pin_link_token};
+    use crate::services::voter_pin_link::{PinLinkConfig, PinLinkTokens};
+    use crate::services::voter_secret_attributes::{
+        encrypt_with_master_secret, VoterSecretAttributeDecryptor, VoterSecretAttributeScope,
+    };
     use sequent_core::services::generate_urls::AuthAction;
     use sequent_core::types::keycloak::User;
     use serde_json::json;
     use std::collections::HashMap;
+    use strand::symm::gen_key;
+
+    const PIN: &str = "123456789012";
+
+    fn pin_link_config() -> PinLinkConfig {
+        PinLinkConfig {
+            pin_attribute: "pin".to_string(),
+            token_hash_attribute: "pin-link-token-hash".to_string(),
+            attempts_attribute: "pin-link-attempts".to_string(),
+            public_base_url: None,
+        }
+    }
+
+    fn voter(id: &str, envelopes: Vec<String>) -> User {
+        User {
+            id: Some(id.to_string()),
+            attributes: Some(HashMap::from([("pin".to_string(), envelopes)])),
+            ..Default::default()
+        }
+    }
+
+    fn scope<'a>(user_id: &'a str, attribute_name: &'a str) -> VoterSecretAttributeScope<'a> {
+        VoterSecretAttributeScope {
+            tenant_id: "tenant",
+            election_event_id: "event",
+            user_id,
+            attribute_name,
+        }
+    }
+
+    #[test]
+    fn the_mail_link_comes_from_the_voters_own_pin() {
+        let master = gen_key();
+        let envelope = encrypt_with_master_secret(&master, &scope("voter", "pin"), PIN).unwrap();
+        let tokens = PinLinkTokens::with_master_secret(master.clone());
+        let token = voter_pin_link_token(
+            &voter("voter", vec![envelope]),
+            &pin_link_config(),
+            &tokens,
+            &VoterSecretAttributeDecryptor::with_master_secret(master),
+            "tenant",
+            "event",
+        )
+        .unwrap();
+        assert_eq!(
+            token,
+            tokens.derive("tenant", "event", "voter", PIN).unwrap()
+        );
+        assert!(!token.contains(PIN));
+    }
+
+    #[test]
+    fn a_voter_without_exactly_one_pin_gets_no_link() {
+        let master = gen_key();
+        let envelope = encrypt_with_master_secret(&master, &scope("voter", "pin"), PIN).unwrap();
+        let tokens = PinLinkTokens::with_master_secret(master.clone());
+        let decryptor = VoterSecretAttributeDecryptor::with_master_secret(master);
+        for envelopes in [vec![], vec![envelope.clone(), envelope]] {
+            let error = voter_pin_link_token(
+                &voter("voter", envelopes),
+                &pin_link_config(),
+                &tokens,
+                &decryptor,
+                "tenant",
+                "event",
+            )
+            .unwrap_err();
+            assert!(error.to_string().contains("Expected one `pin`"), "{error}");
+        }
+    }
+
+    #[test]
+    fn an_envelope_moved_from_elsewhere_gets_no_link() {
+        let master = gen_key();
+        let tokens = PinLinkTokens::with_master_secret(master.clone());
+        let decryptor = VoterSecretAttributeDecryptor::with_master_secret(master.clone());
+        for envelope in [
+            encrypt_with_master_secret(&master, &scope("another-voter", "pin"), PIN).unwrap(),
+            encrypt_with_master_secret(&master, &scope("voter", "reference"), PIN).unwrap(),
+        ] {
+            assert!(voter_pin_link_token(
+                &voter("voter", vec![envelope]),
+                &pin_link_config(),
+                &tokens,
+                &decryptor,
+                "tenant",
+                "event",
+            )
+            .is_err());
+        }
+    }
+
+    #[test]
+    fn a_voter_without_an_id_gets_no_link() {
+        let master = gen_key();
+        let error = voter_pin_link_token(
+            &User::default(),
+            &pin_link_config(),
+            &PinLinkTokens::with_master_secret(master.clone()),
+            &VoterSecretAttributeDecryptor::with_master_secret(master),
+            "tenant",
+            "event",
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("no id"), "{error}");
+    }
 
     #[test]
     fn get_variables_exposes_dynamic_and_multivalued_user_attributes() {

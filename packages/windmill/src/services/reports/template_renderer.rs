@@ -243,11 +243,12 @@ pub trait TemplateRenderer: Debug {
         let secret_config = get_secret_attribute_config(&tenant_id, &election_event_id)
             .await
             .context("Error reading the secret-attribute configuration for voter report")?;
-        let configured_names = if declared_names.is_empty() {
+        let mut configured_names = if declared_names.is_empty() {
             secret_config.redacted_names().clone()
         } else {
             secret_config.validated_names()?
         };
+        configured_names.extend(secret_config.generated_names().iter().cloned());
         if let Some(name) = declared_names
             .iter()
             .find(|name| !configured_names.contains(*name))
