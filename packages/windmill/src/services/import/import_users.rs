@@ -93,11 +93,11 @@ fn sanitize_db_key(key: &String) -> String {
     key.replace(".", "_").replace("-", "_")
 }
 
-fn hash_password(password: &String, salt: &[u8]) -> Result<String> {
+fn hash_password(password: &String, salt: &[u8], iterations: NonZeroU32) -> Result<String> {
     let mut output: Credential = [0u8; CREDENTIAL_LEN];
     pbkdf2::derive(
         PBKDF2_ALGORITHM,
-        *PBKDF2_ITERATIONS,
+        iterations,
         salt,
         password.as_bytes(),
         &mut output,
@@ -891,6 +891,21 @@ pub async fn import_users_file(
                 password_from_pin,
                 row_number,
             )?;
+            if let (Some(value), None, Some(salt), Some(hash)) = (
+                pin.as_deref(),
+                password.as_deref(),
+                password_salt.as_deref(),
+                hashed_password.as_deref(),
+            ) {
+                check_pin_fits_hash(
+                    &config.pin_attribute,
+                    value,
+                    salt,
+                    hash,
+                    num_of_iterations,
+                    row_number,
+                )?;
+            }
             let hash = match pin.as_deref() {
                 Some(value) => {
                     let event_id = election_event_id.as_deref().ok_or_else(|| {
@@ -909,7 +924,7 @@ pub async fn import_users_file(
 
             password_salt = Some(BASE64_STANDARD.encode(salt_bytes));
             hashed_password = Some(
-                hash_password(&some_password, &salt_bytes)
+                hash_password(&some_password, &salt_bytes, num_of_iterations)
                     .with_context(|| "Error generating hashed password")?,
             );
         }
@@ -1025,6 +1040,36 @@ fn password_of_pin_row(
     Ok(password)
 }
 
+/// Checks a row's `hashed_password` with the salt and the iterations Keycloak
+/// will use. The voter logs in with the PIN the link shows, and the link shows
+/// it only once.
+fn check_pin_fits_hash(
+    pin_attribute: &str,
+    pin: &str,
+    salt: &str,
+    hashed_password: &str,
+    iterations: NonZeroU32,
+    row_number: usize,
+) -> Result<(), Error> {
+    let fits = match (
+        BASE64_STANDARD.decode(salt),
+        BASE64_STANDARD.decode(hashed_password),
+    ) {
+        (Ok(salt), Ok(hash)) => {
+            pbkdf2::verify(PBKDF2_ALGORITHM, iterations, &salt, pin.as_bytes(), &hash).is_ok()
+        }
+        _ => false,
+    };
+    if fits {
+        Ok(())
+    } else {
+        Err(Error::String(format!(
+            "Row {row_number}: `{pin_attribute}` must match `hashed_password`, because the voter \
+             logs in with the PIN the link shows"
+        )))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1117,6 +1162,57 @@ mod tests {
             .unwrap_err();
         assert!(error.to_string().contains("must equal"), "{error}");
         assert!(!error.to_string().contains("123456789012"), "{error}");
+    }
+
+    #[test]
+    fn a_row_hash_must_be_of_its_pin_with_the_row_salt_and_iterations() {
+        let pin = "123456789012";
+        let salt_bytes = [7u8; 16];
+        let iterations = NonZeroU32::new(1000).unwrap();
+        let hash = hash_password(&pin.to_string(), &salt_bytes, iterations).unwrap();
+        let salt = BASE64_STANDARD.encode(salt_bytes);
+        let other_salt = BASE64_STANDARD.encode([8u8; 16]);
+        check_pin_fits_hash("pin", pin, &salt, &hash, iterations, 2).unwrap();
+        for refused in [
+            check_pin_fits_hash("pin", "210987654321", &salt, &hash, iterations, 4),
+            check_pin_fits_hash("pin", pin, &other_salt, &hash, iterations, 4),
+            check_pin_fits_hash("pin", pin, &salt, &hash, *PBKDF2_ITERATIONS, 4),
+            check_pin_fits_hash("pin", pin, "not base64", &hash, iterations, 4),
+            check_pin_fits_hash("pin", pin, &salt, "not base64", iterations, 4),
+            check_pin_fits_hash("pin", pin, &salt, "", iterations, 4),
+        ] {
+            let error = refused.unwrap_err().to_string();
+            assert!(
+                error.contains("Row 4") && error.contains("must match"),
+                "{error}"
+            );
+            assert!(!error.contains(pin), "{error}");
+        }
+    }
+
+    #[test]
+    fn a_password_is_hashed_with_the_iterations_the_row_stores() {
+        let password = "123456789012".to_string();
+        let salt = [7u8; 16];
+        let iterations = NonZeroU32::new(1000).unwrap();
+        let hash = hash_password(&password, &salt, iterations).unwrap();
+        let derived = BASE64_STANDARD.decode(hash).unwrap();
+        pbkdf2::verify(
+            PBKDF2_ALGORITHM,
+            iterations,
+            &salt,
+            password.as_bytes(),
+            &derived,
+        )
+        .unwrap();
+        assert!(pbkdf2::verify(
+            PBKDF2_ALGORITHM,
+            *PBKDF2_ITERATIONS,
+            &salt,
+            password.as_bytes(),
+            &derived
+        )
+        .is_err());
     }
 
     #[test]
