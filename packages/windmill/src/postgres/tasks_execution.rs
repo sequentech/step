@@ -339,6 +339,60 @@ pub async fn get_task_by_id_with_transaction(
         .context("Error converting database row to TasksExecution")
 }
 
+/// The latest successful task of `task_type` in an election event whose
+/// result annotations name `document_id`.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_successful_task_by_document_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    task_type: &str,
+    document_id: &str,
+) -> Result<Option<TasksExecution>> {
+    let tenant_uuid =
+        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {err}"))?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election event UUID: {err}"))?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT *
+                FROM sequent_backend.tasks_execution
+                WHERE
+                    tenant_id = $1
+                    AND election_event_id = $2
+                    AND type = $3
+                    AND execution_status = $4
+                    AND annotations->>'document_id' = $5
+                ORDER BY created_at DESC
+                LIMIT 1
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_opt(
+            &statement,
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &task_type,
+                &TasksExecutionStatus::SUCCESS.to_string(),
+                &document_id,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error fetching task: {err}"))?;
+
+    row.map(|row| {
+        row.try_into()
+            .map(|wrapper: TasksExecutionWrapper| wrapper.0)
+    })
+    .transpose()
+    .context("Error converting database row to TasksExecution")
+}
+
 /// Serializes all attempts for one export task. Transaction-scoped advisory
 /// locks are released automatically on commit, rollback, connection loss, or
 /// worker crash, so a redelivery can safely recover instead of being stranded.
