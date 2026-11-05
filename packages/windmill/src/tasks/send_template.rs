@@ -329,6 +329,11 @@ async fn on_success_send_message(
     Ok(())
 }
 
+/// Sends a communications template by email or SMS to the selected audience, in
+/// batches that each update the delivery statistics. Encrypted attributes the
+/// template asks for are decrypted per voter, and a template asking for the PIN
+/// link gets one derived from each voter's PIN; a voter whose PIN can't yield
+/// it is skipped, so one bad record doesn't stop the rest.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
@@ -890,6 +895,7 @@ mod tests {
         assert!(!token.contains(PIN));
     }
 
+    /// A link derives from exactly one PIN, so none or several give no link.
     #[test]
     fn a_voter_without_exactly_one_pin_gets_no_link() {
         let master = gen_key();
@@ -910,6 +916,8 @@ mod tests {
         }
     }
 
+    /// An envelope encrypted for another voter or another attribute doesn't
+    /// decrypt in this voter's scope, so it gives no link.
     #[test]
     fn an_envelope_moved_from_elsewhere_gets_no_link() {
         let master = gen_key();

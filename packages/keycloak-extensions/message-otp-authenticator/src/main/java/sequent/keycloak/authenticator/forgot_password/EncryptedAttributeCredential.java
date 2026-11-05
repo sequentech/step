@@ -197,6 +197,12 @@ final class EncryptedAttributeCredential {
     }
   }
 
+  /**
+   * Decrypts one envelope under the given scope without comparing it to anything, for {@link
+   * ScopedAttributeDecryptor}. A bad master secret or envelope is reported as a {@link
+   * GeneralSecurityException}. The master secret and the derived key are wiped here; the caller
+   * wipes the plaintext.
+   */
   static byte[] decryptScoped(
       String masterHex, String tenant, String event, String user, String attribute, String envelope)
       throws GeneralSecurityException {

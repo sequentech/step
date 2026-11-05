@@ -18,6 +18,10 @@ class PinLinkTokenTest {
     }
   }
 
+  /**
+   * Windmill generates the link and Keycloak checks it, so both must derive the same token and
+   * lookup hash for the vectors in the shared fixture.
+   */
   @Test
   void matchesTheVectorsSharedWithWindmill() throws Exception {
     JsonNode fixture = fixture();

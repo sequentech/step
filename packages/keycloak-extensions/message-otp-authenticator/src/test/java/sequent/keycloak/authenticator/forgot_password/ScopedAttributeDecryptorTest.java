@@ -54,6 +54,10 @@ class ScopedAttributeDecryptorTest {
     assertThrows(GeneralSecurityException.class, () -> decrypt("tenant", "event", "voter", "x"));
   }
 
+  /**
+   * However the envelope is malformed, callers get a {@link GeneralSecurityException} and not a
+   * runtime parsing exception.
+   */
   @Test
   void refusesMalformedInputWithTheSameExceptionType() {
     String master = fixture.get("master").asText();
@@ -64,6 +68,7 @@ class ScopedAttributeDecryptorTest {
     }
   }
 
+  /** A missing or malformed master secret is refused before any decryption is attempted. */
   @Test
   void refusesAnInvalidMasterSecret() {
     for (String master : new String[] {null, "", "abcd", "z".repeat(64)}) {

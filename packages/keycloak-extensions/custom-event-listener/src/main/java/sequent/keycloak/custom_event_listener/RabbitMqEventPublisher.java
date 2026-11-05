@@ -42,6 +42,10 @@ public class RabbitMqEventPublisher implements AutoCloseable {
   private Connection rabbitConnection;
   private Channel rabbitChannel;
 
+  /**
+   * A publisher for the broker at {@code AMQP_ADDR}. The queue is {@code ELECTORAL_LOG_QUEUE} or
+   * its default, prefixed with {@code ENV_SLUG} when that is set.
+   */
   public static RabbitMqEventPublisher fromEnvironment() {
     String envSlug = System.getenv("ENV_SLUG");
     String baseQueueName =
@@ -113,6 +117,10 @@ public class RabbitMqEventPublisher implements AutoCloseable {
     return JSON.writeValueAsBytes(message);
   }
 
+  /**
+   * Publishes a message without waiting for the broker to confirm it. A failure drops the
+   * connection, so the next call connects again.
+   */
   synchronized void publish(AMQP.BasicProperties properties, byte[] body) throws Exception {
     try {
       getRabbitChannel().basicPublish("", queueName, properties, body);
@@ -143,6 +151,10 @@ public class RabbitMqEventPublisher implements AutoCloseable {
         timeoutMillis);
   }
 
+  /**
+   * Publishes a message and waits up to {@code timeoutMillis} for the broker to confirm it. Like
+   * {@link #publish}, a failure drops the connection.
+   */
   synchronized void publishConfirmed(
       AMQP.BasicProperties properties, byte[] body, long timeoutMillis) throws Exception {
     try {

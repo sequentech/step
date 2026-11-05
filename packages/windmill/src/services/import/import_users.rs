@@ -539,6 +539,12 @@ fn get_insert_user_query(
     Ok(ret)
 }
 
+/// Imports a voters file into the realm of an election event, or of the tenant
+/// without one, writing straight to Keycloak's tables in one transaction.
+/// Encrypted attributes are encrypted for each voter, and importing them is
+/// recorded in the electoral log. With the PIN link on, the file's PINs arm one
+/// link per voter and, if the file has no password column, become their
+/// passwords.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn import_users_file(
     hasura_transaction: &Transaction<'_>,
@@ -1063,6 +1069,8 @@ mod tests {
         ]))
     }
 
+    /// A file naming a generated attribute or a link variable as a header is
+    /// refused, with the header in the error; plain voter columns pass.
     #[test]
     fn a_file_cannot_bring_what_the_link_generates() {
         let config = pin_link_secret_config();
@@ -1123,6 +1131,8 @@ mod tests {
         );
     }
 
+    /// A link shows one PIN, so a cell with several is refused whether or not
+    /// the PIN becomes the password, and the error doesn't repeat them.
     #[test]
     fn a_row_cannot_have_several_pins() {
         let pins = format!("111111111111{MULTIVALUE_USER_ATTRIBUTE_SEPARATOR}222222222222");

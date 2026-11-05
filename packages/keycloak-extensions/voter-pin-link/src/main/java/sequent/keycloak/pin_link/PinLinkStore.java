@@ -67,6 +67,9 @@ final class PinLinkStore {
     }
   }
 
+  /**
+   * Every value the voter has stored under an attribute name, since an attribute can hold several.
+   */
   List<String> values(Connection connection, String voterId, String name) throws SQLException {
     String sql = "SELECT value FROM " + userAttributeTable + " WHERE user_id = ? AND name = ?";
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -119,6 +122,10 @@ final class PinLinkStore {
     }
   }
 
+  /**
+   * Removes every value of an attribute of the voter, which is how a spent link drops its
+   * failed-attempts counter.
+   */
   void deleteAttribute(Connection connection, String voterId, String name) throws SQLException {
     String sql = "DELETE FROM " + userAttributeTable + " WHERE user_id = ? AND name = ?";
     try (PreparedStatement statement = connection.prepareStatement(sql)) {

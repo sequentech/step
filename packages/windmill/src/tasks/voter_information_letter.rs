@@ -168,6 +168,11 @@ async fn deliver_audit_and_complete(
     Ok(())
 }
 
+/// Writes a freshly generated password into the voter's information letter, an
+/// encrypted PDF, and sets it as their password. The new password replaces the
+/// PIN, so the voter's PIN link is removed. If the document already exists an
+/// earlier run got that far, so only its pending electoral-log entry is
+/// delivered and a retry doesn't change the password twice.
 #[instrument(skip_all, err)]
 async fn generate(
     tenant_id: &str,

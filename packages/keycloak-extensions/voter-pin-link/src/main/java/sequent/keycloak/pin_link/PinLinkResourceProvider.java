@@ -107,6 +107,11 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
   @Override
   public void close() {}
 
+  /**
+   * Shows the form for a link and nothing else, because mail scanners follow links. The voter the
+   * token belongs to gets an "opened" event, but nothing is written and no attempt is spent. A
+   * realm with the link off answers 404.
+   */
   @GET
   @Path("{token}")
   public Response view(@PathParam("token") String rawToken) {
@@ -122,6 +127,12 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
     return renderForm(false);
   }
 
+  /**
+   * The POST that trades the link and the voter's username for their PIN. The link is spent and the
+   * reveal audited in one transaction, and the page is rendered before it so a broken theme can't
+   * cost the voter their link. Every refusal shows the same form, with the real reason only in the
+   * voter's event.
+   */
   @POST
   @Path("{token}")
   @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
@@ -226,6 +237,11 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
     return PinLinkConfig.from(realm::getAttribute).filter(this::pinIsSecretAndAdminOnly);
   }
 
+  /**
+   * Whether the user profile keeps the PIN private: a declared secret that voters cannot view,
+   * while the token hash and attempts attributes stay undeclared and unmanaged attributes are not
+   * enabled. Logs the condition that fails.
+   */
   private boolean pinIsSecretAndAdminOnly(PinLinkConfig config) {
     UPConfig profile = session.getProvider(UserProfileProvider.class).getConfiguration();
     UPAttribute pin = profile.getAttribute(config.pinAttribute());
@@ -253,6 +269,10 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
     return true;
   }
 
+  /**
+   * The voter the token belongs to, found by its lookup hash in this realm. Empty when no voter has
+   * it, several do, or the lookup fails.
+   */
   private Optional<UserModel> findVoter(RealmModel realm, PinLinkConfig config, String token) {
     try {
       String hash = PinLinkToken.lookupHash(token);
@@ -302,6 +322,7 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
             AUDIT_CONFIRM_MILLIS);
   }
 
+  /** Whether brute-force protection has the voter locked out, permanently or temporarily. */
   private boolean isBruteForceLocked(RealmModel realm, UserModel user) {
     if (!realm.isBruteForceProtected()) {
       return false;
@@ -311,6 +332,10 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
         || protector.isTemporarilyDisabled(session, realm, user);
   }
 
+  /**
+   * Reports a wrong username to Keycloak's brute-force protection as a failed password login: the
+   * PIN is the password, and the protector ignores other kinds of failure.
+   */
   private void applyBruteForce(RealmModel realm, UserModel user) {
     if (realm.isBruteForceProtected()) {
       // The protector silently drops a failure of any other category, and this PIN is the password.
@@ -325,6 +350,10 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
     }
   }
 
+  /**
+   * Records a stage of the link (opened, refused or revealed) as a Keycloak event of the voter. A
+   * reason makes it an error event carrying that reason. It never holds the token or the PIN.
+   */
   private void voterEvent(RealmModel realm, UserModel user, String stage, String reason) {
     EventBuilder event =
         new EventBuilder(realm, session, session.getContext().getConnection())
@@ -342,6 +371,10 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
     }
   }
 
+  /**
+   * Renders the username form, with the generic error when {@code failed}. It has the same strict
+   * headers as the reveal page.
+   */
   private Response renderForm(boolean failed) {
     String nonce = randomToken();
     LoginFormsProvider forms =
@@ -353,6 +386,10 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
     return secure(Response.ok(withStyleNonce(page, nonce)), nonce).build();
   }
 
+  /**
+   * Renders the page that will show the PIN, with {@code placeholder} where it is spliced in. Fails
+   * if the theme leaves no place for it, which the caller finds out before it spends the link.
+   */
   private String renderReveal(String placeholder, String nonce) {
     String page =
         (String)
@@ -397,6 +434,10 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
     return body;
   }
 
+  /**
+   * Escapes the characters HTML treats specially. It works on bytes so the PIN never becomes a
+   * String, and wipes its scratch buffer.
+   */
   private static byte[] htmlEscape(byte[] value) {
     byte[] out = new byte[value.length * 6];
     int size = 0;

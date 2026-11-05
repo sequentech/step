@@ -26,6 +26,7 @@ public class PinLinkResourceProviderFactory implements RealmResourceProviderFact
         session, this::publisher, () -> System.getenv("MASTER_SECRET"));
   }
 
+  /** The RabbitMQ publisher every provider shares, created on first use. */
   private RabbitMqEventPublisher publisher() {
     if (publisher == null) {
       synchronized (this) {
@@ -43,6 +44,7 @@ public class PinLinkResourceProviderFactory implements RealmResourceProviderFact
   @Override
   public void postInit(KeycloakSessionFactory factory) {}
 
+  /** Closes the publisher, if one was ever created. */
   @Override
   public void close() {
     if (publisher != null) {

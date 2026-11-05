@@ -94,6 +94,7 @@ final class PinLinkToken {
         left.getBytes(StandardCharsets.UTF_8), right.getBytes(StandardCharsets.UTF_8));
   }
 
+  /** The first 130 bits of the HMAC tag as 26 Crockford base32 characters, five bits at a time. */
   private static String encode(byte[] tag) {
     StringBuilder token = new StringBuilder(LENGTH);
     int buffer = 0;
@@ -111,6 +112,7 @@ final class PinLinkToken {
     return token.toString();
   }
 
+  /** Zeroes the array if there is one. */
   private static void wipe(byte[] bytes) {
     if (bytes != null) Arrays.fill(bytes, (byte) 0);
   }

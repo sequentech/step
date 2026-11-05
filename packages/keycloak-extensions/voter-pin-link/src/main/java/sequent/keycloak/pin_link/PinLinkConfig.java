@@ -46,6 +46,11 @@ record PinLinkConfig(
     return from(attributes::get);
   }
 
+  /**
+   * Reads the link's configuration from realm attributes. It is empty, meaning the link is off,
+   * unless the policy is {@code ONE_TIME_LINK}, the three attribute names are valid and distinct,
+   * the attempt limit is between 1 and 100 and the expiry is a valid instant.
+   */
   static Optional<PinLinkConfig> from(Function<String, String> attributes) {
     if (!Policy.ONE_TIME_LINK.name().equals(attributes.apply(POLICY))) {
       return Optional.empty();
@@ -80,6 +85,7 @@ record PinLinkConfig(
     return !now.isBefore(expiresAt);
   }
 
+  /** The trimmed value, or the fallback when it is missing or blank. */
   private static String orDefault(String value, String fallback) {
     return value == null || value.isBlank() ? fallback : value.trim();
   }
