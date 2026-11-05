@@ -32,6 +32,12 @@ public class RabbitMqEventPublisher implements AutoCloseable {
   private static final String DEFAULT_QUEUE_NAME = "electoral_log_event_queue";
   private static final ObjectMapper JSON = new ObjectMapper();
 
+  /**
+   * A broker gone without closing its sockets would otherwise hold every event for the client's
+   * default of 60 seconds, since one connection attempt runs at a time.
+   */
+  private static final int CONNECT_TIMEOUT_MILLIS = 5_000;
+
   // Read once for performance
   private static final String TASK_NAME =
       Optional.ofNullable(System.getenv("ELECTORAL_LOG_TASK"))
@@ -202,6 +208,7 @@ public class RabbitMqEventPublisher implements AutoCloseable {
     ConnectionFactory rabbitFactory = connectionFactorySupplier.get();
     rabbitFactory.setAutomaticRecoveryEnabled(false);
     rabbitFactory.setTopologyRecoveryEnabled(false);
+    rabbitFactory.setConnectionTimeout(CONNECT_TIMEOUT_MILLIS);
     rabbitFactory.setUri(amqpUri);
 
     try {
