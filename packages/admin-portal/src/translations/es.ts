@@ -218,6 +218,13 @@ const spanishTranslation: TranslationType = {
                 event_type: "Tipo de evento",
                 description: "Descripción",
                 version: "Versión",
+                verification_status: "Verificación",
+            },
+            verificationStatus: {
+                Verified: "Verificado",
+                Unreadable: "Ilegible",
+                InvalidSignature: "Firma no válida",
+                ColumnMismatch: "No coincide con su contenido firmado",
             },
             exportdialog: {
                 description:

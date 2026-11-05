@@ -227,6 +227,13 @@ const frenchTranslation: TranslationType = {
                 event_type: "Type d'événement",
                 description: "Description",
                 version: "Version",
+                verification_status: "Vérification",
+            },
+            verificationStatus: {
+                Verified: "Vérifié",
+                Unreadable: "Illisible",
+                InvalidSignature: "Signature invalide",
+                ColumnMismatch: "Ne correspond pas à son contenu signé",
             },
             main: {
                 title: "Journal de la Base de Données Principale",

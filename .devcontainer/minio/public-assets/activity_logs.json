@@ -9,7 +9,8 @@
             "log_type": "INFO",
             "description": "Electoral log created.",
             "message": "sample message",
-            "user_id": "sample-id"
+            "user_id": "sample-id",
+            "verification_status": "Verified"
         }
     ],
     "electoral_log": [],

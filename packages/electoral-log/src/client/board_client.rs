@@ -316,6 +316,7 @@ impl BoardClient {
             message,
             version,
             user_id,
+            election_id,
             area_id,
             ballot_id,
             username
@@ -584,7 +585,10 @@ impl BoardClient {
                 message,
                 version,
                 user_id,
-                username
+                username,
+                election_id,
+                area_id,
+                ballot_id
             FROM {ELECTORAL_LOG_TABLE}
             ORDER BY id
             LIMIT {limit}
@@ -638,7 +642,10 @@ impl BoardClient {
                 message,
                 version,
                 user_id,
-                username
+                username,
+                election_id,
+                area_id,
+                ballot_id
             FROM {ELECTORAL_LOG_TABLE}
             WHERE id > {after_id}
             ORDER BY id
