@@ -46,7 +46,7 @@ public class RabbitMqEventPublisher implements AutoCloseable {
    */
   private static final int BROKER_TIMEOUT_MILLIS = 5_000;
 
-  /** About 15 MB of events, once the broker has stopped reading and until it reads again. */
+  /** How many messages wait in memory for a broker that has stopped reading to read again. */
   static final int BACKGROUND_QUEUE_CAPACITY = 10_000;
 
   // Read once for performance
