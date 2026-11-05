@@ -30,6 +30,7 @@ Each section serves a specific purpose and provides a comprehensive breakdown of
 - **Voting Channels Allowed**: Applicable voting methods.
 - **Custom URLs Prefix**: Define custom URLs for the Voting / Enrollment portals and SAML endpoint.
 - **Support Materials**: Documents available in the Voting Portal for voters to review.
+- **Ballot Receipts**: Whether the ballot box receives and signs each ballot at review, and how long voters can check their cast ballots. See [Ballot Receipts](#ballot-receipts).
 - **Advanced Configurations**: Enable system lockdown, Voting Portal session timeout, and forced logout.
 
 Detailed descriptions of each section are provided below.
@@ -63,10 +64,36 @@ Manage how the ballot appears in the Voting Portal.
 - **Disable Ballot Audit Support**: Enable or disable the ability for voters to verify ballot encryption.
 - **Skip Election List Screen**: Skip election selection in the portal.
 - **Show User Profile**: Show user profile information in the Voting Portal.
-- **Show Cast Vote Logs Tab**: Policy to enable the CastVote Immutable logs in the Ballot Locator.
+- **Show Cast Vote Logs Tab**: Policy to enable the CastVote Immutable logs in the Ballot Locator. A voter sees the username and the signed statement only for their own entries; other voters' entries show the time and the Ballot ID.
 - **Logo URL (optional)**: Provide a link to a logo to display.
 - **Redirect Finish URL (optional)**: Redirect users to a URL after completing voting.
 - **Custom CSS**: Apply custom styles to the ballot design. Ballot error and warning messages expose stable CSS classes that can be targeted here — see [Styling Ballot Errors and Warnings with Custom CSS](../08-ballot-errors-custom-css.md).
+
+## Ballot Receipts
+
+- **Ballot receipts**: whether the ballot box receives and signs each ballot at review. See [Ballot Receipts](../13-ballot-receipts.md).
+
+The other settings set the period in which voters can view their cast ballots in the Voting Portal.
+
+- **Period for checking cast ballots**:
+  - **No limit** (default): voters can look up their cast ballot and print its receipt at any time.
+  - **Until a date**: checks are available until the date below.
+- **Checks available until**: the date and time, entered in your browser's time zone, after which checks end. Required with **Until a date**.
+
+After that date, the Ballot Locator shows when checks ended instead of the lookup, the Logs tab is not offered, and receipts can no longer be printed. The period is enforced by the system, not only by the Voting Portal: the ballot lookup, the receipt and the cast vote logs are refused once it has ended, and voters cannot read their ballot's ID or content any other way.
+
+In an election configuration workbook or an exported event, the setting is `presentation.receipts`:
+
+```json
+{
+  "receipts": {
+    "checks_period_policy": "until-date",
+    "checks_available_until": "2028-06-07T23:59:00+08:00"
+  }
+}
+```
+
+`checks_period_policy` is `unlimited` or `until-date`. `checks_available_until` is a date and time with its UTC offset. An event without `receipts` has no limit. A configuration with `until-date` and no date, or a date without an offset, is rejected.
 
 ## Voting Channels Allowed
 
@@ -87,6 +114,9 @@ Define the voting methods available for this Election Event.
 Create custom URL prefixes for the Voting and Enrollment portals, and SAML endpoint.
 
 - Input the desired prefix for each endpoint.
+- Each prefix must be a single DNS label: letters, digits and hyphens, up to 63 characters, not starting or ending with a hyphen.
+- A prefix that another host in the domain already uses is rejected.
+- The address each custom URL redirects to is set by the platform from the tenant and the election event.
 
 **Examples:**
 
@@ -115,6 +145,9 @@ Configure advanced system behaviors for this Election Event.
   - **Single Contests**: Encrypt contests individually.
   - **Multiple Contests**: Encrypt multiple contests together to enable ballot-level audit.
 - **Lockdown Status**: When enabled, no changes can be made to this Election Event. This action is irreversible.
+- **Ballot Box Seal Policy**:
+  - **Do not seal** (default): voting closes as before.
+  - **Seal at close**: when voting closes, the ballot box of each area is sealed: a signed hash of its ballots goes to the bulletin board, no ballot can be added, changed or deleted, and voting cannot start again. It cannot be changed after voting has opened. See [Ballot box seal](./20-ballot-box-seal.md).
 - **Voting Portal Countdown Policy**:
   - Define the session timeout duration in seconds.
   - Configure the countdown warning and logout alert thresholds.
@@ -223,14 +256,16 @@ Configure advanced system behaviors for this Election Event.
     decrypted, because a mix of one hides nothing. Which batches are small
     depends on how the weights are spread, not on how large they are: 999 voters
     on weight 2 and one on weight 3 leave the batch for 1 holding a single
-    ballot. Extracting the ballots logs a warning naming any batch below five.
-    It does not refuse, since by then voting has closed and there is no remedy
-    left.
+    ballot. Extracting the ballots logs a warning naming any batch below five,
+    or refuses the tally under the Refuse **Batch Anonymity Policy** described
+    below.
 
-    That warning is a floor, not a guarantee. A voter is exposed whenever the
+    That check is a floor, not a guarantee. A voter is exposed whenever the
     batches single them out at all — two batches whose voters differ by one
-    person expose that person however large both batches are — and nothing
-    detects that. Check the spread of weights before opening voting.
+    person expose that person however large both batches are. The Refuse
+    policy compares each batch with the one another tally session posted at
+    the same position, but nothing compares the batches of one tally with each
+    other. Check the spread of weights before opening voting.
 
     Do not use this policy where ballot secrecy is required. It suits bodies
     that already publish how each member voted, such as some shareholder or
@@ -251,3 +286,27 @@ Configure advanced system behaviors for this Election Event.
   - **Disabled Weighted Voting**: Disable weighted voting.
 - **Delegate Voting Policy**:
   - Allows for voters to delegate their vote to another voter. An additional column needs to be included in the voters imported csv with the name `delegate-vote-to` with the username of the voter to delgate the vote to.
+  - A delegation is counted only when the delegating voter is an enabled voter of the same election event, in the same area as the delegate, allowed to vote in the election, and names a single delegate. A delegating voter who has a valid ballot of their own in that election and area is counted through that ballot instead of through the delegate; a discarded ballot does not replace the delegation.
+- **Batch Anonymity Policy**: What extracting the ballots for a tally does
+  with a batch whose decrypted votes would not stay among others. Each area is
+  mixed and decrypted as one batch per contest (or one per area when contests
+  are encrypted together), so this applies to every area of the tally.
+  - **Warn** (default): Log a warning and continue the tally.
+  - **Refuse**: Stop the tally when a batch holds the ballots of fewer than
+    five voters, or when another tally session has already posted a different
+    batch for the same election, area and contest. That area's ballots are not
+    posted to the bulletin board. Under Weighted Voting for Voters each weight
+    batch of the area is checked.
+
+  Under Refuse, every tally session of an election has to extract the same
+  ballots for each area. Once a tally session has posted an area's ballots, a
+  later one is refused if that area's ballots or census have changed since —
+  for example a ballot cast or replaced afterwards, or a voter who voted being
+  disabled, removed or moved to another area. Restoring those voters clears
+  it; a ballot cast or replaced afterwards cannot be undone, so tally an
+  election only once its voting has closed. An empty initialization report
+  does not count. An area where between one and four voters voted cannot be
+  tallied under Refuse: merge it with another area before voting opens, or
+  choose Warn. The policy is recorded on each tally session when it is
+  created, so changing it afterwards does not affect a tally session that
+  already exists.

@@ -38,12 +38,12 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
-use strand::hash::hash_sha256;
 use tempfile::tempdir;
 use tracing::{info, instrument};
 use velvet::config::ballot_images_config::PipeConfigBallotImages;
 use velvet::pipes::pipe_name::PipeName;
 use velvet::pipes::pipe_name::PipeNameOutputDir;
+use voting_crypto::hash::hash_sha256;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]

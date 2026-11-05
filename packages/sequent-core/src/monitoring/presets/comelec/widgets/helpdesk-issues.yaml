@@ -1,0 +1,59 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Issues reported to the helpdesk and those still open, by category or by
+# Post.
+id: helpdesk-issues
+title: Helpdesk issues
+description: Issues reported in the selected scope, and those still pending.
+source: helpdesk
+requirements: [SW-F-0269]
+selectors:
+  breakdown:
+    label: By
+    control: toggle
+    options: {category: Category, post: Post}
+    default: category
+queries:
+  totals: {template: summary, measures: [issues, pending_issues]}
+  open: {template: summary, ratio: [pending_issues, issues]}
+  groups:
+    template: by_group
+    group_by: {selector: breakdown}
+    measures: [issues, pending_issues]
+    sort: {by: value, order: desc}
+    limit: 10
+height: 400
+chart:
+  charts:
+    issues:
+      type: kpi
+      query: totals
+      value: issues
+      label: Issues reported
+      style: {value: {format: integer}}
+    open:
+      type: kpi
+      query: open
+      value: pct_label
+      label: Still open
+      support: {value: numerator, label: open, format: integer}
+    groups:
+      type: bar
+      query: groups
+      x: group
+      y: issues
+      # The query's order, Unknown last; unsorted, a bar orders by value.
+      sort: {by: position, order: asc}
+      # Names the first series in the legend; the axis itself needs no title.
+      y_label: Reported
+      style:
+        orientation: horizontal
+        number_format: number
+        axis_y: {title: {visible: false}}
+      layers:
+        - {type: bar, y: pending_issues, label: Still open}
+  rows:
+    - {cols: [issues, open]}
+    - groups

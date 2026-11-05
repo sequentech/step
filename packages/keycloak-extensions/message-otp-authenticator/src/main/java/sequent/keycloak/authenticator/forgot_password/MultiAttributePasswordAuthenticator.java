@@ -522,6 +522,7 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
                 + ".",
             ProviderConfigProperty.STRING_TYPE,
             Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT),
+        Utils.sharedCandidateFailurePolicyProperty(),
         matchPolicy,
         existingUserSessionPolicy,
         new ProviderConfigProperty(

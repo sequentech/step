@@ -17,6 +17,26 @@
 
 version: 2
 updates:
+  # Container base images. Needed because the Dockerfiles pin their bases by
+  # digest for reproducible builds: a pinned digest cannot pick up an upstream
+  # rebuild on its own, so without these entries the bases would quietly stop
+  # receiving security patches. Dependabot bumps the digest and the PR is
+  # reviewed like any other.
+  #
+  # `directories` with a glob so the per-package Dockerfiles are covered too.
+  - package-ecosystem: "docker"
+    directories:
+      - "/packages"
+      - "/packages/*"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      container-base-images:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+
   # Rust
   - package-ecosystem: "cargo"
     directory: "/packages"

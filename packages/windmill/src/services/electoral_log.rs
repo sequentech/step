@@ -3,23 +3,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::messaging::{latest_attempt_ids, ChannelFilter};
 use crate::services::celery_app::try_get_celery_app;
 use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
+use crate::services::electoral_log_board::get_board_client;
+use crate::services::electoral_log_board::get_board_signing_key;
+use crate::services::electoral_log_board::get_event_board;
+use crate::services::electoral_log_board::get_tenant_board;
+use crate::services::electoral_log_board::TenantLog;
 use crate::services::electoral_log_checkpoint_copies::{
     store_checkpoint_copy, CheckpointCopyConfig,
 };
 use crate::services::insert_cast_vote::hash_voter_id;
-use crate::services::protocol_manager::get_board_client;
-use crate::services::protocol_manager::get_event_board;
-use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::vault;
 use crate::tasks::electoral_log::{
     enqueue_electoral_log_event, LogEventBody, LogEventInput, LogMessageType,
 };
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
 use anyhow::{anyhow, ensure, Context, Result};
-use b4::messages::message::Signer;
 use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::Transaction;
@@ -33,30 +35,33 @@ use electoral_log::{
     ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
 };
 use rust_decimal::prelude::ToPrimitive;
+use sequent_core::election_config::manifest::sha256_hex;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::messaging::{MessageChannel, UNRESOLVED_AFTER_HOURS};
 use sequent_core::util::retry::retry_with_exponential_backoff;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::time::Duration;
-use strand::backend::ristretto::RistrettoCtx;
-use strand::hash::HashWrapper;
-use strand::hash::STRAND_HASH_LENGTH_BYTES;
-use strand::serialization::StrandDeserialize;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strum_macros::{Display, EnumString};
 use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
+use velvet::pipes::report_manifest::csv_report_reader;
+use voting_crypto::hash::HashWrapper;
+use voting_crypto::hash::HASH_LENGTH_BYTES;
+use voting_crypto::signing::{SigningKey, VerificationKey};
+use voting_crypto::RecordDeserialize;
+use voting_crypto::RistrettoCtx;
 
 pub const ELECTORAL_LOG_ROWS_LIMIT: usize = 2500;
 pub const MAX_ROWS_PER_PAGE: usize = 50;
 
 /// Ballot_id input is the first half of the original hash which is stored in the electoral log.
-pub const BALLOT_ID_LENGTH_BYTES: usize = STRAND_HASH_LENGTH_BYTES / 2;
+pub const BALLOT_ID_LENGTH_BYTES: usize = HASH_LENGTH_BYTES / 2;
 /// Ballot_id input is in HEX, each byte is represented in 2 chars.
 pub const BALLOT_ID_LENGTH_CHARS: usize = BALLOT_ID_LENGTH_BYTES * 2;
 
@@ -194,7 +199,8 @@ impl PreparedVoterPasswordChangeLog {
                 get_board_client()
                     .await?
                     .append(&self.board, &entries)
-                    .await
+                    .await?;
+                Ok(())
             },
             5,
             Duration::from_millis(100),
@@ -485,6 +491,55 @@ async fn prepare_voter_secret_attribute_audit(
 const CHECKPOINT_DELIVERY_PREFIX: &str = "electoral-log-checkpoint:";
 /// Prefix of the delivery IDs of continuation statements, unique per continued log.
 const CONTINUATION_DELIVERY_PREFIX: &str = "electoral-log-continuation:";
+/// Prefix of the delivery IDs of approval matrix versions: `<version>:<sha256>`.
+const APPROVAL_MATRIX_DELIVERY_PREFIX: &str = "approval-matrix:";
+/// Prefix of the delivery IDs of monitoring configuration changes:
+/// `<generation>:<sha256 of the change>`.
+const MONITORING_CONFIG_DELIVERY_PREFIX: &str = "monitoring-config:";
+/// Prefix of the delivery IDs of configuration package imports:
+/// `<external ID>:<revision>:<manifest sha256>`.
+const CONFIGURATION_PACKAGE_DELIVERY_PREFIX: &str = "configuration-package:";
+/// Prefix of the delivery IDs of report manifests: `<report manifest sha256>`.
+const REPORT_GENERATED_DELIVERY_PREFIX: &str = "report-generated:";
+/// Prefix of the delivery IDs of admin public keys: `<user ID>:<sha256 of the
+/// public key>`.
+const ADMIN_PK_DELIVERY_PREFIX: &str = "admin-public-key:";
+
+/// The delivery id of an admin's public key on the tenant's log: one per
+/// account and key.
+pub fn admin_pk_delivery_id(user_id: &str, pk_der_b64: &str) -> String {
+    format!(
+        "{ADMIN_PK_DELIVERY_PREFIX}{user_id}:{}",
+        sha256_hex(pk_der_b64.as_bytes())
+    )
+}
+
+fn approval_matrix_delivery_id(version: u32, sha256: &str) -> String {
+    format!("{APPROVAL_MATRIX_DELIVERY_PREFIX}{version}:{sha256}")
+}
+
+fn monitoring_config_delivery_id(details: &MonitoringConfigChangeDetails) -> Result<String> {
+    let change = serde_json::to_vec(details).context("Error serializing the monitoring change")?;
+    Ok(format!(
+        "{MONITORING_CONFIG_DELIVERY_PREFIX}{}:{}",
+        details.generation,
+        sha256_hex(&change)
+    ))
+}
+
+fn configuration_package_delivery_id(details: &ConfigurationPackageDetails) -> String {
+    format!(
+        "{CONFIGURATION_PACKAGE_DELIVERY_PREFIX}{}:{}:{}",
+        details.external_id, details.revision, details.manifest_sha256
+    )
+}
+
+fn report_generated_delivery_id(details: &ReportGeneratedDetails) -> String {
+    format!(
+        "{REPORT_GENERATED_DELIVERY_PREFIX}{}",
+        details.report_manifest_sha256
+    )
+}
 
 /// Sign a checkpoint publication with the system key of `sd`.
 pub fn sign_checkpoint(
@@ -500,10 +555,52 @@ pub fn sign_checkpoint(
             tree_size: i64::try_from(checkpoint.tree_size)?,
             root: hex::encode(&checkpoint.root),
             reason: reason.to_string(),
-            signer_pk: sd.system_pk()?.to_der_b64_string()?,
+            signer_pk: sd.system_public_key()?.to_b64_string()?,
             signature: sd.system_sign(&bytes)?.to_b64_string()?,
         },
     )
+}
+
+/// A reader of the log's CSV export: the backup an event export holds, or
+/// the report, which starts with a comment line naming the configuration
+/// when the event was imported from a signed one.
+pub fn exported_log_reader<R: std::io::Read>(
+    file: R,
+) -> Result<csv::Reader<std::io::BufReader<R>>> {
+    csv_report_reader(file).context("Failed to read the CSV file")
+}
+
+/// The entry of a row of a CSV export of the log, under a new delivery ID.
+/// The row's `statement_kind` column must name the statement its message
+/// reads as: a file written by a release that numbers the statements
+/// differently (one exported before the electoral log moved to PostgreSQL,
+/// whose new statements come after the checkpoint statements now) would be
+/// read as other statements, so it is refused.
+fn csv_log_entry(row: ElectoralLogRow) -> Result<LogEntry> {
+    let bytes = general_purpose::STANDARD_NO_PAD.decode(&row.data)?;
+    let message = Message::record_deserialize(&bytes).map_err(|err| {
+        anyhow!(
+            "Row {} ({}) of the electoral-log CSV can't be read, which happens with a file \
+             written by a release that numbers the statements differently: {err:?}",
+            row.id,
+            row.statement_kind
+        )
+    })?;
+    let mut stored: ElectoralLogMessage = (&message).try_into()?;
+    ensure!(
+        stored.statement_kind == row.statement_kind,
+        "Row {} of the electoral-log CSV is a {} entry but its message reads as {}: the file \
+         was written by a release that numbers the statements differently and can't be imported",
+        row.id,
+        row.statement_kind,
+        stored.statement_kind
+    );
+    stored.created = row.created;
+    stored.message = bytes;
+    Ok(LogEntry {
+        delivery_id: Uuid::new_v4().to_string(),
+        message: stored,
+    })
 }
 
 pub struct ElectoralLog {
@@ -524,6 +621,70 @@ pub fn flatten_election_ids(election_ids: Option<Vec<String>>) -> Option<String>
 }
 
 impl ElectoralLog {
+    /// Sign the complete successful snapshot and wait for its append. This is
+    /// deliberately not a queued success: the operator needs retained evidence.
+    pub async fn post_readiness_verified(
+        &self,
+        event_id: &str,
+        report: &crate::domain::readiness::ReadinessReport,
+        actor: &crate::services::audit_log::AuditActor,
+    ) -> Result<()> {
+        let message = self.readiness_verified_message(event_id, report, actor)?;
+        let entry_id = report
+            .log_entry_id
+            .as_ref()
+            .context("Readiness entry has no delivery identity")?;
+        self.post_with_delivery_id(&message, format!("readiness:{entry_id}"))
+            .await
+    }
+
+    /// The signed ReadinessVerified entry. It is the person's USER entry when
+    /// one ran the check, and the system's otherwise, like a generated report.
+    fn readiness_verified_message(
+        &self,
+        event_id: &str,
+        report: &crate::domain::readiness::ReadinessReport,
+        actor: &crate::services::audit_log::AuditActor,
+    ) -> Result<Message> {
+        use electoral_log::messages::statement::StatementEventType;
+        ensure!(
+            report.passed && report.checks.iter().all(|check| check.passed),
+            "Only successful readiness checks may be recorded"
+        );
+        let entry_id = report
+            .log_entry_id
+            .as_ref()
+            .context("Readiness entry has no delivery identity")?;
+        let event_type = match actor.user_id {
+            Some(_) => StatementEventType::USER,
+            None => StatementEventType::SYSTEM,
+        };
+        let entry = AuditLogEntry {
+            kind: AuditStatementKind::ReadinessVerified,
+            event_type,
+            log_type: electoral_log::messages::statement::StatementLogType::INFO,
+            description: format!(
+                "Readiness verified against event {}",
+                report.evidence.tested.event_id
+            ),
+            details_json: serde_json::to_string(
+                &serde_json::json!({"actor": actor, "report": report}),
+            )?,
+            entry_id: entry_id.clone(),
+        };
+        let timestamp = chrono::DateTime::parse_from_rfc3339(&report.checked_at)?.timestamp();
+        Message::audit_message(
+            EventIdString(event_id.into()),
+            entry,
+            u64::try_from(timestamp)?,
+            &self.sd,
+            actor.user_id.clone(),
+            actor.username.clone(),
+            None,
+            None,
+        )
+    }
+
     #[instrument(err, name = "ElectoralLog::new")]
     pub async fn new(
         hasura_transaction: &Transaction<'_>,
@@ -534,7 +695,7 @@ impl ElectoralLog {
         let election_event_id =
             election_event_id_opt.ok_or(anyhow!("Election event id is required"))?;
 
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+        let protocol_manager = get_board_signing_key(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),
@@ -543,11 +704,7 @@ impl ElectoralLog {
         .await?;
 
         Ok(ElectoralLog {
-            sd: SigningData::new(
-                protocol_manager.get_signing_key().clone(),
-                "",
-                protocol_manager.get_signing_key().clone(),
-            ),
+            sd: SigningData::new(protocol_manager.clone(), "", protocol_manager.clone()),
             elog_database: elog_database.to_string(),
         })
     }
@@ -558,16 +715,16 @@ impl ElectoralLog {
         tenant_id: &str,
         election_event_id: &str,
         elog_database: &str,
-        sender_sk: &StrandSignatureSk,
+        sender_sk: &SigningKey,
     ) -> Result<Self> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+        let protocol_manager = get_board_signing_key(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),
             elog_database,
         )
         .await?;
-        let system_sk = protocol_manager.get_signing_key().clone();
+        let system_sk = protocol_manager.clone();
 
         Ok(ElectoralLog {
             sd: SigningData::new(sender_sk.clone(), "", system_sk),
@@ -578,7 +735,7 @@ impl ElectoralLog {
     /// Construct a system-authored audit message using an already loaded key.
     /// The empty sender name preserves the system identity used by `new` and
     /// `new_from_sk`; voter attribution belongs in the message's actor fields.
-    pub fn for_system_with_signing_key(elog_database: &str, system_sk: &StrandSignatureSk) -> Self {
+    pub fn for_system_with_signing_key(elog_database: &str, system_sk: &SigningKey) -> Self {
         Self {
             sd: SigningData::new(system_sk.clone(), "", system_sk.clone()),
             elog_database: elog_database.to_string(),
@@ -590,7 +747,7 @@ impl ElectoralLog {
     pub fn for_voter_with_signing_key(
         elog_database: &str,
         user_id: &str,
-        system_sk: &StrandSignatureSk,
+        system_sk: &SigningKey,
     ) -> Self {
         Self {
             sd: SigningData::new(system_sk.clone(), user_id, system_sk.clone()),
@@ -613,16 +770,12 @@ impl ElectoralLog {
         tenant_id: &str,
         event_id: &str,
         user_id: &str,
-        voter_signing_key: &Option<StrandSignaturePk>,
+        voter_signing_key: &Option<VerificationKey>,
     ) -> Result<Self> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
-            hasura_transaction,
-            tenant_id,
-            Some(event_id),
-            elog_database,
-        )
-        .await?;
-        let system_sk = protocol_manager.get_signing_key().clone();
+        let protocol_manager =
+            get_board_signing_key(hasura_transaction, tenant_id, Some(event_id), elog_database)
+                .await?;
+        let system_sk = protocol_manager.clone();
 
         Ok(ElectoralLog {
             sd: SigningData::new(system_sk.clone(), user_id, system_sk),
@@ -650,18 +803,17 @@ impl ElectoralLog {
         user_area_id: Option<String>,
     ) -> Result<Self> {
         let election_ids = flatten_election_ids(election_ids_vec);
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+        let protocol_manager = get_board_signing_key(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),
             elog_database,
         )
         .await?;
-        let system_sk = protocol_manager.get_signing_key().clone();
+        let system_sk = protocol_manager.clone();
 
         let sk = vault::get_admin_user_signing_key(
             hasura_transaction,
-            elog_database,
             tenant_id,
             user_id,
             username,
@@ -687,14 +839,10 @@ impl ElectoralLog {
         pk_der_b64: &str,
         area_id: &str,
     ) -> Result<()> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
-            hasura_transaction,
-            tenant_id,
-            Some(event_id),
-            elog_database,
-        )
-        .await?;
-        let system_sk = protocol_manager.get_signing_key().clone();
+        let protocol_manager =
+            get_board_signing_key(hasura_transaction, tenant_id, Some(event_id), elog_database)
+                .await?;
+        let system_sk = protocol_manager.clone();
         let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
 
         let pseudonym = hash_voter_id(&user_id)?;
@@ -722,6 +870,9 @@ impl ElectoralLog {
                 serde_json::to_string(&board_message)
                     .with_context(|| "Error serializing ElectoralLogMessage")?,
             ),
+            event_time_ms: None,
+            details: None,
+            admin_event: None,
         };
 
         let celery_app = try_get_celery_app().await?;
@@ -731,20 +882,16 @@ impl ElectoralLog {
         Ok(())
     }
 
-    /// Posts an admin user's public key
+    /// Posts an admin user's public key to the tenant's log, signed with the
+    /// log's system key: the key is one per tenant and signs the admin's
+    /// entries in every election event and in the tenant's log. The entry's
+    /// delivery id is made from the account and the key, so posting the same
+    /// key again stores nothing.
     ///
-    /// Because admin users are cross election event entities, a
-    /// dummy election event id will be used instead, with value
-    /// electoral_log::messages::Message:GENERIC_EVENT.
-    ///
-    /// FIXME: it may be necessary to implement a tenant-wide electoral
-    /// log to save this type of message. An admin user could be created
-    /// in the context of one event and the notification will only
-    /// be present in its log, even if the corresponding signing private key
-    /// would be used in other events.
+    /// Callers post once the admin's key is committed (`vault`), with a
+    /// `tenant_log` whose system key is committed too.
     pub async fn post_admin_pk(
-        hasura_transaction: &Transaction<'_>,
-        elog_database: &str,
+        tenant_log: &TenantLog,
         tenant_id: &str,
         user_id: &str,
         username: Option<String>,
@@ -752,14 +899,8 @@ impl ElectoralLog {
         elections_ids: Option<String>,
         user_area_id: Option<String>,
     ) -> Result<()> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
-            hasura_transaction,
-            tenant_id,
-            None,
-            elog_database,
-        )
-        .await?;
-        let system_sk = protocol_manager.get_signing_key().clone();
+        let elog_database = tenant_log.board.as_str();
+        let system_sk = tenant_log.system_key.clone();
         let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
 
         let message = Message::admin_public_key_message(
@@ -777,7 +918,9 @@ impl ElectoralLog {
             elog_database: elog_database.to_string(),
         };
 
-        let ret = elog.post(&message).await;
+        let ret = elog
+            .post_with_delivery_id(&message, admin_pk_delivery_id(user_id, pk_der_b64))
+            .await;
 
         if ret.is_err() {
             tracing::error!(
@@ -790,7 +933,7 @@ impl ElectoralLog {
         ret
     }
 
-    #[instrument(skip(self, pseudonym_h))]
+    #[instrument(skip_all)]
     pub async fn post_cast_vote_error(
         &self,
         tenant_id: String,
@@ -835,52 +978,15 @@ impl ElectoralLog {
                 serde_json::to_string(&board_message)
                     .with_context(|| "Error serializing post cast vote")?,
             ),
+            event_time_ms: None,
+            details: None,
+            admin_event: None,
         };
         let celery_app = try_get_celery_app().await?;
         celery_app
             .send_task(enqueue_electoral_log_event::new(input))
             .await?;
         Ok(())
-    }
-
-    #[instrument(skip(self))]
-    pub async fn post_phone_blacklist_entry_created(
-        &self,
-        event_id: String,
-        number_e164: String,
-        user_id: Option<String>,
-        username: Option<String>,
-    ) -> Result<()> {
-        let event = EventIdString(event_id);
-        let message = Message::phone_blacklist_entry_created_message(
-            event,
-            PhoneE164String(number_e164),
-            &self.sd,
-            user_id,
-            username,
-        )?;
-
-        self.post(&message).await
-    }
-
-    #[instrument(skip(self))]
-    pub async fn post_phone_blacklist_entry_deleted(
-        &self,
-        event_id: String,
-        number_e164: String,
-        user_id: Option<String>,
-        username: Option<String>,
-    ) -> Result<()> {
-        let event = EventIdString(event_id);
-        let message = Message::phone_blacklist_entry_deleted_message(
-            event,
-            PhoneE164String(number_e164),
-            &self.sd,
-            user_id,
-            username,
-        )?;
-
-        self.post(&message).await
     }
 
     #[instrument(skip_all, fields(direction = %direction, api_name = %api_name), err)]
@@ -923,6 +1029,9 @@ impl ElectoralLog {
                 serde_json::to_string(&board_message)
                     .with_context(|| "Error serializing ElectoralLogMessage")?,
             ),
+            event_time_ms: None,
+            details: None,
+            admin_event: None,
         };
         let celery_app = try_get_celery_app().await?;
         celery_app
@@ -988,30 +1097,137 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
+    /// Posts a new version of the election event's approval matrix, once per
+    /// version and digest.
+    #[instrument(skip(self))]
+    pub async fn post_approval_matrix_updated(
+        &self,
+        event_id: String,
+        version: u32,
+        sha256: String,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let delivery_id = approval_matrix_delivery_id(version, &sha256);
+        let message = Message::approval_matrix_updated_message(
+            EventIdString(event_id),
+            ApprovalMatrixVersion(version),
+            ApprovalMatrixDigestString(sha256),
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post_with_delivery_id(&message, delivery_id).await
+    }
+
+    /// Posts a change to the election event's monitoring dashboards, once per
+    /// generation and change.
+    #[instrument(skip(self))]
+    pub async fn post_monitoring_config_changed(
+        &self,
+        event_id: String,
+        details: MonitoringConfigChangeDetails,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let delivery_id = monitoring_config_delivery_id(&details)?;
+        let message = Message::monitoring_config_changed_message(
+            EventIdString(event_id),
+            details,
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post_with_delivery_id(&message, delivery_id).await
+    }
+
+    /// Posts a signed configuration package's import, once per package
+    /// revision and manifest.
+    #[instrument(skip(self))]
+    pub async fn post_configuration_package(
+        &self,
+        event_id: String,
+        details: ConfigurationPackageImportDetails,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let delivery_id = configuration_package_delivery_id(&details.package);
+        let message = Message::configuration_package_with_content_hash_message(
+            EventIdString(event_id),
+            details,
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post_with_delivery_id(&message, delivery_id).await
+    }
+
+    /// Posts the hash manifest of a generated report, once per manifest.
+    #[instrument(skip(self))]
+    pub async fn post_report_generated(
+        &self,
+        event_id: String,
+        details: ReportGeneratedDetails,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let delivery_id = report_generated_delivery_id(&details);
+        let message = Message::report_generated_message(
+            EventIdString(event_id),
+            details,
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post_with_delivery_id(&message, delivery_id).await
+    }
+
+    /// Posts a publication. For an event imported from a signed
+    /// configuration package the entry carries `configuration`: the
+    /// manifest SHA-256 and the digest of each design published.
     #[instrument(skip(self))]
     pub async fn post_election_published(
         &self,
         event_id: String,
         election_ids_vec: Option<Vec<String>>,
         ballot_pub_id: String,
+        configuration: Option<PublishedConfiguration>,
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
-        let event = EventIdString(event_id);
-        let election_ids = flatten_election_ids(election_ids_vec);
-        let election = ElectionIdString(election_ids.clone());
-        let ballot_pub_id = BallotPublicationIdString(ballot_pub_id);
-
-        let message = Message::election_published_message(
-            event,
-            election,
+        let message = self.election_published_message(
+            event_id,
+            election_ids_vec,
             ballot_pub_id,
-            &self.sd,
+            configuration,
             user_id,
             username,
         )?;
-
         self.post(&message).await
+    }
+
+    fn election_published_message(
+        &self,
+        event_id: String,
+        election_ids_vec: Option<Vec<String>>,
+        ballot_pub_id: String,
+        configuration: Option<PublishedConfiguration>,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Message> {
+        Message::election_published_message(
+            EventIdString(event_id),
+            ElectionIdString(flatten_election_ids(election_ids_vec)),
+            BallotPublicationIdString(ballot_pub_id),
+            configuration,
+            &self.sd,
+            user_id,
+            username,
+        )
     }
 
     #[instrument(skip(self))]
@@ -1089,7 +1305,7 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn post_keycloak_event(
         &self,
         event_id: String,
@@ -1099,7 +1315,9 @@ impl ElectoralLog {
         username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
-        let error_message = ErrorMessageString(error_message);
+        let error_message = ErrorMessageString(crate::services::privacy_signin::safe_error_text(
+            &error_message,
+        ));
         let event_type = KeycloakEventTypeString(event_type);
         let message = Message::keycloak_user_event(
             event,
@@ -1352,7 +1570,7 @@ impl ElectoralLog {
         election_event_id: &str,
         reason: ElectoralLogCheckpointReason,
     ) -> Result<electoral_log::proofs::Checkpoint> {
-        let checkpoint = crate::services::protocol_manager::get_event_store(election_event_id)
+        let checkpoint = crate::services::electoral_log_board::get_event_store(election_event_id)
             .await?
             .journal()
             .checkpoint(&self.elog_database)
@@ -1458,8 +1676,9 @@ impl ElectoralLog {
         retry_with_exponential_backoff(
             // The closure we want to call repeatedly
             || async {
-                let mut client = get_board_client().await?;
-                client.append(self.elog_database.as_str(), &ms).await
+                let client = get_board_client().await?;
+                client.append(self.elog_database.as_str(), &ms).await?;
+                Ok(())
             },
             // Maximum number of retries:
             5,
@@ -1480,7 +1699,9 @@ impl ElectoralLog {
         area_id: Option<String>,
     ) -> Result<ElectoralLogMessage> {
         let event = EventIdString(event_id);
-        let error_message = ErrorMessageString(error_message);
+        let error_message = ErrorMessageString(crate::services::privacy_signin::safe_error_text(
+            &error_message,
+        ));
         let event_type = KeycloakEventTypeString(event_type);
         let message = &Message::keycloak_user_event(
             event,
@@ -1523,24 +1744,15 @@ impl ElectoralLog {
 
     #[instrument(skip(self))]
     pub async fn import_from_csv(&self, logs_file: &NamedTempFile) -> Result<()> {
-        let mut reader = csv::Reader::from_reader(logs_file);
-        let mut entries = reader.deserialize::<ElectoralLogRow>().map(|row| {
-            let row = row.context("Failed to read electoral-log CSV row")?;
-            let bytes = general_purpose::STANDARD_NO_PAD.decode(&row.data)?;
-            let message = Message::strand_deserialize(&bytes)
-                .map_err(|err| anyhow!("Failed to deserialize message: {err:?}"))?;
-            let mut stored: ElectoralLogMessage = (&message).try_into()?;
-            stored.created = row.created;
-            stored.message = bytes;
-            Ok(LogEntry {
-                delivery_id: Uuid::new_v4().to_string(),
-                message: stored,
-            })
-        });
+        let mut reader = exported_log_reader(logs_file)?;
+        let mut entries = reader
+            .deserialize::<ElectoralLogRow>()
+            .map(|row| csv_log_entry(row.context("Failed to read electoral-log CSV row")?));
         get_board_client()
             .await?
             .append_iter(&self.elog_database, &mut entries)
-            .await
+            .await?;
+        Ok(())
     }
 }
 
@@ -1562,11 +1774,120 @@ pub enum OrderField {
     EventType,
     Description,
     Version,
+    /// Filter only (never a column or a sort key): the first minute of an
+    /// inclusive range of `created` (RFC 3339 instant).
+    CreatedFrom,
+    /// Filter only: the last minute of an inclusive range of `created`.
+    CreatedTo,
+    /// Filter only: the first minute of a range of `statement_timestamp`.
+    StatementTimestampFrom,
+    /// Filter only: the last minute of a range of `statement_timestamp`.
+    StatementTimestampTo,
+    /// Filter only: messages sent to voters on this channel (any case).
+    Channel,
+    /// Filter only: messages sent to voters with this attempt outcome.
+    Outcome,
+}
+
+impl OrderField {
+    /// The range keys filter a column but aren't one, so they never sort.
+    pub fn is_column(&self) -> bool {
+        !matches!(
+            self,
+            OrderField::CreatedFrom
+                | OrderField::CreatedTo
+                | OrderField::StatementTimestampFrom
+                | OrderField::StatementTimestampTo
+                | OrderField::Channel
+                | OrderField::Outcome
+        )
+    }
+}
+
+/// The start of the minute of a Unix time in seconds. Every zone's offset is
+/// a whole number of minutes, so a minute is the same in every zone.
+fn minute_start(ts: i64) -> i64 {
+    ts - ts.rem_euclid(60)
+}
+
+/// Unix seconds of an RFC 3339 instant.
+fn parse_instant(value: &str) -> Result<i64> {
+    let datetime = ISO8601::to_date_utc(value)
+        .map_err(|err| anyhow!("Failed to parse timestamp {value:?}: {err:?}"))?;
+    Ok(datetime.timestamp())
+}
+
+/// A range of instants inclusive to the minute at both ends: `from` and `to`
+/// are RFC 3339 instants (the Admin Portal turns the wall times it shows in
+/// the chosen zone into instants), and a time is inside when it falls in or
+/// after `from`'s minute and in or before `to`'s minute.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MinuteRange {
+    /// The first second inside, if bounded.
+    pub start: Option<i64>,
+    /// The first second after the range, if bounded.
+    pub end: Option<i64>,
+}
+
+impl MinuteRange {
+    pub fn parse(from: Option<&str>, to: Option<&str>) -> Result<Self> {
+        let bound = |value: Option<&str>| -> Result<Option<i64>> {
+            value
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(parse_instant)
+                .transpose()
+        };
+        Ok(MinuteRange {
+            start: bound(from)?.map(minute_start),
+            end: bound(to)?.map(|ts| minute_start(ts) + 60),
+        })
+    }
+
+    /// The minute of one instant (the single-value filter).
+    pub fn minute_of(value: &str) -> Result<Self> {
+        Self::parse(Some(value), Some(value))
+    }
+
+    pub fn contains(&self, ts: i64) -> bool {
+        self.start.map_or(true, |start| start <= ts) && self.end.map_or(true, |end| ts < end)
+    }
+
+    pub fn is_unbounded(&self) -> bool {
+        self.start.is_none() && self.end.is_none()
+    }
+
+    /// The range as filters of `column`.
+    pub fn filters(&self, column: NumberColumn) -> impl Iterator<Item = Filter> {
+        let start = self
+            .start
+            .map(|start| Filter::Number(column, NumberComparison::GreaterThanOrEqual, start));
+        let end = self
+            .end
+            .map(|end| Filter::Number(column, NumberComparison::LessThan, end));
+        start.into_iter().chain(end)
+    }
+}
+
+/// The log a request reads: one election event's, or the tenant's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LogOf<'a> {
+    Event(&'a str),
+    Tenant,
+}
+
+/// An absent or `null` text as the empty one.
+fn text_or_empty<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<String, D::Error> {
+    Ok(Option::<String>::deserialize(deserializer)?.unwrap_or_default())
 }
 
 #[derive(Deserialize, Debug, Default, Clone)]
 pub struct GetElectoralLogBody {
     pub tenant_id: String,
+    /// Empty, absent or `null` for the tenant's log.
+    #[serde(default, deserialize_with = "text_or_empty")]
     pub election_event_id: String,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
@@ -1576,11 +1897,80 @@ pub struct GetElectoralLogBody {
     pub area_ids: Option<Vec<String>>,
     pub only_with_user: Option<bool>,
     pub statement_kind: Option<StatementType>,
+    /// Elections whose rows may be listed, besides rows of no election. The
+    /// server sets it from the caller's permission labels; `None` lists the
+    /// rows of every election.
+    #[serde(skip)]
+    pub permitted_election_ids: Option<Vec<String>>,
+    /// Only messages sent to voters, of this channel and outcome, such as
+    /// the failed WhatsApp messages the event tab links to. Also given as
+    /// the `channel` and `outcome` keys of `filter`.
+    #[serde(default)]
+    pub communications: Option<CommunicationsFilter>,
+}
+
+impl GetElectoralLogBody {
+    /// The log the request reads.
+    pub fn log(&self) -> LogOf<'_> {
+        match self.election_event_id.trim() {
+            "" => LogOf::Tenant,
+            event => LogOf::Event(event),
+        }
+    }
+
+    /// The board of the log the request reads.
+    pub fn board(&self) -> Result<String> {
+        let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
+        Ok(match self.log() {
+            LogOf::Event(event) => get_event_board(&self.tenant_id, event, &slug),
+            LogOf::Tenant => get_tenant_board(&self.tenant_id, &slug),
+        })
+    }
+
+    /// The communications filter, from `communications` or from the
+    /// `channel` and `outcome` keys of `filter`.
+    pub fn communications_filter(&self) -> Option<CommunicationsFilter> {
+        let from_filter = |field: OrderField| {
+            self.filter
+                .as_ref()
+                .and_then(|filter| filter.get(&field))
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty())
+        };
+        let channel = from_filter(OrderField::Channel);
+        let outcome = from_filter(OrderField::Outcome);
+        match (&self.communications, channel, outcome) {
+            (Some(filter), None, None) => Some(filter.clone()),
+            (given, channel, outcome) if channel.is_some() || outcome.is_some() => {
+                let given = given.clone().unwrap_or_default();
+                Some(CommunicationsFilter {
+                    channel: channel.or(given.channel),
+                    outcome: outcome.or(given.outcome),
+                })
+            }
+            _ => None,
+        }
+    }
+}
+
+/// Selects `SendCommunications` entries by the ledger's current state of
+/// the message they logged (see `list_communications`).
+#[derive(Deserialize, Debug, Default, Clone, PartialEq, Eq)]
+pub struct CommunicationsFilter {
+    /// A channel, in any case (`WHATSAPP` or `whatsapp`), or `none` for
+    /// messages recorded without a channel ("No contact channel").
+    pub channel: Option<String>,
+    /// The message's current outcome: `QUEUED`, `ACCEPTED`, `DELIVERED`,
+    /// `FAILED`, `UNKNOWN` (not yet Unresolved) or `UNRESOLVED`.
+    pub outcome: Option<String>,
 }
 
 impl GetElectoralLogBody {
     fn as_query(&self) -> Result<LogQuery> {
-        let limits = PgConfig::from_env()?;
+        self.as_query_within(&PgConfig::from_env()?)
+    }
+
+    fn as_query_within(&self, limits: &PgConfig) -> Result<LogQuery> {
         let mut query = LogQuery {
             limit: self
                 .limit
@@ -1610,27 +2000,41 @@ impl GetElectoralLogBody {
                             value.clone(),
                         ));
                     }
-                    OrderField::StatementTimestamp | OrderField::Created => {
-                        let timestamp = ISO8601::to_date_utc(value)?.timestamp();
-                        let column = match field {
-                            OrderField::Created => NumberColumn::Created,
-                            _ => NumberColumn::StatementTimestamp,
-                        };
-                        query.filters.push(Filter::Number(
-                            column,
-                            NumberComparison::GreaterThanOrEqual,
-                            timestamp,
-                        ));
-                        query.filters.push(Filter::Number(
-                            column,
-                            NumberComparison::LessThan,
-                            timestamp + 60,
-                        ));
+                    // A single value means its minute.
+                    OrderField::Created => query
+                        .filters
+                        .extend(MinuteRange::minute_of(value)?.filters(NumberColumn::Created)),
+                    OrderField::StatementTimestamp => query.filters.extend(
+                        MinuteRange::minute_of(value)?.filters(NumberColumn::StatementTimestamp),
+                    ),
+                    OrderField::CreatedFrom => query.filters.extend(
+                        MinuteRange::parse(Some(value), None)?.filters(NumberColumn::Created),
+                    ),
+                    OrderField::CreatedTo => query.filters.extend(
+                        MinuteRange::parse(None, Some(value))?.filters(NumberColumn::Created),
+                    ),
+                    OrderField::StatementTimestampFrom => query.filters.extend(
+                        MinuteRange::parse(Some(value), None)?
+                            .filters(NumberColumn::StatementTimestamp),
+                    ),
+                    OrderField::StatementTimestampTo => query.filters.extend(
+                        MinuteRange::parse(None, Some(value))?
+                            .filters(NumberColumn::StatementTimestamp),
+                    ),
+                    // Matched on the decoded message (`CommunicationsFilter`).
+                    OrderField::Channel | OrderField::Outcome => {}
+                    // The statement's own types, matched whole in any case.
+                    OrderField::EventType | OrderField::LogType => {
+                        let wanted = value.trim().to_uppercase();
+                        if !wanted.is_empty() {
+                            query.filters.push(Filter::Text(
+                                field.to_string().parse()?,
+                                SqlCompOperators::Equal,
+                                wanted,
+                            ));
+                        }
                     }
-                    OrderField::EventType
-                    | OrderField::LogType
-                    | OrderField::Description
-                    | OrderField::Message => {}
+                    OrderField::Description | OrderField::Message => {}
                 }
             }
         }
@@ -1640,6 +2044,11 @@ impl GetElectoralLogBody {
                 area_ids: self.area_ids.clone().unwrap_or_default(),
             });
         }
+        if let Some(election_ids) = &self.permitted_election_ids {
+            query
+                .filters
+                .push(Filter::ElectionScope(election_ids.clone()));
+        }
         if let Some(kind) = &self.statement_kind {
             query.filters.push(Filter::Text(
                 ElectoralLogVarCharColumn::StatementKind,
@@ -1647,11 +2056,14 @@ impl GetElectoralLogBody {
                 kind.to_string(),
             ));
         }
-        if let Some(order) = &self.order_by {
-            let mut order: Vec<_> = order
-                .iter()
-                .map(|(field, direction)| (field.to_string(), direction.to_string()))
-                .collect();
+        let mut order: Vec<_> = self
+            .order_by
+            .iter()
+            .flatten()
+            .filter(|(field, _)| field.is_column())
+            .map(|(field, direction)| (field.to_string(), direction.to_string()))
+            .collect();
+        if !order.is_empty() {
             order.sort();
             query.order = order
                 .into_iter()
@@ -1747,7 +2159,7 @@ impl TryFrom<ElectoralLogMessage> for ElectoralLogRow {
 
     fn try_from(elog_msg: ElectoralLogMessage) -> Result<Self, Self::Error> {
         let serialized = general_purpose::STANDARD_NO_PAD.encode(elog_msg.message.clone());
-        let deserialized_message = Message::strand_deserialize(&elog_msg.message)
+        let deserialized_message = Message::record_deserialize(&elog_msg.message)
             .map_err(|e| anyhow!("Error deserializing message: {e:?}"))?;
 
         Ok(ElectoralLogRow {
@@ -1817,11 +2229,133 @@ pub fn check_cast_vote_order_by(
     Ok(())
 }
 
-#[instrument(err)]
+/// At most this many `SendCommunications` entries are read for one page of
+/// a communications filter, so a page view costs a bounded amount whatever
+/// the event's size.
+pub const COMMUNICATIONS_SCAN_LIMIT: usize = 20_000;
+
+impl CommunicationsFilter {
+    /// The ledger channel this filter asks for: a channel in any case, or
+    /// `none` for messages recorded without a channel ("No contact
+    /// channel").
+    pub fn ledger_channel(&self) -> Result<ChannelFilter> {
+        match self.channel.as_deref().map(str::trim) {
+            None | Some("") => Ok(ChannelFilter::Any),
+            Some(channel) if channel.eq_ignore_ascii_case("none") => Ok(ChannelFilter::NoChannel),
+            Some(channel) => Ok(ChannelFilter::Channel(
+                channel
+                    .to_uppercase()
+                    .parse::<MessageChannel>()
+                    .map_err(|_| anyhow!("unknown channel {channel}"))?,
+            )),
+        }
+    }
+
+    /// The ledger row a `SendCommunications` entry logged (`message_id`).
+    pub fn message_id_of(row: &ElectoralLogRow) -> Option<String> {
+        let message = serde_json::from_str::<serde_json::Value>(&row.message).ok()?;
+        let body = message["statement"]["body"]["SendCommunications"].as_str()?;
+        let body = serde_json::from_str::<serde_json::Value>(body).ok()?;
+        body["message_id"].as_str().map(str::to_string)
+    }
+}
+
+/// The entries matching a communications filter, by the ledger's
+/// **current** state: the latest attempt of each message of the event on
+/// the channel and with the outcome asked for (as the event tab counts
+/// them), matched to its entry through `message_id`. The total is the
+/// number of such messages, the event tab's count. Entries are read a page
+/// at a time, at most [`COMMUNICATIONS_SCAN_LIMIT`], and only until the
+/// requested page is filled. Entries without a `message_id` (the first
+/// release's) don't match.
+async fn list_communications(
+    input: GetElectoralLogBody,
+    filter: CommunicationsFilter,
+) -> Result<DataList<ElectoralLogRow>> {
+    let tenant_id = uuid::Uuid::parse_str(&input.tenant_id)?;
+    let event_id = uuid::Uuid::parse_str(&input.election_event_id)?;
+    let channel = filter.ledger_channel()?;
+    let outcome = filter
+        .outcome
+        .as_deref()
+        .map(str::trim)
+        .filter(|outcome| !outcome.is_empty());
+    let wanted: std::collections::HashSet<String> = {
+        let mut client = get_hasura_pool().await.get().await?;
+        let tx = client.transaction().await?;
+        let ids = latest_attempt_ids(
+            &tx,
+            &tenant_id,
+            &event_id,
+            channel,
+            outcome,
+            chrono::Utc::now() - chrono::Duration::hours(UNRESOLVED_AFTER_HOURS),
+        )
+        .await?;
+        tx.commit().await?;
+        ids.into_iter().map(|id| id.to_string()).collect()
+    };
+    let total = i64::try_from(wanted.len())?;
+    let page = i64::from(PgConfig::from_env()?.low_sql_limit);
+    let wanted_offset = usize::try_from(input.offset.unwrap_or(0).max(0))?;
+    let wanted_limit = usize::try_from(
+        input
+            .limit
+            .unwrap_or(PgConfig::from_env()?.default_sql_limit.into())
+            .max(0),
+    )?;
+    let mut matches = vec![];
+    let mut offset = 0;
+    let mut scanned = 0;
+    while !wanted.is_empty()
+        && matches.len() < wanted_offset + wanted_limit
+        && scanned < COMMUNICATIONS_SCAN_LIMIT
+    {
+        let batch = Box::pin(list_electoral_log(GetElectoralLogBody {
+            statement_kind: Some(StatementType::SendCommunications),
+            communications: None,
+            filter: input.filter.clone().map(|mut filter| {
+                filter.remove(&OrderField::Channel);
+                filter.remove(&OrderField::Outcome);
+                filter
+            }),
+            limit: Some(page),
+            offset: Some(offset),
+            ..input.clone()
+        }))
+        .await?;
+        let read = batch.items.len();
+        scanned += read;
+        matches.extend(batch.items.into_iter().filter(|row| {
+            CommunicationsFilter::message_id_of(row).is_some_and(|id| wanted.contains(&id))
+        }));
+        if (read as i64) < page {
+            break;
+        }
+        offset += page;
+    }
+    if scanned >= COMMUNICATIONS_SCAN_LIMIT {
+        warn!(scanned, "communications filter stopped at its scan limit");
+    }
+    Ok(DataList {
+        items: matches
+            .into_iter()
+            .skip(wanted_offset)
+            .take(wanted_limit)
+            .collect(),
+        total: TotalAggregate {
+            aggregate: Aggregate { count: total },
+        },
+    })
+}
+
+#[instrument(skip_all)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
+    if let Some(filter) = input.communications_filter() {
+        return list_communications(input, filter).await;
+    }
     let client = get_board_client().await?;
-    let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
-    let board = get_event_board(&input.tenant_id, &input.election_event_id, &slug);
+    let board = input.board()?;
     let query = input.as_query()?;
     let items = client
         .query(&board, &query)
@@ -1838,7 +2372,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     })
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn get_cols_match_count_and_select(
     election_id: &str,
     user_id: &str,
@@ -1873,7 +2407,7 @@ pub fn get_cols_match_count_and_select(
 /// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input
 /// ballot_id_filter is restricted to be an even number of characters, so that can be converted
 /// to a byte array
-#[instrument(err)]
+#[instrument(skip_all)]
 pub async fn list_cast_vote_messages(
     input: GetElectoralLogBody,
     ballot_id_filter: &str,
@@ -1943,7 +2477,7 @@ pub async fn list_cast_vote_messages(
     Ok(CastVoteMessagesOutput { list, total })
 }
 
-#[instrument(err)]
+#[instrument(skip_all)]
 pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
     let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
     let board = get_event_board(&input.tenant_id, &input.election_event_id, &slug);
@@ -2084,18 +2618,24 @@ mod voter_secret_attribute_audit_tests {
 mod postgres_wiring_tests {
     use super::*;
 
-    #[tokio::test]
+    #[test]
     #[ignore = "requires a disposable ELECTORAL_LOG_PG_* database and ENV_SLUG"]
-    async fn prepared_append_list_count_and_delete_use_the_postgres_store() -> Result<()> {
+    fn prepared_append_list_count_and_delete_use_the_postgres_store() -> Result<()> {
+        crate::services::electoral_log_board::test_runtime()
+            .block_on(prepared_append_list_count_and_delete_use_the_postgres_store_on_runtime())
+    }
+
+    async fn prepared_append_list_count_and_delete_use_the_postgres_store_on_runtime() -> Result<()>
+    {
         let tenant = Uuid::new_v4().to_string();
         let event = Uuid::new_v4().to_string();
         let slug = std::env::var("ENV_SLUG")?;
         let board = get_event_board(&tenant, &event, &slug);
-        let databases = crate::services::protocol_manager::get_event_databases().await?;
+        let databases = crate::services::electoral_log_board::get_event_databases().await?;
         databases.create_event(&tenant, &event).await?;
         let client = get_board_client().await?;
         client.create_board(&board).await?;
-        let key = StrandSignatureSk::generate()?;
+        let key = SigningKey::generate()?;
         let log = ElectoralLog::for_system_with_signing_key(&board, &key);
         let message = log.build_keycloak_event_message(
             event.clone(),
@@ -2198,5 +2738,618 @@ mod cast_vote_entry_tests {
                 .to_string();
             assert!(error.contains(&field.to_string()), "{error}");
         }
+    }
+}
+
+#[cfg(test)]
+mod election_published_tests {
+    use super::*;
+
+    fn log() -> ElectoralLog {
+        let key = SigningKey::generate().unwrap();
+        ElectoralLog::for_system_with_signing_key("board", &key)
+    }
+
+    fn message(configuration: Option<PublishedConfiguration>) -> Message {
+        log()
+            .election_published_message(
+                "event".to_string(),
+                Some(vec!["election".to_string()]),
+                "publication".to_string(),
+                configuration,
+                Some("admin-id".to_string()),
+                Some("admin".to_string()),
+            )
+            .unwrap()
+    }
+
+    #[test]
+    fn a_signed_configurations_publication_is_one_entry_with_its_manifest_and_designs() {
+        let configuration = PublishedConfiguration {
+            external_id: "ov-2028".to_string(),
+            revision: 3,
+            manifest_sha256: "ab".repeat(32),
+            design_digests: vec![ConfigurationDesignDigest {
+                area: "Post 1".to_string(),
+                election: "national".to_string(),
+                sha256: "cd".repeat(32),
+            }],
+        };
+        let message = message(Some(configuration.clone()));
+        assert!(matches!(
+            message.statement.head.kind,
+            StatementType::ElectionPublish
+        ));
+        match &message.statement.body {
+            StatementBody::ElectionPublishWithConfiguration(election, publication, logged) => {
+                assert_eq!(election.0.as_deref(), Some("election"));
+                assert_eq!(publication.0, "publication");
+                assert_eq!(logged, &configuration);
+            }
+            other => panic!("unexpected body {other:?}"),
+        }
+        assert_eq!(message.user_id.as_deref(), Some("admin-id"));
+        assert_eq!(message.username.as_deref(), Some("admin"));
+        assert_eq!(message.election_id.as_deref(), Some("election"));
+
+        let stored = ElectoralLogMessage::try_from(&message).unwrap();
+        assert_eq!(stored.statement_kind, "ElectionPublish");
+        let read = Message::record_deserialize(&stored.message).unwrap();
+        assert!(matches!(
+            read.statement.body,
+            StatementBody::ElectionPublishWithConfiguration(_, _, logged) if logged == configuration
+        ));
+    }
+
+    #[test]
+    fn a_publication_without_a_package_is_the_entry_older_logs_hold() {
+        let message = message(None);
+        assert!(matches!(
+            message.statement.head.kind,
+            StatementType::ElectionPublish
+        ));
+        assert!(matches!(
+            message.statement.body,
+            StatementBody::ElectionPublish(..)
+        ));
+    }
+}
+
+#[cfg(test)]
+mod range_filter_tests {
+    use super::*;
+    use electoral_log::domain::{OrderColumn, SortDirection};
+
+    fn ts(rfc3339: &str) -> i64 {
+        ISO8601::to_date_utc(rfc3339).unwrap().timestamp()
+    }
+
+    fn body(filter: &[(OrderField, &str)]) -> GetElectoralLogBody {
+        GetElectoralLogBody {
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            filter: Some(
+                filter
+                    .iter()
+                    .map(|(field, value)| (field.clone(), value.to_string()))
+                    .collect(),
+            ),
+            ..Default::default()
+        }
+    }
+
+    /// The time filters of the body's query, as (column, comparison, value).
+    fn time_filters(body: &GetElectoralLogBody) -> Vec<(String, String, i64)> {
+        let mut filters: Vec<_> = body
+            .as_query_within(&PgConfig::default())
+            .unwrap()
+            .filters
+            .into_iter()
+            .filter_map(|filter| match filter {
+                Filter::Number(column, comparison, value) => {
+                    Some((column.to_string(), comparison.to_string(), value))
+                }
+                Filter::Text(..) | Filter::ElectionScope(..) => None,
+            })
+            .collect();
+        filters.sort();
+        filters
+    }
+
+    fn filter(column: &str, comparison: &str, value: i64) -> (String, String, i64) {
+        (column.to_string(), comparison.to_string(), value)
+    }
+
+    /// Two configurations: the wall times are entered in the chosen zone
+    /// (Manila, +08:00; Kathmandu, +05:45) and arrive as instants.
+    #[test]
+    fn the_range_includes_both_ends_to_the_minute_in_the_chosen_zone() {
+        for offset in ["+08:00", "+05:45"] {
+            let from = format!("2028-04-08T00:00:00{offset}");
+            let to = format!("2028-04-09T23:59:00{offset}");
+            let range = MinuteRange::parse(Some(&from), Some(&to)).unwrap();
+
+            assert!(range.contains(ts(&from)));
+            assert!(range.contains(ts(&format!("2028-04-09T23:59:59{offset}"))));
+            assert!(!range.contains(ts(&format!("2028-04-10T00:00:00{offset}"))));
+            assert!(!range.contains(ts(&format!("2028-04-07T23:59:59{offset}"))));
+        }
+    }
+
+    #[test]
+    fn seconds_in_the_bounds_still_cover_their_whole_minute() {
+        let range = MinuteRange::parse(
+            Some("2028-04-08T10:15:42+08:00"),
+            Some("2028-04-08T10:20:05+08:00"),
+        )
+        .unwrap();
+        assert!(range.contains(ts("2028-04-08T10:15:00+08:00")));
+        assert!(range.contains(ts("2028-04-08T10:20:59+08:00")));
+        assert!(!range.contains(ts("2028-04-08T10:14:59+08:00")));
+        assert!(!range.contains(ts("2028-04-08T10:21:00+08:00")));
+    }
+
+    #[test]
+    fn an_open_end_is_unbounded() {
+        let range = MinuteRange::parse(Some("2028-04-08T10:15:00Z"), None).unwrap();
+        assert!(range.contains(i64::MAX));
+        assert!(!range.contains(ts("2028-04-08T10:14:59Z")));
+        assert!(MinuteRange::parse(None, Some(" ")).unwrap().is_unbounded());
+        assert_eq!(
+            MinuteRange::parse(None, Some(" "))
+                .unwrap()
+                .filters(NumberColumn::Created)
+                .count(),
+            0
+        );
+    }
+
+    #[test]
+    fn the_list_filters_created_from_and_to_inclusive_to_the_minute() {
+        let filters = time_filters(&body(&[
+            (OrderField::CreatedFrom, "2028-04-08T00:00:00+08:00"),
+            (OrderField::CreatedTo, "2028-04-09T23:59:00+08:00"),
+        ]));
+
+        assert_eq!(
+            filters,
+            vec![
+                filter("created", "<", ts("2028-04-09T16:00:00Z")),
+                filter("created", ">=", ts("2028-04-07T16:00:00Z")),
+            ]
+        );
+    }
+
+    #[test]
+    fn the_list_filters_the_statement_timestamp_range() {
+        let filters = time_filters(&body(&[
+            (
+                OrderField::StatementTimestampFrom,
+                "2028-04-08T09:30:00-04:00",
+            ),
+            (
+                OrderField::StatementTimestampTo,
+                "2028-04-08T09:30:00-04:00",
+            ),
+        ]));
+
+        let start = ts("2028-04-08T13:30:00Z");
+        assert_eq!(
+            filters,
+            vec![
+                filter("statement_timestamp", "<", start + 60),
+                filter("statement_timestamp", ">=", start),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_single_value_still_means_its_minute() {
+        let filters = time_filters(&body(&[(OrderField::Created, "2028-04-08T10:15:42Z")]));
+        assert_eq!(
+            filters,
+            vec![
+                filter("created", "<", ts("2028-04-08T10:16:00Z")),
+                filter("created", ">=", ts("2028-04-08T10:15:00Z")),
+            ]
+        );
+    }
+
+    #[test]
+    fn an_unreadable_bound_is_refused() {
+        let body = body(&[(OrderField::CreatedFrom, "yesterday")]);
+        assert!(body.as_query_within(&PgConfig::default()).is_err());
+    }
+
+    #[test]
+    fn the_range_keys_arrive_in_the_filter_and_never_sort() {
+        let body: GetElectoralLogBody = serde_json::from_value(serde_json::json!({
+            "tenant_id": "tenant",
+            "election_event_id": "event",
+            "filter": {"created_from": "2028-04-08T00:00:00+08:00"},
+            "order_by": {"created_from": "desc", "statement_timestamp_to": "asc"},
+        }))
+        .unwrap();
+        assert_eq!(
+            time_filters(&body),
+            vec![filter("created", ">=", ts("2028-04-07T16:00:00Z"))]
+        );
+        let query = body.as_query_within(&PgConfig::default()).unwrap();
+        assert_eq!(
+            format!("{:?}", query.order),
+            format!("{:?}", LogQuery::default().order)
+        );
+    }
+
+    #[test]
+    fn a_range_key_in_the_sort_is_left_out() {
+        let body: GetElectoralLogBody = serde_json::from_value(serde_json::json!({
+            "tenant_id": "tenant",
+            "election_event_id": "event",
+            "order_by": {"created_to": "desc", "created": "asc"},
+        }))
+        .unwrap();
+        let query = body.as_query_within(&PgConfig::default()).unwrap();
+        assert_eq!(
+            format!("{:?}", query.order),
+            format!("{:?}", vec![(OrderColumn::Created, SortDirection::Asc)])
+        );
+    }
+}
+
+#[cfg(test)]
+mod csv_import_tests {
+    use super::*;
+    use voting_crypto::RecordSerialize;
+
+    fn row(message: &Message, statement_kind: &str) -> ElectoralLogRow {
+        ElectoralLogRow {
+            id: 12,
+            created: 1_841_000_123,
+            statement_timestamp: message.statement.head.timestamp as i64,
+            statement_kind: statement_kind.to_string(),
+            message: String::new(),
+            data: general_purpose::STANDARD_NO_PAD.encode(message.record_serialize().unwrap()),
+            user_id: None,
+            username: None,
+        }
+    }
+
+    fn checkpoint_message() -> Message {
+        let key = SigningKey::generate().unwrap();
+        let log = ElectoralLog::for_system_with_signing_key("board", &key);
+        Message::electoral_log_checkpoint_message(
+            EventIdString("event".to_string()),
+            ElectoralLogCheckpointV2 {
+                log_uid: Uuid::new_v4().hyphenated().to_string(),
+                tree_size: 4,
+                root: "ab".repeat(32),
+                reason: ElectoralLogCheckpointReason::Periodic,
+            },
+            &log.sd,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn a_row_keeps_its_signed_bytes_and_creation_time() {
+        let message = checkpoint_message();
+        let entry = csv_log_entry(row(&message, "ElectoralLogCheckpoint")).unwrap();
+        assert_eq!(entry.message.statement_kind, "ElectoralLogCheckpoint");
+        assert_eq!(entry.message.created, 1_841_000_123);
+        assert_eq!(entry.message.message, message.record_serialize().unwrap());
+        assert!(!entry.delivery_id.is_empty());
+    }
+
+    /// An export written when the monitoring, signing and later statements
+    /// came straight after `ExternalReconciliation`: its rows name the
+    /// statement they held, which their messages no longer read as.
+    #[test]
+    fn a_row_numbered_by_another_release_is_refused() {
+        let message = checkpoint_message();
+        let error = csv_log_entry(row(&message, "SigningRequestCreated"))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("SigningRequestCreated"), "{error}");
+        assert!(error.contains("ElectoralLogCheckpoint"), "{error}");
+    }
+
+    #[test]
+    fn a_row_whose_message_does_not_read_is_refused() {
+        let mut row = row(&checkpoint_message(), "ElectoralLogCheckpoint");
+        row.data = general_purpose::STANDARD_NO_PAD.encode([30u8, 1, 2, 3]);
+        assert!(csv_log_entry(row).is_err());
+    }
+}
+
+#[cfg(test)]
+mod delivery_id_tests {
+    use super::*;
+
+    fn monitoring_change(
+        generation: u64,
+        mode: MonitoringDashboardMode,
+    ) -> MonitoringConfigChangeDetails {
+        MonitoringConfigChangeDetails {
+            origin: MonitoringConfigOrigin::Editor,
+            preset: None,
+            mode,
+            generation,
+            revisions: vec![],
+        }
+    }
+
+    #[test]
+    fn each_writer_names_what_it_records() {
+        assert_eq!(
+            approval_matrix_delivery_id(3, &"ab".repeat(32)),
+            format!("approval-matrix:3:{}", "ab".repeat(32))
+        );
+        let package = ConfigurationPackageDetails {
+            action: ConfigurationPackageAction::Imported,
+            external_id: "ov-2028".to_string(),
+            revision: 4,
+            manifest_sha256: "cd".repeat(32),
+            design_digests: vec![],
+        };
+        assert_eq!(
+            configuration_package_delivery_id(&package),
+            format!("configuration-package:ov-2028:4:{}", "cd".repeat(32))
+        );
+        let report = ReportGeneratedDetails {
+            report_type: "ACTIVITY_LOGS".to_string(),
+            document_id: None,
+            report_manifest_sha256: "ef".repeat(32),
+            external_id: "ov-2028".to_string(),
+            revision: 4,
+            manifest_sha256: "cd".repeat(32),
+        };
+        assert_eq!(
+            report_generated_delivery_id(&report),
+            format!("report-generated:{}", "ef".repeat(32))
+        );
+    }
+
+    #[test]
+    fn a_monitoring_change_is_named_by_its_generation_and_content() {
+        let saved = monitoring_delivery(7, MonitoringDashboardMode::Configured);
+        assert!(saved.starts_with("monitoring-config:7:"), "{saved}");
+        assert_eq!(
+            saved,
+            monitoring_delivery(7, MonitoringDashboardMode::Configured)
+        );
+        assert_ne!(
+            saved,
+            monitoring_delivery(7, MonitoringDashboardMode::Legacy)
+        );
+        assert_ne!(
+            saved,
+            monitoring_delivery(8, MonitoringDashboardMode::Configured)
+        );
+    }
+
+    fn monitoring_delivery(generation: u64, mode: MonitoringDashboardMode) -> String {
+        monitoring_config_delivery_id(&monitoring_change(generation, mode)).unwrap()
+    }
+}
+
+#[cfg(test)]
+mod communications_filter_tests {
+    use super::CommunicationsFilter;
+
+    #[test]
+    fn communications_select_a_ledger_channel_or_no_channel() {
+        use crate::postgres::messaging::ChannelFilter;
+        use sequent_core::types::messaging::MessageChannel;
+        let filter = |channel: Option<&str>| CommunicationsFilter {
+            channel: channel.map(str::to_string),
+            outcome: Some("FAILED".to_string()),
+        };
+        assert_eq!(
+            filter(Some("whatsapp")).ledger_channel().unwrap(),
+            ChannelFilter::Channel(MessageChannel::WHATSAPP)
+        );
+        assert_eq!(
+            filter(Some("NONE")).ledger_channel().unwrap(),
+            ChannelFilter::NoChannel
+        );
+        assert_eq!(filter(None).ledger_channel().unwrap(), ChannelFilter::Any);
+        assert!(filter(Some("fax")).ledger_channel().is_err());
+    }
+
+    #[test]
+    fn an_entry_is_matched_to_its_ledger_row() {
+        let body = r#"{"channel":"whatsapp","message_id":"m-1","outcome":"ACCEPTED"}"#;
+        let row = super::ElectoralLogRow {
+            id: 1,
+            created: 0,
+            statement_timestamp: 0,
+            statement_kind: "SendCommunications".to_string(),
+            message: serde_json::json!({"statement": {"body": {"SendCommunications": body}}})
+                .to_string(),
+            data: String::new(),
+            user_id: None,
+            username: None,
+        };
+        assert_eq!(
+            CommunicationsFilter::message_id_of(&row).as_deref(),
+            Some("m-1")
+        );
+        let first_release = super::ElectoralLogRow {
+            message: serde_json::json!({"statement": {"body": {"SendCommunications":
+                r#"{"channel":"sms","state":"ACCEPTED"}"#}}})
+            .to_string(),
+            ..row
+        };
+        assert_eq!(CommunicationsFilter::message_id_of(&first_release), None);
+    }
+}
+
+#[cfg(test)]
+mod permitted_election_tests {
+    use super::*;
+
+    fn body(permitted_election_ids: Option<Vec<String>>) -> GetElectoralLogBody {
+        GetElectoralLogBody {
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            permitted_election_ids,
+            ..Default::default()
+        }
+    }
+
+    /// The election scopes of the body's query.
+    fn election_scopes(body: &GetElectoralLogBody) -> Vec<Vec<String>> {
+        body.as_query_within(&PgConfig::default())
+            .unwrap()
+            .filters
+            .into_iter()
+            .filter_map(|filter| match filter {
+                Filter::ElectionScope(elections) => Some(elections),
+                Filter::Text(..) | Filter::Number(..) => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn log_query_keeps_rows_of_no_election_and_of_permitted_elections() {
+        let elections = vec!["north-1".to_string(), "north-2".to_string()];
+        assert_eq!(election_scopes(&body(Some(elections.clone()))), [elections]);
+    }
+
+    #[test]
+    fn log_query_keeps_rows_of_no_election_when_no_election_is_permitted() {
+        assert_eq!(election_scopes(&body(Some(vec![]))), [Vec::<String>::new()]);
+    }
+
+    #[test]
+    fn log_query_scope_is_combined_with_the_request_filters() {
+        let mut input = body(Some(vec!["north-1".to_string()]));
+        input.election_id = Some("north-1".to_string());
+        let query = input.as_query_within(&PgConfig::default()).unwrap();
+        assert_eq!(election_scopes(&input), [vec!["north-1".to_string()]]);
+        assert_eq!(
+            query
+                .visibility
+                .and_then(|visibility| visibility.election_id),
+            Some("north-1".to_string())
+        );
+    }
+
+    #[test]
+    fn log_query_is_unchanged_when_every_election_is_permitted() {
+        let query = body(None).as_query_within(&PgConfig::default()).unwrap();
+        assert!(query.filters.is_empty());
+        assert!(query.visibility.is_none());
+    }
+
+    #[test]
+    fn request_body_cannot_set_the_permitted_elections() {
+        let input: GetElectoralLogBody = serde_json::from_value(serde_json::json!({
+            "tenant_id": "tenant",
+            "election_event_id": "event",
+            "permitted_election_ids": ["south-1"]
+        }))
+        .unwrap();
+        assert_eq!(input.permitted_election_ids, None);
+    }
+}
+
+#[cfg(test)]
+mod readiness_verified_tests {
+    use super::*;
+    use crate::domain::readiness::{evaluate, ReadinessReport};
+    use crate::services::audit_log::AuditActor;
+    use electoral_log::messages::statement::StatementEventType;
+    use voting_crypto::signing::VerificationKey;
+
+    fn passed() -> ReadinessReport {
+        let mut report = evaluate(
+            serde_json::from_value(crate::domain::readiness::tests::evidence()).unwrap(),
+            "2026-10-14T10:00:00Z".into(),
+        );
+        report.log_entry_id = Some(Uuid::new_v4().to_string());
+        report
+    }
+
+    fn operator() -> AuditActor {
+        AuditActor {
+            user_id: Some("admin-id".into()),
+            username: Some("admin".into()),
+            role: Some("admin-user".into()),
+        }
+    }
+
+    fn audit(message: &Message) -> AuditLogEntry {
+        match &message.statement.body {
+            StatementBody::Audit(entry) => entry.clone(),
+            other => panic!("Expected an audit entry, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_check_a_person_runs_is_their_signed_user_entry() {
+        let key = SigningKey::generate().unwrap();
+        let log = ElectoralLog::for_system_with_signing_key("board", &key);
+        let report = passed();
+        let message = log
+            .readiness_verified_message("official", &report, &operator())
+            .unwrap();
+        message
+            .verify(&VerificationKey::from_sk(&key).unwrap())
+            .unwrap();
+        assert_eq!(message.statement.head.event_type, StatementEventType::USER);
+        assert_eq!(message.user_id.as_deref(), Some("admin-id"));
+        assert_eq!(message.username.as_deref(), Some("admin"));
+        let entry = audit(&message);
+        assert_eq!(entry.kind, AuditStatementKind::ReadinessVerified);
+        assert_eq!(entry.event_type, StatementEventType::USER);
+        assert_eq!(&entry.entry_id, report.log_entry_id.as_ref().unwrap());
+        let details: serde_json::Value = serde_json::from_str(&entry.details_json).unwrap();
+        assert_eq!(details["report"], serde_json::to_value(&report).unwrap());
+        assert_eq!(details["actor"], serde_json::to_value(operator()).unwrap());
+    }
+
+    #[test]
+    fn a_check_without_a_person_stays_a_system_entry() {
+        let key = SigningKey::generate().unwrap();
+        let log = ElectoralLog::for_system_with_signing_key("board", &key);
+        let message = log
+            .readiness_verified_message("official", &passed(), &AuditActor::default())
+            .unwrap();
+        assert_eq!(
+            message.statement.head.event_type,
+            StatementEventType::SYSTEM
+        );
+        assert_eq!(audit(&message).event_type, StatementEventType::SYSTEM);
+        assert!(message.user_id.is_none());
+    }
+
+    #[test]
+    fn failed_or_unidentified_reports_are_never_signed() {
+        let key = SigningKey::generate().unwrap();
+        let log = ElectoralLog::for_system_with_signing_key("board", &key);
+        let mut failed = passed();
+        failed.evidence.official.ballot_count = 1;
+        let failed = ReadinessReport {
+            log_entry_id: Some(Uuid::new_v4().to_string()),
+            ..evaluate(failed.evidence, failed.checked_at)
+        };
+        assert!(!failed.passed);
+        assert!(log
+            .readiness_verified_message("official", &failed, &operator())
+            .is_err());
+        let mut forged = failed.clone();
+        forged.passed = true;
+        assert!(log
+            .readiness_verified_message("official", &forged, &operator())
+            .is_err());
+        let unidentified = ReadinessReport {
+            log_entry_id: None,
+            ..passed()
+        };
+        assert!(log
+            .readiness_verified_message("official", &unidentified, &operator())
+            .is_err());
     }
 }

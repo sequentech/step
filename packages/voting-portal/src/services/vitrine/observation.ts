@@ -1,0 +1,187 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// What the booth tells the policy's monitors (Vitrine's specs/evidence.md,
+// sections 3.1 and 5): observations and promise escrow, without cookies and
+// after a random delay of up to a minute, retried after 1, 2, 4… minutes when
+// the monitor can't take them. Observations are block documents:
+//
+//   vitrine/observation/v1
+//   policy <policy ID>
+//   kind <kind>
+//   time <POSIX seconds>
+//   <kind-specific lines>
+//   <blocks: the objects the monitor checks itself>
+
+import type {Policy} from "@vitrine/verify"
+import type {blocks} from "@vitrine/verify/pure"
+import {httpPost, IHttpOptions, joinUrl} from "./http"
+import type {TVitrinePure} from "./sdk"
+import {IVitrineLoggedStatement, VOTING_PORTAL_PACKAGE} from "./types"
+
+export const OBSERVATION_HEADER = "vitrine/observation/v1"
+export const OBSERVATION_TYPE = "text/plain; charset=utf-8"
+const PROMISE_TYPE = "text/plain"
+
+/** Observations and escrowed promises leave after up to this long. */
+export const MAX_REPORT_DELAY_MS = 60_000
+/** The first wait before a retry, doubled each time up to an hour, and the
+ * number of tries in all. */
+export const FIRST_RETRY_MS = 60_000
+const MAX_RETRY_MS = 3_600_000
+export const REPORT_TRIES = 6
+const TOO_MANY_REQUESTS = 429
+const SERVER_ERROR = 500
+
+export enum EObservationKind {
+    CONFIG_MISMATCH = "config-mismatch",
+    NO_RECEIPT = "no-receipt",
+}
+
+const observation = (
+    pure: TVitrinePure,
+    policyId: string,
+    kind: EObservationKind,
+    time: number,
+    lines: readonly string[],
+    objects: readonly blocks.Block[]
+): string =>
+    pure.bytes.fromUtf8(
+        pure.blocks.formatBlockDoc(
+            OBSERVATION_HEADER,
+            [`policy ${policyId}`, `kind ${kind}`, `time ${time}`, ...lines],
+            objects
+        )
+    )
+
+const statementBlocks = (
+    pure: TVitrinePure,
+    name: string,
+    logged: IVitrineLoggedStatement | null | undefined
+): blocks.Block[] => {
+    if (!logged || logged.chain.length > 1 << 20) return []
+    let receipt: string | Uint8Array = logged.chain
+    try {
+        const chain = pure.parseChain(logged.chain)
+        receipt = chain.record ?? chain.issued ?? logged.chain
+    } catch {
+        /* Malformed received data is still useful to the monitor. */
+    }
+    const body = typeof receipt === "string" ? pure.bytes.utf8(receipt) : receipt
+    return body.length <= 1 << 20 ? [{type: name, args: [], body}] : []
+}
+
+export interface IConfigObservation {
+    policyId: string
+    time: number
+    eventId: string
+    electionId: string
+    /** Why the booth refused, as the booth check's reason code. */
+    reason: string
+    /** The actual public key bytes the booth would use. */
+    key?: Uint8Array
+    styles?: readonly string[]
+    styleText?: string
+    release: string
+    config?: IVitrineLoggedStatement | null
+    opened?: IVitrineLoggedStatement | null
+}
+
+/** A booth was shown a configuration it couldn't bind to the events log
+ * (specs/entry.md, section 5.2); the monitor checks the objects and reports
+ * `config-mismatch`. No encrypted ballot, ballot ID or submission receipt is
+ * included. The configuration style is the public style shown before voting. */
+export const configObservation = (pure: TVitrinePure, o: IConfigObservation): string => {
+    const objects = [
+        ...statementBlocks(pure, "config", o.config),
+        ...statementBlocks(pure, "opened", o.opened),
+    ]
+    if (o.key && o.key.length <= 65536) objects.push({type: "key", args: [], body: o.key})
+    if (o.styles && o.styles.length <= 1000 && o.styles.every((s) => /^[0-9a-f]{64}$/.test(s))) {
+        objects.push({
+            type: "styles",
+            args: [],
+            body: pure.bytes.utf8(o.styles.map((s) => `${s}\n`).join("")),
+        })
+    }
+    if (o.styleText && o.styleText.length <= 1 << 20) {
+        const body = pure.bytes.utf8(o.styleText)
+        if (body.length <= 1 << 20) objects.push({type: "style", args: [o.electionId], body})
+    }
+    const version = /^[A-Za-z0-9._+-]{1,128}$/.test(o.release) ? o.release : "unknown"
+    return observation(
+        pure,
+        o.policyId,
+        EObservationKind.CONFIG_MISMATCH,
+        o.time,
+        [
+            `event ${o.eventId}`,
+            `election ${o.electionId}`,
+            `problem ${o.reason} package ${VOTING_PORTAL_PACKAGE} version ${version}`,
+        ],
+        objects
+    )
+}
+
+/** Under `required on`, a cast that got neither a receipt nor a promise the
+ * booth accepted: the log's name, the time and the answer, never the entry or
+ * its leaf hash (specs/evidence.md, section 3.1). */
+export const noReceiptObservation = (
+    pure: TVitrinePure,
+    policyId: string,
+    log: string,
+    time: number,
+    answer: string,
+    reason?: string
+): string =>
+    observation(
+        pure,
+        policyId,
+        EObservationKind.NO_RECEIPT,
+        time,
+        [`log ${log}`, `answer ${answer}${reason ? ` ${reason}` : ""}`],
+        []
+    )
+
+export interface IReportOptions extends IHttpOptions {
+    random?: () => number
+    /** Runs `send` after `delayMs`; tests run it at once. */
+    schedule?: (send: () => Promise<void>, delayMs: number) => void
+}
+
+const delayed = (opts: IReportOptions, url: string, body: string, type: string): void => {
+    const random = opts.random ?? Math.random
+    const schedule =
+        opts.schedule ??
+        ((send: () => Promise<void>, delayMs: number) => {
+            setTimeout(send, delayMs)
+        })
+    const attempt = (tried: number) => async () => {
+        const {status} = await httpPost(url, body, type, opts)
+        const retry = status === 0 || status === TOO_MANY_REQUESTS || status >= SERVER_ERROR
+        if (retry && tried + 1 < REPORT_TRIES) {
+            schedule(
+                attempt(tried + 1),
+                Math.min(FIRST_RETRY_MS * Math.pow(2, tried), MAX_RETRY_MS)
+            )
+        }
+    }
+    schedule(attempt(0), Math.floor(random() * MAX_REPORT_DELAY_MS))
+}
+
+/** Sends `body` to every monitor of the policy, each after its own delay. */
+export const sendObservation = (policy: Policy, body: string, opts: IReportOptions = {}): void => {
+    Array.from(policy.monitors.values()).forEach((m) => {
+        delayed(opts, joinUrl(m.url, "observe"), body, OBSERVATION_TYPE)
+    })
+}
+
+/** Promise escrow (receipt.md, section 2.1): one monitor, chosen at random. */
+export const escrowPromise = (policy: Policy, promise: string, opts: IReportOptions = {}): void => {
+    const monitors = Array.from(policy.monitors.values())
+    if (monitors.length === 0) return
+    const random = opts.random ?? Math.random
+    const monitor = monitors[Math.min(monitors.length - 1, Math.floor(random() * monitors.length))]
+    delayed(opts, joinUrl(monitor.url, "promise"), promise, PROMISE_TYPE)
+}

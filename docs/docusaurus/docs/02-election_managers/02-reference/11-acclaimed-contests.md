@@ -30,7 +30,7 @@ normally voted contests.
 
 Configure acclamation before publishing ballots. The setting determines which
 contests participate in ballot encoding, so changing it after publication can
-invalidate existing Ballot IDs and make ballots incompatible with their
+invalidate existing Tracking IDs and make ballots incompatible with their
 published definition.
 
 See [Contest Data](./04-contest/01-election_management_contest_data.md) for the
@@ -75,7 +75,7 @@ The following settings do not apply to an acclaimed contest:
 
 When an election contains both acclaimed and normally voted contests, the voter
 completes only the normally voted contests. Those selections produce the usual
-encrypted ballot, Ballot ID, audit option, receipt, and tracking flow. The
+encrypted ballot, Tracking ID, audit option, receipt, and tracking flow. The
 acclaimed contest contributes nothing to that ballot.
 
 ### Fully acclaimed election
@@ -84,7 +84,7 @@ When every contest on the voter's ballot is acclaimed, there is nothing to
 cast. The voter can review what was decided, but:
 
 - no ballot is encrypted or submitted;
-- no Ballot ID, QR code, tracking link, receipt, or audit option is created; and
+- no Tracking ID, QR code, tracking link, receipt, or audit option is created; and
 - the confirmation screen explicitly states that no ballot was cast.
 
 ## Ballot Verifier behavior
@@ -97,7 +97,7 @@ review screen.
 
 This merge is presentation-only. It does not add the contest to decoded ballot
 data and does not change ballot hashing, signature checks, re-encoding checks,
-or Ballot ID comparison. A fully acclaimed election has no auditable ballot to
+or Tracking ID comparison. A fully acclaimed election has no auditable ballot to
 open in the verifier.
 
 See [Audit your Vote](../../03-voters/01-tutorials/03-voter_audit_ballot.md) for
@@ -138,7 +138,7 @@ for the canonical tally result shape.
 | **Voter interaction** | Contest and candidates shown, but every option is disabled |
 | **Ballot encoding** | No plaintext position, ciphertext, or decoded contest |
 | **Mixed election** | Other contests are cast and audited normally |
-| **Fully acclaimed election** | No ballot, Ballot ID, receipt, tracker, or audit |
+| **Fully acclaimed election** | No ballot, Tracking ID, receipt, tracker, or audit |
 | **Verifier** | Adds the contest from ballot configuration for display only |
 | **Tally** | Synthetic zero result; every eligible candidate is a winner |
 | **Participation** | Suppressed and replaced by an acclamation notice |

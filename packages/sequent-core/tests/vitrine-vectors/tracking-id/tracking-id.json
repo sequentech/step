@@ -1,0 +1,285 @@
+{
+  "description": "Tracking IDs: a 32-byte ballot_id in Crockford base32 (52 characters in groups of four, short ID the first 8), and typed prefixes (case-insensitive, hyphens ignored, I and L read as 1, O as 0, 8 to 52 characters). A prefix matches every listed ballot_id whose base32 form starts with it. Ballot IDs are lowercase hex.",
+  "spec": "specs/entry.md section 4.1, specs/profile.md section 2 Lookups",
+  "vectors": [
+    {
+      "name": "encode-zeros",
+      "kind": "encode",
+      "ballot_id": "0000000000000000000000000000000000000000000000000000000000000000",
+      "full": "0000-0000-0000-0000-0000-0000-0000-0000-0000-0000-0000-0000-0000",
+      "short": "0000-0000"
+    },
+    {
+      "name": "encode-ones",
+      "kind": "encode",
+      "ballot_id": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "full": "ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZG",
+      "short": "ZZZZ-ZZZZ"
+    },
+    {
+      "name": "encode-counting",
+      "kind": "encode",
+      "ballot_id": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "full": "000G-40R4-0M30-E209-185G-R38E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFG",
+      "short": "000G-40R4"
+    },
+    {
+      "name": "encode-sha256-ballot",
+      "kind": "encode",
+      "ballot_id": "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c1",
+      "full": "49SJ-006D-TJSK-504K-JT6H-W0RE-PBX8-R4MD-MDKH-2EKB-ZHAX-J7WR-RQ0G",
+      "short": "49SJ-006D"
+    },
+    {
+      "name": "encode-sha256-ballot-2",
+      "kind": "encode",
+      "ballot_id": "1506d3c6d3e708482c12b279f7d71a63b4260e380495e63ad65c300c9015e528",
+      "full": "2M3D-7HPK-WW44-GB0J-P9WZ-FNRT-CET2-C3HR-0JAY-CEPP-BGR0-S40N-WMM0",
+      "short": "2M3D-7HPK"
+    },
+    {
+      "name": "encode-zero-prefix",
+      "kind": "encode",
+      "ballot_id": "0000000000111111111111111111111111111111111111111111111111111111",
+      "full": "0000-0000-248H-248H-248H-248H-248H-248H-248H-248H-248H-248H-248G",
+      "short": "0000-0000"
+    },
+    {
+      "name": "encode-shares-short-id-with-sha256-ballot",
+      "kind": "encode",
+      "ballot_id": "22732000cd2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db022587",
+      "full": "49SJ-006D-5NRH-CGNQ-4TR4-80B2-FJMZ-QB1J-YQ45-63XH-J0YC-9PR2-4P3G",
+      "short": "49SJ-006D"
+    },
+    {
+      "name": "prefix-short",
+      "kind": "prefix",
+      "typed": "49SJ-006D",
+      "valid": true,
+      "chars": "49SJ006D",
+      "bit_length": 40,
+      "bits": "22732000cd",
+      "candidates": [
+        "0000000000000000000000000000000000000000000000000000000000000000",
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c1",
+        "1506d3c6d3e708482c12b279f7d71a63b4260e380495e63ad65c300c9015e528",
+        "0000000000111111111111111111111111111111111111111111111111111111",
+        "22732000cd2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db022587"
+      ],
+      "matches": [
+        "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c1",
+        "22732000cd2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db022587"
+      ]
+    },
+    {
+      "name": "prefix-short-lower",
+      "kind": "prefix",
+      "typed": "49sj-006d",
+      "valid": true,
+      "chars": "49SJ006D",
+      "bit_length": 40,
+      "bits": "22732000cd",
+      "candidates": [
+        "0000000000000000000000000000000000000000000000000000000000000000",
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c1",
+        "1506d3c6d3e708482c12b279f7d71a63b4260e380495e63ad65c300c9015e528",
+        "0000000000111111111111111111111111111111111111111111111111111111",
+        "22732000cd2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db022587"
+      ],
+      "matches": [
+        "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c1",
+        "22732000cd2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db022587"
+      ]
+    },
+    {
+      "name": "prefix-short-no-hyphen",
+      "kind": "prefix",
+      "typed": "49SJ006D",
+      "valid": true,
+      "chars": "49SJ006D",
+      "bit_length": 40,
+      "bits": "22732000cd",
+      "candidates": [
+        "0000000000000000000000000000000000000000000000000000000000000000",
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c1",
+        "1506d3c6d3e708482c12b279f7d71a63b4260e380495e63ad65c300c9015e528",
+        "0000000000111111111111111111111111111111111111111111111111111111",
+        "22732000cd2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db022587"
+      ],
+      "matches": [
+        "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c1",
+        "22732000cd2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db022587"
+      ]
+    },
+    {
+      "name": "prefix-full",
+      "kind": "prefix",
+      "typed": "49SJ-006D-TJSK-504K-JT6H-W0RE-PBX8-R4MD-MDKH-2EKB-ZHAX-J7WR-RQ0G",
+      "valid": true,
+      "chars": "49SJ006DTJSK504KJT6HW0REPBX8R4MDMDKH2EKBZHAXJ7WRRQ0G",
+      "bit_length": 260,
+      "bits": "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c100",
+      "candidates": [
+        "0000000000000000000000000000000000000000000000000000000000000000",
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c1",
+        "1506d3c6d3e708482c12b279f7d71a63b4260e380495e63ad65c300c9015e528",
+        "0000000000111111111111111111111111111111111111111111111111111111",
+        "22732000cd2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db022587"
+      ],
+      "matches": [
+        "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c1"
+      ]
+    },
+    {
+      "name": "prefix-full-lower-no-hyphens",
+      "kind": "prefix",
+      "typed": "49sj006dtjsk504kjt6hw0repbx8r4mdmdkh2ekbzhaxj7wrrq0g",
+      "valid": true,
+      "chars": "49SJ006DTJSK504KJT6HW0REPBX8R4MDMDKH2EKBZHAXJ7WRRQ0G",
+      "bit_length": 260,
+      "bits": "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c100",
+      "candidates": [
+        "0000000000000000000000000000000000000000000000000000000000000000",
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c1",
+        "1506d3c6d3e708482c12b279f7d71a63b4260e380495e63ad65c300c9015e528",
+        "0000000000111111111111111111111111111111111111111111111111111111",
+        "22732000cd2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db022587"
+      ],
+      "matches": [
+        "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c1"
+      ]
+    },
+    {
+      "name": "prefix-ten-chars",
+      "kind": "prefix",
+      "typed": "49SJ006DTJ",
+      "valid": true,
+      "chars": "49SJ006DTJ",
+      "bit_length": 50,
+      "bits": "22732000cdd480",
+      "candidates": [
+        "0000000000000000000000000000000000000000000000000000000000000000",
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c1",
+        "1506d3c6d3e708482c12b279f7d71a63b4260e380495e63ad65c300c9015e528",
+        "0000000000111111111111111111111111111111111111111111111111111111",
+        "22732000cd2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db022587"
+      ],
+      "matches": [
+        "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c1"
+      ]
+    },
+    {
+      "name": "prefix-alias-i-l-o",
+      "kind": "prefix",
+      "typed": "0il1-O0o1",
+      "valid": true,
+      "chars": "01110001",
+      "bit_length": 40,
+      "bits": "0042100001",
+      "candidates": [
+        "0000000000000000000000000000000000000000000000000000000000000000",
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c1",
+        "1506d3c6d3e708482c12b279f7d71a63b4260e380495e63ad65c300c9015e528",
+        "0000000000111111111111111111111111111111111111111111111111111111",
+        "22732000cd2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db022587"
+      ],
+      "matches": []
+    },
+    {
+      "name": "prefix-seven-chars",
+      "kind": "prefix",
+      "typed": "49SJ-006",
+      "valid": false
+    },
+    {
+      "name": "prefix-empty",
+      "kind": "prefix",
+      "typed": "",
+      "valid": false
+    },
+    {
+      "name": "prefix-hyphens-only",
+      "kind": "prefix",
+      "typed": "----",
+      "valid": false
+    },
+    {
+      "name": "prefix-letter-u",
+      "kind": "prefix",
+      "typed": "49SJ-006U",
+      "valid": false
+    },
+    {
+      "name": "prefix-space",
+      "kind": "prefix",
+      "typed": "49SJ 006D",
+      "valid": false
+    },
+    {
+      "name": "prefix-non-ascii",
+      "kind": "prefix",
+      "typed": "ÀBCD-EFGH",
+      "valid": false
+    },
+    {
+      "name": "prefix-fifty-three",
+      "kind": "prefix",
+      "typed": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "valid": false
+    },
+    {
+      "name": "prefix-fifty-two",
+      "kind": "prefix",
+      "typed": "0000000000000000000000000000000000000000000000000000",
+      "valid": true,
+      "chars": "0000000000000000000000000000000000000000000000000000",
+      "bit_length": 260,
+      "bits": "000000000000000000000000000000000000000000000000000000000000000000",
+      "candidates": [
+        "0000000000000000000000000000000000000000000000000000000000000000",
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c1",
+        "1506d3c6d3e708482c12b279f7d71a63b4260e380495e63ad65c300c9015e528",
+        "0000000000111111111111111111111111111111111111111111111111111111",
+        "22732000cd2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db022587"
+      ],
+      "matches": [
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ]
+    },
+    {
+      "name": "prefix-last-char-padding-bits-set",
+      "kind": "prefix",
+      "typed": "49SJ-006D-TJSK-504K-JT6H-W0RE-PBX8-R4MD-MDKH-2EKB-ZHAX-J7WR-RQ0Z",
+      "valid": true,
+      "chars": "49SJ006DTJSK504KJT6HW0REPBX8R4MDMDKH2EKBZHAXJ7WRRQ0Z",
+      "bit_length": 260,
+      "bits": "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c1f0",
+      "candidates": [
+        "0000000000000000000000000000000000000000000000000000000000000000",
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "22732000cdd4b3328093968d1e030eb2fa8c128da367113a6bfc55d91f98c5c1",
+        "1506d3c6d3e708482c12b279f7d71a63b4260e380495e63ad65c300c9015e528",
+        "0000000000111111111111111111111111111111111111111111111111111111",
+        "22732000cd2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db022587"
+      ],
+      "matches": []
+    }
+  ]
+}

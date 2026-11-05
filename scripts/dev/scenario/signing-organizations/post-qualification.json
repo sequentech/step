@@ -1,0 +1,109 @@
+{
+    "name": "post-qualification",
+    "summary": "The offline demonstration profile: four Posts with three SBEI accounts each, trustees, a Configuration Manager, a Security Officer and an OFOV, and the sample signing preset",
+    "preset": "packages/windmill/external-bin/janitor/templates/COMELEC/signing.json",
+    "tenant": {
+        "display_name": "COMELEC",
+        "i18n": {}
+    },
+    "event_name": "Post-qualification demonstration",
+    "groups": [
+        {
+            "name": "sbei",
+            "permissions": [
+                "sign-initialize-voting",
+                "sign-open-voting",
+                "sign-close-voting",
+                "sign-generate-election-returns",
+                "sign-generate-reports",
+                "sign-transmit-results",
+                "sign-approve-voter"
+            ]
+        },
+        {
+            "name": "trustee",
+            "permissions": [
+                "sign-key-ceremony",
+                "sign-tally-key"
+            ]
+        },
+        {
+            "name": "configuration-manager",
+            "permissions": [
+                "sign-approve-configuration"
+            ]
+        },
+        {
+            "name": "security-officer",
+            "permissions": [
+                "sign-approve-configuration"
+            ]
+        },
+        {
+            "name": "ofov",
+            "permissions": [
+                "sign-approve-voter"
+            ]
+        }
+    ],
+    "posts": [
+        {
+            "key": "madrid",
+            "name": "Madrid PE"
+        },
+        {
+            "key": "wellington",
+            "name": "Wellington PE"
+        },
+        {
+            "key": "dili",
+            "name": "Dili PE"
+        },
+        {
+            "key": "osaka",
+            "name": "Osaka PCG"
+        }
+    ],
+    "signers": [
+        {
+            "group": "sbei",
+            "username": "sbei-{post}-{n}",
+            "per_post": [
+                "Chairperson",
+                "Poll Clerk",
+                "Third Member"
+            ]
+        },
+        {
+            "group": "trustee",
+            "username": "trustee-{n}",
+            "event_wide": [
+                "Trustee",
+                "Trustee",
+                "Trustee"
+            ]
+        },
+        {
+            "group": "configuration-manager",
+            "username": "configuration-manager-{n}",
+            "event_wide": [
+                "Configuration Manager"
+            ]
+        },
+        {
+            "group": "security-officer",
+            "username": "security-officer-{n}",
+            "event_wide": [
+                "Security Officer"
+            ]
+        },
+        {
+            "group": "ofov",
+            "username": "ofov-{n}",
+            "event_wide": [
+                "Overseas Voting Officer"
+            ]
+        }
+    ],
+    "password": "Demo-2028-account"
+}

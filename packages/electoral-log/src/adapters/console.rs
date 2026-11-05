@@ -14,9 +14,9 @@ use futures_util::TryStreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::time::{Duration, Instant};
-use strand::serialization::StrandDeserialize;
 use strum_macros::{Display, EnumString};
 use tokio_postgres::types::ToSql;
+use voting_crypto::RecordDeserialize;
 
 /// A table the console browses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumString, Serialize, Deserialize)]
@@ -531,7 +531,7 @@ impl ConsoleRecord {
     /// and the IP addresses and countries of cast votes, anywhere in the record, show
     /// as [`HIDDEN_VALUE`].
     pub fn to_json(&self, personal_data: PersonalData) -> Result<Value> {
-        let message = Message::strand_deserialize(&self.message)
+        let message = Message::record_deserialize(&self.message)
             .map_err(|error| anyhow!("Error decoding the record's message: {error:?}"))?;
         let mut message = serde_json::to_value(&message)?;
         if let Some(object) = message.as_object_mut() {
@@ -788,10 +788,10 @@ mod tests {
         CastVoteHash, ElectionIdString, EventIdString, PseudonymHash, VoterCountryString,
         VoterIpString,
     };
-    use strand::signature::StrandSignatureSk;
+    use voting_crypto::signing::SigningKey;
 
     fn cast_vote_record() -> ConsoleRecord {
-        let sk = StrandSignatureSk::generate().unwrap();
+        let sk = SigningKey::generate().unwrap();
         let signing_data = SigningData::new(sk.clone(), "voting", sk);
         let message = Message::cast_vote_message(
             EventIdString("event".into()),

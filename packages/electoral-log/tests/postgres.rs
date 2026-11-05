@@ -3,7 +3,7 @@
 
 use anyhow::{anyhow, Result};
 use electoral_log::{
-    adapters::postgres::{LogScope, PostgresStore},
+    adapters::postgres::{append_in, LogScope, PostgresStore},
     domain::*,
     service::BoardClient,
 };
@@ -269,6 +269,42 @@ async fn visibility_and_user_filters_apply_to_both_list_and_count() -> Result<()
     assert_eq!(client.count(&board, &query).await?, 0);
     query.limit = -1;
     assert!(client.query(&board, &query).await.is_err());
+    client.delete_board(&board).await?;
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn election_scope_keeps_entries_of_no_election_and_of_its_elections() -> Result<()> {
+    let (client, board) = setup().await?;
+    let mut general = entry("general", 1, None);
+    general.message.election_id = None;
+    let mut blank = entry("blank", 2, None);
+    blank.message.election_id = Some(String::new());
+    let mut other = entry("other", 3, None);
+    other.message.election_id = Some("election-b".into());
+    client
+        .append(&board, &[general, blank, other, entry("match", 4, None)])
+        .await?;
+    let scoped = |elections: &[&str]| LogQuery {
+        filters: vec![Filter::ElectionScope(
+            elections.iter().map(|id| id.to_string()).collect(),
+        )],
+        ..LogQuery::default()
+    };
+    let created = |rows: Vec<ElectoralLogMessage>| {
+        let mut created: Vec<_> = rows.into_iter().map(|row| row.created).collect();
+        created.sort();
+        created
+    };
+    let query = scoped(&["election-a"]);
+    assert_eq!(created(client.query(&board, &query).await?), [1, 2, 4]);
+    assert_eq!(client.count(&board, &query).await?, 3);
+    let query = scoped(&[]);
+    assert_eq!(created(client.query(&board, &query).await?), [1, 2]);
+    assert_eq!(client.count(&board, &query).await?, 2);
+    let query = scoped(&["election-a", "election-b"]);
+    assert_eq!(client.count(&board, &query).await?, 4);
     client.delete_board(&board).await?;
     Ok(())
 }
@@ -892,6 +928,198 @@ async fn repeated_deliveries_in_one_append_store_the_first() -> Result<()> {
     let report = store.audit(&board, &[]).await?;
     assert!(report.is_clean(), "{:?}", report.findings());
     assert_eq!(report.leaves, records);
+    client.delete_board(&board).await?;
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn appends_report_the_records_they_store() -> Result<()> {
+    let (store, board, db) = trellis_store().await?;
+    let client = BoardClient::new(Arc::new(store.clone()));
+    let positions = |records: &[StoredRecord]| -> Vec<(String, i64)> {
+        records
+            .iter()
+            .map(|record| (record.delivery_id.clone(), record.leaf_index))
+            .collect()
+    };
+    let first = client
+        .append(&board, &[entry("a", 1, None), entry("b", 2, None)])
+        .await?;
+    assert_eq!(positions(&first), [("a".into(), 0), ("b".into(), 1)]);
+    assert!(first[0].id < first[1].id);
+    let uid: Uuid = db
+        .query_one("SELECT uid FROM trellis_logs WHERE name = $1", &[&board])
+        .await?
+        .get(0);
+    assert!(first.iter().all(|record| record.log_uid == uid));
+
+    // A delivery already stored, or repeated in the append, is left out.
+    let second = client
+        .append(
+            &board,
+            &[
+                entry("b", 3, None),
+                entry("c", 4, None),
+                entry("c", 5, None),
+            ],
+        )
+        .await?;
+    assert_eq!(positions(&second), [("c".into(), 2)]);
+    assert!(client
+        .append(&board, &[entry("a", 6, None)])
+        .await?
+        .is_empty());
+    let delivered = store.delivered(&board, "b").await?.unwrap();
+    assert_eq!(delivered.record, first[1]);
+    assert_eq!(delivered.message.created, 2);
+    assert!(store.delivered(&board, "missing").await?.is_none());
+
+    // In the caller's transaction, records commit or roll back with it.
+    let mut connection = store.client().await?;
+    let tx = connection.transaction().await?;
+    let stored = append_in(&tx, &board, &[entry("d", 7, None)]).await?;
+    assert_eq!(positions(&stored), [("d".into(), 3)]);
+    tx.rollback().await?;
+    assert!(store.delivered(&board, "d").await?.is_none());
+    let tx = connection.transaction().await?;
+    let stored = append_in(&tx, &board, &[entry("d", 7, None)]).await?;
+    tx.commit().await?;
+    assert_eq!(positions(&stored), [("d".into(), 3)]);
+    assert_eq!(
+        store.delivered(&board, "d").await?.unwrap().record,
+        stored[0]
+    );
+
+    // The transaction holds the board's lock until it ends.
+    let tx = connection.transaction().await?;
+    append_in(&tx, &board, &[entry("e", 8, None)]).await?;
+    let waiting = tokio::spawn({
+        let client = client.clone();
+        let board = board.clone();
+        async move { client.append(&board, &[entry("f", 9, None)]).await }
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    assert!(!waiting.is_finished());
+    tx.commit().await?;
+    let after = tokio::time::timeout(std::time::Duration::from_secs(5), waiting).await???;
+    assert_eq!(positions(&after), [("f".into(), 5)]);
+
+    let report = store.audit(&board, &[]).await?;
+    assert!(report.is_clean(), "{:?}", report.findings());
+    client.delete_board(&board).await?;
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn records_filter_by_the_event_type_and_log_type_of_their_statement() -> Result<()> {
+    use electoral_log::messages::message::{Message, SigningData};
+    use electoral_log::messages::newtypes::{AuditLogEntry, AuditStatementKind, EventIdString};
+    use electoral_log::messages::statement::{StatementEventType, StatementLogType};
+    use voting_crypto::signing::SigningKey;
+
+    let url = std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?;
+    let store = PostgresStore::new(url.parse()?)?;
+    initialized(&store).await?;
+    let client = BoardClient::new(Arc::new(store.clone()));
+    let board = format!("test-{}", Uuid::new_v4());
+    client.create_board(&board).await?;
+    let data = SigningData::new(SigningKey::generate()?, "admin", SigningKey::generate()?);
+    let audit = |delivery: &str, event_type, log_type| -> Result<LogEntry> {
+        let message = Message::audit_message(
+            EventIdString("tenant".into()),
+            AuditLogEntry {
+                kind: AuditStatementKind::AdminChange,
+                event_type,
+                log_type,
+                description: "Updated tenant".into(),
+                details_json: "{}".into(),
+                entry_id: delivery.into(),
+            },
+            7,
+            &data,
+            Some("user".into()),
+            Some("admin".into()),
+            None,
+            None,
+        )?;
+        Ok(LogEntry {
+            delivery_id: delivery.into(),
+            message: ElectoralLogMessage::try_from(&message)?,
+        })
+    };
+    client
+        .append(
+            &board,
+            &[
+                audit(
+                    "user-info",
+                    StatementEventType::USER,
+                    StatementLogType::INFO,
+                )?,
+                audit(
+                    "system-error",
+                    StatementEventType::SYSTEM,
+                    StatementLogType::ERROR,
+                )?,
+                audit(
+                    "user-error",
+                    StatementEventType::USER,
+                    StatementLogType::ERROR,
+                )?,
+                // Bytes that are no message have neither type.
+                entry("unreadable", 8, None),
+            ],
+        )
+        .await?;
+    let matching = |column, value: &str| LogQuery {
+        filters: vec![Filter::Text(column, SqlCompOperators::Equal, value.into())],
+        ..LogQuery::default()
+    };
+    assert_eq!(
+        client
+            .count(&board, &matching(TextColumn::EventType, "USER"))
+            .await?,
+        2
+    );
+    assert_eq!(
+        client
+            .count(&board, &matching(TextColumn::LogType, "ERROR"))
+            .await?,
+        2
+    );
+    let both = LogQuery {
+        filters: vec![
+            Filter::Text(
+                TextColumn::EventType,
+                SqlCompOperators::Equal,
+                "USER".into(),
+            ),
+            Filter::Text(TextColumn::LogType, SqlCompOperators::Equal, "ERROR".into()),
+        ],
+        ..LogQuery::default()
+    };
+    assert_eq!(client.count(&board, &both).await?, 1);
+
+    // Records stored before the columns existed are filled from their messages.
+    let db = store.client().await?;
+    db.execute(
+        "UPDATE electoral_log_messages SET event_type = NULL, log_type = NULL \
+         WHERE board_name = $1",
+        &[&board],
+    )
+    .await?;
+    assert_eq!(client.count(&board, &both).await?, 0);
+    assert!(store.backfill_statement_heads().await? >= 3);
+    assert_eq!(client.count(&board, &both).await?, 1);
+    assert_eq!(
+        client
+            .count(&board, &matching(TextColumn::EventType, "SYSTEM"))
+            .await?,
+        1
+    );
+    assert!(store.audit(&board, &[]).await?.is_clean());
     client.delete_board(&board).await?;
     Ok(())
 }

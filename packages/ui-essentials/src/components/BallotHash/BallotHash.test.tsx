@@ -7,7 +7,7 @@ import React from "react"
 import {act, fireEvent, render, screen} from "@testing-library/react"
 import "@testing-library/jest-dom"
 import {ThemeProvider} from "@mui/material/styles"
-import BallotHash, {copyBallotHash, CopyBallotHashStatus} from "./BallotHash"
+import BallotHash, {BallotHashCopyButton, copyBallotHash, CopyBallotHashStatus} from "./BallotHash"
 import theme from "../../services/theme"
 
 jest.mock("../LinkBehavior/LinkBehavior", () => "a")
@@ -15,14 +15,16 @@ jest.mock("../LinkBehavior/LinkBehavior", () => "a")
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({
         t: (key: string, values?: {ballotId: string}): string =>
-            key === "ballotHash" ? `Your Ballot ID: ${values?.ballotId}` : "About your Ballot ID",
+            key === "ballotHash"
+                ? `Your Tracking ID: ${values?.ballotId}`
+                : "About your Tracking ID",
     }),
 }))
 
 const copyLabels = {
-    copy: "Copy ballot ID",
-    copied: "Ballot ID copied",
-    error: "Could not copy ballot ID",
+    copy: "Copy tracking ID",
+    copied: "Tracking ID copied",
+    error: "Could not copy tracking ID",
 }
 
 describe("copyBallotHash", () => {
@@ -35,11 +37,55 @@ describe("copyBallotHash", () => {
         expect(writeText).toHaveBeenCalledWith("abc123")
     })
 
-    it("returns an error when clipboard access is unavailable or rejected", async () => {
-        await expect(copyBallotHash("abc123", undefined)).resolves.toBe(CopyBallotHashStatus.Error)
-        await expect(
-            copyBallotHash("abc123", {writeText: jest.fn().mockRejectedValue(new Error("denied"))})
-        ).resolves.toBe(CopyBallotHashStatus.Error)
+    describe("when the Clipboard API is refused or missing", () => {
+        const setExecCommand = (execCommand: unknown) =>
+            Object.defineProperty(document, "execCommand", {configurable: true, value: execCommand})
+
+        afterEach(() => {
+            Reflect.deleteProperty(document, "execCommand")
+        })
+
+        it("copies through a temporary text area", async () => {
+            let selected = ""
+            setExecCommand(
+                jest.fn(() => {
+                    selected = document.querySelector("textarea")?.value ?? ""
+                    return true
+                })
+            )
+            const writeText = jest.fn().mockRejectedValue(new Error("denied"))
+
+            await expect(copyBallotHash("abc123", {writeText})).resolves.toBe(
+                CopyBallotHashStatus.Copied
+            )
+            expect(selected).toBe("abc123")
+            expect(document.querySelector("textarea")).toBeNull()
+            await expect(copyBallotHash("abc123", undefined)).resolves.toBe(
+                CopyBallotHashStatus.Copied
+            )
+        })
+
+        it("asks for a manual copy when nothing works, and never reports an error", async () => {
+            setExecCommand(jest.fn().mockReturnValue(false))
+            await expect(copyBallotHash("abc123", undefined)).resolves.toBe(
+                CopyBallotHashStatus.Manual
+            )
+            setExecCommand(
+                jest.fn(() => {
+                    throw new Error("unsupported")
+                })
+            )
+            await expect(
+                copyBallotHash("abc123", {
+                    writeText: jest.fn().mockRejectedValue(new Error("denied")),
+                })
+            ).resolves.toBe(CopyBallotHashStatus.Manual)
+            Reflect.deleteProperty(document, "execCommand")
+            await expect(copyBallotHash("abc123", undefined)).resolves.toBe(
+                CopyBallotHashStatus.Manual
+            )
+            expect(document.querySelector("textarea")).toBeNull()
+        })
     })
 })
 
@@ -147,7 +193,10 @@ describe("BallotHash", () => {
                 fireEvent.click(screen.getByRole("button", {name: copyLabels.copy}))
             )
             expect(screen.getByRole("status")).toHaveTextContent(copyLabels.error)
-            expect(screen.getByRole("button", {name: copyLabels.error})).toBeInTheDocument()
+            const button = screen.getByRole("button", {name: copyLabels.error})
+            // Nothing went wrong with the ballot: no warning sign.
+            expect(button.querySelector("svg[data-icon='triangle-exclamation']")).toBeNull()
+            expect(button.querySelector("svg[data-icon='copy']")).not.toBeNull()
         }
     )
 
@@ -157,13 +206,13 @@ describe("BallotHash", () => {
                 <BallotHash
                     hash="abc123"
                     copyLabels={copyLabels}
-                    helpButtonLabel="About ballot ID"
+                    helpButtonLabel="About tracking ID"
                 />
             </ThemeProvider>
         )
 
-        expect(screen.getByRole("button", {name: "Copy ballot ID"})).toBeInTheDocument()
-        expect(screen.getByRole("button", {name: "About ballot ID"})).toBeInTheDocument()
+        expect(screen.getByRole("button", {name: "Copy tracking ID"})).toBeInTheDocument()
+        expect(screen.getByRole("button", {name: "About tracking ID"})).toBeInTheDocument()
         expect(screen.getByRole("status")).toBeInTheDocument()
     })
 
@@ -174,6 +223,75 @@ describe("BallotHash", () => {
             </ThemeProvider>
         )
 
-        expect(screen.getByRole("button", {name: "About your Ballot ID"})).toBeInTheDocument()
+        expect(screen.getByRole("button", {name: "About your Tracking ID"})).toBeInTheDocument()
+    })
+})
+
+describe("BallotHashCopyButton", () => {
+    const GREEN = "rgb(4, 120, 87)"
+
+    afterEach(() => {
+        Reflect.deleteProperty(navigator, "clipboard")
+    })
+
+    const copied = async (copiedColor?: string) => {
+        const writeText = jest.fn().mockResolvedValue(undefined)
+        Object.defineProperty(navigator, "clipboard", {configurable: true, value: {writeText}})
+        render(
+            <ThemeProvider theme={theme}>
+                <BallotHashCopyButton
+                    hash="abc123"
+                    copyLabels={copyLabels}
+                    copiedColor={copiedColor}
+                />
+            </ThemeProvider>
+        )
+        const resting = getComputedStyle(screen.getByRole("button", {name: copyLabels.copy})).color
+        await act(async () => fireEvent.click(screen.getByRole("button", {name: copyLabels.copy})))
+        const done = getComputedStyle(screen.getByRole("button", {name: copyLabels.copied})).color
+        return {resting, done}
+    }
+
+    it("turns the check green once the ID is copied, when it is given that colour", async () => {
+        const {resting, done} = await copied("#047857")
+        expect(resting).not.toBe(GREEN)
+        expect(done).toBe(GREEN)
+    })
+
+    it("takes the styles it is given over its own, and keeps its own otherwise", () => {
+        const render1 = (sx?: Record<string, unknown>) => {
+            const {unmount} = render(
+                <ThemeProvider theme={theme}>
+                    <BallotHashCopyButton hash="abc123" copyLabels={copyLabels} sx={sx} />
+                </ThemeProvider>
+            )
+            const style = getComputedStyle(screen.getByRole("button", {name: copyLabels.copy}))
+            const size = [style.width, style.height, style.paddingBottom]
+            unmount()
+            return size
+        }
+        expect(render1()).toEqual(["", "", "2px"])
+        expect(render1({width: 34, height: 34, paddingBottom: 0})).toEqual(["34px", "34px", "0px"])
+    })
+
+    it("keeps its colour when it is given none", async () => {
+        const {resting, done} = await copied()
+        expect(done).toBe(resting)
+    })
+
+    it("keeps its colour while the copy failed, even when it is given a colour", async () => {
+        Object.defineProperty(navigator, "clipboard", {
+            configurable: true,
+            value: {writeText: jest.fn().mockRejectedValue(new Error("denied"))},
+        })
+        render(
+            <ThemeProvider theme={theme}>
+                <BallotHashCopyButton hash="abc123" copyLabels={copyLabels} copiedColor="#047857" />
+            </ThemeProvider>
+        )
+        await act(async () => fireEvent.click(screen.getByRole("button", {name: copyLabels.copy})))
+        expect(
+            getComputedStyle(screen.getByRole("button", {name: copyLabels.error})).color
+        ).not.toBe(GREEN)
     })
 })

@@ -11,19 +11,17 @@ import argparse
 import glob
 import json
 import os
-from pathlib import Path
 import subprocess
 import time
 import urllib.request
+from pathlib import Path
 
 import psycopg
-
-from resources import extract
 from capture_report import generate
 from measurements import summarize_sql
-from traffic import inventory, validate_s3_flow
 from replay_profile import compile_profile
-
+from resources import extract
+from traffic import inventory, validate_s3_flow
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -36,7 +34,12 @@ def save(path: Path, value: object) -> None:
 
 def log_positions(pattern: str) -> dict[str, int]:
     """Remember existing log lengths so the capture excludes earlier journeys."""
-    return {name: Path(name).stat().st_size for name in glob.glob(pattern)}
+    positions = {}
+    for name in glob.glob(pattern):
+        # Opening the file verifies the observer can read it, unlike stat().
+        with Path(name).open("rb") as stream:
+            positions[name] = os.fstat(stream.fileno()).st_size
+    return positions
 
 
 def collect_logs(pattern: str, positions: dict[str, int], database: str) -> list[dict]:
@@ -84,11 +87,7 @@ def preflight(target: dict) -> dict:
                     "SELECT current_database(), current_setting('log_statement'), current_setting('log_min_duration_statement'), current_setting('log_destination'), current_setting('auto_explain.log_nested_statements', true), current_setting('auto_explain.log_min_duration', true)"
                 ).fetchone()
             readable = log_positions(database["jsonlog_glob"])
-            ready = (
-                bool(readable)
-                and (row[1] == "all" or row[2] == "0")
-                and "jsonlog" in row[3]
-            )
+            ready = bool(readable) and row[1] == "all" and "jsonlog" in row[3]
             results[name] = {
                 "ready": ready,
                 "database": row[0],

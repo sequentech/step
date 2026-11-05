@@ -12,55 +12,58 @@ import ConfirmationScreen from "./ConfirmationScreen"
 import AuditScreen from "./AuditScreen"
 import BallotLocator from "./BallotLocator"
 
+/** The screens of one election, which need its published ballot. */
+export const publishedBallotRoutes: RouteObject[] = [
+    {
+        path: "start",
+        element: (
+            <Suspense fallback={<Loader />}>
+                <StartScreen />
+            </Suspense>
+        ),
+    },
+    {
+        path: "vote",
+        element: (
+            <Suspense fallback={<Loader />}>
+                <VotingScreen />
+            </Suspense>
+        ),
+        action: votingAction,
+    },
+    {
+        path: "review",
+        element: (
+            <Suspense fallback={<Loader />}>
+                <ReviewScreen />
+            </Suspense>
+        ),
+        action: castBallotAction,
+    },
+    {
+        path: "confirmation",
+        element: (
+            <Suspense fallback={<Loader />}>
+                <ConfirmationScreen />
+            </Suspense>
+        ),
+    },
+    {
+        path: "audit",
+        element: (
+            <Suspense fallback={<Loader />}>
+                <AuditScreen />
+            </Suspense>
+        ),
+    },
+]
+
 export const electionRoutes: RouteObject = {
     path: "election/:electionId",
     children: [
         {
             element: <PublishedBallot />,
-            children: [
-                {
-                    path: "start",
-                    element: (
-                        <Suspense fallback={<Loader />}>
-                            <StartScreen />
-                        </Suspense>
-                    ),
-                },
-                {
-                    path: "vote",
-                    element: (
-                        <Suspense fallback={<Loader />}>
-                            <VotingScreen />
-                        </Suspense>
-                    ),
-                    action: votingAction,
-                },
-                {
-                    path: "review",
-                    element: (
-                        <Suspense fallback={<Loader />}>
-                            <ReviewScreen />
-                        </Suspense>
-                    ),
-                    action: castBallotAction,
-                },
-                {
-                    path: "confirmation",
-                    element: (
-                        <Suspense fallback={<Loader />}>
-                            <ConfirmationScreen />
-                        </Suspense>
-                    ),
-                },
-                {
-                    path: "audit",
-                    element: (
-                        <Suspense fallback={<Loader />}>
-                            <AuditScreen />
-                        </Suspense>
-                    ),
-                },
-            ],
+            children: publishedBallotRoutes,
         },
         // A stored vote remains independently readable when no active ballot
         // publication is available. This route keeps the normal authentication.

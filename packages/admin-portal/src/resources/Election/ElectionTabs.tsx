@@ -2,15 +2,27 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {Suspense, useContext, useEffect, useMemo, useState} from "react"
+import React, {Suspense, useContext, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {useRecordContext, useSidebarState, Identifier, RecordContextProvider} from "react-admin"
+import {EventTimeZoneProvider} from "@/providers/EventTimeZoneProvider"
+import {
+    useGetOne,
+    useRecordContext,
+    useSidebarState,
+    Identifier,
+    RecordContextProvider,
+} from "react-admin"
 import {v4 as uuidv4} from "uuid"
 
 import {AuthContext} from "@/providers/AuthContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
+import {ListIpAddress} from "@/resources/ElectionEvent/ListIpAddress"
 import DashboardElection from "@/components/dashboard/election/Dashboard"
-import {Sequent_Backend_Election} from "@/gql/graphql"
+import {BallotBoxesCard} from "@/components/dashboard/election/BallotBoxesCard"
+import {BallotBoxesSection} from "@/components/dashboard/election/BallotBoxesSection"
+import {MonitoringDashboardTab} from "@/components/monitoring/MonitoringDashboardTab"
+import {monitoringLock} from "@/components/monitoring/useMonitoringPermissions"
+import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {Publish} from "../Publish/Publish"
 import {EditElectionData} from "./ElectionData"
 import {EPublishType} from "../Publish/EPublishType"
@@ -30,11 +42,43 @@ import {ListTallySheet} from "../TallySheet/ListTallySheet"
 // Stable Tab Components
 // ---------------------------------------------------------------------
 
-const DashboardTab: React.FC = () => (
-    <Suspense fallback={<div>Loading Dashboard...</div>}>
-        <DashboardElection />
-    </Suspense>
-)
+const DashboardTab: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Election>()
+    // The lockdown is a property of the election event, not of the election.
+    const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
+        "sequent_backend_election_event",
+        {id: record?.election_event_id},
+        {enabled: Boolean(record?.election_event_id)}
+    )
+    // Unknown until the event has loaded, so configure actions do not flash.
+    const lock = monitoringLock(electionEvent)
+    // Always shown under the standard dashboard; under the monitoring
+    // dashboards, the viewer may hide it.
+    const ballotBoxes = {
+        electionEventId: record?.election_event_id,
+        electionId: record?.id,
+        election: record,
+    }
+    return (
+        <Suspense fallback={<div>Loading Dashboard...</div>}>
+            <Box sx={{width: "100%", minWidth: 0}}>
+                <MonitoringDashboardTab
+                    electionEventId={record?.election_event_id}
+                    electionId={record?.id}
+                    lock={lock}
+                    legacy={
+                        <>
+                            <DashboardElection />
+                            <BallotBoxesCard {...ballotBoxes} />
+                        </>
+                    }
+                    below={<BallotBoxesSection {...ballotBoxes} />}
+                    footer={<ListIpAddress />}
+                />
+            </Box>
+        </Suspense>
+    )
+}
 
 const DataTab: React.FC = () => (
     <Suspense fallback={<div>Loading Data...</div>}>
@@ -144,12 +188,17 @@ export const ElectionTabs: React.FC = () => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     const usersPermissionLabels = authContext.permissionLabels
-    const [hasPermissionToViewElection, setHasPermissionToViewElection] = useState<boolean>(true)
     const [open] = useSidebarState()
     const aliasRenderer = useAliasRenderer()
 
+    // The lockdown is a property of the election event, not of the election.
+    const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
+        "sequent_backend_election_event",
+        {id: electionRecord?.election_event_id},
+        {enabled: Boolean(electionRecord?.election_event_id)}
+    )
     const isElectionEventLocked =
-        electionRecord?.presentation?.locked_down === EElectionEventLockedDown.LOCKED_DOWN
+        electionEvent?.presentation?.locked_down === EElectionEventLockedDown.LOCKED_DOWN
 
     // Permission checks
     const showDashboard = authContext.isAuthorized(
@@ -186,22 +235,17 @@ export const ElectionTabs: React.FC = () => {
         IPermissions.TALLY_SHEET_VIEW
     )
 
-    // Permission label check
-    useEffect(() => {
-        if (
-            usersPermissionLabels &&
-            electionRecord?.permission_label &&
-            !usersPermissionLabels.includes(electionRecord.permission_label)
-        ) {
-            setHasPermissionToViewElection(false)
-        } else {
-            setHasPermissionToViewElection(true)
-        }
-    }, [electionRecord, usersPermissionLabels])
+    // Checked while rendering, so no tab mounts for an election the user may not see.
+    const hasPermissionToViewElection = !(
+        usersPermissionLabels &&
+        electionRecord?.permission_label &&
+        !usersPermissionLabels.includes(electionRecord.permission_label)
+    )
 
     // Build tabs with stable references
     const tabs = useMemo(() => {
         const result: Array<{
+            id?: string
             label: string
             component: React.FC
             action?: (index: number) => void
@@ -230,11 +274,9 @@ export const ElectionTabs: React.FC = () => {
 
         if (showPublish) {
             result.push({
+                id: "publish",
                 label: t("electionScreen.tabs.publish"),
                 component: PublishTab,
-                action: (index: number) => {
-                    localStorage.setItem("electionPublishTabIndex", index.toString())
-                },
             })
         }
 
@@ -287,7 +329,10 @@ export const ElectionTabs: React.FC = () => {
             />
             <Box sx={{bgcolor: "background.paper"}}>
                 <RecordContextProvider value={electionRecord}>
-                    <Tabs elements={tabs} />
+                    {/* The election's screens show their times in its zone. */}
+                    <EventTimeZoneProvider event={electionEvent} election={electionRecord}>
+                        <Tabs elements={tabs} />
+                    </EventTimeZoneProvider>
                 </RecordContextProvider>
             </Box>
         </Box>

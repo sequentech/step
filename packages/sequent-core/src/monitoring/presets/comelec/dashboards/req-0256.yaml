@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: req-0256
+title: Posts initialized
+description: Posts initialized, with where each Post stands.
+section: Voting
+requirements: [SW-F-0256, SW-F-0368]
+order: 6
+selectors: [region, post]
+layout:
+  - {widget: poll-status, width: 12}
+  - {widget: status-by-post, width: 12}

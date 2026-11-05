@@ -19,6 +19,7 @@ import {
     Typography,
 } from "@mui/material"
 import {useTranslation} from "react-i18next"
+import {useEventZonedFormat} from "@/hooks/useZonedFormat"
 import {ATTR_RESET_VALUE} from "@/types/keycloak"
 import {DropFile} from "@sequentech/ui-essentials"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
@@ -328,6 +329,7 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
     onClose,
 }) => {
     const {t} = useTranslation()
+    const zoned = useEventZonedFormat(electionEventId, {seconds: true})
     const [addWidget, setWidgetTaskId] = useWidgetStore()
 
     const [step, setStep] = useState<WizardStep>("drop")
@@ -634,7 +636,8 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                                                 fileName,
                                                 sequence: envelope.sequence,
                                                 generatedAt: formatGeneratedAt(
-                                                    envelope.generated_at
+                                                    envelope.generated_at,
+                                                    zoned.format
                                                 ),
                                             })}
                                         </Typography>

@@ -32,3 +32,21 @@ describe("electoral-log audit labels", () => {
         }
     })
 })
+
+describe("shared readiness labels", () => {
+    const paths = (value: unknown, prefix = ""): string[] =>
+        typeof value === "object" && value !== null
+            ? Object.entries(value).flatMap(([key, child]) =>
+                  paths(child, prefix ? `${prefix}.${key}` : key)
+              )
+            : [prefix]
+    const expected = paths(en.translations.logsScreen.readiness)
+    it.each(Object.entries(languages))(
+        "have complete translated receipt fields and stable checks in %s",
+        (_, language) => {
+            const readiness = language.translations.logsScreen.readiness
+            expect(paths(readiness)).toEqual(expected)
+            expect(JSON.stringify(readiness)).not.toMatch(/COMELEC|SBEI|\bPosts?\b/)
+        }
+    )
+})

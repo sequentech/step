@@ -87,15 +87,16 @@ export const ListRoles: React.FC<ListRolesProps> = ({aside}) => {
     }
 
     const confirmDeleteAction = async () => {
-        const {errors} = await deleteRole({
-            variables: {
-                tenantId: tenantId,
-                roleId: deleteId,
-            },
-        })
-        if (errors) {
+        try {
+            await deleteRole({
+                variables: {
+                    tenantId: tenantId,
+                    roleId: deleteId,
+                },
+            })
+        } catch (error) {
             notify(t(`usersAndRolesScreen.roles.notifications.deleteError`), {type: "error"})
-            console.log(`Error deleting role: ${errors}`)
+            console.log(`Error deleting role: ${error}`)
             return
         }
         notify(t(`usersAndRolesScreen.roles.notifications.deleteSuccess`), {type: "success"})

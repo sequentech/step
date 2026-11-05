@@ -5,7 +5,6 @@ import React, {ReactElement, useEffect, useState} from "react"
 import {
     List,
     TextInput,
-    DateField,
     FunctionField,
     TextField,
     DatagridConfigurable,
@@ -28,6 +27,7 @@ import {ResetFilters} from "@/components/ResetFilters"
 import {useTasksPermissions} from "./useTasksPermissions"
 import {CircularProgress} from "@mui/material"
 import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
+import {AdminDateField} from "@/components/AdminDateTime"
 
 export interface ListTasksProps {
     onViewTask: (id: Identifier) => void
@@ -143,9 +143,10 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
                 >
                     <TextField source="id" />
                     <TextField source="name" />
-                    <DateField
+                    <AdminDateField
                         source="start_at"
-                        showTime={true}
+                        seconds
+                        event={electionEventRecord}
                         label={String(t("tasksScreen.column.start_at"))}
                     />
                     <FunctionField

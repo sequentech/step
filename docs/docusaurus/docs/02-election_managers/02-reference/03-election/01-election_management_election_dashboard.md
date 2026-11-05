@@ -11,6 +11,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Dashboard
 
+:::note
+When the election event is set up for monitoring, users with the
+`monitoring-view` permission see the event's
+[monitoring dashboards](./02-election_management_election_monitoring.md),
+fixed to this election, in this tab instead.
+:::
+
 The Dashboard provides administrators with a snapshot of an individual Election’s progress and key statistics. Note that this displays a subset of data specific to the selected Election (not the broader Election Event).
 
 ## Metrics

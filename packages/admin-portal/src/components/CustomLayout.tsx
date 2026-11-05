@@ -13,11 +13,31 @@ import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
 import {useAtomValue, useSetAtom} from "jotai"
 import {applyConfigurationLanguagePolicy, ITenantSettings, ITenantTheme} from "@sequentech/ui-core"
 import {ImportDataDrawer} from "./election-event/import-data/ImportDataDrawer"
-import {
-    CreateElectionEventProvider,
-    useCreateElectionEventStore,
-} from "@/providers/CreateElectionEventContextProvider"
+import {CreateElectionEventProvider} from "@/providers/CreateElectionEventContextProvider"
 import {CreateDataDrawer} from "./election-event/create/CreateElectionEventDrawer"
+
+import {SigningProvider} from "./signing/SigningProvider"
+import {SigningAction} from "@/lib/signing/types"
+import type {ISigningPanelData} from "@/lib/signing/api"
+import {ClosedVotingCard} from "@/resources/Publish/ClosedVotingCard"
+import {
+    ReportCompletionActions,
+    TransmissionCompletionActions,
+} from "@/resources/Reports/ReportSigning"
+
+/** What a completed request of each protected action shows in its panel. */
+const signingCompletionActions = {
+    [SigningAction.TransmitResults]: (data: ISigningPanelData) => (
+        <TransmissionCompletionActions data={data} />
+    ),
+    [SigningAction.CloseVoting]: (data: ISigningPanelData) => <ClosedVotingCard data={data} />,
+    [SigningAction.GenerateElectionReturns]: (data: ISigningPanelData) => (
+        <ReportCompletionActions data={data} />
+    ),
+    [SigningAction.GenerateReports]: (data: ISigningPanelData) => (
+        <ReportCompletionActions data={data} />
+    ),
+}
 
 export const CustomCssReader: React.FC = () => {
     const {tenantId} = useContext(TenantContext)
@@ -45,15 +65,13 @@ export const CustomCssReader: React.FC = () => {
 }
 
 const SequentSidebar = (props: any) => {
-    const {createDrawer, closeCreateDrawer} = useCreateElectionEventStore()
-
     return (
         <CreateElectionEventProvider>
             <CustomCssReader />
             <CustomSidebar {...props}>
                 <CustomMenu {...props} classes={SidebarClasses} />
             </CustomSidebar>
-            <CreateDataDrawer open={createDrawer} closeDrawer={() => closeCreateDrawer?.()} />
+            <CreateDataDrawer />
             <ImportDataDrawer
                 title="electionEventScreen.import.eetitle"
                 subtitle="electionEventScreen.import.eesubtitle"
@@ -64,24 +82,26 @@ const SequentSidebar = (props: any) => {
 }
 
 export const CustomLayout: React.FC<LayoutProps> = (props) => (
-    <Layout
-        {...props}
-        sx={{
-            "width": "100%",
-            "& .MuiPaper-root.RaSidebar-paper, & .MuiPaper-root.MuiAppBar-root": {
-                top: "0",
-                position: "sticky",
-                zIndex: 100,
-            },
-            "& .MuiToolbar-root": {
-                minHeight: "unset",
-            },
-            "& .RaList-main": {
-                width: "50%",
-            },
-        }}
-        appBar={CustomAppBar}
-        // sidebar={withCreateElectionEventProvider(SequentSidebar)}
-        sidebar={SequentSidebar}
-    />
+    <SigningProvider completionActions={signingCompletionActions}>
+        <Layout
+            {...props}
+            sx={{
+                "width": "100%",
+                "& .MuiPaper-root.RaSidebar-paper, & .MuiPaper-root.MuiAppBar-root": {
+                    top: "0",
+                    position: "sticky",
+                    zIndex: 100,
+                },
+                "& .MuiToolbar-root": {
+                    minHeight: "unset",
+                },
+                "& .RaList-main": {
+                    width: "50%",
+                },
+            }}
+            appBar={CustomAppBar}
+            // sidebar={withCreateElectionEventProvider(SequentSidebar)}
+            sidebar={SequentSidebar}
+        />
+    </SigningProvider>
 )

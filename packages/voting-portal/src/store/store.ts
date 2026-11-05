@@ -12,6 +12,7 @@ import electionEventReducer from "./electionEvents/electionEventsSlice"
 import supportMaterialReducer from "./supportMaterials/supportMaterialsSlice"
 import documentsReducer from "./documents/documentsSlice"
 import extraReducer from "./extra/extraSlice"
+import receivedBallotsReducer from "./receivedBallots/receivedBallotsSlice"
 
 // note: use Immer, https://immerjs.github.io/immer/
 
@@ -28,6 +29,7 @@ const appReducer = combineReducers({
     extra: extraReducer,
     documents: documentsReducer,
     confirmationScreenData: confirmationScreenDataReducer,
+    receivedBallots: receivedBallotsReducer,
 })
 
 export const store = configureStore({

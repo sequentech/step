@@ -22,9 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                       <td class="left">
                         <div>
                           <p>
-                            {{datetime from_rfc3339=../execution_annotations.date_printed
-                            output_format="%B %d, %Y %H:%M"
-                            with_timezone="Asia/Manila"}}
+                            {{datetime_zone ../execution_annotations.date_printed output_format="%B %d, %Y %H:%M"}}
                           </p>
                         </div>
                       </td>
@@ -60,9 +58,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                       <div class="country">REPUBLIC OF PHILIPPINES</div>
                       <div class="commission">COMMISSION ON ELECTIONS</div>
                       <div class="election-date">
-                        {{datetime
-                        from_rfc3339=../execution_annotations.date_printed
-                        output_format="%B %d, %Y" with_timezone="Asia/Manila"}}
+                        {{datetime_zone ../execution_annotations.date_printed output_format="%B %d, %Y"}}
                       </div>
                       <div class="election-name">
                         {{sanitize_html (expr ../election_name)}}
@@ -71,12 +67,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                         ONLINE VOTING AND COUNTING SYSTEM
                       </div>
                       <div class="voting-period">
-                        Overseas Voting Period: {{datetime
-                        from_rfc3339=../election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
-                        output_format="%d %B %Y" with_timezone="Asia/Manila"}} - {{datetime
-                        from_rfc3339=../election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at
-                        output_format="%d %B %Y"
-                        with_timezone="Asia/Manila"}}
+                        Overseas Voting Period: {{#if ../election_dates.scheduled_event_dates.START_VOTING_PERIOD.scheduled_at}}{{datetime_zone ../election_dates.scheduled_event_dates.START_VOTING_PERIOD.scheduled_at output_format="%d %B %Y"}}{{else}}{{#if ../election_dates.first_started_at}}{{datetime_zone ../election_dates.first_started_at output_format="%d %B %Y"}}{{else}}-{{/if}}{{/if}} - {{#if ../election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at}}{{datetime_zone ../election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at @root.electionEventTimezone output_format="%d %B %Y"}}{{else}}{{#if ../election_dates.last_stopped_at}}{{datetime_zone ../election_dates.last_stopped_at @root.electionTimezone output_format="%d %B %Y"}}{{else}}-{{/if}}{{/if}}
                       </div>
                     </td>
                     <td width="23%" class="right" valign="top">
@@ -223,6 +214,12 @@ SPDX-License-Identifier: AGPL-3.0-only
           <div>
             Results hash: {{sanitize_html (expr ../execution_annotations.results_hash)}}<br />
             Report hash: {{sanitize_html (expr ../execution_annotations.report_hash)}}<br />
+            {{#if ../execution_annotations.configuration_revision}}
+            Configuration revision {{sanitize_html ../execution_annotations.configuration_revision}}, manifest SHA-256 {{sanitize_html ../execution_annotations.configuration_manifest_sha256}}<br />
+            {{/if}}
+            {{#if ../execution_annotations.copy_total}}
+            Copy {{sanitize_html ../execution_annotations.copy_number}} of {{sanitize_html ../execution_annotations.copy_total}}<br />
+            {{/if}}
             <br />
             Software version: {{sanitize_html (expr ../execution_annotations.app_version)}}<br />
             System hash: {{sanitize_html (expr ../execution_annotations.app_hash)}}

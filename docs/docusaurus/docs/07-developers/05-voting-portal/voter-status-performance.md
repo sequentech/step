@@ -26,6 +26,8 @@ Chromium opens the real portal, renders the election list, selects candidates an
 
 Run against a deployment with the S3 voting path enabled, its portal and cast services running, and a tenant reserved for synthetic voters. The tenant must have automatic trustees registered and running. The default fixture uses a threshold of two; `preparation.threshold` is configurable.
 
+When upgrading an existing deployment to the S3 voting path, deploy the backend and Hasura metadata first. Before deploying the portal, generate and publish a new publication for each event whose active publication has no prepared files. Generation uploads and verifies the files before it marks a publication generated, and only generated publications can be published. An unprepared publication fails closed; a changed presentation requires regeneration and publication rather than reusing stale signed content.
+
 Install and authenticate the CLI using [CLI setup](../02-cli/01-cli_cli.md). In a repository devcontainer, enter `devenv shell` from the repository root; it provides k6. Coordination, census generation, encryption and reporting run natively in Rust. The devcontainer also provides Chromium; initialization records its executable automatically. `load check` launches it before browser preparation to verify dependencies. Outside devenv, follow the browser installation instructions in CLI setup.
 
 ## Prepare and run
@@ -275,6 +277,8 @@ Use your configured namespace in place of `load-testing`. Failed or interrupted 
 ## Existing events and preparation
 
 To reuse an already provisioned event, set `preparation.existing_event` to a previous run's `inputs/config.json`, and choose an unused `workload.start` range. The CLI imports the new census and prepares fresh ballots; it does not republish that event. The existing event must still be open and eligible.
+
+Generated inputs retain `election_external_id` from the exported election. Census authorization uses that nonempty value, falling back to `election_id` when it is absent, null or empty; voting requests continue to use the election UUID. An external ID containing the census separator `|` is rejected before any census is written. When reusing an event, preparation exports it again and uses the election's current external ID, so older input files without `election_external_id` also authorize voters correctly.
 
 Custom fixtures use `preparation.template`; explicit ballot selections use `preparation.choices`. Paths resolve relative to the workload YAML. Deployments that run S3 publication preparation separately can set `preparation.publication_preparer` to their application writer executable; its database and S3 environment must be configured on the coordinator.
 

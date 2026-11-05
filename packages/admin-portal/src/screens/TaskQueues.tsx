@@ -39,6 +39,7 @@ import {DataGrid, GridColDef, GridRowSelectionModel} from "@mui/x-data-grid"
 import Chart from "react-apexcharts"
 import type {ApexOptions} from "apexcharts"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import {useZonedFormat} from "@/hooks/useZonedFormat"
 import {IPermissions} from "@/types/keycloak"
 import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
 import {
@@ -203,7 +204,12 @@ const Overview: React.FC<{
     )
 }
 
-const chartOptions = (base: ApexOptions, locale: string, hours: number): ApexOptions => ({
+const chartOptions = (
+    base: ApexOptions,
+    locale: string,
+    hours: number,
+    formatTime: (value: number) => string
+): ApexOptions => ({
     ...base,
     chart: {
         ...base.chart,
@@ -227,7 +233,7 @@ const chartOptions = (base: ApexOptions, locale: string, hours: number): ApexOpt
     },
     tooltip: {
         x: {
-            formatter: (value: number) => new Date(value).toLocaleString(locale),
+            formatter: formatTime,
         },
     },
 })
@@ -236,6 +242,8 @@ const Graphs: React.FC<{queue: string; live: boolean}> = ({queue, live}) => {
     const {t, i18n} = useTranslation()
     const outcomeLabel = useOutcomeLabel()
     const locale = i18n.resolvedLanguage ?? i18n.language
+    const zoned = useZonedFormat(null)
+    const formatTime = (value: number) => zoned.format(value)
     const [period, setPeriod] = useState<GraphPeriod>("day")
     const range = GRAPH_RANGES[period]
     const {data, error, networkStatus} = useQuery(TASK_QUEUES_THROUGHPUT, {
@@ -320,7 +328,8 @@ const Graphs: React.FC<{queue: string; live: boolean}> = ({queue, live}) => {
                                     },
                                 },
                                 locale,
-                                range.hours
+                                range.hours,
+                                formatTime
                             )}
                         />
                     </Box>
@@ -355,7 +364,8 @@ const Graphs: React.FC<{queue: string; live: boolean}> = ({queue, live}) => {
                                         },
                                     },
                                     locale,
-                                    range.hours
+                                    range.hours,
+                                    formatTime
                                 )}
                             />
                         </Box>
@@ -404,9 +414,9 @@ const ConfirmDialog: React.FC<{
 }
 
 const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite}) => {
-    const {t, i18n} = useTranslation()
+    const {t} = useTranslation()
     const outcomeLabel = useOutcomeLabel()
-    const locale = i18n.resolvedLanguage ?? i18n.language
+    const zoned = useZonedFormat(null, {seconds: true})
     const [state, setState] = useState<MessageState>("queued")
     // The `before` cursor of each page shown so far; the last is the current page.
     const [cursors, setCursors] = useState<Array<string | null>>([null])
@@ -504,8 +514,7 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
 
     // Built again only when its inputs change, so the grid keeps column widths the user set.
     const columns = useMemo((): GridColDef<MessageSummary>[] => {
-        const date = (value: string | null) =>
-            value ? new Date(value).toLocaleString(locale) : "—"
+        const date = (value: string | null) => (value ? zoned.format(value) : "—")
         return [
             {field: "msg_id", headerName: t("taskQueues.messages.columns.id"), width: 90},
             {
@@ -565,7 +574,7 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
             {
                 field: "enqueued_at",
                 headerName: t("taskQueues.messages.columns.enqueued"),
-                width: 180,
+                width: 220,
                 valueFormatter: (value: string) => date(value),
             },
             {
@@ -584,13 +593,13 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
                 ? {
                       field: "archived_at",
                       headerName: t("taskQueues.messages.columns.archived"),
-                      width: 180,
+                      width: 220,
                       valueFormatter: (value: string | null) => date(value),
                   }
                 : {
                       field: "visible_at",
                       headerName: t("taskQueues.messages.columns.visible"),
-                      width: 180,
+                      width: 220,
                       valueFormatter: (value: string) => date(value),
                   },
             {
@@ -606,7 +615,7 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
                 minWidth: 290,
             },
         ]
-    }, [state, showsEvents, showsErrors, t, locale, outcomeLabel])
+    }, [state, showsEvents, showsErrors, t, zoned, outcomeLabel])
 
     return (
         <Stack spacing={2}>

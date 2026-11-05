@@ -1,0 +1,40 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Sign-in attempts over time: successful, and failed by whether the username
+# named an account.
+id: login-outcomes
+title: Login outcomes
+description: Sign-in attempts per period, failures by kind.
+source: access_security
+requirements: [SW-F-0280, SW-F-0281]
+selectors:
+  grain:
+    label: Resolution
+    options: {hour: Hour, day: Day}
+    default: hour
+  day:
+    label: Day
+    options_from: event_days
+    when: {selector: grain, in: [hour]}
+query:
+  template: timeseries
+  measures: [logins, login_failures_valid_user, login_failures_unregistered]
+  grain: {selector: grain}
+  day: {selector: day}
+height: 320
+chart:
+  charts:
+    outcomes:
+      type: line
+      query: data
+      x: bucket_label
+      y: logins
+      # Names the first series in the legend; the axis itself needs no title.
+      y_label: Successful
+      style: {number_format: number, axis_y: {title: {visible: false}}}
+      layers:
+        - {type: line, y: login_failures_valid_user, label: "Failed, valid user"}
+        - {type: line, y: login_failures_unregistered, label: "Failed, unregistered user"}
+  rows: [outcomes]

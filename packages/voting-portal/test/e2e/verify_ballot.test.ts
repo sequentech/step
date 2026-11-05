@@ -46,7 +46,7 @@ describe("Cast ballot", function () {
         const result = await browser
             .useXpath()
             .getText(
-                `//div[contains(normalize-space(),'Your Ballot ID: ') and contains(@class,'hash-text')]`
+                `//div[contains(normalize-space(),'Your Tracking ID: ') and contains(@class,'hash-text')]`
             )
         console.log({result})
 

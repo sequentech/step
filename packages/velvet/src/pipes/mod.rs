@@ -5,6 +5,7 @@
 pub mod error;
 pub mod pipe_inputs;
 pub mod pipe_name;
+pub mod report_manifest;
 
 // Pipes
 pub mod ballot_images;

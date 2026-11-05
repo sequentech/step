@@ -29,7 +29,12 @@ export interface VotingPortalDateTimeEvent {
 
 export type DateTimeInput = Date | string | number
 
-type Formatter = (date: Date) => string
+/**
+ * Formats an instant. `timeZone` is an IANA zone; without one the browser's
+ * zone is used. The zone only moves the wall clock: it is never written into
+ * the text (callers name it through `timezones.voterDateTimeZone`).
+ */
+type Formatter = (date: Date, timeZone?: string) => string
 
 /**
  * Thrown when an override pattern cannot be interpreted. Callers fall back to the
@@ -49,8 +54,8 @@ const toLocale = (lang: string): string => INTERNAL_TO_BCP47[lang] ?? lang
 
 const pad = (value: number, length = 2): string => String(value).padStart(length, "0")
 
-// Supported override tokens. Rendered in the voter's local time; any other
-// characters in the pattern are passed through literally.
+// Supported override tokens. Rendered in the requested zone (the browser's when
+// none is given); any other characters in the pattern are passed through literally.
 // Unicode LDML date field symbols (UTS #35 / CLDR)
 const TOKEN_SOURCE = "yyyy|MM|dd|HH|mm|ss"
 const hasToken = (pattern: string): boolean => new RegExp(TOKEN_SOURCE).test(pattern)
@@ -60,20 +65,72 @@ const hasToken = (pattern: string): boolean => new RegExp(TOKEN_SOURCE).test(pat
 // corrupt voter-facing dates, so patterns containing them are rejected.
 const MISUSED_TOKEN_SOURCE = "YYYY|DD|hh"
 
-const tokenValue = (token: string, date: Date): string => {
+/** The wall-clock fields of an instant in a zone. */
+interface WallClock {
+    year: number
+    month: number
+    day: number
+    hour: number
+    minute: number
+    second: number
+}
+
+// One Intl formatter per zone; building them is the expensive part.
+const wallClockFormatters = new Map<string, Intl.DateTimeFormat>()
+
+const wallClockFormatter = (timeZone: string | undefined): Intl.DateTimeFormat => {
+    const key = timeZone ?? ""
+    let formatter = wallClockFormatters.get(key)
+    if (!formatter) {
+        // Throws a RangeError on an unknown zone, which the caller turns into
+        // the logged fallback.
+        formatter = new Intl.DateTimeFormat("en-US", {
+            timeZone,
+            year: "numeric",
+            month: "numeric",
+            day: "numeric",
+            hour: "numeric",
+            minute: "numeric",
+            second: "numeric",
+            hourCycle: "h23",
+        })
+        wallClockFormatters.set(key, formatter)
+    }
+    return formatter
+}
+
+const wallClock = (date: Date, timeZone?: string): WallClock => {
+    const fields: Record<string, number> = {}
+    for (const part of wallClockFormatter(timeZone).formatToParts(date)) {
+        if (part.type !== "literal") {
+            fields[part.type] = Number(part.value)
+        }
+    }
+    return {
+        year: fields.year,
+        month: fields.month,
+        day: fields.day,
+        // Some engines still print midnight as 24 with h23.
+        hour: fields.hour % 24,
+        minute: fields.minute,
+        second: fields.second,
+    }
+}
+
+const tokenValue = (token: string, clock: WallClock): string => {
     switch (token) {
         case "yyyy":
-            return pad(date.getFullYear(), 4)
+            return pad(clock.year, 4)
         case "MM":
-            return pad(date.getMonth() + 1)
+            return pad(clock.month)
         case "dd":
-            return pad(date.getDate())
+            return pad(clock.day)
         case "HH":
-            return pad(date.getHours())
+            return pad(clock.hour)
         case "mm":
-            return pad(date.getMinutes())
+            return pad(clock.minute)
         case "ss":
-            return pad(date.getSeconds())
+            return pad(clock.second)
         default:
             return token
     }
@@ -108,8 +165,10 @@ export const parseVotingPortalDateTimePattern = (pattern: string): Formatter => 
     if (!hasToken(pattern)) {
         throw new DateTimePatternError(`No recognized token in pattern: "${pattern}"`)
     }
-    return (date: Date): string =>
-        pattern.replace(new RegExp(TOKEN_SOURCE, "g"), (token) => tokenValue(token, date))
+    return (date: Date, timeZone?: string): string => {
+        const clock = wallClock(date, timeZone)
+        return pattern.replace(new RegExp(TOKEN_SOURCE, "g"), (token) => tokenValue(token, clock))
+    }
 }
 
 /**
@@ -125,8 +184,9 @@ export const isValidVotingPortalDateTimePattern = (pattern: string): boolean => 
     }
 }
 
-const legacyGb24h = (date: Date): string =>
+const legacyGb24h = (date: Date, timeZone?: string): string =>
     new Intl.DateTimeFormat("en-GB", {
+        timeZone,
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
@@ -138,14 +198,21 @@ const legacyGb24h = (date: Date): string =>
 // The CUSTOM policy is resolved from its inline pattern, not from this table.
 type PresetDateTimeFormat = Exclude<EVotingPortalDateTimeFormat, EVotingPortalDateTimeFormat.CUSTOM>
 
-const presetFormatters: Record<PresetDateTimeFormat, (date: Date, lang: string) => string> = {
-    [EVotingPortalDateTimeFormat.LEGACY_GB_24H]: legacyGb24h,
-    [EVotingPortalDateTimeFormat.ISO_LOCAL]: (date) =>
-        `${pad(date.getFullYear(), 4)}-${pad(date.getMonth() + 1)}-${pad(
-            date.getDate()
-        )} ${pad(date.getHours())}:${pad(date.getMinutes())}`,
-    [EVotingPortalDateTimeFormat.US_12H]: (date) =>
+const presetFormatters: Record<
+    PresetDateTimeFormat,
+    (date: Date, lang: string, timeZone?: string) => string
+> = {
+    [EVotingPortalDateTimeFormat.LEGACY_GB_24H]: (date, _lang, timeZone) =>
+        legacyGb24h(date, timeZone),
+    [EVotingPortalDateTimeFormat.ISO_LOCAL]: (date, _lang, timeZone) => {
+        const clock = wallClock(date, timeZone)
+        return `${pad(clock.year, 4)}-${pad(clock.month)}-${pad(clock.day)} ${pad(
+            clock.hour
+        )}:${pad(clock.minute)}`
+    },
+    [EVotingPortalDateTimeFormat.US_12H]: (date, _lang, timeZone) =>
         new Intl.DateTimeFormat("en-US", {
+            timeZone,
             year: "numeric",
             month: "2-digit",
             day: "2-digit",
@@ -153,13 +220,15 @@ const presetFormatters: Record<PresetDateTimeFormat, (date: Date, lang: string) 
             minute: "2-digit",
             hour12: true,
         }).format(date),
-    [EVotingPortalDateTimeFormat.LOCALE_MEDIUM]: (date, lang) =>
+    [EVotingPortalDateTimeFormat.LOCALE_MEDIUM]: (date, lang, timeZone) =>
         new Intl.DateTimeFormat(toLocale(lang), {
+            timeZone,
             dateStyle: "medium",
             timeStyle: "short",
         }).format(date),
-    [EVotingPortalDateTimeFormat.DATE_ONLY]: (date, lang) =>
+    [EVotingPortalDateTimeFormat.DATE_ONLY]: (date, lang, timeZone) =>
         new Intl.DateTimeFormat(toLocale(lang), {
+            timeZone,
             year: "numeric",
             month: "2-digit",
             day: "2-digit",
@@ -181,21 +250,21 @@ const resolveConfiguredFormatter = (
                 `Invalid custom "${VOTING_PORTAL_DATETIME_FORMAT_KEY}" pattern "${configured.custom}"; falling back to the legacy format.`,
                 error
             )
-            return (date: Date) =>
-                presetFormatters[EVotingPortalDateTimeFormat.LEGACY_GB_24H](date, lang)
+            return (date: Date, timeZone?: string) =>
+                presetFormatters[EVotingPortalDateTimeFormat.LEGACY_GB_24H](date, lang, timeZone)
         }
     }
     const preset =
         (configured && presetFormatters[configured as PresetDateTimeFormat]) ??
         presetFormatters[EVotingPortalDateTimeFormat.LEGACY_GB_24H]
-    return (date: Date) => preset(date, lang)
+    return (date: Date, timeZone?: string) => preset(date, lang, timeZone)
 }
 
 const resolvePreset = (event: VotingPortalDateTimeEvent | null | undefined): Formatter =>
     resolveConfiguredFormatter(event?.presentation?.voting_portal_datetime_format, "en")
 
-// Memoizes the resolved formatter per (eventId, lang) so resolution is O(1) per
-// render and issues no extra work. Resolution is stable for a loaded event.
+// Memoizes the resolved formatter per (eventId, lang, zone) so resolution is O(1)
+// per render and issues no extra work. Resolution is stable for a loaded event.
 const formatterCache = new Map<string, Formatter>()
 
 const buildFormatter = (
@@ -234,31 +303,47 @@ const toDate = (input: DateTimeInput): Date => (input instanceof Date ? input : 
  * `LEGACY_GB_24H`. A malformed override logs a warning and falls back to the
  * preset; formatting never throws to the voter.
  *
+ * The text holds the date and time only. To name the zone, pass this as the
+ * `{{dateTime}}` of `timezones.voterDateTimeZone` (see `formatVoterDateTimeZone`).
+ *
  * @param date the instant to format (Date, ISO string, or epoch milliseconds)
  * @param event the election event (carrying `presentation`)
  * @param lang the active voter language (internal code, e.g. `en`, `cat`)
+ * @param timeZone the IANA zone whose wall clock is shown; the browser's when absent.
+ *        An unknown zone logs a warning and falls back to the legacy format in
+ *        the browser's zone.
  */
 export const formatVotingPortalDateTime = (
     date: DateTimeInput,
     event: VotingPortalDateTimeEvent | null | undefined,
-    lang: string
+    lang: string,
+    timeZone?: string
 ): string => {
     const parsedDate = toDate(date)
-    const cacheKey = `${event?.id ?? "unknown"}:${lang}`
+    if (Number.isNaN(parsedDate.getTime())) {
+        // Not an instant: nothing to show, and nothing a fallback could format.
+        return "-"
+    }
+    const cacheKey = `${event?.id ?? "unknown"}:${lang}:${timeZone ?? ""}`
     let formatter = formatterCache.get(cacheKey)
     if (!formatter) {
         formatter = buildFormatter(event, lang)
         formatterCache.set(cacheKey, formatter)
     }
     try {
-        return formatter(parsedDate)
+        return formatter(parsedDate, timeZone)
     } catch (error) {
-        console.warn("Voting Portal date/time formatting failed; using legacy format.", error)
+        console.warn(
+            `Voting Portal date/time formatting failed${
+                timeZone ? ` in timezone "${timeZone}"` : ""
+            }; using legacy format.`,
+            error
+        )
         return resolvePreset(null)(parsedDate)
     }
 }
 
-/** Test-only: clears the per-(eventId, lang) formatter memo. */
+/** Test-only: clears the per-(eventId, lang, zone) formatter memo. */
 export const clearVotingPortalDateTimeCache = (): void => {
     formatterCache.clear()
 }

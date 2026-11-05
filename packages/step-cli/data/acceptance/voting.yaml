@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Checks of the voting stage of an acceptance test.
+#
+# severity: critical (a failure, or no result, keeps the stage from passing)
+#           or advisory (a failure is only reported).
+# method:   automatic (`step-cli acceptance run` reads the election event's
+#           records with the named probe) or witnessed (a person observes it
+#           and `step-cli acceptance record` stores the result).
+id: voting
+title: Voting
+checks:
+  - id: voting.authentication
+    title: Enrolled voters authenticate
+    severity: critical
+    method: automatic
+    probe: voter-authenticated
+  - id: voting.ballot-published
+    title: A ballot is published for each voter's area
+    severity: critical
+    method: automatic
+    probe: ballot-published
+  - id: voting.ballot-displayed
+    title: The ballot is displayed to the voter after signing in
+    severity: critical
+    method: witnessed
+  - id: voting.ballot-cast
+    title: Voters cast their ballot
+    severity: critical
+    method: automatic
+    probe: ballot-cast
+  - id: voting.receipt
+    title: A confirmation or receipt with the Ballot ID is produced for each cast ballot
+    severity: critical
+    method: automatic
+    probe: receipt-produced
+  - id: voting.ballot-stored
+    title: Each cast ballot is stored as the ballot box recorded it
+    severity: critical
+    method: automatic
+    probe: ballot-stored

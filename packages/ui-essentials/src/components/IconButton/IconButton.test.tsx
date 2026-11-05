@@ -16,13 +16,13 @@ it("exposes a button hook while preserving legacy SVG classes and click behavior
     render(
         <IconButton
             icon={faCircleQuestion}
-            ariaLabel="Ballot ID help"
+            ariaLabel="Tracking ID help"
             className="legacy-help-icon"
             buttonClassName="ballot-id-help-button"
             onClick={onClick}
         />
     )
-    const button = screen.getByRole("button", {name: "Ballot ID help"})
+    const button = screen.getByRole("button", {name: "Tracking ID help"})
 
     expect(button).toHaveClass("icon-button", "ballot-id-help-button")
     expect(button.querySelector("svg")).toHaveClass("legacy-help-icon")

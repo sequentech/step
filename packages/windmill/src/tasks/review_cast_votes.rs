@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::ballot_box::events_with_ballot_activity;
-use crate::services::protocol_manager::get_event_store;
+use crate::services::electoral_log_board::get_event_store;
 use crate::services::{celery_app::get_celery_app, database::PgConfig};
 use crate::tasks::process_cast_vote::process_cast_vote;
 use crate::types::error::Result;

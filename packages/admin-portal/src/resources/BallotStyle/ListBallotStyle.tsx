@@ -2,11 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement} from "react"
-import {DatagridConfigurable, List, TextField, ReferenceField, TextInput} from "react-admin"
+import {
+    DatagridConfigurable,
+    FunctionField,
+    List,
+    TextField,
+    ReferenceField,
+    TextInput,
+} from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Typography} from "@mui/material"
-import {generateRowClickHandler} from "../../services/RowClickService"
 import {useTenantStore} from "../../providers/TenantContextProvider"
+import {usePresentationName} from "../../hooks/usePresentationName"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -19,15 +26,10 @@ const Filters: Array<ReactElement> = [
     <TextInput source="election_id" key={5} />,
 ]
 
-export interface ListBallotStyleProps {
-    aside?: ReactElement
-}
-
-export const ListBallotStyle: React.FC<ListBallotStyleProps> = ({aside}) => {
+export const ListBallotStyle: React.FC = () => {
     const [tenantId] = useTenantStore()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
-
-    const rowClickHandler = generateRowClickHandler(["election_event_id", "election_id", "area_id"])
+    const presentationName = usePresentationName()
 
     return (
         <>
@@ -41,9 +43,8 @@ export const ListBallotStyle: React.FC<ListBallotStyleProps> = ({aside}) => {
                     tenant_id: tenantId || undefined,
                 }}
                 filters={Filters}
-                aside={aside}
             >
-                <DatagridConfigurable rowClick={rowClickHandler} omit={OMIT_FIELDS}>
+                <DatagridConfigurable rowClick={false} omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <TextField source="ballot_eml" />
                     <TextField source="status" />
@@ -55,14 +56,14 @@ export const ListBallotStyle: React.FC<ListBallotStyleProps> = ({aside}) => {
                         reference="sequent_backend_election"
                         source="election_id"
                     >
-                        <TextField source="name" />
+                        <FunctionField render={presentationName} />
                     </ReferenceField>
                     <ReferenceField
                         label="Election Event"
                         reference="sequent_backend_election_event"
                         source="election_event_id"
                     >
-                        <TextField source="name" />
+                        <FunctionField render={presentationName} />
                     </ReferenceField>
                     <ReferenceField source="area_id" reference="sequent_backend_area">
                         <TextField source="name" />

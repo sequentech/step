@@ -167,6 +167,11 @@ pub async fn lock_ballot_box_version_assignment(
     contest_id: &str,
     channel: &VotingChannel,
 ) -> Result<()> {
+    let tenant_id = parse_uuid_v4(tenant_id)?;
+    let election_event_id = parse_uuid_v4(election_event_id)?;
+    let election_id = parse_uuid_v4(election_id)?;
+    let area_id = parse_uuid_v4(area_id)?;
+    let contest_id = parse_uuid_v4(contest_id)?;
     let lock_key =
         format!("{tenant_id}:{election_event_id}:{election_id}:{area_id}:{contest_id}:{channel}");
     hasura_transaction

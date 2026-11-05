@@ -14,6 +14,7 @@ const scopeFallbackLabels: Record<ETranslationScope, string> = {
     [ETranslationScope.BALLOT_VERIFIER]: "Ballot verifier",
     [ETranslationScope.RESULTS_PORTAL]: "Results portal",
     [ETranslationScope.ADMIN_PORTAL]: "Admin portal",
+    [ETranslationScope.TEMPLATES]: "Reports and messages",
 }
 
 export const translationScopeLabel = (

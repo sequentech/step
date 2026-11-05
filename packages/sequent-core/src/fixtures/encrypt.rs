@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+// Test-only sample data.
+// Coverage exclusion: scripts/coverage/profiles.toml.
+
 use crate::ballot::BallotStyle;
 use crate::plaintext::DecodedVoteContest;
 
@@ -152,7 +155,7 @@ pub fn get_encrypt_decoded_test_fixture(
 
 pub fn default_voting_portal_fixture() -> (Vec<DecodedVoteContest>, BallotStyle)
 {
-    let ballot_selection_str = r#"[{"contest_id":"69f2f987-460c-48ac-ac7a-4d44d99b37e6","is_explicit_invalid":false,"invalid_errors":[],"choices":[{"id":"a24303de-5798-47cd-9b3e-4f391d1bae7b","selected":0},{"id":"d9249345-11be-4652-ad04-298d70931610","selected":-1},{"id":"1822089d-ae17-4a03-8935-25164b3f2142","selected":-1}]}]"#;
+    let ballot_selection_str = r#"[{"contest_id":"69f2f987-460c-48ac-ac7a-4d44d99b37e6","is_decline_to_vote":false,"is_explicit_invalid":false,"invalid_errors":[],"invalid_alerts":[],"is_blank_ballot":false,"choices":[{"id":"a24303de-5798-47cd-9b3e-4f391d1bae7b","selected":0},{"id":"d9249345-11be-4652-ad04-298d70931610","selected":-1},{"id":"1822089d-ae17-4a03-8935-25164b3f2142","selected":-1}]}]"#;
 
     let election_str = r#"{
       "id":"a12b9343-466e-429f-8ab4-99f6e32bf265",
@@ -161,7 +164,7 @@ pub fn default_voting_portal_fixture() -> (Vec<DecodedVoteContest>, BallotStyle)
       "election_id":"f2f1065e-b784-46d1-b81a-c71bfeb9ad55",
       "description":"This is the description of the election. You can add simple html like You need to use two br element for new paragraphs.",
       "public_key":{
-         "public_key":"/jXUkdSIgz8mXLZ4BIDPQzDx7ZFFIG3MWuacDLyhyhoCAAAAGORKDU/t+8fKNkZMFfXl1IMM+/0VmINTZCcbalZ/NSUi5SbzUTlyzh25lMuVALwvC/lk3j6SHn6BotYphk0QMA",
+         "public_key":"ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",
          "is_demo":true
       },
       "area_id":"2f312a36-f39c-46e4-9670-1d1ce4625745",

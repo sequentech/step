@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context as ContextAnyhow, Result};
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Utc};
 use handlebars::{
     handlebars_helper, BlockParamHolder, Context, Handlebars, Helper,
     HelperDef, HelperResult, JsonValue, Output, RenderContext, RenderError,
@@ -13,9 +13,25 @@ use num_format::{Locale, ToFormattedString};
 use serde_json::{json, to_string, Map, Value};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
+use std::sync::Arc;
 use tracing::{info, instrument, warn};
 
-fn get_registry<'reg>() -> Handlebars<'reg> {
+#[path = "reports_time_zones.rs"]
+mod time_zones;
+pub use time_zones::{
+    copy_template_time_variables, format_in_zone, is_invalid_timezone_text,
+    normalize_placeholders, template_time_variables, DateTimeZoneStyle,
+    TimeZoneTexts, DATE_TIME_ZONE_KEY, DEFAULT_TEMPLATE_DATE_TIME_FORMAT,
+    ELECTION_EVENT_TIMEZONE_VAR, ELECTION_TIMEZONE_VAR,
+    TIMEZONE_COMBINED_TEXTS, TIMEZONE_TEXTS_VAR, VOTER_DATE_TIME_ZONE_KEY,
+};
+use time_zones::{
+    DateTimeZoneHelper, TemplateTimeContext, TimeZoneTextHelper, ZoneText,
+};
+
+fn get_registry<'reg>(variables_map: &Map<String, Value>) -> Handlebars<'reg> {
+    let time_context =
+        Arc::new(TemplateTimeContext::from_variables(variables_map));
     let mut reg = Handlebars::new();
     reg.set_strict_mode(false);
     reg.register_helper(
@@ -90,6 +106,27 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
     reg.register_helper("next", Box::new(next));
     reg.register_helper("eq", Box::new(eq));
     reg.register_helper("is_some", Box::new(is_some));
+    reg.register_helper(
+        "datetime_zone",
+        helper_wrapper_or(
+            Box::new(DateTimeZoneHelper(time_context.clone())),
+            String::from("-"),
+        ),
+    );
+    reg.register_helper(
+        "timezone_label",
+        helper_wrapper_or(
+            Box::new(TimeZoneTextHelper(time_context.clone(), ZoneText::Label)),
+            String::from("-"),
+        ),
+    );
+    reg.register_helper(
+        "timezone_name",
+        helper_wrapper_or(
+            Box::new(TimeZoneTextHelper(time_context, ZoneText::Name)),
+            String::from("-"),
+        ),
+    );
     reg
 }
 
@@ -98,7 +135,7 @@ pub fn render_template_text(
     template: &str,
     variables_map: Map<String, Value>,
 ) -> Result<String, RenderError> {
-    let reg = get_registry();
+    let reg = get_registry(&variables_map);
 
     // render handlebars template
     reg.render_template(template, &json!(variables_map))
@@ -110,7 +147,7 @@ pub fn render_template(
     template_map: HashMap<String, String>,
     variables_map: Map<String, Value>,
 ) -> Result<String, RenderError> {
-    let mut reg = get_registry();
+    let mut reg = get_registry(&variables_map);
 
     for (name, file) in template_map {
         reg.register_template_string(&name, &file)?;
@@ -670,7 +707,7 @@ pub fn format_date(
                     "Date parsing error: {err:?}, date_json={date_json:?}"
                 ))
             })?
-            .with_timezone(&Local) // Convert to local timezone
+            .with_timezone(&Utc) // Never the server's clock zone
     } else {
         // Otherwise, assume it's just a date "YYYY-MM-DD" and add a time
         // placeholder
@@ -683,7 +720,7 @@ pub fn format_date(
                 "Date parsing error: {err:?}, date_json={date_json:?}"
             ))
         })?
-        .with_timezone(&Local) // Convert to local timezone
+        .with_timezone(&Utc) // Never the server's clock zone
     };
 
     // Format the date using the provided format string

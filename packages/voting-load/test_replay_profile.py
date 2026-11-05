@@ -78,6 +78,54 @@ class ProfileTests(unittest.TestCase):
         )
         self.assertEqual(sum(s["kind"] == "publication" for s in profile["steps"]), 4)
 
+    def test_generic_gets_discard_captured_queries_and_keep_explicit_bindings(self):
+        for captured, expected, kind in (
+            (
+                "http://portal/index.js?signature=CAPTURED_VALUE&cache=123#fragment",
+                "http://portal/index.js",
+                "resource",
+            ),
+            (
+                "http://kc/realms/test/account?session_key=CAPTURED_VALUE&token=opaque",
+                "http://kc/realms/test/account",
+                "account",
+            ),
+            (
+                "http://portal/login?code=CAPTURED_VALUE&state=old-state",
+                "http://portal/login",
+                "resource",
+            ),
+        ):
+            with self.subTest(captured=captured):
+                capture, har = self.fixture()
+                har["log"]["entries"][0]["request"]["url"] = captured
+                profile = compile_profile(capture, har)
+                self.assertEqual(
+                    profile["steps"][0],
+                    dict(method="GET", url=expected, offset_ms=0, kind=kind),
+                )
+                self.assertNotIn("CAPTURED_VALUE", json.dumps(profile))
+                self.assertEqual(har["log"]["entries"][0]["request"]["url"], captured)
+                self.assertEqual(
+                    profile["steps"][1]["parameters"],
+                    {
+                        "client_id": "portal",
+                        "redirect_uri": "http://portal/login",
+                        "response_type": "code",
+                    },
+                )
+                self.assertEqual(
+                    [
+                        (step["url"], step["binding"])
+                        for step in profile["steps"]
+                        if step["kind"] == "publication"
+                    ],
+                    [
+                        (None, key)
+                        for key in ("event_url", "election_url", "summary_url", "style_url")
+                    ],
+                )
+
     def test_rejects_unverified_or_non_chromium_capture(self):
         for override in (
             {"completed": False},

@@ -8,28 +8,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 Sequent shared Rust code. This code might be used in different
 projects/packages, like the Ballot Verifier or the Voting Portal.
 
-Currently this includes, among other:
- * The structures that represent an auditable ballot.
- * Methods to generate the ballot cyphertexts.
- * Methods to generate a hash from a cyphertext.
-
-In the future this repo will also include the ballot encoder-decoder.
+This includes auditable ballot types, ballot encoding and decoding, wbraid
+Naor–Yung encryption and audit openings, ballot trackers, signatures and
+receipts. Native trustee DKG, mixing and decryption are handled by
+`protocol-board` and the supplied `packages/wbraid` workspace.
 
 ## Building
 
 Within the step monorepo dev container:
 
 ```bash
-cd packages/sequent-core
-cargo build
+devenv shell -- bash -c 'cd packages && CARGO_TARGET_DIR="$PWD/rust-local-target" cargo build -p sequent-core --features default_features'
 ```
 
 ## Generate javascript package
 
+From the repository root, see the fast feedback loops developer guide:
+
 ```bash
-export RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals'
-rustup run nightly-2022-04-07 wasm-pack build --out-name index --release --target web --features=wasmtest -- -Z build-std=panic_abort,std
-rustup run nightly-2022-04-07 wasm-pack pack .
+scripts/dev/step-dev wasm                  # development package for dev servers
+nix develop ./packages/sequent-core --command \
+  scripts/dev/step-dev wasm --release-package  # committed tgz files
+scripts/dev/step-dev wasm --check-package  # committed tgz matches the sources
 ```
 
 ## Run rust tests
@@ -37,58 +37,44 @@ rustup run nightly-2022-04-07 wasm-pack pack .
 To run rust tests:
 
 ```bash
-cargo test
+devenv shell -- bash -c 'cd packages && CARGO_TARGET_DIR="$PWD/rust-local-target" cargo test -p sequent-core --features default_features --lib'
 ```
 
 ## Browserstack tests
 
-To run browserstack tests:
+The smoke page encrypts a fresh canonical wbraid sample ballot, checks its tracker,
+and verifies its audit opening with the installed `sequent-core` WASM package.
+From the repository root, first install the Yarn workspace dependencies and check
+the committed WASM package, then serve the page:
 
 ```bash
-python3 src/wasm/test/serve.py
+python3 packages/sequent-core/src/wasm/test/serve.py
 ```
 
-On another terminal, run this, previously configuring the env vars:
+Open `http://localhost:8080/sequent-core/src/wasm/test/test.html`. A successful
+run displays `verified: <ballot tracker>`. To run the same page on BrowserStack,
+install the dependencies in `packages/sequent-core/browserstack`, set your
+BrowserStack credentials, and run:
 
 
 ```bash
-BROWSERSTACK_USERNAME=$BROWSERSTACK_USERNAME BROWSERSTACK_ACCESS_KEY=$BROWSERSTACK_ACCESS_KEY npm run local
+cd packages/sequent-core/browserstack
+npm run local
 ```
 
 ## Generate JSON schema
 
 ```bash
-cargo build --release
-./target/release/sequent-core > ballot-schema.json
+devenv shell -- bash -c 'cd packages && CARGO_TARGET_DIR="$PWD/rust-local-target" cargo build -p sequent-core --release --features default_features'
+packages/rust-local-target/release/sequent-core > ballot-schema.json
 ```
 
 
 
 ## Troubleshooting
 
-### Build errors related to Permission denied errors when running cargo test or cargo clean locally.
-
-At build errors when running `cargo test` locally it´s typically due to permission issues.
-You should consider to try `cargo clean` first to start from a clean environment.
-Then, if you encounter permission errors when trying to run `cargo test` or `cargo clean`, such as:
-
-```bash
-error: failed to remove file `/workspaces/step/packages/target/debug/deps/rmetaKakzvF/full.rmeta`
-
-Caused by:
-  Permission denied (os error 13)
-```
-
-This is typically due to incorrect file ownership in the `target` directory. To fix this:
-
-1. Change the ownership of the target directory:
-   ```bash
-   sudo chown -R $USER:$USER /workspaces/step/packages/target
-   ```
-
-2. Run `cargo clean` to remove the build artifacts:
-   ```bash
-   cargo clean
-   ```
-
-3. Now you can run `cargo test` again without permission issues.
+Use this checkout's `packages/rust-local-target` for Cargo. The Docker-owned
+`packages/target` directory belongs to service builds; do not change its ownership
+or clean another checkout's build directory. See the
+[build and test guide](../../docs/docusaurus/docs/07-developers/03-development-environment/build-and-test.md)
+and [core testing guide](../../docs/docusaurus/docs/07-developers/03-development-environment/testing/sequent-core.md).

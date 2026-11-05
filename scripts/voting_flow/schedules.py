@@ -17,10 +17,12 @@ import time
 
 from database import (
     CONFIGURATION_QUERY,
+    ONLINE_WINDOW_MIGRATION,
     ROOT,
     RESULTS,
     SCHEDULE_INDEX,
     SCHEDULE_MIGRATION,
+    WINDOW_MIGRATION,
     local_database,
 )
 from fixtures import VotingEvent, clear_workload
@@ -33,12 +35,12 @@ BROAD_QUERY = """
     SELECT * FROM sequent_backend.scheduled_event
     WHERE tenant_id = %s AND election_event_id = %s AND archived_at IS NULL
 """
-# Compare the same election fields and dates as the production endpoint query.
+# Compare the same election fields and dates as the production projection query.
 # This measures selection cost on valid configuration; it does not replace the
-# database constraints that validate configuration and reject duplicate endpoints.
+# projection's configuration-write validation and duplicate-endpoint rejection.
 DIRECT_QUERY = """
     SELECT election.presentation, election.status, election.voting_channels,
-           period.start_date, period.end_date
+           period.start_date, period.end_date, '{}'::jsonb AS signed_close_dates
     FROM sequent_backend.election election
     LEFT JOIN LATERAL (
         SELECT
@@ -53,7 +55,8 @@ DIRECT_QUERY = """
     ) period ON true
     WHERE election.tenant_id = %s AND election.election_event_id = %s AND election.id = %s
 """
-# Alternate the value so every sample changes an endpoint.
+# Alternate the value so every sample exercises real projection maintenance,
+# rather than the trigger's fast path for unchanged configuration.
 RESCHEDULE = """
     UPDATE sequent_backend.scheduled_event
     SET cron_config = jsonb_build_object('scheduled_date',
@@ -114,6 +117,7 @@ def seed(database, placement):
                 ),
             )
     connection.execute("VACUUM ANALYZE sequent_backend.scheduled_event")
+    connection.execute("ANALYZE sequent_backend.election_voting_window")
     connection.execute("ANALYZE sequent_backend.election")
     expected_events = 1 if placement == "one event" else OTHER_EVENTS + 1
     assert (
@@ -139,6 +143,8 @@ def main():
         # from the previous distribution can hide a selective index lookup.
         database.connection.prepare_threshold = None
         database.apply(SCHEDULE_MIGRATION)
+        database.apply(WINDOW_MIGRATION)
+        database.apply(ONLINE_WINDOW_MIGRATION)
         index_sql = database.scalar(
             "SELECT pg_get_indexdef(%s::regclass)", (SCHEDULE_INDEX,)
         )
@@ -171,11 +177,11 @@ def main():
                 assert (
                     connection.execute(DIRECT_QUERY, direct_parameters).fetchone()
                     == connection.execute(CONFIGURATION_QUERY, fixture.scope).fetchone()
-                ), "Aggregate and scalar endpoint reads must agree on the fixture"
+                ), "Direct and projected policy must agree on the fixture"
                 queries = {
                     "broad_event": (BROAD_QUERY, (fixture.tenant, fixture.event)),
                     "two_endpoints": (DIRECT_QUERY, direct_parameters),
-                    "scalar_endpoints": (CONFIGURATION_QUERY, fixture.scope),
+                    "projection": (CONFIGURATION_QUERY, fixture.scope),
                     "reschedule": (RESCHEDULE, (closing_id,)),
                 }
                 measurements = {
@@ -184,7 +190,7 @@ def main():
                 }
                 expected_rows = ELECTIONS_PER_EVENT * SCHEDULES_PER_ELECTION
                 assert measurements["broad_event"]["returned_rows"] == expected_rows
-                # Both query shapes must observe the rescheduled deadline.
+                # Confirm the real UPDATE trigger kept source and projection in sync.
                 assert (
                     connection.execute(DIRECT_QUERY, direct_parameters).fetchone()
                     == connection.execute(CONFIGURATION_QUERY, fixture.scope).fetchone()

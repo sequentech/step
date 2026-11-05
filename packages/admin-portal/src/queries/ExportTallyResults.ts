@@ -5,7 +5,7 @@
 import {gql} from "@apollo/client"
 
 export const EXPORT_TALLY_RESULTS = gql`
-    mutation ExportTallyResults($electionEventId: String!, $tallySessionId: String!) {
+    mutation ExportTallyResults($electionEventId: uuid!, $tallySessionId: String!) {
         export_tally_results(
             election_event_id: $electionEventId
             tally_session_id: $tallySessionId

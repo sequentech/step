@@ -2,12 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{authorize, cast_vote_read_elections};
+use crate::services::dependencies::HarvestServices;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::permissions::Permissions;
@@ -18,7 +20,6 @@ use windmill::services::cast_votes::{
     get_top_count_votes_by_ip, CastVoteCountByIp, CastVotesPerDay,
     ListCastVotesByIpFilter, VotersByChannel, VotesTimeResolution,
 };
-use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::election_event_statistics::{
     get_count_areas, get_count_elections,
 };
@@ -45,11 +46,12 @@ pub struct ElectionEventStatsOutput {
     votes_per_day: Vec<CastVotesPerDay>,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/election-event/stats", format = "json", data = "<body>")]
 pub async fn get_election_event_stats(
     body: Json<ElectionEventStatsInput>,
     claims: JwtClaims,
+    services: &State<HarvestServices>,
 ) -> Result<Json<ElectionEventStatsOutput>, (Status, String)> {
     authorize(
         &claims,
@@ -60,8 +62,13 @@ pub async fn get_election_event_stats(
     let input = body.into_inner();
     let tenant_id: String = claims.hasura_claims.tenant_id.clone();
 
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|err| {
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(|err| {
             (
                 Status::InternalServerError,
                 format!("Error loading hasura db client: {err}"),
@@ -74,8 +81,13 @@ pub async fn get_election_event_stats(
                 format!("Error creating a transaction: {err}"),
             )
         })?;
-    let mut keycloak_db_client: DbClient =
-        get_keycloak_pool().await.get().await.map_err(|err| {
+    let mut keycloak_db_client: DbClient = services
+        .databases
+        .keycloak()
+        .await
+        .get()
+        .await
+        .map_err(|err| {
             (
                 Status::InternalServerError,
                 format!("Error loading keycloak db client: {err}"),
@@ -89,11 +101,19 @@ pub async fn get_election_event_stats(
             )
         })?;
 
+    let elections = cast_vote_read_elections(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        None,
+    )
+    .await?;
+
     let voters_by_channel = get_count_distinct_voters_by_channel(
         &hasura_transaction,
         tenant_id.as_str(),
         input.election_event_id.as_str(),
-        None,
+        elections.as_deref(),
     )
     .await
     .map_err(|err| {
@@ -137,7 +157,7 @@ pub async fn get_election_event_stats(
         &input.election_event_id.as_str(),
         &input.start_date.as_str(),
         &input.end_date.as_str(),
-        None,
+        elections.as_deref(),
         &input.user_timezone.as_str(),
         input.time_resolution,
         input.bucket_count,
@@ -178,64 +198,27 @@ pub struct GetTopCastVotesByIp {
     election_id: Option<String>,
 }
 
-#[instrument(skip(claims))]
+/// Historical ballot IP attribution is no longer exposed. Private network reads
+/// use the explicitly authorized and audited forensic actions.
 #[post("/election-event/top-votes-by-ip", format = "json", data = "<body>")]
 pub async fn get_election_event_top_votes_by_ip(
     claims: JwtClaims,
     body: Json<GetTopCastVotesByIp>,
+    _services: &State<HarvestServices>,
 ) -> Result<Json<DataList<CastVoteCountByIp>>, (Status, String)> {
+    let _ = body;
     authorize(
         &claims,
-        true,
+        false,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ADMIN_DASHBOARD_VIEW],
+        vec![Permissions::FORENSIC_READ],
     )?;
-
-    let input = body.into_inner();
-    let tenant_id: String = claims.hasura_claims.tenant_id.clone();
-
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error loading hasura db client: {err}"),
-            )
-        })?;
-    let hasura_transaction =
-        hasura_db_client.transaction().await.map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error creating a transaction: {err}"),
-            )
-        })?;
-    let filter = ListCastVotesByIpFilter {
-        election_id: input.election_id.clone(),
-        limit: input.limit,
-        offset: input.offset,
-        ip: input.ip,
-        country: input.country,
-    };
-
-    let (cast_votes_by_ip, count) = get_top_count_votes_by_ip(
-        &hasura_transaction,
-        &tenant_id,
-        &input.election_event_id,
-        filter,
-    )
-    .await
-    .map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error getting top cast votes by ip: {err}"),
-        )
-    })?;
-
-    Ok(Json(DataList {
-        items: cast_votes_by_ip,
-        total: TotalAggregate {
-            aggregate: Aggregate {
-                count: count as i64,
-            },
-        },
-    }))
+    Err((
+        Status::Gone,
+        "Use the audited forensic network actions".into(),
+    ))
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/election_event_stats_routes.rs"]
+mod route_tests;

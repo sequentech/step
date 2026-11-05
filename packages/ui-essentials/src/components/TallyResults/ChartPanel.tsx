@@ -2,13 +2,42 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
+import React, {useMemo} from "react"
 import {Box, Paper, Typography} from "@mui/material"
 import ReactApexChart, {Props as ApexChartProps} from "react-apexcharts"
 import {TALLY_RESULTS_PIE_PANEL_WIDTH} from "./constants"
 
-export const Chart = ((ReactApexChart as unknown as {default?: React.ComponentType<ApexChartProps>})
+const ApexChart = ((ReactApexChart as unknown as {default?: React.ComponentType<ApexChartProps>})
     .default ?? ReactApexChart) as React.ComponentType<ApexChartProps>
+
+const focusLegend = ({el}: {el: HTMLElement}): void => {
+    const legend = el.querySelector<HTMLElement>(".apexcharts-legend")
+    if (legend) legend.tabIndex = 0
+}
+
+export const Chart: React.FC<ApexChartProps> = ({options, ...props}) => {
+    const accessibleOptions = useMemo(
+        () => ({
+            ...options,
+            chart: {
+                ...options?.chart,
+                events: {
+                    ...options?.chart?.events,
+                    mounted: (chart: {el: HTMLElement}, config?: unknown) => {
+                        options?.chart?.events?.mounted?.(chart, config)
+                        focusLegend(chart)
+                    },
+                    updated: (chart: {el: HTMLElement}, config?: unknown) => {
+                        options?.chart?.events?.updated?.(chart, config)
+                        focusLegend(chart)
+                    },
+                },
+            },
+        }),
+        [options]
+    )
+    return <ApexChart {...props} options={accessibleOptions} />
+}
 
 export const ChartPanel: React.FC<{
     title: string

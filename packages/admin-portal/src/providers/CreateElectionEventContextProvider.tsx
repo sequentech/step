@@ -21,11 +21,13 @@ import {v4} from "uuid"
 import {useGetOne, useNotify, useRefresh, RaRecord, useGetList} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {IElectionEventPresentation, ITenantSettings, isNull} from "@sequentech/ui-core"
+import {readProblems, type Problem} from "@sequentech/ui-essentials"
 import {useNavigate} from "react-router-dom"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {FETCH_ELECTION_EVENTS_TREE} from "@/queries/GetElectionEventsTree"
+import {ImportRequestError} from "@/services/ImportRequestError"
 import {IMPORT_ELECTION_EVENT} from "@/queries/ImportElectionEvent"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
 import {ETasksExecution} from "@/types/tasksExecution"
@@ -91,6 +93,8 @@ const CreateElectionEventContext = createContext<{
     handleImportElectionEvent: any
     handleSubmit: any
     errors: any
+    /** Why the last import was refused, named, when the backend said. */
+    problems: Problem[] | null
     isLoading: boolean
     newId: any
     tenantId: any
@@ -107,6 +111,7 @@ const CreateElectionEventContext = createContext<{
     openImportDrawer: console.log,
     closeImportDrawer: console.log,
     errors: null,
+    problems: null,
     isLoading: false,
     newId: false,
     tenantId: "",
@@ -151,6 +156,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
 
     const openImportDrawer = () => {
         setErrors(null)
+        setProblems(null)
         toggleImportDrawer(true)
     }
 
@@ -247,6 +253,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
     }
 
     const [errors, setErrors] = useState<string | null>(null)
+    const [problems, setProblems] = useState<Problem[] | null>(null)
     const [importElectionEvent] = useMutation<ImportElectionEventMutation>(IMPORT_ELECTION_EVENT)
 
     // const closeImportDrawer = () => {
@@ -256,18 +263,22 @@ export const CreateElectionEventProvider = ({children}: any) => {
 
     const uploadCallback = async (documentId: string, password: string = "") => {
         setErrors(null)
-        let {data: importData, errors} = await importElectionEvent({
-            variables: {
-                tenantId,
-                documentId,
-                password,
-                checkOnly: true,
-            },
-        })
-
-        if (importData?.import_election_event?.error) {
-            setErrors(importData.import_election_event.error)
-            throw new Error(importData?.import_election_event?.error)
+        setProblems(null)
+        let result
+        try {
+            result = await importElectionEvent({
+                variables: {tenantId, documentId, password, checkOnly: true},
+            })
+        } catch {
+            throw new ImportRequestError("transport")
+        }
+        const response = result.data?.import_election_event
+        if (result.errors?.length || !response) throw new ImportRequestError("transport")
+        const validationProblems = readProblems(response.problems) ?? null
+        if (response.error || validationProblems?.some((problem) => problem.severity === "error")) {
+            setErrors(response.error || "Backend dry-run validation refused the package.")
+            setProblems(validationProblems)
+            throw new ImportRequestError("validation")
         }
     }
 
@@ -276,9 +287,9 @@ export const CreateElectionEventProvider = ({children}: any) => {
         sha256: string,
         password?: string
     ) => {
-        closeImportDrawer()
         setIsLoading(false)
         setErrors(null)
+        setProblems(null)
 
         const currWidget = addWidget(ETasksExecution.IMPORT_ELECTION_EVENT, undefined)
 
@@ -288,27 +299,55 @@ export const CreateElectionEventProvider = ({children}: any) => {
                     tenantId,
                     documentId,
                     password,
+                    sha256,
                 },
             })
             if (data?.import_election_event?.error) {
                 setErrors(data.import_election_event.error)
+                setProblems(readProblems(data.import_election_event.problems) ?? null)
+                // A refusal still leaves a failed task, with its problems in the
+                // annotations: follow it so the widget can say them after the
+                // drawer has closed.
+                const failedTaskId = data.import_election_event.task_execution?.id
+                if (failedTaskId) {
+                    setWidgetTaskId(currWidget.identifier, failedTaskId)
+                } else {
+                    updateWidgetFail(currWidget.identifier)
+                }
+                throw new ImportRequestError("creation")
+            }
+            if (errors?.length) {
                 updateWidgetFail(currWidget.identifier)
-                return
+                throw new ImportRequestError("transport")
             }
 
-            let id = data?.import_election_event?.id
-            if (id) {
-                setWidgetTaskId(
-                    currWidget.identifier,
-                    data?.import_election_event?.task_execution?.id,
-                    () => navigate(`/sequent_backend_election_event/${id}`)
+            const id = data?.import_election_event?.id
+            const taskId = data?.import_election_event?.task_execution?.id
+            if (id && taskId) {
+                setWidgetTaskId(currWidget.identifier, taskId, () =>
+                    navigate(`/sequent_backend_election_event/${id}`)
                 )
                 setNewId(id)
                 setLastCreatedResource({id, type: "sequent_backend_election_event"})
                 setArchivedElectionEvents(false)
+                closeImportDrawer()
+                notify(
+                    String(
+                        t("electionEventScreen.import.creationSubmitted", {
+                            defaultValue:
+                                "Backend creation task submitted. Follow the import task for final success or errors.",
+                        })
+                    ),
+                    {type: "info"}
+                )
+            } else {
+                updateWidgetFail(currWidget.identifier)
+                throw new ImportRequestError("creation")
             }
         } catch (err) {
+            if (err instanceof ImportRequestError) throw err
             updateWidgetFail(currWidget.identifier)
+            throw new ImportRequestError("transport")
         }
     }
 
@@ -327,6 +366,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 handleImportElectionEvent,
                 handleSubmit,
                 errors,
+                problems,
                 isLoading,
                 newId,
                 tenantId,

@@ -16,6 +16,7 @@ COPY ballot-verifier/package.json ballot-verifier/
 COPY voting-portal/rust/sequent-core-0.1.0.tgz voting-portal/rust/
 COPY admin-portal/rust/sequent-core-0.1.0.tgz admin-portal/rust/
 COPY ballot-verifier/rust/sequent-core-0.1.0.tgz ballot-verifier/rust/
+COPY vendor-npm/vitrine-verify.tgz vendor-npm/vitrine-ui.tgz vendor-npm/
 
 COPY admin-portal/postinstall.js admin-portal/
 

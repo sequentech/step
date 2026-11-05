@@ -8,7 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::default::Default;
-use strum_macros::{Display, EnumString, VariantNames};
+use strum_macros::{Display, EnumIter, EnumString, VariantNames};
 
 #[derive(
     Display,
@@ -28,11 +28,17 @@ pub enum KeysCeremonyExecutionStatus {
                          * been added to the board */
     IN_PROGRESS, /* config message has been added to the board and trustees
                   * are working */
-    SUCCESS,   // successful completion
+    SUCCESS, // successful completion
+    /// Terminal failure: the board serves another Configuration, carries
+    /// content no joint public key can be taken from, or a trustee halted its
+    /// session over it, which fails even a successful ceremony. A failed
+    /// ceremony is never resumed; the administrator creates a new one, which
+    /// gets a new board.
+    FAILED,
     CANCELLED, // cancelation
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Log {
     pub created_date: String,
     pub log_text: String,
@@ -43,23 +49,82 @@ pub struct Log {
 )]
 pub enum TrusteeStatus {
     WAITING,
+    /// Posted its DKG dealing (`Shares`) on the board, which is also how a
+    /// trustee accepts the board's Configuration.
+    SHARES_POSTED,
+    /// Posted its derivation of the joint public key (`PublicKey`).
     KEY_GENERATED,
-    KEY_RETRIEVED,
-    KEY_CHECKED,
+    /// Downloaded its public custody request.
+    CUSTODY_REQUEST_RETRIEVED,
+    /// Uploaded a valid custody proof bound to this ceremony.
+    CUSTODY_CONFIRMED,
+    /// Halted its session over the board and reported it.
+    HALTED,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Trustee {
     pub name: String,
     pub status: TrusteeStatus,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+/// Why a keys ceremony ended in [`KeysCeremonyExecutionStatus::FAILED`].
+///
+/// None of them is repaired in place: the administrator starts a new ceremony.
+/// The failure's detail carries the error as it was reported.
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+)]
+pub enum KeysCeremonyFailureReason {
+    /// The board serves a Configuration other than the one recorded for this
+    /// ceremony.
+    BOARD_CONFIGURATION_MISMATCH,
+    /// The board carries something the platform cannot use: e.g. braid refused
+    /// what it read, or no joint public key can be taken from it.
+    INVALID_BOARD_CONTENT,
+    /// A trustee halted its session over the board and reported it; the
+    /// detail names the trustee and carries braid's error.
+    TRUSTEE_HALTED,
+}
+
+/// What ended a keys ceremony, kept so the failure survives the task that saw
+/// it and can be shown to the administrator.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct KeysCeremonyFailure {
+    pub reason: KeysCeremonyFailureReason,
+    /// The error behind the reason, as it was reported.
+    pub detail: String,
+    pub failed_at: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct KeysCeremonyStatus {
     pub stop_date: Option<String>,
+    /// The joint ElGamal public key `y`, as base64 of its canonical bytes.
     pub public_key: Option<String>,
+    /// Hash of the `PublicKey` board message that carried `y`, hex encoded.
+    /// Every tally of this key names it.
+    pub public_key_hash: Option<String>,
+    /// Set together with [`KeysCeremonyExecutionStatus::FAILED`].
+    pub failure: Option<KeysCeremonyFailure>,
     pub logs: Vec<Log>,
     pub trustees: Vec<Trustee>,
+}
+
+/// The `keys_ceremony.settings` document.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+pub struct KeysCeremonySettings {
+    /// Whether the ceremony needs the trustees' custody steps to complete.
+    #[serde(default)]
+    pub policy: CeremoniesPolicy,
 }
 
 #[derive(
@@ -81,6 +146,12 @@ pub enum TallyExecutionStatus {
     IN_PROGRESS,
     AWAITING_INPUT,
     SUCCESS,
+    /// Terminal failure: a tally board's parent serves another
+    /// Configuration, a board carries content the platform cannot use, or a
+    /// trustee halted its session over a board, which fails even a successful
+    /// tally. A failed tally session is never resumed; the administrator
+    /// creates a new one, which gets new boards.
+    FAILED,
     CANCELLED,
 }
 
@@ -129,18 +200,12 @@ pub enum TallyRunReason {
 pub enum TallyTrusteeStatus {
     #[default]
     WAITING,
-    KEY_RESTORED,
+    CUSTODY_CONFIRMED,
+    /// Halted its session over one of the tally's boards and reported it.
+    HALTED,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum RestorePrivateKeyOutcome {
-    Restored,
-    Invalid,
-    AlreadyRestored,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 pub struct TallyTrustee {
     pub name: String,
     pub status: TallyTrusteeStatus,
@@ -166,19 +231,107 @@ pub enum TallyElectionStatus {
     ERROR,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 pub struct TallyElection {
     pub election_id: String,
     pub status: TallyElectionStatus,
     pub progress: f64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+/// Why a tally session ended in [`TallyExecutionStatus::FAILED`].
+///
+/// None of them is repaired in place: the administrator creates a new tally
+/// session. The failure's detail carries the error as it was reported.
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+)]
+pub enum TallyFailureReason {
+    /// A tally board's parent serves a Configuration other than the one
+    /// recorded for the keys ceremony.
+    BOARD_CONFIGURATION_MISMATCH,
+    /// A tally board carries something the platform cannot use: e.g. braid
+    /// refused what it read, a `Ballots` message other than the board's own,
+    /// or plaintexts the trustees do not agree on.
+    INVALID_BOARD_CONTENT,
+    /// A trustee halted its session over a tally board and reported it; the
+    /// detail names the trustee and carries braid's error.
+    TRUSTEE_HALTED,
+}
+
+/// What ended a tally session, kept so the failure survives the task that saw
+/// it and can be shown to the administrator.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct TallyFailure {
+    pub reason: TallyFailureReason,
+    /// The error behind the reason, as it was reported.
+    pub detail: String,
+    pub failed_at: String,
+}
+
+/// How far one tally board has got, as the platform last read it. A board's
+/// phase only ever moves forward.
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+)]
+pub enum TallyBoardPhase {
+    /// The board's `Ballots` message is not on the board yet.
+    BALLOTS_PENDING,
+    /// The `Ballots` message is on the board and no quorum member has mixed.
+    BALLOTS_POSTED,
+    /// A quorum member has posted a mix.
+    MIXING,
+    /// A quorum member has posted its partial decryptions.
+    DECRYPTING,
+    /// The quorum agrees on the plaintexts.
+    DECRYPTED,
+}
+
+/// One tally board of a session: one contest area's weight batch.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct TallyBoardStatus {
+    /// The board name on the board service.
+    pub name: String,
+    pub election_id: String,
+    pub area_id: String,
+    /// `None` when the board carries whole ballots rather than one contest.
+    pub contest_id: Option<String>,
+    pub batch: i64,
+    pub phase: TallyBoardPhase,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 pub struct TallyCeremonyStatus {
     pub stop_date: Option<String>,
     pub logs: Vec<Log>,
     pub trustees: Vec<TallyTrustee>,
+    /// The trustees selected in the stored Ballots messages, in mixing order.
+    /// Older sessions acquire this display metadata when their boards are read.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quorum: Option<Vec<String>>,
     pub elections_status: Vec<TallyElection>,
+    /// The session's tally boards. `None` until the ballots have been
+    /// extracted, `Some` and empty for a session with nothing to decrypt.
+    #[serde(default)]
+    pub boards: Option<Vec<TallyBoardStatus>>,
+    /// Set together with [`TallyExecutionStatus::FAILED`].
+    #[serde(default)]
+    pub failure: Option<TallyFailure>,
 }
 
 #[derive(
@@ -218,6 +371,7 @@ pub struct TallySessionDocuments {
     Eq,
     Clone,
     EnumString,
+    EnumIter,
     Default,
     JsonSchema,
 )]
@@ -462,3 +616,6 @@ impl CountingAlgType {
         }
     }
 }
+
+/// Logical ballot batch number, independent of bulletin board storage.
+pub type BatchNumber = u64;

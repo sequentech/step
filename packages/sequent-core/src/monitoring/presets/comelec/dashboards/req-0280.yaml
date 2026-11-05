@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: req-0280
+title: Login outcomes
+description: Successful and failed sign-in attempts over time, by kind of failure.
+section: Access and security
+requirements: [SW-F-0280, SW-F-0281]
+order: 18
+selectors: [region, post]
+layout:
+  - {widget: login-outcomes, width: 12}

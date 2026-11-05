@@ -91,7 +91,7 @@ describe("stringToHtml", () => {
 
 describe("stringToText", () => {
     it("removes markup and decodes entities", () => {
-        expect(stringToText("Enter your <b>Ballot ID</b>")).toBe("Enter your Ballot ID")
+        expect(stringToText("Enter your <b>Tracking ID</b>")).toBe("Enter your Tracking ID")
         expect(stringToText("Smith & Sons")).toBe("Smith & Sons")
     })
 

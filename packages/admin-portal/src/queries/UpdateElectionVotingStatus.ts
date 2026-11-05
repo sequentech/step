@@ -17,6 +17,12 @@ export const UPDATE_ELECTION_VOTING_STATUS = gql`
             voting_channels: $votingChannel
         ) {
             election_id
+            signing_request {
+                id
+                code
+                required
+                expires_at
+            }
         }
     }
 `

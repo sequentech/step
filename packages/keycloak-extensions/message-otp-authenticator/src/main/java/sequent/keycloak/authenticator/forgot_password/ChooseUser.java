@@ -177,19 +177,10 @@ public class ChooseUser implements Authenticator, AuthenticatorFactory {
     // notify further executions, that this was a failure.
     if (user == null
         || !Utils.constantTimeIsEqual(user.getEmail().getBytes(), reqEmail.getBytes())) {
-      event
-          .clone()
-          .detail(Details.USERNAME, reqUsername)
-          .detail(Details.EMAIL, reqEmail)
-          .error(Errors.USER_NOT_FOUND);
+      event.clone().detail(Details.USERNAME, reqUsername).error(Errors.USER_NOT_FOUND);
       context.clearUser();
     } else if (!user.isEnabled()) {
-      event
-          .clone()
-          .detail(Details.USERNAME, reqUsername)
-          .detail(Details.EMAIL, reqEmail)
-          .user(user)
-          .error(Errors.USER_DISABLED);
+      event.clone().detail(Details.USERNAME, reqUsername).user(user).error(Errors.USER_DISABLED);
       context.clearUser();
     } else {
       context.setUser(user);

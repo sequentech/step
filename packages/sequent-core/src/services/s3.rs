@@ -5,7 +5,7 @@
 use crate::util::aws::{
     build_s3_aws_config_for_endpoint, get_fetch_expiration_secs,
     get_from_env_aws_config, get_s3_aws_config, get_upload_expiration_secs,
-    AWS_S3_PRIVATE_URI_ENV, AWS_S3_PUBLIC_URI_ENV,
+    AWS_S3_PRIVATE_URI_ENV, AWS_S3_PUBLIC_BUCKET_ENV, AWS_S3_PUBLIC_URI_ENV,
 };
 use crate::util::temp_path::{
     generate_temp_file, get_public_assets_path_env_var,
@@ -319,8 +319,9 @@ pub fn get_private_bucket() -> Result<String> {
 /// plugin storage.
 #[instrument(err, skip_all)]
 pub fn get_public_bucket() -> Result<String> {
-    let s3_bucket = env::var("AWS_S3_PUBLIC_BUCKET")
-        .map_err(|err| anyhow!("AWS_S3_PUBLIC_BUCKET must be set: {err}"))?;
+    let s3_bucket = env::var(AWS_S3_PUBLIC_BUCKET_ENV).map_err(|err| {
+        anyhow!("{AWS_S3_PUBLIC_BUCKET_ENV} must be set: {err}")
+    })?;
     Ok(s3_bucket)
 }
 
@@ -518,7 +519,11 @@ pub async fn get_object_into_temp_file(
     let mut stream = response.body.into_async_read();
     let mut buffer = [0u8; 1024]; // Adjust buffer size as needed
 
-    while let Ok(size) = stream.read(&mut buffer).await {
+    loop {
+        let size = stream
+            .read(&mut buffer)
+            .await
+            .with_context(|| "Error reading the object from S3")?;
         if size == 0 {
             break; // End of file
         }

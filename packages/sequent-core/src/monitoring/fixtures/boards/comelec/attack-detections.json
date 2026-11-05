@@ -1,0 +1,255 @@
+{
+  "charts": {
+    "categories": {
+      "query": "categories",
+      "sort": {
+        "by": "position",
+        "order": "asc"
+      },
+      "style": {
+        "marks": {
+          "bar": {
+            "labels": {
+              "format": "number",
+              "visible": true
+            }
+          }
+        },
+        "number_format": "number",
+        "orientation": "horizontal"
+      },
+      "title": "By category",
+      "type": "bar",
+      "x": "group",
+      "y": "detections"
+    },
+    "series": {
+      "query": "series",
+      "sort": {
+        "by": "bucket_utc",
+        "order": "asc"
+      },
+      "style": {
+        "number_format": "number",
+        "orientation": "vertical"
+      },
+      "type": "bar",
+      "x": "bucket_label",
+      "y": "detections",
+      "y_label": "Detections"
+    },
+    "total": {
+      "label": "Detections",
+      "query": "total",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "type": "kpi",
+      "value": "detections"
+    }
+  },
+  "queries": {
+    "categories": {
+      "columns": [
+        "group",
+        "group_key",
+        "position",
+        "detections"
+      ],
+      "values": [
+        [
+          "Credential stuffing",
+          "Credential stuffing",
+          1,
+          12
+        ],
+        [
+          "Brute force",
+          "Brute force",
+          2,
+          12
+        ],
+        [
+          "Bot traffic",
+          "Bot traffic",
+          3,
+          8
+        ],
+        [
+          "Unknown",
+          "__unknown__",
+          4,
+          8
+        ]
+      ]
+    },
+    "series": {
+      "columns": [
+        "bucket_start",
+        "bucket_label",
+        "bucket_utc",
+        "detections",
+        "detections_cumulative"
+      ],
+      "values": [
+        [
+          "2026-05-04T00:00:00",
+          "2026-05-04",
+          "2026-05-04T00:00:00Z",
+          27,
+          27
+        ],
+        [
+          "2026-05-05T00:00:00",
+          "2026-05-05",
+          "2026-05-05T00:00:00Z",
+          13,
+          40
+        ]
+      ]
+    },
+    "total": {
+      "columns": [
+        "detections"
+      ],
+      "values": [
+        [
+          40
+        ]
+      ]
+    }
+  },
+  "rows": [
+    "total",
+    "series",
+    "categories"
+  ],
+  "style": {
+    "accent": "#0F054C",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "axis_quantitative": {
+        "labels": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "color": {
+        "categorical": {
+          "palette": [
+            "#0F054C",
+            "#43E3A1",
+            "#7C6FE0",
+            "#F59E0B",
+            "#0EA5E9",
+            "#DC2626"
+          ],
+          "single_series_palette": [
+            "#0F054C"
+          ]
+        }
+      },
+      "kpi": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        },
+        "value": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "visible": false
+        }
+      },
+      "pie": {
+        "total": {
+          "value": {
+            "font": {
+              "family": "'Inter Variable', Inter, system-ui, sans-serif"
+            }
+          }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 220
+        }
+      },
+      "support_table": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "font": {
+      "family": "'Inter Variable', Inter, system-ui, sans-serif"
+    },
+    "footer": {
+      "visible": false
+    },
+    "text": {
+      "font": {
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none",
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    }
+  },
+  "theme": "clarity"
+}

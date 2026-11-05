@@ -3,6 +3,7 @@
 
 use crate::{
     domain::*,
+    messages::message::Message,
     ports::ElectoralLogStore,
     proofs::{leaf_hash, Checkpoint, Journal, JournalError, LogIdentity, RecordProof, Uuid},
 };
@@ -19,6 +20,7 @@ use std::{
 };
 use tokio_postgres::{types::ToSql, Config, Row};
 use trellis::journal::{audit_tree, create_log, TreeAudit, INSERT_CHUNK};
+use voting_crypto::RecordDeserialize;
 
 /// Prefix of the advisory lock key that serializes audits of a board.
 pub const AUDIT_LOCK_NAMESPACE: &str = "electoral-log-audit:";
@@ -40,6 +42,13 @@ pub const BACKUP_USER_ENV: &str = "ELECTORAL_LOG_PG_BACKUP_USER";
 /// application role creates them itself and needs `CREATEDB`.
 pub const PROVISIONING_USER_ENV: &str = "ELECTORAL_LOG_PG_PROVISIONING_USER";
 pub const PROVISIONING_PASSWORD_ENV: &str = "ELECTORAL_LOG_PG_PROVISIONING_PASSWORD";
+/// Role of the Vitrine sidecar, which keeps its `vitrine` schema in each election
+/// event's database: it may connect to them and create schemas in them.
+pub const VITRINE_USER_ENV: &str = "ELECTORAL_LOG_PG_VITRINE_USER";
+/// Role the Vitrine sidecar grants a `ballots` log's queue to. The application role
+/// is a member of it, so the ballot box's `ACCEPT` can queue entries, and so is the
+/// sidecar's role, so it can test the grant without the application's privileges.
+pub const VITRINE_QUEUE_ROLE_ENV: &str = "ELECTORAL_LOG_PG_VITRINE_QUEUE_ROLE";
 /// Connections of a store's pool.
 const POOL_SIZE: usize = 8;
 
@@ -144,6 +153,16 @@ impl PostgresConnection {
         PostgresStore::with_tls(config, self.tls.clone(), pool_size)
     }
 
+    /// A store of a database of the server whose transactions are read-only, with at
+    /// most `pool_size` connections.
+    pub fn read_only_store_of(&self, database: &str, pool_size: usize) -> Result<PostgresStore> {
+        let mut config = self.config.clone();
+        config
+            .dbname(database)
+            .options("-c default_transaction_read_only=on");
+        PostgresStore::with_tls(config, self.tls.clone(), pool_size)
+    }
+
     /// The role of `ELECTORAL_LOG_PG_READER_USER`, if set.
     pub fn reader() -> Option<String> {
         Self::role(READER_USER_ENV)
@@ -156,6 +175,16 @@ impl PostgresConnection {
             .into_iter()
             .filter_map(Self::role)
             .collect()
+    }
+
+    /// The role of `ELECTORAL_LOG_PG_VITRINE_USER`, if set.
+    pub fn vitrine() -> Option<String> {
+        Self::role(VITRINE_USER_ENV)
+    }
+
+    /// The role of `ELECTORAL_LOG_PG_VITRINE_QUEUE_ROLE`, if set.
+    pub fn vitrine_queue_role() -> Option<String> {
+        Self::role(VITRINE_QUEUE_ROLE_ENV)
     }
 
     fn role(variable: &str) -> Option<String> {
@@ -345,7 +374,54 @@ impl PostgresStore {
             .await?;
         Ok(())
     }
+
+    /// Fill the event type and log type of records stored before those columns
+    /// existed, as applying the schema to an existing database does. Returns how many
+    /// records it filled; a record whose message cannot be read keeps them empty.
+    pub async fn backfill_statement_heads(&self) -> Result<u64> {
+        let mut client = self.pool.get().await?;
+        let (mut filled, mut after) = (0, 0i64);
+        loop {
+            let rows = client
+                .query(
+                    "SELECT id, message FROM electoral_log_messages \
+                     WHERE id > $1 AND event_type IS NULL ORDER BY id LIMIT $2",
+                    &[&after, &HEAD_BACKFILL_PAGE],
+                )
+                .await?;
+            let Some(last) = rows.last() else {
+                return Ok(filled);
+            };
+            after = last.try_get(0)?;
+            let mut ids = Vec::with_capacity(rows.len());
+            let mut event_types = Vec::with_capacity(rows.len());
+            let mut log_types = Vec::with_capacity(rows.len());
+            for row in &rows {
+                let message: &[u8] = row.try_get(1)?;
+                if let Some((event_type, log_type)) = statement_head_types(message) {
+                    ids.push(row.try_get::<_, i64>(0)?);
+                    event_types.push(event_type);
+                    log_types.push(log_type);
+                }
+            }
+            let tx = client.transaction().await?;
+            filled += tx
+                .execute(
+                    "UPDATE electoral_log_messages m \
+                     SET event_type = r.event_type, log_type = r.log_type \
+                     FROM UNNEST($1::BIGINT[], $2::TEXT[], $3::TEXT[]) \
+                         AS r(id, event_type, log_type) \
+                     WHERE m.id = r.id AND m.event_type IS NULL",
+                    &[&ids, &event_types, &log_types],
+                )
+                .await?;
+            tx.commit().await?;
+        }
+    }
 }
+
+/// Records `backfill_statement_heads` reads at a time.
+const HEAD_BACKFILL_PAGE: i64 = 2000;
 
 /// Audit a board in one snapshot taken once its audit lock is held, or return `None`
 /// without reading it when another audit holds the lock.
@@ -481,19 +557,72 @@ async fn audit_snapshot(
     Ok(Some(report))
 }
 
+/// Append records to `board` in the caller's transaction, so that they commit or roll
+/// back with its other writes, and return those stored, as `ElectoralLogStore::append`
+/// does. The transaction must be on the board's database and READ COMMITTED: it waits
+/// for the board's other appends and then holds the board's lock until it ends.
+pub async fn append_in(
+    tx: &tokio_postgres::Transaction<'_>,
+    board: &str,
+    entries: &[LogEntry],
+) -> Result<Vec<StoredRecord>> {
+    append_entries(tx, board, &mut entries.iter().cloned().map(Ok)).await
+}
+
+async fn append_entries(
+    tx: &tokio_postgres::Transaction<'_>,
+    board: &str,
+    entries: &mut (dyn Iterator<Item = Result<LogEntry>> + Send),
+) -> Result<Vec<StoredRecord>> {
+    // Serialize appends within a board before allocating IDs. Otherwise a
+    // later transaction can commit first and make a cursor skip earlier IDs.
+    let log = tx
+        .query_opt(
+            "SELECT l.uid, l.sealed_at IS NULL FROM electoral_log_boards b \
+             JOIN trellis_logs l ON l.name = b.board_name \
+             WHERE b.board_name = $1 FOR UPDATE OF b",
+            &[&board],
+        )
+        .await?
+        .context("Electoral-log board does not exist")?;
+    ensure!(
+        log.try_get::<_, bool>(1)?,
+        "Electoral-log board {board} is sealed"
+    );
+    let log = LogIdentity {
+        name: board.to_owned(),
+        uid: log.try_get(0)?,
+    };
+    let mut stored = Vec::new();
+    let mut pending = Vec::with_capacity(entries.size_hint().0.min(INSERT_CHUNK));
+    for entry in entries {
+        let entry = entry?;
+        ensure!(
+            !entry.delivery_id.is_empty(),
+            "Electoral-log delivery ID must not be empty"
+        );
+        pending.push(entry);
+        if pending.len() >= INSERT_CHUNK {
+            stored.extend(insert_records(tx, &log, &mut pending).await?);
+        }
+    }
+    stored.extend(insert_records(tx, &log, &mut pending).await?);
+    Ok(stored)
+}
+
 /// Store records in one statement, in order, and append the new ones to the journal,
 /// then empty `pending`. A delivery that is already stored, or that appears earlier in
-/// `pending`, is not stored again.
+/// `pending`, is not stored again. Returns the records stored, in log order.
 pub(crate) async fn insert_records(
-    tx: &deadpool_postgres::Transaction<'_>,
+    tx: &tokio_postgres::Transaction<'_>,
     log: &LogIdentity,
     pending: &mut Vec<LogEntry>,
-) -> Result<()> {
+) -> Result<Vec<StoredRecord>> {
     let board = log.name.as_str();
     let mut seen = HashSet::with_capacity(pending.len());
     pending.retain(|entry| seen.insert(entry.delivery_id.clone()));
     if pending.is_empty() {
-        return Ok(());
+        return Ok(vec![]);
     }
     let text = |field: fn(&ElectoralLogMessage) -> &str| -> Vec<&str> {
         pending.iter().map(|entry| field(&entry.message)).collect()
@@ -512,18 +641,31 @@ pub(crate) async fn insert_records(
         .iter()
         .map(|e| e.message.message.as_slice())
         .collect();
+    let heads: Vec<Option<(String, String)>> = messages
+        .iter()
+        .map(|message| statement_head_types(message))
+        .collect();
+    let event_types: Vec<Option<&str>> = heads
+        .iter()
+        .map(|head| head.as_ref().map(|(event_type, _)| event_type.as_str()))
+        .collect();
+    let log_types: Vec<Option<&str>> = heads
+        .iter()
+        .map(|head| head.as_ref().map(|(_, log_type)| log_type.as_str()))
+        .collect();
     let rows = tx
         .query(
             "INSERT INTO electoral_log_messages (board_name, delivery_id, created, sender_pk, \
              statement_timestamp, statement_kind, message, version, user_id, username, \
-             election_id, area_id, ballot_id) \
+             election_id, area_id, ballot_id, event_type, log_type) \
              SELECT $1, delivery_id, created, sender_pk, statement_timestamp, statement_kind, \
-             message, version, user_id, username, election_id, area_id, ballot_id \
+             message, version, user_id, username, election_id, area_id, ballot_id, \
+             event_type, log_type \
              FROM UNNEST($2::TEXT[], $3::BIGINT[], $4::TEXT[], $5::BIGINT[], $6::TEXT[], \
              $7::BYTEA[], $8::TEXT[], $9::TEXT[], $10::TEXT[], $11::TEXT[], $12::TEXT[], \
-             $13::TEXT[]) WITH ORDINALITY AS r(delivery_id, created, sender_pk, \
-             statement_timestamp, statement_kind, message, version, user_id, username, \
-             election_id, area_id, ballot_id, position) \
+             $13::TEXT[], $14::TEXT[], $15::TEXT[]) WITH ORDINALITY AS r(delivery_id, created, \
+             sender_pk, statement_timestamp, statement_kind, message, version, user_id, \
+             username, election_id, area_id, ballot_id, event_type, log_type, position) \
              ORDER BY position \
              ON CONFLICT (board_name, delivery_id) DO NOTHING RETURNING id, delivery_id",
             &[
@@ -540,6 +682,8 @@ pub(crate) async fn insert_records(
                 &optional(|m| &m.election_id),
                 &optional(|m| &m.area_id),
                 &optional(|m| &m.ballot_id),
+                &event_types,
+                &log_types,
             ],
         )
         .await?;
@@ -559,12 +703,36 @@ pub(crate) async fn insert_records(
     // The journal lists records in ID order.
     stored.sort_unstable();
     let mut leaves = Vec::with_capacity(stored.len());
-    for (id, index) in stored {
-        leaves.push((id, leaf_hash(log, &pending[index])?));
+    for (id, index) in &stored {
+        leaves.push((*id, leaf_hash(log, &pending[*index])?));
     }
     Journal::append_batch(tx, board, &leaves).await?;
+    let mut records = Vec::with_capacity(stored.len());
+    if !stored.is_empty() {
+        // The journal gave the new leaves the last positions of the log, in order.
+        let size: i64 = tx
+            .query_one("SELECT size FROM trellis_logs WHERE name = $1", &[&board])
+            .await?
+            .try_get(0)?;
+        let first = size - i64::try_from(stored.len())?;
+        for (leaf_index, (id, index)) in (first..).zip(stored) {
+            records.push(StoredRecord {
+                delivery_id: pending[index].delivery_id.clone(),
+                id,
+                log_uid: log.uid,
+                leaf_index,
+            });
+        }
+    }
     pending.clear();
-    Ok(())
+    Ok(records)
+}
+
+/// The event type and log type of a record's signed statement, or `None` for bytes
+/// that are not a message this version reads.
+fn statement_head_types(message: &[u8]) -> Option<(String, String)> {
+    let head = Message::record_deserialize(message).ok()?.statement.head;
+    Some((head.event_type.to_string(), head.log_type.to_string()))
 }
 
 /// Records of a board after the cursor `$3`, with their leaves, in ID order.
@@ -814,6 +982,10 @@ fn predicate(scope: LogScope<'_>, query: &LogQuery) -> (String, Parameters) {
                 format!("{column} {op} {}", params.push(value.clone()))
             }
             Filter::Number(column, op, value) => format!("{column} {op} {}", params.push(*value)),
+            Filter::ElectionScope(elections) => format!(
+                "(election_id IS NULL OR election_id = '' OR election_id = ANY({}))",
+                params.push(elections.clone())
+            ),
         });
     }
     if let Some(visibility) = &query.visibility {
@@ -883,43 +1055,12 @@ impl ElectoralLogStore for PostgresStore {
         &self,
         board: &str,
         entries: &mut (dyn Iterator<Item = Result<LogEntry>> + Send),
-    ) -> Result<()> {
+    ) -> Result<Vec<StoredRecord>> {
         let mut client = self.pool.get().await?;
         let tx = client.transaction().await?;
-        // Serialize appends within a board before allocating IDs. Otherwise a
-        // later transaction can commit first and make a cursor skip earlier IDs.
-        let log = tx
-            .query_opt(
-                "SELECT l.uid, l.sealed_at IS NULL FROM electoral_log_boards b \
-                 JOIN trellis_logs l ON l.name = b.board_name \
-                 WHERE b.board_name = $1 FOR UPDATE OF b",
-                &[&board],
-            )
-            .await?
-            .context("Electoral-log board does not exist")?;
-        ensure!(
-            log.try_get::<_, bool>(1)?,
-            "Electoral-log board {board} is sealed"
-        );
-        let log = LogIdentity {
-            name: board.to_owned(),
-            uid: log.try_get(0)?,
-        };
-        let mut pending = Vec::with_capacity(entries.size_hint().0.min(INSERT_CHUNK));
-        for entry in entries {
-            let entry = entry?;
-            ensure!(
-                !entry.delivery_id.is_empty(),
-                "Electoral-log delivery ID must not be empty"
-            );
-            pending.push(entry);
-            if pending.len() >= INSERT_CHUNK {
-                insert_records(&tx, &log, &mut pending).await?;
-            }
-        }
-        insert_records(&tx, &log, &mut pending).await?;
+        let stored = append_entries(&tx, board, entries).await?;
         tx.commit().await?;
-        Ok(())
+        Ok(stored)
     }
 
     async fn query(&self, board: &str, query: &LogQuery) -> Result<Vec<ElectoralLogMessage>> {
@@ -985,6 +1126,55 @@ impl PostgresStore {
         let sql = format!("SELECT COUNT(*) FROM electoral_log_messages WHERE {where_clause}");
         Ok(client.query_one(&sql, &params.refs()).await?.try_get(0)?)
     }
+
+    /// The record of a board stored under a delivery ID, with its leaf, for producers
+    /// that read back what an earlier attempt stored.
+    pub async fn delivered(&self, board: &str, delivery_id: &str) -> Result<Option<Delivered>> {
+        let row = self
+            .pool
+            .get()
+            .await?
+            .query_opt(
+                &format!(
+                    "SELECT {}, l.uid, e.leaf_index FROM electoral_log_messages m \
+                     JOIN trellis_logs l ON l.name = m.board_name \
+                     JOIN trellis_leaves e ON e.log_id = l.id AND e.source_id = m.id \
+                     WHERE m.board_name = $1 AND m.delivery_id = $2",
+                    qualified_columns("m")
+                ),
+                &[&board, &delivery_id],
+            )
+            .await?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let record = StoredRecord {
+            delivery_id: delivery_id.to_owned(),
+            id: row.try_get("id")?,
+            log_uid: row.try_get("uid")?,
+            leaf_index: row.try_get("leaf_index")?,
+        };
+        Ok(Some(Delivered {
+            record,
+            message: decode(row)?,
+        }))
+    }
+}
+
+/// A stored record and where its board's log keeps it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Delivered {
+    pub record: StoredRecord,
+    pub message: ElectoralLogMessage,
+}
+
+/// `COLUMNS` of the table aliased `alias`.
+pub(crate) fn qualified_columns(alias: &str) -> String {
+    COLUMNS
+        .split(", ")
+        .map(|column| format!("{alias}.{column}"))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 #[cfg(test)]

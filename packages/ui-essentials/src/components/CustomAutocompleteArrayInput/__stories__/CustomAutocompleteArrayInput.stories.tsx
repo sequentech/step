@@ -2,16 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ComponentProps} from "react"
-import {StoryFn, Meta} from "@storybook/react"
+import {StoryFn, Meta} from "@storybook/react-vite"
 import CustomAutocompleteArrayInput from "../CustomAutocompleteArrayInput"
-import {withRouter} from "storybook-addon-react-router-v6"
 
 type StoryProps = ComponentProps<typeof CustomAutocompleteArrayInput>
 
 const meta: Meta<StoryProps> = {
     title: "components/CustomAutocompleteArrayInput",
     component: CustomAutocompleteArrayInput,
-    decorators: [withRouter],
 }
 
 export default meta

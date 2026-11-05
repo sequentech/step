@@ -162,13 +162,9 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
                         withColumns={false}
                         open={openCreate}
                         setOpen={setOpenCreate}
-                        Component={
-                            <CreateSupportMaterial
-                                record={record}
-                                close={handleCloseCreateDrawer}
-                            />
-                        }
-                        withComponent={canCreateSuportMaterial}
+                        withAction={canCreateSuportMaterial}
+                        doAction={handleCreateDrawer}
+                        actionLabel="common.label.add"
                     />
                 }
                 empty={<Empty />}

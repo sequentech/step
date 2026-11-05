@@ -18,16 +18,17 @@ use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log_board::{
+    get_board_client, get_board_signing_key, get_event_store,
+};
 use crate::services::electoral_log_checkpoint_copies::{
     cross_check, read_checkpoint_copies, CheckpointCopyConfig, CheckpointCopyPolicy,
 };
-use crate::services::protocol_manager::{get_board_client, get_event_store, get_protocol_manager};
 use crate::services::serialize_tasks_logs::append_general_log;
 use crate::services::tasks_execution::{post, update_fail, update_with_annotations};
 use crate::tasks::audit_electoral_log::audit_electoral_log;
 use crate::types::tasks::ETasksExecution;
 use anyhow::{Context, Result};
-use b4::messages::message::Signer;
 use electoral_log::adapters::postgres::{AuditAnnotations, AuditOutcome};
 use electoral_log::domain::{LogQuery, OrderColumn, SortDirection};
 use electoral_log::messages::newtypes::ElectoralLogCheckpointReason;
@@ -36,9 +37,9 @@ use electoral_log::proofs::{verify_checkpoint_signature, Checkpoint, LogState};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde_json::Value;
-use strand::backend::ristretto::RistrettoCtx;
-use strand::signature::StrandSignaturePk;
 use tracing::instrument;
+use voting_crypto::signing::VerificationKey;
+use voting_crypto::RistrettoCtx;
 
 /// Recorded as the executor of audits the platform starts by itself.
 pub const SYSTEM_EXECUTOR: &str = "system";
@@ -375,15 +376,9 @@ pub async fn run_electoral_log_audit(
     let event = get_election_event_by_id(&transaction, tenant_id, election_event_id).await?;
     let board = get_election_event_board(event.bulletin_board_reference.clone())
         .context("Election event has no electoral-log board")?;
-    let protocol_manager = get_protocol_manager::<RistrettoCtx>(
-        &transaction,
-        tenant_id,
-        Some(election_event_id),
-        &board,
-    )
-    .await?;
-    let expected_signer =
-        StrandSignaturePk::from_sk(protocol_manager.get_signing_key())?.to_der_b64_string()?;
+    let protocol_manager =
+        get_board_signing_key(&transaction, tenant_id, Some(election_event_id), &board).await?;
+    let expected_signer = VerificationKey::from_sk(&protocol_manager)?.to_b64_string()?;
     let published =
         get_electoral_log_checkpoints(&transaction, tenant_id, election_event_id).await?;
     transaction.commit().await?;
@@ -642,9 +637,9 @@ mod tests {
     use super::*;
     use crate::services::electoral_log::sign_checkpoint;
     use electoral_log::messages::message::SigningData;
-    use strand::signature::StrandSignatureSk;
+    use voting_crypto::signing::SigningKey;
 
-    fn publication(sk: &StrandSignatureSk, board: &str, size: i64) -> PublishedCheckpoint {
+    fn publication(sk: &SigningKey, board: &str, size: i64) -> PublishedCheckpoint {
         let checkpoint = Checkpoint {
             log_name: board.to_string(),
             log_uid: electoral_log::proofs::Uuid::from_u128(1),
@@ -655,16 +650,16 @@ mod tests {
         sign_checkpoint(&sd, &checkpoint, ElectoralLogCheckpointReason::VotingClosed).unwrap()
     }
 
-    fn public_key(sk: &StrandSignatureSk) -> String {
-        StrandSignaturePk::from_sk(sk)
+    fn public_key(sk: &SigningKey) -> String {
+        VerificationKey::from_sk(sk)
             .unwrap()
-            .to_der_b64_string()
+            .to_b64_string()
             .unwrap()
     }
 
     #[test]
     fn published_checkpoints_pass_the_audit_signature_checks() {
-        let key = StrandSignatureSk::generate().unwrap();
+        let key = SigningKey::generate().unwrap();
         let sd = SigningData::new(key.clone(), "", key.clone());
         let checkpoint = Checkpoint {
             log_name: "board".to_string(),
@@ -691,8 +686,8 @@ mod tests {
 
     #[test]
     fn publications_need_the_event_key_a_valid_signature_and_the_board() {
-        let key = StrandSignatureSk::generate().unwrap();
-        let other = StrandSignatureSk::generate().unwrap();
+        let key = SigningKey::generate().unwrap();
+        let other = SigningKey::generate().unwrap();
         let good = publication(&key, "board", 4);
         let foreign_signer = publication(&other, "board", 5);
         let mut tampered = publication(&key, "board", 6);

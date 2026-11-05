@@ -1,0 +1,255 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-License-Identifier: AGPL-3.0-only
+import type {Page} from "@playwright/test"
+import {test, expect, eventPath, realm, IDS, type VerifierServices} from "./fixtures"
+import {signedBallot} from "./ballots"
+import {scanPage} from "@sequentech/ui-test-kit/adapters/axe"
+import {loadCore} from "@sequentech/ui-test-kit/wasm/node"
+
+async function upload(page: Page, ballot: unknown, hash: string) {
+    await page.getByTestId("drop-input-file").setInputFiles({
+        name: "audited-ballot.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(JSON.stringify(ballot)),
+    })
+    await page.getByRole("textbox", {name: "Ballot ID", exact: true}).fill(hash)
+    await expect(page.getByRole("button", {name: "Next", exact: true})).toBeEnabled()
+}
+async function verify(
+    page: Page,
+    portal: VerifierServices,
+    ballot: Awaited<ReturnType<typeof signedBallot>>["ballot"],
+    hash: string
+) {
+    portal.publishedStyles.push(ballot.config)
+    await page.goto(`${portal.origin}${eventPath}`)
+    await upload(page, ballot, hash)
+    await page.getByRole("button", {name: "Next", exact: true}).click()
+    await expect(page.getByRole("heading", {name: "Verify your ballot selections"})).toBeVisible()
+    await expect(page.getByText("Alice Example", {exact: true})).toBeVisible()
+    await expect(page.getByText("Bob Example", {exact: true})).toHaveCount(0)
+}
+
+test("authentication uses the verifier realm, PKCE and a bearer-authenticated schema query", async ({
+    page,
+    portal,
+}) => {
+    await page.goto(`${portal.origin}${eventPath}`)
+    await expect(page.getByRole("heading", {name: "Step 1: Import your ballot"})).toBeVisible()
+    await expect(page.getByRole("button", {name: "Next", exact: true})).toBeDisabled()
+    expect(portal.oidc.authorizations[0]).toMatchObject({
+        realm,
+        params: {client_id: "ballot-verifier", code_challenge_method: "S256", ui_locales: "en"},
+    })
+    expect(portal.oidc.tokenRequests[0]).toMatchObject({
+        grantType: "authorization_code",
+        pkce: "valid",
+        status: 200,
+    })
+    expect(portal.graphql.callsTo("GetBallotStyles")).toHaveLength(1)
+    expect(portal.graphql.callsTo("GetBallotStyles")[0].headers.authorization).toBe(
+        `Bearer ${portal.oidc.lastIssued()?.access_token}`
+    )
+})
+
+for (const multiple of [false, true]) {
+    test(`signed ${multiple ? "multiple-contest" : "single-contest"} ballot reveals exactly the selected candidates`, async ({
+        page,
+        portal,
+    }) => {
+        const {ballot, hash} = await signedBallot(multiple)
+        await verify(page, portal, ballot, hash)
+        await expect(page.getByText(hash, {exact: true})).toHaveCount(2)
+        if (multiple) await expect(page.getByText("Charlie Example", {exact: true})).toBeVisible()
+        await page.getByRole("link", {name: "Back", exact: true}).click()
+        await expect(page).toHaveURL(/\/start/)
+        await expect(page.getByRole("heading", {name: "Step 1: Import your ballot"})).toBeVisible()
+    })
+}
+
+test("a mismatched ballot ID conceals selections after a valid verification", async ({
+    page,
+    portal,
+}) => {
+    const {ballot, hash} = await signedBallot()
+    await verify(page, portal, ballot, hash)
+    await page.getByRole("link", {name: "Back", exact: true}).click()
+    await upload(page, ballot, hash)
+    const changed = (hash.startsWith("0") ? "1" : "0") + hash.slice(1)
+    await page.getByRole("textbox", {name: "Ballot ID", exact: true}).fill(changed)
+    await page.getByRole("button", {name: "Next", exact: true}).click()
+    await expect(page.getByText("Does’t match the decoded ballot ID")).toBeVisible()
+    await expect(page.getByText("Alice Example", {exact: true})).toHaveCount(0)
+    await expect(page.getByRole("heading", {name: "Verify your ballot selections"})).toHaveCount(0)
+})
+
+for (const invalid of ["signature", "multi-signature", "json"] as const) {
+    test(`invalid ${invalid} is rejected after a valid import and permits recovery`, async ({
+        page,
+        portal,
+    }) => {
+        const {ballot, hash} = await signedBallot(invalid === "multi-signature")
+        await verify(page, portal, ballot, hash)
+        await page.getByRole("link", {name: "Back", exact: true}).click()
+        const broken = structuredClone(ballot)
+        // Flip one decoded signature byte while preserving valid base64 encoding.
+        const signature = Buffer.from(broken.voter_ballot_signature!, "base64")
+        signature[signature.length - 1] ^= 1
+        broken.voter_ballot_signature = signature.toString("base64")
+        await page.getByTestId("drop-input-file").setInputFiles({
+            name: "broken.json",
+            mimeType: "application/json",
+            buffer: Buffer.from(invalid === "json" ? "{invalid JSON" : JSON.stringify(broken)),
+        })
+        await expect(page.getByRole("alert")).toBeVisible()
+        await expect(page.getByRole("button", {name: "Next", exact: true})).toBeDisabled()
+        await upload(page, ballot, hash)
+        await expect(page.getByRole("alert")).toBeHidden()
+        await page.getByRole("button", {name: "Next", exact: true}).click()
+        await expect(page.getByText("Alice Example", {exact: true})).toBeVisible()
+    })
+}
+
+for (const multiple of [false, true]) {
+    for (const corruption of [
+        "configuration",
+        "missing-configuration",
+        "ciphertext",
+        "plaintext",
+        "randomness",
+    ] as const) {
+        test(`native ${multiple ? "combined" : "single"} audit rejects ${corruption} substitution and recovers`, async ({
+            page,
+            portal,
+        }) => {
+            const {ballot, hash} = await signedBallot(multiple)
+            expect(ballot.config.public_key?.configuration_id).toBe(
+                BigInt(`0x${IDS.keysCeremony.replaceAll("-", "")}`).toString()
+            )
+            await verify(page, portal, ballot, hash)
+            await page.getByRole("link", {name: "Back", exact: true}).click()
+            const broken = structuredClone(ballot)
+            if (corruption === "configuration") {
+                broken.config.public_key!.configuration_id = (
+                    BigInt(broken.config.public_key!.configuration_id!) + 1n
+                ).toString()
+            } else if (corruption === "missing-configuration") {
+                delete broken.config.public_key!.configuration_id
+            } else if (corruption === "plaintext" || corruption === "randomness") {
+                const encoded = Array.isArray(broken.contests)
+                    ? broken.contests[0]
+                    : broken.contests
+                const opening = Buffer.from(encoded, "base64")
+                // Canonical audit records end with the 30-byte plaintext and
+                // 32-byte scalar. Keep the ciphertext, proof, tracker and
+                // voter signature unchanged, with a valid but wrong opening.
+                if (corruption === "plaintext") {
+                    opening.fill(0, opening.length - 62, opening.length - 32)
+                } else {
+                    const other = (await signedBallot(multiple)).ballot
+                    const nonce = Buffer.from(
+                        Array.isArray(other.contests) ? other.contests[0] : other.contests,
+                        "base64"
+                    ).subarray(-32)
+                    nonce.copy(opening, opening.length - 32)
+                }
+                if (Array.isArray(broken.contests)) broken.contests[0] = opening.toString("base64")
+                else broken.contests = opening.toString("base64")
+                const core = await loadCore()
+                expect(
+                    multiple
+                        ? core.hash_auditable_multi_ballot_js(broken)
+                        : core.hash_auditable_ballot_js(broken)
+                ).toBe(hash)
+            } else if (Array.isArray(broken.contests)) {
+                broken.contests[0] = Buffer.from(broken.contests[0], "base64")
+                    .subarray(0, -1)
+                    .toString("base64")
+            } else {
+                broken.contests = Buffer.from(broken.contests, "base64")
+                    .subarray(0, -1)
+                    .toString("base64")
+            }
+            await page.getByTestId("drop-input-file").setInputFiles({
+                name: "substituted-native-audit.json",
+                mimeType: "application/json",
+                buffer: Buffer.from(JSON.stringify(broken)),
+            })
+            await expect(page.getByRole("alert")).toBeVisible()
+            await expect(page.getByRole("button", {name: "Next", exact: true})).toBeDisabled()
+            await expect(page.getByText("Alice Example", {exact: true})).toHaveCount(0)
+            await upload(page, ballot, hash)
+            await expect(page.getByRole("alert")).toBeHidden()
+            await page.getByRole("button", {name: "Next", exact: true}).click()
+            await expect(page.getByText("Alice Example", {exact: true})).toBeVisible()
+        })
+    }
+}
+
+test("mobile import and verification preserve the ballot ID and selected candidate", async ({
+    page,
+    portal,
+}) => {
+    await page.setViewportSize({width: 390, height: 844})
+    const {ballot, hash} = await signedBallot()
+    await verify(page, portal, ballot, hash)
+    await expect(page.getByText(hash, {exact: true})).toHaveCount(2)
+})
+
+test("reloading a confirmation route returns to import without stale ballot contents", async ({
+    page,
+    portal,
+}) => {
+    const {ballot, hash} = await signedBallot()
+    await verify(page, portal, ballot, hash)
+    await page.reload()
+    await expect(page).toHaveURL(/\/start/)
+    await expect(page.getByRole("textbox", {name: "Ballot ID", exact: true})).toHaveValue("")
+    await expect(page.getByRole("button", {name: "Next", exact: true})).toBeDisabled()
+})
+
+test("verified selections expose no accessibility violations", async ({page, portal}) => {
+    const {ballot, hash} = await signedBallot()
+    await verify(page, portal, ballot, hash)
+    const violations = await scanPage(page)
+    if (violations.length) {
+        expect(violations).toEqual([
+            {id: "listitem", impact: "serious", targets: [[".candidate-item"]]},
+        ])
+    }
+    expect(violations).toEqual([])
+})
+
+for (const configStatus of [200, 404]) {
+    test(`authentication-disabled verifier checks a signed ballot with public metadata status ${configStatus}`, async ({
+        page,
+        portal,
+    }) => {
+        portal.settings.DISABLE_AUTH = true
+        const key = `tenant-${IDS.tenant}/event-${IDS.event}/election_event_config.json`
+        if (configStatus === 404) {
+            portal.s3.override((request) => request.bucket === "public" && request.key === key, {
+                status: 404,
+                body: "NoSuchKey",
+            })
+        }
+        const {ballot, hash} = await signedBallot()
+        await verify(page, portal, ballot, hash)
+        // React StrictMode runs the mount effect twice in the development server.
+        await expect
+            .poll(() => portal.s3.requestsFor(key).length)
+            .toBe(process.env.BALLOT_VERIFIER_JOURNEY_URL ? 2 : 1)
+        expect(portal.s3.requestsFor(key)[0]).toMatchObject({
+            method: "GET",
+            url: portal.s3.url("public", key),
+            bucket: "public",
+            key,
+            query: {},
+            status: configStatus,
+        })
+        expect(portal.s3.requestsFor(key)[0].headers.authorization).toBeUndefined()
+        expect(portal.oidc.authorizations).toEqual([])
+        expect(portal.oidc.tokenRequests).toEqual([])
+        expect(portal.graphql.calls).toEqual([])
+    })
+}

@@ -19,6 +19,6 @@ export const verifyBallot = (browser: NightwatchAPI, {ballotPath, ballotId}: Ver
     browser.sendKeys(`//input[@id=":rb:"]`, ballotId)
     browser.click(`//button/span[normalize-space()='Next']`)
     browser.assert.not
-        .elementPresent(`//p[normalize-space()="Does’t match the decoded ballot ID"]`)
+        .elementPresent(`//p[normalize-space()="Doesn’t match the decoded Tracking ID"]`)
         .pause(pause.medium)
 }

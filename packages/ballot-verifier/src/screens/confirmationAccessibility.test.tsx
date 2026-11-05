@@ -11,6 +11,7 @@ import {join} from "path"
 import ts from "typescript"
 import {ConfirmationScreen} from "./ConfirmationScreen"
 import {IConfirmationBallot} from "../services/BallotService"
+import {TenantEventContext} from "../providers/TenantEventContext"
 
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
 jest.mock("react-router-dom", () => {
@@ -34,7 +35,14 @@ jest.mock("@sequentech/ui-core", () => ({
     EElectionEventContestEncryptionPolicy: {MULTIPLE_CONTESTS: "multiple-contests"},
 }))
 jest.mock("@sequentech/ui-essentials", () => ({
-    theme: {palette: {customGrey: {main: "#666"}, black: "#000", red: {dark: "#900"}}},
+    theme: {
+        palette: {
+            customGrey: {main: "#666"},
+            black: "#000",
+            blue: {light: "#cce5ff", main: "#292f99"},
+            red: {light: "#fecaca", main: "#991b1b", dark: "#900"},
+        },
+    },
     PageLimit: ({children}: React.PropsWithChildren) => <div>{children}</div>,
     ActionsContainer: ({children}: React.PropsWithChildren) => <div>{children}</div>,
     StyledButton: require("@mui/material/Button").default,
@@ -56,11 +64,16 @@ afterEach(cleanup)
 
 const renderConfirmation = (description = "") => {
     const ballot = {
-        ballot_hash: "test-ballot-id",
+        ballot_hash: "test-ballot-hash",
+        tracking_id: "test-ballot-id",
         election_config: {description, contests: []},
         decoded_questions: [],
     } as unknown as IConfirmationBallot
-    return render(<ConfirmationScreen confirmationBallot={ballot} ballotId={ballot.ballot_hash} />)
+    return render(
+        <TenantEventContext.Provider value={{tenantId: "tenant-1", eventId: "event-1"}}>
+            <ConfirmationScreen confirmationBallot={ballot} ballotId={ballot.tracking_id} />
+        </TenantEventContext.Provider>
+    )
 }
 
 it("puts every verifier route inside one main landmark", () => {
@@ -112,7 +125,7 @@ it("renders a supplied election description once", () => {
 it("renders Back as a single link without a nested button", () => {
     renderConfirmation()
     const back = screen.getByRole("link", {name: "confirmationScreen.backButton"})
-    expect(back).toHaveAttribute("href", "/")
+    expect(back).toHaveAttribute("href", "/tenant/tenant-1/event/event-1/start")
     expect(back.querySelector("button")).toBeNull()
 })
 

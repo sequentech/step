@@ -23,7 +23,7 @@ const BlankAnswer: React.FC<BlankAnswerProps> = ({title}) => {
             <UnselectableTypography
                 className="candidate-title"
                 fontWeight="bold"
-                fontSize="16px"
+                fontSize="1rem"
                 lineHeight="22px"
                 marginTop="4px"
                 marginBottom="4px"

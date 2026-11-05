@@ -41,9 +41,7 @@ class MessageBundleTest {
     Properties messages = load("fr");
     Locale locale = Locale.forLanguageTag("fr");
 
-    assertEquals(
-        "Connectez-vous au Portail d'Administration",
-        format(messages, "loginAccountTitle", locale));
+    assertEquals("Connectez-vous pour continuer", format(messages, "loginAccountTitle", locale));
     assertEquals("RETOUR À L'APPLICATION", format(messages, "backToApplication", locale));
     assertEquals(
         "Saisissez le code PIN figurant sur votre lettre d'information électorale.",
@@ -86,6 +84,40 @@ class MessageBundleTest {
       String status = load(language).getProperty("structuredCredentialGroupStatus");
       for (int index = 0; index < 4; index += 1) {
         assertTrue(status.contains("{" + index + "}"), language + " is missing {" + index + "}");
+      }
+    }
+  }
+
+  @Test
+  void everyLocaleDefinesTheEnrollmentWindowTextsWithTheirArguments() throws IOException {
+    // Key -> how many {n} arguments it takes (VOTE-LIFECYCLE design §4).
+    Map<String, Integer> keys =
+        Map.of(
+            "enrollment.opensOn", 3,
+            "enrollment.openUntil", 2,
+            "enrollment.replyBy", 1,
+            "enrollment.postNotOpen", 1,
+            "enrollment.postNotConfigured", 1,
+            "timezones.voterDateTimeZone", 2);
+    for (String language : List.of("ca", "en", "es", "eu", "fr", "gl", "nl", "tl")) {
+      Properties messages = load(language);
+      for (Map.Entry<String, Integer> key : keys.entrySet()) {
+        String text = messages.getProperty(key.getKey());
+        assertTrue(text != null && !text.isBlank(), language + " is missing " + key.getKey());
+        Object[] arguments = new Object[key.getValue()];
+        for (int index = 0; index < arguments.length; index += 1) {
+          arguments[index] = "<" + index + ">";
+        }
+        String formatted =
+            new MessageFormat(text, Locale.forLanguageTag(language)).format(arguments);
+        for (Object argument : arguments) {
+          assertTrue(
+              formatted.contains((String) argument),
+              language + " " + key.getKey() + " drops " + argument + ": " + formatted);
+        }
+        // An apostrophe left single would swallow the rest of the text.
+        assertFalse(formatted.contains("{"), language + " " + key.getKey() + ": " + formatted);
+        assertEquals(text.contains("''"), formatted.contains("'"), language + " " + key.getKey());
       }
     }
   }

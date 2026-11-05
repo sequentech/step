@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+dist/
+dist_keycloak/
+storybook-static/
+test-results/
+src/kc.gen.tsx
+src/login/scanovate/capture-wasm/
+*.ftl
+public/keycloakify-dev-resources/

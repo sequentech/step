@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: req-0252
+title: Access and security
+description: Sign-in attempts by outcome, failed attempts by kind, and password requests.
+section: Access and security
+requirements: [SW-F-0252, SW-F-0268]
+order: 17
+selectors: [region, post]
+layout:
+  - {widget: access-security, width: 12}
+  - {widget: login-outcomes, width: 12, values: {grain: day}}

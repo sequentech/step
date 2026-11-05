@@ -26,7 +26,8 @@ impl BoardClient {
         self.store.has_board(board).await
     }
 
-    pub async fn append(&self, board: &str, entries: &[LogEntry]) -> Result<()> {
+    /// Append records; returns those it stored, as `ElectoralLogStore::append`.
+    pub async fn append(&self, board: &str, entries: &[LogEntry]) -> Result<Vec<StoredRecord>> {
         self.append_iter(board, &mut entries.iter().cloned().map(Ok))
             .await
     }
@@ -35,7 +36,7 @@ impl BoardClient {
         &self,
         board: &str,
         entries: &mut (dyn Iterator<Item = Result<LogEntry>> + Send),
-    ) -> Result<()> {
+    ) -> Result<Vec<StoredRecord>> {
         self.store.append(board, entries).await
     }
 

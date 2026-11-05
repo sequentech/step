@@ -1,0 +1,21 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks'
+import * as AccessibilityMenuStories from './AccessibilityMenu.stories'
+
+<Meta of={AccessibilityMenuStories} title="components/AccessibilityMenu"/>
+
+# AccessibilityMenu
+
+The voter's display settings: text size, contrast, text spacing and motion. The
+`Header` shows it when its `accessibilitySettingsPolicy` is `enabled`.
+
+Each setting is exposed as a `data-a11y-*` attribute on `<html>`, which the
+menu's own stylesheet and an event's stylesheet select on. The choices are kept
+in a session cookie shared with the login pages.
+
+## Closed
+
+<Canvas of={AccessibilityMenuStories.Closed} />
+
+## Open
+
+<Canvas of={AccessibilityMenuStories.Open} />

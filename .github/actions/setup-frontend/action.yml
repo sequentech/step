@@ -1,0 +1,76 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Set up frontend dependencies
+description: Restore exact workspace dependencies; install normally on a cache miss
+runs:
+  using: composite
+  steps:
+    - name: Trust the checked out workspace for container Git commands
+      shell: bash
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      with:
+        node-version: '22.22.0'
+    - name: Enable the pinned Yarn command
+      shell: bash
+      run: npm install --global yarn@1.22.22
+    - name: Restore workspace dependencies
+      id: dependencies
+      uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+      continue-on-error: true
+      with:
+        path: |
+          packages/node_modules
+          packages/*/node_modules
+          packages/keycloak-extensions/sequent-theme/node_modules
+        key: frontend-v2-${{ runner.os }}-${{ runner.arch }}-node22.22.0-yarn1.22.22-${{ hashFiles('packages/yarn.lock', 'packages/**/package.json', 'packages/*/rust/*.tgz', '.github/actions/setup-frontend/action.yml') }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: frontend-v2-${{ runner.os }}-${{ runner.arch }}-node22.22.0-yarn1.22.22-${{ hashFiles('packages/yarn.lock', 'packages/**/package.json', 'packages/*/rust/*.tgz', '.github/actions/setup-frontend/action.yml') }}-
+    - name: Check restored dependency integrity
+      id: integrity
+      shell: bash
+      env:
+        CACHE_MATCHED_KEY: ${{ steps.dependencies.outputs.cache-matched-key }}
+      run: |
+        if [ -n "$CACHE_MATCHED_KEY" ] && yarn --cwd packages check --integrity --check-files; then
+          echo 'valid=true' >> "$GITHUB_OUTPUT"
+        else
+          echo 'valid=false' >> "$GITHUB_OUTPUT"
+        fi
+    - name: Install locked workspace dependencies on a miss or invalid cache
+      if: steps.integrity.outputs.valid != 'true'
+      shell: bash
+      run: yarn --cwd packages install --frozen-lockfile --non-interactive --check-files
+    - name: Rerun the postinstall steps a restored cache skipped
+      if: steps.integrity.outputs.valid == 'true'
+      shell: bash
+      # Postinstall scripts write outside node_modules (admin-portal copies
+      # TinyMCE into public/), which the cache does not hold.
+      run: |
+        # node rather than jq: the job containers do not all ship jq.
+        for manifest in packages/*/package.json; do
+          if node -e 'process.exit(require(process.argv[1]).scripts?.postinstall ? 0 : 1)' "./$manifest"; then
+            yarn --cwd "$(dirname "$manifest")" run postinstall
+          fi
+        done
+        test -f packages/admin-portal/public/tinymce/tinymce.min.js
+    - name: Cache dependencies within the event ref
+      if: steps.integrity.outputs.valid != 'true'
+      uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+      continue-on-error: true
+      with:
+        path: |
+          packages/node_modules
+          packages/*/node_modules
+          packages/keycloak-extensions/sequent-theme/node_modules
+        key: ${{ steps.dependencies.outputs.cache-primary-key }}
+    - name: Summarize dependency reuse
+      shell: bash
+      env:
+        CACHE_HIT: ${{ steps.integrity.outputs.valid }}
+      run: |
+        if [ "$CACHE_HIT" = true ]; then
+          echo 'Dependencies: exact OS/architecture/Node/Yarn/manifests/lock/WASM cache hit; install skipped. Tests rerun.' >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo 'Dependencies: exact cache missing or invalid; normal frozen install. PR writes are scoped by GitHub to that PR; base pushes seed shared caches.' >> "$GITHUB_STEP_SUMMARY"
+        fi

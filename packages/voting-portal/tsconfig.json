@@ -19,6 +19,15 @@
     "isolatedModules": true,
     "noEmit": false,
     "jsx": "react-jsx",
+    "paths": {
+      "@vitrine/verify": [
+        "../node_modules/@vitrine/verify/dist/index.d.ts"
+      ],
+      "@vitrine/verify/*": [
+        "../node_modules/@vitrine/verify/dist/*/index.d.ts",
+        "../node_modules/@vitrine/verify/dist/*.d.ts"
+      ]
+    },
     "types": [
       "node",
       "jest"
@@ -26,5 +35,9 @@
   },
   "include": [
     "src"
+  ],
+  "exclude": [
+    "src/**/*.stories.tsx",
+    "src/**/__stories__/**"
   ]
 }

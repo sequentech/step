@@ -1,0 +1,28 @@
+{{!--
+SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+
+Base scheduled event.  event_processor, the scheduled date and task_id are
+computed in election_config::build_tables — task_id in particular must match
+sequent_core::types::scheduled_event::generate_manage_date_task_name exactly, or
+the platform cannot find the task it scheduled.
+--}}
+{
+    "id": "{{id}}",
+    "tenant_id": "{{tenant_id}}",
+    "election_event_id": "{{election_event_id}}",
+    "created_at": "{{created_at}}",
+    "stopped_at": null,
+    "archived_at": null,
+    "labels": null,
+    "annotations": null,
+    "event_processor": "{{event_processor}}",
+    "cron_config": {
+        "cron": null,
+        "scheduled_date": null
+    },
+    "event_payload": {
+        "election_id": null
+    },
+    "task_id": "{{task_id}}"
+}

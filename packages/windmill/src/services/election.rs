@@ -78,10 +78,19 @@ pub async fn is_election_event_locked_down(
         .transaction()
         .await
         .context("Error starting Hasura transaction")?;
-    let election_event =
-        get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id)
-            .await
-            .context("Error getting election event")?;
+    is_election_event_locked_down_in(&hasura_transaction, tenant_id, election_event_id).await
+}
+
+/// [`is_election_event_locked_down`] in the caller's transaction.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn is_election_event_locked_down_in(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<bool> {
+    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .context("Error getting election event")?;
 
     let Some(presentation) = election_event.presentation else {
         return Ok(false);

@@ -12,7 +12,8 @@ pub struct UploadDocument {
     /// Path of the local file to upload
     #[arg(long)]
     file_path: String,
-    /// Use the server-internal storage endpoint from the deployment network.
+
+    /// Request the internal storage endpoint when running inside the deployment network
     #[arg(long, default_value_t = false)]
     is_local: bool,
 }

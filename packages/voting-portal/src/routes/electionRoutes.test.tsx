@@ -15,27 +15,26 @@ jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual("@sequentech/ui-core"),
     stringToHtml: (value: string) => value,
 }))
-jest.mock(
-    "@sequentech/ui-essentials",
-    () => ({
-        theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
-        Loader: () => <div>Loading</div>,
-        PageLimit: ({children}: any) => <div>{children}</div>,
-        InfoDataBox: ({children}: any) => <div>{children}</div>,
-        BreadCrumbSteps: () => null,
-        Icon: () => null,
-        IconButton: () => null,
-        Dialog: () => null,
-        ExpandableText: () => null,
-    }),
-    {virtual: true}
-)
+jest.mock("@sequentech/ui-essentials", () => ({
+    theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
+    Loader: () => <div>Loading</div>,
+    PageLimit: ({children}: any) => <div>{children}</div>,
+    InfoDataBox: ({children}: any) => <div>{children}</div>,
+    BreadCrumbSteps: () => null,
+    Icon: () => null,
+    IconButton: () => null,
+    Dialog: () => null,
+    ExpandableText: () => null,
+}))
 jest.mock("../providers/SettingsContextProvider", () => ({
     SettingsContext: require("react").createContext({globalSettings: {DISABLE_AUTH: false}}),
 }))
 jest.mock("../store/hooks", () => ({
     useAppDispatch: () => jest.fn(),
     useAppSelector: () => undefined,
+}))
+jest.mock("../hooks/useTrackedReceipt", () => ({
+    useTrackedReceipt: () => ({settled: true}),
 }))
 const mockVoterContext = jest.fn()
 jest.mock("./StartScreen", () => ({__esModule: true, default: () => <div>Start voting</div>}))
@@ -62,11 +61,15 @@ jest.mock("@apollo/client/react", () => ({
                             {id: "election", voting_channels: {telephone: true}},
                         ],
                     }
-                  : name === "GetCastVote"
+                  : name === "LocateBallot"
                     ? {
-                          cast_votes: [
-                              {ballot_id: "a".repeat(64), content: "existing encrypted ballot"},
-                          ],
+                          locate_ballot: {
+                              status: "found",
+                              ballot_id: "a".repeat(64),
+                              content: "existing encrypted ballot",
+                              cast_at: null,
+                              checks_available_until: null,
+                          },
                       }
                     : undefined
         return {data, loading: false, refetch: jest.fn()}
@@ -106,10 +109,10 @@ test.each(["a".repeat(64), "abcd"])(
         expect(await screen.findByText("ballotLocator.found")).toBeVisible()
         expect(screen.getByText("existing encrypted ballot")).toBeVisible()
         expect(mockVoterContext).not.toHaveBeenCalled()
-        expect(mockQueries.find(({name}) => name === "GetCastVote")?.variables).toEqual({
+        expect(mockQueries.find(({name}) => name === "LocateBallot")?.variables).toEqual({
             electionEventId: "event",
             electionId: "election",
-            ...(ballotId.length === 4 ? {ballotIdPrefix: ballotId} : {ballotId}),
+            ballotId,
         })
         view.unmount()
     }

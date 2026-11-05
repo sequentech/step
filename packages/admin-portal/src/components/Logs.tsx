@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState, useRef, useEffect} from "react"
-import {Accordion, AccordionSummary, Box, Typography} from "@mui/material"
+import {Accordion, AccordionSummary, Box, Typography, useMediaQuery} from "@mui/material"
 import Table from "@mui/material/Table"
 import TableBody from "@mui/material/TableBody"
 import TableCell from "@mui/material/TableCell"
@@ -14,7 +14,8 @@ import {useTranslation} from "react-i18next"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {IKeysCeremonyLog} from "@/services/KeyCeremony"
-import {styled} from "@mui/material/styles"
+import {styled, useTheme} from "@mui/material/styles"
+import {useEventZonedFormat, type ZonedEventRef} from "@/hooks/useZonedFormat"
 
 export const AccordionDetails = styled(WizardStyles.AccordionDetails)`
     max-height: 400px;
@@ -23,6 +24,8 @@ export const AccordionDetails = styled(WizardStyles.AccordionDetails)`
 
 interface LogsProps {
     logs?: Array<IKeysCeremonyLog>
+    /** The election event of the logs (record or id): their times show in its primary zone. */
+    event?: ZonedEventRef
 }
 function usePreviousValue<T>(value: T): T {
     const ref = useRef<T>(value)
@@ -32,9 +35,12 @@ function usePreviousValue<T>(value: T): T {
     return ref.current
 }
 
-export const Logs: React.FC<LogsProps> = ({logs}) => {
+export const Logs: React.FC<LogsProps> = ({logs, event}) => {
     const [logsExpanded, setLogsExpanded] = useState(true)
     const {t} = useTranslation()
+    const format = useEventZonedFormat(event, {seconds: true})
+    const theme = useTheme()
+    const phone = useMediaQuery(theme.breakpoints.down("sm"))
     const myDivRef = useRef<HTMLDivElement>(null)
     const prevLogs = usePreviousValue(logs)
     useEffect(() => {
@@ -82,16 +88,18 @@ export const Logs: React.FC<LogsProps> = ({logs}) => {
                     <Paper sx={{width: "100%", margin: "4px 0"}}>
                         <TableContainer>
                             <Table sx={{maxHeight: 450}} aria-label="simple table">
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell sx={{width: "40%"}}>
-                                            {t("keysGeneration.ceremonyStep.logsHeader.date")}
-                                        </TableCell>
-                                        <TableCell align="left">
-                                            {t("keysGeneration.ceremonyStep.logsHeader.entry")}
-                                        </TableCell>
-                                    </TableRow>
-                                </TableHead>
+                                {phone ? null : (
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell sx={{width: "40%"}}>
+                                                {t("keysGeneration.ceremonyStep.logsHeader.date")}
+                                            </TableCell>
+                                            <TableCell align="left">
+                                                {t("keysGeneration.ceremonyStep.logsHeader.entry")}
+                                            </TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                )}
                                 <TableBody>
                                     {logs.map((log, index) => (
                                         <TableRow
@@ -102,11 +110,23 @@ export const Logs: React.FC<LogsProps> = ({logs}) => {
                                                 },
                                             }}
                                         >
-                                            <TableCell component="th" scope="row">
-                                                {log?.created_date &&
-                                                    new Date(log.created_date).toLocaleString()}
-                                            </TableCell>
-                                            <TableCell align="left">{log?.log_text}</TableCell>
+                                            {phone ? (
+                                                <TableCell component="th" scope="row">
+                                                    <Box sx={{color: "text.secondary"}}>
+                                                        {format.format(log?.created_date)}
+                                                    </Box>
+                                                    <Box>{log?.log_text}</Box>
+                                                </TableCell>
+                                            ) : (
+                                                <>
+                                                    <TableCell component="th" scope="row">
+                                                        {format.format(log?.created_date)}
+                                                    </TableCell>
+                                                    <TableCell align="left">
+                                                        {log?.log_text}
+                                                    </TableCell>
+                                                </>
+                                            )}
                                         </TableRow>
                                     )) ?? null}
                                 </TableBody>

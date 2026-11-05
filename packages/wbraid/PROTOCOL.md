@@ -167,10 +167,12 @@ canonically.
 Plaintext payloads are embedded into group elements in blocks of **30 bytes**.
 
 $\mathsf{EncodeElement}(b) \to G$, for a payload $b$ of at most 30 bytes:
-place the 30 payload bytes at positions $1..30$ of a 32-byte candidate encoding; for
-$i = 0..127$ and $j = 0..63$, set byte $0 := 2i$ and byte $31 := j$; return the first
-candidate that is a valid canonical ristretto255 encoding. (The expected number of
-trials is small; failure probability is negligible.)
+place the 30 payload bytes at positions $1..30$ of a 32-byte candidate encoding; trying
+$j = 0..63$ in the outer loop and, for each $j$, $i = 0..127$ in the inner loop, set
+byte $31 := j$ and byte $0 := 2i$; return the first candidate that is a valid canonical
+ristretto255 encoding. (The trial order matters because it determines *which* valid
+candidate is "first"; the expected number of trials is small and failure probability is
+negligible.)
 
 $\mathsf{DecodeElement}(P) \to b$: return bytes $1..30$ of the canonical encoding of
 $P$.
@@ -278,7 +280,8 @@ h_i = \mathsf{H2G}(\mathit{seed},\, i) \quad \text{for } i = 1..N
 $$
 
 with $i$ encoded as a 64-bit big-endian integer under the distinguishing tag
-`"independent_generators"`, and
+`"independent_generators_ristretto"` (group-qualified: the implementation is generic over
+the group, and this is the ristretto255 instantiation's tag), and
 $\mathit{seed} = \mathrm{ctx}(\texttt{"shuffle\_generators"}, \mathit{input})$ bound to
 the configuration and to the input ciphertext list of the mix instance (Section 2.4).
 Under the random-oracle model for $\mathsf{H2G}$, finding a non-trivial
@@ -1204,6 +1207,9 @@ independent re-implementation.
 $B$; the quorum $Q$; the lists $L_0, \dots, L_t$ with shuffle proofs; the decryption
 factors and proofs; the plaintexts $m$; the published result.
 
+The algorithm is stated with the per-proof and per-equation checks of the main text.
+Appendix C records two of them that a verifier may perform in batched form instead.
+
 1. **Configuration and signatures.** Check every message in the transcript is signed by
    a key listed in the Configuration, occupies a unique slot, and references
    $\mathsf{cfg}$.
@@ -1382,3 +1388,49 @@ standard public-coin honest-verifier zero-knowledge protocols:
 | $\pi, s_i, r_i, u_i$ | mix permutation; re-encryption randomizers; commitment randomizers; permutation commitments | 6.2 |
 | $e, e', v$ | batching challenge vector; its permuted form; the proof challenge | 6.3 |
 | $f_{i,j}, \lambda_i, F_j$ | partial decryption factors; Lagrange coefficients; combined factors | 7 |
+
+## Appendix C: Permitted verifier optimizations
+
+The verification algorithms of the main text are stated per proof and per equation;
+that is the normative form, and a verifier that checks each one individually is
+conformant. This appendix records two batched forms a verifier **may** use instead.
+Both are instances of small-exponent batching [BGR98]: the verifier draws independent
+uniform weights of its own — never part of any transcript, never seen by a prover — and
+checks one random linear combination of the equations. If every equation holds, the
+combination holds identically; if any fails, it holds with probability exactly $1/q$
+over the weights. Each batched form therefore adds a $1/q$ soundness error and makes
+the verifier randomized. Neither changes what is hashed: every challenge is recomputed
+exactly as the main text specifies, and no weight enters a hash.
+
+### C.1 The well-formedness proofs of a ballot list (Section 3.5)
+
+A verifier holding $N$ proofs under the same $(y, z, \mathit{ctx})$ — the ballot list
+before mixing (Section 5.5) and its recomputation in Section 9.2 step 3 — recomputes
+every challenge $v_i$ as in Section 3.5, draws independent uniform
+$t_{i,w},\, s_{i,w} \in \mathbb{Z}_q$ for $i = 1..N$, $w = 1..W$, and accepts iff
+
+$$
+g^{\,\sum_{i,w} t_{i,w}\, k_{i,w}}\ \cdot\ z^{\,\sum_{i,w} s_{i,w}\, k_{i,w}}
+\stackrel{?}{=}
+\prod_{i,w} A_{1,i,w}^{\,t_{i,w}}\ u_{b,i,w}^{\,t_{i,w} v_i}
+\ \cdot\
+\prod_{i,w} A_{2,i,w}^{\,s_{i,w}}\ u_{a,i,w}^{\,s_{i,w} v_i}
+$$
+
+A rejected batch is attributed to individual proofs by verifying them individually.
+(Computationally, $4WN$ exponentiations become one multi-exponentiation of size $4WN$
+and two fixed-base exponentiations; the $N$ challenge hashes are unchanged.)
+
+### C.2 Equation V2 of the shuffle proof (Section 6.4)
+
+A verifier may check the $N$ instances of V2 as a single random linear combination:
+draw independent uniform $t_1, \dots, t_N \in \mathbb{Z}_q$ and accept V2 iff
+
+$$
+\prod_{i=1}^{N} B_i^{\,v\,t_i}\ \prod_{i=1}^{N} (B'_i)^{\,t_i}
+\stackrel{?}{=}
+g^{\,\sum_{i} t_i k_{B,i}}\ \prod_{i=1}^{N} B_{i-1}^{\,t_i k_{E,i}}
+$$
+
+(Computationally, the batched check replaces $3N$ exponentiations with two
+multi-exponentiations, of sizes $2N$ and $N$.)

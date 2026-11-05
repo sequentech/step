@@ -84,7 +84,7 @@ pub async fn export_tally_session(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
@@ -131,6 +131,8 @@ pub async fn export_tally_session_execution(
         "session_ids".to_string(),
         "status".to_string(),
         "results_event_id".to_string(),
+        "documents".to_string(),
+        "run_reason".to_string(),
     ])?;
 
     for tally_session_execution in event_tally_sessions_executions {
@@ -141,7 +143,7 @@ pub async fn export_tally_session_execution(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
@@ -198,7 +200,7 @@ pub async fn export_tally_session_contest(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
@@ -237,8 +239,8 @@ pub async fn export_results_event(
         "name".to_string(),
         "created_at".to_string(),
         "last_updated_at".to_string(),
-        "annotations".to_string(),
         "labels".to_string(),
+        "annotations".to_string(),
         "documents".to_string(),
     ])?;
 
@@ -250,7 +252,7 @@ pub async fn export_results_event(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
@@ -295,6 +297,8 @@ pub async fn export_results_election_area(
         "last_updated_at".to_string(),
         "documents".to_string(),
         "name".to_string(),
+        "blank_ballots".to_string(),
+        "blank_ballots_percent".to_string(),
     ])?;
 
     for results_election_area in results_election_areas {
@@ -305,7 +309,7 @@ pub async fn export_results_election_area(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
@@ -352,6 +356,8 @@ pub async fn export_results_election(
         "annotations".to_string(),
         "total_voters_percent".to_string(),
         "documents".to_string(),
+        "blank_ballots".to_string(),
+        "blank_ballots_percent".to_string(),
     ])?;
 
     for results_election in results_elections {
@@ -362,7 +368,7 @@ pub async fn export_results_election(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
@@ -438,7 +444,7 @@ pub async fn export_results_contest(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
@@ -499,7 +505,7 @@ pub async fn export_results_contest_candidate(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
@@ -575,7 +581,7 @@ pub async fn export_results_area_contest(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
@@ -639,7 +645,7 @@ pub async fn export_results_area_contest_candidate(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer

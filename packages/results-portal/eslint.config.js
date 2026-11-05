@@ -13,6 +13,9 @@ export default [
     {
         ignores: [
             "dist/**",
+            "coverage/**",
+            "storybook-static/**",
+            "test-results/**",
             "build/**",
             "node_modules/**",
             "public/**",

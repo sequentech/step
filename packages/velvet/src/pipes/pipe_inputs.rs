@@ -33,6 +33,10 @@ pub const DEFAULT_DIR_BALLOTS: &str = "default/ballots";
 pub const DEFAULT_DIR_TALLY_SHEETS: &str = "default/tally_sheets";
 pub const DEFAULT_DIR_DATABASE: &str = "default/database";
 
+/// Written to a ballots file in place of a plaintext that does not decode
+/// into a number, so that the ballot is still counted.
+pub const MALFORMED_PLAINTEXT_LINE: &str = "malformed";
+
 pub const ELECTION_CONFIG_FILE: &str = "election-config.json";
 pub const CONTEST_CONFIG_FILE: &str = "contest-config.json";
 pub const AREA_CONFIG_FILE: &str = "area-config.json";
@@ -281,11 +285,12 @@ impl PipeInputs {
             let part = component.as_os_str().to_string_lossy();
 
             if let Some(res) = part.strip_prefix(prefix) {
-                let slice = &res[res.len() - UUID_LEN..];
-                // Check if the string length is at least 36
+                // Folder names are external input. Check the byte length before
+                // subtraction, then use get() so a UTF-8 boundary cannot panic.
                 if res.len() >= UUID_LEN {
-                    // Use the last 36 characters for UUID parsing
-                    return Uuid::parse_str(slice).ok();
+                    return res
+                        .get(res.len() - UUID_LEN..)
+                        .and_then(|suffix| Uuid::parse_str(suffix).ok());
                 }
             }
         }

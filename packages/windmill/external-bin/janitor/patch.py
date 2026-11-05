@@ -3,8 +3,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 import re
-from typing import Any, Union, List
-import openpyxl
+from datetime import datetime, timezone as utc_timezone
+from typing import Any, Union, List, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from time_zone_links import TIME_ZONE_LINKS
 import json
 import argparse
 
@@ -121,6 +124,8 @@ def parse_excel(excel_path):
     Parse all input files specified in the config file into their respective
     data structures.
     '''
+    import openpyxl
+
     electoral_data = openpyxl.load_workbook(excel_path)
 
     return dict(
@@ -308,6 +313,8 @@ def parse_excel(excel_path: str) -> dict:
     Parse all input files specified in the config file into their respective
     data structures.
     '''
+    import openpyxl
+
     electoral_data = openpyxl.load_workbook(excel_path)
 
     return dict(
@@ -321,6 +328,180 @@ def patch_json_with_excel(excel_data, json_data, parameters_type):
         value = parse_cell_value(row["value"])
         print(f"Patching key {key} with value {value}")
         patch_dict(json_data, key, value)
+
+# --- Scheduled events in local time (VOTE-LIFECYCLE) ------------------------
+#
+# The same rules as the platform (`sequent_core::time_zones` and windmill's
+# `services/time_zones.rs`): a row's zone is its own, else its election's
+# when that zone is configured on the event, else the event's primary, else
+# UTC. A wall time is stored with its zone and the instant it runs.
+
+DEFAULT_TIME_ZONE = "UTC"
+
+# Old names and their tzdata canonical names, as windmill's `ALIASES`.
+TIME_ZONE_ALIASES = {
+    "Asia/Calcutta": "Asia/Kolkata",
+    "Asia/Katmandu": "Asia/Kathmandu",
+    "Asia/Saigon": "Asia/Ho_Chi_Minh",
+    "Asia/Rangoon": "Asia/Yangon",
+    "Asia/Dacca": "Asia/Dhaka",
+    "Asia/Ulan_Bator": "Asia/Ulaanbaatar",
+    "Europe/Kiev": "Europe/Kyiv",
+    "America/Buenos_Aires": "America/Argentina/Buenos_Aires",
+    "America/Godthab": "America/Nuuk",
+    "Atlantic/Faeroe": "Atlantic/Faroe",
+    "Pacific/Enderbury": "Pacific/Kanton",
+    "Pacific/Truk": "Pacific/Chuuk",
+    "Pacific/Ponape": "Pacific/Pohnpei",
+}
+
+
+def canonical_zone(name: str) -> str:
+    """
+    The tzdata canonical name of a zone, as windmill's `canonical_time_zone`:
+    links (`US/Eastern`) become the zone they name; `UTC` stays; any other
+    name without a `/` (`EST`, `Japan`) is refused.
+    """
+    name = name.strip()
+    name = TIME_ZONE_ALIASES.get(name, name)
+    if name == "UTC":
+        return name
+    if "/" not in name:
+        raise ValueError(f"Not a timezone (abbreviations aren't): {name!r}")
+    return TIME_ZONE_LINKS.get(name, name)
+
+
+def parse_zone(name: str) -> ZoneInfo:
+    try:
+        return ZoneInfo(canonical_zone(name))
+    except (ZoneInfoNotFoundError, ValueError):
+        raise ValueError(f"Unknown timezone: {name!r}")
+
+
+def _event_time_zones(election_event: dict) -> dict:
+    return ((election_event or {}).get("presentation") or {}).get("timezones") or {}
+
+
+def primary_time_zone(election_event: dict) -> str:
+    primary = (_event_time_zones(election_event).get("primary") or "").strip()
+    return primary or DEFAULT_TIME_ZONE
+
+
+def configured_time_zones(election_event: dict) -> list:
+    """The event's configured zones, canonical."""
+    return [canonical_zone(zone) for zone in _event_time_zones(election_event).get("configured") or []]
+
+
+def effective_time_zone(election_event: dict, election: Optional[dict]) -> str:
+    zone = ((election or {}).get("presentation") or {}).get("timezone")
+    if isinstance(zone, str) and canonical_zone(zone) in configured_time_zones(election_event):
+        return canonical_zone(zone)
+    return canonical_zone(primary_time_zone(election_event))
+
+
+def parse_schedule_date(value: Any):
+    """
+    A date of the ScheduledEvents sheet: a datetime with an offset is an
+    instant (as before); one without is a wall time. Returns
+    (naive wall time, None) or (None, aware instant).
+    """
+    if isinstance(value, datetime):
+        moment = value
+    else:
+        text = str(value).strip().replace(" ", "T", 1)
+        # Python before 3.11 doesn't read a trailing `Z`.
+        if text.endswith(("Z", "z")):
+            text = text[:-1] + "+00:00"
+        try:
+            moment = datetime.fromisoformat(text)
+        except ValueError:
+            raise ValueError(f"Invalid scheduled event date: {value!r}")
+    if moment.tzinfo is None:
+        return moment.replace(microsecond=0), None
+    return None, moment
+
+
+def resolve_local(local: datetime, zone: ZoneInfo):
+    """
+    The instant of a wall time in a zone, and "exact", "gap" (it doesn't
+    exist: clocks go forward) or "overlap" (it happens twice: the first is
+    used).
+    """
+    first = local.replace(tzinfo=zone, fold=0)
+    second = local.replace(tzinfo=zone, fold=1)
+    instant = first.astimezone(utc_timezone.utc)
+    if first.utcoffset() == second.utcoffset():
+        return instant, "exact"
+    if instant.astimezone(zone).replace(tzinfo=None) != local:
+        return instant, "gap"
+    return instant, "overlap"
+
+
+def format_local(local: datetime) -> str:
+    return local.strftime("%Y-%m-%dT%H:%M" if local.second == 0 else "%Y-%m-%dT%H:%M:%S")
+
+
+def format_instant(instant: datetime, zone: ZoneInfo) -> str:
+    """RFC 3339 with the zone's offset, `Z` for UTC, as windmill writes it."""
+    text = instant.astimezone(zone).isoformat(timespec="seconds")
+    return text[:-6] + "Z" if text.endswith("+00:00") else text
+
+
+def schedule_cron_config(date: Any, row_zone: Optional[str], zone_name: str) -> dict:
+    """
+    The cron_config of a scheduled event: the instant (`scheduled_date`), the
+    wall time (`local`) and its zone (`timezone`). `row_zone` is the sheet's
+    `timezone` cell; without one, `zone_name` (the election's zone) applies.
+    A wall time that doesn't exist in the zone is refused.
+    """
+    name = row_zone.strip() if isinstance(row_zone, str) and row_zone.strip() else zone_name
+    zone = parse_zone(name)
+    local, instant = parse_schedule_date(date)
+    if instant is None:
+        instant, kind = resolve_local(local, zone)
+        if kind == "gap":
+            raise ValueError(
+                f"{format_local(local)} doesn't exist in {zone.key}: clocks go forward then"
+            )
+        if kind == "overlap":
+            print(f"Note: {format_local(local)} happens twice in {zone.key}; the first is used")
+    else:
+        local = instant.astimezone(zone).replace(tzinfo=None)
+    return {
+        "cron": None,
+        "scheduled_date": format_instant(instant, zone),
+        "local": format_local(local),
+        "timezone": zone.key,
+    }
+
+
+def apply_schedule_time_zones(bundle: dict) -> None:
+    """
+    Fills the cron_config of every scheduled event of an election event
+    bundle from its date and zone. Run after the Parameters are patched in,
+    so the event's timezones are final.
+    """
+    election_event = bundle.get("election_event") or {}
+    elections = {election.get("id"): election for election in bundle.get("elections") or []}
+    configured = configured_time_zones(election_event)
+    for election in elections.values():
+        zone = (election.get("presentation") or {}).get("timezone")
+        if zone and canonical_zone(zone) not in configured:
+            # The platform would use the primary instead: say so now.
+            raise ValueError(
+                f"Post {election.get('alias')!r} has timezone {zone!r}, which isn't one of "
+                f"the event's configured timezones {configured}"
+            )
+    for scheduled_event in bundle.get("scheduled_events") or []:
+        cron_config = scheduled_event.get("cron_config") or {}
+        election_id = (scheduled_event.get("event_payload") or {}).get("election_id")
+        election = elections.get(election_id) if election_id else None
+        scheduled_event["cron_config"] = schedule_cron_config(
+            cron_config.get("scheduled_date"),
+            cron_config.get("timezone"),
+            effective_time_zone(election_event, election),
+        )
+
 
 def main():
     parser = argparse.ArgumentParser(description="patch a json with data from an excel")

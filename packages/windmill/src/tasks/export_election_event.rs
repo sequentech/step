@@ -31,6 +31,14 @@ pub struct ExportOptions {
     pub include_certificates: bool,
 }
 
+impl ExportOptions {
+    pub fn validate_protocol_archive(&self) -> anyhow::Result<()> {
+        anyhow::ensure!(!self.tally || self.bulletin_board,
+            "Tally export requires bulletin_board so its native key and protocol history can be restored");
+        Ok(())
+    }
+}
+
 fn validate_voter_secret_export(export_config: &ExportOptions) -> Result<()> {
     if !export_config.contains_voter_secrets {
         return Ok(());
@@ -179,7 +187,39 @@ async fn export_election_event_impl(
     }
 
     // Process the export
-    match process_export_zip(&tenant_id, &election_event_id, &document_id, export_config).await {
+    let authorization = async {
+        use crate::services::participation_authorization::{
+            export_authorization, ParticipationCommand,
+        };
+        let grant =
+            export_authorization(&hasura_transaction, &tenant_id, &persisted_task.id).await?;
+        grant.validate(
+            &tenant_id,
+            &election_event_id,
+            &grant.actor_id,
+            ParticipationCommand::EventArchive,
+            &document_id,
+        )?;
+        Ok::<_, anyhow::Error>(grant)
+    }
+    .await;
+    let authorization = match authorization {
+        Ok(grant) => grant,
+        Err(error) => {
+            drop(hasura_transaction);
+            update_export_fail(&persisted_task, &error.to_string()).await?;
+            return Err(Error::String(error.to_string()));
+        }
+    };
+    match process_export_zip(
+        &tenant_id,
+        &election_event_id,
+        &document_id,
+        export_config,
+        &authorization.election_ids,
+    )
+    .await
+    {
         Ok(_) => (),
         Err(err) => {
             let err_str = format!("Failed to export election event data: {err:?}");
@@ -260,6 +300,18 @@ pub async fn export_election_event(
 mod tests {
     use super::*;
     use celery::task::Task;
+
+    #[test]
+    fn tally_archives_require_their_protocol_boards() {
+        let mut config = ExportOptions {
+            tally: true,
+            ..ExportOptions::default()
+        };
+        assert!(config.validate_protocol_archive().is_err());
+        config.bulletin_board = true;
+        assert!(config.validate_protocol_archive().is_ok());
+        assert!(ExportOptions::default().validate_protocol_archive().is_ok());
+    }
 
     fn authorized_secret_export() -> ExportOptions {
         ExportOptions {

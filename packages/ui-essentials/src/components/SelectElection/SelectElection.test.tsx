@@ -96,4 +96,25 @@ describe("SelectElection", () => {
         expect(markup).toContain("results-button")
         expect(markup).toContain("election-results-button")
     })
+
+    it("shows the given status in place of the voted label of a voted election", () => {
+        const render = (hasVoted: boolean) =>
+            renderToStaticMarkup(
+                <ThemeProvider theme={theme}>
+                    <SelectElection
+                        isActive
+                        isOpen
+                        title="Executive Board"
+                        hasVoted={hasVoted}
+                        votedStatus={<span className="given-status">Ballot cast</span>}
+                        isStarted
+                    />
+                </ThemeProvider>
+            )
+
+        const voted = render(true)
+        expect(voted).toContain("given-status")
+        expect(voted).not.toContain("selectElection.voted")
+        expect(render(false)).not.toContain("given-status")
+    })
 })

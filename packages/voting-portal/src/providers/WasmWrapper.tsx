@@ -2,11 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
+import {StartupError} from "../components/StartupError"
 import {useWasm, WasmContextProvider, WasmStatus} from "@sequentech/ui-core"
 import {Loader} from "@sequentech/ui-essentials"
 
 export const WasmGate: React.FC<React.PropsWithChildren> = ({children}) => {
     const {status} = useWasm()
+
+    if (status === WasmStatus.ERROR) return <StartupError />
 
     return WasmStatus.READY === status ? <>{children}</> : <Loader />
 }

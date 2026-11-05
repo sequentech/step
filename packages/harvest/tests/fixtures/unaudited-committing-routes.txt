@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+# Route files that commit a database transaction but change nothing an
+# admin action would audit. One per line: `<file>: <reason>`.
+# Checked by tests/support/audited_routes.rs.
+ballot_checks.rs: voting portal routes for a voter's own ballot; the commits only end reads
+ballot_files.rs: voting portal route that signs a voter's ballot file URLs; the commit only ends a read
+electoral_log_audit.rs: starts a read-only verification of a log; it writes only the task's bookkeeping row
+external_reconciliation.rs: reads a round and queues the Windmill tasks, which sign their own log entries
+fake_provider.rs: development-only fake messaging provider; its commit ends a read of a messenger link
+fetch_document.rs: reads a document and returns its download URL; the commit only ends the read
+messaging_insights.rs: read-only statistics; a recount only queues bookkeeping for derived counts
+monitoring.rs: read-only dashboards and widgets; the commit only ends a read
+support_materials.rs: voting portal routes where voters acknowledge support materials in their own account
+voter_cast_votes.rs: voting portal route that reads a voter's own cast votes
+vitrine.rs: transparency status reads the event's state and the commit only ends the read; enabling and policy upload act through the Windmill tasks, which sign their own entries

@@ -10,6 +10,7 @@ use crate::services::results_publication::{
     finalize_results_website_publication, publish_results_website_artifacts,
 };
 use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::services::vitrine::statements::{queue_event_statements, EventMilestone};
 use crate::types::error::Result;
 use celery::error::TaskError;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -70,6 +71,14 @@ pub async fn publish_results_website_task(
 
     match result {
         Ok(_) => {
+            queue_event_statements(
+                &tenant_id,
+                &election_event_id,
+                Some(EventMilestone::ResultsPublished {
+                    publication_id: publication_id.clone(),
+                }),
+            )
+            .await;
             let _res = update_complete(&task_execution, Some(publication_id.clone())).await;
             Ok(())
         }

@@ -39,6 +39,7 @@ import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
 import ImageIcon from "@mui/icons-material/Image"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {MaterialLanguageFields} from "./MaterialLanguageFields"
+import {AudioInstructionsFields, withAudioInstructions} from "./AudioInstructionsFields"
 
 export type Sequent_Backend_Support_Material_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -128,19 +129,13 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
     }
 
     const onError = async (res: any) => {
-        refresh()
-
         // react-admin bug: https://stackoverflow.com/questions/54729867/cannot-read-property-hasownproperty-of-undefined-during-writing-my-own-datap
         // It seems to be caused by validateResponseFormat in fetch. When an options request is triggered prior to a put it provides an empty response and cannot be parsed
 
         if (res?.message?.includes("hasOwnProperty")) {
-            notify(t("materials.updateMaterialSuccess"), {type: "success"})
+            onSuccess()
         } else {
-            notify("materials.updateMaterialError", {type: "error"})
-        }
-
-        if (close) {
-            close()
+            notify(t("materials.updateMaterialError"), {type: "error"})
         }
     }
 
@@ -151,7 +146,7 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
             return []
         }
 
-        if (!valueMaterials) setValueMaterials({...parsedValue.data})
+        if (!valueMaterials && parsedValue.data) setValueMaterials({...parsedValue.data})
 
         let presentation: IElectionEventPresentation = record.presentation
 
@@ -296,6 +291,24 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
                                         <GetPublicURL electionEventId={electionEventId} />
                                     ) : null}
                                     <DropFile handleFiles={handleFiles} />
+                                    <AudioInstructionsFields
+                                        kind={imageType ?? parsedValue.kind}
+                                        languages={
+                                            (record?.presentation as IElectionEventPresentation)
+                                                ?.language_conf?.enabled_language_codes ?? []
+                                        }
+                                        value={
+                                            (valueMaterials ?? parsedValue.data)?.audio_instructions
+                                        }
+                                        onChange={(value) =>
+                                            setValueMaterials((prev) =>
+                                                withAudioInstructions(
+                                                    prev ?? parsedValue.data,
+                                                    value
+                                                )
+                                            )
+                                        }
+                                    />
                                     {parsedValue.document_id ? (
                                         <Box
                                             sx={{

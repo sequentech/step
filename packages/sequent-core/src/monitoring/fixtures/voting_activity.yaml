@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Hourly or daily activity, with a day picker shown only for hourly.
+id: voting-activity
+title: Voting activity
+source: voting_enrollment_activity
+requirements: [SW-F-0267]
+follows: [region, post]
+selectors:
+  grain:
+    label: Interval
+    control: toggle
+    options: {hour: Hourly, day: Daily}
+    default: day
+  day:
+    label: Day
+    options_from: event_days
+    when: {selector: grain, in: [hour]}
+query:
+  template: timeseries
+  measures: [voted]
+  grain: {selector: grain}
+  day: {selector: day}
+chart:
+  charts:
+    activity:
+      type: area
+      query: data
+      x: bucket_start
+      y: voted
+  rows: [activity]

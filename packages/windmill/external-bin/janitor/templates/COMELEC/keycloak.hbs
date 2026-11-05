@@ -8,7 +8,7 @@
     "actionTokenGeneratedByAdminLifespan": 43200,
     "actionTokenGeneratedByUserLifespan": 900,
     "adminEventsDetailsEnabled": false,
-    "adminEventsEnabled": false,
+    "adminEventsEnabled": true,
     "adminTheme": "",
     "attributes": {
         "cibaBackchannelTokenDeliveryMode": "poll",
@@ -404,23 +404,6 @@
                     "userSetupAllowed": false
                 },
                 {
-                    "authenticatorFlow" : true,
-                    "requirement" : "CONDITIONAL",
-                    "priority" : 14,
-                    "autheticatorFlow" : true,
-                    "flowAlias" : "deferred-otp-subflow-email",
-                    "userSetupAllowed" : false
-                },
-                {
-                    "authenticatorConfig" : "deferred-otp-subflow-sms",
-                    "authenticatorFlow" : true,
-                    "requirement" : "CONDITIONAL",
-                    "priority" : 15,
-                    "autheticatorFlow" : true,
-                    "flowAlias" : "deferred-otp-subflow",
-                    "userSetupAllowed" : false
-                },
-                {
                     "authenticator": "message-otp-authenticator",
                     "authenticatorConfig": "otp",
                     "authenticatorFlow": false,
@@ -430,8 +413,8 @@
                     "userSetupAllowed": false
                 },
                 {
-                    "authenticator": "inetum-authenticator",
-                    "authenticatorConfig": "inetum-registration",
+                    "authenticator": "scanovate-authenticator",
+                    "authenticatorConfig": "scanovate-registration",
                     "authenticatorFlow": false,
                     "autheticatorFlow": false,
                     "priority": 18,
@@ -467,11 +450,19 @@
             "alias": "comelec-registration registration form",
             "authenticationExecutions": [
                 {
+                    "authenticator": "enrollment-window-check",
+                    "authenticatorFlow": false,
+                    "autheticatorFlow": false,
+                    "priority": 0,
+                    "requirement": "REQUIRED",
+                    "userSetupAllowed": false
+                },
+                {
                     "authenticator": "deferred-registration-user-creation",
                     "authenticatorConfig": "drupc",
                     "authenticatorFlow": false,
                     "autheticatorFlow": false,
-                    "priority": 0,
+                    "priority": 10,
                     "requirement": "REQUIRED",
                     "userSetupAllowed": false
                 }
@@ -481,61 +472,6 @@
             "id": "4bde24b5-72b3-41c0-8df5-0420e2d69162",
             "providerId": "form-flow",
             "topLevel": false
-        },
-        {
-            "id" : "7b248f81-6142-4a51-abbf-d4ea838cdee6",
-            "alias" : "deferred-otp-subflow",
-            "description" : "",
-            "providerId" : "basic-flow",
-            "topLevel" : false,
-            "builtIn" : false,
-            "authenticationExecutions" : [
-                {
-                    "authenticatorConfig" : "cond-sms",
-                    "authenticator" : "conditional-auth-note",
-                    "authenticatorFlow" : false,
-                    "requirement" : "REQUIRED",
-                    "priority" : 3,
-                    "autheticatorFlow" : false,
-                    "userSetupAllowed" : false
-                },
-                {
-                    "authenticatorConfig" : "otp-sms",
-                    "authenticator" : "message-otp-authenticator",
-                    "authenticatorFlow" : false,
-                    "requirement" : "REQUIRED",
-                    "priority" : 4,
-                    "autheticatorFlow" : false,
-                    "userSetupAllowed" : false
-                }
-            ]
-        }, {
-            "id" : "ec150b9a-3bac-4e44-9a48-748e147335e9",
-            "alias" : "deferred-otp-subflow-email",
-            "description" : "",
-            "providerId" : "basic-flow",
-            "topLevel" : false,
-            "builtIn" : false,
-            "authenticationExecutions" : [
-                {
-                    "authenticatorConfig" : "cond-email",
-                    "authenticator" : "conditional-auth-note",
-                    "authenticatorFlow" : false,
-                    "requirement" : "REQUIRED",
-                    "priority" : 0,
-                    "autheticatorFlow" : false,
-                    "userSetupAllowed" : false
-                },
-                {
-                    "authenticatorConfig" : "otp-email",
-                    "authenticator" : "message-otp-authenticator",
-                    "authenticatorFlow" : false,
-                    "requirement" : "REQUIRED",
-                    "priority" : 1,
-                    "autheticatorFlow" : false,
-                    "userSetupAllowed" : false
-                }
-            ]
         },
         {
             "alias": "direct grant",
@@ -1047,22 +983,6 @@
             "id": "4ca8a631-73a8-43bd-baba-30cc6ae56d0b"
         },
         {
-            "alias": "cond-email",
-            "config": {
-                "negate": "true",
-                "conditional-auth-note-key": "email"
-            },
-            "id": "02f59bbd-3202-4463-a325-4b60f9737c19"
-        },
-        {
-            "alias": "cond-sms",
-            "config": {
-                "conditional-auth-note-key": "sequent.read-only.mobile-number",
-                "negate": "true"
-            },
-            "id": "105283b3-cc6a-4712-8591-6d2f55c22b54"
-        },
-        {
             "alias": "conditional-sms",
             "config": {
                 "conditional-auth-note-key": "sequent.read-only.mobile-number",
@@ -1078,45 +998,26 @@
             "id": "d9b6c606-6637-4683-80d3-dadec3d1e0a9"
         },
         {
-            "alias": "deferred-otp-subflow-sms",
-            "config": {},
-            "id": "c8dd3afe-6f2d-47ec-b1dd-d2cf6653752d"
-        },
-        {
             "alias": "drupc",
             "config": {
-                "user-status": "sequent.read-only.id-card-number-validated"
+                "user-status": "sequent.read-only.id-card-number-validated",
+                "channel-choice-policy": "OTP_CHANNELS",
+                "post-election-attribute": "embassy"
             },
             "id": "f0f0bd0e-530e-4495-838f-f5230143a9c8"
         },
         {
-            "alias": "drupc",
-            "config": {
-                "user-status": "sequent.read-only.id-card-number-validated"
-            },
-            "id": "d2708c8b-05d7-4344-b1d2-1653e47ecd1b"
-        },
-        {
             "alias": "email-sms",
             "config": {
+                "code-page-disclosure": "NAMED",
                 "ttl": "300",
                 "length": "6",
                 "deferredUserAttribute": "false",
                 "senderId": "Keycloak",
                 "telUserAttribute": "sequent.read-only.mobile-number",
-                "messageCourierAttribute": "BOTH"
+                "messageCourierAttribute": "CHOSEN"
             },
             "id": "e63df5f5-42e8-4b1b-ad4e-7cb4b3c30650"
-        },
-        {
-            "alias": "email-sms",
-            "config": {
-                "telUserAttribute": "sequent.read-only.mobile-number",
-                "ttl": "300",
-                "senderId": "Keycloak",
-                "length": "6"
-            },
-            "id": "50bb6525-bcbe-4bd3-82b2-588e58c7abaa"
         },
         {
             "alias": "forgot-client-id",
@@ -1148,28 +1049,27 @@
             "id": "4ed69335-45a9-4607-9aef-236e9fc2ed08"
         },
         {
-            "alias": "inetum-registration",
+            "alias": "scanovate-registration",
             "config": {
-                 "attributes-to-validate": "{\n    \"philSysID\": [\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"Identity Card\",\n            \"inetumAttributePath\": \"/response/docVerification/documentIdentification/0/type\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"PHL\",\n            \"inetumAttributePath\": \"/response/ocr/issuing_state_code\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreDocumental\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"1\",\n            \"inetumAttributePath\": \"/response/scoring\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"true\",\n            \"inetumAttributePath\": \"/response/docVerification/documentalConfidence\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n    ],\n    \"seamanBook\": [\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"PHL\",\n            \"inetumAttributePath\": \"/response/mrz/issuing_state_code\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"1\",\n            \"inetumAttributePath\": \"/response/scoring\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"true\",\n            \"inetumAttributePath\": \"/response/docVerification/documentalConfidence\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n        \n    ],\n    \"philippinePassport\": [\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"PHL\",\n            \"inetumAttributePath\": \"/response/mrz/issuing_state_code\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"1\",\n            \"inetumAttributePath\": \"/response/scoring\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"true\",\n            \"inetumAttributePath\": \"/response/docVerification/documentalConfidence\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n    ],\n    \"driversLicense\": [\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"PHL\",\n            \"inetumAttributePath\": \"/response/ocr/issuing_state_code\",\n            \"errorMsg\": \"attributesInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"40\",\n            \"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"1\",\n            \"inetumAttributePath\": \"/response/scoring\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"true\",\n            \"inetumAttributePath\": \"/response/docVerification/documentalConfidence\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n    ],\n    \"iBP\": [\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"50\",\n            \"inetumAttributePath\": \"/response/resultData/scoreFacial\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"intMinValue\",\n            \"intMinValue\": \"1\",\n            \"inetumAttributePath\": \"/response/scoring\",\n            \"errorMsg\": \"scoringInetumError\"\n        },\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"true\",\n            \"inetumAttributePath\": \"/response/docVerification/documentalConfidence\",\n            \"errorMsg\": \"scoringInetumError\"\n        }\n    ]\n}",
-                "user-status": "sequent.read-only.id-card-number-validated",
-                "base-url": "https://pro2.digitalonboarding.es/sequentech/dob-api/2.0.0",
-                "sdk-version": "4.0.3",
-                "client-id": "DOB_SEQUENTECH",
-                "doc-id": "sequent.read-only.id-card-number",
-                "attributes-to-store": "{\n\t\"philSysID\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"middleName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/middle_name\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/personal_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"dateOfBirth\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t],\n\t\"seamanBook\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"middleName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/middle_name\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"dateOfBirth\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t],\n\t\"philippinePassport\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"middleName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/middle_name\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/document_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"dateOfBirth\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t],\n\t\"driversLicense\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"middleName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/middle_name\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/personal_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"dateOfBirth\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t],\n\t\"iBP\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"middleName\",\n\t\t\t\"inetumAttributePath\": \"/response/ocr/middle_name\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/surname\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\",\n\t\t\t\"type\": \"text\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"dateOfBirth\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\",\n\t\t\t\"type\": \"date\",\n\t\t\t\"storeDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\"\n\t\t}\n\t]\n}",
-                "api-key": "289d42a8-39c4-3142-af00-d96ada617b40",
-                "sdk": "{}",
-                "app-id": "24d98f6c-88ef-41ef-b252-444485f0588a",
-                "env-config": "{\n\tenvironment: 3,\n\tisWebView: true,\n\tcustomTextsConfig: myStrings,\n\tuploadAndCheckIdentifiers: [\"ESP\"],\n\tshowLogs: false,\n\tlogTypes: ['ERROR', 'INFO'],\n\tdesign: design,\n\tbamEnabled: true,\n\tocrCountdown: false,\n\tvideoSelfieShowDNI: false,\n\tcancelProcessButton: true,\n\tshowPermissionsHelp: true,\n\tqrEnabled: false,\n\tvoiceEnabled: false,\n\tvoiceLanguage: VoiceLanguage.englishUS,\n\tcustomIOSBrowsersConfig: [IOSBrowser.safari, IOSBrowser.chrome, IOSBrowser.firefox],\n\totpEmailAddress: 'xxxxxxx@inetum.com',\n\totpPhoneNumber: 'xxxxxxxx',\n\tcountryCode: CountryCode.unitedStates,\n\tapplicationId: window.DOB_APP_ID,\n\tbroadcast: new LocalBroadcastManager(),\n\tcustomProtocol: 'https',\n\tcustomHost: 'pro2.digitalonboarding.es',\n\tcustomPort: '443',\n\tclientContext: 'sequentech',\n\tsequent: {\n\t\tdisableStreaming: true,\n\t\tvideoStepLength: 22,\n\t\tphotoStepLength: 10,\n\t\tuserPhotoLength: 30,\n\t}\n}",
-                "transaction-new": "{\n\t\"wFtype_Facial\": true,\n\t\"wFtype_OCR\": true,\n\t\"wFtype_Video\": false,\n\t\"wFtype_Anti_Spoofing\": false,\n\t\"wFtype_Sign\": false,\n\t\"wFtype_VerifAvan\": false,\n\t\"wFtype_UECertificate\": false,\n\t\"docID\": \"\",\n\t\"name\": \"\",\n\t\"lastname1\": \"\",\n\t\"lastname2\": \"\",\n\t\"country\": \"\",\n\t\"mobilePhone\": \"\",\n\t\"eMail\": \"\",\n\t\"priority\": 3,\n\t\"maxRetries\": 3,\n\t\"maxProcessTime\": 30,\n\t\"application\": \"sequent-keycloak\",\n\t\"clienteID\": \"${client_id}\"\n}",
+                "ocr-url": "{{{scanovate_ocr_url}}}",
+                "ocr-types": "{\"philippinePassport\": \"passport\"}",
+                "capture-sides": "{\"philippinePassport\": [\"front\"], \"default\": [\"front\", \"back\"]}",
+                "liveness-url": "{{{scanovate_liveness_url}}}",
+                "liveness-secret": "{{{scanovate_liveness_secret}}}",
+                "face-match-url": "{{{scanovate_face_match_url}}}",
+                "face-match-min-similarity": "{\"philSysID\": {{philis_id_scanovate_min_biometric_score}}, \"seamanBook\": {{seaman_book_scanovate_min_biometric_score}}, \"philippinePassport\": {{passport_scanovate_min_biometric_score}}, \"driversLicense\": {{driver_license_scanovate_min_biometric_score}}, \"iBP\": {{ibp_scanovate_min_biometric_score}}}",
                 "doc-id-type": "sequent.read-only.id-card-type",
-                "max-retries": "5"
+                "user-status": "sequent.read-only.id-card-number-validated",
+                "attributes-to-validate": "{\n    \"philippinePassport\": [\n        {\n            \"type\": \"equalValue\",\n            \"equalValue\": \"PHL\",\n            \"process\": \"ocr\",\n            \"attributePath\": \"/issuing_country_code\",\n            \"errorMsg\": \"scanovateAttributesError\"\n        },\n        {\n            \"type\": \"isBeforeDateValue\",\n            \"isBeforeDateValue\": \"now\",\n            \"process\": \"ocr\",\n            \"attributePath\": \"/date_of_expiry\",\n            \"sourceDateFormat\": \"yyyy-MM-dd\",\n            \"errorMsg\": \"scanovateAttributesError\"\n        }\n    ]\n}",
+                "attributes-to-store": "{\n    \"philippinePassport\": [\n        {\n            \"UserAttribute\": \"firstName\",\n            \"process\": \"ocr\",\n            \"attributePath\": \"/first_name_english\",\n            \"type\": \"text\"\n        },\n        {\n            \"UserAttribute\": \"lastName\",\n            \"process\": \"ocr\",\n            \"attributePath\": \"/last_name_english\",\n            \"type\": \"text\"\n        },\n        {\n            \"UserAttribute\": \"sequent.read-only.id-card-number\",\n            \"process\": \"ocr\",\n            \"attributePath\": \"/document_number\",\n            \"type\": \"text\"\n        },\n        {\n            \"UserAttribute\": \"dateOfBirth\",\n            \"process\": \"ocr\",\n            \"attributePath\": \"/date_of_birth\",\n            \"type\": \"date\",\n            \"sourceDateFormat\": \"yyyy-MM-dd\",\n            \"storeDateFormat\": \"yyyy-MM-dd\"\n        }\n    ]\n}",
+                "max-attempts": "3"
             },
             "id": "6b3d28f9-5445-475d-a9c4-eadd3955e97d"
         },
         {
             "alias": "login-tlf-otp",
             "config": {
+                "code-page-disclosure": "NAMED",
                 "one-time-link": "false",
                 "resendCoudActivationTimer": "60",
                 "deferredUserAttribute": "false",
@@ -1182,29 +1082,17 @@
             "id": "df01dda4-482b-4a8d-af5b-bde8f548c293"
         },
         {
-            "alias": "login-tlf-otp",
-            "config": {
-                "telUserAttribute": "sequent.read-only.mobile-number",
-                "messageCourierAttribute": "BOTH",
-                "one-time-link": "false",
-                "deferredUserAttribute": "false",
-                "ttl": "300",
-                "senderId": "Keycloak",
-                "length": "6",
-                "resendCoudActivationTimer": "60"
-            },
-            "id": "9cda070c-2a3b-42c2-a620-7eb05802c3e1"
-        },
-        {
             "alias": "lookup-register",
             "config": {
                 "auto-login": "false",
-                "messageCourierAttribute": "BOTH",
+                "messageCourierAttribute": "CHOSEN",
                 "telUserAttribute": "sequent.read-only.mobile-number",
-                "update-attributes": "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,emailAndOrMobile,sequent.read-only.id-card-number,sequent.read-only.id-card-type",
+                "update-attributes": "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,sequent.read-only.id-card-number,sequent.read-only.id-card-type",
                 "search-attributes": "firstName,middleName,lastName,embassy,dateOfBirth",
                 "auto-2fa": "true",
-                "unset-attributes": "email,sequent.read-only.mobile-number,sequent.read-only.id-card-number-validated"
+                "unset-attributes": "email,sequent.read-only.mobile-number,sequent.read-only.id-card-number-validated",
+                "no-matching-voter-policy": "PENDING_APPROVAL",
+                "reply-by-hours": "72"
             },
             "id": "d51051b5-d9b5-414b-9fee-259a4de08ba3"
         },
@@ -1213,7 +1101,7 @@
             "config": {
                 "telUserAttribute": "sequent.read-only.mobile-number",
                 "auto-2fa": "true",
-                "messageCourierAttribute": "BOTH"
+                "messageCourierAttribute": "CHOSEN"
             },
             "id": "b25eeba6-d085-4d39-8130-32ebb7ff4db4"
         },
@@ -1221,7 +1109,7 @@
             "alias": "manual-verification-config",
             "config": {
                 "auto-2fa": "true",
-                "messageCourierAttribute": "BOTH",
+                "messageCourierAttribute": "CHOSEN",
                 "telUserAttribute": "sequent.read-only.mobile-number"
             },
             "id": "fe06b65d-34dc-49f3-9eab-1cbead805618"
@@ -1253,8 +1141,9 @@
         {
             "alias": "otp",
             "config": {
+                "code-progress-policy": "SHOW",
                 "telUserAttribute": "sequent.read-only.mobile-number",
-                "messageCourierAttribute": "BOTH",
+                "messageCourierAttribute": "CHOSEN",
                 "ttl": "300",
                 "otlRestoredAuthNotesAttribute": "sequent.read-only.id-card-number,birthDate,userId,password,firstName,lastName,middleName,suffix,birthDate,username,registerVia,sequent.read-only.mobile-number,email,country,embassy,sequent.read-only.id-card-number-validated,sequent.read-only.id-card-type,termsOfService",
                 "resendCoudActivationTimer": "60",
@@ -1264,71 +1153,6 @@
                 "deferredUserAttribute": "true"
             },
             "id": "d8e21bda-385d-44b4-ae63-57cd9464056f"
-        },
-        {
-            "alias": "otp-email",
-            "config": {
-                "otpMethod": "email",
-                "length": "6",
-                "deferredUserAttribute": "true",
-                "ttl": "300",
-                "senderId": "Keycloak",
-                "messageCourierAttribute": "EMAIL",
-                "telUserAttribute": "sequent.read-only.mobile-number",
-                "resendCoudActivationTimer": "60"
-            },
-            "id": "d9209827-30b9-4ec3-b0c6-c4f4ff2008bd"
-        },
-        {
-            "alias": "otp-email",
-            "config": {
-                "deferredUserAttribute": "true",
-                "ttl": "300",
-                "messageCourierAttribute": "EMAIL",
-                "length": "6",
-                "senderId": "Keycloak",
-                "telUserAttribute": "sequent.read-only.mobile-number"
-            },
-            "id": "e5a7027a-d310-4dc3-9ef5-969044179c53"
-        },
-        {
-            "alias": "otp-sms",
-            "config": {
-                "length": "6",
-                "messageCourierAttribute": "BOTH",
-                "senderId": "Keycloak",
-                "otpMethod": "sms",
-                "telUserAttribute": "sequent.read-only.mobile-number",
-                "deferredUserAttribute": "false",
-                "ttl": "300"
-            },
-            "id": "0b0e2146-4002-4331-8150-fdd8b8cad8ef"
-        },
-        {
-            "alias": "otp-sms",
-            "config": {
-                "telUserAttribute": "sequent.read-only.mobile-number",
-                "otpMethod": "sms",
-                "length": "6",
-                "deferredUserAttribute": "false",
-                "senderId": "Keycloak",
-                "ttl": "300",
-                "messageCourierAttribute": "BOTH"
-            },
-            "id": "54f2203f-0142-47c8-9406-f2b42ca52358"
-        },
-        {
-            "alias": "otp-sms",
-            "config": {
-                "deferredUserAttribute": "true",
-                "telUserAttribute": "sequent.read-only.mobile-number",
-                "senderId": "Keycloak",
-                "resendCoudActivationTimer": "60",
-                "length": "6",
-                "messageCourierAttribute": "SMS",
-                "ttl": "300"
-            },
-            "id": "ed12acc2-d8b2-4d64-89e9-20e352650ac1"
         },
         {
             "alias": "remove-temporary-password",
@@ -1369,8 +1193,9 @@
         {
             "alias": "reset.send.otp.tlf",
             "config": {
+                "code-page-disclosure": "NEUTRAL",
                 "length": "6",
-                "messageCourierAttribute": "BOTH",
+                "messageCourierAttribute": "CHOSEN",
                 "senderId": "Keycloak",
                 "telUserAttribute": "sequent.read-only.mobile-number",
                 "resendCoudActivationTimer": "60",
@@ -1379,20 +1204,6 @@
                 "ttl": "300"
             },
             "id": "e83ceb6e-c30b-4e4b-8bb9-4ae5acecf320"
-        },
-        {
-            "alias": "reset.send.otp.tlf",
-            "config": {
-                "length": "6",
-                "senderId": "Keycloak",
-                "telUserAttribute": "sequent.read-only.mobile-number",
-                "ttl": "300",
-                "one-time-link": "false",
-                "deferredUserAttribute": "false",
-                "resendCoudActivationTimer": "60",
-                "messageCourierAttribute": "BOTH"
-            },
-            "id": "470ff796-732b-4b88-930d-ba4bf2842897"
         },
         {
             "alias": "review profile config",
@@ -2256,7 +2067,7 @@
             "alwaysDisplayInConsole": false,
             "attributes": {
                 "oidc.ciba.grant.enabled": "false",
-                "login_theme": "sequent.voting-portal",
+                "login_theme": "sequent-ui-voting",
                 "post.logout.redirect.uris": "*",
                 "display.on.consent.screen": "false",
                 "backchannel.logout.session.required": "true",
@@ -2453,7 +2264,7 @@
             "frontchannelLogout": true,
             "protocol": "openid-connect",
             "attributes": {
-                "login_theme": "sequent.voting-portal",
+                "login_theme": "sequent-ui-voting",
                 "post.logout.redirect.uris": "*",
                 "oauth2.device.authorization.grant.enabled": "false",
                 "backchannel.logout.revoke.offline.tokens": "false",
@@ -2767,7 +2578,7 @@
             "alwaysDisplayInConsole": false,
             "attributes": {
                 "use.refresh.tokens": "true",
-                "login_theme": "sequent.voting-portal",
+                "login_theme": "sequent-ui-voting",
                 "post.logout.redirect.uris": "*",
                 "exclude.issuer.from.auth.response": "true",
                 "oauth2.device.authorization.grant.enabled": "false",
@@ -3059,7 +2870,7 @@
             {
                 "config": {
                     "kc.user.profile.config": [
-                        "{\"attributes\":[{\"name\":\"sequent.read-only.id-card-type\",\"displayName\":\"${idCardType}\",\"validations\":{\"options\":{\"options\":[\"philippinePassport\",\"seamanBook\",\"philSysID\",\"iBP\",\"driversLicense\"]}},\"annotations\":{\"inputType\":\"select\",\"inputOptionLabels\":{\"philSysID\": \"${philSysID}\",\"iBP\": \"${iBP}\",\"philippinePassport\":\"${philippinePassport}\",\"seamanBook\":\"${seamanBook}\",\"driversLicense\":\"${driversLicense}\"}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{\"html-attribute:autocomplete\":\"given-name\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"middleName\",\"displayName\":\"${middleName}\",\"validations\":{},\"annotations\":{\"inputHelperTextAfter\":\"NOTE : If Middle Name is not available, put \\\"_\\\" instead.\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":40},\"up-username-not-idn-homograph\":{}},\"annotations\":{\"passwordStrengthBar\":\"true\",\"hidden\":\"true\",\"passwordHelperTextBefore\":\"${passwordHelperTextBefore}\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"emailAndOrMobile\",\"displayName\":\"${emailAndOrMobile}\",\"validations\":{\"options\":{\"options\":[\"sequent.read-only.mobile-number\",\"email\"]},\"multivalued\":{\"min\":\"0\",\"max\":\"2\"}},\"annotations\":{\"inputType\":\"multiselect-checkboxes\",\"default\":[\"email\"],\"inputOptionLabels\":{\"sequent.read-only.mobile-number\":\"Mobile No.\",\"email\":\"${email}\"},\"disableAttribute\":\"true\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":true},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"${mobileNumber}\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-tel\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"dateOfBirth\",\"displayName\":\"${dateOfBirth}\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-date\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"embassy\",\"displayName\":\"${embassy}\",\"validations\":{\"options\":{\"options\":[{{{embassy_list}}}]}},\"annotations\":{\"inputType\":\"select\",\"filterSelectAttribute\":\"country\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"country\",\"displayName\":\"${country}\",\"validations\":{\"options\":{\"options\":[{{{country_list}}}]}},\"annotations\":{\"inputType\":\"select\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number-validated\",\"displayName\":\"ID Validated?\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"authorized-election-ids\",\"displayName\":\"Authorized Elections\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"sequent.read-only.id-card-number\",\"displayName\":\"ID No.\",\"validations\":{},\"annotations\":{\"html-attribute:autocomplete\":\"off\",\"default\":\"1\",\"html-attribute:style\":\"visibility:hidden\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sex\",\"displayName\":\"Sex\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"landBasedOrSeafarer\",\"displayName\":\"Land-based/Seafarer\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"clusteredPrecinct\",\"displayName\":\"Clustered precinct\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"overseasReferences\",\"displayName\":\"Overseas references\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"termsOfService\",\"displayName\":\"${termsOfService}\",\"validations\":{\"options\":{\"options\":[\"termsOfServiceText\"]},\"multivalued\":{\"min\":\"0\",\"max\":\"2\"}},\"annotations\":{\"inputType\":\"multiselect-checkboxes\",\"inputOptionLabels\":{\"termsOfServiceText\":\"${termsOfServiceText}\"},\"disableElement\":\"true\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":true}],\"groups\":[]}"
+                        "{\"attributes\":[{\"name\":\"sequent.read-only.id-card-type\",\"displayName\":\"${idCardType}\",\"validations\":{\"options\":{\"options\":[\"philippinePassport\",\"driversLicense\",\"philSysID\",\"iBP\",\"seamanBook\"]}},\"annotations\":{\"inputType\":\"select\",\"inputOptionLabels\":{\"philippinePassport\":\"${philippinePassport}\",\"driversLicense\":\"${driversLicense}\",\"philSysID\":\"${philSysID}\",\"iBP\":\"${iBP}\",\"seamanBook\":\"${seamanBook}\"}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{\"html-attribute:autocomplete\":\"given-name\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"middleName\",\"displayName\":\"${middleName}\",\"validations\":{},\"annotations\":{\"inputHelperTextAfter\":\"NOTE : If Middle Name is not available, put \\\"_\\\" instead.\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":40},\"up-username-not-idn-homograph\":{}},\"annotations\":{\"passwordStrengthBar\":\"true\",\"hidden\":\"true\",\"passwordHelperTextBefore\":\"${passwordHelperTextBefore}\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"${mobileNumber}\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-tel\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.message-channel\",\"displayName\":\"Contact channel\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.message-number\",\"displayName\":\"Messaging number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.whatsapp-number\",\"displayName\":\"WhatsApp number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.viber-number\",\"displayName\":\"Viber number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.messenger-id\",\"displayName\":\"Messenger ID\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.messenger-page\",\"displayName\":\"Messenger Page\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.verified-channels\",\"displayName\":\"Verified channels\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"sequent.read-only.message-consent\",\"displayName\":\"Messaging consent\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"dateOfBirth\",\"displayName\":\"${dateOfBirth}\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-date\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"embassy\",\"displayName\":\"${embassy}\",\"validations\":{\"options\":{\"options\":[{{{embassy_list}}}]}},\"annotations\":{\"inputType\":\"select\",\"filterSelectAttribute\":\"country\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"country\",\"displayName\":\"${country}\",\"validations\":{\"options\":{\"options\":[{{{country_list}}}]}},\"annotations\":{\"inputType\":\"select\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number-validated\",\"displayName\":\"ID Validated?\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"authorized-election-ids\",\"displayName\":\"Authorized Elections\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"sequent.read-only.id-card-number\",\"displayName\":\"ID No.\",\"validations\":{},\"annotations\":{\"html-attribute:autocomplete\":\"off\",\"default\":\"1\",\"html-attribute:style\":\"visibility:hidden\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sex\",\"displayName\":\"Sex\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"landBasedOrSeafarer\",\"displayName\":\"Land-based/Seafarer\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"clusteredPrecinct\",\"displayName\":\"Clustered precinct\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"overseasReferences\",\"displayName\":\"Overseas references\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"termsOfService\",\"displayName\":\"${termsOfService}\",\"validations\":{\"options\":{\"options\":[\"termsOfServiceText\"]},\"multivalued\":{\"min\":\"0\",\"max\":\"2\"}},\"annotations\":{\"inputType\":\"multiselect-checkboxes\",\"inputOptionLabels\":{\"termsOfServiceText\":\"${termsOfServiceText}\"},\"disableElement\":\"true\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":true}],\"groups\":[]}"
                     ]
                 },
                 "id": "b14658b9-44d1-4183-b83d-381598780096",
@@ -3316,7 +3127,6 @@
             "emailInstructionUsername": "Ilagay ang iyong email o numero ng mobile at padadalhan ka namin ng mga tagubilin kung paano lumikha ng bagong password.",
             "country": "Bansa",
             "idCardType": "Uri ng ID Card",
-            "emailAndOrMobile": "Magrehistro sa pamamagitan ng",
             "mobileNumber": "Numero ng mobile.",
             "embassy": "Embahada",
             "dateOfBirth": "Petsa ng kapanganakan",
@@ -3326,10 +3136,10 @@
             "email": "Email",
             "passwordHelperTextBefore": "Hindi bababa sa 8 character, uppercase, lowercase, numero at mga espesyal na character.",
             "philSysID": "PhilSys ID",
-            "iBP": "IBP",
-            "philippinePassport": "Pasaporte ng Pilipinas",
-            "driversLicense": "Lisensya sa pagmamaneho",
-            "seamanBook": "Libro ng seaman"
+            "iBP": "Integrated Bar of the Philippines ID",
+            "philippinePassport": "Pasaporte",
+            "driversLicense": "Lisensya sa Pagmamaneho",
+            "seamanBook": "Seafarer’s Book"
         },
         "en": {
             "maxRetriesError": "We regret to inform you that the quality of the provided images did not meet the required standards after three attempts, resulting in an unsuccessful enrollment.<br><br>If you require further assistance to complete the enrollment process successfully, please feel free to contact our support team by <a href=\"https://comelec.gov.ph/?r=2025NLESupport\">clicking here</a>.<br><br>Thank you!",
@@ -3380,7 +3190,6 @@
             "forgotPassword.success.display.message": "You should receive an {0} shortly with further instructions.",
             "country": "Country",
             "idCardType": "Valid ID",
-            "emailAndOrMobile": "Register via",
             "mobileNumber": "Mobile No.",
             "embassy": "Embassy",
             "firstName": "First Name",
@@ -3392,13 +3201,13 @@
             "email": "Email",
             "passwordHelperTextBefore": "At least 8 characters, uppercase, lowercase, number and special characters.",
             "philSysID": "PhilSys ID",
-            "iBP": "IBP",
-            "philippinePassport": "Philippine Passport",
-            "driversLicense": "Driver''s License",
-            "seamanBook": "Seaman's Book"
+            "iBP": "Integrated Bar of the Philippines ID",
+            "philippinePassport": "Passport",
+            "driversLicense": "Driver’s License",
+            "seamanBook": "Seafarer’s Book"
         }
     },
-    "loginTheme": "sequent.voting-portal",
+    "loginTheme": "sequent-ui-voting",
     "loginWithEmailAllowed": true,
     "maxDeltaTimeSeconds": 43200,
     "maxFailureWaitSeconds": 900,
@@ -3575,6 +3384,17 @@
             "name": "Verify Email using OTP",
             "priority": 1004,
             "providerId": "verify-email-otp-ra"
+        },
+        {
+            "alias": "message-channel-ra",
+            "config": {
+                "max_auth_age": "300"
+            },
+            "defaultAction": false,
+            "enabled": true,
+            "name": "Change how we contact you",
+            "priority": 1005,
+            "providerId": "message-channel-ra"
         }
     ],
     "requiredCredentials": [

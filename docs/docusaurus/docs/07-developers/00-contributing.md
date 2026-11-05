@@ -47,13 +47,16 @@ The fastest way to start developing is using VS Code Dev Containers or GitHub Co
 3. **Open in VS Code** with the Dev Containers extension installed
 4. The environment will automatically set up all dependencies
 
-For detailed setup instructions, see the [GraphQL API Documentation](./01-graphql-api.md).
+For the devcontainer modes and the development loop, see [Fast feedback loops](./03-development-environment/fast-feedback.md); for build and test commands, see [Build, test and lint](./03-development-environment/build-and-test.md).
 
 ### Development Workflow
 
-1. **Create a branch** for your work:
+1. **Create a branch** for your work. Maintainers name branches after the
+   tracking issue in [sequentech/meta](https://github.com/sequentech/meta/issues)
+   and the target branch, e.g. `feat/meta-<issue>-<description>/main` or
+   `fix/meta-<issue>/release/9.4`:
    ```bash
-   git checkout -b feature/your-feature-name
+   git checkout -b feat/meta-1234-short-description/main
    ```
 
 2. **Make your changes** following our coding standards
@@ -71,7 +74,7 @@ For detailed setup instructions, see the [GraphQL API Documentation](./01-graphq
 
 5. **Push to your fork**:
    ```bash
-   git push origin feature/your-feature-name
+   git push origin feat/meta-1234-short-description/main
    ```
 
 6. **Open a Pull Request** on GitHub
@@ -85,6 +88,21 @@ For detailed setup instructions, see the [GraphQL API Documentation](./01-graphq
 - Keep functions small and focused
 - Follow the existing code style in each part of the project
 
+- Write the failing test first, then the code that makes it pass (TDD)
+- Remove dead code, commented-out code, stale or generated boilerplate
+  comments, and TODOs without a linked issue before review
+
+### Product Design Rules
+
+- **No client-specific features**: design a general solution that serves the
+  requesting client and every existing one.
+- **Composable features**: any combination of features must work, or the
+  constraint must be explicit through validation, warnings or documentation.
+- **Policies are enums, not booleans**, in Rust and TypeScript: an on/off
+  policy almost always grows more modes.
+- **Backwards-compatible data**: new fields in stored or exported structures are
+  optional or have defaults, so older election events still load and import.
+
 ### Language-Specific Standards
 
 #### Rust
@@ -92,12 +110,21 @@ For detailed setup instructions, see the [GraphQL API Documentation](./01-graphq
 - Run `cargo fmt` before committing
 - Run `cargo clippy` and address warnings
 - Add documentation comments for public APIs
+- Propagate `Option` and `Result` with `?` or explicit handling; the
+  [assurance lint policy](./03-development-environment/production-assurance.md)
+  forbids panicking shortcuts in production code
+- Reuse the types in `sequent_core::types` instead of redefining them
+- Use named constants and enums (with `Display`/`FromStr`) instead of repeated
+  string literals
 
 #### TypeScript/JavaScript
-- Use TypeScript for new frontend code
+- Use TypeScript for new frontend code, without `any`
+- Await every promise and handle its errors
 - Follow the ESLint configuration
 - Run `yarn prettify:fix` before committing
 - Use functional components and hooks in React
+- Prefix environment variables with their service (`HASURA_`, `B4_`, ...) and add
+  new ones to the relevant Docker Compose files
 
 #### Documentation
 - Write in clear, concise English
@@ -149,9 +176,14 @@ The CLA signing process is quick and straightforward. If you have any questions 
 
 1. **Ensure your PR**:
    - Has a clear title and description
-   - References any related issues (e.g., "Fixes #123")
-   - Includes tests for new functionality
-   - Updates documentation as needed
+   - Starts its description with `Parent issue: https://github.com/sequentech/meta/issues/<number>`
+     (maintainers open the issue first when none exists)
+   - Includes tests for new functionality, including rejected input and edge cases
+   - Updates the documentation under `docs/docusaurus/` for new features
+   - Adds new Keycloak permissions to `IPermissions` in
+     `packages/admin-portal/src/types/keycloak.ts` and to the default tenant
+     realm under `.devcontainer/keycloak/import/`
+   - Checks frontend changes at different screen sizes
    - Passes all CI checks
    - **Has a signed CLA** (for first-time contributors)
 
@@ -160,7 +192,11 @@ The CLA signing process is quick and straightforward. If you have any questions 
    - Address review comments promptly
    - Be open to feedback and discussion
 
-3. **After Approval**:
+3. **Release branches** (`release/X.Y`): the same fix is cherry-picked to every
+   applicable release branch, and support PRs leave release notes alone; they
+   are generated from the issue.
+
+4. **After Approval**:
    - Maintainers will merge your PR
    - Your contribution will be included in the next release
 
@@ -168,16 +204,12 @@ The CLA signing process is quick and straightforward. If you have any questions 
 
 ### Running Tests
 
-For Rust packages:
-```bash
-cd packages/
-cargo test
-```
+[Build, test and lint](./03-development-environment/build-and-test.md) lists the
+per-stack commands, and [Fast feedback loops](./03-development-environment/fast-feedback.md)
+selects the focused test for a change:
 
-For frontend packages:
 ```bash
-cd packages/
-yarn test
+scripts/dev/step-dev test --affected
 ```
 
 ### Writing Tests

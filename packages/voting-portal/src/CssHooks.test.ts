@@ -7,9 +7,12 @@ import {readFileSync, readdirSync} from "fs"
 import {join, relative} from "path"
 import ts from "typescript"
 
+// The IVR emulator is drawn by the Election Architect, never by this portal.
+const notPortalDom = new Set(["IvrCall.tsx"])
+
 const sourceFiles = (directory: string): string[] =>
     readdirSync(directory, {withFileTypes: true}).flatMap((entry) => {
-        if (entry.name === "__mocks__") return []
+        if (entry.name === "__mocks__" || notPortalDom.has(entry.name)) return []
         const path = join(directory, entry.name)
         return entry.isDirectory()
             ? sourceFiles(path)
@@ -38,7 +41,6 @@ const sharedComponents = [
     "BreadCrumbSteps",
     "Candidate",
     "CandidatesList",
-    "ConfirmationActions",
     "CountdownBar",
     "Dialog",
     "ExpandableText",
@@ -55,6 +57,10 @@ const sharedComponents = [
 ]
 const files = [
     ...sourceFiles(__dirname),
+    // The voter's screens are drawn by the shared ballot layouts, so the hooks a
+    // client's stylesheet targets live there now.
+    ...sourceFiles(join(__dirname, "../../ui-essentials/src/ballot")),
+    ...sourceFiles(join(__dirname, "../../ui-essentials/src/components/ActionsRow")),
     ...sharedComponents.flatMap((name) =>
         sourceFiles(join(__dirname, "../../ui-essentials/src/components", name))
     ),
@@ -71,6 +77,9 @@ it.each(files.map((file) => [relative(__dirname, file), file]))(
             ts.ScriptKind.TSX
         )
         const domComponents = new Set(sharedDomComponents)
+        // The shared IconButton hooks its button separately from its SVG;
+        // MUI components use className on their root element.
+        const hookProperties = new Map([["IconButton", "buttonClassName"]])
         const collect = (node: ts.Node) => {
             if (
                 ts.isImportDeclaration(node) &&
@@ -80,11 +89,15 @@ it.each(files.map((file) => [relative(__dirname, file), file]))(
                 )
             ) {
                 const clause = node.importClause
-                if (clause?.name) domComponents.add(clause.name.text)
+                if (clause?.name) {
+                    domComponents.add(clause.name.text)
+                    hookProperties.set(clause.name.text, "className")
+                }
                 if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
-                    clause.namedBindings.elements.forEach((item) =>
+                    clause.namedBindings.elements.forEach((item) => {
                         domComponents.add(item.name.text)
-                    )
+                        hookProperties.set(item.name.text, "className")
+                    })
                 }
             }
             if (
@@ -101,7 +114,7 @@ it.each(files.map((file) => [relative(__dirname, file), file]))(
         const visit = (node: ts.Node) => {
             if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
                 const tag = node.tagName.getText(source)
-                const property = tag === "IconButton" ? "buttonClassName" : "className"
+                const property = hookProperties.get(tag) ?? "className"
                 const hasHook = node.attributes.properties.some(
                     (attribute) =>
                         ts.isJsxAttribute(attribute) &&

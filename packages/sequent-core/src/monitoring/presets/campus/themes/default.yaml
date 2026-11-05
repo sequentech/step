@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: default
+title: Calm
+base: paper
+style:
+  accent: "#0f766e"
+  # Labels are shown as the preset writes them: the engine's title case is
+  # English-only and would recase names and other languages.
+  title: {font: {case: none, family: "'Inter Variable', Inter, system-ui, sans-serif"}}
+  # The portal's typeface everywhere: the base theme's serif headlines and
+  # figures would read as another product inside the page.
+  font: {family: "'Inter Variable', Inter, system-ui, sans-serif"}
+  text: {font: {family: "'Inter Variable', Inter, system-ui, sans-serif"}}
+  charts:
+    axis: {title: {font: {case: none}}}
+    # A legend is titled with the column it colours by, a name only the
+    # query uses; its entries say enough.
+    legend: {title: {visible: false}}
+    table: {header: {font: {case: none}}}
+    # The engine's tabular face is not shipped with the chart; Inter is.
+    kpi: {font: {family: "'Inter Variable', Inter, system-ui, sans-serif"}, label: {font: {case: none}}, value: {font: {family: "'Inter Variable', Inter, system-ui, sans-serif"}}}
+    axis_quantitative: {labels: {font: {family: "'Inter Variable', Inter, system-ui, sans-serif"}}}
+    pie: {total: {value: {font: {family: "'Inter Variable', Inter, system-ui, sans-serif"}}}}
+    support_table: {font: {family: "'Inter Variable', Inter, system-ui, sans-serif"}, label: {font: {case: none}}}
+    callout: {title: {font: {case: none}}}
+    # Progress bars name their rows in full: the engine's 80 px cuts
+    # "Posts in scope" and "Online voting opened" or
+    # "Valid user authentication failed".
+    spark_bar: {label: {width: 220}, count: {width: 64}, bar: {height: 20}}
+    category_colors:
+      group:
+        values:
+          Not stated: dbt-grays.muted

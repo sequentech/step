@@ -26,8 +26,8 @@
         </p>
         <div class="info">
           <div class="key">
-            Your Ballot ID:
-            <p class="value id-content">{{ballot_id}}</p>
+            Your Tracking ID:
+            <p class="value id-content">{{#if tracking_id}}{{tracking_id}}{{else}}{{ballot_id}}{{/if}}</p>
           </div>
           <div class="key">
             Ballot tracker link:
@@ -35,7 +35,7 @@
           </p>
           <div class="key">
             Timestamp:
-            <span class="value" class="timestamp-content">{{datetime from_rfc3339=timestamp output_format="%B %d, %Y %H:%M GMT %:z"}}</span>
+            <span class="value" class="timestamp-content">{{datetime_zone timestamp output_format="%B %d, %Y %H:%M"}}</span>
           </div>
         </div>
       </p>
@@ -48,6 +48,30 @@
         </p>
         {{{qrcode}}}
       </p>
+      {{#if hubs}}
+      <p>
+        <h2>Check it yourself</h2>
+        <p>
+          You don't have to trust this receipt or this election's website. You
+          can check your ballot on any of the election's hubs:
+        </p>
+        {{#each hubs}}
+        {{#unless @first}}<p>or</p>{{/unless}}
+        <p><a class="value" href="{{url}}">{{name}}, run by {{operator}}</a></p>
+        {{/each}}
+        <p>
+          On a hub you can also choose to get an email when your ballot is
+          confirmed and when it is counted. The links carry your Tracking ID
+          after the #, so no server sees it until you act.
+        </p>
+      </p>
+      {{/if}}
+      {{#if execution_annotations.configuration_revision}}
+      <p>Configuration revision {{sanitize_html execution_annotations.configuration_revision}}, manifest SHA-256 {{sanitize_html execution_annotations.configuration_manifest_sha256}}</p>
+      {{/if}}
+      {{#if execution_annotations.copy_total}}
+      <p>Copy {{sanitize_html execution_annotations.copy_number}} of {{sanitize_html execution_annotations.copy_total}}</p>
+      {{/if}}
     </div>
 
   </div>

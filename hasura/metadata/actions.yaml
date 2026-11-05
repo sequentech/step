@@ -1,4 +1,254 @@
 actions:
+    - name: receipt_document
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/receipt-document
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: cast-vote
+          - role: user
+    - name: ballot_box_log
+      definition:
+          type: query
+          handler: http://{{HARVEST_BALLOT_LOG_DOMAIN}}/ballot-box-log
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+          - role: cast-vote
+    - name: ballot_box_own
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/ballot-box-own
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+          - role: cast-vote
+    - name: ballot_box_entry
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/ballot-box-entry
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+          - role: cast-vote
+          - role: logs-read
+    - name: ballot_box_keys
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/ballot-box-keys
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+          - role: cast-vote
+          - role: logs-read
+    - name: ballot_privacy_settings
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/ballot-privacy-settings
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-event-read
+    - name: forensic_network_summary
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/forensic-network-summary
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: forensic-read
+    - name: forensic_network_detail
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/forensic-network-detail
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: forensic-read
+    - name: resolve_voter_pseudonym
+      definition:
+          kind: synchronous
+          type: mutation
+          handler: http://{{HARVEST_DOMAIN}}/resolve-voter-pseudonym
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: voter-pseudonym-resolve
+    - name: readiness_check
+      definition:
+          kind: synchronous
+          type: mutation
+          handler: http://{{HARVEST_DOMAIN}}/readiness-check
+          forward_client_headers: true
+          timeout: 60
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: readiness-check
+      comment: Compare tested and official events and sign a successful readiness snapshot
+    - name: tenant_plugins
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/plugins
+          forward_client_headers: true
+          request_transform:
+              method: GET
+              body:
+                  action: remove
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+    - name: set_tenant_plugin_state
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/plugins/state
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+    - name: execute_plugin_operation
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/plugins/execute
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+    - name: request_server_custody
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/trustee/request-server-custody
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input.object}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustee-ceremony
+      comment: Authenticated trustee ceremony work
+    - name: submit_trustee_action_result
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/trustee/action-result
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input.result}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustee-ceremony
+      comment: Authenticated trustee ceremony work
+    - name: trustee_event_updates
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/trustee/event-updates
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: remove
+              method: GET
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustee-ceremony
+      comment: Authenticated trustee ceremony work
+    - name: list_trustee_boards
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/trustee/boards
+          forward_client_headers: true
+          request_transform:
+              method: GET
+              body:
+                  action: remove
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustee-ceremony
+      comment: Discover boards assigned to the authenticated trustee
+    - name: report_trustee_board
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/trustee/boards/report
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input.report}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustee-ceremony
+      comment: Record an authenticated trustee's halt report
     - name: get_ballot_files_urls
       definition:
           type: query
@@ -219,10 +469,10 @@ actions:
               version: 2
       permissions:
           - role: admin-user
-    - name: check_private_key
+    - name: confirm_key_custody
       definition:
           kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/check-private-key
+          handler: http://{{HARVEST_DOMAIN}}/confirm-key-custody
           forward_client_headers: true
           headers:
               - name: X-Hasura-Admin-Secret
@@ -236,7 +486,7 @@ actions:
       permissions:
           - role: trustee-ceremony
           - role: admin-user
-      comment: check private key
+      comment: confirm trustee custody with a public proof
     - name: count_users
       definition:
           kind: ""
@@ -518,6 +768,301 @@ actions:
               version: 2
       permissions:
           - role: phone-blacklist-delete
+    - name: get_approval_matrix
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/get-approval-matrix
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: application-read
+          - role: approval-matrix-write
+      comment: Read the enrollment approval matrix in force
+    - name: evaluate_approval_matrix
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/evaluate-approval-matrix
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: application-read
+          - role: approval-matrix-write
+      comment: Try an enrollment against approval matrix rules without saving
+    - name: save_approval_matrix
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/save-approval-matrix
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: approval-matrix-write
+      comment: Save the enrollment approval matrix as a new version
+    - name: upsert_messaging_account
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/upsert
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+    - name: delete_messaging_account
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/delete
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+    - name: replace_messaging_account_credentials
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/credentials
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+    - name: check_messaging_account
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/check
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+    - name: test_messaging_account
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/test
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+    - name: update_event_messaging_config
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/event-config
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-config-write
+    - name: messaging_account_callback_url
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/callback-url
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: '{"id": {{$body.input.account_id}}}'
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+      comment: The full callback URL of an account, or why there is none
+    - name: messaging_account_change_impact
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/change-impact
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+      comment: How many voters must connect again if a Messenger account's Page changes
+    - name: messaging_callback_status
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/callback-status
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-config-read
+          - role: messaging-account-read
+      comment: Per account, what stops its delivery reports (and Messenger's Get Started) from reaching Step
+    - name: messaging_fake_provider_messages
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/fake-provider/messages
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+      comment: Development only. The messages harvest's fake provider routes took, with their delivery reports, without email HTML (has_html says there is one); fails when the routes aren't mounted (MESSAGING_FAKE_PROVIDER_ROUTES)
+    - name: messaging_fake_provider_message
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/fake-provider/message
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: '{"id": {{$body.input.id}}}'
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+      comment: Development only. One message the fake provider routes took, with its email HTML (capped); fails when it is no longer in the list or the routes aren't mounted
+    - name: messaging_fake_provider_get_started
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/fake-provider/meta/messenger/get-started
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: '{"link": {{$body.input.link}}}'
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+      comment: Development only. Stands in for a voter's Get Started tap on an m.me link; answers with the webhook component's status
+    - name: messaging_event_stats
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/messaging/event-stats
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-config-read
+      comment: Per-channel delivery counts of an election event, by latest attempt
+    - name: messaging_voter_counts
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/messaging/voter-counts
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-config-read
+      comment: An election event's voters per channel, as last counted, with when
+    - name: messaging_recount_voters
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/recount-voters
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-config-read
+      comment: Asks for a recount of an election event's voters per channel
+    - name: messaging_audience_preview
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/messaging/audience-preview
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-config-read
+      comment: Per channel, the voters a notice reaches and the account it sends from (Send Notification)
+    - name: messaging_monthly_volumes
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/messaging/monthly-volumes
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-read
+          - role: messaging-config-read
+      comment: Attempts handed to a provider in a month, by channel, account, country and billing category
+    - name: find_applications_by_support_reference
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/applications/support-reference
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: application-read
+      comment: The applications of an event whose support reference is the one searched
     - name: delete_role
       definition:
           kind: synchronous
@@ -544,6 +1089,7 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+          - role: role-write
     - name: delete_user
       definition:
           kind: synchronous
@@ -744,6 +1290,20 @@ actions:
           - role: logs-export
           - role: election-event-read
           - role: logs-read
+    - name: export_tenant_logs
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-tenant-logs
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tenant-logs-export
+      comment: Export the tenant log
     - name: export_election_event_tasks
       definition:
           kind: synchronous
@@ -1120,6 +1680,7 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+          - role: user-permission-read
       comment: list permissions
     - name: get_realm_attributes
       definition:
@@ -1163,10 +1724,10 @@ actions:
       permissions:
           - role: admin-user
           - role: document-password-read
-    - name: get_private_key
+    - name: get_custody_request
       definition:
           kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/get-private-key
+          handler: http://{{HARVEST_DOMAIN}}/get-custody-request
           forward_client_headers: true
           headers:
               - name: X-Hasura-Admin-Secret
@@ -1180,7 +1741,7 @@ actions:
       permissions:
           - role: trustee-ceremony
           - role: admin-user
-      comment: get private key
+      comment: download the public trustee custody request
     - name: get_roles
       definition:
           kind: ""
@@ -1194,6 +1755,7 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+          - role: role-read
     - name: get_top_votes_by_ip
       definition:
           kind: ""
@@ -1350,7 +1912,6 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
-          - role: election-event-read
           - role: election-event-write
           - role: area-write
           - role: admin-user
@@ -1369,6 +1930,20 @@ actions:
               version: 2
       permissions:
           - role: communication-template-write
+          - role: admin-user
+    - name: apply_configuration_package
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/apply-configuration-package
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tenant-write
           - role: admin-user
     - name: import_tenant_config
       definition:
@@ -1448,6 +2023,121 @@ actions:
       permissions:
           - role: user
       comment: insert_cast_vote
+    - name: receive_ballot
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/receive-ballot
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: receive_ballot
+    - name: audit_ballot
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/audit-ballot
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+          - role: cast-vote
+    - name: cast_ballot
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/cast-ballot
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: cast_ballot
+    - name: vitrine_voter_context
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/vitrine/voter-context
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: What the booth must hold before encrypting in an election event with transparency
+    - name: vitrine_voter_forward
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/vitrine/voter-forward
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: Forwards a private event's receipt upgrades and openings for the voter's own ballots
+    - name: get_transparency
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/vitrine/transparency
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-event-transparency-tab
+          - role: admin-user
+      comment: "The Transparency tab: the event's mode, Vitrine logs and policy"
+    - name: enable_transparency
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/vitrine/enable-transparency
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-event-transparency-tab
+          - role: admin-user
+      comment: Sets the event's transparency mode, creating its Vitrine logs
+    - name: upload_transparency_policy
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/vitrine/upload-transparency-policy
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-event-transparency-tab
+          - role: admin-user
+      comment: Installs the event's sealed, signed policy in its Vitrine logs
     - name: limit_access_by_countries
       definition:
           kind: synchronous
@@ -1477,13 +2167,16 @@ actions:
                         "limit": {{$body.input?.limit}},
                         "offset": {{$body.input?.offset}},
                         "filter": {{$body.input?.filter}},
-                        "order_by": {{$body.input?.order_by}}
+                        "order_by": {{$body.input?.order_by}},
+                        "election_id": {{$body.input?.election_id}},
+                        "area_ids": {{$body.input?.area_ids}}
                       }
               template_engine: Kriti
               version: 2
       permissions:
           - role: logs-read
           - role: admin-user
+          - role: tenant-logs-read
       comment: List Electoral Log
     - name: list_cast_vote_messages
       definition:
@@ -1526,6 +2219,21 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+    - name: locate_ballot
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/locate-ballot
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+          - role: unauthorized
+      comment: Look up one of the voter's own cast ballots, or anyone a published audited ballot, while checks are open
     - name: manage_election_dates
       definition:
           kind: synchronous
@@ -1581,10 +2289,24 @@ actions:
               version: 2
       permissions:
           - role: report-read
-    - name: restore_private_key
+    - name: authorize_tally_custody
       definition:
           kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/restore-private-key
+          handler: http://{{HARVEST_DOMAIN}}/authorize-tally-custody
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input.object}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustee-ceremony
+          - role: admin-user
+    - name: custody_proof_signature_status
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/custody-proof-signature-status
           forward_client_headers: true
           request_transform:
               body:
@@ -1608,6 +2330,20 @@ actions:
               version: 2
       permissions:
           - role: miru-send
+    - name: record_transmission_download
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/miru/record-download
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: miru-download
+      comment: Record a download of a transmission package's file in its log and the election event's log
     - name: set_custom_urls
       definition:
           kind: synchronous
@@ -1622,6 +2358,21 @@ actions:
       permissions:
           - role: election-event-write
           - role: admin-user
+    - name: set_google_service_account_key
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/set-google-service-account-key
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tenant-write
+          - role: admin-user
+      comment: store the tenant Google service account key in the vault
     - name: set_role_permission
       definition:
           kind: synchronous
@@ -1635,6 +2386,7 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+          - role: role-write
     - name: set_user_role
       definition:
           kind: synchronous
@@ -1910,6 +2662,636 @@ actions:
           - role: admin-user
           - role: tally-sheet-import-review
       comment: review_tally_sheet_import
+    - name: monitoringListDashboards
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/list-dashboards
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-view
+      comment: List an election event's monitoring dashboards
+    - name: monitoringGetDashboard
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/get-dashboard
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-view
+      comment: Get one monitoring dashboard with what its widgets need
+    - name: monitoringRenderWidget
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/render-widget
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-view
+          - role: monitoring-configure
+      comment: Draw one monitoring widget
+    - name: monitoringValidateConfig
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/validate-config
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-configure
+      comment: Check a monitoring configuration document
+    - name: monitoringListPresets
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/list-presets
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-configure
+      comment: List the monitoring presets
+    - name: monitoringListConfig
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/list-config
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-configure
+      comment: List an event's monitoring configuration documents
+    - name: monitoringGetConfig
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/get-config
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-configure
+      comment: Get a monitoring configuration document and its history
+    - name: monitoringSaveConfig
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/save-config
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-configure
+      comment: Save or remove a monitoring configuration document
+    - name: monitoringResetToPreset
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/reset-to-preset
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-configure
+      comment: Reset an event's monitoring configuration to a preset
+    - name: monitoringSetMode
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/set-mode
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-configure
+      comment: Switch the Dashboard tab between the legacy and the configured dashboards
+    - name: monitoringExport
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/export
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-view
+      comment: Export a monitoring dashboard's figures as CSV or SQL
+    - name: signingCheckCertificate
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-requests
+          forward_client_headers: true
+          request_transform:
+              method: POST
+              url: "{{$base_url}}/{{$body.input.request_id}}/check-certificate"
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: sign-initialize-voting
+          - role: sign-open-voting
+          - role: sign-close-voting
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: sign-transmit-results
+          - role: sign-approve-voter
+          - role: sign-approve-configuration
+          - role: sign-key-ceremony
+          - role: sign-tally-key
+      comment: Dry-run every certificate check of a signing request for the signer's chain
+    - name: signingImportIssuers
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-issuers
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: signing-issuers-write
+      comment: Import trusted issuers of staff signatures (PEM, or a DER certificate in base64)
+    - name: signingDeleteIssuer
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-issuers
+          forward_client_headers: true
+          request_transform:
+              method: DELETE
+              url: "{{$base_url}}/{{$body.input.issuer_id}}"
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: signing-issuers-write
+      comment: Remove a trusted issuer of staff signatures
+    - name: signingPutChecks
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-checks
+          forward_client_headers: true
+          request_transform:
+              method: PUT
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: signing-checks-write
+      comment: Save an election event's certificate checks
+    - name: signingRegisterCertificate
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/staff-certificates
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: signing-certificates-register
+      comment: Register a staff certificate to a person, or link it to the same person's second account
+    - name: signingRevokeCertificate
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/staff-certificates
+          forward_client_headers: true
+          request_transform:
+              method: POST
+              url: "{{$base_url}}/{{$body.input.certificate_id}}/revoke"
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: signing-certificates-revoke
+      comment: Revoke a registered staff certificate
+    - name: signingGetRequest
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/signing-requests/get
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: sign-initialize-voting
+          - role: sign-open-voting
+          - role: sign-close-voting
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: sign-transmit-results
+          - role: sign-approve-voter
+          - role: sign-approve-configuration
+          - role: sign-key-ceremony
+          - role: sign-tally-key
+          - role: signing-requests-read
+      comment: "A signing request's panel: the request, its rule, who signed and who can sign"
+    - name: signingApprove
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-requests/approve
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: sign-initialize-voting
+          - role: sign-open-voting
+          - role: sign-close-voting
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: sign-transmit-results
+          - role: sign-approve-voter
+          - role: sign-approve-configuration
+          - role: sign-key-ceremony
+          - role: sign-tally-key
+      comment: Sign a signing request with a staff certificate
+    - name: signingOpenFailure
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-requests/open-failures
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: sign-initialize-voting
+          - role: sign-open-voting
+          - role: sign-close-voting
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: sign-transmit-results
+          - role: sign-approve-voter
+          - role: sign-approve-configuration
+          - role: sign-key-ceremony
+          - role: sign-tally-key
+      comment: Log that a certificate file didn't open, without the file or its password
+    - name: signingHandover
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-requests/handover
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: sign-initialize-voting
+          - role: sign-open-voting
+          - role: sign-close-voting
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: sign-transmit-results
+          - role: sign-approve-voter
+          - role: sign-approve-configuration
+          - role: sign-key-ceremony
+          - role: sign-tally-key
+      comment: Log that the next member signs on this computer
+    - name: signingCancel
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-requests/cancel
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: signing-requests-cancel
+          - role: sign-initialize-voting
+          - role: sign-open-voting
+          - role: sign-close-voting
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: sign-transmit-results
+          - role: sign-approve-voter
+          - role: sign-approve-configuration
+          - role: sign-key-ceremony
+          - role: sign-tally-key
+          - role: admin-ceremony
+          - role: election-state-write
+          - role: report-read
+          - role: miru-create
+          - role: application-write
+          - role: publish-write
+          - role: trustee-ceremony
+      comment: Cancel a waiting signing request
+    - name: signingExportRequests
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-requests/export
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: signing-requests-export
+      comment: Export an election event's signing requests as CSV
+    - name: signingPutRule
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-rules/put
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: signing-rules-write
+      comment: Save the signing rule of a protected action
+    - name: signingRuleCapacity
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/signing-rules/capacity
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: signing-rules-read
+      comment: How many people can sign a protected action in each Post
+    - name: signingEventInfo
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/signing-event-info
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: signing-rules-read
+          - role: signing-certificates-read
+          - role: signing-requests-read
+          - role: sign-initialize-voting
+          - role: sign-open-voting
+          - role: sign-close-voting
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: sign-transmit-results
+          - role: sign-approve-voter
+          - role: sign-approve-configuration
+          - role: sign-key-ceremony
+          - role: sign-tally-key
+      comment: "The election event's time zone and, for a reader of the certificates, the signers' titles"
+    - name: signingHeldReportRequests
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/signing-reports/requests
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: signing-requests-read
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: report-read
+          - role: miru-create
+          - role: miru-send
+      comment: Safe held-report request references, filtered by action permissions and Post labels
+    - name: signingPdfPrepare
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-requests/pdf-prepare
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+      comment: Prepare the PDF revision a signer's certificate signs
+    - name: apply_schedule_recompute
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/apply-schedule-recompute
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: scheduled-event-write
+          - role: admin-user
+      comment: Apply scheduled dates recomputed with the current timezone database
+    - name: preview_schedule_import
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/preview-schedule-import
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: scheduled-event-write
+          - role: election-event-write
+          - role: admin-user
+      comment: Preview an uploaded schedule CSV and its resulting scheduled outcomes
+    - name: import_schedule
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/import-schedule
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: scheduled-event-write
+          - role: election-event-write
+          - role: admin-user
+      comment: Import a clean schedule CSV and log changed scheduled outcomes
+    - name: export_schedule
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-schedule
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: scheduled-event-write
+          - role: election-event-write
+          - role: admin-user
+      comment: Export the schedule in the CSV import columns
+    - name: get_scheduled_outcomes
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/get-scheduled-outcomes
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: election-event-read
+      comment: Read scheduled outcomes and authoritative retained signed closes
+    - name: preview_scheduled_outcome_change
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/preview-scheduled-outcome-change
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: election-event-read
+      comment: Preview the outcomes of a scheduled event policy or rule change
+    - name: save_lifecycle_policies
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/save-lifecycle-policies
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: election-event-write
+      comment: Save lifecycle policies and log their changed scheduled outcomes
+    - name: get_lifecycle_snapshots
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/get-lifecycle-snapshots
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: election-event-read
+      comment: Read trusted lifecycle snapshots per Post and event
 custom_types:
     enums:
         - name: EarlyVotingPolicy
@@ -1964,6 +3346,17 @@ custom_types:
               - description: null
                 is_deprecated: null
                 value: TELEPHONE
+        - name: RestorePrivateKeyOutcome
+          values:
+              - description: null
+                is_deprecated: null
+                value: ALREADY_RESTORED
+              - description: null
+                is_deprecated: null
+                value: INVALID
+              - description: null
+                is_deprecated: null
+                value: RESTORED
     input_objects:
         - name: TemplateInput
         - name: ElectoralLogFilter
@@ -1974,8 +3367,8 @@ custom_types:
         - name: CreateKeysCeremonyInput
         - name: ElectionEventStatsInput
         - name: ElectionStatsInput
-        - name: GetPrivateKeyInput
-        - name: CheckPrivateKeyInput
+        - name: GetCustodyRequestInput
+        - name: ConfirmKeyCustodyInput
         - name: GetPermissionsInput
         - name: GetRolesInput
         - name: EditUsersInput
@@ -1986,7 +3379,8 @@ custom_types:
         - name: CreatePermissionInput
         - name: GetManualVerificationInput
         - name: KeycloakRole2
-        - name: RestorePrivateKeyInput
+        - name: AuthorizeTallyCustodyInput
+        - name: CustodyProofSignatureStatusInput
         - name: UserProfileAttributesInput
         - name: EventListFilter
         - name: EventListOrderBy
@@ -1996,17 +3390,51 @@ custom_types:
         - name: ApplicationChangeStatusBody
         - name: ImportOptions
         - name: CountUsersInput
+        - name: SigningRoleChangesInput
     objects:
+        - name: VitrineCast
+        - name: VitrineVoterContext
+        - name: VitrineForwardOutput
+        - name: TransparencyOutput
+        - name: BallotPrivacyPayload
+        - name: TrusteeBoard
+        - name: TrusteeBoardsOutput
+        - name: TrusteeReportOutput
+        - name: MonitoringSnapshot
+        - name: MonitoringDashboardSummary
+        - name: MonitoringPresetName
+        - name: MonitoringListDashboardsOutput
+        - name: MonitoringDocumentRef
+        - name: MonitoringScopeOption
+        - name: MonitoringPostOption
+        - name: MonitoringScopeOptions
+        - name: MonitoringGetDashboardOutput
+        - name: MonitoringProblem
+        - name: MonitoringQueryTable
+        - name: MonitoringRenderWidgetOutput
+        - name: MonitoringValidateConfigOutput
+        - name: MonitoringSaveConfigOutput
+        - name: MonitoringGenerationOutput
+        - name: MonitoringSetModeOutput
+        - name: MonitoringPreset
+        - name: MonitoringListPresetsOutput
+        - name: MonitoringAuthor
+        - name: MonitoringDocumentSummary
+        - name: MonitoringPresetRef
+        - name: MonitoringListConfigOutput
+        - name: MonitoringHistoryEntry
+        - name: MonitoringGetConfigOutput
+        - name: MonitoringExportOutput
         - name: GetManualVerificationOutput
         - name: GetRealmAttributesOutput
         - name: UpdateRealmAttributesOutput
         - name: CreateKeysCeremonyOutput
-        - name: GetPrivateKeyOutput
+        - name: GetCustodyRequestOutput
         - name: CastVotesPerDay
         - name: VotersByChannel
         - name: ElectionEventStatsOutput
         - name: ElectionStatsOutput
-        - name: CheckPrivateKeyOutput
+        - name: ConfirmKeyCustodyOutput
         - name: TemplateOutput
         - name: FetchDocumentOutput
         - name: ScheduledEventOutput
@@ -2016,6 +3444,7 @@ custom_types:
         - name: VoterCastVote
         - name: CastVoteEntry
         - name: ListCastVoteMessagesOutput
+        - name: LocateBallotOutput
         - name: DataListElectoralLog
         - name: ScheduledEventOutput2
         - name: ScheduledEventOutput3
@@ -2047,11 +3476,16 @@ custom_types:
         - name: StartTallyOutput
         - name: PublishBallotOutput
         - name: UpdateEventVotingStatusOutput
+        - name: SkippedElection
         - name: UpdateElectionVotingStatusOutput
         - name: BallotPublicationStyles
         - name: GetBallotPublicationChangesOutput
-        - name: RestorePrivateKeyOutput
+        - name: AuthorizeTallyCustodyOutput
+        - name: CustodyProofSignatureStatusOutput
         - name: InsertCastVoteOutput
+        - name: ReceiveBallotOutput
+        - name: AuditBallotOutput
+        - name: CastBallotOutput
         - name: createBallotReceiptOutput
         - name: OptionalImportEvent
         - name: ManageElectionDatesOutput
@@ -2073,6 +3507,7 @@ custom_types:
         - name: DeleteElectionEvent
         - name: ExportTasksExecutionOutput
         - name: createTransmissionPackageOutput
+        - name: RecordTransmissionDownloadOutput
         - name: GetEventListOutput
         - name: EventListRow
         - name: DataEventList
@@ -2095,6 +3530,7 @@ custom_types:
         - name: applicationOutput
         - name: ExportTrusteesOutput
         - name: SetVoterAuthenticationOutput
+        - name: ApplyConfigurationPackageOutput
         - name: ImportTenantOutput
         - name: ExportElectionEventOutput
         - name: GenerateTemplateOutput
@@ -2105,6 +3541,7 @@ custom_types:
         - name: UpsertAreaOutput
         - name: ExportTallyResultsOutput
         - name: GenerateGoogleMeetOutput
+        - name: SetGoogleServiceAccountKeyOutput
         - name: GeneratePreviewUrlOutput
         - name: ImportCertificateAuthorityOutput
         - name: DeleteCertificateAuthorityOutput
@@ -2117,4 +3554,57 @@ custom_types:
         - name: RevokeResultsPublicationOutput
         - name: VoterInformationLetterOutput
         - name: DocumentPasswordOutput
+        - name: SigningCheckCertificateOutput
+        - name: SigningImportIssuersOutput
+        - name: SigningIssuerIdOutput
+        - name: SigningPutChecksOutput
+        - name: SigningCertificateIdOutput
+        - name: SigningGetRequestOutput
+        - name: SigningApproveOutput
+        - name: SigningRequestIdOutput
+        - name: SigningExportOutput
+        - name: SigningPutRuleOutput
+        - name: SigningRuleCapacityOutput
+        - name: SigningEventInfoOutput
+        - name: SigningHeldReportRequestsOutput
+        - name: SigningRequestSummary
+        - name: SigningPdfPrepareOutput
+        - name: ApprovalMatrixOutput
+        - name: ApprovalMatrixError
+        - name: EvaluateApprovalMatrixOutput
+        - name: ScheduleWarning
+        - name: ApplyScheduleRecomputeOutput
+        - name: ScheduleImportRow
+        - name: SchedulePreviewOutput
+        - name: ImportScheduleOutput
+        - name: ExportScheduleOutput
+        - name: GetScheduledOutcomesOutput
+        - name: PreviewScheduledOutcomeChangeOutput
+        - name: SaveLifecyclePoliciesOutput
+        - name: GetLifecycleSnapshotsOutput
+        - name: MessagingAccountOutput
+        - name: ReplaceMessagingAccountCredentialsOutput
+        - name: CheckMessagingAccountOutput
+        - name: TestMessagingAccountOutput
+        - name: UpdateEventMessagingConfigOutput
+        - name: MessagingAccountCallbackUrlOutput
+        - name: MessagingCallbackStatusOutput
+        - name: MessagingAccountCallbackStatus
+        - name: MessagingEventStatsOutput
+        - name: MessagingChannelStats
+        - name: MessagingAudiencePreviewOutput
+        - name: MessagingAudienceChannel
+        - name: MessagingVoterCountStatus
+        - name: MessagingVoterCountsOutput
+        - name: MessagingVoterChannel
+        - name: MessagingRecountVotersOutput
+        - name: MessagingMonthlyVolumesOutput
+        - name: MessagingMonthlyVolume
+        - name: FindApplicationsBySupportReferenceOutput
+        - name: MessagingFakeProviderMessagesOutput
+        - name: MessagingFakeProviderMessage
+        - name: MessagingFakeProviderContent
+        - name: MessagingFakeProviderParameter
+        - name: MessagingFakeProviderReport
+        - name: MessagingFakeProviderGetStartedOutput
     scalars: []

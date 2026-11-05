@@ -25,7 +25,7 @@ const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     display: flex;
     flex-direction: row;
     gap: 16px;
-    font-size: 36px;
+    font-size: 2.25rem;
     justify-content: center;
 `
 

@@ -1,0 +1,216 @@
+{
+  "charts": {
+    "bars": {
+      "query": "data",
+      "sort": {
+        "by": "position",
+        "order": "asc"
+      },
+      "style": {
+        "marks": {
+          "bar": {
+            "labels": {
+              "format": "percent",
+              "visible": true
+            }
+          }
+        },
+        "number_format": "percent",
+        "orientation": "horizontal"
+      },
+      "type": "bar",
+      "x": "group",
+      "y": "pct",
+      "y_label": "Share"
+    }
+  },
+  "queries": {
+    "data": {
+      "columns": [
+        "group",
+        "group_key",
+        "position",
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          "18-24",
+          "18-24",
+          1,
+          2,
+          84,
+          0.023809523809523808,
+          "2.4%"
+        ],
+        [
+          "25-39",
+          "25-39",
+          2,
+          1,
+          51,
+          0.0196078431372549,
+          "2.0%"
+        ],
+        [
+          "40-59",
+          "40-59",
+          3,
+          14,
+          119,
+          0.11764705882352941,
+          "11.8%"
+        ],
+        [
+          "60+",
+          "60+",
+          4,
+          1,
+          73,
+          0.0136986301369863,
+          "1.4%"
+        ],
+        [
+          "Unknown",
+          "__unknown__",
+          5,
+          1,
+          94,
+          0.010638297872340425,
+          "1.1%"
+        ]
+      ]
+    }
+  },
+  "rows": [
+    "bars"
+  ],
+  "style": {
+    "accent": "#0F054C",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "axis_quantitative": {
+        "labels": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "color": {
+        "categorical": {
+          "palette": [
+            "#0F054C",
+            "#43E3A1",
+            "#7C6FE0",
+            "#F59E0B",
+            "#0EA5E9",
+            "#DC2626"
+          ],
+          "single_series_palette": [
+            "#0F054C"
+          ]
+        }
+      },
+      "kpi": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        },
+        "value": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "visible": false
+        }
+      },
+      "pie": {
+        "total": {
+          "value": {
+            "font": {
+              "family": "'Inter Variable', Inter, system-ui, sans-serif"
+            }
+          }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 220
+        }
+      },
+      "support_table": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "font": {
+      "family": "'Inter Variable', Inter, system-ui, sans-serif"
+    },
+    "footer": {
+      "visible": false
+    },
+    "text": {
+      "font": {
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none",
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    }
+  },
+  "theme": "clarity"
+}

@@ -1,0 +1,430 @@
+{
+  "charts": {
+    "failed": {
+      "label": "Transmission errors",
+      "query": "failed",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "type": "kpi",
+      "value": "transmission_failed"
+    },
+    "posts": {
+      "conditional_formatting": {
+        "state_label": {
+          "when": [
+            {
+              "background": "negative.bg",
+              "eq": "Transmission failed"
+            }
+          ]
+        }
+      },
+      "query": "posts",
+      "style": {
+        "columns": {
+          "position": {
+            "visible": false
+          },
+          "post": {
+            "label": "Post"
+          },
+          "post_id": {
+            "visible": false
+          },
+          "posts": {
+            "visible": false
+          },
+          "region": {
+            "label": "Region"
+          },
+          "state": {
+            "visible": false
+          },
+          "state_label": {
+            "label": "Status"
+          }
+        },
+        "pagination": {
+          "enabled": false
+        }
+      },
+      "title": "Posts",
+      "type": "table"
+    },
+    "progress": {
+      "query": "progress",
+      "type": "spark_bar",
+      "x": "value",
+      "y": "label"
+    },
+    "tallied": {
+      "label": "Vote counting done",
+      "query": "tallied",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "support": {
+        "label": "of Posts",
+        "value": "pct_label"
+      },
+      "type": "kpi",
+      "value": "numerator"
+    },
+    "transmitted": {
+      "label": "Results transmitted",
+      "query": "transmitted",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "support": {
+        "label": "of Posts",
+        "value": "pct_label"
+      },
+      "type": "kpi",
+      "value": "numerator"
+    }
+  },
+  "queries": {
+    "failed": {
+      "columns": [
+        "transmission_failed"
+      ],
+      "values": [
+        [
+          3
+        ]
+      ]
+    },
+    "posts": {
+      "columns": [
+        "post",
+        "post_id",
+        "region",
+        "state",
+        "state_label",
+        "position",
+        "posts"
+      ],
+      "values": [
+        [
+          "Doha",
+          "post-doha",
+          "Middle East",
+          "transmission_failed",
+          "Transmission failed",
+          1,
+          1
+        ],
+        [
+          "Dubai",
+          "post-dubai",
+          "Middle East",
+          "transmitted",
+          "Transmitted",
+          2,
+          1
+        ],
+        [
+          "Kuwait",
+          "post-kuwait",
+          "Middle East",
+          "not_tallied",
+          "Not tallied",
+          3,
+          1
+        ],
+        [
+          "London",
+          "post-london",
+          "Europe",
+          "transmitted",
+          "Transmitted",
+          4,
+          1
+        ],
+        [
+          "Madrid",
+          "post-madrid",
+          "Europe",
+          "not_tallied",
+          "Not tallied",
+          5,
+          1
+        ],
+        [
+          "Riyadh",
+          "post-riyadh",
+          "Unknown",
+          "transmission_failed",
+          "Transmission failed",
+          6,
+          1
+        ],
+        [
+          "Rome",
+          "post-rome",
+          "Europe",
+          "tallied",
+          "Tallied",
+          7,
+          1
+        ],
+        [
+          "Singapore",
+          "post-singapore",
+          "Asia Pacific",
+          "not_tallied",
+          "Not tallied",
+          8,
+          1
+        ],
+        [
+          "Sydney",
+          "post-sydney",
+          "Asia Pacific",
+          "tallied",
+          "Tallied",
+          9,
+          1
+        ],
+        [
+          "Tokyo",
+          "post-tokyo",
+          "Asia Pacific",
+          "transmission_failed",
+          "Transmission failed",
+          10,
+          1
+        ],
+        [
+          "Toronto",
+          "post-toronto",
+          "Americas",
+          "tallied",
+          "Tallied",
+          11,
+          1
+        ],
+        [
+          "Washington",
+          "post-washington",
+          "Americas",
+          "transmitted",
+          "Transmitted",
+          12,
+          1
+        ]
+      ]
+    },
+    "progress": {
+      "columns": [
+        "measure",
+        "label",
+        "position",
+        "value"
+      ],
+      "values": [
+        [
+          "posts",
+          "Posts in scope",
+          1,
+          12
+        ],
+        [
+          "tallied",
+          "Vote counting done",
+          2,
+          9
+        ],
+        [
+          "transmitted",
+          "Results transmitted",
+          3,
+          3
+        ],
+        [
+          "transmission_failed",
+          "Transmission errors",
+          4,
+          3
+        ]
+      ]
+    },
+    "tallied": {
+      "columns": [
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          9,
+          12,
+          0.75,
+          "75.0%"
+        ]
+      ]
+    },
+    "transmitted": {
+      "columns": [
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          3,
+          12,
+          0.25,
+          "25.0%"
+        ]
+      ]
+    }
+  },
+  "rows": [
+    {
+      "cols": [
+        "tallied",
+        "transmitted",
+        "failed"
+      ]
+    },
+    "progress",
+    "posts"
+  ],
+  "style": {
+    "accent": "#0F054C",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "axis_quantitative": {
+        "labels": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "color": {
+        "categorical": {
+          "palette": [
+            "#0F054C",
+            "#43E3A1",
+            "#7C6FE0",
+            "#F59E0B",
+            "#0EA5E9",
+            "#DC2626"
+          ],
+          "single_series_palette": [
+            "#0F054C"
+          ]
+        }
+      },
+      "kpi": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        },
+        "value": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "visible": false
+        }
+      },
+      "pie": {
+        "total": {
+          "value": {
+            "font": {
+              "family": "'Inter Variable', Inter, system-ui, sans-serif"
+            }
+          }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 220
+        }
+      },
+      "support_table": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "font": {
+      "family": "'Inter Variable', Inter, system-ui, sans-serif"
+    },
+    "footer": {
+      "visible": false
+    },
+    "text": {
+      "font": {
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none",
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    }
+  },
+  "theme": "clarity"
+}

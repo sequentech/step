@@ -17,6 +17,12 @@ The SVP monorepo contains packages written in multiple languages and using diffe
 
 Each package's dependencies are listed below with their version, license, and description information.
 
+Cryptographic operations use the supplied `packages/wbraid` workspace through
+`voting-crypto`, `protocol-board` and `trustee`. Its crate manifests and lockfile
+record the native dependency versions; `packages/Cargo.lock` records the versions
+resolved by the application adapters. Electoral logs retain their independent
+immudb storage through `immu-board` and `immudb-rs`.
+
 ## License Compliance
 
 This documentation lists the licenses of all third-party dependencies for compliance and legal review purposes. Please ensure that all license requirements are met when distributing or deploying the Sequent Voting Platform.
@@ -90,35 +96,11 @@ The admin portal is a React-based web application for administrative functions.
 | uuid | 9.0.0 | MIT | RFC9562 UUIDs |
 | web-vitals | ^5.1.0 | Apache-2.0 | Easily measure performance metrics in JavaScript |
 
-## B3
+## wbraid
 
-B3 is a Rust-based component providing cryptographic utilities and core functionality.
-
-| Dependency | Version | License | Description |
-|------------|---------|---------|-------------|
-| anyhow | 1.0 | MIT OR Apache-2.0 | Flexible concrete Error type built on std::error::Error |
-| base64 | 0.22 | MIT OR Apache-2.0 | encodes and decodes base64 as bytes or utf8 |
-| bb8-postgres | 0.9 | MIT | Full-featured async (tokio-based) postgres connection pool (like r2d2) |
-| borsh | 1.5 | MIT OR Apache-2.0 | Binary Object Representation Serializer for Hashing |
-| cfg-if | 1.0 | MIT OR Apache-2.0 | A macro to ergonomically define an item depending on a large number of #[cfg] parameters. Structured like an if-else chain, the first matching branch is the item that gets emitted. |
-| clap | 4.0 | MIT OR Apache-2.0 | A simple to use, efficient, and full-featured Command Line Argument Parser |
-| config | 0.15 | MIT OR Apache-2.0 | Layered configuration system for Rust applications. |
-| futures | 0.3 | MIT OR Apache-2.0 | An implementation of futures and streams featuring zero allocations, composability, and iterator-like interfaces. |
-| hex | 0.4 | MIT OR Apache-2.0 | Encoding and decoding data into/from hexadecimal representation. |
-| log | 0.4 | MIT OR Apache-2.0 | A lightweight logging facade for Rust |
-| prost | 0.13 | Apache-2.0 | A Protocol Buffers implementation for the Rust Language. |
-| rayon | 1.5 | MIT OR Apache-2.0 | Simple work-stealing parallelism for Rust |
-| serde | 1.0 | MIT OR Apache-2.0 | A generic serialization/deserialization framework |
-| strum | 0.27 | MIT | Helpful macros for working with enums and strings |
-| tokio | 1.38 | MIT | An event-driven, non-blocking I/O platform for writing asynchronous I/O backed applications. |
-| tokio-postgres | 0.7 | MIT OR Apache-2.0 | A native, asynchronous PostgreSQL client |
-| toml | 0.8 | MIT OR Apache-2.0 | A native Rust encoder and decoder of TOML-formatted files and streams. Provides implementations of the standard Serialize/Deserialize traits for TOML data to facilitate deserializing and serializing Rust structures. |
-| tonic | 0.13 | MIT | A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility. |
-| tracing | 0.1 | MIT | Application-level tracing for Rust. |
-| tracing-attributes | 0.1 | MIT | Procedural macro attributes for automatically instrumenting functions. |
-| tracing-log | 0.2 | MIT | Provides compatibility between `tracing` and the `log` crate. |
-| tracing-subscriber | 0.3 | MIT | Utilities for implementing and composing `tracing` subscribers. |
-| tracing-tree | 0.4 | MIT OR Apache-2.0 | A Tracing Layer which prints a tree of spans and events. |
+Native DKG, mixnet, ballot proofs and cryptographic primitives are supplied by
+`packages/wbraid`. Dependency manifests live in its `crates/*/Cargo.toml` files.
+Application adapters live in `voting-crypto`, `protocol-board` and `trustee`.
 
 ## Ballot Verifier
 
@@ -145,46 +127,6 @@ The ballot verifier is a React-based application for verifying ballot integrity 
 | react-redux | 8.1.2 | MIT | Official React bindings for Redux |
 | react-router | 7.9.5 | MIT | Declarative routing for React |
 | web-vitals | ^5.1.0 | Apache-2.0 | Easily measure performance metrics in JavaScript |
-
-## Braid
-
-Braid is a Rust-based component providing consensus and distributed systems functionality.
-
-| Dependency | Version | License | Description |
-|------------|---------|---------|-------------|
-| anyhow | 1.0 | MIT OR Apache-2.0 | Flexible concrete Error type built on std::error::Error |
-| ascii_table | 4.0 | MIT | Print ASCII tables to the terminal |
-| async-trait | 0.1 | MIT OR Apache-2.0 | Type erasure for async trait methods |
-| base64 | 0.22 | MIT OR Apache-2.0 | encodes and decodes base64 as bytes or utf8 |
-| cfg-if | 1.0 | MIT OR Apache-2.0 | A macro to ergonomically define an item depending on a large number of #[cfg] parameters. Structured like an if-else chain, the first matching branch is the item that gets emitted. |
-| clap | 4.0 | MIT OR Apache-2.0 | A simple to use, efficient, and full-featured Command Line Argument Parser |
-| colored | 3.0 | MPL-2.0 | The most simple way to add colors in your terminal |
-| crepe | 0.1 | MIT OR Apache-2.0 | Datalog in Rust as a procedural macro |
-| getrandom | =0.2 | MIT OR Apache-2.0 | A small cross-platform library for retrieving random data from system source |
-| hex | 0.4 | MIT OR Apache-2.0 | Encoding and decoding data into/from hexadecimal representation. |
-| log | 0.4 | MIT OR Apache-2.0 | A lightweight logging facade for Rust |
-| rand | 0.9 | MIT OR Apache-2.0 | Random number generators and other randomness functionality. |
-| rayon | 1.5 | MIT OR Apache-2.0 | Simple work-stealing parallelism for Rust |
-| reedline-repl-rs | 1.0 | MIT | Library to generate a fancy REPL for your application based on reedline and clap |
-| rusqlite | 0.32 | MIT | Ergonomic wrapper for SQLite |
-| rustc-hash | 2.0 | Apache-2.0 OR MIT | A speedy, non-cryptographic hashing algorithm used by rustc |
-| serde | 1.0 | MIT OR Apache-2.0 | A generic serialization/deserialization framework |
-| serde_json | 1.0 | MIT OR Apache-2.0 | A JSON serialization file format |
-| strum | 0.27 | MIT | Helpful macros for working with enums and strings |
-| thiserror | 2.0 | MIT OR Apache-2.0 | derive(Error) |
-| tikv-jemalloc-ctl | 0.6 | MIT/Apache-2.0 | A safe wrapper over jemalloc's control and introspection APIs |
-| tikv-jemallocator | 0.6 | MIT/Apache-2.0 | A Rust allocator backed by jemalloc |
-| tokio | 1.40 | MIT | An event-driven, non-blocking I/O platform for writing asynchronous I/O backed applications. |
-| toml | 0.8 | MIT OR Apache-2.0 | A native Rust encoder and decoder of TOML-formatted files and streams. Provides implementations of the standard Serialize/Deserialize traits for TOML data to facilitate deserializing and serializing Rust structures. |
-| tonic | 0.13 | MIT | A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility. |
-| tracing | 0.1 | MIT | Application-level tracing for Rust. |
-| tracing-attributes | 0.1 | MIT | Procedural macro attributes for automatically instrumenting functions. |
-| tracing-log | 0.2 | MIT | Provides compatibility between `tracing` and the `log` crate. |
-| tracing-subscriber | 0.3 | MIT | Utilities for implementing and composing `tracing` subscribers. |
-| tracing-tree | 0.4 | MIT OR Apache-2.0 | A Tracing Layer which prints a tree of spans and events. |
-| tracing-wasm | 0.2 | MIT OR Apache-2.0 | tracing subscriber for browser WASM |
-| wasm-bindgen | =0.2 | MIT OR Apache-2.0 | Easy support for interacting between JS and Rust. |
-| wasm-bindgen-rayon | 1.0 | Apache-2.0 | Adapter for using Rayon-based concurrency on the Web |
 
 ## E2e
 
@@ -306,8 +248,6 @@ Sequent Core provides the fundamental libraries and utilities for the Sequent Vo
 | chrono | 0.4 | MIT OR Apache-2.0 | Date and time library for Rust |
 | console_error_panic_hook | 0.1 | Apache-2.0/MIT | A panic hook for `wasm32-unknown-unknown` that logs panics to `console.error` |
 | csv | 1.3.0 | Unlicense/MIT | Fast CSV parsing with support for serde. |
-| curve25519-dalek | =4.1 | BSD-3-Clause | A pure-Rust implementation of group operations on ristretto255 and Curve25519 |
-| ed25519-dalek | =2.1 | BSD-3-Clause | Fast and efficient ed25519 EdDSA key generations, signing, and verification in pure Rust. |
 | handlebars | 6.1 | MIT | Handlebars templating implemented in Rust. |
 | handlebars-chrono | 0.2 | BSD-2-Clause | Handlebars helper for using chrono DateTime |
 | headless_chrome | 1.0 | MIT | Control Chrome programmatically |
@@ -379,45 +319,6 @@ Step CLI provides command-line interface tools for managing the Sequent Voting P
 | tokio | 1.38 | MIT | An event-driven, non-blocking I/O platform for writing asynchronous I/O backed applications. |
 | tokio-postgres | 0.7 | MIT OR Apache-2.0 | A native, asynchronous PostgreSQL client |
 | uuid | 1.5 | Apache-2.0 OR MIT | A library to generate and parse UUIDs. |
-
-## Strand
-
-Strand provides cryptographic protocols and zero-knowledge proof capabilities.
-
-| Dependency | Version | License | Description |
-|------------|---------|---------|-------------|
-| base64 | 0.22.1 | MIT OR Apache-2.0 | encodes and decodes base64 as bytes or utf8 |
-| borsh | 1.5 | MIT OR Apache-2.0 | Binary Object Representation Serializer for Hashing |
-| cfg-if | 1.0 | MIT OR Apache-2.0 | A macro to ergonomically define an item depending on a large number of #[cfg] parameters. Structured like an if-else chain, the first matching branch is the item that gets emitted. |
-| chacha20poly1305 | 0.10 | Apache-2.0 OR MIT | Pure Rust implementation of the ChaCha20Poly1305 Authenticated Encryption with Additional Data Cipher (RFC 8439) with optional architecture-specific hardware acceleration. Also contains implementations of the XChaCha20Poly1305 extended nonce variant of ChaCha20Poly1305, and the reduced-round ChaCha8Poly1305 and ChaCha12Poly1305 lightweight variants. |
-| curve25519-dalek | =4.1 | BSD-3-Clause | A pure-Rust implementation of group operations on ristretto255 and Curve25519 |
-| ecdsa | 0.16 | Apache-2.0 OR MIT | Pure Rust implementation of the Elliptic Curve Digital Signature Algorithm (ECDSA) as specified in FIPS 186-4 (Digital Signature Standard), providing RFC6979 deterministic signatures as well as support for added entropy |
-| ed25519-dalek | =2.1 | BSD-3-Clause | Fast and efficient ed25519 EdDSA key generations, signing, and verification in pure Rust. |
-| generic-array | =0.14 | MIT | Generic types implementing functionality of arrays |
-| getrandom | =0.2 | MIT OR Apache-2.0 | A small cross-platform library for retrieving random data from system source |
-| hex | 0.4 | MIT OR Apache-2.0 | Encoding and decoding data into/from hexadecimal representation. |
-| malachite | 0.6 | LGPL-3.0-only | Arbitrary-precision arithmetic, with efficient algorithms partially derived from GMP, FLINT, and MPFR. |
-| num-bigint | 0.4 | MIT/Apache-2.0 | Big integer implementation for Rust |
-| num-integer | 0.1 | MIT OR Apache-2.0 | Integer traits and functions |
-| num-modular | =0.5 | Apache-2.0 | Implementation of efficient integer division and modular arithmetic operations with generic number types. Supports various backends including num-bigint, etc.. |
-| num-traits | 0.2 | MIT OR Apache-2.0 | Numeric traits for generic mathematics |
-| openssl | 0.10 | Apache-2.0 | OpenSSL bindings |
-| p384 | 0.13 | Apache-2.0 OR MIT | Pure Rust implementation of the NIST P-384 (a.k.a. secp384r1) elliptic curve as defined in SP 800-186 with support for ECDH, ECDSA signing/verification, and general purpose curve arithmetic support. |
-| rand | =0.8 | MIT OR Apache-2.0 | Random number generators and other randomness functionality. |
-| rand_core | 0.9 | MIT OR Apache-2.0 | Core random number generator traits and tools for implementation. |
-| rayon | 1.5 | MIT OR Apache-2.0 | Simple work-stealing parallelism for Rust |
-| rcgen | =0.14.3 | MIT OR Apache-2.0 | Rust X.509 certificate generator |
-| rug | ~1.23 | LGPL-3.0+ | Arbitrary-precision integers, rational, floating-point and complex numbers based on GMP, MPFR and MPC. |
-| rustls-pki-types | =1.13.0 | MIT OR Apache-2.0 | Shared types for the rustls PKI ecosystem |
-| serde | 1.0.215 | MIT OR Apache-2.0 | A generic serialization/deserialization framework |
-| serde-wasm-bindgen | 0.6 | MIT | Native Serde adapter for wasm-bindgen |
-| sha2 | 0.10 | MIT OR Apache-2.0 | Pure Rust implementation of the SHA-2 hash function family including SHA-224, SHA-256, SHA-384, and SHA-512. |
-| sha3 | 0.10 | MIT OR Apache-2.0 | Pure Rust implementation of SHA-3, a family of Keccak-based hash functions including the SHAKE family of eXtendable-Output Functions (XOFs), as well as the accelerated variant TurboSHAKE |
-| thiserror | 2.0 | MIT OR Apache-2.0 | derive(Error) |
-| wasm-bindgen | =0.2.100 | MIT OR Apache-2.0 | Easy support for interacting between JS and Rust. |
-| wasm-bindgen-rayon | 1.3 | Apache-2.0 | Adapter for using Rayon-based concurrency on the Web |
-| web-sys | 0.3 | MIT OR Apache-2.0 | Bindings for all Web APIs, a procedurally generated crate from WebIDL |
-| x509-parser | 0.17.0 | MIT OR Apache-2.0 | Parser for the X.509 v3 format (RFC 5280 certificates) |
 
 ## UI Core
 

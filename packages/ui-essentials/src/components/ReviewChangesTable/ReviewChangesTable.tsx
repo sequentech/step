@@ -41,7 +41,7 @@ const ReviewChangesTableStyles = {
         font-weight: ${({theme}) => theme.typography.fontWeightBold};
     `,
     OldValueCell: styled(TableCell)`
-        opacity: 0.6;
+        color: ${({theme}) => theme.palette.text.secondary};
     `,
 }
 

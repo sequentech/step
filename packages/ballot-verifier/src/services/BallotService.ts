@@ -27,6 +27,8 @@ import {
 
 export interface IConfirmationBallot {
     ballot_hash: string
+    /** The ballot's Tracking ID: its hash and the voter's key give it. */
+    tracking_id: string
     election_config: IBallotStyle
     decoded_questions: Array<IDecodedVoteContest>
 }

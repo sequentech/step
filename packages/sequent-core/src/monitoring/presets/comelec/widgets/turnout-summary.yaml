@@ -1,0 +1,58 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The three turnout ratios side by side, each with its numerator, over the
+# voters in the selected scope.
+id: turnout-summary
+title: Voter turnout
+description: Each ratio shows its denominator.
+source: voter_turnout
+requirements: [SW-F-0247, SW-F-0259, SW-F-0260, SW-F-0261, SW-F-0371, SW-F-0372, SW-F-0373]
+queries:
+  totals: {template: summary, measures: [registered, pre_enrolled, voted]}
+  voted_reg: {template: summary, ratio: [voted, registered]}
+  voted_pre: {template: summary, ratio: [voted_pre_enrolled, pre_enrolled]}
+  pre_reg: {template: summary, ratio: [pre_enrolled, registered]}
+height: 260
+chart:
+  charts:
+    registered:
+      type: kpi
+      query: totals
+      value: registered
+      label: Registered
+      style: {value: {format: integer}}
+    pre_enrolled:
+      type: kpi
+      query: totals
+      value: pre_enrolled
+      label: Pre-enrolled
+      style: {value: {format: integer}}
+    voted:
+      type: kpi
+      query: totals
+      value: voted
+      label: Voted
+      style: {value: {format: integer}}
+    voted_reg:
+      type: kpi
+      query: voted_reg
+      value: pct_label
+      label: Voted of registered
+      support: {value: denominator, label: registered, format: integer}
+    voted_pre:
+      type: kpi
+      query: voted_pre
+      value: pct_label
+      label: Voted of pre-enrolled
+      support: {value: denominator, label: pre-enrolled, format: integer}
+    pre_reg:
+      type: kpi
+      query: pre_reg
+      value: pct_label
+      label: Pre-enrolled of registered
+      support: {value: denominator, label: registered, format: integer}
+  rows:
+    - {cols: [registered, pre_enrolled, voted]}
+    - {cols: [voted_reg, voted_pre, pre_reg]}

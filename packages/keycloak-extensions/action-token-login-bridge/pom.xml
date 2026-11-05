@@ -17,7 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<keycloak.version>26.6.1</keycloak.version>
+		<keycloak.version>26.7.0</keycloak.version>
 		<maven.compiler.release>17</maven.compiler.release>
 		<maven.compiler.version>3.14.0</maven.compiler.version>
 		<junit.version>5.13.4</junit.version>
@@ -74,6 +74,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<build>
 		<finalName>${project.groupId}.${project.artifactId}</finalName>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>3.5.5</version>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>

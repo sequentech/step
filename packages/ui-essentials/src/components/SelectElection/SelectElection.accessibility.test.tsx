@@ -103,3 +103,52 @@ it("does not activate a closed election card even if a vote callback exists", ()
     expect(vote).not.toHaveBeenCalled()
     expect(screen.queryByRole("button", {name: "selectElection.voteButton — Council"})).toBeNull()
 })
+
+describe("the vote button of a ballot already cast", () => {
+    const renderCard = (props: Partial<React.ComponentProps<typeof SelectElection>> = {}) =>
+        render(
+            <ThemeProvider theme={theme}>
+                <SelectElection
+                    title="Council"
+                    isActive={false}
+                    isOpen
+                    isStarted
+                    hasVoted
+                    {...props}
+                />
+            </ThemeProvider>
+        )
+    const voteButton = () =>
+        screen.getByRole("button", {name: "selectElection.voteButton — Council"})
+
+    it("says why it is off, to a pointer and to assistive technology", () => {
+        renderCard({alreadyCast: true})
+        expect(voteButton()).toBeDisabled()
+        // A disabled button gets no pointer events, so the element around it carries the title.
+        expect(voteButton().closest("[title]")).toHaveAttribute(
+            "title",
+            "selectElection.alreadyCast"
+        )
+        expect(voteButton()).toHaveAccessibleDescription("selectElection.alreadyCast")
+    })
+
+    it("stays quiet when the card does not say the ballot was cast", () => {
+        renderCard()
+        expect(voteButton()).toBeDisabled()
+        expect(voteButton().closest("[title]")).toBeNull()
+        expect(voteButton()).toHaveAccessibleDescription("")
+    })
+
+    it("stays quiet while the button can be pressed", () => {
+        renderCard({alreadyCast: true, isActive: true, onClickToVote: jest.fn()})
+        expect(voteButton()).toBeEnabled()
+        expect(voteButton().closest("[title]")).toBeNull()
+        expect(voteButton()).toHaveAccessibleDescription("")
+    })
+
+    it("has no button, and no hint, when the election is closed", () => {
+        renderCard({alreadyCast: true, isOpen: false})
+        expect(screen.queryByRole("button", {name: /voteButton/})).toBeNull()
+        expect(screen.queryByText("selectElection.alreadyCast")).toBeNull()
+    })
+})

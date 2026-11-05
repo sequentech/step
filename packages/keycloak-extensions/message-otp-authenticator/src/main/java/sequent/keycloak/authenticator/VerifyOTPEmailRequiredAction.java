@@ -86,7 +86,8 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
     }
 
     String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(Utils.CODE);
-    boolean isValid = Utils.constantTimeIsEqual(enteredCode.getBytes(), code.getBytes());
+    boolean isValid =
+        enteredCode != null && Utils.constantTimeIsEqual(enteredCode.getBytes(), code.getBytes());
     if (isValid) {
       context.getAuthenticationSession().removeAuthNote(Utils.CODE);
       if (Long.parseLong(ttl) < System.currentTimeMillis()) {
@@ -162,7 +163,7 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
               .setAttribute("resendTimer", resendTimer)
               .createForm(TPL_CODE));
     } catch (Exception error) {
-      log.infov("there was an error {0}", error);
+      log.error("Error sending email verification OTP");
       context.failure();
       context.challenge(
           form.setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)

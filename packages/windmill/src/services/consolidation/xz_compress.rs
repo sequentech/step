@@ -28,3 +28,13 @@ pub fn xz_compress(data: &[u8]) -> Result<Vec<u8>> {
     // Return the compressed data
     Ok(compressed_data)
 }
+
+#[instrument(skip_all, err)]
+pub fn xz_decompress(data: &[u8]) -> Result<Vec<u8>> {
+    let mut decompressor = XzDecoder::new(Cursor::new(data));
+    let mut decompressed = Vec::new();
+    decompressor
+        .read_to_end(&mut decompressed)
+        .with_context(|| "Failed to decompress data")?;
+    Ok(decompressed)
+}

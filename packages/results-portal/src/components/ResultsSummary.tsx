@@ -16,7 +16,11 @@ import {
 } from "@mui/material"
 import ReactApexChart, {Props as ApexChartProps} from "react-apexcharts"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
-import {TALLY_RESULTS_PIE_HEIGHT, TALLY_RESULTS_PIE_PANEL_WIDTH} from "@sequentech/ui-essentials"
+import {
+    TALLY_RESULTS_PIE_HEIGHT,
+    TALLY_RESULTS_PIE_PANEL_WIDTH,
+    withEscapedChartText,
+} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {ResultsRow} from "@/types/results"
 import {translatedLabel} from "@/services/resultLabels"
@@ -39,6 +43,13 @@ const sameId = (left: unknown, right: unknown): boolean =>
     right !== null &&
     right !== undefined &&
     String(left) === String(right)
+
+// Apex places its scrollable legend inside an SVG foreignObject; make that
+// region reachable by keyboard after each render so users can scroll its labels.
+const focusableLegend = ({el}: {el: HTMLElement}): void => {
+    const legend = el.querySelector<HTMLElement>(".apexcharts-legend")
+    if (legend) legend.tabIndex = 0
+}
 
 const Chart = ((ReactApexChart as unknown as {default?: React.ComponentType<ApexChartProps>})
     .default ?? ReactApexChart) as React.ComponentType<ApexChartProps>
@@ -96,7 +107,8 @@ const GeneralInformationChart: React.FC<GeneralInformationChartProps> = ({
     }, [result.elegible_census, result.total_voters, t])
     const chartOptions = useMemo<ApexChartProps>(
         () => ({
-            options: {
+            options: withEscapedChartText({
+                chart: {events: {mounted: focusableLegend, updated: focusableLegend}},
                 labels: chartData.map((item) => item.label),
                 legend: {position: "right"},
                 responsive: [
@@ -108,7 +120,7 @@ const GeneralInformationChart: React.FC<GeneralInformationChartProps> = ({
                         },
                     },
                 ],
-            },
+            }),
             series: chartData.map((item) => item.value),
         }),
         [chartData]

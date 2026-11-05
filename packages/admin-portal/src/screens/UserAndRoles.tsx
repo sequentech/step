@@ -52,12 +52,16 @@ export const UserAndRoles: React.FC = () => {
                 {showUsers ? <Tab label={String(t("usersAndRolesScreen.users.title"))} /> : null}
                 {showRoles ? <Tab label={String(t("usersAndRolesScreen.roles.title"))} /> : null}
             </SidebarScreenStyles.Tabs>
-            <SidebarScreenStyles.CustomTabPanel value={value} index={0}>
-                <ListUsers />
-            </SidebarScreenStyles.CustomTabPanel>
-            <SidebarScreenStyles.CustomTabPanel value={value} index={1}>
-                <ListRoles />
-            </SidebarScreenStyles.CustomTabPanel>
+            {showUsers && (
+                <SidebarScreenStyles.CustomTabPanel value={value} index={0}>
+                    <ListUsers />
+                </SidebarScreenStyles.CustomTabPanel>
+            )}
+            {showRoles && (
+                <SidebarScreenStyles.CustomTabPanel value={value} index={showUsers ? 1 : 0}>
+                    <ListRoles />
+                </SidebarScreenStyles.CustomTabPanel>
+            )}
         </>
     )
 }

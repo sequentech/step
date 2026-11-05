@@ -10,12 +10,11 @@
     "event_processor": "{{event_processor}}",
     "cron_config": {
         "cron": null,
-        "scheduled_date": "{{scheduled_date}}"
+        "scheduled_date": "{{scheduled_date}}",
+        "timezone": {{#if timezone}}"{{timezone}}"{{else}}null{{/if}}
     },
     "event_payload": {
-        {{#if election_id}}
-        "election_id": "{{election_id}}"
-        {{/if}}
+        "election_id": {{#if election_id}}"{{election_id}}"{{else}}null{{/if}}
     },
-    "task_id": "tenant_{{tenant_id}}_event_{{election_event_id}}_election_{{election_id}}_{{event_processor}}"
+    "task_id": "tenant_{{tenant_id}}_event_{{election_event_id}}_{{#if election_id}}election_{{election_id}}_{{/if}}{{event_processor}}"
 }

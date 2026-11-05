@@ -2,13 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-export const downloadBlob = async (blob: Blob, name: string) => {
-    let exportUrl = URL.createObjectURL(blob)
-
-    await downloadUrl(exportUrl, name)
-
-    // Optionally, revoke the blob URL after opening if no longer needed:
-    URL.revokeObjectURL(exportUrl)
+export const downloadBlob = async (blob: Blob, name: string): Promise<void> => {
+    const exportUrl = URL.createObjectURL(blob)
+    try {
+        await downloadUrl(exportUrl, name)
+    } finally {
+        // Failed downloads must release the in-memory export as well.
+        URL.revokeObjectURL(exportUrl)
+    }
 }
 
 export const downloadUrl = async (url: string, name: string) => {
@@ -17,6 +18,9 @@ export const downloadUrl = async (url: string, name: string) => {
     link.target = "_blank"
     link.download = name
     document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    try {
+        link.click()
+    } finally {
+        link.remove()
+    }
 }

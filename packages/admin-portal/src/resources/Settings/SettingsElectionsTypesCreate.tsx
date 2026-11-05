@@ -43,11 +43,10 @@ export const SettingsElectionsTypesCreate: React.FC<CreateProps> = (props) => {
         }
     }
 
-    const onError = async (res: any) => {
-        refresh()
-        if (close) {
-            close()
-        }
+    const notify = useNotify()
+
+    const onError = (error: Error) => {
+        notify(error.message, {type: "error"})
     }
 
     return (

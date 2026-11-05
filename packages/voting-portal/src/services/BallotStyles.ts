@@ -8,6 +8,7 @@ import {isString, IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
 import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {checkIsExplicitBlankVote, checkIsInvalidVote} from "./ElectionConfigService"
+import {getSlateConfigurationProblem} from "./Slates"
 
 export class BallotStyleConfigurationError extends Error {
     translationKey: string
@@ -42,6 +43,13 @@ export const getBallotStyleConfigurationError = (
         }
     }
 
+    const slateProblem = getSlateConfigurationProblem(ballotStyle)
+    if (slateProblem !== undefined) {
+        return new BallotStyleConfigurationError("errors.configuration.invalidSlateConfiguration", {
+            reason: slateProblem,
+        })
+    }
+
     return undefined
 }
 
@@ -66,6 +74,7 @@ export const updateBallotStyleAndSelection = (
                 election_event_id: ballotStyle.election_event_id,
                 tenant_id: ballotStyle.tenant_id,
                 ballot_eml: electionData,
+                ballot_eml_text: ballotEml,
                 ballot_signature: ballotStyle.ballot_signature,
                 created_at: ballotStyle.created_at,
                 area_id: ballotStyle.area_id,

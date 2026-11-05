@@ -26,13 +26,29 @@ use tracing::{error, event, info, Level};
 use uuid::Uuid;
 
 #[instrument(err)]
-async fn manage_election_init_report_wrapped(
+pub async fn manage_election_init_report_wrapped(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     scheduled_event_id: String,
     election_id: String,
 ) -> AnyhowResult<()> {
+    // Re-read only after the editor's transaction has released the schedule.
+    lock_scheduled_event(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &scheduled_event_id,
+    )
+    .await?;
+    if get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id)
+        .await?
+        .is_archived
+    {
+        info!("Skipping scheduled transition {scheduled_event_id}: the event is archived");
+        return Ok(());
+    }
+
     let scheduled_event = find_scheduled_event_by_id(
         hasura_transaction,
         Some(tenant_id.clone()),
@@ -48,6 +64,19 @@ async fn manage_election_init_report_wrapped(
             scheduled_event_id
         ));
     };
+    // Queued before the row moved to a later time: it runs then.
+    if crate::tasks::scheduled_events::fires_later(&scheduled_event, chrono::Utc::now()) {
+        info!("Scheduled event {scheduled_event_id} was moved to a later time; it runs then");
+        return Ok(());
+    }
+
+    lock_elections(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        Some(&election_id),
+    )
+    .await?;
 
     let Some(mut election) = get_election_by_id(
         hasura_transaction,

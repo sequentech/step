@@ -36,7 +36,7 @@ pub async fn insert_preview(
     requested_by: &str,
 ) -> Result<()> {
     let document_uuid =
-        Uuid::parse_str(document_id).with_context(|| "Error parsing tenant_id as UUID")?;
+        Uuid::parse_str(document_id).with_context(|| "Error parsing document_id as UUID")?;
 
     let tenant_uuid =
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;

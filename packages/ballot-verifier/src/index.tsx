@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext} from "react"
 import ReactDOM from "react-dom/client"
-import {BrowserRouter, useParams} from "react-router-dom"
+import {BrowserRouter} from "react-router-dom"
 import "./index.css"
 import App from "./App"
 import "./services/i18n"
@@ -16,35 +16,10 @@ import {Provider} from "react-redux"
 import {store} from "./store/store"
 import {WasmWrapper} from "./providers/WasmWrapper"
 
+import {TenantEventContext} from "./providers/TenantEventContext"
+export {TenantEventContext, TenantEventProvider} from "./providers/TenantEventContext"
+
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
-
-interface TenantEventContextValues {
-    tenantId: string | null
-    eventId: string | null
-}
-
-export const TenantEventContext = React.createContext<TenantEventContextValues>({
-    tenantId: null,
-    eventId: null,
-})
-
-// This component will be used to provide tenantId and eventId to the context
-export const TenantEventProvider: React.FC<{
-    tenantId: string | null
-    eventId: string | null
-    children: React.ReactNode
-}> = ({tenantId, eventId, children}) => {
-    console.log(`TenantEventProvider: tenantId=${tenantId}, eventId=${eventId}`)
-    return (
-        <TenantEventContext.Provider value={{tenantId, eventId}}>
-            {children}
-        </TenantEventContext.Provider>
-    )
-}
-interface TenantEventContextValues {
-    tenantId: string | null
-    eventId: string | null
-}
 
 export interface KeycloakProviderProps extends React.PropsWithChildren {
     disable: boolean
@@ -60,20 +35,6 @@ const KeycloakProvider: React.FC<KeycloakProviderProps> = ({disable, children}) 
         <AuthContextProvider>
             <>{children}</>
         </AuthContextProvider>
-    )
-}
-
-export const RouteParameterProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
-    const {tenantId, eventId} = useParams<{tenantId: string; eventId: string}>()
-    console.log(`RouteParameterProvider: tenantId=${tenantId}, eventId=${eventId}`)
-
-    return (
-        <TenantEventProvider
-            tenantId={tenantId ? tenantId : null}
-            eventId={eventId ? eventId : null}
-        >
-            {children}
-        </TenantEventProvider>
     )
 }
 

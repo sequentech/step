@@ -3,15 +3,18 @@
 
 # Voting schedules and publication files
 
-Voting reads use two indexed, canonical START/END schedule lookups. The
-`1788765000002_validate_voting_schedules` migration installs the active-schedule
-indexes and a CHECK constraint for voting-task scope, payload and RFC3339 dates.
-It creates no projection table, maintenance functions or schedule triggers.
-The existing per-voter/election revote trigger remains necessary.
+The `1788765000002_validate_voting_schedules` migration installs the
+active-schedule indexes and a CHECK constraint for voting-task scope, payload
+and RFC3339 dates. `1788765000003_materialize_voting_windows` then keeps each
+election's voting window in `election_voting_window`, maintained by schedule
+triggers in the writing transaction; vote casting reads it by primary key.
+Later migrations make the window follow the schedules' voting channels and the
+event-wide close. The existing per-voter/election revote trigger remains necessary.
 
 ## Migration rollout
 
-Apply `1788765000002_validate_voting_schedules` and
+Apply `1788765000002_validate_voting_schedules`,
+`1788765000003_materialize_voting_windows` and
 `1788909000000_ballot_publication_style_index` before exercising the new generation
 flow. The Hasura migrations create their indexes normally within the migration
 transaction. Index creation blocks writes until the transaction commits; allow
@@ -23,14 +26,13 @@ the invalid configuration before retrying; do not silently discard either
 deadline. If a development database retains an invalid index from an earlier
 concurrent build, remove that invalid index before retrying the migration.
 
-These PR migrations have only been applied in development, not production.
-Version `1788765000002` is therefore edited in place (with its directory renamed
-from `materialize_voting_windows` to `validate_voting_schedules`). There is no
-additional cleanup migration: a fresh installation never creates the obsolete
-voting-window table, its five helper functions, or its three triggers.
+These migrations have only been applied in development, not production.
+Version `1788765000002` is therefore edited in place: it now validates the
+schedules, and the voting-window projection it used to create moved to
+`1788765000003_materialize_voting_windows`.
 
 Development databases that applied the earlier version must roll back that
-version using the original migration files and then apply the revised version.
+version using the original migration files and then apply both versions.
 The same rollback/reapply requirement applies to version `1788909000000` if
 the earlier snapshot-table migration was applied: its revised form creates only
 the publication paging index. Editing or renaming files does not rerun an
@@ -81,7 +83,8 @@ release their database connection before signing five-minute URLs. The two S3
 endpoint clients share one process-level SDK configuration and its refreshable
 credential cache.
 
-Admin Preview uses current event/election metadata and stored ballot styles and opens both event and election
+Admin Preview uses the event and election metadata the publication's files were
+written with, and its stored ballot styles, and opens both event and election
 status only in its exported payload. It commits the preview document before
 reporting task completion and reuses that document on completion retries.
 

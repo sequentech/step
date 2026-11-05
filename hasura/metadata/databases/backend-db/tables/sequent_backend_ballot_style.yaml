@@ -2,6 +2,16 @@ table:
     name: ballot_style
     schema: sequent_backend
 object_relationships:
+    - name: ballot_publication
+      using:
+          manual_configuration:
+              column_mapping:
+                  tenant_id: tenant_id
+                  election_event_id: election_event_id
+                  ballot_publication_id: id
+              remote_table:
+                  name: ballot_publication
+                  schema: sequent_backend
     - name: election
       using:
           manual_configuration:
@@ -13,48 +23,6 @@ object_relationships:
                   name: election
                   schema: sequent_backend
 insert_permissions:
-    - comment: ""
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - ballot_signature
-              - status
-              - annotations
-              - labels
-              - ballot_eml
-              - created_at
-              - deleted_at
-              - last_updated_at
-              - area_id
-              - ballot_publication_id
-              - election_event_id
-              - election_id
-              - id
-              - tenant_id
-      role: admin-user
-    - comment: ""
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - ballot_signature
-              - status
-              - annotations
-              - labels
-              - ballot_eml
-              - created_at
-              - deleted_at
-              - last_updated_at
-              - area_id
-              - ballot_publication_id
-              - election_event_id
-              - election_id
-              - id
-              - tenant_id
-      role: publish-write
     - comment: ""
       permission:
           check: {}
@@ -94,9 +62,37 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: admin-user
+    - comment: ""
+      permission:
+          columns:
+              - area_id
+              - ballot_publication_id
+              - deleted_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
+      role: election-dashboard-tab
     - comment: ""
       permission:
           allow_aggregations: true
@@ -116,8 +112,15 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: publish-read
     - comment: ""
       permission:
@@ -138,8 +141,15 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: publish-write
     - comment: ""
       permission:
@@ -189,56 +199,15 @@ select_permissions:
                         _eq: X-Hasura-Area-Id
                   - election_id:
                         _in: X-Hasura-Authorized-Election-Ids
+                  - deleted_at:
+                        _is_null: true
+                  - ballot_publication:
+                        published_at:
+                            _is_null: false
+                        deleted_at:
+                            _is_null: true
       role: user
 update_permissions:
-    - comment: ""
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - ballot_signature
-              - status
-              - annotations
-              - labels
-              - ballot_eml
-              - created_at
-              - deleted_at
-              - last_updated_at
-              - area_id
-              - ballot_publication_id
-              - election_event_id
-              - election_id
-              - id
-              - tenant_id
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - ballot_signature
-              - status
-              - annotations
-              - labels
-              - ballot_eml
-              - created_at
-              - deleted_at
-              - last_updated_at
-              - area_id
-              - ballot_publication_id
-              - election_event_id
-              - election_id
-              - id
-              - tenant_id
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: publish-write
     - comment: ""
       permission:
           check: {}
@@ -260,18 +229,6 @@ update_permissions:
           filter: {}
       role: service-account
 delete_permissions:
-    - comment: ""
-      permission:
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: publish-write
     - comment: ""
       permission:
           filter: {}

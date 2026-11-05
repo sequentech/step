@@ -4,15 +4,17 @@
 //! Cast votes read from election events' ballot boxes for voters, administrators
 //! and reports.
 
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::cast_votes::CastVoteStatus;
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::protocol_manager::get_event_store;
+use crate::services::electoral_log_board::get_event_store;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use electoral_log::adapters::ballot_box::BallotStatus;
 use electoral_log::adapters::ballot_box_reads::{BallotIdMatch, StoredBallot};
 use electoral_log::adapters::postgres::PostgresStore;
+use sequent_core::ballot::ReceiptsPolicy;
 use serde::Serialize;
 use serde_json::Value;
 use tracing::instrument;
@@ -25,7 +27,7 @@ pub struct EventBallotBox {
 }
 
 /// The ballot box of an election event.
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip_all)]
 pub async fn get_event_ballot_box(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -51,7 +53,7 @@ pub async fn get_event_ballot_box(
 
 /// Ballots of an election's area whose outcome is pending, which the tally refuses
 /// to count.
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip_all)]
 pub async fn count_unresolved_votes(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &Uuid,
@@ -106,6 +108,16 @@ pub struct VoterCastVote {
     pub content: Option<String>,
 }
 
+/// Whether a voter's list of cast votes shows their ballot IDs. With receipts
+/// signed by the ballot box, voters see a ballot's ID only on its receipt and
+/// in the ballot checks.
+fn lists_ballot_ids(policy: &ReceiptsPolicy) -> bool {
+    match policy {
+        ReceiptsPolicy::DISABLED => true,
+        ReceiptsPolicy::SIGNED_BY_BALLOT_BOX => false,
+    }
+}
+
 /// A voter as their token scopes them: one event, one area and some elections.
 #[derive(Debug, Clone, Copy)]
 pub struct VoterScope<'a> {
@@ -130,7 +142,7 @@ pub enum VoterCastVotes<'a> {
 
 /// A voter's cast votes in their area and authorized elections, in the order they
 /// were cast.
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip_all)]
 pub async fn get_voter_cast_votes(
     hasura_transaction: &Transaction<'_>,
     scope: &VoterScope<'_>,
@@ -143,7 +155,30 @@ pub async fn get_voter_cast_votes(
     }
     let ballot_box =
         get_event_ballot_box(hasura_transaction, scope.tenant_id, scope.election_event_id).await?;
-    ballot_box_voter_votes(&ballot_box.store, scope, which).await
+    let event =
+        get_election_event_by_id(hasura_transaction, scope.tenant_id, scope.election_event_id)
+            .await?;
+    let identity = crate::services::vote_privacy::ballot_identity(&event, scope.voter_id).await?;
+    let private_scope = VoterScope {
+        voter_id: &identity,
+        ..*scope
+    };
+    let mut votes = ballot_box_voter_votes(&ballot_box.store, &private_scope, which).await?;
+    if let VoterCastVotes::All = which {
+        let policy =
+            get_election_event_by_id(hasura_transaction, scope.tenant_id, scope.election_event_id)
+                .await?
+                .get_presentation()
+                .map_err(|error| anyhow!("Invalid election event presentation: {error}"))?
+                .unwrap_or_default()
+                .receipts_policy();
+        if !lists_ballot_ids(&policy) {
+            for vote in &mut votes {
+                vote.ballot_id = None;
+            }
+        }
+    }
+    Ok(votes)
 }
 
 fn voter_cast_vote(
@@ -214,6 +249,12 @@ mod tests {
             cast_vote_status(BallotStatus::Rejected),
             CastVoteStatus::Discarded
         );
+    }
+
+    #[test]
+    fn voters_list_ballot_ids_only_without_signed_receipts() {
+        assert!(lists_ballot_ids(&ReceiptsPolicy::DISABLED));
+        assert!(!lists_ballot_ids(&ReceiptsPolicy::SIGNED_BY_BALLOT_BOX));
     }
 
     #[test]

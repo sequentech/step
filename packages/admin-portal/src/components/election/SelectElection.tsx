@@ -5,6 +5,7 @@ import React from "react"
 import {SxProps, Theme} from "@mui/material"
 import {AutocompleteInput, Identifier, ReferenceInput, InputProps} from "react-admin"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {electionSearchFilter} from "@/services/ElectionSearch"
 
 interface SelectElectionProps extends InputProps {
     tenantId: string | null
@@ -27,16 +28,10 @@ const SelectElection = ({
     isRequired,
     disabled,
     value,
+    validate,
 }: SelectElectionProps) => {
     isRequired = isRequired === undefined ? true : isRequired
     const aliasRenderer = useAliasRenderer()
-    const electionFilterToQuery = (searchText: string) => {
-        if (!searchText || searchText.length === 0) {
-            return {name: ""}
-        }
-        return {"name@_ilike,alias@_ilike": searchText.trim()}
-    }
-
     return (
         <ReferenceInput
             fullWidth={true}
@@ -53,14 +48,15 @@ const SelectElection = ({
             required={isRequired}
             value={value}
             defaultValue={value}
-            sort={{field: "alias", order: "ASC"}}
+            sort={{field: "external_id", order: "ASC"}}
         >
             <AutocompleteInput
                 TextFieldProps={{required: isRequired}}
                 label={label}
+                validate={validate}
                 fullWidth={true}
                 optionText={aliasRenderer}
-                filterToQuery={electionFilterToQuery}
+                filterToQuery={electionSearchFilter}
                 onChange={onSelectElection}
                 debounce={300}
                 sx={customStyle as any}

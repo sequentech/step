@@ -1,0 +1,118 @@
+{
+  "description": "Statements that don't say what their entries say: voting-opened (1) has none, voting-closed (2) states its time twice, and the custom milestone (3) states no time. No entry has a sequencing time yet, and what a statement says reads none, so both milestone rules fail at once.",
+  "params": {},
+  "policy": {
+    "authorities": [
+      "board.example+702db4fd+AepKbGPinFIKvvVQexMuxfmVR3auvr57kkIe6mkURtIs"
+    ]
+  },
+  "entries": [
+    "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxAdYAAAZjb25maWcAAAgAAAAAat7sYAAAAQAAAbh2aXRyaW5lL2NvbmZpZy92MQpldmVudCBtdW5pLTIwMjYKZWxlY3Rpb24gbWF5b3IKa2V5IEQwOXdGRWN2cjYxSjRuMEtidXNiQzJ2SldUR0pMdSsxS093RUtPTUtMZ2s9CnN0eWxlcyAwSm1sWkszSG9GYTJaUWhWVTkycW1hb2JCeFBuMUlSRTBSckY4WEhYc09nPQpvcGVucyAxNzkzMDAxNjAwCmNsb3NlcyAxNzkzMDQ0ODAwCnBvbGljeSBzaGEyNTY6ODIzNDEyZDFlYWNiNjc5NTYyMjBlNTMyOTU5ZjAxMDQ2MDMwNTdjODg3MDQ4NjNjYTM4ZTdjZDE4OGZkYTgxMgpyZWxlYXNlIGJvb3RoIDEuMC4wCnRyYW5zcGFyZW5jeSBwdWJsaWMKZGVtbyBubwp0aW1lIDE3OTI5OTQ0MDAKCuKAlCBib2FyZC5leGFtcGxlIGNDMjAvWGlUWmlOVys2NFplSXIvOHl4WGVySytqVEZnRlFSc281TG9heXZWQ0IycGNTVHNiOW5uVVdVbHRCMmxJRzFQOUt4bTVxczRmdWhMUlhTb1pzOVdVZzg9CgAAAA==",
+    "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxACUAAA12b3Rpbmctb3BlbmVkAAAIAAAAAGrfCIAAAAEAAAAAAAAA",
+    "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxAPwAAA12b3RpbmctY2xvc2VkAAAIAAAAAGrfsUAAAAEAAADXdml0cmluZS9taWxlc3RvbmUvdjEKZXZlbnQgbXVuaS0yMDI2CmtpbmQgdm90aW5nLWNsb3NlZAp0aW1lIDE3OTMwNDQ4MDAKdGltZSAxNzkzMDQ0ODAwCmNvdW50IG1heW9yIDQyCgrigJQgYm9hcmQuZXhhbXBsZSBjQzIwL2VMSm9XTGlIY0dvZzF3NlgzS1JXdHI5OFo0ZFRsZHk3ZVR3ZEppVkJpZGpsYUhwWlU0WnQ4MDRlYVVzc2N3MHZXVklRNXZHZzZXR3pyNnFoVHdRcEFjPQoAAAA=",
+    "GnZpdHJpbmUvZWxlY3Rpb24vZXZlbnRzL3YxAMkAAAltaWxlc3RvbmUAAAgAAAAAat/NYAAAAQAAAKh2aXRyaW5lL21pbGVzdG9uZS92MQpldmVudCBtdW5pLTIwMjYKa2luZCB0YWxseS1zdGFydGVkCgrigJQgYm9hcmQuZXhhbXBsZSBjQzIwL1ZqaERkY2pyeDQrVnk2bGVxd3FCT20raUFGTEcweGtTZHQvejN4UEkrcHdQaFBHQW96ZnIzS2pTQitVVmVsbi9zVDJkSER2dVk2S2J0Vm14TzBHb1FFPQoAAAA="
+  ],
+  "sequenced": [
+    null,
+    null,
+    null,
+    null
+  ],
+  "fields": [
+    [
+      {
+        "name": "kind",
+        "value": "config"
+      },
+      {
+        "name": "time",
+        "value": "1792994400"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/config/v1\nevent muni-2026\nelection mayor\nkey D09wFEcvr61J4n0KbusbC2vJWTGJLu+1KOwEKOMKLgk=\nstyles 0JmlZK3HoFa2ZQhVU92qmaobBxPn1IRE0RrF8XHXsOg=\nopens 1793001600\ncloses 1793044800\npolicy sha256:823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812\nrelease booth 1.0.0\ntransparency public\ndemo no\ntime 1792994400\n\n— board.example cC20/XiTZiNW+64ZeIr/8yxXerK+jTFgFQRso5LoayvVCB2pcSTsb9nnUWUltB2lIG1P9Kxm5qs4fuhLRXSoZs9WUg8=\n"
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ],
+    [
+      {
+        "name": "kind",
+        "value": "voting-opened"
+      },
+      {
+        "name": "time",
+        "value": "1793001600"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": null
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ],
+    [
+      {
+        "name": "kind",
+        "value": "voting-closed"
+      },
+      {
+        "name": "time",
+        "value": "1793044800"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/milestone/v1\nevent muni-2026\nkind voting-closed\ntime 1793044800\ntime 1793044800\ncount mayor 42\n\n— board.example cC20/eLJoWLiHcGog1w6X3KRWtr98Z4dTldy7eTwdJiVBidjlaHpZU4Zt804eaUsscw0vWVIQ5vGg6WGzr6qhTwQpAc=\n"
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ],
+    [
+      {
+        "name": "kind",
+        "value": "milestone"
+      },
+      {
+        "name": "time",
+        "value": "1793052000"
+      },
+      {
+        "name": "subject",
+        "value": "none"
+      },
+      {
+        "name": "statement",
+        "value": "vitrine/milestone/v1\nevent muni-2026\nkind tally-started\n\n— board.example cC20/VjhDdcjrx4+Vy6leqwqBOm+iAFLG0xkSdt/z3xPI+pwPhPGAozfr3KjSB+UVeln/sT2dHDvuY6KbtVmxO0GoQE=\n"
+      },
+      {
+        "name": "details",
+        "value": null
+      }
+    ]
+  ],
+  "rules": {
+    "milestones": "failing",
+    "one-closed": "passing",
+    "one-opened": "passing",
+    "other-milestones": "failing",
+    "vitrine/parse": "passing"
+  }
+}

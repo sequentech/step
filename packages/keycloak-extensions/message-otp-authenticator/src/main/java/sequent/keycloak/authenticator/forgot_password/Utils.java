@@ -9,7 +9,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import jakarta.ws.rs.core.MultivaluedMap;
 import java.io.BufferedReader;
-import java.io.InputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -38,9 +38,14 @@ import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.util.JsonSerialization;
+import sequent.keycloak.authenticator.MessageOTPAuthenticator;
+import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
+import sequent.keycloak.authenticator.messaging.MessageReason;
+import sequent.keycloak.authenticator.messaging.NoticeRecipient;
 
 @UtilityClass
 @JBossLog
@@ -77,6 +82,15 @@ public class Utils {
 
   public static final String MATCH_POLICY_DEFAULT =
       MultiAttributeCredentialResolver.MatchPolicy.REJECT_AMBIGUOUS.name();
+
+  /**
+   * Selects {@link MultiAttributeCredentialResolver.SharedCandidateFailurePolicy}. Defaults to
+   * {@code CHARGE_VIABLE_CANDIDATES}.
+   */
+  public static final String SHARED_CANDIDATE_FAILURE_POLICY = "sharedCandidateFailurePolicy";
+
+  public static final String SHARED_CANDIDATE_FAILURE_POLICY_DEFAULT =
+      MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.CHARGE_VIABLE_CANDIDATES.name();
 
   /**
    * Opt-in: makes each configured {@code matchAttributes} entry's required-ness - both for the
@@ -117,6 +131,7 @@ public class Utils {
   public final String PASSWORD_EXPIRATION_USER_ATTRIBUTE = "passwordExpirationUserAttribute";
   public final String PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT =
       "sequent.read-only.expirationDate";
+  public final String NEW_PASSWORD_MESSAGE_KEY = "newPassword.message.text";
   public final String NEW_PASSWORD_EMAIL_SUBJECT = "newPassword.email.subject";
   public final String NEW_PASSWORD_EMAIL_FTL = "forgot-password-send-new-password.ftl";
 
@@ -148,7 +163,7 @@ public class Utils {
     if (mapConfig == null
         || !mapConfig.containsKey(configKey)
         || mapConfig.get(configKey).strip().length() == 0) {
-      log.debugv("getString(): NullOrNotFound mapConfig={0}", mapConfig);
+      log.debugv("getString(): missing configuration for {0}", configKey);
       return defaultValue;
     }
     return mapConfig.get(configKey);
@@ -166,7 +181,7 @@ public class Utils {
     if (mapConfig == null
         || !mapConfig.containsKey(configKey)
         || mapConfig.get(configKey).strip().length() == 0) {
-      log.debugv("getMultivalueString(): NullOrNotFound mapConfig={0}", mapConfig);
+      log.debugv("getMultivalueString(): missing configuration for {0}", configKey);
       return defaultValue;
     }
 
@@ -186,7 +201,7 @@ public class Utils {
     if (mapConfig == null
         || !mapConfig.containsKey(configKey)
         || mapConfig.get(configKey).strip().length() == 0) {
-      log.debugv("getInt(): NullOrNotFound mapConfig={0}", mapConfig);
+      log.debugv("getInt(): missing configuration for {0}", configKey);
       return Integer.parseInt(defaultValue);
     }
     return Integer.parseInt(mapConfig.get(configKey));
@@ -204,7 +219,7 @@ public class Utils {
     if (mapConfig == null
         || !mapConfig.containsKey(configKey)
         || mapConfig.get(configKey).strip().length() == 0) {
-      log.debugv("getBoolean(): NullOrNotFound mapConfig={0}", mapConfig);
+      log.debugv("getBoolean(): missing configuration for {0}", configKey);
       return defaultValue;
     }
     return Boolean.parseBoolean(mapConfig.get(configKey));
@@ -221,7 +236,37 @@ public class Utils {
         getInt(config, MAX_CANDIDATES, MAX_CANDIDATES_DEFAULT),
         getInt(config, TUPLE_MAX_FAILURES, TUPLE_MAX_FAILURES_DEFAULT),
         getInt(config, TUPLE_FAILURE_WINDOW_SECONDS, TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT),
-        getInt(config, MAX_ATTRIBUTE_LOOKUP_RESULTS, MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT));
+        getInt(config, MAX_ATTRIBUTE_LOOKUP_RESULTS, MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT),
+        MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.fromString(
+            getString(
+                config, SHARED_CANDIDATE_FAILURE_POLICY, SHARED_CANDIDATE_FAILURE_POLICY_DEFAULT)));
+  }
+
+  /**
+   * Admin-console property for {@link #SHARED_CANDIDATE_FAILURE_POLICY}, shared by {@link
+   * MultiAttributePasswordAuthenticator} and {@link
+   * MultiAttributePasswordDirectGrantAuthenticator}.
+   */
+  public ProviderConfigProperty sharedCandidateFailurePolicyProperty() {
+    ProviderConfigProperty property =
+        new ProviderConfigProperty(
+            SHARED_CANDIDATE_FAILURE_POLICY,
+            "Shared-candidate failure policy",
+            "How a failed attempt is recorded when the submitted values still match more than one"
+                + " enabled, non-locked-out account. CHARGE_VIABLE_CANDIDATES (default): the"
+                + " failure counts toward Brute Force Detection for each of those accounts, so they"
+                + " follow the realm's lockout settings like a username/password login; a mistyped"
+                + " credential can then also delay other voters who share the same values."
+                + " TUPLE_ONLY: only the per-combination failure limit counts the failure, and no"
+                + " account is charged.",
+            ProviderConfigProperty.LIST_TYPE,
+            SHARED_CANDIDATE_FAILURE_POLICY_DEFAULT);
+    property.setOptions(
+        List.of(
+            MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.CHARGE_VIABLE_CANDIDATES
+                .name(),
+            MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.TUPLE_ONLY.name()));
+    return property;
   }
 
   /** Reads {@link #MATCH_POLICY}, defaulting to the safe {@code REJECT_AMBIGUOUS}. */
@@ -353,21 +398,74 @@ public class Utils {
     return Strings.isNullOrEmpty(realm.getDisplayName()) ? realm.getName() : realm.getDisplayName();
   }
 
-  public static void sendNewPasswordNotification(
-      KeycloakSession session, UserModel user, String temporaryPassword) throws EmailException {
-    log.infov("sendNewPasswordNotification(): to user with email={0}", user.getEmail());
+  /**
+   * Sends a temporary password on the voter's one channel. A failure is recorded and the password
+   * is never sent elsewhere.
+   *
+   * @return empty when the password was handed over (harvest took it or may have sent it: ACCEPTED,
+   *     QUEUED, DELIVERED, UNKNOWN; or Keycloak's provider sent it); otherwise the reason it
+   *     wasn't, and the caller must not set it
+   */
+  public static Optional<String> sendNewPasswordNotification(
+      KeycloakSession session, UserModel user, String temporaryPassword)
+      throws EmailException, IOException {
+    log.info("sendNewPasswordNotification(): start");
     RealmModel realm = session.getContext().getRealm();
-    EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
     String realmName = getRealmName(realm);
-    List<Object> subjAttr = ImmutableList.of(realmName);
-    Map<String, Object> bodyAttr = Maps.newHashMap();
-    bodyAttr.put("realmName", realmName);
-    bodyAttr.put("temporaryPassword", temporaryPassword);
-    emailTemplateProvider
-        .setRealm(realm)
-        .setUser(user)
-        .setAttribute("realmName", realmName)
-        .send(Utils.NEW_PASSWORD_EMAIL_SUBJECT, subjAttr, Utils.NEW_PASSWORD_EMAIL_FTL, bodyAttr);
+    sequent.keycloak.authenticator.Utils.NoticeOutcome outcome =
+        sequent.keycloak.authenticator.Utils.sendNotice(
+            session,
+            realm,
+            user,
+            NoticeRecipient.fromUser(user, MessageOTPAuthenticator.MOBILE_NUMBER_FIELD),
+            sequent.keycloak.authenticator.Utils.MessageCourier.CHOSEN,
+            user.getEmail(),
+            user.getFirstAttribute(MessageOTPAuthenticator.MOBILE_NUMBER_FIELD),
+            NEW_PASSWORD_MESSAGE_KEY,
+            () -> List.of(realmName, temporaryPassword),
+            null);
+    if (outcome.keycloak().isEmpty()) {
+      return outcome.handedOver() ? Optional.empty() : Optional.of(outcome.failureReason());
+    }
+    sequent.keycloak.authenticator.Utils.KeycloakNotice notice = outcome.keycloak().get();
+    switch (notice.courier()) {
+      case EMAIL -> {
+        EmailTemplateProvider emailTemplateProvider =
+            session.getProvider(EmailTemplateProvider.class);
+        List<Object> subjAttr = ImmutableList.of(realmName);
+        Map<String, Object> bodyAttr = Maps.newHashMap();
+        bodyAttr.put("realmName", realmName);
+        bodyAttr.put("temporaryPassword", temporaryPassword);
+        emailTemplateProvider
+            .setRealm(realm)
+            .setUser(user)
+            .setAttribute("realmName", realmName)
+            .send(
+                Utils.NEW_PASSWORD_EMAIL_SUBJECT, subjAttr, Utils.NEW_PASSWORD_EMAIL_FTL, bodyAttr);
+        return Optional.empty();
+      }
+      case SMS -> {
+        SmsSenderProvider sms = session.getProvider(SmsSenderProvider.class);
+        if (sms.sendsOnlyCodes()) {
+          log.warnv(
+              "sendNewPasswordNotification(): not sent: {0}",
+              MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason());
+          return Optional.of(MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason());
+        }
+        sms.send(
+            notice.mobileNumber(),
+            NEW_PASSWORD_MESSAGE_KEY,
+            List.of(realmName, temporaryPassword),
+            realm,
+            user,
+            session);
+        return Optional.empty();
+      }
+      default -> {
+        log.warn("sendNewPasswordNotification(): no channel; not sent");
+        return Optional.of(MessageReason.NO_CONTACT_CHANNEL.reason());
+      }
+    }
   }
 
   public boolean validateRecaptcha(
@@ -377,6 +475,7 @@ public class Utils {
       String secret,
       Double minScore) {
     log.info("validateRecaptcha()");
+    success = false;
     HttpClient httpClient =
         context.getSession().getProvider(HttpClientProvider.class).getHttpClient();
     HttpPost post = new HttpPost(Utils.RECAPTCHA_SITE_VERIFY_URL);
@@ -384,36 +483,29 @@ public class Utils {
     formparams.add(new BasicNameValuePair("secret", secret));
     formparams.add(new BasicNameValuePair("response", captcha));
     formparams.add(new BasicNameValuePair("remoteip", context.getConnection().getRemoteAddr()));
-    log.debugv("validateRecaptcha(): secret={0},  captcha={1}", secret, captcha);
     try {
       UrlEncodedFormEntity form = new UrlEncodedFormEntity(formparams, "UTF-8");
       post.setEntity(form);
       HttpResponse response = httpClient.execute(post);
-      InputStream content = response.getEntity().getContent();
-      InputStreamReader isr = new InputStreamReader(content);
-      BufferedReader br = new BufferedReader(isr);
-      StringBuilder result = new StringBuilder();
-      String line;
-      while ((line = br.readLine()) != null) {
-        result.append(line);
-      }
-      log.debugv("recaptcha result = {0}", result.toString());
-      try {
-        Object scoreObj = JsonSerialization.readValue(result.toString(), Map.class).get("score");
+      try (BufferedReader br =
+          new BufferedReader(
+              new InputStreamReader(response.getEntity().getContent(), StandardCharsets.UTF_8))) {
+        StringBuilder result = new StringBuilder();
+        String line;
+        while ((line = br.readLine()) != null) {
+          result.append(line);
+        }
+        Map<?, ?> verification = JsonSerialization.readValue(result.toString(), Map.class);
+        Object scoreObj = verification.get("score");
         Double userScore = Double.parseDouble((scoreObj != null) ? scoreObj.toString() : "0");
         log.infov(
             "validateRecaptcha() userScore[{0}] > minScore[{1}] = [{2}]",
             userScore, minScore, (userScore > minScore));
-        if (userScore > minScore) {
-          success = true;
-        } else {
-          success = false;
-        }
-      } finally {
-        content.close();
+        success = Boolean.TRUE.equals(verification.get("success")) && userScore > minScore;
       }
     } catch (Exception error) {
-      log.infov("validateRecaptcha(): error {0}", error);
+      success = false;
+      log.error("reCAPTCHA verification failed");
     }
     return success;
   }

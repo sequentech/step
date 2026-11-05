@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import type {ElementType} from "react"
 import {css} from "@emotion/react"
 import {styled} from "@mui/material/styles"
 import AddIcon from "@mui/icons-material/Add"
@@ -115,10 +116,10 @@ export const MenuStyles = {
             border-bottom-color: ${adminTheme.palette.secondary.main};
         }
     `,
-    StyledNavLinkButton: styled(Typography)`
+    StyledNavLinkButton: styled(Typography)<{component?: ElementType; type?: "button"}>`
         flex-grow: 1;
-        padding-top: 0.275rem;
-        padding-bottom: 0.275rem;
+        padding: 0.275rem 0;
+        border: 0;
         border-bottom-width: 2px;
         border-bottom-color: white;
         cursor: pointer;

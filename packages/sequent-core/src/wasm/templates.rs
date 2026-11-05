@@ -41,7 +41,11 @@ extern "C" {
 const ITemplate_METHOD: &'static str = r#"
 enum ITemplateMethod {
     EMAIL = "EMAIL",
-    SMS = "SMS"
+    SMS = "SMS",
+    DOCUMENT = "DOCUMENT",
+    WHATSAPP = "WHATSAPP",
+    VIBER = "VIBER",
+    MESSENGER = "MESSENGER"
 }
 "#;
 
@@ -122,6 +126,8 @@ interface ISendTemplateBody {
     document?: string;
     extra_config?: IExtraConfig;
     secret_attribute_names?: Array<string>;
+    schedule_local?: string;
+    schedule_timezone?: string;
 }
 "#;
 

@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: req-0259
+title: Voted vs registered
+description: OVs who voted, of the registered OVs.
+section: Voter turnout
+requirements: [SW-F-0259, SW-F-0371]
+order: 10
+selectors: [region, post, country]
+layout:
+  - {widget: turnout-summary, width: 12}
+  - {widget: turnout-by-group, width: 12, values: {measure: voted_reg}}
+  - {widget: turnout-by-post, width: 6, values: {measure: voted_reg}}
+  - {widget: turnout-by-country, width: 6, values: {measure: voted_reg}}

@@ -2,11 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{authorize, cast_vote_read_elections};
+use crate::services::dependencies::HarvestServices;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
@@ -15,7 +17,6 @@ use windmill::services::cast_votes::{
     get_count_distinct_voters_by_channel, get_count_votes_per_day,
     CastVotesPerDay, VotersByChannel, VotesTimeResolution,
 };
-use windmill::services::database::get_hasura_pool;
 use windmill::services::election_statistics::get_count_areas;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -38,11 +39,12 @@ pub struct ElectionStatsOutput {
     votes_per_day: Vec<CastVotesPerDay>,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/election/stats", format = "json", data = "<body>")]
 pub async fn get_election_stats(
     body: Json<ElectionStatsInput>,
     claims: JwtClaims,
+    services: &State<HarvestServices>,
 ) -> Result<Json<ElectionStatsOutput>, (Status, String)> {
     authorize(
         &claims,
@@ -53,8 +55,13 @@ pub async fn get_election_stats(
     let input = body.into_inner();
     let tenant_id: String = claims.hasura_claims.tenant_id.clone();
 
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|err| {
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(|err| {
             (
                 Status::InternalServerError,
                 format!("Error loading hasura db client: {err}"),
@@ -68,11 +75,19 @@ pub async fn get_election_stats(
             )
         })?;
 
+    let elections = cast_vote_read_elections(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        Some(&input.election_id),
+    )
+    .await?;
+
     let voters_by_channel = get_count_distinct_voters_by_channel(
         &hasura_transaction,
         tenant_id.as_str(),
         input.election_event_id.as_str(),
-        Some(input.election_id.as_str()),
+        elections.as_deref(),
     )
     .await
     .map_err(|err| {
@@ -104,7 +119,7 @@ pub async fn get_election_stats(
         &input.election_event_id.as_str(),
         &input.start_date.as_str(),
         &input.end_date.as_str(),
-        Some(input.election_id),
+        elections.as_deref(),
         &input.user_timezone.as_str(),
         input.time_resolution,
         input.bucket_count,

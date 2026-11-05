@@ -67,6 +67,78 @@
         "attributes": {}
       },
       {
+        "id": "5f0c3a1e-7d2b-4c1e-9a36-0b8e6f4d2c71",
+        "name": "monitoring-view",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "89f2e054-8f27-480a-80fc-b5ed6b0af2da",
+        "name": "messaging-account-read",
+        "description": "Read messaging accounts",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "3e155ea9-0f8a-48b5-b9a7-79d21607933f",
+        "name": "messaging-account-write",
+        "description": "Manage messaging accounts",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "cec178ea-90e7-468c-b18b-d12a76a87851",
+        "name": "messaging-config-write",
+        "description": "Configure election event messaging",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6d0f3b52-8e4a-4c71-9a2e-5b7c1d9e3f80",
+        "name": "messaging-config-read",
+        "description": "Read election event messaging",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a8e41b93-2f6c-4d0a-8b57-3c9d1e7f5a24",
+        "name": "monitoring-configure",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7ef827ec-e625-4199-a8c0-c964b853ad72",
+        "name": "readiness-check",
+        "description": "Verify election readiness",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "3d9f6c52-8a1b-4e7d-b2c4-6f0a9e1d7b35",
+        "name": "approval-matrix-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "f34f29e7-0ce5-4051-9149-3b0e1f86f32c",
         "name": "admin-ip-address-view",
         "description": "",
@@ -762,6 +834,15 @@
         "attributes": {}
       },
       {
+        "id": "3b0f6c1e-5d2a-4e7b-9a41-8c6d2f0e7a15",
+        "name": "election-event-transparency-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "7f9d0130-c877-490d-9c23-c05e18061672",
         "name": "election-event-ivr-tab",
         "description": "",
@@ -944,6 +1025,24 @@
       {
         "id": "f26aa3b9-40b6-4745-8b95-e961995ddd62",
         "name": "logs-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5d0c7e0b-6a57-4f3e-9a1e-2c4b8f6d3a91",
+        "name": "tenant-logs-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b132f94a-7507-4e18-81c2-078fb6323088",
+        "name": "tenant-logs-export",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -2056,6 +2155,236 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id": "34a89fda-8239-4cd0-a66c-ea1eea868093",
+        "name": "election-event-signatures-tab",
+        "description": "Election Event Signatures Tab",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "41ec5160-fe0f-404e-bf4c-757544e362df",
+        "name": "signing-rules-read",
+        "description": "Signatures: read protected actions",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "61db495a-d8bc-492b-a505-468487f3de80",
+        "name": "signing-rules-write",
+        "description": "Signatures: edit protected actions",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "41a3a64b-b258-493a-a5af-5272b94216e1",
+        "name": "signing-certificates-read",
+        "description": "Signatures: read certificates",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "1f9595c1-31d6-4182-a680-fad95948d832",
+        "name": "signing-issuers-write",
+        "description": "Signatures: import and remove trusted issuers",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "4fd3e11e-a8e8-43ce-a603-28a1fee11bba",
+        "name": "signing-checks-write",
+        "description": "Signatures: edit certificate checks",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5e4d7482-d2f1-49d5-8d28-aba462882f0c",
+        "name": "signing-certificates-register",
+        "description": "Signatures: register certificates",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "73b4afef-1596-41ad-8c4c-bce9a680884c",
+        "name": "signing-certificates-revoke",
+        "description": "Signatures: revoke certificates",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ca09d410-5bcc-4a0b-bc06-fd48518431cf",
+        "name": "signing-requests-read",
+        "description": "Signatures: read requests",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ed5aee2a-dd4e-48b8-be70-7aff1c23d946",
+        "name": "signing-requests-cancel",
+        "description": "Signatures: cancel requests",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5d20306a-da26-4d58-8616-0348e6774663",
+        "name": "signing-requests-export",
+        "description": "Signatures: export requests",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "18312560-64d6-4ed0-9ee7-c6738ce54f78",
+        "name": "sign-initialize-voting",
+        "description": "Sign: initialize voting",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e6e1dd48-1a64-4d32-8b99-b67176af1ac6",
+        "name": "sign-open-voting",
+        "description": "Sign: open voting",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "41b091f2-6ec9-4e5d-ac92-312d6e8d09fd",
+        "name": "sign-close-voting",
+        "description": "Sign: close voting",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "633f46f2-0062-46dd-b53c-47fcfcac15cf",
+        "name": "sign-generate-election-returns",
+        "description": "Sign: generate election returns",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "01439b73-d6ea-4df8-b2a5-16926a80a6bd",
+        "name": "sign-generate-reports",
+        "description": "Sign: generate other election reports",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "92ae7717-e221-4563-a8db-d271002ad4ce",
+        "name": "sign-transmit-results",
+        "description": "Sign: transmit results",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "2a9af4dd-d11b-44c1-8916-31c0084bb1c1",
+        "name": "sign-approve-voter",
+        "description": "Sign: approve a voter manually",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "80ad12db-a566-4400-a14a-2bf09c49e245",
+        "name": "sign-approve-configuration",
+        "description": "Sign: approve a configuration version",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6d44ec97-33ea-4a03-b155-76cb191fc610",
+        "name": "sign-key-ceremony",
+        "description": "Sign: confirm custody",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e004425b-71da-4e36-9b24-6ff783c24716",
+        "name": "sign-tally-key",
+        "description": "Sign: authorize tally custody",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ad96ea2f-f147-5de4-b6f4-c36bb54f4354",
+        "name": "projects-read",
+        "description": "Projects planning permission",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "2437da66-286f-50a3-a729-25c6b8899c3b",
+        "name": "projects-write",
+        "description": "Projects planning permission",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c3875b1e-779f-56a7-b005-920f2952aec5",
+        "name": "projects-manage",
+        "description": "Projects planning permission",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "name": "forensic-read",
+        "description": "Read isolated forensic network data",
+        "composite": false,
+        "clientRole": false,
+        "attributes": {}
+      },
+      {
+        "name": "voter-pseudonym-resolve",
+        "description": "Resolve a voter pseudonym with an audited reason",
+        "composite": false,
+        "clientRole": false,
+        "attributes": {}
       }
     ],
     "client": {
@@ -2477,6 +2806,7 @@
         "keycloak-realm-attributes-read",
         "keycloak-realm-attributes-write",
         "election-event-cas-tab",
+        "election-event-transparency-tab",
         "ca-read",
         "ca-write",
         "tally-sheet-create",
@@ -2517,6 +2847,14 @@
         "document-download",
         "default-roles-electoral-process",
         "admin-dashboard-view",
+        "monitoring-view",
+        "monitoring-configure",
+        "approval-matrix-write",
+        "readiness-check",
+        "messaging-account-read",
+        "messaging-account-write",
+        "messaging-config-write",
+        "messaging-config-read",
         "tally-write",
         "trustee-write",
         "notification-send",
@@ -2525,6 +2863,7 @@
         "election-event-approvals-tab",
         "candidate-delete",
         "logs-read",
+        "tenant-logs-export",
         "electoral-log-audit",
         "electoral-log-console-read",
         "electoral-log-console-query",
@@ -2541,6 +2880,7 @@
         "election-event-publish-tab",
         "voter-write",
         "settings-menu",
+        "tenant-logs-read",
         "role-assign",
         "voting-channel-read",
         "tally-sheet-review",
@@ -2673,7 +3013,31 @@
         "phone-blacklist-read",
         "phone-blacklist-create",
         "phone-blacklist-update",
-        "phone-blacklist-delete"
+        "phone-blacklist-delete",
+        "election-event-signatures-tab",
+        "signing-rules-read",
+        "signing-rules-write",
+        "signing-certificates-read",
+        "signing-issuers-write",
+        "signing-checks-write",
+        "signing-certificates-register",
+        "signing-certificates-revoke",
+        "signing-requests-read",
+        "signing-requests-cancel",
+        "signing-requests-export",
+        "sign-initialize-voting",
+        "sign-open-voting",
+        "sign-close-voting",
+        "sign-generate-election-returns",
+        "sign-generate-reports",
+        "sign-transmit-results",
+        "sign-approve-voter",
+        "sign-approve-configuration",
+        "sign-key-ceremony",
+        "sign-tally-key",
+        "projects-read",
+        "projects-write",
+        "projects-manage"
       ],
       "clientRoles": {}
     },
@@ -2685,7 +3049,6 @@
       "attributes": {},
       "realmRoles": [
         "election-event-publish-tab",
-        "admin-user",
         "publish-write",
         "publish-results-write",
         "election-event-read",
@@ -2703,12 +3066,16 @@
       "realmRoles": [
         "default-roles-electoral-process",
         "admin-dashboard-view",
+        "monitoring-view",
+        "messaging-account-read",
+        "messaging-config-read",
         "support-material-write",
         "tally-write",
         "user-write",
         "election-event-write",
         "election-event-ivr-tab",
         "election-event-cas-tab",
+        "election-event-transparency-tab",
         "ca-read",
         "ca-write",
         "notification-send",
@@ -2761,6 +3128,7 @@
         "user-create",
         "voter-read",
         "tenant-create",
+        "tenant-delete",
         "election-type-write",
         "publish-write",
         "publish-results-write",
@@ -2789,7 +3157,6 @@
         "trustee-read",
         "keys-read",
         "logs-read",
-        "admin-user",
         "election-event-read",
         "election-event-keys-tab",
         "election-event-tally-tab",
@@ -2862,9 +3229,6 @@
       "lastName": "admin",
       "emailVerified": false,
       "attributes": {
-        "sequent.read-only.otp-method": [
-          "email-or-sms"
-        ],
         "permission_labels": [],
         "tenant-id": [
           "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
@@ -2873,18 +3237,10 @@
       "createdTimestamp": 1692312554121,
       "enabled": true,
       "totp": false,
-      "credentials": [
-        {
-          "id": "b98710ec-159b-481b-8754-f590d4b51a3d",
-          "type": "password",
-          "userLabel": "My password",
-          "createdDate": 1692312568967,
-          "secretData": "{\"value\":\"SW4FREDiEBx0/8Nkmv35NWMMJTq9Ikui20VGDrSp/N8uVmygEX4Nmg9J613O4tApGP4KCc6tgz2LiRQNC1KBnQ==\",\"salt\":\"O+lcM4K2AuQWC0FveCb5Zw==\",\"additionalParameters\":{}}",
-          "credentialData": "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
-        }
-      ],
       "disableableCredentialTypes": [],
-      "requiredActions": [],
+      "requiredActions": [
+        "UPDATE_PASSWORD"
+      ],
       "realmRoles": [
         "permission-label-write",
         "default-roles-electoral-process"
@@ -2899,9 +3255,6 @@
       "username": "api-user",
       "emailVerified": false,
       "attributes": {
-        "sequent.read-only.otp-method": [
-          "email-or-sms"
-        ],
         "locale": [
           "en"
         ],
@@ -2912,16 +3265,6 @@
       "createdTimestamp": 1721744057416,
       "enabled": true,
       "totp": false,
-      "credentials": [
-        {
-          "id": "2f016e01-f315-47ed-8315-e9108af25cf4",
-          "type": "password",
-          "userLabel": "My password",
-          "createdDate": 1721744083814,
-          "secretData": "{\"value\":\"z899TgCXlt4bJac+ftqLmM9Mb7NlO27U/DWQ03UTiuqNTujYITEZjNgfvkSvvIMzMri67WQlBf4x1+soZ5plBw==\",\"salt\":\"KBU/wUiXire1mObV6DKWiQ==\",\"additionalParameters\":{}}",
-          "credentialData": "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
-        }
-      ],
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
@@ -2940,7 +3283,6 @@
       "enabled": true,
       "totp": false,
       "serviceAccountClientId": "api-key-client",
-      "credentials": [],
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
@@ -2956,8 +3298,12 @@
       "createdTimestamp": 1698268913186,
       "enabled": true,
       "totp": false,
+      "attributes": {
+        "tenant-id": [
+          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
+        ]
+      },
       "serviceAccountClientId": "service-account",
-      "credentials": [],
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
@@ -2979,9 +3325,6 @@
       "firstName": "Test Trustee",
       "emailVerified": false,
       "attributes": {
-        "sequent.read-only.otp-method": [
-          "email-or-sms"
-        ],
         "trustee": [
           "trustee1"
         ],
@@ -2992,16 +3335,6 @@
       "createdTimestamp": 1701889059568,
       "enabled": true,
       "totp": false,
-      "credentials": [
-        {
-          "id": "82fc85b6-c9e1-4467-ac39-42253716918e",
-          "type": "password",
-          "userLabel": "My password",
-          "createdDate": 1701889197738,
-          "secretData": "{\"value\":\"lTIoesFs6mERPN9xKKMTK3/RN4O0ziiIqkbEHm4aubY=\",\"salt\":\"WwfZ4JUKW/x2lnAzOSVl4A==\",\"additionalParameters\":{}}",
-          "credentialData": "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
-        }
-      ],
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
@@ -3030,16 +3363,6 @@
       "createdTimestamp": 1701929500428,
       "enabled": true,
       "totp": false,
-      "credentials": [
-        {
-          "id": "a8bdaa0f-c79b-47b8-8964-665fb6c0a9da",
-          "type": "password",
-          "userLabel": "My password",
-          "createdDate": 1701929513646,
-          "secretData": "{\"value\":\"TxjrUtDzXBLUFcO4GKUWUkeB2vXeOzlwkRu5n4frKKA=\",\"salt\":\"VDVNp7yjUJONgg4QAfbaeA==\",\"additionalParameters\":{}}",
-          "credentialData": "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
-        }
-      ],
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
@@ -3066,21 +3389,52 @@
       "createdTimestamp": 1730501029600,
       "enabled": true,
       "totp": false,
-      "credentials": [
-        {
-          "id": "d3f8c2a2-14ed-411a-b886-df96b2915ed8",
-          "type": "password",
-          "createdDate": 1730501052905,
-          "secretData": "{\"value\":\"TttBRzIYfNuXDy+Yi7hcENFJkvzaSkafBLYEy71RkF3Cw7qdotMvoFUTbyefiGYZrO+V/PbzBahm6+KXdEmDhA==\",\"salt\":\"ZiYY1N2oDe5G7Bo75KD3hQ==\",\"additionalParameters\":{}}",
-          "credentialData": "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
-        }
-      ],
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
         "default-roles-electoral-process"
       ],
       "notBefore": 0,
+      "groups": [
+        "/trustee"
+      ]
+    },
+    {
+      "username": "trustee1-wbraid",
+      "firstName": "Browser Trustee 1",
+      "lastName": "Development",
+      "email": "trustee1-wbraid@example.test",
+      "emailVerified": false,
+      "enabled": true,
+      "attributes": {
+        "trustee": [
+          "trustee1-wbraid"
+        ],
+        "tenant-id": [
+          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
+        ]
+      },
+      "requiredActions": [],
+      "groups": [
+        "/trustee"
+      ]
+    },
+    {
+      "username": "trustee2-wbraid",
+      "firstName": "Browser Trustee 2",
+      "lastName": "Development",
+      "email": "trustee2-wbraid@example.test",
+      "emailVerified": false,
+      "enabled": true,
+      "attributes": {
+        "trustee": [
+          "trustee2-wbraid"
+        ],
+        "tenant-id": [
+          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
+        ]
+      },
+      "requiredActions": [],
       "groups": [
         "/trustee"
       ]
@@ -3267,10 +3621,11 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "*"
+        "/*",
+        "http://localhost:3002/*"
       ],
       "webOrigins": [
-        "*"
+        "+"
       ],
       "notBefore": 0,
       "bearerOnly": false,
@@ -3284,7 +3639,8 @@
       "protocol": "openid-connect",
       "attributes": {
         "client.secret.creation.time": "1698263635",
-        "post.logout.redirect.uris": "*",
+        "post.logout.redirect.uris": "+",
+        "pkce.code.challenge.method": "S256",
         "oauth2.device.authorization.grant.enabled": "false",
         "backchannel.logout.revoke.offline.tokens": "false",
         "use.refresh.tokens": "true",
@@ -3297,7 +3653,6 @@
         "require.pushed.authorization.requests": "false",
         "acr.loa.map": "{}",
         "display.on.consent.screen": "false",
-        "request.uris": "*",
         "token.response.type.bearer.lower-case": "false",
         "dpop.bound.access.tokens": "false"
       },
@@ -3424,10 +3779,9 @@
       "adminUrl": "",
       "baseUrl": "",
       "surrogateAuthRequired": false,
-      "enabled": true,
+      "enabled": false,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
-      "secret": "4lzmxNgZHjfzS5BwDVlyrRUDqwvFLUvL",
       "redirectUris": [
         "*"
       ],
@@ -3704,12 +4058,8 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "secret": "wBy8rpuKQxPWikQ3rIFv9g42t0WK0Xiu",
-      "redirectUris": [
-        "*"
-      ],
-      "webOrigins": [
-        "*"
-      ],
+      "redirectUris": [],
+      "webOrigins": [],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -3722,7 +4072,7 @@
       "protocol": "openid-connect",
       "attributes": {
         "client.secret.creation.time": "1698263635",
-        "post.logout.redirect.uris": "*",
+        "post.logout.redirect.uris": "+",
         "oauth2.device.authorization.grant.enabled": "false",
         "backchannel.logout.revoke.offline.tokens": "false",
         "use.refresh.tokens": "true",
@@ -3735,7 +4085,6 @@
         "require.pushed.authorization.requests": "false",
         "acr.loa.map": "{}",
         "display.on.consent.screen": "false",
-        "request.uris": "*",
         "token.response.type.bearer.lower-case": "false",
         "dpop.bound.access.tokens": "false"
       },
@@ -4788,6 +5137,7 @@
   "eventsEnabled": true,
   "eventsExpiration": 15552000,
   "eventsListeners": [
+    "custom-event-listener",
     "jboss-logging"
   ],
   "enabledEventTypes": [
@@ -4871,7 +5221,7 @@
     "GRANT_CONSENT_ERROR",
     "IDENTITY_PROVIDER_FIRST_LOGIN_ERROR"
   ],
-  "adminEventsEnabled": false,
+  "adminEventsEnabled": true,
   "adminEventsDetailsEnabled": false,
   "identityProviders": [],
   "identityProviderMappers": [],
@@ -4990,7 +5340,7 @@
         "subComponents": {},
         "config": {
           "kc.user.profile.config": [
-            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"trustee\",\"displayName\":\"trustee\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"permission_labels\",\"displayName\":\"Permission Labels\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true}],\"groups\":[]}"
+            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"trustee\",\"displayName\":\"trustee\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"permission_labels\",\"displayName\":\"Permission Labels\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"title\",\"displayName\":\"Title\",\"validations\":{\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[]}"
           ]
         }
       }
@@ -6082,14 +6432,6 @@
   ],
   "authenticatorConfig": [
     {
-      "id": "a96a1258-b1bb-4468-9254-ff8bc3e28bce",
-      "alias": "Has email-or-sms otp-method",
-      "config": {
-        "attribute_expected_value": "email-or-sms",
-        "attribute_name": "sequent.read-only.otp-method"
-      }
-    },
-    {
       "id": "959c7fad-9092-499a-ac3a-dd27cfdafc48",
       "alias": "SMS Auth Config",
       "config": {
@@ -6126,6 +6468,7 @@
       "id": "0495d7fa-718e-42ed-9208-d1fba496c8f1",
       "alias": "email-sms",
       "config": {
+        "code-page-disclosure": "NAMED",
         "senderId": "Keycloak",
         "simulation": "true",
         "telUserAttribute": "sequent.read-only.mobile-number",
@@ -6146,6 +6489,7 @@
       "id": "31b33e7f-781d-4b4f-b8cf-23987c87ea56",
       "alias": "email-sms",
       "config": {
+        "code-page-disclosure": "NAMED",
         "senderId": "Keycloak",
         "simulation": "true",
         "telUserAttribute": "sequent.read-only.mobile-number",
@@ -6272,6 +6616,7 @@
       "id": "349c13f5-8407-4a01-b4d5-b21692ca07a9",
       "alias": "sms-otp",
       "config": {
+        "code-page-disclosure": "NAMED",
         "test-mode-code": "123456",
         "senderId": "Keycloak",
         "deferredUserAttribute": "false",

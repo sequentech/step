@@ -11,6 +11,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 The Transmission module under the Tally tab enables sending election results to external servers that have been predefined in the system environment. This feature ensures that encrypted and signed tally data can be securely delivered to authorized endpoints for archival, auditing, or further processing.
 
+A destination without an address receives its package by hand: the package is downloaded and handed over instead of sent. See [Transmission by Manual Receipt](./08-04-election_management_election-event_transmission-manual-receipt.md) for that flow, the results CSV, the download log and the receiver's check.
+
 ## Prerequisites
 - A completed Tally Ceremony: The tally must have been finalized and results are available.
 - Preconfigured destination servers: External servers (with URLs, credentials, or endpoints) must be set up in the system environment beforehand.

@@ -271,6 +271,7 @@ mod tests {
                     .expect("area annotations parse")
             }),
             multi_contest_encoding_mode: None,
+            ballot_box_key: None,
         }
     }
 

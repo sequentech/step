@@ -30,6 +30,7 @@
 mod decrypt;
 mod dkg;
 mod mix;
+pub(crate) use mix::{shuffle_generators_seed, shuffle_proof_label};
 
 use anyhow::{anyhow, Result};
 
@@ -200,7 +201,7 @@ pub(crate) const DKG_CHECKING_VALUE_PURPOSE: &str = "dkg_checking_value";
 /// domain even if they reuse a configuration `id`. Used by the [`dkg`] phase;
 /// the tally phases use [`tally_label`], which additionally binds the tally
 /// execution.
-fn domain_label(cfg_hash: &ConfigurationHash, suffix: &str) -> Vec<u8> {
+pub(crate) fn domain_label(cfg_hash: &ConfigurationHash, suffix: &str) -> Vec<u8> {
     let mut bytes = cfg_hash.ser();
     // platform-independent length (cannot use usize as it may differ);
     // big-endian, like every integer entering a hash transcript
@@ -215,7 +216,7 @@ fn domain_label(cfg_hash: &ConfigurationHash, suffix: &str) -> Vec<u8> {
 /// Sibling tallies over one DKG share `cfg_hash`, the public key, and possibly
 /// the ciphertext lists (a re-run), so their proof transcripts are separated
 /// by the tally identifier alone. Used by the [`mix`] and [`decrypt`] phases.
-fn tally_label(cfg_hash: &ConfigurationHash, tally_id: u128, suffix: &str) -> Vec<u8> {
+pub(crate) fn tally_label(cfg_hash: &ConfigurationHash, tally_id: u128, suffix: &str) -> Vec<u8> {
     let mut bytes = cfg_hash.ser();
     bytes.extend(tally_id.to_be_bytes());
     bytes.extend((suffix.len() as u64).to_be_bytes());

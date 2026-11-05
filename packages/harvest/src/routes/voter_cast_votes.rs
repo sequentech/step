@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::routes::ballot_checks::ensure_checks_open;
 use electoral_log::adapters::ballot_box_reads::BallotIdMatch;
 use rocket::{http::Status, serde::json::Json};
 use sequent_core::services::{
@@ -59,7 +60,9 @@ fn requested(
     }
 }
 
-/// The voter's own cast votes, from the event's ballot box.
+/// The voter's own cast votes, from the event's ballot box. Looking ballots up
+/// by their ID, which answers with their content, is a ballot check: refused
+/// once the event's checks period has ended.
 #[post("/get-voter-cast-votes", format = "json", data = "<body>")]
 pub async fn get_voter_cast_votes(
     body: Json<VoterCastVotesInput>,
@@ -71,6 +74,13 @@ pub async fn get_voter_cast_votes(
         &body.election_event_id,
     )?;
     let which = requested(&body)?;
+    if let VoterCastVotes::Matching { .. } = which {
+        ensure_checks_open(
+            &claims.hasura_claims.tenant_id,
+            &body.election_event_id,
+        )
+        .await?;
+    }
     let scope = VoterScope {
         tenant_id: &claims.hasura_claims.tenant_id,
         election_event_id: &body.election_event_id,

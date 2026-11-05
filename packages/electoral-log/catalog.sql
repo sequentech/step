@@ -18,4 +18,20 @@ CREATE TABLE IF NOT EXISTS electoral_log_events (
 );
 CREATE INDEX IF NOT EXISTS electoral_log_events_ballot_activity
     ON electoral_log_events (ballots_accepted_at) WHERE ballots_accepted_at IS NOT NULL;
+-- The tenants' log databases: what happens outside election events.
+CREATE TABLE IF NOT EXISTS electoral_log_tenants (
+    tenant_id UUID PRIMARY KEY,
+    database_name TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- Databases of deleted election events, renamed and closed to connections. They
+-- are kept until they are erased under the retention policy.
+CREATE TABLE IF NOT EXISTS electoral_log_retired_events (
+    database_name TEXT PRIMARY KEY,
+    election_event_id UUID NOT NULL,
+    tenant_id UUID NOT NULL,
+    retired_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS electoral_log_retired_events_tenant
+    ON electoral_log_retired_events (tenant_id, retired_at);
 COMMIT;

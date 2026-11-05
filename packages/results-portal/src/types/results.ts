@@ -231,7 +231,7 @@ export const parseResultsPublicationIndex = (value: unknown): ResultsPublication
         throw new Error("Invalid results publication index")
     }
 
-    return value as ResultsPublicationIndex
+    return value as unknown as ResultsPublicationIndex
 }
 
 const isManifestContest = (value: unknown): value is ResultsManifestContest =>
@@ -276,5 +276,5 @@ export const parseResultsManifest = (value: unknown): ResultsManifest => {
         throw new Error("Invalid results publication manifest")
     }
 
-    return value as ResultsManifest
+    return value as unknown as ResultsManifest
 }

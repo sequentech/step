@@ -44,6 +44,7 @@ import {useGetList, useGetOne, useNotify, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
+import {useSignedAction} from "@/hooks/useSignedAction"
 import {useMutation, useQuery} from "@apollo/client"
 import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
 import {
@@ -52,6 +53,7 @@ import {
     EInitializeReportPolicy,
     EInitReport,
     isArray,
+    isString,
     parseResultsWebsitePolicy,
 } from "@sequentech/ui-core"
 
@@ -95,6 +97,7 @@ import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 import {getTallyDisabledReason} from "@/services/tallyEligibility"
+import {useBallotBoxesReadiness} from "./useBallotBoxesReadiness"
 import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
 
 const WizardSteps = {
@@ -159,6 +162,7 @@ export const TallyCeremony: React.FC = () => {
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const [CreateTallyCeremonyMutation] =
         useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
+    const openSigning = useSignedAction()
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
 
@@ -269,26 +273,27 @@ export const TallyCeremony: React.FC = () => {
         }
     )
 
-    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
-        "sequent_backend_tally_session_execution",
-        {
-            pagination: {page: 1, perPage: 1},
-            sort: {field: "created_at", order: "DESC"},
-            filter: {
-                tally_session_id: tallyId,
-                tenant_id: tenantId,
+    const {data: tallySessionExecutions, refetch: refetchTallySessionExecutions} =
+        useGetList<Sequent_Backend_Tally_Session_Execution>(
+            "sequent_backend_tally_session_execution",
+            {
+                pagination: {page: 1, perPage: 1},
+                sort: {field: "created_at", order: "DESC"},
+                filter: {
+                    tally_session_id: tallyId,
+                    tenant_id: tenantId,
+                },
             },
-        },
-        {
-            refetchInterval: isTallyCompleted
-                ? undefined
-                : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-            enabled: !!tallyId && !!tenantId,
-        }
-    )
+            {
+                refetchInterval: isTallyCompleted
+                    ? undefined
+                    : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
+                refetchOnWindowFocus: false,
+                refetchOnReconnect: false,
+                refetchOnMount: false,
+                enabled: !!tallyId && !!tenantId,
+            }
+        )
 
     let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
 
@@ -375,8 +380,12 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (tallySession?.is_execution_completed && !isTallyCompleted) {
-            // Only mark as completed if we have the resultsEventId
-            if (resultsEventId) {
+            // Only mark as completed if we have the resultsEventId, unless the tally failed
+            if (tallySession.execution_status === ITallyExecutionStatus.FAILED) {
+                // The execution recording the failure can be newer than the last one fetched
+                void refetchTallySessionExecutions()
+                setIsTallyCompleted(true)
+            } else if (resultsEventId) {
                 // The results event can be created before its documents are uploaded. Refresh it
                 // once the execution is complete so export actions do not retain that stale state.
                 void refetch()
@@ -388,10 +397,12 @@ export const TallyCeremony: React.FC = () => {
         }
     }, [
         tallySession?.is_execution_completed,
+        tallySession?.execution_status,
         isTallyCompleted,
         resultsEventId,
         refetch,
         refetchTallySession,
+        refetchTallySessionExecutions,
     ])
 
     useEffect(() => {
@@ -411,7 +422,8 @@ export const TallyCeremony: React.FC = () => {
             }
             if (
                 tallySession.execution_status === ITallyExecutionStatus.IN_PROGRESS ||
-                tallySession.execution_status === ITallyExecutionStatus.AWAITING_INPUT
+                tallySession.execution_status === ITallyExecutionStatus.AWAITING_INPUT ||
+                tallySession.execution_status === ITallyExecutionStatus.FAILED
             ) {
                 setPage(WizardSteps.Tally)
                 return
@@ -424,13 +436,24 @@ export const TallyCeremony: React.FC = () => {
         }
     }, [tallySession])
 
+    // With the seal at close, an election's results wait for its sealed ballot boxes.
+    const ballotBoxes = useBallotBoxesReadiness(
+        record?.id,
+        (elections ?? []).map((election) => election.id),
+        record?.presentation
+    )
     const tallyDisabledReason = useMemo(
-        () => getTallyDisabledReason(elections, selectedElections ?? undefined),
-        [elections, selectedElections]
+        () => getTallyDisabledReason(elections, selectedElections ?? undefined, ballotBoxes),
+        [elections, selectedElections, ballotBoxes]
     )
     const isTallyAllowed = useMemo(
-        () => !getTallyDisabledReason(elections, tallySession?.election_ids ?? undefined),
-        [elections, tallySession]
+        () =>
+            !getTallyDisabledReason(
+                elections,
+                tallySession?.election_ids ?? undefined,
+                ballotBoxes
+            ),
+        [elections, tallySession, ballotBoxes]
     )
 
     useEffect(() => {
@@ -577,6 +600,10 @@ export const TallyCeremony: React.FC = () => {
                 return
             }
 
+            // Initializing voting may wait for signatures: its panel opens instead.
+            if (openSigning(data.create_tally_ceremony)) {
+                return
+            }
             if (data) {
                 notify(t("tally.createTallySuccess"), {type: "success"})
                 setLocalTallyId(data.create_tally_ceremony.tally_session_id)
@@ -804,7 +831,8 @@ export const TallyCeremony: React.FC = () => {
                     {resultsEventId &&
                     record?.id &&
                     isArray(contests) &&
-                    isArray(tallySession?.election_ids) ? (
+                    isArray(tallySession?.election_ids) &&
+                    tallySession.election_ids.every(isString) ? (
                         <ResultsDataLoader
                             resultsEventId={resultsEventId}
                             electionEventId={record?.id}
@@ -830,6 +858,11 @@ export const TallyCeremony: React.FC = () => {
                             <TallyElectionsList
                                 elections={elections}
                                 electionEventPresentation={record?.presentation}
+                                ballotBoxes={
+                                    creatingType === ETallyType.INITIALIZATION_REPORT
+                                        ? undefined
+                                        : ballotBoxes
+                                }
                                 update={(elections) => setSelectedElections(elections)}
                                 disabled={isTallyElectionListDisabled}
                                 electionEventId={record?.id}
@@ -844,6 +877,7 @@ export const TallyCeremony: React.FC = () => {
 
                                 <Select
                                     id="keys-ceremony-for-tally"
+                                    inputProps={{"aria-label": t("tally.keysCeremonyTitle")}}
                                     value={keysCeremonyId ?? ""}
                                     label={String(t("tally.keysCeremonyTitle"))}
                                     onChange={(props) => {
@@ -880,6 +914,11 @@ export const TallyCeremony: React.FC = () => {
                             <TallyElectionsList
                                 elections={elections}
                                 electionEventPresentation={record?.presentation}
+                                ballotBoxes={
+                                    tallySession?.tally_type === ETallyType.INITIALIZATION_REPORT
+                                        ? undefined
+                                        : ballotBoxes
+                                }
                                 electionEventId={record?.id}
                                 disabled={true}
                                 update={(elections) => setSelectedElections(elections)}
@@ -1214,6 +1253,7 @@ export const TallyCeremony: React.FC = () => {
                     ) : null}
                     {page < WizardSteps.Results &&
                         tally?.execution_status !== ITallyExecutionStatus.CANCELLED &&
+                        tally?.execution_status !== ITallyExecutionStatus.FAILED &&
                         tally?.execution_status !== ITallyExecutionStatus.AWAITING_INPUT && (
                             <NextButton
                                 key="tally-next-button"

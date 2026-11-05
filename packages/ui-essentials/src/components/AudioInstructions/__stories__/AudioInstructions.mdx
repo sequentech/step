@@ -1,0 +1,22 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks'
+import * as AudioInstructionsStories from './AudioInstructions.stories'
+
+<Meta of={AudioInstructionsStories} title="components/AudioInstructions"/>
+
+# AudioInstructions
+
+Spoken instructions for the screen the voter is on. It plays `recordingUrl` when
+there is one and otherwise speaks `text` with the browser's speech synthesis,
+if the browser has a voice for `language`. The same text can always be read as
+a transcript. Audio never starts by itself.
+
+With `policy` absent or `disabled` nothing is rendered; with `recorded`, only
+when there is a recording.
+
+## Synthesized
+
+<Canvas of={AudioInstructionsStories.Synthesized} />
+
+## Transcript
+
+<Canvas of={AudioInstructionsStories.Transcript} />

@@ -1,0 +1,657 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import React from "react"
+import type {StoryObj} from "@storybook/react-vite"
+import {expect, fn, userEvent, waitFor, within, type Mock} from "storybook/test"
+import {
+    RecordContextProvider,
+    ResourceContextProvider,
+    SaveContextProvider,
+    type Identifier,
+    type RaRecord,
+    type SaveHandler,
+} from "react-admin"
+import {i18n, initCore} from "@sequentech/ui-core"
+import {AdminStoryProvider, EVENT_ID} from "@/__stories__/AdminStoryProvider"
+import type {WidgetMeta} from "@/__stories__/widgetStory"
+import {WidgetsContextProvider} from "@/providers/WidgetsContextProvider"
+import {
+    EditElectionEventDataForm,
+    type Sequent_Backend_Election_Event_Extended,
+} from "./EditElectionEventDataForm"
+import {
+    eventDataBoundaries,
+    eventDataEvent,
+    type EventDataScenario,
+} from "./__stories__/EventDataFixture"
+import {EStoryPermissions, useStoryGlobals} from "../../../../ui-essentials/.storybook/globals"
+
+type Values = Sequent_Backend_Election_Event_Extended
+
+interface Scenario extends EventDataScenario {
+    /** The edit view's transform, which receives the values the form prepared. */
+    transform: Mock<(values: Values) => Promise<RaRecord<Identifier>>>
+    /** Receives what the edit view would write. */
+    saved: Mock<(values: RaRecord<Identifier>) => void>
+    /** A save rejects with this message. */
+    saveError?: string
+}
+
+let boundaries: ReturnType<typeof eventDataBoundaries>
+
+// The edit view provides the record and the save; like EditBase, the save applies the
+// button's transform before writing.
+function Fixture({transform, saved, saveError, neverOpened, sealAtClose}: Scenario) {
+    const {permissions, tenant} = useStoryGlobals()
+    const save: SaveHandler<RaRecord> = async (values, options) => {
+        const data = options?.transform ? await options.transform(values) : values
+        if (saveError) throw new Error(saveError)
+        saved(data)
+    }
+    return (
+        <AdminStoryProvider
+            boundary={boundaries.graphql}
+            dataProvider={boundaries.data.provider}
+            role={permissions}
+            tenant={tenant}
+        >
+            <WidgetsContextProvider>
+                <ResourceContextProvider value="sequent_backend_election_event">
+                    <RecordContextProvider value={eventDataEvent(false, neverOpened, sealAtClose)}>
+                        <SaveContextProvider
+                            value={{save, saving: false, mutationMode: "pessimistic"}}
+                        >
+                            <EditElectionEventDataForm transform={transform} />
+                        </SaveContextProvider>
+                    </RecordContextProvider>
+                </ResourceContextProvider>
+            </WidgetsContextProvider>
+        </AdminStoryProvider>
+    )
+}
+
+const JSON_CONTRAST = "The JSON editors' item counts are light grey below the contrast minimum."
+
+/** The advanced and realm attribute sections show a JSON editor. */
+const openedSection = {expectedFailure: {reason: JSON_CONTRAST, a11y: ["color-contrast"]}}
+
+const meta = {
+    title: "Admin/Election event/EditElectionEventDataForm",
+    component: EditElectionEventDataForm,
+    args: {
+        reads: "records",
+        customOrder: false,
+        realmAttributesFail: false,
+        transform: fn(async (values: Values) => values),
+        saved: fn(),
+    },
+    globals: {permissions: EStoryPermissions.ADMIN},
+    beforeEach: async ({args}) => {
+        boundaries = eventDataBoundaries(args)
+        await Promise.all([boundaries.graphql.ready, initCore()])
+    },
+    render: (args, {globals}) => <Fixture key={JSON.stringify(globals)} {...args} />,
+} satisfies WidgetMeta<Scenario>
+export default meta
+type Story = StoryObj<Scenario>
+
+const edit = (key: string) => i18n.t(`electionEventScreen.edit.${key}`)
+const field = (key: string) => i18n.t(`electionEventScreen.field.${key}`)
+const results = (key: string) => i18n.t(`tally.resultsPublication.${key}`)
+/** A section by its `electionEventScreen.edit` key, or by a full key such as `lifecycle.settings.accordion`. */
+const section = (canvasElement: HTMLElement, key: string) =>
+    within(canvasElement).getByRole("button", {name: key.includes(".") ? i18n.t(key) : edit(key)})
+const operations = () => boundaries.graphql.calls.map(({name}) => name)
+
+async function loaded(canvasElement: HTMLElement) {
+    const canvas = within(canvasElement)
+    await expect(await canvas.findByRole("textbox", {name: field("name")})).toHaveValue(
+        "Council event"
+    )
+    return canvas
+}
+
+async function openSection(canvasElement: HTMLElement, key: string) {
+    const summary = section(canvasElement, key)
+    await userEvent.click(summary)
+    await waitFor(() => expect(summary).toHaveAttribute("aria-expanded", "true"))
+    // Only one section is open: the general section finishes collapsing.
+    const general = section(canvasElement, "general")
+    await waitFor(() =>
+        expect(
+            general.closest(".MuiAccordion-root")?.querySelector(".MuiCollapse-root")
+        ).toHaveClass("MuiCollapse-hidden")
+    )
+}
+
+async function choose(canvasElement: HTMLElement, label: string, option: string) {
+    await userEvent.click(within(canvasElement).getByRole("combobox", {name: label}))
+    await userEvent.click(await within(document.body).findByRole("option", {name: option}))
+    await waitFor(() => expect(within(document.body).queryByRole("listbox")).toBeNull())
+}
+
+async function notified(message: string) {
+    const notice = await within(document.body).findByText(message, {
+        selector: ".MuiSnackbarContent-message",
+    })
+    await waitFor(() => expect(notice).toBeVisible())
+}
+
+const saveButton = (canvasElement: HTMLElement) =>
+    within(canvasElement).getByRole("button", {name: "Save"})
+
+export const PrivacyFollowsBallotDesign: Story = {
+    play: async ({canvasElement}) => {
+        await loaded(canvasElement)
+        const design = section(canvasElement, "ballotDesign").closest(".MuiAccordion-root")
+        const privacy = section(canvasElement, "ballotPrivacy.settings.title").closest(
+            ".MuiAccordion-root"
+        )
+        expect(design?.nextElementSibling).toBe(privacy)
+    },
+}
+
+async function editDescription(canvasElement: HTMLElement) {
+    const canvas = await loaded(canvasElement)
+    const description = canvas.getByRole("textbox", {name: field("description")})
+    await userEvent.clear(description)
+    await userEvent.type(description, "Council members for 2026")
+}
+
+export const Populated: Story = {
+    parameters: {widgets: ["EventSaveButton", "ResultsWebsitePolicyFields"]},
+    play: async ({canvasElement, args}) => {
+        const canvas = await loaded(canvasElement)
+        await expect(canvas.getByRole("tab", {name: "English", selected: true})).toBeVisible()
+        await expect(canvas.getByRole("tab", {name: "Spanish"})).toBeVisible()
+        await expect(section(canvasElement, "realm_attributes")).toBeVisible()
+        await expect(section(canvasElement, "password_policy")).toBeVisible()
+        await expect(canvas.getByRole("button", {name: edit("importCandidates")})).toBeVisible()
+        await expect(
+            canvas.getByRole("button", {name: i18n.t("googleMeet.generateButton")})
+        ).toBeVisible()
+        const actions = canvas
+            .getByRole("button", {name: edit("importCandidates")})
+            .closest(".list-actions")
+        expect(actions).not.toBeNull()
+        const readiness = within(actions as HTMLElement).getByRole("button", {
+            name: i18n.t("readiness.action"),
+        })
+        await expect(readiness).toBeVisible()
+        expect(readiness.getBoundingClientRect().left).toBeGreaterThanOrEqual(0)
+        expect(readiness.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth)
+        expect(saveButton(canvasElement)).toBeDisabled()
+        await waitFor(() =>
+            expect(operations()).toEqual(
+                expect.arrayContaining(["GetRealmAttributes", "GetRealmPasswordPolicy"])
+            )
+        )
+        expect(
+            boundaries.data.calls.map(({method, args: [resource]}) => `${method} ${resource}`)
+        ).toEqual(
+            expect.arrayContaining([
+                "getOne sequent_backend_tenant",
+                "getList sequent_backend_election",
+                "getList sequent_backend_support_material",
+            ])
+        )
+        expect(args.transform).not.toHaveBeenCalled()
+    },
+}
+
+export const RealmAttributes: Story = {
+    parameters: openedSection,
+    play: async ({canvasElement}) => {
+        await loaded(canvasElement)
+        await openSection(canvasElement, "realm_attributes")
+        const attribute = await within(canvasElement).findByText(/voter_certificate_policy/)
+        await waitFor(() => expect(attribute).toBeVisible())
+        expect(
+            boundaries.graphql.calls.find(({name}) => name === "GetRealmAttributes")
+        ).toMatchObject({variables: {election_event_id: EVENT_ID}})
+    },
+}
+
+export const EnrollmentAuthorityIsReadOnly: Story = {
+    parameters: openedSection,
+    play: async ({canvasElement}) => {
+        await loaded(canvasElement)
+        await openSection(canvasElement, "realm_attributes")
+        const canvas = within(canvasElement)
+        for (const key of ["enrollment_windows", "enrollment_registration_restore"]) {
+            const name = await canvas.findByText(key)
+            const row = name.closest(".jer-value-component") as HTMLElement
+            await expect(row).toBeVisible()
+            // Copy remains available; edit/delete controls are absent.
+            expect(
+                row.querySelector(".jer-edit-buttons")?.children.length ?? 0
+            ).toBeLessThanOrEqual(1)
+            await userEvent.dblClick(name)
+            expect(row.querySelector("input, textarea")).toBeNull()
+        }
+        const ordinary = canvas
+            .getByText("voter_certificate_policy")
+            .closest(".jer-value-component") as HTMLElement
+        await userEvent.dblClick(canvas.getByText("voter_certificate_policy"))
+        expect(ordinary.querySelector("input.jer-key-edit")).not.toBeNull()
+        await userEvent.keyboard("{Escape}")
+        const editor = ordinary.closest(".jer-collection-component") as HTMLElement
+        const root = editor.querySelector(".jer-collection-header-row") as HTMLElement
+        await userEvent.dblClick(root.querySelector(".jer-collection-name") as HTMLElement)
+        expect(editor.querySelector(".jer-collection-text-edit")).toBeNull()
+    },
+}
+
+export const SaveRealmAttributesWithoutAuthority: Story = {
+    parameters: openedSection,
+    play: async ({canvasElement, args}) => {
+        await loaded(canvasElement)
+        await openSection(canvasElement, "realm_attributes")
+        const canvas = within(canvasElement)
+        const row = canvas
+            .getByText("voter_certificate_policy")
+            .closest(".jer-value-component") as HTMLElement
+        await userEvent.dblClick(row.querySelector(".jer-value-string") as HTMLElement)
+        const value = within(row).getByRole("textbox")
+        await userEvent.clear(value)
+        await userEvent.type(value, "optional{Enter}")
+        await userEvent.click(saveButton(canvasElement))
+        await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
+        const update = boundaries.graphql.calls.find(({name}) => name === "UpdateRealmAttributes")
+        expect(update?.variables).toEqual({
+            election_event_id: EVENT_ID,
+            attributes: {voter_certificate_policy: "optional"},
+        })
+    },
+}
+
+export const RealmAttributesLoadError: Story = {
+    parameters: openedSection,
+    args: {realmAttributesFail: true},
+    play: async ({canvasElement}) => {
+        await loaded(canvasElement)
+        await openSection(canvasElement, "realm_attributes")
+        await expect(
+            await within(canvasElement).findByText(edit("realm_attributes_load_error"))
+        ).toBeVisible()
+    },
+}
+
+export const WithoutRealmAttributes: Story = {
+    globals: {permissions: EStoryPermissions.ADMIN_LIGHT},
+    parameters: {widgets: ["EventSaveButton", "ResultsWebsitePolicyFields"]},
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        expect(canvas.queryByRole("button", {name: edit("realm_attributes")})).toBeNull()
+        expect(canvas.queryByRole("button", {name: i18n.t("readiness.action")})).toBeNull()
+        expect(canvas.queryByRole("button", {name: i18n.t("googleMeet.generateButton")})).toBeNull()
+        expect(canvas.getByRole("textbox", {name: field("name")})).toBeEnabled()
+        await waitFor(() => expect(operations()).toContain("GetRealmPasswordPolicy"))
+        expect(operations()).not.toContain("GetRealmAttributes")
+    },
+}
+
+export const LockedDownAdministrator: Story = {
+    globals: {permissions: EStoryPermissions.ADMIN_LOCKDOWN},
+    parameters: {...openedSection, widgets: ["ResultsWebsitePolicyFields"]},
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        // Without the event write permission there is nothing to save.
+        expect(canvas.getByRole("textbox", {name: field("name")})).toBeDisabled()
+        expect(canvas.queryByRole("button", {name: "Save"})).toBeNull()
+        await openSection(canvasElement, "advancedConfigurations")
+        await expect(canvas.getByRole("combobox", {name: results("policyAccess")})).toBeVisible()
+    },
+}
+
+export const Trustee: Story = {
+    parameters: openedSection,
+    globals: {permissions: EStoryPermissions.TRUSTEE},
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        expect(canvas.queryByRole("button", {name: "Save"})).toBeNull()
+        await openSection(canvasElement, "advancedConfigurations")
+        expect(canvas.queryByRole("combobox", {name: results("policyAccess")})).toBeNull()
+    },
+}
+
+export const SaveTheEvent: Story = {
+    parameters: {widgets: ["EventSaveButton", "ResultsWebsitePolicyFields"]},
+    play: async ({canvasElement, args}) => {
+        await editDescription(canvasElement)
+        await userEvent.click(saveButton(canvasElement))
+        await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
+        const [values] = args.transform.mock.calls[0]
+        expect(values).toMatchObject({
+            id: EVENT_ID,
+            enabled_languages: {en: true, es: true},
+            presentation: {
+                i18n: {en: {description: "Council members for 2026"}},
+                results_website: JSON.stringify({
+                    status: "disabled",
+                    access: "public",
+                    visibility_scope: "full_event",
+                }),
+            },
+        })
+        // An event without a seal policy is saved without one (VOTE-FREEZE), nor a
+        // seal record policy.
+        expect(
+            (values as {presentation: Record<string, unknown>}).presentation.ballot_box_seal_policy
+        ).toBeUndefined()
+        expect(
+            (values as {presentation: Record<string, unknown>}).presentation
+                .ballot_box_seal_record_policy
+        ).toBeUndefined()
+        const custom = boundaries.graphql.calls.filter(({name}) => name === "SetCustomUrls")
+        expect(custom.map(({variables}) => variables.key)).toEqual(["login", "enrollment", "saml"])
+        expect(custom[0].variables).toMatchObject({election_id: EVENT_ID, dns_prefix: ""})
+        expect(
+            boundaries.graphql.calls.find(({name}) => name === "SetVoterAuthentication")?.variables
+        ).toEqual({electionEventId: EVENT_ID, enrollment: "", otp: ""})
+        expect(
+            boundaries.graphql.calls.find(({name}) => name === "ConfigureResultsWebsitePolicy")
+                ?.variables
+        ).toEqual({
+            election_event_id: EVENT_ID,
+            status: "disabled",
+            access: "public",
+            visibility_scope: "full_event",
+        })
+        // The unchanged password policy and realm attributes are not written.
+        expect(operations()).not.toContain("UpdateRealmPasswordPolicy")
+        expect(operations()).not.toContain("UpdateRealmAttributes")
+    },
+}
+
+export const SaveFails: Story = {
+    args: {saveError: "Synthetic service unavailable"},
+    parameters: {widgets: ["EventSaveButton"]},
+    play: async ({canvasElement, args}) => {
+        await editDescription(canvasElement)
+        await userEvent.click(saveButton(canvasElement))
+        await notified("Synthetic service unavailable")
+        expect(args.saved).not.toHaveBeenCalled()
+    },
+}
+
+export const PublicResultsNeedTheWholeEvent: Story = {
+    parameters: {...openedSection, widgets: ["EventSaveButton", "ResultsWebsitePolicyFields"]},
+    play: async ({canvasElement, args}) => {
+        await loaded(canvasElement)
+        await openSection(canvasElement, "advancedConfigurations")
+        await choose(canvasElement, results("policyVisibility"), results("areaBased"))
+        await userEvent.click(saveButton(canvasElement))
+        await notified("Public results must use full event visibility")
+        expect(operations()).not.toContain("ConfigureResultsWebsitePolicy")
+        expect(args.transform).not.toHaveBeenCalled()
+    },
+}
+
+export const AuthenticatedAreaResults: Story = {
+    parameters: {...openedSection, widgets: ["EventSaveButton", "ResultsWebsitePolicyFields"]},
+    play: async ({canvasElement, args}) => {
+        await loaded(canvasElement)
+        await openSection(canvasElement, "advancedConfigurations")
+        await choose(canvasElement, results("policyTitle"), results("enabled"))
+        await choose(canvasElement, results("policyAccess"), results("authenticatedAccess"))
+        await choose(canvasElement, results("policyVisibility"), results("areaBased"))
+        await userEvent.click(saveButton(canvasElement))
+        await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
+        expect(
+            boundaries.graphql.calls.find(({name}) => name === "ConfigureResultsWebsitePolicy")
+                ?.variables
+        ).toEqual({
+            election_event_id: EVENT_ID,
+            status: "enabled",
+            access: "authenticated",
+            visibility_scope: "area_based",
+        })
+    },
+}
+
+export const WeightedVotingConflicts: Story = {
+    parameters: openedSection,
+    play: async ({canvasElement, args}) => {
+        await loaded(canvasElement)
+        await openSection(canvasElement, "advancedConfigurations")
+        await choose(
+            canvasElement,
+            field("weightedVotingPolicy.policyLabel"),
+            field("weightedVotingPolicy.options.voters-weighted-voting")
+        )
+        await choose(
+            canvasElement,
+            field("delegatedVotingPolicy.policyLabel"),
+            field("delegatedVotingPolicy.options.enabled")
+        )
+        await userEvent.click(saveButton(canvasElement))
+        const message = field("weightedVotingPolicy.noDelegated")
+        await waitFor(() => expect(within(canvasElement).getAllByText(message)).toHaveLength(2))
+        expect(args.transform).not.toHaveBeenCalled()
+        expect(operations()).not.toContain("SetCustomUrls")
+    },
+}
+
+export const InvalidCustomDateTimeFormat: Story = {
+    parameters: {
+        expectedFailure: {
+            reason: "The language selector's default-language radios have no labels.",
+            a11y: ["label"],
+        },
+    },
+    play: async ({canvasElement, args}) => {
+        const canvas = await loaded(canvasElement)
+        await openSection(canvasElement, "lifecycle.settings.accordion")
+        await choose(
+            canvasElement,
+            field("votingPortalDateTimeFormat.policyLabel"),
+            field("votingPortalDateTimeFormat.options.custom")
+        )
+        const custom = await canvas.findByRole("textbox", {
+            name: field("votingPortalDateTimeFormat.customFormat.label"),
+        })
+        await userEvent.clear(custom)
+        await userEvent.type(custom, "YYYY-MM-DD")
+        await userEvent.click(saveButton(canvasElement))
+        await expect(
+            await canvas.findByText(field("votingPortalDateTimeFormat.customFormat.invalid"))
+        ).toBeVisible()
+        expect(args.transform).not.toHaveBeenCalled()
+    },
+}
+
+/** The timezone editor must use the accordion width, including on narrow screens. */
+export const FullWidthDateAndTime: Story = {
+    parameters: {
+        expectedFailure: {
+            reason: "The language selector's default-language radios have no labels.",
+            a11y: ["label"],
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        await openSection(canvasElement, "lifecycle.settings.accordion")
+        const zones = canvas.getByTestId("event-time-zones")
+        const details = zones.closest(".MuiAccordionDetails-root") as HTMLElement
+        const style = getComputedStyle(details)
+        const available =
+            details.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+        expect(zones.getBoundingClientRect().width).toBeGreaterThan(available * 0.95)
+        const format = canvas.getByRole("combobox", {
+            name: field("votingPortalDateTimeFormat.policyLabel"),
+        })
+        expect(format.getBoundingClientRect().width).toBeGreaterThan(available * 0.9)
+    },
+}
+
+export const FullWidthDateAndTimeNarrow: Story = {
+    ...FullWidthDateAndTime,
+    decorators: [
+        (Story) => (
+            <div style={{width: 600, maxWidth: "100%"}}>
+                <Story />
+            </div>
+        ),
+    ],
+}
+
+export const LifecycleRadioAlignment: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        await openSection(canvasElement, "lifecycle.policies.accordion")
+        const lifecycle = canvas.getByTestId("voting-lifecycle")
+        for (const radio of within(lifecycle).getAllByRole("radio")) {
+            const label = radio.closest("label") as HTMLElement
+            const text = label.querySelector(".MuiFormControlLabel-label") as HTMLElement
+            const icon = label.querySelector("svg") as SVGElement
+            expect(
+                Math.abs(text.getBoundingClientRect().top - icon.getBoundingClientRect().top)
+            ).toBeLessThan(5)
+        }
+    },
+}
+
+const sealPolicy = () => field("ballotBoxSealPolicy.policyLabel")
+
+/** VOTE-FREEZE: before voting opens, the ballot box seal policy can be chosen. */
+export const BallotBoxSealPolicyBeforeVoting: Story = {
+    args: {neverOpened: true},
+    parameters: openedSection,
+    play: async ({canvasElement}) => {
+        await loaded(canvasElement)
+        await openSection(canvasElement, "advancedConfigurations")
+        const select = within(canvasElement).getByRole("combobox", {name: sealPolicy()})
+        await choose(canvasElement, sealPolicy(), "Seal at close")
+        await expect(
+            within(canvasElement).getByText(
+                /When voting closes, the ballot box of each area is sealed.*It cannot be changed after voting has opened\./
+            )
+        ).toBeVisible()
+    },
+}
+
+/** VOTE-FREEZE: once voting has opened, the policy is read-only, as the database requires. */
+export const BallotBoxSealPolicyLockedAfterVoting: Story = {
+    parameters: openedSection,
+    play: async ({canvasElement}) => {
+        await loaded(canvasElement)
+        await openSection(canvasElement, "advancedConfigurations")
+        const select = within(canvasElement).getByRole("combobox", {name: sealPolicy()})
+        await expect(select).toHaveTextContent("Do not seal")
+        // The helper says it is locked now, and where voting opened.
+        await expect(
+            await within(canvasElement).findByText(/Locked: voting has opened in /)
+        ).toBeVisible()
+        // Read-only: it doesn't open its options.
+        await userEvent.click(select)
+        await new Promise((resolve) => setTimeout(resolve, 300))
+        expect(within(document.body).queryByRole("listbox")).toBeNull()
+    },
+}
+
+/**
+ * VOTE-FREEZE (R7 S4): on a seal-at-close event where voting has opened, the
+ * settings the seal relies on are locked and say why; an ordinary save
+ * doesn't write values the event doesn't have, so the database doesn't
+ * refuse it.
+ */
+export const SealSettingsLockedAfterVoting: Story = {
+    args: {sealAtClose: true},
+    parameters: openedSection,
+    play: async ({canvasElement, args}) => {
+        // An ordinary edit first, while the general section is open.
+        await editDescription(canvasElement)
+        await openSection(canvasElement, "advancedConfigurations")
+        const canvas = within(canvasElement)
+        await waitFor(() =>
+            expect(
+                canvas.getAllByText(/With Seal at close, the seal relies on this setting\./)
+            ).toHaveLength(3)
+        )
+        for (const label of [
+            field("contestEncryptionPolicy.policyLabel"),
+            field("weightedVotingPolicy.policyLabel"),
+            field("delegatedVotingPolicy.policyLabel"),
+        ]) {
+            await userEvent.click(canvas.getByRole("combobox", {name: label}))
+            await new Promise((resolve) => setTimeout(resolve, 200))
+            expect(within(document.body).queryByRole("listbox")).toBeNull()
+        }
+        await userEvent.click(saveButton(canvasElement))
+        await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
+        const [values] = args.transform.mock.calls[0]
+        const presentation = (values as {presentation: Record<string, unknown>}).presentation
+        // The fixture event has no contest encryption or weighted voting policy: none is added.
+        // (undefined is left out when the presentation is written as JSON)
+        expect(presentation.contest_encryption_policy).toBeUndefined()
+        expect(presentation.weighted_voting_policy).toBeUndefined()
+        expect(presentation.delegated_voting_policy).toBe("disabled")
+    },
+}
+
+const sealRecordPolicy = () => field("ballotBoxSealRecordPolicy.policyLabel")
+const RESTRICTED_HELP = /Only administrators can download it; share it with observers\./
+const PUBLIC_HELP =
+    /Anyone with the event's ids can download it, without signing in; it shows how each ballot counted\./
+
+/**
+ * VOTE-FREEZE: the Seal Record Publication policy shows only with Seal at
+ * close; each option says who can download the record, and the choice is
+ * saved.
+ */
+export const SealRecordPolicyBeforeVoting: Story = {
+    args: {neverOpened: true},
+    parameters: openedSection,
+    play: async ({canvasElement, args}) => {
+        await loaded(canvasElement)
+        await openSection(canvasElement, "advancedConfigurations")
+        const canvas = within(canvasElement)
+        expect(canvas.queryByRole("combobox", {name: sealRecordPolicy()})).toBeNull()
+        await choose(canvasElement, sealPolicy(), "Seal at close")
+        const select = await canvas.findByRole("combobox", {name: sealRecordPolicy()})
+        // Unset reads as its default, Restricted.
+        await expect(select).toHaveTextContent("Restricted")
+        await expect(canvas.getByText(RESTRICTED_HELP)).toBeVisible()
+        await choose(canvasElement, sealRecordPolicy(), "Public")
+        await expect(canvas.getByText(PUBLIC_HELP)).toBeVisible()
+        await userEvent.click(saveButton(canvasElement))
+        await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
+        const [values] = args.transform.mock.calls[0]
+        expect((values as {presentation: Record<string, unknown>}).presentation).toMatchObject({
+            ballot_box_seal_policy: "seal-at-close",
+            ballot_box_seal_record_policy: "public",
+        })
+    },
+}
+
+/**
+ * VOTE-FREEZE: once voting has opened on a seal-at-close event, the Seal
+ * Record Publication policy is read-only like the seal policy, and an
+ * ordinary save doesn't add it.
+ */
+export const SealRecordPolicyLockedAfterVoting: Story = {
+    args: {sealAtClose: true},
+    parameters: openedSection,
+    play: async ({canvasElement, args}) => {
+        await editDescription(canvasElement)
+        await openSection(canvasElement, "advancedConfigurations")
+        const canvas = within(canvasElement)
+        const select = await canvas.findByRole("combobox", {name: sealRecordPolicy()})
+        await expect(select).toHaveTextContent("Restricted")
+        await expect(canvas.getByText(RESTRICTED_HELP)).toHaveTextContent(
+            /Locked: voting has opened in /
+        )
+        await userEvent.click(select)
+        await new Promise((resolve) => setTimeout(resolve, 300))
+        expect(within(document.body).queryByRole("listbox")).toBeNull()
+        await userEvent.click(saveButton(canvasElement))
+        await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
+        const [values] = args.transform.mock.calls[0]
+        expect(
+            (values as {presentation: Record<string, unknown>}).presentation
+                .ballot_box_seal_record_policy
+        ).toBeUndefined()
+    },
+}

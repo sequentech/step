@@ -9,6 +9,7 @@
 
 use super::ballot_box::BallotStatus;
 use super::ballot_box_reads::StoredBallot;
+use super::ballot_box_seal::sealed_or;
 use super::postgres::PostgresStore;
 use anyhow::{anyhow, ensure, Context, Result};
 
@@ -19,6 +20,13 @@ pub struct VoterBallotState {
     pub has_pending: bool,
     /// At least one ballot is valid.
     pub has_valid: bool,
+}
+
+impl VoterBallotState {
+    /// The voter has a ballot the tally will count or that is still resolving.
+    pub fn has_active_vote(&self) -> bool {
+        self.has_pending || self.has_valid
+    }
 }
 
 /// A ballot whose outcome is pending.
@@ -114,7 +122,8 @@ impl PostgresStore {
     /// Change a ballot's status from `expected` to `next`. Returns false, and
     /// changes nothing, when the ballot does not have the expected status, for
     /// example because another run already changed it. A rejected ballot's status
-    /// does not change any more.
+    /// does not change any more. Fails with `BallotBoxSealedError` when the ballot's
+    /// box is sealed.
     pub async fn set_ballot_status(
         &self,
         election_event_id: &str,
@@ -147,13 +156,14 @@ impl PostgresStore {
                 ],
             )
             .await
-            .context("Error changing a ballot's status")?;
+            .map_err(|error| sealed_or(error, "Error changing a ballot's status"))?;
         let changed: i64 = row.try_get(0)?;
         Ok(changed > 0)
     }
 
     /// Reject a voter's pending and valid ballots in an event. Returns how many it
-    /// rejected.
+    /// rejected. Fails with `BallotBoxSealedError`, rejecting none, when one of them
+    /// is in a sealed box.
     pub async fn reject_voter_ballots(
         &self,
         election_event_id: &str,
@@ -172,7 +182,7 @@ impl PostgresStore {
                 &[&election_event_id, &voter_id, &rejected, &active],
             )
             .await
-            .context("Error rejecting the voter's ballots")?;
+            .map_err(|error| sealed_or(error, "Error rejecting the voter's ballots"))?;
         Ok(row.try_get(0)?)
     }
 

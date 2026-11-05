@@ -23,13 +23,13 @@ This page describes the ballot box, which stores every election event's cast vot
 
 ## 2. Decisions
 
-| Question | Decision |
-| --- | --- |
-| Where the throughput target applies | Per election event, for peaks of minutes. A tenant's other events and other tenants are additional load. |
-| Ballot size | Up to about 5 KB |
-| When the voter gets the answer | After durable acceptance: the vote and the voter's state are committed in the event's electoral-log database. Adding the vote to the Merkle log follows asynchronously. |
-| Datafix events | Datafix outcomes are records in the log. A vote starts as pending; the Datafix confirmation or rejection, and inbound "voted through another channel" marks and their reversal, are appended as their own records. |
-| Reads | From the primary of the event's database. Read replicas are not planned. |
+| Question                            | Decision                                                                                                                                                                                                           |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Where the throughput target applies | Per election event, for peaks of minutes. A tenant's other events and other tenants are additional load.                                                                                                           |
+| Ballot size                         | Up to about 5 KB                                                                                                                                                                                                   |
+| When the voter gets the answer      | After durable acceptance: the vote and the voter's state are committed in the event's electoral-log database. Adding the vote to the Merkle log follows asynchronously.                                            |
+| Datafix events                      | Datafix outcomes are records in the log. A vote starts as pending; the Datafix confirmation or rejection, and inbound "voted through another channel" marks and their reversal, are appended as their own records. |
+| Reads                               | From the primary of the event's database. Read replicas are not planned.                                                                                                                                           |
 
 ## 3. Architecture
 
@@ -70,12 +70,14 @@ The ballots of a Datafix event wait for Datafix to confirm that the voter may vo
 
 Tables, in every election event's database (`packages/electoral-log/schema.sql`):
 
-| Table | One row per | Key |
-| --- | --- | --- |
-| `ballot_box_ballot` | Accepted ballot: content, format, ballot and pseudonym hashes, voting channel, status, the voter's IP address, country and username, acceptance time | Event and sequence number; unique per event and ballot ID |
-| `ballot_box_voter` | Voter and election: area, number of votes, last ballot ID | Event, election, voter |
-| `ballot_box_pending` | Accepted ballot not yet appended to the board | Event and sequence number |
-| `ballot_box_sequencer` | Event being sequenced: the run holding it and until when | Event |
+| Table                  | One row per                                                                                                                                                                                                                                                            | Key                                                       |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `ballot_box_ballot`    | Accepted ballot: content, format, ballot and pseudonym hashes, voting channel, status and acceptance time. Pseudonym-mode rows use the random event pseudonym and leave IP address, country and username empty; historical voter-ID-mode rows may retain those fields. | Event and sequence number; unique per event and ballot ID |
+| `ballot_box_voter`     | Voter and election: area, number of votes, last ballot ID                                                                                                                                                                                                              | Event, election, voter                                    |
+| `ballot_box_pending`   | Accepted ballot not yet appended to the board                                                                                                                                                                                                                          | Event and sequence number                                 |
+| `ballot_box_sequencer` | Event being sequenced: the run holding it and until when                                                                                                                                                                                                               | Event                                                     |
+
+In pseudonym mode, the private event-database schema keeps the voter mapping and timestamp-free participation separately. Optional forensic attribution also stays there, outside ballot rows and signed evidence. See [Ballot privacy](../../02-election_managers/02-reference/21-ballot-privacy.md) for policy and current capture limitations.
 
 The statement (`PostgresStore::accept_ballot`):
 
@@ -111,7 +113,7 @@ SELECT seq, id FROM ballot;
 - **One at a time per event:** a run takes a 150-second lease on the event in `ballot_box_sequencer` and ends it when it finishes. A run that finds a running lease held by another run ends at once; a run that dies leaves the event to the next one when its lease runs out. A lease, rather than a lock held on a connection, leaves the database's connection pool to the work.
 - **Batches:** a run reads up to 5,000 queued ballots in acceptance order, builds their records, appends them in one append, and removes them from the queue, until the queue is empty or 50 seconds have passed.
 - **Exactly once in the log:** each record's delivery ID is `ballot-box:<event>:<sequence number>`. If a run stops after the append and before removing the ballots from the queue, the next run appends them again and the log stores nothing new.
-- **Records:** a `CastVote` record, signed with the event's protocol-manager key, with the ballot's hash, election, area, pseudonym, IP address, country and voting channel. Its statement timestamp is when the sequencer built it, a few seconds after acceptance; the acceptance time is in `ballot_box_ballot`.
+- **Records:** historical voter-ID-mode events retain their existing `CastVote` format, which can include the ballot hash, election, area, hashed voter ID, IP address, country and voting channel. New pseudonym-mode events append authority-signed `BallotReceived` and `CastVote` evidence without real voter identity or network data. They bind the random event pseudonym to the voter signing key and the unchanged signed receipts. Their statement timestamps come from the immutable received/cast receipts; legacy statement timestamps remain sequencing times. Retries preserve the first appended bytes, and historical signed entries are never rewritten.
 - **Order:** ballots accepted in concurrent transactions can commit out of sequence order, so a ballot can be appended after one with a higher sequence number. The log's order is the sequencing order.
 - **Lag:** the sequencer is slower than the accept path at the measured rates (section 9.4), so during a peak it falls behind and catches up afterwards. Its lag is the window in which accepted votes are not in the Merkle log. The number of queued ballots per event is the measure to monitor.
 - **When voting closes:** the checkpoint of the closure waits up to 60 seconds for the sequencer to append the event's queued ballots, so that it covers every ballot accepted before the closure. If ballots still wait after that, Windmill logs a warning and publishes it anyway; the checkpoint after the tally covers them.
@@ -120,15 +122,17 @@ SELECT seq, id FROM ballot;
 
 Windmill finds an event's ballot box through the board in its `bulletin_board_reference` (`windmill/src/services/ballot_box_reads.rs`). The ballot box's queries are in `electoral-log/src/adapters/ballot_box_reads.rs`.
 
-| Reader | Reads | From the ballot box |
-| --- | --- | --- |
-| Voting portal: the voter's status, the polling of unresolved votes, the ballot locator; IVR's `cast-votes` endpoint | The Hasura action `get_voter_cast_votes`, served by Harvest | The voter's ballots |
-| Statistics of the admin portal's dashboards: voters by channel, ballots per time bucket, ballots by IP address | Harvest's statistics actions | Counted in the ballot box |
-| Voter list: each voter's votes, the "has voted" filter, the edit form's check that a voter has voted | `get_users` | Counted in the ballot box |
-| Participation report, ballot receipt | Windmill's report tasks | Counted and checked in the ballot box |
-| Tally | Windmill's tally tasks | Each area's input from the ballot box (section 6.1) |
+| Reader                                                                                                         | Reads                                                       | From the ballot box                                  |
+| -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------- |
+| Voting portal: the voter's status, the polling of unresolved votes; IVR's `cast-votes` endpoint                | The Hasura action `get_voter_cast_votes`, served by Harvest | The voter's ballots                                  |
+| Voting portal: the ballot locator                                                                              | The Hasura action `locate_ballot`, served by Harvest        | The voter's ballot with a Ballot ID, and its content |
+| Statistics of the admin portal's dashboards: voters by channel, ballots per time bucket, ballots by IP address | Harvest's statistics actions                                | Counted in the ballot box                            |
+| Voter list: each voter's votes, the "has voted" filter, the edit form's check that a voter has voted           | `get_users`                                                 | Counted in the ballot box                            |
+| Participation report, ballot receipt                                                                           | Windmill's report tasks                                     | Counted and checked in the ballot box                |
+| Tally                                                                                                          | Windmill's tally tasks                                      | Each area's input from the ballot box (section 6.1)  |
 
-- **What a voter can read:** `get_voter_cast_votes` returns the voter's own votes, in the area and elections of their token. Without arguments it returns all of them without their content. With an election and a ballot ID, or the first characters of one, as telephone voters give it, it returns the matching ones with their content. Any other combination is refused.
+- **What a voter can read:** `get_voter_cast_votes` returns the voter's own votes, in the area and elections of their token. Without arguments it returns all of them without their content; with receipts signed by the ballot box, also without their ballot IDs. With an election and a ballot ID, or the first characters of one, as telephone voters give it, it returns the matching ones with their content, until the event's checks period ends. Any other combination is refused.
+- **The ballot locator:** `locate_ballot` finds one of the voter's cast ballots by its Tracking ID (the short form, the first eight characters, is enough unless several ballots share it) or by the hexadecimal hash of the ballot, until the event's checks period ends. The Tracking ID is computed from the ballot hash and the voter's key, and is not stored: the search reads the received ballots of the voter and compares. The receipt key (`ballot_id`) stays what the ballot box signed, and leads to the cast ballot through the ballot hash of its received ballot, in `ballot_box_received`.
 - **Statuses:** a ballot's status reads as the cast-vote status the portals know: `valid` as `valid`, `pending` as `in-progress` and `rejected` as `discarded`. Statistics count valid ballots.
 - **Indexes:** `ballot_box_ballot (election_event_id, voter_id)` serves the voter's lookups, and `(election_event_id, election_id, area_id, voter_id, seq DESC)` the tally input of each area (section 6.1). Each adds an entry for every accepted vote; section 9.1 measures what they cost. The partial index `ballot_box_ballot_pending (election_event_id, id)` holds only pending ballots, for the Datafix review (section 3.2).
 - **Statistics scan the event's partition.** They read every valid ballot of the event. On events with millions of ballots, dashboards that refresh often put that load on the event's database: at 1.3 million ballots each statistic took 1 to 5 seconds (section 9.3).
@@ -158,13 +162,13 @@ The store does not interpret ballot content. The points VoteSecure needs are exp
 
 Measured on 5 October 2026 with `packages/electoral-log/bench/ballot-box/run.sh`, on the development VM (8 vCPU, 31 GiB, GCP persistent disk). PostgreSQL 18.6 ran in its own container limited to 4 CPUs and 6 GB, with synchronous commit. `pgbench` ran a simplified accept statement, without the area rule and the status of section 4, with prepared statements from another container, for one election event, 1,000,000 voters, 5 elections and up to 3 votes per voter. The ballot content was constant, built once per prepared statement and stored uncompressed, so that generating it did not count against the database. These runs measure the database side only: Harvest's validation and HTTP handling are not included, and scale with Harvest instances.
 
-| Ballot | Clients | Votes/s (20 s runs) | Mean latency | Limit reached |
-| ---: | ---: | ---: | ---: | --- |
-| 2 KB | 16 | 10,655 | 1.5 ms | Commit latency |
-| 2 KB | 32 | 18,875 | 1.7 ms | CPU, about 3 of 4 cores |
-| 2 KB | 64 | 20,446 | 3.1 ms | CPU, 4 cores |
-| 5 KB | 32 | 13,570 | 2.4 ms | Disk writes |
-| 5 KB | 64 | 13,858 | 4.6 ms | Disk writes |
+| Ballot | Clients | Votes/s (20 s runs) | Mean latency | Limit reached           |
+| -----: | ------: | ------------------: | -----------: | ----------------------- |
+|   2 KB |      16 |              10,655 |       1.5 ms | Commit latency          |
+|   2 KB |      32 |              18,875 |       1.7 ms | CPU, about 3 of 4 cores |
+|   2 KB |      64 |              20,446 |       3.1 ms | CPU, 4 cores            |
+|   5 KB |      32 |              13,570 |       2.4 ms | Disk writes             |
+|   5 KB |      64 |              13,858 |       4.6 ms | Disk writes             |
 
 - **Accept and sequencer together:** with 32 clients accepting 2 KB ballots while the load-test client appended Merkle-log records in batches of 10,000, the database accepted 12,944 votes/s and appended 13,200 to 13,900 records/s, sharing the same 4 CPUs.
 - **The sequencer alone** appended 17,000 to 20,000 records/s in batches of 10,000 to a new board. The load test page shows that this rate falls as a board grows beyond memory.
@@ -181,12 +185,12 @@ Measured on 6 October 2026 with `packages/electoral-log/bench/ballot-box/load.sh
 
 ### 9.1 Accept path
 
-| Ballot | Clients | Run | Votes/s | p50 | p95 | p99 | Slowest |
-| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 2 KB | 32 | 120 s | 10,611 | 2.2 ms | 4.9 ms | 19 ms | 410 ms |
-| 5 KB | 32 | 90 s | 9,884 | 2.6 ms | 4.4 ms | 11 ms | 205 ms |
-| 2 KB | 64 | 90 s | 13,451 | 3.2 ms | 11 ms | 35 ms | 156 ms |
-| 2 KB, at 5,000 votes/s | 32 | 90 s | 4,999 | 1.6 ms | 2.6 ms | 3.6 ms | 97 ms |
+|                 Ballot | Clients |   Run | Votes/s |    p50 |    p95 |    p99 | Slowest |
+| ---------------------: | ------: | ----: | ------: | -----: | -----: | -----: | ------: |
+|                   2 KB |      32 | 120 s |  10,611 | 2.2 ms | 4.9 ms |  19 ms |  410 ms |
+|                   5 KB |      32 |  90 s |   9,884 | 2.6 ms | 4.4 ms |  11 ms |  205 ms |
+|                   2 KB |      64 |  90 s |  13,451 | 3.2 ms |  11 ms |  35 ms |  156 ms |
+| 2 KB, at 5,000 votes/s |      32 |  90 s |   4,999 | 1.6 ms | 2.6 ms | 3.6 ms |   97 ms |
 
 - **Where the limit is:** the database's 4 CPUs were busy in the runs at full speed. They started at about 15,000 votes/s with 2 KB ballots and settled 20 to 30 % lower once checkpoints and autovacuum ran.
 - **Correctness:** after the 120-second runs, no voter had more votes than the election allows, every voter's count matched their stored ballots, and the stored ballots, the counted votes and the queued ballots were equal in number.
@@ -204,19 +208,19 @@ Measured on 6 October 2026 with `packages/electoral-log/bench/ballot-box/load.sh
 
 An event with 1,273,818 ballots, 4.4 GB with indexes and 262 MB of voter rows, after `VACUUM ANALYZE`. Reads that use an index ran 20 times and scans 5 times.
 
-| Read | Median | Slowest |
-| --- | ---: | ---: |
-| Voter status (`voter_ballots`) | 0.33 ms | 36 ms |
-| Ballot locator (`voter_ballot_contents`) | 0.26 ms | 2 ms |
-| Voter list page of 50 voters (`votes_of_voters`) | 1.3 ms | 4.8 ms |
-| Console pages of ballots and voters | 0.8 to 1.0 ms | 14 ms |
-| Console page filtered by a status no ballot has | 141 ms | 144 ms |
-| Tally input of an area of about 250 voters | 2.8 to 3.0 ms | 204 ms |
-| Unsequenced ballots of an area | 0.4 ms | 1.2 ms |
-| Participation of the event / of an election | 1,677 / 1,063 ms | 4,886 / 1,230 ms |
-| Voters by channel | 2,646 ms | 2,876 ms |
-| Ballots per hour, last 24 hours | 959 ms | 1,086 ms |
-| Ballots by IP address, first 50 | 4,232 ms | 5,188 ms |
+| Read                                             |           Median |          Slowest |
+| ------------------------------------------------ | ---------------: | ---------------: |
+| Voter status (`voter_ballots`)                   |          0.33 ms |            36 ms |
+| Ballot locator (`voter_ballot_contents`)         |          0.26 ms |             2 ms |
+| Voter list page of 50 voters (`votes_of_voters`) |           1.3 ms |           4.8 ms |
+| Console pages of ballots and voters              |    0.8 to 1.0 ms |            14 ms |
+| Console page filtered by a status no ballot has  |           141 ms |           144 ms |
+| Tally input of an area of about 250 voters       |    2.8 to 3.0 ms |           204 ms |
+| Unsequenced ballots of an area                   |           0.4 ms |           1.2 ms |
+| Participation of the event / of an election      | 1,677 / 1,063 ms | 4,886 / 1,230 ms |
+| Voters by channel                                |         2,646 ms |         2,876 ms |
+| Ballots per hour, last 24 hours                  |           959 ms |         1,086 ms |
+| Ballots by IP address, first 50                  |         4,232 ms |         5,188 ms |
 
 - **Tally input (fixed):** without the area index, the input of an area took 132 ms, a parallel scan of the whole event for each area, so an event of 5 elections and 1,000 areas spent about 11 minutes scanning at this size, and more as either grows. With the index, it takes 3 ms per area once the area's ballots are in memory, and up to about 200 ms the first time, when their contents are read from disk.
 - **Dashboard statistics scan the event (not fixed):** they took 1 to 5 seconds each and grow with the event's ballots; at 10 million ballots, 10 to 40 seconds can be expected, which was not measured. Dashboards that refresh often on large events would need cached or precomputed counts.
@@ -225,11 +229,11 @@ An event with 1,273,818 ballots, 4.4 GB with indexes and 262 MB of voter rows, a
 
 The load tool's `sequence` command does what Windmill's sequencer does, in a release build, against the same database: it reads queued ballots in batches of 5,000, builds and signs each cast-vote record as `ballot_record` does, appends them and removes them from the queue. Windmill's task also reads the event's signing key once per run.
 
-| Situation | Records/s | Read, build and sign, append, remove |
-| --- | ---: | --- |
-| Alone, appending a queue of 418,043 ballots to a new board | 6,345 | 14, 27, 58, 1 % |
-| While 32 clients accept 2 KB ballots at full speed (9,546 votes/s), then catching up; the board grew from 0.4 to 1.3 million records | 3,000 to 3,700 while votes arrived, 3,900 to 4,600 after; 3,875 over the run | 36, 19, 45, 1 % |
-| While votes arrive at 5,000 per second | 4,132 | 17, 20, 62, 2 % |
+| Situation                                                                                                                            |                                                                    Records/s | Read, build and sign, append, remove |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------: | ------------------------------------ |
+| Alone, appending a queue of 418,043 ballots to a new board                                                                           |                                                                        6,345 | 14, 27, 58, 1 %                      |
+| While 32 clients accept 2 KB ballots at full speed (9,546 votes/s), then catching up; the board grew from 0.4 to 1.3 million records | 3,000 to 3,700 while votes arrived, 3,900 to 4,600 after; 3,875 over the run | 36, 19, 45, 1 %                      |
+| While votes arrive at 5,000 per second                                                                                               |                                                                        4,132 | 17, 20, 62, 2 %                      |
 
 - **The sequencer is slower than the accept path,** so during a peak the queue grows by the difference. At these rates, 5 minutes of 10,000 votes/s leave about 2 million queued ballots, which take about 7 more minutes to append. When voting closes in such a peak, the closing checkpoint waits 60 seconds and is published without the queued ballots, and the tally refuses the areas whose ballots are still queued until the sequencer catches up (section 5).
 - **At 5,000 votes/s it kept up,** with a queue of up to about 86,000 ballots, about 17 seconds of votes, which emptied 16 seconds after the votes stopped. Sharing the 4 CPUs with it, the votes' p95 and p99 rose to 18 and 52 ms.

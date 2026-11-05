@@ -9,6 +9,7 @@ import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider
 import {InputAdornment, TextField} from "@mui/material"
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth"
 import {useTranslation} from "react-i18next"
+import {useEventZonedFormat} from "@/hooks/useZonedFormat"
 
 export const TallyStartDate: React.FC = () => {
     const {tallyId} = useElectionEventTallyStore()
@@ -27,12 +28,14 @@ export const TallyStartDate: React.FC = () => {
         }
     )
 
+    const format = useEventZonedFormat(data?.election_event_id)
+
     return (
         <TextField
             sx={{width: "100%"}}
             disabled
             label={String(t("tally.common.date"))}
-            defaultValue={new Date(data?.created_at).toLocaleDateString().slice(0, 10)}
+            value={format.format(data?.created_at)}
             InputProps={{
                 endAdornment: (
                     <InputAdornment position="end">

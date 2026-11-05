@@ -23,6 +23,7 @@ pub async fn import_ballot_publications(
     temp_file: NamedTempFile,
     replacement_map: HashMap<String, String>,
     entries: &[(String, Vec<u8>)],
+    election_public_keys: &HashMap<String, String>,
 ) -> Result<()> {
     let bytes = std::fs::read(temp_file.path())?;
     crate::services::ballot_styles::publication_archive::import_publication_archive(
@@ -32,6 +33,7 @@ pub async fn import_ballot_publications(
         &bytes,
         entries,
         &replacement_map,
+        election_public_keys,
     )
     .await
 }

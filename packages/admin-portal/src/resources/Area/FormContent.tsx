@@ -20,6 +20,10 @@ import {
     ReferenceArrayInput,
     NumberInput,
     BooleanInput,
+    ReferenceInput,
+    SelectInput,
+    required,
+    Identifier,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {UpsertAreaProps} from "./UpsertArea"
@@ -50,7 +54,9 @@ import {EEarlyVotingPolicy, IAreaPresentation} from "@sequentech/ui-core"
  * - Supports contest selection with autocomplete and filtering.
  */
 export const FormContent: React.FC<UpsertAreaProps> = (props) => {
-    const {record, id, electionEventId, close, area_presentation, weightedVotingForAreas} = props
+    const {record, id, close, area_presentation, weightedVotingForAreas} = props
+    const [selectedEventId, setSelectedEventId] = useState<Identifier>()
+    const electionEventId = props.electionEventId ?? selectedEventId
 
     const refresh = useRefresh()
     const notify = useNotify()
@@ -60,21 +66,30 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
 
     const contestFilterToQuery = (searchText: string) => {
         if (!searchText || searchText.length == 0) {
-            return {name: ""}
+            return {}
         }
-        return {"name@_ilike,alias@_ilike": searchText.trim()}
+        // Contest names and aliases are stored in localized presentation JSON.
+        return {
+            presentation: {
+                format: "hasura-raw-query",
+                value: {_cast: {String: {_ilike: `%${searchText.trim()}%`}}},
+            },
+        }
     }
 
     const [upsertArea] = useMutation<UpsertAreaMutation>(UPSERT_AREA, {
-        refetchQueries: [
-            {
-                query: GET_AREAS_EXTENDED,
-                variables: {
-                    electionEventId,
-                    areaId: id,
-                },
-            },
-        ],
+        refetchQueries:
+            id && electionEventId
+                ? [
+                      {
+                          query: GET_AREAS_EXTENDED,
+                          variables: {
+                              electionEventId,
+                              areaId: id,
+                          },
+                      },
+                  ]
+                : [],
     })
 
     const getAllowEarlyVotingDefaultValue = () => {
@@ -88,6 +103,7 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
     }
 
     const {data: areas} = useQuery(GET_AREAS_EXTENDED, {
+        skip: !id || !electionEventId,
         variables: {
             electionEventId,
             areaId: id,
@@ -166,7 +182,21 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                             {t("areas.common.subTitle")}
                         </PageHeaderStyles.SubTitle>
 
-                        <TextInput source="name" />
+                        {!props.electionEventId && (
+                            <ReferenceInput
+                                source="election_event_id"
+                                reference="sequent_backend_election_event"
+                                filter={{tenant_id: tenantId}}
+                            >
+                                <SelectInput
+                                    label="Election Event"
+                                    optionText={aliasRenderer}
+                                    validate={required()}
+                                    onChange={(event) => setSelectedEventId(event.target.value)}
+                                />
+                            </ReferenceInput>
+                        )}
+                        <TextInput source="name" validate={required()} />
                         <TextInput source="description" />
 
                         <ReferenceArrayInput

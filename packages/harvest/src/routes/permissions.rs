@@ -1,20 +1,30 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
+use crate::services::access::{deletable_permission, RolePermissionEdit};
+use crate::services::audit;
+use crate::services::authorization::{authorize, require_ordinary_permission};
+use crate::services::dependencies::HarvestServices;
+use crate::services::role_permissions::change_role_permission;
 
+use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::get_tenant_realm;
+use sequent_core::services::keycloak::validate_keycloak_scope;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::keycloak::Permission;
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
+use serde_json::json;
 use tracing::instrument;
+use windmill::services::audit_log::AdminAction;
+use windmill::services::signing::permissions::RolePermissionChange;
 
 #[derive(Deserialize, Debug)]
 pub struct GetPermissionsBody {
@@ -31,6 +41,8 @@ pub async fn get_permissions(
     body: Json<GetPermissionsBody>,
 ) -> Result<Json<DataList<Permission>>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -61,27 +73,52 @@ pub struct CreatePermissionsBody {
     permission: Permission,
 }
 
-#[instrument(skip(claims))]
+/// Creates a permission, and logs it in the tenant's log once Keycloak
+/// created it.
+#[instrument(skip(claims, services))]
 #[post("/create-permission", format = "json", data = "<body>")]
 pub async fn create_permission(
     claims: jwt::JwtClaims,
     body: Json<CreatePermissionsBody>,
+    services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<Permission>, (Status, String)> {
     let input = body.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::CreatePermission,
+        json!({
+            "tenant_id": input.tenant_id,
+            "permission": input.permission.name,
+        }),
+    );
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
         vec![Permissions::USER_PERMISSION_CREATE],
     )?;
+    if let Some(name) = &input.permission.name {
+        require_ordinary_permission(name)?;
+    }
     let realm = get_tenant_realm(&input.tenant_id);
-    let client = KeycloakAdminClient::new()
+    let target = audit::target(&input.tenant_id, None)?;
+    let client = services
+        .identity
+        .client()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     let permission = client
         .create_permission(&realm, &input.permission)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    audit::record(
+        services,
+        &audit::permission_created(&claims, target, &permission),
+    )
+    .await?;
     Ok(Json(permission))
 }
 
@@ -92,51 +129,94 @@ pub struct SetOrDeleteRolePermissionsBody {
     permission_name: String,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/set-role-permission", format = "json", data = "<body>")]
 pub async fn set_role_permission(
     claims: jwt::JwtClaims,
     body: Json<SetOrDeleteRolePermissionsBody>,
+    services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
-    authorize(
+    activity.record(
         &claims,
-        true,
-        Some(input.tenant_id.clone()),
-        vec![Permissions::USER_PERMISSION_WRITE, Permissions::ROLE_WRITE],
-    )?;
-    let realm = get_tenant_realm(&input.tenant_id);
-    let client = KeycloakAdminClient::new()
+        TenantAction::SetRolePermission,
+        role_permission_details(&input),
+    );
+    edit_role_permission(services, &claims, input, RolePermissionChange::Added)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    client
-        .set_role_permission(&realm, &input.role_id, &input.permission_name)
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    Ok(Json(Default::default()))
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/delete-role-permission", format = "json", data = "<body>")]
 pub async fn delete_role_permission(
     claims: jwt::JwtClaims,
     body: Json<SetOrDeleteRolePermissionsBody>,
+    services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
-    authorize(
+    activity.record(
         &claims,
-        true,
-        Some(input.tenant_id.clone()),
-        vec![Permissions::USER_PERMISSION_WRITE, Permissions::ROLE_WRITE],
-    )?;
-    let realm = get_tenant_realm(&input.tenant_id);
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    client
-        .delete_role_permission(&realm, &input.role_id, &input.permission_name)
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        TenantAction::DeleteRolePermission,
+        role_permission_details(&input),
+    );
+    edit_role_permission(
+        services,
+        &claims,
+        input,
+        RolePermissionChange::Removed,
+    )
+    .await
+}
+
+/// What a change to a role's permissions was made on, for the tenant's log.
+fn role_permission_details(
+    input: &SetOrDeleteRolePermissionsBody,
+) -> serde_json::Value {
+    json!({
+        "tenant_id": input.tenant_id,
+        "role_id": input.role_id,
+        "permission": input.permission_name,
+    })
+}
+
+/// Any permission needs `user-permission-write` and `role-write`; a
+/// `sign-<action>` permission also passes with `role-write` alone (see
+/// [`RolePermissionEdit`]).
+async fn edit_role_permission(
+    services: &HarvestServices,
+    claims: &jwt::JwtClaims,
+    input: SetOrDeleteRolePermissionsBody,
+    change: RolePermissionChange,
+) -> Result<Json<OptionalId>, (Status, String)> {
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
+    let holds_user_permission_write = claims
+        .hasura_claims
+        .allowed_roles
+        .contains(&Permissions::USER_PERMISSION_WRITE.to_string());
+    let edit = RolePermissionEdit::of(
+        &input.permission_name,
+        holds_user_permission_write,
+    );
+    authorize(claims, true, Some(input.tenant_id.clone()), edit.required())?;
+    match change {
+        RolePermissionChange::Added => {
+            require_ordinary_permission(&input.permission_name)?
+        }
+        RolePermissionChange::Removed => {}
+    }
+    change_role_permission(
+        services,
+        claims,
+        &input.tenant_id,
+        &input.role_id,
+        &input.permission_name,
+        change,
+        &edit.required(),
+    )
+    .await?;
     Ok(Json(Default::default()))
 }
 
@@ -146,26 +226,59 @@ pub struct DeletePermissionBody {
     permission_name: String,
 }
 
-#[instrument(skip(claims))]
+/// Deletes a permission, and logs it in the tenant's log once Keycloak
+/// deleted it.
+#[instrument(skip(claims, services))]
 #[post("/delete-permission", format = "json", data = "<body>")]
 pub async fn delete_permission(
     claims: jwt::JwtClaims,
     body: Json<DeletePermissionBody>,
+    services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::DeletePermission,
+        json!({
+            "tenant_id": input.tenant_id,
+            "permission": input.permission_name,
+        }),
+    );
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
         vec![Permissions::USER_PERMISSION_WRITE],
     )?;
+    deletable_permission(&input.permission_name)
+        .map_err(|error| (Status::Forbidden, error.to_string()))?;
     let realm = get_tenant_realm(&input.tenant_id);
-    let client = KeycloakAdminClient::new()
+    let target = audit::target(&input.tenant_id, None)?;
+    let client = services
+        .identity
+        .client()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     client
         .delete_permission(&realm, &input.permission_name)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    audit::record(
+        services,
+        &audit::change(
+            &claims,
+            target,
+            audit::permission(&input.permission_name),
+            AdminAction::Delete,
+        ),
+    )
+    .await?;
     Ok(Json(Default::default()))
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/role_permission_routes.rs"]
+mod route_tests;

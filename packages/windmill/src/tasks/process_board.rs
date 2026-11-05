@@ -5,19 +5,17 @@
 use anyhow::{Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::types::ceremonies::KeysCeremonyExecutionStatus;
 use tracing::{event, instrument, Level};
 
+use crate::adapters::keys_ceremony::{CeleryKeysCeremonyTasks, PgKeysCeremonyStore};
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::tally_session::get_tally_session_by_election_event_id_pending_post_tally_task;
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
 use crate::services::celery_app::get_celery_app;
+use crate::services::ceremonies::keys_ceremony::dispatch_keys_ceremony_tasks;
 use crate::services::database::get_hasura_pool;
-use crate::tasks::create_keys::create_keys;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::post_tally::post_tally_task;
-use crate::tasks::set_public_key::set_public_key;
 use crate::types::error::Result;
 
 #[instrument(err)]
@@ -30,41 +28,18 @@ pub async fn process_board_impl(tenant_id: String, election_event_id: String) ->
         get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id).await?;
     let celery_app = get_celery_app().await;
 
-    let keys_ceremonies =
-        get_keys_ceremonies(&hasura_transaction, &tenant_id, &election_event_id).await?;
+    dispatch_keys_ceremony_tasks(
+        &PgKeysCeremonyStore {
+            transaction: &hasura_transaction,
+        },
+        &CeleryKeysCeremonyTasks {
+            celery_app: &celery_app,
+        },
+        &tenant_id,
+        &election_event_id,
+    )
+    .await?;
 
-    for keys_ceremony in keys_ceremonies {
-        let status = keys_ceremony.status()?;
-        let execution_status = keys_ceremony.execution_status()?;
-        if execution_status == KeysCeremonyExecutionStatus::STARTED {
-            // create the public keys in async task
-            let task = celery_app
-                .send_task(create_keys::new(
-                    tenant_id.clone(),
-                    election_event_id.clone(),
-                    keys_ceremony.id.clone(),
-                ))
-                .await?;
-            event!(Level::INFO, "Sent create_keys task {}", task.task_id);
-        } else if execution_status == KeysCeremonyExecutionStatus::IN_PROGRESS
-            && status.public_key.is_none()
-        {
-            let task = celery_app
-                .send_task(set_public_key::new(
-                    tenant_id.clone(),
-                    election_event_id.clone(),
-                    keys_ceremony.id.clone(),
-                ))
-                .await
-                .map_err(|e| anyhow::Error::from(e))?;
-            event!(
-                Level::INFO,
-                "Sent set_public_key task {} for keys ceremony {}",
-                task.task_id,
-                keys_ceremony.id
-            );
-        }
-    }
     // Run tally
     // fetch tally_sessions
     let tally_sessions = get_tally_sessions_by_election_event_id(

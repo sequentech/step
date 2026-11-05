@@ -88,20 +88,24 @@ export const ResultsRoute: React.FC = () => {
     const [state, setState] = useState<RouteState>(initialState)
     const [selectedElectionId, setSelectedElectionId] = useState<string>()
 
-    const authTenantId =
-        state.discovery?.resolverEntry?.tenant_id ?? state.discovery?.index?.tenant_id
-    const authEventId =
-        state.discovery?.resolverEntry?.election_event_id ??
-        state.discovery?.index?.election_event_id
+    // An unavailable publication must not erase the identity that completed sign-in:
+    // clearing its token would trigger discovery and sign-in again indefinitely.
+    const routeKey = JSON.stringify([eeId, electionId])
+    const [authIdentity, setAuthIdentity] = useState<{
+        routeKey: string
+        tenantId?: string
+        eventId?: string
+    }>()
+    const activeIdentity = authIdentity?.routeKey === routeKey ? authIdentity : undefined
 
     const auth = useAuthenticatedResults(
         globalSettings,
-        authTenantId,
-        authEventId,
+        activeIdentity?.tenantId,
+        activeIdentity?.eventId,
         state.requiresAuth || state.authenticatedAccess
     )
 
-    const authToken = auth.token
+    const authToken = activeIdentity ? auth.token : undefined
     const authTokenRef = useRef(authToken)
     authTokenRef.current = authToken
     const hasAuthToken = Boolean(authToken)
@@ -117,6 +121,7 @@ export const ResultsRoute: React.FC = () => {
     useEffect(() => {
         clearAuthenticatedSession()
         setSelectedElectionId(undefined)
+        setAuthIdentity(undefined)
 
         return () => clearAuthenticatedSession()
     }, [clearAuthenticatedSession, eeId, electionId])
@@ -206,6 +211,16 @@ export const ResultsRoute: React.FC = () => {
                 const access =
                     discovery.resolverEntry?.access ?? discovery.indexEntry?.access ?? "public"
 
+                if (mounted && access === "authenticated") {
+                    setAuthIdentity({
+                        routeKey,
+                        tenantId: discovery.resolverEntry?.tenant_id ?? discovery.index?.tenant_id,
+                        eventId:
+                            discovery.resolverEntry?.election_event_id ??
+                            discovery.index?.election_event_id,
+                    })
+                }
+
                 if (access === "authenticated" && !token) {
                     if (mounted) {
                         setState({
@@ -264,7 +279,7 @@ export const ResultsRoute: React.FC = () => {
                 changeDefaultLanguage: false,
             })
         }
-    }, [eeId, electionId, globalSettings, hasAuthToken])
+    }, [eeId, electionId, routeKey, globalSettings, hasAuthToken])
 
     const content = useMemo(() => {
         if (state.loading || auth.loading) {

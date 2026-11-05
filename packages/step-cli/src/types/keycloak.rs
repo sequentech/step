@@ -7,5 +7,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct KeycloakTokenResponse {
     pub access_token: String,
+    #[serde(default)]
     pub refresh_token: String,
 }

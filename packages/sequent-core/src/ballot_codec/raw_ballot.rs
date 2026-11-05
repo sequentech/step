@@ -128,8 +128,11 @@ impl RawBallotCodec for Contest {
                     // means this candidate was not voted /
                     // ranked (selected was -1). This should work for IRV and
                     // other preferencial counting algorithms
-                    let value =
-                        (choice.selected + 1).to_u64().ok_or_else(|| {
+                    let value = choice
+                        .selected
+                        .checked_add(1)
+                        .and_then(|value| value.to_u64())
+                        .ok_or_else(|| {
                             "selected value must be positive or zero"
                                 .to_string()
                         })?;
@@ -365,12 +368,9 @@ impl RawBallotCodec for Contest {
         }
 
         if write_in_index < choices.len() {
-            decoded_contest.invalid_errors.push(InvalidPlaintextError {
-                error_type: InvalidPlaintextErrorType::EncodingError,
-                candidate_id: None,
-                message: Some("errors.encoding.ballotTooLarge".to_string()),
-                message_map: HashMap::new(),
-            });
+            decoded_contest
+                .invalid_errors
+                .push(InvalidPlaintextError::ballot_too_large());
         }
 
         let presentation = self.presentation.clone().unwrap_or_default();

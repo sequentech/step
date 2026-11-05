@@ -57,7 +57,12 @@ impl ISO8601 {
     pub fn timestamp_secs_utc_to_date_opt(
         secs: i64,
     ) -> Result<DateTime<Local>> {
-        Self::timestamp_ms_utc_to_date_opt(secs * 1000)
+        // Parse seconds directly: multiplying an untrusted claim by 1,000 can
+        // overflow before Chrono gets a chance to reject an out-of-range date.
+        match Utc.timestamp_opt(secs, 0) {
+            LocalResult::Single(date) => Ok(date.with_timezone(&Local)),
+            _ => Err(anyhow!("error parsing timestamp")),
+        }
     }
 }
 

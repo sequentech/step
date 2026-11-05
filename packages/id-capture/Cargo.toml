@@ -1,0 +1,62 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[package]
+name = "id-capture"
+version = "0.1.0"
+authors = ["Sequent Tech Inc <legal@sequentech.io>"]
+license = "AGPL-3.0-only"
+edition = "2021"
+publish = false
+description = "In-browser frame analysis for the guided identity document and face capture"
+
+# A workspace of its own, with its own Cargo.lock: the crate only ships to the
+# browser, and tract's dependency tree must not move the versions the platform
+# crates in packages/Cargo.lock resolve (borsh, among others).
+[workspace]
+members = ["."]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde-wasm-bindgen = "0.6.5"
+thiserror = "2.0"
+tract-onnx = { version = "0.23.8", default-features = false, features = ["getrandom-js"] }
+# Pinned to the wasm-bindgen CLI shipped by the devenv
+wasm-bindgen = "=0.2.128"
+
+# The same policy as [workspace.lints] in packages/Cargo.toml; keep them in sync.
+[lints.rustdoc]
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+
+[lints.rust]
+missing_docs = "deny"
+unsafe_code = "forbid"
+private_interfaces = "warn"
+private_bounds = "warn"
+unnameable_types = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
+
+[lints.clippy]
+missing_docs_in_private_items = "deny"
+missing_errors_doc = "deny"
+missing_panics_doc = "deny"
+doc_markdown = "deny"
+unwrap_used = "deny"
+panic = "deny"
+shadow_unrelated = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+indexing_slicing = "deny"
+future_not_send = "deny"
+arithmetic_side_effects = "deny"
+# Apply groups before their individual rules, so future changes are unambiguous.
+suspicious = { level = "deny", priority = -1 }
+complexity = { level = "deny", priority = -1 }
+style = { level = "deny", priority = -1 }
+perf = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }

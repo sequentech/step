@@ -31,6 +31,7 @@ import {
     CheckboxGroupInput,
     useGetOne,
     useNotify,
+    useTranslate,
     ValidationErrorMessage,
     AutocompleteInput,
     ReferenceInput,
@@ -54,6 +55,7 @@ import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {IPermissions} from "@/types/keycloak"
 import {Clear} from "@mui/icons-material"
 import {CreateKeysError} from "@/types/ceremonies"
+import {electionSearchFilter} from "@/services/ElectionSearch"
 
 const ITEM_HEIGHT = 48
 const ITEM_PADDING_TOP = 8
@@ -93,6 +95,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     const {t, i18n} = useTranslation()
     const [tenantId] = useTenantStore()
     const notify = useNotify()
+    const translate = useTranslate()
     const [newId, setNewId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
@@ -298,13 +301,6 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         electionId: null,
     })
 
-    const electionFilterToQuery = (searchText: string) => {
-        if (!searchText || searchText.length == 0) {
-            return {name: ""}
-        }
-        return {"name@_ilike,alias@_ilike": searchText.trim()}
-    }
-
     // validates threshold is within the limits
     const thresholdValidator = (value: string): ValidationErrorMessage | null => {
         const thresholdInput = Number(value)
@@ -322,12 +318,16 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     }
 
     // validates selected trustees
-    const trusteeListValidator = (value: string[]): ValidationErrorMessage | null => {
+    const trusteeListValidator = (
+        value: string[],
+        values: FieldValues
+    ): ValidationErrorMessage | null => {
         const length = value && value ? value.length : 0
-        if (length < threshold) {
+        const requiredTrustees = Number(values.threshold)
+        if (length < requiredTrustees) {
             return t("keysGeneration.configureStep.errorMinTrustees", {
                 selected: length,
-                threshold: threshold,
+                threshold: requiredTrustees,
                 count: length,
             })
         } else {
@@ -377,6 +377,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         <TextInput
                             dir={i18n.dir(i18n.language)}
                             source="threshold"
+                            sx={{"& .MuiInputLabel-root.Mui-error": {color: "error.dark"}}}
                             label={String(t("keysGeneration.configureStep.threshold"))}
                             value={threshold}
                             validate={validateThreshold}
@@ -417,6 +418,9 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                             <InputAdornment position="end">
                                                 <IconButton
                                                     onClick={() => setFilterTrustees("")}
+                                                    aria-label={translate(
+                                                        "ra.action.clear_input_value"
+                                                    )}
                                                     edge="end"
                                                 >
                                                     <Clear />
@@ -460,12 +464,12 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                 },
                             }}
                             perPage={50}
-                            sort={{field: "alias", order: "ASC"}}
+                            sort={{field: "external_id", order: "ASC"}}
                         >
                             <AutocompleteInput
                                 className="election-selector"
                                 optionText={aliasRenderer}
-                                filterToQuery={electionFilterToQuery}
+                                filterToQuery={electionSearchFilter}
                                 debounce={100}
                                 emptyText={t("keysGeneration.configureStep.allElections")}
                             />

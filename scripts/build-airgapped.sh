@@ -91,7 +91,6 @@ add-database-init-to-tarball() {
     cp "$PROJECT_ROOT/.devcontainer/postgresql/init-task-queues.sh" "$tmpdir/initdb/30-task-queues.sh"
     cp "$PROJECT_ROOT/packages/electoral-log/catalog.sql" "$tmpdir/electoral-log-catalog.sql"
     tar --append -C "$tmpdir" --file="$DELIVERABLE_TARBALL" electoral-log-catalog.sql
-    cat $PROJECT_ROOT/scripts/airgap-files/b3.sql > $tmpdir/initdb/b3.sql
 
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL initdb
 }
@@ -119,12 +118,6 @@ add-keycloak-data-to-tarball() {
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL keycloak
 }
 
-add-trustees-data-to-tarball() {
-    tmpdir=$(mktemp -d)
-    cp -r $PROJECT_ROOT/.devcontainer/trustees-data $tmpdir/trustees-data
-    tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL trustees-data
-}
-
 add-hasura-data-to-tarball() {
     tmpdir=$(mktemp -d)
     mkdir -p $tmpdir/hasura
@@ -138,6 +131,13 @@ add-minio-config-to-tarball() {
     cp -r $PROJECT_ROOT/.devcontainer/minio/nginx $tmpdir/minio/nginx
     cp -r $PROJECT_ROOT/.devcontainer/minio/public-assets $tmpdir/minio/public-assets
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL minio
+}
+
+# The admin portal's /b4/ forward to Harvest (mounted at /etc/nginx/default.d).
+add-admin-portal-nginx-to-tarball() {
+    tmpdir=$(mktemp -d)
+    cp -r $PROJECT_ROOT/.devcontainer/admin-portal-nginx $tmpdir/admin-portal-nginx
+    tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL admin-portal-nginx
 }
 
 add-up-script-to-tarball() {
@@ -170,12 +170,11 @@ done
 add-images-to-tarball
 add-dotenv-to-tarball
 add-minio-config-to-tarball
+add-admin-portal-nginx-to-tarball
 add-keycloak-data-to-tarball
 add-docker-compose-to-tarball
-add-trustees-data-to-tarball
 add-hasura-data-to-tarball
 add-up-script-to-tarball
-add-database-init-to-tarball
 add-readme-to-tarball
 add-janitor-to-tarball
 

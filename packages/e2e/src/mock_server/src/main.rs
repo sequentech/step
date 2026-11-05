@@ -29,14 +29,7 @@ async fn main() -> Result<(), rocket::Error> {
     let _rocket = rocket::custom(figment)
         .mount(
             "/",
-            routes![
-                index,
-                routes::user::users_list,
-                routes::inetum::transaction_new,
-                routes::inetum::transaction_status_simple,
-                routes::inetum::transaction_results,
-                routes::user::upload_csv,
-            ],
+            routes![index, routes::user::users_list, routes::user::upload_csv,],
         )
         .launch()
         .await?;

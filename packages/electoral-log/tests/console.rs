@@ -187,6 +187,7 @@ fn vote<'a>(
         voter_country: Some("ES"),
         username: Some("voter"),
         allowed_votes: 0,
+        vitrine: None,
     }
 }
 

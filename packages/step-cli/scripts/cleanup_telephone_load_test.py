@@ -89,9 +89,13 @@ def main() -> None:
     targets = []
     for t in tenants:
         summary_path = out_dir / t["dir"] / "summary.json"
-        with summary_path.open() as f:
-            summary = json.load(f)
-        targets.append((t["tenant_id"], summary["election_event_id"], t.get("source")))
+        election_event_id = None
+        if summary_path.is_file():
+            with summary_path.open() as f:
+                election_event_id = json.load(f)["election_event_id"]
+        else:
+            common.log(f"No election summary for {t['tenant_id']}; retaining tenant cleanup")
+        targets.append((t["tenant_id"], election_event_id, t.get("source")))
 
     non_bootstrap_tenant_ids = [tenant_id for tenant_id, _, _ in targets if tenant_id != bootstrap_tenant_id]
     if args.events_only:
@@ -138,6 +142,8 @@ def main() -> None:
 
     common.log(f"Deleting {len(targets)} election event(s) across {len({t for t, _, _ in targets})} tenant(s)")
     for tenant_id, election_event_id, _ in targets:
+        if election_event_id is None:
+            continue
         client_secret = (
             bootstrap_client_secret
             if tenant_id == bootstrap_tenant_id

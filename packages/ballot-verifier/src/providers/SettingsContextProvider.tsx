@@ -16,6 +16,12 @@ export interface GlobalSettings {
     APP_VERSION: string
     APP_HASH: string
     PUBLIC_BUCKET_URL: string
+    /** The transparency hub that runs this verifier, by its name in the
+     * election's policy, for the audited ballot screen's header. */
+    HUB_NAME?: string
+    /** The voting portal's base URL, where the audited ballot screen sends a
+     * voter back to vote. */
+    VOTING_PORTAL_URL?: string
 }
 
 interface SettingsContextValues {

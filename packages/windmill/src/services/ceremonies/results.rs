@@ -396,6 +396,7 @@ pub async fn process_results_tables(
                 results.clone(),
                 tenant_id,
                 election_event_id,
+                tally_session_id,
                 &results_event_id,
                 base_tally_path,
                 areas,

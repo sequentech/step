@@ -7,7 +7,7 @@ begin
     select 1 from information_schema.columns
     where table_schema='sequent_backend' and table_name='candidate' and column_name='name'
   ) then
-    alter table "sequent_backend"."candidate" add column "name" text;
+    alter table "sequent_backend"."candidate" add column "name" character varying;
   end if;
 end $$;
 
@@ -42,7 +42,7 @@ begin
     select 1 from information_schema.columns
     where table_schema='sequent_backend' and table_name='contest' and column_name='name'
   ) then
-    alter table "sequent_backend"."contest" add column "name" text;
+    alter table "sequent_backend"."contest" add column "name" character varying;
   end if;
 end $$;
 
@@ -77,7 +77,7 @@ begin
     select 1 from information_schema.columns
     where table_schema='sequent_backend' and table_name='election' and column_name='name'
   ) then
-    alter table "sequent_backend"."election" add column "name" text;
+    alter table "sequent_backend"."election" add column "name" character varying;
   end if;
 end $$;
 
@@ -115,7 +115,7 @@ begin
     select 1 from information_schema.columns
     where table_schema='sequent_backend' and table_name='election_event' and column_name='name'
   ) then
-    alter table "sequent_backend"."election_event" add column "name" text;
+    alter table "sequent_backend"."election_event" add column "name" character varying;
   end if;
 end $$;
 

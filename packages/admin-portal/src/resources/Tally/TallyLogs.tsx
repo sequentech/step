@@ -17,5 +17,5 @@ interface TallyLogsProps {
 export const TallyLogs: React.FC<TallyLogsProps> = ({tallySessionExecution}) => {
     let status = tallySessionExecution?.status as ITallyCeremonyStatus | undefined
 
-    return <Logs logs={status?.logs} />
+    return <Logs logs={status?.logs} event={tallySessionExecution?.election_event_id} />
 }

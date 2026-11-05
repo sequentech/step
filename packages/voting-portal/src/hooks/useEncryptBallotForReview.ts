@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {useCallback} from "react"
+import {useCallback, useRef} from "react"
 import {
     BallotSelection,
     EVoterSigningPolicy,
@@ -11,13 +11,18 @@ import {
     isUndefined,
 } from "@sequentech/ui-core"
 import {provideBallotService} from "../services/BallotService"
+import {isReceivedAtReview} from "./useReceiveBallot"
 import {IBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {setBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {useAppDispatch} from "../store/hooks"
+import {EEncryptOutcome} from "../services/EncryptOutcome"
+import {useBoothCheck} from "./useBoothCheck"
 
 export const useEncryptBallotForReview = () => {
     const dispatch = useAppDispatch()
+    const {checkBeforeEncrypting, boothRefusal, dismissBoothRefusal} = useBoothCheck()
+    const running = useRef(false)
     const {
         encryptBallotSelection,
         encryptMultiBallotSelection,
@@ -29,16 +34,17 @@ export const useEncryptBallotForReview = () => {
         hashBallot,
     } = provideBallotService()
 
-    const encryptAndStoreBallot = useCallback(
+    const encryptNow = useCallback(
         (
             ballotStyle: IBallotStyle,
             selectionState: BallotSelection,
             isMultiContest: boolean
         ): boolean => {
             try {
+                // The ballot box receives only ballots their voter has signed.
                 const doSignBallot =
                     ballotStyle.ballot_eml.election_event_presentation?.voter_signing_policy ===
-                    EVoterSigningPolicy.WITH_SIGNATURE
+                        EVoterSigningPolicy.WITH_SIGNATURE || isReceivedAtReview(ballotStyle)
 
                 const auditableBallot = isMultiContest
                     ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
@@ -109,5 +115,31 @@ export const useEncryptBallotForReview = () => {
         ]
     )
 
-    return {encryptAndStoreBallot}
+    const encryptAndStoreBallot = useCallback(
+        async (
+            ballotStyle: IBallotStyle,
+            selectionState: BallotSelection,
+            isMultiContest: boolean
+        ): Promise<EEncryptOutcome> => {
+            if (running.current) {
+                return EEncryptOutcome.BUSY
+            }
+            running.current = true
+            try {
+                if (!(await checkBeforeEncrypting(ballotStyle))) {
+                    return EEncryptOutcome.REFUSED
+                }
+                return encryptNow(ballotStyle, selectionState, isMultiContest)
+                    ? EEncryptOutcome.ENCRYPTED
+                    : EEncryptOutcome.FAILED
+            } finally {
+                running.current = false
+            }
+        },
+        [checkBeforeEncrypting, encryptNow]
+    )
+
+    // `encryptNow` skips the booth check, which the Election Architect's preview
+    // has no configuration to run against and cannot wait for.
+    return {encryptAndStoreBallot, encryptNow, boothRefusal, dismissBoothRefusal}
 }

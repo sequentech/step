@@ -10,12 +10,13 @@ use rocket::http::Status;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::RoleAction;
 use sequent_core::services::s3::{get_file_from_s3, get_private_bucket};
+use sequent_core::types::permissions::RealmRolePolicy;
 use sequent_core::{services::keycloak::KeycloakAdminClient, types::keycloak::Role};
 use std::collections::{HashMap, HashSet};
 use std::env;
+use std::path::Path;
 use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
-use uuid::Uuid;
 
 fn normalize_realm_config_s3_key(s3_key_env_var: &str, s3_key: &str) -> anyhow::Result<String> {
     let s3_key = s3_key.trim();
@@ -27,6 +28,69 @@ fn normalize_realm_config_s3_key(s3_key_env_var: &str, s3_key: &str) -> anyhow::
     }
 
     Ok(s3_key.to_string())
+}
+
+/// Requires the enrollment gate in every registration form in an imported
+/// realm, including forms reachable through nested or currently disabled flows.
+/// Imported flow selection and the relative order of other actions are preserved.
+pub fn require_enrollment_window_checks(realm: &mut RealmRepresentation) -> anyhow::Result<()> {
+    use crate::tasks::migrate_registration_flows::ENROLLMENT_WINDOW_CHECK;
+    use keycloak::types::AuthenticationExecutionExportRepresentation;
+    let Some(flows) = realm.authentication_flows.as_mut() else {
+        return Ok(());
+    };
+    let targets: HashSet<String> = flows
+        .iter()
+        .flat_map(|flow| flow.authentication_executions.iter().flatten())
+        .filter(|execution| execution.authenticator.as_deref() == Some("registration-page-form"))
+        .map(|execution| {
+            execution
+                .flow_alias
+                .clone()
+                .context("Registration form has no child flow alias")
+        })
+        .collect::<anyhow::Result<_>>()?;
+    for target in targets {
+        let form = flows
+            .iter_mut()
+            .find(|flow| flow.alias.as_deref() == Some(&target))
+            .with_context(|| format!("Registration form flow {target} is missing"))?;
+        let actions = form.authentication_executions.get_or_insert_with(Vec::new);
+        let priority = actions
+            .iter()
+            .filter(|action| action.authenticator.as_deref() != Some(ENROLLMENT_WINDOW_CHECK))
+            .map(|action| action.priority.unwrap_or(0))
+            .min()
+            .unwrap_or(0)
+            .checked_sub(1)
+            .context("Registration actions leave no priority for the enrollment gate")?;
+        let mut present = false;
+        for action in actions
+            .iter_mut()
+            .filter(|action| action.authenticator.as_deref() == Some(ENROLLMENT_WINDOW_CHECK))
+        {
+            present = true;
+            action.requirement = Some("REQUIRED".into());
+            action.priority = Some(priority);
+        }
+        if !present {
+            actions.insert(
+                0,
+                AuthenticationExecutionExportRepresentation {
+                    authenticator: Some(ENROLLMENT_WINDOW_CHECK.into()),
+                    authenticator_flow: Some(false),
+                    requirement: Some("REQUIRED".into()),
+                    priority: Some(priority),
+                    user_setup_allowed: Some(false),
+                    ..Default::default()
+                },
+            );
+        }
+        // Move only the guard; other actions retain their imported relative order.
+        actions
+            .sort_by_key(|action| action.authenticator.as_deref() != Some(ENROLLMENT_WINDOW_CHECK));
+    }
+    Ok(())
 }
 
 #[instrument(err, skip_all)]
@@ -163,23 +227,67 @@ pub fn find_group_by_name(
         .find(|group| group.name.as_deref() == Some(group_name))
 }
 
+fn require_ordinary_permissions(csv_path: &Path) -> anyhow::Result<()> {
+    let mut reader = csv::Reader::from_path(csv_path)
+        .map_err(|e| anyhow!("Error reading roles and permissions config file: {e}"))?;
+    for result in reader.records() {
+        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
+        for permission in record.get(1).unwrap_or_default().split('|') {
+            RealmRolePolicy::require_ordinary(permission)?;
+        }
+    }
+    Ok(())
+}
+
+/// Resolve requested permission names to the realm's canonical roles.
+///
+/// Both the create-group and update-group paths grant exactly the roles a CSV
+/// row names, reusing the realm's existing `RoleRepresentation` (and its id)
+/// rather than a freshly minted placeholder. Any requested role the realm does
+/// not define is surfaced as an error — never silently dropped — so the applied
+/// mapping is exactly what the CSV requested. Repeated names collapse to one role.
+fn resolve_requested_roles(
+    existing_roles_map: &HashMap<String, RoleRepresentation>,
+    requested: &[String],
+) -> anyhow::Result<Vec<RoleRepresentation>> {
+    let mut resolved = Vec::new();
+    let mut unknown = Vec::new();
+    let mut seen = HashSet::new();
+    for name in requested {
+        if !seen.insert(name.clone()) {
+            continue;
+        }
+        match existing_roles_map.get(name) {
+            Some(role) => resolved.push(role.clone()),
+            None => unknown.push(name.clone()),
+        }
+    }
+    if !unknown.is_empty() {
+        unknown.sort();
+        return Err(anyhow!(
+            "Roles config requests realm role(s) that do not exist: {}",
+            unknown.join(", ")
+        ));
+    }
+    Ok(resolved)
+}
+
 #[instrument(err, skip_all)]
 pub async fn read_roles_config_file(
     temp_file: NamedTempFile,
     realm: &RealmRepresentation,
     tenant_id: &str,
 ) -> Result<()> {
+    require_ordinary_permissions(temp_file.path())?;
     let keycloak_pub_client = KeycloakAdminClient::pub_new().await?;
     let keycloak_client = KeycloakAdminClient::new()
         .await
         .map_err(|e| anyhow!("Failed to create Keycloak client: {:?}", e))?;
-    let (container_id, existing_realm_groups, existing_realm_roles) = map_realm_data(realm);
+    let (_container_id, existing_realm_groups, existing_realm_roles) = map_realm_data(realm);
     let mut reader = csv::Reader::from_path(temp_file.path())
         .map_err(|e| anyhow!("Error reading roles and permissions config file: {e}"))?;
 
     info!("existing_realm_groups: {:?}", existing_realm_groups);
-    let mut realm_roles: Vec<RoleRepresentation> = vec![];
-    let mut existing_permissions: HashSet<String> = HashSet::new();
     for result in reader.records() {
         let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
         let role: String = record
@@ -190,25 +298,13 @@ pub async fn read_roles_config_file(
             .get(1)
             .ok_or_else(|| anyhow!("Permissions not found"))?
             .to_string();
+        // A group exported with no permissions serializes as an empty cell, so
+        // `split('|')` yields a single empty string. Treat that as "no roles"
+        // rather than a request for a role literally named "".
         let permissions: Vec<String> = permissions_str
-            .split("|")
-            .map(|permission| {
-                // Ensure adding unique permissions using the HashSet
-                if existing_permissions.insert(permission.to_string()) {
-                    realm_roles.push(RoleRepresentation {
-                        id: Some(Uuid::new_v4().to_string()),
-                        name: Some(permission.to_string()),
-                        container_id: container_id.clone(),
-                        description: None,
-                        composite: Some(false),
-                        composites: None,
-                        client_role: Some(false),
-                        ..Default::default()
-                    });
-                }
-
-                permission.to_string()
-            })
+            .split('|')
+            .filter(|permission| !permission.is_empty())
+            .map(|permission| permission.to_string())
             .collect();
 
         let existing_roles_map: HashMap<String, RoleRepresentation> = existing_realm_roles
@@ -245,12 +341,10 @@ pub async fn read_roles_config_file(
                 .cloned()
                 .collect();
 
-            // Convert role names → RoleRepresentation
-            let to_add: Vec<RoleRepresentation> = to_add_names
-                .iter()
-                .filter_map(|role_name| existing_roles_map.get(role_name))
-                .cloned()
-                .collect();
+            // Convert role names → RoleRepresentation. Requested additions resolve
+            // to the realm's canonical roles; an unknown role is surfaced, not
+            // silently dropped, so the applied grant matches the request exactly.
+            let to_add = resolve_requested_roles(&existing_roles_map, &to_add_names)?;
 
             let to_remove: Vec<RoleRepresentation> = to_remove_names
                 .iter()
@@ -292,7 +386,10 @@ pub async fn read_roles_config_file(
                     )
                 })?;
         } else {
-            // Create new group and assign permissions
+            // Create a new group and grant exactly this row's permissions, resolved
+            // to the realm's canonical roles. An unknown role is surfaced before the
+            // group is created, never silently dropped.
+            let new_group_roles = resolve_requested_roles(&existing_roles_map, &permissions)?;
             let new_group_id = keycloak_client
                 .create_new_group(&tenant_id, &role, &keycloak_pub_client)
                 .await
@@ -307,7 +404,7 @@ pub async fn read_roles_config_file(
                             &tenant_id,
                             &keycloak_pub_client,
                             &group_id,
-                            &realm_roles,
+                            &new_group_roles,
                             RoleAction::Add,
                         )
                         .await
@@ -323,7 +420,77 @@ pub async fn read_roles_config_file(
 
 #[cfg(test)]
 mod tests {
-    use super::{normalize_realm_config_s3_key, parse_realm_config};
+    use super::{
+        normalize_realm_config_s3_key, parse_realm_config, read_roles_config_file,
+        require_ordinary_permissions, resolve_requested_roles,
+    };
+    use keycloak::types::{RealmRepresentation, RoleRepresentation};
+    use std::collections::HashMap;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    fn canonical_role(name: &str, id: &str) -> RoleRepresentation {
+        RoleRepresentation {
+            id: Some(id.to_string()),
+            name: Some(name.to_string()),
+            ..Default::default()
+        }
+    }
+
+    // The canonical realm roles, keyed by name, exactly as `read_roles_config_file`
+    // builds `existing_roles_map` from the realm representation.
+    fn existing_roles_map() -> HashMap<String, RoleRepresentation> {
+        [
+            canonical_role("manage_users", "id-manage-users"),
+            canonical_role("manage_events", "id-manage-events"),
+            canonical_role("view_reports", "id-view-reports"),
+            canonical_role("tally", "id-tally"),
+        ]
+        .into_iter()
+        .map(|r| (r.name.clone().unwrap(), r))
+        .collect()
+    }
+
+    // Regression: a row resolves to ONLY its own permissions, using the realm's
+    // canonical role ids — never earlier rows' accumulated roles, and never a
+    // synthetic placeholder with a generated id (which the old create-group path
+    // used and which either over-grants or fails the Keycloak role assignment).
+    #[test]
+    fn resolves_only_requested_roles_to_canonical_values() {
+        let map = existing_roles_map();
+        let granted =
+            resolve_requested_roles(&map, &["view_reports".to_string()]).expect("role known");
+        assert_eq!(granted.len(), 1);
+        assert_eq!(granted[0].name.as_deref(), Some("view_reports"));
+        assert_eq!(granted[0].id.as_deref(), Some("id-view-reports"));
+    }
+
+    // Unknown requested roles are surfaced by name, not silently dropped.
+    #[test]
+    fn surfaces_unknown_requested_roles() {
+        let error =
+            resolve_requested_roles(&existing_roles_map(), &["nope".to_string()]).unwrap_err();
+        assert!(format!("{error:#}").contains("nope"));
+    }
+
+    // Duplicate names collapse to a single role.
+    #[test]
+    fn deduplicates_repeated_requested_roles() {
+        let granted = resolve_requested_roles(
+            &existing_roles_map(),
+            &["tally".to_string(), "tally".to_string()],
+        )
+        .expect("role known");
+        assert_eq!(granted.len(), 1);
+    }
+
+    // A permissionless group resolves to no roles rather than failing.
+    #[test]
+    fn empty_request_resolves_to_no_roles() {
+        assert!(resolve_requested_roles(&existing_roles_map(), &[])
+            .expect("empty is valid")
+            .is_empty());
+    }
 
     const S3_BUCKET: &str = "election-event-documents";
     const S3_KEY: &str = "defaults/keycloak/tenant.json";
@@ -382,5 +549,107 @@ mod tests {
 
         assert!(error.contains(S3_BUCKET));
         assert!(error.contains(S3_KEY));
+    }
+    #[test]
+    fn imported_event_realm_registration_forms_require_enrollment_windows() {
+        let bundle: serde_json::Value =
+            serde_json::from_str(include_str!("../../../voting-load/fixtures/election.json"))
+                .unwrap();
+        let mut realm: keycloak::types::RealmRepresentation =
+            serde_json::from_value(bundle["keycloak_event_realm"].clone()).unwrap();
+        let selected = realm.registration_flow.clone();
+        super::require_enrollment_window_checks(&mut realm).unwrap();
+        let form = realm
+            .authentication_flows
+            .as_ref()
+            .unwrap()
+            .iter()
+            .find(|flow| flow.alias.as_deref() == Some("subform"))
+            .unwrap();
+        let checks: Vec<_> = form
+            .authentication_executions
+            .as_ref()
+            .unwrap()
+            .iter()
+            .filter(|execution| {
+                execution.authenticator.as_deref() == Some("enrollment-window-check")
+            })
+            .collect();
+        assert_eq!(
+            checks.len(),
+            1,
+            "the imported account-creation form must enforce the window"
+        );
+        assert_eq!(checks[0].requirement.as_deref(), Some("REQUIRED"));
+        let actions = form.authentication_executions.as_ref().unwrap();
+        assert_eq!(
+            actions[0].authenticator.as_deref(),
+            Some("enrollment-window-check")
+        );
+        assert!(actions
+            .iter()
+            .skip(1)
+            .all(|action| checks[0].priority.unwrap() < action.priority.unwrap_or(0)));
+        assert_eq!(
+            realm.registration_flow, selected,
+            "preserve imported flow selection"
+        );
+        let once = realm.clone();
+        super::require_enrollment_window_checks(&mut realm).unwrap();
+        assert_eq!(realm, once, "normalization is idempotent");
+    }
+
+    #[test]
+    fn nested_account_creation_forms_repair_disabled_checks_without_changing_login() {
+        let mut realm: keycloak::types::RealmRepresentation = serde_json::from_value(serde_json::json!({
+            "registrationFlow":"custom",
+            "authenticationFlows":[
+                {"alias":"custom","authenticationExecutions":[{"authenticatorFlow":true,"flowAlias":"nested"}]},
+                {"alias":"nested","authenticationExecutions":[{"authenticator":"registration-page-form","authenticatorFlow":true,"flowAlias":"form"}]},
+                {"alias":"form","authenticationExecutions":[
+                    {"authenticator":"enrollment-window-check","requirement":"DISABLED","priority":10},
+                    {"authenticator":"deferred-registration-user-creation","requirement":"REQUIRED","priority":20}
+                ]},
+                {"alias":"login","authenticationExecutions":[{"authenticator":"auth-password-form","requirement":"REQUIRED"}]}
+            ]
+        })).unwrap();
+        let login = realm.authentication_flows.as_ref().unwrap()[3].clone();
+        super::require_enrollment_window_checks(&mut realm).unwrap();
+        assert_eq!(
+            realm.authentication_flows.as_ref().unwrap()[2]
+                .authentication_executions
+                .as_ref()
+                .unwrap()[0]
+                .requirement
+                .as_deref(),
+            Some("REQUIRED")
+        );
+        assert_eq!(realm.authentication_flows.as_ref().unwrap()[3], login);
+    }
+
+    fn roles_config(rows: &str) -> NamedTempFile {
+        let mut file = NamedTempFile::new().expect("temporary file");
+        write!(file, "role,permissions\n{rows}").expect("roles config");
+        file
+    }
+
+    #[tokio::test]
+    async fn roles_config_with_a_reserved_permission_is_rejected_before_keycloak() {
+        for permission in ["admin", "service-account", "datafix-account"] {
+            let file = roles_config(&format!("auditors,election-event-read|{permission}\n"));
+
+            let error = read_roles_config_file(file, &RealmRepresentation::default(), "tenant")
+                .await
+                .expect_err("reserved permission should be rejected");
+
+            assert!(format!("{error}").contains("reserved"), "{error}");
+        }
+    }
+
+    #[test]
+    fn roles_config_with_ordinary_permissions_is_accepted() {
+        let file = roles_config("admin,election-event-read|tally-read\nauditors,logs-read\n");
+
+        require_ordinary_permissions(file.path()).expect("ordinary permissions");
     }
 }

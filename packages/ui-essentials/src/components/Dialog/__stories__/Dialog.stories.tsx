@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
-import {Meta, StoryObj} from "@storybook/react"
+import {Meta, StoryObj} from "@storybook/react-vite"
 import Dialog, {DialogProps} from "../Dialog"
-import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
+import {INITIAL_VIEWPORTS} from "storybook/viewport"
 import {Button} from "@mui/material"
 import {useTranslation} from "react-i18next"
 

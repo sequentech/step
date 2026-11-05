@@ -1,20 +1,30 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
+use crate::services::access::{read_permission, UserScope};
+use crate::services::audit;
+use crate::services::authorization::{authorize, require_ordinary_permission};
+use crate::services::dependencies::HarvestServices;
+use crate::services::role_permissions;
 
+use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt;
+use sequent_core::services::keycloak::validate_keycloak_path_segment;
+use sequent_core::services::keycloak::validate_keycloak_scope;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::Role;
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
+use serde_json::json;
 use tracing::{event, instrument, Level};
+use windmill::services::audit_log::AdminAction;
 
 #[derive(Deserialize, Debug)]
 pub struct CreateRoleBody {
@@ -22,54 +32,49 @@ pub struct CreateRoleBody {
     role: Role,
 }
 
-#[instrument(skip(claims))]
+/// Creates a role. Sign permissions it is created with are logged (see
+/// [`role_permissions`]).
+#[instrument(skip(claims, services))]
 #[post("/create-role", format = "json", data = "<body>")]
 pub async fn create_role(
     claims: jwt::JwtClaims,
     body: Json<CreateRoleBody>,
+    services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<Role>, (Status, String)> {
     let input = body.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::CreateRole,
+        json!({
+            "tenant_id": input.tenant_id,
+            "role": input.role.name,
+            "permissions": input.role.permissions,
+        }),
+    );
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        vec![Permissions::ROLE_READ],
+        vec![Permissions::ROLE_CREATE],
     )?;
-    let realm = get_tenant_realm(&input.tenant_id);
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let role = client.create_role(&realm, &input.role).await.map_err(|e| {
-        event!(Level::INFO, "Error {:?}", e);
-        (Status::InternalServerError, format!("{:?}", e))
-    })?;
-    //client moved to create_role so need to create new one
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let role_with_id =
-        client.get_role_by_name(&realm, &role).await.map_err(|e| {
-            event!(Level::INFO, "Error {:?}", e);
-            (Status::InternalServerError, format!("{:?}", e))
-        })?;
-
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    match (role.clone().permissions, role_with_id.id) {
-        (Some(permissions), Some(id)) => {
-            client
-                .set_role_permissions(&realm, &id, &permissions)
-                .await
-                .map_err(|e| {
-                    event!(Level::INFO, "Error {:?}", e);
-                    (Status::InternalServerError, format!("{:?}", e))
-                })?;
-        }
-        _ => {}
+    for permission in input.role.permissions.iter().flatten() {
+        require_ordinary_permission(permission)?;
     }
-
-    Ok(Json(role))
+    role_permissions::create_role(
+        services,
+        &claims,
+        &input.tenant_id,
+        &input.role,
+    )
+    .await
+    .map(Json)
+    .map_err(|error| {
+        event!(Level::INFO, "Error {:?}", error);
+        error
+    })
 }
 
 #[derive(Deserialize, Debug)]
@@ -87,6 +92,8 @@ pub async fn get_roles(
     body: Json<GetRolesBody>,
 ) -> Result<Json<DataList<Role>>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -125,16 +132,19 @@ pub async fn list_user_roles(
     body: Json<ListUserRolesBody>,
 ) -> Result<Json<Vec<Role>>, (Status, String)> {
     let input = body.into_inner();
-    let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_READ
-    } else {
-        Permissions::USER_READ
-    };
+    validate_keycloak_scope(
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        vec![required_perm, Permissions::ROLE_READ],
+        vec![
+            read_permission(UserScope::of(input.election_event_id.as_deref())),
+            Permissions::ROLE_READ,
+        ],
     )?;
     let realm = match input.election_event_id {
         Some(election_event_id) => {
@@ -159,51 +169,110 @@ pub struct SetOrDeleteUserRoleBody {
     role_id: String,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/set-user-role", format = "json", data = "<body>")]
 pub async fn set_user_role(
     claims: jwt::JwtClaims,
     body: Json<SetOrDeleteUserRoleBody>,
+    services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
-    authorize(
+    activity.record(
         &claims,
-        true,
-        Some(input.tenant_id.clone()),
-        vec![Permissions::USER_WRITE, Permissions::ROLE_WRITE],
-    )?;
-    let realm = get_tenant_realm(&input.tenant_id);
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    client
-        .set_user_role(&realm, &input.user_id, &input.role_id)
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    Ok(Json(Default::default()))
+        TenantAction::SetUserRole,
+        json!({
+            "tenant_id": input.tenant_id,
+            "user_id": input.user_id,
+            "role_id": input.role_id,
+        }),
+    );
+    change_user_role(services, &claims, input, AdminAction::Grant).await
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/delete-user-role", format = "json", data = "<body>")]
 pub async fn delete_user_role(
     claims: jwt::JwtClaims,
     body: Json<SetOrDeleteUserRoleBody>,
+    services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
-    authorize(
+    activity.record(
         &claims,
+        TenantAction::DeleteUserRole,
+        json!({
+            "tenant_id": input.tenant_id,
+            "user_id": input.user_id,
+            "role_id": input.role_id,
+        }),
+    );
+    change_user_role(services, &claims, input, AdminAction::Revoke).await
+}
+
+/// Gives a tenant user a role or takes it away, and logs it in the tenant's
+/// log once Keycloak made the change. The entry names the account and the
+/// role when Keycloak can be asked for them.
+async fn change_user_role(
+    services: &HarvestServices,
+    claims: &jwt::JwtClaims,
+    input: SetOrDeleteUserRoleBody,
+    action: AdminAction,
+) -> Result<Json<OptionalId>, (Status, String)> {
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
+    authorize(
+        claims,
         true,
         Some(input.tenant_id.clone()),
         vec![Permissions::USER_WRITE, Permissions::ROLE_WRITE],
     )?;
     let realm = get_tenant_realm(&input.tenant_id);
-    let client = KeycloakAdminClient::new()
+    let target = audit::target(&input.tenant_id, None)?;
+    let client = services
+        .identity
+        .client()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    client
-        .delete_user_role(&realm, &input.user_id, &input.role_id)
+    let username = client
+        .get_user(&realm, &input.user_id)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .ok()
+        .and_then(|user| user.username);
+    let role_name = match validate_keycloak_path_segment(&input.role_id) {
+        Ok(()) => client
+            .client
+            .realm_groups_with_group_id_get(&realm, &input.role_id)
+            .await
+            .ok()
+            .and_then(|group| group.name),
+        Err(_) => None,
+    };
+    match action {
+        AdminAction::Revoke => {
+            client
+                .delete_user_role(&realm, &input.user_id, &input.role_id)
+                .await
+        }
+        _ => {
+            client
+                .set_user_role(&realm, &input.user_id, &input.role_id)
+                .await
+        }
+    }
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    audit::record(
+        services,
+        &audit::account_role(
+            claims,
+            target,
+            audit::account(&target, &input.user_id, username.as_deref()),
+            action,
+            role_name.as_deref().unwrap_or(&input.role_id),
+        ),
+    )
+    .await?;
     Ok(Json(Default::default()))
 }
 
@@ -213,26 +282,36 @@ pub struct DeleteRoleBody {
     role_id: String,
 }
 
-#[instrument(skip(claims))]
+/// Deletes a role. Sign permissions it held are logged as removed (see
+/// [`role_permissions`]).
+#[instrument(skip(claims, services))]
 #[post("/delete-role", format = "json", data = "<body>")]
 pub async fn delete_role(
     claims: jwt::JwtClaims,
     body: Json<DeleteRoleBody>,
+    services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::DeleteRole,
+        json!({"tenant_id": input.tenant_id, "role_id": input.role_id}),
+    );
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
         vec![Permissions::ROLE_WRITE],
     )?;
-    let realm = get_tenant_realm(&input.tenant_id);
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    client
-        .delete_role(&realm, &input.role_id)
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    role_permissions::delete_role(
+        services,
+        &claims,
+        &input.tenant_id,
+        &input.role_id,
+    )
+    .await?;
     Ok(Json(Default::default()))
 }

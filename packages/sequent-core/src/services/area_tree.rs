@@ -121,6 +121,14 @@ where
             root_node.children.push(child_node);
         }
 
+        // Every valid node is reachable from a root. A remaining component
+        // whose parents all exist must contain a cycle; do not silently omit it.
+        if root_node.iter().filter(|node| node.area.is_some()).count()
+            != nodes.len()
+        {
+            return Err(anyhow!("Loop detected in the tree structure"));
+        }
+
         Ok(root_node)
     }
 
@@ -397,5 +405,31 @@ mod tests {
         let expected_path: Vec<String> =
             vec!["grandad".into(), "father2".into(), "child3".into()];
         assert_eq!(str_path, expected_path);
+    }
+
+    fn area(id: &str, parent_id: Option<&str>) -> TreeNodeArea {
+        TreeNodeArea {
+            id: id.into(),
+            tenant_id: "tenant".into(),
+            election_event_id: "election".into(),
+            annotations: None,
+            parent_id: parent_id.map(Into::into),
+        }
+    }
+
+    #[test]
+    fn from_areas_rejects_self_parent() {
+        let mut node_areas = get_fixture1();
+        node_areas.push(area("self", Some("self")));
+        assert!(TreeNode::<()>::from_areas(node_areas).is_err());
+    }
+
+    #[test]
+    fn from_areas_rejects_parent_cycle() {
+        let mut node_areas = get_fixture1();
+        node_areas.push(area("cycle_a", Some("cycle_b")));
+        node_areas.push(area("cycle_b", Some("cycle_a")));
+        node_areas.push(area("cycle_child", Some("cycle_a")));
+        assert!(TreeNode::<()>::from_areas(node_areas).is_err());
     }
 }

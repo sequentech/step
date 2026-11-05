@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Restore this run's frontend build
+description: Download a build produced by the same immutable workflow run, including partial retries
+inputs:
+  package:
+    description: Package name, or shared-ui for the two shared libraries
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      id: artifact
+      env:
+        PACKAGE: ${{ inputs.package }}
+      run: python3 -m scripts.dev.frontend_cache artifact --package "$PACKAGE"
+    - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+      with:
+        name: ${{ steps.artifact.outputs.name }}
+        path: ${{ runner.temp }}/frontend-${{ inputs.package }}
+    - shell: bash
+      env:
+        BUILD_ARCHIVE: ${{ runner.temp }}/frontend-${{ inputs.package }}/frontend-build.tar
+        PACKAGE: ${{ inputs.package }}
+      run: |
+        tar -xf "$BUILD_ARCHIVE"
+        python3 -m scripts.dev.frontend_cache verify --package "$PACKAGE"

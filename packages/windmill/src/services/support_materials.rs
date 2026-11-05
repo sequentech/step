@@ -12,7 +12,7 @@ use tracing::instrument;
 /// Records that a voter has read and acknowledged the Election Event's
 /// Support Materials, as the list of Support Material document ids they
 /// acknowledged. Mirrors how `VOTED_CHANNEL` is written in
-/// `windmill::tasks::process_cast_vote::mark_voted_via_internet`: a plain
+/// `windmill::adapters::datafix_cast_vote::mark_voted_via_internet`: a plain
 /// Keycloak user attribute, scoped per voter per Election Event since each
 /// Election Event has its own realm.
 #[instrument(skip(document_ids), err)]

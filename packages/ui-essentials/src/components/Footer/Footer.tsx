@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {styled} from "@mui/material/styles"
-import Link from "@mui/material/Link"
 import Typography from "@mui/material/Typography"
 import Paper, {PaperProps} from "@mui/material/Paper"
 import {Trans, useTranslation} from "react-i18next"
@@ -20,7 +19,20 @@ const StyledPaper = styled(Paper)(
     `
 ) as typeof Paper
 
-const StyledLink = styled(Link)(({theme}) => ({
+/*
+ * `styled("a")`, not `styled(Link)`, and this is load-bearing.
+ *
+ * The shared theme sets every MUI `Link` to `LinkBehavior`, which is react-router's —
+ * so this component could not render outside a `Router`, and the Election Architect's
+ * ballot preview has none. It failed there with *"Cannot destructure property
+ * 'basename'"*, a message that says nothing about the cause. `ReviewLayout` hit the
+ * same wall when it was lifted and took the same fix.
+ *
+ * It is also correct on its own terms: this link is external and opens in a new tab,
+ * so routing was never wanted. The portal is unaffected — an `<a href target=_blank>`
+ * is what a router `Link` degrades to for an off-site URL.
+ */
+const StyledLink = styled("a")(({theme}) => ({
     "textDecoration": "underline",
     "fontWeight": "normal",
     "color": theme.palette.blue.dark,

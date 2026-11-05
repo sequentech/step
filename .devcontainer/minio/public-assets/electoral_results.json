@@ -76,7 +76,7 @@
         "name": "Senate Election",
         "description": "Election for the Senators of the country.",
         "voting_type": "Ranked Choice",
-        "counting_algorithm": "Instant Runoff",
+        "counting_algorithm": "instant-runoff",
         "min_votes": 1,
         "winning_candidates_num": 3,
         "is_encrypted": false,
@@ -123,7 +123,7 @@
           "name": "Senate Election",
           "description": "Election for the Senators of the country.",
           "voting_type": "Ranked Choice",
-          "counting_algorithm": "Instant Runoff",
+          "counting_algorithm": "instant-runoff",
           "min_votes": 1,
           "winning_candidates_num": 3,
           "is_encrypted": false,
@@ -164,7 +164,13 @@
         "total_valid_votes": 4800000,
         "percentage_total_valid_votes": 96.0,
         "total_blank_votes": 50000,
+        "blank_votes": {
+          "explicit": 0,
+          "implicit": 50000
+        },
         "percentage_total_blank_votes": 1.0,
+        "percentage_blank_votes_explicit": 0.0,
+        "percentage_blank_votes_implicit": 1.0,
         "total_invalid_votes": 50000,
         "invalid_votes": {
           "explicit": 30000,
@@ -364,7 +370,7 @@
         "name": "Senate Election",
         "description": "Election for the Senators of the country.",
         "voting_type": "Ranked Choice",
-        "counting_algorithm": "Instant Runoff",
+        "counting_algorithm": "instant-runoff",
         "min_votes": 1,
         "winning_candidates_num": 2,
         "is_encrypted": false,
@@ -411,7 +417,7 @@
           "name": "Presidential Election",
           "description": "Election for the next President of the country.",
           "voting_type": "Ranked Choice",
-          "counting_algorithm": "Instant Runoff",
+          "counting_algorithm": "instant-runoff",
           "min_votes": 1,
           "winning_candidates_num": 3,
           "is_encrypted": false,
@@ -452,7 +458,13 @@
         "total_valid_votes": 4800000,
         "percentage_total_valid_votes": 96.0,
         "total_blank_votes": 50000,
+        "blank_votes": {
+          "explicit": 0,
+          "implicit": 50000
+        },
         "percentage_total_blank_votes": 1.0,
+        "percentage_blank_votes_explicit": 0.0,
+        "percentage_blank_votes_implicit": 1.0,
         "total_invalid_votes": 50000,
         "invalid_votes": {
           "explicit": 30000,

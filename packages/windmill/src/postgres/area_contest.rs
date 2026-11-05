@@ -161,8 +161,12 @@ pub async fn get_areas_by_contest_id(
         )
         .await?;
 
-    // Map each row to the area_id column and collect into a Vec<String>
-    let area_ids: Vec<String> = rows.into_iter().map(|row| row.get("area_id")).collect();
+    // area_id is a uuid column: read it as a Uuid, as get_contests_by_area_id
+    // does for contest_id.
+    let area_ids: Vec<String> = rows
+        .into_iter()
+        .map(|row| row.try_get::<_, Uuid>("area_id").map(|id| id.to_string()))
+        .collect::<std::result::Result<_, _>>()?;
 
     Ok(area_ids)
 }

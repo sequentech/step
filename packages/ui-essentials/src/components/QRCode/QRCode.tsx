@@ -15,10 +15,17 @@ const QRCodeSVGFixed: React.FC<any> = (props) => {
 export interface QRCodeProps {
     value: string
     ariaLabelledby?: string
+    /** The side of the square, in pixels; the library's own 128 otherwise. */
+    size?: number
 }
 
-const QRCode: React.FC<QRCodeProps> = ({value, ariaLabelledby}) => (
-    <QRCodeSVGFixed value={value} aria-labelledby={ariaLabelledby} className="qr-code-svg" />
+const QRCode: React.FC<QRCodeProps> = ({value, ariaLabelledby, size}) => (
+    <QRCodeSVGFixed
+        value={value}
+        aria-labelledby={ariaLabelledby}
+        className="qr-code-svg"
+        {...(size === undefined ? {} : {size})}
+    />
 )
 
 export default QRCode

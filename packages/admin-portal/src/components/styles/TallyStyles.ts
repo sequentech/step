@@ -48,12 +48,45 @@ export const TallyStyles = {
         width: 100%;
         display: flex;
         flex-direction: row;
+        flex-wrap: wrap;
         justify-content: space-between;
+        gap: 8px;
         margin-bottom: 25px;
+
+        & > :first-of-type {
+            flex: 1 1 360px;
+            min-width: 0;
+        }
+
+        ${({theme}) => theme.breakpoints.down("sm")} {
+            flex-direction: column;
+
+            & > :first-of-type {
+                flex: 0 0 auto;
+            }
+        }
     `,
     MiruToolbar: styled(Toolbar)`
         background-color: none;
         padding-right: 0 !important;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-self: flex-start;
+
+        ${({theme}) => theme.breakpoints.down("md")} {
+            padding-left: 0 !important;
+        }
+    `,
+    MiruHash: styled("div")`
+        margin-top: 8px;
+        font-size: 14px;
+        overflow-wrap: break-word;
+
+        & code {
+            font-family: "Roboto Mono", monospace;
+            user-select: all;
+            word-spacing: 0.25em;
+        }
     `,
     MiruToolbarButton: styled(Button)`
         border-radius: 0 !important;

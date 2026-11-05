@@ -2,11 +2,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement} from "react"
-import {DatagridConfigurable, List, TextField, ReferenceField, TextInput} from "react-admin"
+import {
+    DatagridConfigurable,
+    FunctionField,
+    List,
+    TextField,
+    ReferenceField,
+    TextInput,
+} from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Typography} from "@mui/material"
 import {generateRowClickHandler} from "../../services/RowClickService"
 import {useTenantStore} from "../../providers/TenantContextProvider"
+import {usePresentationName} from "../../hooks/usePresentationName"
 
 const OMIT_FIELDS = ["id"]
 
@@ -23,6 +31,7 @@ export interface ListAreaContestProps {
 export const ListAreaContest: React.FC<ListAreaContestProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
+    const presentationName = usePresentationName()
 
     const rowClickHandler = generateRowClickHandler(["election_event_id", "contest_id", "area_id"])
 
@@ -45,7 +54,7 @@ export const ListAreaContest: React.FC<ListAreaContestProps> = ({aside}) => {
                         reference="sequent_backend_election_event"
                         source="election_event_id"
                     >
-                        <TextField source="name" />
+                        <FunctionField render={presentationName} />
                     </ReferenceField>
                     <ReferenceField label="Area" reference="sequent_backend_area" source="area_id">
                         <TextField source="name" />
@@ -55,7 +64,7 @@ export const ListAreaContest: React.FC<ListAreaContestProps> = ({aside}) => {
                         reference="sequent_backend_contest"
                         source="contest_id"
                     >
-                        <TextField source="name" />
+                        <FunctionField render={presentationName} />
                     </ReferenceField>
                 </DatagridConfigurable>
             </List>

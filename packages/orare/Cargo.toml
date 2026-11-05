@@ -32,9 +32,18 @@ clap = { version = "4.5", features = ["derive"] }
 
 # Dependencies used in the lambda_runtime proc macro
 anyhow = "1.0"
-sequent-core = { path = "../sequent-core", features = ["reports", "log", "areas", "default_features"] }
 
 [features]
 default = []
-aws_lambda = ["sequent-core/s3"]
+aws_lambda = []
 openwhisk = []
+[dev-dependencies]
+sequent-core = { path = "../sequent-core", features = ["reports", "log", "areas", "default_features"] }
+aws_lambda_events = "0.16"
+lambda_runtime = { version = "0.13", features = ["anyhow"] }
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+
+[[example]]
+name = "contract-openwhisk"
+path = "examples/contract_openwhisk.rs"
+required-features = ["openwhisk"]

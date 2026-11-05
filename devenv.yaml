@@ -2,9 +2,6 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# this is only for claude-code:
-allowUnfree: true
-
 inputs:
   rust-overlay:
     url: github:oxalica/rust-overlay
@@ -15,6 +12,8 @@ inputs:
     url: github:NixOS/nixpkgs/nixpkgs-unstable
   nixpkgs-crates:
     url: github:NixOS/nixpkgs/nixos-26.05
+  llm-agents:
+    url: github:numtide/llm-agents.nix
   fenix:
     url: github:nix-community/fenix
     inputs:

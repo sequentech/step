@@ -57,15 +57,10 @@ export const EditContestData: React.FC = () => {
         const presentation = data?.presentation as IContestPresentation | undefined
         const i18n = presentation?.i18n ?? {}
 
-        // name, alias and description fields
-        const fromPresentationName = i18n?.en?.name || i18n[Object.keys(i18n)[0]]?.name || ""
-        data.name = fromPresentationName
-        const fromPresentationAlias = i18n?.en?.alias || i18n[Object.keys(i18n)[0]]?.alias || ""
-        data.alias = fromPresentationAlias
+        // The name and alias live only in the presentation (migration 1772358027729).
         const fromPresentationDescription =
             i18n?.en?.description || i18n[Object.keys(i18n)[0]]?.description || ""
         data.description = fromPresentationDescription
-        // END name, alias and description fields
         data.annotations = serializeIvrEntityAnnotations(data.annotations)
 
         return data

@@ -33,7 +33,8 @@ every environment:
 | `tally_queue` | Tally execution |
 | `reports_queue` | Reports, rendering and post-tally work |
 | `import_export_queue` | Imports, exports and voter bulk operations |
-| `electoral_log_beat_queue` | Electoral-log batch dispatcher |
+| `monitoring_queue` | Monitoring snapshot refreshes, one task per election event |
+| `electoral_log_beat_queue` | Electoral-log batch dispatcher, and the signing and audit log outboxes (`post_signing_log_outbox`, `post_audit_log_outbox`) |
 | `electoral_log_batch_queue` | Electoral-log batch processing |
 | `electoral_log_event_queue` | Raw events; **batch dispatcher only** |
 | `electoral_log_dead_letter_queue` | None; electoral-log events set aside for inspection and replay |
@@ -165,9 +166,15 @@ Workers poll each consumed queue every 200 ms when it is empty.
 Beat schedules `purge_queue_archives` every `QUEUE_ARCHIVE_PURGE_INTERVAL_SECS`
 seconds (3600 by default). It deletes archived messages older than
 `QUEUE_ARCHIVE_RETENTION_HOURS` hours (168, seven days, by default), a few thousand
-rows per statement. It never deletes waiting messages, and never purges the archive
-of the dead-letter queue. Beat refuses to start with an invalid interval, and a worker
-consuming `beat` refuses to start with an invalid retention.
+rows per statement. It never deletes waiting messages. From the archive of the
+electoral-log raw-event queue it deletes only messages archived as `succeeded`, and from
+the batch queue's also those archived as `expired`, which are sequencer runs that never
+ran and carry no events. Any other message, one that failed, was rejected or has no
+outcome, such as a batch that could be neither stored nor dead-lettered, stays in its
+archive until an operator sends it again or deletes it. The dead-letter queue's archive
+is never purged. Beat
+refuses to start with an invalid interval, and a worker consuming `beat` refuses to
+start with an invalid retention.
 
 ## Migrating an environment from RabbitMQ
 
@@ -246,7 +253,9 @@ PGMQ_TEST_DATABASE_URL=postgres://... cargo test -p windmill --lib \
 
 Set `PGMQ_TEST_DATABASE_URL` through the test environment, not committed
 configuration; the role test needs a user that may create roles. CI creates a separate
-`pgmq_test` database and runs these checks. They cover setup, the environment guard,
+`pgmq_test` database and runs these checks; `step-dev test` runs them as the
+`cargo-test-db:pgmq-broker` check, against a `pgmq_test` database on `127.0.0.1:5432`
+with a `test` role. They cover setup, the environment guard,
 role privileges, worker and Beat delivery, retry, expiry, outcomes, archive purge,
 transaction rollback, lease renewal, claim fencing, abandoned-claim recovery,
 malformed messages, atomic batch handoff, dead letters and batch limits. Keycloak's

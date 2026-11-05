@@ -27,10 +27,8 @@ const SelectArea = ({
     disabled,
 }: SelectAreaProps) => {
     const areaFilterToQuery = (searchText: string) => {
-        if (!searchText || searchText.length == 0) {
-            return {name: ""}
-        }
-        return {name: searchText.trim()}
+        const name = searchText?.trim()
+        return name ? {"name@_ilike": name} : {}
     }
 
     return (

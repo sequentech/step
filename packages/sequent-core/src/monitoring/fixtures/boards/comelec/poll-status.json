@@ -1,0 +1,275 @@
+{
+  "charts": {
+    "closed": {
+      "label": "Voting closed",
+      "query": "closed",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "support": {
+        "label": "of Posts",
+        "value": "pct_label"
+      },
+      "type": "kpi",
+      "value": "numerator"
+    },
+    "initialized": {
+      "label": "Initialized",
+      "query": "initialized",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "support": {
+        "label": "of Posts",
+        "value": "pct_label"
+      },
+      "type": "kpi",
+      "value": "numerator"
+    },
+    "opened": {
+      "label": "Online voting opened",
+      "query": "opened",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "support": {
+        "label": "of Posts",
+        "value": "pct_label"
+      },
+      "type": "kpi",
+      "value": "numerator"
+    },
+    "progress": {
+      "query": "progress",
+      "type": "spark_bar",
+      "x": "value",
+      "y": "label"
+    }
+  },
+  "queries": {
+    "closed": {
+      "columns": [
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          2,
+          12,
+          0.16666666666666666,
+          "16.7%"
+        ]
+      ]
+    },
+    "initialized": {
+      "columns": [
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          9,
+          12,
+          0.75,
+          "75.0%"
+        ]
+      ]
+    },
+    "opened": {
+      "columns": [
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          6,
+          12,
+          0.5,
+          "50.0%"
+        ]
+      ]
+    },
+    "progress": {
+      "columns": [
+        "measure",
+        "label",
+        "position",
+        "value"
+      ],
+      "values": [
+        [
+          "posts",
+          "Posts in scope",
+          1,
+          12
+        ],
+        [
+          "initialized",
+          "Initialized",
+          2,
+          9
+        ],
+        [
+          "opened",
+          "Online voting opened",
+          3,
+          6
+        ],
+        [
+          "closed",
+          "Voting closed",
+          4,
+          2
+        ]
+      ]
+    }
+  },
+  "rows": [
+    {
+      "cols": [
+        "initialized",
+        "opened",
+        "closed"
+      ]
+    },
+    "progress"
+  ],
+  "style": {
+    "accent": "#0F054C",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "axis_quantitative": {
+        "labels": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "color": {
+        "categorical": {
+          "palette": [
+            "#0F054C",
+            "#43E3A1",
+            "#7C6FE0",
+            "#F59E0B",
+            "#0EA5E9",
+            "#DC2626"
+          ],
+          "single_series_palette": [
+            "#0F054C"
+          ]
+        }
+      },
+      "kpi": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        },
+        "value": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "visible": false
+        }
+      },
+      "pie": {
+        "total": {
+          "value": {
+            "font": {
+              "family": "'Inter Variable', Inter, system-ui, sans-serif"
+            }
+          }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 220
+        }
+      },
+      "support_table": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "font": {
+      "family": "'Inter Variable', Inter, system-ui, sans-serif"
+    },
+    "footer": {
+      "visible": false
+    },
+    "text": {
+      "font": {
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none",
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    }
+  },
+  "theme": "clarity"
+}

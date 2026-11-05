@@ -4,7 +4,7 @@ const {test} = require("node:test")
 const assert = require("node:assert/strict")
 const {readFileSync} = require("node:fs")
 const {resolve} = require("node:path")
-const yaml = require("../../packages/node_modules/js-yaml")
+const yaml = require("js-yaml")
 
 const metadata = yaml.load(
     readFileSync(
@@ -34,6 +34,46 @@ const protectedFilter = {
         },
     ],
 }
+const excludeBallotReceipts = {
+    _and: [
+        {
+            _or: [
+                {name: {_is_null: true}},
+                {name: {_nilike: "ballot\\_receipt\\_%"}},
+            ],
+        },
+        {
+            _or: [
+                {annotations: {_is_null: true}},
+                {_not: {annotations: {_contains: {purpose: "ballot-receipt"}}}},
+            ],
+        },
+    ],
+}
+// Participation and voter exports remain immutable even for service accounts.
+const immutableExportFilters = [
+    {
+        _or: [
+            {annotations: {_is_null: true}},
+            {_not: {annotations: {_has_key: "participation_scope"}}},
+        ],
+    },
+    {
+        _or: [{name: {_is_null: true}}, {name: {_nilike: "users-export-%"}}],
+    },
+    {
+        _or: [
+            {name: {_is_null: true}},
+            {name: {_nilike: "election-event-%-export-sha256-%"}},
+        ],
+    },
+    {
+        _or: [
+            {annotations: {_is_null: true}},
+            {_not: {annotations: {_contains: {purpose: "voter-export"}}}},
+        ],
+    },
+]
 for (const operation of ["update", "delete"]) {
     test(`${operation} cannot strip or replace classified document metadata`, () => {
         const permissions = metadata[`${operation}_permissions`]
@@ -45,7 +85,17 @@ for (const operation of ["update", "delete"]) {
         for (const {role, permission} of permissions) {
             assert.deepEqual(
                 permission.filter,
-                role === "service-account" ? {} : protectedFilter
+                {
+                    _and:
+                        role === "service-account"
+                            ? immutableExportFilters
+                            : [
+                                  protectedFilter,
+                                  excludeBallotReceipts,
+                                  ...immutableExportFilters,
+                              ],
+                },
+                `${role} ${operation} must preserve document privacy restrictions`
             )
         }
     })

@@ -137,7 +137,7 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
         .getClientNotes()
         .forEach(
             (String name, String note) -> {
-              log.infov("setClientNote name={0}, value={1}", name, note);
+              log.infov("setClientNote name={0}", name);
               authSession.setClientNote(name, note);
             });
     originalSession
@@ -149,8 +149,7 @@ public class OTLActionTokenHandler extends AbstractActionTokenHandler<OTLActionT
             });
     authNoteNames.forEach(
         (String name) -> {
-          log.debugv(
-              "setting setAuthNote name={0}, value={1}", name, originalSession.getAuthNote(name));
+          log.debugv("setting setAuthNote name={0}", name);
           authSession.setAuthNote(name, originalSession.getAuthNote(name));
         });
     originalSession

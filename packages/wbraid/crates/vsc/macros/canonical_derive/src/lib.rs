@@ -42,9 +42,11 @@ fn impl_canonical(ast: &syn::DeriveInput) -> TokenStream {
     let generics = ast.generics.clone();
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-    // Per-field write statements and the constructor expression.
+    // Per-field write statements, the constructor expression, and the
+    // fixed-width hint (the sum of the fields' hints; `None` if any is).
     let write_stmts: proc_macro2::TokenStream;
     let read_ctor: proc_macro2::TokenStream;
+    let fixed_width: proc_macro2::TokenStream;
 
     match &ast.data {
         syn::Data::Struct(s) => match &s.fields {
@@ -58,16 +60,27 @@ fn impl_canonical(ast: &syn::DeriveInput) -> TokenStream {
                 write_stmts = quote! { #( Serializable::write(&self.#names, out); )* };
                 read_ctor =
                     quote! { Self { #( #names: <#tys as Deserializable>::read(input)?, )* } };
+                fixed_width = quote! {
+                    ::cryptography::utils::serialization::fixed_width_sum(&[
+                        #( <#tys as ::cryptography::utils::serialization::Deserializable>::FIXED_WIDTH, )*
+                    ])
+                };
             }
             syn::Fields::Unnamed(fields) => {
                 let indices = (0..fields.unnamed.len()).map(syn::Index::from);
                 let tys: Vec<_> = fields.unnamed.iter().map(|f| &f.ty).collect();
                 write_stmts = quote! { #( Serializable::write(&self.#indices, out); )* };
                 read_ctor = quote! { Self( #( <#tys as Deserializable>::read(input)?, )* ) };
+                fixed_width = quote! {
+                    ::cryptography::utils::serialization::fixed_width_sum(&[
+                        #( <#tys as ::cryptography::utils::serialization::Deserializable>::FIXED_WIDTH, )*
+                    ])
+                };
             }
             syn::Fields::Unit => {
                 write_stmts = quote! {};
                 read_ctor = quote! { Self };
+                fixed_width = quote! { Some(0) };
             }
         },
         _ => {
@@ -85,6 +98,8 @@ fn impl_canonical(ast: &syn::DeriveInput) -> TokenStream {
         }
 
         impl #impl_generics ::cryptography::utils::serialization::Deserializable for #name #ty_generics #where_clause {
+            const FIXED_WIDTH: Option<usize> = #fixed_width;
+
             fn read(input: &mut &[u8]) -> Result<Self, ::cryptography::utils::error::Error> {
                 use ::cryptography::utils::serialization::{Serializable, Deserializable};
                 Ok(#read_ctor)

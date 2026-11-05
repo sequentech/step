@@ -13,11 +13,10 @@ use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
-use sequent_core::types::date_time::{DateFormat, TimeZone};
 use sequent_core::types::hasura::core::TasksExecution;
 use tracing::instrument;
 
-#[instrument(err)]
+#[instrument(skip_all)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn create_ballot_receipt(
@@ -29,8 +28,6 @@ pub async fn create_ballot_receipt(
     election_id: String,
     area_id: String,
     voter_id: String,
-    time_zone: Option<TimeZone>,
-    date_format: Option<DateFormat>,
     task_execution: TasksExecution,
 ) -> Result<()> {
     let _permit = acquire_semaphore().await?;
@@ -80,8 +77,6 @@ pub async fn create_ballot_receipt(
                         voter_id,
                         ballot_id,
                         ballot_tracker_url,
-                        time_zone,
-                        date_format,
                     }),
                 );
 

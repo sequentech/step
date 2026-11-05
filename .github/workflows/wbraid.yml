@@ -13,16 +13,29 @@ on:
       - 'packages/wbraid/**'
       - '.github/workflows/wbraid.yml'
       - '.github/actions/setup-rust-tests/**'
+      - '.github/actions/setup-rust-cache/**'
+      - 'scripts/dev/rust_cache.py'
   push:
-    branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+    branches: [ 'main', 'ovcs', 'release/[0-9]+.[0-9]+' ]
     paths:
       - 'packages/wbraid/**'
       - '.github/workflows/wbraid.yml'
       - '.github/actions/setup-rust-tests/**'
+      - '.github/actions/setup-rust-cache/**'
+      - 'scripts/dev/rust_cache.py'
 
 defaults:
   run:
     working-directory: packages/wbraid
+
+permissions:
+  contents: read
+  # OIDC for the shared compiler cache (setup-rust-cache)
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   lint:
@@ -36,6 +49,10 @@ jobs:
       - name: Set up Rust
         uses: ./.github/actions/setup-rust-tests
         with:
+          cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
+          compile-cache: ${{ vars.STEP_COMPILE_CACHE }}
+          profile: dev
+          features: default,sqlite,postgres
           cargo-build-name: wbraid-lint
           cargo-build-path: packages/wbraid/target
           cargo-lock-path: packages/wbraid/Cargo.lock
@@ -67,6 +84,10 @@ jobs:
       - name: Set up Rust
         uses: ./.github/actions/setup-rust-tests
         with:
+          cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
+          compile-cache: ${{ vars.STEP_COMPILE_CACHE }}
+          profile: release
+          features: default,sqlite,postgres
           cargo-build-name: wbraid-test
           cargo-build-path: packages/wbraid/target
           cargo-lock-path: packages/wbraid/Cargo.lock
@@ -90,6 +111,10 @@ jobs:
       - name: Set up Rust
         uses: ./.github/actions/setup-rust-tests
         with:
+          cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
+          compile-cache: ${{ vars.STEP_COMPILE_CACHE }}
+          profile: release
+          features: no-default-features,wasm-core
           cargo-build-name: wbraid-wasm
           cargo-build-path: packages/wbraid/target
           cargo-lock-path: packages/wbraid/Cargo.lock
@@ -106,8 +131,40 @@ jobs:
           --target wasm32-unknown-unknown
           --no-default-features --features wasm-core
 
+  # live-b4 takes a quarter of an hour, so a PR runs it only when it changes
+  # the protocol code or this workflow. The shared Rust setup actions also
+  # trigger the workflow; the cheaper jobs above still cover them.
+  live-b4-plan:
+    name: Select the live-b4 tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: .
+    outputs:
+      run: ${{ steps.plan.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Compare with the merge base
+        id: plan
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ -z "$BASE" ] || ! git diff --quiet "$(git merge-base "$BASE" HEAD)" HEAD -- packages/wbraid .github/workflows/wbraid.yml \
+            .github/actions/setup-rust-tests .github/actions/setup-rust-cache scripts/dev/rust_cache.py; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Neither packages/wbraid, this workflow nor the shared Rust setup changed; the live-b4 tests are skipped." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   live-b4:
     name: Live b4 protocol tests
+    needs: live-b4-plan
+    if: needs.live-b4-plan.outputs.run == 'true'
     # A release build of b4 and braid plus two full protocol runs
     # against a real b4 and the S3 emulator. The same two tests run in
     # the devcontainer with `cargo test -p braid --release -- --ignored`
@@ -156,6 +213,10 @@ jobs:
       - name: Set up Rust
         uses: ./.github/actions/setup-rust-tests
         with:
+          cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
+          compile-cache: ${{ vars.STEP_COMPILE_CACHE }}
+          profile: release
+          features: default,sqlite,postgres
           cargo-build-name: wbraid-test
           cargo-build-path: packages/wbraid/target
           cargo-lock-path: packages/wbraid/Cargo.lock
@@ -166,17 +227,23 @@ jobs:
           aws s3 mb s3://wbraid-messages
           aws s3api put-bucket-cors --bucket wbraid-messages --cors-configuration file://s3-cors.json
 
-      - name: Build b4v6
-        run: cargo build --release --features postgres,sqlite --bin b4v6
+      # One build for the server and the test binaries: with separate package
+      # and feature selections, Cargo compiled about 200 crates twice. Only
+      # these three test files hold ignored tests.
+      - name: Build b4v6 and the live-b4 tests
+        run: >-
+          cargo build --release -p braid -p b4 --features b4/postgres,b4/sqlite
+          --bin b4v6 --test test_protocol --test model_check --test model_check_symbolic
 
       - name: Start b4v6 sqlite
         id: b4v6-sqlite
-        background: true
         env:
           DATABASE_URL: 'sqlite:${{ runner.temp }}/b4.db'
           WBRAID_B4_BIND: '127.0.0.1:${{ env.SQLITE_B4_PORT }}'
           WBRAID_B4_URL: 'http://127.0.0.1:${{ env.SQLITE_B4_PORT }}'
-        run: target/release/b4v6
+        run: |
+          nohup target/release/b4v6 > "$RUNNER_TEMP/b4v6-sqlite.log" 2>&1 &
+          echo "pid=$!" >> "$GITHUB_OUTPUT"
 
       - name: Wait b4v6 sqlite
         env:
@@ -195,7 +262,9 @@ jobs:
           exit 1
 
       - name: Run the live-b4 protocol tests with sqlite
-        run: cargo test -p braid --release -- --ignored
+        run: >-
+          cargo test --release -p braid -p b4 --features b4/postgres,b4/sqlite
+          --test test_protocol --test model_check --test model_check_symbolic -- --ignored
         env:
           RUST_BACKTRACE: 'full'
           WBRAID_B4_BIND: '127.0.0.1:${{ env.SQLITE_B4_PORT }}'
@@ -203,12 +272,13 @@ jobs:
 
       - name: Start b4v6 postgres
         id: b4v6-postgres
-        background: true
         env:
           DATABASE_URL: 'postgres://postgres:postgres@localhost:5432/b4'
           WBRAID_B4_BIND: '127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
           WBRAID_B4_URL: 'http://127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
-        run: target/release/b4v6
+        run: |
+          nohup target/release/b4v6 > "$RUNNER_TEMP/b4v6-postgres.log" 2>&1 &
+          echo "pid=$!" >> "$GITHUB_OUTPUT"
 
       - name: Wait b4v6 postgres
         env:
@@ -227,14 +297,28 @@ jobs:
           exit 1
 
       - name: Run the live-b4 protocol tests with postgres
-        run: cargo test -p braid --release -- --ignored
+        run: >-
+          cargo test --release -p braid -p b4 --features b4/postgres,b4/sqlite
+          --test test_protocol --test model_check --test model_check_symbolic -- --ignored
         env:
           RUST_BACKTRACE: 'full'
           WBRAID_B4_BIND: '127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
           WBRAID_B4_URL: 'http://127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
 
       - name: Stop sqlite b4v6
-        cancel: b4v6-sqlite
+        if: always()
+        env:
+          SERVER_PID: ${{ steps.b4v6-sqlite.outputs.pid }}
+        run: |
+          if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
+            kill "$SERVER_PID"
+          fi
 
       - name: Stop postgres b4v6
-        cancel: b4v6-postgres
+        if: always()
+        env:
+          SERVER_PID: ${{ steps.b4v6-postgres.outputs.pid }}
+        run: |
+          if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
+            kill "$SERVER_PID"
+          fi

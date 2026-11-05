@@ -368,7 +368,10 @@ const ImportedVersionSource: React.FC<ImportedVersionSourceProps> = ({
         const nextSearch = new URLSearchParams(location.search)
         nextSearch.set("tabId", "tally-sheet-imports")
         nextSearch.set("tallySheetImportId", importId)
-        navigate({pathname: location.pathname, search: `?${nextSearch.toString()}`})
+        navigate({
+            pathname: `/sequent_backend_election_event/${electionEventId}`,
+            search: `?${nextSearch.toString()}`,
+        })
     }
 
     const downloadSource = async () => {
@@ -377,12 +380,13 @@ const ImportedVersionSource: React.FC<ImportedVersionSourceProps> = ({
         }
 
         try {
-            const {data} = await fetchDocument({
+            const {data, error} = await fetchDocument({
                 variables: {
                     electionEventId,
                     documentId: sourceImport.source_document_id,
                 },
             })
+            if (error) throw error
             const url = data?.fetchDocument?.url
             if (!url) {
                 throw new Error(String(t("tallySheetImport.notifications.sourceUrlError")))

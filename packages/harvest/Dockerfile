@@ -8,14 +8,7 @@ ENV ROCKET_ADDRESS=0.0.0.0
 ENV ROCKET_PORT=8400
 
 WORKDIR /app
-COPY ./harvest ./harvest
-COPY ./strand ./strand
-COPY ./board-messages ./board-messages
-COPY ./sequent-core ./sequent-core
-COPY ./windmill ./windmill
-COPY ./pgmq-broker ./pgmq-broker
-COPY ./wrap-map-err ./wrap-map-err
-COPY ./velvet ./velvet
+COPY . .
 
 RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev
 

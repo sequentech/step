@@ -6,9 +6,11 @@
 use anyhow::Result;
 use electoral_log::{
     adapters::{
-        events::{ActivityMark, EventDatabases},
+        events::{ActivityMark, EventDatabases, RetiredEventDatabase},
         postgres::{LogScope, PostgresStore},
-        transfer::{ExportManifest, ExportedRecord, SignedCheckpoint, EXPORT_FORMAT_V1},
+        transfer::{
+            ExportManifest, ExportedRecord, SignedCheckpoint, EXPORT_FORMAT_V1, EXPORT_FORMAT_V2,
+        },
     },
     messages::{
         message::{Message, SigningData},
@@ -23,8 +25,8 @@ use electoral_log::{
     ElectoralLogMessage, LogEntry, LogQuery,
 };
 use std::sync::Arc;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use uuid::Uuid;
+use voting_crypto::signing::{SigningKey, VerificationKey};
 
 fn databases() -> Result<EventDatabases> {
     EventDatabases::from_env()
@@ -61,6 +63,249 @@ fn entry(delivery: &str, created: i64) -> LogEntry {
 
 fn entries(range: std::ops::Range<i64>) -> Vec<LogEntry> {
     range.map(|n| entry(&format!("delivery-{n}"), n)).collect()
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_PG_* with a role that may create databases"]
+async fn a_tenant_log_has_a_database_of_its_own() -> Result<()> {
+    let databases = databases()?;
+    let (tenant, other_tenant) = (Uuid::new_v4(), Uuid::new_v4());
+    let board = format!("testtenant{}", tenant.simple());
+    let tenant_id = tenant.to_string();
+    assert!(databases.tenant(&tenant_id).await?.is_none());
+    let client = BoardClient::new(Arc::new(databases.clone()));
+    // Without its database a tenant's board reads nothing and takes nothing.
+    assert!(!client.has_board(&board).await?);
+    assert_eq!(client.count(&board, &LogQuery::default()).await?, 0);
+    assert!(client.create_board(&board).await.is_err());
+
+    databases.create_tenant(&tenant_id).await?;
+    databases.create_tenant(&tenant_id).await?;
+    let entry = databases.tenant(&tenant_id).await?.unwrap();
+    assert_eq!(
+        entry.database_name,
+        databases.tenant_database_name(&tenant_id)?
+    );
+    assert!(databases.is_tenant_database(&entry.database_name));
+    assert!(!databases.is_event_database(&entry.database_name));
+    assert!(databases.tenants().await?.contains(&entry));
+
+    client.create_board(&board).await?;
+    client.append(&board, &entries(0..3)).await?;
+    assert_eq!(client.count(&board, &LogQuery::default()).await?, 3);
+    assert_eq!(client.query(&board, &LogQuery::default()).await?.len(), 3);
+    // Another tenant's board is in another database.
+    let foreign = format!("testtenant{}", other_tenant.simple());
+    assert!(!client.has_board(&foreign).await?);
+    assert!(client.append(&foreign, &entries(3..4)).await.is_err());
+
+    let catalog = databases.catalog().client().await?;
+    catalog
+        .batch_execute(&format!(
+            "DROP DATABASE \"{}\" WITH (FORCE)",
+            entry.database_name
+        ))
+        .await?;
+    catalog
+        .batch_execute(&format!(
+            "DELETE FROM electoral_log_tenants WHERE tenant_id = '{tenant}'"
+        ))
+        .await?;
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_PG_* with a role that may create databases"]
+async fn a_deleted_events_database_is_retired_with_its_records() -> Result<()> {
+    let databases = databases()?;
+    let (tenant, other_tenant, event) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
+    let board = board(&tenant, &event);
+    let event_id = event.to_string();
+    assert!(databases
+        .retire_event(&tenant.to_string(), &event_id, 1_791_000_000)
+        .await?
+        .is_none());
+    databases
+        .create_event(&tenant.to_string(), &event_id)
+        .await?;
+    let client = BoardClient::new(Arc::new(databases.clone()));
+    client.create_board(&board).await?;
+    client.append(&board, &entries(0..4)).await?;
+
+    assert!(databases
+        .retire_event(&other_tenant.to_string(), &event_id, 1_791_000_000)
+        .await
+        .is_err());
+    let retired = databases
+        .retire_event(&tenant.to_string(), &event_id, 1_791_000_000)
+        .await?
+        .unwrap();
+    assert_eq!(
+        retired.database_name,
+        format!(
+            "{}_r1791000000_{}",
+            databases.connection().database(),
+            event.simple()
+        )
+    );
+    assert!(!databases.has_event(&event_id).await?);
+    assert!(!client.has_board(&board).await?);
+    assert_eq!(
+        databases.retired_events(&tenant.to_string()).await?,
+        vec![retired.clone()]
+    );
+
+    // The records are still there, in a database that takes no connections.
+    let catalog = databases.catalog().client().await?;
+    let allows: bool = catalog
+        .query_one(
+            "SELECT datallowconn FROM pg_database WHERE datname = $1",
+            &[&retired.database_name],
+        )
+        .await?
+        .get(0);
+    assert!(!allows);
+    catalog
+        .batch_execute(&format!(
+            "ALTER DATABASE \"{}\" WITH ALLOW_CONNECTIONS true",
+            retired.database_name
+        ))
+        .await?;
+    let kept = databases.connection().store_of(&retired.database_name, 1)?;
+    assert_eq!(kept.count(&board, &LogQuery::default()).await?, 4);
+    kept.close();
+
+    // The same event ID can be created again, with an empty log.
+    databases
+        .create_event(&tenant.to_string(), &event_id)
+        .await?;
+    client.create_board(&board).await?;
+    assert_eq!(client.count(&board, &LogQuery::default()).await?, 0);
+    databases.drop_event(&tenant.to_string(), &event_id).await?;
+    catalog
+        .batch_execute(&format!(
+            "DROP DATABASE \"{}\" WITH (FORCE)",
+            retired.database_name
+        ))
+        .await?;
+    catalog
+        .batch_execute(&format!(
+            "DELETE FROM electoral_log_retired_events WHERE database_name = '{}'",
+            retired.database_name
+        ))
+        .await?;
+    Ok(())
+}
+
+async fn allows_connections(databases: &EventDatabases, database: &str) -> Result<bool> {
+    Ok(databases
+        .catalog()
+        .client()
+        .await?
+        .query_one(
+            "SELECT datallowconn FROM pg_database WHERE datname = $1",
+            &[&database],
+        )
+        .await?
+        .get(0))
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_PG_* with a role that may create databases"]
+async fn a_retired_events_database_is_read_and_closed_again() -> Result<()> {
+    let databases = databases()?;
+    let (tenant, event, live_event) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
+    let board = board(&tenant, &event);
+    databases
+        .create_event(&tenant.to_string(), &event.to_string())
+        .await?;
+    let client = BoardClient::new(Arc::new(databases.clone()));
+    client.create_board(&board).await?;
+    client.append(&board, &entries(0..4)).await?;
+    let retired = databases
+        .retire_event(&tenant.to_string(), &event.to_string(), 1_791_000_001)
+        .await?
+        .unwrap();
+
+    let read = databases
+        .read_retired_event(&retired, |store| async move {
+            let records = store
+                .query_scope(LogScope::Database, &LogQuery::default())
+                .await?;
+            // The read can't change what the database keeps.
+            let written = store
+                .append(&board, &mut entries(4..5).into_iter().map(Ok))
+                .await;
+            Ok((records, written.is_err()))
+        })
+        .await?;
+    assert_eq!(read.0.len(), 4);
+    assert!(read.1, "a retired database was written to");
+    assert!(!allows_connections(&databases, &retired.database_name).await?);
+
+    // A read that fails closes the database too.
+    let failed = databases
+        .read_retired_event(&retired, |_| async {
+            anyhow::bail!("the read failed") as Result<()>
+        })
+        .await;
+    assert!(failed.is_err());
+    assert!(!allows_connections(&databases, &retired.database_name).await?);
+
+    // A database left open, as by a process that stopped while reading, is
+    // closed by the next read of any retired database of the server.
+    let catalog = databases.catalog().client().await?;
+    catalog
+        .batch_execute(&format!(
+            "ALTER DATABASE \"{}\" WITH ALLOW_CONNECTIONS true",
+            retired.database_name
+        ))
+        .await?;
+    databases
+        .read_retired_event(&retired, |_| async { Ok(()) })
+        .await?;
+    assert!(!allows_connections(&databases, &retired.database_name).await?);
+
+    // Only a database the catalog lists as the tenant's retired one is opened.
+    databases
+        .create_event(&tenant.to_string(), &live_event.to_string())
+        .await?;
+    let live = databases.event(&live_event.to_string()).await?.unwrap();
+    let posing = RetiredEventDatabase {
+        election_event_id: live_event.to_string(),
+        tenant_id: tenant.to_string(),
+        database_name: live.database_name.clone(),
+    };
+    assert!(databases
+        .read_retired_event(&posing, |_| async { Ok(()) })
+        .await
+        .is_err());
+    assert!(allows_connections(&databases, &live.database_name).await?);
+    let foreign = RetiredEventDatabase {
+        tenant_id: Uuid::new_v4().to_string(),
+        ..retired.clone()
+    };
+    assert!(databases
+        .read_retired_event(&foreign, |_| async { Ok(()) })
+        .await
+        .is_err());
+
+    databases
+        .drop_event(&tenant.to_string(), &live_event.to_string())
+        .await?;
+    catalog
+        .batch_execute(&format!(
+            "DROP DATABASE \"{}\" WITH (FORCE)",
+            retired.database_name
+        ))
+        .await?;
+    catalog
+        .batch_execute(&format!(
+            "DELETE FROM electoral_log_retired_events WHERE database_name = '{}'",
+            retired.database_name
+        ))
+        .await?;
+    Ok(())
 }
 
 #[tokio::test]
@@ -212,20 +457,22 @@ async fn export(store: &PostgresStore) -> Result<(Vec<ExportedRecord>, ExportMan
         ExportManifest {
             format: EXPORT_FORMAT_V1.into(),
             election_event_id: "source".into(),
+            board_log_uid: None,
+            ballot_verification_keys: vec![],
             logs,
         },
     ))
 }
 
 fn sign(
-    key: &StrandSignatureSk,
+    key: &SigningKey,
     checkpoint: &electoral_log::proofs::Checkpoint,
 ) -> Result<SignedCheckpoint> {
     let reason = ElectoralLogCheckpointReason::Periodic;
     Ok(SignedCheckpoint {
         checkpoint: checkpoint.clone(),
         reason,
-        signer_pk: StrandSignaturePk::from_sk(key)?.to_der_b64_string()?,
+        signer_pk: VerificationKey::from_sk(key)?.to_b64_string()?,
         signature: key
             .sign(&checkpoint_signing_bytes(checkpoint, reason)?)?
             .to_b64_string()?,
@@ -298,7 +545,7 @@ async fn exported_logs_import_with_their_roots_and_tampering_is_refused() -> Res
     let tenant = Uuid::new_v4();
     let [source_event, target_event, tampered_event, chained_event, unlinked_event] =
         [(); 5].map(|_| Uuid::new_v4());
-    let key = StrandSignatureSk::generate()?;
+    let key = SigningKey::generate()?;
     let sd = SigningData::new(key.clone(), "", key.clone());
     let source_board = board(&tenant, &source_event);
     let source = databases
@@ -472,6 +719,426 @@ async fn exported_logs_import_with_their_roots_and_tampering_is_refused() -> Res
     ] {
         databases
             .drop_event(&tenant.to_string(), &event.to_string())
+            .await?;
+    }
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_PG_* with a role that may create databases"]
+async fn upgrading_an_event_database_completes_its_ballot_box() -> Result<()> {
+    use electoral_log::adapters::ballot_box_received::{
+        ReceiveBallot, ReceiveOutcome, ReceivedSignature,
+    };
+    let databases = databases()?;
+    let (tenant, event, election, area) = (
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+        Uuid::new_v4().to_string(),
+        Uuid::new_v4().to_string(),
+    );
+    let event_id = event.to_string();
+    let store = databases
+        .create_event(&tenant.to_string(), &event_id)
+        .await?;
+    store.create_ballot_box(&event_id).await?;
+    // The ballot box as it was before received ballots and seals.
+    let suffix = event.simple();
+    store
+        .client()
+        .await?
+        .batch_execute(&format!(
+            "ALTER TABLE ballot_box_received DETACH PARTITION ballot_box_received_{suffix};
+             DROP TABLE ballot_box_received_{suffix};
+             DROP TRIGGER ballot_box_seal_guard_truncate ON ballot_box_ballot_{suffix};
+             DROP TRIGGER ballot_box_seal_guard_truncate ON ballot_box_ballot;
+             DROP TRIGGER ballot_box_seal_guard ON ballot_box_ballot;
+             DROP TABLE ballot_box_seal;"
+        ))
+        .await?;
+
+    databases.apply_schema(&event_id).await?;
+    databases.apply_schema(&event_id).await?;
+    let triggers: Vec<String> = store
+        .client()
+        .await?
+        .query(
+            "SELECT tgname::text FROM pg_trigger WHERE tgrelid = $1::text::regclass ORDER BY 1",
+            &[&format!("ballot_box_ballot_{suffix}")],
+        )
+        .await?
+        .iter()
+        .map(|row| row.get(0))
+        .collect();
+    assert_eq!(
+        triggers,
+        [
+            "ballot_box_seal_guard",
+            "ballot_box_seal_guard_truncate",
+            "ballot_privacy_guard",
+            "ballot_privacy_participation"
+        ]
+    );
+    assert!(!store.has_ballot_box_seals(&event_id).await?);
+    let received = store
+        .receive_ballot(
+            &ReceiveBallot {
+                election_event_id: &event_id,
+                election_id: &election,
+                area_id: &area,
+                voter_id: "voter",
+                ballot_hash: "hash",
+                content: "content",
+                voter_signing_pk: "key",
+                voter_ballot_signature: "signature",
+            vitrine: None,
+        },
+            chrono::DateTime::from_timestamp_millis(1_841_396_472_000).unwrap(),
+            |_| {
+                Ok(ReceivedSignature {
+                    ballot_id: "ABCD-EF01".into(),
+                    key_id: "key".into(),
+                    received_signature: "signed".into(),
+                })
+            },
+        )
+        .await?;
+    assert!(matches!(received, ReceiveOutcome::Received(_)));
+    databases.drop_event(&tenant.to_string(), &event_id).await?;
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_PG_* with a role that may create databases"]
+async fn independent_boards_import_with_explicit_main_board_and_verified_links() -> Result<()> {
+    let databases = databases()?;
+    let tenant = Uuid::new_v4();
+    let events = [(); 3].map(|_| Uuid::new_v4());
+    let result = async {
+        let source = databases
+            .create_event(&tenant.to_string(), &events[0].to_string())
+            .await?;
+        let main = board(&tenant, &events[0]);
+        let election = format!("test-election-{}", Uuid::new_v4().simple());
+        let continuation = format!("test-copy-{}", Uuid::new_v4().simple());
+        source.create_board(&main).await?;
+        source.create_board(&election).await?;
+        source
+            .append(&main, &mut entries(0..2).into_iter().map(anyhow::Ok))
+            .await?;
+        source
+            .append(&election, &mut entries(2..4).into_iter().map(anyhow::Ok))
+            .await?;
+        let checkpoint = source.journal().checkpoint(&election).await?;
+        let key = SigningKey::generate()?;
+        let sd = SigningData::new(key.clone(), "", key);
+        source.create_board(&continuation).await?;
+        source
+            .append(
+                &continuation,
+                &mut std::iter::once(continuation_entry(&sd, &checkpoint)),
+            )
+            .await?;
+        let (records, mut manifest) = export(&source).await?;
+        manifest.format = EXPORT_FORMAT_V2.into();
+        manifest.board_log_uid = Some(source.journal().checkpoint(&main).await?.log_uid);
+        let target = databases
+            .create_event(&tenant.to_string(), &events[1].to_string())
+            .await?;
+        let imported = import(&target, &manifest, &records, &[]).await?;
+        assert_eq!(imported.len(), 3);
+        assert_eq!(manifest.board().unwrap().checkpoint.log_name, main);
+        for (actual, expected) in imported.iter().zip(&manifest.logs) {
+            assert_eq!(actual.checkpoint, expected.checkpoint);
+        }
+        let tampered = databases
+            .create_event(&tenant.to_string(), &events[2].to_string())
+            .await?;
+        manifest
+            .logs
+            .retain(|log| log.checkpoint.log_name != election);
+        let records: Vec<_> = records
+            .into_iter()
+            .filter(|record| record.log_name != election)
+            .collect();
+        assert!(import(&tampered, &manifest, &records, &[])
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("continuation"));
+        assert!(tampered.logs().await?.is_empty());
+        manifest.board_log_uid = Some(Uuid::new_v4());
+        assert!(import(&tampered, &manifest, &records, &[])
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("main board"));
+        assert!(tampered.logs().await?.is_empty());
+        Ok(())
+    }
+    .await;
+    for event in events {
+        databases
+            .drop_event(&tenant.to_string(), &event.to_string())
+            .await?;
+    }
+    result
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_PG_* with a role that may create databases"]
+async fn retired_privacy_retention_is_bounded_and_keeps_the_log_read_only() -> Result<()> {
+    use chrono::{Duration, Utc};
+    use electoral_log::adapters::privacy::{BallotIdentity, ForensicNetworkRecord, PrivacyPurge};
+
+    let databases = databases()?;
+    let (tenant, event, election, area) = (
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+    );
+    let event_id = event.to_string();
+    let board = board(&tenant, &event);
+    let store = databases
+        .create_event(&tenant.to_string(), &event_id)
+        .await?;
+    store.create_board(&board).await?;
+    store
+        .append(&board, &mut entries(0..2).into_iter().map(Ok))
+        .await?;
+    store
+        .set_ballot_identity(&event_id, BallotIdentity::Pseudonym)
+        .await?;
+    store
+        .allocate_voter_pseudonyms(
+            &event_id,
+            &["first".into(), "second".into(), "third".into()],
+        )
+        .await?;
+    let pseudonym = store.voter_pseudonym(&event_id, "first").await?.unwrap();
+    let before = Utc::now();
+    for index in 0..2 {
+        store
+            .record_forensic_network(&ForensicNetworkRecord {
+                election_event_id: &event_id,
+                election_id: Some(&election.to_string()),
+                area_id: Some(&area.to_string()),
+                event_kind: "cast",
+                delivery_id: &format!("retired-network-{index}"),
+                pseudonym: &pseudonym,
+                ballot_id: Some("ABCD-EFGH"),
+                ip: "192.0.2.1",
+                country: Some("GB"),
+                user_agent: None,
+                recorded_at: before - Duration::days(1),
+            })
+            .await?;
+    }
+    assert_eq!(store.refresh_forensic_summary(&event_id, 10).await?, 2);
+    let retired = databases
+        .retire_event(&tenant.to_string(), &event_id, 1_791_000_009)
+        .await?
+        .unwrap();
+    assert!(!allows_connections(&databases, &retired.database_name).await?);
+
+    // Every retention transaction is bounded, and each one closes the database.
+    assert_eq!(
+        databases
+            .purge_retired_privacy(&retired, PrivacyPurge::Mappings, 1)
+            .await?,
+        1
+    );
+    assert!(!allows_connections(&databases, &retired.database_name).await?);
+    assert_eq!(
+        databases
+            .purge_retired_privacy(&retired, PrivacyPurge::Mappings, 10)
+            .await?,
+        2
+    );
+    assert_eq!(
+        databases
+            .purge_retired_privacy(&retired, PrivacyPurge::Network(before), 1)
+            .await?,
+        1
+    );
+    assert_eq!(
+        databases
+            .purge_retired_privacy(&retired, PrivacyPurge::Network(before), 10)
+            .await?,
+        1
+    );
+    assert!(!allows_connections(&databases, &retired.database_name).await?);
+    let board_read = board.clone();
+    databases.read_retired_event(&retired, |store| async move {
+        assert_eq!(store.count(&board_read, &LogQuery::default()).await?, 2);
+        let client = store.client().await?;
+        let row = client.query_one(
+            "SELECT (SELECT count(*) FROM sequent_backend.voter_pseudonym),
+                    (SELECT count(*) FROM sequent_backend.forensic_network_record),
+                    (SELECT count(*) FROM sequent_backend.forensic_network_summary),
+                    (SELECT sum(removed)::bigint FROM sequent_backend.privacy_purge_evidence WHERE kind='mappings'),
+                    (SELECT sum(removed)::bigint FROM sequent_backend.privacy_purge_evidence WHERE kind='network')", &[]).await?;
+        assert_eq!(row.get::<_, i64>(0), 0);
+        assert_eq!(row.get::<_, i64>(1), 0);
+        assert_eq!(row.get::<_, i64>(2), 0);
+        assert_eq!(row.get::<_, i64>(3), 3);
+        assert_eq!(row.get::<_, i64>(4), 2);
+        assert!(client.execute("DELETE FROM sequent_backend.privacy_purge_evidence", &[]).await.is_err());
+        Ok(())
+    }).await?;
+    assert!(!allows_connections(&databases, &retired.database_name).await?);
+    assert!(databases
+        .purge_retired_privacy(&retired, PrivacyPurge::Mappings, 0)
+        .await
+        .is_err());
+    assert!(!allows_connections(&databases, &retired.database_name).await?);
+    assert!(databases
+        .read_retired_event(&retired, |_| async {
+            anyhow::bail!("read failed") as Result<()>
+        })
+        .await
+        .is_err());
+    assert!(!allows_connections(&databases, &retired.database_name).await?);
+    let foreign = RetiredEventDatabase {
+        tenant_id: Uuid::new_v4().to_string(),
+        ..retired.clone()
+    };
+    assert!(databases
+        .purge_retired_privacy(&foreign, PrivacyPurge::Mappings, 1)
+        .await
+        .is_err());
+    let catalog = databases.catalog().client().await?;
+    catalog
+        .batch_execute(&format!(
+            "DROP DATABASE \"{}\" WITH (FORCE)",
+            retired.database_name
+        ))
+        .await?;
+    catalog
+        .execute(
+            "DELETE FROM electoral_log_retired_events WHERE database_name=$1",
+            &[&retired.database_name],
+        )
+        .await?;
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_PG_* with a role that may create databases"]
+async fn event_privacy_retention_visits_active_and_every_retired_copy() -> Result<()> {
+    use chrono::{Duration, Utc};
+    use electoral_log::adapters::privacy::{BallotIdentity, ForensicNetworkRecord, PrivacyPurge};
+    let databases = databases()?;
+    let tenant = Uuid::new_v4().to_string();
+    let event = Uuid::new_v4().to_string();
+    let before = Utc::now();
+    let mut copies = Vec::new();
+    for copy in 0..3 {
+        let store = databases.create_event(&tenant, &event).await?;
+        store
+            .set_ballot_identity(&event, BallotIdentity::Pseudonym)
+            .await?;
+        store
+            .allocate_voter_pseudonyms(&event, &["first".into(), "second".into()])
+            .await?;
+        let code = store.voter_pseudonym(&event, "first").await?.unwrap();
+        store
+            .record_forensic_network(&ForensicNetworkRecord {
+                election_event_id: &event,
+                election_id: None,
+                area_id: None,
+                event_kind: "signin",
+                delivery_id: "same-operation-in-retained-copy",
+                pseudonym: &code,
+                ballot_id: None,
+                ip: "192.0.2.1",
+                country: None,
+                user_agent: None,
+                recorded_at: before - Duration::days(1),
+            })
+            .await?;
+        if copy < 2 {
+            copies.push(
+                databases
+                    .retire_event(&tenant, &event, 1_791_000_020 + copy)
+                    .await?
+                    .unwrap(),
+            );
+        }
+    }
+    assert!(databases
+        .purge_event_privacy(
+            &Uuid::new_v4().to_string(),
+            &event,
+            PrivacyPurge::Mappings,
+            1
+        )
+        .await
+        .is_err());
+    assert_eq!(
+        databases
+            .purge_event_privacy(&tenant, &event, PrivacyPurge::Mappings, 1)
+            .await?,
+        3
+    );
+    assert_eq!(
+        databases
+            .purge_event_privacy(&tenant, &event, PrivacyPurge::Mappings, 1)
+            .await?,
+        3
+    );
+    assert_eq!(
+        databases
+            .purge_event_privacy(&tenant, &event, PrivacyPurge::Mappings, 1)
+            .await?,
+        0
+    );
+    assert_eq!(
+        databases
+            .purge_event_privacy(&tenant, &event, PrivacyPurge::Network(before), 1)
+            .await?,
+        3
+    );
+    assert_eq!(
+        databases
+            .purge_event_privacy(&tenant, &event, PrivacyPurge::Network(before), 1)
+            .await?,
+        0
+    );
+    for copy in &copies {
+        assert!(!allows_connections(&databases, &copy.database_name).await?);
+        databases
+            .read_retired_event(copy, |store| async move {
+                let row = store
+                    .client()
+                    .await?
+                    .query_one(
+                        "SELECT (SELECT count(*) FROM sequent_backend.voter_pseudonym),
+                 (SELECT count(*) FROM sequent_backend.forensic_network_record)",
+                        &[],
+                    )
+                    .await?;
+                assert_eq!(row.get::<_, i64>(0), 0);
+                assert_eq!(row.get::<_, i64>(1), 0);
+                Ok(())
+            })
+            .await?;
+    }
+    databases.drop_event(&tenant, &event).await?;
+    let catalog = databases.catalog().client().await?;
+    for copy in copies {
+        catalog
+            .batch_execute(&format!(
+                "DROP DATABASE \"{}\" WITH (FORCE)",
+                copy.database_name
+            ))
+            .await?;
+        catalog
+            .execute(
+                "DELETE FROM electoral_log_retired_events WHERE database_name=$1",
+                &[&copy.database_name],
+            )
             .await?;
     }
     Ok(())

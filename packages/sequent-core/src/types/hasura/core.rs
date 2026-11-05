@@ -10,20 +10,26 @@ use std::str::FromStr;
 
 use crate::{
     ballot::{
-        ConsolidatedReportPolicy, ContestEncryptionPolicy,
-        DecodedBallotsInclusionPolicy, DelegatedVotingPolicy,
-        ElectionEventMaterials, SupportMaterialsPolicy, WeightedVotingPolicy,
+        BatchAnonymityPolicy, ConsolidatedReportPolicy,
+        ContestEncryptionPolicy, DecodedBallotsInclusionPolicy,
+        DelegatedVotingPolicy, ElectionEventMaterials, SupportMaterialsPolicy,
+        WeightedVotingPolicy,
     },
     serialization::deserialize_with_path::deserialize_value,
     types::{
         ceremonies::{
             AutomaticRecountPolicy, CeremoniesPolicy,
-            KeysCeremonyExecutionStatus, KeysCeremonyStatus, TallyRunReason,
+            KeysCeremonyExecutionStatus, KeysCeremonySettings,
+            KeysCeremonyStatus, TallyRunReason,
         },
         participation::VotesByChannel,
         tally_sheets::{AreaContestResults, TallySheetStatus},
     },
 };
+
+// Defined in an ungated module so that the protocol-board crate, which builds
+// without `default_features`, reads the same rows.
+pub use crate::types::protocol_board::ProtocolBoard;
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Preview {
@@ -208,8 +214,42 @@ pub struct Candidate {
 
 #[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DocumentAnnotations {
+    /// Election participation included in an export. Downloads recheck this scope.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub participation_scope: Option<DocumentParticipationScope>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub purpose: Option<DocumentPurpose>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub access: Option<DocumentAccess>,
+    /// For a report generated from a signed configuration: its
+    /// `report-manifest.json`, naming the configuration revision, the manifest
+    /// and template digests, and every file the generation wrote.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub report_manifest: Option<Value>,
+    /// The document that stores that `report-manifest.json` as a file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub report_manifest_file: Option<ReportManifestFile>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct DocumentParticipationScope {
+    pub election_event_id: String,
+    pub election_ids: Vec<String>,
+}
+
+/// Immutable classification for private generated documents.
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DocumentPurpose {
+    BallotReceipt,
+}
+
+/// A report's `report-manifest.json`, stored as a document of its own.
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct ReportManifestFile {
+    pub document_id: String,
+    /// The SHA-256 of the file's bytes.
+    pub sha256: String,
 }
 
 impl DocumentAnnotations {
@@ -219,6 +259,7 @@ impl DocumentAnnotations {
                 password_secret_id: Some(password_secret_id.into()),
                 voter_secret_attributes: false,
             }),
+            ..Default::default()
         }
     }
 
@@ -234,6 +275,7 @@ impl DocumentAnnotations {
                 password_secret_id: None,
                 voter_secret_attributes: true,
             }),
+            ..Default::default()
         }
     }
 
@@ -271,10 +313,48 @@ pub struct Document {
     pub is_public: Option<bool>,
 }
 
+impl Document {
+    /// Legacy names remain protected; new documents carry an immutable purpose.
+    pub fn is_ballot_receipt(&self) -> bool {
+        self.name.as_deref().is_some_and(|name| {
+            name.to_ascii_lowercase().starts_with("ballot_receipt_")
+        }) || self
+            .annotations
+            .as_ref()
+            .and_then(|value| value.get("purpose"))
+            .and_then(Value::as_str)
+            == Some("ballot-receipt")
+    }
+}
+
 #[cfg(test)]
 mod document_annotations_tests {
-    use super::DocumentAnnotations;
+    use super::{
+        Document, DocumentAnnotations, DocumentPurpose, ReportManifestFile,
+    };
     use serde_json::json;
+
+    #[test]
+    fn receipt_purpose_and_legacy_name_both_protect_a_document() {
+        let annotations = DocumentAnnotations {
+            purpose: Some(DocumentPurpose::BallotReceipt),
+            ..Default::default()
+        };
+        assert_eq!(
+            serde_json::to_value(&annotations).unwrap(),
+            json!({"purpose":"ballot-receipt"})
+        );
+        let mut document: Document =
+            serde_json::from_value(json!({"id":"document"})).unwrap();
+        assert!(!document.is_ballot_receipt());
+        document.annotations = Some(serde_json::to_value(annotations).unwrap());
+        assert!(document.is_ballot_receipt());
+        document.annotations = None;
+        document.name = Some("Ballot_Receipt_event.pdf".to_owned());
+        assert!(document.is_ballot_receipt());
+        document.name = Some("ordinary.pdf".to_owned());
+        assert!(!document.is_ballot_receipt());
+    }
 
     #[test]
     fn serializes_password_access_with_the_document() {
@@ -299,6 +379,29 @@ mod document_annotations_tests {
         assert_eq!(
             serde_json::to_value(&annotations).unwrap(),
             json!({"access": {"voter_secret_attributes": true}})
+        );
+    }
+
+    #[test]
+    fn links_a_report_to_its_stored_hash_manifest() {
+        let annotations = DocumentAnnotations {
+            report_manifest_file: Some(ReportManifestFile {
+                document_id: "manifest-document".to_string(),
+                sha256: "ab".repeat(32),
+            }),
+            ..Default::default()
+        };
+        let written = serde_json::to_value(&annotations).unwrap();
+        assert_eq!(
+            written,
+            json!({"report_manifest_file": {
+                "document_id": "manifest-document",
+                "sha256": "ab".repeat(32),
+            }})
+        );
+        assert_eq!(
+            serde_json::from_value::<DocumentAnnotations>(written).unwrap(),
+            annotations
         );
     }
 }
@@ -477,15 +580,17 @@ impl KeysCeremony {
             .map_err(|err| anyhow!("{:?}", err))
     }
 
+    /// The ceremony's settings document. Settings that cannot be read fall
+    /// back to the defaults.
+    pub fn settings(&self) -> KeysCeremonySettings {
+        self.settings
+            .clone()
+            .and_then(|value| deserialize_value(value).ok())
+            .unwrap_or_default()
+    }
+
     pub fn policy(&self) -> CeremoniesPolicy {
-        let settings = self.settings.as_ref().unwrap_or(&Value::Null);
-        settings
-            .get("policy")
-            .and_then(|value: &Value| value.as_str())
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| CeremoniesPolicy::MANUAL_CEREMONIES.to_string())
-            .parse::<CeremoniesPolicy>()
-            .unwrap_or(CeremoniesPolicy::MANUAL_CEREMONIES)
+        self.settings().policy
     }
 }
 
@@ -497,6 +602,7 @@ pub struct TallySessionConfiguration {
     pub delegated_voting_policy: Option<DelegatedVotingPolicy>,
     pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
+    pub batch_anonymity_policy: Option<BatchAnonymityPolicy>,
 }
 
 impl TallySessionConfiguration {
@@ -516,6 +622,9 @@ impl TallySessionConfiguration {
     }
     pub fn get_consolidated_report_policy(&self) -> ConsolidatedReportPolicy {
         self.consolidated_report_policy.clone().unwrap_or_default()
+    }
+    pub fn get_batch_anonymity_policy(&self) -> BatchAnonymityPolicy {
+        self.batch_anonymity_policy.clone().unwrap_or_default()
     }
 }
 
@@ -554,6 +663,10 @@ pub struct TallySessionContestAnnotations {
     /// "that batch has not been mixed yet" and would hang the session.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weight_bit_mask: Option<u32>,
+    /// Hex SHA-512 seal hash of the ballot box the tally checked and counted
+    /// (VOTE-FREEZE). Absent when the event doesn't seal ballot boxes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ballot_box_seal_hash: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -623,7 +736,12 @@ pub struct TasksExecution {
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Trustee {
     pub id: String,
+    /// Ed25519 verifying key the trustee signs board messages with, base64 of
+    /// the raw 32 key bytes.
     pub public_key: Option<String>,
+    /// ElGamal public key the other trustees encrypt this trustee's DKG shares
+    /// to, base64 of the canonical group element bytes.
+    pub share_encryption_public_key: Option<String>,
     pub name: Option<String>,
     pub created_at: Option<DateTime<Local>>,
     pub last_updated_at: Option<DateTime<Local>>,
@@ -647,6 +765,36 @@ pub struct Tenant {
 }
 
 #[cfg(test)]
+mod tally_session_configuration_tests {
+    use super::*;
+    use crate::ballot::BatchAnonymityPolicy;
+
+    #[test]
+    fn batch_anonymity_policy_defaults_to_warn_for_sessions_without_it() {
+        let configuration: TallySessionConfiguration =
+            serde_json::from_value(serde_json::json!({
+                "contest_encryption_policy": "single-contest"
+            }))
+            .unwrap();
+        assert_eq!(configuration.batch_anonymity_policy, None);
+        assert_eq!(
+            configuration.get_batch_anonymity_policy(),
+            BatchAnonymityPolicy::WARN
+        );
+
+        let configuration: TallySessionConfiguration =
+            serde_json::from_value(serde_json::json!({
+                "batch_anonymity_policy": "refuse"
+            }))
+            .unwrap();
+        assert_eq!(
+            configuration.get_batch_anonymity_policy(),
+            BatchAnonymityPolicy::REFUSE
+        );
+    }
+}
+
+#[cfg(test)]
 mod tally_session_contest_annotations_tests {
     use super::*;
 
@@ -660,6 +808,7 @@ mod tally_session_contest_annotations_tests {
             }))
             .unwrap();
         assert_eq!(legacy.votes_by_channel, None);
+        assert_eq!(legacy.ballot_box_seal_hash, None);
 
         let current = TallySessionContestAnnotations {
             elegible_voters: 0,
@@ -667,9 +816,11 @@ mod tally_session_contest_annotations_tests {
             casted_ballots: 0,
             votes_by_channel: Some(VotesByChannel::new()),
             weight_bit_mask: None,
+            ballot_box_seal_hash: None,
         };
         let serialized = serde_json::to_value(current).unwrap();
         assert_eq!(serialized["votes_by_channel"], serde_json::json!({}));
+        assert!(serialized.get("ballot_box_seal_hash").is_none());
     }
 }
 

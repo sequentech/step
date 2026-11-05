@@ -175,7 +175,7 @@ async function voteElection(
         await confirmCast.click()
     }
 
-    // The non-empty ballot id on the confirmation screen is the success
+    // The non-empty Tracking ID on the confirmation screen is the success
     // criterion: it only renders once the ballot has actually been cast.
     await expect(ballotIdEl).toBeVisible({timeout: castTimeoutMs})
     const ballotId = ((await ballotIdEl.textContent()) ?? "").trim()
@@ -184,8 +184,8 @@ async function voteElection(
 }
 
 // Drives one voter through the full flow — login, then for every election in
-// the event: select candidates, review, cast, and read the ballot id off the
-// confirmation screen. Returns the ballot id(s). No explicit logout: each
+// the event: select candidates, review, cast, and read the Tracking ID off the
+// confirmation screen. Returns the Tracking ID(s). No explicit logout: each
 // Playwright test runs in a fresh browser context, so sessions don't leak
 // between voters.
 export async function castBallotAsVoter(page: Page, options: CastBallotOptions): Promise<string[]> {

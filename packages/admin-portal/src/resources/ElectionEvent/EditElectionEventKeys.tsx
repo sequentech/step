@@ -15,7 +15,6 @@ import {
     List,
     TextField,
     useRecordContext,
-    DateField,
     Identifier,
     ReferenceArrayField,
     SingleFieldList,
@@ -23,6 +22,7 @@ import {
     FunctionField,
     RaRecord,
 } from "react-admin"
+import {AdminDateField} from "@/components/AdminDateTime"
 import {Button, Typography, Chip, Alert, Box, Tooltip} from "@mui/material"
 import {theme, IconButton} from "@sequentech/ui-essentials"
 import {AdminWizard} from "@/components/keys-ceremony/AdminWizard"
@@ -348,9 +348,9 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                     >
                         <TextField source="id" />
                         <TextField source="name" />
-                        <DateField
+                        <AdminDateField
                             source="created_at"
-                            showTime={true}
+                            seconds
                             label={String(t("electionEventScreen.keys.started"))}
                         />
 

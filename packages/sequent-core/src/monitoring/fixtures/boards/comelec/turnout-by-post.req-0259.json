@@ -1,0 +1,343 @@
+{
+  "charts": {
+    "posts": {
+      "query": "data",
+      "style": {
+        "columns": {
+          "denominator": {
+            "visible": false
+          },
+          "group": {
+            "label": "Post"
+          },
+          "group_key": {
+            "visible": false
+          },
+          "numerator": {
+            "visible": false
+          },
+          "pct": {
+            "visible": false
+          },
+          "pct_label": {
+            "align": "right",
+            "label": "Share"
+          },
+          "position": {
+            "visible": false
+          },
+          "pre_enrolled": {
+            "align": "right",
+            "format": "integer",
+            "label": "Pre-enr."
+          },
+          "registered": {
+            "align": "right",
+            "format": "integer",
+            "label": "Reg."
+          },
+          "voted": {
+            "align": "right",
+            "format": "integer",
+            "label": "Voted"
+          }
+        },
+        "pagination": {
+          "enabled": false
+        }
+      },
+      "type": "table"
+    }
+  },
+  "queries": {
+    "data": {
+      "columns": [
+        "group",
+        "group_key",
+        "position",
+        "registered",
+        "pre_enrolled",
+        "voted",
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          "Madrid",
+          "post-madrid",
+          1,
+          122,
+          47,
+          17,
+          17,
+          122,
+          0.13934426229508196,
+          "13.9%"
+        ],
+        [
+          "Doha",
+          "post-doha",
+          2,
+          80,
+          31,
+          11,
+          11,
+          80,
+          0.1375,
+          "13.8%"
+        ],
+        [
+          "London",
+          "post-london",
+          3,
+          117,
+          45,
+          16,
+          16,
+          117,
+          0.13675213675213677,
+          "13.7%"
+        ],
+        [
+          "Singapore",
+          "post-singapore",
+          4,
+          110,
+          42,
+          15,
+          15,
+          110,
+          0.13636363636363635,
+          "13.6%"
+        ],
+        [
+          "Sydney",
+          "post-sydney",
+          5,
+          88,
+          34,
+          12,
+          12,
+          88,
+          0.13636363636363635,
+          "13.6%"
+        ],
+        [
+          "Washington",
+          "post-washington",
+          6,
+          54,
+          21,
+          7,
+          7,
+          54,
+          0.12962962962962962,
+          "13.0%"
+        ],
+        [
+          "Toronto",
+          "post-toronto",
+          7,
+          71,
+          27,
+          9,
+          9,
+          71,
+          0.1267605633802817,
+          "12.7%"
+        ],
+        [
+          "Riyadh",
+          "post-riyadh",
+          8,
+          59,
+          22,
+          6,
+          6,
+          59,
+          0.1016949152542373,
+          "10.2%"
+        ],
+        [
+          "Kuwait",
+          "post-kuwait",
+          9,
+          90,
+          24,
+          9,
+          9,
+          90,
+          0.1,
+          "10.0%"
+        ],
+        [
+          "Dubai",
+          "post-dubai",
+          10,
+          101,
+          38,
+          10,
+          10,
+          101,
+          0.09900990099009901,
+          "9.9%"
+        ],
+        [
+          "Tokyo",
+          "post-tokyo",
+          11,
+          135,
+          36,
+          13,
+          13,
+          135,
+          0.0962962962962963,
+          "9.6%"
+        ],
+        [
+          "Rome",
+          "post-rome",
+          12,
+          143,
+          54,
+          13,
+          13,
+          143,
+          0.09090909090909091,
+          "9.1%"
+        ]
+      ]
+    }
+  },
+  "rows": [
+    "posts"
+  ],
+  "style": {
+    "accent": "#0F054C",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "axis_quantitative": {
+        "labels": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "color": {
+        "categorical": {
+          "palette": [
+            "#0F054C",
+            "#43E3A1",
+            "#7C6FE0",
+            "#F59E0B",
+            "#0EA5E9",
+            "#DC2626"
+          ],
+          "single_series_palette": [
+            "#0F054C"
+          ]
+        }
+      },
+      "kpi": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        },
+        "value": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "visible": false
+        }
+      },
+      "pie": {
+        "total": {
+          "value": {
+            "font": {
+              "family": "'Inter Variable', Inter, system-ui, sans-serif"
+            }
+          }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 220
+        }
+      },
+      "support_table": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "font": {
+      "family": "'Inter Variable', Inter, system-ui, sans-serif"
+    },
+    "footer": {
+      "visible": false
+    },
+    "text": {
+      "font": {
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none",
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    }
+  },
+  "theme": "clarity"
+}
