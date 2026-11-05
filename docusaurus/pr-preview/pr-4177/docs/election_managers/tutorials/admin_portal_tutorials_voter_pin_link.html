@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Letting Voters Obtain Their PIN Through a One-Time Link | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4177/docs/election_managers/tutorials/admin_portal_tutorials_voter_pin_link"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Letting Voters Obtain Their PIN Through a One-Time Link | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4177/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4177/docs/election_managers/tutorials/admin_portal_tutorials_voter_pin_link"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4177/docs/election_managers/tutorials/admin_portal_tutorials_voter_pin_link" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4177/docs/election_managers/tutorials/admin_portal_tutorials_voter_pin_link" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Letting Voters Obtain Their PIN Through a One-Time Link","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4177/docs/election_managers/tutorials/admin_portal_tutorials_voter_pin_link"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4177/assets/css/styles.fc78c976.css">
-<script src="/docusaurus/pr-preview/pr-4177/assets/js/runtime~main.64dc3178.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4177/assets/js/runtime~main.23dfc05c.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4177/assets/js/main.31769c26.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -62,7 +62,8 @@ seconds, so wait that long after a change before importing or sending.</p>
 <li class="">The PIN is also the password, because a voter logs in with the PIN the link shows. A file without
 a <code>password</code> or <code>hashed_password</code> column uses the PIN as the password, and then every row needs one.</li>
 <li class="">A row whose <code>password</code> differs from its PIN is refused, and so is a row with several PIN values.
-A <code>hashed_password</code> cannot be compared: making it match the PIN is up to whoever made the file.</li>
+So is a row whose <code>hashed_password</code> is not the hash of its PIN, using the row&#x27;s <code>password_salt</code>
+and <code>num_of_iterations</code>.</li>
 <li class="">A file with a <code>password</code> column may leave the PIN of a row blank. That voter has no link.</li>
 <li class="">The link&#x27;s token is never imported. Columns named <code>pin_link_token</code>, <code>pin_link_url</code> or after a
 generated attribute are refused.</li>
@@ -156,10 +157,14 @@ link yet, it still shows the original PIN, which no longer logs in.</li>
 way as a new PIN.</li>
 <li class=""><strong>An edit that is refused</strong> leaves the link alone, whether Keycloak refuses it or, in an election
 event linked to an external voter system, the task that applies the edit.</li>
-<li class=""><strong>An edit that fails after Keycloak accepted it</strong> stays in place, and the error, from the request
-or from the task that applies the edit, names every step that failed. When it says the link was
-not updated, repeat the edit. A failed entry in the electoral log does not stop the link from
-changing or a disabled voter&#x27;s ballots from being discarded.</li>
+<li class=""><strong>An edit that fails after Keycloak accepted it</strong> stays in place. The error, from the request or
+from the task that applies the edit, names each of these that failed: the password&#x27;s entry in the
+electoral log, the link update, and the discarding of a disabled voter&#x27;s ballots. When it says the
+link was not updated, repeat the edit. A failed entry in the electoral log does not stop the link
+from changing or those ballots from being discarded.</li>
+<li class=""><strong>A task that succeeds</strong> does not show that an external voter system took the release. What that
+system answers, and the electoral-log entry of the outcome, are only logged. Reconciling them is a
+separate manual process.</li>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="voters-imported-before-the-link-was-on">Voters imported before the link was on<a href="#voters-imported-before-the-link-was-on" class="hash-link" aria-label="Direct link to Voters imported before the link was on" title="Direct link to Voters imported before the link was on" translate="no">​</a></h3>
 <p>Voters imported while the policy was off have a PIN but no link, and a message would render a link
