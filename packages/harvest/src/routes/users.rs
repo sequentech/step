@@ -1731,15 +1731,6 @@ pub async fn edit_user(
             )
             .await?;
         }
-        sync_voter_pin_link(
-            &secret_config,
-            &input.tenant_id,
-            election_event_id,
-            &input.user_id,
-            input.secret_attributes.as_ref(),
-            input.password.is_some(),
-        )
-        .await?;
     }
 
     // For Datafix election events the edit is offloaded to the `edit_user`
@@ -1821,6 +1812,16 @@ pub async fn edit_user(
 
             info!("Sent EDIT_USER task {}", task_execution.id);
 
+            sync_voter_pin_link(
+                &secret_config,
+                &input.tenant_id,
+                election_event_id,
+                &input.user_id,
+                input.secret_attributes.as_ref(),
+                input.password.is_some(),
+            )
+            .await?;
+
             return Ok(Json(EditUserOutput {
                 user: None,
                 task_execution: Some(task_execution),
@@ -1885,6 +1886,21 @@ pub async fn edit_user(
             )
                 .into()
         })?;
+    }
+
+    // Only now, so that a refused edit leaves the link alone. Until this runs
+    // an old link can't show a new PIN, because a reveal checks the link
+    // against the PIN stored.
+    if let Some(election_event_id) = input.election_event_id.as_deref() {
+        sync_voter_pin_link(
+            &secret_config,
+            &input.tenant_id,
+            election_event_id,
+            &input.user_id,
+            input.secret_attributes.as_ref(),
+            input.password.is_some(),
+        )
+        .await?;
     }
 
     redact_user(&mut user, &secret_names);
