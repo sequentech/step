@@ -396,6 +396,22 @@ class PinLinkResourceProviderTest {
                 + " id=\"x\">b{}</style><stylesheet>c</stylesheet>");
   }
 
+  /** A short host serves this page by the token alone, not by Keycloak's path. */
+  @Test
+  void theLanguageMenuStaysOnTheHostTheVoterCameThrough() {
+    when(forms.createForm(anyString()))
+        .thenReturn(
+            Response.ok(
+                    "<a href=\"/realms/r/pin-link/T?kc_locale=es\">es</a>"
+                        + "<a href=\"https://login.example.org/realms/r/pin-link/T?kc_locale=ca\">ca</a>"
+                        + "<a href=\"/realms/r/account\">other</a>")
+                .build());
+    assertThat(String.valueOf(provider.view(token).getEntity()))
+        .isEqualTo(
+            "<a href=\"?kc_locale=es\">es</a><a href=\"?kc_locale=ca\">ca</a>"
+                + "<a href=\"/realms/r/account\">other</a>");
+  }
+
   /** The theme's language menu links to this page with kc_locale, and no login flow reads it. */
   @Test
   void theLanguagePickedInTheMenuReachesTheLocaleSelector() {
