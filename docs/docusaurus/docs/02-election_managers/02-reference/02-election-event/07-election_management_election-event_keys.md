@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_keys
 title: Keys
+description: "The Key Ceremony establishes the collective private key used to decrypt votes and publishes a corresponding public key for voters to encrypt their ballots."
 ---
 
 <!--
@@ -45,7 +46,7 @@ To initiate the Key Ceremony in the Sequent Online Voting System (OVS):
    - **Input Threshold**: Specify the minimum number of trustees required to reconstruct/decrypt (the threshold).
    - **Select Trustees**: Check the trustees who will participate in this ceremony for the Election Event.
 
-6. **Create Keys Ceremony**
+6. **Create Key Ceremony**
    - Confirm and submit to generate the keys.
    - Approve any confirmation prompt if prompted.
 

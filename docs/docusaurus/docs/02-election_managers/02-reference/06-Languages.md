@@ -1,6 +1,7 @@
 ---
 id: languages
 title: Languages
+description: "In the voting portal, the system determines which language to display to voters based on a defined order."
 ---
 
 <!--
