@@ -67,7 +67,9 @@ use windmill::services::voter_secret_attributes::{
 use windmill::tasks::delete_users::{
     self as delete_users_task, DeleteUsersOutput,
 };
-use windmill::tasks::edit_user::{EditUserOutput, EditUserTaskBody};
+use windmill::tasks::edit_user::{
+    every_failure, EditUserOutput, EditUserTaskBody,
+};
 use windmill::tasks::export_users::{self, ExportUsersOutput};
 use windmill::tasks::import_users::{self, ImportUsersOutput};
 use windmill::types::tasks::ETasksExecution;
@@ -200,6 +202,20 @@ fn voter_pin_link_change(
 ) -> Result<Option<PinLinkChange>, (Status, String)> {
     Ok(voter_pin_write(config, secret_attributes)?
         .and_then(|(_, write)| PinLinkChange::of_edit(write, password_changes)))
+}
+
+/// What the request answers once Keycloak accepted the edit: that edit stands,
+/// so the answer names every step that then failed, as the `edit_user` task's
+/// error does.
+fn accepted_edit_outcome(
+    password_audit: Result<(), String>,
+    link_sync: Result<(), (Status, String)>,
+) -> Result<(), (Status, String)> {
+    let link_sync = link_sync.map_err(|(_, error)| {
+        format!("Voter edited, but its PIN link was not updated: {error}")
+    });
+    every_failure([password_audit, link_sync])
+        .map_err(|failures| (Status::InternalServerError, failures))
 }
 
 #[instrument(skip_all, err(Debug))]
@@ -1954,12 +1970,8 @@ pub async fn edit_user(
             VoterPasswordChangeSource::AdminPortal,
         )
         .await
-        .map_err(|error| -> EditUserError {
-            (
-                Status::InternalServerError,
-                format!("Voter password changed, but its electoral-log entry failed: {error:#}"),
-            )
-                .into()
+        .map_err(|error| {
+            format!("Voter password changed, but its electoral-log entry failed: {error:#}")
         })
     } else {
         Ok(())
@@ -1983,8 +1995,7 @@ pub async fn edit_user(
         } else {
             Ok(())
         };
-    password_audit?;
-    link_sync?;
+    accepted_edit_outcome(password_audit, link_sync)?;
 
     redact_user(&mut user, &secret_names);
     Ok(Json(EditUserOutput {
@@ -2573,6 +2584,33 @@ mod tests {
             Some(vec!["1".to_string(), "2".to_string()]),
         )]);
         assert!(voter_pin_link_change(&config, Some(&several), true).is_err());
+    }
+
+    /// The edit stands by then, so one failure can't hide a link left as it was.
+    #[test]
+    fn an_accepted_edit_names_every_step_that_then_failed() {
+        let audit: fn() -> Result<(), String> =
+            || Err("audit failed".to_string());
+        let link: fn() -> Result<(), (Status, String)> =
+            || Err((Status::BadGateway, "no database".to_string()));
+        let link_message =
+            "Voter edited, but its PIN link was not updated: no database";
+        assert_eq!(accepted_edit_outcome(Ok(()), Ok(())), Ok(()));
+        assert_eq!(
+            accepted_edit_outcome(audit(), Ok(())),
+            Err((Status::InternalServerError, "audit failed".to_string()))
+        );
+        assert_eq!(
+            accepted_edit_outcome(Ok(()), link()),
+            Err((Status::InternalServerError, link_message.to_string()))
+        );
+        assert_eq!(
+            accepted_edit_outcome(audit(), link()),
+            Err((
+                Status::InternalServerError,
+                format!("audit failed; {link_message}")
+            ))
+        );
     }
 
     #[test]
