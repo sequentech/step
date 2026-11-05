@@ -439,7 +439,8 @@ async fn send_set_not_voted(
 
 /// Runs the voter edit while the per-voter lock is held: validates the edit,
 /// plans the release and, on a disable, edits Keycloak before discarding the
-/// voter's ballots and sending `SetNotVoted` when required.
+/// voter's ballots and sending `SetNotVoted` when required. A failed audit or
+/// link update fails the task but does not stop that release.
 #[instrument(skip(ctx, election_event), err)]
 async fn run_datafix_voter_edit(
     ctx: &DatafixEditCtx<'_>,
@@ -503,17 +504,27 @@ async fn run_datafix_voter_edit(
         }),
         None => Ok(()),
     };
-    // Whatever the audit did, because the edit stands either way.
     let link_sync = sync_pin_link(body)
         .await
         .map_err(|err| format!("Voter edited, but its PIN link was not updated: {err:#}"));
-    password_audit?;
-    link_sync?;
+    let release = release_voter(ctx, election_event, &plan, &current_user).await;
+    every_failure([password_audit, link_sync, release])
+}
 
+/// What a voter's edit owes once Keycloak accepted it: discards the ballots of
+/// a voter it disabled and sends `SetNotVoted` when required.
+#[instrument(skip_all, err)]
+async fn release_voter(
+    ctx: &DatafixEditCtx<'_>,
+    election_event: ElectionEvent,
+    plan: &VoterReleasePlan,
+    current_user: &User,
+) -> std::result::Result<(), String> {
     if !plan.release_attempt {
         return Ok(());
     }
 
+    let body = ctx.body;
     ctx.lock
         .update_expiry_for(DATAFIX_VOTER_LOCK_SECS)
         .await
@@ -543,6 +554,24 @@ async fn run_datafix_voter_edit(
         .or_else(|| current_user.get_area_id());
     send_set_not_voted(ctx, election_event, &username, area_id.as_deref()).await;
     Ok(())
+}
+
+/// Joins the failures of the steps that follow an accepted edit. That edit
+/// stands, so every step runs whatever the others did, and the task's error
+/// names all that failed.
+#[instrument(skip_all)]
+fn every_failure(
+    outcomes: impl IntoIterator<Item = std::result::Result<(), String>>,
+) -> std::result::Result<(), String> {
+    let failures: Vec<String> = outcomes
+        .into_iter()
+        .filter_map(std::result::Result::err)
+        .collect();
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(failures.join("; "))
+    }
 }
 
 /// Applies an admin edit to a Datafix voter under the per-voter lock. On a
@@ -588,6 +617,18 @@ async fn apply_datafix_voter_edit(body: &EditUserTaskBody) -> std::result::Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The task's error is all the operator gets, so one failure can't hide
+    /// another.
+    #[test]
+    fn every_failure_after_an_accepted_edit_is_reported() {
+        assert_eq!(every_failure([Ok(()), Ok(())]), Ok(()));
+        assert_eq!(every_failure([]), Ok(()));
+        assert_eq!(
+            every_failure([Err("audit".to_string()), Ok(()), Err("release".to_string())]),
+            Err("audit; release".to_string())
+        );
+    }
 
     #[test]
     fn disable_requires_an_enabled_to_disabled_transition() {
