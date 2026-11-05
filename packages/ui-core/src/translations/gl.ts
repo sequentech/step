@@ -119,6 +119,8 @@ const galegoTranslation: TranslationType = {
                     "Voto non válido! A orde de preferencia ten un ou máis ocos.",
                 duplicatedPosition:
                     "Voto non válido! A mesma posición foi seleccionada para dous ou máis candidatos.",
+                selectedDisabledCandidate:
+                    "Voto non válido! Seleccionouse un candidato deshabilitado.",
             },
             explicit: {
                 notAllowed:
