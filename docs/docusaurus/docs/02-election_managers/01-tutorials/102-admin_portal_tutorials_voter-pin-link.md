@@ -131,8 +131,7 @@ language it is set for: a realm that overrides `pinLinkIntro` in English and als
 shows the Spanish text that ships, until it is overridden in Spanish too.
 
 When the realm offers more than one language, the form has the theme's language menu. The page that
-shows the PIN does not, because leaving it would lose the PIN. On a short host the menu continues on
-Keycloak's own address for the same link, see [Short Links](#short-links).
+shows the PIN does not, because leaving it would lose the PIN.
 
 ### Style
 

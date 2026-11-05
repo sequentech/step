@@ -73,6 +73,8 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
   private static final ObjectMapper JSON = new ObjectMapper();
   private static final Pattern STYLE_TAG =
       Pattern.compile("<style(?=[\\s>])", Pattern.CASE_INSENSITIVE);
+  private static final Pattern LANGUAGE_LINK =
+      Pattern.compile("href=\"[^\"]*\\?" + LocaleSelectorProvider.KC_LOCALE_PARAM + "=");
 
   private final KeycloakSession session;
   private final Supplier<RabbitMqEventPublisher> publisher;
@@ -405,7 +407,7 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
       forms.setError(GENERIC_ERROR);
     }
     String page = (String) forms.createForm(TEMPLATE).getEntity();
-    return secure(Response.ok(withStyleNonce(page, nonce)), nonce).build();
+    return secure(Response.ok(withLocalLanguageLinks(withStyleNonce(page, nonce))), nonce).build();
   }
 
   /**
@@ -483,6 +485,17 @@ public class PinLinkResourceProvider implements RealmResourceProvider {
     byte[] escaped = Arrays.copyOf(out, size);
     Arrays.fill(out, (byte) 0);
     return escaped;
+  }
+
+  /**
+   * The theme's language menu links to this page by Keycloak's path, which a short host does not
+   * serve. A link to the query alone works on whichever host the voter came through.
+   */
+  private static String withLocalLanguageLinks(String page) {
+    return LANGUAGE_LINK
+        .matcher(page)
+        .replaceAll(
+            Matcher.quoteReplacement("href=\"?" + LocaleSelectorProvider.KC_LOCALE_PARAM + "="));
   }
 
   /**
