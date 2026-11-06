@@ -48,6 +48,21 @@ pub struct GetCustodyRequest;
 
 pub struct GetTrusteeCustodyRequest;
 
+/// A key ceremony's custody request. Without a tally session Harvest serves
+/// the ceremony's own request, as it did before the action took one.
+fn custody_request_variables(
+    election_event_id: &str,
+    key_ceremony_id: &str,
+) -> get_custody_request::Variables {
+    get_custody_request::Variables {
+        object: GetCustodyRequestInput {
+            election_event_id: election_event_id.to_string(),
+            keys_ceremony_id: key_ceremony_id.to_string(),
+            tally_session_id: None,
+        },
+    }
+}
+
 impl GetTrusteeCustodyRequest {
     pub fn get_trustee_custody_request(
         election_event_id: &str,
@@ -56,12 +71,7 @@ impl GetTrusteeCustodyRequest {
         let config = read_config()?;
         let client = reqwest::blocking::Client::new();
 
-        let variables = get_custody_request::Variables {
-            object: GetCustodyRequestInput {
-                election_event_id: election_event_id.to_string(),
-                keys_ceremony_id: key_ceremony_id.to_string(),
-            },
-        };
+        let variables = custody_request_variables(election_event_id, key_ceremony_id);
 
         let request_body = GetCustodyRequest::build_query(variables);
 
@@ -117,5 +127,26 @@ impl GetTrusteeCustodyRequest {
             let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
             Err(Box::from(error))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::custody_request_variables;
+
+    /// Harvest reads a null `tally_session_id` like an absent one, so the CLI
+    /// keeps asking for the key ceremony's own custody request.
+    #[test]
+    fn asks_for_the_key_ceremony_request_without_a_tally_session() {
+        assert_eq!(
+            serde_json::to_value(custody_request_variables("event-1", "ceremony-1")).unwrap(),
+            serde_json::json!({
+                "object": {
+                    "election_event_id": "event-1",
+                    "keys_ceremony_id": "ceremony-1",
+                    "tally_session_id": null,
+                }
+            })
+        );
     }
 }
