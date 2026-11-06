@@ -850,9 +850,27 @@ pub fn to_json(
         let json =
             to_string(param.value()).unwrap_or_else(|_| "null".to_string());
         // Write the JSON to the template output
-        out.write(&json)?;
+        out.write(&escape_json_for_script(&json))?;
     }
     Ok(())
+}
+
+/// Replaces the characters that could close or alter an enclosing `<script>`
+/// element with their JSON escapes. They can only appear inside JSON strings,
+/// so the result still parses to the same value.
+fn escape_json_for_script(json: &str) -> String {
+    let mut escaped = String::with_capacity(json.len());
+    for c in json.chars() {
+        match c {
+            '<' => escaped.push_str("\\u003c"),
+            '>' => escaped.push_str("\\u003e"),
+            '&' => escaped.push_str("\\u0026"),
+            '\u{2028}' => escaped.push_str("\\u2028"),
+            '\u{2029}' => escaped.push_str("\\u2029"),
+            _ => escaped.push(c),
+        }
+    }
+    escaped
 }
 
 #[allow(non_camel_case_types)]
@@ -938,7 +956,75 @@ impl HelperDef for is_some {
 #[cfg(test)]
 mod tests {
     use super::{fill_pattern, render_template_text};
-    use serde_json::{json, Map};
+    use serde_json::{json, Map, Value};
+
+    fn render_to_json(value: Value) -> String {
+        let mut variables = Map::new();
+        variables.insert("value".to_string(), value);
+
+        render_template_text("{{{to_json value}}}", variables)
+            .expect("template should render")
+    }
+
+    #[test]
+    fn to_json_escapes_characters_that_can_end_a_script_element() {
+        let rendered = render_to_json(json!({
+            "name": "a</script><script>b",
+            "note": "<!-- a & b \u{2028}\u{2029} -->"
+        }));
+
+        assert_eq!(
+            rendered,
+            concat!(
+                r#"{"name":"a\u003c/script\u003e\u003cscript\u003eb","#,
+                r#""note":"\u003c!-- a \u0026 b \u2028\u2029 --\u003e"}"#
+            )
+        );
+    }
+
+    #[test]
+    fn to_json_output_parses_back_to_the_same_value() {
+        let value = json!({
+            "</script>": ["<!--", "-->", "a & b", "\u{2028}", "\u{2029}"],
+            "escaped": "\\</script>\"",
+            "nested": {"number": 1.5, "flag": true, "missing": null},
+            "plain": "Málaga"
+        });
+
+        let rendered = render_to_json(value.clone());
+        let parsed: Value =
+            serde_json::from_str(&rendered).expect("output should be JSON");
+
+        assert_eq!(parsed, value);
+    }
+
+    #[test]
+    fn to_json_keeps_values_without_special_characters_unchanged() {
+        let value = json!({"id": "ballot-1", "choices": [1, 2], "ok": true});
+
+        assert_eq!(
+            render_to_json(value.clone()),
+            serde_json::to_string(&value).unwrap()
+        );
+    }
+
+    #[test]
+    fn to_json_inside_a_script_element_keeps_it_open() {
+        let mut variables = Map::new();
+        variables.insert(
+            "data".to_string(),
+            json!([{"title": "</script><script>"}]),
+        );
+
+        let rendered = render_template_text(
+            "<script>const data = {{{to_json data}}};</script>",
+            variables,
+        )
+        .expect("template should render");
+
+        assert_eq!(rendered.matches("</script>").count(), 1);
+        assert!(rendered.ends_with("];</script>"));
+    }
 
     #[test]
     fn url_encode_keeps_dynamic_data_in_one_query_value() {
