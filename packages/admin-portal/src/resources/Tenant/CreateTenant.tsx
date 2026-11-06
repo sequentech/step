@@ -64,21 +64,44 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
     })
     const maxTrustees = trustees?.length ?? 0
 
+    // The parent unmounts this component with the drawer, which would take the password
+    // dialog with it: the password is only ever shown here
+    const closeDrawer = () => {
+        if (!filePassword) {
+            setIsDrawerOpen(false)
+        }
+    }
+
+    const closePasswordDialog = () => {
+        setFilePassword(null)
+        setIsDrawerOpen(false)
+    }
+
     useEffect(() => {
         if (isNull(newId)) {
             return
         }
         if (isLoading && error && !isOneLoading) {
             setIsLoading(false)
-            setIsDrawerOpen(false)
+            closeDrawer()
             refresh()
             return
         }
         if (isLoading && !error && !isOneLoading && newTenant) {
             setIsLoading(false)
-            setIsDrawerOpen(false)
+            closeDrawer()
         }
-    }, [isLoading, newTenant, isOneLoading, error, newId, refresh, authContext, navigate])
+    }, [
+        isLoading,
+        newTenant,
+        isOneLoading,
+        error,
+        newId,
+        filePassword,
+        refresh,
+        authContext,
+        navigate,
+    ])
 
     const onSubmit: SubmitHandler<FieldValues> = async ({slug, num_trustees}) => {
         // The widget downloads the credentials file when the task ends
@@ -110,7 +133,7 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
         <>
             <Drawer
                 anchor="right"
-                open={isDrawerOpen}
+                open={isDrawerOpen && !filePassword}
                 onClose={() => setIsDrawerOpen(false)}
                 PaperProps={{
                     sx: {width: "30%"},
@@ -143,7 +166,7 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
                 </SimpleForm>
             </Drawer>
             {filePassword ? (
-                <PasswordDialog password={filePassword} onClose={() => setFilePassword(null)}>
+                <PasswordDialog password={filePassword} onClose={closePasswordDialog}>
                     <DecryptHelp decryptionCommand={decryptionCommand} />
                 </PasswordDialog>
             ) : null}
