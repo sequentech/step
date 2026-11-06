@@ -893,7 +893,6 @@ pub async fn list_users(
     }
 
     debug!("parameters count: {}", next_param_number - 1);
-    debug!("params {:?}", params);
     let scope_clause = voter_scope_clause(&filters_clause, realm_param, user_ids_param);
     let statement_str = format!(
         r#"
@@ -1182,7 +1181,6 @@ pub async fn list_users_ids(
     }
 
     debug!("parameters count: {}", next_param_number - 1);
-    debug!("params {:?}", params);
     let scope_clause = voter_scope_clause(&filters_clause, realm_param, user_ids_param);
     let statement_str = format!(
         r#"
@@ -1386,7 +1384,6 @@ pub async fn lookup_users(
     let no_service_accounts = service_account_exclusion("u");
 
     debug!("parameters count: {}", next_param_number - 1);
-    debug!("params {:?}", params);
 
     let statement_str = format!(
         r#"
