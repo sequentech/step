@@ -8,6 +8,7 @@
 //! use strand::backend::ristretto::RistrettoCtx;
 //! use strand::threshold;
 //!
+//! # fn main() -> Result<(), strand::util::StrandError> {
 //! let ctx = RistrettoCtx;
 //! let num_trustees = 3;
 //! let threshold = 2;
@@ -17,7 +18,7 @@
 //!
 //! let mut shares = vec![];
 //! for i in 0..num_trustees {
-//!     let share = threshold::compute_peer_share(i, threshold, &coefficients, &ctx);
+//!     let share = threshold::compute_peer_share(i, threshold, &coefficients, &ctx)?;
 //!     shares.push(share);
 //! }
 //!
@@ -30,11 +31,15 @@
 //!         threshold,
 //!         i,
 //!         &ctx,
-//!     );
+//!     )?;
 //!     let ok = threshold::verify_share(&shares[i], &vkf, &ctx);
 //!     assert!(ok);
 //! }
+//! # Ok(())
+//! # }
 //! ```
+
+use std::collections::HashSet;
 
 use crate::context::{Ctx, Element, Exponent};
 use crate::elgamal::Ciphertext;
@@ -65,21 +70,33 @@ pub fn gen_coefficients<C: Ctx>(
 }
 
 /// Evaluates the polynomial at the given trustee position.
+///
+/// Returns an error unless there are exactly threshold coefficients.
 pub fn eval_poly<C: Ctx>(
     trustee: usize,
     threshold: usize,
     coefficients: &[C::X],
     ctx: &C,
-) -> C::X {
-    let mut sum = coefficients[0].clone();
+) -> Result<C::X, StrandError> {
+    let (first, rest) = coefficients
+        .split_first()
+        .filter(|_| coefficients.len() == threshold)
+        .ok_or_else(|| {
+            StrandError::Generic(format!(
+                "Expected {} polynomial coefficients, found {}",
+                threshold,
+                coefficients.len()
+            ))
+        })?;
+    let mut sum = first.clone();
     let mut power = C::X::mul_identity();
     let trustee_exp = ctx.exp_from_u64(trustee as u64);
 
-    for coefficient in coefficients.iter().take(threshold).skip(1) {
+    for coefficient in rest {
         power = power.mul(&trustee_exp).modq(ctx);
         sum = sum.add(&coefficient.mul(&power).modq(ctx));
     }
-    sum.modq(ctx)
+    Ok(sum.modq(ctx))
 }
 
 /// Computes the share for the target trustee.
@@ -88,7 +105,7 @@ pub fn compute_peer_share<C: Ctx>(
     threshold: usize,
     coefficients: &[C::X],
     ctx: &C,
-) -> C::X {
+) -> Result<C::X, StrandError> {
     // i + 1: trustees start at 1
     eval_poly(target_trustee + 1, threshold, coefficients, ctx)
 }
@@ -105,26 +122,31 @@ pub fn verify_share<C: Ctx>(
 /// Computes the factor of the verification key for the receiving trustee using
 /// the sender commitments. Note also that this value must equal g^share_ij from
 /// i to j, this is checked when verifying received shares.
+///
+/// Returns an error unless there are exactly threshold commitments.
 pub fn verification_key_factor<C: Ctx>(
     sender_commitments: &[C::E],
     threshold: usize,
     receiver_trustee: usize,
     ctx: &C,
-) -> C::E {
+) -> Result<C::E, StrandError> {
+    if sender_commitments.len() != threshold {
+        return Err(StrandError::Generic(format!(
+            "Expected {} share commitments, found {}",
+            threshold,
+            sender_commitments.len()
+        )));
+    }
     let mut accum = C::E::mul_identity();
     // Trustees start at 1
-    let t = receiver_trustee + 1;
-    for (i, commitment) in sender_commitments.iter().enumerate().take(threshold)
-    {
-        let power = t.pow(i as u32);
-        let power_element = ctx.exp_from_u64(power as u64);
-
-        accum = accum
-            .mul(&ctx.emod_pow(commitment, &power_element))
-            .modp(ctx);
+    let t = ctx.exp_from_u64((receiver_trustee + 1) as u64);
+    let mut power = C::X::mul_identity();
+    for commitment in sender_commitments {
+        accum = accum.mul(&ctx.emod_pow(commitment, &power)).modp(ctx);
+        power = power.mul(&t).modq(ctx);
     }
 
-    accum
+    Ok(accum)
 }
 
 /// Computes the decryption factor and proof for the given ciphertext using the
@@ -163,7 +185,25 @@ pub fn verify_decryption_factor<C: Ctx>(
 }
 
 /// Computes the Lagrange coefficient for the given trustee.
-pub fn lagrange<C: Ctx>(trustee: usize, present: &[usize], ctx: &C) -> C::X {
+///
+/// Returns an error if the present positions contain a zero or a duplicate,
+/// or do not contain the given trustee.
+pub fn lagrange<C: Ctx>(
+    trustee: usize,
+    present: &[usize],
+    ctx: &C,
+) -> Result<C::X, StrandError> {
+    let unique: HashSet<usize> = present.iter().copied().collect();
+    if unique.len() != present.len()
+        || unique.contains(&0)
+        || !unique.contains(&trustee)
+    {
+        return Err(StrandError::Generic(format!(
+            "Invalid Lagrange positions {:?} for trustee {}",
+            present, trustee
+        )));
+    }
+
     let mut numerator = C::X::mul_identity();
     let mut denominator = C::X::mul_identity();
     let trustee_exp = ctx.exp_from_u64(trustee as u64);
@@ -183,7 +223,7 @@ pub fn lagrange<C: Ctx>(trustee: usize, present: &[usize], ctx: &C) -> C::X {
         denominator = denominator.mul(&diff_exp).modq(ctx);
     }
 
-    numerator.divq(&denominator, ctx)
+    Ok(numerator.divq(&denominator, ctx))
 }
 
 #[cfg(any(test, feature = "wasmtest"))]
@@ -218,7 +258,8 @@ pub(crate) mod tests {
             for i in 0..num_trustees {
                 // i + 1: trustees start at 1
                 let share =
-                    threshold::eval_poly(i + 1, threshold, &coefficients, ctx);
+                    threshold::eval_poly(i + 1, threshold, &coefficients, ctx)
+                        .unwrap();
                 shares.push(share);
             }
 
@@ -246,7 +287,8 @@ pub(crate) mod tests {
                 self.threshold,
                 self_position,
                 &self.ctx,
-            );
+            )
+            .unwrap();
             let check = self.ctx.gmod_pow(&share);
             let ok = check == vkf;
             if ok {
@@ -348,7 +390,8 @@ pub(crate) mod tests {
                 .unwrap();
             assert!(ok);
 
-            let lagrange = threshold::lagrange(present[i], present, ctx);
+            let lagrange =
+                threshold::lagrange(present[i], present, ctx).unwrap();
 
             let next = ctx.emod_pow(&base, &lagrange);
             divider = divider.mul(&next).modp(ctx)
@@ -371,7 +414,8 @@ pub(crate) mod tests {
                 .unwrap();
             assert!(ok);
 
-            let lagrange = threshold::lagrange(present[i], present, ctx);
+            let lagrange =
+                threshold::lagrange(present[i], present, ctx).unwrap();
 
             let next = ctx.emod_pow(&base, &lagrange);
             divider = divider.mul(&next).modp(ctx)
@@ -381,5 +425,78 @@ pub(crate) mod tests {
         let decoded = ctx.decode(&decrypted);
 
         assert_ne!(data, decoded);
+    }
+}
+
+#[cfg(test)]
+mod validation_tests {
+    use crate::backend::ristretto::RistrettoCtx;
+    use crate::threshold;
+
+    #[test]
+    fn lagrange_rejects_duplicate_positions() {
+        let ctx = RistrettoCtx;
+        assert!(threshold::lagrange(1, &[1, 1], &ctx).is_err());
+        assert!(threshold::lagrange(1, &[1, 1, 2], &ctx).is_err());
+    }
+
+    #[test]
+    fn lagrange_rejects_zero_position() {
+        let ctx = RistrettoCtx;
+        assert!(threshold::lagrange(1, &[0, 1], &ctx).is_err());
+    }
+
+    #[test]
+    fn lagrange_rejects_trustee_not_present() {
+        let ctx = RistrettoCtx;
+        assert!(threshold::lagrange(3, &[1, 2], &ctx).is_err());
+    }
+
+    #[test]
+    fn eval_poly_rejects_empty_coefficients() {
+        let ctx = RistrettoCtx;
+        assert!(threshold::eval_poly::<RistrettoCtx>(1, 0, &[], &ctx).is_err());
+        assert!(threshold::eval_poly::<RistrettoCtx>(1, 2, &[], &ctx).is_err());
+    }
+
+    #[test]
+    fn eval_poly_rejects_wrong_coefficient_count() {
+        let ctx = RistrettoCtx;
+        let (coefficients, _) = threshold::gen_coefficients(3, &ctx);
+        assert!(threshold::eval_poly(1, 2, &coefficients, &ctx).is_err());
+        assert!(threshold::eval_poly(1, 4, &coefficients, &ctx).is_err());
+    }
+
+    #[test]
+    fn verification_key_factor_rejects_wrong_commitment_count() {
+        let ctx = RistrettoCtx;
+        let (_, two) = threshold::gen_coefficients(2, &ctx);
+        let (_, four) = threshold::gen_coefficients(4, &ctx);
+        assert!(threshold::verification_key_factor(&two, 3, 0, &ctx).is_err());
+        assert!(threshold::verification_key_factor(&four, 3, 0, &ctx).is_err());
+    }
+
+    #[test]
+    fn verification_key_factor_matches_share_for_large_position() {
+        let ctx = RistrettoCtx;
+        let threshold = 12;
+        let receiver = 99;
+        let (coefficients, commitments) =
+            threshold::gen_coefficients(threshold, &ctx);
+        let share = threshold::compute_peer_share(
+            receiver,
+            threshold,
+            &coefficients,
+            &ctx,
+        )
+        .expect("share computation should succeed");
+        let vkf = threshold::verification_key_factor(
+            &commitments,
+            threshold,
+            receiver,
+            &ctx,
+        )
+        .expect("verification key factor computation should succeed");
+        assert!(threshold::verify_share(&share, &vkf, &ctx));
     }
 }

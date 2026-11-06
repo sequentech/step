@@ -175,20 +175,34 @@ impl Predicate {
             // variant: Ballots(Timestamp, ConfigurationH, usize, CiphertextsH, PublicKeyH, TrusteeSet)
             Statement::Ballots(_ts, cfg_h, batch, ballots_h, pk_h, trustees) => {
                 // Verify that all selected trustees are valid
-                let mut selected = vec![];
-                trustees.iter().for_each(|s| {
-                    if *s != NULL_TRUSTEE {
-                        assert!(*s > 0 && *s <= cfg.trustees.len());
-                        selected.push(*s);
-                    }
-                });
+                let selected: Vec<usize> = trustees
+                    .iter()
+                    .copied()
+                    .filter(|s| *s != NULL_TRUSTEE)
+                    .collect();
+                if let Some(s) = selected
+                    .iter()
+                    .find(|s| **s == 0 || **s > cfg.trustees.len())
+                {
+                    return Err(ProtocolError::InvalidTrusteeSelection(format!(
+                        "Selected trustee {} is not a valid trustee position",
+                        s
+                    )));
+                }
 
                 // Verify that all selected trustees are unique
-                let unique: HashSet<usize> = selected.into_iter().collect();
-                if unique.len() != cfg.threshold {
+                let unique: HashSet<usize> = selected.iter().copied().collect();
+                if unique.len() != selected.len() {
+                    return Err(ProtocolError::InvalidTrusteeSelection(format!(
+                        "Selected trustees should be unique. Selected {:?}",
+                        selected
+                    )));
+                }
+
+                if selected.len() != cfg.threshold {
                     return Err(ProtocolError::InvalidTrusteeSelection(format!(
                         "Selected trustees should be equal to the threshold. Selected {} but required {}",
-                        unique.len(),
+                        selected.len(),
                         cfg.threshold
                     )));
                 }
@@ -308,5 +322,82 @@ impl Predicate {
             configuration.trustees.len(),
             configuration.threshold,
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::protocol::datalog::NULL_HASH;
+    use std::marker::PhantomData;
+    use strand::backend::ristretto::RistrettoCtx;
+    use strand::signature::StrandSignatureSk;
+
+    const NUM_TRUSTEES: usize = 3;
+    const THRESHOLD: usize = 2;
+
+    fn signature_pk() -> StrandSignaturePk {
+        let sk = StrandSignatureSk::gen().expect("signing key generation should succeed");
+        StrandSignaturePk::from_sk(&sk).expect("public key derivation should succeed")
+    }
+
+    fn configuration() -> Configuration<RistrettoCtx> {
+        let trustees = (0..NUM_TRUSTEES).map(|_| signature_pk()).collect();
+        Configuration::new(0, signature_pk(), trustees, THRESHOLD, PhantomData)
+    }
+
+    fn ballots_predicate(selected: &[usize]) -> Result<Predicate, ProtocolError> {
+        let mut trustees: TrusteeSet = [NULL_TRUSTEE; MAX_TRUSTEES];
+        trustees[..selected.len()].copy_from_slice(selected);
+        let statement = Statement::Ballots(
+            0,
+            ConfigurationHash(NULL_HASH),
+            1,
+            CiphertextsHash(NULL_HASH),
+            PublicKeyHash(NULL_HASH),
+            trustees,
+        );
+
+        Predicate::from_statement(&statement, PROTOCOL_MANAGER_INDEX, &configuration())
+    }
+
+    #[test]
+    fn ballots_predicate_accepts_threshold_unique_trustees() {
+        assert!(matches!(
+            ballots_predicate(&[1, 2]),
+            Ok(Predicate::Ballots(..))
+        ));
+    }
+
+    #[test]
+    fn ballots_predicate_rejects_duplicate_selected_trustees() {
+        assert!(matches!(
+            ballots_predicate(&[1, 1, 2]),
+            Err(ProtocolError::InvalidTrusteeSelection(_))
+        ));
+    }
+
+    #[test]
+    fn ballots_predicate_rejects_fewer_than_threshold_trustees() {
+        assert!(matches!(
+            ballots_predicate(&[1]),
+            Err(ProtocolError::InvalidTrusteeSelection(_))
+        ));
+    }
+
+    #[test]
+    fn ballots_predicate_rejects_zero_selected_trustee() {
+        assert!(matches!(
+            ballots_predicate(&[0, 1]),
+            Err(ProtocolError::InvalidTrusteeSelection(_))
+        ));
+    }
+
+    #[test]
+    fn ballots_predicate_rejects_out_of_range_selected_trustee() {
+        assert!(matches!(
+            ballots_predicate(&[1, NUM_TRUSTEES + 1]),
+            Err(ProtocolError::InvalidTrusteeSelection(_))
+        ));
     }
 }
