@@ -437,6 +437,42 @@ pub async fn count_unresolved_cast_votes(
     Ok(row.get("count"))
 }
 
+/// Returns whether a contest area has any cast vote, whatever its status.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn has_area_cast_votes(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    election_id: &Uuid,
+    area_id: &Uuid,
+) -> Result<bool> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM sequent_backend.cast_vote
+                    WHERE
+                        tenant_id = $1 AND
+                        election_event_id = $2 AND
+                        election_id = $3 AND
+                        area_id = $4
+                ) AS found
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_one(
+            &statement,
+            &[tenant_id, election_event_id, election_id, area_id],
+        )
+        .await
+        .map_err(|err| anyhow!("Error checking for area cast votes: {}", err))?;
+
+    Ok(row.get("found"))
+}
+
 /// Discards every `valid` or `in-progress` ballot of the voter for the event.
 /// Used when an admin disables a Datafix voter: the ballots are discarded
 /// unconditionally as part of the disable, regardless of whether the

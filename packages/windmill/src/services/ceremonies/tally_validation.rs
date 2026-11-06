@@ -54,6 +54,23 @@ pub fn validate_tally_elections(
                 TallyType::INITIALIZATION_REPORT if status.init_report != InitReport::ALLOWED => {
                     Some("initialization reports are not allowed")
                 }
+                TallyType::INITIALIZATION_REPORT
+                    if election.initialization_report_generated == Some(true) =>
+                {
+                    Some("its initialization report was already generated")
+                }
+                TallyType::INITIALIZATION_REPORT
+                    if ![
+                        &status.voting_status,
+                        &status.kiosk_voting_status,
+                        &status.early_voting_status,
+                        &status.telephone_voting_status,
+                    ]
+                    .iter()
+                    .all(|channel_status| channel_status.is_not_started()) =>
+                {
+                    Some("generate its initialization report before any voting channel opens")
+                }
                 TallyType::INITIALIZATION_REPORT => None,
                 TallyType::ELECTORAL_RESULTS => match status.allow_tally {
                     AllowTallyStatus::ALLOWED => None,
@@ -239,6 +256,7 @@ mod tests {
             TallyType::ELECTORAL_RESULTS
         )
         .is_err());
+        selected.status.as_mut().unwrap()["voting_status"] = json!("NOT_STARTED");
         assert!(validate_tally_elections(
             &[selected.clone()],
             &["selected".into()],
@@ -252,6 +270,58 @@ mod tests {
             TallyType::INITIALIZATION_REPORT
         )
         .is_err());
+    }
+
+    #[test]
+    fn initialization_report_requires_every_channel_not_started() {
+        for channel in [
+            "voting_status",
+            "kiosk_voting_status",
+            "early_voting_status",
+            "telephone_voting_status",
+        ] {
+            for status in ["OPEN", "PAUSED", "CLOSED"] {
+                let mut selected = election("selected", "NOT_STARTED");
+                selected.status.as_mut().unwrap()[channel] = json!(status);
+                selected.voting_channels = Some(json!({}));
+                let error = validate_tally_elections(
+                    &[selected],
+                    &["selected".into()],
+                    TallyType::INITIALIZATION_REPORT,
+                )
+                .unwrap_err();
+                assert!(
+                    error.to_string().contains(
+                        "Election selected: generate its initialization report before any voting channel opens"
+                    ),
+                    "{channel}: {status}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn initialization_report_is_generated_only_once() {
+        let mut selected = election("selected", "NOT_STARTED");
+        for generated in [None, Some(false)] {
+            selected.initialization_report_generated = generated;
+            assert!(validate_tally_elections(
+                &[selected.clone()],
+                &["selected".into()],
+                TallyType::INITIALIZATION_REPORT
+            )
+            .is_ok());
+        }
+        selected.initialization_report_generated = Some(true);
+        let error = validate_tally_elections(
+            &[selected],
+            &["selected".into()],
+            TallyType::INITIALIZATION_REPORT,
+        )
+        .unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("Election selected: its initialization report was already generated"));
     }
 
     #[test]
