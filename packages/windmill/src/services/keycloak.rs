@@ -14,7 +14,7 @@ use sequent_core::types::permissions::RealmRolePolicy;
 use sequent_core::{services::keycloak::KeycloakAdminClient, types::keycloak::Role};
 use std::collections::{HashMap, HashSet};
 use std::env;
-use std::path::Path;
+use std::io::Read;
 use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
@@ -165,9 +165,9 @@ pub fn find_group_by_name(
         .find(|group| group.name.as_deref() == Some(group_name))
 }
 
-fn require_ordinary_permissions(csv_path: &Path) -> anyhow::Result<()> {
-    let mut reader = csv::Reader::from_path(csv_path)
-        .map_err(|e| anyhow!("Error reading roles and permissions config file: {e}"))?;
+/// Refuses a roles and permissions CSV naming a reserved permission.
+pub fn require_ordinary_permissions(csv: impl Read) -> anyhow::Result<()> {
+    let mut reader = csv::Reader::from_reader(csv);
     for result in reader.records() {
         let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
         for permission in record.get(1).unwrap_or_default().split('|') {
@@ -183,7 +183,7 @@ pub async fn read_roles_config_file(
     realm: &RealmRepresentation,
     tenant_id: &str,
 ) -> Result<()> {
-    require_ordinary_permissions(temp_file.path())?;
+    require_ordinary_permissions(temp_file.reopen()?)?;
     let keycloak_pub_client = KeycloakAdminClient::pub_new().await?;
     let keycloak_client = KeycloakAdminClient::new()
         .await
@@ -428,6 +428,6 @@ mod tests {
     fn roles_config_with_ordinary_permissions_is_accepted() {
         let file = roles_config("admin,election-event-read|tally-read\nauditors,logs-read\n");
 
-        require_ordinary_permissions(file.path()).expect("ordinary permissions");
+        require_ordinary_permissions(file.reopen().unwrap()).expect("ordinary permissions");
     }
 }
