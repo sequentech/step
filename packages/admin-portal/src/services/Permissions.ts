@@ -218,9 +218,10 @@ export const getOperationRole = (
     return defaultRole === IPermissions.ADMIN_USER || hasRole(mappedRole) ? mappedRole : defaultRole
 }
 
+// Roles with data provider resources that no default role can read
+const SCHEMA_ROLES: Array<IPermissions> = [...DEFAULT_OPERATION_ROLES, IPermissions.DOCUMENT_READ]
+
 // The roles whose schema the data provider needs: admin-user sees what the portal loads,
 // but a restricted user can run operations under every profile they hold.
 export const getSchemaRoles = (hasRole: (role: IPermissions) => boolean): Array<IPermissions> =>
-    hasRole(IPermissions.ADMIN_USER)
-        ? [IPermissions.ADMIN_USER]
-        : DEFAULT_OPERATION_ROLES.filter(hasRole)
+    hasRole(IPermissions.ADMIN_USER) ? [IPermissions.ADMIN_USER] : SCHEMA_ROLES.filter(hasRole)

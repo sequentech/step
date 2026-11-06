@@ -120,6 +120,11 @@ describe("getSchemaRoles", () => {
         ])
     })
 
+    it("adds the document schema to a user who can read documents", () => {
+        const roles = [IPermissions.PUBLISH_READ, IPermissions.DOCUMENT_READ]
+        expect(getSchemaRoles(holding(roles))).toEqual(roles)
+    })
+
     it("has no role for a user without a profile", () => {
         expect(getSchemaRoles(holding([IPermissions.ELECTION_EVENT_READ]))).toEqual([])
     })
