@@ -38,7 +38,6 @@ use ed25519_dalek::pkcs8::EncodePublicKey;
 use ed25519_dalek::Signature;
 use ed25519_dalek::Signer;
 use ed25519_dalek::SigningKey;
-use ed25519_dalek::Verifier;
 use ed25519_dalek::VerifyingKey;
 #[cfg(feature = "certs")]
 use rcgen::CertificateSigningRequestParams;
@@ -112,7 +111,7 @@ impl StrandSignaturePk {
         signature: &StrandSignature,
         msg: &[u8],
     ) -> Result<(), StrandError> {
-        Ok(self.0.verify(msg, &signature.0)?)
+        Ok(self.0.verify_strict(msg, &signature.0)?)
     }
 
     /// Returns a spki der representation.
@@ -647,6 +646,36 @@ pub(crate) mod tests {
         let ok = StrandSignaturePk::verify_x509_der(&cert_der, None);
 
         assert!(ok.is_ok());
+    }
+
+    #[test]
+    fn verify_rejects_signature_under_small_order_key() {
+        use curve25519_dalek::constants::ED25519_BASEPOINT_POINT;
+        use curve25519_dalek::scalar::Scalar;
+
+        // Compressed encoding of the identity point.
+        let mut identity = [0u8; 32];
+        identity[0] = 1;
+        let pk = StrandSignaturePk::from_bytes(identity).unwrap();
+
+        let s = Scalar::from(7u64);
+        let r = (s * ED25519_BASEPOINT_POINT).compress();
+        let mut sig_bytes = [0u8; 64];
+        sig_bytes[..32].copy_from_slice(r.as_bytes());
+        sig_bytes[32..].copy_from_slice(s.as_bytes());
+        let sig = StrandSignature::from_bytes(sig_bytes).unwrap();
+
+        assert!(pk.verify(&sig, b"first message").is_err());
+        assert!(pk.verify(&sig, b"second message").is_err());
+    }
+
+    #[test]
+    fn from_bytes_parses_all_zero_key() {
+        let pk = StrandSignaturePk::from_bytes([0u8; 32]).unwrap();
+        let bytes = pk.strand_serialize().unwrap();
+        let pk_d = StrandSignaturePk::strand_deserialize(&bytes).unwrap();
+
+        assert_eq!(pk, pk_d);
     }
 
     /*
