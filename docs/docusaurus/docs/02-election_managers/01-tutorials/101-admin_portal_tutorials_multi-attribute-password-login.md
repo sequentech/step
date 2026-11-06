@@ -28,6 +28,15 @@ relies on the password to uniquely identify one of them. Configuring a second at
 a national ID) narrows the candidate set before the password check, and is recommended whenever a
 second identifying attribute is available.
 
+> ⚠️ **We strongly advise against logging voters in with a date of birth and a PIN.** A date of
+> birth is neither secret nor unique, so the login can't tell an outsider's attempt from a voter's.
+> Every limit on wrong PINs for a birth date lets anyone lock out all voters born that day, and
+> every looser limit lets them guess more PINs. No authenticator setting fixes both. Prefer an
+> identifier unique to each voter (a voter ID, or attributes that together match one voter) and a
+> long, random password or PIN. If a date of birth and PIN can't be avoided, use a long PIN (16
+> digits or more), keep the realm's **Brute Force Detection** on, and add a
+> [per-IP rate limit at the proxy](#rate-limiting-per-ip-address).
+
 ---
 
 ## Prerequisites
@@ -187,7 +196,7 @@ and explains where realm attributes are edited.
 | A configured attribute field is left blank | Generic "invalid credentials" error (no lookup performed). |
 | No user matches all configured attributes | Generic "invalid credentials" error. |
 | Exactly one candidate, correct password | Login succeeds. |
-| Exactly one candidate, wrong password | Generic "invalid credentials" error - this attempt **is** counted toward that account's Brute Force Detection lockout, same as a standard login. |
+| Exactly one candidate, wrong password | Generic "invalid credentials" error - this attempt **is** counted toward that account's Brute Force Detection lockout, same as a standard login. With Brute Force Detection on, it does not count toward **Max failures per attribute-value combination**. |
 | Exactly one candidate, currently locked out by Brute Force Detection | Generic "invalid credentials" error; the locked account cannot log in. |
 | Multiple candidates share the configured attribute(s), and the password matches exactly one | Login succeeds as that user. |
 | Multiple candidates match the password (or none do) | Generic "invalid credentials" error - by default the attempt is counted toward Brute Force Detection for every matched account that is not locked out; see [Shared-Candidate Failure Policy](#shared-candidate-failure-policy). |
@@ -240,7 +249,9 @@ bound that cost per request, on top of Keycloak's standard Brute Force Detection
   maximum within the window, further attempts against it are rejected without any user lookup at
   all, until the window elapses or a matching request succeeds (which clears the count). This
   throttle is tracked cluster-wide, so it can't be evaded by spreading requests across Keycloak
-  nodes.
+  nodes. A failure blamed on a single account counts here only when the realm's Brute Force
+  Detection is off: with it on, that account's own lockout already limits guessing, and counting
+  the failure here too would let anyone who knows a voter's values keep that voter out.
 - **Max user-store rows per attribute lookup** (`maxAttributeLookupResults`, default `5000`): a
   hard ceiling on how many rows the underlying user-store query may return, applied before any
   candidate is even loaded into memory. This is deliberately much larger than **Max candidates per
@@ -249,6 +260,10 @@ bound that cost per request, on top of Keycloak's standard Brute Force Detection
   tighter candidate cap above. Keep it well above the largest realistic combined match count you'd
   expect a legitimate voter lookup to produce; setting it too low can make configuring a second
   identifying attribute (the recommended lever below) less effective at narrowing large buckets.
+
+These limits are keyed on the values a request submits, which anyone can send, so they can't
+separate an outsider's attempts from a voter's. Add a
+[per-IP rate limit at the proxy](#rate-limiting-per-ip-address) as well.
 
 Raising **Max candidates per request** trades this protection for looser matching (useful if a
 single attribute alone is expected to match unusually large groups); lowering the failure
@@ -285,6 +300,36 @@ lockout) determine.
 Prefer tuning those realm settings, or configuring a second identifying attribute so that fewer
 voters share the same values, over switching to `TUPLE_ONLY`. Existing authenticator
 configurations that don't set this option use the default.
+
+The same applies to an outsider: with the default, a few wrong attempts for a shared value can
+lock out every voter who shares it. A [per-IP rate limit at the proxy](#rate-limiting-per-ip-address)
+keeps one source from doing that at scale.
+
+---
+
+## Rate Limiting per IP Address
+
+The limits above can't tell who sends a request. Only a limit per client address keeps an
+outsider's attempts from using up the attempts of the voters they target. Configure it in the
+reverse proxy or CDN in front of Keycloak, for example as a Cloudflare rate limiting rule:
+
+- **Requests:** `POST` to `/realms/<realm>/login-actions/authenticate` (this login form) and to
+  `/realms/<realm>/protocol/openid-connect/token` (Direct Grant, used by IVR), prefixed with
+  Keycloak's relative path if it has one (for example `/auth`).
+- **What to count:** on the token endpoint, only failed attempts (`400` and `401` responses). On
+  the form, every submission: a failed attempt and the next step of a successful one can both
+  answer `200`.
+- **Per client address**, with the proxy's NAT-aware option if it has one: voters at a polling
+  station, a kiosk or behind a mobile carrier can share one address.
+- **Starting values:** block an address for 10 minutes after 20 counted requests within 10
+  minutes, then adjust to the traffic the election expects.
+- **Every hostname that serves Keycloak.** A hostname that bypasses the proxy, such as one for
+  client-certificate login, needs an equivalent limit at its own ingress, or should require a
+  client certificate so that only enrolled devices reach it.
+- **IVR:** the IVR service calls the token endpoint from its own addresses, so a per-IP limit can't
+  tell callers apart there. Exempt those addresses and limit attempts per caller in the IVR
+  instead - see
+  [DOB + PIN Authentication (Direct Grant)](../../07-developers/12-ivr/dob-pin-direct-grant-authenticator.md#rate-limiting-per-ip-address).
 
 ---
 

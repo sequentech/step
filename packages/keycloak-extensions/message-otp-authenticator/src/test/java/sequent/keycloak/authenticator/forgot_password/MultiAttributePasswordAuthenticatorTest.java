@@ -1148,7 +1148,8 @@ class MultiAttributePasswordAuthenticatorTest {
     MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
         new MultiAttributeCredentialResolver.ThrottleConfig(10, 2, 60);
 
-    // Two failed attempts against the same attribute-value tuple.
+    // Two failed attempts against the same attribute-value tuple. The realm has no Brute Force
+    // Detection, so the tuple counter is the only limit and counts these attributed failures.
     authenticator.resolveAuthenticatedUser(
         session,
         realm,
@@ -1328,6 +1329,81 @@ class MultiAttributePasswordAuthenticatorTest {
     // reaches the real single-candidate path and gets attributed normally.
     assertTrue(result.attributableUser().isPresent());
     assertEquals(user, result.attributableUser().get());
+  }
+
+  @Test
+  void tupleThrottle_attributedFailuresWithBruteForceDetection_dontLockOutTheVoter() {
+    // Keycloak charges these failures to the voter's account, so they stay out of the tuple
+    // counter, which anyone who knows the voter's values could otherwise fill.
+    UserModel user = mockUser("user-1", "correct-horse", true);
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("nationalId", "X123", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
+        .thenAnswer(invocation -> Stream.of(user));
+    when(realm.isBruteForceProtected()).thenReturn(true);
+    when(session.getProvider(BruteForceProtector.class)).thenReturn(bruteForceProtector);
+    MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
+        new MultiAttributeCredentialResolver.ThrottleConfig(10, 2, 60);
+
+    for (int attempt = 0; attempt < 3; attempt++) {
+      Resolution failure =
+          authenticator.resolveAuthenticatedUser(
+              session,
+              realm,
+              List.of("nationalId"),
+              valuesOf("nationalId", "X123"),
+              "wrong",
+              throttleConfig);
+      assertEquals(user, failure.attributableUser().orElse(null));
+    }
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session,
+            realm,
+            List.of("nationalId"),
+            valuesOf("nationalId", "X123"),
+            "correct-horse",
+            throttleConfig);
+
+    assertEquals(user, result.authenticatedUser().orElse(null));
+  }
+
+  @Test
+  void tupleThrottle_sharedTupleFailuresWithBruteForceDetection_stillCount() {
+    bruteForceProtectedRequest();
+    UserModel alice = mockUser("alice", "alice-pw", true);
+    UserModel bob = mockUser("bob", "bob-pw", true);
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
+        .thenAnswer(invocation -> Stream.of(alice, bob));
+    MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
+        new MultiAttributeCredentialResolver.ThrottleConfig(10, 2, 60);
+
+    for (String password : List.of("wrong", "wrong", "alice-pw")) {
+      assertTrue(
+          authenticator
+              .resolveAuthenticatedUser(
+                  session,
+                  realm,
+                  List.of("dateOfBirth"),
+                  valuesOf("dateOfBirth", "19900101"),
+                  password,
+                  throttleConfig)
+              .authenticatedUser()
+              .isEmpty());
+    }
+    // No single account takes these failures, so the tuple counter still throttles the third.
+    verify(userProvider, times(2))
+        .searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS);
   }
 
   // ── MatchPolicy: FIRST_MATCH ─────────────────────────────────────────────
@@ -1830,6 +1906,77 @@ class MultiAttributePasswordAuthenticatorTest {
             org.keycloak.authentication.AuthenticationFlowError.INVALID_CREDENTIALS,
             challengeResponse);
     inOrder.verify(context).clearUser();
+  }
+
+  /**
+   * Keycloak's flow engine logs the failure after action() returns, so it can't charge an account
+   * that action() cleared: a failure on a unique attribute value would count for nothing, and
+   * nothing else limits it with Brute Force Detection on.
+   */
+  @Test
+  void action_attributedFailureChargesTheAccountBeforeClearingIt() {
+    AuthenticationFlowContext context = mockFailureContext(true);
+    UserModel attributableUser = mock(UserModel.class);
+    Response challengeResponse = mock(Response.class);
+
+    actionAuthenticator(Resolution.failureAttributedTo(attributableUser), challengeResponse)
+        .action(context);
+
+    InOrder inOrder = inOrder(context, bruteForceProtector);
+    inOrder.verify(context).setUser(attributableUser);
+    inOrder
+        .verify(bruteForceProtector)
+        .failedLogin(
+            realm,
+            attributableUser,
+            clientConnection,
+            uriInfo,
+            Set.of(PasswordCredentialModel.TYPE));
+    inOrder.verify(context).clearUser();
+    verify(bruteForceProtector, times(1)).failedLogin(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void action_attributedFailureWithoutBruteForceDetectionChargesNothing() {
+    AuthenticationFlowContext context = mockFailureContext(false);
+
+    actionAuthenticator(Resolution.failureAttributedTo(mock(UserModel.class)), mock(Response.class))
+        .action(context);
+
+    verify(session, never()).getProvider(BruteForceProtector.class);
+  }
+
+  /** A shared failure was charged during resolution: the form must not charge anyone again. */
+  @Test
+  void action_unattributedFailureChargesNothing() {
+    AuthenticationFlowContext context = mockFailureContext(true);
+
+    actionAuthenticator(Resolution.failure(), mock(Response.class)).action(context);
+
+    verify(bruteForceProtector, never()).failedLogin(any(), any(), any(), any(), any());
+  }
+
+  /** A locked account isn't charged again, as Keycloak's own form doesn't. */
+  @Test
+  void action_lockedOutChargesNothing() {
+    AuthenticationFlowContext context = mockFailureContext(true);
+
+    actionAuthenticator(
+            Resolution.lockedOut(mock(UserModel.class), LockoutState.TEMPORARY),
+            mock(Response.class))
+        .action(context);
+
+    verify(bruteForceProtector, never()).failedLogin(any(), any(), any(), any(), any());
+  }
+
+  private AuthenticationFlowContext mockFailureContext(boolean bruteForceProtected) {
+    AuthenticationFlowContext context = mockActionContext();
+    lenient().when(realm.isBruteForceProtected()).thenReturn(bruteForceProtected);
+    lenient().when(session.getProvider(BruteForceProtector.class)).thenReturn(bruteForceProtector);
+    lenient().when(session.getContext()).thenReturn(keycloakContext);
+    lenient().when(keycloakContext.getConnection()).thenReturn(clientConnection);
+    lenient().when(keycloakContext.getUri()).thenReturn(uriInfo);
+    return context;
   }
 
   @Test
