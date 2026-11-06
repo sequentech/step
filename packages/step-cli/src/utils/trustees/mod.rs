@@ -26,14 +26,30 @@ pub fn trustee_graphql_request(
     )
 }
 
-/// The role of a ceremony read shared by trustees and admins: a trustee's
-/// token doesn't allow its default `admin-user` role, so it names its own. An
-/// admin's request keeps the default role.
-fn ceremony_read_role(auth_token: &str) -> Option<Permissions> {
-    let allowed_roles = decode_jwt(auth_token).ok()?.hasura_claims.allowed_roles;
-    let holds = |role: Permissions| allowed_roles.contains(&role.to_string());
-    (!holds(Permissions::ADMIN_USER) && holds(Permissions::TRUSTEE_CEREMONY))
-        .then_some(Permissions::TRUSTEE_CEREMONY)
+/// Whether a request shared with admins must name `role`: a restricted token
+/// doesn't allow its default `admin-user` role, so it names the one it holds.
+/// An admin's request keeps the default role.
+fn must_name_role(auth_token: &str, role: &Permissions) -> bool {
+    decode_jwt(auth_token).is_ok_and(|claims| {
+        let allowed_roles = claims.hasura_claims.allowed_roles;
+        !allowed_roles.contains(&Permissions::ADMIN_USER.to_string())
+            && allowed_roles.contains(&role.to_string())
+    })
+}
+
+/// Starts a GraphQL request shared by admins and restricted users holding `role`.
+pub fn held_role_request(
+    client: &Client,
+    endpoint_url: &str,
+    auth_token: &str,
+    role: Permissions,
+) -> RequestBuilder {
+    let request = client.post(endpoint_url).bearer_auth(auth_token);
+    if must_name_role(auth_token, &role) {
+        request.header(HASURA_ROLE_HEADER, role.to_string())
+    } else {
+        request
+    }
 }
 
 /// Starts a GraphQL read of ceremony data for a trustee or an admin.
@@ -42,11 +58,12 @@ pub fn ceremony_read_request(
     endpoint_url: &str,
     auth_token: &str,
 ) -> RequestBuilder {
-    let request = client.post(endpoint_url).bearer_auth(auth_token);
-    match ceremony_read_role(auth_token) {
-        Some(role) => request.header(HASURA_ROLE_HEADER, role.to_string()),
-        None => request,
-    }
+    held_role_request(
+        client,
+        endpoint_url,
+        auth_token,
+        Permissions::TRUSTEE_CEREMONY,
+    )
 }
 
 #[cfg(test)]
@@ -80,6 +97,36 @@ mod tests {
             .get(HASURA_ROLE_HEADER)
             .and_then(|value| value.to_str().ok())
             .map(str::to_string)
+    }
+
+    fn publication_role_header(token: &str) -> Option<String> {
+        held_role_request(
+            &Client::new(),
+            "http://graphql-engine/v1/graphql",
+            token,
+            Permissions::PUBLISH_WRITE,
+        )
+        .build()
+        .expect("the request should build")
+        .headers()
+        .get(HASURA_ROLE_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string)
+    }
+
+    #[test]
+    fn a_lockdown_users_publication_request_names_its_role() {
+        let token = token_with_roles(&[Permissions::PUBLISH_READ, Permissions::PUBLISH_WRITE]);
+        assert_eq!(
+            publication_role_header(&token),
+            Some(Permissions::PUBLISH_WRITE.to_string())
+        );
+    }
+
+    #[test]
+    fn an_admins_publication_request_keeps_the_default_role() {
+        let token = token_with_roles(&[Permissions::ADMIN_USER, Permissions::PUBLISH_WRITE]);
+        assert_eq!(publication_role_header(&token), None);
     }
 
     #[test]

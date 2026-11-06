@@ -131,7 +131,9 @@ const App: React.FC<AppProps> = () => {
 
     useEffect(() => {
         const buildDataProvider = async (): Promise<void> => {
-            const schema = await fetchHeldRolesSchema(apolloClient, getSchemaRoles(hasRole))
+            const schema = apolloClient
+                ? await fetchHeldRolesSchema(apolloClient, getSchemaRoles(hasRole))
+                : undefined
             const wrappedProvider = await buildWrappedHasuraProvider(apolloClient, schema)
             setDataProvider(wrappedProvider)
         }

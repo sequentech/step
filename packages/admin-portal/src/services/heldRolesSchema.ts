@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {gql} from "@apollo/client"
+import {ApolloClient, gql, NormalizedCacheObject} from "@apollo/client"
 import {
     getIntrospectionQuery,
     IntrospectionQuery,
@@ -52,7 +52,7 @@ export const mergeSchemas = (schemas: Array<IntrospectionSchema>): Introspection
  * which the data provider introspects by itself.
  */
 export const fetchHeldRolesSchema = async (
-    client: any,
+    client: ApolloClient<NormalizedCacheObject>,
     roles: Array<string>
 ): Promise<IntrospectionSchema | undefined> => {
     if (roles.length < 2) {
@@ -60,13 +60,13 @@ export const fetchHeldRolesSchema = async (
     }
     const schemas = await Promise.all(
         roles.map(async (role) => {
-            const {data} = await client.query({
+            const {data} = await client.query<IntrospectionQuery>({
                 query: gql(getIntrospectionQuery()),
                 fetchPolicy: "no-cache",
                 // Apollo otherwise merges these identical queries, ignoring their headers.
                 context: {headers: {"x-hasura-role": role}, queryDeduplication: false},
             })
-            return (data as IntrospectionQuery).__schema
+            return data.__schema
         })
     )
     return mergeSchemas(schemas)
