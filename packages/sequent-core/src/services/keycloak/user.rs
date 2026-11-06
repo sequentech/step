@@ -185,6 +185,17 @@ impl From<User> for UserRepresentation {
     }
 }
 
+/// A Keycloak error without the request's URL, whose query holds the search
+/// text and email of a voter search.
+fn error_without_url(error: KeycloakError) -> anyhow::Error {
+    match error {
+        KeycloakError::ReqwestFailure(error) => {
+            anyhow!("{:?}", error.without_url())
+        }
+        error => anyhow!("{:?}", error),
+    }
+}
+
 impl KeycloakAdminClient {
     #[instrument(skip(self, search, email), err)]
     pub async fn list_users(
@@ -217,14 +228,14 @@ impl KeycloakAdminClient {
                 None,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(error_without_url)?;
         let count: i32 = self
             .client
             .realm_users_count_get(
                 realm, email, None, None, None, None, search, None, None,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(error_without_url)?;
         let users = user_representations
             .clone()
             .into_iter()
@@ -557,6 +568,49 @@ impl KeycloakAdminClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[rocket::async_test]
+    async fn a_failed_voter_search_logs_no_voter_data() {
+        use crate::util::log_capture::LogCapture;
+        use keycloak::{KeycloakAdmin, KeycloakAdminToken};
+
+        const SEARCH: &str = "SearchValue8d1c";
+        const EMAIL_NAME: &str = "email-value-2f7a";
+
+        let token: KeycloakAdminToken = serde_json::from_str(
+            r#"{"access_token":"opaque","expires_in":60,"scope":"openid","token_type":"Bearer"}"#,
+        )
+        .expect("token");
+        // Nothing listens on port 1, so the request itself fails.
+        let admin_client = KeycloakAdminClient {
+            client: KeycloakAdmin::new(
+                "http://127.0.0.1:1",
+                token,
+                reqwest::Client::new(),
+            ),
+        };
+        let (capture, _guard) = LogCapture::install();
+
+        let error = admin_client
+            .list_users(
+                "tenant",
+                "event",
+                "realm",
+                Some(SEARCH.to_string()),
+                Some(format!("{EMAIL_NAME}@example.test")),
+                Some(10),
+                Some(0),
+            )
+            .await
+            .expect_err("nothing listens on the port");
+
+        let logs = capture.contents();
+        let error = format!("{error:?}");
+        for value in [SEARCH, EMAIL_NAME] {
+            assert!(!logs.contains(value), "{value} in logs: {logs}");
+            assert!(!error.contains(value), "{value} in error: {error}");
+        }
+    }
 
     #[rocket::async_test]
     async fn keycloak_user_spans_record_no_voter_data() {
