@@ -58,11 +58,13 @@ SPDX-License-Identifier: AGPL-3.0-only
         </#list>
     </#if>
     <script type="module">
-        import { startSessionPolling } from "${url.resourcesPath}/js/authChecker.js";
+        <#outputformat "JavaScript">
+        import { startSessionPolling } from ${(url.resourcesPath + "/js/authChecker.js")?c};
 
         startSessionPolling(
-          "${url.ssoLoginInOtherTabsUrl?no_esc}"
+          ${url.ssoLoginInOtherTabsUrl?c}
         );
+        </#outputformat>
     </script>
 </head>
 
