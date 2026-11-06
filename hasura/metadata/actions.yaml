@@ -515,6 +515,7 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+          - role: document-download
       comment: fetch document
     - name: generate_ballot_publication
       definition:
