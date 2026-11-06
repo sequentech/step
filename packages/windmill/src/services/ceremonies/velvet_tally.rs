@@ -71,6 +71,9 @@ use velvet::pipes::pipe_inputs::{
 };
 use velvet::pipes::pipe_name::PipeName;
 
+pub const VELVET_INPUT_DIR: &str = "input";
+pub const VELVET_OUTPUT_DIR: &str = "output";
+
 #[derive(Debug, Clone)]
 pub struct AreaContestDataType {
     pub plaintexts: Vec<<RistrettoCtx as Ctx>::P>,

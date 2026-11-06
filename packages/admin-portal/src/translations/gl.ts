@@ -595,7 +595,8 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 decodedBallots: {
-                    policyLabel: "Incluír papeletas descodificadas na base de datos de resultados",
+                    policyLabel:
+                        "Incluír papeletas descodificadas na base de datos de resultados e no arquivo do escrutinio",
                     options: {"included": "Incluír", "not-included": "Non incluír"},
                 },
                 contestEncryptionPolicy: {
