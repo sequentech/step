@@ -141,10 +141,7 @@ const App = () => {
     }, [tenantId, eventId, isAuthenticated, setTenantEvent, globalSettings.DISABLE_AUTH])
 
     return (
-        <StyledApp
-            className="voting-portal app-root"
-            customCss={customCss}
-        >
+        <StyledApp className="voting-portal app-root" customCss={customCss}>
             <ScrollRestoration />
             <ApolloWrapper>
                 <HeaderWithContext />
