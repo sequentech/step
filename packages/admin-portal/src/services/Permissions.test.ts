@@ -121,6 +121,26 @@ describe("getSchemaRoles", () => {
     })
 })
 
+describe("publication reads", () => {
+    const reads = ["GetTaskById", "GetBallotPublicationChange"]
+
+    it.each(reads)("runs %s as publish-read for a user with both profiles", (operation) => {
+        const roles = [IPermissions.TRUSTEE_CEREMONY, IPermissions.PUBLISH_READ]
+        expect(roleFor(operation, roles)).toBe(IPermissions.PUBLISH_READ)
+    })
+
+    it.each(reads)("keeps %s on admin-user for admins", (operation) => {
+        const roles = [IPermissions.ADMIN_USER, IPermissions.PUBLISH_READ]
+        expect(roleFor(operation, roles)).toBe(IPermissions.ADMIN_USER)
+    })
+
+    it.each(reads)("keeps %s on the ceremony role for a trustee", (operation) => {
+        expect(roleFor(operation, [IPermissions.TRUSTEE_CEREMONY])).toBe(
+            IPermissions.TRUSTEE_CEREMONY
+        )
+    })
+})
+
 describe("getOperationRole", () => {
     it("keeps unnamed and unmapped operations on admin-user for admins", () => {
         const roles = [IPermissions.ADMIN_USER, IPermissions.ELECTION_EVENT_READ]

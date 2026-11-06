@@ -66,3 +66,13 @@ for (const [role, reads] of Object.entries(PROFILE_READS)) {
         })
     }
 }
+
+test("publish-read follows only its tenant's ballot exports", () => {
+    const grant = selectGrant(loadTable("tasks_execution"), "publish-read")
+    assert.deepEqual(grant.permission.filter, {
+        _and: [
+            {tenant_id: {_eq: "X-Hasura-Tenant-Id"}},
+            {type: {_eq: "EXPORT_BALLOT_PUBLICATION"}},
+        ],
+    })
+})
