@@ -166,6 +166,8 @@ pub async fn get_tally_session_by_election_event_id_pending_post_tally_task(
         WHERE
             tenant_id = $1 AND
             election_event_id = $2 AND
+            (NOT (COALESCE(annotations, '{}'::jsonb) ? 'result_readiness_version') OR
+             (is_execution_completed IS TRUE AND execution_status IN ('IN_PROGRESS', 'SUCCESS'))) AND
             annotations @> '{"is_post_task_completed": false}'::jsonb
         ORDER BY
             created_at DESC;
@@ -573,6 +575,7 @@ pub async fn set_post_tally_task_completed(
             UPDATE
                 sequent_backend.tally_session
             SET
+                execution_status = CASE WHEN annotations ? 'result_readiness_version' THEN 'SUCCESS' ELSE execution_status END,
                 annotations = COALESCE(annotations, '{}'::jsonb) || '{"is_post_task_completed": true}'
             WHERE
                 id = $1 AND

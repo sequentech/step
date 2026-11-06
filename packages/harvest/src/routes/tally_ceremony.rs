@@ -385,9 +385,7 @@ pub async fn recount_tally_session(
     )
     .await?;
 
-    if tally_session.execution_status.as_deref()
-        != Some(TallyExecutionStatus::SUCCESS.to_string().as_str())
-        || !tally_session.is_execution_completed
+    if !windmill::services::ceremonies::result_readiness::is_numerically_complete(&tally_session)
     {
         return Err((
             Status::BadRequest,

@@ -23,6 +23,9 @@ use crate::postgres::template::get_template_by_alias;
 use crate::services::ballot_box_reads::count_unresolved_votes;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::celery_app::get_celery_app;
+use crate::services::ceremonies::result_readiness::{
+    expected_area_contests, lock_active_tally, uses_readiness_policy,
+};
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::{append_tally_finished, append_tally_updated};
 use crate::services::ceremonies::tally_boards::{
@@ -443,7 +446,13 @@ async fn process_plaintexts(
 }
 
 #[instrument]
-fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecutionStatus> {
+fn get_execution_status(
+    execution_status: Option<String>,
+    completed: bool,
+) -> Option<TallyExecutionStatus> {
+    if completed {
+        return None;
+    }
     let Some(execution_status_str) = execution_status.clone() else {
         event!(Level::INFO, "Missing execution status");
 
@@ -627,6 +636,7 @@ async fn create_tally_boards(
     let trustee_names = match select_execution_trustees_with(
         &PgTallyExecution {
             transaction: hasura_transaction,
+            readiness: None,
         },
         &RandomTrusteeOrder,
         tenant_id,
@@ -941,6 +951,18 @@ async fn map_plaintext_data(
         TallySession,
     )>,
 > {
+    let Some(execution_status) = get_execution_status(
+        tally_session.execution_status.clone(),
+        tally_session.is_execution_completed,
+    ) else {
+        event!(
+            Level::INFO,
+            "Election Event {} Tally execution status not found",
+            election_event_id.clone()
+        );
+        return Ok(None);
+    };
+
     // fetch election_event
     let Ok(election_event) =
         get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await
@@ -951,16 +973,6 @@ async fn map_plaintext_data(
             election_event_id.clone()
         );
 
-        return Ok(None);
-    };
-
-    let Some(execution_status) = get_execution_status(tally_session.execution_status.clone())
-    else {
-        event!(
-            Level::INFO,
-            "Election Event {} Tally execution status not found",
-            election_event_id.clone()
-        );
         return Ok(None);
     };
 
@@ -1404,6 +1416,15 @@ pub async fn execute_tally_session_wrapped(
         return Ok(());
     };
 
+    if get_execution_status(
+        tally_session.execution_status.clone(),
+        tally_session.is_execution_completed,
+    )
+    .is_none()
+    {
+        return Ok(());
+    }
+
     let keys_ceremony = get_keys_ceremony_by_id(
         hasura_transaction,
         &tenant_id,
@@ -1542,6 +1563,18 @@ pub async fn execute_tally_session_wrapped(
     )
     .await?;
 
+    let expected = if uses_readiness_policy(tally_session.annotations.as_ref()) {
+        let expected = expected_area_contests(
+            &tally_session,
+            &tally_session_contests,
+            &get_ballot_styles(&ballot_styles)?,
+        )?;
+        lock_active_tally(hasura_transaction, &tally_session).await?;
+        Some(expected)
+    } else {
+        None
+    };
+
     let pending_ties = if let Some(ref result_id) = results_event_id {
         !handle_pending_irv_resolutions(
             hasura_transaction,
@@ -1560,6 +1593,7 @@ pub async fn execute_tally_session_wrapped(
     persist_execution_with(
         &PgTallyExecution {
             transaction: hasura_transaction,
+            readiness: expected.map(|pairs| (pairs, is_execution_completed && !pending_ties)),
         },
         &TallyExecutionLogs,
         &ExecutionScope {

@@ -164,9 +164,7 @@ pub fn reaches_key_threshold(
 
 /// Only a session that completed successfully can be recounted.
 pub fn is_recount_eligible(tally_session: &TallySession) -> bool {
-    tally_session.execution_status.as_deref()
-        == Some(TallyExecutionStatus::SUCCESS.to_string().as_str())
-        && tally_session.is_execution_completed
+    crate::services::ceremonies::result_readiness::is_numerically_complete(tally_session)
 }
 
 /// A recount tallies every election again from the start.
@@ -448,6 +446,12 @@ mod tests {
     #[test]
     fn only_successfully_completed_sessions_are_recount_eligible() {
         assert!(is_recount_eligible(&session(Some("SUCCESS"), true)));
+        let mut finalizing = session(Some("IN_PROGRESS"), true);
+        assert!(!is_recount_eligible(&finalizing));
+        finalizing.annotations = Some(serde_json::json!({"result_readiness_version":1}));
+        assert!(is_recount_eligible(&finalizing));
+        finalizing.is_execution_completed = false;
+        assert!(!is_recount_eligible(&finalizing));
         assert!(!is_recount_eligible(&session(Some("SUCCESS"), false)));
         assert!(!is_recount_eligible(&session(Some("CANCELLED"), true)));
         assert!(!is_recount_eligible(&session(Some("success"), true)));

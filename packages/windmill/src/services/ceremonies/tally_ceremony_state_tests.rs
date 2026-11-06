@@ -375,7 +375,8 @@ async fn custody_proof_matches(
 }
 
 async fn complete(ceremony: &InMemoryTallyCeremony) -> Result<()> {
-    set_tally_session_completed_with(ceremony, ceremony, ceremony, TENANT, EVENT, SESSION).await
+    set_tally_session_completed_with(ceremony, ceremony, ceremony, TENANT, EVENT, SESSION, true)
+        .await
 }
 
 async fn recount(ceremony: &InMemoryTallyCeremony, election_ids: &[&str]) -> Result<bool> {
@@ -1052,12 +1053,12 @@ async fn an_error_marking_the_session_completed_is_ignored() {
 }
 
 #[tokio::test]
-async fn the_election_event_is_read_before_the_completed_session() {
+async fn completion_reads_the_policy_before_marking_the_session() {
     let ceremony = ceremony(&IN_PROGRESS, &restored_pair());
     ceremony.fail(TallyCall::GetElectionEvent, "election event unavailable");
     ceremony.fail(TallyCall::GetSession, "tally session unavailable");
     let error = complete(&ceremony).await.unwrap_err();
-    assert_eq!(error.to_string(), "election event unavailable");
+    assert_eq!(error.to_string(), "tally session unavailable");
 }
 
 #[tokio::test]
@@ -1186,4 +1187,24 @@ async fn a_recount_of_an_execution_without_status_writes_nothing() {
     assert_eq!(error.to_string(), "Missing tally ceremony status");
     assert_eq!(ceremony.executions(SESSION).len(), 1);
     assert_eq!(stored_status(&ceremony), Some(SUCCESS.to_string()));
+}
+
+#[tokio::test]
+async fn new_sessions_wait_for_reports_and_propagate_completion_errors() {
+    let ceremony = InMemoryTallyCeremony::default();
+    let mut session = tally_session(&IN_PROGRESS);
+    session.annotations = Some(json!({"result_readiness_version": 1}));
+    ceremony.add_session(session);
+    ceremony.add_election_event(election_event(Some(
+        json!({"id":1, "database_name":EVENT_BOARD, "is_archived":false}),
+    )));
+    complete(&ceremony).await.unwrap();
+    assert_eq!(stored_status(&ceremony), Some(IN_PROGRESS.to_string()));
+    assert!(ceremony.session(SESSION).is_execution_completed);
+    assert_eq!(
+        ceremony.session(SESSION).annotations.unwrap()["is_post_task_completed"],
+        false
+    );
+    ceremony.fail(TallyCall::MarkCompleted, "database unavailable");
+    assert!(complete(&ceremony).await.is_err());
 }
