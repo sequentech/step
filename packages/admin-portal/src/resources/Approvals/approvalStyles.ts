@@ -20,11 +20,14 @@ export const Page = styled("div")(({theme}) => ({
     },
 }))
 
+/** A card's padding on wide screens. */
+export const CARD_PADDING = 24
+
 export const Card = styled("section")(({theme}) => ({
     background: theme.palette.white,
     border: `1px solid ${BORDER}`,
     borderRadius: "12px",
-    padding: "24px",
+    padding: `${CARD_PADDING}px`,
     boxShadow: "0 1px 2px rgba(15, 5, 76, 0.06)",
     [theme.breakpoints.down("sm")]: {
         padding: "16px",

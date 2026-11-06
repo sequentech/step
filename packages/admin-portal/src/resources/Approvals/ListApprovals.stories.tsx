@@ -12,7 +12,7 @@ import {EVENT_ID, TENANT_ID} from "@/__stories__/AdminStoryProvider"
 import {documentUrl, recordDownloads, type RecordedDownload} from "@/__stories__/downloads"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {FIXED_TIME, eventRecord, storyId} from "@/__stories__/fixtures"
-import type {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import type {Sequent_Backend_Applications, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {EStoryPermissions} from "../../../../ui-essentials/.storybook/globals"
 import {ListApprovals} from "./ListApprovals"
 import {
@@ -36,7 +36,7 @@ interface Scenario extends ApprovalServices {
     withEvent: boolean
     onViewApproval: Mock<(id: string | number) => void>
     onViewMatrix: Mock<() => void>
-    onViewRule: Mock<(id: string | number) => void>
+    onViewRule: Mock<(application: Sequent_Backend_Applications) => void>
 }
 
 let downloads: RecordedDownload[]
@@ -280,7 +280,15 @@ export const SeeTheRuleFromTheRowMenu: Story = {
     play: async ({canvasElement, args}) => {
         await rowAction(canvasElement, "Alice Example", "See the rule that decided")
         expect(args.onViewRule).toHaveBeenCalledTimes(1)
-        expect(args.onViewRule).toHaveBeenCalledWith(APPLICATION_ID)
+        // The matrix gets the enrollment as the queue has it, decision record included.
+        expect(args.onViewRule).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: APPLICATION_ID,
+                annotations: expect.objectContaining({
+                    decision: expect.objectContaining({matrix_version: 1, rule: 5}),
+                }),
+            })
+        )
         // Using the menu doesn't open the row.
         expect(args.onViewApproval).not.toHaveBeenCalled()
         await waitFor(() => expect(within(document.body).queryByRole("menu")).toBeNull())

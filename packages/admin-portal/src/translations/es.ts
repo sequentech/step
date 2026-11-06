@@ -4285,8 +4285,7 @@ const spanishTranslation: TranslationType = {
                 noneApply: "No se aplica ninguna de las reglas anteriores",
                 andWord: "y",
                 and: " y ",
-                appliesToExample: "Se aplica a su ejemplo",
-                cameFrom: "Decidió la inscripción desde la que ha llegado",
+                appliesToExample: "Decide en la simulación",
                 voterIsTold: "Al votante se le dice: “{{reason}}”.",
                 sentence: "Cuando {{when}}, {{outcome}}.",
                 sentenceOtherwise: "Si no se aplica ninguna de las reglas anteriores, {{outcome}}.",
@@ -4307,13 +4306,71 @@ const spanishTranslation: TranslationType = {
                     more: "+{{count}} más",
                 },
                 test: "Probar un ejemplo",
-                testHelp:
-                    "Describa una inscripción para ver qué regla la decide. Los cambios sin guardar también cuentan.",
+                example: {
+                    stateSample: "Inscripción de muestra",
+                    sampleText:
+                        "Un votante verificado del registro, aún sin inscribir, cuyos datos comparados son todos iguales.",
+                    stateCustom: "Su ejemplo",
+                    customText: "Partió de la muestra.",
+                    recorded: "Decisión registrada",
+                    recordedRule: "Regla {{number}} de la versión {{version}} · {{decision}}.",
+                    recordedLast: "Última regla de la versión {{version}} · {{decision}}.",
+                    severalApproved: "Encajaban varios votantes del registro.",
+                    statusNow: "Ahora su estado es {{status}}.",
+                    noChanges: "Probar un ejemplo no cambia ninguna inscripción ni guarda nada.",
+                    edit: "Editar el ejemplo",
+                    editing: "Editando el ejemplo — aún sin aplicar",
+                    editingHelp:
+                        "Sus cambios solo cuentan al aplicarlos. Hasta entonces la simulación usa el ejemplo aplicado con las reglas en pantalla.",
+                    apply: "Aplicar",
+                    notRecorded: "No registrado",
+                    withFirstName: "Comparado con el nombre",
+                    notComparedForId: "No se compara para este documento",
+                    noLongerOffered: "{{id}} (ya no se ofrece)",
+                    simulation: "Simulación actual",
+                    rulesOnScreen: "Reglas en pantalla",
+                    rulesUnsaved: "Reglas en pantalla, con cambios sin guardar",
+                    goToRule: "Ir a la regla {{number}}",
+                    goToLast: "Ir a la última regla",
+                    titleEnrollment: "Simulación de la inscripción de {{name}}",
+                    titleUnnamed: "Simulación de una inscripción",
+                    back: "Volver a la inscripción",
+                    backLabel: "Volver a la inscripción de {{name}}",
+                    noChangesEnrollment:
+                        "La simulación no cambia nada en esta inscripción ni guarda nada.",
+                    unreadable:
+                        "No se puede leer la decisión registrada de esta inscripción, así que la simulación usa la inscripción de muestra.",
+                    stateRecorded: "Datos registrados · en la simulación",
+                    stateChanged: "Otros datos · en la simulación",
+                    stateUnreadable: "Inscripción de muestra — no son sus datos registrados",
+                    changedNote: "La inscripción conserva sus datos registrados.",
+                    editDetails: "Probar otros datos",
+                    editingDetails: "Probando otros datos — aún no están en la simulación",
+                    editingDetailsHelp:
+                        "Estos datos no deciden nada hasta que los aplique. Hasta entonces la simulación usa los datos de arriba con las reglas en pantalla.",
+                    restore: "Rellenar con los datos registrados",
+                    resetSample: "Rellenar con la muestra",
+                    decides: "En la simulación, decide la regla {{number}}.",
+                    lastDecides:
+                        "En la simulación no encaja ninguna regla: decide la última regla.",
+                    evaluating: "Calculando qué regla decide la simulación…",
+                    stillApplied: "La regla resaltada sigue decidiendo la simulación.",
+                    comparison: {
+                        SAME: "La simulación actual da la misma decisión que la registrada.",
+                        DIFFERENT:
+                            "La simulación actual da una decisión distinta de la registrada.",
+                        EDITED: "Estos no son los datos registrados, así que la simulación no se compara con la decisión registrada.",
+                        NOT_RECORDED:
+                            "Un dato comparado no se registró, así que la simulación no se compara con la decisión registrada.",
+                        SEVERAL_VOTERS:
+                            "Se compararon varios votantes del registro, así que la simulación no se compara con la decisión registrada.",
+                        UNKNOWN_VOTERS:
+                            "No se registró cuántos votantes del registro se compararon, así que la simulación no se compara con la decisión registrada.",
+                    },
+                },
                 testDetails: "Datos comparados",
-                applies: "Se aplica la regla {{number}}",
-                otherwiseApplies: "Se aplica la última regla",
-                testError: "No se pudo probar el ejemplo.",
-                testInvalid: "Corrija estas reglas para probar un ejemplo:",
+                testError: "No se pudo ejecutar la simulación.",
+                testInvalid: "Corrija estas reglas para ejecutar la simulación:",
                 ruleError: "Regla {{number}}: {{error}}",
                 invariants: {
                     MANUAL_ENTRY_NOT_ACCEPTED:

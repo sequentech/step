@@ -412,8 +412,12 @@ async function openTab(canvasElement: HTMLElement, name: string) {
 }
 
 interface TabContent {
-    /** Text the tab's widget shows while its reads are pending. */
-    text?: string | RegExp
+    /**
+     * Text the tab's widget shows while its reads are pending. A translation is a function, so it
+     * is read in the story's language when the story plays, not in whichever language the browser
+     * had when this file was imported.
+     */
+    text?: string | RegExp | (() => string)
     /** Data provider reads ("method resource") the widget starts. */
     reads?: string[]
     /** GraphQL operations the widget starts. */
@@ -425,7 +429,8 @@ const tabPlay =
     async ({canvasElement}) => {
         await openTab(canvasElement, name)
         if (text) {
-            await expect(await within(canvasElement).findByText(text)).toBeVisible()
+            const shown = typeof text === "function" ? text() : text
+            await expect(await within(canvasElement).findByText(shown)).toBeVisible()
         }
         await waitFor(() => {
             expect(readsOf(data)).toEqual(expect.arrayContaining(reads))
@@ -667,7 +672,7 @@ export const Signatures: Story = {
     ...withoutSchema,
     parameters: {widgets: ["SignaturesTab"]},
     play: tabPlay("Signatures", {
-        text: i18n.t("signing.tab.intro"),
+        text: () => i18n.t("signing.tab.intro"),
         operations: ["GetSigningRules", "GetSigningRuleCapacities"],
     }),
 }

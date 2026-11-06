@@ -94,14 +94,14 @@ export interface ListApprovalsProps {
     electionId?: string
     onViewApproval: (id: Identifier) => void
     onViewMatrix?: () => void
-    /** Opens the matrix on the rule that decided this application. */
-    onViewRule?: (id: Identifier) => void
+    /** Opens the matrix with the example of this application's recorded decision. */
+    onViewRule?: (application: Sequent_Backend_Applications) => void
     electionEventRecord?: Sequent_Backend_Election_Event
 }
 
 interface ApprovalsListProps extends Omit<DatagridConfigurableProps, "children"> {
     onViewApproval: (id: Identifier) => void
-    onViewRule?: (id: Identifier) => void
+    onViewRule?: (application: Sequent_Backend_Applications) => void
     userAttributes: GetUserProfileAttributesQuery | undefined
     /** The queue's own filter (event and Post), which a support reference is looked up in. */
     scope: Record<string, unknown>
@@ -389,7 +389,7 @@ const ApprovalsList = ({
                                     ? [
                                           {
                                               icon: <RuleIcon />,
-                                              action: onViewRule,
+                                              action: () => onViewRule(record),
                                               label: String(t("approvalsScreen.list.seeRule")),
                                           },
                                       ]
