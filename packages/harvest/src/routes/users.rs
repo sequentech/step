@@ -30,7 +30,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use std::env;
-use tracing::{info, instrument};
+use tracing::{error, info, instrument};
 use uuid::Uuid;
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::cast_votes::get_users_with_vote_info;
@@ -1927,20 +1927,37 @@ pub async fn import_users_f(
         .may_write_secret_attributes
         .then(|| ElectoralLogAdminContext::from_claims(&claims));
 
-    let _celery_task = match celery_app
+    if let Err(err) = celery_app
         .send_task(import_users::import_users::new(
             task_input,
             task_execution.clone(),
         ))
         .await
     {
-        Ok(celery_task) => celery_task,
-        Err(_) => {
-            return Ok(Json(ImportUsersOutput {
-                task_execution: task_execution.clone(),
-            }));
-        }
-    };
+        error!(
+            "Failed to send IMPORT_USERS task {}: {err:?}",
+            task_execution.id
+        );
+        // The send may have failed after the task reached the queue, so only a
+        // task still in progress is failed and a worker's final status is kept.
+        // The portal's task widget reads the task by id and shows this log.
+        update_export_fail(
+            &task_execution,
+            &format!(
+                "Could not send the Import Voters task to the task queue: {err:?}. It is not known whether the task reached the queue, so check the voters before importing the file again."
+            ),
+        )
+        .await
+        .map_err(|update_error| {
+            (
+                Status::InternalServerError,
+                format!(
+                    "Error sending Import Voters task: {err:?}; failed to mark the task as failed: {update_error:?}"
+                ),
+            )
+        })?;
+        return Ok(Json(ImportUsersOutput { task_execution }));
+    }
 
     info!("Sent IMPORT_USERS task {}", task_execution.id);
 
