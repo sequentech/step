@@ -54,6 +54,48 @@ select_permissions:
     - comment: ""
       permission:
           columns:
+              - logs
+              - annotations
+              - executed_by_user
+              - execution_status
+              - type
+              - end_at
+              - start_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - type:
+                        _in:
+                            - EXPORT_BALLOT_PUBLICATION
+                            - GENERATE_BALLOT_PUBLICATION
+      role: publish-read
+    - comment: ""
+      permission:
+          columns:
+              - logs
+              - annotations
+              - executed_by_user
+              - execution_status
+              - type
+              - end_at
+              - start_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - type:
+                        _eq: PUBLISH_RESULTS_WEBSITE
+      role: publish-results-read
+    - comment: ""
+      permission:
+          columns:
               - annotations
               - created_at
               - election_event_id
