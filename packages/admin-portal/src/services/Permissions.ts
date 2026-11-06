@@ -196,9 +196,14 @@ const TrusteeOperationMap: Record<string, IPermissions> = {
     getUsers: IPermissions.VOTER_READ,
 }
 
-// Publication mutations that admin-user can also run, so only a user without
-// it needs to send publish-write
-const PUBLISH_WRITE_OPERATIONS = ["GenerateBallotPublication", "PublishBallot"]
+// Publication operations that admin-user can also run, so only a user without
+// it needs to send these roles
+const PUBLICATION_OPERATION_ROLES: Record<string, IPermissions> = {
+    GenerateBallotPublication: IPermissions.PUBLISH_WRITE,
+    PublishBallot: IPermissions.PUBLISH_WRITE,
+    GetTaskById: IPermissions.PUBLISH_READ,
+    GetBallotPublicationChange: IPermissions.PUBLISH_READ,
+}
 
 // Roles that operations without a mapped role run as, in order of preference
 const DEFAULT_OPERATION_ROLES: Array<IPermissions> = [
@@ -216,12 +221,9 @@ export const getOperationRole = (
         ? TrusteeOperationMap
         : AdminOperationMap
     const operationName = operation?.operationName
-    if (
-        defaultRole !== IPermissions.ADMIN_USER &&
-        hasRole(IPermissions.PUBLISH_WRITE) &&
-        PUBLISH_WRITE_OPERATIONS.includes(operationName ?? "")
-    ) {
-        return IPermissions.PUBLISH_WRITE
+    const publicationRole = operationName ? PUBLICATION_OPERATION_ROLES[operationName] : undefined
+    if (defaultRole !== IPermissions.ADMIN_USER && publicationRole && hasRole(publicationRole)) {
+        return publicationRole
     }
     const mappedRole = operationName ? operationMap[operationName] : undefined
     if (!mappedRole) {
@@ -230,9 +232,13 @@ export const getOperationRole = (
     return defaultRole === IPermissions.ADMIN_USER || hasRole(mappedRole) ? mappedRole : defaultRole
 }
 
+// Roles with data provider resources that no default role can read
+const SCHEMA_ROLES: Array<IPermissions> = [
+    ...DEFAULT_OPERATION_ROLES,
+    IPermissions.PUBLISH_RESULTS_READ,
+]
+
 // The roles whose schema the data provider needs: admin-user sees what the portal loads,
 // but a restricted user can run operations under every profile they hold.
 export const getSchemaRoles = (hasRole: (role: IPermissions) => boolean): Array<IPermissions> =>
-    hasRole(IPermissions.ADMIN_USER)
-        ? [IPermissions.ADMIN_USER]
-        : DEFAULT_OPERATION_ROLES.filter(hasRole)
+    hasRole(IPermissions.ADMIN_USER) ? [IPermissions.ADMIN_USER] : SCHEMA_ROLES.filter(hasRole)
