@@ -29,13 +29,11 @@ All six ballot audit commands use the same exit statuses.
 
 The Braid verifier returns a status other than `0` when a required check fails or is incomplete.
 
-In the reviewed revision, a successful Braid status does not establish that plaintext recomputation ran for every batch.
-The `DECRYPTION_VALID` and `PLAINTEXTS_VALID` fields check references in plaintext records, not whether recomputation ran.
-Before reporting verified decryption, use a verifier revision that requires successful plaintext recomputation for every batch.
-See [Versions](01-before-you-start.md#versions).
+A successful Braid status includes the verifier's own recomputation of the plaintexts of every batch.
+The `DECRYPTION_VALID` and `PLAINTEXTS_VALID` fields check references in plaintext records; the recomputation is a separate condition of the success.
 
 Read the restore logs and provenance reports even when the command returns `0`.
-The image can continue after restore errors; some older annotation fields can be unavailable without failing the command.
+The image does not audit copies with restore errors, but some older annotation fields can be unavailable without failing the command.
 Check that all required output files exist and cover the expected scope before reporting a pass.
 In the reviewed implementation, a report-save problem does not necessarily change the recorded child-command status.
 
