@@ -39,6 +39,7 @@
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
+use zeroize::Zeroizing;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use rand::seq::SliceRandom;
@@ -168,8 +169,12 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
     pub fn gen_shuffle(
         &self,
         ciphertexts: &StrandRectangle<Ciphertext<C>>,
-    ) -> (StrandRectangle<Ciphertext<C>>, Vec<Vec<C::X>>, Vec<usize>) {
-        let perm: Vec<usize> = gen_permutation(ciphertexts.rows().len());
+    ) -> (
+        StrandRectangle<Ciphertext<C>>,
+        Vec<Vec<C::X>>,
+        Zeroizing<Vec<usize>>,
+    ) {
+        let perm = Zeroizing::new(gen_permutation(ciphertexts.rows().len()));
         let (result, rs) = self.apply_permutation(&perm, &ciphertexts);
 
         (result, rs, perm)
@@ -497,8 +502,6 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         };
 
         let cs = cs.to_vec();
-
-        // FIXME zeroize perm_data.perm and r_primes
 
         Ok((
             ShuffleProof {

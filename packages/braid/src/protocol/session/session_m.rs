@@ -6,8 +6,10 @@ use anyhow::{anyhow, Result};
 use b3::grpc::GrpcB3Message;
 use b3::messages::message::Message;
 use std::path::PathBuf;
+use std::sync::Arc;
 use strand::signature::StrandSignatureSk;
 use strand::symm::SymmetricKey;
+use zeroize::Zeroizing;
 
 use strand::backend::ristretto::RistrettoCtx;
 use tracing::info;
@@ -84,8 +86,8 @@ impl<C: Ctx> SessionM<C> {
 #[derive(Clone)]
 pub struct SessionFactory {
     pub(crate) trustee_name: String,
-    signing_key: StrandSignatureSk,
-    symm_key: SymmetricKey,
+    signing_key: Arc<StrandSignatureSk>,
+    symm_key: Arc<Zeroizing<SymmetricKey>>,
     store_root: PathBuf,
     max_concurrent_actions: Option<usize>,
 }
@@ -96,11 +98,10 @@ impl SessionFactory {
         store_root: PathBuf,
         max_concurrent_actions: Option<usize>,
     ) -> Result<Self> {
-        let signing_key: StrandSignatureSk =
-            StrandSignatureSk::from_der_b64_string(&cfg.signing_key_sk)?;
+        let signing_key = Arc::new(StrandSignatureSk::from_der_b64_string(&cfg.signing_key_sk)?);
 
-        let bytes = crate::util::decode_base64(&cfg.encryption_key)?;
-        let symm_key = strand::symm::sk_from_bytes(&bytes)?;
+        let bytes = Zeroizing::new(crate::util::decode_base64(&cfg.encryption_key)?);
+        let symm_key = Arc::new(Zeroizing::new(strand::symm::sk_from_bytes(&bytes)?));
 
         if !store_root.is_dir() {
             return Err(anyhow!("Invalid store root {:?}", store_root));
@@ -121,12 +122,39 @@ impl SessionFactory {
         let trustee: Trustee<RistrettoCtx> = Trustee::new(
             self.trustee_name.clone(),
             board_name.to_string(),
-            self.signing_key.clone(),
-            self.symm_key,
+            Arc::clone(&self.signing_key),
+            Arc::clone(&self.symm_key),
             Some(self.store_root.join(&board_name)),
             self.max_concurrent_actions,
         );
 
         SessionM::new(board_name, trustee)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sessions_share_trustee_keys() {
+        let cfg = TrusteeConfig::new_from_objects(
+            StrandSignatureSk::gen().unwrap(),
+            strand::symm::gen_key(),
+        );
+        let cfg: TrusteeConfig = toml::from_str(&toml::to_string(&cfg).unwrap()).unwrap();
+        let factory = SessionFactory::new("trustee", cfg, std::env::temp_dir(), None).unwrap();
+
+        let first = factory.create_session("board_a").unwrap();
+        let second = factory.create_session("board_b").unwrap();
+
+        assert!(Arc::ptr_eq(
+            &first.trustee.signing_key,
+            &second.trustee.signing_key
+        ));
+        assert!(Arc::ptr_eq(
+            &first.trustee.encryption_key,
+            &second.trustee.encryption_key
+        ));
     }
 }

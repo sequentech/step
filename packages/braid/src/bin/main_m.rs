@@ -14,6 +14,7 @@ use std::path::PathBuf;
 use tokio::time::{sleep, Duration};
 use tracing::instrument;
 use tracing::{error, info};
+use zeroize::Zeroizing;
 
 use braid::protocol::session::session_m::SessionFactory;
 use braid::protocol::session::session_master::SessionMaster;
@@ -122,12 +123,16 @@ async fn run(args: &Cli) -> Result<()> {
         }
     }
 
-    let contents = fs::read_to_string(args.trustee_config.clone())
-        .expect("Should have been able to read the trustee configuration file");
-
     info!("{}", strand::info_string());
 
-    let tc: TrusteeConfig = toml::from_str(&contents).unwrap();
+    let tc: TrusteeConfig = {
+        let contents = Zeroizing::new(
+            fs::read_to_string(args.trustee_config.clone())
+                .expect("Should have been able to read the trustee configuration file"),
+        );
+
+        toml::from_str(&contents).unwrap()
+    };
 
     let ignored_boards = get_ignored_boards();
     info!("ignored boards {:?}", ignored_boards);
