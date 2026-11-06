@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::services::celery_app::get_celery_app;
 use crate::services::celery_app::get_celery_connection;
 use crate::services::celery_app::Queue;
 use crate::services::database::get_hasura_pool;
@@ -15,7 +16,7 @@ use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use b3::messages::message::Signer;
 use celery::error::TaskError;
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use electoral_log::client::board_client::ElectoralLogMessage;
 use immudb_rs::TxMode;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
@@ -134,6 +135,25 @@ fn verified_internal_message(
     row.rebuild_verified(system_pk, &input.election_event_id)
 }
 
+/// The public key of the system signature on a board's internal rows.
+async fn read_system_pk(
+    hasura_tx: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    board_name: &str,
+) -> anyhow::Result<StrandSignaturePk> {
+    let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+        hasura_tx,
+        tenant_id,
+        Some(election_event_id),
+        board_name,
+    )
+    .await
+    .with_context(|| "Error getting protocol manager")?;
+    StrandSignaturePk::from_sk(protocol_manager.get_signing_key())
+        .with_context(|| "Error getting protocol manager public key")
+}
+
 /// Enqueue the electoral log event.
 /// This task is routed to the durable electoral_log_batch_queue.
 #[instrument(skip_all, err)]
@@ -174,6 +194,10 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
         .with_context(|| "Error starting keycloak transaction")?;
 
     let mut system_pks: HashMap<String, StrandSignaturePk> = HashMap::new();
+    // The dispatcher already acknowledged these events and this task doesn't
+    // retry, so an event whose board key can't be read goes back to the queue
+    // instead of failing the batch and losing every event in it.
+    let mut requeued_events: Vec<LogEventInput> = Vec::new();
 
     for input in events.iter() {
         let election_event =
@@ -189,17 +213,25 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
                 let system_pk = match system_pks.get(&board_name) {
                     Some(system_pk) => system_pk.clone(),
                     None => {
-                        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+                        let system_pk = match read_system_pk(
                             &hasura_tx,
                             &input.tenant_id,
-                            Some(&election_event.id),
+                            &election_event.id,
                             &board_name,
                         )
                         .await
-                        .with_context(|| "Error getting protocol manager")?;
-                        let system_pk =
-                            StrandSignaturePk::from_sk(protocol_manager.get_signing_key())
-                                .with_context(|| "Error getting protocol manager public key")?;
+                        {
+                            Ok(system_pk) => system_pk,
+                            Err(err) => {
+                                error!(
+                                    tenant_id = %input.tenant_id,
+                                    election_event_id = %input.election_event_id,
+                                    "Requeueing electoral log event: {err:?}"
+                                );
+                                requeued_events.push(input.clone());
+                                continue;
+                            }
+                        };
                         system_pks.insert(board_name.clone(), system_pk.clone());
                         system_pk
                     }
@@ -226,14 +258,25 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
                 let user_area_id = get_user_area_id(&keycloak_transaction, &realm, &user_id)
                     .await
                     .with_context(|| "Error getting user area id")?;
-                let electoral_log = ElectoralLog::new(
+                let electoral_log = match ElectoralLog::new(
                     &hasura_tx,
                     &input.tenant_id,
                     Some(&election_event.id),
                     &board_name,
                 )
                 .await
-                .with_context(|| "Error initializing electoral log")?;
+                {
+                    Ok(electoral_log) => electoral_log,
+                    Err(err) => {
+                        error!(
+                            tenant_id = %input.tenant_id,
+                            election_event_id = %input.election_event_id,
+                            "Requeueing electoral log event: {err:?}"
+                        );
+                        requeued_events.push(input.clone());
+                        continue;
+                    }
+                };
 
                 if let LogEventBody::Communications(ref template_body) = input.body {
                     let send_template_msg = electoral_log
@@ -269,6 +312,16 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
             .entry(board_name.clone())
             .or_insert_with(Vec::new)
             .push(event_message);
+    }
+
+    if !requeued_events.is_empty() {
+        let celery_app = get_celery_app().await;
+        for input in requeued_events {
+            celery_app
+                .send_task(enqueue_electoral_log_event::new(input))
+                .await
+                .with_context(|| "Error requeueing electoral log event")?;
+        }
     }
 
     hasura_tx
