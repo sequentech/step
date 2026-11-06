@@ -2064,6 +2064,28 @@ fn cast_vote_page(limit: Option<i64>, offset: Option<i64>) -> (i64, i64) {
     )
 }
 
+/// The order of a voter's request, keeping only columns every voter can see:
+/// sorting by one that's blanked on other voters' rows, such as `username`,
+/// would give that row's value away through its position.
+fn public_cast_vote_order(
+    order_by: Option<HashMap<OrderField, OrderDirection>>,
+) -> Option<HashMap<OrderField, OrderDirection>> {
+    let public_order: HashMap<_, _> = order_by?
+        .into_iter()
+        .filter(|(field, _)| {
+            matches!(
+                field,
+                OrderField::Id
+                    | OrderField::Created
+                    | OrderField::StatementTimestamp
+                    | OrderField::StatementKind
+                    | OrderField::BallotId
+            )
+        })
+        .collect();
+    (!public_order.is_empty()).then_some(public_order)
+}
+
 /// Returns the entries for statement_kind = "CastVote" which ballot_id starts with the input
 /// ballot_id_filter, which is restricted to an even number of hex characters, so that can be
 /// converted to a byte array
@@ -2086,7 +2108,7 @@ pub async fn list_cast_vote_messages(
         &slug,
     );
     info!("database name = {board_name}");
-    let order_by = input.order_by.clone();
+    let order_by = public_cast_vote_order(input.order_by.clone());
     let election_id = input.election_id.clone().unwrap_or_default();
 
     let limit: i64 = match ballot_id_filter.is_empty() {
@@ -2417,6 +2439,27 @@ mod cast_vote_entry_tests {
             .unwrap();
         assert_eq!(entry.username.as_deref(), Some("voter-one"));
         assert!(entry.message.unwrap().contains("203.0.113.7"));
+    }
+
+    #[test]
+    fn a_voters_order_keeps_only_public_columns() {
+        let order = HashMap::from([
+            (OrderField::BallotId, OrderDirection::Asc),
+            (OrderField::Username, OrderDirection::Asc),
+            (OrderField::UserId, OrderDirection::Desc),
+            (OrderField::Message, OrderDirection::Desc),
+        ]);
+        let public_order = public_cast_vote_order(Some(order)).unwrap();
+        assert_eq!(
+            public_order.keys().collect::<Vec<_>>(),
+            vec![&OrderField::BallotId]
+        );
+    }
+
+    #[test]
+    fn a_voters_order_by_private_columns_only_is_dropped() {
+        let order = HashMap::from([(OrderField::Username, OrderDirection::Asc)]);
+        assert!(public_cast_vote_order(Some(order)).is_none());
     }
 
     #[test]

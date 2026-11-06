@@ -494,24 +494,9 @@ const LogsTable: React.FC<LogsTableProps> = ({
                             <TableCell
                                 className="cast-vote-logs-username-header"
                                 align="center"
-                                sortDirection={orderBy === "username" ? order : false}
                                 sx={{fontWeight: "bold", padding: "2px 4px"}}
                             >
-                                <TableSortLabel
-                                    className="cast-vote-logs-sort-button"
-                                    active={orderBy === "username"}
-                                    direction={orderBy === "username" ? order : "asc"}
-                                    onClick={() => onClickHeader("username")}
-                                    sx={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        textAlign: "center",
-                                    }}
-                                >
-                                    {t("ballotLocator.column.username")}
-                                </TableSortLabel>
+                                {t("ballotLocator.column.username")}
                             </TableCell>
                             <TableCell
                                 className="cast-vote-logs-ballot-id-header"
