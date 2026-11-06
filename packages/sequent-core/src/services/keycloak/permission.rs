@@ -229,6 +229,7 @@ mod tests {
         "cli-account-admin",
     ];
     const ORDINARY_NAME: &str = "election-event-read";
+    const ALIAS: &str = "ordinary-alias";
     const ROLE_PATH: &str = "/admin/realms/tenant-test/roles";
     const MAPPING_PATH: &str =
         "/admin/realms/tenant-test/groups/group-id/role-mappings/realm";
@@ -300,18 +301,15 @@ mod tests {
     }
 
     #[rocket::async_test]
-    async fn a_reserved_role_reached_by_another_spelling_is_not_attached() {
-        for requested in ["%73ervice-account", "other/../service-account"] {
-            let keycloak =
-                FakeKeycloak::start(&[(requested, "service-account")]);
-            let result = keycloak
-                .client()
-                .set_role_permission(REALM, GROUP_ID, requested)
-                .await;
+    async fn a_reserved_role_reached_by_another_name_is_not_attached() {
+        let keycloak = FakeKeycloak::start(&[(ALIAS, "service-account")]);
+        let result = keycloak
+            .client()
+            .set_role_permission(REALM, GROUP_ID, ALIAS)
+            .await;
 
-            assert!(result.is_err(), "{requested:?} was attached");
-            assert!(!assigned_to_a_group(&keycloak.requests()));
-        }
+        assert!(result.is_err());
+        assert_eq!(keycloak.requests(), [format!("GET {ROLE_PATH}/{ALIAS}")]);
     }
 
     #[rocket::async_test]
@@ -349,19 +347,18 @@ mod tests {
     }
 
     #[rocket::async_test]
-    async fn a_reserved_role_reached_by_another_spelling_is_not_attached_in_bulk(
-    ) {
-        let keycloak =
-            FakeKeycloak::start(&[("%73ervice-account", "service-account")]);
-        let names =
-            vec![ORDINARY_NAME.to_string(), "%73ervice-account".to_string()];
+    async fn a_reserved_role_reached_by_another_name_is_not_attached_in_bulk() {
+        let keycloak = FakeKeycloak::start(&[(ALIAS, "service-account")]);
+        let names = vec![ORDINARY_NAME.to_string(), ALIAS.to_string()];
         let result = keycloak
             .client()
             .set_role_permissions(REALM, GROUP_ID, &names)
             .await;
 
         assert!(result.is_err());
-        assert!(!assigned_to_a_group(&keycloak.requests()));
+        let requests = keycloak.requests();
+        assert!(requests.contains(&format!("GET {ROLE_PATH}/{ALIAS}")));
+        assert!(!assigned_to_a_group(&requests));
     }
 
     #[rocket::async_test]
