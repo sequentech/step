@@ -870,12 +870,13 @@ async fn map_plaintext_data(
 
     event!(Level::INFO, "Num batch_ids {}", batch_ids.len());
 
+    let agreed_plaintexts =
+        b3::messages::trusted_board::agreed_plaintexts(&messages, &trusted_config);
+
     // find if there are new plaintexs (= with equal/higher timestamp) that have the batch ids we need
-    let has_next_plaintext = messages.iter().any(|message| {
+    let has_next_plaintext = agreed_plaintexts.iter().any(|message| {
         message.statement.get_timestamp() >= next_timestamp
-            && message.statement.get_kind() == StatementType::Plaintexts
             && batch_ids.contains(&(message.statement.get_batch_number() as i64))
-            && b3::messages::trusted_board::plaintexts_agreed(message, &messages, &trusted_config)
     });
 
     if !has_next_plaintext {
@@ -890,6 +891,7 @@ async fn map_plaintext_data(
         tally_session.clone(),
         tally_session_contest.clone(),
         &messages,
+        &agreed_plaintexts,
     )
     .await?;
     let mut new_logs = generate_logs(&messages, next_timestamp, &batch_ids)?;
@@ -907,17 +909,10 @@ async fn map_plaintext_data(
     event!(Level::INFO, "Num ballot_styles {}", ballot_styles.len());
 
     // find all plaintexs (even with lower ids/timestamps) for this tally session/batch ids
-    let relevant_plaintexts: Vec<&Message> = messages
+    let relevant_plaintexts: Vec<&Message> = agreed_plaintexts
         .iter()
-        .filter(|message| {
-            message.statement.get_kind() == StatementType::Plaintexts
-                && batch_ids.contains(&(message.statement.get_batch_number() as i64))
-                && b3::messages::trusted_board::plaintexts_agreed(
-                    message,
-                    &messages,
-                    &trusted_config,
-                )
-        })
+        .copied()
+        .filter(|message| batch_ids.contains(&(message.statement.get_batch_number() as i64)))
         .collect();
     event!(
         Level::INFO,

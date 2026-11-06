@@ -17,6 +17,14 @@ use strand::{
 
 type Manager = ProtocolManager<RistrettoCtx>;
 
+/// Whether `result`, posted on `messages`, is among the board's agreed results.
+fn is_agreed(result: &Message, messages: &[Message], cfg: &Configuration<RistrettoCtx>) -> bool {
+    agreed_plaintexts(messages, cfg).iter().any(|agreed| {
+        agreed.sender.pk == result.sender.pk
+            && agreed.statement.get_batch_number() == result.statement.get_batch_number()
+    })
+}
+
 fn fixture() -> (
     Manager,
     Vec<Manager>,
@@ -129,7 +137,7 @@ fn results_wait_for_matching_selected_trustee_signatures() {
         unreachable!()
     };
     messages.push(result.try_clone().unwrap());
-    assert!(!plaintexts_agreed(&result, &messages, &cfg));
+    assert!(!is_agreed(&result, &messages, &cfg));
     messages.push(
         Message::plaintexts_signed_msg(
             &cfg,
@@ -143,12 +151,12 @@ fn results_wait_for_matching_selected_trustee_signatures() {
         .unwrap(),
     );
     verify_board::<RistrettoCtx>(&messages, &cfg.protocol_manager).unwrap();
-    assert!(!plaintexts_agreed(&result, &messages, &cfg));
+    assert!(!is_agreed(&result, &messages, &cfg));
     messages.pop();
     messages
         .push(Message::plaintexts_signed_msg(&cfg, 9, *ph, *df, *ch, *kh, &trustees[1]).unwrap());
     verify_board::<RistrettoCtx>(&messages, &cfg.protocol_manager).unwrap();
-    assert!(plaintexts_agreed(&result, &messages, &cfg));
+    assert!(is_agreed(&result, &messages, &cfg));
     messages.last_mut().unwrap().artifact = Some(vec![1]);
     assert!(verify_board::<RistrettoCtx>(&messages, &cfg.protocol_manager).is_err());
 }
@@ -250,5 +258,5 @@ fn results_artifact_must_be_posted_by_the_first_selected_trustee() {
     );
     messages.push(result.try_clone().unwrap());
     verify_board::<RistrettoCtx>(&messages, &cfg.protocol_manager).unwrap();
-    assert!(!plaintexts_agreed(&result, &messages, &cfg));
+    assert!(!is_agreed(&result, &messages, &cfg));
 }

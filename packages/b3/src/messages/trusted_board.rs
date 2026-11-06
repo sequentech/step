@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
+use std::collections::HashMap;
 use strand::{context::Ctx, serialization::StrandDeserialize, signature::StrandSignaturePk};
 
 use super::{artifact::Configuration, message::Message, newtypes::*, statement::Statement};
@@ -121,10 +122,38 @@ fn same_plaintexts(left: &Statement, right: &Statement) -> bool {
     }
 }
 
-/// A result is ready only when every selected decryption trustee agrees with its producer.
-pub fn plaintexts_agreed<C: Ctx>(
+/// The results on the board that are ready: every selected decryption trustee
+/// agrees with its producer. Only a batch's own messages can decide that, so
+/// they're grouped once instead of scanning the board for each candidate.
+pub fn agreed_plaintexts<'a, C: Ctx>(
+    messages: &'a [Message],
+    config: &Configuration<C>,
+) -> Vec<&'a Message> {
+    let mut batches: HashMap<BatchNumber, Vec<&Message>> = HashMap::new();
+    for message in messages {
+        if matches!(
+            message.statement,
+            Statement::Ballots(..) | Statement::Plaintexts(..) | Statement::PlaintextsSigned(..)
+        ) {
+            batches
+                .entry(message.statement.get_batch_number())
+                .or_default()
+                .push(message);
+        }
+    }
+    messages
+        .iter()
+        .filter(|candidate| {
+            batches
+                .get(&candidate.statement.get_batch_number())
+                .is_some_and(|batch| plaintexts_agreed(candidate, batch, config))
+        })
+        .collect()
+}
+
+fn plaintexts_agreed<C: Ctx>(
     candidate: &Message,
-    messages: &[Message],
+    messages: &[&Message],
     config: &Configuration<C>,
 ) -> bool {
     let Statement::Plaintexts(_, cfg, batch, _, _, _, pk) = &candidate.statement else {
