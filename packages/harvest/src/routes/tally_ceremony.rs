@@ -488,6 +488,15 @@ pub struct SubmitTallyResolutionOutput {
 pub async fn submit_tally_resolution(
     body: Json<SubmitTallyResolutionInput>,
     claims: JwtClaims,
+) -> Result<Json<SubmitTallyResolutionOutput>, JsonError> {
+    submit_tally_resolution_response(body, claims)
+        .await
+        .map_err(tally_response_error)
+}
+
+async fn submit_tally_resolution_response(
+    body: Json<SubmitTallyResolutionInput>,
+    claims: JwtClaims,
 ) -> Result<Json<SubmitTallyResolutionOutput>, (Status, String)> {
     authorize(
         &claims,
@@ -568,6 +577,29 @@ mod tally_error_tests {
             )
             .into(),
         ))
+    }
+
+    #[get("/tally-resolution-error")]
+    fn rejected_resolution() -> JsonError {
+        tally_response_error(tally_resolution_error(
+            TallyValidationError::new("Tally session is not awaiting input")
+                .into(),
+        ))
+    }
+
+    #[rocket::async_test]
+    async fn resolution_response_has_the_json_contract_required_by_hasura() {
+        let client = Client::tracked(
+            rocket::build().mount("/", routes![rejected_resolution]),
+        )
+        .await
+        .unwrap();
+        let response = client.get("/tally-resolution-error").dispatch().await;
+        assert_eq!(response.status(), Status::BadRequest);
+        assert_eq!(response.content_type(), Some(ContentType::JSON));
+        let body: serde_json::Value = response.into_json().await.unwrap();
+        assert_eq!(body["message"], "Tally session is not awaiting input");
+        assert_eq!(body["extensions"]["code"], "TallyValidation");
     }
 
     #[rocket::async_test]
