@@ -9,7 +9,7 @@ import {GraphQLError} from "graphql"
 import {EVENT_ID, TENANT_ID} from "@/__stories__/AdminStoryProvider"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {STORY_IDS, eventRecord} from "@/__stories__/fixtures"
-import type {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import type {Sequent_Backend_Applications, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {ViewApproval} from "./ViewApproval"
 import {CAROL_VOTER_ID} from "./__stories__/ApprovalsFixture"
 import {
@@ -31,7 +31,7 @@ interface Scenario extends ApprovalServices {
     /** What approving or rejecting answers. */
     decides: "done" | "already-enrolled" | "error"
     goBack: Mock<() => void>
-    onViewRule: Mock<(decided: {version: number; rule: number | null}) => void>
+    onViewRule: Mock<(application: Sequent_Backend_Applications) => void>
 }
 
 const meta = {
@@ -218,7 +218,14 @@ export const SeeTheRule: Story = {
     play: async ({canvasElement, args}) => {
         await opened(canvasElement, "Alice Example")
         await userEvent.click(within(canvasElement).getByRole("button", {name: "See the rule"}))
-        expect(args.onViewRule).toHaveBeenCalledWith({version: 1, rule: 5})
+        expect(args.onViewRule).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: APPLICATION_ID,
+                annotations: expect.objectContaining({
+                    decision: expect.objectContaining({matrix_version: 1, rule: 5}),
+                }),
+            })
+        )
     },
 }
 
@@ -580,7 +587,14 @@ export const RejectedEnrollment: Story = {
         ).toBeVisible()
         await expect(canvas.getByText("Last rule of matrix version 1")).toBeVisible()
         await userEvent.click(canvas.getByRole("button", {name: "See the rule"}))
-        expect(args.onViewRule).toHaveBeenCalledWith({version: 1, rule: null})
+        expect(args.onViewRule).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: REJECTED_APPLICATION_ID,
+                annotations: expect.objectContaining({
+                    decision: expect.objectContaining({matrix_version: 1, rule: null}),
+                }),
+            })
+        )
 
         // A rejected enrollment can still be approved, once its voter is found.
         await continueOn(canvasElement)

@@ -18,10 +18,8 @@ import {
 interface Scenario {
     matrix: "comelec" | "association"
     canEdit: boolean
-    /** The rule that decides the example of the test panel. */
+    /** The rule that decides the applied example. */
     appliesTo?: RulePointer
-    /** The rule that decided the enrollment the administrator came from. */
-    cameFrom?: RulePointer
     problems?: Array<{code: EMatrixError; rule: number | null}>
     onEdit: Mock<(index: number | null) => void>
     onMove: Mock<(index: number, offset: -1 | 1) => void>
@@ -115,37 +113,41 @@ export const Association: Story = {
     },
 }
 
-export const RulesAnExampleAndAnEnrollmentPointAt: Story = {
-    args: {appliesTo: 3, cameFrom: 5},
+export const OnlyTheRuleThatDecidesTheExample: Story = {
+    args: {appliesTo: 3},
     play: async ({canvasElement}) => {
         const cards = await ruleCards(canvasElement)
-        await expect(within(cards[2]).getByText("Applies to your example")).toBeVisible()
-        await expect(
-            within(cards[4]).getByText("Decided the enrollment you came from")
-        ).toBeVisible()
+        await expect(within(cards[2]).getByText("Decides the applied example")).toBeVisible()
+        await expect(cards[2]).toHaveAttribute("aria-current", "true")
         expect(cards.map((card) => card.getAttribute("data-highlighted"))).toEqual([
             "false",
             "false",
             "true",
             "false",
-            "true",
+            "false",
             "false",
             "false",
             "false",
         ])
+        expect(within(canvasElement).getAllByText("Decides the applied example")).toHaveLength(1)
     },
 }
 
 export const TheLastRuleDecides: Story = {
-    args: {appliesTo: null, cameFrom: null, canEdit: false},
+    args: {appliesTo: null, canEdit: false},
     play: async ({canvasElement}) => {
         const cards = await ruleCards(canvasElement)
-        await expect(within(cards[7]).getByText("Applies to your example")).toBeVisible()
-        await expect(
-            within(cards[7]).getByText("Decided the enrollment you came from")
-        ).toBeVisible()
+        await expect(within(cards[7]).getByText("Decides the applied example")).toBeVisible()
         await expect(cards[7]).toHaveAttribute("data-highlighted", "true")
         await expect(cards[0]).toHaveAttribute("data-highlighted", "false")
+    },
+}
+
+export const NoRuleDecides: Story = {
+    play: async ({canvasElement}) => {
+        const cards = await ruleCards(canvasElement)
+        expect(cards.every((card) => card.getAttribute("data-highlighted") === "false")).toBe(true)
+        expect(within(canvasElement).queryByText("Decides the applied example")).toBeNull()
     },
 }
 

@@ -34,6 +34,7 @@ import {Dialog} from "@sequentech/ui-essentials"
 import {
     ChangeApplicationStatusMutation,
     GetUserProfileAttributesQuery,
+    Sequent_Backend_Applications,
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 import {useSignedAction} from "@/hooks/useSignedAction"
@@ -156,8 +157,8 @@ export interface ViewApprovalProps {
     electionId?: string
     currApprovalId: Identifier | String | null
     goBack: () => void
-    /** Opens the approval matrix on the rule that decided this enrollment. */
-    onViewRule?: (decided: {version: number; rule: number | null}) => void
+    /** Opens the approval matrix with the example of this enrollment's recorded decision. */
+    onViewRule?: (application: Sequent_Backend_Applications) => void
     electionEventRecord?: Sequent_Backend_Election_Event
 }
 
@@ -196,7 +197,9 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
         data: task,
         isLoading,
         error,
-    } = useGetOne("sequent_backend_applications", {id: currApprovalId})
+    } = useGetOne<Sequent_Backend_Applications>("sequent_backend_applications", {
+        id: currApprovalId,
+    })
     const [changeStatus] = useMutation<ChangeApplicationStatusMutation>(CHANGE_APPLICATION_STATUS)
 
     // The registry is searched a moment after the administrator stops typing.
@@ -775,12 +778,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                                     variant="secondary"
                                     size="small"
                                     sx={{marginLeft: "auto", minHeight: "36px"}}
-                                    onClick={() =>
-                                        onViewRule({
-                                            version: decision.matrixVersion,
-                                            rule: decision.rule,
-                                        })
-                                    }
+                                    onClick={() => task && onViewRule(task)}
                                 >
                                     {t("approvalsScreen.review.seeRule")}
                                 </Button>
