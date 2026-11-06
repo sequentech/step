@@ -13,8 +13,11 @@
 
 use anyhow::{anyhow, Result};
 use b3::messages::{artifact::Plaintexts, message::Message};
+use sequent_core::ballot::WeightedVotingPolicy;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
-use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
+use sequent_core::types::hasura::core::{
+    TallySessionConfiguration, TallySessionContest, TallySessionContestAnnotations,
+};
 use sequent_core::types::keycloak::{
     weight_bit_multiplier, weight_has_bit, MAX_TOTAL_VOTE_WEIGHT, VOTE_WEIGHT_BATCHES,
 };
@@ -35,6 +38,23 @@ pub fn weight_batch_offsets(weight: u64) -> Result<impl Iterator<Item = u32>> {
         ));
     }
     Ok((0..VOTE_WEIGHT_BATCHES).filter(move |bit| weight_has_bit(weight, *bit)))
+}
+
+/// Every batch a contest area of a session owns, with its offset, whether or
+/// not it was posted. This comes from the session's own layout rather than the
+/// area's saved mask: a run that failed after posting never saved one.
+pub fn contest_owned_batches(
+    tally_session_contest: &TallySessionContest,
+    configuration: &TallySessionConfiguration,
+) -> Vec<(i64, u32)> {
+    let batches = match configuration.get_weighted_voting_policy() {
+        WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING => VOTE_WEIGHT_BATCHES,
+        _ => 1,
+    };
+    let base = tally_session_contest.session_id as i64;
+    (0..batches)
+        .map(|offset| (base + offset as i64, offset))
+        .collect()
 }
 
 /// The batches the area actually posted, each with the multiplier the tally
@@ -226,6 +246,24 @@ mod tests {
     use super::*;
     use sequent_core::types::keycloak::MAX_VOTE_WEIGHT;
     use serde_json::json;
+
+    #[test]
+    fn an_unweighted_session_owns_only_its_base_batch() {
+        let batches =
+            contest_owned_batches(&contest_with(None), &TallySessionConfiguration::default());
+        assert_eq!(batches, [(100, 0)]);
+    }
+
+    #[test]
+    fn a_weighted_session_owns_its_whole_run_without_a_saved_mask() {
+        let configuration = TallySessionConfiguration {
+            weighted_voting_policy: Some(WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING),
+            ..Default::default()
+        };
+        let batches = contest_owned_batches(&contest_with(None), &configuration);
+        assert_eq!(batches.len(), VOTE_WEIGHT_BATCHES as usize);
+        assert_eq!(batches[1], (101, 1));
+    }
 
     fn contest_with(annotations: Option<serde_json::Value>) -> TallySessionContest {
         TallySessionContest {

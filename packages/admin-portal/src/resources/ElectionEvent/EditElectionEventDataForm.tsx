@@ -60,6 +60,7 @@ import {
     EElectionEventAutomaticRecountPolicy,
     EElectionEventWeightedVotingPolicy,
     EElectionEventDelegatedVotingPolicy,
+    EElectionEventBatchAnonymityPolicy,
     EResultsWebsiteAccess,
     EResultsWebsiteStatus,
     EResultsWebsiteVisibilityScope,
@@ -852,6 +853,13 @@ export const EditElectionEventDataForm: React.FC<{
         return Object.values(EElectionEventDelegatedVotingPolicy).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.delegatedVotingPolicy.options.${value}`),
+        }))
+    }
+
+    const batchAnonymityPolicyOptions = () => {
+        return Object.values(EElectionEventBatchAnonymityPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.batchAnonymityPolicy.options.${value}`),
         }))
     }
 
@@ -1731,6 +1739,19 @@ export const EditElectionEventDataForm: React.FC<{
                                 t("electionEventScreen.field.delegatedVotingPolicy.policyLabel")
                             )}
                             defaultValue={EElectionEventDelegatedVotingPolicy.DISABLED}
+                            emptyText={undefined}
+                            validate={required()}
+                        />
+                        <SelectInput
+                            source={"presentation.batch_anonymity_policy"}
+                            choices={batchAnonymityPolicyOptions()}
+                            label={String(
+                                t("electionEventScreen.field.batchAnonymityPolicy.policyLabel")
+                            )}
+                            helperText={String(
+                                t("electionEventScreen.field.batchAnonymityPolicy.helperText")
+                            )}
+                            defaultValue={EElectionEventBatchAnonymityPolicy.WARN}
                             emptyText={undefined}
                             validate={required()}
                         />

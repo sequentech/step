@@ -690,6 +690,15 @@ const basqueTranslation: TranslationType = {
                         disabled: "Desgaituta",
                     },
                 },
+                batchAnonymityPolicy: {
+                    policyLabel: "Loteen Anonimotasun Politika",
+                    helperText:
+                        "Baztertu aukerak zenbaketa geldiarazten du eremu bateko boto-paperen loteak bost bozkatzaile baino gutxiago dituenean, edo beste zenbaketa batek eremu eta lehiaketa bererako argitaratutako lotearen desberdina denean.",
+                    options: {
+                        warn: "Ohartarazi",
+                        refuse: "Baztertu",
+                    },
+                },
                 languageDetectionPolicy: {
                     policyLabel: "Hizkuntza detekzio politika",
                     options: {

@@ -104,6 +104,11 @@ export enum EElectionEventDelegatedVotingPolicy {
     DISABLED = "disabled",
 }
 
+export enum EElectionEventBatchAnonymityPolicy {
+    WARN = "warn",
+    REFUSE = "refuse",
+}
+
 export enum EVoterCertificatePolicy {
     ENABLED = "enabled",
     DISABLED = "disabled",
@@ -230,4 +235,5 @@ export interface IElectionEventPresentation {
     results_website?: string
     delegated_voting_policy: EElectionEventDelegatedVotingPolicy
     voting_portal_datetime_format?: VotingPortalDateTimeFormat
+    batch_anonymity_policy?: EElectionEventBatchAnonymityPolicy
 }

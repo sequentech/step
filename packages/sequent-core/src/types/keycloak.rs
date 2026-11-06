@@ -82,13 +82,13 @@ pub const MAX_TOTAL_VOTE_WEIGHT: u64 = 1_000_000;
 pub const VOTE_WEIGHT_BATCHES: u32 =
     u64::BITS - MAX_VOTE_WEIGHT.leading_zeros();
 
-/// Below this many ballots, a weight batch is small enough that mixing it
-/// protects little: its plaintexts are published, so a batch holding one ballot
-/// publishes that voter's choice. Which batches are small depends on the spread
-/// of weights, not on the bit -- 999 voters at weight 2 and one at weight 3
-/// leave the *lowest* batch holding a single ballot. Warned about rather than
-/// refused, and it does not detect every way a voter can be isolated -- see the
-/// note on this policy in the election event documentation.
+/// Below this many voters, a batch is small enough that mixing it protects
+/// little: its plaintexts are published, so a batch holding one ballot
+/// publishes that voter's choice. Under voter-weighted voting, which batches
+/// are small depends on the spread of weights, not on the bit -- 999 voters at
+/// weight 2 and one at weight 3 leave the *lowest* batch holding a single
+/// ballot. `BatchAnonymityPolicy` decides whether a smaller batch is warned
+/// about or refused.
 pub const MIN_WEIGHT_BATCH_ANONYMITY: usize = 5;
 
 /// Bit `bit` of `weight` decides whether that voter's ciphertext goes into the
