@@ -87,7 +87,7 @@ const test = base.extend<{report: ReportDownload}>({
         }
     },
 })
-test.use({roles: [...TALLY_ROLES, "report-read", "document-read"]})
+test.use({roles: [...TALLY_ROLES, "report-read", "report-generate", "document-read"]})
 
 async function reportWorld(portal: AdminPortal, report: ReportDownload) {
     portal.settings.ACTIVATE_MIRU_EXPORT = true
@@ -153,7 +153,7 @@ async function generateAndDownload(page: Page, portal: AdminPortal, url: string)
         VARIABLES,
     ])
     expect(portal.graphql.callsTo("GenerateTemplate")[0].headers["x-hasura-role"]).toBe(
-        "report-read"
+        "report-generate"
     )
     expect(portal.graphql.callsTo("GetDocument").map(({variables}) => variables)).toEqual([
         {id: DOCUMENT_ID, tenantId: TENANT_ID},

@@ -879,7 +879,7 @@ pub async fn process_export_zip(
     }
 
     // add protocol manager secrets
-    if export_config.bulletin_board || export_config.activity_logs || export_config.publications {
+    if export_config.includes_protocol_manager_keys() {
         // read protocol manager keys (one per board)
         let protocol_manager_keys_filename = format!(
             "{}-{}.csv",

@@ -1288,8 +1288,6 @@ actions:
               version: 2
       permissions:
           - role: logs-export
-          - role: election-event-read
-          - role: logs-read
     - name: export_tenant_logs
       definition:
           kind: synchronous
@@ -1576,7 +1574,6 @@ actions:
               version: 2
       permissions:
           - role: report-generate
-          - role: report-read
     - name: generate_voter_information_letter
       definition:
           kind: synchronous
