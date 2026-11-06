@@ -313,7 +313,32 @@ describe("getSchemaRoles", () => {
         ])
     })
 
+    it("adds the results publication schema to a lockdown user", () => {
+        const roles = [IPermissions.PUBLISH_READ, IPermissions.PUBLISH_RESULTS_READ]
+        expect(getSchemaRoles(holding(roles))).toEqual(roles)
+    })
+
     it("has no role for a user without a profile", () => {
         expect(getSchemaRoles(holding([IPermissions.ELECTION_EVENT_READ]))).toEqual([])
+    })
+})
+
+describe("publication reads", () => {
+    const reads = ["GetTaskById", "GetBallotPublicationChange"]
+
+    it.each(reads)("runs %s as publish-read for a user with both profiles", (operation) => {
+        const roles = [IPermissions.TRUSTEE_CEREMONY, IPermissions.PUBLISH_READ]
+        expect(roleFor(operation, roles)).toBe(IPermissions.PUBLISH_READ)
+    })
+
+    it.each(reads)("keeps %s on admin-user for admins", (operation) => {
+        const roles = [IPermissions.ADMIN_USER, IPermissions.PUBLISH_READ]
+        expect(roleFor(operation, roles)).toBe(IPermissions.ADMIN_USER)
+    })
+
+    it.each(reads)("keeps %s on the ceremony role for a trustee", (operation) => {
+        expect(roleFor(operation, [IPermissions.TRUSTEE_CEREMONY])).toBe(
+            IPermissions.TRUSTEE_CEREMONY
+        )
     })
 })

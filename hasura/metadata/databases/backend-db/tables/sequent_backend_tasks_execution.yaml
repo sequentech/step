@@ -71,7 +71,9 @@ select_permissions:
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
                   - type:
-                        _eq: GENERATE_BALLOT_PUBLICATION
+                        _in:
+                            - EXPORT_BALLOT_PUBLICATION
+                            - GENERATE_BALLOT_PUBLICATION
       role: publish-read
     - comment: ""
       permission:
