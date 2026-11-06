@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Voting Portal CSS hooks | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3601/docs/election_managers/reference/voting_portal_custom_css"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Voting Portal CSS hooks | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3601/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3601/docs/election_managers/reference/voting_portal_custom_css"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3601/docs/election_managers/reference/voting_portal_custom_css" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3601/docs/election_managers/reference/voting_portal_custom_css" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Voting Portal CSS hooks","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3601/docs/election_managers/reference/voting_portal_custom_css"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3601/assets/css/styles.fc78c976.css">
-<script src="/docusaurus/pr-preview/pr-3601/assets/js/runtime~main.55324923.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3601/assets/js/runtime~main.c30df5d8.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3601/assets/js/main.17dd488f.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -74,14 +74,14 @@ public bucket instead of linking to another site.</li>
 <li class="">Only <code>@media</code>, <code>@supports</code>, <code>@container</code>, <code>@layer</code> and <code>@keyframes</code> at-rules are
 kept. <code>@import</code> and <code>@font-face</code> rules are skipped, as are <code>image-set()</code>,
 <code>image()</code> and <code>src()</code> values.</li>
-<li class=""><code>content</code>, <code>quotes</code>, <code>list-style</code>, <code>list-style-type</code>, <code>text-overflow</code>,
-<code>text-emphasis</code>, <code>text-emphasis-style</code> and <code>hyphenate-character</code> are skipped when
-their value has a non-empty string, a <code>url()</code>, or a <code>var()</code>, <code>attr()</code>, <code>counter()</code>
-or <code>counters()</code> reference. <code>content: &quot;&quot;</code> for decorative pseudo-elements still works.</li>
+<li class=""><code>content</code>, <code>quotes</code>, <code>list-style</code>, <code>list-style-image</code>, <code>list-style-type</code>,
+<code>text-overflow</code>, <code>text-emphasis</code>, <code>text-emphasis-style</code> and <code>hyphenate-character</code> are
+skipped when their value has a non-empty string, a <code>url()</code>, or a <code>var()</code>, <code>attr()</code>,
+<code>counter()</code> or <code>counters()</code> reference. <code>content: &quot;&quot;</code> for decorative pseudo-elements
+still works.</li>
 <li class=""><code>list-style</code> and <code>list-style-type</code> keep only markers that show no letters: <code>none</code>,
 <code>disc</code>, <code>circle</code>, <code>square</code>, <code>decimal</code>, <code>decimal-leading-zero</code>, <code>disclosure-open</code> and
-<code>disclosure-closed</code>, with <code>inside</code> or <code>outside</code>. Use <code>list-style-image</code> for an image
-marker.</li>
+<code>disclosure-closed</code>, with <code>inside</code> or <code>outside</code>.</li>
 <li class="">Comments are removed. Declarations, rules and at-rules with backslash escapes,
 control characters or <code>//</code> outside a string are skipped.</li>
 <li class="">If the stylesheet cannot be parsed, for example because of an unbalanced brace
