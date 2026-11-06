@@ -416,6 +416,22 @@ fn trustee_attribute_permission(
     (requested.as_slice() != current).then_some(Permissions::TRUSTEE_WRITE)
 }
 
+/// `trustee_attribute_permission` for an edit, which also leaves an unchanged
+/// `trustee` out of the update: a later write of the value read here would
+/// undo a change made in between.
+fn trustee_edit_permission(
+    requested: &mut Option<HashMap<String, Vec<String>>>,
+    current: Option<&HashMap<String, Vec<String>>>,
+) -> Option<Permissions> {
+    let permission = trustee_attribute_permission(requested.as_ref(), current);
+    if permission.is_none() {
+        if let Some(requested) = requested {
+            requested.remove(TRUSTEE_ATTR_NAME);
+        }
+    }
+    permission
+}
+
 /// Attributes for a new user: the client's ones plus the user's tenant as its
 /// only `tenant-id`. A client `tenant-id` naming another tenant is refused.
 fn new_user_attributes(
@@ -664,8 +680,8 @@ pub async fn edit_user(
             .get_user(&realm, &input.user_id)
             .await
             .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-        if let Some(permission) = trustee_attribute_permission(
-            input.attributes.as_ref(),
+        if let Some(permission) = trustee_edit_permission(
+            &mut input.attributes,
             current_user.attributes.as_ref(),
         ) {
             authorize(
@@ -1330,7 +1346,10 @@ mod tests {
         }
     }
 
-    use super::{new_user_attributes, trustee_attribute_permission};
+    use super::{
+        new_user_attributes, trustee_attribute_permission,
+        trustee_edit_permission,
+    };
     use sequent_core::types::keycloak::{
         TENANT_ID_ATTR_NAME, TRUSTEE_ATTR_NAME,
     };
@@ -1384,6 +1403,32 @@ mod tests {
             trustee_attribute_permission(Some(&requested), Some(&current)),
             None
         );
+    }
+
+    #[test]
+    fn an_edit_leaves_an_unchanged_trustee_out_of_the_update() {
+        let current = attributes(&[(TRUSTEE_ATTR_NAME, &["trustee1"])]);
+        let mut requested = Some(attributes(&[
+            (TRUSTEE_ATTR_NAME, &["trustee1"]),
+            ("other", &["value"]),
+        ]));
+        assert_eq!(
+            trustee_edit_permission(&mut requested, Some(&current)),
+            None
+        );
+        assert_eq!(requested, Some(attributes(&[("other", &["value"])])));
+    }
+
+    #[test]
+    fn an_edit_keeps_a_changed_trustee_in_the_update() {
+        let current = attributes(&[(TRUSTEE_ATTR_NAME, &["trustee1"])]);
+        let changed = attributes(&[(TRUSTEE_ATTR_NAME, &["trustee2"])]);
+        let mut requested = Some(changed.clone());
+        assert_eq!(
+            trustee_edit_permission(&mut requested, Some(&current)),
+            Some(Permissions::TRUSTEE_WRITE)
+        );
+        assert_eq!(requested, Some(changed));
     }
 
     #[test]
