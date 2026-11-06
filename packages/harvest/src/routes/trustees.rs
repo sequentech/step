@@ -9,6 +9,7 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
+use sequent_core::types::secret::SecretString;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
@@ -20,7 +21,7 @@ use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ExportTrusteesInput {
-    password: String,
+    password: SecretString,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

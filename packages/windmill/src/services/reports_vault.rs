@@ -40,7 +40,7 @@ pub async fn get_password(
     Ok(existing_key)
 }
 
-#[instrument(err)]
+#[instrument(skip(password), err)]
 pub async fn get_report_key_pair(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
