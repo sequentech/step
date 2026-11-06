@@ -4258,7 +4258,7 @@ const dutchTranslation: TranslationType = {
                     editing: "Voorbeeld bewerken — nog niet toegepast",
                     editingHelp:
                         "Uw wijzigingen tellen pas als u ze toepast. Tot dan gebruikt de simulatie het toegepaste voorbeeld met de regels op het scherm.",
-                    apply: "Voorbeeld toepassen",
+                    apply: "Toepassen",
                     notRecorded: "Niet vastgelegd",
                     withFirstName: "Vergeleken met de voornaam",
                     notComparedForId: "Niet vergeleken voor dit document",
@@ -4283,8 +4283,7 @@ const dutchTranslation: TranslationType = {
                     editDetails: "Andere gegevens proberen",
                     editingDetails: "Andere gegevens proberen — nog niet in de simulatie",
                     editingDetailsHelp:
-                        "Deze gegevens beslissen niets tot u ze gebruikt. Tot dan gebruikt de simulatie de gegevens hierboven met de regels op het scherm.",
-                    useDetails: "In de simulatie gebruiken",
+                        "Deze gegevens beslissen niets tot u ze toepast. Tot dan gebruikt de simulatie de gegevens hierboven met de regels op het scherm.",
                     restore: "De vastgelegde gegevens invullen",
                     resetSample: "Het voorbeeld invullen",
                     decides: "In de simulatie beslist regel {{number}}.",

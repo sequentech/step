@@ -4236,7 +4236,7 @@ const basqueTranslation: TranslationType = {
                     editing: "Adibidea editatzen — oraindik aplikatu gabe",
                     editingHelp:
                         "Aldaketek aplikatzen dituzunean bakarrik dute eragina. Ordura arte simulazioak aplikatutako adibidea erabiltzen du pantailako arauekin.",
-                    apply: "Aplikatu adibidea",
+                    apply: "Aplikatu",
                     notRecorded: "Erregistratu gabe",
                     withFirstName: "Izenarekin alderatua",
                     notComparedForId: "Ez da alderatzen dokumentu honetarako",
@@ -4261,8 +4261,7 @@ const basqueTranslation: TranslationType = {
                     editDetails: "Probatu beste datu batzuk",
                     editingDetails: "Beste datu batzuk probatzen — oraindik ez daude simulazioan",
                     editingDetailsHelp:
-                        "Datu hauek ez dute ezer erabakitzen erabiltzen dituzun arte. Ordura arte simulazioak goiko datuak erabiltzen ditu pantailako arauekin.",
-                    useDetails: "Erabili simulazioan",
+                        "Datu hauek ez dute ezer erabakitzen aplikatzen dituzun arte. Ordura arte simulazioak goiko datuak erabiltzen ditu pantailako arauekin.",
                     restore: "Bete erregistratutako datuekin",
                     resetSample: "Bete ereduarekin",
                     decides: "Simulazioan, {{number}}. arauak erabakitzen du.",

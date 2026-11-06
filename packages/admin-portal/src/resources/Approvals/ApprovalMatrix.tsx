@@ -109,6 +109,13 @@ const Columns = styled("div")(({theme}) => ({
     },
 }))
 
+/**
+ * On the smallest phones, beside the portal's collapsed side menu, the matrix gives its page's
+ * and cards' padding to their contents, so the simulation editor's buttons fit on one row.
+ */
+export const SMALL_PHONE = "@media (max-width: 367.95px)"
+export const NARROW_CARD = {[SMALL_PHONE]: {padding: "8px"}}
+
 /** Where the save bar sticks above the window's bottom, and the space kept above it. */
 const SAVE_BAR_BOTTOM = 16
 const SAVE_BAR_GAP = 16
@@ -352,7 +359,10 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({
         : "-"
 
     return (
-        <Page style={{[SAVE_BAR_ROOM]: `${saveBarRoom}px`} as React.CSSProperties}>
+        <Page
+            style={{[SAVE_BAR_ROOM]: `${saveBarRoom}px`} as React.CSSProperties}
+            sx={{[SMALL_PHONE]: {padding: 0}}}
+        >
             {back}
             <Box
                 sx={{
@@ -364,7 +374,14 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({
                 }}
             >
                 <Box sx={{maxWidth: "460px"}}>
-                    <Box component="h2" sx={{margin: "0 0 8px", fontSize: "26px", fontWeight: 600}}>
+                    <Box
+                        component="h2"
+                        sx={{
+                            margin: "0 0 8px",
+                            fontSize: {xs: "20px", sm: "26px"},
+                            fontWeight: 600,
+                        }}
+                    >
                         {t("approvalsScreen.matrix.title")}
                     </Box>
                     <Muted>{t("approvalsScreen.matrix.subtitle")}</Muted>
@@ -417,6 +434,7 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({
                 <Card
                     aria-labelledby="approval-matrix-example"
                     sx={{
+                        ...NARROW_CARD,
                         gridArea: "example",
                         boxSizing: "border-box",
                         position: {lg: "sticky"},
@@ -456,7 +474,7 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({
                     />
                 </Card>
                 <Box sx={{gridArea: "main", display: "flex", flexDirection: "column", gap: "24px"}}>
-                    <Card aria-labelledby="approval-matrix-compared">
+                    <Card aria-labelledby="approval-matrix-compared" sx={NARROW_CARD}>
                         <CardTitle id="approval-matrix-compared">
                             <CardIcon>
                                 <FactCheckIcon fontSize="small" />
@@ -545,7 +563,7 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({
                         )}
                     </Card>
 
-                    <Card aria-labelledby="approval-matrix-rules">
+                    <Card aria-labelledby="approval-matrix-rules" sx={NARROW_CARD}>
                         <CardTitle id="approval-matrix-rules">
                             <CardIcon sx={{background: "#E3F4EC", color: "#0B6B43"}}>
                                 <RuleIcon fontSize="small" />

@@ -4322,7 +4322,7 @@ const spanishTranslation: TranslationType = {
                     editing: "Editando el ejemplo — aún sin aplicar",
                     editingHelp:
                         "Sus cambios solo cuentan al aplicarlos. Hasta entonces la simulación usa el ejemplo aplicado con las reglas en pantalla.",
-                    apply: "Aplicar el ejemplo",
+                    apply: "Aplicar",
                     notRecorded: "No registrado",
                     withFirstName: "Comparado con el nombre",
                     notComparedForId: "No se compara para este documento",
@@ -4347,8 +4347,7 @@ const spanishTranslation: TranslationType = {
                     editDetails: "Probar otros datos",
                     editingDetails: "Probando otros datos — aún no están en la simulación",
                     editingDetailsHelp:
-                        "Estos datos no deciden nada hasta que los use. Hasta entonces la simulación usa los datos de arriba con las reglas en pantalla.",
-                    useDetails: "Usar en la simulación",
+                        "Estos datos no deciden nada hasta que los aplique. Hasta entonces la simulación usa los datos de arriba con las reglas en pantalla.",
                     restore: "Rellenar con los datos registrados",
                     resetSample: "Rellenar con la muestra",
                     decides: "En la simulación, decide la regla {{number}}.",

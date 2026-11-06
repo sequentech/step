@@ -31,6 +31,7 @@ const RuleCard = styled("li")(({theme}) => ({
     "borderRadius": "10px",
     "background": theme.palette.white,
     "listStyle": "none",
+    [theme.breakpoints.down("sm")]: {"&[data-actions='true']": {flexWrap: "wrap", rowGap: "8px"}},
     "&:focus-visible": {outline: `2px solid ${theme.palette.brandColor}`, outlineOffset: "2px"},
     "&[data-highlighted='true']": {
         borderColor: theme.palette.brandSuccess,
@@ -38,6 +39,16 @@ const RuleCard = styled("li")(({theme}) => ({
         background: "#F0FBF6",
     },
 }))
+
+/** A rule's conditions and outcome; on a phone, below its number and its actions, if any. */
+const RuleBody = styled("div")(({theme}) => ({
+    flexGrow: 1,
+    minWidth: 0,
+    [theme.breakpoints.down("sm")]: {"[data-actions='true'] > &": {order: 1, flexBasis: "100%"}},
+}))
+
+/** A rule's tags wrap between words when a card is narrow. */
+const WRAPPING_TAG = {whiteSpace: "normal", maxWidth: "100%"}
 
 const RuleList = styled("ol")({
     display: "flex",
@@ -108,7 +119,7 @@ export const ApprovalMatrixRules: React.FC<ApprovalMatrixRulesProps> = ({
         const labels = conditionLabels(when, t, fieldLabel)
         return labels.map((label, index) => (
             <React.Fragment key={label}>
-                <Tag>{label}</Tag>
+                <Tag sx={WRAPPING_TAG}>{label}</Tag>
                 {index < labels.length - 1 && <Muted>{t("approvalsScreen.matrix.andWord")}</Muted>}
             </React.Fragment>
         ))
@@ -131,7 +142,7 @@ export const ApprovalMatrixRules: React.FC<ApprovalMatrixRulesProps> = ({
     const pointer = (position: number | null) =>
         appliesTo === position && (
             <TagRow sx={{marginTop: "8px"}}>
-                <AccentTag>
+                <AccentTag sx={WRAPPING_TAG}>
                     <CheckCircleIcon sx={{fontSize: "16px"}} aria-hidden />
                     {t("approvalsScreen.matrix.appliesToExample")}
                 </AccentTag>
@@ -167,9 +178,9 @@ export const ApprovalMatrixRules: React.FC<ApprovalMatrixRulesProps> = ({
                 {matrix.rules.map((rule, index) => {
                     const number = index + 1
                     return (
-                        <RuleCard key={index} {...highlight(number)}>
+                        <RuleCard key={index} data-actions={canEdit} {...highlight(number)}>
                             <NumberBadge>{number}</NumberBadge>
-                            <Box sx={{flexGrow: 1, minWidth: 0}}>
+                            <RuleBody>
                                 <Line>
                                     <Word>{t("approvalsScreen.matrix.when")}</Word>
                                     {conditions(rule.when)}
@@ -177,7 +188,7 @@ export const ApprovalMatrixRules: React.FC<ApprovalMatrixRulesProps> = ({
                                 {outcome(rule.then)}
                                 {pointer(number)}
                                 {errors(number)}
-                            </Box>
+                            </RuleBody>
                             {canEdit && (
                                 <Actions>
                                     <IconButton
@@ -223,11 +234,11 @@ export const ApprovalMatrixRules: React.FC<ApprovalMatrixRulesProps> = ({
                         </RuleCard>
                     )
                 })}
-                <RuleCard {...highlight(null)}>
+                <RuleCard data-actions={canEdit} {...highlight(null)}>
                     <NumberBadge data-muted="true" aria-hidden>
                         •
                     </NumberBadge>
-                    <Box sx={{flexGrow: 1, minWidth: 0}}>
+                    <RuleBody>
                         <Line>
                             <Word>{t("approvalsScreen.matrix.otherwise")}</Word>
                             <span>{t("approvalsScreen.matrix.noneApply")}</span>
@@ -235,7 +246,7 @@ export const ApprovalMatrixRules: React.FC<ApprovalMatrixRulesProps> = ({
                         {outcome(matrix.otherwise)}
                         {pointer(null)}
                         {errors(null)}
-                    </Box>
+                    </RuleBody>
                     {canEdit && (
                         <Actions>
                             <IconButton

@@ -4281,7 +4281,7 @@ const frenchTranslation: TranslationType = {
                     editing: "Modification de l'exemple — pas encore appliquée",
                     editingHelp:
                         "Vos modifications ne comptent qu'une fois appliquées. D'ici là, la simulation utilise l'exemple appliqué avec les règles à l'écran.",
-                    apply: "Appliquer l'exemple",
+                    apply: "Appliquer",
                     notRecorded: "Non enregistré",
                     withFirstName: "Comparé avec le prénom",
                     notComparedForId: "Non comparé pour ce document",
@@ -4306,8 +4306,7 @@ const frenchTranslation: TranslationType = {
                     editDetails: "Essayer d'autres données",
                     editingDetails: "Essai d'autres données — pas encore dans la simulation",
                     editingDetailsHelp:
-                        "Ces données ne décident rien tant que vous ne les utilisez pas. D'ici là, la simulation utilise les données ci-dessus avec les règles à l'écran.",
-                    useDetails: "Utiliser dans la simulation",
+                        "Ces données ne décident rien tant que vous ne les appliquez pas. D'ici là, la simulation utilise les données ci-dessus avec les règles à l'écran.",
                     restore: "Remplir avec les données enregistrées",
                     resetSample: "Remplir avec l'inscription type",
                     decides: "Dans la simulation, la règle {{number}} décide.",

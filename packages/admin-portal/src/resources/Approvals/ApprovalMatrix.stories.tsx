@@ -8,7 +8,10 @@ import type {Mock} from "storybook/test"
 import {EVENT_ID} from "@/__stories__/AdminStoryProvider"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {IApplicationsStatus} from "@/types/applications"
+import {EStoryLocale} from "../../../../ui-essentials/.storybook/globals"
+import {atViewport} from "../../../../test-support/storybook/viewport"
 import {ApprovalMatrix} from "./ApprovalMatrix"
+import {editorContent, expectEditorButtons} from "./__stories__/editorButtons"
 import {EIdentityMethod, EMatrixReason, ITestEnrollment} from "./approvalMatrix"
 import {applicationRecord, applications} from "./__stories__/ApprovalsFixture"
 import {
@@ -208,7 +211,7 @@ export const ReadOnly: Story = {
         // An example can still be tried.
         await userEvent.click(canvas.getByRole("button", {name: "Edit example"}))
         await choose(canvasElement, "Identity check", "Typed by hand")
-        await userEvent.click(canvas.getByRole("button", {name: "Apply example"}))
+        await userEvent.click(draft(canvasElement).getByRole("button", {name: "Apply"}))
         await waitFor(() =>
             expect(example(canvasElement)).toHaveTextContent("In the simulation, rule 2 decides")
         )
@@ -498,7 +501,7 @@ export const TheRecordedRuleIsNeverHighlighted: Story = {
         await waitFor(() => expect(highlighted(canvasElement)).toEqual(["2"]))
         await userEvent.click(canvas.getByRole("button", {name: "Try other details"}))
         await choose(canvasElement, "Identity check", "Verified by ID scan")
-        await userEvent.click(canvas.getByRole("button", {name: "Use in the simulation"}))
+        await userEvent.click(draft(canvasElement).getByRole("button", {name: "Apply"}))
         // Carol's recorded rule 2 stays context: only the simulation's rule is highlighted.
         await waitFor(() => expect(highlighted(canvasElement)).toEqual(["3"]))
         await expect(canvasElement).toHaveTextContent("Rule 2 of version 1 · Send to a person.")
@@ -547,7 +550,7 @@ export const TheDraftWaitsWhileRulesChange: Story = {
         ).toBe(true)
         await expect(canvas.getByText("Rules on screen, including unsaved changes")).toBeVisible()
 
-        await userEvent.click(canvas.getByRole("button", {name: "Use in the simulation"}))
+        await userEvent.click(draft(canvasElement).getByRole("button", {name: "Apply"}))
         // The rule that was rule 2 is now first.
         await waitFor(() => expect(highlighted(canvasElement)).toEqual(["1"]))
     },
@@ -673,7 +676,7 @@ export const TheDraftWaitsThroughRuleEditsSavesAndDiscards: Story = {
         await waitFor(() => expect(highlighted(canvasElement)).toEqual(["5"]))
         await stillDrafted()
 
-        await userEvent.click(canvas.getByRole("button", {name: "Use in the simulation"}))
+        await userEvent.click(draft(canvasElement).getByRole("button", {name: "Apply"}))
         await waitFor(() => expect(highlighted(canvasElement)).toEqual(["2"]))
     },
 }
@@ -821,7 +824,7 @@ export const NarrowScreenFromAnEnrollmentWithALongName: Story = {
         await userEvent.click(canvas.getByRole("button", {name: "Try other details"}))
         expect(screen.scrollWidth).toBeLessThanOrEqual(screen.clientWidth)
         await choose(canvasElement, "Identity check", "Typed by hand")
-        const apply = canvas.getByRole("button", {name: "Use in the simulation"})
+        const apply = draft(canvasElement).getByRole("button", {name: "Apply"})
         await expect(apply).toBeEnabled()
         // Every button of the editor stays inside it, its label wrapping between words only.
         const editor = draft(canvasElement)
@@ -879,11 +882,11 @@ export const EditingWithUnsavedRulesAt1280: Story = {
         )
         await userEvent.click(canvas.getByRole("button", {name: "Try other details"}))
         await choose(canvasElement, "Last Name", "Different")
-        await expect(canvas.getByRole("button", {name: "Use in the simulation"})).toBeEnabled()
+        await expect(draft(canvasElement).getByRole("button", {name: "Apply"})).toBeEnabled()
         // Moving to the editor's buttons with the keyboard brings each into view, clear of the
         // sticky save bar, even with the page scrolled to the top.
         window.scrollTo(0, 0)
-        for (const name of ["Fill in the recorded details", "Cancel", "Use in the simulation"]) {
+        for (const name of ["Fill in the recorded details", "Cancel", "Apply"]) {
             const button = canvas.getByRole("button", {name})
             button.focus()
             await waitFor(() => expect(reachable(button)).toBe(true))
@@ -910,7 +913,7 @@ export const EditingWithUnsavedRulesAt1280: Story = {
             })
         }
 
-        await userEvent.click(canvas.getByRole("button", {name: "Use in the simulation"}))
+        await userEvent.click(draft(canvasElement).getByRole("button", {name: "Apply"}))
         await waitFor(() =>
             expect(example(canvasElement)).toHaveTextContent(
                 /^In the simulation, no rule fits: the last rule decides/
@@ -928,3 +931,73 @@ export const EditingWithUnsavedRulesAt1280: Story = {
         await expect(canvas.getByRole("button", {name: "Try other details"})).toHaveFocus()
     },
 }
+
+/** The portal's collapsed side menu and its layout's padding take 128 px of a phone's window. */
+const PORTAL_FRAME = 128
+
+/**
+ * On a phone beside the portal's collapsed side menu, the page and its cards give their padding to
+ * the simulation editor below 368 px, so its Cancel and Apply, in Dutch, the longest, stay on one
+ * row inside it, also with either focused.
+ */
+const editorOnAPhone = (width: number, content: number, canEdit = true): Story => {
+    const viewport = atViewport(width)
+    return {
+        ...viewport,
+        parameters: {...viewport.parameters, layout: "fullscreen"},
+        globals: {...viewport.globals, locale: EStoryLocale.DUTCH},
+        args: {source: "carol", canEdit},
+        decorators: [
+            (Story) => (
+                <div style={{marginLeft: `${PORTAL_FRAME}px`}}>
+                    <Story />
+                </div>
+            ),
+        ],
+        play: async ({canvasElement}) => {
+            const canvas = within(canvasElement)
+            await userEvent.click(
+                await canvas.findByRole(
+                    "button",
+                    {name: "Andere gegevens proberen"},
+                    {timeout: 10000}
+                )
+            )
+            const editor = canvasElement.querySelector(
+                "[aria-labelledby='approval-matrix-draft']"
+            ) as HTMLElement
+            expect(Math.round(editorContent(editor).width)).toBe(content)
+            await userEvent.click(
+                editor.querySelector("[role='group'] button[aria-pressed='false']") as HTMLElement
+            )
+            await expect(within(editor).getByRole("button", {name: "Toepassen"})).toBeEnabled()
+            await expectEditorButtons(editor, "14px")
+            const screen = canvas.getByTestId("screen")
+            expect(screen.scrollWidth).toBeLessThanOrEqual(screen.clientWidth)
+            // Every rule's tags stay inside its card; a card without actions keeps its number
+            // beside its conditions.
+            const rules = Array.from(canvasElement.querySelectorAll<HTMLElement>("ol > li"))
+            expect(rules.length).toBeGreaterThan(1)
+            for (const card of rules) {
+                const bounds = card.getBoundingClientRect()
+                for (const part of Array.from(card.querySelectorAll<HTMLElement>("*"))) {
+                    expect(part.getBoundingClientRect().right).toBeLessThanOrEqual(
+                        bounds.right + 0.5
+                    )
+                }
+                const [badge, body] = Array.from(card.children)
+                if (!canEdit) {
+                    expect(body.getBoundingClientRect().top).toBeLessThan(
+                        badge.getBoundingClientRect().bottom
+                    )
+                }
+            }
+        },
+    }
+}
+// The smallest phone, and either side of the 368 px threshold.
+export const TheEditorOnTheSmallestPhone = editorOnAPhone(320, 174)
+export const TheEditorJustBelowTheSmallPhoneThreshold = editorOnAPhone(367, 221)
+export const TheEditorAtTheSmallPhoneThreshold = editorOnAPhone(368, 174)
+// Without the matrix's actions, as for a read-only administrator.
+export const TheEditorOnTheSmallestPhoneReadOnly = editorOnAPhone(320, 174, false)

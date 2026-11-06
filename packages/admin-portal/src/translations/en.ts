@@ -4455,7 +4455,7 @@ const englishTranslation = {
                     editing: "Editing the example — not applied yet",
                     editingHelp:
                         "Your changes take effect only when you apply them. Until then the simulation uses the applied example with the rules on screen.",
-                    apply: "Apply example",
+                    apply: "Apply",
                     notRecorded: "Not recorded",
                     withFirstName: "Compared with the first name",
                     notComparedForId: "Not compared for this ID document",
@@ -4480,8 +4480,7 @@ const englishTranslation = {
                     editDetails: "Try other details",
                     editingDetails: "Trying other details — not in the simulation yet",
                     editingDetailsHelp:
-                        "These details decide nothing until you use them. Until then the simulation uses the details above with the rules on screen.",
-                    useDetails: "Use in the simulation",
+                        "These details decide nothing until you apply them. Until then the simulation uses the details above with the rules on screen.",
                     restore: "Fill in the recorded details",
                     resetSample: "Fill in the sample",
                     decides: "In the simulation, rule {{number}} decides.",

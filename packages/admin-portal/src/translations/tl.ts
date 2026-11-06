@@ -4279,7 +4279,7 @@ const tagalogTranslation: TranslationType = {
                     editing: "Ine-edit ang halimbawa — hindi pa inilalapat",
                     editingHelp:
                         "Magkakabisa lang ang iyong mga pagbabago kapag inilapat mo. Hanggang doon, ginagamit ng simulasyon ang inilapat na halimbawa kasama ang mga panuntunan sa screen.",
-                    apply: "Ilapat ang halimbawa",
+                    apply: "Ilapat",
                     notRecorded: "Hindi naitala",
                     withFirstName: "Inihambing kasama ng pangalan",
                     notComparedForId: "Hindi inihahambing para sa dokumentong ito",
@@ -4306,8 +4306,7 @@ const tagalogTranslation: TranslationType = {
                     editDetails: "Subukan ang ibang detalye",
                     editingDetails: "Sinusubukan ang ibang detalye — wala pa sa simulasyon",
                     editingDetailsHelp:
-                        "Walang pinapasyahan ang mga detalyeng ito hanggang gamitin mo. Hanggang doon, ginagamit ng simulasyon ang mga detalye sa itaas kasama ang mga panuntunan sa screen.",
-                    useDetails: "Gamitin sa simulasyon",
+                        "Walang pinapasyahan ang mga detalyeng ito hanggang ilapat mo. Hanggang doon, ginagamit ng simulasyon ang mga detalye sa itaas kasama ang mga panuntunan sa screen.",
                     restore: "Punan ng mga naitalang detalye",
                     resetSample: "Punan ng halimbawa",
                     decides: "Sa simulasyon, ang panuntunan {{number}} ang nagpapasya.",

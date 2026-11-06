@@ -8,10 +8,15 @@ import type {Mock} from "storybook/test"
 import {EVENT_ID} from "@/__stories__/AdminStoryProvider"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {IApplicationsStatus} from "@/types/applications"
+import {EStoryLocale} from "../../../../ui-essentials/.storybook/globals"
+import {atViewport} from "../../../../test-support/storybook/viewport"
+import {NARROW_CARD} from "./ApprovalMatrix"
 import {ApprovalMatrixTest, decidingRule, useExampleEvaluation} from "./ApprovalMatrixTest"
 import {EFieldMatch, EIdentityMethod, ITestEnrollment, humanizeField} from "./approvalMatrix"
 import {EMatrixEntry, recordedDecision, sampleEnrollment} from "./approvalExample"
 import {IApplication, applicantName} from "./approvalReview"
+import {Card} from "./approvalStyles"
+import {editorContent, expectEditorButtons} from "./__stories__/editorButtons"
 import {decisionRecord} from "./__stories__/ApprovalsFixture"
 import {
     MatrixScreen,
@@ -246,7 +251,9 @@ export const DraftInputsWaitForApply: Story = {
         await expect(
             canvas.getByRole("heading", {level: 4, name: "Sample enrollment"})
         ).toBeVisible()
-        await expect(canvas.getByRole("button", {name: "Apply example"})).toBeDisabled()
+        await expect(
+            within(draft(canvasElement)).getByRole("button", {name: "Apply"})
+        ).toBeDisabled()
         await choose(canvasElement, "First Name", "Different")
         await choose(canvasElement, "Identity check", "Typed by hand")
 
@@ -259,7 +266,7 @@ export const DraftInputsWaitForApply: Story = {
         })
         await expect(outcome(canvasElement)).toHaveTextContent(/^In the simulation, rule 3 decides/)
 
-        await userEvent.click(canvas.getByRole("button", {name: "Apply example"}))
+        await userEvent.click(within(draft(canvasElement)).getByRole("button", {name: "Apply"}))
         await waitFor(() => expect(rule(canvasElement)).toBe("2"))
         expect(canvas.queryByRole("group", {name: /^Editing the example/})).toBeNull()
         await waitFor(() =>
@@ -297,9 +304,13 @@ export const CancelKeepsTheAppliedExample: Story = {
             )
         ).toBe("Yes")
         await choose(canvasElement, "Identity check", "Typed by hand")
-        await expect(canvas.getByRole("button", {name: "Apply example"})).toBeEnabled()
+        await expect(
+            within(draft(canvasElement)).getByRole("button", {name: "Apply"})
+        ).toBeEnabled()
         await userEvent.click(canvas.getByRole("button", {name: "Fill in the sample"}))
-        await expect(canvas.getByRole("button", {name: "Apply example"})).toBeDisabled()
+        await expect(
+            within(draft(canvasElement)).getByRole("button", {name: "Apply"})
+        ).toBeDisabled()
     },
 }
 
@@ -314,7 +325,7 @@ export const IdentityNotReportedAndAnIdType: Story = {
         await userEvent.click(await within(document.body).findByRole("option", {name: "Passport"}))
         // Closing the ID type menu doesn't close the editor.
         await expect(draft(canvasElement)).toBeVisible()
-        await userEvent.click(canvas.getByRole("button", {name: "Apply example"}))
+        await userEvent.click(within(draft(canvasElement)).getByRole("button", {name: "Apply"}))
         await waitFor(() => expect(rule(canvasElement)).toBe("1"))
         expect(lastEnrollment()).toMatchObject({
             identity: null,
@@ -342,7 +353,7 @@ export const NoVoterInTheRegistry: Story = {
         )) {
             await expect(button).toBeDisabled()
         }
-        await userEvent.click(canvas.getByRole("button", {name: "Apply example"}))
+        await userEvent.click(within(draft(canvasElement)).getByRole("button", {name: "Apply"}))
         await waitFor(() =>
             expect(outcome(canvasElement)).toHaveTextContent(
                 /^In the simulation, no rule fits: the last rule decides.*Reject/
@@ -384,7 +395,7 @@ export const FromAnEnrollment: Story = {
         ).toBeVisible()
         expect(canvas.queryByRole("button", {name: "Fill in the sample"})).toBeNull()
         await choose(canvasElement, "Middle Name", "Same")
-        await userEvent.click(canvas.getByRole("button", {name: "Use in the simulation"}))
+        await userEvent.click(within(draft(canvasElement)).getByRole("button", {name: "Apply"}))
         await waitFor(() =>
             expect(
                 canvas.getByText(
@@ -460,40 +471,140 @@ export const ALongName: Story = {
     },
 }
 
-export const TheEditorInAPhoneWidthPanel: Story = {
+export const FillingInWithTheKeyboard: Story = {
     args: {source: "carol"},
-    // On a phone, beside the portal's collapsed side menu, the panel is about 200 px wide.
-    decorators: [
-        (Story) => (
-            <div style={{maxWidth: "200px"}}>
-                <Story />
-            </div>
-        ),
-    ],
     play: async ({canvasElement}) => {
+        const canvas = canvasOf(canvasElement)
         await waitFor(() => expect(rule(canvasElement)).toBe("2"))
         await edit(canvasElement)
+        const editor = within(draft(canvasElement))
+        const fill = editor.getByRole("button", {name: "Fill in the recorded details"})
+        const apply = editor.getByRole("button", {name: "Apply"})
+        const identity = () =>
+            editor
+                .getByRole("group", {name: "Identity check"})
+                .querySelector("[aria-pressed='true']")?.textContent
+        // With the recorded details in the editor, Enter on it does nothing and keeps focus.
+        fill.focus()
+        await userEvent.keyboard("{Enter}")
+        await expect(fill).toHaveFocus()
+        await expect(fill).toHaveAttribute("aria-disabled", "true")
+        expect(identity()).toBe("Typed by hand")
+        // After an edit, Enter puts the recorded details back in the editor only.
         await choose(canvasElement, "Identity check", "Verified by ID scan")
-        const editor = canvasOf(canvasElement).getByRole("group", {
-            name: "Trying other details — not in the simulation yet",
-        })
-        const bounds = editor.getBoundingClientRect()
-        // Every button stays inside the editor, its label wrapping between words only.
-        for (const button of Array.from(editor.querySelectorAll("button"))) {
-            const rect = button.getBoundingClientRect()
-            expect(rect.left).toBeGreaterThanOrEqual(bounds.left - 0.5)
-            expect(rect.right).toBeLessThanOrEqual(bounds.right + 0.5)
-            const range = document.createRange()
-            range.selectNodeContents(button)
-            const lines = new Set(
-                Array.from(range.getClientRects()).map((line) => Math.round(line.top))
-            )
-            expect(lines.size).toBeLessThanOrEqual(
-                (button.textContent ?? "").trim().split(/\s+/).length
-            )
-        }
+        await expect(apply).toBeEnabled()
+        fill.focus()
+        await userEvent.keyboard("{Enter}")
+        expect(identity()).toBe("Typed by hand")
+        await expect(apply).toBeDisabled()
+        await expect(fill).toHaveAttribute("aria-disabled", "true")
+        // The simulation never changed: still the recorded details, still rule 2.
+        expect(summary(canvasElement)["Identity check"]).toBe("Typed by hand")
+        expect(rule(canvasElement)).toBe("2")
+        expect(
+            canvas.getByRole("heading", {level: 4, name: "Recorded details · in the simulation"})
+        ).toBeVisible()
     },
 }
+
+/** The editor as on the portal's page: its card's width and the editor's content width there. */
+interface IEditorLayout {
+    viewport: number
+    card: number
+    content: number
+    fontSize: string
+}
+// A 375 px phone and the smallest, 320 px, beside the collapsed side menu, and a 1280 px desktop.
+const PHONE: IEditorLayout = {viewport: 375, card: 215, content: 181, fontSize: "14px"}
+const SMALLEST_PHONE: IEditorLayout = {viewport: 320, card: 192, content: 174, fontSize: "14px"}
+const DESKTOP: IEditorLayout = {viewport: 1280, card: 360, content: 274, fontSize: "16px"}
+
+/**
+ * The editor's buttons: the fill-in button on its own row, then Cancel at the left and Apply at
+ * the right of one row, inside the editor, no word broken, in that keyboard order.
+ */
+const editorButtons = (layout: IEditorLayout, locale = EStoryLocale.ENGLISH): Story => {
+    const viewport = atViewport(layout.viewport)
+    return {
+        ...viewport,
+        args: {source: "carol"},
+        globals: {...viewport.globals, locale},
+        render: ({matrix, source, onBack}) => (
+            <MatrixScreen canEdit={false}>
+                <Card
+                    aria-labelledby="approval-matrix-example"
+                    sx={{...NARROW_CARD, width: `${layout.card}px`, boxSizing: "border-box"}}
+                >
+                    <Panel matrix={matrix} application={SOURCES[source]} onBack={onBack} />
+                </Card>
+            </MatrixScreen>
+        ),
+        play: async ({canvasElement}) => {
+            await waitFor(() => expect(rule(canvasElement)).toBe("2"))
+            await userEvent.click(
+                await canvasOf(canvasElement).findByRole("button", {
+                    name: String(EDIT_DETAILS[locale]),
+                })
+            )
+            const editor = canvasElement.querySelector(
+                "[aria-labelledby='approval-matrix-draft']"
+            ) as HTMLElement
+            // The editor is as wide as on the portal's page.
+            expect(Math.round(editorContent(editor).width)).toBe(layout.content)
+
+            const [fill, cancel, apply] = Array.from(editor.querySelectorAll("button")).slice(-3)
+            // With nothing edited yet, filling in does nothing, and says so; it stays focusable,
+            // and the keyboard skips the disabled Apply.
+            await expect(fill).toHaveAttribute("aria-disabled", "true")
+            await expect(apply).toBeDisabled()
+            fill.focus()
+            await userEvent.tab()
+            await expect(cancel).toHaveFocus()
+            await userEvent.tab()
+            await expect(apply).not.toHaveFocus()
+
+            // An edit: the first choice of the identity check that isn't the current one.
+            await userEvent.click(
+                editor.querySelector("[role='group'] button[aria-pressed='false']") as HTMLElement
+            )
+            await expect(fill).toHaveAttribute("aria-disabled", "false")
+            await expect(apply).toBeEnabled()
+            expect(apply).toHaveTextContent(String(APPLY[locale]))
+
+            await expectEditorButtons(editor, layout.fontSize)
+        },
+    }
+}
+
+const EDIT_DETAILS: Partial<Record<EStoryLocale, string>> = {
+    [EStoryLocale.ENGLISH]: "Try other details",
+    [EStoryLocale.DUTCH]: "Andere gegevens proberen",
+    [EStoryLocale.FRENCH]: "Essayer d'autres données",
+    [EStoryLocale.CATALAN]: "Prova altres dades",
+    [EStoryLocale.TAGALOG]: "Subukan ang ibang detalye",
+}
+const APPLY: Partial<Record<EStoryLocale, string>> = {
+    [EStoryLocale.ENGLISH]: "Apply",
+    [EStoryLocale.DUTCH]: "Toepassen",
+    [EStoryLocale.FRENCH]: "Appliquer",
+    [EStoryLocale.CATALAN]: "Aplica",
+    [EStoryLocale.TAGALOG]: "Ilapat",
+}
+export const TheEditorsButtonsOnAPhone = editorButtons(PHONE)
+export const TheEditorsButtonsOnADesktop = editorButtons(DESKTOP)
+// The longest Cancel and Apply: Dutch, French and Catalan; Tagalog's hyphenated I-cancel.
+export const TheEditorsButtonsInDutchOnAPhone = editorButtons(PHONE, EStoryLocale.DUTCH)
+export const TheEditorsButtonsInDutchOnTheSmallestPhone = editorButtons(
+    SMALLEST_PHONE,
+    EStoryLocale.DUTCH
+)
+export const TheEditorsButtonsInDutchOnADesktop = editorButtons(DESKTOP, EStoryLocale.DUTCH)
+export const TheEditorsButtonsInFrenchOnAPhone = editorButtons(PHONE, EStoryLocale.FRENCH)
+export const TheEditorsButtonsInCatalanOnAPhone = editorButtons(PHONE, EStoryLocale.CATALAN)
+export const TheEditorsButtonsInTagalogOnTheSmallestPhone = editorButtons(
+    SMALLEST_PHONE,
+    EStoryLocale.TAGALOG
+)
 
 export const Association: Story = {
     args: {matrix: "association"},
@@ -502,7 +613,7 @@ export const Association: Story = {
         expect(summary(canvasElement).Embassy).toBeUndefined()
         await edit(canvasElement)
         await choose(canvasElement, "Date Of Birth", "Different")
-        await userEvent.click(canvasOf(canvasElement).getByRole("button", {name: "Apply example"}))
+        await userEvent.click(within(draft(canvasElement)).getByRole("button", {name: "Apply"}))
         await waitFor(() =>
             expect(outcome(canvasElement)).toHaveTextContent(
                 /^In the simulation, no rule fits.*Send to a person/

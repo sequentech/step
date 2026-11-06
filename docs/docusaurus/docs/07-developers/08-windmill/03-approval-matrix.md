@@ -165,9 +165,15 @@ is on its way, failed, or answered with matrix errors, no rule is highlighted. W
 `fetchPolicy: "no-cache"`, Apollo Client 3.8 drops the result of earlier variables, so a late
 answer can't highlight a rule of an earlier rule order.
 
-The editor keeps a draft; only **Apply example** (toolbar) or **Use in the simulation**
-(enrollment) replaces the applied example. The panel's title follows where the matrix was opened
-from: **Try an example** from the toolbar, **Simulating the enrollment of …** from an enrollment.
+The editor keeps a draft; only **Apply** replaces the applied example. **Fill in the recorded
+details** / **Fill in the sample** only reset the draft (and are `aria-disabled` while the draft
+already holds them). Cancel and Apply stay on one row: in narrow editors (a container query on the
+editor's width) the footer's text and padding become compact rather than wrap. On a phone the
+editor reaches into its card's padding, and below 368 px (`SMALL_PHONE` in `ApprovalMatrix.tsx`)
+the page and its cards give up their padding, so on windows of 320 px and wider, beside the
+collapsed side menu, the editor is never narrower than 174 px. The panel's title follows where the
+matrix was opened from: **Try an example** from the toolbar, **Simulating the enrollment of …**
+from an enrollment.
 The heading over the details in use, and whether the unreadable notice shows, follow `panelState`
 (`approvalExample.ts`, `EPanelState`): the sample or the administrator's own example; the
 enrollment's recorded details or other details; or, when its decision can't be read, the sample

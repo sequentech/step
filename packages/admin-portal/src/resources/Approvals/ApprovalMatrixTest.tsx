@@ -174,20 +174,53 @@ const Summary = styled("dl")({
     "& dd": {margin: 0, fontWeight: 600, overflowWrap: "anywhere"},
 })
 
+/** Narrow editors, as on a phone beside the portal's collapsed side menu. */
+const NARROW_EDITOR = "@container simulation-editor (max-width: 240px)"
+/** The narrowest editors, on the smallest phones. */
+const TINY_EDITOR = "@container simulation-editor (max-width: 190px)"
+
 const Draft = styled("div")(({theme}) => ({
     marginTop: "16px",
     padding: "16px",
     border: "2px dashed #9AA3B8",
     borderRadius: "10px",
     background: "#FAFBFD",
-    [theme.breakpoints.down("sm")]: {padding: "12px"},
+    containerType: "inline-size",
+    containerName: "simulation-editor",
+    // On a phone the editor reaches into the card's padding, to keep its buttons on one row.
+    [theme.breakpoints.down("sm")]: {padding: "12px 6px", marginLeft: "-8px", marginRight: "-8px"},
 }))
+
+/** Cancel at the left and Apply at the right, on one row, also on a phone. */
+const DraftFooter = styled("div")({
+    "display": "flex",
+    "flexWrap": "nowrap",
+    "justifyContent": "space-between",
+    "alignItems": "center",
+    "gap": "8px",
+    "marginTop": "16px",
+    "paddingTop": "12px",
+    "borderTop": "1px solid #E3E7EF",
+    // A label of several words may wrap inside its button; a word never breaks.
+    "& button": {flex: "0 1 auto", whiteSpace: "normal", overflowWrap: "normal"},
+    [NARROW_EDITOR]: {
+        "gap": "4px",
+        "& button": {
+            fontSize: "14px",
+            letterSpacing: "normal",
+            lineHeight: "18px",
+            paddingLeft: "6px",
+            paddingRight: "6px",
+        },
+    },
+    [TINY_EDITOR]: {"& button": {paddingLeft: "4px", paddingRight: "4px"}},
+})
 
 // While the card scrolls on wide screens, the editor keeps saying that it isn't applied.
 const DraftHeading = styled("div")(({theme}) => ({
     margin: "-16px -16px 12px",
     padding: "12px 16px",
-    [theme.breakpoints.down("sm")]: {margin: "-12px -12px 12px", padding: "12px"},
+    [theme.breakpoints.down("sm")]: {margin: "-12px -6px 12px", padding: "12px 6px"},
     borderRadius: "8px 8px 0 0",
     background: "#EEF0F6",
     // Flush with the top of the card's scrolling area: the card's own padding is above it.
@@ -464,10 +497,13 @@ export const ApprovalMatrixTest: React.FC<ApprovalMatrixTestProps> = ({
                 ? [...validIds, value.valid_id]
                 : validIds
         const restores = entry === EMatrixEntry.ENROLLMENT && recorded?.enrollment
+        const fillIn = (restores && recorded?.enrollment) || sampleEnrollment()
+        const filled = sameEnrollment(value, fillIn)
         return (
             <Draft
                 role="group"
                 aria-labelledby="approval-matrix-draft"
+                aria-describedby="approval-matrix-draft-help"
                 sx={{
                     // Moving through the editor keeps each control clear of the save bar and of
                     // the editor's sticky heading.
@@ -485,7 +521,9 @@ export const ApprovalMatrixTest: React.FC<ApprovalMatrixTestProps> = ({
                         <Box sx={{fontSize: "13px"}}>{t(`${KEY}.stillApplied`)}</Box>
                     )}
                 </DraftHeading>
-                <Help>{t(`${KEY}.${source ? "editingDetailsHelp" : "editingHelp"}`)}</Help>
+                <Help id="approval-matrix-draft-help">
+                    {t(`${KEY}.${source ? "editingDetailsHelp" : "editingHelp"}`)}
+                </Help>
                 <div ref={firstControl}>
                     <Overline>{identityLabel}</Overline>
                     {choice<EIdentityMethod | null>(
@@ -545,28 +583,35 @@ export const ApprovalMatrixTest: React.FC<ApprovalMatrixTestProps> = ({
                         </Box>
                     </>
                 )}
-                <Box
-                    sx={{
-                        "display": "flex",
-                        "flexWrap": "wrap",
-                        "gap": "8px",
-                        "justifyContent": "flex-end",
-                        "marginTop": "20px",
-                        // Buttons keep their size and move to their own line; one wider than the
-                        // editor wraps its label between words.
-                        "& button": {flexShrink: 0, maxWidth: "100%", whiteSpace: "normal"},
-                    }}
-                >
+                <Box sx={{marginTop: "20px"}}>
                     <Button
                         variant="secondary"
                         size="small"
-                        sx={{marginRight: "auto"}}
-                        onClick={() =>
-                            setDraft(restores ? recorded.enrollment : sampleEnrollment())
-                        }
+                        // Stays focusable: with nothing to undo it does nothing, and says so.
+                        aria-disabled={filled}
+                        sx={(theme) => ({
+                            "display": "inline-flex",
+                            "justifyContent": "flex-start",
+                            "maxWidth": "100%",
+                            "whiteSpace": "normal",
+                            "textAlign": "left",
+                            "&[aria-disabled='true'], &[aria-disabled='true']:hover": {
+                                opacity: 0.5,
+                                cursor: "default",
+                                boxShadow: "none",
+                            },
+                            // The theme's pressed colours are important; a no-op isn't pressed.
+                            "&[aria-disabled='true']:active": {
+                                backgroundColor: `${theme.palette.white} !important`,
+                                color: `${theme.palette.brandColor} !important`,
+                            },
+                        })}
+                        onClick={() => !filled && setDraft(fillIn)}
                     >
                         {t(`${KEY}.${restores ? "restore" : "resetSample"}`)}
                     </Button>
+                </Box>
+                <DraftFooter>
                     <Button variant="cancel" size="small" onClick={() => stopEditing(false)}>
                         {t("common.label.cancel")}
                     </Button>
@@ -575,9 +620,9 @@ export const ApprovalMatrixTest: React.FC<ApprovalMatrixTestProps> = ({
                         disabled={sameEnrollment(value, applied)}
                         onClick={() => stopEditing(true)}
                     >
-                        {t(`${KEY}.${source ? "useDetails" : "apply"}`)}
+                        {t(`${KEY}.apply`)}
                     </Button>
-                </Box>
+                </DraftFooter>
             </Draft>
         )
     }

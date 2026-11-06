@@ -4242,7 +4242,7 @@ const galegoTranslation: TranslationType = {
                     editing: "Editando o exemplo — aínda sen aplicar",
                     editingHelp:
                         "Os seus cambios só contan ao aplicalos. Ata entón a simulación usa o exemplo aplicado coas regras en pantalla.",
-                    apply: "Aplicar o exemplo",
+                    apply: "Aplicar",
                     notRecorded: "Non rexistrado",
                     withFirstName: "Comparado co nome",
                     notComparedForId: "Non se compara para este documento",
@@ -4267,8 +4267,7 @@ const galegoTranslation: TranslationType = {
                     editDetails: "Probar outros datos",
                     editingDetails: "Probando outros datos — aínda non están na simulación",
                     editingDetailsHelp:
-                        "Estes datos non deciden nada ata que os use. Ata entón a simulación usa os datos de arriba coas regras en pantalla.",
-                    useDetails: "Usar na simulación",
+                        "Estes datos non deciden nada ata que os aplique. Ata entón a simulación usa os datos de arriba coas regras en pantalla.",
                     restore: "Encher cos datos rexistrados",
                     resetSample: "Encher coa mostra",
                     decides: "Na simulación, decide a regra {{number}}.",

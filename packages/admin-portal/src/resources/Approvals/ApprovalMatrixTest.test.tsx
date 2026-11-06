@@ -163,19 +163,19 @@ describe("opened from the toolbar", () => {
         expect(screen.queryByText(/whose compared details are all the same/)).toBeNull()
     })
 
-    it("edits the example and applies it only on Apply example", async () => {
+    it("edits the example and applies it only on Apply", async () => {
         const scrolled = jest.spyOn(Element.prototype, "scrollIntoView")
         const props = setUp()
         fireEvent.click(screen.getByRole("button", {name: "Edit example"}))
         const editor = draft("Editing the example — not applied yet")
-        expect(editor.getByRole("button", {name: "Apply example"})).toBeDisabled()
+        expect(editor.getByRole("button", {name: "Apply"})).toBeDisabled()
         choose(editor, "Identity check", "Typed by hand")
         expect(props.onApply).not.toHaveBeenCalled()
         expect(summary()["Identity check"]).toBe("Verified by ID scan")
         fireEvent.click(editor.getByRole("button", {name: "Fill in the sample"}))
-        expect(editor.getByRole("button", {name: "Apply example"})).toBeDisabled()
+        expect(editor.getByRole("button", {name: "Apply"})).toBeDisabled()
         choose(editor, "Voter in the registry", "No")
-        fireEvent.click(editor.getByRole("button", {name: "Apply example"}))
+        fireEvent.click(editor.getByRole("button", {name: "Apply"}))
         expect(props.onApply).toHaveBeenCalledWith({...sampleEnrollment(), voter_found: false})
         expect(screen.queryByRole("group", {name: /^Editing/})).toBeNull()
         // The details in use come back into view, and focus returns to the button that opened
@@ -222,14 +222,25 @@ describe("opened from an enrollment", () => {
         ).toBeInTheDocument()
     })
 
-    it("tries other details without changing the simulation until they are used", async () => {
+    it("tries other details without changing the simulation until they are applied", async () => {
         const props = setUp({application: carol(), evaluation: decided(2)})
         fireEvent.click(screen.getByRole("button", {name: "Try other details"}))
         const editor = draft("Trying other details — not in the simulation yet")
         expect(
             editor.getByText("The highlighted rule still decides the simulation.")
         ).toBeInTheDocument()
-        const use = editor.getByRole("button", {name: "Use in the simulation"})
+        // The editor is described by what applying means.
+        expect(
+            screen.getByRole("group", {name: "Trying other details — not in the simulation yet"})
+        ).toHaveAccessibleDescription(
+            "These details decide nothing until you apply them. Until then the simulation uses the details above with the rules on screen."
+        )
+        const use = editor.getByRole("button", {name: "Apply"})
+        expect(use).toBeDisabled()
+        // Nothing to fill in yet: the button says so and changes nothing.
+        const fill = editor.getByRole("button", {name: "Fill in the recorded details"})
+        expect(fill).toHaveAttribute("aria-disabled", "true")
+        fireEvent.click(fill)
         expect(use).toBeDisabled()
         choose(editor, "Identity check", "Verified by ID scan")
         expect(use).toBeEnabled()
@@ -237,7 +248,9 @@ describe("opened from an enrollment", () => {
         expect(heading(4, "Recorded details · in the simulation")).toBeInTheDocument()
 
         // Filling in the recorded details only fills the editor.
-        fireEvent.click(editor.getByRole("button", {name: "Fill in the recorded details"}))
+        expect(fill).toHaveAttribute("aria-disabled", "false")
+        fireEvent.click(fill)
+        expect(fill).toHaveAttribute("aria-disabled", "true")
         expect(use).toBeDisabled()
         expect(props.onApply).not.toHaveBeenCalled()
 
@@ -252,7 +265,7 @@ describe("opened from an enrollment", () => {
         fireEvent.click(screen.getByRole("button", {name: "Try other details"}))
         const again = draft("Trying other details — not in the simulation yet")
         choose(again, "Middle Name", "Same")
-        fireEvent.click(again.getByRole("button", {name: "Use in the simulation"}))
+        fireEvent.click(again.getByRole("button", {name: "Apply"}))
         expect(props.onApply).toHaveBeenCalledTimes(1)
         expect(props.onApply).toHaveBeenCalledWith(
             expect.objectContaining({

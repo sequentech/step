@@ -174,8 +174,9 @@ is about depends on where the matrix was opened from.
 a verified voter in the registry, not enrolled yet, whose compared details are all the same.
 
 - **Edit example** opens its details below, marked **Editing the example — not applied yet**.
-  Changes there decide nothing until **Apply example**; **Cancel** leaves the example as it was;
-  **Fill in the sample** puts the sample's details back in the editor.
+  Changes there decide nothing until **Apply**; **Cancel** leaves the example as it was. **Fill in
+  the sample** only puts the sample's details back in the editor, undoing the edits made there; it
+  applies nothing.
 - After applying other details, the panel shows **Your example**.
 
 **From an enrollment** (the row menu's **See the rule that decided**, or **See the rule** in its
@@ -189,9 +190,9 @@ when they decided that enrollment.
   decided since. It is context only: no rule is highlighted for it.
 - **Recorded details · in the simulation** lists the details in use. **Try other details** opens
   them below, marked **Trying other details — not in the simulation yet**; they decide nothing
-  until **Use in the simulation**, and **Cancel** discards them. **Fill in the recorded details**
-  puts the recorded details back in the editor.
-- After using other details, the panel shows **Other details · in the simulation**; the enrollment
+  until **Apply**, and **Cancel** discards them. **Fill in the recorded details** only puts the
+  recorded details back in the editor, undoing the edits made there; it applies nothing.
+- After applying other details, the panel shows **Other details · in the simulation**; the enrollment
   keeps its recorded details.
 
 In both cases:
@@ -202,7 +203,7 @@ In both cases:
   While the simulation runs, or when it can't (the rules have a problem, or running it fails), no
   rule is highlighted.
 - Editing, moving, adding or deleting rules, changing the compared details, saving and discarding
-  never use the details being edited: the details in use are decided again with the changed
+  never apply the details being edited: the details in use are decided again with the changed
   rules.
 
 When the rules on screen are given exactly an enrollment's recorded details, the panel says

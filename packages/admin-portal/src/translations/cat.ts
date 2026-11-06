@@ -4261,7 +4261,7 @@ const catalanTranslation: TranslationType = {
                     editing: "Editant l'exemple — encara no aplicat",
                     editingHelp:
                         "Els canvis només compten quan els apliqueu. Fins llavors la simulació fa servir l'exemple aplicat amb les regles de la pantalla.",
-                    apply: "Aplica l'exemple",
+                    apply: "Aplica",
                     notRecorded: "No registrat",
                     withFirstName: "Comparat amb el nom",
                     notComparedForId: "No es compara per a aquest document",
@@ -4286,8 +4286,7 @@ const catalanTranslation: TranslationType = {
                     editDetails: "Prova altres dades",
                     editingDetails: "Provant altres dades — encara no són a la simulació",
                     editingDetailsHelp:
-                        "Aquestes dades no decideixen res fins que les feu servir. Fins llavors la simulació fa servir les dades de dalt amb les regles de la pantalla.",
-                    useDetails: "Fes servir a la simulació",
+                        "Aquestes dades no decideixen res fins que les apliqueu. Fins llavors la simulació fa servir les dades de dalt amb les regles de la pantalla.",
                     restore: "Omple amb les dades registrades",
                     resetSample: "Omple amb la mostra",
                     decides: "A la simulació, decideix la regla {{number}}.",
