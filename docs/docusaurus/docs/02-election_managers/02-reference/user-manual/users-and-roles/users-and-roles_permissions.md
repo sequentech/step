@@ -40,3 +40,36 @@ omitted. A decrypted voter-export document remains restricted: downloading it ch
 Assign read and write independently where duties require it. For example, an import operator can
 receive secret-write without secret-read, while a support operator who must inspect a value can
 receive secret-read without permission to change it.
+
+## Exports and Other Sensitive Actions
+
+An election-event export needs `election-event-read`, which covers the event configuration and its
+scheduled events. Each other kind of data it includes needs the permission that exports or reads
+that data on its own:
+
+| Included data | Permission |
+|---|---|
+| Voters | `voter-export` |
+| Applications | `application-export` |
+| Activity logs | `logs-export` and `export-ceremony` |
+| Tally | `tally-results-read` |
+| Reports | `report-read` |
+| Publications | `publish-export` and `export-ceremony` |
+| Bulletin board (keys ceremonies and boards) | `export-ceremony` |
+| Documents | `document-download` |
+| Certificates | `ca-read` |
+
+Activity logs and publications need `export-ceremony` because the archive then holds the event's
+protocol manager keys. The separate activity-log export below needs only `logs-export` and holds no
+keys.
+
+| Action | Required permissions |
+|---|---|
+| List votes by IP address for the whole election event | `admin-dashboard-view` and `admin-ip-address-view` |
+| List votes by IP address for one election | `admin-dashboard-view` and either `admin-ip-address-view` or `election-ip-address-view` |
+| Create a role | `role-create`; to give it permissions or client roles, also `role-write` and `user-permission-write` |
+| Generate the ballot-images report | `report-generate` |
+| Export activity logs | `logs-export` |
+
+The portal sends role creation and the votes-by-IP lists with its default role, so using them there
+also needs `admin-user`.

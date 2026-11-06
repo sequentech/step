@@ -30,18 +30,24 @@ pub struct ExportElectionEventOutput {
     task_execution: TasksExecution,
 }
 
+fn authorize_logs_export(
+    claims: &jwt::JwtClaims,
+) -> Result<(), (Status, String)> {
+    authorize(
+        claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::LOGS_EXPORT],
+    )
+}
+
 #[instrument(skip(claims))]
 #[post("/export-election-event-logs", format = "json", data = "<input>")]
 pub async fn export_election_event_logs_route(
     claims: jwt::JwtClaims,
     input: Json<ExportElectionEventInput>,
 ) -> Result<Json<ExportElectionEventOutput>, (Status, String)> {
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::REPORT_WRITE],
-    )?;
+    authorize_logs_export(&claims)?;
 
     let body = input.into_inner();
 
@@ -107,4 +113,23 @@ pub async fn export_election_event_logs_route(
     };
 
     Ok(Json(output))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::authorization::test_claims::{
+        admin_claims, CALLER_TENANT_ID,
+    };
+
+    #[test]
+    fn exporting_logs_needs_logs_export_not_report_write() {
+        let writer = admin_claims(CALLER_TENANT_ID, &["report-write"]);
+        assert_eq!(
+            authorize_logs_export(&writer).unwrap_err().0,
+            Status::Unauthorized
+        );
+        let exporter = admin_claims(CALLER_TENANT_ID, &["logs-export"]);
+        assert!(authorize_logs_export(&exporter).is_ok());
+    }
 }
