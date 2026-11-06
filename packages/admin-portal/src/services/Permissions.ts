@@ -277,6 +277,10 @@ const NonAdminOperationMap: Record<string, IPermissions> = {
     CreateTallyCeremony: IPermissions.ADMIN_CEREMONY,
 }
 
+// Publication mutations that admin-user can also run, so only a user without
+// it needs to send publish-write
+const PUBLISH_WRITE_OPERATIONS = ["GenerateBallotPublication", "PublishBallot"]
+
 // Roles that operations without a mapped role run as, in order of preference
 const DEFAULT_OPERATION_ROLES: Array<IPermissions> = [
     IPermissions.ADMIN_USER,
@@ -317,6 +321,13 @@ export const getOperationRole = (
     const operationMap = hasRole(IPermissions.TRUSTEE_CEREMONY)
         ? TrusteeOperationMap
         : AdminOperationMap
+    if (
+        defaultRole !== IPermissions.ADMIN_USER &&
+        hasRole(IPermissions.PUBLISH_WRITE) &&
+        PUBLISH_WRITE_OPERATIONS.includes(operationName ?? "")
+    ) {
+        return IPermissions.PUBLISH_WRITE
+    }
     const mappedRole = mappedRoleOf(operationMap, operationName)
     if (!mappedRole) {
         return defaultRole
