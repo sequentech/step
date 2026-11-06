@@ -804,6 +804,7 @@ export const NarrowScreen: Story = {
 export const NarrowScreenFromAnEnrollmentWithALongName: Story = {
     args: {source: "long"},
     globals: {viewport: {value: "iphone5", isRotated: false}},
+
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await ruleCards(canvasElement)
@@ -822,6 +823,24 @@ export const NarrowScreenFromAnEnrollmentWithALongName: Story = {
         await choose(canvasElement, "Identity check", "Typed by hand")
         const apply = canvas.getByRole("button", {name: "Use in the simulation"})
         await expect(apply).toBeEnabled()
+        // Every button of the editor stays inside it, its label wrapping between words only.
+        const editor = draft(canvasElement)
+            .getByRole("group", {name: "Identity check"})
+            .closest("[aria-labelledby='approval-matrix-draft']") as HTMLElement
+        const bounds = editor.getBoundingClientRect()
+        for (const button of Array.from(editor.querySelectorAll("button"))) {
+            const rect = button.getBoundingClientRect()
+            expect(rect.left).toBeGreaterThanOrEqual(bounds.left - 0.5)
+            expect(rect.right).toBeLessThanOrEqual(bounds.right + 0.5)
+            const range = document.createRange()
+            range.selectNodeContents(button)
+            const lines = new Set(
+                Array.from(range.getClientRects()).map((line) => Math.round(line.top))
+            )
+            expect(lines.size).toBeLessThanOrEqual(
+                (button.textContent ?? "").trim().split(/\s+/).length
+            )
+        }
         apply.focus()
         await waitFor(() => expect(reachable(apply)).toBe(true))
         const box = apply.getBoundingClientRect()

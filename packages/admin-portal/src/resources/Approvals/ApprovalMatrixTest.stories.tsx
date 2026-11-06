@@ -460,6 +460,41 @@ export const ALongName: Story = {
     },
 }
 
+export const TheEditorInAPhoneWidthPanel: Story = {
+    args: {source: "carol"},
+    // On a phone, beside the portal's collapsed side menu, the panel is about 200 px wide.
+    decorators: [
+        (Story) => (
+            <div style={{maxWidth: "200px"}}>
+                <Story />
+            </div>
+        ),
+    ],
+    play: async ({canvasElement}) => {
+        await waitFor(() => expect(rule(canvasElement)).toBe("2"))
+        await edit(canvasElement)
+        await choose(canvasElement, "Identity check", "Verified by ID scan")
+        const editor = canvasOf(canvasElement).getByRole("group", {
+            name: "Trying other details — not in the simulation yet",
+        })
+        const bounds = editor.getBoundingClientRect()
+        // Every button stays inside the editor, its label wrapping between words only.
+        for (const button of Array.from(editor.querySelectorAll("button"))) {
+            const rect = button.getBoundingClientRect()
+            expect(rect.left).toBeGreaterThanOrEqual(bounds.left - 0.5)
+            expect(rect.right).toBeLessThanOrEqual(bounds.right + 0.5)
+            const range = document.createRange()
+            range.selectNodeContents(button)
+            const lines = new Set(
+                Array.from(range.getClientRects()).map((line) => Math.round(line.top))
+            )
+            expect(lines.size).toBeLessThanOrEqual(
+                (button.textContent ?? "").trim().split(/\s+/).length
+            )
+        }
+    },
+}
+
 export const Association: Story = {
     args: {matrix: "association"},
     play: async ({canvasElement}) => {

@@ -552,8 +552,9 @@ export const ApprovalMatrixTest: React.FC<ApprovalMatrixTestProps> = ({
                         "gap": "8px",
                         "justifyContent": "flex-end",
                         "marginTop": "20px",
-                        "& button": {whiteSpace: "nowrap"},
-                        "& button:first-of-type": {whiteSpace: "normal", textAlign: "left"},
+                        // Buttons keep their size and move to their own line; one wider than the
+                        // editor wraps its label between words.
+                        "& button": {flexShrink: 0, maxWidth: "100%", whiteSpace: "normal"},
                     }}
                 >
                     <Button
