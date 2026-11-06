@@ -705,6 +705,38 @@ export const AShortMatrixKeepsTheWholeCard: Story = {
     },
 }
 
+export const ASaveBarThatAppearsMidPage: Story = {
+    args: {source: "alice"},
+    globals: {viewport: {value: "desktop-1280", isRotated: false}},
+    parameters: {
+        viewport: {
+            options: {
+                "desktop-1280": {name: "1280 × 800", styles: {width: "1280px", height: "800px"}},
+            },
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await ruleCards(canvasElement)
+        await userEvent.click(canvas.getByRole("button", {name: "Edit example"}))
+        // The save bar appears while the page is scrolled half way: it is drawn stuck to the
+        // bottom of the window, above the end of the rules.
+        window.scrollTo(0, (document.documentElement.scrollHeight - window.innerHeight) / 2)
+        await userEvent.click(canvas.getByRole("button", {name: "Delete rule 4"}))
+        await canvas.findByRole("region", {name: "Unsaved changes"})
+        await new Promise((resolve) => setTimeout(resolve, 300))
+        // At the end of the page the card still starts inside the window, with its editor's heading.
+        window.scrollTo(0, document.documentElement.scrollHeight)
+        const card = canvas.getByRole("region", {name: "Try an example"})
+        await waitFor(() => {
+            const top = card.getBoundingClientRect().top
+            expect(top).toBeGreaterThanOrEqual(-1)
+            const heading = document.getElementById("approval-matrix-draft") as HTMLElement
+            expect(heading.getBoundingClientRect().top).toBeGreaterThanOrEqual(top)
+        })
+    },
+}
+
 export const StillDeciding: Story = {
     args: {evaluates: "pending", source: "alice"},
     play: async ({canvasElement}) => {

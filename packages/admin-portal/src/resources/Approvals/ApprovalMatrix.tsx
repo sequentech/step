@@ -127,11 +127,12 @@ function contentAfter(element: HTMLElement, scroller: HTMLElement): number {
         const bottom = node.getBoundingClientRect().bottom
         for (let next = node.nextElementSibling; next; next = next.nextElementSibling) {
             const style = getComputedStyle(next)
-            // Only what comes below: a layout's row puts siblings beside each other.
+            // Only what comes below: a layout's row puts siblings beside each other. A sticky
+            // sibling (the save bar) may be drawn stuck above its place, which is below.
             if (
                 style.display === "none" ||
                 ["absolute", "fixed"].includes(style.position) ||
-                next.getBoundingClientRect().top < bottom - 1
+                (style.position !== "sticky" && next.getBoundingClientRect().top < bottom - 1)
             ) {
                 continue
             }

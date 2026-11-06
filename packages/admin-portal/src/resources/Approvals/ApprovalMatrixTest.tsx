@@ -454,7 +454,7 @@ export const ApprovalMatrixTest: React.FC<ApprovalMatrixTestProps> = ({
                 }}
             >
                 <DraftHeading ref={heading}>
-                    <Overline id="approval-matrix-draft" sx={{margin: 0}}>
+                    <Overline id="approval-matrix-draft" sx={{margin: 0, textWrap: "balance"}}>
                         {t(`${KEY}.editing`)}
                     </Overline>
                     {decidingRule(evaluation) !== undefined && (
