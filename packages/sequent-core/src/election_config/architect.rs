@@ -759,6 +759,11 @@ pub struct Blueprint {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub annotations: BTreeMap<String, String>,
 
+    /// The ElectionEvent row's columns the wizard has no field for, by column
+    /// path. See [`PlannedElection::columns`].
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub columns: BTreeMap<String, serde_json::Value>,
+
     /// An export to build on, when the caller gives none.
     ///
     /// Set by `plan_from_event` to the export's event row and Keycloak realm,
@@ -1106,6 +1111,10 @@ pub struct PlannedArea {
     /// Annotations carried verbatim. See [`Blueprint::annotations`].
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub annotations: BTreeMap<String, String>,
+
+    /// Columns carried verbatim. See [`PlannedElection::columns`].
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub columns: BTreeMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1210,6 +1219,16 @@ pub struct PlannedElection {
     /// Annotations carried verbatim. See [`Blueprint::annotations`].
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub annotations: BTreeMap<String, String>,
+
+    /// The source row's columns the wizard has no field for, by column path,
+    /// written back by [`to_workbook`] wherever the plan leaves that column
+    /// blank. A historical conversion fills in far more of a row than the
+    /// wizard has screens for — sort orders, policies, display aliases — and
+    /// without these a configuration opened from it to be edited would build
+    /// a different event from the one it was opened from. An edit made on a
+    /// screen always wins over a carried value.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub columns: BTreeMap<String, serde_json::Value>,
 }
 
 /// The values `#[serde(default = "…")]` gives a plan that omits them.
@@ -1236,6 +1255,7 @@ impl Default for PlannedElection {
             shared: None,
             contests: Vec::new(),
             annotations: BTreeMap::new(),
+            columns: BTreeMap::new(),
         }
     }
 }
@@ -1320,6 +1340,10 @@ pub struct PlannedContest {
     /// Annotations carried verbatim. See [`Blueprint::annotations`].
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub annotations: BTreeMap<String, String>,
+
+    /// Columns carried verbatim. See [`PlannedElection::columns`].
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub columns: BTreeMap<String, serde_json::Value>,
 }
 
 /// Shown, because a voter being able to confirm their own ballot arrived is the
@@ -1426,6 +1450,10 @@ pub struct PlannedCandidate {
     /// Annotations carried verbatim. See [`Blueprint::annotations`].
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub annotations: BTreeMap<String, String>,
+
+    /// Columns carried verbatim. See [`PlannedElection::columns`].
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub columns: BTreeMap<String, serde_json::Value>,
 }
 
 /// One voter-facing help document in a plan.
@@ -3105,6 +3133,7 @@ pub fn to_workbook(
         areas_sheet(plan)?,
         area_contests_sheet(plan)?,
     ];
+    write_carried_columns(&mut sheets, plan);
 
     if let Some(voters) = voters_sheet(plan, sources)? {
         sheets.push(voters);
@@ -3172,6 +3201,82 @@ pub fn to_workbook(
     );
 
     Workbook::new(sheets)
+}
+
+/// Each entity's carried columns back into its row, where the plan left the
+/// column blank. See [`PlannedElection::columns`].
+///
+/// After the sheets are shaped, so a carried column is one the writer did not
+/// produce or produced empty; a value the plan holds is never overwritten.
+fn write_carried_columns(sheets: &mut [Sheet], plan: &Blueprint) {
+    let mut by_entity: BTreeMap<
+        &str,
+        BTreeMap<&str, &BTreeMap<String, serde_json::Value>>,
+    > = BTreeMap::new();
+    for area in &plan.areas {
+        by_entity
+            .entry("areas")
+            .or_default()
+            .insert(&area.external_id, &area.columns);
+    }
+    for election in &plan.elections {
+        by_entity
+            .entry("elections")
+            .or_default()
+            .insert(&election.external_id, &election.columns);
+        for contest in &election.contests {
+            by_entity
+                .entry("contests")
+                .or_default()
+                .insert(&contest.external_id, &contest.columns);
+            for candidate in &contest.candidates {
+                by_entity
+                    .entry("candidates")
+                    .or_default()
+                    .insert(&candidate.external_id, &candidate.columns);
+            }
+        }
+    }
+    for sheet in sheets.iter_mut() {
+        let carried =
+            |row: &Row| -> Option<&BTreeMap<String, serde_json::Value>> {
+                if sheet.key == "electionevent" {
+                    return (row.number == 2).then_some(&plan.columns);
+                }
+                by_entity
+                    .get(sheet.key.as_str())?
+                    .get(row.text("external_id")?)
+                    .copied()
+            };
+        let mut added: Vec<String> = Vec::new();
+        let mut rows = std::mem::take(&mut sheet.rows);
+        for row in &mut rows {
+            let Some(columns) = carried(row) else {
+                continue;
+            };
+            for (column, value) in columns {
+                match row.cells.iter_mut().find(|(name, _)| name == column) {
+                    Some((_, cell)) if is_blank(cell) => *cell = value.clone(),
+                    Some(_) => {}
+                    None => row.cells.push((column.clone(), value.clone())),
+                }
+                if !sheet.headers.contains(column) && !added.contains(column) {
+                    added.push(column.clone());
+                }
+            }
+        }
+        sheet.rows = rows;
+        sheet.headers.extend(added);
+    }
+}
+
+/// A cell the writer left with nothing in it.
+fn is_blank(value: &serde_json::Value) -> bool {
+    match value {
+        serde_json::Value::Null => true,
+        serde_json::Value::String(text) => text.trim().is_empty(),
+        _ => false,
+    }
 }
 
 impl Blueprint {
@@ -3355,6 +3460,7 @@ fn event_sheet(
     columns.push("presentation.css".to_string());
     columns.push("presentation.elections_order".to_string());
     columns.push("presentation.show_cast_vote_logs".to_string());
+    columns.push("presentation.ceremonies_policy".to_string());
     columns
         .push("presentation.language_conf.enabled_language_codes".to_string());
     columns
@@ -3383,21 +3489,34 @@ fn event_sheet(
     row.push(Cell::text(plan.css.clone()));
     row.push(Cell::text(plan.elections_order.clone()));
     row.push(Cell::text(plan.show_cast_vote_logs.clone()));
-    // A JSON array in one cell: the reader parses bracketed text as JSON, which is
-    // how a list fits in a spreadsheet and therefore in a synthesised one too.
-    row.push(Cell::text(
-        serde_json::to_string(languages).unwrap_or_else(|_| "[]".to_string()),
-    ));
-    // The chosen default, or the first language when nobody chose. A default
-    // naming a language the ballot is not offered in is refused by
-    // `check_languages` rather than written here, so this cannot emit one.
-    row.push(Cell::text(
-        plan.default_language
-            .clone()
-            .filter(|chosen| languages.iter().any(|each| each == chosen))
-            .or_else(|| languages.first().cloned())
-            .unwrap_or_else(|| "en".to_string()),
-    ));
+    // The event's, which the Admin Portal's ceremony screens read: the
+    // ceremony itself is made there after import, so no other place reaches.
+    row.push(Cell::text(plan.ceremony_policy.to_string()));
+    // A plan that chose no language leaves both blank: the event then takes
+    // the template's, and the voter realm keeps the locales it already has,
+    // where writing the English fallback would replace them with English alone.
+    if plan.languages.iter().all(|code| code.trim().is_empty()) {
+        row.push(Cell::Blank);
+        row.push(Cell::Blank);
+    } else {
+        // A JSON array in one cell: the reader parses bracketed text as JSON,
+        // which is how a list fits in a spreadsheet and therefore in a
+        // synthesised one too.
+        row.push(Cell::text(
+            serde_json::to_string(languages)
+                .unwrap_or_else(|_| "[]".to_string()),
+        ));
+        // The chosen default, or the first language when nobody chose. A
+        // default naming a language the ballot is not offered in is refused by
+        // `check_languages` rather than written here, so this cannot emit one.
+        row.push(Cell::text(
+            plan.default_language
+                .clone()
+                .filter(|chosen| languages.iter().any(|each| each == chosen))
+                .or_else(|| languages.first().cloned())
+                .unwrap_or_else(|| "en".to_string()),
+        ));
+    }
 
     for (column, cell) in plan.voting_channels.columns_for_sheet() {
         columns.push(column.to_string());

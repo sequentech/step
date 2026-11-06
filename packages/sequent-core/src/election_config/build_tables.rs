@@ -398,6 +398,10 @@ impl Builder<'_> {
         if self.auth_preset.is_some_and(|preset| !preset.uses_otp) {
             return;
         }
+        // Enrollment collects the contact details, so none are expected yet.
+        if self.census_contacts_at_enrollment {
+            return;
+        }
 
         // There is always at least one contact column: `email` is derived, so it
         // is present whether or not the source has it. The Python this was ported

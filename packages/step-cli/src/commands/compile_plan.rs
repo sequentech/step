@@ -136,6 +136,7 @@ impl CompilePlan {
             // Replaced by `compile_plan` from the plan's own `ceremony_policy`,
             // like the two above.
             ceremony_policy: CeremoniesPolicy::MANUAL_CEREMONIES,
+            census_contacts_at_enrollment: false,
         };
 
         let compiled = match compile_plan(Compile {
