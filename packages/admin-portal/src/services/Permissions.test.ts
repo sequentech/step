@@ -338,6 +338,19 @@ describe("getSchemaRoles", () => {
     })
 })
 
+describe("staff without a default profile", () => {
+    it("uses the restricted role they hold", () => {
+        const roles = [
+            IPermissions.ELECTION_EVENT_READ,
+            IPermissions.DOCUMENT_READ,
+            IPermissions.DOCUMENT_DOWNLOAD,
+        ]
+        expect(roleFor("GetDocument", roles)).toBe(IPermissions.DOCUMENT_READ)
+        expect(roleFor("FetchDocument", roles)).toBe(IPermissions.DOCUMENT_DOWNLOAD)
+        expect(roleFor("GetTaskById", [IPermissions.TASKS_READ])).toBe(IPermissions.TASKS_READ)
+    })
+})
+
 describe("document reads", () => {
     it("runs them under the document roles for a restricted user", () => {
         const roles = [

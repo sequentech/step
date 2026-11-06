@@ -317,6 +317,10 @@ export const getOperationRole = (
         return IPermissions.LOGS_READ
     }
     const defaultRole = DEFAULT_OPERATION_ROLES.find(hasRole)
+    const restrictedRole = RESTRICTED_OPERATION_ROLES.get(operationName ?? "")?.find(hasRole)
+    if (defaultRole !== IPermissions.ADMIN_USER && restrictedRole) {
+        return restrictedRole
+    }
     if (!defaultRole) {
         const role =
             mappedRoleOf(NonAdminOperationMap, operationName) ?? IPermissions.ELECTION_EVENT_READ
@@ -329,10 +333,6 @@ export const getOperationRole = (
     const operationMap = hasRole(IPermissions.TRUSTEE_CEREMONY)
         ? TrusteeOperationMap
         : AdminOperationMap
-    const restrictedRole = RESTRICTED_OPERATION_ROLES.get(operationName ?? "")?.find(hasRole)
-    if (defaultRole !== IPermissions.ADMIN_USER && restrictedRole) {
-        return restrictedRole
-    }
     const mappedRole = mappedRoleOf(operationMap, operationName)
     if (!mappedRole) {
         return defaultRole
