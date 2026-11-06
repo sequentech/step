@@ -822,6 +822,33 @@ fn trustee_attribute_permission(
     (requested.as_slice() != current).then_some(Permissions::TRUSTEE_WRITE)
 }
 
+/// `trustee_attribute_permission` for an edit, which also leaves an unchanged
+/// `trustee` out of the update: a later write of the value read here would
+/// undo a change made in between.
+fn trustee_edit_permission(
+    requested: &mut Option<HashMap<String, Vec<String>>>,
+    current: Option<&HashMap<String, Vec<String>>>,
+) -> Option<Permissions> {
+    let permission = trustee_attribute_permission(requested.as_ref(), current);
+    if permission.is_none() {
+        if let Some(requested) = requested {
+            requested.remove(TRUSTEE_ATTR_NAME);
+        }
+    }
+    permission
+}
+
+/// A profile can mark `trustee` as encrypted, and then it arrives among the
+/// secret attributes. Those can't be compared with the stored value, so any
+/// request naming it needs trustee write permission.
+fn trustee_secret_attribute_permission(
+    secret_attributes: Option<&HashMap<String, Option<Vec<String>>>>,
+) -> Option<Permissions> {
+    secret_attributes?
+        .contains_key(TRUSTEE_ATTR_NAME)
+        .then_some(Permissions::TRUSTEE_WRITE)
+}
+
 /// Attributes for a new user: the client's ones plus the user's tenant as its
 /// only `tenant-id`. A client `tenant-id` naming another tenant is refused.
 fn new_user_attributes(
@@ -886,6 +913,9 @@ pub async fn create_user(
     required_perms.extend(trustee_attribute_permission(
         input.user.attributes.as_ref(),
         None,
+    ));
+    required_perms.extend(trustee_secret_attribute_permission(
+        input.secret_attributes.as_ref(),
     ));
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)
         .map_err(|(status, message)| {
@@ -1356,6 +1386,9 @@ pub async fn edit_user(
             }
         }
     };
+    required_perms.extend(trustee_secret_attribute_permission(
+        input.secret_attributes.as_ref(),
+    ));
 
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
     let realm = match input.election_event_id.clone() {
@@ -1380,8 +1413,8 @@ pub async fn edit_user(
                     "Error reading user in Keycloak",
                 )
             })?;
-        if let Some(permission) = trustee_attribute_permission(
-            input.attributes.as_ref(),
+        if let Some(permission) = trustee_edit_permission(
+            &mut input.attributes,
             current_user.attributes.as_ref(),
         ) {
             authorize(
@@ -2319,7 +2352,10 @@ mod tests {
             .is_ok());
     }
 
-    use super::{new_user_attributes, trustee_attribute_permission};
+    use super::{
+        new_user_attributes, trustee_attribute_permission,
+        trustee_edit_permission, trustee_secret_attribute_permission,
+    };
     use sequent_core::types::keycloak::{
         TENANT_ID_ATTR_NAME, TRUSTEE_ATTR_NAME,
     };
@@ -2373,6 +2409,55 @@ mod tests {
             trustee_attribute_permission(Some(&requested), Some(&current)),
             None
         );
+    }
+
+    #[test]
+    fn an_edit_leaves_an_unchanged_trustee_out_of_the_update() {
+        let current = attributes(&[(TRUSTEE_ATTR_NAME, &["trustee1"])]);
+        let mut requested = Some(attributes(&[
+            (TRUSTEE_ATTR_NAME, &["trustee1"]),
+            ("other", &["value"]),
+        ]));
+        assert_eq!(
+            trustee_edit_permission(&mut requested, Some(&current)),
+            None
+        );
+        assert_eq!(requested, Some(attributes(&[("other", &["value"])])));
+    }
+
+    #[test]
+    fn an_edit_keeps_a_changed_trustee_in_the_update() {
+        let current = attributes(&[(TRUSTEE_ATTR_NAME, &["trustee1"])]);
+        let changed = attributes(&[(TRUSTEE_ATTR_NAME, &["trustee2"])]);
+        let mut requested = Some(changed.clone());
+        assert_eq!(
+            trustee_edit_permission(&mut requested, Some(&current)),
+            Some(Permissions::TRUSTEE_WRITE)
+        );
+        assert_eq!(requested, Some(changed));
+    }
+
+    #[test]
+    fn a_secret_trustee_attribute_requires_trustee_write() {
+        for value in [None, Some(vec!["trustee1".to_string()])] {
+            let secret_attributes =
+                HashMap::from([(TRUSTEE_ATTR_NAME.to_string(), value)]);
+            assert_eq!(
+                trustee_secret_attribute_permission(Some(&secret_attributes)),
+                Some(Permissions::TRUSTEE_WRITE)
+            );
+        }
+    }
+
+    #[test]
+    fn other_secret_attributes_need_no_trustee_write() {
+        let secret_attributes =
+            HashMap::from([("national-id".to_string(), None)]);
+        assert_eq!(
+            trustee_secret_attribute_permission(Some(&secret_attributes)),
+            None
+        );
+        assert_eq!(trustee_secret_attribute_permission(None), None);
     }
 
     #[test]
