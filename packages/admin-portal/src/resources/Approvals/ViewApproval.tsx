@@ -94,64 +94,82 @@ const STEPS = ["identity", "voter", "decide"] as const
 type Step = (typeof STEPS)[number]
 
 const STEP_LINE = "1px dashed #8A90A0"
+/** The width from which the steps fit on one line with their labels beside their numbers. */
+const STEPS_INLINE = "@container review-steps (min-width: 720px)"
+
+/** Measures the width the steps have, which is narrower than the window beside the side menu. */
+const StepperFrame = styled("div")({
+    containerType: "inline-size",
+    containerName: "review-steps",
+    margin: "24px 0 16px",
+})
 
 /**
- * The review's steps across the whole width: the first at the left, the second centered (the
- * outer columns are equal) and the last at the right, joined by lines that fill the space. On
- * narrow screens each step puts its label under its number, over one line behind the numbers.
+ * The review's steps across the whole width, in three equal thirds: the first at the left, the
+ * second centered and the last at the right. Each step puts its label under its number, over one
+ * line behind the numbers. With room for it, labels sit beside their numbers and lines join the
+ * steps (the outer columns stay equal, so the second step stays centered).
  */
-const Stepper = styled("ol")(({theme}) => ({
-    position: "relative",
-    display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)",
-    alignItems: "center",
-    columnGap: "12px",
-    margin: "24px 0 16px",
-    padding: 0,
-    listStyle: "none",
-    [theme.breakpoints.down("sm")]: {
-        "alignItems": "start",
-        "columnGap": "8px",
-        "&::before": {
-            content: '""',
-            position: "absolute",
-            top: "12px",
-            left: "12px",
-            right: "12px",
-            borderTop: STEP_LINE,
-        },
+const Stepper = styled("ol")({
+    "position": "relative",
+    "display": "grid",
+    "gridTemplateColumns": "repeat(3, minmax(0, 1fr))",
+    "alignItems": "start",
+    "columnGap": "8px",
+    "margin": 0,
+    "padding": 0,
+    "listStyle": "none",
+    "&::before": {
+        content: '""',
+        position: "absolute",
+        top: "12px",
+        left: "12px",
+        right: "12px",
+        borderTop: STEP_LINE,
     },
-}))
+    [STEPS_INLINE]: {
+        "gridTemplateColumns": "minmax(0, 1fr) auto minmax(0, 1fr)",
+        "alignItems": "center",
+        "columnGap": "12px",
+        "&::before": {display: "none"},
+    },
+})
 
-const StepItem = styled("li")(({theme}) => ({
+const StepItem = styled("li")({
     "position": "relative",
     "display": "flex",
+    "flexDirection": "column",
     "alignItems": "center",
-    "gap": "8px",
+    "gap": "4px",
     "minWidth": 0,
-    "fontSize": "15px",
+    "fontSize": "13px",
+    "lineHeight": "18px",
+    "textAlign": "center",
+    // A word longer than its third, in some languages, breaks rather than overlapping a step.
+    "overflowWrap": "anywhere",
     "color": "#5B6272",
     "&[aria-current='step'], &[data-done='true']": {color: "#191D23"},
-    "&:first-of-type::after, &:last-of-type::before": {
-        content: '""',
-        flex: "1 1 auto",
-        minWidth: "16px",
-        borderTop: STEP_LINE,
-        margin: "0 4px",
-    },
-    "&:last-of-type": {justifyContent: "flex-end"},
-    [theme.breakpoints.down("sm")]: {
-        "flexDirection": "column",
+    "&:first-of-type": {alignItems: "flex-start", textAlign: "left"},
+    "&:last-of-type": {alignItems: "flex-end", textAlign: "right"},
+    [STEPS_INLINE]: {
+        "flexDirection": "row",
         "alignItems": "center",
-        "gap": "4px",
-        "fontSize": "13px",
-        "lineHeight": "18px",
-        "textAlign": "center",
-        "&:first-of-type": {alignItems: "flex-start", textAlign: "left"},
-        "&:last-of-type": {alignItems: "flex-end", textAlign: "right"},
-        "&:first-of-type::after, &:last-of-type::before": {display: "none"},
+        "gap": "8px",
+        "fontSize": "15px",
+        "lineHeight": "22px",
+        "textAlign": "left",
+        "overflowWrap": "normal",
+        "&:first-of-type": {alignItems: "center", textAlign: "left"},
+        "&:last-of-type": {alignItems: "center", justifyContent: "flex-end"},
+        "&:first-of-type::after, &:last-of-type::before": {
+            content: '""',
+            flex: "1 1 auto",
+            minWidth: "16px",
+            borderTop: STEP_LINE,
+            margin: "0 4px",
+        },
     },
-}))
+})
 
 const Section = styled(Accordion)({
     "width": "100%",
@@ -825,29 +843,31 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
 
             {canDecide ? (
                 <>
-                    <Stepper aria-label={String(t("approvalsScreen.flow.stepsLabel"))}>
-                        {STEPS.map((key, index) => (
-                            <StepItem
-                                key={key}
-                                aria-current={step === key ? "step" : undefined}
-                                data-done={done(key)}
-                            >
-                                <NumberBadge
-                                    data-pending={step !== key && !done(key)}
-                                    sx={{
-                                        width: "24px",
-                                        height: "24px",
-                                        fontSize: "12px",
-                                        // The line behind the badges, on narrow screens, meets their centre.
-                                        boxSizing: "border-box",
-                                    }}
+                    <StepperFrame>
+                        <Stepper aria-label={String(t("approvalsScreen.flow.stepsLabel"))}>
+                            {STEPS.map((key, index) => (
+                                <StepItem
+                                    key={key}
+                                    aria-current={step === key ? "step" : undefined}
+                                    data-done={done(key)}
                                 >
-                                    {index + 1}
-                                </NumberBadge>
-                                {t(`approvalsScreen.flow.steps.${key}`)}
-                            </StepItem>
-                        ))}
-                    </Stepper>
+                                    <NumberBadge
+                                        data-pending={step !== key && !done(key)}
+                                        sx={{
+                                            width: "24px",
+                                            height: "24px",
+                                            fontSize: "12px",
+                                            // The line behind the badges, on narrow screens, meets their centre.
+                                            boxSizing: "border-box",
+                                        }}
+                                    >
+                                        {index + 1}
+                                    </NumberBadge>
+                                    {t(`approvalsScreen.flow.steps.${key}`)}
+                                </StepItem>
+                            ))}
+                        </Stepper>
+                    </StepperFrame>
                     {section("identity", identitySummary, identityStep)}
                     {section(
                         "voter",

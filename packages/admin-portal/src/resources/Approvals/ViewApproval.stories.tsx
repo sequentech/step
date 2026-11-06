@@ -316,6 +316,25 @@ const inTagalog = (width: number): Story => ({
 export const TheStepsInTagalogAtATabletWidth = inTagalog(820)
 export const TheStepsInTagalogOnANarrowScreen = inTagalog(360)
 
+/**
+ * In the portal the review sits beside the side menu, so its card can be much narrower than the
+ * window: 404 px at a 820 px window, about 215 px on a phone.
+ */
+const inACard = (width: number, card: number, locale = EStoryLocale.TAGALOG): Story => ({
+    ...inTagalog(width),
+    globals: {...atWidth(width).globals, locale},
+    decorators: [
+        (Story) => (
+            <div style={{maxWidth: `${card}px`}}>
+                <Story />
+            </div>
+        ),
+    ],
+})
+
+export const TheStepsInTagalogInATabletCard = inACard(1280, 404)
+export const TheStepsInTagalogInAPhoneCard = inACard(1280, 220)
+
 export const SeeTheRule: Story = {
     play: async ({canvasElement, args}) => {
         await opened(canvasElement, "Alice Example")
