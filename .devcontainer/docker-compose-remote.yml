@@ -515,7 +515,7 @@ services:
       WBRAID_B4_URL: http://b4v6:3005
       # Other origins whose pages may read boards (`*` or a comma-separated list); empty: the admin portal only.
       HARVEST_B4_READ_ORIGINS: ${HARVEST_B4_READ_ORIGINS:-}
-      WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
+      WBRAID_BOARD_DATABASE_URL: ${WBRAID_BOARD_DATABASE_URL:-postgres://postgres@postgres-b4v6:5432/wbraid_board?sslmode=disable}
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       ENV_SLUG: ${ENV_SLUG}
@@ -850,7 +850,7 @@ services:
       PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
       WBRAID_B4_URL: http://b4v6:3005
-      WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
+      WBRAID_BOARD_DATABASE_URL: ${WBRAID_BOARD_DATABASE_URL:-postgres://postgres@postgres-b4v6:5432/wbraid_board?sslmode=disable}
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
@@ -934,7 +934,7 @@ services:
         condition: service_healthy
     environment:
       WBRAID_B4_BIND: 0.0.0.0:3005
-      DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
+      DATABASE_URL: ${WBRAID_BOARD_DATABASE_URL:-postgres://postgres@postgres-b4v6:5432/wbraid_board?sslmode=disable}
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       AWS_ENDPOINT_URL: ${AWS_S3_PRIVATE_URI}
       AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}

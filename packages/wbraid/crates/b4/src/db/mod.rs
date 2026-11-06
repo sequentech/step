@@ -13,8 +13,12 @@
 pub mod common;
 #[cfg(feature = "postgres")]
 mod postgres;
+#[cfg(feature = "postgres")]
+mod postgres_options;
 #[cfg(feature = "sqlite")]
 mod sqlite;
 mod utils;
 
 pub use common::{open_from_env, Board, BoardDb};
+#[cfg(feature = "postgres")]
+pub use postgres_options::postgres_connect_options;
