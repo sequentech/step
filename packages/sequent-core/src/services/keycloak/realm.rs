@@ -106,6 +106,9 @@ fn set_client_attributes(
     }
 }
 
+/// Protocol mapper setting the Hasura role of requests that name none.
+const HASURA_DEFAULT_ROLE_MAPPER: &str = "x-hasura-default-role";
+
 /// Public clients that browsers log in to. A public client cannot keep a
 /// secret, so it may only use the authorization code flow with PKCE: the
 /// password (direct access) grant would skip the browser flow's OTP step, and
@@ -151,17 +154,31 @@ fn make_cli_client_confidential(client: &mut ClientRepresentation) {
 }
 
 /// Adds to `cli` the protocol mappers of `admin_portal` it lacks, so a CLI
-/// token carries the same Hasura claims as an admin portal one.
+/// token carries the same Hasura claims as an admin portal one. The default
+/// role is overwritten too: requests that name no role run as it, and Hasura
+/// grants nothing to the client's own `cli-account-admin`.
 fn copy_admin_portal_mappers(
     cli: &mut ClientRepresentation,
     admin_portal: &ClientRepresentation,
 ) {
     let mappers = cli.protocol_mappers.get_or_insert_with(Vec::new);
     for mapper in admin_portal.protocol_mappers.iter().flatten() {
-        if !mappers.iter().any(|existing| existing.name == mapper.name) {
-            let mut mapper = mapper.clone();
-            mapper.id = None;
-            mappers.push(mapper);
+        match mappers
+            .iter_mut()
+            .find(|existing| existing.name == mapper.name)
+        {
+            Some(existing)
+                if mapper.name.as_deref()
+                    == Some(HASURA_DEFAULT_ROLE_MAPPER) =>
+            {
+                existing.config = mapper.config.clone();
+            }
+            Some(_) => {}
+            None => {
+                let mut mapper = mapper.clone();
+                mapper.id = None;
+                mappers.push(mapper);
+            }
         }
     }
 }
@@ -1031,8 +1048,9 @@ mod tests {
         kiosk_voting_portal_url, results_portal_redirect_uris,
         scope_tenant_realm_clients, voting_portal_redirect_uris,
         ACCOUNT_CONSOLE_CLIENT_ID, ADMIN_PORTAL_CLIENT_ID, AUTH_BASE_URL,
-        CLI_ACCOUNT_ADMIN_CLIENT_ID, PKCE_CODE_CHALLENGE_METHOD_ATTR,
-        PKCE_S256_METHOD, POST_LOGOUT_REDIRECT_URIS_ATTR, REQUEST_URIS_ATTR,
+        CLI_ACCOUNT_ADMIN_CLIENT_ID, HASURA_DEFAULT_ROLE_MAPPER,
+        PKCE_CODE_CHALLENGE_METHOD_ATTR, PKCE_S256_METHOD,
+        POST_LOGOUT_REDIRECT_URIS_ATTR, REQUEST_URIS_ATTR,
         SAME_AS_REDIRECT_URIS,
     };
     use crate::serialization::deserialize_with_path::deserialize_str;
@@ -1410,6 +1428,35 @@ mod tests {
         assert_eq!(names, ["x-hasura-user-id", "x-hasura-permission-labels"]);
         assert_eq!(mappers[0].id.as_deref(), Some("x-hasura-user-id-id"));
         assert_eq!(mappers[1].id, None);
+    }
+
+    #[test]
+    fn cli_account_admin_gets_the_admin_portal_default_role() {
+        let default_role =
+            |role: &str| keycloak::types::ProtocolMapperRepresentation {
+                id: Some(format!("{role}-id")),
+                name: Some(HASURA_DEFAULT_ROLE_MAPPER.to_string()),
+                config: Some(HashMap::from([(
+                    "claim.value".to_string(),
+                    role.to_string(),
+                )])),
+                ..Default::default()
+            };
+        let mut clients = vec![
+            ClientRepresentation {
+                protocol_mappers: Some(vec![default_role("admin-user")]),
+                ..client("admin-portal")
+            },
+            ClientRepresentation {
+                protocol_mappers: Some(vec![default_role("cli-account-admin")]),
+                ..client("cli-account-admin")
+            },
+        ];
+        harden_realm_clients(&mut clients, "tenant-t");
+        let mappers = clients[1].protocol_mappers.clone().unwrap();
+        assert_eq!(mappers.len(), 1);
+        assert_eq!(mappers[0].id.as_deref(), Some("cli-account-admin-id"));
+        assert_eq!(mappers[0].config, default_role("admin-user").config);
     }
 
     #[test]

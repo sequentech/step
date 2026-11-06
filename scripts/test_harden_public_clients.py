@@ -67,6 +67,27 @@ class HardenClientsTests(unittest.TestCase):
         self.assertEqual(cli["secret"], "kept")
         self.assertEqual(cli["protocolMappers"], [{"name": "labels"}])
 
+    def test_cli_account_admin_gets_the_admin_portal_default_role(self):
+        def default_role(role, **fields):
+            return {
+                "name": "x-hasura-default-role",
+                "config": {"claim.value": role},
+                **fields,
+            }
+
+        clients = [
+            client("admin-portal", protocolMappers=[default_role("admin-user", id="1")]),
+            client(
+                "cli-account-admin",
+                protocolMappers=[default_role("cli-account-admin", id="2")],
+            ),
+        ]
+        before = json.loads(json.dumps(clients[1]))
+        harden.harden_clients(clients, "tenant-t")
+        cli = clients[1]
+        self.assertEqual(cli["protocolMappers"], [default_role("admin-user", id="2")])
+        self.assertEqual(harden.mapper_changes(before, cli), ([], cli["protocolMappers"]))
+
     def test_confidential_service_clients_are_unchanged(self):
         service = client("ivr-voting", publicClient=False)
         self.assertEqual(harden.harden_clients([service], "tenant-t"), [])

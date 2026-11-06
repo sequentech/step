@@ -43,6 +43,7 @@ PUBLIC_BROWSER_CLIENT_IDS = (
 ADMIN_PORTAL = "admin-portal"
 ACCOUNT_CONSOLE = "account-console"
 CLI_ACCOUNT_ADMIN = "cli-account-admin"
+HASURA_DEFAULT_ROLE_MAPPER = "x-hasura-default-role"
 
 
 def generate_client_secret():
@@ -71,12 +72,15 @@ def make_cli_client_confidential(client, admin_portal):
     client["webOrigins"] = []
     if admin_portal is not None:
         mappers = client.setdefault("protocolMappers", [])
-        names = {mapper.get("name") for mapper in mappers}
+        by_name = {mapper.get("name"): mapper for mapper in mappers}
         for mapper in admin_portal.get("protocolMappers", []):
-            if mapper.get("name") not in names:
+            name = mapper.get("name")
+            if name not in by_name:
                 mapper = copy.deepcopy(mapper)
                 mapper.pop("id", None)
                 mappers.append(mapper)
+            elif name == HASURA_DEFAULT_ROLE_MAPPER:
+                by_name[name]["config"] = copy.deepcopy(mapper.get("config"))
 
 
 def harden_clients(clients, realm, admin_portal_url=None):
@@ -152,6 +156,19 @@ class KeycloakAdmin:
             return json.loads(content) if content else None
 
 
+def mapper_changes(before, after):
+    """The mappers of `after` to create and the existing ones to update."""
+    existing = {mapper["id"]: mapper for mapper in before.get("protocolMappers", [])}
+    mappers = after.get("protocolMappers", [])
+    new = [mapper for mapper in mappers if "id" not in mapper]
+    changed = [
+        mapper
+        for mapper in mappers
+        if "id" in mapper and mapper != existing.get(mapper["id"])
+    ]
+    return new, changed
+
+
 def harden_realm(admin, realm, apply, admin_portal_url=None):
     clients = admin.call("GET", f"/{realm}/clients")
     originals = {client["id"]: copy.deepcopy(client) for client in clients}
@@ -163,13 +180,14 @@ def harden_realm(admin, realm, apply, admin_portal_url=None):
         print(f"{realm}: {client['clientId']}: {describe(original, client)}")
         if not apply:
             continue
-        new_mappers = [m for m in client.get("protocolMappers", []) if "id" not in m]
+        new_mappers, changed_mappers = mapper_changes(original, client)
         update = {k: v for k, v in client.items() if k != "protocolMappers"}
         admin.call("PUT", f"/{realm}/clients/{client['id']}", update)
+        models = f"/{realm}/clients/{client['id']}/protocol-mappers/models"
         for mapper in new_mappers:
-            admin.call(
-                "POST", f"/{realm}/clients/{client['id']}/protocol-mappers/models", mapper
-            )
+            admin.call("POST", models, mapper)
+        for mapper in changed_mappers:
+            admin.call("PUT", f"{models}/{mapper['id']}", mapper)
 
 
 def describe(before, after):

@@ -18,7 +18,7 @@ sequent-core), it restricts them to browser logins:
 | `voting-portal`, `onsite-voting-portal`, `voting-portal-kiosk`, `results-portal`, `admin-portal` | Direct access (password) grant and implicit flow off; PKCE `S256` required; Web Origins and post-logout redirect URIs `+` (the client's own redirect URIs). |
 | `admin-portal` | In tenant realms, also: root, base and redirect URIs pinned to `ADMIN_PORTAL_URL`, which windmill requires. |
 | `account-console` | In every realm: redirect URIs limited to `/realms/<realm>/account/*`; Web Origins and post-logout redirect URIs `+`. |
-| `cli-account-admin` | Confidential: the password grant now also needs the client secret. No browser logins. Gets any `admin-portal` token mapper it lacks, so its tokens carry the same Hasura claims. |
+| `cli-account-admin` | Confidential: the password grant now also needs the client secret. No browser logins. Gets any `admin-portal` token mapper it lacks and the `admin-portal` default role, so its tokens carry the same Hasura claims. |
 
 The password grant skips the browser flow, including its email or SMS
 one-time code, so on a public client a password alone was enough to get a
