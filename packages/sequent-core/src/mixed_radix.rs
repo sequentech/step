@@ -25,6 +25,12 @@ pub fn decode(
     encoded_value: &BigUint,
     last_base: u64,
 ) -> Result<Vec<u64>, String> {
+    if last_base < 2 || bases.contains(&0) {
+        return Err(format!(
+            "Invalid parameters: 'baseList' must not contain zero and 'lastBase' (= {}) must be at least 2.",
+            last_base
+        ));
+    }
     let mut values: Vec<u64> = vec![];
     let mut accumulator: BigUint = encoded_value.clone();
     let mut index = 0usize;
@@ -219,5 +225,20 @@ mod tests {
 
         let encoded_result2 = encode(&vec![1, 2, 3, 3], &vec![6, 6, 6]);
         assert!(encoded_result2.is_err());
+    }
+
+    #[test]
+    fn test_decode_rejects_zero_base() {
+        let decoded = decode(&vec![2, 0], &BigUint::from(3u32), 256);
+        assert!(decoded.is_err());
+    }
+
+    #[test]
+    fn test_decode_rejects_last_base_below_two() {
+        let decoded = decode(&vec![2], &BigUint::from(5u32), 0);
+        assert!(decoded.is_err());
+
+        let decoded = decode(&vec![2], &BigUint::from(5u32), 1);
+        assert!(decoded.is_err());
     }
 }

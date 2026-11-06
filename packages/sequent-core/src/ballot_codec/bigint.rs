@@ -146,9 +146,13 @@ impl BigUIntCodec for Contest {
 
 #[cfg(test)]
 mod tests {
+    use crate::ballot::{CandidatePresentation, Contest};
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::*;
+    use crate::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+    use crate::types::ceremonies::CountingAlgType;
     use crate::util::normalize_vote::normalize_vote_contest;
+    use num_bigint::BigUint;
     use std::cmp;
 
     #[test]
@@ -219,5 +223,87 @@ mod tests {
                 contest.available_write_in_characters(&plaintext).unwrap();
             assert_eq!(available_chars as i64, -n);
         }
+    }
+
+    fn unselected_plaintext(contest: &Contest) -> DecodedVoteContest {
+        DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .map(|candidate| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: -1,
+                    write_in_text: None,
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn test_codec_rejects_negative_max_votes() {
+        for max_votes in [-1, -2] {
+            let contest = get_configurable_contest(
+                max_votes,
+                3,
+                CountingAlgType::InstantRunoff,
+                false,
+                None,
+                false,
+            );
+            let plaintext = unselected_plaintext(&contest);
+
+            assert!(
+                contest.encode_plaintext_contest_bigint(&plaintext).is_err(),
+                "encode with max_votes {max_votes}"
+            );
+            assert!(
+                contest
+                    .decode_plaintext_contest_bigint(&BigUint::from(2u32))
+                    .is_err(),
+                "decode with max_votes {max_votes}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_decode_write_in_explicit_invalid_candidate() {
+        let mut contest = get_configurable_contest(
+            3,
+            7,
+            CountingAlgType::PluralityAtLarge,
+            true,
+            Some(vec![0, 5]),
+            true,
+        );
+        contest.candidates[0]
+            .presentation
+            .get_or_insert_with(CandidatePresentation::default)
+            .is_explicit_invalid = Some(true);
+
+        let mut plaintext = unselected_plaintext(&contest);
+        plaintext.choices[5].selected = 0;
+        plaintext.choices[5].write_in_text = Some("AB".to_string());
+
+        let bigint = contest
+            .encode_plaintext_contest_bigint(&plaintext)
+            .expect("Expected encoded ballot");
+        let decoded = contest
+            .decode_plaintext_contest_bigint(&bigint)
+            .expect("Expected decoded ballot");
+
+        assert!(!decoded.is_explicit_invalid);
+        let write_in = decoded
+            .choices
+            .iter()
+            .find(|choice| choice.id == contest.candidates[5].id)
+            .expect("Expected write-in choice");
+        assert_eq!(write_in.selected, 0);
+        assert_eq!(write_in.write_in_text, Some("AB".to_string()));
     }
 }
