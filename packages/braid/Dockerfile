@@ -10,6 +10,7 @@ COPY ./braid/scripts/Cargo.toml ./Cargo.toml
 COPY ./braid ./braid
 COPY ./b3 ./b3
 COPY ./strand ./strand
+COPY ./sequent-core ./sequent-core
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo
 
