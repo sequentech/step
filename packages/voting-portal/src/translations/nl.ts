@@ -71,6 +71,7 @@ const dutchTranslation: TranslationType = {
         },
         breadcrumbSteps: {
             electionList: "Stembiljetten",
+            instructions: "Instructies",
             ballot: "Stembiljet",
             review: "Controle",
             confirmation: "Bevestigen",

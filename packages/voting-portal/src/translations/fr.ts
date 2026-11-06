@@ -71,6 +71,7 @@ const frenchTranslation: TranslationType = {
         },
         breadcrumbSteps: {
             electionList: "Liste des élections",
+            instructions: "Instructions",
             ballot: "Bulletin de vote",
             review: "Révision",
             confirmation: "Confirmer",
