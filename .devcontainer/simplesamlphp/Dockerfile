@@ -1,4 +1,4 @@
-FROM php:8.3-apache
+FROM php:8.3.36-apache
 
 # Simplify installing php extensions. See
 COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/bin/
@@ -27,10 +27,10 @@ ENV APACHE_CERT_NAME=ssl-cert-snakeoil \
     SSP_DELETE_MODULES="" \
     SSP_DIR=/var/simplesaml \
     SSP_ENABLED_MODULES="" \
-    SSP_HASH=ff52cde9b3f90ff5dd76a97e67842462da2d8edc2128fbe8dcdbbd03b1b21945 \
+    SSP_HASH=6a0edb94195fb9bee395234a29d801c023c12a52dd610d7afe15c55020861ee5 \
     SSP_LOG_HANDLER=errorlog \
     SSP_LOG_LEVEL=6 \
-    SSP_VERSION=2.4.2 \
+    SSP_VERSION=2.4.10 \
     COMPOSER_REQUIRE=""
 
 RUN cp $PHP_INI_DIR/php.ini-production $PHP_INI_DIR/php.ini \
