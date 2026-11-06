@@ -9,7 +9,7 @@ import {Provider} from "react-redux"
 import {MemoryRouter, useLocation, useNavigate} from "react-router-dom"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
-import {ELanguageDetectionPolicy} from "@sequentech/ui-core"
+import {ELanguageDetectionPolicy, IElectionEventPresentation} from "@sequentech/ui-core"
 import {electionFixture, FIXED_TIME} from "@sequentech/ui-test-kit/fixtures"
 import App from "./App"
 import {KeycloakProviderContainer} from "./index"
@@ -219,17 +219,18 @@ describe("event CSS", () => {
         await expectOnlySafeCss("rgb(1, 2, 3)", "published")
     })
 
+    // Signed in, the verifier uses the published style; only offline does the file's apply.
     it("filters the CSS inside an imported auditable ballot", async () => {
-        services = serve()
-        launch(`${voterEvent}/start`)
+        services = serve({DISABLE_AUTH: true})
+        launch("/")
         const single = singleContestBallot()
         single.ballot.config.election_event_presentation = {
             css: `color: rgb(4, 5, 6); ${unsafeCss("imported")}`,
-        }
+        } as IElectionEventPresentation
 
         await importAndContinue(single)
 
-        await expectLocation(`${voterEvent}/confirmation`)
+        await expectLocation(`${eventPath(defaultEvent.tenant, defaultEvent.event)}/confirmation`)
         await expectOnlySafeCss("rgb(4, 5, 6)", "imported")
     })
 })
