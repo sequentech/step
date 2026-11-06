@@ -331,6 +331,9 @@ impl<'a> MultiBallotCodecContext<'a> {
                     ),
                     message_map: HashMap::new(),
                 });
+                // The flags contradict each other, so neither stands: the
+                // contest counts as implicitly invalid.
+                contest.is_explicit_invalid = false;
                 is_blank_ballot = false;
             }
         }
@@ -2993,6 +2996,13 @@ mod tests {
             error.message.as_deref()
                 == Some("errors.encoding.blankBallotWithSelections")
         }));
+
+        // What velvet's classify_ballot reads: invalid, but not explicitly.
+        let mapped =
+            map_decoded_ballot_choices_to_decoded_contests(decoded, &contests)
+                .expect("mapping should succeed");
+        assert!(mapped[1].is_invalid());
+        assert!(!mapped[1].is_explicit_invalid);
     }
 
     #[test]
