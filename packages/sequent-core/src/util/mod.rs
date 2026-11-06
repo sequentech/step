@@ -20,8 +20,6 @@ pub mod aws;
 #[cfg(feature = "log")]
 pub mod init_log;
 
-#[macro_use]
-pub mod console_log;
 pub mod float;
 
 #[cfg(feature = "reports")]
