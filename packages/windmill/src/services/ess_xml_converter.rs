@@ -173,6 +173,16 @@ fn output_too_large_error(selected_channel: &VotingChannel) -> TallySheetImportV
 /// Writes the canonical CSV header row. Shared so every conversion path —
 /// including one refused before it reads a single contest — emits the same
 /// well-formed CSV shape.
+/// Bytes `field` takes in the CSV: wrapped in quotes when it needs them, with
+/// each of its own quotes doubled.
+fn csv_field_bytes(field: &str) -> u64 {
+    let quotes = field.bytes().filter(|byte| *byte == b'"').count() as u64;
+    let is_quoted = field
+        .bytes()
+        .any(|byte| matches!(byte, b'"' | b',' | b'\n' | b'\r'));
+    field.len() as u64 + quotes + if is_quoted { 2 } else { 0 }
+}
+
 fn write_canonical_csv_header(writer: &mut Writer<Vec<u8>>) -> Result<()> {
     writer.write_record([
         "channel",
@@ -712,7 +722,7 @@ fn convert_party_grouped(
         let rows_per_party_sheet = SCALAR_ROWS_PER_PARTY_SHEET + candidates.len() as u64;
         let candidate_ids_bytes: u64 = candidates
             .iter()
-            .map(|candidate| candidate.external_id.len() as u64)
+            .map(|candidate| csv_field_bytes(&candidate.external_id))
             .sum();
 
         for (party_id, totals) in totals_by_party {
@@ -742,8 +752,8 @@ fn convert_party_grouped(
             }
 
             let row_bytes = channel_bytes
-                + party_name.len() as u64
-                + contest_external_id.len() as u64
+                + csv_field_bytes(party_name)
+                + csv_field_bytes(&contest_external_id)
                 + CANONICAL_CSV_ROW_OVERHEAD_BYTES;
             let sheet_bytes = rows_per_party_sheet
                 .saturating_mul(row_bytes)
@@ -2442,6 +2452,35 @@ mod tests {
     #[test]
     fn party_grouping_refuses_a_conversion_with_too_many_rows() {
         let xml = file_with_one_ballot_per_party(&party_names_with_padding(1_000, 0), 1_000);
+
+        let (csv, errors) = convert_for_test(
+            &xml,
+            VotingChannel::PAPER,
+            &single_choice_config(&["contest-1"]),
+            &party_area_names(),
+        )
+        .unwrap();
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "ess_output_too_large");
+        assert!(csv_has_no_rows(&csv));
+    }
+
+    #[test]
+    fn csv_field_bytes_counts_quoting_and_escaping() {
+        assert_eq!(csv_field_bytes("plain"), 5);
+        assert_eq!(csv_field_bytes("a,b"), 5);
+        assert_eq!(csv_field_bytes(r#"a"b"#), 6);
+    }
+
+    #[test]
+    fn party_grouping_counts_the_escaping_of_a_party_name() {
+        // Every quote takes two bytes in the CSV, so the projection only
+        // goes past the limit once it counts them both.
+        let party_names: Vec<String> = std::iter::once("Area A".to_string())
+            .chain((1..64).map(|index| format!("Party {index}{}", "&quot;".repeat(4_096))))
+            .collect();
+        let xml = file_with_one_ballot_per_party(&party_names, 160);
 
         let (csv, errors) = convert_for_test(
             &xml,
