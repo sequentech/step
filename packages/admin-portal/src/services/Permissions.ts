@@ -252,6 +252,7 @@ export const getTaskRole = (
 const SCHEMA_ROLES: Array<IPermissions> = [
     ...DEFAULT_OPERATION_ROLES,
     IPermissions.PUBLISH_RESULTS_READ,
+    IPermissions.DOCUMENT_READ,
 ]
 
 // The roles whose schema the data provider needs: admin-user sees what the portal loads,

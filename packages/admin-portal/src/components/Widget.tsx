@@ -266,6 +266,7 @@ export const Widget: React.FC<WidgetProps> = ({
                     currTaskId={taskId}
                     goBack={() => setOpenTaskModal(false)}
                     isModal={true}
+                    taskRole={taskRole}
                 />
             )}
             {exportDocumentId && downloading && (
