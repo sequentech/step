@@ -425,8 +425,13 @@ export const TallyCeremony: React.FC = () => {
     }, [tallySession])
 
     const tallyDisabledReason = useMemo(
-        () => getTallyDisabledReason(elections, selectedElections ?? undefined),
-        [elections, selectedElections]
+        () =>
+            getTallyDisabledReason(
+                elections,
+                selectedElections ?? undefined,
+                keysCeremonies?.list_keys_ceremony?.items
+            ),
+        [elections, selectedElections, keysCeremonies?.list_keys_ceremony?.items]
     )
     const isTallyAllowed = useMemo(
         () => !getTallyDisabledReason(elections, tallySession?.election_ids ?? undefined),

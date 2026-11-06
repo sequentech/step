@@ -2,15 +2,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {EAllowTally, EVotingStatus, IElectionStatus} from "@sequentech/ui-core"
+import {IKeysCeremonyExecutionStatus} from "./KeyCeremony"
 
 type TallyElection = {
     id: string
+    keys_ceremony_id?: string | null
     status?: (Partial<IElectionStatus> & {allow_tally?: EAllowTally}) | null
+}
+
+type TallyKeysCeremony = {
+    id: string
+    execution_status?: string | null
 }
 
 export const getTallyDisabledReason = (
     elections: TallyElection[] | undefined,
-    selectedIds: string[] | undefined
+    selectedIds: string[] | undefined,
+    // Mirrors windmill's find_keys_ceremony. Undefined skips the check (still loading).
+    keysCeremonies?: TallyKeysCeremony[]
 ): string | undefined => {
     if (!elections || !selectedIds?.length) return "selectElection"
     for (const id of selectedIds) {
@@ -30,5 +39,15 @@ export const getTallyDisabledReason = (
         )
         if (status.voting_status !== EVotingStatus.CLOSED || !secondaryClosed) return "endVoting"
     }
+    if (!keysCeremonies) return undefined
+    const keysIds = selectedIds.map(
+        (id) => elections.find((item) => item.id === id)?.keys_ceremony_id
+    )
+    // Same order as windmill: distinct assigned ceremonies first, then missing ones.
+    if (new Set(keysIds.filter(Boolean)).size > 1) return "keysCeremonyMismatch"
+    if (keysIds.some((id) => !id)) return "keysCeremonyMissing"
+    const ceremony = keysCeremonies.find((item) => item.id === keysIds[0])
+    if (ceremony?.execution_status !== IKeysCeremonyExecutionStatus.SUCCESS)
+        return "keysCeremonyIncomplete"
     return undefined
 }
