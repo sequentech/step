@@ -93,30 +93,65 @@ const CANDIDATES_SHOWN = 5
 const STEPS = ["identity", "voter", "decide"] as const
 type Step = (typeof STEPS)[number]
 
-const Stepper = styled("ol")({
-    display: "flex",
-    flexWrap: "wrap",
+const STEP_LINE = "1px dashed #8A90A0"
+
+/**
+ * The review's steps across the whole width: the first at the left, the second centered (the
+ * outer columns are equal) and the last at the right, joined by lines that fill the space. On
+ * narrow screens each step puts its label under its number, over one line behind the numbers.
+ */
+const Stepper = styled("ol")(({theme}) => ({
+    position: "relative",
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)",
     alignItems: "center",
-    gap: "8px",
+    columnGap: "12px",
     margin: "24px 0 16px",
     padding: 0,
     listStyle: "none",
-})
+    [theme.breakpoints.down("sm")]: {
+        "alignItems": "start",
+        "columnGap": "8px",
+        "&::before": {
+            content: '""',
+            position: "absolute",
+            top: "12px",
+            left: "12px",
+            right: "12px",
+            borderTop: STEP_LINE,
+        },
+    },
+}))
 
-const StepItem = styled("li")({
+const StepItem = styled("li")(({theme}) => ({
+    "position": "relative",
     "display": "flex",
     "alignItems": "center",
     "gap": "8px",
+    "minWidth": 0,
     "fontSize": "15px",
     "color": "#5B6272",
     "&[aria-current='step'], &[data-done='true']": {color: "#191D23"},
-    "&:not(:last-of-type)::after": {
+    "&:first-of-type::after, &:last-of-type::before": {
         content: '""',
-        width: "min(160px, 10vw)",
-        borderTop: "1px dashed #8A90A0",
+        flex: "1 1 auto",
+        minWidth: "16px",
+        borderTop: STEP_LINE,
         margin: "0 4px",
     },
-})
+    "&:last-of-type": {justifyContent: "flex-end"},
+    [theme.breakpoints.down("sm")]: {
+        "flexDirection": "column",
+        "alignItems": "center",
+        "gap": "4px",
+        "fontSize": "13px",
+        "lineHeight": "18px",
+        "textAlign": "center",
+        "&:first-of-type": {alignItems: "flex-start", textAlign: "left"},
+        "&:last-of-type": {alignItems: "flex-end", textAlign: "right"},
+        "&:first-of-type::after, &:last-of-type::before": {display: "none"},
+    },
+}))
 
 const Section = styled(Accordion)({
     "width": "100%",
