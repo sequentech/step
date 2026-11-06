@@ -241,7 +241,7 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
     ) -> Result<Response<GetMessagesReply>, Status> {
         let r = request.get_ref();
 
-        let (messages, _) = self.get_messages_(&r.board, r.last_id).await?;
+        let (messages, truncated) = self.get_messages_(&r.board, r.last_id).await?;
 
         info!(
             "get_messages: returning {} messages with id > {} for board '{}'",
@@ -250,7 +250,10 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
             r.board
         );
 
-        let reply = GetMessagesReply { messages };
+        let reply = GetMessagesReply {
+            messages,
+            truncated,
+        };
         Ok(Response::new(reply))
     }
 
