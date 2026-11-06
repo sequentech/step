@@ -323,8 +323,18 @@ describe("getSchemaRoles", () => {
         expect(getSchemaRoles(holding(roles))).toEqual(roles)
     })
 
+    it("adds the document schema to a user who can read documents", () => {
+        const roles = [IPermissions.PUBLISH_READ, IPermissions.DOCUMENT_READ]
+        expect(getSchemaRoles(holding(roles))).toEqual(roles)
+    })
+
+    it("adds the fallback schema next to the results publication one", () => {
+        const roles = [IPermissions.ELECTION_EVENT_READ, IPermissions.PUBLISH_RESULTS_READ]
+        expect(getSchemaRoles(holding(roles))).toEqual(roles)
+    })
+
     it("has no role for a user without a profile", () => {
-        expect(getSchemaRoles(holding([IPermissions.ELECTION_EVENT_READ]))).toEqual([])
+        expect(getSchemaRoles(holding([IPermissions.LOGS_READ]))).toEqual([])
     })
 })
 
