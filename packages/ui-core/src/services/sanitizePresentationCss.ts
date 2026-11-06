@@ -32,7 +32,7 @@ const GENERATED_TEXT_PROPERTIES = new Set([
 ])
 const VENDOR_PREFIX = /^-(webkit|moz|ms|o)-/
 const EMPTY_STRING = /""|''/g
-const TEXT_SOURCE = /["']|var\(/
+const TEXT_SOURCE = /["']|(?:var|attr|counters?)\(/
 
 const URL_FUNCTION = "url("
 const URL_ARGUMENT = /^\s*(?:"([^"\n\r\f]*)"|'([^'\n\r\f]*)'|([^\s"'()]*))\s*\)/

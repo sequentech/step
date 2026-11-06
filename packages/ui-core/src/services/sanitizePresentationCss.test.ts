@@ -110,6 +110,18 @@ describe("sanitizePresentationCss", () => {
         expect(out).toContain("display: list-item")
     })
 
+    it.each([
+        "content: counter(n, lower-alpha)",
+        "content: COUNTER(n)",
+        "content: counters(n, x)",
+        "content: attr(class)",
+        "content: ATTR(class)",
+    ])("drops text generated without quotes: %s", (declaration) => {
+        expect(sanitize(`.a::after { color: red; ${declaration}; }`)).toBe(
+            ".a::after { color: red; }"
+        )
+    })
+
     it("drops declarations with escapes or comments inside strings", () => {
         const out = sanitize(
             '.a { color: red; font-family: "x\\" y"; grid-template-areas: "/* a */"; }'
