@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {readFileSync} from "fs"
 import {resolve} from "path"
-import {getOperationRole} from "./Permissions"
+import {getOperationRole, getSchemaRoles} from "./Permissions"
 import {IPermissions} from "@/types/keycloak"
 import type {GraphQLRequest} from "@apollo/client"
 
@@ -291,4 +291,29 @@ test("forensic actions never fall back to the broad administrator role", () => {
         IPermissions.FORENSIC_READ
     )
     expect(getOperationRole(operation("BallotBoxEntry"), () => true)).toBe(IPermissions.LOGS_READ)
+})
+
+describe("getSchemaRoles", () => {
+    const holding = (roles: Array<IPermissions>) => (role: IPermissions) => roles.includes(role)
+
+    it("uses admin-user alone for admins", () => {
+        const roles = [
+            IPermissions.ADMIN_USER,
+            IPermissions.TRUSTEE_CEREMONY,
+            IPermissions.PUBLISH_READ,
+        ]
+        expect(getSchemaRoles(holding(roles))).toEqual([IPermissions.ADMIN_USER])
+    })
+
+    it("uses every profile a restricted user holds", () => {
+        const roles = [IPermissions.PUBLISH_READ, IPermissions.TRUSTEE_CEREMONY]
+        expect(getSchemaRoles(holding(roles))).toEqual([
+            IPermissions.TRUSTEE_CEREMONY,
+            IPermissions.PUBLISH_READ,
+        ])
+    })
+
+    it("has no role for a user without a profile", () => {
+        expect(getSchemaRoles(holding([IPermissions.ELECTION_EVENT_READ]))).toEqual([])
+    })
 })
