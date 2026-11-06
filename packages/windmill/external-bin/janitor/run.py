@@ -826,6 +826,15 @@ def gen_keycloak_context(excel_data, areas_dict):
 
     for context_key, settings_key in key_mappings.items():
         keycloak_context[context_key] = int(keycloak_settings_dict.get(settings_key, 50))
+
+    # Vendor credentials are rendered inside JSON strings, so they are escaped
+    secret_mappings = {
+        "inetum_api_key": "keycloak_inetum_api_key",
+        "recaptcha_site_secret": "keycloak_recaptcha_site_secret",
+    }
+    for context_key, settings_key in secret_mappings.items():
+        value = str(keycloak_settings_dict.get(settings_key) or "")
+        keycloak_context[context_key] = json.dumps(value)[1:-1]
     return keycloak_context
 
 def load_sqlite_query(script_dir):
