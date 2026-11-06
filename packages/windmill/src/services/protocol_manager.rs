@@ -117,18 +117,27 @@ pub async fn add_config_to_board<C: Ctx>(
     init(&mut client, configuration, pm, board_name).await
 }
 
+/// The board's key ceremony has not finished, so the board has no public key.
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
+pub struct IncompleteBoardPublicKey(String);
+
 #[instrument(err)]
 pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
     let mut board = get_b3_pgsql_client().await?;
 
     let b3 = board.get_messages(board_name, -1).await?;
 
-    let valid_statements = vec![StatementType::PublicKey, StatementType::PublicKeySigned];
     let messages: Vec<Message> = b3
         .into_iter()
         .filter_map(|board_message| Message::strand_deserialize(&board_message.message).ok())
         .collect();
 
+    public_key_from_messages::<C>(board_name, messages)
+}
+
+fn public_key_from_messages<C: Ctx>(board_name: &str, messages: Vec<Message>) -> Result<C::E> {
+    let valid_statements = vec![StatementType::PublicKey, StatementType::PublicKeySigned];
     let config = get_configuration::<C>(&messages)?;
 
     config
@@ -142,10 +151,11 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
             if trustee_pk {
                 Ok(())
             } else {
-                Err(anyhow!(
+                Err(IncompleteBoardPublicKey(format!(
                     "Missing public key for trustee {:?}",
                     trustee_signature
                 ))
+                .into())
             }
         })
         .collect::<Result<()>>()?;
@@ -153,13 +163,15 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
     let pks_message = messages
         .into_iter()
         .find(|message| StatementType::PublicKey == message.statement.get_kind())
-        .with_context(|| format!("Public Key not found on board {}", board_name))?;
+        .ok_or_else(|| {
+            IncompleteBoardPublicKey(format!("Public Key not found on board {}", board_name))
+        })?;
 
-    let bytes = pks_message.artifact.with_context(|| {
-        format!(
+    let bytes = pks_message.artifact.ok_or_else(|| {
+        IncompleteBoardPublicKey(format!(
             "Artifact missing on Public Key message on board {}",
             board_name
-        )
+        ))
     })?;
     let dkgpk =
         DkgPublicKey::<C>::strand_deserialize(&bytes).map_err(|err| anyhow!("{:?}", err))?;
@@ -545,6 +557,41 @@ mod tests {
             .finish();
         let output = tracing::subscriber::with_default(subscriber, run);
         (output, logs.contents())
+    }
+
+    fn configuration_message() -> Message {
+        let pm = gen_protocol_manager::<RistrettoCtx>().expect("protocol manager");
+        let trustees = (0..2)
+            .map(|_| {
+                let signing_key = StrandSignatureSk::gen().expect("trustee key");
+                StrandSignaturePk::from_sk(&signing_key).expect("trustee public key")
+            })
+            .collect();
+        let configuration = Configuration::<RistrettoCtx>::new(
+            0,
+            StrandSignaturePk::from_sk(&pm.signing_key).expect("protocol manager key"),
+            trustees,
+            2,
+            PhantomData,
+        );
+        Message::bootstrap_msg(&configuration, &pm).expect("configuration message")
+    }
+
+    #[test]
+    fn a_board_without_trustee_keys_has_an_incomplete_public_key() {
+        let error =
+            public_key_from_messages::<RistrettoCtx>("board", vec![configuration_message()])
+                .expect_err("no public key on the board");
+
+        assert!(error.is::<IncompleteBoardPublicKey>());
+    }
+
+    #[test]
+    fn a_board_without_a_configuration_is_not_reported_as_incomplete() {
+        let error = public_key_from_messages::<RistrettoCtx>("board", vec![])
+            .expect_err("no configuration on the board");
+
+        assert!(!error.is::<IncompleteBoardPublicKey>());
     }
 
     fn serialized_protocol_manager() -> (String, String) {
