@@ -2394,6 +2394,8 @@
       "subGroups": [],
       "attributes": {},
       "realmRoles": [
+        "document-download",
+        "document-read",
         "election-event-publish-tab",
         "publish-write",
         "election-event-read",

@@ -76,3 +76,14 @@ test("publish-read follows only its tenant's ballot exports", () => {
         ],
     })
 })
+
+test("fetchDocument accepts the role Harvest requires", () => {
+    const {actions} = yaml.load(
+        readFileSync(resolve(__dirname, "../metadata/actions.yaml"), "utf8")
+    )
+    const action = actions.find(({name}) => name === "fetchDocument")
+    assert.deepEqual(action.permissions.map(({role}) => role).sort(), [
+        "admin-user",
+        "document-download",
+    ])
+})

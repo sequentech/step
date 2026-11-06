@@ -50,6 +50,8 @@ const TRUSTEE_OPERATIONS = [
     "GetPrivateKey",
     "CheckPrivateKey",
     "RestorePrivateKey",
+    "GetDocument",
+    "FetchDocument",
 ]
 
 const LOCKDOWN_OPERATIONS = [
@@ -57,6 +59,8 @@ const LOCKDOWN_OPERATIONS = [
     "sequent_backend_ballot_publication",
     "GenerateBallotPublication",
     "PublishBallot",
+    "GetDocument",
+    "FetchDocument",
 ]
 
 const groupRoles = (template: string, groupName: string): Array<string> => {
@@ -118,6 +122,36 @@ describe("getSchemaRoles", () => {
 
     it("has no role for a user without a profile", () => {
         expect(getSchemaRoles(holding([IPermissions.ELECTION_EVENT_READ]))).toEqual([])
+    })
+})
+
+describe("operation names that match object members", () => {
+    it.each(["toString", "constructor", "__proto__"])("treats %s as unmapped", (operation) => {
+        expect(roleFor(operation, [IPermissions.PUBLISH_READ])).toBe(IPermissions.PUBLISH_READ)
+    })
+})
+
+describe("document reads", () => {
+    it("runs them under the document roles for a restricted user", () => {
+        const roles = [
+            IPermissions.PUBLISH_READ,
+            IPermissions.DOCUMENT_READ,
+            IPermissions.DOCUMENT_DOWNLOAD,
+        ]
+        expect(roleFor("GetDocument", roles)).toBe(IPermissions.DOCUMENT_READ)
+        expect(roleFor("FetchDocument", roles)).toBe(IPermissions.DOCUMENT_DOWNLOAD)
+    })
+
+    it("keeps them on admin-user for admins", () => {
+        const roles = [IPermissions.ADMIN_USER, IPermissions.DOCUMENT_DOWNLOAD]
+        expect(roleFor("FetchDocument", roles)).toBe(IPermissions.ADMIN_USER)
+    })
+})
+
+describe("task reads", () => {
+    it("prefers tasks-read for a restricted user who holds it", () => {
+        const roles = [IPermissions.PUBLISH_READ, IPermissions.TASKS_READ]
+        expect(roleFor("GetTaskById", roles)).toBe(IPermissions.TASKS_READ)
     })
 })
 

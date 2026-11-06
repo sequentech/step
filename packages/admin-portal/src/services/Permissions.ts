@@ -180,14 +180,16 @@ const TrusteeOperationMap: Record<string, IPermissions> = {
     getUsers: IPermissions.VOTER_READ,
 }
 
-// Publication operations that admin-user can also run, so only a user without
-// it needs to send these roles
-const PUBLICATION_OPERATION_ROLES: Record<string, IPermissions> = {
-    GenerateBallotPublication: IPermissions.PUBLISH_WRITE,
-    PublishBallot: IPermissions.PUBLISH_WRITE,
-    GetTaskById: IPermissions.PUBLISH_READ,
-    GetBallotPublicationChange: IPermissions.PUBLISH_READ,
-}
+// Operations that admin-user can also run, so only a user without it needs to send
+// these roles, in order of preference
+const RESTRICTED_OPERATION_ROLES = new Map<string, Array<IPermissions>>([
+    ["GenerateBallotPublication", [IPermissions.PUBLISH_WRITE]],
+    ["PublishBallot", [IPermissions.PUBLISH_WRITE]],
+    ["GetTaskById", [IPermissions.TASKS_READ, IPermissions.PUBLISH_READ]],
+    ["GetBallotPublicationChange", [IPermissions.PUBLISH_READ]],
+    ["GetDocument", [IPermissions.DOCUMENT_READ]],
+    ["FetchDocument", [IPermissions.DOCUMENT_DOWNLOAD]],
+])
 
 // Roles that operations without a mapped role run as, in order of preference
 const DEFAULT_OPERATION_ROLES: Array<IPermissions> = [
@@ -205,9 +207,9 @@ export const getOperationRole = (
         ? TrusteeOperationMap
         : AdminOperationMap
     const operationName = operation?.operationName
-    const publicationRole = operationName ? PUBLICATION_OPERATION_ROLES[operationName] : undefined
-    if (defaultRole !== IPermissions.ADMIN_USER && publicationRole && hasRole(publicationRole)) {
-        return publicationRole
+    const restrictedRole = RESTRICTED_OPERATION_ROLES.get(operationName ?? "")?.find(hasRole)
+    if (defaultRole !== IPermissions.ADMIN_USER && restrictedRole) {
+        return restrictedRole
     }
     const mappedRole = operationName ? operationMap[operationName] : undefined
     if (!mappedRole) {
