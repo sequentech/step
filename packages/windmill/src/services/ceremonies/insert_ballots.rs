@@ -232,8 +232,11 @@ pub async fn insert_ballots_messages(
                         ));
                     }
 
-                    if tally_type_clone == TallyType::INITIALIZATION_REPORT
-                        && has_area_cast_votes(
+                    // An initialization report never reads ballots, so its
+                    // file stays empty: a vote committed after this check
+                    // could otherwise still reach the extraction below.
+                    if tally_type_clone == TallyType::INITIALIZATION_REPORT {
+                        if has_area_cast_votes(
                             &hasura_transaction_clone,
                             &tenant_uuid,
                             &election_event_uuid,
@@ -241,24 +244,25 @@ pub async fn insert_ballots_messages(
                             &area_uuid,
                         )
                         .await?
-                    {
-                        return Err(anyhow!(
-                            "Refusing to extract ballots for the initialization report of \
-                             election {} area {}: the area already has cast votes",
-                            tally_session_contest.election_id,
-                            tally_session_contest.area_id,
-                        ));
+                        {
+                            return Err(anyhow!(
+                                "Refusing to extract ballots for the initialization report of \
+                                 election {} area {}: the area already has cast votes",
+                                tally_session_contest.election_id,
+                                tally_session_contest.area_id,
+                            ));
+                        }
+                    } else {
+                        find_area_ballots(
+                            &hasura_transaction_clone,
+                            &tenant_id_clone,
+                            &election_event_id_clone,
+                            &tally_session_contest.area_id,
+                            &tally_session_contest.election_id,
+                            &ballots_temp_file.path().to_path_buf(),
+                        )
+                        .await?;
                     }
-
-                    find_area_ballots(
-                        &hasura_transaction_clone,
-                        &tenant_id_clone,
-                        &election_event_id_clone,
-                        &tally_session_contest.area_id,
-                        &tally_session_contest.election_id,
-                        &ballots_temp_file.path().to_path_buf(),
-                    )
-                    .await?;
 
                     let ballots_temp_file = ballots_temp_file.reopen()?;
 
