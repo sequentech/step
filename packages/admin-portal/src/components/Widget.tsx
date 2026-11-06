@@ -41,6 +41,8 @@ import {useTranslation} from "react-i18next"
 import {ViewTask} from "@/resources/Tasks/ViewTask"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {getTaskRole} from "@/services/Permissions"
 import {useQuery} from "@apollo/client"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
 import {ReportManifestDownload} from "./ReportManifestDownload"
@@ -107,6 +109,8 @@ export const Widget: React.FC<WidgetProps> = ({
 }) => {
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
+    const {hasRole} = useContext(AuthContext)
+    const taskRole = getTaskRole(type, hasRole)
     const [expanded, setExpanded] = useState(false)
     const [openTaskModal, setOpenTaskModal] = useState(false)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>(undefined)
@@ -123,6 +127,7 @@ export const Widget: React.FC<WidgetProps> = ({
     const {data: taskData} = useQuery<GetTaskByIdQuery>(GET_TASK_BY_ID, {
         variables: {task_id: taskId},
         skip: !taskId,
+        context: taskRole ? {headers: {"x-hasura-role": taskRole}} : undefined,
         pollInterval: [ETaskExecutionStatus.STARTED, ETaskExecutionStatus.IN_PROGRESS].includes(
             taskDataStatus
         )
@@ -292,6 +297,7 @@ export const Widget: React.FC<WidgetProps> = ({
                     currTaskId={taskId}
                     goBack={() => setOpenTaskModal(false)}
                     isModal={true}
+                    taskRole={taskRole}
                 />
             )}
             {exportDocumentId && downloading && (
