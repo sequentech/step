@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Stable PR Fanout
+
+on:
+  pull_request:
+    types: [ready_for_review]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  fanout:
+    if: |
+      github.event.pull_request.base.ref == 'main' &&
+      endsWith(github.event.pull_request.head.ref, '/main') &&
+      contains(github.event.pull_request.body || '', 'https://github.com/sequentech/meta/issues/')
+    uses: ./.github/workflows/reusable_stable_pr_fanout.yml
+    with:
+      source_pr_number: ${{ github.event.pull_request.number }}
+      source_pr_title: ${{ github.event.pull_request.title }}
+      source_pr_body: ${{ github.event.pull_request.body }}
+      source_head_ref: ${{ github.event.pull_request.head.ref }}
+      source_base_ref: ${{ github.event.pull_request.base.ref }}
+      source_pr_url: ${{ github.event.pull_request.html_url }}
+      # Keep this list editable here. sequentech/beyond should call this same
+      # reusable workflow rather than re-implementing fanout logic.
+      stable_branches_json: '["release/10.0","release/9.5.x"]'
