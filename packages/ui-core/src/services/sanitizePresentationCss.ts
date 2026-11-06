@@ -157,6 +157,8 @@ export const sanitizePresentationCss = (css: string, scope: PresentationCssScope
             }
             node.params = params
             delete node.raws.params
+            delete node.raws.afterName
+            delete node.raws.between
         } else if (node.type === "rule") {
             const selector = rewriteUrls(node.selector, isAllowed)
             if (selector === null) {
@@ -165,6 +167,7 @@ export const sanitizePresentationCss = (css: string, scope: PresentationCssScope
             }
             node.selector = selector
             delete node.raws.selector
+            delete node.raws.between
         } else if (node.type === "decl") {
             const value = rewriteUrls(node.value, isAllowed)
             if (
