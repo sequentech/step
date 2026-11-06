@@ -15,7 +15,9 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::private_keys::get_trustee_encrypted_private_key;
-use crate::services::protocol_manager::{check_configuration_exists, get_election_board};
+use crate::services::protocol_manager::{
+    check_configuration_exists, get_election_board, IncompleteBoardPublicKey,
+};
 use crate::services::public_keys::get_public_key;
 use crate::tasks::create_keys::{create_keys, CreateKeysBody};
 use anyhow::{anyhow, Context, Result};
@@ -118,7 +120,11 @@ pub async fn verify_keys_ceremony_public_key(
     let (board_name, _) =
         get_keys_ceremony_board(transaction, tenant_id, election_event_id, keys_ceremony).await?;
     let board_public_key = if check_configuration_exists(&board_name).await? {
-        Some(get_public_key(board_name).await?)
+        match get_public_key(board_name).await {
+            Ok(public_key) => Some(public_key),
+            Err(error) if error.is::<IncompleteBoardPublicKey>() => None,
+            Err(error) => return Err(error),
+        }
     } else {
         None
     };
