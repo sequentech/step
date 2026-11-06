@@ -15,6 +15,7 @@
 
 use anyhow::{anyhow, Result};
 use b3::messages::{artifact::Plaintexts, message::Message};
+use sequent_core::ballot::WeightedVotingPolicy;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::{
     TallySessionConfiguration, TallySessionContest, TallySessionContestAnnotations,
@@ -74,6 +75,23 @@ pub fn weight_batch_offsets(weight: u64, batches: u32) -> Result<impl Iterator<I
         ));
     }
     Ok((0..batches).filter(move |bit| weight_has_bit(weight, *bit)))
+}
+
+/// Every batch a contest area of a session owns, with its offset, whether or
+/// not it was posted. This comes from the session's own layout rather than the
+/// area's saved mask: a run that failed after posting never saved one.
+pub fn contest_owned_batches(
+    tally_session_contest: &TallySessionContest,
+    configuration: &TallySessionConfiguration,
+) -> Result<Vec<(i64, u32)>> {
+    let batches = match configuration.get_weighted_voting_policy() {
+        WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING => session_weight_batches(configuration)?,
+        _ => 1,
+    };
+    let base = tally_session_contest.session_id as i64;
+    Ok((0..batches)
+        .map(|offset| (base + offset as i64, offset))
+        .collect())
 }
 
 /// The batches the area actually posted, each with the multiplier the tally
@@ -249,6 +267,33 @@ mod tests {
     use sequent_core::types::keycloak::MAX_VOTE_WEIGHT;
     use serde_json::json;
     use strand::serialization::{StrandSerialize, StrandVector};
+
+    fn weighted_configuration(vote_weight_batches: Option<u32>) -> TallySessionConfiguration {
+        TallySessionConfiguration {
+            weighted_voting_policy: Some(WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING),
+            vote_weight_batches,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn an_unweighted_session_owns_only_its_base_batch() {
+        let batches =
+            contest_owned_batches(&contest_with(None), &TallySessionConfiguration::default());
+        assert_eq!(batches.unwrap(), [(100, 0)]);
+    }
+
+    #[test]
+    fn a_weighted_session_owns_its_whole_run_without_a_saved_mask() {
+        let batches = contest_owned_batches(&contest_with(None), &weighted_configuration(Some(3)));
+        assert_eq!(batches.unwrap(), [(100, 0), (101, 1), (102, 2)]);
+    }
+
+    #[test]
+    fn a_weighted_session_that_recorded_no_width_owns_the_legacy_run() {
+        let batches = contest_owned_batches(&contest_with(None), &weighted_configuration(None));
+        assert_eq!(batches.unwrap().len(), LEGACY_VOTE_WEIGHT_BATCHES as usize);
+    }
 
     fn contest_with(annotations: Option<serde_json::Value>) -> TallySessionContest {
         TallySessionContest {
