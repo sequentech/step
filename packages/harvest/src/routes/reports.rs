@@ -179,6 +179,17 @@ pub struct GenerateTemplateResponse {
     pub task_execution: TasksExecution,
 }
 
+fn authorize_generate_template(
+    claims: &JwtClaims,
+) -> Result<(), (Status, String)> {
+    authorize(
+        claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::REPORT_GENERATE],
+    )
+}
+
 #[instrument(skip(claims))]
 #[post("/generate-template", format = "json", data = "<body>")]
 pub async fn generate_template(
@@ -187,12 +198,7 @@ pub async fn generate_template(
 ) -> Result<Json<GenerateTemplateResponse>, (Status, String)> {
     let input = body.into_inner();
     info!("Generating report: {input:?}");
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::REPORT_READ],
-    )?;
+    authorize_generate_template(&claims)?;
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -486,4 +492,23 @@ pub async fn encrypt_report_route(
         .map_err(|err| (Status::InternalServerError, err.to_string()))?;
 
     Ok(Json(output))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::authorization::test_claims::{
+        admin_claims, CALLER_TENANT_ID,
+    };
+
+    #[test]
+    fn generating_a_template_needs_report_generate_not_report_read() {
+        let reader = admin_claims(CALLER_TENANT_ID, &["report-read"]);
+        assert_eq!(
+            authorize_generate_template(&reader).unwrap_err().0,
+            Status::Unauthorized
+        );
+        let generator = admin_claims(CALLER_TENANT_ID, &["report-generate"]);
+        assert!(authorize_generate_template(&generator).is_ok());
+    }
 }
