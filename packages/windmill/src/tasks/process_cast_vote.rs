@@ -16,6 +16,7 @@ use crate::services::datafix::utils::{
 };
 use crate::services::datafix::voterview_requests::SoapSendError;
 use crate::services::pg_lock::PgLock;
+use crate::tasks::edit_user::discard_voter_ballots;
 use crate::types::error::Result;
 use celery::error::TaskError;
 use chrono::Duration;
@@ -133,24 +134,41 @@ async fn process_locked_cast_vote(
         .await
         .map_err(|err| format!("Datafix voter lock was lost after Keycloak lookup: {err}"))?;
 
-    if user.enabled != Some(true) || voted_via_not_internet_channel(&attributes) {
-        let changed = transition_cast_vote(
-            &cast_vote,
-            CastVoteStatus::InProgress,
-            CastVoteStatus::Discarded,
-        )
-        .await?;
-        audit_operation(
-            &cast_vote,
-            voter_id,
-            &username,
-            if changed {
-                "SetVoted Skipped: voter is disabled or marked via another channel".to_string()
-            } else {
-                "SetVoted skip ignored after concurrent resolution".to_string()
-            },
-        )
-        .await;
+    if let Some(action) = ineligible_voter_action(user.enabled, &attributes) {
+        let operation = match action {
+            IneligibleVoterAction::DiscardThisVote => {
+                let changed = transition_cast_vote(
+                    &cast_vote,
+                    CastVoteStatus::InProgress,
+                    CastVoteStatus::Discarded,
+                )
+                .await?;
+                if changed {
+                    "SetVoted Skipped: voter is disabled or marked via another channel".to_string()
+                } else {
+                    "SetVoted skip ignored after concurrent resolution".to_string()
+                }
+            }
+            IneligibleVoterAction::DiscardVoterVotes => {
+                let discarded = discard_voter_ballots(
+                    &cast_vote.tenant_id,
+                    &cast_vote.election_event_id,
+                    voter_id,
+                )
+                .await
+                .map_err(|err| {
+                    format!("Error discarding the disabled voter's cast votes: {err:?}")
+                })?;
+                if discarded > 0 {
+                    format!(
+                        "SetVoted Skipped: voter is disabled; {discarded} active votes discarded"
+                    )
+                } else {
+                    "SetVoted skip ignored after concurrent resolution".to_string()
+                }
+            }
+        };
+        audit_operation(&cast_vote, voter_id, &username, operation).await;
         return Ok(());
     }
 
@@ -284,6 +302,33 @@ async fn process_locked_cast_vote(
     }
 
     Ok(())
+}
+
+/// How an in-progress vote is resolved when its voter may not vote online.
+#[derive(Debug, PartialEq, Eq)]
+enum IneligibleVoterAction {
+    /// The voter is recorded as having voted through another channel: only
+    /// this vote is discarded.
+    DiscardThisVote,
+    /// The voter is disabled: every active vote of the voter is discarded,
+    /// completing a disable whose ballot release did not finish.
+    DiscardVoterVotes,
+}
+
+/// Returns how to resolve the vote of a voter who may not vote online, or
+/// `None` when the vote proceeds to `SetVoted`.
+#[instrument(skip(attributes), ret)]
+fn ineligible_voter_action(
+    enabled: Option<bool>,
+    attributes: &HashMap<String, Vec<String>>,
+) -> Option<IneligibleVoterAction> {
+    if voted_via_not_internet_channel(attributes) {
+        Some(IneligibleVoterAction::DiscardThisVote)
+    } else if enabled != Some(true) {
+        Some(IneligibleVoterAction::DiscardVoterVotes)
+    } else {
+        None
+    }
 }
 
 /// Loads the cast vote by id in its own short transaction, or `None` if it no
@@ -485,6 +530,7 @@ async fn mark_voted_via_internet(realm: &str, voter_id: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sequent_core::types::keycloak::ATTR_RESET_VALUE;
 
     #[test]
     fn voter_lock_is_event_wide() {
@@ -500,6 +546,47 @@ mod tests {
         assert_ne!(
             first,
             datafix_voter_lock_key("tenant", "event", &other_voter)
+        );
+    }
+
+    fn voted_channel(channel: &str) -> HashMap<String, Vec<String>> {
+        HashMap::from([(VOTED_CHANNEL.to_string(), vec![channel.to_string()])])
+    }
+
+    #[test]
+    fn a_disabled_voter_discards_every_active_vote() {
+        assert_eq!(
+            ineligible_voter_action(Some(false), &HashMap::new()),
+            Some(IneligibleVoterAction::DiscardVoterVotes)
+        );
+        assert_eq!(
+            ineligible_voter_action(None, &voted_channel(VOTED_CHANNEL_INTERNET_VALUE)),
+            Some(IneligibleVoterAction::DiscardVoterVotes)
+        );
+    }
+
+    #[test]
+    fn a_voter_marked_via_another_channel_discards_only_this_vote() {
+        assert_eq!(
+            ineligible_voter_action(Some(true), &voted_channel("PAPER")),
+            Some(IneligibleVoterAction::DiscardThisVote)
+        );
+        assert_eq!(
+            ineligible_voter_action(Some(false), &voted_channel("PAPER")),
+            Some(IneligibleVoterAction::DiscardThisVote)
+        );
+    }
+
+    #[test]
+    fn an_enabled_voter_proceeds_to_set_voted() {
+        assert_eq!(ineligible_voter_action(Some(true), &HashMap::new()), None);
+        assert_eq!(
+            ineligible_voter_action(Some(true), &voted_channel(VOTED_CHANNEL_INTERNET_VALUE)),
+            None
+        );
+        assert_eq!(
+            ineligible_voter_action(Some(true), &voted_channel(ATTR_RESET_VALUE)),
+            None
         );
     }
 }
