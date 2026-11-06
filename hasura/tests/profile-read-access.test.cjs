@@ -77,7 +77,14 @@ test("publish-read reads the ballot generation tasks of its tenant only", () => 
     assert.deepEqual(grant.permission.filter, {
         _and: [
             {tenant_id: {_eq: "X-Hasura-Tenant-Id"}},
-            {type: {_in: ["EXPORT_BALLOT_PUBLICATION", "GENERATE_BALLOT_PUBLICATION"]}},
+            {
+                type: {
+                    _in: [
+                        "EXPORT_BALLOT_PUBLICATION",
+                        "GENERATE_BALLOT_PUBLICATION",
+                    ],
+                },
+            },
         ],
     })
 })
