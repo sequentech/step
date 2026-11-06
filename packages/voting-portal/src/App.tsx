@@ -13,6 +13,7 @@ import {
     USER_LANGUAGE_COOKIE_NAME,
     setCookie,
     getValueFromCookie,
+    sanitizePresentationCss,
 } from "@sequentech/ui-core"
 import Stack from "@mui/material/Stack"
 import {useTranslation} from "react-i18next"
@@ -177,6 +178,14 @@ const App = () => {
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const presentation =
         ballotStyle?.ballot_eml.election_event_presentation ?? electionEvent?.presentation
+    const customCss = useMemo(
+        () =>
+            sanitizePresentationCss(presentation?.css ?? "", {
+                baseUrl: document.baseURI,
+                publicBucketUrl: globalSettings.PUBLIC_BUCKET_URL,
+            }),
+        [presentation?.css, globalSettings.PUBLIC_BUCKET_URL]
+    )
 
     useElectionClassName()
 
@@ -292,7 +301,7 @@ const App = () => {
     }, [isAuthenticated, globalSettings.DISABLE_AUTH, navigate, tenantId, setupTenantEvent])
 
     return (
-        <StyledAppWrapper className="voting-portal-wrapper" customCss={presentation?.css ?? ""}>
+        <StyledAppWrapper className="voting-portal-wrapper" customCss={customCss}>
             <StyledApp className="voting-portal app-root">
                 <ScrollRestoration />
                 <nav className="skip-navigation" aria-label={t("a11y.skipToContent")}>
