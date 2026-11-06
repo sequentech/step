@@ -66,3 +66,18 @@ for (const [role, reads] of Object.entries(PROFILE_READS)) {
         })
     }
 }
+
+test("voters cannot read election event annotations", () => {
+    const grant = selectGrant(loadTable("election_event"), "user")
+    assert.ok(!grant.permission.columns.includes("annotations"))
+})
+
+test("publish-read reads the ballot generation tasks of its tenant only", () => {
+    const grant = selectGrant(loadTable("tasks_execution"), "publish-read")
+    assert.deepEqual(grant.permission.filter, {
+        _and: [
+            {tenant_id: {_eq: "X-Hasura-Tenant-Id"}},
+            {type: {_eq: "GENERATE_BALLOT_PUBLICATION"}},
+        ],
+    })
+})
