@@ -136,6 +136,17 @@ describe("sanitizePresentationCss", () => {
         expect(sanitize(".a{x:label:y}@layer;")).toBe("")
     })
 
+    it.each([
+        ".a /* note */ { color: red; }",
+        "@media /* note */ (min-width: 1px) { .a { color: red; } }",
+        "@media (min-width: 1px) /* note */ { .a { color: red; } }",
+    ])("keeps the stylesheet when a comment comes before a block: %s", (css) => {
+        const out = sanitize(css)
+
+        expect(out).toContain("color: red")
+        expect(out).not.toContain("note")
+    })
+
     it("returns an empty string when the stylesheet cannot be parsed", () => {
         expect(sanitize("} body { background: url(https://elsewhere.example/a.png) } .a {")).toBe(
             ""
