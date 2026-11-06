@@ -515,6 +515,11 @@ pub async fn upsert_ballots_messages(
         .clone()
         .unwrap_or_default()
         .get_contest_encryption_policy();
+    let batch_anonymity_policy = tally_session_hasura
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_batch_anonymity_policy();
     let expected_batch_ids: HashSet<i64> = tally_session_contests
         .iter()
         .map(|tally_session_contest| tally_session_contest.session_id as i64)
@@ -582,6 +587,7 @@ pub async fn upsert_ballots_messages(
             missing_ballots_batches.clone(),
             contest_encryption_policy.clone(),
             false,
+            batch_anonymity_policy.clone(),
         )
         .await?
     } else {
@@ -601,6 +607,7 @@ pub async fn upsert_ballots_messages(
             missing_annotations_batches,
             contest_encryption_policy,
             true,
+            batch_anonymity_policy,
         )
         .await?;
         tally_session_contests_updated.extend(recovered);

@@ -4,8 +4,9 @@
 
 use crate::{
     ballot::{
-        Contest, ContestEncryptionPolicy, ContestPresentation,
-        ElectionEventPresentation, ElectionPresentation, I18nContent,
+        BatchAnonymityPolicy, Contest, ContestEncryptionPolicy,
+        ContestPresentation, ElectionEventPresentation, ElectionPresentation,
+        I18nContent,
     },
     serialization::deserialize_with_path::deserialize_value,
     types::hasura::core::{Election, ElectionEvent},
@@ -64,6 +65,12 @@ impl ElectionEvent {
     pub fn get_contest_encryption_policy(&self) -> ContestEncryptionPolicy {
         parse_presentation::<ElectionEventPresentation>(&self.presentation)
             .and_then(|p| p.contest_encryption_policy)
+            .unwrap_or_default()
+    }
+
+    pub fn get_batch_anonymity_policy(&self) -> BatchAnonymityPolicy {
+        parse_presentation::<ElectionEventPresentation>(&self.presentation)
+            .and_then(|p| p.batch_anonymity_policy)
             .unwrap_or_default()
     }
 }
@@ -153,5 +160,58 @@ impl Name for Contest {
             .flatten();
 
         alias.or(name).unwrap_or("-".into())
+    }
+}
+
+#[cfg(test)]
+mod batch_anonymity_policy_tests {
+    use crate::ballot::BatchAnonymityPolicy;
+    use crate::types::hasura::core::ElectionEvent;
+
+    fn election_event_with_presentation(
+        presentation: Option<serde_json::Value>,
+    ) -> ElectionEvent {
+        let mut value = serde_json::json!({
+            "id": "event-1",
+            "tenant_id": "tenant-1",
+            "name": "event",
+            "is_archived": false,
+            "encryption_protocol": "test",
+        });
+        if let Some(presentation) = presentation {
+            value["presentation"] = presentation;
+        }
+        serde_json::from_value(value).expect("valid election event")
+    }
+
+    #[test]
+    fn batch_anonymity_policy_defaults_to_warn_when_absent() {
+        let event = election_event_with_presentation(None);
+        assert_eq!(
+            event.get_batch_anonymity_policy(),
+            BatchAnonymityPolicy::WARN
+        );
+
+        let event =
+            election_event_with_presentation(Some(serde_json::json!({})));
+        assert_eq!(
+            event.get_batch_anonymity_policy(),
+            BatchAnonymityPolicy::WARN
+        );
+    }
+
+    #[test]
+    fn batch_anonymity_policy_reads_each_value() {
+        let cases = [
+            ("warn", BatchAnonymityPolicy::WARN),
+            ("refuse", BatchAnonymityPolicy::REFUSE),
+        ];
+        for (wire, expected) in cases {
+            let event =
+                election_event_with_presentation(Some(serde_json::json!({
+                    "batch_anonymity_policy": wire,
+                })));
+            assert_eq!(event.get_batch_anonymity_policy(), expected);
+        }
     }
 }

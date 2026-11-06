@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod batch_anonymity;
 pub mod election_electorates;
 pub mod encrypter;
 pub mod insert_ballots;

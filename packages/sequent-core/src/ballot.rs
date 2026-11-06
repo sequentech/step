@@ -8,7 +8,7 @@ use crate::encrypt::hash_ballot_style;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
-use crate::types::hasura::core::{self, ElectionEvent};
+use crate::types::hasura::core::ElectionEvent;
 use crate::types::scheduled_event::EventProcessors;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
@@ -692,6 +692,8 @@ pub struct ElectionEventPresentation {
     pub enrollment: Option<Enrollment>,
     pub otp: Option<Otp>,
     pub voter_signing_policy: Option<VoterSigningPolicy>,
+    #[borsh(skip)]
+    pub batch_anonymity_policy: Option<BatchAnonymityPolicy>,
 }
 
 impl ElectionEvent {
@@ -942,7 +944,7 @@ pub struct ElectionPresentation {
     pub initialization_report_policy: Option<EInitializeReportPolicy>,
 }
 
-impl core::Election {
+impl crate::types::hasura::core::Election {
     pub fn get_presentation(&self) -> Option<ElectionPresentation> {
         let election_presentation: Option<ElectionPresentation> = self
             .presentation
@@ -1231,6 +1233,43 @@ pub enum Otp {
     DISABLED,
 }
 
+/// What extracting the ballots for a tally does with a contest area batch
+/// whose decrypted votes would not stay hidden among others: one holding the
+/// ballots of fewer than `MIN_BATCH_ANONYMITY_VOTERS` voters, or one that
+/// differs from the ballots another tally session already posted for the same
+/// election, area and contest.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum BatchAnonymityPolicy {
+    /// Log a warning and post the batch.
+    #[default]
+    #[strum(serialize = "warn")]
+    #[serde(rename = "warn")]
+    WARN,
+    /// Refuse the tally without posting the contest area's ballots to the
+    /// bulletin board.
+    #[strum(serialize = "refuse")]
+    #[serde(rename = "refuse")]
+    REFUSE,
+}
+
+/// Below this many voters, a batch is small enough that mixing it protects
+/// little: its plaintexts are published, so a batch holding one ballot
+/// publishes that voter's choice.
+pub const MIN_BATCH_ANONYMITY_VOTERS: usize = 5;
+
 #[allow(non_camel_case_types)]
 #[derive(
     BorshSerialize,
@@ -1461,7 +1500,7 @@ pub enum VotingStatusChannel {
 impl VotingStatusChannel {
     pub fn channel_from(
         &self,
-        channels: &core::VotingChannels,
+        channels: &crate::types::hasura::core::VotingChannels,
     ) -> Option<bool> {
         match self {
             &VotingStatusChannel::ONLINE => channels.online.clone(),
