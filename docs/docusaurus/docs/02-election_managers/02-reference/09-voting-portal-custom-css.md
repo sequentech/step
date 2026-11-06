@@ -123,14 +123,14 @@ that load files from other sites or add text to the page:
 - Only `@media`, `@supports`, `@container`, `@layer` and `@keyframes` at-rules are
   kept. `@import` and `@font-face` rules are skipped, as are `image-set()`,
   `image()` and `src()` values.
-- `content`, `quotes`, `list-style`, `list-style-type`, `text-overflow`,
-  `text-emphasis`, `text-emphasis-style` and `hyphenate-character` are skipped when
-  their value has a non-empty string, a `url()`, or a `var()`, `attr()`, `counter()`
-  or `counters()` reference. `content: ""` for decorative pseudo-elements still works.
+- `content`, `quotes`, `list-style`, `list-style-image`, `list-style-type`,
+  `text-overflow`, `text-emphasis`, `text-emphasis-style` and `hyphenate-character` are
+  skipped when their value has a non-empty string, a `url()`, or a `var()`, `attr()`,
+  `counter()` or `counters()` reference. `content: ""` for decorative pseudo-elements
+  still works.
 - `list-style` and `list-style-type` keep only markers that show no letters: `none`,
   `disc`, `circle`, `square`, `decimal`, `decimal-leading-zero`, `disclosure-open` and
-  `disclosure-closed`, with `inside` or `outside`. Use `list-style-image` for an image
-  marker.
+  `disclosure-closed`, with `inside` or `outside`.
 - Comments are removed. Declarations, rules and at-rules with backslash escapes,
   control characters or `//` outside a string are skipped.
 - If the stylesheet cannot be parsed, for example because of an unbalanced brace

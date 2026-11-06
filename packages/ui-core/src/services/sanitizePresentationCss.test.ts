@@ -151,6 +151,8 @@ describe("sanitizePresentationCss", () => {
         "content: url(/name.svg)",
         "content: url(data:image/svg+xml,x)",
         "list-style: url(/name.svg)",
+        "list-style-image: url(/name.svg)",
+        "list-style-image: url(data:image/svg+xml,x)",
     ])("drops generated images written without quotes: %s", (declaration) => {
         expect(sanitize(`.a { color: red; ${declaration}; }`)).toBe(".a { color: red; }")
     })
@@ -165,12 +167,14 @@ describe("sanitizePresentationCss", () => {
         expect(sanitize(`.a { color: red; ${declaration}; }`)).toBe(".a { color: red; }")
     })
 
-    it.each(["list-style: none", "list-style-type: disc", "list-style: square inside"])(
-        "keeps list markers that show no letters: %s",
-        (declaration) => {
-            expect(sanitize(`.a { ${declaration}; }`)).toContain(declaration)
-        }
-    )
+    it.each([
+        "list-style: none",
+        "list-style-type: disc",
+        "list-style: square inside",
+        "list-style-image: none",
+    ])("keeps list markers that show no letters: %s", (declaration) => {
+        expect(sanitize(`.a { ${declaration}; }`)).toContain(declaration)
+    })
 
     it("keeps an empty url()", () => {
         expect(sanitize(".a { background: url(); }")).toContain('url("")')
