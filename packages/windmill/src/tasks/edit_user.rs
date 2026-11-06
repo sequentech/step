@@ -534,12 +534,14 @@ async fn run_datafix_voter_edit(
     )
     .await
     .map_err(|err| format!("Error discarding Datafix cast votes: {err:?}"))?;
-    clear_voted_channel(ctx).await.map_err(|err| {
+    // A failed reset is reported only after `SetNotVoted`: the ballots are gone
+    // by now, so a retry may no longer see that the voter is owed one.
+    let channel_reset = clear_voted_channel(ctx).await.map_err(|err| {
         format!("Could not reset the voter's voted-channel attribute after discard: {err}")
-    })?;
+    });
 
     if !plan.owes_set_not_voted {
-        return Ok(());
+        return channel_reset;
     }
     let username = current_user
         .username
@@ -553,7 +555,7 @@ async fn run_datafix_voter_edit(
         .and_then(|values| values.first().cloned())
         .or_else(|| current_user.get_area_id());
     send_set_not_voted(ctx, election_event, &username, area_id.as_deref()).await;
-    Ok(())
+    channel_reset
 }
 
 /// Applies an admin edit to a Datafix voter under the per-voter lock. On a
