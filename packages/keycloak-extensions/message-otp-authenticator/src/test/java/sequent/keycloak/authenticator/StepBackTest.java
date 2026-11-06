@@ -183,6 +183,25 @@ class StepBackTest {
     verify(authSession, never()).setAuthNote(eq(Utils.CODE_PACED), anyString());
   }
 
+  /** A code step after the lookup decided can't go back: the application is already recorded. */
+  @Test
+  void notOnceTheDecisionIsRecorded() {
+    statuses.put(form.getId(), ExecutionStatus.SUCCESS);
+    statuses.put(identity.getId(), ExecutionStatus.SUCCESS);
+    statuses.put(lookup.getId(), ExecutionStatus.SUCCESS);
+    AuthenticationExecutionModel lateCode =
+        add("registration", execution("registration", "message-otp-authenticator"));
+    statuses.put(lateCode.getId(), ExecutionStatus.CHALLENGED);
+    when(context.getExecution()).thenReturn(lateCode);
+    when(authSession.getAuthNote(Utils.DECISION_RECORDED)).thenReturn("true");
+
+    assertFalse(StepBack.available(context));
+    assertFalse(StepBack.toPreviousStep(context));
+
+    assertEquals(ExecutionStatus.SUCCESS, statuses.get(lookup.getId()));
+    verify(context, never()).forceChallenge(any());
+  }
+
   @Test
   void anExecutionOutsideTheFlowHasNothingToGoBackTo() {
     statuses.put(form.getId(), ExecutionStatus.SUCCESS);
