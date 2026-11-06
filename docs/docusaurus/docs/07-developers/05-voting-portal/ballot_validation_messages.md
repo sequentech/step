@@ -29,8 +29,9 @@ t(error.message || "", getBallotErrorOptions(error.message, error.message_map))
 
 It does two things:
 
-1. **Copies every `message_map` entry into the options**, coercing numeric strings to numbers. So if the
-   checker already sends a `count`, the message pluralises with no further work.
+1. **Copies every `message_map` entry into the options**, coercing `count`, `numSelected`, `min` and `max`
+   to numbers. So if the checker already sends a `count`, the message pluralises with no further work. Every
+   other entry is a label and keeps its exact text: a candidate type named `001` must not be shown as `1`.
 2. **Derives `count`** for the keys listed in `COUNT_DERIVATIONS`, overriding whatever came in the map.
 
 The coercion in step 1 matters: i18next skips pluralisation entirely when `count` is a string and silently
