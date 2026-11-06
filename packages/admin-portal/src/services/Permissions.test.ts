@@ -5,7 +5,7 @@
 import {readFileSync} from "fs"
 import {resolve} from "path"
 import {IPermissions} from "@/types/keycloak"
-import {getOperationRole} from "./Permissions"
+import {getOperationRole, getSchemaRoles} from "./Permissions"
 
 interface RealmGroup {
     name: string
@@ -93,6 +93,31 @@ describe.each(REALM_TEMPLATES)("realm template %s", (template) => {
         const role = roleFor(operation, roles)
         expect(role).not.toBe(IPermissions.ADMIN_USER)
         expect(roles).toContain(role)
+    })
+})
+
+describe("getSchemaRoles", () => {
+    const holding = (roles: Array<IPermissions>) => (role: IPermissions) => roles.includes(role)
+
+    it("uses admin-user alone for admins", () => {
+        const roles = [
+            IPermissions.ADMIN_USER,
+            IPermissions.TRUSTEE_CEREMONY,
+            IPermissions.PUBLISH_READ,
+        ]
+        expect(getSchemaRoles(holding(roles))).toEqual([IPermissions.ADMIN_USER])
+    })
+
+    it("uses every profile a restricted user holds", () => {
+        const roles = [IPermissions.PUBLISH_READ, IPermissions.TRUSTEE_CEREMONY]
+        expect(getSchemaRoles(holding(roles))).toEqual([
+            IPermissions.TRUSTEE_CEREMONY,
+            IPermissions.PUBLISH_READ,
+        ])
+    })
+
+    it("has no role for a user without a profile", () => {
+        expect(getSchemaRoles(holding([IPermissions.ELECTION_EVENT_READ]))).toEqual([])
     })
 })
 
