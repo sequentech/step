@@ -328,7 +328,10 @@ async fn verify_private_acceptance(
             pseudonym,
             ballot_id: Some(ballot_id),
             ip: "198.51.100.73",
-            country: Some("AQ"),
+            // Distinctive, like the address and device: a two-letter code
+            // occurs by chance in this run's fresh base64 keys and signatures
+            // ("…/AQ=="), which the artifact scan cannot tell from a leak.
+            country: Some("synthetic-private-country"),
             user_agent: Some("synthetic-private-browser"),
             recorded_at: Utc::now(),
         })
@@ -538,7 +541,7 @@ async fn verify_private_acceptance(
     std::fs::write(
         &forbidden_path,
         serde_json::to_vec(
-            &serde_json::json!({"voter_id":[real_voter],"username":["synthetic-account-name"],"ip":["198.51.100.73"],"device":["synthetic-private-browser"],"country":["AQ"]}),
+            &serde_json::json!({"voter_id":[real_voter],"username":["synthetic-account-name"],"ip":["198.51.100.73"],"device":["synthetic-private-browser"],"country":["synthetic-private-country"]}),
         )?,
     )?;
     let scanner = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -577,6 +580,34 @@ async fn verify_private_acceptance(
         .arg(&detail_path)
         .output()?;
     assert_eq!(rejected.status.code(), Some(1));
+    // And the country by itself, written as a field and inside a signed
+    // entry's decoded bytes, with no other private value beside it.
+    let country_path = artifacts.path().join("country.json");
+    let entry_path = artifacts.path().join("country-entry.json");
+    std::fs::write(
+        &country_path,
+        serde_json::to_vec(&serde_json::json!({"country":"synthetic-private-country"}))?,
+    )?;
+    std::fs::write(
+        &entry_path,
+        serde_json::to_vec(
+            &serde_json::json!({"received_entry":STANDARD.encode(b"\x01\x19\x00\x00\x00synthetic-private-country\x00")}),
+        )?,
+    )?;
+    let country = std::process::Command::new("python3")
+        .arg(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../scripts/vote_privacy_audit.py"),
+        )
+        .arg("--forbidden")
+        .arg(&forbidden_path)
+        .args([&country_path, &entry_path])
+        .output()?;
+    assert_eq!(country.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8_lossy(&country.stdout),
+        "FAIL country.json: country\nFAIL country-entry.json: country\n"
+    );
     assert_eq!(store.purge_voter_pseudonyms(event).await?, 1);
     assert!(store.resolve_pseudonym(event, pseudonym).await?.is_none());
     assert!(store
