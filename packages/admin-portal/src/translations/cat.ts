@@ -2111,6 +2111,8 @@ const catalanTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Els resultats numèrics estan complets. Els informes encara s’estan generant.",
             errorUploadingSignature: "S'ha produït un error en carregar la signatura",
             downloadTransmissionPackage: "Descarregar paquet",
             resultsPublication: {
