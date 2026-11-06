@@ -94,6 +94,9 @@ const spanishTranslation: TranslationType = {
                 bytesToUtf8Conversion:
                     "Error convirtiendo bytes de opción de voto escrita a cadena UTF-8: {{errorMessage}}",
                 ballotTooLarge: "Voto más grande de lo esperado",
+                duplicatedSelection: "La misma opción se ha seleccionado más de una vez",
+                blankBallotWithSelections:
+                    "Voto marcado como en blanco pero la pregunta tiene selecciones",
             },
             implicit: {
                 selectedMax:
