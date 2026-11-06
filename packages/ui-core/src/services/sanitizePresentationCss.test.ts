@@ -147,6 +147,43 @@ describe("sanitizePresentationCss", () => {
         expect(out).not.toContain("note")
     })
 
+    it.each([
+        "content: url(/name.svg)",
+        "content: url(data:image/svg+xml,x)",
+        "list-style: url(/name.svg)",
+    ])("drops generated images written without quotes: %s", (declaration) => {
+        expect(sanitize(`.a { color: red; ${declaration}; }`)).toBe(".a { color: red; }")
+    })
+
+    it.each([
+        "list-style-type: upper-alpha",
+        "list-style-type: LOWER-ALPHA",
+        "list-style-type: lower-greek",
+        "list-style: inside upper-latin",
+        "-webkit-list-style-type: upper-alpha",
+    ])("drops list markers that can spell words: %s", (declaration) => {
+        expect(sanitize(`.a { color: red; ${declaration}; }`)).toBe(".a { color: red; }")
+    })
+
+    it.each(["list-style: none", "list-style-type: disc", "list-style: square inside"])(
+        "keeps list markers that show no letters: %s",
+        (declaration) => {
+            expect(sanitize(`.a { ${declaration}; }`)).toContain(declaration)
+        }
+    )
+
+    it("keeps an empty url()", () => {
+        expect(sanitize(".a { background: url(); }")).toContain('url("")')
+    })
+
+    it("handles a url() with a long run of spaces in linear time", () => {
+        const start = Date.now()
+
+        sanitize(`.a { background: url(${" ".repeat(60000)}()); }`)
+
+        expect(Date.now() - start).toBeLessThan(1000)
+    })
+
     it("returns an empty string when the stylesheet cannot be parsed", () => {
         expect(sanitize("} body { background: url(https://elsewhere.example/a.png) } .a {")).toBe(
             ""
