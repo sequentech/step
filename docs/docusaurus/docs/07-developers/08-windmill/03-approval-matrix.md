@@ -165,7 +165,16 @@ is on its way, failed, or answered with matrix errors, no rule is highlighted. W
 `fetchPolicy: "no-cache"`, Apollo Client 3.8 drops the result of earlier variables, so a late
 answer can't highlight a rule of an earlier rule order.
 
-The editor keeps a draft of the example; only **Apply example** replaces the applied example.
+The editor keeps a draft; only **Apply example** (toolbar) or **Use in the simulation**
+(enrollment) replaces the applied example. What the panel leads with follows `panelState`
+(`approvalExample.ts`, `EPanelState`): **Try an example** for the toolbar's sample or the
+administrator's own example, **Simulating the enrollment of …** for an enrollment's recorded
+details, other details, or the sample when its decision can't be read. Other details are counted
+on what the rules see, as the comparison counts them.
+
+The card is sticky on wide screens and sized from measurements (`matrixLayout.ts`): the page
+header's height, the save bar's height, and the content below the rules in the layout's scroll
+frame, so it stays between the header and the save bar wherever the page is scrolled.
 
 Opened from an application, the example is read from its decision record
 (`approvalExample.ts`, `recordedDecision`). The reading is strict:

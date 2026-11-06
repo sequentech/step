@@ -4240,7 +4240,7 @@ const tagalogTranslation: TranslationType = {
                 noneApply: "Walang tumutugma sa mga panuntunan sa itaas",
                 andWord: "at",
                 and: " at ",
-                appliesToExample: "Nagpapasya sa inilapat na halimbawa",
+                appliesToExample: "Nagpapasya sa simulasyon",
                 voterIsTold: "Sasabihin sa botante: “{{reason}}”.",
                 sentence: "Kapag {{when}}, {{outcome}}.",
                 sentenceOtherwise: "Kung walang tumutugma sa mga panuntunan sa itaas, {{outcome}}.",
@@ -4263,33 +4263,23 @@ const tagalogTranslation: TranslationType = {
                 },
                 test: "Sumubok ng halimbawa",
                 example: {
-                    sampleTitle: "Halimbawang pagpapatala",
+                    stateSample: "Halimbawang pagpapatala",
                     sampleText:
                         "Isang beripikadong botante sa talaan, hindi pa nakatala, na pareho ang lahat ng inihahambing na detalye.",
-                    customTitle: "Ang iyong halimbawa",
+                    stateCustom: "Ang iyong halimbawa",
                     customText: "Nagsimula sa halimbawang pagpapatala.",
-                    fromEnrollment: "Mula sa pagpapatala ni {{name}}",
-                    fromUnnamed: "Mula sa isang pagpapatala",
-                    back: "Bumalik sa pagpapatala ni {{name}}",
-                    backUnnamed: "Bumalik sa pagpapatala",
-                    recorded: "Naitalang pasya:",
+                    recorded: "Naitalang pasya",
                     recordedRule: "Panuntunan {{number}} ng bersyon {{version}} · {{decision}}.",
                     recordedLast: "Huling panuntunan ng bersyon {{version}} · {{decision}}.",
                     severalApproved: "Maraming botante sa talaan ang tumugma.",
                     statusNow: "Ang katayuan nito ngayon ay {{status}}.",
-                    unreadable:
-                        "Hindi mabasa ang naitalang pasya ng pagpapatalang ito, kaya ang halimbawang pagpapatala ang ipinapakita.",
                     noChanges:
                         "Ang pagsubok ng halimbawa ay hindi nagbabago ng anumang pagpapatala at walang sine-save.",
-                    applied: "Inilapat na halimbawa",
-                    appliedInUse: "Inilapat na halimbawa — ginagamit pa",
                     edit: "I-edit ang halimbawa",
                     editing: "Ine-edit ang halimbawa — hindi pa inilalapat",
                     editingHelp:
                         "Magkakabisa lang ang iyong mga pagbabago kapag inilapat mo. Hanggang doon, ginagamit ng simulasyon ang inilapat na halimbawa kasama ang mga panuntunan sa screen.",
                     apply: "Ilapat ang halimbawa",
-                    restore: "Ibalik ang mga naitalang detalye",
-                    resetSample: "Bumalik sa halimbawang pagpapatala",
                     notRecorded: "Hindi naitala",
                     withFirstName: "Inihambing kasama ng pangalan",
                     notComparedForId: "Hindi inihahambing para sa dokumentong ito",
@@ -4298,19 +4288,38 @@ const tagalogTranslation: TranslationType = {
                     rulesOnScreen: "Mga panuntunan sa screen",
                     rulesUnsaved:
                         "Mga panuntunan sa screen, kasama ang mga hindi pa na-save na pagbabago",
-                    decides: "Ang panuntunan {{number}} ang nagpapasya sa inilapat na halimbawa",
-                    lastDecides:
-                        "Walang tumutugmang panuntunan — ang huling panuntunan ang nagpapasya sa inilapat na halimbawa",
-                    evaluating:
-                        "Inaalam kung aling panuntunan ang nagpapasya sa inilapat na halimbawa…",
                     goToRule: "Pumunta sa panuntunan {{number}}",
                     goToLast: "Pumunta sa huling panuntunan",
+                    titleEnrollment: "Simulasyon ng pagpapatala ni {{name}}",
+                    titleUnnamed: "Simulasyon ng isang pagpapatala",
+                    back: "Bumalik sa pagpapatala",
+                    backLabel: "Bumalik sa pagpapatala ni {{name}}",
+                    noChangesEnrollment:
+                        "Walang binabago ang simulasyon sa pagpapatalang ito at walang sine-save.",
+                    unreadable:
+                        "Hindi mabasa ang naitalang pasya ng pagpapatalang ito, kaya ang halimbawang pagpapatala ang ginagamit ng simulasyon.",
+                    stateRecorded: "Mga naitalang detalye · nasa simulasyon",
+                    stateChanged: "Ibang detalye · nasa simulasyon",
+                    stateUnreadable:
+                        "Halimbawang pagpapatala — hindi ang kanyang mga naitalang detalye",
+                    changedNote: "Nananatili ang mga naitalang detalye ng pagpapatala.",
+                    editDetails: "Subukan ang ibang detalye",
+                    editingDetails: "Sinusubukan ang ibang detalye — wala pa sa simulasyon",
+                    editingDetailsHelp:
+                        "Walang pinapasyahan ang mga detalyeng ito hanggang gamitin mo. Hanggang doon, ginagamit ng simulasyon ang mga detalye sa itaas kasama ang mga panuntunan sa screen.",
+                    useDetails: "Gamitin sa simulasyon",
+                    restore: "Punan ng mga naitalang detalye",
+                    resetSample: "Punan ng halimbawa",
+                    decides: "Sa simulasyon, ang panuntunan {{number}} ang nagpapasya.",
+                    lastDecides:
+                        "Sa simulasyon, walang tumutugmang panuntunan: ang huling panuntunan ang nagpapasya.",
+                    evaluating: "Inaalam kung aling panuntunan ang nagpapasya sa simulasyon…",
                     stillApplied:
-                        "Ang naka-highlight na panuntunan pa rin ang nagpapasya sa inilapat na halimbawa.",
+                        "Ang naka-highlight na panuntunan pa rin ang nagpapasya sa simulasyon.",
                     comparison: {
                         SAME: "Pareho ang pasya ng kasalukuyang simulasyon at ng naitala.",
                         DIFFERENT: "Iba ang pasya ng kasalukuyang simulasyon sa naitala.",
-                        EDITED: "Binago mo ang mga naitalang detalye, kaya hindi ito inihahambing sa naitalang pasya.",
+                        EDITED: "Hindi ito ang mga naitalang detalye, kaya hindi inihahambing ang simulasyon sa naitalang pasya.",
                         NOT_RECORDED:
                             "May inihahambing na detalyeng hindi naitala, kaya hindi inihahambing ang simulasyon sa naitalang pasya.",
                         SEVERAL_VOTERS:
@@ -4320,8 +4329,8 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 testDetails: "Mga detalyeng inihahambing",
-                testError: "Hindi masubukan ang halimbawa.",
-                testInvalid: "Ayusin ang mga panuntunang ito upang makasubok ng halimbawa:",
+                testError: "Hindi mapatakbo ang simulasyon.",
+                testInvalid: "Ayusin ang mga panuntunang ito para mapatakbo ang simulasyon:",
                 ruleError: "Panuntunan {{number}}: {{error}}",
                 invariants: {
                     MANUAL_ENTRY_NOT_ACCEPTED:

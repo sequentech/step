@@ -272,7 +272,8 @@ export const OpenTheApprovalMatrixAndGoBack: Story = {
         await expect(canvas.getByRole("button", {name: "Add rule"})).toBeVisible()
         // Opened from the toolbar, the example is the sample and there is no enrollment to go back to.
         await expect(await canvas.findByText("Sample enrollment")).toBeVisible()
-        expect(canvas.queryByRole("button", {name: /^Back to .*enrollment$/})).toBeNull()
+        await expect(canvas.getByRole("region", {name: "Try an example"})).toBeVisible()
+        expect(canvas.queryByRole("button", {name: /^Back to the enrollment/})).toBeNull()
         expect(graphql.calls.find(({name}) => name === "GetApprovalMatrix")).toMatchObject({
             variables: {electionEventId: EVENT_ID},
         })
@@ -337,11 +338,13 @@ export const SeeTheRuleFromAReviewAndGoBack: Story = {
 
         // The example is Alice's recorded enrollment; only the rule deciding it is highlighted.
         await ruleCards(canvasElement)
-        await expect(await canvas.findByText("From Alice Example's enrollment")).toBeVisible()
+        await expect(
+            await canvas.findByText("Simulating the enrollment of Alice Example")
+        ).toBeVisible()
         await waitFor(() => expect(highlighted(canvasElement)).toEqual(["5"]))
         // Its way back leads to Alice's enrollment.
         await userEvent.click(
-            canvas.getByRole("button", {name: "Back to Alice Example's enrollment"})
+            canvas.getByRole("button", {name: "Back to the enrollment of Alice Example"})
         )
         await expect(await review(canvasElement, "Alice Example")).toBeVisible()
         expect(canvas.queryByRole("list", {name: "Rules"})).toBeNull()
@@ -353,13 +356,15 @@ export const SeeTheRuleFromTheQueueAndGoBack: Story = {
         const canvas = within(canvasElement)
         await rowAction(canvasElement, "Carol Sample", "See the rule that decided")
         await ruleCards(canvasElement)
-        await expect(await canvas.findByText("From Carol Sample's enrollment")).toBeVisible()
+        await expect(
+            await canvas.findByText("Simulating the enrollment of Carol Sample")
+        ).toBeVisible()
         await waitFor(() => expect(highlighted(canvasElement)).toEqual(["2"]))
         // The matrix doesn't read the enrollment again: the queue's record is used.
         expect(paramsOf(data, "getOne", APPLICATIONS)).toBeUndefined()
         // The button at the top of the example returns to Carol's enrollment, not the queue.
         await userEvent.click(
-            canvas.getByRole("button", {name: "Back to Carol Sample's enrollment"})
+            canvas.getByRole("button", {name: "Back to the enrollment of Carol Sample"})
         )
         await expect(await review(canvasElement, "Carol Sample")).toBeVisible()
         await waitFor(() =>
@@ -381,6 +386,7 @@ export const SeeTheRuleFromTheQueueAndGoToTheQueue: Story = {
         // The toolbar opens the sample: nothing is left of Carol's enrollment.
         await userEvent.click(canvas.getByRole("button", {name: "Approval matrix"}))
         await expect(await canvas.findByText("Sample enrollment")).toBeVisible()
+        await expect(canvas.getByRole("region", {name: "Try an example"})).toBeVisible()
         expect(canvas.queryByText(/Carol Sample/)).toBeNull()
     },
 }
@@ -389,11 +395,12 @@ export const ChoosingTheTabForgetsTheEnrollment: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await rowAction(canvasElement, "Carol Sample", "See the rule that decided")
-        await canvas.findByText("From Carol Sample's enrollment")
+        await canvas.findByText("Simulating the enrollment of Carol Sample")
         await userEvent.click(canvas.getByRole("button", {name: "Approvals tab"}))
         await expect(await row(canvasElement, "Carol Sample")).toBeVisible()
         await userEvent.click(canvas.getByRole("button", {name: "Approval matrix"}))
         await expect(await canvas.findByText("Sample enrollment")).toBeVisible()
+        await expect(canvas.getByRole("region", {name: "Try an example"})).toBeVisible()
         expect(canvas.queryByText(/Carol Sample/)).toBeNull()
     },
 }
@@ -403,19 +410,21 @@ const switchWhileOpen = (button: string): Story => ({
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await rowAction(canvasElement, "Carol Sample", "See the rule that decided")
-        await canvas.findByText("From Carol Sample's enrollment")
+        await canvas.findByText("Simulating the enrollment of Carol Sample")
         await waitFor(() => expect(highlighted(canvasElement)).toEqual(["2"]))
         const before = graphql.calls.filter(({name}) => name === "EvaluateApprovalMatrix").length
         const reads = graphql.calls.filter(({name}) => name === "GetApprovalMatrix").length
         let shownAfter = false
         const observer = new MutationObserver(() => {
-            shownAfter ||= canvasElement.textContent?.includes("Carol Sample's enrollment") ?? false
+            shownAfter ||=
+                canvasElement.textContent?.includes("Simulating the enrollment of Carol Sample") ??
+                false
         })
         observer.observe(canvasElement, {subtree: true, childList: true, characterData: true})
         await userEvent.click(canvas.getByRole("button", {name: button}))
         // In the same render the matrix and Carol's enrollment are gone.
         expect(canvas.queryByRole("list", {name: "Rules"})).toBeNull()
-        expect(canvas.queryByText(/Carol Sample's enrollment/)).toBeNull()
+        expect(canvas.queryByText("Simulating the enrollment of Carol Sample")).toBeNull()
         await waitFor(() => expect(canvas.queryByRole("progressbar")).toBeNull())
         observer.disconnect()
         expect(shownAfter).toBe(false)

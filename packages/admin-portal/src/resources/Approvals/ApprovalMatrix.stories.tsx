@@ -105,7 +105,9 @@ const highlighted = (canvasElement: HTMLElement) =>
 
 const draft = (canvasElement: HTMLElement) =>
     within(
-        within(canvasElement).getByRole("group", {name: "Editing the example — not applied yet"})
+        within(canvasElement).getByRole("group", {
+            name: /^(Editing the example|Trying other details) — not/,
+        })
     )
 
 /** The labels of the applied example's summary. */
@@ -164,9 +166,9 @@ export const BuiltInVersion: Story = {
         }
         // The example starts from an enrollment whose details all match.
         await waitFor(() =>
-            expect(example(canvasElement)).toHaveTextContent("Rule 3 decides the applied example")
+            expect(example(canvasElement)).toHaveTextContent("In the simulation, rule 3 decides")
         )
-        await expect(await within(cards[2]).findByText("Decides the applied example")).toBeVisible()
+        await expect(await within(cards[2]).findByText("Decides in the simulation")).toBeVisible()
         await expect(cards[2]).toHaveAttribute("aria-current", "true")
         expect(highlighted(canvasElement)).toEqual(["3"])
         await expect(canvas.getByText("Sample enrollment")).toBeVisible()
@@ -208,7 +210,7 @@ export const ReadOnly: Story = {
         await choose(canvasElement, "Identity check", "Typed by hand")
         await userEvent.click(canvas.getByRole("button", {name: "Apply example"}))
         await waitFor(() =>
-            expect(example(canvasElement)).toHaveTextContent("Rule 2 decides the applied example")
+            expect(example(canvasElement)).toHaveTextContent("In the simulation, rule 2 decides")
         )
         expect(highlighted(canvasElement)).toEqual(["2"])
         expect(unsavedBar(canvasElement)).toBeNull()
@@ -398,7 +400,7 @@ export const NothingToCompare: Story = {
         )
         await waitFor(() =>
             expect(example(canvasElement)).toHaveTextContent(
-                "Fix these rules to try an example:Choose at least one detail to compare with the registry."
+                "Fix these rules to run the simulation:Choose at least one detail to compare with the registry."
             )
         )
         const bar = within(await canvas.findByRole("region", {name: "Unsaved changes"}))
@@ -442,27 +444,28 @@ export const OpenedFromAnEnrollment: Story = {
         const canvas = within(canvasElement)
         const cards = await ruleCards(canvasElement)
         await waitFor(() =>
-            expect(example(canvasElement)).toHaveTextContent("Rule 5 decides the applied example")
+            expect(example(canvasElement)).toHaveTextContent("In the simulation, rule 5 decides")
         )
-        // One rule is highlighted: the one that decides the applied example.
+        // One rule is highlighted: the one that decides the simulation.
         expect(highlighted(canvasElement)).toEqual(["5"])
-        await expect(within(cards[4]).getByText("Decides the applied example")).toBeVisible()
-        await expect(canvas.getByText("From Alice Example's enrollment")).toBeVisible()
-        await expect(canvasElement).toHaveTextContent(
-            "Recorded decision: Rule 5 of version 1 · Send to a person."
-        )
+        await expect(within(cards[4]).getByText("Decides in the simulation")).toBeVisible()
+        await expect(canvas.getByText("Simulating the enrollment of Alice Example")).toBeVisible()
+        await expect(canvasElement).toHaveTextContent("Rule 5 of version 1 · Send to a person.")
         await expect(canvas.getByText("Rules on screen")).toBeVisible()
         // The panel comes before the rules, for reading and keyboard order.
-        const panel = canvas.getByRole("region", {name: "Try an example"})
+        const panel = canvas.getByRole("region", {
+            name: "Simulating the enrollment of Alice Example",
+        })
         expect(
             panel.compareDocumentPosition(canvas.getByRole("list", {name: "Rules"})) &
                 Node.DOCUMENT_POSITION_FOLLOWING
         ).toBeTruthy()
-        expect(panel.querySelector("button")).toHaveTextContent(
-            "Back to Alice Example's enrollment"
-        )
+        // Its first control is the way back: short on screen, with the name for assistive technology.
+        const back = panel.querySelector("button") as HTMLElement
+        expect(back).toHaveTextContent("Back to the enrollment")
+        expect(back).toHaveAccessibleName("Back to the enrollment of Alice Example")
         await userEvent.click(
-            canvas.getByRole("button", {name: "Back to Alice Example's enrollment"})
+            canvas.getByRole("button", {name: "Back to the enrollment of Alice Example"})
         )
         expect(args.backToSource).toHaveBeenCalledTimes(1)
         await userEvent.click(canvas.getByRole("button", {name: "Approvals"}))
@@ -477,7 +480,7 @@ export const OpenedFromAnEnrollmentWithoutAVoter: Story = {
         await ruleCards(canvasElement)
         await waitFor(() =>
             expect(example(canvasElement)).toHaveTextContent(
-                /^No rule fits — the last rule decides the applied example.*Reject/
+                /^In the simulation, no rule fits: the last rule decides.*Reject/
             )
         )
         expect(highlighted(canvasElement)).toEqual(["otherwise"])
@@ -493,17 +496,15 @@ export const TheRecordedRuleIsNeverHighlighted: Story = {
         const canvas = within(canvasElement)
         await ruleCards(canvasElement)
         await waitFor(() => expect(highlighted(canvasElement)).toEqual(["2"]))
-        await userEvent.click(canvas.getByRole("button", {name: "Edit example"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Try other details"}))
         await choose(canvasElement, "Identity check", "Verified by ID scan")
-        await userEvent.click(canvas.getByRole("button", {name: "Apply example"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Use in the simulation"}))
         // Carol's recorded rule 2 stays context: only the simulation's rule is highlighted.
         await waitFor(() => expect(highlighted(canvasElement)).toEqual(["3"]))
-        await expect(canvasElement).toHaveTextContent(
-            "Recorded decision: Rule 2 of version 1 · Send to a person."
-        )
+        await expect(canvasElement).toHaveTextContent("Rule 2 of version 1 · Send to a person.")
         await expect(
             canvas.getByText(
-                "You changed the recorded details, so they aren't compared with the recorded decision."
+                "These aren't the recorded details, so the simulation isn't compared with the recorded decision."
             )
         ).toBeVisible()
     },
@@ -515,7 +516,7 @@ export const TheDraftWaitsWhileRulesChange: Story = {
         const canvas = within(canvasElement)
         await ruleCards(canvasElement)
         await waitFor(() => expect(highlighted(canvasElement)).toEqual(["5"]))
-        await userEvent.click(canvas.getByRole("button", {name: "Edit example"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Try other details"}))
         await choose(canvasElement, "Identity check", "Typed by hand")
 
         await userEvent.click(canvas.getByRole("button", {name: "Move rule 5 up"}))
@@ -524,7 +525,7 @@ export const TheDraftWaitsWhileRulesChange: Story = {
         await waitFor(() => expect(highlighted(canvasElement)).toEqual(["3"]))
         await userEvent.click(compared(canvasElement).getByRole("button", {name: "Middle Name"}))
         await waitFor(() =>
-            expect(example(canvasElement)).toHaveTextContent("Rule 3 decides the applied example")
+            expect(example(canvasElement)).toHaveTextContent("In the simulation, rule 3 decides")
         )
         await userEvent.click(canvas.getByRole("button", {name: "Edit rule 2"}))
         const editor = await dialog("Edit rule 2")
@@ -546,7 +547,7 @@ export const TheDraftWaitsWhileRulesChange: Story = {
         ).toBe(true)
         await expect(canvas.getByText("Rules on screen, including unsaved changes")).toBeVisible()
 
-        await userEvent.click(canvas.getByRole("button", {name: "Apply example"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Use in the simulation"}))
         // The rule that was rule 2 is now first.
         await waitFor(() => expect(highlighted(canvasElement)).toEqual(["1"]))
     },
@@ -605,13 +606,13 @@ export const OpenedFromAnEnrollmentWhoseDecisionCantBeRead: Story = {
         await ruleCards(canvasElement)
         await expect(
             await canvas.findByText(
-                "The recorded decision of this enrollment can't be read, so the sample is shown."
+                "This enrollment's recorded decision can't be read, so the simulation uses the sample enrollment."
             )
         ).toBeVisible()
         await waitFor(() => expect(highlighted(canvasElement)).toEqual(["3"]))
-        expect(canvasElement.textContent).not.toMatch(/Recorded decision:|recorded one/)
+        expect(canvasElement.textContent).not.toMatch(/Recorded decision|recorded one/)
         await expect(
-            canvas.getByRole("button", {name: "Back to Alice Example's enrollment"})
+            canvas.getByRole("button", {name: "Back to the enrollment of Alice Example"})
         ).toBeVisible()
     },
 }
@@ -622,7 +623,7 @@ export const TheDraftWaitsThroughRuleEditsSavesAndDiscards: Story = {
         const canvas = within(canvasElement)
         await ruleCards(canvasElement)
         await waitFor(() => expect(highlighted(canvasElement)).toEqual(["5"]))
-        await userEvent.click(canvas.getByRole("button", {name: "Edit example"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Try other details"}))
         await choose(canvasElement, "Identity check", "Typed by hand")
         const stillDrafted = async () => {
             await expect(
@@ -646,14 +647,18 @@ export const TheDraftWaitsThroughRuleEditsSavesAndDiscards: Story = {
         await userEvent.click(editor.getByRole("button", {name: "Apply"}))
         await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
         await waitFor(() =>
-            expect(example(canvasElement)).toHaveTextContent(/^Rule 5 decides.*Reject/)
+            expect(example(canvasElement)).toHaveTextContent(
+                /^In the simulation, rule 5 decides.*Reject/
+            )
         )
         await stillDrafted()
 
         const bar = within(await canvas.findByRole("region", {name: "Unsaved changes"}))
         await userEvent.click(bar.getByRole("button", {name: "Discard changes"}))
         await waitFor(() =>
-            expect(example(canvasElement)).toHaveTextContent(/^Rule 5 decides.*Send to a person/)
+            expect(example(canvasElement)).toHaveTextContent(
+                /^In the simulation, rule 5 decides.*Send to a person/
+            )
         )
         await stillDrafted()
 
@@ -668,7 +673,7 @@ export const TheDraftWaitsThroughRuleEditsSavesAndDiscards: Story = {
         await waitFor(() => expect(highlighted(canvasElement)).toEqual(["5"]))
         await stillDrafted()
 
-        await userEvent.click(canvas.getByRole("button", {name: "Apply example"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Use in the simulation"}))
         await waitFor(() => expect(highlighted(canvasElement)).toEqual(["2"]))
     },
 }
@@ -718,7 +723,7 @@ export const ASaveBarThatAppearsMidPage: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await ruleCards(canvasElement)
-        await userEvent.click(canvas.getByRole("button", {name: "Edit example"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Try other details"}))
         // The save bar appears while the page is scrolled half way: it is drawn stuck to the
         // bottom of the window, above the end of the rules.
         window.scrollTo(0, (document.documentElement.scrollHeight - window.innerHeight) / 2)
@@ -727,7 +732,9 @@ export const ASaveBarThatAppearsMidPage: Story = {
         await new Promise((resolve) => setTimeout(resolve, 300))
         // At the end of the page the card still starts inside the window, with its editor's heading.
         window.scrollTo(0, document.documentElement.scrollHeight)
-        const card = canvas.getByRole("region", {name: "Try an example"})
+        const card = canvas.getByRole("region", {
+            name: "Simulating the enrollment of Alice Example",
+        })
         await waitFor(() => {
             const top = card.getBoundingClientRect().top
             expect(top).toBeGreaterThanOrEqual(-1)
@@ -743,7 +750,7 @@ export const StillDeciding: Story = {
         await ruleCards(canvasElement)
         await waitFor(() =>
             expect(example(canvasElement)).toHaveTextContent(
-                "Working out which rule decides the applied example…"
+                "Working out which rule decides the simulation…"
             )
         )
         expect(highlighted(canvasElement)).toEqual([])
@@ -755,7 +762,7 @@ export const TryingFails: Story = {
     play: async ({canvasElement}) => {
         await ruleCards(canvasElement)
         await waitFor(() =>
-            expect(example(canvasElement)).toHaveTextContent("The example could not be tried.")
+            expect(example(canvasElement)).toHaveTextContent("The simulation could not be run.")
         )
         expect(highlighted(canvasElement)).toEqual([])
     },
@@ -800,7 +807,7 @@ export const NarrowScreenFromAnEnrollmentWithALongName: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await ruleCards(canvasElement)
-        const back = canvas.getByRole("button", {name: /^Back to Maximiliana/})
+        const back = canvas.getByRole("button", {name: /^Back to the enrollment of Maximiliana/})
         const screen = canvas.getByTestId("screen")
         expect(screen.scrollWidth).toBeLessThanOrEqual(screen.clientWidth)
         // The example comes first on screen and in keyboard order: after "Approvals", its way back.
@@ -810,10 +817,10 @@ export const NarrowScreenFromAnEnrollmentWithALongName: Story = {
         canvas.getByRole("button", {name: "Approvals"}).focus()
         await userEvent.tab()
         await expect(back).toHaveFocus()
-        await userEvent.click(canvas.getByRole("button", {name: "Edit example"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Try other details"}))
         expect(screen.scrollWidth).toBeLessThanOrEqual(screen.clientWidth)
         await choose(canvasElement, "Identity check", "Typed by hand")
-        const apply = canvas.getByRole("button", {name: "Apply example"})
+        const apply = canvas.getByRole("button", {name: "Use in the simulation"})
         await expect(apply).toBeEnabled()
         apply.focus()
         await waitFor(() => expect(reachable(apply)).toBe(true))
@@ -851,13 +858,13 @@ export const EditingWithUnsavedRulesAt1280: Story = {
                     .trim()
             ).toBe(`${bar.offsetHeight + 32}px`)
         )
-        await userEvent.click(canvas.getByRole("button", {name: "Edit example"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Try other details"}))
         await choose(canvasElement, "Last Name", "Different")
-        await expect(canvas.getByRole("button", {name: "Apply example"})).toBeEnabled()
+        await expect(canvas.getByRole("button", {name: "Use in the simulation"})).toBeEnabled()
         // Moving to the editor's buttons with the keyboard brings each into view, clear of the
         // sticky save bar, even with the page scrolled to the top.
         window.scrollTo(0, 0)
-        for (const name of ["Restore recorded details", "Cancel", "Apply example"]) {
+        for (const name of ["Fill in the recorded details", "Cancel", "Use in the simulation"]) {
             const button = canvas.getByRole("button", {name})
             button.focus()
             await waitFor(() => expect(reachable(button)).toBe(true))
@@ -884,21 +891,21 @@ export const EditingWithUnsavedRulesAt1280: Story = {
             })
         }
 
-        await userEvent.click(canvas.getByRole("button", {name: "Apply example"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Use in the simulation"}))
         await waitFor(() =>
             expect(example(canvasElement)).toHaveTextContent(
-                /^No rule fits — the last rule decides the applied example/
+                /^In the simulation, no rule fits: the last rule decides/
             )
         )
         // The result of the applied example is in view where the editor was.
         await waitFor(() => {
             const result = example(canvasElement).getBoundingClientRect()
             const card = canvas
-                .getByRole("region", {name: "Try an example"})
+                .getByRole("region", {name: "Simulating the enrollment of Alice Example"})
                 .getBoundingClientRect()
             expect(result.top).toBeGreaterThanOrEqual(card.top)
             expect(result.bottom).toBeLessThanOrEqual(Math.min(card.bottom, window.innerHeight))
         })
-        await expect(canvas.getByRole("button", {name: "Edit example"})).toHaveFocus()
+        await expect(canvas.getByRole("button", {name: "Try other details"})).toHaveFocus()
     },
 }

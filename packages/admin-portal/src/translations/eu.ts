@@ -4198,7 +4198,7 @@ const basqueTranslation: TranslationType = {
                 noneApply: "Goiko arauetako bat ere ez da aplikatzen",
                 andWord: "eta",
                 and: " eta ",
-                appliesToExample: "Aplikatutako adibidea erabakitzen du",
+                appliesToExample: "Simulazioan erabakitzen du",
                 voterIsTold: "Bozkatzaileari hau esaten zaio: “{{reason}}”.",
                 sentence: "Baldintza hauek betetzen direnean: {{when}}; {{outcome}}.",
                 sentenceOtherwise: "Goiko arauetako bat ere aplikatzen ez bada, {{outcome}}.",
@@ -4220,33 +4220,23 @@ const basqueTranslation: TranslationType = {
                 },
                 test: "Probatu adibide bat",
                 example: {
-                    sampleTitle: "Izen-emate eredua",
+                    stateSample: "Izen-emate eredua",
                     sampleText:
                         "Erregistroko bozkatzaile egiaztatua, oraindik izena eman gabea, alderatutako datu guztiak berdinak dituena.",
-                    customTitle: "Zure adibidea",
+                    stateCustom: "Zure adibidea",
                     customText: "Eredutik abiatua.",
-                    fromEnrollment: "{{name}}(r)en izen-ematetik",
-                    fromUnnamed: "Izen-emate batetik",
-                    back: "Itzuli {{name}}(r)en izen-ematera",
-                    backUnnamed: "Itzuli izen-ematera",
-                    recorded: "Erregistratutako erabakia:",
+                    recorded: "Erregistratutako erabakia",
                     recordedRule: "{{version}}. bertsioko {{number}}. araua · {{decision}}.",
                     recordedLast: "{{version}}. bertsioko azken araua · {{decision}}.",
                     severalApproved: "Erregistroko hainbat bozkatzaile egokitzen ziren.",
                     statusNow: "Orain haren egoera hau da: {{status}}.",
-                    unreadable:
-                        "Ezin da izen-emate honen erregistratutako erabakia irakurri; beraz, eredua erakusten da.",
                     noChanges:
                         "Adibide bat probatzeak ez du izen-ematerik aldatzen eta ez du ezer gordetzen.",
-                    applied: "Aplikatutako adibidea",
-                    appliedInUse: "Aplikatutako adibidea — oraindik erabiltzen da",
                     edit: "Editatu adibidea",
                     editing: "Adibidea editatzen — oraindik aplikatu gabe",
                     editingHelp:
                         "Aldaketek aplikatzen dituzunean bakarrik dute eragina. Ordura arte simulazioak aplikatutako adibidea erabiltzen du pantailako arauekin.",
                     apply: "Aplikatu adibidea",
-                    restore: "Leheneratu erregistratutako datuak",
-                    resetSample: "Itzuli eredura",
                     notRecorded: "Erregistratu gabe",
                     withFirstName: "Izenarekin alderatua",
                     notComparedForId: "Ez da alderatzen dokumentu honetarako",
@@ -4254,19 +4244,37 @@ const basqueTranslation: TranslationType = {
                     simulation: "Uneko simulazioa",
                     rulesOnScreen: "Pantailako arauak",
                     rulesUnsaved: "Pantailako arauak, gorde gabeko aldaketak barne",
-                    decides: "{{number}}. arauak erabakitzen du aplikatutako adibidea",
-                    lastDecides:
-                        "Ez da araurik egokitzen — azken arauak erabakitzen du aplikatutako adibidea",
-                    evaluating: "Aplikatutako adibidea zein arauk erabakitzen duen kalkulatzen…",
                     goToRule: "Joan {{number}}. araura",
                     goToLast: "Joan azken araura",
-                    stillApplied:
-                        "Nabarmendutako arauak aplikatutako adibidea erabakitzen jarraitzen du.",
+                    titleEnrollment: "Izen-ematearen simulazioa: {{name}}",
+                    titleUnnamed: "Izen-emate baten simulazioa",
+                    back: "Itzuli izen-ematera",
+                    backLabel: "Itzuli izen-ematera: {{name}}",
+                    noChangesEnrollment:
+                        "Simulazioak ez du ezer aldatzen izen-emate honetan eta ez du ezer gordetzen.",
+                    unreadable:
+                        "Ezin da izen-emate honen erregistratutako erabakia irakurri; beraz, simulazioak izen-emate eredua erabiltzen du.",
+                    stateRecorded: "Erregistratutako datuak · simulazioan",
+                    stateChanged: "Beste datu batzuk · simulazioan",
+                    stateUnreadable: "Izen-emate eredua — ez dira bere erregistratutako datuak",
+                    changedNote: "Izen-emateak bere erregistratutako datuak gordetzen ditu.",
+                    editDetails: "Probatu beste datu batzuk",
+                    editingDetails: "Beste datu batzuk probatzen — oraindik ez daude simulazioan",
+                    editingDetailsHelp:
+                        "Datu hauek ez dute ezer erabakitzen erabiltzen dituzun arte. Ordura arte simulazioak goiko datuak erabiltzen ditu pantailako arauekin.",
+                    useDetails: "Erabili simulazioan",
+                    restore: "Bete erregistratutako datuekin",
+                    resetSample: "Bete ereduarekin",
+                    decides: "Simulazioan, {{number}}. arauak erabakitzen du.",
+                    lastDecides:
+                        "Simulazioan ez da araurik egokitzen: azken arauak erabakitzen du.",
+                    evaluating: "Simulazioa zein arauk erabakitzen duen kalkulatzen…",
+                    stillApplied: "Nabarmendutako arauak simulazioa erabakitzen jarraitzen du.",
                     comparison: {
                         SAME: "Uneko simulazioak erregistratutako erabaki bera ematen du.",
                         DIFFERENT:
                             "Uneko simulazioak erregistratutakoaren desberdina den erabakia ematen du.",
-                        EDITED: "Erregistratutako datuak aldatu dituzu; beraz, ez dira erregistratutako erabakiarekin alderatzen.",
+                        EDITED: "Hauek ez dira erregistratutako datuak; beraz, simulazioa ez da erregistratutako erabakiarekin alderatzen.",
                         NOT_RECORDED:
                             "Alderatutako datu bat ez zen erregistratu; beraz, simulazioa ez da erregistratutako erabakiarekin alderatzen.",
                         SEVERAL_VOTERS:
@@ -4276,8 +4284,8 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 testDetails: "Alderatutako datuak",
-                testError: "Ezin izan da adibidea probatu.",
-                testInvalid: "Zuzendu arau hauek adibide bat probatzeko:",
+                testError: "Ezin izan da simulazioa exekutatu.",
+                testInvalid: "Zuzendu arau hauek simulazioa exekutatzeko:",
                 ruleError: "{{number}}. araua: {{error}}",
                 invariants: {
                     MANUAL_ENTRY_NOT_ACCEPTED:

@@ -13,7 +13,6 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack"
 import CheckIcon from "@mui/icons-material/Check"
 import FactCheckIcon from "@mui/icons-material/FactCheck"
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined"
-import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline"
 import RuleIcon from "@mui/icons-material/Rule"
 import {Dialog} from "@sequentech/ui-essentials"
 import {
@@ -39,6 +38,7 @@ import {
 } from "./ApprovalMatrixTest"
 import {EMatrixEntry, recordedDecision, sampleEnrollment} from "./approvalExample"
 import {IApplication, applicantName} from "./approvalReview"
+import {contentAfter, scrollFrame} from "./matrixLayout"
 import {convertToCamelCase} from "./UtilsApprovals"
 import {
     EMatrixError,
@@ -108,45 +108,6 @@ const Columns = styled("div")(({theme}) => ({
         gridTemplateAreas: '"main example"',
     },
 }))
-
-const px = (value: string) => parseFloat(value) || 0
-
-/**
- * The height of what follows `element` in the scrolled content up to `scroller`'s end: the
- * elements below it and below each of its ancestors, their margins and the ancestors' bottom
- * padding and border.
- */
-function contentAfter(element: HTMLElement, scroller: HTMLElement): number {
-    let room = 0
-    for (
-        let node: HTMLElement | null = element;
-        node && node !== scroller;
-        node = node.parentElement
-    ) {
-        room += px(getComputedStyle(node).marginBottom)
-        const bottom = node.getBoundingClientRect().bottom
-        for (let next = node.nextElementSibling; next; next = next.nextElementSibling) {
-            const style = getComputedStyle(next)
-            // Only what comes below: a layout's row puts siblings beside each other. A sticky
-            // sibling (the save bar) may be drawn stuck above its place, which is below.
-            if (
-                style.display === "none" ||
-                ["absolute", "fixed"].includes(style.position) ||
-                (style.position !== "sticky" && next.getBoundingClientRect().top < bottom - 1)
-            ) {
-                continue
-            }
-            room +=
-                next.getBoundingClientRect().height + px(style.marginTop) + px(style.marginBottom)
-        }
-        const parent = node.parentElement
-        if (parent) {
-            const style = getComputedStyle(parent)
-            room += px(style.paddingBottom) + px(style.borderBottomWidth)
-        }
-    }
-    return room
-}
 
 /** Where the save bar sticks above the window's bottom, and the space kept above it. */
 const SAVE_BAR_BOTTOM = 16
@@ -288,13 +249,7 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({
         if (!columnsElement) {
             return
         }
-        let scroller: HTMLElement = document.documentElement
-        for (let parent = columnsElement.parentElement; parent; parent = parent.parentElement) {
-            if (/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) {
-                scroller = parent
-                break
-            }
-        }
+        const scroller = scrollFrame(columnsElement)
         const measure = () => setBelowRoom(contentAfter(columnsElement, scroller))
         measure()
         const observer = new ResizeObserver(measure)
@@ -479,12 +434,6 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({
                         overflowY: {lg: "auto"},
                     }}
                 >
-                    <CardTitle id="approval-matrix-example">
-                        <CardIcon>
-                            <PlayCircleOutlineIcon fontSize="small" />
-                        </CardIcon>
-                        {t("approvalsScreen.matrix.test")}
-                    </CardTitle>
                     <ApprovalMatrixTest
                         applied={applied}
                         onApply={setApplied}

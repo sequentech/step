@@ -236,3 +236,44 @@ export function historyComparison(
     }
     return decision === recorded.decision ? EHistoryComparison.SAME : EHistoryComparison.DIFFERENT
 }
+
+/** What the example panel shows, by where the matrix was opened from and the example in use. */
+export enum EPanelState {
+    /** From the toolbar: the sample enrollment. */
+    SAMPLE = "SAMPLE",
+    /** From the toolbar: the administrator's own example. */
+    CUSTOM = "CUSTOM",
+    /** From an enrollment: the details recorded with its decision. */
+    RECORDED = "RECORDED",
+    /** From an enrollment: other details than the recorded ones. */
+    CHANGED = "CHANGED",
+    /** From an enrollment whose recorded decision can't be read: the sample. */
+    UNREADABLE = "UNREADABLE",
+    /** From an enrollment whose recorded decision can't be read: other details than the sample. */
+    CHANGED_FROM_SAMPLE = "CHANGED_FROM_SAMPLE",
+}
+
+/**
+ * The panel's state, by where the matrix was opened from and the decision recorded for that
+ * enrollment (empty when it has none). Changes count as the comparison counts them: on what the
+ * rules see.
+ */
+export function panelState(
+    opened: EMatrixEntry,
+    recorded: IRecordedDecision | null,
+    applied: ITestEnrollment,
+    comparedFields: string[]
+): EPanelState {
+    const customized = customizedSample(applied, comparedFields)
+    if (opened === EMatrixEntry.TOOLBAR) {
+        return customized ? EPanelState.CUSTOM : EPanelState.SAMPLE
+    }
+    if (!recorded?.enrollment) {
+        return customized ? EPanelState.CHANGED_FROM_SAMPLE : EPanelState.UNREADABLE
+    }
+    const project = (enrollment: ITestEnrollment) =>
+        enrollmentFor(enrollment, comparedFields, EMatrixEntry.ENROLLMENT, recorded.jointNames)
+    return sameEnrollment(project(applied), project(recorded.enrollment))
+        ? EPanelState.RECORDED
+        : EPanelState.CHANGED
+}

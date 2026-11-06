@@ -834,7 +834,13 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                             >
                                 <NumberBadge
                                     data-pending={step !== key && !done(key)}
-                                    sx={{width: "24px", height: "24px", fontSize: "12px"}}
+                                    sx={{
+                                        width: "24px",
+                                        height: "24px",
+                                        fontSize: "12px",
+                                        // The line behind the badges, on narrow screens, meets their centre.
+                                        boxSizing: "border-box",
+                                    }}
                                 >
                                     {index + 1}
                                 </NumberBadge>

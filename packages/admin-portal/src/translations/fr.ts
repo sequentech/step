@@ -4243,7 +4243,7 @@ const frenchTranslation: TranslationType = {
                 noneApply: "Aucune des règles ci-dessus ne s'applique",
                 andWord: "et",
                 and: " et ",
-                appliesToExample: "Décide de l'exemple appliqué",
+                appliesToExample: "Décide dans la simulation",
                 voterIsTold: "L'électeur reçoit ce message : “{{reason}}”.",
                 sentence: "Quand {{when}}, {{outcome}}.",
                 sentenceOtherwise: "Si aucune des règles ci-dessus ne s'applique, {{outcome}}.",
@@ -4265,33 +4265,23 @@ const frenchTranslation: TranslationType = {
                 },
                 test: "Essayer un exemple",
                 example: {
-                    sampleTitle: "Inscription type",
+                    stateSample: "Inscription type",
                     sampleText:
                         "Un électeur vérifié du registre, pas encore inscrit, dont les données comparées sont toutes identiques.",
-                    customTitle: "Votre exemple",
+                    stateCustom: "Votre exemple",
                     customText: "Parti de l'inscription type.",
-                    fromEnrollment: "Depuis l'inscription de {{name}}",
-                    fromUnnamed: "Depuis une inscription",
-                    back: "Retour à l'inscription de {{name}}",
-                    backUnnamed: "Retour à l'inscription",
-                    recorded: "Décision enregistrée :",
+                    recorded: "Décision enregistrée",
                     recordedRule: "Règle {{number}} de la version {{version}} · {{decision}}.",
                     recordedLast: "Dernière règle de la version {{version}} · {{decision}}.",
                     severalApproved: "Plusieurs électeurs du registre correspondaient.",
                     statusNow: "Son statut est maintenant {{status}}.",
-                    unreadable:
-                        "La décision enregistrée de cette inscription est illisible, l'inscription type est donc affichée.",
                     noChanges:
                         "Essayer un exemple ne modifie aucune inscription et n'enregistre rien.",
-                    applied: "Exemple appliqué",
-                    appliedInUse: "Exemple appliqué — toujours utilisé",
                     edit: "Modifier l'exemple",
                     editing: "Modification de l'exemple — pas encore appliquée",
                     editingHelp:
                         "Vos modifications ne comptent qu'une fois appliquées. D'ici là, la simulation utilise l'exemple appliqué avec les règles à l'écran.",
                     apply: "Appliquer l'exemple",
-                    restore: "Rétablir les données enregistrées",
-                    resetSample: "Revenir à l'inscription type",
                     notRecorded: "Non enregistré",
                     withFirstName: "Comparé avec le prénom",
                     notComparedForId: "Non comparé pour ce document",
@@ -4299,19 +4289,37 @@ const frenchTranslation: TranslationType = {
                     simulation: "Simulation actuelle",
                     rulesOnScreen: "Règles à l'écran",
                     rulesUnsaved: "Règles à l'écran, modifications non enregistrées comprises",
-                    decides: "La règle {{number}} décide de l'exemple appliqué",
-                    lastDecides:
-                        "Aucune règle ne convient — la dernière règle décide de l'exemple appliqué",
-                    evaluating: "Recherche de la règle qui décide de l'exemple appliqué…",
                     goToRule: "Aller à la règle {{number}}",
                     goToLast: "Aller à la dernière règle",
-                    stillApplied:
-                        "La règle mise en évidence décide toujours de l'exemple appliqué.",
+                    titleEnrollment: "Simulation de l'inscription de {{name}}",
+                    titleUnnamed: "Simulation d'une inscription",
+                    back: "Retour à l'inscription",
+                    backLabel: "Retour à l'inscription de {{name}}",
+                    noChangesEnrollment:
+                        "La simulation ne modifie rien dans cette inscription et n'enregistre rien.",
+                    unreadable:
+                        "La décision enregistrée de cette inscription est illisible, la simulation utilise donc l'inscription type.",
+                    stateRecorded: "Données enregistrées · dans la simulation",
+                    stateChanged: "Autres données · dans la simulation",
+                    stateUnreadable: "Inscription type — pas ses données enregistrées",
+                    changedNote: "L'inscription garde ses données enregistrées.",
+                    editDetails: "Essayer d'autres données",
+                    editingDetails: "Essai d'autres données — pas encore dans la simulation",
+                    editingDetailsHelp:
+                        "Ces données ne décident rien tant que vous ne les utilisez pas. D'ici là, la simulation utilise les données ci-dessus avec les règles à l'écran.",
+                    useDetails: "Utiliser dans la simulation",
+                    restore: "Remplir avec les données enregistrées",
+                    resetSample: "Remplir avec l'inscription type",
+                    decides: "Dans la simulation, la règle {{number}} décide.",
+                    lastDecides:
+                        "Dans la simulation, aucune règle ne convient : la dernière règle décide.",
+                    evaluating: "Recherche de la règle qui décide de la simulation…",
+                    stillApplied: "La règle mise en évidence décide toujours de la simulation.",
                     comparison: {
                         SAME: "La simulation actuelle donne la même décision que celle enregistrée.",
                         DIFFERENT:
                             "La simulation actuelle donne une décision différente de celle enregistrée.",
-                        EDITED: "Vous avez modifié les données enregistrées, elles ne sont donc pas comparées avec la décision enregistrée.",
+                        EDITED: "Ce ne sont pas les données enregistrées, la simulation n'est donc pas comparée avec la décision enregistrée.",
                         NOT_RECORDED:
                             "Une donnée comparée n'a pas été enregistrée, la simulation n'est donc pas comparée avec la décision enregistrée.",
                         SEVERAL_VOTERS:
@@ -4321,8 +4329,8 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 testDetails: "Données comparées",
-                testError: "L'exemple n'a pas pu être essayé.",
-                testInvalid: "Corrigez ces règles pour essayer un exemple :",
+                testError: "La simulation n'a pas pu être lancée.",
+                testInvalid: "Corrigez ces règles pour lancer la simulation :",
                 ruleError: "Règle {{number}} : {{error}}",
                 invariants: {
                     MANUAL_ENTRY_NOT_ACCEPTED:

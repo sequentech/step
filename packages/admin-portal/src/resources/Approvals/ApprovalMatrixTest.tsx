@@ -9,6 +9,7 @@ import {Box, Button, MenuItem, TextField} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import ArrowBackIcon from "@mui/icons-material/ArrowBack"
 import EditIcon from "@mui/icons-material/Edit"
+import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline"
 import {EvaluateApprovalMatrixQuery} from "@/gql/graphql"
 import {EVALUATE_APPROVAL_MATRIX} from "@/queries/EvaluateApprovalMatrix"
 import {IApplicationsStatus} from "@/types/applications"
@@ -24,15 +25,26 @@ import {
 import {
     EFieldState,
     EMatrixEntry,
+    EPanelState,
     IRecordedDecision,
-    customizedSample,
     enrollmentFor,
     fieldState,
     historyComparison,
+    panelState,
     sameEnrollment,
     sampleEnrollment,
 } from "./approvalExample"
-import {CARD_PADDING, Help, Muted, Notice, Overline, Segment, SegmentGroup} from "./approvalStyles"
+import {
+    CARD_PADDING,
+    CardIcon,
+    CardTitle,
+    Help,
+    Muted,
+    Notice,
+    Overline,
+    Segment,
+    SegmentGroup,
+} from "./approvalStyles"
 
 const NOT_REPORTED = ""
 const FIRST_NAME = "firstName"
@@ -123,6 +135,26 @@ export interface IExampleSource {
     status?: string | null
     recorded: IRecordedDecision | null
     onBack: () => void
+}
+
+/** The heading of a group of the panel. */
+const SectionHeading = styled("h4")({
+    margin: 0,
+    color: "#3D4353",
+    fontSize: "12px",
+    fontWeight: 600,
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+})
+
+/** Each state's heading over the details in use, and the line under it. */
+const PANEL_COPY: Record<EPanelState, {heading: string; note?: string}> = {
+    [EPanelState.SAMPLE]: {heading: "stateSample", note: "sampleText"},
+    [EPanelState.CUSTOM]: {heading: "stateCustom", note: "customText"},
+    [EPanelState.RECORDED]: {heading: "stateRecorded"},
+    [EPanelState.CHANGED]: {heading: "stateChanged", note: "changedNote"},
+    [EPanelState.UNREADABLE]: {heading: "stateUnreadable"},
+    [EPanelState.CHANGED_FROM_SAMPLE]: {heading: "stateChanged", note: "customText"},
 }
 
 const Section = styled("div")({
@@ -226,6 +258,13 @@ export const ApprovalMatrixTest: React.FC<ApprovalMatrixTestProps> = ({
     const firstControl = useRef<HTMLDivElement>(null)
 
     const recorded = source?.recorded ?? null
+    const panel = panelState(
+        source ? EMatrixEntry.ENROLLMENT : EMatrixEntry.TOOLBAR,
+        recorded,
+        applied,
+        comparedFields
+    )
+    const panelCopy = PANEL_COPY[panel]
     const result = evaluation.state === EExampleResult.DECIDED ? evaluation.result : undefined
     const decision = isStatus(result?.decision) ? result.decision : null
     const comparison =
@@ -305,17 +344,9 @@ export const ApprovalMatrixTest: React.FC<ApprovalMatrixTestProps> = ({
     const validIdLabel = String(t("approvalsScreen.matrix.dialog.validId"))
 
     const recordedLine = (value: IRecordedDecision, status?: string | null) => {
-        if (!value.enrollment || !value.decision) {
-            return (
-                <Notice data-tone="warning" sx={{marginTop: "8px", padding: "8px 12px"}}>
-                    {t(`${KEY}.unreadable`)}
-                </Notice>
-            )
-        }
         const outcome = t(`approvalsScreen.matrix.decisions.${value.decision}`)
         return (
             <Box sx={{marginTop: "4px", fontSize: "14px"}}>
-                <Muted>{t(`${KEY}.recorded`)}</Muted>{" "}
                 {value.rule === null
                     ? t(`${KEY}.recordedLast`, {version: value.matrixVersion, decision: outcome})
                     : t(`${KEY}.recordedRule`, {
@@ -335,54 +366,45 @@ export const ApprovalMatrixTest: React.FC<ApprovalMatrixTestProps> = ({
     }
 
     const origin = () => {
-        if (source) {
-            return (
-                <>
-                    <Button
-                        variant="secondary"
-                        size="small"
-                        startIcon={<ArrowBackIcon />}
-                        onClick={source.onBack}
-                        sx={{
-                            maxWidth: "100%",
-                            minHeight: 0,
-                            padding: "6px 12px",
-                            whiteSpace: "normal",
-                            overflowWrap: "anywhere",
-                            textAlign: "left",
-                            textTransform: "none",
-                            letterSpacing: "normal",
-                            fontSize: "14px",
-                            lineHeight: "20px",
-                            marginBottom: "12px",
-                        }}
-                    >
-                        {source.name
-                            ? t(`${KEY}.back`, {name: source.name})
-                            : t(`${KEY}.backUnnamed`)}
-                    </Button>
-                    <Box sx={{fontWeight: 600}}>
-                        {source.name
-                            ? t(`${KEY}.fromEnrollment`, {name: source.name})
-                            : t(`${KEY}.fromUnnamed`)}
-                    </Box>
-                    {recorded ? (
-                        recordedLine(recorded, source.status)
-                    ) : (
-                        <Notice data-tone="warning" sx={{marginTop: "8px", padding: "8px 12px"}}>
-                            {t(`${KEY}.unreadable`)}
-                        </Notice>
-                    )}
-                </>
-            )
+        if (!source) {
+            return <Help sx={{margin: 0}}>{t(`${KEY}.noChanges`)}</Help>
         }
-        const customized = customizedSample(applied, comparedFields)
         return (
             <>
-                <Box sx={{fontWeight: 600}}>
-                    {t(`${KEY}.${customized ? "customTitle" : "sampleTitle"}`)}
-                </Box>
-                <Muted>{t(`${KEY}.${customized ? "customText" : "sampleText"}`)}</Muted>
+                <Button
+                    variant="secondary"
+                    size="small"
+                    startIcon={<ArrowBackIcon />}
+                    onClick={source.onBack}
+                    aria-label={
+                        source.name ? String(t(`${KEY}.backLabel`, {name: source.name})) : undefined
+                    }
+                    sx={{
+                        maxWidth: "100%",
+                        minHeight: 0,
+                        padding: "6px 12px",
+                        whiteSpace: "normal",
+                        textAlign: "left",
+                        textTransform: "none",
+                        letterSpacing: "normal",
+                        fontSize: "14px",
+                        lineHeight: "20px",
+                        marginBottom: "12px",
+                    }}
+                >
+                    {t(`${KEY}.back`)}
+                </Button>
+                {recorded?.enrollment && recorded.decision ? (
+                    <>
+                        <SectionHeading>{t(`${KEY}.recorded`)}</SectionHeading>
+                        {recordedLine(recorded, source.status)}
+                    </>
+                ) : (
+                    <Notice data-tone="warning" sx={{padding: "8px 12px"}}>
+                        {t(`${KEY}.unreadable`)}
+                    </Notice>
+                )}
+                <Help sx={{margin: "8px 0 0"}}>{t(`${KEY}.noChangesEnrollment`)}</Help>
             </>
         )
     }
@@ -455,13 +477,13 @@ export const ApprovalMatrixTest: React.FC<ApprovalMatrixTestProps> = ({
             >
                 <DraftHeading ref={heading}>
                     <Overline id="approval-matrix-draft" sx={{margin: 0, textWrap: "balance"}}>
-                        {t(`${KEY}.editing`)}
+                        {t(`${KEY}.${source ? "editingDetails" : "editing"}`)}
                     </Overline>
                     {decidingRule(evaluation) !== undefined && (
                         <Box sx={{fontSize: "13px"}}>{t(`${KEY}.stillApplied`)}</Box>
                     )}
                 </DraftHeading>
-                <Help>{t(`${KEY}.editingHelp`)}</Help>
+                <Help>{t(`${KEY}.${source ? "editingDetailsHelp" : "editingHelp"}`)}</Help>
                 <div ref={firstControl}>
                     <Overline>{identityLabel}</Overline>
                     {choice<EIdentityMethod | null>(
@@ -550,7 +572,7 @@ export const ApprovalMatrixTest: React.FC<ApprovalMatrixTestProps> = ({
                         disabled={sameEnrollment(value, applied)}
                         onClick={() => stopEditing(true)}
                     >
-                        {t(`${KEY}.apply`)}
+                        {t(`${KEY}.${source ? "useDetails" : "apply"}`)}
                     </Button>
                 </Box>
             </Draft>
@@ -613,12 +635,21 @@ export const ApprovalMatrixTest: React.FC<ApprovalMatrixTestProps> = ({
         )
     }
 
+    const title = source
+        ? source.name
+            ? t(`${KEY}.titleEnrollment`, {name: source.name})
+            : t(`${KEY}.titleUnnamed`)
+        : t("approvalsScreen.matrix.test")
+
     return (
         <>
-            <Section>
-                {origin()}
-                <Help sx={{margin: "8px 0 0"}}>{t(`${KEY}.noChanges`)}</Help>
-            </Section>
+            <CardTitle id="approval-matrix-example" sx={{overflowWrap: "anywhere"}}>
+                <CardIcon>
+                    <PlayCircleOutlineIcon fontSize="small" />
+                </CardIcon>
+                {title}
+            </CardTitle>
+            <Section>{origin()}</Section>
             <Section ref={appliedSection}>
                 <Box
                     sx={{
@@ -629,9 +660,7 @@ export const ApprovalMatrixTest: React.FC<ApprovalMatrixTestProps> = ({
                         gap: "8px",
                     }}
                 >
-                    <Overline sx={{margin: 0}}>
-                        {t(`${KEY}.${draft ? "appliedInUse" : "applied"}`)}
-                    </Overline>
+                    <SectionHeading>{t(`${KEY}.${panelCopy.heading}`)}</SectionHeading>
                     {!draft && (
                         <Button
                             ref={editButton}
@@ -640,14 +669,15 @@ export const ApprovalMatrixTest: React.FC<ApprovalMatrixTestProps> = ({
                             startIcon={<EditIcon />}
                             onClick={startEditing}
                         >
-                            {t(`${KEY}.edit`)}
+                            {t(`${KEY}.${source ? "editDetails" : "edit"}`)}
                         </Button>
                     )}
                 </Box>
+                {panelCopy.note && <Muted>{t(`${KEY}.${panelCopy.note}`)}</Muted>}
                 {summary}
             </Section>
             <Section>
-                <Overline sx={{margin: 0}}>{t(`${KEY}.simulation`)}</Overline>
+                <SectionHeading>{t(`${KEY}.simulation`)}</SectionHeading>
                 <Muted>{t(`${KEY}.${unsavedRules ? "rulesUnsaved" : "rulesOnScreen"}`)}</Muted>
                 <Box
                     role="status"

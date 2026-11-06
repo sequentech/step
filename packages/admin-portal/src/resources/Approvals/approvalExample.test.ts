@@ -8,11 +8,13 @@ import {
     EFieldState,
     EHistoryComparison,
     EMatrixEntry,
+    EPanelState,
     IRecordedDecision,
     customizedSample,
     enrollmentFor,
     fieldState,
     historyComparison,
+    panelState,
     recordedDecision,
     sameEnrollment,
     sampleEnrollment,
@@ -455,5 +457,52 @@ describe("historyComparison", () => {
         expect(historyComparison(unreadable, sampleEnrollment(), COMPARED, PENDING)).toBeNull()
         const undecided = {...complete, decision: null}
         expect(historyComparison(undecided, replay(undecided), COMPARED, PENDING)).toBeNull()
+    })
+})
+
+describe("panelState", () => {
+    const enrollment = recorded({
+        inputs: inputs({
+            fields: {
+                firstName: "MATCHES",
+                middleName: "MATCHES",
+                lastName: "DIFFERS",
+                dateOfBirth: "MATCHES",
+            },
+        }),
+    })
+    const replayed = enrollment.enrollment as ITestEnrollment
+    const typed = {...sampleEnrollment(), identity: EIdentityMethod.MANUAL_ENTRY}
+    const {TOOLBAR, ENROLLMENT} = EMatrixEntry
+
+    it("is the sample, or the administrator's own example, from the toolbar", () => {
+        expect(panelState(TOOLBAR, null, sampleEnrollment(), COMPARED)).toBe(EPanelState.SAMPLE)
+        expect(panelState(TOOLBAR, null, typed, COMPARED)).toBe(EPanelState.CUSTOM)
+    })
+
+    it("is an enrollment's recorded details until other details are used", () => {
+        expect(panelState(ENROLLMENT, enrollment, replayed, COMPARED)).toBe(EPanelState.RECORDED)
+        expect(panelState(ENROLLMENT, enrollment, {...replayed, valid_id: "iBP"}, COMPARED)).toBe(
+            EPanelState.CHANGED
+        )
+    })
+
+    it("counts only changes the rules see, as the comparison does", () => {
+        // A detail no longer compared is no change.
+        const embassy = {...replayed, fields: {...replayed.fields, embassy: EFieldMatch.DIFFERS}}
+        expect(panelState(ENROLLMENT, enrollment, embassy, COMPARED)).toBe(EPanelState.RECORDED)
+    })
+
+    it.each([
+        ["can't be read", recorded({inputs: undefined})],
+        ["has no decision record", null],
+    ])("uses the sample for an enrollment whose decision %s", (_, decision) => {
+        expect(panelState(ENROLLMENT, decision, sampleEnrollment(), COMPARED)).toBe(
+            EPanelState.UNREADABLE
+        )
+        // Other details then started from the sample, not from the enrollment's.
+        expect(panelState(ENROLLMENT, decision, typed, COMPARED)).toBe(
+            EPanelState.CHANGED_FROM_SAMPLE
+        )
     })
 })

@@ -186,10 +186,14 @@ const lastEnrollment = () =>
     matrixCalls("EvaluateApprovalMatrix").at(-1)?.variables.enrollment as ITestEnrollment
 
 const edit = (canvasElement: HTMLElement) =>
-    userEvent.click(canvasOf(canvasElement).getByRole("button", {name: "Edit example"}))
+    userEvent.click(
+        canvasOf(canvasElement).getByRole("button", {name: /^(Edit example|Try other details)$/})
+    )
 
 const draft = (canvasElement: HTMLElement) =>
-    canvasOf(canvasElement).getByRole("group", {name: "Editing the example — not applied yet"})
+    canvasOf(canvasElement).getByRole("group", {
+        name: /^(Editing the example|Trying other details) — not/,
+    })
 
 const pressed = (group: HTMLElement) => group.querySelector("[aria-pressed='true']")?.textContent
 
@@ -198,7 +202,7 @@ export const SampleEnrollment: Story = {
         const canvas = canvasOf(canvasElement)
         await waitFor(() =>
             expect(outcome(canvasElement)).toHaveTextContent(
-                /^Rule 3 decides the applied example.*Approve automatically$/
+                /^In the simulation, rule 3 decides.*Approve automatically$/
             )
         )
         expect(rule(canvasElement)).toBe("3")
@@ -217,7 +221,7 @@ export const SampleEnrollment: Story = {
             "ID type": "Not reported",
             "Embassy": "Same",
         })
-        expect(canvas.queryByRole("button", {name: /^Back to/})).toBeNull()
+        expect(canvas.queryByRole("button", {name: /^Back to the enrollment/})).toBeNull()
         expect(matrixCalls("EvaluateApprovalMatrix")[0].variables).toMatchObject({
             electionEventId: EVENT_ID,
             enrollment: {
@@ -238,7 +242,10 @@ export const DraftInputsWaitForApply: Story = {
         const calls = matrixCalls("EvaluateApprovalMatrix").length
         await edit(canvasElement)
         await expect(draft(canvasElement)).toBeVisible()
-        await expect(canvas.getByText("Applied example — still in use")).toBeVisible()
+        // The details in use stay above the editor, under their own heading.
+        await expect(
+            canvas.getByRole("heading", {level: 4, name: "Sample enrollment"})
+        ).toBeVisible()
         await expect(canvas.getByRole("button", {name: "Apply example"})).toBeDisabled()
         await choose(canvasElement, "First Name", "Different")
         await choose(canvasElement, "Identity check", "Typed by hand")
@@ -250,7 +257,7 @@ export const DraftInputsWaitForApply: Story = {
             "Identity check": "Verified by ID scan",
             "First Name": "Same",
         })
-        await expect(outcome(canvasElement)).toHaveTextContent(/^Rule 3 decides/)
+        await expect(outcome(canvasElement)).toHaveTextContent(/^In the simulation, rule 3 decides/)
 
         await userEvent.click(canvas.getByRole("button", {name: "Apply example"}))
         await waitFor(() => expect(rule(canvasElement)).toBe("2"))
@@ -291,7 +298,7 @@ export const CancelKeepsTheAppliedExample: Story = {
         ).toBe("Yes")
         await choose(canvasElement, "Identity check", "Typed by hand")
         await expect(canvas.getByRole("button", {name: "Apply example"})).toBeEnabled()
-        await userEvent.click(canvas.getByRole("button", {name: "Reset to sample"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Fill in the sample"}))
         await expect(canvas.getByRole("button", {name: "Apply example"})).toBeDisabled()
     },
 }
@@ -338,7 +345,7 @@ export const NoVoterInTheRegistry: Story = {
         await userEvent.click(canvas.getByRole("button", {name: "Apply example"}))
         await waitFor(() =>
             expect(outcome(canvasElement)).toHaveTextContent(
-                /^No rule fits — the last rule decides the applied example.*Reject/
+                /^In the simulation, no rule fits: the last rule decides.*Reject/
             )
         )
         expect(rule(canvasElement)).toBe("null")
@@ -352,10 +359,8 @@ export const FromAnEnrollment: Story = {
     play: async ({canvasElement, args}) => {
         const canvas = canvasOf(canvasElement)
         await waitFor(() => expect(rule(canvasElement)).toBe("2"))
-        await expect(canvas.getByText("From Carol Sample's enrollment")).toBeVisible()
-        await expect(canvasElement).toHaveTextContent(
-            "Recorded decision: Rule 2 of version 1 · Send to a person."
-        )
+        await expect(canvas.getByText("Simulating the enrollment of Carol Sample")).toBeVisible()
+        await expect(canvasElement).toHaveTextContent("Rule 2 of version 1 · Send to a person.")
         // The middle name is compared, but Carol's decision didn't record it.
         expect(summary(canvasElement)).toMatchObject({
             "Identity check": "Typed by hand",
@@ -374,20 +379,22 @@ export const FromAnEnrollment: Story = {
         expect(
             pressed(within(draft(canvasElement)).getByRole("group", {name: "Middle Name"}))
         ).toBeUndefined()
-        await expect(canvas.getByRole("button", {name: "Restore recorded details"})).toBeVisible()
-        expect(canvas.queryByRole("button", {name: "Reset to sample"})).toBeNull()
+        await expect(
+            canvas.getByRole("button", {name: "Fill in the recorded details"})
+        ).toBeVisible()
+        expect(canvas.queryByRole("button", {name: "Fill in the sample"})).toBeNull()
         await choose(canvasElement, "Middle Name", "Same")
-        await userEvent.click(canvas.getByRole("button", {name: "Apply example"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Use in the simulation"}))
         await waitFor(() =>
             expect(
                 canvas.getByText(
-                    "You changed the recorded details, so they aren't compared with the recorded decision."
+                    "These aren't the recorded details, so the simulation isn't compared with the recorded decision."
                 )
             ).toBeVisible()
         )
 
         await userEvent.click(
-            canvas.getByRole("button", {name: "Back to Carol Sample's enrollment"})
+            canvas.getByRole("button", {name: "Back to the enrollment of Carol Sample"})
         )
         expect(args.onBack).toHaveBeenCalledTimes(1)
     },
@@ -415,7 +422,7 @@ export const EnrollmentDecidedSinceByAnOfficer: Story = {
     play: async ({canvasElement}) => {
         await waitFor(() => expect(rule(canvasElement)).toBe("2"))
         await expect(canvasElement).toHaveTextContent(
-            "Recorded decision: Rule 2 of version 1 · Send to a person. Its status is now Approved."
+            "Rule 2 of version 1 · Send to a person. Its status is now Approved."
         )
     },
 }
@@ -427,13 +434,13 @@ export const AnEnrollmentWhoseDecisionCantBeRead: Story = {
         await waitFor(() => expect(rule(canvasElement)).toBe("3"))
         await expect(
             canvas.getByText(
-                "The recorded decision of this enrollment can't be read, so the sample is shown."
+                "This enrollment's recorded decision can't be read, so the simulation uses the sample enrollment."
             )
         ).toBeVisible()
         expect(summary(canvasElement)).toMatchObject({"Identity check": "Verified by ID scan"})
-        expect(canvasElement.textContent).not.toMatch(/Recorded decision:|recorded one/)
+        expect(canvasElement.textContent).not.toMatch(/Recorded decision|recorded one/)
         await expect(
-            canvas.getByRole("button", {name: "Back to Carol Sample's enrollment"})
+            canvas.getByRole("button", {name: "Back to the enrollment of Carol Sample"})
         ).toBeVisible()
     },
 }
@@ -443,7 +450,7 @@ export const ALongName: Story = {
     globals: {viewport: {value: "iphone5", isRotated: false}},
     play: async ({canvasElement}) => {
         const back = await canvasOf(canvasElement).findByRole("button", {
-            name: /^Back to Maximiliana/,
+            name: /^Back to the enrollment of Maximiliana/,
         })
         const panel = canvasOf(canvasElement).getByTestId("panel")
         expect(panel.scrollWidth).toBeLessThanOrEqual(panel.clientWidth)
@@ -462,7 +469,9 @@ export const Association: Story = {
         await choose(canvasElement, "Date Of Birth", "Different")
         await userEvent.click(canvasOf(canvasElement).getByRole("button", {name: "Apply example"}))
         await waitFor(() =>
-            expect(outcome(canvasElement)).toHaveTextContent(/^No rule fits.*Send to a person/)
+            expect(outcome(canvasElement)).toHaveTextContent(
+                /^In the simulation, no rule fits.*Send to a person/
+            )
         )
     },
 }
@@ -472,7 +481,7 @@ export const RulesThatCannotBeSaved: Story = {
     play: async ({canvasElement}) => {
         await waitFor(() =>
             expect(outcome(canvasElement)).toHaveTextContent(
-                "Fix these rules to try an example:" +
+                "Fix these rules to run the simulation:" +
                     "Rule 2: Enrollments whose identity was typed by hand can't be approved automatically."
             )
         )
@@ -484,7 +493,7 @@ export const TryingFails: Story = {
     args: {evaluates: "error"},
     play: async ({canvasElement}) => {
         await waitFor(() =>
-            expect(outcome(canvasElement)).toHaveTextContent("The example could not be tried.")
+            expect(outcome(canvasElement)).toHaveTextContent("The simulation could not be run.")
         )
         expect(rule(canvasElement)).toBe("undefined")
     },
@@ -495,7 +504,7 @@ export const StillDeciding: Story = {
     play: async ({canvasElement}) => {
         await waitFor(() =>
             expect(outcome(canvasElement)).toHaveTextContent(
-                "Working out which rule decides the applied example…"
+                "Working out which rule decides the simulation…"
             )
         )
         expect(rule(canvasElement)).toBe("undefined")
