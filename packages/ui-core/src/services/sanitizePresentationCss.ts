@@ -24,6 +24,7 @@ const GENERATED_TEXT_PROPERTIES = new Set([
     "content",
     "quotes",
     "list-style",
+    "list-style-image",
     "list-style-type",
     "text-overflow",
     "text-emphasis",
