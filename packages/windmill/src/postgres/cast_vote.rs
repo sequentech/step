@@ -442,14 +442,14 @@ pub async fn count_unresolved_cast_votes(
 /// unconditionally as part of the disable, regardless of whether the
 /// `SetNotVoted` notification to VoterView succeeds — a divergence between the
 /// platform and VoterView is caught by the separate manual reconciliation
-/// process. Returns the number of rows discarded.
+/// process. Returns the ids of the discarded ballots.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn discard_voter_cast_votes(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &Uuid,
     election_event_id: &Uuid,
     voter_id_string: &str,
-) -> Result<u64> {
+) -> Result<Vec<Uuid>> {
     let discarded_status = CastVoteStatus::Discarded.to_string();
     let active_statuses = vec![
         CastVoteStatus::Valid.to_string(),
@@ -467,12 +467,13 @@ pub async fn discard_voter_cast_votes(
                     election_event_id = $2 AND
                     voter_id_string = $3 AND
                     status = ANY($5)
+                RETURNING id
             "#,
         )
         .await?;
 
-    hasura_transaction
-        .execute(
+    let rows = hasura_transaction
+        .query(
             &statement,
             &[
                 tenant_id,
@@ -482,7 +483,10 @@ pub async fn discard_voter_cast_votes(
                 &active_statuses,
             ],
         )
-        .await
+        .await?;
+    rows.iter()
+        .map(|row| row.try_get("id"))
+        .collect::<std::result::Result<Vec<Uuid>, _>>()
         .map_err(Into::into)
 }
 
