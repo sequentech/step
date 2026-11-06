@@ -754,9 +754,9 @@ impl CountingAlgorithm for InstantRunoff {
             .tally
             .tally_sheet_results
             .iter()
-            .fold(contest_result, |result, tally_sheet_result| {
+            .try_fold(contest_result, |result, tally_sheet_result| {
                 result.aggregate(tally_sheet_result, false)
-            }))
+            })?)
     }
 }
 
