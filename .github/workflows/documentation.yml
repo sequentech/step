@@ -13,9 +13,10 @@ on:
       - opened
       - reopened
       - synchronize
-      - closed
     paths:
       - '.github/workflows/documentation.yml'
+      - '.github/workflows/documentation_cleanup.yml'
+      - 'scripts/docs/**'
       - 'docs/docusaurus/**'
       - 'docs/api/graphql/**'
       - 'packages/graphql.schema.json'
@@ -25,12 +26,24 @@ on:
       - feat/use-arc-runner-java-test
 
 permissions:
-  contents: write
+  contents: read
   actions: read
-  pull-requests: write
+  pull-requests: read
+
+# Serialize all output writers, including the independent cleanup workflow.
+concurrency:
+  group: documentation-pages-output
+  cancel-in-progress: false
 
 jobs:
+  retention-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m unittest discover -s scripts/docs -p 'test_*.py' -v
+
   build:
+    needs: retention-tests
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -66,45 +79,52 @@ jobs:
           ls -lah docs/
           cp -r docs ../../docusaurus/build/graphql
 
-      - name: Install rsync
-        run: sudo apt-get update && sudo apt-get install -y rsync
-
-      - name: Publish (PR)
-        uses: rossjrw/pr-preview-action@v1
-        if: github.event_name == 'pull_request'
+      - name: Check out trusted publication tooling
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/checkout@v4
         with:
-          pages-base-url: docs.sequentech.io
-          source-dir: ./docs/docusaurus/build/
-          preview-branch: doc-previews
-          token: ${{ secrets.PAT }}
-          clean-exclude: |
-            docusaurus/main
-            docusaurus/release-preview/*
-          umbrella-dir: docusaurus/pr-preview
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          path: .pages-tools
+          persist-credentials: false
 
-      - name: Publish (main)
-        uses: JamesIves/github-pages-deploy-action@v4
-        if: github.event_name == 'push' && github.ref_name == 'main'
-        with:
-          folder: ./docs/docusaurus/build/
-          branch: doc-previews
-          target-folder: docusaurus/main
-          commit-message: "Deploy preview for ${{ github.ref_name }}"
-          token: ${{ secrets.PAT }}
-          clean-exclude: |
-            docusaurus/pr-preview/*
-            docusaurus/release-preview/*
+      - name: Enable publication only after tooling is merged
+        id: tooling
+        run: |
+          if [ -f .pages-tools/scripts/docs/publish.sh ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Publication tooling is not on the base branch yet; this PR tests it without changing Pages output."
+          fi
 
-      - name: Publish (release)
-        uses: JamesIves/github-pages-deploy-action@v4
-        if: github.event_name == 'push' && startsWith(github.ref_name, 'release/')
+      - name: Check out generated output
+        if: steps.tooling.outputs.enabled == 'true'
+        uses: actions/checkout@v4
         with:
-          folder: ./docs/docusaurus/build/
-          branch: doc-previews
-          target-folder: "docusaurus/release-preview/${{ github.ref_name }}"
-          commit-message: "Deploy preview for ${{ github.ref_name }}"
+          ref: doc-previews
+          path: .pages-site
+          fetch-depth: 1
           token: ${{ secrets.PAT }}
-          clean-exclude: |
-            docusaurus/main
-            docusaurus/pr-preview/*
-            docusaurus/release-preview/*
+
+      - name: Apply retention, enforce size guardrail and publish
+        id: publish
+        if: steps.tooling.outputs.enabled == 'true'
+        working-directory: .pages-tools
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          args=(--source ../docs/docusaurus/build --target "${BASE_URL#/}")
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            args+=(--active-pr "$PR_NUMBER")
+          fi
+          bash scripts/docs/publish.sh ../.pages-site "${args[@]}"
+
+      - name: Verify actual Pages deployment and live output
+        if: steps.publish.outputs.sha != ''
+        working-directory: .pages-tools
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PAGES_SHA: ${{ steps.publish.outputs.sha }}
+        run: |
+          python3 scripts/docs/verify_pages.py --repo "$GITHUB_REPOSITORY" \
+            --sha "$PAGES_SHA" --site ../.pages-site --target "${BASE_URL#/}"
