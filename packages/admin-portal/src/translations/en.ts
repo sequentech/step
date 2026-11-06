@@ -4472,7 +4472,7 @@ const englishTranslation = {
                     noChangesEnrollment:
                         "The simulation changes nothing in this enrollment and saves nothing.",
                     unreadable:
-                        "This enrollment's recorded decision can't be read, so the simulation uses the sample enrollment.",
+                        "The recorded decision of this enrollment can't be read, so the simulation uses the sample enrollment.",
                     stateRecorded: "Recorded details · in the simulation",
                     stateChanged: "Other details · in the simulation",
                     stateUnreadable: "Sample enrollment — not their recorded details",

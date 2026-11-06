@@ -394,7 +394,9 @@ export const ApprovalMatrixTest: React.FC<ApprovalMatrixTestProps> = ({
                 >
                     {t(`${KEY}.back`)}
                 </Button>
-                {recorded?.enrollment && recorded.decision ? (
+                {recorded &&
+                panel !== EPanelState.UNREADABLE &&
+                panel !== EPanelState.CHANGED_FROM_SAMPLE ? (
                     <>
                         <SectionHeading>{t(`${KEY}.recorded`)}</SectionHeading>
                         {recordedLine(recorded, source.status)}

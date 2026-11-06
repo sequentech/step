@@ -166,11 +166,13 @@ is on its way, failed, or answered with matrix errors, no rule is highlighted. W
 answer can't highlight a rule of an earlier rule order.
 
 The editor keeps a draft; only **Apply example** (toolbar) or **Use in the simulation**
-(enrollment) replaces the applied example. What the panel leads with follows `panelState`
-(`approvalExample.ts`, `EPanelState`): **Try an example** for the toolbar's sample or the
-administrator's own example, **Simulating the enrollment of …** for an enrollment's recorded
-details, other details, or the sample when its decision can't be read. Other details are counted
-on what the rules see, as the comparison counts them.
+(enrollment) replaces the applied example. The panel's title follows where the matrix was opened
+from: **Try an example** from the toolbar, **Simulating the enrollment of …** from an enrollment.
+The heading over the details in use, and whether the unreadable notice shows, follow `panelState`
+(`approvalExample.ts`, `EPanelState`): the sample or the administrator's own example; the
+enrollment's recorded details or other details; or, when its decision can't be read, the sample
+or other details started from it. Other details are counted on what the rules see, as the
+comparison counts them.
 
 The card is sticky on wide screens and sized from measurements (`matrixLayout.ts`): the page
 header's height, the save bar's height, and the content below the rules in the layout's scroll

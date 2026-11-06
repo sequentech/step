@@ -33,8 +33,8 @@ beforeAll(async () => {
         resources: {en},
         interpolation: {escapeValue: false},
     })
-    // jsdom lays nothing out: no scrolling either.
-    Element.prototype.scrollIntoView = jest.fn()
+    // jsdom lays nothing out, so it can't scroll either; each test spies on its own scrolling.
+    Element.prototype.scrollIntoView = () => undefined
     globalThis.ResizeObserver = class {
         observe() {}
         disconnect() {}
@@ -164,6 +164,7 @@ describe("opened from the toolbar", () => {
     })
 
     it("edits the example and applies it only on Apply example", async () => {
+        const scrolled = jest.spyOn(Element.prototype, "scrollIntoView")
         const props = setUp()
         fireEvent.click(screen.getByRole("button", {name: "Edit example"}))
         const editor = draft("Editing the example — not applied yet")
@@ -182,7 +183,12 @@ describe("opened from the toolbar", () => {
         await waitFor(() =>
             expect(screen.getByRole("button", {name: "Edit example"})).toHaveFocus()
         )
-        expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({block: "nearest"})
+        expect(scrolled).toHaveBeenCalledWith({block: "nearest"})
+        const section = scrolled.mock.contexts.at(-1) as HTMLElement
+        expect(within(section).getByRole("heading", {level: 4})).toHaveTextContent(
+            "Sample enrollment"
+        )
+        scrolled.mockRestore()
     })
 })
 
@@ -295,7 +301,7 @@ describe("opened from an enrollment", () => {
         setUp({application: carol({inputs: {voter_found: "yes"}})})
         expect(heading(3, "Simulating the enrollment of Carol Sample")).toBeInTheDocument()
         const notice = screen.getByText(
-            "This enrollment's recorded decision can't be read, so the simulation uses the sample enrollment."
+            "The recorded decision of this enrollment can't be read, so the simulation uses the sample enrollment."
         )
         const section = heading(4, "Sample enrollment — not their recorded details")
         expect(

@@ -606,7 +606,7 @@ export const OpenedFromAnEnrollmentWhoseDecisionCantBeRead: Story = {
         await ruleCards(canvasElement)
         await expect(
             await canvas.findByText(
-                "This enrollment's recorded decision can't be read, so the simulation uses the sample enrollment."
+                "The recorded decision of this enrollment can't be read, so the simulation uses the sample enrollment."
             )
         ).toBeVisible()
         await waitFor(() => expect(highlighted(canvasElement)).toEqual(["3"]))

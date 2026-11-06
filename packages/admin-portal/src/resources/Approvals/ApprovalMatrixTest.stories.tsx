@@ -434,7 +434,7 @@ export const AnEnrollmentWhoseDecisionCantBeRead: Story = {
         await waitFor(() => expect(rule(canvasElement)).toBe("3"))
         await expect(
             canvas.getByText(
-                "This enrollment's recorded decision can't be read, so the simulation uses the sample enrollment."
+                "The recorded decision of this enrollment can't be read, so the simulation uses the sample enrollment."
             )
         ).toBeVisible()
         expect(summary(canvasElement)).toMatchObject({"Identity check": "Verified by ID scan"})
