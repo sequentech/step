@@ -187,4 +187,45 @@ mod tests {
         let header = decode_header(token);
         assert!(true);
     }
+
+    #[test]
+    fn decode_jwt_logs_no_claims() {
+        const NAME: &str = "VoterNameValue2c7d";
+        const EMAIL: &str = "voter-email-value-8a1f@example.test";
+        let payload = serde_json::json!({
+            "exp": 0,
+            "iat": 0,
+            "jti": "jti",
+            "iss": "issuer",
+            "sub": "subject",
+            "typ": "Bearer",
+            "azp": "voting-portal",
+            "acr": "1",
+            "allowed-origins": [],
+            "scope": "openid",
+            "email_verified": true,
+            "https://hasura.io/jwt/claims": {
+                "x-hasura-default-role": "user",
+                "x-hasura-tenant-id": "tenant",
+                "x-hasura-user-id": "user",
+                "x-hasura-allowed-roles": ["user"]
+            },
+            "name": NAME,
+            "email": EMAIL
+        });
+        let token = format!(
+            "header.{}.signature",
+            general_purpose::URL_SAFE_NO_PAD.encode(payload.to_string())
+        );
+        let (capture, _guard) = crate::util::log_capture::LogCapture::install();
+
+        let claims = decode_jwt(&token).expect("claims");
+
+        assert_eq!(claims.name.as_deref(), Some(NAME));
+        let logs = capture.contents();
+        assert!(logs.contains("decode_jwt"), "{logs}");
+        for value in [NAME, EMAIL] {
+            assert!(!logs.contains(value), "{value} in logs: {logs}");
+        }
+    }
 }
