@@ -255,6 +255,35 @@ pub async fn get_tally_session_contests(
     Ok(values)
 }
 
+/// Serializes the batch anonymity check and the posting of a contest area's
+/// batches across tally sessions, by taking a transaction-scoped Postgres
+/// advisory lock. A second session blocks here until the first commits, so it
+/// compares against what the first posted instead of racing it.
+#[instrument(err, skip_all)]
+pub async fn lock_contest_area_batches(
+    hasura_transaction: &Transaction<'_>,
+    tally_session_contest: &TallySessionContest,
+) -> Result<()> {
+    let lock_key = format!(
+        "batch-anonymity:{}:{}:{}:{}:{}",
+        tally_session_contest.tenant_id,
+        tally_session_contest.election_event_id,
+        tally_session_contest.election_id,
+        tally_session_contest.area_id,
+        tally_session_contest
+            .contest_id
+            .as_deref()
+            .unwrap_or_default(),
+    );
+    hasura_transaction
+        .query(
+            "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+            &[&lock_key],
+        )
+        .await?;
+    Ok(())
+}
+
 /// The rows every other tally session holds for the same election, area and
 /// contest as `tally_session_contest`, whatever state those sessions are in.
 #[instrument(skip_all, err)]
