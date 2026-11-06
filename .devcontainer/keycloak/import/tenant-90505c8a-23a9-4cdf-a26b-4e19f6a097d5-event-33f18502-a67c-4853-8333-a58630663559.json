@@ -1150,6 +1150,20 @@
             "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-user-id",
             "jsonType.label": "String"
           }
+        },
+        {
+          "id": "4475306e-07fc-5ead-960f-84971281dc87",
+          "name": "harvest-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "harvest",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true",
+            "lightweight.claim": "false"
+          }
         }
       ],
       "defaultClientScopes": [
@@ -1285,6 +1299,20 @@
             "access.token.claim": "true",
             "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-allowed-roles",
             "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "36c1e575-156d-5e6f-9c77-66bb14d6ccd9",
+          "name": "harvest-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "harvest",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true",
+            "lightweight.claim": "false"
           }
         }
       ],
@@ -1621,6 +1649,20 @@
             "access.token.claim": "true",
             "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-allowed-roles",
             "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "a2576f80-2312-5078-a0cd-f26101c12d05",
+          "name": "harvest-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "harvest",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true",
+            "lightweight.claim": "false"
           }
         }
       ],
