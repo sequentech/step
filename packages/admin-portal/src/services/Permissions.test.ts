@@ -52,7 +52,12 @@ const TRUSTEE_OPERATIONS = [
     "RestorePrivateKey",
 ]
 
-const LOCKDOWN_OPERATIONS = [...SHELL_OPERATIONS, "sequent_backend_ballot_publication"]
+const LOCKDOWN_OPERATIONS = [
+    ...SHELL_OPERATIONS,
+    "sequent_backend_ballot_publication",
+    "GenerateBallotPublication",
+    "PublishBallot",
+]
 
 const groupRoles = (template: string, groupName: string): Array<string> => {
     const realm: RealmTemplate = JSON.parse(readFileSync(resolve(REPO_ROOT, template), "utf8"))
@@ -120,6 +125,22 @@ describe("getOperationRole", () => {
             IPermissions.PUBLISH_READ
         )
     })
+
+    it.each(["GenerateBallotPublication", "PublishBallot"])(
+        "runs %s as publish-write for publishers without admin-user",
+        (operation) => {
+            const roles = [IPermissions.PUBLISH_READ, IPermissions.PUBLISH_WRITE]
+            expect(roleFor(operation, roles)).toBe(IPermissions.PUBLISH_WRITE)
+        }
+    )
+
+    it.each(["GenerateBallotPublication", "PublishBallot"])(
+        "keeps %s on admin-user for admins",
+        (operation) => {
+            const roles = [IPermissions.ADMIN_USER, IPermissions.PUBLISH_WRITE]
+            expect(roleFor(operation, roles)).toBe(IPermissions.ADMIN_USER)
+        }
+    )
 
     it("uses a mapped role only when a trustee holds it", () => {
         const roles = [IPermissions.TRUSTEE_CEREMONY, IPermissions.ELECTION_READ]
