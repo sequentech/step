@@ -88,3 +88,27 @@ test("publish-read reads the ballot generation tasks of its tenant only", () => 
         ],
     })
 })
+
+test("publish-results-read follows only its tenant's results publications", () => {
+    const grant = selectGrant(
+        loadTable("tasks_execution"),
+        "publish-results-read"
+    )
+    assert.deepEqual(grant.permission.filter, {
+        _and: [
+            {tenant_id: {_eq: "X-Hasura-Tenant-Id"}},
+            {type: {_eq: "PUBLISH_RESULTS_WEBSITE"}},
+        ],
+    })
+})
+
+test("fetchDocument accepts the role Harvest requires", () => {
+    const {actions} = yaml.load(
+        readFileSync(resolve(__dirname, "../metadata/actions.yaml"), "utf8")
+    )
+    const action = actions.find(({name}) => name === "fetchDocument")
+    assert.deepEqual(action.permissions.map(({role}) => role).sort(), [
+        "admin-user",
+        "document-download",
+    ])
+})

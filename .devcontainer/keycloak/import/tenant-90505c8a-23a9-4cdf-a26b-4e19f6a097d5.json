@@ -3048,6 +3048,8 @@
       "subGroups": [],
       "attributes": {},
       "realmRoles": [
+        "document-download",
+        "document-read",
         "election-event-publish-tab",
         "publish-write",
         "publish-results-write",
