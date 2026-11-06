@@ -639,6 +639,8 @@ const galegoTranslation: TranslationType = {
                     export: "Exportado",
                     archive: "Arquivado",
                     unarchive: "Desarquivado",
+                    trash: "Movido á papeleira",
+                    restore: "Restaurado da papeleira",
                     enable: "Activado",
                     disable: "Desactivado",
                     reset_password: "Contrasinal restablecido",
@@ -953,6 +955,7 @@ const galegoTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exportar Plantillas",
                 IMPORT_TEMPLATES: "Importar Plantillas",
                 DELETE_ELECTION_EVENT: "Eliminar evento electoral",
+                RESTORE_ELECTION_EVENT: "Restaurar evento electoral",
                 DELETE_VOTERS: "Eliminar votantes",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar a vista previa da publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar os resultados do reconto en formato XLSX",
@@ -2761,6 +2764,43 @@ const galegoTranslation: TranslationType = {
             templates: "Modelos",
             active: "Activo",
             archived: "Arquivado",
+            trash: {
+                tab: "Papeleira",
+                loading: "Cargando a papeleira",
+                error: "Non se puido cargar a papeleira.",
+                retry: "Tentar de novo",
+                empty: "A papeleira está baleira",
+                emptyHint_one:
+                    "Os eventos electorais eliminados consérvanse aquí {{count}} día e pódense restaurar.",
+                emptyHint_other:
+                    "Os eventos electorais eliminados consérvanse aquí {{count}} días e pódense restaurar.",
+                emptyHintNoDays:
+                    "Os eventos electorais eliminados consérvanse aquí un tempo e pódense restaurar.",
+                deletedOn: "Eliminado o {{date}}",
+                purgeOn: "Eliminarase definitivamente o {{date}}",
+                purging: "Eliminación definitiva en curso",
+                wasArchived: "Estaba arquivado",
+                showing: "Amosando {{count}} de {{total}}",
+                loadMore: "Cargar máis",
+                refresh: "Actualizar",
+                refreshError: "Non se puido actualizar a papeleira; pode non estar ao día.",
+                restore: "Restaurar",
+                restoreNamed: "Restaurar {{name}}",
+                restoreTitle: "Restaurar evento electoral",
+                restoreConfirm: 'Restaurar "{{name}}"?',
+                restoreToActive: "Volve a Activos.",
+                restoreToArchived: "Volve a Arquivados, como estaba antes de eliminalo.",
+                restoreVoting: "O seu estado de votación non cambia.",
+                restored: '"{{name}}" restaurado',
+                restoreError: "Non se puido restaurar o evento electoral: {{message}}",
+                moveToTrash: "Mover á papeleira",
+                deleteExplanation_one:
+                    "Consérvase na papeleira {{count}} día, durante o cal se pode restaurar. Despois elimínase definitivamente.",
+                deleteExplanation_other:
+                    "Consérvase na papeleira {{count}} días, durante os cales se pode restaurar. Despois elimínase definitivamente.",
+                deleteExplanationNoDays:
+                    "Consérvase na papeleira, onde se pode restaurar ata que se elimine definitivamente.",
+            },
             addResource: {
                 electionEvent: "Crear un Evento Electoral",
                 election: "Crear unha Elección",
@@ -2783,6 +2823,9 @@ const galegoTranslation: TranslationType = {
                     contest: "Eliminar esta Pregunta",
                     candidate: "Eliminar este Candidato",
                 },
+                trash: {
+                    electionEvent: "Mover este evento electoral á papeleira",
+                },
                 messages: {
                     confirm: {
                         archive: "¿Estás seguro de que queres arquivar este elemento?",
@@ -2793,6 +2836,8 @@ const galegoTranslation: TranslationType = {
                         archiveNamed: '¿Estás seguro de que queres arquivar "{{name}}"?',
                         unarchiveNamed: '¿Estás seguro de que queres desarquivar "{{name}}"?',
                         deleteNamed: '¿Estás seguro de que queres eliminar "{{name}}"?',
+                        trash: "Está seguro de que desexa mover este elemento á papeleira?",
+                        trashNamed: 'Está seguro de que desexa mover "{{name}}" á papeleira?',
                     },
                     notification: {
                         success: {
