@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // use crate::hasura::trustee::get_trustees_by_name;
 use crate::postgres::election::get_elections;
-use crate::postgres::tally_session_contest::get_other_sessions_tally_session_contests;
+use crate::postgres::tally_session_contest::{
+    get_other_sessions_tally_session_contests, lock_contest_area_batches,
+};
 use crate::postgres::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::celery_app::get_worker_threads;
@@ -18,7 +20,6 @@ use crate::services::public_keys::deserialize_public_key;
 use crate::services::users::list_keycloak_enabled_users_by_area_id_and_authorized_elections;
 use anyhow::{anyhow, Context, Result};
 use b3::messages::artifact::Ballots;
-use b3::messages::message::Message;
 use b3::messages::newtypes::BatchNumber;
 use b3::messages::newtypes::TrusteeSet;
 use b3::messages::statement::StatementType;
@@ -295,10 +296,17 @@ pub async fn insert_ballots_messages(
 
                         let mut anonymity_issues: Vec<_> =
                             small_batch(0, ciphertexts.len()).into_iter().collect();
+                        // Held until this task commits, after the posting
+                        // below, so two sessions can't both pass this check.
+                        lock_contest_area_batches(
+                            &hasura_transaction_clone,
+                            &tally_session_contest,
+                        )
+                        .await?;
                         let posted_elsewhere = posted_by_other_sessions(
                             &hasura_transaction_clone,
                             &tally_session_contest,
-                            &board_messages_clone,
+                            &board_name_clone,
                         )
                         .await?;
                         anonymity_issues.extend(session_divergences(
@@ -351,12 +359,20 @@ pub async fn insert_ballots_messages(
 async fn posted_by_other_sessions(
     hasura_transaction: &Transaction<'_>,
     tally_session_contest: &TallySessionContest,
-    board_messages: &[Message],
+    board_name: &str,
 ) -> Result<Vec<PostedBatch>> {
+    let others =
+        get_other_sessions_tally_session_contests(hasura_transaction, tally_session_contest)
+            .await?;
+    if others.is_empty() {
+        return Ok(Vec::new());
+    }
+    // Read now, under the contest area's lock: the board this run loaded
+    // earlier may predate what another session has posted since.
+    let mut board_client = get_b3_pgsql_client().await?;
+    let board_messages = get_board_messages::<RistrettoCtx>(board_name, &mut board_client).await?;
     let mut posted = Vec::new();
-    for other in
-        get_other_sessions_tally_session_contests(hasura_transaction, tally_session_contest).await?
-    {
+    for other in others {
         let Some(ciphertexts) = board_messages
             .iter()
             .find(|message| {
