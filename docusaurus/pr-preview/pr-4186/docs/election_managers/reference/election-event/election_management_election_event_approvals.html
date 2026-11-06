@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Approvals | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4186/docs/election_managers/reference/election-event/election_management_election_event_approvals"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Approvals | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4186/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4186/docs/election_managers/reference/election-event/election_management_election_event_approvals"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4186/docs/election_managers/reference/election-event/election_management_election_event_approvals" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4186/docs/election_managers/reference/election-event/election_management_election_event_approvals" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Approvals","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4186/docs/election_managers/reference/election-event/election_management_election_event_approvals"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4186/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4186/assets/js/runtime~main.d9eb2560.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4186/assets/js/runtime~main.88700ab1.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4186/assets/js/main.542f5e25.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -134,8 +134,9 @@ is about depends on where the matrix was opened from.</p>
 a verified voter in the registry, not enrolled yet, whose compared details are all the same.</p>
 <ul>
 <li class=""><strong>Edit example</strong> opens its details below, marked <strong>Editing the example — not applied yet</strong>.
-Changes there decide nothing until <strong>Apply example</strong>; <strong>Cancel</strong> leaves the example as it was;
-<strong>Fill in the sample</strong> puts the sample&#x27;s details back in the editor.</li>
+Changes there decide nothing until <strong>Apply</strong>; <strong>Cancel</strong> leaves the example as it was. <strong>Fill in
+the sample</strong> only puts the sample&#x27;s details back in the editor, undoing the edits made there; it
+applies nothing.</li>
 <li class="">After applying other details, the panel shows <strong>Your example</strong>.</li>
 </ul>
 <p><strong>From an enrollment</strong> (the row menu&#x27;s <strong>See the rule that decided</strong>, or <strong>See the rule</strong> in its
@@ -149,9 +150,9 @@ they decided, with the enrollment&#x27;s status as the list or review showed it 
 decided since. It is context only: no rule is highlighted for it.</li>
 <li class=""><strong>Recorded details · in the simulation</strong> lists the details in use. <strong>Try other details</strong> opens
 them below, marked <strong>Trying other details — not in the simulation yet</strong>; they decide nothing
-until <strong>Use in the simulation</strong>, and <strong>Cancel</strong> discards them. <strong>Fill in the recorded details</strong>
-puts the recorded details back in the editor.</li>
-<li class="">After using other details, the panel shows <strong>Other details · in the simulation</strong>; the enrollment
+until <strong>Apply</strong>, and <strong>Cancel</strong> discards them. <strong>Fill in the recorded details</strong> only puts the
+recorded details back in the editor, undoing the edits made there; it applies nothing.</li>
+<li class="">After applying other details, the panel shows <strong>Other details · in the simulation</strong>; the enrollment
 keeps its recorded details.</li>
 </ul>
 <p>In both cases:</p>
@@ -162,7 +163,7 @@ to that rule. In the list, only that rule is highlighted, marked <strong>Decides
 While the simulation runs, or when it can&#x27;t (the rules have a problem, or running it fails), no
 rule is highlighted.</li>
 <li class="">Editing, moving, adding or deleting rules, changing the compared details, saving and discarding
-never use the details being edited: the details in use are decided again with the changed
+never apply the details being edited: the details in use are decided again with the changed
 rules.</li>
 </ul>
 <p>When the rules on screen are given exactly an enrollment&#x27;s recorded details, the panel says
