@@ -34,6 +34,8 @@ import org.keycloak.userprofile.UserProfileProvider;
 import sequent.keycloak.authenticator.StepBack;
 import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics;
 import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics.ConfigComponent;
+import sequent.keycloak.scanovate_authenticator.DocumentLivenessClient.DocumentLivenessOutcome;
+import sequent.keycloak.scanovate_authenticator.DocumentLivenessClient.DocumentLivenessResult;
 import sequent.keycloak.scanovate_authenticator.FaceMatchClient.FaceComparison;
 import sequent.keycloak.scanovate_authenticator.FaceMatchClient.FaceMatchOutcome;
 import sequent.keycloak.scanovate_authenticator.OnPremSessions.SessionResult;
@@ -55,9 +57,11 @@ import sequent.keycloak.voter_enrollment.Utils;
  * a photo of themselves holding their document on Keycloak's page, which uploads it with a one-time
  * token, see {@link HoldingPhotos}.
  *
- * <p>Keycloak then compares the portrait OCR read from the document, and the photo holding it, with
- * the live face, using Face Match, validates what OCR read against the configured rules, and stores
- * the extracted attributes as auth notes for the voter to confirm.
+ * <p>Keycloak checks the photo of the document OCR read with Document Liveness, which tells a
+ * physical document from one shown on a screen or, with its other checks, printed or edited. It
+ * then compares the portrait OCR read from the document, and the photo holding it, with the live
+ * face, using Face Match, validates what OCR read against the configured rules, and stores the
+ * extracted attributes as auth notes for the voter to confirm.
  *
  * <p>Only a verification this step completed, and the voter confirmed when there was something to
  * confirm, sets the {@link LookupAndUpdateUser#IDENTITY_METHOD} note to {@link
@@ -101,30 +105,43 @@ public class ScanovateAuthenticator implements Authenticator {
   static final String EVENT_DETAIL_CASE_ID = "scanovate_case_id";
   static final String EVENT_DETAIL_FACE_MATCH_DOCUMENT = "scanovate_face_match_document";
   static final String EVENT_DETAIL_FACE_MATCH_HOLDING = "scanovate_face_match_holding";
+  static final String EVENT_DETAIL_DOCUMENT_LIVENESS = "scanovate_document_liveness";
   static final String OCR_TYPE_PARAM = "ocr_type";
 
   private final BiFunction<OnPremService, KeycloakSession, OnPremSessions> sessionsFactory;
   private final Function<FaceMatchSettings, FaceMatchClient> faceMatchFactory;
+  private final Function<DocumentLivenessSettings, DocumentLivenessClient> documentLivenessFactory;
   private final Function<KeycloakSession, HoldingPhotos> holdingFactory;
 
   public ScanovateAuthenticator() {
     this(
         ScanovateAuthenticator::defaultSessions,
         ScanovateAuthenticator::defaultFaceMatch,
+        ScanovateAuthenticator::defaultDocumentLiveness,
         ScanovateAuthenticator::defaultHolding);
   }
 
   ScanovateAuthenticator(
       BiFunction<OnPremService, KeycloakSession, OnPremSessions> sessionsFactory,
       Function<FaceMatchSettings, FaceMatchClient> faceMatchFactory,
+      Function<DocumentLivenessSettings, DocumentLivenessClient> documentLivenessFactory,
       Function<KeycloakSession, HoldingPhotos> holdingFactory) {
     this.sessionsFactory = sessionsFactory;
     this.faceMatchFactory = faceMatchFactory;
+    this.documentLivenessFactory = documentLivenessFactory;
     this.holdingFactory = holdingFactory;
   }
 
   static FaceMatchClient defaultFaceMatch(FaceMatchSettings settings) {
     return new FaceMatchClient(
+        new JdkHttpTransport(),
+        settings.url(),
+        ScanovateAuthenticatorFactory.DEFAULT_MAX_RETRIES,
+        Thread::sleep);
+  }
+
+  static DocumentLivenessClient defaultDocumentLiveness(DocumentLivenessSettings settings) {
+    return new DocumentLivenessClient(
         new JdkHttpTransport(),
         settings.url(),
         ScanovateAuthenticatorFactory.DEFAULT_MAX_RETRIES,
@@ -144,6 +161,7 @@ public class ScanovateAuthenticator implements Authenticator {
       OnPremSettings onPrem,
       OcrSettings ocr,
       FaceMatchSettings faceMatch,
+      DocumentLivenessSettings documentLiveness,
       HoldingPhotoPolicy holding,
       int holdingSeconds) {}
 
@@ -230,6 +248,8 @@ public class ScanovateAuthenticator implements Authenticator {
       OnPremSettings onPrem = OnPremSettings.fromConfig(config);
       component = ConfigComponent.FACE_MATCH;
       FaceMatchSettings faceMatch = FaceMatchSettings.fromConfig(config, docType);
+      component = ConfigComponent.DOCUMENT_LIVENESS;
+      DocumentLivenessSettings documentLiveness = DocumentLivenessSettings.fromConfig(config);
       component = ConfigComponent.OCR;
       OcrSettings ocr = OcrSettings.fromConfig(config, docType);
       component = ConfigComponent.CAPTURE;
@@ -239,7 +259,8 @@ public class ScanovateAuthenticator implements Authenticator {
               config,
               ScanovateAuthenticatorFactory.HOLDING_SECONDS,
               ScanovateAuthenticatorFactory.DEFAULT_HOLDING_SECONDS);
-      return Optional.of(new Services(onPrem, ocr, faceMatch, holding, holdingSeconds));
+      return Optional.of(
+          new Services(onPrem, ocr, faceMatch, documentLiveness, holding, holdingSeconds));
     } catch (ScanovateException e) {
       configurationFailure(context, component);
       showError(context, ScanovateError.INTERNAL, false);
@@ -372,6 +393,10 @@ public class ScanovateAuthenticator implements Authenticator {
       failAttempt(context, ScanovateError.DOCUMENT_UNREADABLE.messageKey());
       return;
     }
+    if (!documentIsPhysical(
+        context, services.get().documentLiveness(), document.get().document().orElseThrow())) {
+      return;
+    }
 
     diagnostic(context, "stage", "liveness");
     Optional<SessionResult> liveness =
@@ -406,6 +431,45 @@ public class ScanovateAuthenticator implements Authenticator {
       return;
     }
     readDocument(context, document.get().reading().orElseThrow());
+  }
+
+  /**
+   * Checks with Document Liveness that the photo OCR read the document from shows a physical
+   * document, recording the lowest probability of its checks in the event. Otherwise, shows the
+   * error and returns false.
+   */
+  private boolean documentIsPhysical(
+      AuthenticationFlowContext context, DocumentLivenessSettings settings, byte[] photo) {
+    diagnostic(context, "stage", "document_liveness");
+    String caseId = context.getAuthenticationSession().getAuthNote(CASE_ID_NOTE);
+    DocumentLivenessResult result;
+    try {
+      result =
+          documentLivenessFactory
+              .apply(settings)
+              .check(photo, settings.pipelines(), settings.calibration());
+    } catch (IOException e) {
+      serviceFailure(context, e);
+      showError(context, ScanovateError.INTERNAL, true);
+      return false;
+    }
+    DocumentLivenessOutcome outcome = result.outcome(settings.minProbability());
+    if (outcome != DocumentLivenessOutcome.NOT_CHECKED) {
+      context
+          .getEvent()
+          .detail(
+              EVENT_DETAIL_DOCUMENT_LIVENESS,
+              ScanovateDiagnostics.score(result.lowestProbability()));
+    }
+    log.infov("capture: document liveness of {0}: {1}, {2}", caseId, outcome, result.checks());
+    switch (outcome) {
+      case GENUINE -> {
+        return true;
+      }
+      case NOT_GENUINE -> failAttempt(context, ScanovateError.DOCUMENT_AUTHENTICATION.messageKey());
+      case NOT_CHECKED -> failAttempt(context, ScanovateError.DOCUMENT_UNREADABLE.messageKey());
+    }
+    return false;
   }
 
   /**
@@ -484,7 +548,8 @@ public class ScanovateAuthenticator implements Authenticator {
     String caseId = context.getAuthenticationSession().getAuthNote(CASE_ID_NOTE);
     FaceComparison comparison;
     try {
-      comparison = client.compare(photo, face);
+      // Only the holding photo shows a second face, the portrait of the document held.
+      comparison = client.compare(photo, face, EVENT_DETAIL_FACE_MATCH_HOLDING.equals(eventDetail));
     } catch (IOException e) {
       serviceFailure(context, e);
       showError(context, ScanovateError.INTERNAL, true);

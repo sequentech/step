@@ -29,9 +29,14 @@ isn't used.
 - **Liveness:** Liveness Plus runs in `full` mode, with PAD (presentation
   attacks and deepfakes) and IAD (injection attacks); Keycloak requires the
   liveness, presentation attack and injection attack checks to pass.
+- **Document liveness:** Keycloak sends OCR's `input_image` to the Document
+  Liveness service (`/check_liveness`, screen replay, printed copy, portrait
+  substitution and digital manipulation) and requires every pipeline to answer
+  `OK` with a probability of at least 0.5, as Scanovate's onboarding guide
+  recommends.
 - **Face comparison:** Keycloak compares the OCR portrait with the live face,
-  with the Face Match 1:1 API (`/facematch11/compare_images`,
-  `allow_multiple_faces`).
+  with the Face Match 1:1 API (`/facematch11/compare_images`), without
+  `allow_multiple_faces`; only the holding photo allows several faces.
 - **Theme:** both pages use `sequent_ui.json`, the image's default UI theme
   with the colours and fonts of the voter login theme.
 
@@ -70,6 +75,10 @@ isn't used.
 
 ## Testing
 
+- [ ] Tune `document-liveness-min-probability` and
+      `document-liveness-calibration` with real passports, passports shown on
+      phones and monitors, and colour prints.
+
 - [ ] Run the smoke tests of the guide, including a Face Match comparison of a
       real ID with a selfie.
 - [ ] Run the end-to-end test of the guide with a real face and ID, on desktop
@@ -96,9 +105,16 @@ isn't used.
 
 ## Scanovate
 
-- [ ] Ask for document liveness on premise (a document shown on a screen, or
-      a photocopy): it is only in the B-Trust cloud, and none of the
-      on-premise images checks it.
+- [x] Ask for document liveness on premise: Scanovate delivered
+      `document-liveness-service:release-3.5.5`, mirrored to our ECR, and its
+      onboarding guide.
+- [ ] Ask Scanovate to make OCR's preview mirroring follow `video_config`:
+      its client mirrors on every desktop browser (`mirror_view ||
+      !isMobile()`), so `video_config_no_mirror` doesn't change it there.
+      Meanwhile we serve the image's page with a rule that undoes it
+      (`.devcontainer/scanovate/ocr/index.html`); drop it once they do.
+- [ ] Track the license baked into the Document Liveness image, which expires
+      on 2027-10-25.
 - [ ] Ask how the OCR service reads the Philippine driver's license, PhilSys
       ID, IBP ID and Seafarer's Book: only its `regula` type could, through a
       Regula Document Reader server we don't have.
@@ -136,5 +152,5 @@ isn't used.
 
 ## Out of scope for now
 
-- Document authenticity and document liveness (photocopies, documents shown
-  on screens, edited documents): none of the on-premise images checks it.
+- Document authenticity beyond document liveness (security features, the
+  chip): OCR's passport checks don't verify them.
