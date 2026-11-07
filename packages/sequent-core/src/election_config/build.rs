@@ -140,8 +140,11 @@ pub const PARAMETER_PREFIXES: &[&str] = &[
 ];
 
 /// Parameters the builder acts on directly rather than carrying as metadata.
-pub const HANDLED_PARAMETERS: &[&str] =
-    &["tenant_id", realm::PARAM_LOGIN_CUSTOM_CSS];
+pub const HANDLED_PARAMETERS: &[&str] = &[
+    "tenant_id",
+    realm::PARAM_LOGIN_CUSTOM_CSS,
+    realm::PARAM_EVENT_REALM,
+];
 
 /// Fields of a base entity that describe *that* event rather than the platform's
 /// defaults, and so must not leak into a new one.
@@ -272,6 +275,13 @@ pub struct BuildOptions {
     /// `.unwrap_or_default()` and becomes an empty string, so the ceremony
     /// imports with a member who does not exist and nothing reports it.
     pub keys_ceremony: Option<KeysCeremonyPlan>,
+
+    /// Whether the census leaves voters' contact details to enrollment.
+    ///
+    /// A historical census carries no email or mobile: enrollment collects them.
+    /// Warning that such voters cannot be sent a one-time code would then be true
+    /// of every voter and say nothing.
+    pub census_contacts_at_enrollment: bool,
 
     /// Whether the key ceremony is run by people or by the platform.
     ///
@@ -481,6 +491,8 @@ struct Builder<'a> {
     contest_ids: Vec<(String, String)>,
     area_ids: Vec<(String, String)>,
     area_names: Vec<(String, String)>,
+    /// See [`BuildOptions::census_contacts_at_enrollment`].
+    census_contacts_at_enrollment: bool,
 }
 
 impl<'a> Builder<'a> {
@@ -550,6 +562,8 @@ impl<'a> Builder<'a> {
             contest_ids: Vec::new(),
             area_ids: Vec::new(),
             area_names: Vec::new(),
+            census_contacts_at_enrollment: options
+                .census_contacts_at_enrollment,
         };
 
         builder.parameters = builder.read_parameters();

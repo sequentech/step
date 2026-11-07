@@ -510,8 +510,8 @@ pub fn historical_import_info() -> Result<JsValue, JsError> {
 #[wasm_bindgen(js_name = buildFromHistorical)]
 pub fn build_from_historical(
     sql: &[u8],
-    // Absent: the decisions' `supplement` stands in for it.
-    workbook: Option<Box<[u8]>>,
+    // A full workbook, or a defaults workbook without an `Elections` sheet.
+    workbook: &[u8],
     decisions: JsValue,
     options: JsValue,
     // Optional `{ tenantPackage?, requirements? }`. Given, the output also
@@ -545,7 +545,10 @@ pub fn build_from_historical(
     let decisions: HistoricalOptions =
         serde_wasm_bindgen::from_value(decisions)
             .map_err(|_| JsError::new("historical decisions are invalid"))?;
-    let options = build_options(options)?;
+    let options = BuildOptions {
+        census_contacts_at_enrollment: true,
+        ..build_options(options)?
+    };
     let request: Option<PackageRequest> =
         if package_request.is_undefined() || package_request.is_null() {
             None
@@ -554,7 +557,7 @@ pub fn build_from_historical(
                 |error| JsError::new(&format!("bad package request: {error}")),
             )?)
         };
-    let adapted = match adapt(sql, workbook.as_deref(), &decisions) {
+    let adapted = match adapt(sql, workbook, &decisions) {
         Ok(adapted) => adapted,
         Err(refused) => {
             return to_js(&HistoricalOutput {
@@ -915,6 +918,13 @@ pub fn compile_plan_js(
     // deserializes to `Option::None`. A named field cannot be dropped that way.
     let profile = profile_from(&options)?;
     let sources = sources_from(&options, &plan)?;
+    let tenant = match tenant_package_from(&options)? {
+        Ok(tenant) => tenant,
+        Err(report) => {
+            return to_js(&Output::refused(report)).map(IBuildOutput::from)
+        }
+    };
+    let record = historical_record_from(&options)?;
     let options = build_options(options)?;
 
     let templates = match TemplateSet::builtin() {
@@ -940,6 +950,27 @@ pub fn compile_plan_js(
         Err(problem) => return failed(problem).map(IBuildOutput::from),
     };
 
+    // The tenant's sections go in the delivery only: the importable zip and
+    // the auxiliary files above stay what the plan alone produced.
+    let mut delivered = compiled.layout.clone();
+    if let Some(tenant) = &tenant {
+        if let Err(problem) =
+            crate::election_config::tenant_package::add_to_layout(
+                &mut delivered,
+                tenant,
+                &compiled.bundle.tenant_id,
+            )
+        {
+            return to_js(&Output::refused(Report::from_problem(problem)))
+                .map(IBuildOutput::from);
+        }
+    }
+    if let Some(record) = &record {
+        delivered.auxiliary.push(
+            crate::election_config::tenant_package::historical_record(record),
+        );
+    }
+
     to_js(&Output {
         importable: compiled.layout.importable.iter().map(File::from).collect(),
         auxiliary: compiled.layout.auxiliary.iter().map(File::from).collect(),
@@ -947,7 +978,7 @@ pub fn compile_plan_js(
             name: compiled.layout.archive_name.clone(),
             bytes: zipped,
         }),
-        delivery: match archive::delivery(&compiled.layout) {
+        delivery: match archive::delivery(&delivered) {
             Ok(artifact) => Some(File::from(&artifact)),
             // A delivery that cannot be written is a bug in this tool rather than a
             // problem with the plan, and the importable zip above is unaffected — so
@@ -958,6 +989,60 @@ pub fn compile_plan_js(
         event_external_id: Some(compiled.bundle.event_external_id.clone()),
     })
     .map(IBuildOutput::from)
+}
+
+/// The tenant package a delivery profile adds to the plan's delivery, from
+/// `options.tenantPackage`: the same document `buildFromHistorical` takes, so
+/// a historical event edited in the wizard is delivered with the same tenant
+/// sections as one downloaded from the review. The inner `Err` is a package
+/// that does not read, said as the build's own refusal.
+#[cfg(feature = "election_config_archive")]
+fn tenant_package_from(
+    options: &JsValue,
+) -> Result<
+    Result<
+        Option<crate::election_config::tenant_package::TenantPackage>,
+        Report,
+    >,
+    JsError,
+> {
+    #[derive(serde::Deserialize, Default)]
+    #[serde(default, rename_all = "camelCase")]
+    struct Carrying {
+        tenant_package: Option<serde_json::Value>,
+    }
+    if !options.is_object() {
+        return Ok(Ok(None));
+    }
+    let carrying: Carrying = serde_wasm_bindgen::from_value(options.clone())
+        .map_err(|error| JsError::new(&format!("bad options: {error}")))?;
+    Ok(carrying
+        .tenant_package
+        .as_ref()
+        .map(crate::election_config::tenant_package::read)
+        .transpose())
+}
+
+/// `options.historicalRecord`: the summary `openFromHistorical` returned for
+/// the event this plan was opened from, recorded in the delivery as the
+/// review's download records it.
+#[cfg(feature = "election_config_archive")]
+fn historical_record_from(
+    options: &JsValue,
+) -> Result<Option<serde_json::Value>, JsError> {
+    #[derive(serde::Deserialize, Default)]
+    #[serde(default, rename_all = "camelCase")]
+    struct Carrying {
+        historical_record: Option<serde_json::Value>,
+    }
+    if !options.is_object() {
+        return Ok(None);
+    }
+    let carrying: Carrying = serde_wasm_bindgen::from_value(options.clone())
+        .map_err(|error| JsError::new(&format!("bad options: {error}")))?;
+    Ok(carrying
+        .historical_record
+        .filter(|record| !record.is_null()))
 }
 
 /// The ballots this plan's voters would be given.
@@ -1434,6 +1519,8 @@ pub struct OpenedConfiguration {
     report: Report,
     source: Option<crate::election_config::open::Source>,
     sources: Option<sources::Sources>,
+    /// A historical conversion's summary, the delivery's record of it.
+    record: Option<serde_json::Value>,
 }
 
 #[cfg(all(
@@ -1458,6 +1545,15 @@ impl OpenedConfiguration {
     #[wasm_bindgen(js_name = source)]
     pub fn source(&self) -> Result<JsValue, JsError> {
         to_js(&self.source)
+    }
+
+    /// A historical conversion's summary (source digests, counts and
+    /// decisions), or `undefined`. `compilePlan` takes it back as
+    /// `historicalRecord`, so the wizard's delivery keeps the record the
+    /// review's download carries.
+    #[wasm_bindgen(js_name = record)]
+    pub fn record(&self) -> Result<JsValue, JsError> {
+        to_js(&self.record)
     }
 
     /// The census that travelled with it, if one did.
@@ -1523,15 +1619,66 @@ pub fn open_file(
                 report: opened.report,
                 source: Some(opened.source),
                 sources: Some(opened.sources),
+                record: None,
             },
             Err(report) => OpenedConfiguration {
                 plan: None,
                 report,
                 source: None,
                 sources: None,
+                record: None,
             },
         },
     )
+}
+
+/// A historical source, converted and opened in the wizard rather than built.
+///
+/// The same conversion `buildFromHistorical` runs, read back as a plan the way
+/// a dropped workbook is, so every screen can review and change it before the
+/// wizard builds the delivery. A refused conversion answers like an unreadable
+/// file: no plan, and the report says why.
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+#[wasm_bindgen(js_name = openFromHistorical)]
+pub fn open_from_historical(
+    sql: &[u8],
+    workbook: &[u8],
+    decisions: JsValue,
+) -> Result<OpenedConfiguration, JsError> {
+    use crate::election_config::historical::{adapt, HistoricalOptions};
+    use crate::election_config::plan_from_workbook::plan_from_workbook;
+    let decisions: HistoricalOptions =
+        serde_wasm_bindgen::from_value(decisions)
+            .map_err(|_| JsError::new("historical decisions are invalid"))?;
+    let refused = |report: Report| OpenedConfiguration {
+        plan: None,
+        report,
+        source: None,
+        sources: None,
+        record: None,
+    };
+    let adapted = match adapt(sql, workbook, &decisions) {
+        Ok(adapted) => adapted,
+        Err(refusal) => return Ok(refused(refusal.report)),
+    };
+    let read = match plan_from_workbook(&adapted.workbook) {
+        Ok(read) => read,
+        Err(report) => return Ok(refused(report)),
+    };
+    Ok(OpenedConfiguration {
+        plan: Some(serde_json::to_value(&read.plan).map_err(|error| {
+            JsError::new(&format!("this plan could not be read: {error}"))
+        })?),
+        report: read.report,
+        source: Some(crate::election_config::open::Source::Workbook),
+        sources: Some(read.sources),
+        record: Some(serde_json::to_value(&adapted.summary).map_err(|_| {
+            JsError::new("cannot record the conversion summary")
+        })?),
+    })
 }
 
 /// The zip the wizard hands over when somebody saves.
@@ -1930,6 +2077,8 @@ fn build_options(options: JsValue) -> Result<BuildOptions, JsError> {
         // time would mean two ways to say the same thing and one of them stale.
         images: Vec::new(),
         ceremony_policy: Default::default(),
+        // Set by `build_from_historical`, whose census this is about.
+        census_contacts_at_enrollment: false,
     })
 }
 

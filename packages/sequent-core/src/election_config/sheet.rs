@@ -21,7 +21,7 @@
 //! and points at cells — parsing `sheet 'Voters' row 12 column 'email'` back apart
 //! is what it exists to prevent.
 
-use crate::election_config::paths::{coerce_cell, expand, Cell};
+use crate::election_config::paths::{coerce_cell, expand, split_path, Cell};
 use crate::election_config::problem::{Code, Problem};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -237,15 +237,45 @@ impl Row {
     }
 
     /// The row as a nested object, ready to deep-merge onto a template.
+    ///
+    /// An `annotations.<key>` cell arrives as text whatever it looks like: the
+    /// platform reads annotations as `string: string`, and a `true`, a `3` or a
+    /// bracketed list coerced into JSON would make the whole map unreadable.
     pub fn overrides(
         &self,
         exclude: &[&str],
     ) -> Result<Map<String, Value>, Problem> {
-        expand(&self.without(exclude)).map_err(|problem| Problem {
+        let fields: Vec<(String, Value)> = self
+            .without(exclude)
+            .into_iter()
+            .map(|(header, value)| {
+                let value = if is_annotation_column(&header) {
+                    annotation_text(value)
+                } else {
+                    value
+                };
+                (header, value)
+            })
+            .collect();
+        expand(&fields).map_err(|problem| Problem {
             // Re-point at the cell: `expand` only knows the header.
             path: self.origin(Some(problem.path.as_str())).to_string(),
             ..problem
         })
+    }
+}
+
+/// `annotations.<key>`: one annotation, as opposed to the whole object.
+fn is_annotation_column(header: &str) -> bool {
+    let path = split_path(header);
+    path.len() == 2 && path[0] == "annotations"
+}
+
+/// An annotation's value as the text the platform stores.
+fn annotation_text(value: Value) -> Value {
+    match value {
+        Value::Null | Value::String(_) => value,
+        other => Value::String(other.to_string()),
     }
 }
 
@@ -287,19 +317,33 @@ impl Sheet {
             });
         };
 
-        let headers = read_headers(&name, header_cells)?;
+        let (headers, continues) = read_headers(&name, header_cells)?;
         let multi_value = multi_value_columns(&key);
 
         let mut rows = Vec::new();
         for (offset, cells) in grid.iter().skip(1).enumerate() {
             // +1 for the header row, +1 because spreadsheets count from one.
             let number = offset + 2;
-            if let Some(row) =
-                read_row(&name, number, &headers, cells, multi_value)
-            {
+            if let Some(row) = read_row(
+                &name,
+                number,
+                &headers,
+                &continues,
+                cells,
+                multi_value,
+            ) {
                 rows.push(row);
             }
         }
+        // A continuation is part of the column it continues, not a column.
+        let headers = headers
+            .into_iter()
+            .zip(&continues)
+            .map(|(header, base)| match base {
+                Some(_) => String::new(),
+                None => header,
+            })
+            .collect();
 
         Ok(Sheet {
             name,
@@ -318,11 +362,19 @@ impl Sheet {
     }
 }
 
+/// The headers, and for each one the column it continues, if any.
+///
+/// A spreadsheet cell holds at most 32,767 characters, and a stylesheet can be
+/// longer. So a column headed `<column>+` right after `<column>` (or after
+/// another `<column>+`) continues it: a row's text there is joined onto the
+/// column's own, left to right, before the cell is read. A header ending in `+`
+/// anywhere else is an ordinary column, as it always was.
 fn read_headers(
     sheet_name: &str,
     cells: &[Cell],
-) -> Result<Vec<String>, Problem> {
+) -> Result<(Vec<String>, Vec<Option<usize>>), Problem> {
     let mut headers: Vec<String> = Vec::with_capacity(cells.len());
+    let mut continues: Vec<Option<usize>> = Vec::with_capacity(cells.len());
 
     for (index, cell) in cells.iter().enumerate() {
         let header = match cell {
@@ -340,7 +392,17 @@ fn read_headers(
             }
         };
 
-        if !header.is_empty() {
+        let base = header.strip_suffix('+').and_then(|stem| {
+            let previous = index.checked_sub(1)?;
+            match continues[previous] {
+                Some(base) if headers[base] == stem => Some(base),
+                None if !stem.is_empty() && headers[previous] == stem => {
+                    Some(previous)
+                }
+                _ => None,
+            }
+        });
+        if base.is_none() && !header.is_empty() {
             if let Some(first) = headers.iter().position(|seen| seen == &header)
             {
                 return Err(Problem::error(
@@ -357,9 +419,10 @@ fn read_headers(
             }
         }
         headers.push(header);
+        continues.push(base);
     }
 
-    Ok(headers)
+    Ok((headers, continues))
 }
 
 /// One data row, or `None` if it holds nothing.
@@ -367,12 +430,34 @@ fn read_row(
     sheet_name: &str,
     number: usize,
     headers: &[String],
+    continues: &[Option<usize>],
     cells: &[Cell],
     multi_value: &[&str],
 ) -> Option<Row> {
     let mut values: Vec<(String, Value)> = Vec::new();
 
-    for (header, cell) in headers.iter().zip(cells) {
+    // Join each continued column's text first, so the whole is read as one cell.
+    let mut joined: Vec<Option<Cell>> = vec![None; cells.len()];
+    for (index, cell) in cells.iter().enumerate() {
+        let Some(&Some(base)) = continues.get(index) else {
+            continue;
+        };
+        if cell.is_blank() {
+            continue;
+        }
+        let whole = joined[base].get_or_insert_with(|| {
+            Cell::Text(cells.get(base).map(cell_text).unwrap_or_default())
+        });
+        if let Cell::Text(text) = whole {
+            text.push_str(&cell_text(cell));
+        }
+    }
+
+    for (index, (header, cell)) in headers.iter().zip(cells).enumerate() {
+        if matches!(continues.get(index), Some(Some(_))) {
+            continue;
+        }
+        let cell = joined[index].as_ref().unwrap_or(cell);
         if header.is_empty() || cell.is_blank() {
             continue;
         }
@@ -391,6 +476,20 @@ fn read_row(
         number,
         cells: values,
     })
+}
+
+/// A cell's text as the author typed it, for joining a continued column.
+fn cell_text(cell: &Cell) -> String {
+    match cell {
+        Cell::Blank => String::new(),
+        Cell::Text(text) => text.clone(),
+        other => match crate::election_config::paths::coerce_scalar_cell(other)
+        {
+            Some(Value::String(text)) => text,
+            Some(value) => value.to_string(),
+            None => String::new(),
+        },
+    }
 }
 
 /// A whole authoring document: normalised sheets of coerced rows.
@@ -641,6 +740,52 @@ mod tests {
     }
 
     #[test]
+    fn a_continued_column_joins_left_to_right_before_it_is_read() {
+        // A spreadsheet cell holds 32,767 characters; a stylesheet can be longer.
+        let sheet = Sheet::from_grid(
+            "ElectionEvent",
+            &grid(vec![
+                vec![text("css"), text("css+"), text("css+"), text("name")],
+                vec![text("a { "), text("color: red"), text(" }"), text("x")],
+                // Bracketed only once joined, so it is read as JSON then.
+                vec![text("[1,"), Cell::Blank, text("2]"), text("y")],
+                vec![
+                    Cell::Blank,
+                    text("only the rest"),
+                    Cell::Blank,
+                    text("z"),
+                ],
+            ]),
+        )
+        .unwrap();
+        assert_eq!(sheet.headers, vec!["css", "", "", "name"]);
+        assert_eq!(sheet.rows[0].get("css"), Some(&json!("a { color: red }")));
+        assert_eq!(sheet.rows[0].cells.len(), 2);
+        assert_eq!(sheet.rows[1].get("css"), Some(&json!([1, 2])));
+        assert_eq!(sheet.rows[2].get("css"), Some(&json!("only the rest")));
+    }
+
+    #[test]
+    fn a_plus_header_elsewhere_is_an_ordinary_column() {
+        let sheet = Sheet::from_grid(
+            "Notes",
+            &grid(vec![
+                vec![text("c++"), text("css"), text("name+")],
+                vec![text("1"), text("2"), text("3")],
+            ]),
+        )
+        .unwrap();
+        assert_eq!(sheet.headers, vec!["c++", "css", "name+"]);
+        assert_eq!(sheet.rows[0].get("name+"), Some(&json!("3")));
+        // A continuation is not a second column of the same name either.
+        assert!(Sheet::from_grid(
+            "Notes",
+            &grid(vec![vec![text("css+"), text("css+")]]),
+        )
+        .is_err());
+    }
+
+    #[test]
     fn a_duplicated_column_is_refused() {
         // Which one wins would be arbitrary, and the author cannot see the
         // difference.
@@ -748,6 +893,45 @@ mod tests {
             json!({
                 "presentation": {"i18n": {"en": {"name": "President"}}},
                 "max_votes": 3,
+            })
+        );
+    }
+
+    #[test]
+    fn annotation_cells_stay_text_whatever_they_look_like() {
+        // `Annotations` is `string: string`; one boolean and none of it reads.
+        let sheet = Sheet::from_grid(
+            "ElectionEvent",
+            &grid(vec![
+                vec![
+                    text("annotations.miru:use-root-ca"),
+                    text("annotations.miru:sbei-users"),
+                    text("annotations.code"),
+                    text("annotations.note"),
+                    text("presentation.flag"),
+                ],
+                vec![
+                    text("true"),
+                    text(r#"[{"username":"a"}]"#),
+                    Cell::Float(7.0),
+                    text("plain"),
+                    text("true"),
+                ],
+            ]),
+        )
+        .unwrap();
+
+        let overrides = sheet.rows[0].overrides(&[]).unwrap();
+        assert_eq!(
+            Value::Object(overrides),
+            json!({
+                "annotations": {
+                    "miru:use-root-ca": "true",
+                    "miru:sbei-users": r#"[{"username":"a"}]"#,
+                    "code": "7",
+                    "note": "plain",
+                },
+                "presentation": {"flag": true},
             })
         );
     }
