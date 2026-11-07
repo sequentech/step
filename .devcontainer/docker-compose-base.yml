@@ -663,11 +663,13 @@ services:
     ports:
       - ${SCANOVATE_OCR_PORT}:5040
     # Keycloak's token verification and result callback, as for Liveness Plus,
-    # and Sequent's theme of the capture page.
+    # Sequent's theme of the capture page, and the image's own page with the
+    # preview unmirrored on desktop browsers too (scripts/dev/test_scanovate_ocr_page.py).
     volumes:
       - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/ocr/service_config.json:/app/config/service_config.json:ro,z
       - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/ocr/sequent_ui.json:/app/config/sequent_ui.json:ro,z
       - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/ocr/video_config_no_mirror.json:/app/config/video_config_no_mirror.json:ro,z
+      - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/ocr/index.html:/app/static/index.html:ro,z
 
   harvest-edge:
     profiles: ["full", "base"]

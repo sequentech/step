@@ -612,7 +612,8 @@ Environment variables:
 The dev container replaces `service_config.json`, with
 `.devcontainer/scanovate/ocr/service_config.json`, and adds our UI theme,
 `.devcontainer/scanovate/ocr/sequent_ui.json`, and
-`.devcontainer/scanovate/ocr/video_config_no_mirror.json`; the others
+`.devcontainer/scanovate/ocr/video_config_no_mirror.json`, and serves its own
+copy of the page, `.devcontainer/scanovate/ocr/index.html` (see below); the others
 (`scan_config.json`, which says which sides each OCR type scans,
 `video_config.json`, `default_ui.json` and the texts) are the image's own. Our `service_config.json`
 is the image's with an `onprem` section like Liveness Plus's:
@@ -633,9 +634,18 @@ preview (`rotate_view`, `mirror_view`) and the frames sent to the service
 name one with its `video_config` parameter. `video_config_no_mirror.json` is
 the image's `video_config.json`, whose `mirror_view` is already `false`. In
 this image the page still mirrors the preview whenever the browser isn't a
-phone or a tablet (`mirror_view || !isMobile()` in its client), so on a laptop
-the preview stays mirrored whatever the file says; phones and tablets use the
-rear camera, unmirrored. We have reported it to Scanovate.
+phone or a tablet (`mirror_view || !isMobile()` in its client), whatever the
+file says, which makes a passport hard to place on a laptop. We have reported
+it to Scanovate. Until it follows `video_config`, we serve the image's own
+page, `/app/static/index.html`, with one rule added,
+`.video-element { transform: none !important; }`, which shows the preview as
+the camera sees it on every device. It only changes what the voter sees: the
+frames sent to the service were never mirrored. `transform: none` also drops
+the page's rotation, so keep `rotate_view` at `0`. The page names the image's
+hashed scripts (`index-C243eWap.js`, `index-DTxKRzC9.css`), so it belongs to
+one OCR image: when the image changes, copy its `index.html` again and add the
+rule back. `scripts/dev/test_scanovate_ocr_page.py` checks the mount, the rule
+and the asset names against the pinned tag.
 ### Document Liveness
 
 Environment variables, as in Scanovate's onboarding guide:
@@ -1020,7 +1030,8 @@ location / {
   `/realms/*/identity-verification/capture/holding` reachable for the voter's
   browser.
 - Mount the Sequent theme (`sequent_ui.json`) in both services, see
-  [Theming](#theming).
+  [Theming](#theming), and our OCR page (`index.html`), which shows the
+  preview unmirrored on desktop browsers, the one of the OCR image you run.
 - Pull the images from our ECR mirror (see
   [Access to the images](#access-to-the-images)).
 - Pin image tags, never `latest`.

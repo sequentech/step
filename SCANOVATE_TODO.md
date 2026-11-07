@@ -111,6 +111,8 @@ isn't used.
 - [ ] Ask Scanovate to make OCR's preview mirroring follow `video_config`:
       its client mirrors on every desktop browser (`mirror_view ||
       !isMobile()`), so `video_config_no_mirror` doesn't change it there.
+      Meanwhile we serve the image's page with a rule that undoes it
+      (`.devcontainer/scanovate/ocr/index.html`); drop it once they do.
 - [ ] Track the license baked into the Document Liveness image, which expires
       on 2027-10-25.
 - [ ] Ask how the OCR service reads the Philippine driver's license, PhilSys
