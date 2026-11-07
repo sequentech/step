@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Scanovate On-Premise Services | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4185/docs/integrations/scanovate_on_premise_guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Scanovate On-Premise Services | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4185/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4185/docs/integrations/scanovate_on_premise_guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4185/docs/integrations/scanovate_on_premise_guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4185/docs/integrations/scanovate_on_premise_guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Scanovate On-Premise Services","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4185/docs/integrations/scanovate_on_premise_guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4185/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4185/assets/js/runtime~main.a4161598.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4185/assets/js/runtime~main.1079c302.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4185/assets/js/main.7ac7d030.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -331,7 +331,8 @@ whichever is higher.</p>
 <p>The dev container replaces <code>service_config.json</code>, with
 <code>.devcontainer/scanovate/ocr/service_config.json</code>, and adds our UI theme,
 <code>.devcontainer/scanovate/ocr/sequent_ui.json</code>, and
-<code>.devcontainer/scanovate/ocr/video_config_no_mirror.json</code>; the others
+<code>.devcontainer/scanovate/ocr/video_config_no_mirror.json</code>, and serves its own
+copy of the page, <code>.devcontainer/scanovate/ocr/index.html</code> (see below); the others
 (<code>scan_config.json</code>, which says which sides each OCR type scans,
 <code>video_config.json</code>, <code>default_ui.json</code> and the texts) are the image&#x27;s own. Our <code>service_config.json</code>
 is the image&#x27;s with an <code>onprem</code> section like Liveness Plus&#x27;s:</p>
@@ -342,9 +343,18 @@ preview (<code>rotate_view</code>, <code>mirror_view</code>) and the frames sent
 name one with its <code>video_config</code> parameter. <code>video_config_no_mirror.json</code> is
 the image&#x27;s <code>video_config.json</code>, whose <code>mirror_view</code> is already <code>false</code>. In
 this image the page still mirrors the preview whenever the browser isn&#x27;t a
-phone or a tablet (<code>mirror_view || !isMobile()</code> in its client), so on a laptop
-the preview stays mirrored whatever the file says; phones and tablets use the
-rear camera, unmirrored. We have reported it to Scanovate.</p>
+phone or a tablet (<code>mirror_view || !isMobile()</code> in its client), whatever the
+file says, which makes a passport hard to place on a laptop. We have reported
+it to Scanovate. Until it follows <code>video_config</code>, we serve the image&#x27;s own
+page, <code>/app/static/index.html</code>, with one rule added,
+<code>.video-element { transform: none !important; }</code>, which shows the preview as
+the camera sees it on every device. It only changes what the voter sees: the
+frames sent to the service were never mirrored. <code>transform: none</code> also drops
+the page&#x27;s rotation, so keep <code>rotate_view</code> at <code>0</code>. The page names the image&#x27;s
+hashed scripts (<code>index-C243eWap.js</code>, <code>index-DTxKRzC9.css</code>), so it belongs to
+one OCR image: when the image changes, copy its <code>index.html</code> again and add the
+rule back. <code>scripts/dev/test_scanovate_ocr_page.py</code> checks the mount, the rule
+and the asset names against the pinned tag.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="document-liveness">Document Liveness<a href="#document-liveness" class="hash-link" aria-label="Direct link to Document Liveness" title="Direct link to Document Liveness" translate="no">​</a></h3>
 <p>Environment variables, as in Scanovate&#x27;s onboarding guide:</p>
 <table><thead><tr><th>Variable</th><th>Description</th></tr></thead><tbody><tr><td><code>IDLIVEDOC_SERVER_AVAILABLE_PIPELINES</code></td><td><code>default-sr,default-pc,default-ps,default-dm</code>. The pipelines it loads: each pipeline in the authenticator&#x27;s <code>document-liveness-pipelines</code> must be one of them, or the service answers <code>500</code> (<em>unsupported pipeline</em>). Each one loaded takes memory: 1.9 GB idle with <code>default-sr</code> alone, 6.6 GB with all four.</td></tr><tr><td><code>HASP_RTE_STARTUP_TIMEOUT</code></td><td><code>10</code>: seconds to wait for the licence manager the image starts.</td></tr><tr><td><code>SERVER_ALLOW_CORS</code></td><td><code>true</code>.</td></tr></tbody></table>
@@ -584,7 +594,8 @@ them before going live. The services reach Keycloak on the internal network.</li
 <code>/realms/*/identity-verification/capture/holding</code> reachable for the voter&#x27;s
 browser.</li>
 <li class="">Mount the Sequent theme (<code>sequent_ui.json</code>) in both services, see
-<a href="#theming" class="">Theming</a>.</li>
+<a href="#theming" class="">Theming</a>, and our OCR page (<code>index.html</code>), which shows the
+preview unmirrored on desktop browsers, the one of the OCR image you run.</li>
 <li class="">Pull the images from our ECR mirror (see
 <a href="#access-to-the-images" class="">Access to the images</a>).</li>
 <li class="">Pin image tags, never <code>latest</code>.</li>
