@@ -89,7 +89,9 @@ From the repository root, `scripts/dev/step-dev wasm` rebuilds the development
 artifact incrementally without reinstalling dependencies. `scripts/dev/step-dev wasm --status` reports
 whether that published development build still matches the current sources;
 `python3 -m scripts.dev.wasm --check-package` (the `wasm-freshness` check)
-verifies the committed package archives. See
+verifies the committed package archives. Release packages require Binaryen
+`wasm-opt` 123 or newer, as supplied by the sequent-core flake. Older optimizers
+can make wasm-bindgen initialization fail even when compilation succeeds. See
 [Incremental WASM](./fast-feedback.md#incremental-wasm).
 
 ### GraphQL
