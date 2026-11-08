@@ -4319,3 +4319,54 @@ fn messaging_malformed_parameter_reports_its_cell_without_echoing_input() {
         assert!(!report.to_string().contains("synthetic-secret-do-not-echo"));
     }
 }
+
+#[test]
+fn voter_restriction_review_rejects_pipe_election_ids_before_csv_emission() {
+    let control = with_voters(vec![
+        vec![
+            text("username"),
+            text("area.external_id"),
+            text("authorized-election-ids"),
+        ],
+        vec![text("ada"), text("area-north"), text("statewide")],
+    ]);
+    assert_eq!(built(&control).voters.rows.len(), 1);
+    let mut sheets = control.sheets().to_vec();
+    for sheet in &mut sheets {
+        for row in &mut sheet.rows {
+            for (column, value) in &mut row.cells {
+                if (column == "external_id" || column == "election.external_id")
+                    && *value == json!("statewide")
+                {
+                    *value = json!("statewide|other");
+                }
+                if column == "authorized-election-ids" {
+                    *value = json!(["statewide|other"]);
+                }
+            }
+        }
+    }
+    let report = refused(&Workbook::new(sheets).unwrap());
+    assert!(report.errors().any(
+        |p| p.code == Code::InvalidValue && p.path.contains("external_id")
+    ));
+}
+
+#[test]
+fn voter_restriction_review_rejects_malformed_members_in_direct_builds() {
+    for restriction in ["null", "statewide||null", "||", "[]", "{}", "true"] {
+        let report = refused(&with_voters(vec![
+            vec![
+                text("username"),
+                text("area.external_id"),
+                text("authorized-election-ids"),
+            ],
+            vec![text("ada"), text("area-north"), text(restriction)],
+        ]));
+        assert!(
+            report.errors().any(|p| p.code == Code::InvalidValue
+                && p.path.contains("authorized-election-ids")),
+            "{restriction}: {report}"
+        );
+    }
+}

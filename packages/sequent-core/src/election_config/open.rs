@@ -278,6 +278,9 @@ pub fn open_named(bytes: &[u8], name: Option<&str>) -> Result<Opened, Report> {
             &beside,
             &mut read.report,
         );
+        if read.report.has_errors() {
+            return Err(read.report);
+        }
         // The photographs and the support materials are still fields of the plan,
         // so the bytes half of the shim still applies. The census is not.
         sources.files = Sources::from_plan(&read.plan).files;

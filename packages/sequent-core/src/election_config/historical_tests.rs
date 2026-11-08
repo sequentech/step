@@ -3801,3 +3801,33 @@ fn historical_voter_overlay_rejects_mistyped_accounts_and_missing_join_keys() {
         assert_eq!(problem.at.as_ref().unwrap().column.as_deref(), Some(field));
     }
 }
+
+#[test]
+fn voter_restriction_review_rejects_null_and_malformed_historical_members() {
+    let (sql, _) = overseas_voter_fixture("", "");
+    for value in [
+        json!(null),
+        json!("null"),
+        json!(["center:P01:context:e1", null]),
+        json!([true]),
+        json!([{}]),
+        json!([[]]),
+        json!("||"),
+    ] {
+        let xlsx = voter_overlay(vec![row(
+            "Voters",
+            0,
+            vec![
+                ("username", json!("v-0000")),
+                ("authorized-election-ids", value.clone()),
+            ],
+        )]);
+        let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+        let problem = &refused.report.problems[0];
+        assert_eq!(problem.code, Code::InvalidValue, "{value}");
+        assert_eq!(
+            problem.at.as_ref().unwrap().column.as_deref(),
+            Some("authorized-election-ids")
+        );
+    }
+}

@@ -7097,3 +7097,55 @@ fn account_flags_and_multiple_external_ids_survive_all_saved_plan_formats() {
         }
     }
 }
+
+#[test]
+fn voter_restriction_review_rejects_pipe_election_ids_before_plan_normalization(
+) {
+    assert!(workbook_of(&sound()).is_ok());
+    for identifier in ["officers|second", "officers||second", "|"] {
+        let mut plan = sound();
+        plan.elections[0].external_id = identifier.into();
+        let report = checked(&plan);
+        assert!(
+            report.errors().any(|p| p.code == Code::InvalidValue
+                && p.path == "elections[0].external_id"),
+            "{identifier}: {report}"
+        );
+        let problem = workbook_of(&plan).unwrap_err();
+        assert_eq!(problem.code, Code::InvalidValue);
+        assert_eq!(problem.path, "elections[0].external_id");
+    }
+}
+
+#[test]
+fn voter_restriction_review_rejects_malformed_plan_lists_without_broadening() {
+    let mut plan = sound();
+    plan.areas = vec![PlannedArea {
+        external_id: DEFAULT_AREA_EXTERNAL_ID.into(),
+        name: "All voters".into(),
+        ..Default::default()
+    }];
+    for restriction in
+        ["null", "officers||null", "||", "officers|", "[]", "true"]
+    {
+        let sources = with_voters(
+            &plan,
+            vec![PlannedVoter {
+                username: "ada".into(),
+                area_external_id: DEFAULT_AREA_EXTERNAL_ID.into(),
+                extra: [("authorized-election-ids".into(), restriction.into())]
+                    .into_iter()
+                    .collect(),
+                ..Default::default()
+            }],
+        );
+        let report = validate_plan(&plan, &sources);
+        assert!(
+            report.errors().any(|p| p.code == Code::InvalidValue
+                && p.path.contains("authorized-election-ids")),
+            "{restriction}: {report}"
+        );
+        let problem = to_workbook(&plan, &sources).unwrap_err();
+        assert_eq!(problem.code, Code::InvalidValue);
+    }
+}

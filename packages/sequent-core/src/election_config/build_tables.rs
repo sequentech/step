@@ -285,25 +285,21 @@ impl Builder<'_> {
             return String::new();
         };
 
-        // A cell holding only spaces means the same as an empty one — reported here
-        // rather than left to the loop below, which would reach the same answer by
-        // accident and stop doing so the day a blank grows a meaning.
-        if value_as_text(&raw).trim().is_empty() {
-            return String::new();
-        }
-
-        let requested: Vec<Value> = match raw {
-            Value::Array(items) => items,
-            single => vec![single],
-        };
-
+        let requested =
+            match crate::election_config::sheet::voter_election_keys(&raw) {
+                Ok(keys) => keys,
+                Err(message) => {
+                    self.problem(
+                        row.origin(Some("authorized-election-ids")),
+                        Code::InvalidValue,
+                        message,
+                    );
+                    return String::new();
+                }
+            };
         let mut resolved: Vec<String> = Vec::new();
-        for item in requested {
-            let key = value_as_text(&item).trim().to_string();
-            if key.is_empty() {
-                continue;
-            }
-            match self.election_ids.iter().find(|(id, _)| id == &key) {
+        for key in requested {
+            match self.election_ids.iter().find(|(id, _)| id == key) {
                 Some((external_id, _)) => {
                     let election_id = external_id.clone();
                     if !resolved.contains(&election_id) {

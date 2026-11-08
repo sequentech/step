@@ -789,7 +789,9 @@ fn apply_voter_rows(
                     _ => false,
                 },
                 // References are validated against the generated elections by the builder.
-                "authorized-election-ids" => true,
+                "authorized-election-ids" => {
+                    super::sheet::voter_election_keys(value).is_ok()
+                }
                 _ => false,
             };
             if !valid {

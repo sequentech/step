@@ -1798,6 +1798,14 @@ pub fn resolve(
 pub const DEFAULT_AREA_EXTERNAL_ID: &str = "all-voters";
 pub const DEFAULT_AREA_NAME: &str = "All voters";
 
+fn election_identifier_problem(plan: &Blueprint) -> Option<Problem> {
+    plan.elections.iter().enumerate()
+        .find(|(_, election)| election.external_id.contains('|'))
+        .map(|(index, _)| Problem::error(Code::InvalidValue,
+            format!("elections[{index}].external_id"),
+            "an election external_id must not contain '|', the voter authorization separator"))
+}
+
 /// Check a plan, before anything is built from it.
 ///
 /// These are questions about the *plan*, in the wizard's own vocabulary — a
@@ -1807,6 +1815,9 @@ pub const DEFAULT_AREA_NAME: &str = "All voters";
 /// different questions and an author needs both answers.
 pub fn validate_plan(plan: &Blueprint, sources: &Sources) -> Report {
     let mut report = Report::default();
+    if let Some(problem) = election_identifier_problem(plan) {
+        report.push(problem);
+    }
 
     if plan.version > BLUEPRINT_VERSION {
         report.push(Problem::error(
@@ -2878,6 +2889,17 @@ fn check_census(plan: &Blueprint, sources: &Sources, report: &mut Report) {
         }
 
         for voter in &batch {
+            if let Some(value) = voter.extra.get("authorized-election-ids") {
+                if let Err(message) =
+                    super::sheet::voter_restriction_text(value)
+                {
+                    report.push(Problem::error(
+                        Code::InvalidValue,
+                        format!("voters[{index}].authorized-election-ids"),
+                        message,
+                    ));
+                }
+            }
             let username = voter.username.trim();
             if username.is_empty() {
                 report.push(Problem::error(
@@ -3224,6 +3246,9 @@ pub fn to_workbook(
     plan: &Blueprint,
     sources: &Sources,
 ) -> Result<Workbook, Problem> {
+    if let Some(problem) = election_identifier_problem(plan) {
+        return Err(problem);
+    }
     let languages = plan.languages_or_english();
 
     let mut sheets = vec![
@@ -4216,7 +4241,7 @@ fn voters_sheet(
         if batch.is_empty() {
             break;
         }
-        rows.extend(batch.iter().map(|voter| {
+        for voter in &batch {
             let mut row = vec![
                 Cell::text(voter.username.clone()),
                 text_or_blank(&voter.email),
@@ -4224,29 +4249,27 @@ fn voters_sheet(
                 text_or_blank(&voter.last_name),
                 text_or_blank(&voter.area_external_id),
             ];
-            row.extend(extra.iter().map(|key| {
-                voter
-                    .extra
-                    .get(*key)
-                    .map(|value| {
-                        // The platform CSV uses `|`; workbook lists use `||`.
-                        // Accept either on a plan so delivery reopen and workbook
-                        // import converge on the same authoring representation.
-                        if *key == "authorized-election-ids" {
-                            Cell::text(
-                                value
-                                    .split(super::emit::MULTI_VALUE_SEPARATOR)
-                                    .map(str::trim)
-                                    .filter(|id| !id.is_empty())
-                                    .collect::<Vec<_>>()
-                                    .join(super::paths::MULTI_VALUE_SEPARATOR),
-                            )
-                        } else {
-                            Cell::text(value.clone())
-                        }
-                    })
-                    .unwrap_or(Cell::Blank)
-            }));
+            for key in &extra {
+                let cell = match voter.extra.get(*key) {
+                    Some(value) if *key == "authorized-election-ids" => {
+                        let text = super::sheet::voter_restriction_text(value)
+                            .map_err(|message| {
+                                Problem::error(
+                                    Code::InvalidValue,
+                                    format!(
+                                        "voters[{}].authorized-election-ids",
+                                        rows.len()
+                                    ),
+                                    message,
+                                )
+                            })?;
+                        Cell::text(text)
+                    }
+                    Some(value) => Cell::text(value.clone()),
+                    None => Cell::Blank,
+                };
+                row.push(cell);
+            }
             if let Some(recipe) = generating {
                 // Derived from the seed and this voter's username, so the same
                 // plan built twice gives the same password. `ready()` was checked
@@ -4260,8 +4283,8 @@ fn voters_sheet(
                         .unwrap_or(Cell::Blank),
                 );
             }
-            row
-        }));
+            rows.push(row);
+        }
     }
 
     // A source that yields nothing is a census nobody loaded, and an empty tab is

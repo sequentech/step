@@ -308,6 +308,8 @@ Only these columns are accepted:
 - `authorized-election-ids`: election **external IDs**, separated by `||`.
   They must name generated elections, such as `center:P01:context:alias`.
   Duplicate IDs are removed in source order. Unknown elections block the build.
+  Election external IDs cannot contain `|`. Explicit `null`, empty lists and
+  malformed restriction members are rejected, rather than becoming unrestricted.
 
 Omitted rows and blank cells retain the existing defaults: no email or election
 restriction, enabled, and email verification based on whether an email is present.
