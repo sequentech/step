@@ -1194,7 +1194,7 @@ fn a_voter_with_no_election_restriction_gets_no_election_ids() {
 }
 
 #[test]
-fn a_restricted_voter_gets_the_elections_named_resolved_to_ids() {
+fn a_restricted_voter_keeps_the_canonical_election_external_id() {
     let bundle = built(&with_voters(vec![
         vec![
             text("username"),
@@ -1204,10 +1204,7 @@ fn a_restricted_voter_gets_the_elections_named_resolved_to_ids() {
         vec![text("m-1001"), text("statewide"), text("area-north")],
     ]));
     let column = bundle.voters.column("authorized-election-ids").unwrap();
-    assert_eq!(
-        bundle.voters.rows[0][column],
-        bundle.export["elections"][0]["id"].as_str().unwrap()
-    );
+    assert_eq!(bundle.voters.rows[0][column], "statewide");
 }
 
 #[test]
@@ -3162,20 +3159,9 @@ fn the_realm_declares_the_same_attributes_either_way() {
     );
 }
 
-/// What a source cannot yet say, and why `build_voters` still reads the sheet.
-///
-/// `PlannedVoter` — the row a `CensusSource` yields — has no field for `enabled`,
-/// `email_verified` or `authorized-election-ids`, and `RowShape::OWNED` keeps them
-/// out of `extra` as well. Pointing `build_voters` at a source today would
-/// therefore switch on a voter the census switched off, and hand a voter
-/// restricted to one election a ballot for every election in the event. Neither
-/// would report a problem; both would simply be wrong in the delivery.
-///
-/// So this pins the gap rather than the intention. When `PlannedVoter` grows those
-/// fields — which is what has to happen before the Voters tab can leave the
-/// workbook — this test fails and says where to look.
+/// Source-backed and direct workbook paths preserve the same account values.
 #[test]
-fn a_source_cannot_yet_say_what_the_voters_sheet_says() {
+fn a_source_preserves_the_account_fields_the_voters_sheet_says() {
     let columns: Vec<String> = [
         "username",
         "area.external_id",
@@ -3200,11 +3186,23 @@ fn a_source_cannot_yet_say_what_the_voters_sheet_says() {
 
     assert_eq!(voter.username, "ada");
     assert_eq!(voter.area_external_id, "area-north");
-    // Three columns in, nothing out. Not in a field, not in `extra`.
-    assert_eq!(voter.extra, std::collections::BTreeMap::new());
+    assert_eq!(
+        voter.extra.get("enabled").map(String::as_str),
+        Some("FALSE")
+    );
+    assert_eq!(
+        voter.extra.get("email_verified").map(String::as_str),
+        Some("FALSE")
+    );
+    assert_eq!(
+        voter
+            .extra
+            .get("authorized-election-ids")
+            .map(String::as_str),
+        Some("statewide")
+    );
 
-    // The same row through the sheet, where all three survive — which is the
-    // contrast that makes the gap a gap rather than a preference.
+    // The same row through the direct workbook path.
     let bundle = built(&with_sheet(
         "Voters",
         vec![

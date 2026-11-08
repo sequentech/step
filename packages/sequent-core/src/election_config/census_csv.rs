@@ -27,17 +27,9 @@
 
 use serde::Serialize;
 
-/// Columns the platform derives or regenerates, so a value in the file is dropped.
-///
-/// Only the two a census file should not be dictating: an `id` the importer
-/// assigns, and the elections a voter is authorised for.
-///
-/// **`enabled` and `email_verified` are not among them.** They are account state
-/// the census owns: `build_tables` reads both from the row, defaulting only when
-/// the column is absent, and the Census screen offers them as account columns.
-/// Dropping them here turned a suspended member (`enabled=false`) back into an
-/// active one with nothing but an "Ignoring" note to say so.
-const DERIVED: &[&str] = &["id", "authorized-election-ids"];
+/// The platform generates voter IDs. Account state and explicit election
+/// restrictions belong to the census and must survive saving/reopening a plan.
+const DERIVED: &[&str] = &["id"];
 
 /// Prefix of the participation columns a voters export adds, reporting who
 /// voted in each election. Old exports name them after the election, new ones
@@ -474,18 +466,23 @@ mod tests {
         // Regression: `enabled` and `email_verified` used to be dropped as
         // "derived", so a census marking a member suspended (`enabled=false`)
         // imported them as active, with only an "Ignoring" note to say so.
-        // `build_tables` reads both from the row; only `id` and the authorised
-        // elections are the platform's to fill in.
+        // `build_tables` reads account state and authorization from the row.
         let text = "username,id,enabled,email_verified,authorized-election-ids,email\n\
                     ada,7,false,false,x,a@b.org\n";
         let reader = CensusCsv::new(text).expect("header");
         assert_eq!(
             reader.header().columns,
-            vec!["username", "enabled", "email_verified", "email"]
+            vec![
+                "username",
+                "enabled",
+                "email_verified",
+                "authorized-election-ids",
+                "email"
+            ]
         );
         assert_eq!(reader.header().notes.len(), 1);
         let note = &reader.header().notes[0];
-        assert!(note.contains("id, authorized-election-ids"), "{note}");
+        assert!(note.contains("Ignoring id"), "{note}");
         assert!(!note.contains("enabled"), "{note}");
         assert!(!note.contains("email_verified"), "{note}");
 
@@ -495,6 +492,7 @@ mod tests {
                 "ada".to_owned(),
                 "false".to_owned(),
                 "false".to_owned(),
+                "x".to_owned(),
                 "a@b.org".to_owned()
             ]
         );
@@ -539,11 +537,17 @@ mod tests {
         let reader = CensusCsv::new(text).expect("header");
         assert_eq!(
             reader.header().columns,
-            vec!["username", "enabled", "email_verified", "custom"]
+            vec![
+                "username",
+                "enabled",
+                "email_verified",
+                "authorized-election-ids",
+                "custom"
+            ]
         );
         let voters: Vec<Vec<String>> = [
-            ["ada", "false", "true", "first"],
-            ["bob", "true", "false", "second"],
+            ["ada", "false", "true", "x", "first"],
+            ["bob", "true", "false", "y", "second"],
         ]
         .iter()
         .map(|row| row.iter().map(|value| value.to_string()).collect())

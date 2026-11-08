@@ -4132,13 +4132,9 @@ fn candidates_sheet(
 /// different claim from "this plan does not carry the census" and produces a
 /// bundle that imports an election nobody can vote in.
 ///
-/// Columns are `VOTER_LEADING_COLUMNS` minus the two the builder answers on its
-/// own — `id` comes from `ids::uid`, and `authorized-election-ids` is left empty
-/// because a voter the wizard authored names no election restriction; the area
-/// carries their ballot — plus whatever else the client carries, in a stable
-/// order so two builds of one census diff cleanly. Everything unrecognised is
-/// passed through, which is how a reporting breakout column survives the round
-/// trip.
+/// Named identity/contact fields plus the census's other columns, in stable
+/// order. Account flags and election restrictions travel as `PlannedVoter::extra`
+/// values; only the platform-generated voter ID is omitted.
 fn voters_sheet(
     plan: &Blueprint,
     sources: &Sources,
@@ -4185,16 +4181,7 @@ fn voters_sheet(
         .columns()
         .iter()
         .map(String::as_str)
-        .filter(|key| {
-            !NAMED.contains(key)
-                && ![
-                    "id",
-                    "enabled",
-                    "email_verified",
-                    "authorized-election-ids",
-                ]
-                .contains(key)
-        })
+        .filter(|key| !NAMED.contains(key) && *key != "id")
         .collect();
 
     let mut columns: Vec<String> =
@@ -4241,7 +4228,23 @@ fn voters_sheet(
                 voter
                     .extra
                     .get(*key)
-                    .map(|value| Cell::text(value.clone()))
+                    .map(|value| {
+                        // The platform CSV uses `|`; workbook lists use `||`.
+                        // Accept either on a plan so delivery reopen and workbook
+                        // import converge on the same authoring representation.
+                        if *key == "authorized-election-ids" {
+                            Cell::text(
+                                value
+                                    .split(super::emit::MULTI_VALUE_SEPARATOR)
+                                    .map(str::trim)
+                                    .filter(|id| !id.is_empty())
+                                    .collect::<Vec<_>>()
+                                    .join(super::paths::MULTI_VALUE_SEPARATOR),
+                            )
+                        } else {
+                            Cell::text(value.clone())
+                        }
+                    })
                     .unwrap_or(Cell::Blank)
             }));
             if let Some(recipe) = generating {
