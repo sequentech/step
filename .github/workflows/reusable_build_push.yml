@@ -98,6 +98,26 @@ jobs:
         echo "step $GITHUB_SHA packages $ours; beyond pins step $pinned packages $theirs"
         test "$ours" = "$theirs"
 
+    # The platform release the Architect's core contract holds its bundles to.
+    # The image's context is beyond/packages only, so the recipe takes it as a
+    # build argument. A release tag (v11.0.0-rc.12) is the release itself. Any
+    # other tag (a run number, a manual label) is not a platform version, so
+    # those builds use what the pinned beyond's airgap release states.
+    - name: Resolve the Architect's platform version
+      if: matrix.service == 'election-architect'
+      id: platform
+      env:
+        TAG: ${{ inputs.tag }}
+      run: |
+        if printf '%s\n' "$TAG" | grep -Eqx 'v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?'; then
+          version=$TAG source="the release tag"
+        else
+          version=$(beyond/airgap/docker/platform-app-version.sh beyond/airgap/kubernetes/config/step-env.yaml)
+          source="beyond's airgap step-env.yaml (tag '$TAG' is not a release version)"
+        fi
+        echo "Architect platform version: $version, from $source"
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
     - name: Set short SHA
       run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c 1-7)" >> $GITHUB_ENV
 
@@ -152,6 +172,7 @@ jobs:
           SPA_NAME=${{ matrix.spa_name }}
           FEATURES=${{ matrix.features }}
           STEP_REVISION=${{ github.sha }}
+          PLATFORM_APP_VERSION=${{ steps.platform.outputs.version }}
 
     # After the build: this token lasts an hour, and a build can take several.
     - name: Authenticate to Google Cloud
