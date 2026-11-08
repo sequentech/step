@@ -3916,6 +3916,10 @@ fn the_bundle_declares_the_version_that_wrote_it() {
         crate::election_config::build::DEFAULT_VERSION,
         "the bundle should declare the version this build writes"
     );
+    // Comparing the constant with itself is how a v10 label survived into
+    // every v11 release: say the literal line, and let the importer's own gate
+    // judge the packaged member (see the test after this one).
+    assert_eq!(declared, "v11.0.0");
 
     // And the platform's own checker has to accept it against itself. `extract_semver`
     // is private, so this asks the public function the importer actually calls: a
@@ -3954,6 +3958,32 @@ fn the_bundle_declares_the_version_that_wrote_it() {
              reported `missing field \\`name\\`` for a v10 export"
         );
     }
+}
+
+/// The wizard's Final Zip imports on the OVCS v11 line it was built for.
+///
+/// Eduardo's report: the COMELEC Architect's Final Review download declared
+/// `v10.0.0`, and a v11.0.0-rc.10 platform refused it as a version mismatch
+/// before reading a field. The bundle's shape was v11's all along — it is
+/// written by the crate whose `ImportElectionEventSchema` the importer reads —
+/// so this reads the member back out of the zip's bytes and runs the importer's
+/// version, schema and validation checks on literal platform versions, rather
+/// than checking a label. (Not a tenant import: see `import_gate`.)
+#[test]
+fn the_compiled_final_zip_passes_the_v11_importer_gate() {
+    let templates = TemplateSet::builtin().unwrap();
+    let compiled = compile_plan(Compile {
+        plan: &sound(),
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
+    .expect("a sound plan compiles");
+    let layout = layout(&compiled.bundle);
+    crate::election_config::import_gate::assert_v11_admits_cleanly_and_v10_warns(
+        &crate::election_config::import_gate::event_member(&layout.importable),
+    );
 }
 
 /// The archive names no trustees, because it cannot name them correctly.
@@ -6683,4 +6713,308 @@ fn a_report_set_twice_is_refused() {
         "reports.duplicate"
     )
     .is_empty());
+}
+
+// -- signing configuration: native export -> plan -> compile, and workbook reopen --
+//
+// Synthetic policies only. Before `signing_sheet`, `plan_from_event` kept the
+// realm, the event and the version and dropped `signing_rules`,
+// `signing_checks` and `approval_matrix`, so a configuration opened in the
+// wizard came back out with no signing configuration and no warning.
+
+fn compiled_export(plan: &Blueprint) -> serde_json::Value {
+    let templates = TemplateSet::builtin().unwrap();
+    compile_plan(Compile {
+        plan,
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
+    .expect("the plan compiles")
+    .bundle
+    .export
+}
+
+/// A native export as a v11 platform writes it, with a restrictive, edited
+/// signing configuration (revisions > 0 show it was edited on the platform:
+/// such values are the event's own and are preserved like any other).
+fn native_export_with_signing() -> serde_json::Value {
+    let mut export = compiled_export(&sound());
+    export["signing_rules"] = serde_json::json!([
+        {"action": "open-voting", "requirement": "required", "signatures": 3,
+         "requester_signing": "not-allowed", "expires_minutes": 15, "revision": 2},
+        {"action": "close-voting", "requirement": "required", "signatures": 2,
+         "requester_signing": "allowed", "expires_minutes": null, "revision": 4},
+        {"action": "key-ceremony", "requirement": "required", "signatures": 5,
+         "requester_signing": "not-allowed", "expires_minutes": 60, "revision": 1}
+    ]);
+    export["signing_checks"] = serde_json::json!({
+        "revocation_check": "check", "crl_unavailable": "refuse",
+        "registration": "security-officer-only", "post_binding": "any-post",
+        "revision": 3
+    });
+    export["approval_matrix"] = serde_json::json!({"synthetic": ["matrix", 1]});
+    export
+}
+
+fn signing_of(export: &serde_json::Value) -> [serde_json::Value; 3] {
+    [
+        export
+            .get("signing_rules")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null),
+        export
+            .get("signing_checks")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null),
+        export
+            .get("approval_matrix")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null),
+    ]
+}
+
+/// An export opened in the wizard. A bundle never names trustees (the
+/// archive cannot name them correctly), so the wizard asks for them again;
+/// this answers with the sound plan's.
+fn opened(export: &serde_json::Value) -> Blueprint {
+    let mut plan =
+        crate::election_config::plan_from_event::plan_from_event(export)
+            .expect("the export opens")
+            .plan;
+    let sound = sound();
+    plan.trustees = sound.trustees;
+    plan.trustee_threshold = sound.trustee_threshold;
+    plan
+}
+
+#[test]
+fn an_opened_export_keeps_its_signing_configuration_through_compile() {
+    let native = native_export_with_signing();
+    let plan = opened(&native);
+    assert!(plan.signing.rules.is_some() && plan.signing.checks.is_some());
+    assert_eq!(signing_of(&compiled_export(&plan)), signing_of(&native));
+}
+
+#[cfg(feature = "election_config_xlsx")]
+#[test]
+fn the_signing_configuration_survives_the_plans_workbook_being_reopened() {
+    let native = native_export_with_signing();
+    let plan = opened(&native);
+    let workbook = to_workbook(&plan, &Sources::default()).unwrap();
+    let bytes =
+        crate::election_config::xlsx_write::write_xlsx(&workbook).unwrap();
+    let reread = crate::election_config::xlsx::read_xlsx(&bytes).unwrap();
+    let reopened =
+        crate::election_config::plan_from_workbook::plan_from_workbook(&reread)
+            .expect("the workbook reopens")
+            .plan;
+    assert_eq!(reopened.signing, plan.signing);
+    assert_eq!(signing_of(&compiled_export(&reopened)), signing_of(&native));
+}
+
+#[test]
+fn explicitly_empty_rules_stay_empty_and_absent_stays_absent() {
+    let mut native = native_export_with_signing();
+    native["signing_rules"] = serde_json::json!([]);
+    native["approval_matrix"] = serde_json::json!({});
+    let export = compiled_export(&opened(&native));
+    assert_eq!(export["signing_rules"], serde_json::json!([]));
+    assert_eq!(export["signing_checks"], native["signing_checks"]);
+    assert_eq!(export["approval_matrix"], serde_json::json!({}));
+
+    let mut bare = native_export_with_signing();
+    for key in ["signing_rules", "signing_checks", "approval_matrix"] {
+        bare.as_object_mut().unwrap().remove(key);
+    }
+    let plan = opened(&bare);
+    assert!(
+        plan.signing.is_empty(),
+        "nothing is invented for an export without any"
+    );
+    let export = compiled_export(&plan);
+    assert!(export.get("signing_rules").is_none_or(|v| v.is_null()));
+    assert!(export.get("signing_checks").is_none_or(|v| v.is_null()));
+}
+
+#[test]
+fn editing_the_rules_keeps_the_checks_it_was_opened_with() {
+    let native = native_export_with_signing();
+    let mut plan = opened(&native);
+    plan.signing.rules.as_mut().unwrap().remove(0);
+    let export = compiled_export(&plan);
+    assert_eq!(export["signing_checks"], native["signing_checks"]);
+    assert_eq!(export["signing_rules"].as_array().unwrap().len(), 2);
+}
+
+#[test]
+fn a_duplicate_rule_is_refused_by_the_importers_validation() {
+    let mut plan = opened(&native_export_with_signing());
+    let first = plan.signing.rules.as_ref().unwrap()[0].clone();
+    plan.signing.rules.as_mut().unwrap().push(first);
+    // Refused by validate_plan, on the plan's own path, before anything is
+    // built: the wizard can point at the row.
+    let report = validate_plan(&plan, &Sources::default());
+    assert!(
+        report.problems.iter().any(|p| {
+            p.id.as_deref() == Some("signing.duplicate-action")
+                && p.path == "signing.rules[3].action"
+        }),
+        "{report}"
+    );
+    let templates = TemplateSet::builtin().unwrap();
+    let refused = match compile_plan(Compile {
+        plan: &plan,
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    }) {
+        Err(report) => report.to_string(),
+        Ok(_) => panic!("compile refuses a plan with two rules for one action"),
+    };
+    assert!(refused.contains("more than one signing rule"), "{refused}");
+}
+
+#[test]
+fn a_version_four_plan_opens_as_version_five_without_a_signing_configuration() {
+    let mut document = serde_json::to_value(sound()).unwrap();
+    document["version"] = serde_json::json!(4);
+    let read = read_plan_value(document).expect("a v4 plan still opens");
+    assert_eq!(read.plan.version, 5);
+    assert!(read.plan.signing.is_empty());
+}
+
+#[test]
+fn a_plan_with_a_signing_configuration_is_one_a_v4_build_refuses() {
+    // The bump's purpose: a build that only knows v4 refuses this plan as
+    // newer instead of dropping `signing` as an unknown field.
+    let plan = opened(&native_export_with_signing());
+    let saved = serde_json::to_value(&plan).unwrap();
+    assert!(saved["version"].as_u64().unwrap() > 4);
+    assert!(saved.get("signing").is_some());
+}
+
+#[test]
+fn a_writer_labels_an_older_plan_with_the_shape_it_has_and_never_relabels_a_newer_one(
+) {
+    let mut plan = opened(&native_export_with_signing());
+    plan.version = 4;
+    let written = |plan: &Blueprint| -> serde_json::Value {
+        let (_, json) = side_files(plan)
+            .into_iter()
+            .find(|(name, _)| name == "blueprint.json")
+            .unwrap();
+        serde_json::from_str(&json).unwrap()
+    };
+    let side = written(&plan);
+    assert_eq!(side["version"], serde_json::json!(BLUEPRINT_VERSION));
+    assert!(side.get("signing").is_some());
+
+    let saved =
+        crate::election_config::archive::save_file(&plan, &Sources::default())
+            .unwrap();
+    let mut archive =
+        zip::ZipArchive::new(std::io::Cursor::new(saved.bytes)).unwrap();
+    let mut text = String::new();
+    std::io::Read::read_to_string(
+        &mut archive
+            .by_name(crate::election_config::archive::PLAN_MEMBER)
+            .unwrap(),
+        &mut text,
+    )
+    .unwrap();
+    let member: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(member["version"], serde_json::json!(BLUEPRINT_VERSION));
+
+    plan.version = BLUEPRINT_VERSION + 1;
+    assert_eq!(
+        written(&plan)["version"],
+        serde_json::json!(BLUEPRINT_VERSION + 1)
+    );
+}
+
+#[test]
+fn trust_configuration_an_opened_archive_had_is_reported_on_every_validation() {
+    use crate::election_config::archive::{zip, Artifact};
+    let native = native_export_with_signing();
+    // Inert synthetic bytes standing in for the member; never parsed as a
+    // certificate, and no certificate or key is generated.
+    let member =
+        "export_staff_issuers-00000000-0000-0000-0000-000000000000.pem";
+    let archive = zip(&[
+        Artifact {
+            name: "export_election_event-00000000-0000-0000-0000-000000000000.json"
+                .to_string(),
+            bytes: serde_json::to_vec(&native).unwrap(),
+        },
+        Artifact {
+            name: member.to_string(),
+            bytes: b"synthetic placeholder, not a certificate\n".to_vec(),
+        },
+    ])
+    .unwrap();
+    let opened = crate::election_config::open::open(&archive)
+        .expect("the archive opens");
+    assert_eq!(
+        opened.plan.signing.trust_not_carried,
+        vec![member.to_string()]
+    );
+
+    // Saved and reopened, the record and its warning are still there.
+    let saved = serde_json::to_value(&*as_written(&opened.plan)).unwrap();
+    let reread = read_plan_value(saved).unwrap().plan;
+    let report = validate_plan(&reread, &Sources::default());
+    assert!(
+        report.problems.iter().any(|p| {
+            p.id.as_deref() == Some("signing.trust-not-carried")
+                && p.message.contains(member)
+        }),
+        "{report}"
+    );
+    // And nothing of it reaches the bundle.
+    let mut plan = reread;
+    let sound = sound();
+    plan.trustees = sound.trustees;
+    plan.trustee_threshold = sound.trustee_threshold;
+    let export = compiled_export(&plan);
+    assert!(!export.to_string().contains("trust_not_carried"));
+}
+
+#[test]
+fn a_signing_bearing_plan_warns_that_its_workbook_needs_a_current_architect() {
+    let plan = opened(&native_export_with_signing());
+    let report = validate_plan(&plan, &Sources::default());
+    assert!(report.problems.iter().any(|p| {
+        p.id.as_deref() == Some("signing.workbook-needs-current-architect")
+    }));
+    let report = validate_plan(&sound(), &Sources::default());
+    assert!(!report.problems.iter().any(|p| {
+        p.id.as_deref() == Some("signing.workbook-needs-current-architect")
+    }));
+}
+
+#[cfg(feature = "election_config_xlsx")]
+#[test]
+fn the_trust_loss_record_survives_the_plans_workbook_being_reopened() {
+    let mut plan = opened(&native_export_with_signing());
+    let member =
+        "export_staff_issuers-00000000-0000-0000-0000-000000000000.pem";
+    plan.signing.trust_not_carried = vec![member.to_string()];
+    let workbook = to_workbook(&plan, &Sources::default()).unwrap();
+    let bytes =
+        crate::election_config::xlsx_write::write_xlsx(&workbook).unwrap();
+    let reread = crate::election_config::xlsx::read_xlsx(&bytes).unwrap();
+    let reopened =
+        crate::election_config::plan_from_workbook::plan_from_workbook(&reread)
+            .unwrap()
+            .plan;
+    assert_eq!(reopened.signing.trust_not_carried, vec![member.to_string()]);
+    assert!(validate_plan(&reopened, &Sources::default())
+        .problems
+        .iter()
+        .any(|p| p.id.as_deref() == Some("signing.trust-not-carried")));
+    // Diagnostic only: nothing of it is built into the bundle.
+    assert!(!compiled_export(&reopened).to_string().contains(member));
 }

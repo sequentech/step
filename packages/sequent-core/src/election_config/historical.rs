@@ -713,6 +713,10 @@ const PASSED_THROUGH: &[&str] = &[
     "milestones",
     "messages",
     "notes",
+    super::signing_sheet::SHEET_SIGNING_RULES,
+    super::signing_sheet::SHEET_SIGNING_CHECKS,
+    super::signing_sheet::SHEET_APPROVAL_MATRIX,
+    super::signing_sheet::SHEET_SIGNING_NOTICES,
 ];
 /// What a `Contests` row may not change: the identity, the election and the
 /// counting the source's seats decide.

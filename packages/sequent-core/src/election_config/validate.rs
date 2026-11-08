@@ -175,12 +175,22 @@ pub fn validate(bundle: &ImportElectionEventSchema) -> Report {
 /// a minute to [`MAX_EXPIRES_MINUTES`] or none. Refused here, the bundle
 /// never reaches the database, and the browser preview says why.
 fn check_signing(bundle: &ImportElectionEventSchema, report: &mut Report) {
-    let Some(rules) = bundle.signing_rules.as_ref() else {
-        return;
-    };
+    if let Some(rules) = bundle.signing_rules.as_ref() {
+        check_signing_rules(rules, "signing_rules", report);
+    }
+}
+
+/// [`check_signing`]'s rules, at `prefix` (`signing_rules` in a bundle,
+/// `signing.rules` in a plan), so the wizard reports the same problems, with
+/// the same ids, on the plan before anything is compiled.
+pub(crate) fn check_signing_rules(
+    rules: &[crate::signing::SigningRule],
+    prefix: &str,
+    report: &mut Report,
+) {
     let mut seen = std::collections::BTreeSet::new();
     for (index, rule) in rules.iter().enumerate() {
-        let at = format!("signing_rules[{index}]");
+        let at = format!("{prefix}[{index}]");
         if !seen.insert(rule.action.to_string()) {
             report.push(
                 Problem::error(

@@ -1270,7 +1270,7 @@ pub fn plan_in_delivery_js(bytes: &[u8]) -> Result<JsValue, JsError> {
             ))
         })?;
 
-    to_js(&value)
+    to_js_plan(&value)
 }
 
 /// Every report type and the formats it can be generated in, the first being
@@ -1440,7 +1440,7 @@ pub fn open_configuration(
         },
     };
 
-    to_js(&answer)
+    to_js_plan(&answer)
 }
 
 // -- opening, with what travelled beside the plan ------------------------------
@@ -1532,7 +1532,7 @@ impl OpenedConfiguration {
     /// The plan, or `null` when nothing could be read. Read `report` then.
     #[wasm_bindgen(js_name = plan)]
     pub fn plan(&self) -> Result<JsValue, JsError> {
-        to_js(&self.plan)
+        to_js_plan(&self.plan)
     }
 
     /// Everything found on the way, errors and warnings together.
@@ -1733,6 +1733,40 @@ pub fn save_file_js(
 /// other default is written only where the plan says nothing, so seeding cannot
 /// overwrite an answer somebody already gave — and a second copy of that in
 /// another language is a second opinion about what a profile means.
+/// Start a new plan from a profile: its `seeds`, then everything
+/// `applyProfile` does. For a plan started from nothing only; a plan that was
+/// opened or handed in goes through `applyProfile`, which never writes a seed.
+#[cfg(feature = "election_config_archive")]
+#[wasm_bindgen(js_name = seedNewPlan)]
+pub fn seed_new_plan_js(
+    plan: JsValue,
+    profile: JsValue,
+) -> Result<JsValue, JsError> {
+    let plan = plan_from_js(plan)?;
+    let document: profile::ClientProfile =
+        serde_wasm_bindgen::from_value(profile)
+            .map_err(|error| JsError::new(&format!("bad profile: {error}")))?;
+    let first = |report: Report| {
+        report
+            .problems
+            .first()
+            .map(|problem| problem.message.clone())
+            .unwrap_or_default()
+    };
+    let read = profile::Profile::read(&document).map_err(|report| {
+        JsError::new(&format!("this profile cannot be read: {}", first(report)))
+    })?;
+    let seeded = profile::seed_new_plan(&plan, &read).map_err(|report| {
+        JsError::new(&format!(
+            "this profile cannot seed a plan: {}",
+            first(report)
+        ))
+    })?;
+    seeded
+        .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
+        .map_err(|error| JsError::new(&format!("cannot hand back: {error}")))
+}
+
 #[cfg(feature = "election_config_archive")]
 #[wasm_bindgen(js_name = applyProfile)]
 pub fn apply_profile_js(
@@ -1794,6 +1828,12 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
         /// preference about the wizard rather than about the election, which is
         /// why it travels here and not through `defaults`.
         preview_slim: bool,
+        /// What a new plan's signing configuration starts as under this
+        /// profile (its `seeds`, applied to a blank plan exactly as
+        /// `seedNewPlan` applies them). Empty when the profile seeds none.
+        /// The wizard offers it as an explicit "apply the profile's policy"
+        /// on a plan that was opened rather than started, never silently.
+        seeded_signing: crate::election_config::signing_sheet::PlannedSigning,
         warnings: Report,
     }
 
@@ -1803,7 +1843,7 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
         })?;
 
     match profile::Profile::read(&document) {
-        Ok(read) => to_js(&Read {
+        Ok(read) => to_js_plan(&Read {
             id: read.id.clone(),
             display_name: read.display_name.clone(),
             hidden: read
@@ -1814,6 +1854,12 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
             presets: read.presets.clone(),
             only_our_presets: read.only_our_presets,
             preview_slim: read.preview_slim,
+            seeded_signing: profile::seed_new_plan(
+                &crate::election_config::architect::Blueprint::default(),
+                &read,
+            )
+            .map(|plan| plan.signing)
+            .unwrap_or_default(),
             locked: read
                 .locked_paths()
                 .into_iter()
@@ -2162,6 +2208,23 @@ fn failed(problem: Problem) -> Result<JsValue, JsError> {
 /// that also turns `None` into `null` instead of `undefined` and changes how
 /// bytes serialise, and `compile_plan` hands artifacts across as bytes. One flag,
 /// for the one thing that was wrong.
+/// [`to_js`] for a plan (or a profile's seeded part of one), keeping `null`.
+///
+/// A plan says "never" with `null`: a signing rule's `expires_minutes: null` is
+/// "requests never expire", while an absent one is 60 minutes. `to_js` turns
+/// `None` into `undefined`, which the front end then sends back as absent — so
+/// an opened plan's never-expiring rule came back as a 60-minute one. Plans from
+/// `applyProfile`/`seedNewPlan` already cross as `json_compatible` (with nulls),
+/// so the front end reads nulls in a plan already; this makes every door agree.
+fn to_js_plan<T: Serialize>(value: &T) -> Result<JsValue, JsError> {
+    let serializer = serde_wasm_bindgen::Serializer::new()
+        .serialize_maps_as_objects(true)
+        .serialize_missing_as_null(true);
+    value
+        .serialize(&serializer)
+        .map_err(|error| JsError::new(&format!("could not convert: {error}")))
+}
+
 fn to_js<T: Serialize>(value: &T) -> Result<JsValue, JsError> {
     let serializer =
         serde_wasm_bindgen::Serializer::new().serialize_maps_as_objects(true);

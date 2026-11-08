@@ -112,6 +112,10 @@ pub mod preset_doc;
 /// Bundles with known verdicts, shared by every caller of [`validate`] so the two
 /// reach the same answer rather than each agreeing with itself.
 pub mod fixtures;
+/// The checks the platform's importer runs on a bundle before it touches the
+/// database, for tests that must prove a generated bundle would import.
+#[cfg(all(test, feature = "election_config_archive"))]
+pub(crate) mod import_gate;
 pub mod problem;
 
 /// Named slates, configured in an election's annotations.
@@ -130,6 +134,9 @@ pub mod historical;
 pub mod report;
 pub mod schema;
 pub mod sheet;
+/// An event's signing rules and certificate checks as workbook sheets and as
+/// a plan field, so none of the paths that make a bundle drops them.
+pub mod signing_sheet;
 pub mod sql_dump;
 #[cfg(test)]
 mod sql_dump_tests;
@@ -216,7 +223,7 @@ pub use problem::{
     Code, Problem, Rejected, Report as ValidationReport, Severity,
 };
 #[cfg(feature = "election_config_templates")]
-pub use profile::{apply_profile, ClientProfile, Profile};
+pub use profile::{apply_profile, seed_new_plan, ClientProfile, Profile};
 #[cfg(feature = "election_config_templates")]
 pub use render::TemplateSet;
 pub use report::{
