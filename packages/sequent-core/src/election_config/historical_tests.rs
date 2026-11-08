@@ -3307,3 +3307,99 @@ fn wizard_edits_of_a_converted_event_win_over_its_source_cells() {
         "manual-ceremonies"
     );
 }
+/// The historical SQL+XLSX conversion's importable zip passes the OVCS v11
+/// importer's gate, which a `v10.0.0` label made it fail before any field was
+/// read. Deserializing and validating alone, as the test above does, cannot
+/// see that.
+#[test]
+fn the_historical_conversion_passes_the_v11_importer_gate() {
+    use crate::election_config::import_gate;
+    let (sql, xlsx) = fixture();
+    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let templates = TemplateSet::builtin().unwrap();
+    let bundle = build(
+        &adapted.workbook,
+        &templates,
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap();
+    assert_eq!(bundle.export["version"], json!("v11.0.0"));
+    let layout = archive::layout(&bundle);
+    import_gate::assert_v11_admits_and_v10_refuses(&import_gate::event_member(
+        &layout.importable,
+    ));
+}
+
+/// A historical source's supplemental workbook may state the event's signing
+/// configuration in the same `SigningRules`/`SigningChecks` sheets any
+/// workbook uses. They are carried to the build as they are, and an empty
+/// rules sheet stays an explicit "no rules". Before, such a sheet was refused
+/// as unrecognized, so the conversion could not carry a policy at all.
+#[test]
+fn a_supplemental_workbooks_signing_sheets_reach_the_bundle() {
+    use crate::election_config::signing_sheet::PlannedSigning;
+    use crate::election_config::xlsx::read_xlsx;
+    let (sql, xlsx) = fixture();
+    let signing = PlannedSigning {
+        rules: Some(vec![serde_json::from_value(json!({
+            "action": "open-voting", "requirement": "required", "signatures": 2,
+            "requester_signing": "not-allowed", "expires_minutes": 30
+        }))
+        .unwrap()]),
+        checks: Some(
+            serde_json::from_value(json!({
+                "revocation_check": "check", "crl_unavailable": "refuse",
+                "registration": "security-officer-only", "post_binding": "one-post"
+            }))
+            .unwrap(),
+        ),
+        ..Default::default()
+    };
+    let with = |signing: &PlannedSigning| {
+        let mut sheets = read_xlsx(&xlsx).unwrap().sheets().to_vec();
+        sheets.extend(signing.sheets());
+        write_xlsx(&Workbook::new(sheets).unwrap()).unwrap()
+    };
+    let templates = TemplateSet::builtin().unwrap();
+    let convert = |workbook: &[u8]| {
+        let adapted = adapt(&sql, workbook, &reviewed()).unwrap();
+        build(
+            &adapted.workbook,
+            &templates,
+            &BuildOptions::default(),
+            &Sources::default(),
+        )
+        .unwrap()
+        .export
+    };
+    let export = convert(&with(&signing));
+    assert_eq!(
+        PlannedSigning::from_export(&export).unwrap(),
+        signing,
+        "the conversion carries the policy as stated"
+    );
+    let layout = archive::layout(
+        &build(
+            &adapt(&sql, &with(&signing), &reviewed()).unwrap().workbook,
+            &templates,
+            &BuildOptions::default(),
+            &Sources::default(),
+        )
+        .unwrap(),
+    );
+    crate::election_config::import_gate::assert_v11_admits_and_v10_refuses(
+        &crate::election_config::import_gate::event_member(&layout.importable),
+    );
+
+    let empty = PlannedSigning {
+        rules: Some(vec![]),
+        ..Default::default()
+    };
+    let export = convert(&with(&empty));
+    assert_eq!(export["signing_rules"], json!([]));
+    assert!(export.get("signing_checks").is_none_or(|v| v.is_null()));
+
+    let export = convert(&xlsx);
+    assert!(PlannedSigning::from_export(&export).unwrap().is_empty());
+}

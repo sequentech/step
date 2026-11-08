@@ -757,6 +757,121 @@ fn a_base_export_contributes_fields_the_templates_do_not_know() {
     assert_eq!(bundle.export["version"], json!("v11.0.0"));
 }
 
+#[cfg(feature = "election_config_archive")]
+fn built_with_base(base: Option<Value>) -> Bundle {
+    let templates = TemplateSet::builtin().unwrap();
+    build(
+        &sound(),
+        &templates,
+        &BuildOptions {
+            base_export: base,
+            ..BuildOptions::default()
+        },
+        &Sources::default(),
+    )
+    .unwrap()
+}
+
+#[cfg(feature = "election_config_archive")]
+fn event_member_of(bundle: &Bundle) -> Vec<u8> {
+    let layout = crate::election_config::archive::layout(bundle);
+    crate::election_config::import_gate::event_member(&layout.importable)
+}
+
+/// Without a base export the bundle declares this crate's platform line, and
+/// the importer's gate admits it on v11 and refuses it on v10.
+#[cfg(feature = "election_config_archive")]
+#[test]
+fn the_default_bundle_declares_v11_and_passes_the_v11_importer_gate() {
+    let bundle = built_with_base(None);
+    assert_eq!(bundle.export["version"], json!("v11.0.0"));
+    crate::election_config::import_gate::assert_v11_admits_and_v10_refuses(
+        &event_member_of(&bundle),
+    );
+}
+
+/// A base export's string version is carried verbatim, never rewritten: the
+/// Admin Portal passes the running platform's `APP_VERSION` this way, and an
+/// existing v10 export keeps saying v10 — so a v11 platform refuses it as a
+/// version mismatch instead of the label being changed to fit.
+#[cfg(feature = "election_config_archive")]
+#[test]
+fn a_base_export_version_is_carried_verbatim() {
+    use crate::election_config::import_gate::{admit, Refused, DEPLOYED_OVCS};
+    for version in ["v10.0.0", "dev", "v11.0.0-rc.10", "v11.0.0-rc.0"] {
+        let bundle = built_with_base(Some(json!({"version": version})));
+        assert_eq!(bundle.export["version"], json!(version));
+    }
+
+    let v10 =
+        event_member_of(&built_with_base(Some(json!({"version": "v10.0.0"}))));
+    assert!(matches!(
+        admit(&v10, DEPLOYED_OVCS),
+        Err(Refused::Version(_))
+    ));
+
+    // `dev` is only for a `dev` platform, on both sides of the check.
+    let dev =
+        event_member_of(&built_with_base(Some(json!({"version": "dev"}))));
+    assert!(matches!(
+        admit(&dev, DEPLOYED_OVCS),
+        Err(Refused::Version(_))
+    ));
+    assert!(admit(&dev, "dev").is_ok());
+
+    // What the Admin Portal's historical import passes on the deployed release.
+    let running = event_member_of(&built_with_base(Some(
+        json!({"version": DEPLOYED_OVCS}),
+    )));
+    assert!(admit(&running, DEPLOYED_OVCS).is_ok());
+}
+
+/// A base export without a usable version contributes none: the bundle
+/// declares the default rather than copying a non-string or dropping the field.
+#[cfg(feature = "election_config_archive")]
+#[test]
+fn a_base_export_without_a_string_version_gets_the_default() {
+    for base in [
+        json!({}),
+        json!({"version": null}),
+        json!({"version": 11}),
+        json!({"version": {"major": 11}}),
+    ] {
+        let bundle = built_with_base(Some(base.clone()));
+        assert_eq!(bundle.export["version"], json!(DEFAULT_VERSION), "{base}");
+        crate::election_config::import_gate::assert_v11_admits_and_v10_refuses(
+            &event_member_of(&bundle),
+        );
+    }
+}
+
+/// A bundle with no `version` at all is the importer's historical case: it
+/// reads as `9.0.0` and a v11 platform refuses it on the version. The gate
+/// keeps that fallback; nothing here supplies a version for it.
+#[cfg(feature = "election_config_archive")]
+#[test]
+fn a_bundle_without_a_version_is_refused_by_v11_as_historical() {
+    use crate::election_config::import_gate::{admit, Refused, DEPLOYED_OVCS};
+    let mut export = built_with_base(None).export;
+    export.as_object_mut().unwrap().remove("version");
+    let member = serde_json::to_vec(&export).unwrap();
+    match admit(&member, DEPLOYED_OVCS) {
+        Err(Refused::Version(message)) => {
+            assert!(message.contains("9.0.0"), "{message}")
+        }
+        other => panic!(
+            "expected a version refusal, got {:?}",
+            other.map(|_| "admitted")
+        ),
+    }
+    let schema: crate::election_config::ImportElectionEventSchema =
+        serde_json::from_slice(&member).unwrap();
+    assert_eq!(
+        schema.version,
+        crate::util::version::HISTORICAL_DEFAULT_VERSION
+    );
+}
+
 #[test]
 fn a_base_export_never_supplies_identity() {
     // The base names its own ids, its own board and its own keys. Carrying any of

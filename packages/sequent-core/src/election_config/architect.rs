@@ -79,7 +79,7 @@ use serde::{Deserialize, Serialize};
 /// into the workbook and into `export_voters-<id>.csv`. The members travel as a
 /// census now, and [`migrate_v3`] lifts them out of an older document so it opens
 /// with everybody still in it.
-pub const BLUEPRINT_VERSION: u32 = 4;
+pub const BLUEPRINT_VERSION: u32 = 5;
 
 /// Bring a version 1 plan up to date, in place.
 ///
@@ -251,6 +251,45 @@ fn migrate_v3(document: &mut serde_json::Value) -> Vec<PlannedVoter> {
     lifted
 }
 
+/// A plan as a writer puts it on disk: labelled with the version whose shape
+/// it has.
+///
+/// A `Blueprint` in memory always has this build's shape, whatever its
+/// `version` says — one built directly, or by a caller that never went through
+/// [`read_plan_value`], can still say 4 while carrying a v5 `signing`. Written
+/// as 4, a v4-only build would read it and drop `signing` silently. So an
+/// older, supported version is written as [`BLUEPRINT_VERSION`]. A newer one
+/// is never relabelled: that plan was refused by `validate_plan` and is
+/// written back as it said.
+pub fn as_written(plan: &Blueprint) -> std::borrow::Cow<'_, Blueprint> {
+    if plan.version < BLUEPRINT_VERSION {
+        let mut current = plan.clone();
+        current.version = BLUEPRINT_VERSION;
+        std::borrow::Cow::Owned(current)
+    } else {
+        std::borrow::Cow::Borrowed(plan)
+    }
+}
+
+/// v4 → v5: the plan gained [`Blueprint::signing`].
+///
+/// Nothing to move: a v4 plan never stated a signing configuration, which v5
+/// reads as `None` for each field. The bump is for the other direction. A
+/// build that only knows v4 would read a v5 plan, drop `signing` as an
+/// unknown field and compile a bundle without the event's signing rules; with
+/// the bump it refuses the plan as saved by a newer version instead
+/// (`plan.saved-by-newer-version`), which is the gate that exists for exactly
+/// this.
+fn migrate_v4(document: &mut serde_json::Value) {
+    let Some(object) = document.as_object_mut() else {
+        return;
+    };
+    if object.get("version").and_then(serde_json::Value::as_u64) != Some(4) {
+        return;
+    }
+    object.insert("version".to_string(), serde_json::json!(5));
+}
+
 /// A plan as it came off disk, and whatever came with it.
 pub struct ReadPlan {
     pub plan: Blueprint,
@@ -306,6 +345,7 @@ pub fn read_plan_value(
     migrate_v1(&mut value);
     migrate_v2(&mut value);
     let lifted = migrate_v3(&mut value);
+    migrate_v4(&mut value);
 
     let plan: Blueprint = serde_json::from_value(value).map_err(|error| {
         Problem::error(
@@ -773,6 +813,17 @@ pub struct Blueprint {
     /// rebuild. An explicit `BuildOptions::base_export` wins over this.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base_export: Option<serde_json::Value>,
+
+    /// The event's signing rules and certificate checks, each `None` when the
+    /// source said nothing about it and `Some` (an empty rule list included)
+    /// when it did. Written to the workbook's `SigningRules`/`SigningChecks`
+    /// sheets, which `build` reads over any base export, field by field. See
+    /// [`super::signing_sheet`].
+    #[serde(
+        default,
+        skip_serializing_if = "super::signing_sheet::PlannedSigning::is_empty"
+    )]
+    pub signing: super::signing_sheet::PlannedSigning,
 }
 
 /// One report the platform generates.
@@ -1778,6 +1829,52 @@ pub fn validate_plan(plan: &Blueprint, sources: &Sources) -> Report {
              so without one nothing can be built twice the same way",
         )
 .id("event.no-identifier"));
+    }
+
+    // The signing rules, as the importer will check them, on the plan's own
+    // paths: refused before compile, where the wizard can point at the row.
+    if let Some(rules) = plan.signing.rules.as_deref() {
+        super::validate::check_signing_rules(
+            rules,
+            "signing.rules",
+            &mut report,
+        );
+    }
+    // Trust configuration the opened archive had and the Architect does not
+    // carry: said on every validation, so it survives a save and a reopen and
+    // reaches the Final Review, rather than once on open.
+    for member in &plan.signing.trust_not_carried {
+        report.push(
+            Problem::warning(
+                Code::InvalidValue,
+                "signing.trust_not_carried",
+                format!(
+                    "the archive this plan was opened from had `{member}`, public \
+                     certificate trust configuration that the Architect does not \
+                     carry into its output. Signatures that rely on it may fail to \
+                     validate on the new event until it is restored through the \
+                     platform's authorized certificate setup."
+                ),
+            )
+            .id("signing.trust-not-carried")
+            .detail("member", member),
+        );
+    }
+    // The workbook is the one output an older Architect can still open: it
+    // ignores sheets it does not know, so it would drop these without a word.
+    if !plan.signing.is_policy_empty() {
+        report.push(
+            Problem::warning(
+                Code::InvalidValue,
+                "signing",
+                "election_workbook.xlsx carries this signing configuration in \
+                 its SigningRules, SigningChecks and ApprovalMatrix sheets, which \
+                 an Architect older than this one ignores. Reopen the plan from \
+                 blueprint.json or the delivery zip, or with an up-to-date \
+                 Architect, to keep it.",
+            )
+            .id("signing.workbook-needs-current-architect"),
+        );
     }
 
     if plan.name.is_empty() {
@@ -3146,6 +3243,9 @@ pub fn to_workbook(
     if let Some(schedule) = scheduled_events_sheet(plan)? {
         sheets.push(schedule);
     }
+
+    // The signing configuration, one sheet per field the plan states.
+    sheets.extend(plan.signing.sheets());
 
     // What only a plan holds. `build` never reads these.
     for maybe in [
@@ -4777,8 +4877,8 @@ fn scheduled_events_sheet(plan: &Blueprint) -> Result<Option<Sheet>, Problem> {
 pub fn side_files(plan: &Blueprint) -> Vec<(String, String)> {
     let mut files = Vec::new();
 
-    let plan_json =
-        serde_json::to_string_pretty(plan).unwrap_or_else(|_| "{}".to_string());
+    let plan_json = serde_json::to_string_pretty(&as_written(plan))
+        .unwrap_or_else(|_| "{}".to_string());
     files.push(("blueprint.json".to_string(), plan_json + "\n"));
 
     let ceremony = serde_json::json!({

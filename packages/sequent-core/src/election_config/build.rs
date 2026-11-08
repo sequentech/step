@@ -53,9 +53,16 @@ pub use tables::{
 /// with no information in it, and the importer overwrites these anyway.
 pub const DEFAULT_CREATED_AT: &str = "2026-01-01T00:00:00.000000Z";
 
-/// Bundle format version written when neither a base export nor an option says
-/// otherwise.
-pub const DEFAULT_VERSION: &str = "v10.0.0";
+/// Bundle format version written when the base export does not say otherwise.
+///
+/// The platform line this crate belongs to ([`PLATFORM_VERSION`]), because the
+/// bundle has the shape this crate's importer reads. A base export's own string
+/// `version` is still carried verbatim: the Admin Portal's historical import
+/// passes the running platform's `APP_VERSION` that way, and an existing
+/// export keeps the version it was written by.
+///
+/// [`PLATFORM_VERSION`]: crate::util::version::PLATFORM_VERSION
+pub const DEFAULT_VERSION: &str = crate::util::version::PLATFORM_VERSION;
 
 /// The bundle's signing configuration, carried over from a base export.
 const SIGNING_RULES_KEY: &str = "signing_rules";
@@ -785,6 +792,33 @@ impl<'a> Builder<'a> {
                 self.base_export.get(key).filter(|value| !value.is_null())
             {
                 export[key] = value.clone();
+            }
+        }
+
+        // The workbook's own signing sheets, field by field, over the base
+        // export: a sheet is what the author (or the plan, or the historical
+        // source) said, and a sheet with no rows says "no rules". An absent
+        // sheet leaves the base export's value, or nothing.
+        match crate::election_config::signing_sheet::PlannedSigning::from_workbook(
+            self.workbook,
+        ) {
+            Ok(signing) => {
+                if let Some(rules) = signing.rules {
+                    export[SIGNING_RULES_KEY] = serde_json::to_value(rules)
+                        .expect("signing rules serialize");
+                }
+                if let Some(checks) = signing.checks {
+                    export[SIGNING_CHECKS_KEY] = serde_json::to_value(checks)
+                        .expect("certificate checks serialize");
+                }
+                if let Some(matrix) = signing.approval_matrix {
+                    export[APPROVAL_MATRIX_KEY] = matrix;
+                }
+            }
+            Err(problems) => {
+                for problem in problems {
+                    self.report.push(problem);
+                }
             }
         }
 

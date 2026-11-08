@@ -154,6 +154,15 @@ pub fn plan_from_event(document: &Value) -> Result<ReadPlan, Report> {
         ..Blueprint::default()
     };
 
+    // The signing configuration, field by field as the export states it: a
+    // present `signing_rules` (an empty one included) or `signing_checks` is
+    // the event's own and is kept; an absent one stays absent. A configuration
+    // that does not read is refused here, as the importer would refuse it.
+    match super::signing_sheet::PlannedSigning::from_export(document) {
+        Ok(signing) => plan.signing = signing,
+        Err(problem) => report.push(problem),
+    }
+
     if plan.external_id.is_empty() {
         // **Derived rather than left blank.** An export without one is ordinary —
         // the platform keys events by UUID and does not always write the external

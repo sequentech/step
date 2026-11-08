@@ -123,6 +123,14 @@ pub fn plan_from_workbook(workbook: &Workbook) -> Result<ReadPlan, Report> {
     plan.contacts = read_contacts(workbook);
     plan.trustees = read_trustees(workbook);
     plan.notes = read_notes(workbook);
+    match super::signing_sheet::PlannedSigning::from_workbook(workbook) {
+        Ok(signing) => plan.signing = signing,
+        Err(problems) => {
+            for problem in problems {
+                report.push(problem);
+            }
+        }
+    }
     let (reports, platform) = lift_reports(carried(workbook));
     plan.reports = reports;
     plan.platform = platform;

@@ -12,6 +12,23 @@ pub const ENV_VAR_APP_HASH: &str = "APP_HASH";
 pub const VERSION_KEY: &str = "version";
 pub const HISTORICAL_DEFAULT_VERSION: &str = "9.0.0";
 
+/// The platform release line this source tree builds, as the bundles it writes
+/// declare it.
+///
+/// A bundle's `version` is what [`check_version_compatibility`] compares
+/// against the importing platform's `APP_VERSION`: same major, and a minor no
+/// newer than the platform's. A bundle this crate writes has exactly the shape
+/// this crate's `ImportElectionEventSchema` reads, so it must declare the line
+/// that importer ships in, never an older one: a v10 label on a v11 bundle is
+/// refused by every v11 platform before a single field is read. That is how
+/// the OVCS Architect's downloads came to be refused on v11.0.0-rc.10.
+///
+/// The crate's own `CARGO_PKG_VERSION` (`0.1.0`) is not a platform version,
+/// and the release tags are not visible to a build, so the line is stated
+/// here. Bump it when the branch starts a new major or minor line; the tests
+/// below pin it against the platform versions that must accept it.
+pub const PLATFORM_VERSION: &str = "v11.0.0";
+
 pub fn check_version_compatibility(
     imported_version: &str,
     current_version: &str,
@@ -161,6 +178,31 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("Could not parse imported version"));
+    }
+
+    #[test]
+    fn the_platform_version_is_accepted_by_its_own_release_line() {
+        // The deployed OVCS release, and its final release.
+        for platform in ["v11.0.0-rc.10", "v11.0.0", "11.0.0"] {
+            assert!(
+                check_version_compatibility(PLATFORM_VERSION, platform).is_ok(),
+                "{PLATFORM_VERSION} must import on {platform}"
+            );
+        }
+        // Prior lines must refuse it as a version mismatch, not a serde error.
+        for platform in ["v10.0.0", "v10.1.0-rc.4", "v9.5.0"] {
+            assert!(
+                check_version_compatibility(PLATFORM_VERSION, platform)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("Version mismatch"),
+                "{platform} must refuse a {PLATFORM_VERSION} bundle"
+            );
+        }
+        // The label that shipped before: refused by the platform it ran on.
+        assert!(
+            check_version_compatibility("v10.0.0", "v11.0.0-rc.10").is_err()
+        );
     }
 
     #[test]
