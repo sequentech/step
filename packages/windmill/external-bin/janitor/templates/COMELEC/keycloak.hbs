@@ -271,7 +271,8 @@
                     "requirement": "REQUIRED",
                     "userSetupAllowed": false
                 }, {
-                    "authenticator": "auth-username-password-form",
+                    "authenticator": "expiry-username-password-form",
+                    "authenticatorConfig": "login-email-or-phone",
                     "authenticatorFlow": false,
                     "autheticatorFlow": false,
                     "priority": 1,
@@ -998,7 +999,7 @@
             "id": "597fd51e-3c01-4033-adf1-ae90cf7c03ba"
         },
         {
-            "alias": "UPF-apec",
+            "alias": "login-email-or-phone",
             "config": {
                 "disablePassword": "false",
                 "usernameAttributes": "email##sequent.read-only.mobile-number",
@@ -3283,7 +3284,9 @@
             "registerTitle": "FORM SA PAG-ENROLL SA INTERNET VOTING",
             "messageOtp.sendCode.email.htmlBody": "Kumusta!<br><br>Ang iyong OTP ay <strong>{1}</strong> at ito ay may bisa sa loob ng {2} minuto.<br><br>Salamat,",
             "doRegister": "MAG-ENROLL",
-            "usernameOrEmail": "Email / Numero ng mobile",
+            "usernameOrEmail": "Email/Phone",
+            "invalidUserMessage": "Invalid email/phone or password.",
+            "loginUsernameHint": "The email or mobile number you enrolled with. Start a mobile number with its country code, e.g. +63.",
             "middleName": "Gitnang pangalan",
             "idCardNumberValidator": "Tanging mga letra at numero lamang ang pinapayagan",
             "IdCardNo": "ID No.",
@@ -3336,7 +3339,9 @@
             "registerTitle": "INTERNET VOTING ENROLLMENT FORM",
             "messageOtp.sendCode.email.htmlBody": "Hello!<br><br>Your OTP is <strong>{1}</strong> and is valid for {2} minutes.<br><br>Regards,",
             "doRegister": "ENROLL",
-            "usernameOrEmail": "Email / Mobile No.",
+            "usernameOrEmail": "Email/Phone",
+            "invalidUserMessage": "Invalid email/phone or password.",
+            "loginUsernameHint": "The email or mobile number you enrolled with. Start a mobile number with its country code, e.g. +63.",
             "middleName": "Middle name",
             "loginCustomCss": ".pf-c-input-group:has(input[id=password])::after '{' content: \"<div class=\" pf-c-form__helper-text pf-c-form__helper-text-after\" id=\" form-help-text-after-registerVia\" aria-live=\" polite\">(Please ensure that the mobile no./email is active. Check both options if both mobile no. and email are available.)</div>\" '}' .col-xs-12:has(label[for=termsOfService]) '{' display: none; '}' :root '{' #kc-header-wrapper div.logo '{' background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/73/Commission_on_Elections_%28COMELEC%29.svg') !important; height: 60px;  '}' '}' .login-pf body '{' background-image: linear-gradient(1deg, #ffffff, transparent), url('https://filipinotimes.net/wp-content/uploads/2021/08/COMELEC-scaled.jpg') !important; background-repeat: repeat-y !important; background-size: 100% auto !important; background-position: top center !important; height: 100vh !important; object-fit:cover !important; '}' #kc-title '{' color: white !important; '}'@media (max-width: 767px) '{' #kc-title '{' color: white !important; '}' '}' #kc-title '{' color: white !important; '}'@media (max-width: 767px) '{' #kc-title '{' color: white !important; '}' '}' .pf-c-check__label '{' font-size: 12px !important; '}' .pf-c-form-control '{' font-size: 12px !important; '}' input::placeholder '{' font-size: 12px !important; '}' .iti__selected-country '{' font-size: 12px !important; '}' .pf-c-form__label-text '{' font-weight: bold !important; '}' .dob-sdk-root-container '{' background-color: white !important; '}' .pf-c-form__label[for=\"sequent.read-only.id-card-number\"] '{' visibility: hidden; '}' div > div > div > div '{' color: #991b1b;'}' label '{' color: black;'}'",
             "idCardNumberValidator": "Only letters and numbers allowed",
