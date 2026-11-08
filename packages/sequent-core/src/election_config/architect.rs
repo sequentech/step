@@ -1831,6 +1831,10 @@ pub fn validate_plan(plan: &Blueprint, sources: &Sources) -> Report {
 .id("event.no-identifier"));
     }
 
+    if let Err(problem) = super::messaging_config::from_plan(plan) {
+        report.push(problem);
+    }
+
     // The signing rules, as the importer will check them, on the plan's own
     // paths: refused before compile, where the wizard can point at the row.
     if let Some(rules) = plan.signing.rules.as_deref() {

@@ -28,6 +28,9 @@
 #[cfg(feature = "election_config_templates")]
 pub mod build;
 
+#[cfg(feature = "election_config_templates")]
+mod messaging_config;
+
 /// What a bundle becomes as files. Needs the builder, so it shares its feature;
 /// the zip writer itself is behind `election_config_archive`.
 #[cfg(feature = "election_config_templates")]

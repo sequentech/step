@@ -424,3 +424,30 @@ Historical compatibility does not establish compatibility with a later official
 EMS schema, resolve no-remapping procurement requirements or authorize live
 imports. A test association scenario demonstrates mechanics; issuer-approved
 seat, area, census and ballot semantics remain a separate decision.
+
+## Event messaging configuration
+
+A `Parameters` row with key `messaging_config` and a JSON object in `value`
+sets the native export's top-level `messaging_config`. This is the same
+`EventMessagingConfig` used by the Admin Portal: `version`, `channels` (account
+references, purposes, template bindings and out-of-window policies), and
+`election_channels`. It survives direct SQL/XLSX conversion, Edit in the Wizard,
+plan save/reopen and opening a native event export.
+
+In workbook input, `election_channels` keys may be election `external_id`
+values or the generated election UUIDs. Native exports and base exports use
+UUIDs; these are mapped through their elections' external IDs to the rebuilt
+UUIDs. Unknown elections and conflicting references are refused, rather than
+silently dropping a restriction.
+
+An absent or blank parameter keeps a base export's configuration. A literal
+`null` overrides the base and emits no event configuration. To explicitly
+configure no channels, use `{"version":1,"channels":[],"election_channels":{}}`.
+The legacy `messaging:config` annotation and Keycloak's public
+`sequent.messaging` projection do not substitute for the top-level field.
+
+The Architect validates the configuration shape and its local references. It
+cannot verify destination accounts: the referenced accounts must already exist
+in the target tenant, support the channel and be ready for the enabled purposes.
+The import still requires `messaging-config-write` and performs those checks.
+No provider accounts or credentials are created or exported by this parameter.
