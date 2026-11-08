@@ -134,6 +134,9 @@ pub fn plan_from_workbook(workbook: &Workbook) -> Result<ReadPlan, Report> {
     let (reports, platform) = lift_reports(carried(workbook));
     plan.reports = reports;
     plan.platform = platform;
+    if let Err(problem) = super::messaging_config::from_plan(&plan) {
+        report.push(problem);
+    }
 
     if report.has_errors() {
         return Err(report);

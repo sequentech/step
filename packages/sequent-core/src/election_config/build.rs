@@ -149,6 +149,7 @@ pub const PARAMETER_PREFIXES: &[&str] = &[
 /// Parameters the builder acts on directly rather than carrying as metadata.
 pub const HANDLED_PARAMETERS: &[&str] = &[
     "tenant_id",
+    super::messaging_config::PARAMETER,
     realm::PARAM_LOGIN_CUSTOM_CSS,
     realm::PARAM_EVENT_REALM,
 ];
@@ -780,6 +781,18 @@ impl<'a> Builder<'a> {
             "support_materials": support_materials,
             "version": version,
         });
+
+        match super::messaging_config::from_rows(
+            self.workbook.rows(SHEET_PARAMETERS),
+            &self.base_export,
+            &self.election_ids,
+        ) {
+            Ok(Some(config)) => {
+                export[super::messaging_config::PARAMETER] = config
+            }
+            Ok(None) => {}
+            Err(problem) => self.report.push(problem),
+        }
 
         // How the event signs its protected actions belongs to the event as a
         // whole, so a base export's configuration is carried over as it is:

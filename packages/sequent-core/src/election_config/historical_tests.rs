@@ -3403,3 +3403,48 @@ fn a_supplemental_workbooks_signing_sheets_reach_the_bundle() {
     let export = convert(&xlsx);
     assert!(PlannedSigning::from_export(&export).unwrap().is_empty());
 }
+
+#[test]
+fn messaging_configuration_survives_historical_direct_and_wizard_routes() {
+    use crate::election_config::{
+        architect, plan_from_workbook::plan_from_workbook,
+    };
+    let (sql, xlsx) = fixture();
+    let config = json!({"version": 1, "channels": [
+        {"channel": "SMS", "account_id": "sms-account", "purposes": ["OTP", "NOTICE"], "templates": [], "out_of_window": "DISABLED"},
+        {"channel": "EMAIL", "account_id": "email-account", "purposes": ["OTP", "NOTICE"], "templates": [], "out_of_window": "DISABLED"}
+    ], "election_channels": {}});
+    let xlsx = changed_workbook(&xlsx, |sheets| {
+        sheets.push(rows_sheet(
+            "Parameters",
+            vec![row(
+                "Parameters",
+                0,
+                vec![
+                    ("key", json!("messaging_config")),
+                    ("value", config.clone()),
+                ],
+            )],
+        ));
+    });
+    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let templates = TemplateSet::builtin().unwrap();
+    let sources = Sources::default();
+    let run = |book: &Workbook| {
+        build(book, &templates, &BuildOptions::default(), &sources).unwrap()
+    };
+    let direct = run(&adapted.workbook);
+    assert_eq!(direct.export["messaging_config"], config);
+    let read = plan_from_workbook(&adapted.workbook).unwrap();
+    let saved =
+        architect::read_plan_value(serde_json::to_value(&read.plan).unwrap())
+            .unwrap();
+    let workbook = architect::to_workbook(&saved.plan, &sources).unwrap();
+    let wizard = run(&workbook);
+    assert_eq!(wizard.export["messaging_config"], config);
+    for bundle in [direct, wizard] {
+        let native: crate::election_config::ImportElectionEventSchema =
+            serde_json::from_value(bundle.export).unwrap();
+        assert_eq!(native.messaging_config, Some(config.clone()));
+    }
+}

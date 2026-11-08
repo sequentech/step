@@ -3931,3 +3931,393 @@ fn a_realm_parameter_wins_over_the_base_exports_realm_and_says_so() {
         .warnings()
         .any(|problem| problem.message.contains("not the base export's")));
 }
+
+fn messaging_config() -> Value {
+    json!({
+        "version": 1,
+        "channels": [
+            {"channel": "SMS", "account_id": "sms-account", "purposes": ["OTP", "NOTICE"], "templates": [], "out_of_window": "DISABLED"},
+            {"channel": "EMAIL", "account_id": "email-account", "purposes": ["OTP", "NOTICE"], "templates": [], "out_of_window": "DISABLED"}
+        ],
+        "election_channels": {}
+    })
+}
+
+fn with_messaging(config: &Value) -> Workbook {
+    with_sheet(
+        "Parameters",
+        vec![
+            vec![text("key"), text("value")],
+            vec![text("messaging_config"), text(&config.to_string())],
+        ],
+    )
+}
+
+#[test]
+fn messaging_parameter_reaches_the_operational_export_not_metadata() {
+    let config = messaging_config();
+    let bundle = built(&with_messaging(&config));
+    assert_eq!(bundle.export["messaging_config"], config);
+    assert!(bundle.export["election_event"]["annotations"]
+        .get("janitor.param.event.messaging_config")
+        .is_none());
+}
+
+#[test]
+fn messaging_restrictions_resolve_external_ids_and_current_ids() {
+    let id = built(&sound()).export["elections"][0]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    for key in ["statewide", id.as_str()] {
+        let mut config = messaging_config();
+        config["election_channels"] = json!({key: ["SMS"]});
+        let workbook = with_messaging(&config);
+        let read =
+            crate::election_config::plan_from_workbook::plan_from_workbook(
+                &workbook,
+            )
+            .unwrap();
+        let reopened = crate::election_config::architect::to_workbook(
+            &read.plan,
+            &Sources::default(),
+        )
+        .unwrap();
+        let result = built(&reopened);
+        assert_eq!(
+            result.export["messaging_config"]["election_channels"],
+            json!({&id: ["SMS"]})
+        );
+    }
+}
+
+#[test]
+fn messaging_base_fallback_remaps_ids_and_explicit_null_clears_it() {
+    let mut base = built(&sound()).export;
+    base["elections"][0]["id"] = json!("old-election-id");
+    let mut config = messaging_config();
+    config["election_channels"] = json!({"old-election-id": ["EMAIL"]});
+    base["messaging_config"] = config;
+    let options = BuildOptions {
+        base_export: Some(base),
+        ..Default::default()
+    };
+    let run = |workbook: &Workbook| {
+        build(
+            workbook,
+            &TemplateSet::builtin().unwrap(),
+            &options,
+            &Sources::default(),
+        )
+        .unwrap()
+        .export
+    };
+    let preserved = run(&sound());
+    let id = preserved["elections"][0]["id"].as_str().unwrap();
+    assert_eq!(
+        preserved["messaging_config"]["channels"],
+        messaging_config()["channels"]
+    );
+    assert_eq!(
+        preserved["messaging_config"]["election_channels"],
+        json!({id: ["EMAIL"]})
+    );
+    assert!(run(&with_messaging(&Value::Null))["messaging_config"].is_null());
+    let empty = json!({"version": 1, "channels": [], "election_channels": {}});
+    assert_eq!(run(&with_messaging(&empty))["messaging_config"], empty);
+}
+
+#[test]
+fn messaging_rejects_bad_data_and_dangling_elections_without_account_lookup() {
+    let mut bad_version = messaging_config();
+    bad_version["version"] = json!(999);
+    let mut duplicate = messaging_config();
+    duplicate["channels"]
+        .as_array_mut()
+        .unwrap()
+        .push(messaging_config()["channels"][0].clone());
+    let mut dangling = messaging_config();
+    dangling["election_channels"] = json!({"missing-election": ["SMS"]});
+    let mut disabled = messaging_config();
+    disabled["election_channels"] = json!({"statewide": ["WHATSAPP"]});
+    let mut missing_account = messaging_config();
+    missing_account["channels"][0]["account_id"] = json!("");
+    for config in [
+        json!("not a config"),
+        bad_version,
+        duplicate,
+        dangling,
+        disabled,
+        missing_account,
+    ] {
+        let report = refused(&with_messaging(&config));
+        assert!(
+            report
+                .problems
+                .iter()
+                .any(|problem| problem.path.contains("messaging_config")),
+            "{report}"
+        );
+    }
+    // No tenant access is available in Architect; the importer checks the account IDs.
+    assert_eq!(
+        built(&with_messaging(&messaging_config())).export["messaging_config"],
+        messaging_config()
+    );
+}
+
+#[test]
+fn messaging_native_export_and_saved_plan_round_trip_with_new_election_ids() {
+    use crate::election_config::{
+        architect, plan_from_event::plan_from_event,
+        plan_from_workbook::plan_from_workbook,
+    };
+    let mut export = built(&sound()).export;
+    export["elections"][0]["id"] = json!("old-election-id");
+    for contest in export["contests"].as_array_mut().unwrap() {
+        contest["election_id"] = json!("old-election-id");
+    }
+    let mut config = messaging_config();
+    config["election_channels"] = json!({"old-election-id": ["SMS"]});
+    export["messaging_config"] = config;
+    let read = plan_from_event(&export).unwrap();
+    let saved = serde_json::to_value(&read.plan).unwrap();
+    let plan = architect::read_plan_value(saved).unwrap().plan;
+    let workbook = architect::to_workbook(&plan, &Sources::default()).unwrap();
+    let reopened = plan_from_workbook(&workbook).unwrap();
+    let workbook =
+        architect::to_workbook(&reopened.plan, &Sources::default()).unwrap();
+    let result = built(&workbook);
+    let id = result.export["elections"][0]["id"].as_str().unwrap();
+    assert_eq!(
+        result.export["messaging_config"]["channels"],
+        messaging_config()["channels"]
+    );
+    assert_eq!(
+        result.export["messaging_config"]["election_channels"],
+        json!({id: ["SMS"]})
+    );
+}
+
+#[test]
+fn messaging_legacy_annotation_is_not_promoted_into_operational_configuration()
+{
+    let mut export = built(&sound()).export;
+    export["election_event"]["annotations"]["messaging:config"] =
+        json!(messaging_config().to_string());
+    let plan =
+        crate::election_config::plan_from_event::plan_from_event(&export)
+            .unwrap()
+            .plan;
+    let workbook = crate::election_config::architect::to_workbook(
+        &plan,
+        &Sources::default(),
+    )
+    .unwrap();
+    assert!(built(&workbook).export.get("messaging_config").is_none());
+}
+
+#[test]
+fn messaging_rejects_duplicate_or_ambiguous_election_references() {
+    let id = built(&sound()).export["elections"][0]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let mut config = messaging_config();
+    config["election_channels"] = json!({"statewide": ["SMS"], id: ["EMAIL"]});
+    assert!(refused(&with_messaging(&config))
+        .errors()
+        .any(|p| p.code == Code::ConflictingColumns));
+
+    let mut base = built(&sound()).export;
+    base["elections"][0]["id"] = json!("another-election");
+    config["election_channels"] = json!({"another-election": ["SMS"]});
+    let mut sheets = with_messaging(&config).sheets().to_vec();
+    let elections = sheets
+        .iter_mut()
+        .find(|s| s.key == SHEET_ELECTIONS)
+        .unwrap();
+    let mut another = elections.rows[0].clone();
+    another.number += 1;
+    for (key, value) in &mut another.cells {
+        if key == "external_id" {
+            *value = json!("another-election");
+        }
+    }
+    elections.rows.push(another);
+    let error = build(
+        &Workbook::new(sheets).unwrap(),
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions {
+            base_export: Some(base),
+            ..Default::default()
+        },
+        &Sources::default(),
+    )
+    .unwrap_err();
+    assert!(error.errors().any(|p| p.code == Code::ConflictingColumns
+        && p.path == "messaging_config.election_channels"));
+}
+
+#[test]
+fn messaging_blank_parameter_keeps_base_and_template_bindings_survive() {
+    let mut config = messaging_config();
+    config["channels"][0]["templates"] = json!([{
+        "purpose": "NOTICE", "key": "announcement", "language": "en",
+        "provider_template": "election_notice", "provider_language": "en_US"
+    }]);
+    let mut base = built(&sound()).export;
+    base["messaging_config"] = config.clone();
+    let blank = with_sheet(
+        "Parameters",
+        vec![
+            vec![text("key"), text("value")],
+            vec![text("messaging_config"), Cell::Blank],
+        ],
+    );
+    let output = build(
+        &blank,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions {
+            base_export: Some(base),
+            ..Default::default()
+        },
+        &Sources::default(),
+    )
+    .unwrap();
+    assert_eq!(output.export["messaging_config"], config);
+    let read = crate::election_config::plan_from_event::plan_from_event(
+        &output.export,
+    )
+    .unwrap();
+    let workbook = crate::election_config::architect::to_workbook(
+        &read.plan,
+        &Sources::default(),
+    )
+    .unwrap();
+    assert_eq!(built(&workbook).export["messaging_config"], config);
+}
+
+#[test]
+fn messaging_duplicate_parameters_and_invalid_native_data_are_refused() {
+    let config = messaging_config();
+    let duplicate = with_sheet(
+        "Parameters",
+        vec![
+            vec![text("key"), text("value")],
+            vec![text("messaging_config"), text(&config.to_string())],
+            vec![text("messaging_config"), text("null")],
+        ],
+    );
+    assert!(refused(&duplicate)
+        .errors()
+        .any(|p| p.code == Code::DuplicateId && p.path == "messaging_config"));
+    let mut export = built(&sound()).export;
+    export["messaging_config"] = json!({"version": 999});
+    let error =
+        crate::election_config::plan_from_event::plan_from_event(&export)
+            .unwrap_err();
+    assert!(error.errors().any(|p| p.path == "messaging_config"
+        && p.message.contains("UNSUPPORTED_VERSION")));
+}
+
+#[test]
+fn messaging_invalid_base_is_rejected_without_a_workbook_cell_location() {
+    use crate::election_config::{architect, plan_from_workbook};
+
+    let mut base = built(&sound()).export;
+    base["messaging_config"] = messaging_config();
+    let templates = TemplateSet::builtin().unwrap();
+    let sources = Sources::default();
+    let run = |workbook: &Workbook, base: &Value| {
+        build(
+            workbook,
+            &templates,
+            &BuildOptions {
+                base_export: Some(base.clone()),
+                ..Default::default()
+            },
+            &sources,
+        )
+    };
+    assert_eq!(
+        run(&sound(), &base).unwrap().export["messaging_config"],
+        messaging_config()
+    );
+    base["messaging_config"]["version"] = json!(999);
+    let blank = with_sheet(
+        "Parameters",
+        vec![
+            vec![text("key"), text("value")],
+            vec![text("messaging_config"), Cell::Blank],
+        ],
+    );
+    for workbook in [sound(), blank] {
+        let direct = run(&workbook, &base).unwrap_err();
+        let mut plan = plan_from_workbook::plan_from_workbook(&workbook)
+            .unwrap()
+            .plan;
+        plan.base_export = Some(base.clone());
+        let wizard = architect::validate_plan(&plan, &sources);
+        for report in [direct, wizard] {
+            let problem = report
+                .errors()
+                .find(|problem| problem.path == "messaging_config")
+                .expect(
+                    "invalid inherited configuration must stop both routes",
+                );
+            assert_eq!(problem.code, Code::InvalidValue);
+            assert!(problem.message.contains("UNSUPPORTED_VERSION"));
+            assert_eq!(problem.at, None);
+        }
+    }
+    // An explicit replacement or clear wins even over an invalid base.
+    for config in [messaging_config(), Value::Null] {
+        assert_eq!(
+            run(&with_messaging(&config), &base).unwrap().export
+                ["messaging_config"],
+            config
+        );
+    }
+}
+
+#[test]
+fn messaging_malformed_parameter_reports_its_cell_without_echoing_input() {
+    use crate::election_config::{architect, plan_from_workbook};
+
+    let mut config = messaging_config();
+    assert_eq!(
+        built(&with_messaging(&config)).export["messaging_config"],
+        config
+    );
+    let mut plan =
+        plan_from_workbook::plan_from_workbook(&with_messaging(&config))
+            .unwrap()
+            .plan;
+    // A pasted provider secret in an enum field must not leak into diagnostics.
+    config["channels"][0]["channel"] = json!("synthetic-secret-do-not-echo");
+    let workbook = with_messaging(&config);
+    let direct = refused(&workbook);
+    let read = plan_from_workbook::plan_from_workbook(&workbook).unwrap_err();
+    plan.platform = workbook
+        .sheets()
+        .iter()
+        .filter(|sheet| {
+            sheet.key == crate::election_config::sheet::SHEET_PARAMETERS
+        })
+        .cloned()
+        .collect();
+    let wizard = architect::validate_plan(&plan, &Sources::default());
+    for report in [direct, read, wizard] {
+        let problem = report
+            .errors()
+            .find(|problem| problem.path == "messaging_config")
+            .expect("malformed configuration must stop both routes");
+        assert_eq!(problem.code, Code::InvalidValue);
+        let location = problem.at.as_ref().expect("point at the supplied cell");
+        assert_eq!(location.sheet, "Parameters");
+        assert_eq!(location.row, Some(2));
+        assert_eq!(location.column.as_deref(), Some("value"));
+        assert!(!report.to_string().contains("synthetic-secret-do-not-echo"));
+    }
+}

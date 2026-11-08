@@ -205,6 +205,38 @@ pub fn plan_from_event(document: &Value) -> Result<ReadPlan, Report> {
         &mut report,
     );
 
+    // The stored top-level configuration is authoritative. The legacy annotation
+    // and the realm's public projection cannot restore operational bindings.
+    if let Some(config) = document.get(super::messaging_config::PARAMETER) {
+        let elections = plan
+            .elections
+            .iter()
+            .map(|election| {
+                (election.external_id.clone(), election.external_id.clone())
+            })
+            .collect::<Vec<_>>();
+        let config =
+            super::messaging_config::normalize(config, document, &elections)
+                .map_err(Report::from_problem)?;
+        let sheet = super::sheet::Sheet::from_grid(
+            "Parameters",
+            &[
+                vec![
+                    super::paths::Cell::text("key"),
+                    super::paths::Cell::text("value"),
+                ],
+                vec![
+                    super::paths::Cell::text(
+                        super::messaging_config::PARAMETER,
+                    ),
+                    super::paths::Cell::text(config.to_string()),
+                ],
+            ],
+        )
+        .map_err(Report::from_problem)?;
+        plan.platform.push(sheet);
+    }
+
     // Said once, plainly, rather than left for somebody to discover on the
     // Contacts screen. An export is an election event; these are the architect's
     // own material and no export has ever carried them.
