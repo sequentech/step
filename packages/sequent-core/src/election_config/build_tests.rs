@@ -4220,3 +4220,104 @@ fn messaging_duplicate_parameters_and_invalid_native_data_are_refused() {
     assert!(error.errors().any(|p| p.path == "messaging_config"
         && p.message.contains("UNSUPPORTED_VERSION")));
 }
+
+#[test]
+fn messaging_invalid_base_is_rejected_without_a_workbook_cell_location() {
+    use crate::election_config::{architect, plan_from_workbook};
+
+    let mut base = built(&sound()).export;
+    base["messaging_config"] = messaging_config();
+    let templates = TemplateSet::builtin().unwrap();
+    let sources = Sources::default();
+    let run = |workbook: &Workbook, base: &Value| {
+        build(
+            workbook,
+            &templates,
+            &BuildOptions {
+                base_export: Some(base.clone()),
+                ..Default::default()
+            },
+            &sources,
+        )
+    };
+    assert_eq!(
+        run(&sound(), &base).unwrap().export["messaging_config"],
+        messaging_config()
+    );
+    base["messaging_config"]["version"] = json!(999);
+    let blank = with_sheet(
+        "Parameters",
+        vec![
+            vec![text("key"), text("value")],
+            vec![text("messaging_config"), Cell::Blank],
+        ],
+    );
+    for workbook in [sound(), blank] {
+        let direct = run(&workbook, &base).unwrap_err();
+        let mut plan = plan_from_workbook::plan_from_workbook(&workbook)
+            .unwrap()
+            .plan;
+        plan.base_export = Some(base.clone());
+        let wizard = architect::validate_plan(&plan, &sources);
+        for report in [direct, wizard] {
+            let problem = report
+                .errors()
+                .find(|problem| problem.path == "messaging_config")
+                .expect(
+                    "invalid inherited configuration must stop both routes",
+                );
+            assert_eq!(problem.code, Code::InvalidValue);
+            assert!(problem.message.contains("UNSUPPORTED_VERSION"));
+            assert_eq!(problem.at, None);
+        }
+    }
+    // An explicit replacement or clear wins even over an invalid base.
+    for config in [messaging_config(), Value::Null] {
+        assert_eq!(
+            run(&with_messaging(&config), &base).unwrap().export
+                ["messaging_config"],
+            config
+        );
+    }
+}
+
+#[test]
+fn messaging_malformed_parameter_reports_its_cell_without_echoing_input() {
+    use crate::election_config::{architect, plan_from_workbook};
+
+    let mut config = messaging_config();
+    assert_eq!(
+        built(&with_messaging(&config)).export["messaging_config"],
+        config
+    );
+    let mut plan =
+        plan_from_workbook::plan_from_workbook(&with_messaging(&config))
+            .unwrap()
+            .plan;
+    // A pasted provider secret in an enum field must not leak into diagnostics.
+    config["channels"][0]["channel"] = json!("synthetic-secret-do-not-echo");
+    let workbook = with_messaging(&config);
+    let direct = refused(&workbook);
+    let read = plan_from_workbook::plan_from_workbook(&workbook).unwrap_err();
+    plan.platform = workbook
+        .sheets()
+        .iter()
+        .filter(|sheet| {
+            sheet.key == crate::election_config::sheet::SHEET_PARAMETERS
+        })
+        .cloned()
+        .collect();
+    let wizard = architect::validate_plan(&plan, &Sources::default());
+    for report in [direct, read, wizard] {
+        let problem = report
+            .errors()
+            .find(|problem| problem.path == "messaging_config")
+            .expect("malformed configuration must stop both routes");
+        assert_eq!(problem.code, Code::InvalidValue);
+        let location = problem.at.as_ref().expect("point at the supplied cell");
+        assert_eq!(location.sheet, "Parameters");
+        assert_eq!(location.row, Some(2));
+        assert_eq!(location.column.as_deref(), Some("value"));
+        assert!(!report.to_string().contains("synthetic-secret-do-not-echo"));
+    }
+}
