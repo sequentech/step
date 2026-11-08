@@ -3326,9 +3326,9 @@ fn the_historical_conversion_passes_the_v11_importer_gate() {
     .unwrap();
     assert_eq!(bundle.export["version"], json!("v11.0.0"));
     let layout = archive::layout(&bundle);
-    import_gate::assert_v11_admits_and_v10_refuses(&import_gate::event_member(
-        &layout.importable,
-    ));
+    import_gate::assert_v11_admits_cleanly_and_v10_warns(
+        &import_gate::event_member(&layout.importable),
+    );
 }
 
 /// A historical source's supplemental workbook may state the event's signing
@@ -3388,7 +3388,7 @@ fn a_supplemental_workbooks_signing_sheets_reach_the_bundle() {
         )
         .unwrap(),
     );
-    crate::election_config::import_gate::assert_v11_admits_and_v10_refuses(
+    crate::election_config::import_gate::assert_v11_admits_cleanly_and_v10_warns(
         &crate::election_config::import_gate::event_member(&layout.importable),
     );
 

@@ -67,6 +67,56 @@ pub fn check_version_compatibility(
     Ok(())
 }
 
+/// Whether [`check_version_compatibility`] refuses `imported` only because its
+/// **major** version differs from `current`'s, in either direction.
+///
+/// A classifier, not a second rule: the strict check above is unchanged for
+/// every caller. The election-event import uses this to report a different
+/// major as a warning instead of refusing the file (meta#14760); anything else
+/// the strict check refuses (an unreadable version, `dev` on one side only, a
+/// newer minor of the same major) is not a major mismatch and still refuses.
+pub fn major_mismatch(imported_version: &str, current_version: &str) -> bool {
+    match (
+        strict_major(imported_version),
+        strict_major(current_version),
+    ) {
+        (Some(imported), Some(current)) => imported != current,
+        _ => false,
+    }
+}
+
+/// The major of a version whose numeric part is well formed: an optional
+/// `v`/`V`, then one to three dot-separated runs of digits, then optionally a
+/// `-` pre-release suffix (`v11.0.0-rc.10`) and `+` build metadata
+/// (`v12.0.0+build.7`, `v12.0.0-rc.1+build.7`).
+///
+/// Strict numeric-version parsing, not a complete SemVer validator: the
+/// numbers are checked, and the contents of a pre-release or build suffix are
+/// not. Stricter than [`extract_semver`], which reads
+/// `v12.bad.0` as 12.0.0: a version that malformed is not a "different
+/// major" here, so it stays refused rather than becoming a warning. `dev`
+/// has no major.
+fn strict_major(version: &str) -> Option<u64> {
+    let unprefixed = version.strip_prefix(['v', 'V']).unwrap_or(version);
+    // Build metadata first: it follows the pre-release when both are there.
+    let unbuilt = unprefixed
+        .split_once('+')
+        .map_or(unprefixed, |(core, _)| core);
+    let numbers = unbuilt
+        .split_once('-')
+        .map_or(unbuilt, |(numbers, _)| numbers);
+    let parts: Vec<&str> = numbers.split('.').collect();
+    if parts.is_empty()
+        || parts.len() > 3
+        || parts.iter().any(|part| {
+            part.is_empty() || !part.bytes().all(|b| b.is_ascii_digit())
+        })
+    {
+        return None;
+    }
+    parts[0].parse().ok()
+}
+
 /// Extract the semantic version from the given string.
 ///
 /// Major version is required, and None will be returned if missing.
@@ -203,6 +253,50 @@ mod tests {
         assert!(
             check_version_compatibility("v10.0.0", "v11.0.0-rc.10").is_err()
         );
+    }
+
+    #[test]
+    fn a_major_mismatch_is_a_different_major_in_either_direction_and_nothing_else(
+    ) {
+        // Older and newer majors.
+        assert!(major_mismatch("v10.0.0", "v11.0.0-rc.10"));
+        assert!(major_mismatch("v12.1.0", "v11.0.0"));
+        assert!(major_mismatch("9.0.0", "v11.0.0"));
+        // The same major, a newer minor included: not a major mismatch, and the
+        // strict check still refuses the newer minor.
+        assert!(!major_mismatch("v11.0.0", "v11.0.0-rc.10"));
+        assert!(!major_mismatch("v11.2.0", "v11.0.0"));
+        assert!(check_version_compatibility("v11.2.0", "v11.0.0").is_err());
+        // `dev` and unreadable versions are not major mismatches.
+        assert!(!major_mismatch("dev", "v11.0.0"));
+        assert!(!major_mismatch("v10.0.0", "dev"));
+        assert!(!major_mismatch("not-a-version", "v11.0.0"));
+        assert!(!major_mismatch("v10.0.0", "not-a-version"));
+        // Malformed numeric parts the permissive parser would read as a major
+        // are not a major mismatch either, so they stay refused.
+        for malformed in [
+            "v12.bad.0",
+            "12.0.x",
+            "v12..0",
+            "v12.0.0.0",
+            "v-12.0.0",
+            "12a.0.0",
+            "",
+        ] {
+            assert!(!major_mismatch(malformed, "v11.0.0"), "{malformed}");
+        }
+        // Well-formed forms still classify: a bare major, a pre-release suffix,
+        // build metadata alone or after a pre-release, on either side.
+        assert!(major_mismatch("12", "v11.0.0"));
+        assert!(major_mismatch("V10.0.0-rc.53", "v11.0.0-rc.10"));
+        assert!(major_mismatch("v12.0.0+build.7", "v11.0.0"));
+        assert!(major_mismatch("v12.0.0-rc.1+build.7", "v11.0.0"));
+        assert!(major_mismatch("v10.0.0", "v11.0.0+build.7"));
+        assert!(major_mismatch("v10.0.0", "v11.0.0-rc.10+build.7"));
+        assert!(!major_mismatch("v11.0.0+build.7", "v11.0.0-rc.10"));
+        // And metadata does not let a malformed core through.
+        assert!(!major_mismatch("v12.bad.0+build.7", "v11.0.0"));
+        assert!(!major_mismatch("v12.0.x-rc.1+build.7", "v11.0.0"));
     }
 
     #[test]

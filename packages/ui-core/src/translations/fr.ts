@@ -623,6 +623,10 @@ const frenchTranslation: TranslationType = {
                         lead: "Exporté par une autre version",
                         text: "Exporté par une autre version — le fichier provient de la version {{found}}, que la version {{current}} ne peut pas importer.",
                     },
+                    "version-major-mismatch": {
+                        lead: "Autre version majeure",
+                        text: "Autre version majeure — le fichier provient de la version {{found}}, d'une version majeure différente de la {{current}} de cette plateforme. Cette différence ne bloque pas l'import, et les autres contrôles du fichier s'appliquent toujours ; les réglages que cette version ne prend pas en charge peuvent ne pas être importés.",
+                    },
                 },
                 identifier: {
                     duplicate: {
@@ -945,6 +949,42 @@ const frenchTranslation: TranslationType = {
                     "expiry-out-of-range": {
                         lead: "Expiration hors limites",
                         text: "Expiration hors limites — une demande '{{action}}' doit expirer après 1 à 525 600 minutes (un an), ou jamais.",
+                    },
+                    "export-unreadable": {
+                        lead: "Réglages de signature illisibles",
+                        text: "Réglages de signature illisibles — les règles de signature ou les contrôles de certificats de l'export sont illisibles, et l'import les refuserait.",
+                    },
+                    "unknown-column": {
+                        lead: "Colonne de signature inconnue",
+                        text: "Colonne de signature inconnue — une feuille de signatures a une colonne qu'elle ne définit pas. Renommez-la ou supprimez-la, pour qu'aucun réglage ne revienne en silence à sa valeur par défaut.",
+                    },
+                    "checks-not-one-row": {
+                        lead: "Contrôles sur plus d'une ligne",
+                        text: "Contrôles sur plus d'une ligne — la feuille SigningChecks doit contenir exactement une ligne.",
+                    },
+                    "matrix-unreadable": {
+                        lead: "Matrice d'approbation illisible",
+                        text: "Matrice d'approbation illisible — la cellule ApprovalMatrix n'est pas un JSON valide.",
+                    },
+                    "matrix-not-one-cell": {
+                        lead: "Matrice hors d'une cellule unique",
+                        text: "Matrice hors d'une cellule unique — la feuille ApprovalMatrix doit contenir une ligne avec une cellule matrix.",
+                    },
+                    "not-a-number": {
+                        lead: "Pas un nombre entier",
+                        text: "Pas un nombre entier — un réglage de signature qui compte des signatures, des minutes ou des révisions doit être un nombre entier.",
+                    },
+                    "row-unreadable": {
+                        lead: "Ligne de signature illisible",
+                        text: "Ligne de signature illisible — une ligne de signatures contient une valeur que la plateforme n'accepte pas, comme une action inconnue.",
+                    },
+                    "trust-not-carried": {
+                        lead: "Confiance de certificats non conservée",
+                        text: "Confiance de certificats non conservée — l'archive ouverte contenait '{{member}}', que l'Architect ne conserve pas. Les signatures qui en dépendent peuvent échouer jusqu'à sa restauration par la configuration de certificats autorisée de la plateforme.",
+                    },
+                    "workbook-needs-current-architect": {
+                        lead: "Classeur pour un Architect récent",
+                        text: "Classeur pour un Architect récent — le classeur garde cette politique de signature dans des feuilles qu'un Architect plus ancien ignore. Rouvrez-le depuis blueprint.json ou le zip de livraison pour la conserver.",
                     },
                 },
                 threshold: {

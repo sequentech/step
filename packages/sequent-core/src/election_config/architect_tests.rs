@@ -3981,7 +3981,7 @@ fn the_compiled_final_zip_passes_the_v11_importer_gate() {
     })
     .expect("a sound plan compiles");
     let layout = layout(&compiled.bundle);
-    crate::election_config::import_gate::assert_v11_admits_and_v10_refuses(
+    crate::election_config::import_gate::assert_v11_admits_cleanly_and_v10_warns(
         &crate::election_config::import_gate::event_member(&layout.importable),
     );
 }

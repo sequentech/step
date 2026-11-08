@@ -779,21 +779,22 @@ fn event_member_of(bundle: &Bundle) -> Vec<u8> {
 }
 
 /// Without a base export the bundle declares this crate's platform line, and
-/// the importer's gate admits it on v11 and refuses it on v10.
+/// the importer's gate admits it on v11 with no version warning (and on v10
+/// with the major-mismatch warning, which no longer blocks: meta#14760).
 #[cfg(feature = "election_config_archive")]
 #[test]
 fn the_default_bundle_declares_v11_and_passes_the_v11_importer_gate() {
     let bundle = built_with_base(None);
     assert_eq!(bundle.export["version"], json!("v11.0.0"));
-    crate::election_config::import_gate::assert_v11_admits_and_v10_refuses(
+    crate::election_config::import_gate::assert_v11_admits_cleanly_and_v10_warns(
         &event_member_of(&bundle),
     );
 }
 
 /// A base export's string version is carried verbatim, never rewritten: the
 /// Admin Portal passes the running platform's `APP_VERSION` this way, and an
-/// existing v10 export keeps saying v10 — so a v11 platform refuses it as a
-/// version mismatch instead of the label being changed to fit.
+/// existing v10 export keeps saying v10 — so a v11 platform imports it with a
+/// major-mismatch warning instead of the label being changed to fit.
 #[cfg(feature = "election_config_archive")]
 #[test]
 fn a_base_export_version_is_carried_verbatim() {
@@ -805,10 +806,9 @@ fn a_base_export_version_is_carried_verbatim() {
 
     let v10 =
         event_member_of(&built_with_base(Some(json!({"version": "v10.0.0"}))));
-    assert!(matches!(
-        admit(&v10, DEPLOYED_OVCS),
-        Err(Refused::Version(_))
-    ));
+    let admitted =
+        admit(&v10, DEPLOYED_OVCS).expect("imported, with a warning");
+    assert!(admitted.major_mismatch().is_some());
 
     // `dev` is only for a `dev` platform, on both sides of the check.
     let dev =
@@ -823,7 +823,7 @@ fn a_base_export_version_is_carried_verbatim() {
     let running = event_member_of(&built_with_base(Some(
         json!({"version": DEPLOYED_OVCS}),
     )));
-    assert!(admit(&running, DEPLOYED_OVCS).is_ok());
+    assert!(admit(&running, DEPLOYED_OVCS).unwrap().warnings.is_empty());
 }
 
 /// A base export without a usable version contributes none: the bundle
@@ -839,31 +839,32 @@ fn a_base_export_without_a_string_version_gets_the_default() {
     ] {
         let bundle = built_with_base(Some(base.clone()));
         assert_eq!(bundle.export["version"], json!(DEFAULT_VERSION), "{base}");
-        crate::election_config::import_gate::assert_v11_admits_and_v10_refuses(
+        crate::election_config::import_gate::assert_v11_admits_cleanly_and_v10_warns(
             &event_member_of(&bundle),
         );
     }
 }
 
 /// A bundle with no `version` at all is the importer's historical case: it
-/// reads as `9.0.0` and a v11 platform refuses it on the version. The gate
-/// keeps that fallback; nothing here supplies a version for it.
+/// reads as `9.0.0`, a different major, so a v11 platform imports it with the
+/// major-mismatch warning naming 9.0.0. The gate keeps that fallback; nothing
+/// here supplies a version for it.
 #[cfg(feature = "election_config_archive")]
 #[test]
-fn a_bundle_without_a_version_is_refused_by_v11_as_historical() {
-    use crate::election_config::import_gate::{admit, Refused, DEPLOYED_OVCS};
+fn a_bundle_without_a_version_reads_as_historical_and_warns_on_v11() {
+    use crate::election_config::import_gate::{admit, DEPLOYED_OVCS};
     let mut export = built_with_base(None).export;
     export.as_object_mut().unwrap().remove("version");
     let member = serde_json::to_vec(&export).unwrap();
-    match admit(&member, DEPLOYED_OVCS) {
-        Err(Refused::Version(message)) => {
-            assert!(message.contains("9.0.0"), "{message}")
-        }
-        other => panic!(
-            "expected a version refusal, got {:?}",
-            other.map(|_| "admitted")
-        ),
-    }
+    let admitted =
+        admit(&member, DEPLOYED_OVCS).expect("imported, with a warning");
+    let warning = admitted
+        .major_mismatch()
+        .expect("the major-mismatch warning");
+    assert_eq!(
+        warning.details.get("found").map(String::as_str),
+        Some("9.0.0")
+    );
     let schema: crate::election_config::ImportElectionEventSchema =
         serde_json::from_slice(&member).unwrap();
     assert_eq!(

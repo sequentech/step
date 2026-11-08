@@ -618,6 +618,10 @@ const catalanTranslation: TranslationType = {
                         lead: "Exportat amb una altra versió",
                         text: "Exportat amb una altra versió — el fitxer ve de la versió {{found}}, que la versió {{current}} no pot importar.",
                     },
+                    "version-major-mismatch": {
+                        lead: "Una altra versió principal",
+                        text: "Una altra versió principal — el fitxer prové de la versió {{found}}, d'una versió principal diferent de la {{current}} d'aquesta plataforma. Aquesta diferència no bloqueja la importació i la resta de comprovacions del fitxer continuen aplicant-se; els ajustos que aquesta versió no admet poden no importar-se.",
+                    },
                 },
                 identifier: {
                     duplicate: {
@@ -940,6 +944,42 @@ const catalanTranslation: TranslationType = {
                     "expiry-out-of-range": {
                         lead: "Caducitat fora de rang",
                         text: "Caducitat fora de rang — una sol·licitud de '{{action}}' ha de caducar després d'1 a 525.600 minuts (un any), o mai.",
+                    },
+                    "export-unreadable": {
+                        lead: "Configuració de signatura il·legible",
+                        text: "Configuració de signatura il·legible — les regles de signatura o les comprovacions de certificats de l'exportació no es poden llegir, i la importació les rebutjaria.",
+                    },
+                    "unknown-column": {
+                        lead: "Columna de signatura desconeguda",
+                        text: "Columna de signatura desconeguda — un full de signatures té una columna que no defineix. Canvieu-li el nom o traieu-la perquè cap ajust no torni sense avís al valor per defecte.",
+                    },
+                    "checks-not-one-row": {
+                        lead: "Les comprovacions no són una fila",
+                        text: "Les comprovacions no són una fila — el full SigningChecks ha de tenir exactament una fila.",
+                    },
+                    "matrix-unreadable": {
+                        lead: "Matriu d'aprovació il·legible",
+                        text: "Matriu d'aprovació il·legible — la cel·la d'ApprovalMatrix no és JSON vàlid.",
+                    },
+                    "matrix-not-one-cell": {
+                        lead: "La matriu no és una cel·la",
+                        text: "La matriu no és una cel·la — el full ApprovalMatrix ha de tenir una fila amb una cel·la matrix.",
+                    },
+                    "not-a-number": {
+                        lead: "No és un nombre enter",
+                        text: "No és un nombre enter — un ajust de signatura que compta signatures, minuts o revisions ha de ser un nombre enter.",
+                    },
+                    "row-unreadable": {
+                        lead: "Fila de signatura il·legible",
+                        text: "Fila de signatura il·legible — una fila de signatures té un valor que la plataforma no accepta, com ara una acció desconeguda.",
+                    },
+                    "trust-not-carried": {
+                        lead: "Confiança de certificats no conservada",
+                        text: "Confiança de certificats no conservada — l'arxiu obert tenia '{{member}}', que l'Architect no conserva. Les signatures que en depenguin poden fallar fins que es restauri amb la configuració de certificats autoritzada de la plataforma.",
+                    },
+                    "workbook-needs-current-architect": {
+                        lead: "El llibre necessita un Architect actual",
+                        text: "El llibre necessita un Architect actual — el llibre desa aquesta política de signatura en fulls que un Architect anterior ignora. Torneu-lo a obrir des de blueprint.json o el zip de lliurament per conservar-la.",
                     },
                 },
                 threshold: {

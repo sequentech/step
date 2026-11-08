@@ -621,6 +621,10 @@ const galegoTranslation: TranslationType = {
                         lead: "Exportado con outra versión",
                         text: "Exportado con outra versión — o ficheiro vén da versión {{found}}, que a versión {{current}} non pode importar.",
                     },
+                    "version-major-mismatch": {
+                        lead: "Outra versión principal",
+                        text: "Outra versión principal — o ficheiro vén da versión {{found}}, dunha versión principal distinta da {{current}} desta plataforma. Esa diferenza non bloquea a importación e as demais comprobacións do ficheiro seguen aplicándose; os axustes que esta versión non admite poden non importarse.",
+                    },
                 },
                 identifier: {
                     duplicate: {
@@ -943,6 +947,42 @@ const galegoTranslation: TranslationType = {
                     "expiry-out-of-range": {
                         lead: "Caducidade fóra de rango",
                         text: "Caducidade fóra de rango — unha solicitude de '{{action}}' debe caducar despois de 1 a 525.600 minutos (un ano), ou nunca.",
+                    },
+                    "export-unreadable": {
+                        lead: "Axustes de sinatura ilexibles",
+                        text: "Axustes de sinatura ilexibles — as regras de sinatura ou as comprobacións de certificados da exportación non se poden ler, así que a importación rexeitaríaas.",
+                    },
+                    "unknown-column": {
+                        lead: "Columna de sinatura descoñecida",
+                        text: "Columna de sinatura descoñecida — unha folla de sinaturas ten unha columna que non define. Renoméaa ou quítaa para que ningún axuste volva sen aviso ao seu valor por defecto.",
+                    },
+                    "checks-not-one-row": {
+                        lead: "As comprobacións non son unha fila",
+                        text: "As comprobacións non son unha fila — a folla SigningChecks debe ter exactamente unha fila.",
+                    },
+                    "matrix-unreadable": {
+                        lead: "Matriz de aprobación ilexible",
+                        text: "Matriz de aprobación ilexible — a cela de ApprovalMatrix non é JSON válido.",
+                    },
+                    "matrix-not-one-cell": {
+                        lead: "A matriz non é unha cela",
+                        text: "A matriz non é unha cela — a folla ApprovalMatrix debe ter unha fila cunha cela matrix.",
+                    },
+                    "not-a-number": {
+                        lead: "Non é un número enteiro",
+                        text: "Non é un número enteiro — un axuste de sinatura que conta sinaturas, minutos ou revisións debe ser un número enteiro.",
+                    },
+                    "row-unreadable": {
+                        lead: "Fila de sinatura ilexible",
+                        text: "Fila de sinatura ilexible — unha fila de sinaturas ten un valor que a plataforma non acepta, como unha acción descoñecida.",
+                    },
+                    "trust-not-carried": {
+                        lead: "Confianza de certificados non conservada",
+                        text: "Confianza de certificados non conservada — o arquivo aberto tiña '{{member}}', que o Architect non conserva. As sinaturas que dependan diso poden fallar ata que se restaure coa configuración de certificados autorizada da plataforma.",
+                    },
+                    "workbook-needs-current-architect": {
+                        lead: "O libro precisa un Architect actual",
+                        text: "O libro precisa un Architect actual — o libro garda esta política de sinatura en follas que un Architect anterior ignora. Reábreo desde blueprint.json ou o zip de entrega para conservala.",
                     },
                 },
                 threshold: {
