@@ -229,7 +229,9 @@ describe("proposed changes", () => {
                     electionEventId: "e1",
                     action: "import",
                     censusSize: 3,
-                    warnings: ["the file was exported by version v10.0.0, a different major version"],
+                    warnings: [
+                        "the file was exported by version v10.0.0, a different major version",
+                    ],
                 },
             ])
         ).toEqual([
