@@ -7018,3 +7018,134 @@ fn the_trust_loss_record_survives_the_plans_workbook_being_reopened() {
     // Diagnostic only: nothing of it is built into the bundle.
     assert!(!compiled_export(&reopened).to_string().contains(member));
 }
+
+#[test]
+fn account_flags_and_multiple_external_ids_survive_all_saved_plan_formats() {
+    use crate::election_config::archive;
+    let mut plan = sound();
+    plan.areas = vec![PlannedArea {
+        external_id: DEFAULT_AREA_EXTERNAL_ID.into(),
+        name: "All voters".into(),
+        ..Default::default()
+    }];
+    let mut second = plan.elections[0].clone();
+    second.external_id = "second".into();
+    second.contests[0].external_id = "second-president".into();
+    for candidate in &mut second.contests[0].candidates {
+        candidate.external_id = format!("second-{}", candidate.external_id);
+    }
+    plan.elections.push(second);
+    let templates = TemplateSet::builtin().unwrap();
+    let options = BuildOptions::default();
+    for restrictions in [
+        " officers | second | officers ",
+        "officers||second||officers",
+    ] {
+        let voters = vec![PlannedVoter {
+            username: "synthetic-voter".into(),
+            email: "synthetic@example.test".into(),
+            area_external_id: DEFAULT_AREA_EXTERNAL_ID.into(),
+            extra: [
+                ("enabled".into(), "false".into()),
+                ("email_verified".into(), "false".into()),
+                ("authorized-election-ids".into(), restrictions.into()),
+            ]
+            .into_iter()
+            .collect(),
+            ..Default::default()
+        }];
+        // The flattened attributes are stable native-plan JSON, not new fields.
+        let voters =
+            serde_json::from_value(serde_json::to_value(&voters).unwrap())
+                .unwrap();
+        let sources = with_voters(&plan, voters);
+        let compiled = compile_plan(Compile {
+            plan: &plan,
+            templates: &templates,
+            options: &options,
+            profile: None,
+            sources: Some(&sources),
+        })
+        .unwrap();
+        let assert_accounts = |bundle: &Bundle| {
+            let table = &bundle.voters;
+            assert_eq!(table.rows.len(), 1);
+            let cell = |name| &table.rows[0][table.column(name).unwrap()];
+            assert_eq!(cell("enabled"), "false");
+            assert_eq!(cell("email_verified"), "false");
+            assert_eq!(cell("authorized-election-ids"), "officers|second");
+        };
+        assert_accounts(&compiled.bundle);
+        for bytes in [
+            archive::save_file(&plan, &sources).unwrap().bytes,
+            archive::delivery(&compiled.layout).unwrap().bytes,
+            archive::zip(&compiled.layout.importable).unwrap(),
+        ] {
+            let mut opened =
+                crate::election_config::open::open(&bytes).unwrap();
+            // A platform import archive contains no plan-only trustee contacts.
+            opened.plan.trustees = plan.trustees.clone();
+            let rebuilt = compile_plan(Compile {
+                plan: &opened.plan,
+                templates: &templates,
+                options: &options,
+                profile: None,
+                sources: Some(&opened.sources),
+            })
+            .unwrap();
+            assert_accounts(&rebuilt.bundle);
+        }
+    }
+}
+
+#[test]
+fn voter_restriction_review_rejects_pipe_election_ids_before_plan_normalization(
+) {
+    assert!(workbook_of(&sound()).is_ok());
+    for identifier in ["officers|second", "officers||second", "|"] {
+        let mut plan = sound();
+        plan.elections[0].external_id = identifier.into();
+        let report = checked(&plan);
+        assert!(
+            report.errors().any(|p| p.code == Code::InvalidValue
+                && p.path == "elections[0].external_id"),
+            "{identifier}: {report}"
+        );
+        let problem = workbook_of(&plan).unwrap_err();
+        assert_eq!(problem.code, Code::InvalidValue);
+        assert_eq!(problem.path, "elections[0].external_id");
+    }
+}
+
+#[test]
+fn voter_restriction_review_rejects_malformed_plan_lists_without_broadening() {
+    let mut plan = sound();
+    plan.areas = vec![PlannedArea {
+        external_id: DEFAULT_AREA_EXTERNAL_ID.into(),
+        name: "All voters".into(),
+        ..Default::default()
+    }];
+    for restriction in
+        ["null", "officers||null", "||", "officers|", "[]", "true"]
+    {
+        let sources = with_voters(
+            &plan,
+            vec![PlannedVoter {
+                username: "ada".into(),
+                area_external_id: DEFAULT_AREA_EXTERNAL_ID.into(),
+                extra: [("authorized-election-ids".into(), restriction.into())]
+                    .into_iter()
+                    .collect(),
+                ..Default::default()
+            }],
+        );
+        let report = validate_plan(&plan, &sources);
+        assert!(
+            report.errors().any(|p| p.code == Code::InvalidValue
+                && p.path.contains("authorized-election-ids")),
+            "{restriction}: {report}"
+        );
+        let problem = to_workbook(&plan, &sources).unwrap_err();
+        assert_eq!(problem.code, Code::InvalidValue);
+    }
+}

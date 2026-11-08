@@ -294,10 +294,34 @@ Each voter carries two kinds of attribute:
   post-qualification dump has neither column, so neither is emitted. The abroad
   status is never turned into eligibility.
 
-Email, mobile and password are left unset; enrollment collects them later, so the
-conversion does not warn that voters cannot be sent a one-time code. Every
-row is checked before the conversion is refused, and each failing voter is reported
-by row and column: a location with no in-scope area, a duplicate id, an incomplete
+By default, email, mobile and password are left unset; enrollment collects them
+later, so the conversion does not warn that voters cannot be sent a one-time code.
+An optional supplemental **Voters** sheet can restore account values that are
+not in the SQL census. It requires `preserve-source-voters` and joins by the
+source `username`. Each username may occur once and must already be in the census.
+Only these columns are accepted:
+
+- `username`: the source voter ID, used only as the join key.
+- `email`: the account email address.
+- `email_verified` and `enabled`: explicit account flags, including `false`.
+  Use Excel booleans or `true`/`false`, `yes`/`no`, `1`/`0` (`x` means true).
+- `authorized-election-ids`: election **external IDs**, separated by `||`.
+  They must name generated elections, such as `center:P01:context:alias`.
+  Duplicate IDs are removed in source order. Unknown elections block the build.
+  Election external IDs cannot contain `|`. Explicit `null`, empty lists and
+  malformed restriction members are rejected, rather than becoming unrestricted.
+
+Omitted rows and blank cells retain the existing defaults: no email or election
+restriction, enabled, and email verification based on whether an email is present.
+An explicit verification flag is preserved even without an email. SQL identity,
+location and audit fields cannot be overridden; other account, enrollment and
+credential columns are rejected. Source SQL contact columns are not copied
+implicitly. Direct builds, the Wizard, and saved/reopened plans preserve the
+supplied account values. The exported voters CSV uses a single `|` between
+canonical external IDs, which the Keycloak mapper resolves to platform IDs.
+A blank restriction stays blank and leaves the existing area-based rules in place.
+Every SQL census row is checked before the conversion is refused, and each failing
+voter is reported by row and column: a location with no in-scope area, a duplicate id, an incomplete
 or impossible date of birth, or an area without an embassy/country label. Nothing
 is dropped silently. The preserved count is reported in the summary and stored in
 provenance as `preservedVoters`.

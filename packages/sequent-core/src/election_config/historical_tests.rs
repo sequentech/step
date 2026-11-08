@@ -3448,3 +3448,386 @@ fn messaging_configuration_survives_historical_direct_and_wizard_routes() {
         assert_eq!(native.messaging_config, Some(config.clone()));
     }
 }
+
+fn voter_overlay(rows: Vec<Row>) -> Vec<u8> {
+    let (_, xlsx) = overseas_voter_fixture("", "");
+    let workbook = crate::election_config::xlsx::read_xlsx(&xlsx).unwrap();
+    let mut sheets = workbook.sheets().to_vec();
+    sheets.push(rows_sheet("Voters", rows));
+    write_xlsx(&Workbook::new(sheets).unwrap()).unwrap()
+}
+
+#[test]
+fn historical_voter_overlay_preserves_accounts_through_direct_wizard_and_saved_delivery(
+) {
+    use crate::election_config::architect::{compile_plan, Compile, Trustee};
+    use crate::election_config::plan_from_workbook::plan_from_workbook;
+
+    let (sql, _) = overseas_voter_fixture("", "");
+    let xlsx = voter_overlay(vec![
+        row(
+            "Voters",
+            0,
+            vec![
+                ("username", json!("v-0000")),
+                ("email", json!("synthetic@example.test")),
+                ("email_verified", json!(false)),
+                ("enabled", json!(false)),
+                (
+                    "authorized-election-ids",
+                    json!(["center:P01:context:e1", "center:P01:context:e1"]),
+                ),
+            ],
+        ),
+        row(
+            "Voters",
+            1,
+            vec![
+                ("username", json!("v-0001")),
+                ("email_verified", json!(true)),
+            ],
+        ),
+    ]);
+    let adapted = adapt(&sql, &xlsx, &preserving()).unwrap();
+    let templates = TemplateSet::builtin().unwrap();
+    let options = BuildOptions::default();
+    let direct =
+        build(&adapted.workbook, &templates, &options, &Sources::default())
+            .unwrap();
+    let mut read = plan_from_workbook(&adapted.workbook).unwrap();
+    read.plan.trustees = ["trustee-a", "trustee-b"]
+        .map(|name| Trustee {
+            name: name.into(),
+            email: format!("{name}@example.test"),
+        })
+        .to_vec();
+    let compiled = compile_plan(Compile {
+        plan: &read.plan,
+        templates: &templates,
+        options: &options,
+        profile: None,
+        sources: Some(&read.sources),
+    })
+    .unwrap();
+    let delivery = archive::delivery(&compiled.layout).unwrap();
+    let opened = crate::election_config::open::open(&delivery.bytes).unwrap();
+    let rebuilt = compile_plan(Compile {
+        plan: &opened.plan,
+        templates: &templates,
+        options: &options,
+        profile: None,
+        sources: Some(&opened.sources),
+    })
+    .unwrap();
+    for bundle in [&direct, &compiled.bundle, &rebuilt.bundle] {
+        let voters = &bundle.voters;
+        assert_eq!(voters.rows.len(), 80);
+        let value = |username: &str, field: &str| {
+            let row = voters
+                .rows
+                .iter()
+                .find(|r| r[voters.column("username").unwrap()] == username)
+                .unwrap();
+            row[voters.column(field).unwrap()].clone()
+        };
+        assert_eq!(value("v-0000", "email"), "synthetic@example.test");
+        assert_eq!(value("v-0000", "enabled"), "false");
+        assert_eq!(value("v-0000", "email_verified"), "false");
+        assert_eq!(
+            value("v-0000", "authorized-election-ids"),
+            "center:P01:context:e1"
+        );
+        assert_eq!(value("v-0000", "first_name"), "First0");
+        assert_eq!(value("v-0000", "area_name"), "KINGDOM OF THAILAND");
+        assert_eq!(value("v-0001", "email"), "");
+        assert_eq!(value("v-0001", "email_verified"), "true");
+        assert_eq!(value("v-0002", "enabled"), "true");
+        assert_eq!(value("v-0002", "email_verified"), "false");
+        assert_eq!(value("v-0002", "authorized-election-ids"), "");
+    }
+}
+
+#[test]
+fn historical_voter_overlay_rejects_duplicate_and_unknown_usernames() {
+    let (sql, _) = overseas_voter_fixture("", "");
+    for (names, code) in [
+        (vec!["v-0000", "v-0000"], Code::DuplicateId),
+        (vec!["unknown"], Code::DanglingReference),
+    ] {
+        let rows = names
+            .into_iter()
+            .enumerate()
+            .map(|(i, name)| {
+                row(
+                    "Voters",
+                    i,
+                    vec![
+                        ("username", json!(name)),
+                        ("email", json!("synthetic@example.test")),
+                    ],
+                )
+            })
+            .collect();
+        let refused =
+            adapt(&sql, &voter_overlay(rows), &preserving()).unwrap_err();
+        assert_eq!(refused.report.problems[0].code, code);
+        assert_eq!(
+            refused.report.problems[0]
+                .at
+                .as_ref()
+                .unwrap()
+                .column
+                .as_deref(),
+            Some("username")
+        );
+    }
+}
+
+#[test]
+fn historical_voter_overlay_protects_source_identity_area_and_unrequested_attributes(
+) {
+    let (sql, _) = overseas_voter_fixture("", "");
+    for field in [
+        "id",
+        "first_name",
+        "last_name",
+        "middleName",
+        "dateOfBirth",
+        "country",
+        "embassy",
+        "area.external_id",
+        "area_name",
+        "source_country",
+        "password",
+        "passport",
+    ] {
+        let xlsx = voter_overlay(vec![row(
+            "Voters",
+            0,
+            vec![("username", json!("v-0000")), (field, json!("replacement"))],
+        )]);
+        let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+        assert_eq!(
+            refused.report.problems[0].code,
+            Code::ConflictingColumns,
+            "{field}"
+        );
+        assert_eq!(
+            refused.report.problems[0]
+                .at
+                .as_ref()
+                .unwrap()
+                .column
+                .as_deref(),
+            Some(field)
+        );
+    }
+}
+
+#[test]
+fn historical_voter_overlay_requires_preserving_census_and_valid_flags() {
+    let (sql, _) = overseas_voter_fixture("", "");
+    let xlsx = voter_overlay(vec![row(
+        "Voters",
+        0,
+        vec![("username", json!("v-0000")), ("enabled", json!(false))],
+    )]);
+    let refused = adapt(&sql, &xlsx, &reviewed()).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::NotApproved);
+    for field in ["enabled", "email_verified"] {
+        let xlsx = voter_overlay(vec![row(
+            "Voters",
+            0,
+            vec![("username", json!("v-0000")), (field, json!("typo"))],
+        )]);
+        let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+        assert_eq!(refused.report.problems[0].code, Code::InvalidValue);
+        assert_eq!(
+            refused.report.problems[0]
+                .at
+                .as_ref()
+                .unwrap()
+                .column
+                .as_deref(),
+            Some(field)
+        );
+    }
+}
+
+#[test]
+fn historical_voter_overlay_refuses_unknown_elections_at_build() {
+    let (sql, _) = overseas_voter_fixture("", "");
+    let xlsx = voter_overlay(vec![row(
+        "Voters",
+        0,
+        vec![
+            ("username", json!("v-0000")),
+            ("authorized-election-ids", json!(["unknown-election"])),
+        ],
+    )]);
+    let adapted = adapt(&sql, &xlsx, &preserving()).unwrap();
+    let report = build(
+        &adapted.workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap_err();
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.code == Code::DanglingReference
+            && problem.path.contains("authorized-election-ids")));
+}
+
+#[test]
+fn empty_or_blank_historical_voter_overlays_leave_the_census_unchanged() {
+    let (sql, xlsx) = overseas_voter_fixture("", "");
+    let original = adapt(&sql, &xlsx, &preserving()).unwrap();
+    let templates = TemplateSet::builtin().unwrap();
+    let options = BuildOptions::default();
+    let baseline = build(
+        &original.workbook,
+        &templates,
+        &options,
+        &Sources::default(),
+    )
+    .unwrap();
+    for rows in [
+        vec![],
+        vec![row(
+            "Voters",
+            0,
+            vec![
+                ("username", json!("v-0000")),
+                ("email", json!("")),
+                ("email_verified", json!("")),
+                ("enabled", json!("")),
+                ("authorized-election-ids", json!("")),
+            ],
+        )],
+    ] {
+        let adapted = adapt(&sql, &voter_overlay(rows), &preserving()).unwrap();
+        let built =
+            build(&adapted.workbook, &templates, &options, &Sources::default())
+                .unwrap();
+        assert_eq!(built.voters, baseline.voters);
+    }
+}
+
+#[test]
+fn historical_voter_overlay_accepts_documented_flag_spellings() {
+    let (sql, _) = overseas_voter_fixture("", "");
+    let cases = [
+        (json!(true), "true"),
+        (json!(false), "false"),
+        (json!(" YES "), "true"),
+        (json!("no"), "false"),
+        (json!("x"), "true"),
+        (json!("1"), "true"),
+        (json!("0"), "false"),
+        (json!(1), "true"),
+        (json!(0), "false"),
+    ];
+    let rows = cases
+        .iter()
+        .enumerate()
+        .map(|(i, (flag, _))| {
+            row(
+                "Voters",
+                i,
+                vec![
+                    ("username", json!(format!("v-{i:04}"))),
+                    ("enabled", flag.clone()),
+                    ("email_verified", flag.clone()),
+                ],
+            )
+        })
+        .collect();
+    let adapted = adapt(&sql, &voter_overlay(rows), &preserving()).unwrap();
+    let built = build(
+        &adapted.workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap();
+    let username = built.voters.column("username").unwrap();
+    for (i, (_, expected)) in cases.iter().enumerate() {
+        let row = built
+            .voters
+            .rows
+            .iter()
+            .find(|row| row[username] == format!("v-{i:04}"))
+            .unwrap();
+        for field in ["enabled", "email_verified"] {
+            assert_eq!(
+                row[built.voters.column(field).unwrap()],
+                *expected,
+                "case {i}, {field}"
+            );
+        }
+    }
+}
+
+#[test]
+fn historical_voter_overlay_rejects_mistyped_accounts_and_missing_join_keys() {
+    let (sql, _) = overseas_voter_fixture("", "");
+    // Each refusal differs from a valid source username and account value by
+    // one field, so it proves the account boundary rather than a broken fixture.
+    for (field, value, code) in [
+        ("enabled", json!(2), Code::InvalidValue),
+        ("enabled", json!(0.5), Code::InvalidValue),
+        ("email_verified", json!([]), Code::InvalidValue),
+        (
+            "email_verified",
+            json!({"enabled": true}),
+            Code::InvalidValue,
+        ),
+        ("email", json!(true), Code::InvalidValue),
+        ("email", json!(42), Code::InvalidValue),
+        ("username", json!(""), Code::MissingField),
+    ] {
+        let mut cells = vec![
+            ("username", json!("v-0000")),
+            ("email", json!("synthetic@example.test")),
+        ];
+        cells.retain(|(column, _)| *column != field);
+        cells.push((field, value));
+        let xlsx = voter_overlay(vec![row("Voters", 0, cells)]);
+        let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+        let problem = &refused.report.problems[0];
+        assert_eq!(problem.code, code, "{field}");
+        assert_eq!(problem.at.as_ref().unwrap().column.as_deref(), Some(field));
+    }
+}
+
+#[test]
+fn voter_restriction_review_rejects_null_and_malformed_historical_members() {
+    let (sql, _) = overseas_voter_fixture("", "");
+    for value in [
+        json!(null),
+        json!("null"),
+        json!(["center:P01:context:e1", null]),
+        json!([true]),
+        json!([{}]),
+        json!([[]]),
+        json!("||"),
+    ] {
+        let xlsx = voter_overlay(vec![row(
+            "Voters",
+            0,
+            vec![
+                ("username", json!("v-0000")),
+                ("authorized-election-ids", value.clone()),
+            ],
+        )]);
+        let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+        let problem = &refused.report.problems[0];
+        assert_eq!(problem.code, Code::InvalidValue, "{value}");
+        assert_eq!(
+            problem.at.as_ref().unwrap().column.as_deref(),
+            Some("authorized-election-ids")
+        );
+    }
+}

@@ -1175,7 +1175,14 @@ fn read_voters(
                     Value::String(text) => {
                         Some((header.clone(), text.to_string()))
                     }
-                    other => Some((header.clone(), cell_text(other, false))),
+                    other => Some((
+                        header.clone(),
+                        cell_text(
+                            other,
+                            super::sheet::multi_value_columns("voters")
+                                .contains(&header.as_str()),
+                        ),
+                    )),
                 })
                 .collect();
 

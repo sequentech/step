@@ -952,3 +952,122 @@ fn a_bare_export_gives_no_base() {
         .expect("a readable export");
     assert!(read.plan.base_export.is_none());
 }
+
+#[cfg(all(
+    feature = "election_config_archive",
+    feature = "election_config_xlsx"
+))]
+fn restriction_archive(document: &Value, csv: &str) -> Vec<u8> {
+    use crate::election_config::archive::{zip, Artifact};
+    zip(&[
+        Artifact {
+            name: "export_election_event-legacy.json".into(),
+            bytes: serde_json::to_vec(document).unwrap(),
+        },
+        Artifact {
+            name: "export_voters-legacy.csv".into(),
+            bytes: csv.as_bytes().to_vec(),
+        },
+    ])
+    .unwrap()
+}
+
+#[cfg(all(
+    feature = "election_config_archive",
+    feature = "election_config_xlsx"
+))]
+#[test]
+fn legacy_restriction_archive_normalizes_uuids_without_losing_unknown_ids() {
+    let mut document = awkward();
+    document["elections"][0]["id"] =
+        serde_json::json!("d25f0506-5e34-4eca-9368-2ee2f32915d0");
+    document["contests"][0]["election_id"] =
+        document["elections"][0]["id"].clone();
+    // Old builds emitted UUIDs here; canonical external IDs and unknown values
+    // must also survive mixed archives without widening any voter's access.
+    let bytes = restriction_archive(&document, "username,area_name,authorized-election-ids\nlegacy,North,d25f0506-5e34-4eca-9368-2ee2f32915d0\ncanonical,North,officers\nmixed,North,d25f0506-5e34-4eca-9368-2ee2f32915d0|unknown-election\nblank,North,\n");
+    let opened = crate::election_config::open::open(&bytes).unwrap();
+    let people = opened
+        .sources
+        .census
+        .as_ref()
+        .unwrap()
+        .next_batch(10)
+        .unwrap();
+    assert_eq!(people[0].extra["authorized-election-ids"], "officers");
+    assert_eq!(people[1].extra["authorized-election-ids"], "officers");
+    assert_eq!(
+        people[2].extra["authorized-election-ids"],
+        "officers|unknown-election"
+    );
+    assert!(!people[3].extra.contains_key("authorized-election-ids"));
+
+    let workbook = crate::election_config::architect::to_workbook(
+        &opened.plan,
+        &opened.sources,
+    )
+    .unwrap();
+    let report = crate::election_config::build::build(
+        &workbook,
+        &crate::election_config::render::TemplateSet::builtin().unwrap(),
+        &crate::election_config::build::BuildOptions::default(),
+        &opened.sources,
+    )
+    .unwrap_err();
+    assert!(report
+        .errors()
+        .any(|problem| problem.code == Code::DanglingReference
+            && problem.message.contains("unknown-election")));
+    assert!(!report
+        .errors()
+        .any(|problem| problem.code == Code::DanglingReference
+            && problem.message.contains("d25f0506")));
+}
+
+#[cfg(all(
+    feature = "election_config_archive",
+    feature = "election_config_xlsx"
+))]
+#[test]
+fn legacy_restriction_archive_rejects_ambiguous_election_identifiers() {
+    for second in [
+        serde_json::json!({"id": "e1", "external_id": "other"}),
+        serde_json::json!({"id": "e2", "external_id": "e1"}),
+    ] {
+        let mut document = awkward();
+        document["elections"].as_array_mut().unwrap().push(second);
+        let bytes = restriction_archive(
+            &document,
+            "username,area_name,authorized-election-ids\nada,North,e1\n",
+        );
+        let report = crate::election_config::open::open(&bytes).unwrap_err();
+        assert!(report
+            .errors()
+            .any(|problem| problem.code == Code::DuplicateId
+                && problem.path.contains("authorized-election-ids")));
+    }
+}
+
+#[cfg(all(
+    feature = "election_config_archive",
+    feature = "election_config_xlsx"
+))]
+#[test]
+fn legacy_restriction_archive_rejects_malformed_lists_before_normalizing() {
+    for raw in ["||", "officers|", "|officers", "officers||"] {
+        let bytes = restriction_archive(
+            &awkward(),
+            &format!(
+                "username,area_name,authorized-election-ids\nada,North,{raw}\n"
+            ),
+        );
+        let report = crate::election_config::open::open(&bytes).unwrap_err();
+        assert!(
+            report
+                .errors()
+                .any(|problem| problem.code == Code::InvalidValue
+                    && problem.path.contains("authorized-election-ids")),
+            "{raw}: {report:?}"
+        );
+    }
+}

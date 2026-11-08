@@ -13,7 +13,7 @@
 
 use super::{
     problem::{Code, Problem, Report},
-    sheet::{Row, Sheet, Workbook},
+    sheet::{Origin, Row, Sheet, Workbook},
     sql_dump::{read_mysql_dump, SqlDump, SqlTable, SqlValue},
     xlsx::read_xlsx,
 };
@@ -718,6 +718,97 @@ const PASSED_THROUGH: &[&str] = &[
     super::signing_sheet::SHEET_APPROVAL_MATRIX,
     super::signing_sheet::SHEET_SIGNING_NOTICES,
 ];
+/// Account fields absent from the SQL census. Identity and area stay source-owned.
+fn apply_voter_rows(
+    sheet: Option<&Sheet>,
+    voters: &mut [Row],
+    census: CensusPolicy,
+) -> Result<(), Problem> {
+    let Some(sheet) = sheet else {
+        return Ok(());
+    };
+    const ALLOWED: &[&str] = &[
+        "username",
+        "email",
+        "email_verified",
+        "enabled",
+        "authorized-election-ids",
+    ];
+    for column in &sheet.headers {
+        if !column.is_empty() && !ALLOWED.contains(&column.as_str()) {
+            let origin = Origin::column(&sheet.name, column);
+            return Err(Problem::error(
+                Code::ConflictingColumns, origin.to_string(),
+                "historical Voters accepts only username, email, email_verified, enabled and authorized-election-ids; identity and area come from SQL",
+            ).at(&origin));
+        }
+    }
+    if !sheet.rows.is_empty() && census != CensusPolicy::PreserveSourceVoters {
+        return Err(Problem::error(
+            Code::NotApproved,
+            "sheet Voters",
+            "a supplemental voter account requires preserve-source-voters",
+        ));
+    }
+    let index = workbook_index(voters, "username")?;
+    let mut seen = BTreeSet::new();
+    for given in &sheet.rows {
+        let username = text(given, "username")?;
+        let origin = given.origin(Some("username"));
+        if !seen.insert(username.clone()) {
+            return Err(Problem::error(
+                Code::DuplicateId,
+                origin.to_string(),
+                "supplemental voter username is duplicated",
+            )
+            .at(&origin));
+        }
+        let Some(&at) = index.get(&username) else {
+            return Err(Problem::error(
+                Code::DanglingReference,
+                origin.to_string(),
+                "supplemental voter username has no source census row",
+            )
+            .at(&origin));
+        };
+        for (column, value) in &given.cells {
+            if column == "username" {
+                continue;
+            }
+            let valid = match column.as_str() {
+                "email" => matches!(value, Value::String(_) | Value::Null),
+                "enabled" | "email_verified" => match value {
+                    Value::Bool(_) => true,
+                    Value::String(text) => matches!(
+                        text.trim().to_lowercase().as_str(),
+                        "true" | "false" | "yes" | "no" | "x" | "1" | "0"
+                    ),
+                    Value::Number(number) => {
+                        number.as_i64().is_some_and(|n| n == 0 || n == 1)
+                    }
+                    _ => false,
+                },
+                // References are validated against the generated elections by the builder.
+                "authorized-election-ids" => {
+                    super::sheet::voter_election_keys(value).is_ok()
+                }
+                _ => false,
+            };
+            if !valid {
+                let origin = given.origin(Some(column));
+                return Err(Problem::error(
+                    Code::InvalidValue,
+                    origin.to_string(),
+                    "invalid supplemental voter account value",
+                )
+                .at(&origin));
+            }
+            set(&mut voters[at], column, value.clone());
+        }
+    }
+    Ok(())
+}
+
 /// What a `Contests` row may not change: the identity, the election and the
 /// counting the source's seats decide.
 const SOURCE_CONTEST_COLUMNS: &[&str] = &[
@@ -1018,6 +1109,7 @@ fn map(
             "scheduledevents",
             "ccsservers",
             "parameters",
+            "voters",
         ]
         .contains(&sheet.key.as_str())
             && !PASSED_THROUGH.contains(&sheet.key.as_str())
@@ -1793,12 +1885,17 @@ fn map(
             ],
         ));
     }
-    let voter_rows = match (options.census, options.voter_area_join) {
+    let mut voter_rows = match (options.census, options.voter_area_join) {
         (CensusPolicy::PreserveSourceVoters, Some(join)) => {
             build_source_voter_rows(dump, join, &precinct_area_index, summary)?
         }
         _ => Vec::new(),
     };
+    apply_voter_rows(
+        workbook.sheet("voters"),
+        &mut voter_rows,
+        options.census,
+    )?;
     let provenance = json!({
         "profile": PROFILE,
         "sourceSchema": summary.source_schema,

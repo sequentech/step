@@ -987,7 +987,8 @@ pub fn fill_from_archive(
         check_census_against_profile(document, csv, report);
         // Beside the plan, not in it: a plan has had nowhere to put a census
         // since version 4, and this door is the one that always brought one.
-        let people = voters_from_csv(csv, plan, report);
+        let mut people = voters_from_csv(csv, plan, report);
+        normalize_election_restrictions(&mut people, document, report);
         if !people.is_empty() {
             sources.census = Some(std::sync::Arc::new(
                 crate::election_config::sources::VecCensus::new(people),
@@ -997,6 +998,71 @@ pub fn fill_from_archive(
     images_into(plan, document, beside, report);
     materials_into(plan, document, beside, report);
     sources
+}
+
+/// Older import archives store election UUIDs where current censuses use
+/// external IDs. Resolve only through the accompanying document, never by UUID
+/// shape. Unknown values remain intact so later validation fails closed.
+fn normalize_election_restrictions(
+    people: &mut [PlannedVoter],
+    document: &Value,
+    report: &mut Report,
+) {
+    let mut targets: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    let elections = array(document, "elections");
+    for election in &elections {
+        let Some(external) =
+            election.get("external_id").and_then(Value::as_str)
+        else {
+            continue;
+        };
+        if external.trim().is_empty() {
+            continue;
+        }
+        // Canonical keys participate too: a UUID that is another election's
+        // external ID cannot safely be interpreted in either namespace.
+        targets.entry(external).or_default().push(external);
+        if let Some(id) = election.get("id").and_then(Value::as_str) {
+            if !id.is_empty() && id != external {
+                targets.entry(id).or_default().push(external);
+            }
+        }
+    }
+    for (row, person) in people.iter_mut().enumerate() {
+        let Some(raw) = person.extra.get_mut("authorized-election-ids") else {
+            continue;
+        };
+        let canonical = match super::sheet::voter_restriction_text(raw) {
+            Ok(value) => value,
+            Err(message) => {
+                report.push(Problem::error(
+                    Code::InvalidValue,
+                    format!("voters[{row}].authorized-election-ids"),
+                    message,
+                ));
+                continue;
+            }
+        };
+        let mut normalized = Vec::new();
+        for key in canonical.split(super::paths::MULTI_VALUE_SEPARATOR) {
+            if key.is_empty() {
+                continue;
+            }
+            match targets.get(key).map(Vec::as_slice) {
+                Some([external]) => normalized.push(*external),
+                Some(_) => {
+                    report.push(Problem::error(
+                        Code::DuplicateId,
+                        format!("voters[{row}].authorized-election-ids"),
+                        format!("election restriction '{key}' is ambiguous in this archive"),
+                    ));
+                    normalized.push(key);
+                }
+                None => normalized.push(key),
+            }
+        }
+        *raw = normalized.join(super::emit::MULTI_VALUE_SEPARATOR);
+    }
 }
 
 /// The census's columns against the realm's user profile.
@@ -1145,9 +1211,6 @@ fn voters_from_csv(
         "last_name",
         "area_name",
         "id",
-        "email_verified",
-        "enabled",
-        "authorized-election-ids",
     ];
 
     // **A password this plan generated is not a password this plan was given.**
@@ -1161,7 +1224,7 @@ fn voters_from_csv(
     //
     // So a column the recipe would have written is dropped on the way in and
     // derived again on the way out — the same rule `census_csv::DERIVED` follows
-    // for `id` and the authorised elections the platform fills in. A password a client
+    // for the `id` the platform fills in. A password a client
     // *typed* is untouched, because a plan with no recipe drops nothing.
     let ours = plan.passwords.as_ref().is_some_and(|recipe| recipe.ready());
 

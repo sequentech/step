@@ -1265,6 +1265,12 @@ impl<'a> Builder<'a> {
                 continue;
             };
 
+            if external_id.contains('|') {
+                self.problem(row.origin(Some("external_id")), Code::InvalidValue,
+                    "an election external_id must not contain '|', the voter authorization separator");
+                continue;
+            }
+
             let election_id = self.ids.uid("election", &[&external_id]);
             self.election_ids
                 .push((external_id.clone(), election_id.clone()));
