@@ -283,6 +283,7 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
     return assertion.getAttributeStatements().stream()
         .flatMap(statement -> statement.getAttributes().stream())
         .map(choice -> choice.getAttribute())
+        .filter(Objects::nonNull)
         .filter(
             (AttributeType attribute) ->
                 name.equals(attribute.getName()) || name.equals(attribute.getFriendlyName()))
