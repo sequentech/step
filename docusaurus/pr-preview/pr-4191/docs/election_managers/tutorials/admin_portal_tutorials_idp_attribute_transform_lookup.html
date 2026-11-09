@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Transforming and Looking Up IdP Attributes | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4191/docs/election_managers/tutorials/admin_portal_tutorials_idp_attribute_transform_lookup"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Transforming and Looking Up IdP Attributes | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4191/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4191/docs/election_managers/tutorials/admin_portal_tutorials_idp_attribute_transform_lookup"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4191/docs/election_managers/tutorials/admin_portal_tutorials_idp_attribute_transform_lookup" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4191/docs/election_managers/tutorials/admin_portal_tutorials_idp_attribute_transform_lookup" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Transforming and Looking Up IdP Attributes","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4191/docs/election_managers/tutorials/admin_portal_tutorials_idp_attribute_transform_lookup"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4191/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4191/assets/js/runtime~main.531248e8.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4191/assets/js/runtime~main.d4264b85.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4191/assets/js/main.25e4022e.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -88,7 +88,7 @@ table included, from its database on every login, so keep large tables compact (
 <a href="#loading-a-large-table-through-the-admin-rest-api" class="">Loading a large table</a>).</p>
 <hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="behavior-summary">Behavior Summary<a href="#behavior-summary" class="hash-link" aria-label="Direct link to Behavior Summary" title="Direct link to Behavior Summary" translate="no">​</a></h2>
-<table><thead><tr><th>On miss</th><th>New user</th><th>Returning user (<code>force</code> sync mode)</th></tr></thead><tbody><tr><td><code>UNSET</code></td><td>The target stays empty.</td><td>The attribute is removed.</td></tr><tr><td><code>DEFAULT</code></td><td>The default value is stored.</td><td>The default value is stored.</td></tr></tbody></table>
+<table><thead><tr><th>On miss</th><th>New user</th><th>Returning user (<code>force</code> sync mode)</th></tr></thead><tbody><tr><td><code>UNSET</code></td><td>The target stays empty, even if the identity provider supplied a value for it.</td><td>The attribute or user property is removed.</td></tr><tr><td><code>DEFAULT</code></td><td>The default value is stored.</td><td>The default value is stored.</td></tr></tbody></table>
 <p>The mapper never stops a login. To reject a login on a miss, leave <strong>On miss</strong> as <code>UNSET</code> and add a
 check to the login flows (see <a href="#rejecting-logins" class="">Rejecting logins</a>).</p>
 <hr>
@@ -132,8 +132,9 @@ username must be the part before <code>@</code>, and it must be a UUID version 8
 <p>Check in the first broker login flow:</p>
 <table><thead><tr><th>Step</th><th>Setting</th><th>Value</th></tr></thead><tbody><tr><td>Condition - Brokered Value</td><td>Target</td><td><code>USERNAME</code></td></tr><tr><td></td><td>Regex</td><td><code>^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$</code></td></tr><tr><td></td><td>Negate output</td><td>on</td></tr><tr><td>Deny access</td><td>Error message</td><td><code>Your voter ID is not valid. Contact your identity provider.</code></td></tr></tbody></table>
 <p>If the NameID has no <code>@</code>, the mapper leaves the username as the identity provider sent it, and the
-check rejects it because it doesn&#x27;t match the regex. The username of an existing user never
-changes, so this check only belongs in the first broker login flow.</p>
+check rejects the login because a username the mapper couldn&#x27;t resolve counts as empty. The
+username of an existing user never changes, so this check only belongs in the first broker login
+flow.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="example--saml-area-from-region-and-precinct">Example – SAML: Area from Region and Precinct<a href="#example--saml-area-from-region-and-precinct" class="hash-link" aria-label="Direct link to Example – SAML: Area from Region and Precinct" title="Direct link to Example – SAML: Area from Region and Precinct" translate="no">​</a></h2>
 <p>The IdP sends the attributes <code>region</code> (<code>09</code>) and <code>precinct</code> (<code>0150</code>).</p>
 <p>Mapper:</p>
