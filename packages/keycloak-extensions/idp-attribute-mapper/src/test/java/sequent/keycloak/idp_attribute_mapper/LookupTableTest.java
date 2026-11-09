@@ -145,4 +145,28 @@ class LookupTableTest {
     assertEquals("area-17-040", table.lookup("17:1001"));
     assertNull(table.lookup("33:0001"));
   }
+
+  @Test
+  void emptyKeysInGroupedRowsAreRejected() {
+    assertThrows(LookupTable.ParseException.class, () -> parse("area = key,"));
+    assertThrows(LookupTable.ParseException.class, () -> parse("area=,"));
+  }
+
+  @Test
+  void overlapHiddenByAnotherWidthIsRejected() {
+    assertThrows(
+        LookupTable.ParseException.class, () -> parse("a = 01..99\nb = 005..006\nc = 10..20"));
+  }
+
+  @Test
+  void unrestrictedWidthRangeConflictsWithAnyWidth() {
+    assertThrows(LookupTable.ParseException.class, () -> parse("a = 1..100\nb = 050..060"));
+  }
+
+  @Test
+  void rangesOfDifferentFixedWidthsCanOverlap() {
+    LookupTable table = parse("a = 01..10\nb = 001..010");
+    assertEquals("a", table.lookup("05"));
+    assertEquals("b", table.lookup("005"));
+  }
 }

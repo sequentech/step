@@ -118,7 +118,7 @@ table included, from its database on every login, so keep large tables compact (
 
 | On miss | New user | Returning user (`force` sync mode) |
 |---|---|---|
-| `UNSET` | The target stays empty. | The attribute is removed. |
+| `UNSET` | The target stays empty, even if the identity provider supplied a value for it. | The attribute or user property is removed. |
 | `DEFAULT` | The default value is stored. | The default value is stored. |
 
 The mapper never stops a login. To reject a login on a miss, leave **On miss** as `UNSET` and add a

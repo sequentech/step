@@ -72,7 +72,7 @@ public final class LookupTable {
         if (value.isEmpty()) {
           throw new ParseException(lineNumber, "missing value before '='");
         }
-        for (String item : line.substring(equals + 1).split(",")) {
+        for (String item : line.substring(equals + 1).split(",", -1)) {
           String key = item.strip();
           if (key.isEmpty()) {
             throw new ParseException(lineNumber, "empty key");
@@ -101,12 +101,18 @@ public final class LookupTable {
     for (Map.Entry<String, List<Range>> entry : ranges.entrySet()) {
       List<Range> list = entry.getValue();
       list.sort((a, b) -> Long.compare(a.from(), b.from()));
-      for (int i = 1; i < list.size(); i++) {
-        Range previous = list.get(i - 1);
-        Range current = list.get(i);
-        if (current.from() <= previous.to() && current.width() == previous.width()) {
+      // Highest end seen so far per width. Width 0 accepts keys of any width.
+      Map<Integer, Long> highestEnd = new HashMap<>();
+      for (Range current : list) {
+        boolean overlaps =
+            current.width() == 0
+                ? highestEnd.values().stream().anyMatch(end -> current.from() <= end)
+                : current.from() <= highestEnd.getOrDefault(current.width(), -1L)
+                    || current.from() <= highestEnd.getOrDefault(0, -1L);
+        if (overlaps) {
           throw new ParseException("overlapping ranges for prefix '" + entry.getKey() + "'");
         }
+        highestEnd.merge(current.width(), current.to(), Math::max);
       }
     }
     return new LookupTable(Collections.unmodifiableMap(exact), Collections.unmodifiableMap(ranges));

@@ -8,11 +8,12 @@ import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.Response;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.broker.oidc.KeycloakOIDCIdentityProviderFactory;
 import org.keycloak.broker.oidc.OIDCIdentityProviderFactory;
@@ -69,7 +70,17 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
   private record CachedSettings(
       Map<String, String> config, MapperSettings settings, RuntimeException error) {}
 
-  private static final Map<String, CachedSettings> SETTINGS_CACHE = new ConcurrentHashMap<>();
+  static final int SETTINGS_CACHE_SIZE = 128;
+
+  /** Bounded so deleted mappers and realms don't keep their parsed tables in memory. */
+  private static final Map<String, CachedSettings> SETTINGS_CACHE =
+      Collections.synchronizedMap(
+          new LinkedHashMap<String, CachedSettings>(16, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, CachedSettings> eldest) {
+              return size() > SETTINGS_CACHE_SIZE;
+            }
+          });
 
   private static List<ProviderConfigProperty> buildConfigProperties() {
     return List.of(
@@ -88,7 +99,8 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
             MapperSettings.EXTRACT_REGEX,
             "Extract regex",
             "Optional. Applied to each source value; the first capture group (or the whole match"
-                + " if there is no group) is kept. A value that does not match is a miss.",
+                + " if there is no group) is kept. A value that does not match, or extracts to nothing,"
+                + " is a miss.",
             ProviderConfigProperty.STRING_TYPE,
             null,
             null),
@@ -345,12 +357,11 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
     context
         .getContextData()
         .put(resolutionKey(mapperModel), value == null ? Unset.INSTANCE : value);
-    if (value == null) {
-      return;
-    }
     MapperSettings settings = settings(mapperModel);
     if (settings.target() == Target.USERNAME) {
-      context.setModelUsername(value);
+      if (value != null) {
+        context.setModelUsername(value);
+      }
       return;
     }
     String attribute = settings.targetAttribute();
@@ -360,6 +371,8 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
       context.setFirstName(value);
     } else if (attribute.equalsIgnoreCase(LAST_NAME)) {
       context.setLastName(value);
+    } else if (value == null) {
+      context.removeUserAttribute(attribute);
     } else {
       context.setUserAttribute(attribute, value);
     }
@@ -415,8 +428,8 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
     String value = resolved(session, mapperModel, context);
     if (value != null) {
       write(user, attribute, value);
-    } else if (!isBuiltIn(attribute) && user.getFirstAttribute(attribute) != null) {
-      user.removeAttribute(attribute);
+    } else {
+      clear(user, attribute);
     }
   }
 
@@ -430,10 +443,22 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
     updateBrokeredUser(session, realm, user, mapperModel, context);
   }
 
-  private static boolean isBuiltIn(String attribute) {
-    return attribute.equalsIgnoreCase(EMAIL)
-        || attribute.equalsIgnoreCase(FIRST_NAME)
-        || attribute.equalsIgnoreCase(LAST_NAME);
+  private static void clear(UserModel user, String attribute) {
+    if (attribute.equalsIgnoreCase(EMAIL)) {
+      if (user.getEmail() != null) {
+        user.setEmail(null);
+      }
+    } else if (attribute.equalsIgnoreCase(FIRST_NAME)) {
+      if (user.getFirstName() != null) {
+        user.setFirstName(null);
+      }
+    } else if (attribute.equalsIgnoreCase(LAST_NAME)) {
+      if (user.getLastName() != null) {
+        user.setLastName(null);
+      }
+    } else if (user.getFirstAttribute(attribute) != null) {
+      user.removeAttribute(attribute);
+    }
   }
 
   private static void write(UserModel user, String attribute, String value) {
