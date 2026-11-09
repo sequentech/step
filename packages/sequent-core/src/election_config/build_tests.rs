@@ -4370,3 +4370,72 @@ fn voter_restriction_review_rejects_malformed_members_in_direct_builds() {
         );
     }
 }
+
+#[test]
+fn masked_scanovate_settings_are_refused_in_whole_realms_and_standalone_patches(
+) {
+    for key in [
+        "keycloak_event_realm",
+        "keycloak_event_realm.authenticatorConfig",
+    ] {
+        let configs = json!([{"alias": "custom-enrollment", "config": {
+            "liveness-secret": "*****", "future-setting": "synthetic-do-not-print"
+        }}]);
+        let value = if key == "keycloak_event_realm" {
+            json!({"authenticatorConfig": configs})
+        } else {
+            configs
+        };
+        let workbook = with_sheet(
+            "Parameters",
+            vec![
+                vec![text("key"), text("value")],
+                vec![text(key), text(&value.to_string())],
+            ],
+        );
+        let report = refused(&workbook);
+        assert!(report.problems.iter().any(|problem| problem.id.as_deref()
+            == Some("file.masked-integration-secret")));
+        assert!(!report.to_string().contains("synthetic-do-not-print"));
+    }
+}
+
+#[test]
+fn explicit_scanovate_overrides_survive_the_preset_and_id_rewrite() {
+    let config = json!([{"alias": "scanovate-registration", "config": {
+        "liveness-secret": "synthetic-source-event",
+        "face-match-url": "https://match.example.test/source-event",
+        "document-liveness-min-probability": "0.91", "future-setting": "source-event"
+    }}]);
+    let workbook = with_sheet(
+        "Parameters",
+        vec![
+            vec![text("key"), text("value")],
+            vec![text("auth_type"), text("biometric_authentication")],
+            vec![
+                text("keycloak_event_realm.authenticatorConfig"),
+                text(&config.to_string()),
+            ],
+        ],
+    );
+    let bundle = with_options(
+        &workbook,
+        BuildOptions {
+            base_export: Some(
+                json!({"keycloak_event_realm": biometric_realm(),
+            "election_event": {"id": "source-event"}}),
+            ),
+            ..BuildOptions::default()
+        },
+    );
+    let installed = bundle.export["keycloak_event_realm"]
+        ["authenticatorConfig"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|value| value["alias"] == "scanovate-registration")
+        .unwrap();
+    for (key, expected) in config[0]["config"].as_object().unwrap() {
+        assert_eq!(&installed["config"][key], expected);
+    }
+}

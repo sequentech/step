@@ -231,7 +231,7 @@ impl fmt::Display for Origin {
 ///
 /// Serialisable because a plan can carry sheets the wizard has no screens for —
 /// see `Blueprint::platform` — and those live in `blueprint.json` verbatim.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct Row {
     pub sheet: String,
 
@@ -1093,5 +1093,11 @@ mod tests {
             workbook.sheet_names(),
             vec!["Elections", "Electons", "Read Me"]
         );
+    }
+}
+
+impl std::fmt::Debug for Row {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("Row").finish_non_exhaustive()
     }
 }

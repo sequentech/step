@@ -7149,3 +7149,71 @@ fn voter_restriction_review_rejects_malformed_plan_lists_without_broadening() {
         assert_eq!(problem.code, Code::InvalidValue);
     }
 }
+
+#[test]
+fn excel_realm_carriage_respects_explicit_parameters_and_build_base() {
+    let mut plan = sound();
+    let original = serde_json::json!({"realm": "original", "enabled": true});
+    let replacement =
+        serde_json::json!({"realm": "replacement", "enabled": false});
+    plan.base_export =
+        Some(serde_json::json!({"keycloak_event_realm": original,
+        "election_event": {"id": "original-event-id"}}));
+    // A blank placeholder is not an override: the builder ignores it too.
+    plan.platform.push(
+        Sheet::from_grid(
+            "Parameters",
+            &[
+                vec![Cell::text("key"), Cell::text("value")],
+                vec![Cell::text("keycloak_event_realm"), Cell::Blank],
+            ],
+        )
+        .unwrap(),
+    );
+    let workbook = workbook_of(&plan).unwrap();
+    let values: Vec<_> = workbook
+        .rows(SHEET_PARAMETERS)
+        .iter()
+        .filter(|row| row.text("key") == Some("keycloak_event_realm"))
+        .filter_map(|row| row.get("value"))
+        .collect();
+    assert_eq!(values, vec![&original]);
+
+    let selected = serde_json::json!({"keycloak_event_realm": replacement});
+    let workbook =
+        to_workbook_with_base(&plan, &sources_of(&plan), Some(&selected))
+            .unwrap();
+    assert!(workbook
+        .rows(SHEET_PARAMETERS)
+        .iter()
+        .any(|row| row.text("key") == Some("keycloak_event_realm")
+            && row.get("value") == Some(&replacement)));
+    plan.platform[0].rows[0]
+        .cells
+        .push(("value".to_string(), original.clone()));
+    let workbook =
+        to_workbook_with_base(&plan, &sources_of(&plan), Some(&selected))
+            .unwrap();
+    let values: Vec<_> = workbook
+        .rows(SHEET_PARAMETERS)
+        .iter()
+        .filter(|row| row.text("key") == Some("keycloak_event_realm"))
+        .filter_map(|row| row.get("value"))
+        .collect();
+    assert_eq!(values, vec![&original]);
+}
+
+#[test]
+fn exporting_a_workbook_refuses_masked_dotted_scanovate_config() {
+    let mut plan = sound();
+    plan.platform.push(Sheet::from_grid("Parameters", &[
+        vec![Cell::text("key"), Cell::text("value")],
+        vec![Cell::text("keycloak_event_realm.authenticatorConfig"),
+            Cell::text(r#"[{"alias":"custom","config":{"liveness-secret":"*****"}}]"#)],
+    ]).unwrap());
+    let problem = workbook_of(&plan).unwrap_err();
+    assert_eq!(
+        problem.id.as_deref(),
+        Some("file.masked-integration-secret")
+    );
+}

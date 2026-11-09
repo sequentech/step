@@ -1300,25 +1300,14 @@ fn version_warning(imported_version: &str, current_version: &str) -> Result<Opti
 /// place, and Keycloak stores an imported realm's authenticator settings as
 /// given. Nothing is stripped or taken from elsewhere: the operator exports
 /// the event again with integration secrets included. Names configurations,
-/// never values.
+/// never values. Shared provider configurations are refused too: their settings
+/// cannot be preserved as opaque Scanovate data during ID remapping.
 fn reject_masked_integration_secrets(data: &ImportElectionEventSchema) -> Result<()> {
-    use crate::services::export::integration_secrets::{
-        masked_integration_secret_configs, SCANOVATE_LIVENESS_SECRET_KEY,
-    };
     let Some(realm) = data.keycloak_event_realm.as_ref() else {
         return Ok(());
     };
-    let masked = masked_integration_secret_configs(realm);
-    if masked.is_empty() {
-        return Ok(());
-    }
-    Err(reject(
-        "election event file",
-        import_problems::masked_integration_secret(
-            &masked.join(", "),
-            SCANOVATE_LIVENESS_SECRET_KEY,
-        ),
-    ))
+    sequent_core::election_config::scanovate::validate(realm)
+        .map_err(|problem| reject("election event file", problem))
 }
 
 /// Run the shared validation, refusing the import if it found anything fatal.
@@ -3729,7 +3718,9 @@ mod import_scope_tests {
         );
         let scanovate = |alias: &str, secret: &str| {
             json!({"alias": alias, "config": {
-                "liveness-url": endpoint, "liveness-secret": secret}})
+                "liveness-url": endpoint, "liveness-secret": secret,
+                "face-match-url": endpoint, "document-liveness-url": endpoint,
+                "future-setting": source_event}})
         };
         let mut input = bundle(&source_tenant, &source_event);
         let mut configs = vec![
@@ -3788,6 +3779,9 @@ mod import_scope_tests {
                 config["alias"]
             );
             assert_eq!(config["config"]["liveness-url"], endpoint.as_str());
+            assert_eq!(config["config"]["face-match-url"], endpoint.as_str());
+            assert_eq!(config["config"]["document-liveness-url"], endpoint.as_str());
+            assert_eq!(config["config"]["future-setting"], source_event.as_str());
         }
     }
 

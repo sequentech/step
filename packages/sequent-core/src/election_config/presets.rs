@@ -135,10 +135,10 @@ pub struct Requirement {
     pub why: &'static str,
 }
 
-/// An authenticator config value a preset needs and must never write.
+/// An authenticator config value a preset needs but has no default for.
 ///
-/// Set in the target realm by whoever deploys it. The build reports a realm that
-/// lacks it, rather than carrying the secret through a plan or a bundle.
+/// Supplied explicitly in a realm or configured in Keycloak after import. A
+/// supplied real value is preserved through plans, workbooks and import bundles.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ConfigSecret {
     pub config_alias: &'static str,
@@ -161,7 +161,7 @@ pub struct DeploymentSetting {
 /// The two directives are separate fields rather than magic keys inside the patch
 /// — which is how the Python carried them — so that writing the patch out never
 /// has to strip them, and so a caller cannot forget to.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub struct RealmPatch {
     /// Merged into the realm, deeply.
     pub patch: Map<String, Value>,
@@ -178,7 +178,7 @@ pub struct RealmPatch {
 }
 
 /// The parameters a preset reads, as resolved from the source document.
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct PresetInput {
     values: Vec<(String, Value)>,
 }
@@ -1535,5 +1535,19 @@ mod tests {
                 );
             }
         }
+    }
+}
+
+impl std::fmt::Debug for RealmPatch {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("RealmPatch").finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for PresetInput {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PresetInput")
+            .finish_non_exhaustive()
     }
 }

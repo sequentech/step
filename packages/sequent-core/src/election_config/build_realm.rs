@@ -40,6 +40,10 @@ pub const PARAM_LOGIN_CUSTOM_CSS: &str = "login_custom_css";
 /// place of a base export's.
 pub const PARAM_EVENT_REALM: &str = "keycloak_event_realm";
 
+/// Original event identifier carried beside a realm through a workbook.
+pub const PARAM_EVENT_REALM_SOURCE_ID: &str =
+    "keycloak_event_realm_source_event_id";
+
 impl Builder<'_> {
     /// The preset named by the caller, else by the document's `auth_type`.
     ///
@@ -239,7 +243,10 @@ impl Builder<'_> {
             _ => None,
         };
         let document_realm = self.document_realm();
-        if document_realm.is_some() && base_realm.is_some() {
+        if document_realm.is_some()
+            && base_realm.is_some()
+            && document_realm != base_realm
+        {
             self.warn(
                 "keycloak_event_realm",
                 format!(
@@ -249,15 +256,34 @@ impl Builder<'_> {
             );
         }
         // The event id the realm's URLs embed: the one it was exported with.
-        let (realm, source_event_id) = match (document_realm, base_realm) {
+        let (realm, source_event_id) = match (
+            document_realm,
+            base_realm.clone(),
+        ) {
             (Some(realm), _) => {
-                // An event realm is named `tenant-<tenant>-event-<event>`; its
-                // `id` is Keycloak's own and says nothing about the event.
-                let id = realm
-                    .get("realm")
+                // A workbook carries the source event id separately. A matching
+                // base export also knows it; the realm name is a legacy fallback.
+                let matching_base_id = if base_realm.as_ref() == Some(&realm) {
+                    self.base_export
+                        .get("election_event")
+                        .and_then(|event| event.get("id"))
+                        .and_then(Value::as_str)
+                } else {
+                    None
+                };
+                let id = self
+                    .parameter(PARAM_EVENT_REALM_SOURCE_ID)
                     .and_then(Value::as_str)
-                    .and_then(|name| name.rsplit_once("-event-"))
-                    .map(|(_, event)| event.to_string());
+                    .filter(|id| !id.is_empty())
+                    .or(matching_base_id)
+                    .or_else(|| {
+                        realm
+                            .get("realm")
+                            .and_then(Value::as_str)
+                            .and_then(|name| name.rsplit_once("-event-"))
+                            .map(|(_, event)| event)
+                    })
+                    .map(str::to_string);
                 (realm, id)
             }
             (None, Some(realm)) => {
@@ -320,7 +346,13 @@ impl Builder<'_> {
                 // an object, and it takes it wholesale. Keeping the base event's ids
                 // is the lesser fault, and it is said out loud.
                 match serde_json::from_str(&swapped) {
-                    Ok(reparsed) => reparsed,
+                    Ok(mut reparsed) => {
+                        super::super::scanovate::restore_settings(
+                            &Value::Object(realm.clone()),
+                            &mut reparsed,
+                        );
+                        reparsed
+                    }
                     Err(error) => {
                         self.warn(
                             "keycloak_event_realm",
@@ -397,8 +429,8 @@ impl Builder<'_> {
     /// Report each secret or deployment setting the preset needs and the realm
     /// does not hold.
     ///
-    /// A preset never writes one, so the only place it can come from is the
-    /// target realm itself: whoever deploys the event sets it in Keycloak.
+    /// A preset has no secret default. A supplied realm may carry the credential;
+    /// otherwise an administrator must configure it in the destination realm.
     fn warn_missing_secrets(&mut self, realm: &Map<String, Value>) {
         let Some(preset) = self.auth_preset else {
             return;
@@ -408,8 +440,8 @@ impl Builder<'_> {
             if !holds_config_value(realm, secret.config_alias, secret.key) {
                 warnings.push(format!(
                     "the '{}' preset needs '{}' on the realm's '{}' authenticator \
-                     config, and it is never written into a plan or a bundle. Set \
-                     it in Keycloak after the import.",
+                     config. Supply a whole realm with the real credential in the \
+                     Parameters sheet, or set it in Keycloak after import.",
                     preset.name, secret.key, secret.config_alias
                 ));
             }
