@@ -577,6 +577,10 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 file: {
+                    "shared-scanovate-config": {
+                        lead: "Scanovateren konfigurazio partekatua",
+                        text: "Scanovateren konfigurazio partekatua — Scanovate autentifikatzailearen konfigurazioa beste hornitzaile batekin partekatzen da. Eman Scanovateri bere konfigurazioa esportatu edo inportatu aurretik.",
+                    },
                     "cannot-decrypt": {
                         lead: "Ezin izan da deszifratu",
                         text: "Ezin izan da deszifratu — fitxategia zifratuta dago eta ez da ireki. Egiaztatu pasahitza.",
@@ -929,6 +933,12 @@ const basqueTranslation: TranslationType = {
                     "window-incomplete": {
                         lead: "Bozketa-leihoa osatu gabe",
                         text: "Bozketa-leihoa osatu gabe — aldia eskuz ireki edo itxi beharko da Administrazio Atarian.",
+                    },
+                },
+                scanovate: {
+                    "credentials-included": {
+                        lead: "Fitxategiek kredentzialak dituzte",
+                        text: "Fitxategiek kredentzialak dituzte — lan-liburuak eta eratorritako plan/inportazio fitxategiek realmean emandako kredentzialak dituzte, Scanovateren benetako sekretua barne. Mantendu fitxategi hauek pribatu eta zifratuta biltegiratzean eta transferitzean; partekatu zerbitzu hau konfiguratzeko baimena duten administratzaileekin soilik.",
                     },
                 },
                 signing: {

@@ -980,6 +980,35 @@ mod tests {
     }
 
     #[test]
+    fn preset_diagnostics_do_not_disclose_supplied_credentials() {
+        let secret = "synthetic-preset-credential";
+        let input = input(&[(SCANOVATE_LIVENESS_SECRET, secret)]);
+        let patch = RealmPatch {
+            patch: serde_json::from_value(json!({"authenticatorConfig": [{
+                "config": {"liveness-secret": secret}
+            }]}))
+            .unwrap(),
+            ..RealmPatch::default()
+        };
+        assert_eq!(input.get(SCANOVATE_LIVENESS_SECRET), Some(&json!(secret)));
+        assert_eq!(
+            patch.patch["authenticatorConfig"][0]["config"]["liveness-secret"],
+            secret
+        );
+        for diagnostic in [
+            format!("{input:?}"),
+            format!("{input:#?}"),
+            format!("{patch:?}"),
+            format!("{patch:#?}"),
+        ] {
+            assert!(!diagnostic.contains(secret));
+            assert!(!diagnostic.contains("liveness-secret"));
+        }
+        assert!(format!("{input:?}").contains("PresetInput"));
+        assert!(format!("{patch:?}").contains("RealmPatch"));
+    }
+
+    #[test]
     fn the_presets_are_listed_in_a_stable_order() {
         // A CLI's --help and an SPA's dropdown both read this.
         assert_eq!(

@@ -578,6 +578,10 @@ const catalanTranslation: TranslationType = {
                     },
                 },
                 file: {
+                    "shared-scanovate-config": {
+                        lead: "Configuració compartida de Scanovate",
+                        text: "Configuració compartida de Scanovate — una configuració de l’autenticador Scanovate es comparteix amb un altre proveïdor. Assigna a Scanovate una configuració pròpia abans d’exportar-la o importar-la.",
+                    },
                     "cannot-decrypt": {
                         lead: "No s'ha pogut desxifrar",
                         text: "No s'ha pogut desxifrar — el fitxer està xifrat i no s'ha obert. Comproveu la contrasenya.",
@@ -930,6 +934,12 @@ const catalanTranslation: TranslationType = {
                     "window-incomplete": {
                         lead: "Finestra de votació incompleta",
                         text: "Finestra de votació incompleta — caldrà obrir o tancar el període a mà al Portal d'Administració.",
+                    },
+                },
+                scanovate: {
+                    "credentials-included": {
+                        lead: "Fitxers amb credencials",
+                        text: "Fitxers amb credencials — el llibre i els fitxers de pla/importació derivats inclouen credencials proporcionades al realm, inclòs el secret real de Scanovate. Mantén aquests fitxers privats i xifrats durant l’emmagatzematge i la transferència; comparteix-los només amb administradors autoritzats per configurar aquest servei.",
                     },
                 },
                 signing: {

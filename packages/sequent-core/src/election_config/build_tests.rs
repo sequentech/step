@@ -4439,3 +4439,24 @@ fn explicit_scanovate_overrides_survive_the_preset_and_id_rewrite() {
         assert_eq!(&installed["config"][key], expected);
     }
 }
+
+#[test]
+fn build_options_debug_does_not_disclose_base_realm_credentials() {
+    let secret = "synthetic-build-options-credential";
+    let options = BuildOptions {
+        base_export: Some(json!({"keycloak_event_realm": {
+            "authenticatorConfig": [{"config": {"liveness-secret": secret}}]
+        }})),
+        ..BuildOptions::default()
+    };
+    assert_eq!(
+        options.base_export.as_ref().unwrap()["keycloak_event_realm"]
+            ["authenticatorConfig"][0]["config"]["liveness-secret"],
+        secret
+    );
+    for diagnostic in [format!("{options:?}"), format!("{options:#?}")] {
+        assert!(diagnostic.contains("BuildOptions"));
+        assert!(!diagnostic.contains(secret));
+        assert!(!diagnostic.contains("liveness-secret"));
+    }
+}

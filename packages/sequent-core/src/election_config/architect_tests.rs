@@ -7217,3 +7217,111 @@ fn exporting_a_workbook_refuses_masked_dotted_scanovate_config() {
         Some("file.masked-integration-secret")
     );
 }
+
+#[test]
+fn exporting_a_workbook_rejects_masked_base_or_explicit_whole_realms() {
+    for explicit in [false, true] {
+        let mut plan = sound();
+        let realm = serde_json::json!({"authenticatorConfig": [{
+            "alias": "custom", "config": {"liveness-secret": "synthetic-real"}
+        }]});
+        plan.base_export =
+            Some(serde_json::json!({"keycloak_event_realm": realm}));
+        if explicit {
+            plan.platform.push(
+                Sheet::from_grid(
+                    "Parameters",
+                    &[
+                        vec![Cell::text("key"), Cell::text("value")],
+                        vec![
+                            Cell::text("keycloak_event_realm"),
+                            Cell::text(realm.to_string()),
+                        ],
+                    ],
+                )
+                .unwrap(),
+            );
+        }
+        workbook_of(&plan).unwrap();
+        if explicit {
+            let value = &mut plan.platform[0].rows[0]
+                .cells
+                .iter_mut()
+                .find(|(key, _)| key == "value")
+                .unwrap()
+                .1;
+            value["authenticatorConfig"][0]["config"]["liveness-secret"] =
+                serde_json::json!("*****");
+        } else {
+            plan.base_export.as_mut().unwrap()["keycloak_event_realm"]
+                ["authenticatorConfig"][0]["config"]["liveness-secret"] =
+                serde_json::json!("*****");
+        }
+        let problem = workbook_of(&plan).unwrap_err();
+        assert_eq!(
+            problem.id.as_deref(),
+            Some("file.masked-integration-secret")
+        );
+    }
+}
+
+#[test]
+fn exporting_a_workbook_preserves_an_explicit_realm_source_event_id() {
+    let mut plan = sound();
+    plan.base_export = Some(serde_json::json!({
+        "keycloak_event_realm": {"realm": "source"},
+        "election_event": {"id": "base-event"}
+    }));
+    plan.platform.push(
+        Sheet::from_grid(
+            "Parameters",
+            &[
+                vec![Cell::text("key"), Cell::text("value")],
+                vec![
+                    Cell::text("keycloak_event_realm_source_event_id"),
+                    Cell::text("explicit-event"),
+                ],
+            ],
+        )
+        .unwrap(),
+    );
+    let workbook = workbook_of(&plan).unwrap();
+    let source_ids: Vec<_> = workbook
+        .rows(SHEET_PARAMETERS)
+        .iter()
+        .filter(|row| {
+            row.text("key") == Some("keycloak_event_realm_source_event_id")
+        })
+        .filter_map(|row| row.text("value"))
+        .collect();
+    assert_eq!(source_ids, vec!["explicit-event"]);
+}
+
+#[test]
+fn exporting_a_workbook_refuses_malformed_dotted_realm_paths() {
+    let mut plan = sound();
+    plan.platform.push(
+        Sheet::from_grid(
+            "Parameters",
+            &[
+                vec![Cell::text("key"), Cell::text("value")],
+                vec![
+                    Cell::text("keycloak_event_realm.realm"),
+                    Cell::text("source"),
+                ],
+            ],
+        )
+        .unwrap(),
+    );
+    workbook_of(&plan).unwrap();
+    plan.platform[0].rows[0]
+        .cells
+        .iter_mut()
+        .find(|(key, _)| key == "key")
+        .unwrap()
+        .1 = serde_json::json!("keycloak_event_realm.realm.");
+    let problem = workbook_of(&plan).unwrap_err();
+    assert_eq!(problem.code, Code::ConflictingColumns);
+    assert_eq!(problem.path, "realm.");
+    assert!(problem.message.contains("empty field"));
+}
