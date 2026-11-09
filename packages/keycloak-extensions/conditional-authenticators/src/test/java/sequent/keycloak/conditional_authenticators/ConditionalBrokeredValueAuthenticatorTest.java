@@ -110,6 +110,26 @@ class ConditionalBrokeredValueAuthenticatorTest {
   }
 
   @Test
+  void unresolvedUsernameCountsAsEmptyEvenIfTheFallbackMatches() throws IOException {
+    brokered(AbstractIdpAuthenticator.BROKERED_CONTEXT_NOTE, VOTER_ID);
+    String json = authSession.getAuthNote(AbstractIdpAuthenticator.BROKERED_CONTEXT_NOTE);
+    SerializedBrokeredIdentityContext identity =
+        JsonSerialization.readValue(json, SerializedBrokeredIdentityContext.class);
+    identity
+        .getContextData()
+        .put(
+            ConditionalBrokeredValueAuthenticator.USERNAME_UNRESOLVED_KEY,
+            SerializedBrokeredIdentityContext.ContextDataEntry.create(
+                String.class.getName(), "true"));
+    when(authSession.getAuthNote(AbstractIdpAuthenticator.BROKERED_CONTEXT_NOTE))
+        .thenReturn(JsonSerialization.writeValueAsString(identity));
+    usernameCheck(false);
+    assertFalse(condition.matchCondition(context));
+    usernameCheck(true);
+    assertTrue(condition.matchCondition(context));
+  }
+
+  @Test
   void regexMustMatchEntirely() {
     brokered(AbstractIdpAuthenticator.BROKERED_CONTEXT_NOTE, VOTER_ID + "@idp.example.org");
     usernameCheck(false);

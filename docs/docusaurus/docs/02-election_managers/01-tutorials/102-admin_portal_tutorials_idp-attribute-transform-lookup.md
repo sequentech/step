@@ -194,8 +194,9 @@ Check in the first broker login flow:
 | Deny access | Error message | `Your voter ID is not valid. Contact your identity provider.` |
 
 If the NameID has no `@`, the mapper leaves the username as the identity provider sent it, and the
-check rejects it because it doesn't match the regex. The username of an existing user never
-changes, so this check only belongs in the first broker login flow.
+check rejects the login because a username the mapper couldn't resolve counts as empty. The
+username of an existing user never changes, so this check only belongs in the first broker login
+flow.
 
 ## Example – SAML: Area from Region and Precinct
 
