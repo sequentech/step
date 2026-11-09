@@ -58,6 +58,9 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
 
   private static final String RESOLUTION_KEY_PREFIX = PROVIDER_ID + ".";
 
+  /** Read by the Condition - Brokered Value authenticator, in another module. */
+  static final String USERNAME_UNRESOLVED_KEY = "sequent.brokered-username-unresolved";
+
   private static final String EMAIL = "email";
   private static final String FIRST_NAME = "firstName";
   private static final String LAST_NAME = "lastName";
@@ -362,6 +365,9 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
     if (settings.target() == Target.USERNAME) {
       if (value != null) {
         context.setModelUsername(value);
+        context.getContextData().remove(USERNAME_UNRESOLVED_KEY);
+      } else {
+        context.getContextData().put(USERNAME_UNRESOLVED_KEY, Boolean.TRUE.toString());
       }
       return;
     }
