@@ -5,6 +5,7 @@
 package sequent.keycloak.idp_attribute_mapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -304,5 +305,65 @@ class AttributeLookupMapperTest {
     model.getConfig().put(MapperSettings.LOOKUP_TABLE, "area-3 = 09:0001");
     MapperSettings second = AttributeLookupMapper.settings(model);
     assertEquals("area-3", second.table().lookup("09:0001"));
+  }
+
+  @Test
+  void missClearsValueTheIdpSuppliedForTheTarget() {
+    IdentityProviderMapperModel email =
+        mapperModel(
+            MapperSettings.SOURCES, "a",
+            MapperSettings.LOOKUP_TABLE, TABLE,
+            MapperSettings.TARGET_ATTRIBUTE, "email");
+    BrokeredIdentityContext context = samlContext("id", "a", "nope");
+    context.setEmail("idp@example.org");
+    mapper.preprocessFederatedIdentity(session, realm, email, context);
+    assertNull(context.getEmail());
+
+    IdentityProviderMapperModel custom =
+        mapperModel(
+            MapperSettings.SOURCES, "a",
+            MapperSettings.LOOKUP_TABLE, TABLE,
+            MapperSettings.TARGET_ATTRIBUTE, "area");
+    context.setUserAttribute("area", "stale");
+    mapper.preprocessFederatedIdentity(session, realm, custom, context);
+    assertNull(context.getUserAttribute("area"));
+  }
+
+  @Test
+  void usernameMissKeepsTheBrokeredUsername() {
+    IdentityProviderMapperModel model =
+        mapperModel(
+            MapperSettings.SOURCES, "a",
+            MapperSettings.LOOKUP_TABLE, TABLE,
+            MapperSettings.TARGET, "USERNAME");
+    BrokeredIdentityContext context = samlContext("id", "a", "nope");
+    context.setModelUsername("fallback");
+    mapper.preprocessFederatedIdentity(session, realm, model, context);
+    assertEquals("fallback", context.getModelUsername());
+  }
+
+  @Test
+  void unsetClearsBuiltInPropertyOnUpdate() {
+    IdentityProviderMapperModel model =
+        mapperModel(
+            MapperSettings.SOURCES, "a",
+            MapperSettings.LOOKUP_TABLE, TABLE,
+            MapperSettings.TARGET_ATTRIBUTE, "email");
+    BrokeredIdentityContext context = samlContext("id", "a", "nope");
+    mapper.preprocessFederatedIdentity(session, realm, model, context);
+    UserModel user = mock(UserModel.class);
+    when(user.getEmail()).thenReturn("old@example.org");
+    mapper.updateBrokeredUser(session, realm, user, model, context);
+    verify(user).setEmail(null);
+  }
+
+  @Test
+  void settingsCacheEvictsTheLeastRecentlyUsedMapper() {
+    IdentityProviderMapperModel oldest = areaMapper("UNSET");
+    MapperSettings first = AttributeLookupMapper.settings(oldest);
+    for (int i = 0; i < AttributeLookupMapper.SETTINGS_CACHE_SIZE; i++) {
+      AttributeLookupMapper.settings(areaMapper("UNSET"));
+    }
+    assertNotSame(first, AttributeLookupMapper.settings(oldest));
   }
 }

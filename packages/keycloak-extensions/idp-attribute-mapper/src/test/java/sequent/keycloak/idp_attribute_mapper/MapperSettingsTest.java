@@ -163,4 +163,30 @@ class MapperSettingsTest {
                     MapperSettings.TARGET_ATTRIBUTE, "x",
                     MapperSettings.LOOKUP_TABLE, "garbage")));
   }
+
+  @Test
+  void blankExtractionIsAMiss() {
+    MapperSettings settings =
+        MapperSettings.parse(
+            config(
+                MapperSettings.SOURCES, "a",
+                MapperSettings.EXTRACT_REGEX, "^(.*?)@",
+                MapperSettings.TARGET_ATTRIBUTE, "x"));
+    Resolution miss = resolve(settings, Map.of("a", "@example.org"));
+    assertFalse(miss.isHit());
+    assertEquals(MissReason.EXTRACT_FAILED, miss.missReason());
+  }
+
+  @Test
+  void caseAppliesToTheSeparatorWhenLookingUp() {
+    MapperSettings settings =
+        MapperSettings.parse(
+            config(
+                MapperSettings.SOURCES, "a##b",
+                MapperSettings.SEPARATOR, "x",
+                MapperSettings.CASE, "UPPER",
+                MapperSettings.LOOKUP_TABLE, "area = abxcd",
+                MapperSettings.TARGET_ATTRIBUTE, "t"));
+    assertEquals("area", resolve(settings, Map.of("a", "ab", "b", "cd")).value());
+  }
 }

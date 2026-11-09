@@ -175,7 +175,7 @@ public final class MapperSettings {
           return Resolution.miss(MissReason.EXTRACT_FAILED, raw);
         }
         part = matcher.groupCount() >= 1 ? matcher.group(1) : matcher.group();
-        if (part == null) {
+        if (part == null || part.isBlank()) {
           return Resolution.miss(MissReason.EXTRACT_FAILED, raw);
         }
       }
@@ -188,7 +188,7 @@ public final class MapperSettings {
     if (table == null) {
       return Resolution.hit(input, input);
     }
-    String value = table.lookup(input);
+    String value = table.lookup(caseMode.apply(input));
     return value == null
         ? Resolution.miss(MissReason.NOT_IN_TABLE, input)
         : Resolution.hit(value, input);
