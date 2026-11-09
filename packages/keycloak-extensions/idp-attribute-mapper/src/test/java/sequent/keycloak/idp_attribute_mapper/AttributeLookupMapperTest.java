@@ -5,6 +5,7 @@
 package sequent.keycloak.idp_attribute_mapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -341,6 +342,22 @@ class AttributeLookupMapperTest {
     context.setModelUsername("fallback");
     mapper.preprocessFederatedIdentity(session, realm, model, context);
     assertEquals("fallback", context.getModelUsername());
+    assertEquals(
+        "true", context.getContextData().get(AttributeLookupMapper.USERNAME_UNRESOLVED_KEY));
+  }
+
+  @Test
+  void usernameHitClearsTheUnresolvedMarker() {
+    IdentityProviderMapperModel model =
+        mapperModel(
+            MapperSettings.SOURCES, MapperSettings.SOURCE_NAME_ID,
+            MapperSettings.EXTRACT_REGEX, "^([^@]+)@",
+            MapperSettings.TARGET, "USERNAME");
+    BrokeredIdentityContext context = samlContext("abc-123@example.org");
+    context.getContextData().put(AttributeLookupMapper.USERNAME_UNRESOLVED_KEY, "true");
+    mapper.preprocessFederatedIdentity(session, realm, model, context);
+    assertFalse(
+        context.getContextData().containsKey(AttributeLookupMapper.USERNAME_UNRESOLVED_KEY));
   }
 
   @Test

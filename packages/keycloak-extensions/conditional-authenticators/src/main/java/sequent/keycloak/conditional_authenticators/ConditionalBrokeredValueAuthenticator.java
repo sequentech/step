@@ -33,6 +33,9 @@ public class ConditionalBrokeredValueAuthenticator implements ConditionalAuthent
   public static final ConditionalBrokeredValueAuthenticator SINGLETON =
       new ConditionalBrokeredValueAuthenticator();
 
+  /** Set by the attribute lookup mapper when it could not resolve the username. */
+  static final String USERNAME_UNRESOLVED_KEY = "sequent.brokered-username-unresolved";
+
   private static final String EMAIL = "email";
   private static final String FIRST_NAME = "firstName";
   private static final String LAST_NAME = "lastName";
@@ -78,7 +81,10 @@ public class ConditionalBrokeredValueAuthenticator implements ConditionalAuthent
         brokeredIdentity(context.getAuthenticationSession());
     if (brokered != null) {
       return switch (target) {
-        case USERNAME -> brokered.getModelUsername();
+        case USERNAME ->
+            brokered.getContextData().containsKey(USERNAME_UNRESOLVED_KEY)
+                ? null
+                : brokered.getModelUsername();
         case USER_ATTRIBUTE -> brokeredAttribute(brokered, attribute);
       };
     }
