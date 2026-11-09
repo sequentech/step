@@ -2745,6 +2745,17 @@ pub async fn process_document(
         .await?;
     }
 
+    // Match normal event creation, after the archive has restored its system
+    // signing key and electoral log. Initializing earlier would either lack
+    // that key or append before the archived log is restored.
+    crate::services::monitoring::audit::initialize_new_event(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+    )
+    .await
+    .context("Failed to initialize the imported event's monitoring defaults")?;
+
     Ok(ImportedElectionEvent {
         notes,
         file_sha256,
