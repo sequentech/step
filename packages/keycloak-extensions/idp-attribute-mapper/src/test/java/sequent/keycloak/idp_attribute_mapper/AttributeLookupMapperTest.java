@@ -31,6 +31,7 @@ import org.keycloak.broker.saml.SAMLEndpoint;
 import org.keycloak.dom.saml.v2.assertion.AssertionType;
 import org.keycloak.dom.saml.v2.assertion.AttributeStatementType;
 import org.keycloak.dom.saml.v2.assertion.AttributeType;
+import org.keycloak.dom.saml.v2.assertion.EncryptedElementType;
 import org.keycloak.dom.saml.v2.assertion.NameIDType;
 import org.keycloak.dom.saml.v2.assertion.SubjectType;
 import org.keycloak.models.IdentityProviderMapperModel;
@@ -365,5 +366,17 @@ class AttributeLookupMapperTest {
       AttributeLookupMapper.settings(areaMapper("UNSET"));
     }
     assertNotSame(first, AttributeLookupMapper.settings(oldest));
+  }
+
+  @Test
+  void encryptedSamlAttributesAreSkipped() {
+    BrokeredIdentityContext context = samlContext("id", "region", "09");
+    AssertionType assertion =
+        (AssertionType) context.getContextData().get(SAMLEndpoint.SAML_ASSERTION);
+    AttributeStatementType statement = new AttributeStatementType();
+    statement.addAttribute(new AttributeStatementType.ASTChoiceType(new EncryptedElementType()));
+    assertion.addStatement(statement);
+    assertEquals("09", AttributeLookupMapper.sourceValue(context, "region"));
+    assertNull(AttributeLookupMapper.sourceValue(context, "missing"));
   }
 }
