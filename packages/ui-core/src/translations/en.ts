@@ -580,6 +580,10 @@ const englishTranslation = {
                     },
                 },
                 file: {
+                    "shared-scanovate-config": {
+                        lead: "Shared Scanovate configuration",
+                        text: "Shared Scanovate configuration — a Scanovate authenticator configuration is shared with another provider. Give Scanovate its own configuration before exporting or importing it.",
+                    },
                     "cannot-decrypt": {
                         lead: "Could not decrypt",
                         text: "Could not decrypt — the file is encrypted and did not open. Check the password.",
@@ -932,6 +936,12 @@ const englishTranslation = {
                     "window-incomplete": {
                         lead: "Voting window incomplete",
                         text: "Voting window incomplete — the period will have to be opened or closed by hand in the Admin Portal.",
+                    },
+                },
+                scanovate: {
+                    "credentials-included": {
+                        lead: "Files contain credentials",
+                        text: "Files contain credentials — the workbook and derived plan/import files include credentials supplied in the realm, including the real Scanovate secret. Keep these files private and encrypted in storage and transit; share them only with administrators authorized to configure this service.",
                     },
                 },
                 signing: {

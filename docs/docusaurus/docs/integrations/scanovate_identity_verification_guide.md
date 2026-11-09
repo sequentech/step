@@ -514,3 +514,38 @@ personal documents in shared environments:
   typeface (e.g. the free `ocrb10.otf` of the CTAN `ocr-b-outline` package),
   is read by the `passport` OCR type. Check digits must be valid, and MRZ text
   in other typefaces is misread.
+
+## Carrying a configuration through Excel
+
+Election Architect preserves the Scanovate settings supplied in an election
+export, including the real `liveness-secret`. First export the source event with
+**integration secrets included**, using an authorized account and an encrypted
+export. Architect does not connect to Keycloak to retrieve or recover a secret.
+A source containing an asterisk mask is refused. Re-export it with the real
+credential rather than treating a mask as a usable value.
+
+The Excel **Parameters** sheet carries `keycloak_event_realm` as a complete JSON
+realm, including all authenticator settings and unknown future fields. The
+`keycloak_event_realm_source_event_id` row records the original event identifier
+so platform URLs can be rebuilt even if the source realm has a custom name.
+Long realm values use adjacent `value+` continuation columns. Keep these columns
+in order: together they form one value. This also preserves strings such as
+leading-zero credentials, whitespace, UUIDs and JSON-looking values exactly.
+
+A supplied whole-realm parameter takes precedence over the plan's base realm.
+An explicitly selected authentication preset still applies its configured
+behavior. To override preset settings, use the existing
+`keycloak_event_realm.authenticatorConfig` parameter with the desired alias and
+settings JSON. Inputs containing masked credentials are rejected before workbook
+export or build, including standalone configuration patches; start from a valid
+unmasked source rather than using another row to repair a masked source.
+Scanovate must have its own authenticator configuration, not one shared with
+another provider. Its settings are kept byte-for-byte when structural platform
+identifiers are rewritten during build and import.
+
+**The workbook, saved plan and derived import files contain credentials.** The
+whole realm can also contain other credentials already present in the source;
+no other credentials are fetched or unmasked. Protect all of these files with
+encryption in storage and transit and restrict them to authorized administrators.
+A generated `.xlsx` is not automatically password-encrypted. Do not attach these
+files to tickets, commit them, or include their contents in logs.

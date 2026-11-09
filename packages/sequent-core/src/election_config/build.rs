@@ -152,6 +152,7 @@ pub const HANDLED_PARAMETERS: &[&str] = &[
     super::messaging_config::PARAMETER,
     realm::PARAM_LOGIN_CUSTOM_CSS,
     realm::PARAM_EVENT_REALM,
+    realm::PARAM_EVENT_REALM_SOURCE_ID,
 ];
 
 /// Fields of a base entity that describe *that* event rather than the platform's
@@ -217,7 +218,7 @@ const SCRUB_AREA: &[&str] = &[
 ];
 
 /// What a caller may vary about a build.
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct BuildOptions {
     /// The tenant id to write into the file.
     ///
@@ -382,7 +383,7 @@ impl ImageFile {
 }
 
 /// A built bundle: the JSON document and what was worth saying about it.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Bundle {
     pub slug: String,
     pub tenant_id: String,
@@ -598,6 +599,23 @@ impl<'a> Builder<'a> {
         // realm's URLs and that id comes from the base export.
         let realm = self.build_realm();
         let admin_realm_patch = self.admin_realm_patch();
+        // Validate the effective realm after explicit overrides; a standalone
+        // patch is checked too, before any artifact can carry a placeholder.
+        let credential_source = if realm.is_null() {
+            Value::Object(self.realm_patch.patch.clone())
+        } else {
+            realm.clone()
+        };
+        if let Err(problem) =
+            super::scanovate::validate_authoring(&credential_source)
+        {
+            self.report.push(problem);
+        }
+        if let Some(notice) =
+            super::scanovate::credential_notice(&credential_source)
+        {
+            self.report.push(notice);
+        }
 
         // **No keys ceremony, ever, from either path.**
         //
@@ -1859,4 +1877,18 @@ pub(crate) fn has_error_saying(report: &Report, needle: &str) -> bool {
     report
         .errors()
         .any(|problem| problem.message.contains(needle))
+}
+
+impl std::fmt::Debug for BuildOptions {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("BuildOptions")
+            .finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for Bundle {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("Bundle").finish_non_exhaustive()
+    }
 }

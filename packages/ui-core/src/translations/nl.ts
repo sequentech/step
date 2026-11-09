@@ -578,6 +578,10 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 file: {
+                    "shared-scanovate-config": {
+                        lead: "Gedeelde Scanovate-configuratie",
+                        text: "Gedeelde Scanovate-configuratie — een configuratie van de Scanovate-authenticator wordt gedeeld met een andere provider. Geef Scanovate een eigen configuratie voordat u deze exporteert of importeert.",
+                    },
                     "cannot-decrypt": {
                         lead: "Kon niet ontsleutelen",
                         text: "Kon niet ontsleutelen — het bestand is versleuteld en ging niet open. Controleer het wachtwoord.",
@@ -930,6 +934,12 @@ const dutchTranslation: TranslationType = {
                     "window-incomplete": {
                         lead: "Stemperiode onvolledig",
                         text: "Stemperiode onvolledig — de periode moet handmatig worden geopend of gesloten in het Beheerportaal.",
+                    },
+                },
+                scanovate: {
+                    "credentials-included": {
+                        lead: "Bestanden bevatten inloggegevens",
+                        text: "Bestanden bevatten inloggegevens — de werkmap en de afgeleide plan-/importbestanden bevatten inloggegevens uit de realm, inclusief het echte Scanovate-geheim. Houd deze bestanden privé en versleuteld tijdens opslag en overdracht; deel ze alleen met beheerders die deze dienst mogen configureren.",
                     },
                 },
                 signing: {

@@ -583,6 +583,10 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 file: {
+                    "shared-scanovate-config": {
+                        lead: "Configuration Scanovate partagée",
+                        text: "Configuration Scanovate partagée — une configuration de l’authentificateur Scanovate est partagée avec un autre fournisseur. Attribuez à Scanovate sa propre configuration avant de l’exporter ou de l’importer.",
+                    },
                     "cannot-decrypt": {
                         lead: "Déchiffrement impossible",
                         text: "Déchiffrement impossible — le fichier est chiffré et ne s'est pas ouvert. Vérifiez le mot de passe.",
@@ -935,6 +939,12 @@ const frenchTranslation: TranslationType = {
                     "window-incomplete": {
                         lead: "Période de vote incomplète",
                         text: "Période de vote incomplète — la période devra être ouverte ou fermée manuellement dans le Portail d'administration.",
+                    },
+                },
+                scanovate: {
+                    "credentials-included": {
+                        lead: "Fichiers contenant des identifiants",
+                        text: "Fichiers contenant des identifiants — le classeur et les fichiers de plan/importation dérivés contiennent les identifiants fournis dans le realm, y compris le véritable secret Scanovate. Gardez ces fichiers privés et chiffrés lors du stockage et du transfert ; partagez-les uniquement avec les administrateurs autorisés à configurer ce service.",
                     },
                 },
                 signing: {

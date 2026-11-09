@@ -135,10 +135,10 @@ pub struct Requirement {
     pub why: &'static str,
 }
 
-/// An authenticator config value a preset needs and must never write.
+/// An authenticator config value a preset needs but has no default for.
 ///
-/// Set in the target realm by whoever deploys it. The build reports a realm that
-/// lacks it, rather than carrying the secret through a plan or a bundle.
+/// Supplied explicitly in a realm or configured in Keycloak after import. A
+/// supplied real value is preserved through plans, workbooks and import bundles.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ConfigSecret {
     pub config_alias: &'static str,
@@ -161,7 +161,7 @@ pub struct DeploymentSetting {
 /// The two directives are separate fields rather than magic keys inside the patch
 /// — which is how the Python carried them — so that writing the patch out never
 /// has to strip them, and so a caller cannot forget to.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub struct RealmPatch {
     /// Merged into the realm, deeply.
     pub patch: Map<String, Value>,
@@ -178,7 +178,7 @@ pub struct RealmPatch {
 }
 
 /// The parameters a preset reads, as resolved from the source document.
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct PresetInput {
     values: Vec<(String, Value)>,
 }
@@ -980,6 +980,35 @@ mod tests {
     }
 
     #[test]
+    fn preset_diagnostics_do_not_disclose_supplied_credentials() {
+        let secret = "synthetic-preset-credential";
+        let input = input(&[(SCANOVATE_LIVENESS_SECRET, secret)]);
+        let patch = RealmPatch {
+            patch: serde_json::from_value(json!({"authenticatorConfig": [{
+                "config": {"liveness-secret": secret}
+            }]}))
+            .unwrap(),
+            ..RealmPatch::default()
+        };
+        assert_eq!(input.get(SCANOVATE_LIVENESS_SECRET), Some(&json!(secret)));
+        assert_eq!(
+            patch.patch["authenticatorConfig"][0]["config"]["liveness-secret"],
+            secret
+        );
+        for diagnostic in [
+            format!("{input:?}"),
+            format!("{input:#?}"),
+            format!("{patch:?}"),
+            format!("{patch:#?}"),
+        ] {
+            assert!(!diagnostic.contains(secret));
+            assert!(!diagnostic.contains("liveness-secret"));
+        }
+        assert!(format!("{input:?}").contains("PresetInput"));
+        assert!(format!("{patch:?}").contains("RealmPatch"));
+    }
+
+    #[test]
     fn the_presets_are_listed_in_a_stable_order() {
         // A CLI's --help and an SPA's dropdown both read this.
         assert_eq!(
@@ -1535,5 +1564,19 @@ mod tests {
                 );
             }
         }
+    }
+}
+
+impl std::fmt::Debug for RealmPatch {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("RealmPatch").finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for PresetInput {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PresetInput")
+            .finish_non_exhaustive()
     }
 }

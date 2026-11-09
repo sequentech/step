@@ -7149,3 +7149,179 @@ fn voter_restriction_review_rejects_malformed_plan_lists_without_broadening() {
         assert_eq!(problem.code, Code::InvalidValue);
     }
 }
+
+#[test]
+fn excel_realm_carriage_respects_explicit_parameters_and_build_base() {
+    let mut plan = sound();
+    let original = serde_json::json!({"realm": "original", "enabled": true});
+    let replacement =
+        serde_json::json!({"realm": "replacement", "enabled": false});
+    plan.base_export =
+        Some(serde_json::json!({"keycloak_event_realm": original,
+        "election_event": {"id": "original-event-id"}}));
+    // A blank placeholder is not an override: the builder ignores it too.
+    plan.platform.push(
+        Sheet::from_grid(
+            "Parameters",
+            &[
+                vec![Cell::text("key"), Cell::text("value")],
+                vec![Cell::text("keycloak_event_realm"), Cell::Blank],
+            ],
+        )
+        .unwrap(),
+    );
+    let workbook = workbook_of(&plan).unwrap();
+    let values: Vec<_> = workbook
+        .rows(SHEET_PARAMETERS)
+        .iter()
+        .filter(|row| row.text("key") == Some("keycloak_event_realm"))
+        .filter_map(|row| row.get("value"))
+        .collect();
+    assert_eq!(values, vec![&original]);
+
+    let selected = serde_json::json!({"keycloak_event_realm": replacement});
+    let workbook =
+        to_workbook_with_base(&plan, &sources_of(&plan), Some(&selected))
+            .unwrap();
+    assert!(workbook
+        .rows(SHEET_PARAMETERS)
+        .iter()
+        .any(|row| row.text("key") == Some("keycloak_event_realm")
+            && row.get("value") == Some(&replacement)));
+    plan.platform[0].rows[0]
+        .cells
+        .push(("value".to_string(), original.clone()));
+    let workbook =
+        to_workbook_with_base(&plan, &sources_of(&plan), Some(&selected))
+            .unwrap();
+    let values: Vec<_> = workbook
+        .rows(SHEET_PARAMETERS)
+        .iter()
+        .filter(|row| row.text("key") == Some("keycloak_event_realm"))
+        .filter_map(|row| row.get("value"))
+        .collect();
+    assert_eq!(values, vec![&original]);
+}
+
+#[test]
+fn exporting_a_workbook_refuses_masked_dotted_scanovate_config() {
+    let mut plan = sound();
+    plan.platform.push(Sheet::from_grid("Parameters", &[
+        vec![Cell::text("key"), Cell::text("value")],
+        vec![Cell::text("keycloak_event_realm.authenticatorConfig"),
+            Cell::text(r#"[{"alias":"custom","config":{"liveness-secret":"*****"}}]"#)],
+    ]).unwrap());
+    let problem = workbook_of(&plan).unwrap_err();
+    assert_eq!(
+        problem.id.as_deref(),
+        Some("file.masked-integration-secret")
+    );
+}
+
+#[test]
+fn exporting_a_workbook_rejects_masked_base_or_explicit_whole_realms() {
+    for explicit in [false, true] {
+        let mut plan = sound();
+        let realm = serde_json::json!({"authenticatorConfig": [{
+            "alias": "custom", "config": {"liveness-secret": "synthetic-real"}
+        }]});
+        plan.base_export =
+            Some(serde_json::json!({"keycloak_event_realm": realm}));
+        if explicit {
+            plan.platform.push(
+                Sheet::from_grid(
+                    "Parameters",
+                    &[
+                        vec![Cell::text("key"), Cell::text("value")],
+                        vec![
+                            Cell::text("keycloak_event_realm"),
+                            Cell::text(realm.to_string()),
+                        ],
+                    ],
+                )
+                .unwrap(),
+            );
+        }
+        workbook_of(&plan).unwrap();
+        if explicit {
+            let value = &mut plan.platform[0].rows[0]
+                .cells
+                .iter_mut()
+                .find(|(key, _)| key == "value")
+                .unwrap()
+                .1;
+            value["authenticatorConfig"][0]["config"]["liveness-secret"] =
+                serde_json::json!("*****");
+        } else {
+            plan.base_export.as_mut().unwrap()["keycloak_event_realm"]
+                ["authenticatorConfig"][0]["config"]["liveness-secret"] =
+                serde_json::json!("*****");
+        }
+        let problem = workbook_of(&plan).unwrap_err();
+        assert_eq!(
+            problem.id.as_deref(),
+            Some("file.masked-integration-secret")
+        );
+    }
+}
+
+#[test]
+fn exporting_a_workbook_preserves_an_explicit_realm_source_event_id() {
+    let mut plan = sound();
+    plan.base_export = Some(serde_json::json!({
+        "keycloak_event_realm": {"realm": "source"},
+        "election_event": {"id": "base-event"}
+    }));
+    plan.platform.push(
+        Sheet::from_grid(
+            "Parameters",
+            &[
+                vec![Cell::text("key"), Cell::text("value")],
+                vec![
+                    Cell::text("keycloak_event_realm_source_event_id"),
+                    Cell::text("explicit-event"),
+                ],
+            ],
+        )
+        .unwrap(),
+    );
+    let workbook = workbook_of(&plan).unwrap();
+    let source_ids: Vec<_> = workbook
+        .rows(SHEET_PARAMETERS)
+        .iter()
+        .filter(|row| {
+            row.text("key") == Some("keycloak_event_realm_source_event_id")
+        })
+        .filter_map(|row| row.text("value"))
+        .collect();
+    assert_eq!(source_ids, vec!["explicit-event"]);
+}
+
+#[test]
+fn exporting_a_workbook_refuses_malformed_dotted_realm_paths() {
+    let mut plan = sound();
+    plan.platform.push(
+        Sheet::from_grid(
+            "Parameters",
+            &[
+                vec![Cell::text("key"), Cell::text("value")],
+                vec![
+                    Cell::text("keycloak_event_realm.realm"),
+                    Cell::text("source"),
+                ],
+            ],
+        )
+        .unwrap(),
+    );
+    workbook_of(&plan).unwrap();
+    plan.platform[0].rows[0]
+        .cells
+        .iter_mut()
+        .find(|(key, _)| key == "key")
+        .unwrap()
+        .1 = serde_json::json!("keycloak_event_realm.realm.");
+    let problem = workbook_of(&plan).unwrap_err();
+    assert_eq!(problem.code, Code::ConflictingColumns);
+    assert_eq!(problem.path, "realm.");
+    assert!(problem.message.contains("empty field"));
+}

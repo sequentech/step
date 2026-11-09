@@ -461,7 +461,7 @@ impl VotingChannelSet {
 /// has no field for (the trustee threshold, the ceremony dates, the points of
 /// contact) and breaks whenever the bundle's shape changes. Saving the plan is both
 /// simpler and lossless.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct Blueprint {
     /// [`BLUEPRINT_VERSION`] at the time it was saved.
     pub version: u32,
@@ -3246,6 +3246,14 @@ pub fn to_workbook(
     plan: &Blueprint,
     sources: &Sources,
 ) -> Result<Workbook, Problem> {
+    to_workbook_with_base(plan, sources, plan.base_export.as_ref())
+}
+
+fn to_workbook_with_base(
+    plan: &Blueprint,
+    sources: &Sources,
+    base_export: Option<&serde_json::Value>,
+) -> Result<Workbook, Problem> {
     if let Some(problem) = election_identifier_problem(plan) {
         return Err(problem);
     }
@@ -3294,7 +3302,7 @@ pub fn to_workbook(
     // its own — see `parameters_sheet`. Emitted before the carried sheets and
     // excluded from them below, because a plan opened from a workbook already has
     // that sheet and `Workbook::new` refuses a duplicate key.
-    let parameters = match parameters_sheet(plan) {
+    let parameters = match parameters_sheet(plan, base_export) {
         Some(Ok(sheet)) => Some(sheet),
         Some(Err(why)) => return Err(why),
         None => None,
@@ -4626,7 +4634,8 @@ fn reports_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
     Some(Ok(merged))
 }
 
-/// The parameters sheet the plan carries, with the sign-in wording added to it.
+/// The parameters sheet, with the supplied base realm and sign-in wording.
+/// A carried whole-realm parameter is explicit and wins over the base realm.
 ///
 /// Two shapes to reconcile: a plan opened from a workbook brings that workbook's
 /// own `parameters` sheet through `platform`, and a plan authored in the wizard has
@@ -4637,17 +4646,86 @@ fn reports_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
 /// The carried sheet's own columns are kept. Its rows are `key`/`value`/`type`, so
 /// the added rows are laid out to match by position, and a sheet whose columns are
 /// in another order is left alone with the wording appended by header name.
-fn parameters_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
-    let rows = keycloak_message_rows(plan);
-    if rows.is_empty() {
-        return None;
-    }
-
-    // The sheet a plan opened from a workbook brought with it, if any.
+fn parameters_sheet(
+    plan: &Blueprint,
+    base_export: Option<&serde_json::Value>,
+) -> Option<Result<Sheet, Problem>> {
+    let mut rows = keycloak_message_rows(plan);
     let carried = plan
         .platform
         .iter()
         .find(|sheet| sheet.key == SHEET_PARAMETERS);
+    let realm_key = "keycloak_event_realm";
+    let explicit =
+        carried
+            .into_iter()
+            .flat_map(|sheet| &sheet.rows)
+            .find(|row| {
+                row.get("value").is_some()
+                    && row
+                        .text("key")
+                        .is_some_and(|key| key.trim() == realm_key)
+            });
+    let realm = match explicit {
+        Some(row) => row.get("value"),
+        None => base_export.and_then(|base| base.get(realm_key)),
+    };
+    if let Some(realm) = realm {
+        if let Err(problem) = super::scanovate::validate_authoring(realm) {
+            return Some(Err(problem));
+        }
+        if explicit.is_none() && realm.is_object() {
+            // The existing whole-realm parameter also carries unknown settings.
+            // XLSX continuation columns preserve realms larger than one cell.
+            rows.push((realm_key.to_string(), realm.to_string()));
+            let source_key = "keycloak_event_realm_source_event_id";
+            let has_source = carried
+                .into_iter()
+                .flat_map(|sheet| &sheet.rows)
+                .any(|row| {
+                    row.get("value").is_some()
+                        && row
+                            .text("key")
+                            .is_some_and(|key| key.trim() == source_key)
+                });
+            if !has_source {
+                if let Some(id) = base_export
+                    .and_then(|base| base.get("election_event"))
+                    .and_then(|event| event.get("id"))
+                    .and_then(serde_json::Value::as_str)
+                {
+                    rows.push((source_key.to_string(), id.to_string()));
+                }
+            }
+        }
+    }
+    // Dotted configuration overrides and standalone patches are inputs too.
+    // Validate them before producing a workbook, not just when building it.
+    let mut patch = serde_json::Map::new();
+    for row in carried.into_iter().flat_map(|sheet| &sheet.rows) {
+        if let (Some(path), Some(value)) = (
+            row.text("key").and_then(|key| {
+                key.trim().strip_prefix("keycloak_event_realm.")
+            }),
+            row.get("value"),
+        ) {
+            if let Err(problem) = super::paths::set_path(
+                &mut patch,
+                &super::paths::split_path(path),
+                value.clone(),
+            ) {
+                return Some(Err(problem));
+            }
+        }
+    }
+    if let Err(problem) =
+        super::scanovate::validate_authoring(&serde_json::Value::Object(patch))
+    {
+        return Some(Err(problem));
+    }
+    if rows.is_empty() {
+        return None;
+    }
 
     let Some(carried) = carried else {
         return Some(sheet_of(
@@ -4682,7 +4760,7 @@ fn parameters_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
             Code::MissingField,
             "keycloak_messages",
             "the workbook this plan came from has a Parameters sheet without \
-             `key` and `value` columns, so the sign-in page's wording has \
+             `key` and `value` columns, so the realm settings and sign-in wording have \
              nowhere to go. Remove that sheet or give it those columns.",
         )));
     };
@@ -4690,13 +4768,18 @@ fn parameters_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
     let mut number =
         merged.rows.iter().map(|row| row.number).max().unwrap_or(1);
     for (key, value) in rows {
+        let value = if key == realm_key {
+            super::paths::coerce_scalar(&value)
+        } else {
+            serde_json::Value::String(value)
+        };
         number += 1;
         merged.rows.push(Row {
             sheet: merged.name.clone(),
             number,
             cells: vec![
                 (key_header.clone(), serde_json::Value::String(key)),
-                (value_header.clone(), serde_json::Value::String(value)),
+                (value_header.clone(), value),
             ],
         });
     }
@@ -5173,7 +5256,12 @@ pub fn compile_plan(request: Compile<'_>) -> Result<Compiled, Report> {
         return Err(report);
     }
 
-    let workbook = to_workbook(plan, sources).map_err(|problem| {
+    let workbook = to_workbook_with_base(
+        plan,
+        sources,
+        options.base_export.as_ref().or(plan.base_export.as_ref()),
+    )
+    .map_err(|problem| {
         let mut failed = Report::default();
         failed.push(problem);
         failed
@@ -5287,3 +5375,9 @@ pub fn compile_plan(request: Compile<'_>) -> Result<Compiled, Report> {
 #[cfg(test)]
 #[path = "architect_tests.rs"]
 mod architect_tests;
+
+impl std::fmt::Debug for Blueprint {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("Blueprint").finish_non_exhaustive()
+    }
+}

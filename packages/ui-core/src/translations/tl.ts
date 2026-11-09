@@ -579,6 +579,10 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 file: {
+                    "shared-scanovate-config": {
+                        lead: "Pinagsasaluhang configuration ng Scanovate",
+                        text: "Pinagsasaluhang configuration ng Scanovate — ang configuration ng Scanovate authenticator ay ginagamit din ng ibang provider. Bigyan ang Scanovate ng sarili nitong configuration bago ito i-export o i-import.",
+                    },
                     "cannot-decrypt": {
                         lead: "Hindi ma-decrypt",
                         text: "Hindi ma-decrypt — naka-encrypt ang file at hindi ito nabuksan. Tingnan ang password.",
@@ -934,6 +938,12 @@ const tagalogTranslation: TranslationType = {
                     "window-incomplete": {
                         lead: "Kulang ang panahon ng botohan",
                         text: "Kulang ang panahon ng botohan — kailangang manu-manong buksan o isara ang panahon sa Admin Portal.",
+                    },
+                },
+                scanovate: {
+                    "credentials-included": {
+                        lead: "May mga kredensyal ang mga file",
+                        text: "May mga kredensyal ang mga file — ang workbook at mga hinangong plan/import file ay may mga kredensyal na ibinigay sa realm, kabilang ang tunay na secret ng Scanovate. Panatilihing pribado at naka-encrypt ang mga file na ito habang nakaimbak at inililipat; ibahagi lamang sa mga administrator na awtorisadong mag-configure ng serbisyong ito.",
                     },
                 },
                 signing: {
