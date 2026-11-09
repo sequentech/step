@@ -20,7 +20,7 @@ jobs:
       RUSTFLAGS: "-C target-feature=-crt-static -lgcc_eh -lm"
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install protoc and OpenSSL dependencies on Linux
         if: runner.os == 'Linux'
@@ -36,7 +36,7 @@ jobs:
           targets: x86_64-unknown-linux-musl
 
       - name: Cache Cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -46,7 +46,7 @@ jobs:
             ${{ runner.os }}-cargo-registry-
 
       - name: Cache Cargo build
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: packages/step-cli/rust-local-target
           key: ${{ runner.os }}-cargo-build-${{ hashFiles('packages/step-cli/Cargo.lock') }}
@@ -73,7 +73,7 @@ jobs:
         run: ls -lR rust-local-target/x86_64-unknown-linux-musl/release
 
       - name: Upload CLI binary artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
               name: step-cli-binary
               path: packages/step-cli/rust-local-target/x86_64-unknown-linux-musl/release/seq
