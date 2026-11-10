@@ -151,7 +151,7 @@ public class AttributeLookupMapper extends AbstractIdentityProviderMapper {
             "On miss",
             "What to do when a source is missing, extraction fails, or the table has no row. UNSET"
                 + " leaves the target without a value (and removes it on update). DEFAULT stores the"
-                + " default value.",
+                + " default value, and can't be used with target USERNAME.",
             ProviderConfigProperty.LIST_TYPE,
             MissPolicy.UNSET.name(),
             names(MissPolicy.values())),
