@@ -22,6 +22,7 @@ use crate::types::documents::ETallyDocuments;
 use ::keycloak::types::{
     ComponentExportRepresentation, Composites, GroupRepresentation,
     IdentityProviderMapperRepresentation, ProtocolMapperRepresentation, RealmRepresentation,
+    RoleRepresentation,
 };
 use anyhow::{anyhow, Context, Result};
 use chrono::format;
@@ -313,6 +314,56 @@ fn record_foreign_composites(
     }
 }
 
+/// The realm and client role names a realm defines.
+struct DefinedRoles {
+    realm: HashSet<String>,
+    client: HashMap<String, HashSet<String>>,
+}
+
+impl DefinedRoles {
+    fn of(realm: &RealmRepresentation) -> Self {
+        let names = |roles: &Vec<RoleRepresentation>| -> HashSet<String> {
+            roles.iter().filter_map(|role| role.name.clone()).collect()
+        };
+        let roles = realm.roles.as_ref();
+        DefinedRoles {
+            realm: roles
+                .and_then(|roles| roles.realm.as_ref())
+                .map(names)
+                .unwrap_or_default(),
+            client: roles
+                .and_then(|roles| roles.client.as_ref())
+                .map(|clients| {
+                    clients
+                        .iter()
+                        .map(|(client_id, roles)| (client_id.clone(), names(roles)))
+                        .collect()
+                })
+                .unwrap_or_default(),
+        }
+    }
+
+    /// Keeps the members of `composites` that the realm defines. Keycloak
+    /// refuses a realm whose role composes a role it doesn't define, which a
+    /// template from a newer Keycloak would otherwise cause: an export from
+    /// before Keycloak 26.7 has no organization roles for `realm-admin`.
+    fn retain_defined(&self, composites: Option<Composites>) -> Option<Composites> {
+        composites.map(|mut composites| {
+            if let Some(names) = composites.realm.as_mut() {
+                names.retain(|name| self.realm.contains(name));
+            }
+            if let Some(clients) = composites.client.as_mut() {
+                clients.retain(|client_id, names| {
+                    let defined = self.client.get(client_id);
+                    names.retain(|name| defined.is_some_and(|defined| defined.contains(name)));
+                    !names.is_empty()
+                });
+            }
+            composites
+        })
+    }
+}
+
 /// Client-role assignments of a user or group, keyed by client id.
 type ClientRoleAssignments = HashMap<String, Vec<String>>;
 
@@ -509,6 +560,8 @@ fn sanitize_imported_event_realm(
         template_composites.insert(name, composites);
     }
 
+    let defined_roles = DefinedRoles::of(&realm);
+
     // 1. Realm roles: keep only the template's roles and the default composite.
     if let Some(roles) = realm.roles.as_mut() {
         if let Some(realm_roles) = roles.realm.as_mut() {
@@ -529,7 +582,7 @@ fn sanitize_imported_event_realm(
                     &name,
                     &mut discarded,
                 );
-                role.composites = composites;
+                role.composites = defined_roles.retain_defined(composites);
             }
         }
     }
@@ -544,7 +597,7 @@ fn sanitize_imported_event_realm(
             &name,
             &mut discarded,
         );
-        default_role.composites = composites;
+        default_role.composites = defined_roles.retain_defined(composites);
     }
 
     // 3. Client role composites: an allowed role could otherwise inherit
@@ -575,7 +628,7 @@ fn sanitize_imported_event_realm(
                     &format!("{client_id}/{name}"),
                     &mut discarded,
                 );
-                role.composites = composites;
+                role.composites = defined_roles.retain_defined(composites);
             }
         }
     }
@@ -2576,6 +2629,98 @@ mod imported_realm_sanitization_tests {
             .filter_map(|mapper| mapper.name.as_deref())
             .collect();
         assert_eq!(names, vec!["email"]);
+    }
+
+    /// Composite members that name a role the realm does not define, which
+    /// Keycloak refuses when it creates the realm.
+    fn undefined_composite_members(realm: &RealmRepresentation) -> Vec<String> {
+        let realm_roles = realm_role_names(realm);
+        let client_roles: HashMap<String, HashSet<String>> = realm
+            .roles
+            .iter()
+            .flat_map(|roles| roles.client.iter().flatten())
+            .map(|(client_id, roles)| {
+                let names = roles.iter().filter_map(|role| role.name.clone()).collect();
+                (client_id.clone(), names)
+            })
+            .collect();
+        let roles = realm.roles.iter().flat_map(|roles| {
+            roles
+                .realm
+                .iter()
+                .flatten()
+                .chain(roles.client.iter().flatten().flat_map(|(_, roles)| roles))
+        });
+        let mut undefined = Vec::new();
+        for composites in roles.filter_map(|role| role.composites.as_ref()) {
+            for name in composites.realm.iter().flatten() {
+                if !realm_roles.contains(name) {
+                    undefined.push(name.clone());
+                }
+            }
+            for (client_id, names) in composites.client.iter().flatten() {
+                for name in names {
+                    if !client_roles
+                        .get(client_id)
+                        .is_some_and(|defined| defined.contains(name))
+                    {
+                        undefined.push(format!("{client_id}/{name}"));
+                    }
+                }
+            }
+        }
+        undefined
+    }
+
+    #[test]
+    fn aligning_keeps_only_the_composites_the_upload_defines() {
+        // An export from an older Keycloak can lack roles that the template's
+        // realm-admin composes.
+        let missing_roles = ["manage-events"];
+        let mut realm = template_realm();
+        let realm_management = realm
+            .roles
+            .as_mut()
+            .and_then(|roles| roles.client.as_mut())
+            .and_then(|clients| clients.get_mut(REALM_ADMIN_CLIENT))
+            .expect("template defines realm-management roles");
+        realm_management.retain(|role| {
+            !role
+                .name
+                .as_deref()
+                .is_some_and(|name| missing_roles.contains(&name))
+        });
+        for role in realm_management.iter_mut() {
+            if let Some(names) = role
+                .composites
+                .as_mut()
+                .and_then(|composites| composites.client.as_mut())
+                .and_then(|clients| clients.get_mut(REALM_ADMIN_CLIENT))
+            {
+                names.retain(|name| !missing_roles.contains(&name.as_str()));
+            }
+        }
+        assert!(undefined_composite_members(&realm).is_empty());
+
+        let sanitized = sanitize(&realm);
+
+        assert_eq!(
+            undefined_composite_members(&sanitized),
+            Vec::<String>::new()
+        );
+        let realm_admin_members = sanitized
+            .roles
+            .iter()
+            .flat_map(|roles| roles.client.iter().flatten())
+            .filter(|(client_id, _)| client_id.as_str() == REALM_ADMIN_CLIENT)
+            .flat_map(|(_, roles)| roles)
+            .find(|role| role.name.as_deref() == Some(REALM_ADMIN_ROLE))
+            .and_then(|role| role.composites.as_ref())
+            .and_then(|composites| composites.client.as_ref())
+            .and_then(|clients| clients.get(REALM_ADMIN_CLIENT))
+            .cloned()
+            .unwrap_or_default();
+        assert!(realm_admin_members.contains(&"manage-users".to_string()));
     }
 }
 
